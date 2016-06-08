@@ -1,5 +1,7 @@
 dist/
 tmp
 tmp.*
+vct-tool.jar
+
 *~
 

@@ -141,9 +141,24 @@ public class Configuration {
     if (tmp==null){
       ClassLoader loader=Configuration.class.getClassLoader();
       URL url=loader.getResource("vct/util/Configuration.class");
-      File f=new File(url.getFile());
+      File f=null;
       Debug("origin is %s", f);
-      for(int i=0;i<5;i++) f=f.getParentFile();
+      switch(url.getProtocol()){
+      case "file":
+        f=new File(url.getFile());
+        for(int i=0;i<5;i++) f=f.getParentFile();
+      case "jar":
+        tmp=url.getFile();
+        if (tmp.startsWith("file:")) tmp=tmp.substring(5); else break;
+        int idx=tmp.indexOf("!");
+        if (idx<0) break;
+        tmp=tmp.substring(0,idx);
+        f=new File(tmp);
+        f=f.getParentFile();
+      }
+      if (f==null){
+        throw new Error("Could not deduce VCT_HOME");
+      }
       Debug("home is %s", f);
       tmp=f.toString();
       // Remove the file: prefix that shows up while executing under ant.

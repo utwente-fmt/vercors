@@ -29,6 +29,28 @@
     </delete>
   </target>
   
+  <target name="assembly">
+  	<jar destfile="vct-tool.jar" >
+      <manifest>
+        <attribute name="Main-Class" value="vct.main.Main"/>
+        <attribute name="Built-By" value="${user.name}"/>
+      </manifest>
+		  <fileset dir="hre/bin">
+		  	<include name="**" />
+		  </fileset>
+		  <fileset dir="core/bin">
+		  	<include name="**" />
+		  </fileset>
+		  <fileset dir="main/bin">
+		  	<include name="**" />
+		  </fileset>
+		  <fileset dir="viper/viper-api/bin">
+		  	<include name="**" />
+		  </fileset>
+		  <zipfileset src="core/libs/antlr-4.5-complete.jar" excludes="META-INF/*" />
+		</jar>
+  </target>
+  
   <target name="jar">
     <ant antfile="build.xml" dir="${basedir}/viper/viper-api" inheritAll="false"/>
     <exec dir="${basedir}/viper/silver" executable="${sbtcommand}"> <arg value="compile" /> </exec>
