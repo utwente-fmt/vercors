@@ -1,5 +1,16 @@
-//:: IgnoreFile(/Silver/issue/90/)
 method test(k: Perm)
 {
-  fresh k
+    //:: ExpectedOutput(typechecker.error)
+    fresh k
+}
+
+method foo(b: Int) returns (r: Int) {
+    //:: ExpectedOutput(typechecker.error)
+    b := foo(0)
+}
+
+method bar(r: Ref)
+{
+    //:: ExpectedOutput(typechecker.error)
+    r := new(*)
 }

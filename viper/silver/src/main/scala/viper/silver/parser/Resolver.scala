@@ -219,11 +219,11 @@ case class TypeChecker(names: NameAnalyser) {
           case _ =>
             messages ++= FastMessaging.message(stmt, "expected a method")
         }
-      case PLabel(name) =>
-      // nothing to check
+      case PLabel(name, invs) =>
+        invs foreach (check(_, Bool))
       case PGoto(label) =>
         names.definition(curMember)(label) match {
-          case PLabel(_) =>
+          case PLabel(_, _) =>
           case _ =>
             messages ++= FastMessaging.message(stmt, "expected a label")
         }
@@ -619,7 +619,7 @@ case class TypeChecker(names: NameAnalyser) {
                 po match {
                   case PLabelledOld(lbl, _) =>
                     names.definition(curMember)(lbl) match {
-                      case PLabel(_) => ()
+                      case PLabel(_, _) => ()
                       case _ => messages ++= FastMessaging.message(po, "expected state label")
                     }
                   case _ => ()

@@ -67,7 +67,7 @@ object Nodes {
           case Seqn(ss) => ss
           case While(cond, invs, locals, body) => Seq(cond) ++ invs ++ locals ++ Seq(body)
           case If(cond, thn, els) => Seq(cond, thn, els)
-          case Label(name) => Nil
+          case Label(name, invs) => invs
           case Goto(target) => Nil
           case Fresh(vars) => vars
           case Constraining(vars, body) => vars ++ Seq(body)

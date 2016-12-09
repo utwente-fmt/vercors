@@ -587,7 +587,7 @@ object FastParser extends PosParser{
 
   lazy val goto: P[PGoto] = P("goto" ~/ idnuse).map(PGoto)
 
-  lazy val lbl: P[PLabel] = P(keyword("label") ~/ idndef).map(PLabel)
+  lazy val lbl: P[PLabel] = P(keyword("label") ~/ idndef ~ (keyword("invariant") ~/ exp).rep ).map{ case (name, invs) => PLabel(name, invs)}
 
   lazy val packageWand: P[PPackageWand] = P("package" ~/ magicWandExp).map(PPackageWand)
 

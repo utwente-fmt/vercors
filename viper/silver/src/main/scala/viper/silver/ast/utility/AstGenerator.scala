@@ -160,7 +160,7 @@ object AstGenerator {
           List(translatedConstraining)
       }
       if (labels contains block) {
-        Label(labels(block))() :: translated
+        Label(labels(block), Seq())() :: translated
       } else {
         translated
       }
