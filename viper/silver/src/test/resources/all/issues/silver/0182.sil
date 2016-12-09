@@ -1,0 +1,27 @@
+field f: Int
+
+method m(a: Ref)
+{
+    var i: Int
+    label asd invariant a.f <= i invariant i <= a.f
+    i := 34
+    label asd3 invariant true
+    m(a)
+    label asd2
+}
+
+method n(a: Ref)
+{
+    var i: Int
+    //:: ExpectedOutput(typechecker.error)
+    label asd invariant a == i
+}
+
+define M(r) r.f
+
+method o(a: Ref)
+{
+    label asd invariant M(a) != 1
+    //:: ExpectedOutput(typechecker.error)
+    label asdasd invariant M(a) != a
+}

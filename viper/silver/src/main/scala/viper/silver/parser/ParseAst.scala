@@ -923,7 +923,7 @@ case class PFresh(vars: Seq[PIdnUse]) extends PStmt
 case class PConstraining(vars: Seq[PIdnUse], stmt: PStmt) extends PStmt
 case class PLocalVarDecl(idndef: PIdnDef, typ: PType, init: Option[PExp]) extends PStmt with PTypedDeclaration with PLocalDeclaration
 case class PMethodCall(targets: Seq[PIdnUse], method: PIdnUse, args: Seq[PExp]) extends PStmt
-case class PLabel(idndef: PIdnDef) extends PStmt with PLocalDeclaration
+case class PLabel(idndef: PIdnDef, invs: Seq[PExp]) extends PStmt with PLocalDeclaration
 case class PGoto(targets: PIdnUse) extends PStmt
 case class PTypeVarDecl(idndef: PIdnDef) extends PLocalDeclaration
 case class PMacroRef(idnuse : PIdnUse) extends PStmt
@@ -1036,6 +1036,7 @@ object Nodes {
       case PApplyingGhostOp(wand, in) => Seq(wand, in)
       case PPackagingGhostOp(wand, in) => Seq(wand, in)
       case PExists(vars, exp) => vars ++ Seq(exp)
+      case PLabelledOld(id, e) => Seq(id, e)
       case po: POldExp => Seq(po.e)
       case PLet(exp, nestedScope) => Seq(exp, nestedScope)
       case PLetNestedScope(variable, body) => Seq(variable, body)
@@ -1073,7 +1074,7 @@ object Nodes {
       case PInhale(exp) => Seq(exp)
       case PNewStmt(target, fields) => Seq(target) ++ fields.getOrElse(Seq())
       case PMethodCall(targets, method, args) => targets ++ Seq(method) ++ args
-      case PLabel(name) => Seq(name)
+      case PLabel(name, invs) => Seq(name) ++ invs
       case PGoto(label) => Seq(label)
       case PVarAssign(target, rhs) => Seq(target, rhs)
       case PFieldAssign(field, rhs) => Seq(field, rhs)

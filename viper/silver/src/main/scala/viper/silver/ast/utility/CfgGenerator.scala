@@ -425,7 +425,7 @@ object CfgGenerator {
           lblmap += elsTarget -> nextNode
           run(els)
           lblmap += afterTarget -> nextNode
-        case w@While(cond, inv, locals, body) =>
+        case w@While(cond, _, locals, body) =>
           val afterLoop = Lbl("afterLoop", generated = true)
           nodes += Loop(afterLoop, w)
           run(body)
@@ -445,7 +445,7 @@ object CfgGenerator {
           for (s <- ss) run(s)
         case Goto(target) =>
           nodes += Jump(Lbl(target))
-        case lbl @ Label(name) =>
+        case lbl @ Label(name, invs) =>
           lblmap += Lbl(name) -> nextNode
           /* Since labels are also used for labelled old-expressions, they (also) need to be
            * translated analogous to other regular statements.

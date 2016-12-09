@@ -1,0 +1,7 @@
+field f : Int
+
+method m(r: Ref)
+{
+    //:: ExpectedOutput(typechecker.error)
+    assert old[tst](r.f) > 213
+}

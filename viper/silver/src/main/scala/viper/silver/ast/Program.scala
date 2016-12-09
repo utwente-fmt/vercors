@@ -6,8 +6,7 @@
 
 package viper.silver.ast
 
-import org.kiama.output._
-
+import viper.silver.ast.pretty.{Fixity, Prefix, Infix, LeftAssociative, RightAssociative, NonAssociative}
 import utility.{Consistency, DomainInstances, Types}
 
 /** A Silver program. */
@@ -341,7 +340,7 @@ sealed trait BinOp extends Op {
 
 /** Left associative operator. */
 sealed trait LeftAssoc {
-  lazy val fixity = Infix(LeftAssoc)
+  lazy val fixity = Infix(LeftAssociative)
 }
 
 /** Domain functions that represent built-in binary operators where both arguments are integers. */
@@ -379,7 +378,7 @@ sealed abstract class ProdOp(val op: String) extends LeftAssoc {
 /** Common interface for relational operators. */
 sealed abstract class RelOp(val op: String) extends BoolDomainFunc {
   lazy val priority = 13
-  lazy val fixity = Infix(NonAssoc)
+  lazy val fixity = Infix(NonAssociative)
 }
 
 // Arithmetic integer operators
@@ -449,7 +448,7 @@ case object AndOp extends BoolBinOp with BoolDomainFunc with LeftAssoc {
 case object ImpliesOp extends BoolBinOp with BoolDomainFunc {
   lazy val op = "==>"
   lazy val priority = 4
-  lazy val fixity = Infix(RightAssoc)
+  lazy val fixity = Infix(RightAssociative)
 }
 
 /** Separating implication/Magic Wand. */
@@ -457,7 +456,7 @@ case object MagicWandOp extends BoolBinOp with AbstractDomainFunc {
   lazy val typ = Wand
   lazy val op = "--*"
   lazy val priority = 4
-  lazy val fixity = Infix(RightAssoc)
+  lazy val fixity = Infix(RightAssociative)
 }
 
 /** Boolean negation. */

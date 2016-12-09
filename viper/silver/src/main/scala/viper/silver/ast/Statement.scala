@@ -146,7 +146,7 @@ case class While(cond: Exp, invs: Seq[Exp], locals: Seq[LocalVarDecl], body: Stm
 /** A named label. Labels can be used by gotos as jump targets, and by labelled old-expressions
   * to refer to the state as it existed at that label.
   */
-case class Label(name: String)(val pos: Position = NoPosition, val info: Info = NoInfo) extends Stmt {
+case class Label(name: String, invs: Seq[Exp])(val pos: Position = NoPosition, val info: Info = NoInfo) extends Stmt {
   Consistency.validUserDefinedIdentifier(name)
 }
 
