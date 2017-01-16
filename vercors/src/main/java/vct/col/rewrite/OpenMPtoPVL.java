@@ -507,6 +507,9 @@ public class OpenMPtoPVL extends AbstractRewriter {
 		   PPLProg.set_section();		
       	           parts.add(PPLProg);		   
                    continue;
+              default:
+                Fail("%s is not allowed inside sections",cmd.kind);
+                break;
 	         }//switch
                }//if 
 	    }//for loop      	  
