@@ -931,6 +931,12 @@ public class Main
        return new OptimizeQuantifiers(arg).rewriteAll();
      }
    });
+   defined_passes.put("rewrite",new CompilerPass("Apply a term rewrite system"){
+     public ProgramUnit apply(ProgramUnit arg,String ... args){
+       RewriteSystem trs=RewriteSystems.getRewriteSystem(args[0]);
+       return trs.normalize(arg);
+     }
+   });
    defined_passes.put("rewrite_arrays",new CompilerPass("rewrite arrays to sequences of cells"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new RewriteArrayRef(arg).rewriteAll();

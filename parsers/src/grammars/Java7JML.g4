@@ -32,6 +32,7 @@ extraPrimary
 extraDeclaration
     : functionDeclaration
     | axiomDeclaration
+    | valContractClause
     ;
 
 /* We use the elements of the Java 7 grammar to define
