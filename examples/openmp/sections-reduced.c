@@ -1,6 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case OpenMPSectionReduced
 //:: tools silicon
+//:: suite puptol
 //:: verdict Pass
 /*
  * Demonstrates how two loops that must be fused to be 
