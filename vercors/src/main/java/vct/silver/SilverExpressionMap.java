@@ -46,7 +46,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E>{
   @Override
   public E map(ConstantExpression e) {
     if (e.value() instanceof IntegerValue){
-      int v=((IntegerValue)e.value()).getValue();
+      int v = ((IntegerValue)e.value()).value();
       if (e.getType().isPrimitive(Sort.Fraction)){
         switch(v){
           case 0 : return create.no_perm(e.getOrigin());
@@ -57,7 +57,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E>{
         return create.Constant(e.getOrigin(),v);
       }
     } else if (e.value() instanceof BooleanValue) {
-      return create.Constant(e.getOrigin(),((BooleanValue)e.value()).getValue());
+      return create.Constant(e.getOrigin(),((BooleanValue)e.value()).value());
     } else {
       throw new HREError("cannot map constant value %s",e.value().getClass());
     }
@@ -472,12 +472,12 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E>{
   @Override
   public E map(StructValue v) {
     Origin o = v.getOrigin();
-    ArrayList<E> elems=new ArrayList<E>();
-    for(int i=0;i<v.values.length;i++){
-      elems.add(v.values[i].apply(this));
+    ArrayList<E> elems = new ArrayList<E>();
+    for (int i=0;i<v.values().length;i++) {
+      elems.add(v.value(i).apply(this));
     }
-    T t=((Type)((Type)v.type).getArg(0)).apply(type);
-    switch(((PrimitiveType)v.type).sort){
+    T t=((Type)((Type)v.type()).getArg(0)).apply(type);
+    switch(((PrimitiveType)v.type()).sort){
     case Sequence:
       return create.explicit_seq(o, t, elems);
     case Bag:

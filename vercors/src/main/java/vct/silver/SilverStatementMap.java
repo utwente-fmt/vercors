@@ -157,8 +157,8 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S>{
   @Override
   public S map(AssignmentStatement s) {
     Origin origin = s.getOrigin();
-    ASTNode location = s.getLocation();
-    ASTNode expression = s.getExpression();
+    ASTNode location = s.location();
+    ASTNode expression = s.expression();
     return assignment(origin, location, expression);
   }
 
@@ -181,7 +181,6 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S>{
 
   @Override
   public S map(DeclarationStatement s) {
-    
     return null;
   }
 

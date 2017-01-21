@@ -188,7 +188,7 @@ public abstract class ASTFrame<T> {
       switch(action){
       case ENTER:
         variables.enter();
-        for(DeclarationStatement decl:adt.getParameters()){
+        for (DeclarationStatement decl : adt.parameters()) {
           variables.add(decl.getName(),new VariableInfo(decl,NameExpression.Kind.Argument));
         }
         break;
@@ -462,7 +462,7 @@ public abstract class ASTFrame<T> {
       switch(action){
       case ENTER:
         variables.enter();
-        variables.add(pb.iter.getName(),new VariableInfo(pb.iter,NameExpression.Kind.Local));
+        variables.add(pb.iter().getName(), new VariableInfo(pb.iter(), NameExpression.Kind.Local));
         break;
       case LEAVE:
         variables.leave();

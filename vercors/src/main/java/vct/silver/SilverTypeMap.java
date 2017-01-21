@@ -128,7 +128,7 @@ public class SilverTypeMap<T> implements TypeMapping<T> {
 
   @Override
   public T map(TypeVariable v) {
-    return create.type_var(v.name);
+    return create.type_var(v.name());
   }
 
 }

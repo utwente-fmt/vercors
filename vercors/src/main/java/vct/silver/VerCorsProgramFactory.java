@@ -310,7 +310,7 @@ public class VerCorsProgramFactory implements
           axioms.add(api.prog.daxiom(axiom.getOrigin(),axiom.name,axiom.rule().apply(expr),adt.name));
         }
         ArrayList<String> pars=new ArrayList<String>();
-        for(DeclarationStatement decl:adt.getParameters()){
+        for (DeclarationStatement decl : adt.parameters()) {
           pars.add(decl.getName());
         }
         api.prog.add_adt(program,adt.getOrigin(),adt.name,funcs,axioms,pars);

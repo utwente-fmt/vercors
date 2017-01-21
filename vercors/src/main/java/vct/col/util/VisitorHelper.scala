@@ -17,4 +17,8 @@ trait VisitorHelper {
     }
 		throw t
   }
+  
+  def handle_standard[T](fun:()=>T) = try fun() catch { 
+    case t:Throwable => handle_throwable(t) 
+  }
 }

@@ -34,7 +34,7 @@ public class ModificationScanner extends RecursiveVisitor<Object> {
   }
   
   public void visit(AssignmentStatement s){
-    modifies_loc(s.getLocation());
+    modifies_loc(s.location());
   }
   
   public void visit(MethodInvokation e){

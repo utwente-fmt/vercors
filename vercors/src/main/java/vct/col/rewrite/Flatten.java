@@ -149,8 +149,8 @@ public class Flatten extends AbstractRewriter {
   
   @Override
   public void visit(AssignmentStatement s) {
-    ASTNode loc=s.getLocation();
-    ASTNode val=s.getExpression();
+    ASTNode loc=s.location();
+    ASTNode val=s.expression();
     if (loc instanceof Dereference
     && !val.getType().equals(ClassType.null_type)
     && !val.getType().equals(ClassType.label_type)){
@@ -257,7 +257,7 @@ public class Flatten extends AbstractRewriter {
     int N=s.getCount();
     for(int i=0;i<N;i++){
       ASTNode guard=s.getGuard(i);
-      if (guard!=IfStatement.else_guard) guard=guard.apply(copy_pure);
+      if (guard!=IfStatement.elseGuard()) guard=guard.apply(copy_pure);
       block_stack.push(current_block);
       current_block=create.block();
       visit_body(s.getStatement(i));

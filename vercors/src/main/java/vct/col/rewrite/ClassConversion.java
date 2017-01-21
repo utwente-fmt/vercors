@@ -124,12 +124,12 @@ public class ClassConversion extends AbstractRewriter {
   }
   
   @Override
-  public void visit(StructValue v){
-    if (v.type instanceof ClassType){
+  public void visit(StructValue v) {
+    if (v.type() instanceof ClassType) {
       Abort("struct value used for constructor call");
       // If this is actually a constructor call.
-      String method=v.type+SEP+v.type;
-      MethodInvokation res=create.invokation(null, null, method, rewrite(v.values));
+      String method = v.type() + SEP + v.type();
+      MethodInvokation res=create.invokation(null, null, method, rewrite(v.values()));
       res.set_before(rewrite(v.get_before()));
       res.set_after(rewrite(v.get_after()));
       result=res;

@@ -103,18 +103,18 @@ public class VoidCalls extends AbstractRewriter {
   }
   
   public void visit(AssignmentStatement s){
-    if (s.getExpression() instanceof MethodInvokation){
-      MethodInvokation e=(MethodInvokation)s.getExpression();
+    if (s.expression() instanceof MethodInvokation){
+      MethodInvokation e=(MethodInvokation)s.expression();
       Method m=e.getDefinition();
       if (m==null) Abort("cannot process invokation of %s without definition",e.method);
       if (m.kind==Method.Kind.Plain){
         int N=e.getArity();
         ASTNode args[]=new ASTNode[N+1];
-        args[0]=rewrite(s.getLocation());
+        args[0]=rewrite(s.location());
         for(int i=0;i<N;i++){
           args[i+1]=rewrite(e.getArg(i));
         }
-        args[0]=rewrite(s.getLocation());
+        args[0]=rewrite(s.location());
         MethodInvokation res=create.invokation(rewrite(e.object), rewrite(e.dispatch) , e.method , args );
         for(NameExpression lbl:e.getLabels()){
           Debug("VOIDCALLS: copying label %s",lbl);
@@ -122,7 +122,7 @@ public class VoidCalls extends AbstractRewriter {
         }
         res.set_before(rewrite(e.get_before()));
         HashMap<NameExpression,ASTNode>map=new HashMap<NameExpression,ASTNode>();
-        map.put(create.reserved_name(ASTReserved.Result),rewrite(s.getLocation()));
+        map.put(create.reserved_name(ASTReserved.Result),rewrite(s.location()));
         Substitution subst=new Substitution(source(),map);
         res.set_after(subst.rewrite(e.get_after()));
         result=res;

@@ -43,10 +43,10 @@ public class AccessIntroduce extends AbstractRewriter {
   
   @Override
   public void visit(AssignmentStatement e){
-    ASTNode tmp=e.getLocation();
+    ASTNode tmp = e.location();
     if (tmp instanceof Dereference){
       Dereference loc=(Dereference)tmp;
-      result = create.set_field(null, rewrite(loc.object()), loc.field(), rewrite(e.getExpression()));
+      result = create.set_field(null, rewrite(loc.object()), loc.field(), rewrite(e.expression()));
     } else {
       super.visit(e);
     }

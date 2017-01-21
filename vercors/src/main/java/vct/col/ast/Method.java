@@ -165,7 +165,7 @@ public class Method extends ASTDeclaration {
     } else if(parent instanceof AxiomaticDataType) {
       AxiomaticDataType adt=(AxiomaticDataType)parent;
       Debug("%s: computing substitution (%s)...",object_type.getOrigin(),adt.name);
-      DeclarationStatement decl[]=adt.getParameters();
+      DeclarationStatement decl[] = adt.parameters();
       for(int i=0;i<decl.length;i++){
         if (i<object_type.args.length){
           Debug("%s -> %s",decl[i].name,(Type)object_type.args[i]);

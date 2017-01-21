@@ -25,12 +25,12 @@ class ConstantExpression(val value:Value) extends ASTNode with VisitorHelper {
   def this(l:Long, origin:Origin) = { this(l); setOrigin(origin) }
   def this(d:Double, origin:Origin) = { this(d); setOrigin(origin) }
   
+  override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)
+  override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
+  override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def equals(o:Any) : Boolean = value.equals(o)
   override def isConstant(o:Any) : Boolean = equals(o)
   override def toString() : String = value.toString()
-  override def accept_simple[T,A](map:ASTMapping1[T,A], arg:A) = map.map(this, arg)
-  override def accept_simple[T](visitor:ASTVisitor[T]) = try visitor.visit(this) catch { case t:Throwable => handle_throwable(t) }
-  override def accept_simple[T](map:ASTMapping[T]) = try map.map(this) catch { case t:Throwable => handle_throwable(t) }
 
   override def `match`(ast:ASTNode) = ast match {
     case h:Hole => h.`match`(this)

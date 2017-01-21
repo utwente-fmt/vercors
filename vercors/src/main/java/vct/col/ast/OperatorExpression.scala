@@ -13,7 +13,7 @@ object OperatorExpression {
 }
 
 class OperatorExpression private[this] (val operator:StandardOperator, private[this] val _args:Array[ASTNode]) extends ExpressionNode with VisitorHelper {
-  def args : Array[ASTNode] = _args.clone()
+  val args : Array[ASTNode] = _args.clone()
   
   def arg(i:Int) : ASTNode =
     if (i >= args.length) 
@@ -24,7 +24,8 @@ class OperatorExpression private[this] (val operator:StandardOperator, private[t
   private def this(op:StandardOperator, args:ASTNode*) = {
     this(op, args.toArray)
     if (op.arity() >= 0 && args.length != op.arity())
-      hre.lang.System.Abort("Wrong number of arguments for %s: got %d, but expected %d.", List(operator, _args.length, operator.arity()))
+      hre.lang.System.Abort("Wrong number of arguments for %s: got %d, but expected %d.", 
+          List(operator, _args.length, operator.arity()))
   }
   
   def mergeOrigins() = {
@@ -41,9 +42,9 @@ class OperatorExpression private[this] (val operator:StandardOperator, private[t
   }
   
   override def isa(op:StandardOperator) = op == this.operator
-  override def accept_simple[T,A](map:ASTMapping1[T,A], arg:A) = map.map(this, arg)
-  override def accept_simple[T](visitor:ASTVisitor[T]) = try visitor.visit(this) catch { case t:Throwable => handle_throwable(t) }
-  override def accept_simple[T](map:ASTMapping[T]) = try map.map(this) catch { case t:Throwable => handle_throwable(t) }
+  override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)
+  override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
+  override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   
   private[this] def match_compare(a:Array[ASTNode], b:Array[ASTNode]) : Boolean = {
     if (a.isEmpty || b.isEmpty) true

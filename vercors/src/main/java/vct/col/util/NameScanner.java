@@ -138,12 +138,12 @@ public class NameScanner extends RecursiveVisitor<Object> {
   }
   @Override
   public void visit(VectorBlock pb){
-    Type old=vars.get(pb.iter.name);
-    safe_decls.add(pb.iter);
+    Type old = vars.get(pb.iter().name);
+    safe_decls.add(pb.iter());
     super.visit(pb);
-    vars.remove(pb.iter.name);
-    if(old!=null){
-      vars.put(pb.iter.name,old);
+    vars.remove(pb.iter().name);
+    if (old != null){
+      vars.put(pb.iter().name,old);
     }      
   }
 

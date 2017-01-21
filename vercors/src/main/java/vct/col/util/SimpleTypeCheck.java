@@ -276,15 +276,15 @@ public class SimpleTypeCheck extends RecursiveVisitor<Type> {
     }
   }
   public void visit(AssignmentStatement s){
-    ASTNode val=s.getExpression();
+    ASTNode val=s.expression();
     val.accept(this);
     Type val_type=val.getType();
     if (val_type==null) Abort("Value %s has no type.",val);
     if (val_type.toString().equals("<<label>>")) {
       return;
     }
-    s.getLocation().accept(this);
-    check_loc_val(s.getLocation().getType(),s.getExpression());
+    s.location().accept(this);
+    check_loc_val(s.location().getType(),s.expression());
   }
   
   public void visit(DeclarationStatement s){
@@ -978,7 +978,7 @@ public class SimpleTypeCheck extends RecursiveVisitor<Type> {
       if (t1.isPrimitive(Sort.Sequence) && t2.isPrimitive(Sort.Sequence)){
         t1=(Type)((PrimitiveType)t1).getArg(0);
         t2=(Type)((PrimitiveType)t2).getArg(0);
-        e.setType(new PrimitiveType(Sort.Sequence,new TupleType(t1,t2)));
+        e.setType(new PrimitiveType(Sort.Sequence, new TupleType(new Type[] { t1, t2 })));
         break;
       }
       // handle intersection meaning of *
@@ -1175,10 +1175,10 @@ public class SimpleTypeCheck extends RecursiveVisitor<Type> {
   @Override
   public void visit(StructValue v){
     super.visit(v);
-    if (v.type==null){
+    if (v.type() == null) {
       Abort("Build without type argument");
     }
-    Type t=v.type;
+    Type t = v.type();
     v.setType(t);
     if (t instanceof ClassType){
       Abort("constructor encoded as struct value");
@@ -1187,9 +1187,9 @@ public class SimpleTypeCheck extends RecursiveVisitor<Type> {
         Fail("type without arguments: %s in %s",t,v);
       }
       t=(Type)t.getArg(0);
-      for(int i=0;i<v.values.length;i++){
-        Type t2=v.values[i].getType();
-        if (t2==null){
+      for (int i=0;i<v.values().length;i++) {
+        Type t2=v.value(i).getType();
+        if (t2 == null) {
           Fail("untyped build argument %d",i);
         }
         if (t.equals(t2)) continue;
@@ -1402,15 +1402,15 @@ public class SimpleTypeCheck extends RecursiveVisitor<Type> {
 
   @Override
   public void visit(VectorBlock pb){
-    if (!pb.iter.getType().isPrimitive(Sort.Integer)){
+    if (!pb.iter().getType().isPrimitive(Sort.Integer)) {
       Fail("type of iteration variable must be integer");
     }
-    ASTNode init=pb.iter.getInit();
+    ASTNode init = pb.iter().getInit();
     if (!init.isa(StandardOperator.RangeSeq)){
       Fail("value for iteration variable must be a range");
     }
     init.apply(this);
-    pb.block.apply(this);
+    pb.block().apply(this);
   }
   
 

@@ -100,7 +100,7 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
 
   @Override
   public void visit(StructValue v){
-    if (v.type instanceof ClassType){
+    if (v.type() instanceof ClassType){
       Abort("illegal use of struct value for constructor call");
     }
     /*

@@ -18,9 +18,9 @@ public class TypeVarSubstitution extends AbstractRewriter {
   }
   
   public void visit(TypeVariable v){
-    Type t=map.get(v.name);
-    if (t!=null) {
-      result=t;
+    Type t = map.get(v.name());
+    if (t != null) {
+      result = t;
     } else {
       super.visit(v);
     }

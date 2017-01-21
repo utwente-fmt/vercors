@@ -18,14 +18,14 @@ public class ConstructorRewriter extends AbstractRewriter {
   }
   
   public void visit(AssignmentStatement e){
-    if ((e.getExpression() instanceof StructValue)
-       && (((StructValue)e.getExpression()).type instanceof ClassType)){
+    if ((e.expression() instanceof StructValue)
+       && (((StructValue)e.expression()).type() instanceof ClassType)){
       Abort("illegal use of structvalue for constructor call");
     }
-    if (e.getExpression() instanceof MethodInvokation){
-      MethodInvokation i=(MethodInvokation)e.getExpression();
+    if (e.expression() instanceof MethodInvokation){
+      MethodInvokation i=(MethodInvokation)e.expression();
       if (i.getDefinition().kind==Method.Kind.Constructor) {
-        ASTNode s1=create.assignment(rewrite(e.getLocation()),create.expression(StandardOperator.New,rewrite(i.getType())));
+        ASTNode s1=create.assignment(rewrite(e.location()),create.expression(StandardOperator.New,rewrite(i.getType())));
         
         String method_name;
         if (i.method.equals(Method.JavaConstructor)){
@@ -34,14 +34,14 @@ public class ConstructorRewriter extends AbstractRewriter {
           method_name=i.method;
         }
         method_name+="_init";
-        MethodInvokation s2=create.invokation(rewrite(e.getLocation()),null,method_name,rewrite(i.getArgs()));
+        MethodInvokation s2=create.invokation(rewrite(e.location()),null,method_name,rewrite(i.getArgs()));
         if (i.get_before().size()>0) {
           s2.set_before(rewrite(i.get_before()));
         }
         if (i.get_after().size()>0) {
           s2.set_after(rewrite(i.get_after()));
         }
-        copy_labels(s2,e.getExpression());
+        copy_labels(s2,e.expression());
         result=create.block(s1,s2);
         return;
       }

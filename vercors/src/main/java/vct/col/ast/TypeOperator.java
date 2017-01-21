@@ -1,7 +1,6 @@
 package vct.col.ast;
 
 public enum TypeOperator {
-
   Const,
   Short,
   Signed,
@@ -15,5 +14,4 @@ public enum TypeOperator {
   PointerTo,
   Extends,
   Super
-  
 }

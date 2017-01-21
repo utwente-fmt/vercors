@@ -616,7 +616,7 @@ public class Java8JMLtoCol extends ANTLRtoCOL implements Java8JMLVisitor<ASTNode
     if (match(ctx,null,"->",null)){
       Type left=checkType(convert(ctx,0));
       if(left instanceof TupleType){
-        return create.arrow_type(((TupleType)left).types,checkType(convert(ctx,2)));
+        return create.arrow_type(((TupleType)left).types(),checkType(convert(ctx,2)));
       } else {
         return create.arrow_type(left,checkType(convert(ctx,2)));
       }

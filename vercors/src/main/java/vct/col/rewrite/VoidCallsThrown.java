@@ -97,7 +97,7 @@ public class VoidCallsThrown extends AbstractRewriter {
       );
       catches.addClause(guard,rewrite(c.block()));
     }
-    catches.addClause(IfStatement.else_guard,create.special(Kind.Assert,create.constant(false)));
+    catches.addClause(IfStatement.elseGuard(), create.special(Kind.Assert, create.constant(false)));
     block.add(catches);
     //block.add(create.special(Kind.Inhale,create.constant(false)));
     block.add(create.special(Kind.Label,create.unresolved_name("Finally_"+block_no)));
@@ -156,15 +156,15 @@ public class VoidCallsThrown extends AbstractRewriter {
   }
   
   public void visit(AssignmentStatement s){
-    if (s.getExpression() instanceof MethodInvokation){
-      MethodInvokation e=(MethodInvokation)s.getExpression();
+    if (s.expression() instanceof MethodInvokation){
+      MethodInvokation e=(MethodInvokation)s.expression();
       Method m=e.getDefinition();
       if (m==null) Abort("cannot process invokation of %s without definition",e.method);
       if (m.kind==Method.Kind.Plain){
         int N=e.getArity();
         ASTNode args[]=new ASTNode[N+2];
         args[0]=create.local_name("sys__thrown");
-        args[1]=rewrite(s.getLocation());
+        args[1]=rewrite(s.location());
         for(int i=0;i<N;i++){
           args[i+2]=rewrite(e.getArg(i));
         }

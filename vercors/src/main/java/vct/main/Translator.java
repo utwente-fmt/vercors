@@ -311,15 +311,15 @@ public class Translator {
     	hoareTriple.set(currentWorkingTriple, hoareTriple.get(currentWorkingTriple).concat(" ("));
     	hoareTriple.set(currentWorkingTriple, hoareTriple.get(currentWorkingTriple).concat(getCommand(s,"Z3")));
     	//rewrite s.getLocation() variable <name> -> __<name>
-    	ans = ans && generateZ3Logic(null, rewriteVariables(s.getLocation(),s.getLocation()), null);
-    	ans = ans && generateZ3Logic(null, s.getExpression(), null);
+    	ans = ans && generateZ3Logic(null, rewriteVariables(s.location(),s.location()), null);
+    	ans = ans && generateZ3Logic(null, s.expression(), null);
 		//outputToString.leave();
 		hoareTriple.set(currentWorkingTriple, hoareTriple.get(currentWorkingTriple).concat(")"));
     	if(post!=null){
     		//rewrite post variable <name> -> __<name>
     		currentWorkingTriple++;
     		hoareTriple.add(currentWorkingTriple, "");
-    		generateZ3Logic(null,rewriteVariables(s.getLocation(),post),null);
+    		generateZ3Logic(null,rewriteVariables(s.location(),post),null);
     		ans = !thisParent.checkWithZ3(makeReadyForZ3(), variablelenLijst, post);
     		currentWorkingTriple++;
     		hoareTriple.add(currentWorkingTriple, "");
@@ -808,7 +808,7 @@ public class Translator {
 
 		@Override
 		public void visit(AssignmentStatement s) {
-			outputToString.printf("Found Assignment at %s with %s %n",s.getLocation(),s.getExpression());
+			outputToString.printf("Found Assignment at %s with %s %n", s.location(), s.expression());
 			outputToString.enter();
 	    	outputToString.prefixAdd("  ");
 	    	treeDepth++;
@@ -818,8 +818,8 @@ public class Translator {
 	    	}
 	    	hoareTriple.set(currentWorkingTriple, hoareTriple.get(currentWorkingTriple).concat(" ("));
 	    	hoareTriple.set(currentWorkingTriple, hoareTriple.get(currentWorkingTriple).concat(getCommand(s)));
-			s.getLocation().accept(this);
-			s.getExpression().accept(this);
+			s.location().accept(this);
+			s.expression().accept(this);
 			outputToString.leave();
 			treeDepth--;
 			hoareTriple.set(currentWorkingTriple, hoareTriple.get(currentWorkingTriple).concat(")"));

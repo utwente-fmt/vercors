@@ -149,7 +149,7 @@ public class KernelRewriter extends AbstractRewriter {
     } else {
       Stack<ASTNode> resource_stack=new Stack<ASTNode>();
       // check and keep resources.
-      for(ASTNode clause:ASTUtils.conjuncts(pb.contract.pre_condition,StandardOperator.Star)){
+      for (ASTNode clause : ASTUtils.conjuncts(pb.contract().pre_condition, StandardOperator.Star)) {
         if (clause.getType().isPrimitive(Sort.Resource)){
           resource_stack.push(clause);
         } else {
@@ -162,7 +162,7 @@ public class KernelRewriter extends AbstractRewriter {
         currentBlock.add(create.special(ASTSpecial.Kind.Exhale,rewrite(clause)));
       }
       // inhale imported resources
-      for(ASTNode clause:ASTUtils.conjuncts(pb.contract.post_condition,StandardOperator.Star)){
+      for (ASTNode clause : ASTUtils.conjuncts(pb.contract().post_condition, StandardOperator.Star)) {
         currentBlock.add(create.special(ASTSpecial.Kind.Inhale,rewrite(clause)));
       }
     }
@@ -178,14 +178,14 @@ public class KernelRewriter extends AbstractRewriter {
     public void visit(ParallelBarrier pb){
       barrier_no++;
       barrier_map.put(pb,barrier_no);
-      for(ASTNode clause:ASTUtils.conjuncts(pb.contract.pre_condition,StandardOperator.Star)){
+      for (ASTNode clause : ASTUtils.conjuncts(pb.contract().pre_condition,StandardOperator.Star)) {
         add(barrier_pre,barrier_no,clause);
         barrier_cb.requires(create(clause).expression(StandardOperator.Implies,
             create.expression(StandardOperator.EQ,create.local_name("this_barrier"),create.constant(barrier_no)),
             rewrite(clause)
         ));
       }
-      for(ASTNode clause:ASTUtils.conjuncts(pb.contract.post_condition,StandardOperator.Star)){
+      for (ASTNode clause : ASTUtils.conjuncts(pb.contract().post_condition,StandardOperator.Star)) {
         if (clause.getType().isPrimitive(Sort.Resource)){
           add(resources,barrier_no,clause);
         } else {

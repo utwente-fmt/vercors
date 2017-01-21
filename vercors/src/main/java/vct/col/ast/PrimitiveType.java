@@ -255,7 +255,7 @@ public final class PrimitiveType extends Type {
           if (tt.isPrimitive(Sort.Char)) return true;
           if (tt instanceof TypeExpression){
             TypeExpression te=(TypeExpression)tt;
-            if (te.getOp()==TypeOperator.Const && te.firstType().isPrimitive(Sort.Char)) return true;
+            if (te.operator() == TypeOperator.Const && te.firstType().isPrimitive(Sort.Char)) return true;
           }
           Fail("missing case in PrimitiveType.supertypeof (%s/%s)",this.sort,pt.sort);
         }

@@ -74,7 +74,7 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
 
   @Override
   public void visit(TypeExpression t){
-    switch(t.getOp()){
+    switch (t.operator()) {
     case Extern:
       out.printf("extern ");
       t.firstType().apply(this);
@@ -108,7 +108,7 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
       out.printf("*");
       break;
     default:
-      throw new HREError("Missing case: %s",t.getOp());
+      throw new HREError("Missing case: %s", t.operator());
     }
   }
   

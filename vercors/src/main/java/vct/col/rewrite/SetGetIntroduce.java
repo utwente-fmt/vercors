@@ -42,12 +42,12 @@ public class SetGetIntroduce extends AbstractRewriter {
   
   @Override
   public void visit(AssignmentStatement e){
-    ASTNode tmp=rewrite(e.getLocation());
+    ASTNode tmp=rewrite(e.location());
     if (tmp.isa(StandardOperator.Get)){
       tmp=((OperatorExpression)tmp).arg(0);
-      result=create.expression(StandardOperator.Set,tmp,rewrite(e.getExpression()));
+      result=create.expression(StandardOperator.Set,tmp,rewrite(e.expression()));
     } else {
-      result=create.expression(StandardOperator.Assign,tmp,rewrite(e.getExpression()));
+      result=create.expression(StandardOperator.Assign,tmp,rewrite(e.expression()));
     }    
   }
 }

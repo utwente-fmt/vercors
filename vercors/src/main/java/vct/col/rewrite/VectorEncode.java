@@ -121,13 +121,13 @@ public class VectorEncode extends AbstractRewriter {
 
   @Override
   public void visit(VectorBlock v){
-    OperatorExpression init=(OperatorExpression)v.iter.getInit();
+    OperatorExpression init = (OperatorExpression)v.iter().getInit();
     ASTNode from=rewrite(init.arg(0));
     ASTNode upto=rewrite(init.arg(1));
-    ivar = v.iter.getName();
+    ivar = v.iter().getName();
     BlockStatement res=create.block();
     locals = new HashSet<String>();
-    for(ASTNode S:v.block){
+    for(ASTNode S:v.block()){
       // Turn locally declared variables into arrays.
       if (S instanceof DeclarationStatement){
         DeclarationStatement D=(DeclarationStatement)S;
@@ -144,8 +144,8 @@ public class VectorEncode extends AbstractRewriter {
       // Process assignments.
       if (S instanceof AssignmentStatement){
         AssignmentStatement A=(AssignmentStatement)S;
-        ASTNode loc=A.getLocation();
-        ASTNode expr=A.getExpression();
+        ASTNode loc = A.location();
+        ASTNode expr = A.expression();
 
         // check types.
         Type t1=detect(loc.getType());

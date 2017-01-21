@@ -192,7 +192,7 @@ public class ASTFactory<E> implements FrameControl {
     * Create a new barrier node.
     */
    public ParallelBarrier barrier(Origin origin,String label,Contract c,ArrayList<String> fences, BlockStatement body){
-     ParallelBarrier res=new ParallelBarrier(label,c,fences,body);
+     ParallelBarrier res = new ParallelBarrier(label, c, fences, body);
      res.setOrigin(origin);
      res.accept_if(post);
      return res;
@@ -582,7 +582,7 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
     if (branches.length<1 || branches.length>2 ) Abort("illegal number of branches");
     IfStatement res=new IfStatement();
     res.addClause(test,branches[0]);
-    if (branches.length==2 && branches[1]!=null) res.addClause(IfStatement.else_guard,branches[1]);
+    if (branches.length==2 && branches[1]!=null) res.addClause(IfStatement.elseGuard(), branches[1]);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;    
@@ -770,7 +770,7 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
     return csl_atomic(origin_stack.get(),block,invs);
   }
   public ParallelAtomic csl_atomic(Origin origin,BlockStatement block,ASTNode ... invs){
-    ParallelAtomic res=new ParallelAtomic(block,invs);
+    ParallelAtomic res = new ParallelAtomic(block, invs);
     res.setOrigin(origin);
     res.accept_if(post);
     return res;    

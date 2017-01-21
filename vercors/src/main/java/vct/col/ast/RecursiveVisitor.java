@@ -94,8 +94,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
   @Override
   public void visit(TupleType t) {
-    for(int i=0;i<t.types.length;i++){
-      t.types[i].accept(this);
+    for(int i=0;i<t.types().length;i++){
+      t.type(i).accept(this);
     }
   }
 
@@ -164,8 +164,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
 
   @Override
   public void visit(AssignmentStatement s) {
-    s.getLocation().accept(this);
-    s.getExpression().accept(this);
+    s.location().accept(this);
+    s.expression().accept(this);
   }
 
   @Override
@@ -251,21 +251,21 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
   
   @Override
-  public void visit(Lemma l){
-    l.getBlock().accept(this);
+  public void visit(Lemma lemma) {
+    lemma.block().accept(this);
   }
   
   public void visit(ParallelAtomic pa){
-    dispatch(pa.block);
+    dispatch(pa.block());
   }
   
   public void visit(ParallelInvariant inv){
-    dispatch(inv.inv);
-    dispatch(inv.block);
+    dispatch(inv.inv());
+    dispatch(inv.block());
   }
 
   public void visit(ParallelBarrier pb){
-    dispatch(pb.contract);
+    dispatch(pb.contract());
   }
 
   public void visit(ParallelBlock pb){
@@ -275,8 +275,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
   
   public void visit(ParallelRegion region){
-    dispatch(region.contract);
-    dispatch(region.blocks);
+    dispatch(region.contract());
+    dispatch(region.blocks());
   }
 
   public void visit(Contract c){
@@ -350,14 +350,14 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   
   @Override
   public void visit(StructValue v) {
-    dispatch(v.type);
-    dispatch(v.values);
+    dispatch(v.type());
+    dispatch(v.values());
   }
 
   @Override
   public void visit(VectorBlock v) {
-    dispatch(v.iter);
-    dispatch(v.block);
+    dispatch(v.iter());
+    dispatch(v.block());
   }
 
   @Override
