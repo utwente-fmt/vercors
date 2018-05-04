@@ -1,0 +1,75 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+
+//:: cases DutchNationalFlag
+//:: tools silicon
+//:: suite medium
+//:: verdict Pass
+
+// color encoding:
+// 0 - red
+// 1 - white
+// 2 - blue
+
+class NationalFlag {
+	int low;
+	int mid;
+	
+	context items != null;
+	context 0 <= j && j < items.length;
+	context Perm(items[i], write) ** Perm(items[j], write);
+	ensures items[j] == \old(items[i]);
+	ensures items[i] == \old(items[j]);
+	void swap(int[] items, int i, int j) {
+		int temp = items[i];
+		items[i] = items[j];
+		items[j] = temp;
+	}
+	
+	invariant items != null;
+	invariant Perm(this.low, write) ** Perm(this.mid, write);
+	invariant (\forall* int j; 0 <= j && j < items.length; Perm(items[j], write));
+	invariant (\forall int j; 0 <= j && j < items.length; 0 <= items[j] && items[j] <= 2);
+	ensures (0 <= low && low <= mid && mid <= items.length);
+	ensures (\forall int j; 0 <= j && j < low; items[j] == 0);
+	ensures (\forall int j; low <= j && j < mid; items[j] == 1);
+	ensures (\forall int j; mid <= j && j < items.length; items[j] == 2);
+	void dutchNationalFlagSort(int[] items) {
+		low = 0;
+		mid = 0;
+		int high = items.length - 1;
+
+		loop_invariant -1 <= high && high <= items.length - 1;
+		loop_invariant 0 <= mid && mid <= high + 1;
+		loop_invariant 0 <= low && low <= mid;
+		loop_invariant (\forall int j; 0 <= j && j < low; items[j] == 0);
+		loop_invariant (\forall int j; low <= j && j < mid; items[j] == 1);
+		loop_invariant (\forall int j; high < j && j < items.length; items[j] == 2);
+		while (mid <= high) {
+			if (items[mid] == 0) {
+				// red case
+				
+				if (low != mid) {
+					swap(items, low, mid);
+				}
+				
+				low = low + 1;
+				mid = mid + 1;
+			}
+			else {
+				if (items[mid] == 1) {
+					// white case
+					mid = mid + 1;
+				}
+				else {
+					// blue case
+					
+					if (mid != high) {
+						swap(items, mid, high);
+					}
+					
+					high = high - 1;
+				}
+			}
+		}
+	}
+}
