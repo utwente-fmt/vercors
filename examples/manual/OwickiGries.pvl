@@ -1,7 +1,9 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases OwickiGries
 //:: tools silicon
+//:: ./unix/bin/vct --silicon <filepath of Worker.pvl> <filepath of OwickiGries.pvl>
 //:: verdict Pass
+
 class OwickiGries {
   int x;
 
