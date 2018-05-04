@@ -2,6 +2,9 @@
 //:: cases OwickiGries
 //:: tools silicon
 //:: verdict Pass
+
+// ./unix/bin/vct --silicon <filepath of Worker.pvl> <filepath of OwickiGries.pvl>
+
 class OwickiGries {
   int x;
 
