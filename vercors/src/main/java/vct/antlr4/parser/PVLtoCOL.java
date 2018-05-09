@@ -507,13 +507,67 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
   public ASTNode visitValStatement(ValStatementContext ctx) {
     return getValStatement(ctx);
   }
+  
+  
+  @Override
+  public ASTNode visitSimple_statement(Simple_statementContext ctx) {
+  	if (match(ctx,"return")){
+  		return create.return_statement();
+  	}
+		if (match(ctx,"return",null)){
+			return create.return_statement(convert(ctx,1));
+		}
+    if (match(ctx,"lock",null)){
+      return create.special(ASTSpecial.Kind.Lock,convert(ctx,1));
+    }
+    if (match(ctx,"unlock",null)){
+      return create.special(ASTSpecial.Kind.Unlock,convert(ctx,1));
+    }
+    if (match(ctx,"wait",null)){
+      return create.special(ASTSpecial.Kind.Wait,convert(ctx,1));
+    }
+    if (match(ctx,"notify",null)){
+      return create.special(ASTSpecial.Kind.Notify,convert(ctx,1));
+    }
+    if (match(ctx,"fork",null)){
+      return create.special(ASTSpecial.Kind.Fork,convert(ctx,1));
+    }
+    if (match(ctx,"join",null)){
+      return create.special(ASTSpecial.Kind.Join,convert(ctx,1));
+    }
+    if (match(ctx,type_expr,null)){
+      return create.field_decl(getIdentifier(ctx,1),(Type)convert(ctx,0));
+    }
+    if (match(ctx,type_expr,null,"=",null)){
+      return create.field_decl(getIdentifier(ctx,1),(Type)convert(ctx,0),convert(ctx,3));
+    }
+    if (match(ctx,"ExprContext")){
+      return convert(ctx,0);
+    }
+    if (match(ctx, null, "++")) {
+      return create.postfix_increment(getIdentifier(ctx, 0));
+    }
+    if (match(ctx, null, "--")) {
+      return create.postfix_decrement(getIdentifier(ctx, 0));
+    }
+    if (match(ctx,null,"=",null)){
+      return create.assignment(convert(ctx,0),convert(ctx,2));
+    }
+    if (match(ctx,"goto",null)){
+      return create.special(ASTSpecial.Kind.Goto,convert(ctx,1));
+    }
+    
+	  return visit(ctx);
+  }
  
   
   @Override
   public ASTNode visitStatement(StatementContext ctx) {
-    if (match(ctx,null,"=",null,";")){
-      return create.assignment(convert(ctx,0),convert(ctx,2));
+  	
+    if (match(ctx,"Simple_statement",";")) {
+      return convert(ctx,0);
     }
+
     if (match(ctx,"vec","(",null,")",null)){
       DeclarationStatement iter=(DeclarationStatement)convert(ctx,2);
       BlockStatement block=(BlockStatement)convert(ctx,4);
@@ -549,18 +603,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
           (BlockStatement)convert(ctx,4),
           getIdentifierList((ParserRuleContext)ctx.getChild(2), ","));
     }
-    if (match(ctx,"return",";")){
-      return create.return_statement();
-    }
-    if (match(ctx,"return",null,";")){
-      return create.return_statement(convert(ctx,1));
-    }
-    if (match(ctx,type_expr,null,";")){
-      return create.field_decl(getIdentifier(ctx,1),(Type)convert(ctx,0));
-    }
-    if (match(ctx,type_expr,null,"=",null,";")){
-      return create.field_decl(getIdentifier(ctx,1),(Type)convert(ctx,0),convert(ctx,3));
-    }
+
     if (match(ctx,"if","(",null,")",null)){
       return create.ifthenelse(convert(ctx,2),convert(ctx,4));
     }
@@ -576,17 +619,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       }
       return create.while_loop(convert(ctx,3),convert(ctx,5),invs);
     }
-    
-    // the (postfix) incremental statement
-    if (match(ctx, null, "++", ";")) {
-      return create.postfix_increment(getIdentifier(ctx, 0));
-    }
-    
-    // the (postfix) decremental statement
-    if (match(ctx, null, "--", ";")) {
-      return create.postfix_decrement(getIdentifier(ctx, 0));
-    }
-    
+   
     if (match(ctx,"action",tuple,null)){
       ASTNode args[] = getTuple((ParserRuleContext)ctx.getChild(1));
       ASTNode block=convert(ctx,2);
@@ -607,30 +640,6 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       return create.action_block(args[0],args[1],args[2],args[3], map, block);
     }
 
-    if (match(ctx,"lock",null,";")){
-      return create.special(ASTSpecial.Kind.Lock,convert(ctx,1));
-    }
-    if (match(ctx,"unlock",null,";")){
-      return create.special(ASTSpecial.Kind.Unlock,convert(ctx,1));
-    }
-    if (match(ctx,"wait",null,";")){
-      return create.special(ASTSpecial.Kind.Wait,convert(ctx,1));
-    }
-    if (match(ctx,"notify",null,";")){
-      return create.special(ASTSpecial.Kind.Notify,convert(ctx,1));
-    }
-    if (match(ctx,"fork",null,";")){
-      return create.special(ASTSpecial.Kind.Fork,convert(ctx,1));
-    }
-    if (match(ctx,"join",null,";")){
-      return create.special(ASTSpecial.Kind.Join,convert(ctx,1));
-    }
-    if (match(ctx,"goto",null,";")){
-      return create.special(ASTSpecial.Kind.Goto,convert(ctx,1));
-    }
-    if (match(ctx,"ExprContext",";")){
-      return convert(ctx,0);
-    }
     if (match(0,true,ctx,"barrier","(",null)){
       String name=getIdentifier(ctx, 2);
       ArrayList<String> invs=new ArrayList<String>();

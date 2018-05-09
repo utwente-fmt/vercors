@@ -81,14 +81,24 @@ tuple : '(' ( | expr (',' expr)*) ')';
 
 block : '{' statement* '}' ;
 
+simple_statement
+ : 'return' expr?
+ | 'lock' expr
+ | 'unlock' expr
+ | 'wait' expr
+ | 'notify' expr
+ | 'fork' expr
+ | 'join' expr
+ | type identifier ('=' expr | (',' identifier)* )
+ | expr
+ | identifier ('++'|'--')
+ | lexpr '=' expr
+ | 'goto' identifier
+ | 'label' identifier
+ ;
+
 statement
- : 'return' expr? ';'
- | 'lock' expr ';'
- | 'unlock' expr ';'
- | 'wait' expr ';'
- | 'notify' expr ';'
- | 'fork' expr ';'
- | 'join' expr ';'
+ : simple_statement ';'
  | 'action' tuple block
  | valStatement 
  | 'if' '(' expr ')' block ( 'else' block )?
@@ -98,14 +108,8 @@ statement
  | 'invariant' identifier '(' expr ')' block 
  | 'atomic' '(' id_list ')' block 
  | invariant 'while' '(' expr ')' block
- | type identifier ('=' expr | (',' identifier)* ) ';'
- | expr ';'
- | identifier ('++'|'--') ';'
  | block
- | lexpr '=' expr ';'
  | '{*' expr '*}'
- | 'goto' identifier ';'
- | 'label' identifier ';'
  ;
 
 par_unit
