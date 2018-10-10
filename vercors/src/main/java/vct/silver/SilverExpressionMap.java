@@ -50,7 +50,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E>{
         switch(v){
           case 0 : return create.no_perm(e.getOrigin());
           case 1 : return create.write_perm(e.getOrigin());
-          default: return create.Constant(e.getOrigin(),v);
+          default: return create.frac(e.getOrigin(), create.Constant(e.getOrigin(), v), create.Constant(e.getOrigin(), 1));
         }
       } else {
         return create.Constant(e.getOrigin(),v);

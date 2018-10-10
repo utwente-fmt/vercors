@@ -43,7 +43,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
               prog.functions.asScala.toList,
               prog.predicates.asScala.toList,
               prog.methods.asScala.toList)()
-              
+
     //println("=============\n" + program + "\n=============\n")
     
     Reachable.gonogo = control.asInstanceOf[VerificationControl[Object]];
@@ -113,7 +113,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
                   error.add_extra(because)
               }
             case ae : AbortedExceptionally =>{
-              if (detail) show("caused by ", ae.cause)
+              show("caused by ", ae.cause)
               report.add(new ViperErrorImpl(null.asInstanceOf[O],ae.fullId));
             }
             case x => {
