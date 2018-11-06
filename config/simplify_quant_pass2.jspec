@@ -81,5 +81,11 @@ class simplify_quant_pass2 {
     (\let int i=0; r1) ** (\let int i=1; r1) ** (\let int i=2; r1) ** (\let int i=3; r1)
   }
 
+  axiom drop_useless_quant {
+    (\forall* int i;( i \memberof [ e1 .. e2 )) ; (r1!i))
+    ==
+    (e1 < e2) ==> r1
+  }
+  
 }
 
