@@ -6,6 +6,8 @@ import java.util.HashSet;
 import vct.col.ast.ASTClass;
 import vct.col.ast.ASTNode;
 import vct.col.ast.ASTReserved;
+import vct.col.ast.AssignmentStatement;
+import vct.col.ast.ClassType;
 import vct.col.ast.ContractBuilder;
 import vct.col.ast.DeclarationStatement;
 import vct.col.ast.Dereference;
@@ -122,23 +124,43 @@ public class RewriteArrayRef extends AbstractRewriter {
         result=create.invokation(null,null,"new_array_some_"+t,rewrite(e.arg(1)));
 		    break;
 		  }
+		  case PointsTo: {
+		    // If an Array field should have a Null value, change it to OptionNone.
+		    if(e.first().getType().isPrimitive(PrimitiveSort.Array) && e.third().isReserved(ASTReserved.Null)) {
+		      ASTNode res = rewrite(e.first());
+		      result = star(create.expression(StandardOperator.Perm, res, rewrite(e.second())),
+		          create.expression(StandardOperator.EQ, res, create.reserved_name(ASTReserved.OptionNone)));
+		    } else {
+		      super.visit(e);
+		    }
+		    break;
+		  }
 			default:
 				super.visit(e);
 		}
 	}
 	
   @Override
-	public void visit(Dereference e){
-	  if (e.field().equals("length")){
-	    ASTNode res=rewrite(e.obj());
-	    if (e.obj().getType().isPrimitive(PrimitiveSort.Array)){
-  	    res=create.expression(StandardOperator.OptionGet,res);
-	    }
+  public void visit(Dereference e){
+    if (e.field().equals("length")){
+      ASTNode res=rewrite(e.obj());
+      if (e.obj().getType().isPrimitive(PrimitiveSort.Array)){
+        res=create.expression(StandardOperator.OptionGet,res);
+      }
       result=create.expression(StandardOperator.Size,res);
-	  } else {
-	    super.visit(e);
-	  }
-	}
+      return;
+    }
+    // Change Dereference type if Class field is of Array type. 
+    Type object_type=e.obj().getType();
+    if(object_type instanceof ClassType) {
+      ASTClass cl=source().find(((ClassType)object_type).getNameFull());
+      DeclarationStatement decl=cl.find_field(e.field(),true);
+      if(decl != null && decl.getType().isPrimitive(PrimitiveSort.Array)) {
+        e.setType(create.primitive_type(PrimitiveSort.Option, create.primitive_type(PrimitiveSort.Sequence, create.primitive_type(PrimitiveSort.Cell, decl.getType().firstarg()))));
+      }
+    super.visit(e);
+  }
+}
 	
 	@Override
 	public void visit(PrimitiveType t){
@@ -265,6 +287,16 @@ public class RewriteArrayRef extends AbstractRewriter {
     new_array=null;
     array_values=null;
     result=res;
+  }
+  
+  @Override
+  public void visit(AssignmentStatement as) {
+    // Assign OptionNone if array is assigned null.
+    if(as.location().getType().isPrimitive(PrimitiveSort.Array) && as.expression().isReserved(ASTReserved.Null)) {
+      result = create.assignment(rewrite(as.location()), create.reserved_name(ASTReserved.OptionNone));
+    }else {
+      super.visit(as);
+    }
   }
 
 }
