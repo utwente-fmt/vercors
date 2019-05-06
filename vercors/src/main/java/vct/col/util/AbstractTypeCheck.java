@@ -223,6 +223,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     Method m=find_method(e);
     e.setDefinition(m);
 
+    if(current_method() != null && current_method().getKind() == Method.Kind.Pure && m.getKind() != Method.Kind.Pure) {
+      Fail("Cannot call a non-pure method in the definition of a pure method.");
+    }
+
     if (m.getParent() instanceof AxiomaticDataType){
       Type t=m.getReturnType();
       Map<String,Type> map=new HashMap<String, Type>();
