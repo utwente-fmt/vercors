@@ -19,7 +19,7 @@ addons:
       - texlive-latex-recommended
       - texlive-latex-extra
   sonarcloud:
-    organization: "utwente-fmt"
+    organization: utwente-fmt
     token:
       secure: "X8MuVJAOi30ko+KoRnKg6mhBpembu1Dj9KQ4qfUR4TRFcNElONJnKZQHNfY60m+LdBh49iTwCbwm5Z+w8794xYu8HWotMF0Q5T9H4lPRxnvK/klja/1zFFqn7Rv9r+/OmmnD6MIRsMBfmIzHowSz1OJxNg7zCG9bef5izN8oep0r6JROeaP9ewIJUmc9gPG2APBP8TLxpXusDOMY7bjyaxrZZgxQVYv+ncWqFIFg1lPrCxkpISYHXbtqe2oCb9bT5/oBOPTf2sdqSCTI7dpWXr2Dw7s1SqnldhIfM28yl2/yWz5S+y332X7vrma27shwFY61AXencHYb14SJc1x7Oh/tlY8uaOzzZsaJARNaLwlY1jfv08A/gj3buozEFrB7VOOSMnx0Hi/BUolqxmslj9llvVZ19ET/4iK4Yi7zZw1qW1WqYgNHspy73UdqqJ09S2aYoMUP9OV0WEZflZV63efxMQ/ZIEimMvIZERaoZdQqUUhlxTYOly2xPWUX4LJhEwwFc8M4/O7H3SaSIZ0gFzJJJWtY+EONeE19BLqwGUMYL2IZNeB0YyAL83BPF4HhsucLZqbbPq1HASbDYtdQlCHrKwgtPs4/cv8gFwwt9ZgKXDYVgNVbBC1HAa+Gf2RwpAPjeo9g5opMJPhuqtAUPi217Pi5rPgqBITWZ5UWtjI="
 cache:
