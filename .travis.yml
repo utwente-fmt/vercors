@@ -38,7 +38,7 @@ script:
 # Test the remaining examples while hiding messages
 #- vct --tool=silicon --lang=java,pvl --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples
 # Run the Sonar scanner
-- sonar-scanner -X
+- sonar-scanner -Dsonar.projectKey=utwente-fmt_vercors -X
 
 #deploy:
 #  provider: releases
