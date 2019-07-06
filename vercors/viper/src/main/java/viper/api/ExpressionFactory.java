@@ -17,7 +17,10 @@ public interface ExpressionFactory<O,T,E> {
   /** Create an integer constant. */
   public E Constant(O o, int i);
 
-  /** Create a boolean constant. */
+  /** Create a boolean c
+   *
+   *
+   * onstant. */
   public E Constant(O o, boolean b);
 
   /** Create a constant set. */

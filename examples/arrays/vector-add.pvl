@@ -3,6 +3,14 @@
 //:: tools silicon
 //:: verdict Pass
 
+class Counter {
+  ensures \result == k;
+  int letest(int k) {
+    seq<int> a = seq<int> {1, 2, 3};
+    return k;
+  }
+}
+
 class Ref {
   invariant a != null && b != null && c != null;
 	invariant tcount >= 0;
@@ -24,5 +32,14 @@ class Ref {
     {
       a[tid]=b[tid]+c[tid];
     }
+    test(2);
+    Counter count = new Counter();
+    count.letest(3);
+  }
+  
+  ensures \result == klmnop;
+  int test(int klmnop) {
+    return klmnop;
   }
 }
+ 
