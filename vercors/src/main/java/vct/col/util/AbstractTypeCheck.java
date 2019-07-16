@@ -720,11 +720,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         Fail("type of argument %d is unknown at %s in expression %s",i+1,e.getOrigin(),Configuration.getDiagSyntax().print(e));
       }
     }
-    Type t1=null,t2=null;
-    if (op.arity()==2){
-      t1=e.arg(0).getType();
+    Type t1=null,t2=null,t3=null;
+    if(op.arity() >= 1) t1 = e.arg(0).getType();
+    if(op.arity() >= 2) t2 = e.arg(1).getType();
+    if(op.arity() >= 3) t3 = e.arg(2).getType();
+
+    if (op.arity()==2) {
       if (t1==null) Fail("type of left argument unknown");
-      t2=e.arg(1).getType();
       if (t2==null) Fail("type of right argument unknown");
     }
 
@@ -960,7 +962,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (!t2.isBoolean() && !t2.isNumeric()) Fail("type of middle argument is %s rather than a numeric type at %s",t2,e.getOrigin());
       force_frac(e.arg(1));
       e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      Type t3=e.arg(2).getType();
       if (t3==null) Fail("type of right argument unknown at %s",e.getOrigin());
       if (!t3.comparableWith(source(), t1)){
         Fail("types of location and value (%s/%s) incomparable at %s",
@@ -1046,6 +1047,19 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(new PrimitiveType(PrimitiveSort.Boolean));
       break;
     }
+    case ValidPointer:
+      if(!t2.isIntegerType()) {
+        Fail("The second argument to \\pointer should be an integer at %s", e.arg(1).getOrigin());
+      }
+
+      force_frac(e.arg(2));
+
+      if(!t1.isPrimitive(PrimitiveSort.Pointer)) {
+        SequenceUtils.expectArray(e.arg(0), "The first argument to \\pointer (%s) should be a pointer, but was of type %s");
+      }
+
+      e.setType(new PrimitiveType(PrimitiveSort.Resource));
+      break;
     case Values:{
       Type t=e.arg(0).getType();
 //      if (!t.isPrimitive(PrimitiveSort.Array)){
@@ -1169,6 +1183,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(t1);
         break;
       }
+      if(t1.isPrimitive(PrimitiveSort.Pointer) || SequenceUtils.getTypeInfo(t1) != null) {
+        if(!t2.isPrimitive(PrimitiveSort.Integer)) {
+          Fail("Cannot add a value of type %s to a pointer", t2);
+        }
+        e.setType(t1);
+        break;
+      }
       checkMathOperator(e, op, t1, t2);
       break;
     }
@@ -1272,7 +1293,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Drop:
     case Take:
     {
-      if (!t1.isPrimitive(PrimitiveSort.Sequence)) Fail("base must be sequence type.");
       if (!t2.isInteger()) {
         Fail("count has type %s rather than integer",t2);
       }
@@ -1338,7 +1358,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     {
       Type t=e.arg(0).getType();
       if (t==null) Fail("type of argument is unknown at %s",e.getOrigin());
-      if (!t.isPrimitive(PrimitiveSort.Array)) Fail("argument of length is not an array");
+
+      SequenceUtils.expectArrayType(t, "Length expects an array as its argument, but got %s");
       e.setType(new PrimitiveType(PrimitiveSort.Integer));
       break;
     }
@@ -1372,11 +1393,29 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       break;
     }
     case Get:{
-      Type t=e.arg(0).getType();
-      if (t==null) Fail("type of argument is unknown at %s",e.getOrigin());
-      e.setType(t);
+      if (t1==null) Fail("type of argument is unknown at %s",e.getOrigin());
+      e.setType(t1);
       break;
     }
+    case AddrOf:
+      if(t1 == null) Fail("type of argument to AddrOf operator (&) is unknown at %s", e.getOrigin());
+      // TODO: determine whether type checking is necessary here.
+      e.setType(new PrimitiveType(PrimitiveSort.Pointer, e.arg(0).getType()));
+      break;
+    case Indirection:
+      if(t1 == null) Fail("type of argument to Indirection operator (*) is unknown at %s", e.getOrigin());
+
+      Type elementType;
+
+      if(!t1.isPrimitive(PrimitiveSort.Pointer)) {
+        SequenceUtils.SequenceInfo seqInfo = SequenceUtils.expectArray(e.arg(0), "The first argument to the indirection operator (*) should be a pointer, but was of type %s");
+        elementType = seqInfo.getElementType();
+      } else {
+        elementType = (Type) t1.firstarg();
+      }
+
+      e.setType(elementType);
+      break;
     default:
       Abort("missing case of operator %s",op);
       break;

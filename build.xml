@@ -20,7 +20,7 @@
 
   <target name="clean">
     <exec dir="${basedir}/vercors" executable="${sbtcommand}"><arg value="clean" /><env key="TERM" value="xterm-color" /></exec>
-    <exec dir="${basedir}/vercors/hre" executable="${sbtcommand}"><arg value="clean" /><env key="TERM" value="xterm-color" /></exec>
+    <exec dir="${basedir}/vercors/viper/hre" executable="${sbtcommand}"><arg value="clean" /><env key="TERM" value="xterm-color" /></exec>
     <exec dir="${basedir}/vercors/parsers" executable="${sbtcommand}"><arg value="clean" /><env key="TERM" value="xterm-color" /></exec>
     <exec dir="${basedir}/vercors/viper" executable="${sbtcommand}"><arg value="clean" /><env key="TERM" value="xterm-color" /></exec>
     <delete dir="${basedir}/doc/api"/>

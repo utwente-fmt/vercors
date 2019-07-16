@@ -32,7 +32,7 @@ grammar C;
 @lexer::members {
     public static final int CH_COMMENT = 1;
     public static final int CH_LINEDIRECTION = 2;
-}
+}   
 
 primaryExpression
     :   clangIdentifier
@@ -333,7 +333,8 @@ declarator
 
 directDeclarator
     :   clangIdentifier
-    |   '(' declarator ')'
+    // |   '(' declarator ')'
+    // Unsupported: this mixes with function calls really poorly: e.g. int(x); is a valid declaration of x as type int.
     |   directDeclarator '[' typeQualifierList? assignmentExpression? ']'
     |   directDeclarator '[' 'static' typeQualifierList? assignmentExpression ']'
     |   directDeclarator '[' typeQualifierList 'static' assignmentExpression ']'
@@ -371,6 +372,9 @@ nestedParenthesesBlock
 pointer
     :   '*' typeQualifierList?
     |   '*' typeQualifierList? pointer
+    // ** is tokenized separately as separating conjunction
+    |   '**' typeQualifierList?
+    |   '**' typeQualifierList? pointer
     |   '^' typeQualifierList? // Blocks language extension
     |   '^' typeQualifierList? pointer // Blocks language extension
     ;
@@ -529,9 +533,16 @@ externalDeclaration
 
 specificationDeclaration : Placeholder ;
 
+/* The declarationSpecifiers contain the base type, declarator contains a pointer?, identifier and parameters and
+ * compoundStatement is the function body. declarationList is used only in this syntax, which is unsupported, but valid.
+ * int add1(arg)
+ * int arg;
+ * { return arg + 1; }
+ */
 functionDefinition
-    :   declarationSpecifiers? declarator declarationList? compoundStatement
+    :   declarationSpecifiers declarator declarationList? compoundStatement
     ;
+
 
 declarationList
     :   declaration

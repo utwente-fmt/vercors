@@ -1,0 +1,35 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases demo2
+//:: tools silicon
+//:: verdict Pass
+
+class Clear {
+
+	invariant A != null;
+	invariant (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
+	ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
+	void clear(int[] A) {
+		int i = 0;
+		
+		loop_invariant 0 <= i && i <= A.length;
+		loop_invariant (\forall int j; 0 <= j && j < i; A[j] == 0);
+		while (i < A.length) {
+			A[i] = 0;
+			i = i + 1;
+		}
+	}
+	
+	invariant A != null;
+	context (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
+	ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
+	void clearPar(int[] A) {
+		par (int tid = 0 .. A.length)
+			requires Perm(A[tid], write);
+			ensures Perm(A[tid], write);
+			ensures A[tid] == 0;
+		{
+			A[tid] = 0;
+		}
+	}
+
+}

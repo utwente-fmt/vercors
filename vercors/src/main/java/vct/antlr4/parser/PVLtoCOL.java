@@ -885,6 +885,8 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       return create.unresolved_name(tok.getText());
     case PVFullLexer.NUMBER:
       return create.constant(Integer.parseInt(tok.getText()));
+    case PVFullLexer.EOF:
+      return null;
     }
     Fail("At %s: unimplemented terminal node",create.getOrigin());
     return visit(node);

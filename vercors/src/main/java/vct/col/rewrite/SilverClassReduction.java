@@ -570,7 +570,8 @@ public class SilverClassReduction extends AbstractRewriter {
       ref_class.add_dynamic(create.field_decl(s+SEP+"item",t));
     }
     if (options || floats || arrays){
-      File file=new File(new File(Configuration.getHome().toFile(),"config"),"prelude.sil");
+      String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
+      File file=new File(new File(Configuration.getHome().toFile(),"config"),preludeFile);
       ProgramUnit prelude=Parsers.getParser("sil").parse(file);
       for(ASTNode n:prelude){
         if (n instanceof AxiomaticDataType){

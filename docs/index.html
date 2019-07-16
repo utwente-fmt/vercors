@@ -2,99 +2,237 @@
 layout: default
 title: VerCors Tool FMT | Utwente 
 ---
-	<body class="homepage">
 
-					<!-- Banner -->
-						<div id="banner">
-							<div class="container">
-								<section>
-									<header class="major">
-										<h2>Verification of Parallel and Concurrent Software</h2>
-										<span class="byline">&hellip; a static formal verifcation tool that provides you program correctness under different concurrency models, written in high-level programming languages, e.g. in Java, OpenCL and OpenMP; and reason not only about <strong>race freedom</strong> and <strong>memory safety</strong>, but also about <strong>functional correctness</strong>! <br />Released for free under the License <a href="https://fmt.ewi.utwente.nl">Formal Methods and Tools, University of Twente </a> </span>
-									</header>
-									<a href="https://github.com/utwente-fmt/vercors" class="button alt" target="_blank">View on Github</a>
-								</section>			
-							</div>
-						</div>
-	
-				</div>
-			</div>
-	<!-- Featured -->
-			<div class="wrapper style2">
-				<section class="container">
-					<header class="major" id="overview">
-						<h2>The VerCors Tool Overview</h2>
-						<span class="byline"></span>
-					</header>
-					<div class="row no-collapse-1">
-	<section class="4u">
-							
-							<a href="#" class="image feature"><img src= "{{ "/images/VerCors2.png" | prepend: site.baseurl }}" alt="The VerCors Tool Architecture">
-							</a>
-							<p style="text-align:justify"><strong style="color:blue"> The VerCors Tool Architecture</strong><br> VerCors transforms the verification problem of programs written in a high-level programming language into a verification problem in the intermediate language of Viper. It builds on top of existing verification technology, notably the Viper framework...<a href="{{ "/VerCorsArchitecture.html" | prepend: site.baseurl }}"class="btn btn-default">
-<button href= "{{ "/VerCorsArchitecture.html" | prepend: site.baseurl }}">ReadMore>></button></p></a>
-​						</section>
-​						<section class="4u">
-​							<a href="#" class="image feature"><img src="{{ "/images/PA.png" | prepend: site.baseurl }}" alt="Program verification with Abstraction"></a>
-​							<p style="text-align:justify"><strong style="color:blue">Formal Program Verification with Abstractions</strong><br>At layer 3, VerCors combines data abstraction with process algebra and allows you to reason about abstract model by defining corresponding actions & processes with contracts...<a href="VercorsWith Abstraction.html" class="btn btn-default">
-<button href= "{{ "/VercorsWith Abstraction.html" | prepend: site.baseurl }}">ReadMore>></button></p></a>
-​						</section>
-​						<section class="4u">
-​							<a href="#" class="image feature"><img src="images/Vercors_Original.jpg" alt=""><img src="images/eclipse.png" alt=""></a>
-​							<p style="text-align:justify"><strong style="color:blue">VerCors with Eclipse</strong><br>If you have <em>eclipse</em> installed, you could also configure VerCors. Install the Scala IDE plugin for Eclipse. Download- and installation instructions...<a href="doc.html#eclipse" class="btn btn-default">
-<button href= "{{ "/doc.html#eclipse" | prepend: site.baseurl }}">ReadMore>></button></p></a>
-</section>
-​				</div>
-​				</div>
-</section>
-​			</div>
+<style type="text/css">
+  table#t01 {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border-collapse: collapse;
+    border-spacing: 0;
+    table-layout: fi
+  }
 
-​	<!-- Main -->
-​			<div id="main" class="wrapper style1">
-​				<section class="container">
-​					<div class="row">
-​					
-						<!-- Content -->
-							<div class="6u">
-								<section>
-									<ul class="style">
-										<li>
-											<span class="fa fa-wrench"></span>
-											<h2>Tool Installation</h2>
-											<span style="text-align:justify">The VerCors toolset can be installed on macOSX, Linux and Windows (via Cygwin). Follow the complete installation guidelines <a href= "TryOnline.html#install" class="url">here</a>.</span>
-										</li>
-										<li>
-											<span class="fa fa-cloud"></span>
-											<h2>Latest Publications</h2>
-											<p>A complete list of publications is listed <a href= "https://research.utwente.nl/en/searchAll/index/?search=VerCors&pageSize=25&showAdvanced=false&allConcepts=true&inferConcepts=true&searchBy=PartOfNameOrTitle&ordering=publicationYearThenTitle&descending=true" class="url" target="_blank">here</a>.</p>
-										</li>
-									</ul>
-								</section>
-							</div>
-							<div class="6u">
-								<section>
-									<ul class="style">
-										<li>
-											<span class="fa fa-cogs"></span>
-											<h3>Report a Bug</h3>
-											<p>For bug reports and feature requests,<br>visit <a href='https://github.com/utwente-fmt/vercors/issues' target='_blank' class='url'>https://github.com/utwente-fmt/vercors/issues</a>.
-<br>
-For questions and support, email to <a href='mailto:VERCORS@LISTS.utwente.nl' target='_blank' class=''>VERCORS@LISTS.utwente.nl</a>
-</li>
-</p>
-<li>
-​											<span class="fa fa-leaf"></span>
-​											<h3>Latest Release</h3>
-​											<span>VerCors version 1.0 is released.<img src="{{ "/images/release.png" | prepend: site.baseurl }}" width="10%" height="10%" alt="Release"> <button><strong> Download here! </strong> </button> </span>
-​											
-​										</li>
-​									</ul>
-​								</section>
-​							</div>
-​	
-					</div>
-				</section>
-			</div>
+  table#t01 tr {
+    padding: 15px;
+  }
 
-	
-	</body>
+  table#t01 th, table#t01 td {
+    padding: 25px;
+    text-align: center;
+    width: 33%;
+  }
+
+  table#t01 th {
+    text-transform: uppercase;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+
+  @media screen and (max-width: 840px) {
+
+    table#t01 {
+      border: 0;
+    }
+
+    table#t01 thead {
+      display: none;
+    }
+
+    table#t01 tr {
+      /* margin-bottom: 10px; */
+      display: block;
+      /* border-bottom: 22px solid #222233; */
+    }
+
+    table#t01 td {
+      display: block;
+      text-align: center;
+      width: 100%;
+      border-bottom: 2px dotted #ccc;
+      align-content: top;
+    }
+
+    /* table#t01 td:last-child {
+      border-bottom: 0;
+    } */
+
+    /* table#t01 td:before {
+      content: attr(data-label);
+      float: left;
+      text-transform: uppercase;
+      font-weight: bold;
+    } */
+  }
+
+	@media screen and (min-width: 840px) {
+    #fakeheader {
+        display: none !important;
+        padding: 20px;
+        border: 20px;
+    }
+  }
+
+  .layer {
+    background-color: rgba(248, 247, 216, 0.7);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+</style>
+
+<body class="homepage">
+  <!-- Banner -->
+  <div id="banner">
+    <div class="container">
+      <section>
+        <header class="major">
+          <h2>Verification of Concurrent and Distributed Software</h2>
+          <span class="byline">
+						&hellip; a static formal verifcation tool that provides you program 
+						correctness under different concurrency models, written in high-level 
+						programming languages, e.g. in Java, OpenCL and OpenMP; and reason 
+						not only about <strong>race freedom</strong> and <strong>memory 
+						safety</strong>, but also about <strong>functional 
+						correctness</strong>! <br />Released for free under the Mozilla Public
+            License Version 2.0 ** </a> 
+          </span>
+        </header>
+        <a href="https://github.com/utwente-fmt/vercors" class="button alt" target="_blank">View on Github</a>
+      </section>
+    </div>
+  </div>
+  </div> <!-- FIXME: why this two last /div here? -->
+  </div>
+
+
+
+    <!-- Fake Banner for small screens -->
+    <div id="fakeheader">
+      <section style="text-align: center; padding:5%; color:#eee; background-image: url(images/Vercors_Original.jpg); background-repeat: no-repeat; background-size: cover; box-shadow: inset 0 0 0 1000px rgba(0,0,0,.2);">
+        <header class="major">
+          <h2>Verification of Concurrent and Distributed Software</h2>
+          <span class="byline">
+            &hellip; a static formal verifcation tool that provides you program 
+            correctness under different concurrency models, written in high-level 
+            programming languages, e.g. in Java, OpenCL and OpenMP; and reason 
+            not only about <strong>race freedom</strong> and <strong>memory 
+            safety</strong>, but also about <strong>functional 
+            correctness</strong>! <br />Released for free under the License 
+            <a href="https://fmt.ewi.utwente.nl">Formal Methods and Tools, 
+            University of Twente </a> 
+          </span>
+        </header>
+        <a href="https://github.com/utwente-fmt/vercors" class="button alt" target="_blank">View on Github</a>
+      </section>
+    </div>
+
+
+
+
+  <!-- Featured -->
+  <div class="wrapper style2">
+    <section class="container">
+
+			<table id="t01">
+				<tr>
+
+          <td >
+            <p style="text-align:justify">
+              <a href="#" class="image feature"><img src= "{{ "/images/VerCors2.png" | prepend: site.baseurl }}" alt="The VerCors Tool Architecture"></a>
+              <br>
+              <strong style="color:#3ac984"> The VerCors Tool Architecture</strong><br> VerCors transforms the verification problem of programs written in a high-level programming language into a verification problem in the intermediate language of Viper... <a href="{{ "/VerCorsArchitecture.html" | prepend: site.baseurl }}" target="_blank"class="btn btn-default"><button href= "{{ "/VerCorsArchitecture.html" | prepend: site.baseurl }}">ReadMore>></button>
+            </p>
+          </td>
+
+          <td >
+            <p style="text-align:justify">
+              <a href="#" class="image feature"><img src="{{ "/images/PA.png" | prepend: site.baseurl }}" alt="Program verification with Abstraction"></a>
+              <br>
+              <strong style="color:#3ac984"> Formal Program Verification with Abstractions</strong><br> VerCors combines data abstraction with process algebra and allows you to reason about abstract model by defining corresponding actions & processes with contracts... <a href="{{ "/VercorsWithAbstraction.html" | prepend: site.baseurl }}" target= "_blank" class="btn btn-default"><button href= "{{ "/VercorsWithAbstraction.html" | prepend: site.baseurl }}">ReadMore>></button>
+            </p>
+          </td>
+				</tr>
+      </table>
+    </section>
+  </div>
+     
+  <div class="wrapper style2" style="background-color: #f1f1f1f1;">
+      <section class="container">
+        
+      <header class="major" id="overview">
+          <h2>News</h2>
+          <span class="byline"></span>
+      </header>
+
+      <p style="text-align:justify;">
+        <div style="height:400px;width:100%;overflow:auto;background-color:#f1f1f1f1;color:back;scrollbar-base-color:gold;font-family:sans-serif;padding:10px;">
+          <div class="blog-posts">
+            {% for post in site.posts %}
+              <div class="blog-post spacing" style="padding-left: 10%; padding-right: 10%;">
+                <h3><a href="{{ post.url }}">{{ post.title }}</a></h3>
+                <p class="summary">
+                  {{ post.category }}
+                  <span class="date">
+                    {{ post.date | date: '%B %d, %Y' }}
+                  </span>
+                </p>
+                {{ post.excerpt }}
+              </div>
+            {% endfor %}
+          </div></div>
+        </p>
+
+  </section>
+  </div>
+
+  <!-- Main -->
+  <div id="main" class="wrapper style1">
+    <section class="container">
+      <table id="t01" text-align="left">
+        <tr>
+          <!-- The ul here is just to be able to see nice buttons -->
+          <td style="text-align: left;"><ul class="style"> 
+	   <a href="Installation.html#install" target="_blank" class="link link--dark">
+            <span class="fa fa-wrench"></span>
+             </a>
+		<h2>Tool Installation</h2>
+            <p>
+            <span style="text-align:justify">The VerCors toolset can be installed on macOSX, Linux and Windows (via Cygwin). Follow the complete installation guidelines <a href= "Installation#install" class="url">here</a>.</span>
+            </p>
+          </ul></td>
+          <td style="text-align: left;"><ul class="style"> <a href="{{ "/Publications.html" | prepend: site.baseurl }}" target="_blank" class="link link--dark">
+            <span class="fa fa-cloud"></span>
+        	</a>
+            <h2>Latest Publications</h2>
+            <p>A complete list of publications is listed <a href="{{ "/Publications.html" | prepend: site.baseurl }}" class="url" target="_blank">here</a>.</p>
+          </ul></td>
+        </tr>
+        <tr>
+          <td style="text-align: left;"><ul class="style"><a href="https://github.com/utwente-fmt/vercors/issues" target="_blank" class="link link--dark">
+            <span class="fa fa-cogs"></span>
+	</a>
+            <h2>Report a Bug</h2>
+            <p>For bug reports and feature requests,<br>visit <a href='https://github.com/utwente-fmt/vercors/issues' target='_blank' class='url'>https://github.com/utwente-fmt/vercors/issues</a>.    
+              For questions and support, email to <a href='mailto:VERCORS@LISTS.utwente.nl' target='_blank' class=''>vercors@lists.utwente.nl</a></p>
+          </ul></td>
+          <td style="text-align: left;"><ul class="style"> 
+            <a href="https://surfdrive.surf.nl/files/index.php/s/ImxHX0lJyBRgd60" target="_blank" class="link link--dark">
+		<span class="fa fa-leaf"></span>
+	</a>
+            <h2>Latest Release</h2>
+            <p>VerCors version 1.0 has been released. 
+		       <a href="https://surfdrive.surf.nl/files/index.php/s/ImxHX0lJyBRgd60" target="_blank" class="link link--dark">
+		  <button>
+		 <img src="{{ '/images/release.png' | prepend: site.baseurl }}" width="5%" height="5%" alt="Release"></button></p>
+		    </a>
+          </ul></td>
+        </tr>
+      </table>
+    </section>
+  </div>
+
+</body>

@@ -15,6 +15,12 @@ and (max-device-width : 480px) {
   }
 }
 
+.blank_row
+{
+    height: 30px !important; /* overwrites any other rules */
+    background-color: #FFFFFF;
+}
+
 body {
 		background: #222833;
 	}
@@ -487,7 +493,7 @@ body {
 /* Header */
 
 	#header {
-		background: #333333 url("{{ "/images/Vercors_Original.jpg" | prepend: site.baseurl }}") no-repeat;
+		background: #7a5757 url("{{ '/images/Vercors_Original.jpg' | prepend: site.baseurl }}") no-repeat;
 		background-size: cover;
 		color: #fff;
 		padding: 4em 0;

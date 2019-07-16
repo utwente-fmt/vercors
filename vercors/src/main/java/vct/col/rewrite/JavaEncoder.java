@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 
+import hre.ast.MessageOrigin;
 import hre.lang.HREError;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
@@ -183,7 +184,7 @@ public class JavaEncoder extends AbstractRewriter {
   
   @Override
   public void visit(Dereference d){
-    if(d.field().equals("length")) {
+    if(d.field().equals("length") || d.field().equals("item")) {
       super.visit(d);
       return;
     }
@@ -566,6 +567,7 @@ public class JavaEncoder extends AbstractRewriter {
   @Override
   public ProgramUnit rewriteAll(){
     globals=create.ast_class("EncodedGlobalVariables",ClassKind.Plain,null,null,null);
+    globals.setOrigin(new MessageOrigin("Generated code: Encoded global variables"));
     ProgramUnit res=super.rewriteOrdered();
     res.add(globals);
     return res;

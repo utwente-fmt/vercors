@@ -48,7 +48,7 @@ The VerCors toolset can be used from the main directory by running `./unix/bin/v
 
 ## Contact
 
-- For questions and support, email to <w.h.m.oortwijn@utwente.nl>.
+- For questions and support, email to <vercors@lists.utwente.nl>.
 - For bug reports and feature requests, visit <https://github.com/utwente-fmt/vercors/issues>.
 
 ## Related papers

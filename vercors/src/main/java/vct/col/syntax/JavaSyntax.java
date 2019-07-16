@@ -70,7 +70,7 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(IterationOwner,"\\owner");
         
         syntax.addFunction(Values,"\\values");
-        
+
         syntax.addOperator(Unfolding,140,"\\unfolding","\\in","");
         syntax.addOperator(IndependentOf, -1 , "(" ,"!",")");
         syntax.addOperator(ReducibleSum,-1,"Reducible(",",+)");
@@ -84,6 +84,7 @@ public class JavaSyntax extends Syntax {
         
         syntax.addFunction(ValidArray,"\\array");
         syntax.addFunction(ValidMatrix,"\\matrix");
+        syntax.addFunction(ValidPointer,"\\pointer");
         
         JavaVerCorsSyntax=syntax;
         
