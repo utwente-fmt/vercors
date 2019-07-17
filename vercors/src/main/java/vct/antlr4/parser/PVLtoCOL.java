@@ -561,13 +561,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       BlockStatement block=(BlockStatement)convert(ctx,4);
       return create.vector_block(iter,block);
     }
-    if (match(0,true,ctx,"Contract","par","Par_unit")){
-      Contract c;
-      if (((ContractContext)ctx.getChild(0)).getChildCount()>0){
-        c=(Contract)convert(ctx,0);
-      } else {
-        c=null;
-      }
+    if (match(0,true,ctx,"par","Par_unit")){
       int offset=1;
       ArrayList<ParallelBlock> res=new ArrayList<ParallelBlock>();
       do {
@@ -576,7 +570,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
         offset+=2;
       } while (match(offset,true,ctx,"and","Par_unit"));
       if (offset == ctx.getChildCount()){
-        return create.region(c,res);
+        return create.region(null, res);
       }
       Warning("incomplete match of parallel region");
     }

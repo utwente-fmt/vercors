@@ -281,13 +281,17 @@ public class Syntax {
 
   public ByteArrayOutputStream print(ASTNode n){
     ByteArrayOutputStream res=new ByteArrayOutputStream();
-    print(new PrintWriter(res),n);
+    PrintWriter writer = new PrintWriter(res);
+    print(writer, n);
+    writer.close();
     return res;
   }
   
   public ByteArrayOutputStream print(ProgramUnit program){
     ByteArrayOutputStream res=new ByteArrayOutputStream();
-    print(new PrintWriter(res),program);
+    PrintWriter writer = new PrintWriter(res);
+    print(writer,program);
+    writer.close();
     return res;
   }
   
