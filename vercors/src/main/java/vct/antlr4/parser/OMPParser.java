@@ -41,6 +41,8 @@ public class OMPParser {
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     ErrorCounter ec=new ErrorCounter(pragma);
     ompParser parser = new ompParser(tokens);
+    lexer.removeErrorListeners();
+    lexer.addErrorListener(ec);
     parser.removeErrorListeners();
     parser.addErrorListener(ec);
     ParseTree tree = parser.omp_pragma();

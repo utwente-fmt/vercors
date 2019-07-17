@@ -3,14 +3,18 @@
 domain VCTArray[CT] {
   function loc(a: VCTArray[CT], i: Int): CT
   function alen(a: VCTArray[CT]): Int
-  function first(r: CT): VCTArray[CT]
   function second(r: CT): Int
 
-  /* Missing in prelude_C, as in C pointers may overlap, whereas in the other
-     languages arrays cannot overlap. */
-  axiom all_diff {
-    forall a: VCTArray[CT], i: Int :: { loc(a,i) }
-      first(loc(a,i)) == a && second(loc(a,i)) == i
+  /* missing axiom: all_diff, as C pointers may overlap. This axiom is here
+     instead, to express that the address space is linear. */
+  axiom good_name_here {
+    forall a: VCTArray[CT], i: Int :: { loc(a, i) }
+      second(loc(a, i)) == second(loc(a, 0)) + i
+  }
+
+  axiom second_injectivity {
+    forall a: VCTArray[CT], b: VCTArray[CT], i: Int, j: Int  :: { loc(a, i), loc(b, j) }
+      (second(loc(a, i)) == second(loc(b, j))) ==> (loc(a, i) == loc(b, j))
   }
 
   axiom len_nonneg {

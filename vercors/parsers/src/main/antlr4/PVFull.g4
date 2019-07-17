@@ -9,7 +9,7 @@ import val;
 
 expression : expr ;
 
-program  : (claz|kernel|block|field|method_decl)* (block)? ;
+program  : (claz|kernel|block|field|method_decl)* (block)? EOF ;
 
 claz : contract 'class' identifier '{'( field | method_decl | constructor )* '}' ;
 

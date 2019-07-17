@@ -16,7 +16,6 @@ public class CSyntax extends Syntax{
   }
 
   public static void setCommon(Syntax syntax){
-    
     syntax.addOperator(Subscript,160,"","[","]");
     syntax.addLeftFix(StructSelect,".",160);
     syntax.addLeftFix(StructDeref,"->",160);
@@ -74,6 +73,8 @@ public class CSyntax extends Syntax{
     syntax.addRightFix(ShrAssign,">>=",30);
 
     syntax.addFunction(SizeOf, "sizeof");
+    syntax.addFunction(ValidPointer, "\\pointer");
+    syntax.addFunction(Values, "\\values");
     
     syntax.addPrimitiveType(PrimitiveSort.Double,"double");
     syntax.addPrimitiveType(PrimitiveSort.Integer,"int");

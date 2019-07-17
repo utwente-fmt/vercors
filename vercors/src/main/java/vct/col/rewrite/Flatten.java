@@ -2,21 +2,22 @@ package vct.col.rewrite;
 
 import hre.ast.MessageOrigin;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Stack;
 
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.composite.IfStatement;
-import vct.col.ast.stmt.composite.LoopStatement;
+import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.util.LambdaHelper;
 
 public class Flatten extends AbstractRewriter {
 
@@ -136,6 +137,42 @@ public class Flatten extends AbstractRewriter {
       return;
     }
   }
+
+  @Override
+  public void visit(VectorBlock vectorBlock) {
+    result = create.vector_block(
+            copy_pure.rewrite(vectorBlock.iter()),
+            rewrite(vectorBlock.block())
+    );
+  }
+
+  @Override
+  public void visit(ParallelBlock pb){
+    ParallelBlock res=create.parallel_block(
+            pb.label(),
+            rewrite(pb.contract()),
+            copy_pure.rewrite(pb.itersJava()),
+            rewrite(pb.block()),
+            rewrite(pb.deps())
+    );
+    result=res;
+  }
+
+  @Override
+  public void visit(ActionBlock actionBlock) {
+    Map<String,ASTNode> map = new HashMap<String,ASTNode>();
+    actionBlock.foreach(LambdaHelper.fun((key, val) -> map.put(key, rewrite(val))));
+
+    // rewrite all other components of `actionBlock`
+    result = create.action_block(
+            rewrite(actionBlock.history()),
+            rewrite(actionBlock.fraction()),
+            rewrite(actionBlock.process()),
+            copy_pure.rewrite(actionBlock.action()),
+            map,
+            rewrite(actionBlock.block())
+    );
+  }
   
   public void visit(DeclarationStatement s){
     Type t=s.getType();
@@ -254,7 +291,12 @@ public class Flatten extends AbstractRewriter {
         visit_body(s.getStatement(i));
       }
     } else {
-      current_block.addStatement(body.apply(this));
+      ASTNode statement = body.apply(this);
+      if(!(statement instanceof NameExpression)) {
+        /* invokations of methods that return something are flattened, but we want to ignore this value when the
+         method is instead used as a statement.*/
+        current_block.addStatement(statement);
+      }
     }
   }
   
@@ -309,6 +351,10 @@ public class Flatten extends AbstractRewriter {
       }
     }
     result=res;
+  }
+
+  public void visit(BindingExpression expr) {
+    result = copy_rw.rewrite(expr);
   }
 
   public ASTNode transformStructValue(Type t, StructValue v) {

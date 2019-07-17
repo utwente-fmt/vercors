@@ -71,11 +71,13 @@ public class ConvertTypeExpressions extends AbstractRewriter {
       }
     }
     Debug("remaining type of %s is %s",m.getReturnType(),t);
-    Method out=create.method_decl(
+    Method out=create.method_kind(
+        res.getKind(),
         t,
         copy_rw.rewrite(res.getContract()),
         res.name(),
         copy_rw.rewrite(res.getArgs()),
+        res.usesVarArgs(),
         copy_rw.rewrite(res.getBody()));
     out.copyMissingFlags(res);
     if(kernel){

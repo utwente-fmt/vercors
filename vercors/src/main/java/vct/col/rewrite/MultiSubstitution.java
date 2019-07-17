@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.Type;
@@ -13,6 +14,16 @@ public class MultiSubstitution extends AbstractRewriter {
   public MultiSubstitution(ProgramUnit source,Map<String,Type> type_map) {
     super(source);
     this.type_map=type_map;
+  }
+
+  public void visit(Method m) {
+    result = create.method_decl(
+            rewrite(m.getReturnType()),
+            copy_rw.rewrite(m.getContract()),
+            m.getName(),
+            copy_rw.rewrite(m.getArgs()),
+            copy_rw.rewrite(m.getBody())
+    );
   }
 
   public void visit(ClassType t){

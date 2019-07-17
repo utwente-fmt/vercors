@@ -403,7 +403,7 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
     if (arg0 instanceof ParserRuleContext){
       Debug("Scanning using Syntax");
       ParserRuleContext ctx=(ParserRuleContext)arg0;
-      if (ctx.children.size()==1){
+      if (ctx.children != null && ctx.children.size()==1){
         ParseTree tmp=ctx.getChild(0);
         if (tmp instanceof ParserRuleContext) {
           return convert(tmp);
@@ -1031,6 +1031,9 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
     }
     if (match(ctx,"*")){
       return create.reserved_name(ASTReserved.Any);
+    }
+    if(match(ctx, "\\pointer", "(", null, ",", null, ",", null, ")")) {
+      return create.expression(StandardOperator.ValidPointer, convert(ctx, 2), convert(ctx, 4), convert(ctx, 6));
     }
     throw new HREError("missing case for VAL primary expression: %s",ctx.toStringTree(parser));
   }

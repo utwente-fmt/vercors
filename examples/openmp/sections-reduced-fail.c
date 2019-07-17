@@ -3,7 +3,7 @@
 //:: tools silicon
 //:: verdict Fail
 /*
- * Demonstrates how two loops that must be fused to be 
+ * Demonstrates how two loops that must be fused to be
  * data race free can be specified and verified.
  */
 #include <stdio.h>
@@ -11,36 +11,31 @@
 
 
 /*@
-  invariant a != NULL && b != NULL && c != NULL && d != NULL;
-  invariant len>0 && \length(a)==len && \length(b)==len && \length(c)==len && \length(d)==len;
-  context   (\forall* int k;0 <= k && k < len ; Perm(a[k],1/2));
-  context   (\forall* int k;0 <= k && k < len ; Perm(b[k],1/2));
-  context   (\forall* int k;0 <= k && k < len ; Perm(c[k],1));
-  context   (\forall* int k;0 <= k && k < len ; Perm(d[k],1));
+  context \pointer(a, len, 1/2) ** \pointer(b, len, 1/2);
+  context \pointer(c, len, write) ** \pointer(d, len, write);
   ensures   (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
   ensures   (\forall  int k;0 <= k && k < len ; d[k]==a[k]*b[k]);
 @*/
 void addmul(int len,int a[],int b[],int c[], int d[])
 {
-#pragma omp parallel 
+#pragma omp parallel
 {
 /*@
-  context   (\forall* int k;0 <= k && k < len ; Perm(a[k],1/2));
-  context   (\forall* int k;0 <= k && k < len ; Perm(b[k],1/2));
-  context   (\forall* int k;0 <= k && k < len ; Perm(c[k],1));
-  context   (\forall* int k;0 <= k && k < len ; Perm(d[k],1));
+  context \pointer(a, len, 1/2) ** \pointer(b, len, 1/2);
+  context \pointer(c, len, write) ** \pointer(d, len, write);
   ensures   (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
- ensures   (\forall  int k;0 <= k && k < len ; d[k]==a[k]*b[k]);
+  ensures   (\forall  int k;0 <= k && k < len ; d[k]==a[k]*b[k]);
 @*/
-#pragma omp sections 
+#pragma omp sections
 {
-#pragma omp section  
-  { 
+#pragma omp section
+  {
 #pragma omp parallel
-{    
+{
     #pragma omp for schedule(static) nowait
    for(int i=0;i<len;i++)
     /*@
+      context a != NULL && c != NULL;
       context Perm(c[i],1) ** Perm(a[i],1/4);
       ensures c[i] == a[i];
     @*/
@@ -50,6 +45,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     #pragma omp for schedule(static)
     for(int i=0;i<len;i++)
     /*@
+      context b != NULL && c != NULL;
       context Perm(c[i],1) ** Perm(b[i],1/4);
       ensures c[i] == \old(c[i]) + b[i];
     @*/
@@ -58,13 +54,14 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     }
   }//parallel
 }//section
-#pragma omp section  
+#pragma omp section
   {
 #pragma omp parallel
-{ 
+{
     #pragma omp for schedule(static) nowait
     for(int i=0;i<len;i++)
     /*@
+      context a != NULL && d != NULL;
       context Perm(d[i],1) ** Perm(a[i],1/4);
       ensures d[i] == a[i];
     @*/
@@ -74,6 +71,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     #pragma omp for schedule(static)
     for(int i=0;i<len;i++)
     /*@
+      context b != NULL && d != NULL;
       context Perm(d[i],1) ** Perm(b[i],1);
       ensures d[i] == \old(d[i]) * b[i];
     @*/
@@ -95,14 +93,14 @@ int main(int argc, char *argv[]){
 
 
   int i;
-  
+
   printf("a: ");
   for(i=0;i<16;i++){printf("%4d",a[i]);}
   printf("\n");
   printf("b: ");
   for(i=0;i<16;i++){printf("%4d",b[i]);}
   printf("\n");
-  
+
   addmul(16,a,b,c,d);
 
   printf("c: ");
@@ -114,5 +112,3 @@ int main(int argc, char *argv[]){
   printf("\n");
 
 }
-
-

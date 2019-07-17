@@ -290,7 +290,7 @@ public class Syntax {
   public ByteArrayOutputStream print(ProgramUnit program){
     ByteArrayOutputStream res=new ByteArrayOutputStream();
     PrintWriter writer = new PrintWriter(res);
-    print(writer,program);
+    print(writer, program);
     writer.close();
     return res;
   }

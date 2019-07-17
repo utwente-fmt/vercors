@@ -10,7 +10,7 @@ extraPrimary : valPrimary ;
 
 extraStatement : valContractClause | valStatement ;
 
-extraType : 'resource' | 'process' | 'frac' | 'zfrac' | identifier typeArgs ;
+extraType : 'resource' | 'process' | 'frac' | 'zfrac' | 'bool' | identifier typeArgs ;
 
 extraDeclaration
  : pureFunctionDeclaration

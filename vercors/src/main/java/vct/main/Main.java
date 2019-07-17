@@ -343,6 +343,14 @@ public class Main
 
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
+
+        if(features.usesOperator(StandardOperator.AddrOf)) {
+          passes.add("lift_declarations");
+        }
+
+        passes.add("java-check");
+        passes.add("pointers_to_arrays");
+        passes.add("java-check");
         passes.add("array_null_values"); // rewrite null values for array types into None
         passes.add("java-check");
         if (silver.used()){
@@ -624,6 +632,10 @@ public class Main
       Verdict("The final verdict is Error");
     } catch (Throwable e) {
       DebugException(e);
+      Verdict("An unexpected error occured in VerCors! " +
+              "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. " +
+              "You can see the full exception by adding '--debug vct.main.Main' to the flags.");
+      Verdict("The final verdict is Error");
       throw e;
     } finally {
       Progress("entire run took %d ms",System.currentTimeMillis()-globalStart);
@@ -735,6 +747,17 @@ public class Main
     defined_passes.put("array_null_values", new CompilerPass("rewrite null values for arrays to None") {
       public ProgramUnit apply(ProgramUnit arg, String... args) {
           return new ArrayNullValues(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("pointers_to_arrays", new CompilerPass("rewrite pointers to arrays") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new PointersToArrays(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("lift_declarations", new CompilerPass("lift declarations to cell of the declared types, to treat locals as heap locations.") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new LiftDeclarations(arg).rewriteAll();
       }
     });
     defined_passes.put("java-check",new CompilerPass("run a Java aware type check"){
@@ -883,6 +906,9 @@ public class Main
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new FlattenBeforeAfter(arg).rewriteAll();
       }
+    });
+    defined_passes.put("flatten_variable_declarations", new CompilerPass("put the base type in declarations") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) { return new FlattenVariableDeclarations(arg).rewriteAll(); }
     });
     defined_passes.put("inline",new CompilerPass("Inline all methods marked as inline"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){

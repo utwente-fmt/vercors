@@ -3,6 +3,7 @@
 //:: tools silicon
 //:: verdict Pass
 public class MultiDimArray {
+    //@ requires x == null || x.length == 5;
     public static void method(int[] x) {
 
     }

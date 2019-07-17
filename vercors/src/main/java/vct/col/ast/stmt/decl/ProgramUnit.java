@@ -2,10 +2,7 @@ package vct.col.ast.stmt.decl;
 
 import hre.ast.MessageOrigin;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.*;
 
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
@@ -25,6 +22,20 @@ import static hre.lang.System.*;
  *
  */
 public class ProgramUnit implements ASTSequence<ProgramUnit> {
+  public enum LanguageFlag {
+    SeparateArrayLocations(true);
+
+    private boolean defaultFlag;
+
+    private LanguageFlag(boolean defaultFlag) {
+      this.defaultFlag = defaultFlag;
+    }
+
+    public boolean getDefault() {
+      return this.defaultFlag;
+    }
+  }
+
 
   public String toString(){
     return vct.util.Configuration.getDiagSyntax().print(this).toString();
@@ -57,10 +68,20 @@ public class ProgramUnit implements ASTSequence<ProgramUnit> {
     library.put(name,cl);
   }
 
+  private EnumMap<LanguageFlag, Boolean> languageFlags = new EnumMap<>(LanguageFlag.class);
+
   /**
    * A program is made up of declarations.
    */
   private ArrayList<ASTDeclaration> program=new ArrayList<ASTDeclaration>();
+
+  public boolean hasLanguageFlag(LanguageFlag flag) {
+    return languageFlags.getOrDefault(flag, flag.getDefault());
+  }
+
+  public void setLanguageFlag(LanguageFlag flag, boolean value) {
+    languageFlags.put(flag, value);
+  }
 
   public int size(){
     return program.size();
@@ -109,6 +130,17 @@ public class ProgramUnit implements ASTSequence<ProgramUnit> {
    */
   public ProgramUnit(){
     
+  }
+
+  /**
+   * Create an empty program unit, but copy language flags.
+   * @param source The source to copy language flags from
+   */
+  @SuppressWarnings("CopyConstructorMissesField")
+  public ProgramUnit(ProgramUnit source) {
+    if(source != null) {
+      languageFlags.putAll(source.languageFlags);
+    }
   }
   
   public void add(ASTDeclaration n){
@@ -264,7 +296,25 @@ public class ProgramUnit implements ASTSequence<ProgramUnit> {
     return this;
   }
 
+  public void addFlags(ProgramUnit other) {
+    for(Map.Entry<LanguageFlag, Boolean> entry : other.languageFlags.entrySet()) {
+      if(this.languageFlags.containsKey(entry.getKey())) {
+        if(this.languageFlags.get(entry.getKey()).booleanValue() != entry.getValue().booleanValue()) {
+          Fail(String.format(
+                  "Irreconcilable language flags: the flag %s was already set to %s, but was set to %s in a new entry.",
+                  entry.getKey(),
+                  this.languageFlags.get(entry.getKey()),
+                  entry.getValue()));
+        }
+      } else {
+        this.languageFlags.put(entry.getKey(), entry.getValue());
+      }
+    }
+  }
+
   public void add(ProgramUnit unit) {
+    this.addFlags(unit);
+
     for(ASTDeclaration decl:unit.get()){
       add(decl);
     }

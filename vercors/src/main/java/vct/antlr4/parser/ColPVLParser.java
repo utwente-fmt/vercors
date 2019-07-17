@@ -27,11 +27,14 @@ public class ColPVLParser implements vct.col.util.Parser {
     String file_name=file.toString();
       try {
         TimeKeeper tk=new TimeKeeper();
+        ErrorCounter ec=new ErrorCounter(file_name);
+
         ANTLRInputStream input = new ANTLRInputStream(new FileInputStream(file));
         PVFullLexer lexer = new PVFullLexer(input);
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(ec);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         PVFullParser parser = new PVFullParser(tokens);
-        ErrorCounter ec=new ErrorCounter(file_name);
         parser.removeErrorListeners();
         parser.addErrorListener(ec);
         ParseTree tree = parser.program();
