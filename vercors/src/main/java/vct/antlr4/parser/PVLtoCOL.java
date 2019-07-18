@@ -562,7 +562,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       return create.vector_block(iter,block);
     }
     if (match(0,true,ctx,"par","Par_unit")){
-      int offset=1;
+      int offset=0;
       ArrayList<ParallelBlock> res=new ArrayList<ParallelBlock>();
       do {
         ParallelBlock blk=(ParallelBlock)convert(ctx,offset+1);
