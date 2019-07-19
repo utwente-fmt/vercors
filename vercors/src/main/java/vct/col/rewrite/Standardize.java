@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.stmt.decl.AxiomaticDataType;
@@ -11,17 +12,18 @@ import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.Type;
 import vct.util.ClassName;
 
 /**
  * Standardize the representation of programs.
- * 
+ *
  * <UL>
  * <LI> Replace assignment expressions used as statements by assignment statements.
  * <LI> Replace simple increment and decrement statements by assignments.
  * <LI> Create objects for method invokations that do not have them.
  * </UL>
- * 
+ *
  * @author Stefan Blom
  *
  */
@@ -106,10 +108,9 @@ public class Standardize extends AbstractRewriter {
       }
     }
   }
-  
+
   @Override
   public void visit(OperatorExpression e){
-    if (e.getParent() instanceof BlockStatement){
       switch(e.operator()){
       case Assign:
       {
@@ -142,12 +143,28 @@ public class Standardize extends AbstractRewriter {
         }
         break;
       }
+      case PrependSingle: {
+        Type seqElementType = e.arg(0).getType();
+	    ASTNode var = e.arg(0).apply(this);
+	    ASTNode seq = e.arg(1).apply(this);
+
+	    StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
+	    result = create.expression(StandardOperator.Append, newSeq, seq);
+	    break;
+      }
+	  case AppendSingle:
+	  {
+	    Type seqElementType = e.arg(1).getType();
+        ASTNode var=e.arg(1).apply(this);
+        ASTNode seq=e.arg(0).apply(this);
+
+        StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType),null,var);
+        result = create.expression(StandardOperator.Append, seq, newSeq);
+	    break;
+	  }
       default:
         super.visit(e);
         break;
       }
-    } else {
-      super.visit(e);
-    }
   }
 }
