@@ -41,6 +41,8 @@ atomExpression
  | atomExpression ( '+' | '-' ) atomExpression
  | atomExpression ( '<' | '<=' | '>=' | '>') atomExpression
  | atomExpression ( '==' | '!=' ) atomExpression
+ | <assoc=right> atomExpression '::' atomExpression
+ | atomExpression '++' atomExpression
  | atomExpression 'in' atomExpression
  | '?' identifier
  | lexpr '->' identifier tuple

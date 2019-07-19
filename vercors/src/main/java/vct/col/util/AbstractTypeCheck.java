@@ -1324,6 +1324,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(t);
       break;
     }
+    case Remove: {
+      if (!t1.isPrimitive(PrimitiveSort.Sequence)) Fail("first argument of remove is not a sequence");
+      if (!t2.isPrimitive(PrimitiveSort.Integer)) Fail("second argument of remove is not an integer");
+
+      e.setType(t1);
+      break;
+    }
     case Size:
     {
       Type t=e.arg(0).getType();
@@ -1348,6 +1355,24 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (!t2.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
       if (!t1.firstarg().equals(t2.firstarg())){
         Fail("different sequence types in append");
+      }
+      e.setType(t1);
+      break;
+    }
+    case PrependSingle:
+    {
+      if (!t2.isPrimitive(PrimitiveSort.Sequence)) Fail("right argument of prepend is not a sequence");
+      if (!t1.equals(t2.firstarg())){
+        Fail("wrong type to prepend to sequence");
+      }
+      e.setType(t2);
+      break;
+    }
+    case AppendSingle:
+    {
+      if (!t1.isPrimitive(PrimitiveSort.Sequence)) Fail("left argument of append is not a sequence");
+      if (!t2.equals(t1.firstarg())){
+        Fail("wrong type to append to sequence");
       }
       e.setType(t1);
       break;

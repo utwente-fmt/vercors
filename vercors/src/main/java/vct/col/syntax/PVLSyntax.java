@@ -57,8 +57,11 @@ public class PVLSyntax {
       syntax.addLeftFix(Div,"/",120);
       syntax.addLeftFix(Mod,"%",120);
       // 11 additive  + -
+      syntax.addRightFix(PrependSingle, "::", 115);
+      syntax.addLeftFix(AppendSingle, "++", 110);
       syntax.addLeftFix(Plus,"+",110);
       syntax.addLeftFix(Minus,"-",110);
+
 /*
       // 10 shift   << >> >>>
       syntax.addInfix(LeftShift,"<<", 100);

@@ -117,7 +117,7 @@ public enum StandardOperator {
   /**
    * Permission to a field that is part of an active history.
    */
-  HistoryPerm(2),
+   HistoryPerm(2),
   /**
    * Permission to a field that is part of an active history,
    * while an action is in progress.
@@ -169,6 +169,14 @@ public enum StandardOperator {
   Take(2),
   /** append two lists */
   Append(2),
+  /** Prepend a single value to list */
+  PrependSingle(2),
+  /** Append a single value to list (to the end)*/
+  AppendSingle(2),
+  /** Take a range from a list*/
+  Range(3),
+  /** Remove the value of a list by an index*/
+  Remove(2),
   /** check if an element is a member of a container. */
   Member(2),
   AddrOf(1),
