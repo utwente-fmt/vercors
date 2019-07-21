@@ -462,6 +462,8 @@ public class Main
 
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
         passes.add("check");
+        passes.add("rewrite_sequences");
+        passes.add("check");
         passes.add("flatten");
         passes.add("assign");
         passes.add("reorder");
@@ -972,6 +974,11 @@ public class Main
    defined_passes.put("rewrite_arrays",new CompilerPass("rewrite arrays to sequences of cells"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new RewriteArrayRef(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("rewrite_sequences",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new RewriteSequenceFunctions(arg).rewriteAll();
       }
     });
     defined_passes.put("rm_cons",new CompilerPass("???"){
