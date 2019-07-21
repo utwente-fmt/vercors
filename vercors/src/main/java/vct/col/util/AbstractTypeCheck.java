@@ -1324,9 +1324,17 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(t);
       break;
     }
+    case RangeFromSeq: {
+      if (!e.arg(0).getType().isPrimitive(PrimitiveSort.Sequence)) Fail("first argument of range is not a sequence");
+      if (!e.arg(1).getType().isInteger()) Fail("second argument of range is not an integer");
+      if (!e.arg(2).getType().isInteger()) Fail("third argument of range is not an integer");
+
+      e.setType(e.arg(0).getType());
+      break;
+    }
     case Remove: {
       if (!t1.isPrimitive(PrimitiveSort.Sequence)) Fail("first argument of remove is not a sequence");
-      if (!t2.isPrimitive(PrimitiveSort.Integer)) Fail("second argument of remove is not an integer");
+      if (!t2.isInteger()) Fail("second argument of remove is not an integer");
 
       e.setType(t1);
       break;

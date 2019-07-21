@@ -174,7 +174,7 @@ public enum StandardOperator {
   /** Append a single value to list (to the end)*/
   AppendSingle(2),
   /** Take a range from a list*/
-  Range(3),
+  RangeFromSeq(3),
   /** Remove the value of a list by an index*/
   Remove(2),
   /** check if an element is a member of a container. */

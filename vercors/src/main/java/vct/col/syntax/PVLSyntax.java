@@ -36,6 +36,8 @@ public class PVLSyntax {
       syntax.addFunction(Perm,"Perm");
       syntax.addFunction(HistoryPerm,"HPerm");
       syntax.addFunction(Future,"Future");
+      syntax.addFunction(Remove, "remove");
+      syntax.addFunction(RangeFromSeq, "range");
       //syntax.addFunction(Head,"head");
       //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
