@@ -1,8 +1,8 @@
 package vct.col.rewrite
 
 import hre.ast.MessageOrigin
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
-import vct.col.ast.expr.{Dereference, OperatorExpression, StandardOperator}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
+import vct.col.ast.expr.{OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
@@ -33,7 +33,6 @@ object RewriteSequenceFunctions {
   }
 
 
-
 }
 
 class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(source) {
@@ -41,10 +40,14 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
     val res = super.rewriteAll()
 
     create.enter()
-    create.setOrigin(new MessageOrigin("Sequence Functions"))
+    create.setOrigin(new MessageOrigin("Sequence Function: Remove"))
     for ((t, name) <- RewriteSequenceFunctions.getRemoveName) {
       res.add(removeFromSequenceByIndex(t, name))
     }
+    create.leave()
+
+    create.enter()
+    create.setOrigin(new MessageOrigin("Sequence Function: Range"))
     for ((t, name) <- RewriteSequenceFunctions.getRangeName) {
       res.add(takeRangeFromSequence(t, name))
     }
@@ -69,33 +72,31 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
 
 
 
-  def takeRangeFromSequence(sequenceType: Type, methodName: String): ASTNode = {
+  def takeRangeFromSequence(sequenceType: Type, functionName: String): ASTNode = {
     val contract = new ContractBuilder
-    val result = create.reserved_name(ASTReserved.Result)
-
+    val result = create.reserved_name(ASTReserved.Result, sequenceType)
 
     val sequenceArgName = "seq0"
-    val startArgName = "start"
-    val stopArgName = "stop"
+    val startArgName = "lowerbound0"
+    val stopArgName = "upperbound0"
 
     val sequenceArg = new DeclarationStatement(sequenceArgName, sequenceType)
     val startArg = new DeclarationStatement(startArgName, create.primitive_type(PrimitiveSort.Integer))
     val stopArg = new DeclarationStatement(stopArgName, create.primitive_type(PrimitiveSort.Integer))
 
     contract.requires(validIndex(sequenceArgName, startArgName))
-    contract.requires(and(lte(create.constant(0), name(stopArgName)), lte(name(stopArgName), size(name(sequenceArgName)))))
+    contract.requires(validIndex(sequenceArgName, stopArgName, inclusive = true))
     contract.requires(lte(name(startArgName), name(stopArgName)))
 
     contract.ensures(eq(size(result), minus(name(stopArgName), name(startArgName))))
-
 
     val forAllIndex = new DeclarationStatement("j0", create.primitive_type(PrimitiveSort.Integer))
     val indexNode = name(forAllIndex.name)
 
 
     contract.ensures(
-      create.starall(
-        and(lte(name(startArgName), indexNode), less(indexNode, name(stopArgName))),
+      create.forall(
+        valueInRange(indexNode, name(startArgName), name(stopArgName)),
         eq(
           get(result, minus(indexNode, name(startArgName))),
           get(name(sequenceArgName), indexNode)),
@@ -104,8 +105,8 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
     )
 
     contract.ensures(
-      create.starall(
-        and(lte(create.constant(0), indexNode), less(indexNode, size(result))),
+      create.forall(
+        valueInRange(name(indexNode.getName), constant(0), size(result)),
         eq(
           get(result, indexNode),
           get(name(sequenceArgName), plus(indexNode, name(startArgName)))),
@@ -113,16 +114,15 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
       )
     )
 
-    val methodArguments = List(sequenceArg, startArg, stopArg)
-    val declaration = create.method_decl(sequenceType, contract.getContract, methodName, methodArguments.toArray, null)
+    val functionArguments = List(sequenceArg, startArg, stopArg)
+    val declaration = create.function_decl(sequenceType, contract.getContract, functionName, functionArguments.toArray, null)
     declaration.setStatic(true)
     declaration
-
   }
 
-  def removeFromSequenceByIndex(sequenceType: Type, methodName: String): ASTNode = {
+  def removeFromSequenceByIndex(sequenceType: Type, functionName: String): ASTNode = {
     val contract = new ContractBuilder
-    val result = create.reserved_name(ASTReserved.Result)
+    val result = create.reserved_name(ASTReserved.Result, sequenceType)
 
     val sequenceArgumentName = "seq0"
     val indexArgumentName = "i0"
@@ -145,8 +145,8 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
     val indexNode = name("j0")
 
     contract.ensures(
-      create.starall(
-        and(lte(constant(0), indexNode), less(indexNode, name(indexArgumentName))),
+      create.forall(
+        valueInRange(indexNode, constant(0), name(indexArgumentName)),
         eq(
           get(result, indexNode),
           get(name(sequenceArgumentName), indexNode)),
@@ -155,27 +155,30 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
     )
 
     contract.ensures(
-      create.starall(
-        and(lte(name(indexArgumentName), indexNode), less(indexNode, size(result))),
+      create.forall(
+        valueInRange(indexNode, name(indexArgumentName), size(result)),
         eq(
           get(result, indexNode),
-          get(name(sequenceArgumentName), plus(indexNode, create.constant(1)))),
+          get(name(sequenceArgumentName), plus(indexNode, constant(1)))),
         forAllIndex
       )
     )
 
-    val methodArguments = List(sequenceArgument, indexArgument)
-
-
-    val declaration = create.method_decl(sequenceType, contract.getContract, methodName, methodArguments.toArray, null)
+    val functionArguments = List(sequenceArgument, indexArgument)
+    val declaration = create.function_decl(sequenceType, contract.getContract, functionName, functionArguments.toArray, null)
     declaration.setStatic(true)
     declaration
   }
 
-  def validIndex(sequenceName: String, indexName: String): ASTNode = {
-    val lowerbound = lte(create.constant(0), name(indexName))
-    val upperbound = less(name(indexName), size(name(sequenceName)))
-    val validIndexCondition = and(lowerbound, upperbound)
-    validIndexCondition
+  def validIndex(sequenceName: String, indexName: String, inclusive: Boolean=false): ASTNode = {
+    valueInRange(name(indexName), constant(0), size(name(sequenceName)), inclusive)
+  }
+
+
+  def valueInRange(value: ASTNode, lowerbound: ASTNode, upperbound: ASTNode, inclusive: Boolean=false): ASTNode = {
+    val left = lte(lowerbound, value)
+    val right = if (inclusive) lte(value, upperbound) else less(value, upperbound)
+
+    and(left, right)
   }
 }
