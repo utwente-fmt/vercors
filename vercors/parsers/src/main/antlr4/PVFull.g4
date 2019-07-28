@@ -43,7 +43,9 @@ atomExpression
  | atomExpression ( '==' | '!=' ) atomExpression
  | <assoc=right> atomExpression '::' atomExpression
  | atomExpression '++' atomExpression
- | atomExpression 'in' atomExpression
+ | atomExpression '[' atomExpression? '..' atomExpression? ']'
+ //TODO fix that a[..] is not possible
+ | atomExpression ('in' | '!in') atomExpression
  | '?' identifier
  | lexpr '->' identifier tuple
  | ( identifier | lexpr | 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' ) tuple
@@ -62,8 +64,16 @@ atomExpression
  | '|' expr '|'
  | values
  | 'unfolding' expr 'in' expr
+ | simpleCollectionConstructors
  | valPrimary
  ;
+
+
+arguments: ( | expression (',' expression)*);
+
+simpleCollectionConstructors :
+| '[' arguments ']'
+| '[' type ']';
 
 expr
  : atomExpression

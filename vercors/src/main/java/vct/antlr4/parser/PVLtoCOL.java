@@ -245,6 +245,10 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
       return create.expression(StandardOperator.Tail,args);
     }
+    if (match(ctx, "empty", tuple)) {
+      ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
+      return create.expression(StandardOperator.Empty, args);
+    }
     if (match(ctx,"remove",tuple)){
       ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
       return create.expression(StandardOperator.Remove,args);
@@ -253,6 +257,13 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
       return create.expression(StandardOperator.RangeFromSeq,args);
     }
+    if (match(ctx,null, "[", null, "..", null, "]")) {
+      return create.expression(StandardOperator.RangeFromSeq,convert(ctx, 0), convert(ctx, 2), convert(ctx, 4));
+    } else if (match(ctx,null, "[", "..", null, "]")) {
+      return create.expression(StandardOperator.Take,convert(ctx, 0), convert(ctx, 3));
+    } else if (match(ctx,null, "[", null, "..", "]")) {
+      return create.expression(StandardOperator.Drop,convert(ctx, 0), convert(ctx, 2));
+    }
     if (match(ctx,"take",tuple)){
       ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
       return create.expression(StandardOperator.Take,args);
@@ -260,6 +271,12 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     if (match(ctx,"drop",tuple)){
       ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
       return create.expression(StandardOperator.Drop,args);
+    }
+    if (match(ctx, null, "in", null)){
+      return create.expression(StandardOperator.Member, convert(ctx, 0), convert(ctx, 2));
+    }
+    if (match(ctx, null, "!in", null)){
+      return create.expression(StandardOperator.Not, create.expression(StandardOperator.Member, convert(ctx, 0), convert(ctx, 2)));
     }
     if (match(ctx,"Some",tuple)){
       ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
@@ -359,6 +376,27 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       );
     }
     return visit(ctx);
+  }
+
+  @Override
+  public ASTNode visitSimpleCollectionConstructors(SimpleCollectionConstructorsContext ctx) {
+    if (match(ctx, "[", null, "]")) {
+      if (ctx.children.get(1) instanceof TypeContext) {
+        Type t=checkType(convert(ctx,1));
+        return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, t), null);
+      }
+
+      // ctx.children.get(1) instanceof ArgumentsContext
+      ASTNode[] args = getValues((ParserRuleContext)ctx.children.get(1));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Sequence,args[0].getType()),null,args);
+
+    }
+    return visit(ctx);
+  }
+
+  @Override
+  public ASTNode visitArguments(ArgumentsContext ctx) {
+    return null;
   }
 
   @Override
@@ -859,7 +897,19 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       throw hre.lang.System.Failure("unimplemented invokation");
     }
   }
-  
+
+  private ASTNode[] getValues(ParserRuleContext ctx) {
+    if (ctx.children == null) {
+      return new ASTNode[0];
+    }
+    int N=(ctx.children.size()+1)/2;
+    ASTNode res[]=new ASTNode[N];
+    for(int i=0;i<N;i++){
+      res[i]=convert(ctx,2*i);
+    }
+    return res;
+  }
+
   private ASTNode[] getTuple(ParserRuleContext ctx){
     int N=(ctx.children.size()-1)/2;
     ASTNode res[]=new ASTNode[N];
