@@ -162,6 +162,12 @@ public class Standardize extends AbstractRewriter {
         result = create.expression(StandardOperator.Append, seq, newSeq);
 	    break;
 	  }
+      case Empty: {
+        Type seqElementType = e.arg(0).getType();
+        ASTNode seq = e.arg(0).apply(this);
+        result = eq(constant(0), size(seq));
+        break;
+      }
       default:
         super.visit(e);
         break;

@@ -1,8 +1,7 @@
 package vct.col.util;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpression.Kind;
@@ -1279,6 +1278,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(t1);
       break;
     }
+    case Empty: {
+      Type t = e.arg(0).getType();
+      if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of empty not a sequence");
+      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+      break;
+
+    }
     case Subscript:
     {
       if (!(t1 instanceof PrimitiveType)) Fail("base must be array or sequence type.");
@@ -1421,6 +1427,20 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     super.visit(v);
     // TODO: type check cannot derive a useful type from only the values
     v.setType(v.type());
+
+    if (v.getType().isPrimitive(PrimitiveSort.Sequence)) {
+      Type element = (Type) v.getType().firstarg();
+      if (v.values().toStream().exists(v1 -> !v1.getType().equals(element))) {
+        //TODO check which types are incompatible.
+        Set<Type> differentTypes =
+                // The scala array of values is converted into a java list and the types of the ASTNodes are collected into a Set.
+                JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).collect(Collectors.toSet());
+        Fail("sequence elements must be of the same type: " + differentTypes);
+      }
+      for (ASTNode node : JavaConverters.asJavaIterable(v.values())) {
+        node.setType(element);
+      }
+    }
 
     if(v.getType().isPrimitive(PrimitiveSort.Array)) {
       Type element = (Type) v.getType().firstarg();

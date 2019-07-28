@@ -177,6 +177,8 @@ public enum StandardOperator {
   RangeFromSeq(3),
   /** Remove the value of a list by an index*/
   Remove(2),
+  /** Check if list is empty, this operator will be extended for usage with other collections like sets and bags */
+  Empty(1),
   /** check if an element is a member of a container. */
   Member(2),
   AddrOf(1),
