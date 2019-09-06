@@ -315,6 +315,9 @@ public class JavaEncoder extends AbstractRewriter {
   private boolean is_direct_definition(Method m){
     if (m.isStatic()) return true;
     if (m.isValidFlag(ASTFlags.INLINE) && m.getFlag(ASTFlags.INLINE)) return true;
+    if(m.kind == Kind.Predicate) {
+      return true;
+    }
     if (!m.isValidFlag(ASTFlags.FINAL)){
       m.setFlag(ASTFlags.FINAL, false);
     }
