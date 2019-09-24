@@ -1,5 +1,8 @@
 .metadata/
 .project
+.classpath
+.settings/
+target/
 dist/
 doc/
 tmp

@@ -359,7 +359,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     var rowJ: ASTNode = create.expression(StandardOperator.Subscript, matrix, quantJ0)
 
     if(seqInfo0.isCell) {
-      conditions += create.starall(quantGuard, create.expression(StandardOperator.Perm, row), quantDecls: _*)
+      conditions += create.starall(quantGuard, create.expression(StandardOperator.Perm, row, create.reserved_name(ASTReserved.ReadPerm)), quantDecls: _*)
       row = create.dereference(row, "item")
       rowI = create.dereference(rowI, "item")
       rowJ = create.dereference(rowJ, "item")

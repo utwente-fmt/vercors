@@ -16,7 +16,7 @@ class SiliconVerifier[O,Err](o:OriginFactory[O]) extends SilverImplementation[O,
     } else {
       tool_home.resolve("z3").resolve("4.4.0").resolve("Linux").resolve("x86_64").resolve("bin").resolve("z3").toString()
     }
-    val silicon = new viper.silicon.Silicon(Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
+    val silicon = new viper.silicon.Silicon(HREViperReporter(), Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
     var z3_config="\"";
     var sep="";
     props.foreach {
