@@ -34,7 +34,6 @@ atomExpression
  | identifier ':' atomExpression
  | atomExpression 'with' block
  | atomExpression 'then' block
- | CONTAINER '<' type '>' values
  | ('!'|'-') atomExpression
  | atomExpression '^^' atomExpression
  | atomExpression ('*'|'/'|'%') atomExpression
@@ -43,8 +42,7 @@ atomExpression
  | atomExpression ( '==' | '!=' ) atomExpression
  | <assoc=right> atomExpression '::' atomExpression
  | atomExpression '++' atomExpression
- | atomExpression '[' atomExpression? '..' atomExpression? ']'
- //TODO fix that a[..] is not possible
+ | atomExpression '[' (atomExpression '..' | '..' atomExpression | atomExpression '..' atomExpression )']'
  | atomExpression ('in' | '!in') atomExpression
  | '?' identifier
  | lexpr '->' identifier tuple
@@ -64,16 +62,16 @@ atomExpression
  | '|' expr '|'
  | values
  | 'unfolding' expr 'in' expr
- | simpleCollectionConstructors
+ | collectionConstructors
  | valPrimary
  ;
 
-
 arguments: ( | expression (',' expression)*);
 
-simpleCollectionConstructors :
-| '[' arguments ']'
-| '[' type ']';
+collectionConstructors :
+ | CONTAINER '<' type '>' values
+ | '[' arguments ']'
+ | '[' type ']';
 
 expr
  : atomExpression
@@ -154,7 +152,7 @@ fence_list : ( 'local' | 'global' )* ;
 
 invariant : ( 'loop_invariant' expr ';' )* ;
 
-lexpr : ('this' | '\\result' | identifier ) lexpr_access* ;
+lexpr : ('this' | '\\result' | identifier | collectionConstructors) lexpr_access* ;
 
 lexpr_access
  : '.' gen_id
