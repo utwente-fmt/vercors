@@ -1,0 +1,15 @@
+class Edge {
+
+
+}
+class RemoveValues {
+
+	void main() { 
+		seq<int> a = seq<int>{1, 2, 3, 4, 5};
+		seq<int> b = remove(a, 2);
+		assert b == seq<int> {1, 2, 4, 5};
+
+	}
+
+
+}

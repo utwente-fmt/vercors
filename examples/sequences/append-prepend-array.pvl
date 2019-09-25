@@ -1,0 +1,11 @@
+
+
+class Array {
+
+    void main() {
+	int a = 5;	
+        seq<int> b = seq<int>{1, 2, 3}; 
+        seq<int> c = a::2::2::2::2::5::b + seq<int> { 5 } ++ 2; 
+	assert c == seq<int> {5, 2, 2, 2, 2, 5, 1, 2, 3, 5, 2};
+    }
+}

@@ -1,0 +1,54 @@
+class Bubble {
+
+    requires |input| > 0;
+    ensures Bubble.sorted(\result);
+	seq<int> bubblesort(seq<int> input) {
+		seq<int> out = input;
+		int lastUnsorted = |out| - 1;
+
+        loop_invariant lastUnsorted >= 0 && lastUnsorted < |out|;
+		loop_invariant lastUnsorted < 0 ==> |input| == 0;
+    	loop_invariant Bubble.sorted(out[lastUnsorted..]);
+		loop_invariant Bubble.partitioned(out, lastUnsorted);
+		while (lastUnsorted > 0) {
+			int i = 0;
+
+    		loop_invariant 0 <= lastUnsorted && lastUnsorted < |out|;
+			loop_invariant 0 <= i && i <= lastUnsorted;
+    	    loop_invariant Bubble.sorted(out[lastUnsorted..]);
+            loop_invariant Bubble.partitioned(out, lastUnsorted);
+            loop_invariant (\forall int k;0 0 <= k && k < i; out[k] <= out[i]);
+			while (i < lastUnsorted) {
+				if (out[i] > out[i+1]) {
+					int tmp = out[i];
+					out = Bubble.Set(out, i, out[i+1]);
+					out = Bubble.Set(out, i+1, tmp);
+				}
+				i = i + 1;
+			}
+			lastUnsorted = lastUnsorted - 1;
+		
+		}	
+		return out;	
+	}
+
+	requires 0 <= n && n < |xs|;
+	ensures |\result| == |xs|;
+	ensures (\forall int g; 0 <= g && g < n; \result[g] == xs[g]);
+	ensures (\forall int g; n < g && g < |xs|; \result[g] == xs[g]);
+	ensures \result[n] == val;
+	pure static seq<int> Set(seq<int> xs, int n, int val) =
+	    n > 0 ?
+		head(xs)::Bubble.Set(tail(xs), n-1, val) :
+		val::tail(xs);
+
+	pure static boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
+
+    pure static boolean partitioned(seq<int> xs, int i) =
+        (\forall int g; 0 <= g && g <= i;     //
+            (\forall int h; i < h && h < |xs|; xs[g] <= xs[h])
+        )
+    ;
+
+
+}

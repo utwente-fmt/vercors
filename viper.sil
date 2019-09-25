@@ -1,0 +1,30 @@
+method constructor_Edge_Edge(current_thread_id: Int, globals: Ref) returns (sys__result: Ref)
+  requires 0 <= current_thread_id
+  ensures sys__result != null
+{
+  var diz__1: Ref
+  diz__1 := new()
+  // refuteassert !false
+  sys__result := diz__1
+  // assertassert sys__result != null
+  inhale false
+}
+
+method method_RemoveValues_main(diz: Ref, current_thread_id: Int, globals: Ref)
+  requires diz != null
+  requires 0 <= current_thread_id
+{
+  var a__2: Seq[Int]
+  var __flatten_1__3: Seq[Int]
+  var b__4: Seq[Int]
+  var __flatten_2__5: Seq[Int]
+  var __flatten_3__6: Seq[Int]
+  var __flatten_4__7: Seq[Int]
+  var c: Seq[Int]
+  // refuteassert !false
+  __flatten_3__6 := Seq(1, 2, 3, 4, 5)
+  __flatten_1__3 := __flatten_3__6
+  a__2 := __flatten_1__3
+  c := a__2[-1..]
+  // assertassert b__4 == Seq(1, 2, 4, 5)
+}

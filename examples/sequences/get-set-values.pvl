@@ -1,0 +1,16 @@
+class Test {
+
+	void main() {
+		assert Stat.someFun(1, 2, 3) == seq<int> {1, 2, 3};
+	}
+
+}
+
+class Stat {
+	pure static seq<int> someFun(int a, int b, int c) = [a, b, c];
+
+	ensures (\forall int i; i >= 0; i in \result);
+	pure static seq<int> toInfinityAndBeyond();
+}
+
+
