@@ -3,6 +3,7 @@ package vct.col.util;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.antlr.runtime.tree.ParseTree;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpression.Kind;
 import vct.col.ast.expr.*;
@@ -1429,14 +1430,37 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     v.setType(v.type());
 
     if (v.getType().isPrimitive(PrimitiveSort.Sequence)) {
+
+
       Type element = (Type) v.getType().firstarg();
-      if (v.values().toStream().exists(v1 -> !v1.getType().equals(element))) {
-        //TODO check which types are incompatible.
-        Set<Type> differentTypes =
-                // The scala array of values is converted into a java list and the types of the ASTNodes are collected into a Set.
-                JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).collect(Collectors.toSet());
-        Fail("sequence elements must be of the same type: " + differentTypes);
+      // The scala array of values is converted into a java list and the types of the ASTNodes are collected into a Set.
+      Set<Type> valueTypes = JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).collect(Collectors.toSet());
+
+
+      // Instead of having it void, there should be a special type called infer.
+      // This type should only be used for ADTs which have simple constructors.
+      // For the rest, inference is not really something part of VerCors.
+      //TODO check if instance of Type in the condition
+      if (!element.isVoid() && valueTypes.stream().anyMatch(v1 -> !v1.equals((Type) v.getType().firstarg()))) {
+        // TODO check which types are incompatible.
+
+        // TODO should there be another case where the sequence type is not equal to the sequence element type?
+        valueTypes.add((Type) v.getType().firstarg());
+        Fail("sequence elements must be of the same type: " + valueTypes);
+
+      } else if (valueTypes.size() == 1) {
+        // Infer the type from the values.
+        element = valueTypes.iterator().next();
+
+        PrimitiveType returnType = new PrimitiveType(PrimitiveSort.Sequence,element);
+        returnType.setOrigin(v.getOrigin());
+        v.setType(returnType);
+
+        ASTFactory<ParseTree> create = new ASTFactory<ParseTree>();
+      } else {
+                Fail("At %s: Could not infer type of Sequence", v.getOrigin());
       }
+
       for (ASTNode node : JavaConverters.asJavaIterable(v.values())) {
         node.setType(element);
       }
