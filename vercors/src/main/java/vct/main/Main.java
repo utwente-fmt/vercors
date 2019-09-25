@@ -341,6 +341,7 @@ public class Main
           passes.add("pvl-encode"); // translate built-in statements into methods and fake method calls.
         }
         passes.add("check");
+        passes.add("infer_adt_types");
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
         passes.add("array_null_values"); // rewrite null values for array types into None
@@ -979,6 +980,11 @@ public class Main
     defined_passes.put("rewrite_sequences",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new RewriteSequenceFunctions(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("infer_adt_types",new CompilerPass("Transform typeless collection constructors by inferring their types."){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new InferADTTypes(arg).rewriteAll();
       }
     });
     defined_passes.put("rm_cons",new CompilerPass("???"){
