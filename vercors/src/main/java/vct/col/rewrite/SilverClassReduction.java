@@ -642,15 +642,15 @@ public class SilverClassReduction extends AbstractRewriter {
 
         ContractBuilder contract = new ContractBuilder();
         contract.requires(lte(constant(0), name("i")));
-        contract.requires(less(name("i"), invoke(null, "alen", name("a"))));
-        contract.ensures(eq(create.reserved_name(ASTReserved.Result), invoke(null, "loc", name("a"))));
+        contract.requires(less(name("i"), create.invokation(entry.getKey(), null, "alen", name("a"))));
+        ASTNode resultVal = create.invokation(entry.getKey(), null, "loc", name("a"), name("i"));
 
         DeclarationStatement[] args = new DeclarationStatement[] {
                 create.field_decl("a", entry.getKey()),
                 create.field_decl("i", create.primitive_type(PrimitiveSort.Integer))
         };
 
-        Method method = create.function_decl(returnType, contract.getContract(), entry.getValue(), args, null);
+        Method method = create.function_decl(returnType, contract.getContract(), entry.getValue(), args, resultVal);
         method.setStatic(true);
         res.add(method);
         create.leave();
