@@ -200,6 +200,8 @@ public class SilverClassReduction extends AbstractRewriter {
   private AtomicInteger option_count=new AtomicInteger();
   private HashMap<String, String> option_get = new HashMap<String, String>();
   private HashMap<String, Type> option_get_type = new HashMap<String, Type>();
+
+  private HashMap<Type, String> subscriptMethodName = new HashMap<>();
   
   @Override
   public void visit(PrimitiveType t){
@@ -477,6 +479,17 @@ public class SilverClassReduction extends AbstractRewriter {
     return method;
   }
 
+  private String subscript(Type type) {
+    String method = subscriptMethodName.get(type);
+
+    if(method == null) {
+      method = "loc" + subscriptMethodName.size();
+      subscriptMethodName.put(type, method);
+    }
+
+    return method;
+  }
+
   @Override
   public void visit(Method m){
     String name=m.getName();
@@ -615,6 +628,28 @@ public class SilverClassReduction extends AbstractRewriter {
         ASTNode body=create.invokation(t,null,"getVCTOption",create.local_name("x"));
         Contract contract=cb.getContract();
         Method method=create.function_decl(returns, contract, name, args, body);
+        method.setStatic(true);
+        res.add(method);
+        create.leave();
+      }
+
+      for(Entry<Type, String> entry : subscriptMethodName.entrySet()) {
+        create.enter();
+        create.setOrigin(new MessageOrigin("Generated array subscript code: array subscript index may be out of bounds"));
+
+        Type returnType = (Type)entry.getKey().firstarg();
+
+        ContractBuilder contract = new ContractBuilder();
+        contract.requires(lte(constant(0), name("i")));
+        contract.requires(less(name("i"), invoke(null, "alen", name("a"))));
+        contract.ensures(eq(create.reserved_name(ASTReserved.Result), invoke(null, "loc", name("a"))));
+
+        DeclarationStatement[] args = new DeclarationStatement[] {
+                create.field_decl("a", entry.getKey()),
+                create.field_decl("i", create.primitive_type(PrimitiveSort.Integer))
+        };
+
+        Method method = create.function_decl(returnType, contract.getContract(), entry.getValue(), args, null);
         method.setStatic(true);
         res.add(method);
         create.leave();
