@@ -444,7 +444,8 @@ public class SilverClassReduction extends AbstractRewriter {
         arrays = true;
         ASTNode type = rewrite(e.first().getType());
         List<ASTNode> args = rewrite(e.argsJava());
-        result = create.invokation(type, null, "loc", args);
+        String method = subscript((Type)type);
+        result = create.invokation(type, null, method, args);
       } else {
         super.visit(e);
       }
