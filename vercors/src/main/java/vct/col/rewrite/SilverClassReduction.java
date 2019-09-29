@@ -201,7 +201,8 @@ public class SilverClassReduction extends AbstractRewriter {
   private HashMap<String, String> option_get = new HashMap<String, String>();
   private HashMap<String, Type> option_get_type = new HashMap<String, Type>();
 
-  private HashMap<Type, String> subscriptMethodName = new HashMap<>();
+  private HashMap<String, String> subscriptMethodName = new HashMap<>();
+  private HashMap<String, Type> subscriptMethodTypeString = new HashMap<>();
   
   @Override
   public void visit(PrimitiveType t){
@@ -445,7 +446,7 @@ public class SilverClassReduction extends AbstractRewriter {
         ASTNode type = rewrite(e.first().getType());
         List<ASTNode> args = rewrite(e.argsJava());
         String method = subscript((Type)type);
-        result = create.invokation(type, null, method, args);
+        result = create.invokation(null, null, method, args);
       } else {
         super.visit(e);
       }
@@ -481,11 +482,13 @@ public class SilverClassReduction extends AbstractRewriter {
   }
 
   private String subscript(Type type) {
-    String method = subscriptMethodName.get(type);
+    String typeString = type.toString();
+    String method = subscriptMethodName.get(typeString);
 
     if(method == null) {
       method = "loc" + subscriptMethodName.size();
-      subscriptMethodName.put(type, method);
+      subscriptMethodName.put(typeString, method);
+      subscriptMethodTypeString.put(typeString, type);
     }
 
     return method;
@@ -634,19 +637,20 @@ public class SilverClassReduction extends AbstractRewriter {
         create.leave();
       }
 
-      for(Entry<Type, String> entry : subscriptMethodName.entrySet()) {
+      for(Entry<String, String> entry : subscriptMethodName.entrySet()) {
+        Type arrayType = subscriptMethodTypeString.get(entry.getKey());
         create.enter();
         create.setOrigin(new MessageOrigin("Generated array subscript code: array subscript index may be out of bounds"));
 
-        Type returnType = (Type)entry.getKey().firstarg();
+        Type returnType = (Type)arrayType.firstarg();
 
         ContractBuilder contract = new ContractBuilder();
         contract.requires(lte(constant(0), name("i")));
-        contract.requires(less(name("i"), create.invokation(entry.getKey(), null, "alen", name("a"))));
-        ASTNode resultVal = create.invokation(entry.getKey(), null, "loc", name("a"), name("i"));
+        contract.requires(less(name("i"), create.invokation(arrayType, null, "alen", name("a"))));
+        ASTNode resultVal = create.invokation(arrayType, null, "loc", name("a"), name("i"));
 
         DeclarationStatement[] args = new DeclarationStatement[] {
-                create.field_decl("a", entry.getKey()),
+                create.field_decl("a", arrayType),
                 create.field_decl("i", create.primitive_type(PrimitiveSort.Integer))
         };
 
