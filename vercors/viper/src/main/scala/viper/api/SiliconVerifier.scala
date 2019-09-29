@@ -9,6 +9,9 @@ class SiliconVerifier[O,Err](o:OriginFactory[O]) extends SilverImplementation[O,
   override def createVerifier(tool_home: Path,props: Properties):viper.silver.verifier.Verifier = {
     def OS=System.getProperty("os.name");
 //    println("tool home is "+tool_home);
+    /*
+        When updating z3, please check whether the custom options set in vct.silver.SilverBackend still apply.
+     */
     val z3_exe=if(OS.startsWith("Windows")){
       tool_home.resolve("z3").resolve("4.8.5").resolve("Windows NT").resolve("intel").resolve("bin").resolve("z3.exe").toString()
     } else if(OS.startsWith("Mac")){

@@ -146,6 +146,10 @@ public class SilverBackend {
 
     Properties settings=new Properties();
     if (tool.startsWith("silicon")){
+      /* This is a newer arithmetic solver than is currently default, and the patch notes of z3 4.8.1 note that this
+         solver may be the new best default. In any case; it does not degrade performance or break proofs, but enables
+         new proofs for me. */
+      settings.setProperty("smt.arith.solver", "6");
       //settings.setProperty("smt.soft_timeout",silicon_z3_timeout.get()+"");
     }
     ViperControl control=new ViperControl(log);

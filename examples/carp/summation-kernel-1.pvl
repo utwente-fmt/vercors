@@ -19,6 +19,7 @@ class Ref {
     ){
       par kern(int g = 0 .. M)
         context (\forall* int k ; 0 <= k && k < N ; Perm(ar[g*N+k],1/4));
+        context 0 <= g && g < M;
       {
         int[1] temp=new int[1];
         int[N] contrib=new int [N];
@@ -26,8 +27,9 @@ class Ref {
         par (int t=0..N)
           context \array(contrib,N) ** Perm(contrib[t],write);
           ensures contrib[t]==0;
+          context 0 <= t && t < N;
         { contrib[t] = 0; }
-        
+
         invariant inner(
           \array(temp,1) ** Perm(temp[0],1) **
           \array(contrib,N) ** (\forall* int k; 0 <= k && k < N ; Perm(contrib[k],1/2))
