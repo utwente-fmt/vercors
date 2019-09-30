@@ -192,7 +192,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       }
       // fall through on purpose
       default:
-        throw new HREError("cannot map %s name %s",e.getKind(),e.getName());
+        throw new HREError("cannot map %s name %s, %s",e.getKind(),e.getName(),e.getOrigin());
     }
   }
 
