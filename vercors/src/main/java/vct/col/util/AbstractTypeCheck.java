@@ -1060,6 +1060,19 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
       e.setType(new PrimitiveType(PrimitiveSort.Resource));
       break;
+    case ValidPointerIndex:
+      if(!t2.isIntegerType()) {
+        Fail("The second argument to \\pointer_index should be an integer at %s", e.arg(1).getOrigin());
+      }
+
+      force_frac(e.arg(2));
+
+      if(!t1.isPrimitive(PrimitiveSort.Pointer)) {
+        SequenceUtils.expectArray(e.arg(0), "The first argument to \\pointer_index (%s) should be a pointer, but was of type %s");
+      }
+
+      e.setType(new PrimitiveType(PrimitiveSort.Resource));
+      break;
     case Values:{
       Type t=e.arg(0).getType();
 //      if (!t.isPrimitive(PrimitiveSort.Array)){
