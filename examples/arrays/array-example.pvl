@@ -28,7 +28,7 @@ class Problem {
     
     seq<int> xs;
     
-    xs=vals_method(1/2,array);
+    xs=vals_method(1f/2,array);
     
     assert |xs|==array.length;
     
@@ -45,7 +45,7 @@ class Problem {
     
     seq<int> xs;
      
-    xs=vals_function(1/2,array);
+    xs=vals_function(1f/2,array);
     
     assert |xs|==array.length;
     

@@ -10,7 +10,7 @@
 #include <omp.h>
 
 /*@
-  context \pointer(a, len, write) ** \pointer(b, len, 1/2);
+  context \pointer(a, len, write) ** \pointer(b, len, 1f/2);
   ensures   (\forall  int k;0 <= k && k < len ; a[k]==b[k]);
   ensures   (\forall  int k;0 <= k && k < len ; b[k]==\old(b[k]));
 @*/
@@ -20,7 +20,7 @@ void copy(int len,int a[],int b[]){
   for(i=0;i<len;i++)
   /*@
     context a != NULL && b != NULL;
-    context Perm(a[i],1) ** Perm(b[i],1/4);
+    context Perm(a[i],1) ** Perm(b[i],1f/4);
     ensures a[i] == b[i];
   @*/
   {

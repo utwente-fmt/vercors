@@ -1231,6 +1231,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         break;
       }
     }
+    case FloorDiv:
     case Div:
     case Mod:
     {
@@ -1494,6 +1495,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     }
     if (op==StandardOperator.Minus && t1.isPrimitive(PrimitiveSort.Fraction)){
       e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
+    } else if(op == StandardOperator.Div) {
+      e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
     } else {
       e.setType(t1);
     }
@@ -1518,7 +1521,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     if (arg instanceof OperatorExpression){
       OperatorExpression e=(OperatorExpression)arg;
       switch(e.operator()){
-      case Div:
+      case FloorDiv:
         //force_frac(e.getArg(0));
         break;
       default:

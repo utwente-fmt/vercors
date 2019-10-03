@@ -75,9 +75,9 @@ class GapBuffer {
 	}
 	
 	resource Represents(seq<int> contents) =
-		Perm(l, 2/3) **
-		Perm(r, 2/3) **
-		Perm(a, 2/3) **
+		Perm(l, 2f/3) **
+		Perm(r, 2f/3) **
+		Perm(a, 2f/3) **
 		a != null ** (\forall* int i; 0 <= i && i < a.length; Perm(a[i], write)) **
 		0 <= l ** l <= r ** r < a.length **
 		|contents| == a.length - (r - l) **
@@ -91,7 +91,7 @@ class GapBuffer {
 	}
 	
   given seq<int> contents;
-	context Perm(l, 1/3) ** Perm(r, 1/3);
+	context Perm(l, 1f/3) ** Perm(r, 1f/3);
   context Represents(contents);
   void left() {
     unfold Represents(contents);
@@ -106,7 +106,7 @@ class GapBuffer {
   }
 
   given seq<int> contents;
-	context Perm(l, 1/3) ** Perm(r, 1/3);
+	context Perm(l, 1f/3) ** Perm(r, 1f/3);
   context Represents(contents);
   void right() {
     unfold Represents(contents);
@@ -122,7 +122,7 @@ class GapBuffer {
 	
 	given seq<int> contents;
 	yields seq<int> newcontents;
-	context Perm(l, 1/3);
+	context Perm(l, 1f/3);
 	requires Represents(contents);
 	ensures Represents(newcontents);
 	ensures (\forall int i; 0 <= i && i < l; newcontents[i] == contents[i]);
@@ -148,7 +148,7 @@ class GapBuffer {
 	}
 	
 	given seq<int> contents;
-	context_everywhere Perm(l, 1/4) ** Perm(r, 1/3) ** Perm(a, 1/3) ** K > 0;
+	context_everywhere Perm(l, 1f/4) ** Perm(r, 1f/3) ** Perm(a, 1f/3) ** K > 0;
 	context Represents(contents);
 	ensures l < r;
 	void grow(int K) {
@@ -157,7 +157,7 @@ class GapBuffer {
 		int[] b = new int[a.length + K];
 		int i = 0;
 		
-		loop_invariant Perm(l, 2/3) ** Perm(r, 2/3) ** Perm(a, 2/3) ** a != null;
+		loop_invariant Perm(l, 2f/3) ** Perm(r, 2f/3) ** Perm(a, 2f/3) ** a != null;
 		loop_invariant (\forall* int j; 0 <= j && j < a.length; Perm(a[j], write));
 		loop_invariant 0 <= i && i <= l;
 		loop_invariant 0 <= l && l <= r && r < a.length;
@@ -174,7 +174,7 @@ class GapBuffer {
 		
 		i = r;
 		
-		loop_invariant Perm(l, 2/3) ** Perm(r, 2/3) ** Perm(a, 2/3) ** a != null;
+		loop_invariant Perm(l, 2f/3) ** Perm(r, 2f/3) ** Perm(a, 2f/3) ** a != null;
 		loop_invariant (\forall* int j; 0 <= j && j < a.length; Perm(a[j], write));
 		loop_invariant r <= i && i <= a.length;
 		loop_invariant 0 <= l && l <= r && r < a.length;
@@ -198,7 +198,7 @@ class GapBuffer {
 	
 	given seq<int> contents;
 	yields seq<int> newcontents;
-	context_everywhere Perm(l, 1/3) ** Perm(r, 1/3) ** Perm(a, 1/3) ** K > 0;
+	context_everywhere Perm(l, 1f/3) ** Perm(r, 1f/3) ** Perm(a, 1f/3) ** K > 0;
 	requires Represents(contents);
 	ensures Represents(newcontents);
 	ensures |newcontents| == |contents| + 1;

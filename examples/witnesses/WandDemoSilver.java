@@ -12,7 +12,7 @@ final class WandDemo {
   int x;
 
   /*@
-    resource readonly()=Perm(x,1/4);
+    resource readonly()=Perm(x,1f/4);
     resource writeonly()=Perm(x,write);
   @*/
   
@@ -38,7 +38,7 @@ final class WandDemo {
     /*@
       create {
         unfold readonly();
-        use    Perm(this.x,3/4);
+        use    Perm(this.x,3f/4);
         fold   writeonly();
         qed    readonly()-*writeonly();
       }

@@ -14,7 +14,7 @@ class Main {
     y=1;
     z=1;
     int t;
-    context_everywhere inv(Perm(x,1/2)**Perm(y,1/2)**Perm(z,1/2)** x+y==z){
+    context_everywhere inv(Perm(x,1f/2)**Perm(y,1f/2)**Perm(z,1f/2)** x+y==z){
       t=x+z;
       atomic(inv){
         int tmp=x;
@@ -31,7 +31,7 @@ class Main {
     y=1;
     z=2;
     int t;
-    context_everywhere inv(Perm(x,1/2)**Perm(y,1/2)**Perm(z,1/2)** x+y==z){
+    context_everywhere inv(Perm(x,1f/2)**Perm(y,1f/2)**Perm(z,1f/2)** x+y==z){
       t=x+z;
       atomic(inv){
         int tmp=x;
@@ -48,7 +48,7 @@ class Main {
     y=1;
     z=1;
     int t;
-    context_everywhere inv(Perm(x,1/2)**Perm(y,1/2)**Perm(z,1/2)** x+y==z){
+    context_everywhere inv(Perm(x,1f/2)**Perm(y,1f/2)**Perm(z,1f/2)** x+y==z){
       t=x+z;
       atomic(inv){
         int tmp=x;

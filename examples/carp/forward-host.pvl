@@ -10,13 +10,13 @@ class Ref {
     context_everywhere N>0 && a != null && b != null && c != null;
 
     requires (\forall* int i ; 0 <= i && i < N ; Perm(a[i],write));
-    requires (\forall* int i ; 0 <= i && i < N ; Perm(b[i],1/2));
+    requires (\forall* int i ; 0 <= i && i < N ; Perm(b[i],1f/2));
     requires (\forall* int i ; 0 <= i && i < N ; Perm(c[i],write));
 
     requires (\forall int i; 0 <= i && i < N ; b [ i ] == i);
 
     ensures  (\forall* int i ; 0 <= i && i < N ; Perm(a[i],write));
-    ensures  (\forall* int i ; 0 <= i && i < N ; Perm(b[i],1/2));
+    ensures  (\forall* int i ; 0 <= i && i < N ; Perm(b[i],1f/2));
     ensures  (\forall* int i ; 0 <= i && i < N ; Perm(c[i],write));
     
     ensures  (\forall int i; 0 <= i && i < N ;  a[i] == i+1);
@@ -26,26 +26,26 @@ class Ref {
   void forward(int N,int[N] a,int[N] b, int[N] c){
     par fwd (int i=0..N)
       requires Perm(a[i],write);
-      requires Perm(b[i],1/2);
+      requires Perm(b[i],1f/2);
       requires Perm(c[i],write);
 
       requires b[i]==i;
 
-      ensures  Perm(a[i],1/2);      
-      ensures  Perm(b[i],1/2);      
+      ensures  Perm(a[i],1f/2);      
+      ensures  Perm(b[i],1f/2);      
       ensures  Perm(c[i],write);          
       
       ensures  a[i]==i+1;
       ensures  b[i]==i;
       ensures  i>0 ==> c[i]==i+2;
-      ensures  i>0 ==> Perm(a[i-1],1/2);
-      ensures  i==N-1 ==> Perm(a[i],1/2);
+      ensures  i>0 ==> Perm(a[i-1],1f/2);
+      ensures  i==N-1 ==> Perm(a[i],1f/2);
     {
       a[i]=b[i]+1;
       barrier(fwd){
-        requires i < N-1 ==> Perm(a[i],1/2);
+        requires i < N-1 ==> Perm(a[i],1f/2);
         requires i < N-1 ==> a[i]==i+1;
-        ensures  i > 0   ==> Perm(a[i-1],1/2);
+        ensures  i > 0   ==> Perm(a[i-1],1f/2);
         ensures  i > 0   ==> a[i-1]==i;
       }
       if (i>0) {

@@ -32,7 +32,8 @@ public class CSyntax extends Syntax{
     syntax.addPrefix(Indirection,"*",150);
 
     syntax.addLeftFix(Mult,"*",130);
-    syntax.addLeftFix(Div,"/",130);
+    syntax.addLeftFix(FloorDiv,"/",130);
+    syntax.addLeftFix(Div,"f/",130);
     syntax.addLeftFix(Mod,"%",130);
     
     syntax.addLeftFix(Plus,"+",120);

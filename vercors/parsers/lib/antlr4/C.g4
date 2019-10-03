@@ -105,6 +105,7 @@ multiplicativeExpression
     |   multiplicativeExpression '*' castExpression
     |   multiplicativeExpression '/' castExpression
     |   multiplicativeExpression '%' castExpression
+    |   multiplicativeExpression 'f/' castExpression
     ;
 
 additiveExpression

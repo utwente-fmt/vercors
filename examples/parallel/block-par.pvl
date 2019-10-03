@@ -6,7 +6,7 @@ class Ref {
   int y;
   int z;
   
-  context Perm(x,1)**Perm(y,1)**Perm(z,1/2)**x+y==z;
+  context Perm(x,1)**Perm(y,1)**Perm(z,1f/2)**x+y==z;
   void main(int c){
     par
       context Perm(x,1);

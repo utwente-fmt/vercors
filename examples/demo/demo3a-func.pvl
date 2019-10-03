@@ -8,7 +8,7 @@ class ArraySum {
 
     requires A != null;
 	requires 0 <= i && i <= A.length;
-    requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], 1/2));
+    requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], 1f/2));
 	pure int sum_contrib(int[] A, int i) =
 	  (i == A.length) ? 0 : A[i] + sum_contrib(A, i + 1);
 
@@ -16,19 +16,19 @@ class ArraySum {
 	context_everywhere A != null;
 	context_everywhere contrib != null;
 	context_everywhere contrib.length == A.length;
-	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1/2));
+	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1f/2));
 	context (\forall* int i; 0 <= i && i < A.length; Perm(contrib[i], 1));
 	context Perm(this.sum, write);
 	requires (\forall* int i; 0 <= i && i < A.length; contrib[i] == 0);
 	void sum(int[] A) {
 		context_everywhere inv(Perm(this.sum, write) **
-		              (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1/2)) **
+		              (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1f/2)) **
 			      this.sum == sum_contrib(contrib, 0)){ 
 			par (int tid = 0 .. A.length)
-				requires Perm(A[tid], 1/2);
-				requires Perm(contrib[tid], 1/2) ** contrib[tid] == 0;
-				ensures Perm(A[tid], 1/2);
-				ensures Perm(contrib[tid], 1/2) ** contrib[tid] == A[tid];
+				requires Perm(A[tid], 1f/2);
+				requires Perm(contrib[tid], 1f/2) ** contrib[tid] == 0;
+				ensures Perm(A[tid], 1f/2);
+				ensures Perm(contrib[tid], 1f/2) ** contrib[tid] == A[tid];
 			{
 				atomic(inv) {
 					sum = sum + A[tid];

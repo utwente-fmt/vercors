@@ -401,8 +401,8 @@ public class OpenMPtoPVL extends AbstractRewriter {
     hi=rewrite(cond.arg(1));
     
     if (simd){
-      lo=create.expression(StandardOperator.Div,lo,create.constant(simd_len));
-      hi=create.expression(StandardOperator.Div,hi,create.constant(simd_len));
+      lo=create.expression(StandardOperator.FloorDiv,lo,create.constant(simd_len));
+      hi=create.expression(StandardOperator.FloorDiv,hi,create.constant(simd_len));
       String par_var_name="par_"+var_name;
       DeclarationStatement range=create.field_decl(par_var_name,
           create.primitive_type(PrimitiveSort.Integer),

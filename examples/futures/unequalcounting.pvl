@@ -28,28 +28,28 @@ class Program {
 		Future f = new Future();
 		f.counter = c;
 		create f, f.parcount(n);
-		split f, 1/2, f.plus(n), 1/2, f.mult(n);
+		split f, 1f/2, f.plus(n), 1f/2, f.mult(n);
 		
 		context_everywhere lockinv(HPerm(f.counter, write)) {
 			par T0() 
-				requires Future(f, 1/2, f.plus(n));
-				ensures Future(f, 1/2, empty); 
+				requires Future(f, 1f/2, f.plus(n));
+				ensures Future(f, 1f/2, empty); 
 			{
 				atomic(lockinv) {
-					action(f, 1/2, empty, f.plus(n)) { f.counter = f.counter + n; }
+					action(f, 1f/2, empty, f.plus(n)) { f.counter = f.counter + n; }
 				}
 			}
 			and T1() 
-				requires Future(f, 1/2, f.mult(n));
-				ensures Future(f, 1/2, empty);
+				requires Future(f, 1f/2, f.mult(n));
+				ensures Future(f, 1f/2, empty);
 			{
 				atomic(lockinv) {
-					action(f, 1/2, empty, f.mult(n)) { f.counter = f.counter * n; }
+					action(f, 1f/2, empty, f.mult(n)) { f.counter = f.counter * n; }
 				}
 			}
 		}
 		
-		merge f, 1/2, empty, 1/2, empty;
+		merge f, 1f/2, empty, 1f/2, empty;
 		destroy f;
 		
 		return f.counter;

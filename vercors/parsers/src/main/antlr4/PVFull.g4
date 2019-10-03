@@ -37,7 +37,7 @@ atomExpression
  | CONTAINER '<' type '>' values
  | ('!'|'-') atomExpression
  | atomExpression '^^' atomExpression
- | atomExpression ('*'|'/'|'%') atomExpression
+ | atomExpression ('*'|'/'|'f/'|'%') atomExpression
  | atomExpression ( '+' | '-' ) atomExpression
  | atomExpression ( '<' | '<=' | '>=' | '>') atomExpression
  | atomExpression ( '==' | '!=' ) atomExpression

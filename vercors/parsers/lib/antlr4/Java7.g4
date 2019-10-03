@@ -522,7 +522,7 @@ expression
     |   expression ('++' | '--')
     |   ('+'|'-'|'++'|'--') expression
     |   ('~'|'!') expression
-    |   expression ('*'|'/'|'%') expression
+    |   expression ('*'|'/'|'f/'|'%') expression
     |   expression ('+'|'-') expression
     |   expression ('<' '<' | '>' '>' '>' | '>' '>') expression
     |   expression ('<=' | '>=' | '>' | '<') expression

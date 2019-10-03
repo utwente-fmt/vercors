@@ -7,24 +7,24 @@ class Ref {
   context_everywhere a != null && b != null && c != null;
 	context_everywhere tcount >= 0;
 	context_everywhere a.length == tcount && b.length == tcount && c.length == tcount;
-  context  (\forall* int i; 0 <= i && i < tcount; Perm(c[i], 1/4) ** c[i] > 0); // Perm(c[i], read) also possible (1)
+  context  (\forall* int i; 0 <= i && i < tcount; Perm(c[i], 1f/4) ** c[i] > 0); // Perm(c[i], read) also possible (1)
   requires (\forall* int i; 0 <= i && i < tcount; Perm(a[i], write));
   requires (\forall* int i; 0 <= i && i < tcount; Perm(b[i], write));
-  ensures  (\forall* int i; 0 <= i && i < tcount; Perm(a[i], 1/4) ** a[i] > 0); // Perm(a[i], read) also possible (1)
-  ensures  (\forall* int i; 0 <= i && i < tcount; Perm(b[i], 1/4) ** b[i] > 0); // Perm(b[i], read) also possible (1)
+  ensures  (\forall* int i; 0 <= i && i < tcount; Perm(a[i], 1f/4) ** a[i] > 0); // Perm(a[i], read) also possible (1)
+  ensures  (\forall* int i; 0 <= i && i < tcount; Perm(b[i], 1f/4) ** b[i] > 0); // Perm(b[i], read) also possible (1)
   void main(int tcount, int[] a, int[] b, int[] c) {
     par fwd (int tid=0..tcount)
-      context  Perm(c[tid], 1/4) ** c[tid] > 0; // Perm(c[tid], read) also possible (2)
+      context  Perm(c[tid], 1f/4) ** c[tid] > 0; // Perm(c[tid], read) also possible (2)
       requires Perm(a[tid], write);
       requires Perm(b[tid], write);
-      ensures  Perm(a[tid], 1/4) ** a[tid] > 0; // Perm(a[tid], read) also possible (2)
-      ensures  Perm(b[tid], 1/4) ** b[tid] > 0; // Perm(b[tid], read) also possible (2)
+      ensures  Perm(a[tid], 1f/4) ** a[tid] > 0; // Perm(a[tid], read) also possible (2)
+      ensures  Perm(b[tid], 1f/4) ** b[tid] > 0; // Perm(b[tid], read) also possible (2)
     {
       b[tid]=c[tid]; 
       barrier(fwd) {
 				context 0 <= tid && tid < tcount;
-        requires Perm(b[tid], 1/4); // Perm(b[tid], read) also possible (3)
-        ensures  tid>0 ==> Perm(b[tid-1], 1/4); // Perm(b[tid-1], read) also possible (4)
+        requires Perm(b[tid], 1f/4); // Perm(b[tid], read) also possible (3)
+        ensures  tid>0 ==> Perm(b[tid-1], 1f/4); // Perm(b[tid-1], read) also possible (4)
         requires b[tid] > 0;
         ensures  tid>0 ==> b[tid-1] > 0;        
       }

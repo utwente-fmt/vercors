@@ -134,7 +134,7 @@ public class VerCorsExpressionFactory implements
   @Override
   public ASTNode div(Origin o, ASTNode e1, ASTNode e2) {
     enter(o);
-    ASTNode res=create.expression(StandardOperator.Div, e1,e2);
+    ASTNode res=create.expression(StandardOperator.FloorDiv, e1,e2);
     leave();
     return res;
   }
@@ -265,7 +265,7 @@ public class VerCorsExpressionFactory implements
   @Override
   public ASTNode frac(Origin o, ASTNode e1, ASTNode e2) {
     enter(o);
-    ASTNode res=create.expression(StandardOperator.Div, e1,e2);
+    ASTNode res=create.expression(StandardOperator.FloorDiv, e1,e2);
     leave();
     return res;
   }

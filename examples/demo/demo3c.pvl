@@ -15,8 +15,8 @@ class Worker {
 		this.val = v;
 	}
 	
-	context Perm(main, 1/2) ** main != null;
-	context Perm(val, 1/2);
+	context Perm(main, 1f/2) ** main != null;
+	context Perm(val, 1f/2);
 	void run() {
 		lock main;
 		main.sum = main.sum + val;
