@@ -12,9 +12,9 @@
 //begin(all)
 /*@
   given seq<seq<int> > data;
-  invariant M>0 ** N>0 ** P>0;
-  invariant |data| == M;
-  invariant (\forall int d; 0 <= d && d < M; |data[d]| == N);
+  context_everywhere M>0 ** N>0 ** P>0;
+  context_everywhere |data| == M;
+  context_everywhere (\forall int d; 0 <= d && d < M; |data[d]| == N);
 
   context \pointer(matrix, M, 1/2);
   context (\forall* int i; 0 <= i < M; (\forall* int j; 0 <= j < N; Perm(matrix[i][j], 1/2)));

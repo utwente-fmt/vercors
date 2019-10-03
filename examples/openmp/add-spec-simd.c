@@ -11,8 +11,8 @@
 #include <omp.h>
 
 /*@
-  invariant a != NULL && b != NULL && c != NULL;
-  invariant len>0 && (len % 4 == 0) && \length(a)==len && \length(b)==len && \length(c)==len;
+  context_everywhere a != NULL && b != NULL && c != NULL;
+  context_everywhere len>0 && (len % 4 == 0) && \length(a)==len && \length(b)==len && \length(c)==len;
   context   (\forall* int k;0 <= k && k < len ; Perm(a[k],1/2));
   context   (\forall* int k;0 <= k && k < len ; Perm(b[k],1/2));
   context   (\forall* int k;0 <= k && k < len ; Perm(c[k],1));

@@ -4,8 +4,8 @@
 //:: verdict Pass
 //:: options --explicit
  /*
- Example: ReentLock 
- Description: ReentLock is the re-entrant lock using AtomicInteger as synchronizer. 
+ Example: ReentLock
+ Description: ReentLock is the re-entrant lock using AtomicInteger as synchronizer.
  Author: Afshin Amighi
  Status: Pass.
  command: vct --chalice --explicit ReentrantLock.java
@@ -106,12 +106,12 @@ public class ReentLock{
             //@ witness tcepp:inv(*);
             //@ fold tcrs:inv(part(S,tid,M)-part(S,0,M));
             //@ loop_invariant  !succ    ==> (invhn:handle(role,curr)) ** (invpn: inv(part(role,curr,M))) ** invsn: inv(part(S,tid,M)-part(S,0,M));
-            //@ loop_invariant  succ    ==>    (invhp:handle(role,tid)) ** (invpp: inv(part(role,tid,M))) ** invsp: inv(part(S,0,M)-part(S,tid,M));            
-            while (!succ) /*@ with{ invhn = tgeh; invpn = tgep; invpp = tgep;  invsn = tcrs; }  
+            //@ loop_invariant  succ    ==>    (invhp:handle(role,tid)) ** (invpp: inv(part(role,tid,M))) ** invsp: inv(part(S,0,M)-part(S,tid,M));
+            while (!succ) /*@ with{ invhn = tgeh; invpn = tgep; invpp = tgep;  invsn = tcrs; }
                            then { tces = invsp; tcepp = invpp; leh = invhp;   } @*/ {
 
                //@     fold tcra:trans(role,0,tid);
-                succ = compareAndSet(0,tid) /*@ with{ max = 1; r = role; l = curr; crh = invhn; crp = invpn; cra = tcra; crs = invsn; } 
+                succ = compareAndSet(0,tid) /*@ with{ max = 1; r = role; l = curr; crh = invhn; crp = invpn; cra = tcra; crs = invsn; }
                                         then{ invhn = cehn; invpn = cepn; invsn = cesn; invhp = cehp; invpp = cepp; invsp = cesp;  } @*/ ;
             }
             //@ unfold tces: inv(part(S,0,1)-part(S,tid,1));
@@ -170,5 +170,3 @@ public class ReentLock{
         }
     }
 }
-
-

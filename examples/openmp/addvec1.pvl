@@ -9,10 +9,10 @@
  */
 class parvec {
 
-  invariant M>0;
-  invariant a!=null ** a.length==M;
-  invariant b!=null ** b.length==M;
-  invariant c!=null ** c.length==M;
+  context_everywhere M>0;
+  context_everywhere a!=null ** a.length==M;
+  context_everywhere b!=null ** b.length==M;
+  context_everywhere c!=null ** c.length==M;
   context   (\forall* int i; 0 <= i && i < M ; Perm(a[i],1));
   context   (\forall* int i; 0 <= i && i < M ; Perm(b[i],1/2));
   context   (\forall* int i; 0 <= i && i < M ; Perm(c[i],1/2));

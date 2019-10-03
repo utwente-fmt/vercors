@@ -81,7 +81,7 @@ class ColoredTiles {
   }
   
   requires (\forall int y;0<=y && y < |s|;has_false_in_prefix(s[y],k));
-  invariant k2 > k;
+  context_everywhere k2 > k;
   ensures (\forall int y;0<=y && y < |s|;has_false_in_prefix(s[y],k2));
   void lemma_has_false_in_prefix_mono(seq<seq<boolean>> s,int k,int k2){
     par lemma_hfip_par (int y=0..|s|)

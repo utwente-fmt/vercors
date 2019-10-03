@@ -6,11 +6,11 @@
 class ArraySum {
 	int sum;
 
-	invariant A != null;
+	context_everywhere A != null;
 	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1/2));
 	context Perm(this.sum, write);
 	void sum(int[] A) {
-		invariant inv(Perm(this.sum, write)) { 
+		context_everywhere inv(Perm(this.sum, write)) { 
 			par (int tid = 0 .. A.length)
 				requires Perm(A[tid], 1/2);
 				ensures Perm(A[tid], 1/2);

@@ -13,8 +13,8 @@ class test {
     int[10] y=new int[10];
     int[10] z=new int[10];
 		
-    invariant x != null ** y != null ** z != null;
-		invariant x.length == 10 && y.length == 10 && z.length == 10;
+    context_everywhere x != null ** y != null ** z != null;
+		context_everywhere x.length == 10 && y.length == 10 && z.length == 10;
     context (\forall* int i;0<=i && i < 10 ; Perm(x[i],1));
     context (\forall* int i;0<=i && i < 10 ; Perm(y[i],1));
     context (\forall* int i;0<=i && i < 10 ; Perm(z[i],1));

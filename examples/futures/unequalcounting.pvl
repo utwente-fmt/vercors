@@ -30,7 +30,7 @@ class Program {
 		create f, f.parcount(n);
 		split f, 1/2, f.plus(n), 1/2, f.mult(n);
 		
-		invariant lockinv(HPerm(f.counter, write)) {
+		context_everywhere lockinv(HPerm(f.counter, write)) {
 			par T0() 
 				requires Future(f, 1/2, f.plus(n));
 				ensures Future(f, 1/2, empty); 

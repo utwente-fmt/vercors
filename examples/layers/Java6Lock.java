@@ -142,7 +142,7 @@ class Lock {
   @*/
   
 /*@
-// begin(invariant)
+// begin(context_everywhere)
 resource csl_invariant()= Value(T) ** T > 0 **
    Value(held) ** held != null ** Value(subject) **
    APerm(count,1/2) ** APerm(owner,1/2) **
@@ -154,18 +154,18 @@ resource csl_invariant()= Value(T) ** T > 0 **
      Perm(held[i],1/2) ** (i!=holder ==> held[i]==0)
      ** held[i] >= 0 ** (held[i]==0 ==> owner.val!=i)
    );
-// end(invariant)
+// end(context_everywhere)
  @*/
 
   /*@
     inline thread_local
-// begin(invariant)
+// begin(context_everywhere)
     resource lockset_part()= held!=null **
        Perm(held[\current_thread],1/2) **
        (held[\current_thread] > 0 ==>
           APointsTo(count,1/2,held[\current_thread]) **
           APointsTo(owner,1/2,\current_thread));
-// end(invariant)
+// end(context_everywhere)
   @*/
 
 
