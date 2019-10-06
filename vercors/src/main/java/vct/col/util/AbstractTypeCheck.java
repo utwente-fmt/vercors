@@ -1293,12 +1293,50 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Drop:
     case Take:
     {
+      if (!t1.isPrimitive(PrimitiveSort.Sequence)) {
+        Fail("base must be of sequence type");
+      }
       if (!t2.isInteger()) {
-        Fail("count has type %s rather than integer",t2);
+        Fail("count has type '%s' rather than integer", t2);
       }
       e.setType(t1);
       break;
     }
+    case Slice:
+    {
+      if (!t1.isPrimitive(PrimitiveSort.Sequence)) {
+        Fail("base must be of sequence type");
+      }
+      if (!t2.isInteger()) {
+        Fail("left count has type '%s' rather than integer", t2);
+      }
+      if (!t3.isInteger()) {
+        Fail("right count has type '%s' rather than integer", t3);
+      }
+      e.setType(t1);
+      break;
+    }
+
+    case SeqUpdate: {
+      if (!t1.isPrimitive(PrimitiveSort.Sequence)) {
+        Fail("base must be of sequence type");
+      }
+
+      // for example, if `t1` is of type `seq<int>`, then `innerType` shall be `int`.
+      Type innerType = (Type)t1.firstarg();
+
+      if (!t2.isInteger()) {
+        Fail("index has type '%s' rather than integer", t2);
+      }
+
+      if (!t3.equals(innerType)) {
+        Fail("the replacing element has type '%s' but should be '%s'", t3, innerType);
+      }
+
+      e.setType(t1);
+      break;
+    }
+
     case Subscript:
     {
       if (!(t1 instanceof PrimitiveType)) Fail("base must be array or sequence type.");

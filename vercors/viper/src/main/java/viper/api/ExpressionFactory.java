@@ -40,6 +40,8 @@ public interface ExpressionFactory<O,T,E> {
   public E range(O o, E e1, E e2);
   public E take(O o, E e1, E e2);
   public E drop(O o, E e1, E e2);
+  public E slice(O o, E e1, E e2, E e3);
+  public E seq_update(O o, E e1, E e2, E e3);
   public E size(O o, E e1);
   public E index(O o, E e1, E e2);
   

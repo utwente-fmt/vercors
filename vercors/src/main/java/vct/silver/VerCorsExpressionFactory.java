@@ -482,7 +482,23 @@ public class VerCorsExpressionFactory implements
   @Override
   public ASTNode take(Origin o, ASTNode e1, ASTNode e2) {
     enter(o);
-    ASTNode res=create.expression(StandardOperator.Take, e1,e2);
+    ASTNode res=create.expression(StandardOperator.Take, e1, e2);
+    leave();
+    return res;
+  }
+
+  @Override
+  public ASTNode slice(Origin o, ASTNode e1, ASTNode e2, ASTNode e3) {
+    enter(o);
+    ASTNode res = create.expression(StandardOperator.Slice, e1, e2, e3);
+    leave();
+    return res;
+  }
+
+  @Override
+  public ASTNode seq_update(Origin o, ASTNode e1, ASTNode e2, ASTNode e3) {
+    enter(o);
+    ASTNode res = create.expression(StandardOperator.SeqUpdate, e1, e2, e3);
     leave();
     return res;
   }
