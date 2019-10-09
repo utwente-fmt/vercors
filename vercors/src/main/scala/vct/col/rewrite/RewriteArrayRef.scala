@@ -120,6 +120,12 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
         val size = rewrite(operator.arg(1))
         val perm = rewrite(operator.arg(2))
         result = validPointerFor(array, t, size, perm)
+      case StandardOperator.ValidPointerIndex =>
+        val t = operator.arg(0).getType
+        val array = rewrite(operator.arg(0))
+        val index = rewrite(operator.arg(1))
+        val perm = rewrite(operator.arg(2))
+        result = validPointerIndexFor(array, t, index, perm)
       case StandardOperator.Drop =>
         val seqInfo = SequenceUtils.getInfoOrFail(operator.arg(0), "Expected a sequence type at %s, but got %s")
         if(seqInfo.getSequenceSort == PrimitiveSort.Array) {
@@ -327,6 +333,26 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
         perm),
       List(new DeclarationStatement("__i", create.primitive_type(PrimitiveSort.Integer))):_*
     )
+
+    conditions.reduce(star _)
+  }
+
+  def validPointerIndexFor(input: ASTNode, t: Type, index: ASTNode, perm: ASTNode): ASTNode = {
+    val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
+    val seqInfo = SequenceUtils.expectArrayType(t, "Expected an array type here, but got %s")
+
+    if(!seqInfo.isOpt || !seqInfo.isCell) {
+      Fail("Expected a pointer type here, but got %s", t)
+    }
+
+    var value = input
+    conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
+    value = create.expression(StandardOperator.OptionGet, value)
+
+    conditions += less(index, create.expression(StandardOperator.Length, value))
+    conditions += create.expression(StandardOperator.Perm,
+      create.dereference(create.expression(StandardOperator.Subscript, value, index), "item"),
+      perm)
 
     conditions.reduce(star _)
   }
