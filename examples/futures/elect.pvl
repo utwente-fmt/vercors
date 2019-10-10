@@ -1,4 +1,8 @@
-// ./unix/bin/vct --silicon --check-history ./examples/test/elect4.pvl
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case LeaderElect
+//:: suite puptol
+//:: tool silicon
+//:: option --check-history
 
 class Future {
 
