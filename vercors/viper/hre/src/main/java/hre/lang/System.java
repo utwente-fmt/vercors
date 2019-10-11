@@ -108,9 +108,9 @@ public class System {
 
         private void doFlush() {
             if (!buffer.equals("")) {
-                String toOutput = buffer;
+                String toLog = buffer;
                 buffer = "";
-                System.log(level, outputs, "%s", toOutput);
+                System.log(level, outputs, "%s", toLog);
             }
         }
     }
@@ -278,7 +278,7 @@ public class System {
         return new Failure(String.format(format, args));
     }
 
-    static {
+//    static {
 //        final UncaughtExceptionHandler parent = Thread.getDefaultUncaughtExceptionHandler();
 //        UncaughtExceptionHandler eh = new UncaughtExceptionHandler() {
 //            @Override
@@ -290,5 +290,5 @@ public class System {
 //            }
 //        };
 //        Thread.setDefaultUncaughtExceptionHandler(eh);
-    }
+//    }
 }

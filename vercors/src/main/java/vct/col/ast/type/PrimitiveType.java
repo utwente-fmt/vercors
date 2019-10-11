@@ -1,5 +1,7 @@
 package vct.col.ast.type;
 
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -14,6 +16,7 @@ import static hre.lang.System.Abort;
 import static hre.lang.System.Debug;
 import static hre.lang.System.Fail;
 
+import java.util.Collections;
 import java.util.List;
 
 public final class PrimitiveType extends Type {
@@ -334,5 +337,15 @@ public final class PrimitiveType extends Type {
       default:
         return false;
     }
+  }
+
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("args"));
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("sort"));
   }
 }

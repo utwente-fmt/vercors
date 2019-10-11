@@ -5,6 +5,7 @@
 target/
 dist/
 doc/
+.learn
 tmp
 tmp.*
 vct-tool.jar

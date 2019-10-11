@@ -108,4 +108,7 @@ case class ClassType(val names:List[String], val params:List[ASTNode]) extends T
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def accept_simple[T](m:TypeMapping[T]) = handle_standard(() => m.map(this))
+
+  override def debugTreeChildrenFields: Iterable[String] = Seq("names", "args")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

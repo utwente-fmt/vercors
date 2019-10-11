@@ -1,12 +1,16 @@
 package vct.col.ast.`type`
 
 import hre.lang.System.Abort
+import vct.col.ast.generic.DebugNode
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.{ASTVisitor, TypeMapping}
 import vct.col.util.{ASTMapping, ASTMapping1, VisitorHelper}
 
 /** A single type entry of a record type (only used in `RecordType`). */
-case class RecordTypeEntry(val fieldName:String, val fieldType:Type)
+case class RecordTypeEntry(val fieldName:String, val fieldType:Type) extends DebugNode {
+  override def debugTreeChildrenFields: Iterable[String] = Seq("fieldType")
+  override def debugTreePropertyFields: Iterable[String] = Seq("fieldName")
+}
 
 /**
  * AST node that represents record types, that is, pairs of variable names (identifiers)
@@ -37,4 +41,7 @@ case class RecordType(val types:List[RecordTypeEntry]) extends Type with Visitor
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def accept_simple[T](m:TypeMapping[T]) = handle_standard(() => m.map(this))
+
+  override def debugTreeChildrenFields: Iterable[String] = Seq("types", "args")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

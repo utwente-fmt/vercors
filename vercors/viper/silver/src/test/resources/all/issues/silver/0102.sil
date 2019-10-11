@@ -1,9 +1,0 @@
-method test5(x: Ref, y: Ref) {
-  //:: ExpectedOutput(typechecker.error)
-  assert (forall i: Int :: x == y) <= 0
-}
-
-method test6(x: Ref, y: Ref) {
-  //:: ExpectedOutput(typechecker.error)
-  assert (exists i: Int :: x == y) <= 1/2
-}

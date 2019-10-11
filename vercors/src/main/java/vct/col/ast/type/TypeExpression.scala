@@ -27,4 +27,7 @@ case class TypeExpression(val operator:TypeOperator, val types:List[Type]) exten
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def accept_simple[T](m:TypeMapping[T]) = handle_standard(() => m.map(this))
   override def supertypeof(context:ProgramUnit, t:Type) = false
+
+  override def debugTreeChildrenFields: Iterable[String] = Seq("types", "args")
+  override def debugTreePropertyFields: Iterable[String] = Seq("operator")
 }

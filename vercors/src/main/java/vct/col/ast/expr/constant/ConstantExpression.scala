@@ -1,11 +1,14 @@
 package vct.col.ast.expr.constant
 
+import java.lang
+
 import hre.ast.Origin
 import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.Hole
 import vct.col.ast.util.ASTVisitor
 import vct.col.util.{ASTMapping, ASTMapping1, VisitorHelper}
+import collection.JavaConverters._
 
 import scala.collection.JavaConverters._
 
@@ -41,4 +44,7 @@ case class ConstantExpression(val value:Value) extends ASTNode with VisitorHelpe
     case h:Hole => h.`match`(this)
     case _ => ast.equals(value)
   }
+
+  override def debugTreeChildrenFields(): Iterable[String] = Seq()
+  override def debugTreePropertyFields(): Iterable[String] = Seq("value")
 }

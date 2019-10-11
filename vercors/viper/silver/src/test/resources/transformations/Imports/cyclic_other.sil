@@ -1,7 +1,0 @@
-import "cyclic_other2.sil"
-
-method mainOther1()
-{
-    mainOther2()
-}
-

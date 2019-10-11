@@ -1,9 +1,0 @@
-
-
-predicate p(r:Ref)
-
-method m()
-  {
-      //:: UnexpectedOutput(exhale.failed:negative.permission, /carbon/issue/177/)
-      exhale forall r:Ref :: r != null ==> acc(p(r),perm(p(r)))
-  }

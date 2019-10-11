@@ -26,10 +26,10 @@ class NationalFlag {
 		items[j] = temp;
 	}
 	
-	invariant items != null;
-	invariant Perm(this.low, write) ** Perm(this.mid, write);
-	invariant (\forall* int j; 0 <= j && j < items.length; Perm(items[j], write));
-	invariant (\forall int j; 0 <= j && j < items.length; 0 <= items[j] && items[j] <= 2);
+	context_everywhere items != null;
+	context_everywhere Perm(this.low, write) ** Perm(this.mid, write);
+	context_everywhere (\forall* int j; 0 <= j && j < items.length; Perm(items[j], write));
+	context_everywhere (\forall int j; 0 <= j && j < items.length; 0 <= items[j] && items[j] <= 2);
 	ensures (0 <= low && low <= mid && mid <= items.length);
 	ensures (\forall int j; 0 <= j && j < low; items[j] == 0);
 	ensures (\forall int j; low <= j && j < mid; items[j] == 1);

@@ -5,6 +5,8 @@ import hre.ast.MessageOrigin;
 
 import java.util.*;
 
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.util.ASTMapping;
@@ -30,6 +32,16 @@ public class Method extends ASTDeclaration {
   @Override
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
     return map.map(this,arg);
+  }
+
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("return_type", "args", "spec", "body"));
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("var_args", "kind"));
   }
 
   /** Enumeration of kinds of methods. */

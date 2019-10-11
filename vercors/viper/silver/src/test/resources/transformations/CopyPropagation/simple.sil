@@ -1,6 +1,0 @@
-method main()
-{
-    var i: Int := 5
-    assert(i == 5)
-}
-

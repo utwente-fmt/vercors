@@ -10,11 +10,11 @@ class SiliconVerifier[O,Err](o:OriginFactory[O]) extends SilverImplementation[O,
     def OS=System.getProperty("os.name");
 //    println("tool home is "+tool_home);
     val z3_exe=if(OS.startsWith("Windows")){
-      tool_home.resolve("z3").resolve("4.4.0").resolve("Windows NT").resolve("intel").resolve("bin").resolve("z3.exe").toString()
+      tool_home.resolve("z3").resolve("4.8.5").resolve("Windows NT").resolve("intel").resolve("bin").resolve("z3.exe").toString()
     } else if(OS.startsWith("Mac")){
-      tool_home.resolve("z3").resolve("4.4.0").resolve("Darwin").resolve("x86_64").resolve("bin").resolve("z3").toString()
+      tool_home.resolve("z3").resolve("4.8.5").resolve("Darwin").resolve("x86_64").resolve("bin").resolve("z3").toString()
     } else {
-      tool_home.resolve("z3").resolve("4.4.0").resolve("Linux").resolve("x86_64").resolve("bin").resolve("z3").toString()
+      tool_home.resolve("z3").resolve("4.8.5").resolve("Linux").resolve("x86_64").resolve("bin").resolve("z3").toString()
     }
     val silicon = new viper.silicon.Silicon(HREViperReporter(), Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
     var z3_config="\"";

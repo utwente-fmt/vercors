@@ -1,8 +1,0 @@
-method m(x:Int, y:Int) {
-  if(x > y) {
-    // assert 1 < 2
-  } else {
-    //:: ExpectedOutput(assert.failed:assertion.false)
-    assert false
-  }
-}

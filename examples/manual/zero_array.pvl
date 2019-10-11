@@ -4,7 +4,7 @@
 //:: verdict Pass
 class array {
 
-  invariant x != null;
+  context_everywhere x != null;
   requires (\forall* int k ; 0 <= k && k < x.length ; Perm(x[k],write));
   ensures  (\forall* int k ; 0 <= k && k < x.length ; Perm(x[k],write));
   ensures  (\forall  int k ; 0 <= k && k < x.length ; x[k]==0);

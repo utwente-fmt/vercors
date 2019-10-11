@@ -1,5 +1,8 @@
 package vct.col.ast.stmt.composite;
 
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
+import vct.col.ast.generic.DebugNode;
 import vct.col.util.ASTMapping;
 import vct.col.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -7,14 +10,35 @@ import vct.col.ast.util.ASTVisitor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 
 import static hre.lang.System.Debug;
 
 public class Switch extends ASTNode {
 
-  public static class Case {
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("expr", "cases"));
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
+  }
+
+  public static class Case implements DebugNode {
     public final ArrayList<ASTNode> cases=new ArrayList<ASTNode>();
     public final ArrayList<ASTNode> stats=new ArrayList<ASTNode>();
+
+    @Override
+    public Iterable<String> debugTreeChildrenFields() {
+      return JavaConverters.iterableAsScalaIterable(Arrays.asList("cases", "stats"));
+    }
+
+    @Override
+    public Iterable<String> debugTreePropertyFields() {
+      return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
+    }
   }
   
   @Override

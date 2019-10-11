@@ -1,4 +1,0 @@
-method main()
-{
-    assert(1 + 2 + 3+ 0 == 6)
-}

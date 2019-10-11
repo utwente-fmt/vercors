@@ -4,8 +4,12 @@ package vct.col.ast.stmt.decl;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
@@ -151,7 +155,15 @@ public class Contract extends ASTNode {
     }
   }
 
- 
-  
+
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("invariant", "pre_condition", "post_condition", "given", "yields", "signals", "modifies", "accesses"));
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
+  }
 }
 

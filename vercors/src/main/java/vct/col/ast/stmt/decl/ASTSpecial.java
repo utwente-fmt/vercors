@@ -1,7 +1,10 @@
 package vct.col.ast.stmt.decl;
 
 import java.util.Arrays;
+import java.util.Collections;
 
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
 import vct.col.util.ASTMapping;
 import vct.col.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -20,6 +23,16 @@ public class ASTSpecial extends ASTDeclaration {
   @Override
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
     return map.map(this,arg);
+  }
+
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("args"));
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("kind"));
   }
 
   public static enum Kind {

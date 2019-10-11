@@ -15,8 +15,8 @@ int *returnPointer(int *x) {
 }
 
 /*@
-context \pointer(location, 1, write);
-ensures location[0] == 1;
+context \pointer_index(location, 0, write);
+ensures *location == 1;
 @*/
 void setOne(int *location) {
     *location = 1;
@@ -44,8 +44,8 @@ void destroyPermission(int *a) {
 }
 
 /*@
-context a != b ==> \pointer(a, 1, write) ** \pointer(b, 1, write);
-context a == b ==> \pointer(a, 1, write);
+context a != b ==> \pointer_index(a, 0, write) ** \pointer_index(b, 0, write);
+context a == b ==> \pointer_index(a, 0, write);
 ensures *a == \old(*b);
 ensures *b == \old(*a);
 @*/

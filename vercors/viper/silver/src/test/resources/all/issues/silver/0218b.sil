@@ -1,6 +1,0 @@
-define Q P
-//:: ExpectedOutput(parser.error)
-define P Q // <-- by mistake we call Q again
-method foo() {
-  assert P
-}

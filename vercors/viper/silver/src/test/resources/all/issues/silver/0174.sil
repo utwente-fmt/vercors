@@ -1,8 +1,0 @@
-field val: Int
-
-domain Foo {
-  axiom bar {
-    //:: ExpectedOutput(consistency.error)
-    forall r: Ref :: r.val != 0
-  }
-}

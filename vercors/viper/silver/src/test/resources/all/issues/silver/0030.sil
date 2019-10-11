@@ -1,8 +1,0 @@
-field f: Perm
-
-method test(x: Ref) {
-  inhale acc(x.f)
-  inhale none < x.f && x.f < write
-  exhale acc(x.f, x.f)
-  assert perm(x.f) == write - x.f
-}

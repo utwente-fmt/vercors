@@ -1,6 +1,0 @@
-method m1() returns (ret : Int)
-    //:: ExpectedOutput(consistency.error)
-    requires ret == 0
-{
-    ret := 0
-}

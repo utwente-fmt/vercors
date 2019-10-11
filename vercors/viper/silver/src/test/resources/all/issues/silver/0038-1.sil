@@ -1,9 +1,0 @@
-//:: ExpectedOutput(typechecker.error)
-function f(): Edge
-
-method test()
-{
-//:: ExpectedOutput(typechecker.error)
-    assert f()
-}
-

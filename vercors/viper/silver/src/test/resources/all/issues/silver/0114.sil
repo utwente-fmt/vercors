@@ -1,6 +1,0 @@
-define B(x, res) true
-
-method test1(x: Ref)
-    //:: ExpectedOutput(parser.error)
-    ensures  B(x)
-{}

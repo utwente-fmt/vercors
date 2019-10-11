@@ -1,12 +1,17 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.col.ast.expr;
 
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
 import vct.col.util.ASTMapping;
 import vct.col.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.Hole;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.util.ASTVisitor;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 import static hre.lang.System.Debug;
 
@@ -20,6 +25,16 @@ public class NameExpression extends ASTNode {
   @Override
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
     return map.map(this,arg);
+  }
+
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("name", "kind", "reserved"));
   }
 
   /** The possible kinds of defined names */

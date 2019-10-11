@@ -1,9 +1,0 @@
-field val: Int
-
-function foo(): Bool
-  ensures forall n:Ref :: { n.val } true
-
-method test(x: Ref) {
-  //:: ExpectedOutput(assert.failed:assertion.false)
-  assert false
-}

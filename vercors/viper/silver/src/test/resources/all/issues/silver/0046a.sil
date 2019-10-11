@@ -1,7 +1,0 @@
-domain D1[T] { function make(x:T) : D1[T] }
-
-method m2() {
-  var d11x : D1[D1[Int]]
-  d11x := make(make(1))
-}
-

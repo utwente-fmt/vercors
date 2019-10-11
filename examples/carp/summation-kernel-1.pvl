@@ -7,14 +7,14 @@ class Ref {
 
   int res;
 
-  invariant ar != null ** N > 0 ** M > 0 ** \array(ar,M*N);
+  context_everywhere ar != null ** N > 0 ** M > 0 ** \array(ar,M*N);
   context Perm(res,write);
   context (\forall* int i;0 <= i && i < M*N ; Perm(ar[i],1/2));
   requires res==0;
   ensures  (\forall int i;0 <= i && i < M*N ; ar[i]==\old(ar[i]));
   void do_sum(int M,int N, int[M*N] ar){
     int[M] temp=new int[M];
-    invariant outer(
+    context_everywhere outer(
       Perm(res,write)
     ){
       par kern(int g = 0 .. M)
@@ -28,14 +28,14 @@ class Ref {
           ensures contrib[t]==0;
         { contrib[t] = 0; }
         
-        invariant inner(
+        context_everywhere inner(
           \array(temp,1) ** Perm(temp[0],1) **
           \array(contrib,N) ** (\forall* int k; 0 <= k && k < N ; Perm(contrib[k],1/2))
           // temp[0]==(\sum int k; 0 <= k && k < N ; contrib[k])
         ){
           par group(int t = 0 .. N)
             context \array(contrib,N);
-						invariant 0 <= g && g < M;
+						context_everywhere 0 <= g && g < M;
             requires PointsTo(contrib[t],1/2,0);
             requires Perm(ar[g*N+t],1/4);
             ensures t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(ar[g*N+k],1/4));

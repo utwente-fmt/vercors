@@ -7,7 +7,7 @@
 
 class Ref {
 
-    invariant N>0 && a != null && b != null && c != null;
+    context_everywhere N>0 && a != null && b != null && c != null;
 
     requires (\forall* int i ; 0 <= i && i < N ; Perm(a[i],write));
     requires (\forall* int i ; 0 <= i && i < N ; Perm(b[i],1/2));
@@ -55,7 +55,7 @@ class Ref {
   }
 
  
-   invariant N>10 && a != null && b != null && c != null;
+   context_everywhere N>10 && a != null && b != null && c != null;
    requires (\forall* int i ; 0 <= i && i < N ; Perm(a[i],write));
    requires (\forall* int i ; 0 <= i && i < N ; Perm(b[i],write));
    requires (\forall* int i ; 0 <= i && i < N ; Perm(c[i],write));

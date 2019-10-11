@@ -85,6 +85,7 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(ValidArray,"\\array");
         syntax.addFunction(ValidMatrix,"\\matrix");
         syntax.addFunction(ValidPointer,"\\pointer");
+        syntax.addFunction(ValidPointerIndex, "\\pointer_index");
         
         JavaVerCorsSyntax=syntax;
         

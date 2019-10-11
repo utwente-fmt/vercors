@@ -1,6 +1,0 @@
-field f: Int
-
-method test(xs: Set[Ref], ys: Seq[Ref])
-  //:: ExpectedOutput(consistency.error)
-  requires forall x: Ref :: ((x in xs) && (forall i: Int :: i in [0..|ys|) ==> acc(ys[i].f))) ==> acc(x.f)
-{}

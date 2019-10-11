@@ -1,6 +1,0 @@
-//:: IgnoreFile(/silver/issue/190/)
-
-method loop () {
-  label hello
-  goto hello
-}

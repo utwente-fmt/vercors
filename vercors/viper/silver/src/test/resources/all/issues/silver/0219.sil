@@ -1,6 +1,0 @@
-define checkThis(check)
-  check(x) // <-- here I put by mistake "(x)"
-
-method foo()
-  //:: ExpectedOutput(parser.error)
-  ensures checkThis(true)

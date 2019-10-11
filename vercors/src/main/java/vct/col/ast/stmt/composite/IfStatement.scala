@@ -2,7 +2,7 @@ package vct.col.ast.stmt.composite
 
 import hre.ast.MessageOrigin
 import vct.col.ast.expr.constant.ConstantExpression
-import vct.col.ast.generic.ASTNode
+import vct.col.ast.generic.{ASTNode, DebugNode}
 import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.util.ASTVisitor
 
@@ -13,7 +13,10 @@ object IfStatement {
   val elseGuard = new ConstantExpression(true, new MessageOrigin("else guard"))
 }
 
-case class IfStatementCase(var guard:ASTNode, var effect:ASTNode)
+case class IfStatementCase(var guard:ASTNode, var effect:ASTNode) extends DebugNode {
+  override def debugTreeChildrenFields: Iterable[String] = Seq("guard", "effect")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
+}
 
 class IfStatement extends ASTNode with VisitorHelper {
   private[this] val cases = new ArrayBuffer[IfStatementCase]()
@@ -38,4 +41,7 @@ class IfStatement extends ASTNode with VisitorHelper {
   override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
+
+  override def debugTreeChildrenFields(): Iterable[String] = Seq("cases")
+  override def debugTreePropertyFields(): Iterable[String] = Seq()
 }

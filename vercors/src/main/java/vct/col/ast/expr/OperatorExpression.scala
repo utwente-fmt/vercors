@@ -59,4 +59,7 @@ case class OperatorExpression(val operator:StandardOperator, val args:List[ASTNo
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def isa(op:StandardOperator) = op == operator
+
+  override def debugTreeChildrenFields(): Iterable[String] = Seq("args")
+  override def debugTreePropertyFields(): Iterable[String] = Seq("operator")
 }

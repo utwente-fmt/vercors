@@ -1,7 +1,0 @@
-  field next: Ref
-  field elem: Int
-  predicate valid(this: Ref) { acc(this.elem, write) && acc(this.next, write) && (((this.next) != (null)) ==> acc(valid(this.next), write)) }
-  function get(this: Ref, index: Int): Int
-    requires acc(valid(this), write)
-    requires (unfolding acc(valid(this), write) in true)
-  { 0 }

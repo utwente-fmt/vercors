@@ -1,7 +1,7 @@
 package viper.api
 
 import viper.silver.reporter.{ConfigurationConfirmation, CopyrightReport, EntityFailureMessage, EntitySuccessMessage, ExceptionReport, ExternalDependenciesReport, InternalWarningMessage, InvalidArgumentsReport, Message, OverallFailureMessage, OverallSuccessMessage, Reporter, SimpleMessage, Time, format}
-import hre.lang.System.Output
+import hre.lang.System.{Output, DebugException}
 
 case class HREViperReporter(name: String = "hre_reporter", timeInfo: Boolean = true) extends Reporter {
   // Code below adapted from viper.silver.reporter.StdIOReporter
@@ -33,7 +33,9 @@ case class HREViperReporter(name: String = "hre_reporter", timeInfo: Boolean = t
           * not yet been reported via AbortedExceptionally. */
         Output( s"Verification aborted exceptionally: ${e.toString}" )
         Option(e.getCause) match {
-          case Some(cause) => Output( s"  Cause: ${cause.toString}" )
+          case Some(cause) =>
+            Output( s"  Cause: ${cause.toString}" )
+            DebugException(cause)
           case None =>
         }
       //Output( s"  See log file for more details: ..." )

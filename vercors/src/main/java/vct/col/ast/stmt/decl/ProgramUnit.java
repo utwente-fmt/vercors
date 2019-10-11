@@ -4,8 +4,10 @@ import hre.ast.MessageOrigin;
 
 import java.util.*;
 
+import scala.collection.JavaConverters;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
+import vct.col.ast.generic.DebugNode;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
@@ -21,7 +23,7 @@ import static hre.lang.System.*;
  * @author sccblom
  *
  */
-public class ProgramUnit implements ASTSequence<ProgramUnit> {
+public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
   public enum LanguageFlag {
     SeparateArrayLocations(true);
 
@@ -35,7 +37,6 @@ public class ProgramUnit implements ASTSequence<ProgramUnit> {
       return this.defaultFlag;
     }
   }
-
 
   public String toString(){
     return vct.util.Configuration.getDiagSyntax().print(this).toString();
@@ -333,5 +334,15 @@ public class ProgramUnit implements ASTSequence<ProgramUnit> {
   
   public void index_classes(){
     index_classes(this);
+  }
+
+  @Override
+  public scala.collection.Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("library", "program", "classes", "decl_map", "adt_map", "proc_map"));
+  }
+
+  @Override
+  public scala.collection.Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("format"));
   }
 }

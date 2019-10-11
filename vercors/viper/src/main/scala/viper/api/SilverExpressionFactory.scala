@@ -61,21 +61,20 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   override def any_set_intersection(o:O,e1:Exp,e2:Exp):Exp = add(AnySetIntersection(e1,e2)_,o)
   
   override def domain_call(o: O,name:String,args:List[Exp], dpars: java.util.Map[String,Type],
-      rt:Type,pars:List[Triple[O,String,Type]],domain:String) : Exp = {
+      rt:Type,domain:String) : Exp = {
       val tm : Map[viper.silver.ast.TypeVar,viper.silver.ast.Type] = dpars.entrySet().asScala.map {
         case e:java.util.Map.Entry[String,Type] => (TypeVar(e.getKey()),e.getValue())
       }.toMap
       val sargs = args.asScala.toSeq
-      val fp = to_decls(o,pars)
-      DomainFuncApp(name,sargs.toSeq,tm)(NoPosition,new OriginInfo(o),rt,fp,domain, NoTrafos)
+      DomainFuncApp(name,sargs.toSeq,tm)(NoPosition,new OriginInfo(o),rt,domain, NoTrafos)
   }
 
   override def let(o:O,n:String,t:Type,e1:Exp,e2:Exp):Exp =
     add(Let(LocalVarDecl(n,t)(NoPosition,new OriginInfo(o)),e1,e2)_,o)
-  override def function_call(o: O,name:String,args:List[Exp],rt:Type,pars:List[Triple[O,String,Type]]) : Exp = {
-    FuncApp(name,args.asScala.toSeq)(NoPosition,new OriginInfo(o),rt,to_decls(o,pars), NoTrafos)
+  override def function_call(o: O,name:String,args:List[Exp],rt:Type) : Exp = {
+    FuncApp(name,args.asScala.toSeq)(NoPosition,new OriginInfo(o),rt,NoTrafos)
   }
-  override def result(o: O,t:Type) : Exp = Result()(t, NoPosition, new OriginInfo(o)) 
+  override def result(o: O,t:Type) : Exp = Result(t)(NoPosition, new OriginInfo(o), NoTrafos)
   
   override def predicate_call(o: O,name:String,args:List[Exp]) : Exp = {
     val e1=PredicateAccess(args.asScala.toSeq,name)(NoPosition,new OriginInfo(o))
@@ -95,7 +94,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   
   override def gt(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n) => if (e1.asInstanceOf[LocalVar].typ==Perm)
+      case LocalVar(n, typ) => if (typ==Perm)
           PermGtCmp(e1,e2)(NoPosition,new OriginInfo(o))
         else
           GtCmp(e1,e2)(NoPosition,new OriginInfo(o))
@@ -105,7 +104,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def lt(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n) => if (e1.asInstanceOf[LocalVar].typ==Perm)
+      case LocalVar(n, typ) => if (typ==Perm)
           PermLtCmp(e1,e2)(NoPosition,new OriginInfo(o))
         else
           LtCmp(e1,e2)(NoPosition,new OriginInfo(o))
@@ -115,7 +114,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def gte(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n) => if (e1.asInstanceOf[LocalVar].typ==Perm)
+      case LocalVar(n, typ) => if (typ==Perm)
           PermGeCmp(e1,e2)(NoPosition,new OriginInfo(o))
         else
           GeCmp(e1,e2)(NoPosition,new OriginInfo(o))
@@ -125,7 +124,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def lte(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n) => if (e1.asInstanceOf[LocalVar].typ==Perm)
+      case LocalVar(n, typ) => if (typ==Perm)
           PermLeCmp(e1,e2)(NoPosition,new OriginInfo(o))
         else
           LeCmp(e1,e2)(NoPosition,new OriginInfo(o))
@@ -143,7 +142,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   def perm_exp(e:Exp):Boolean = {
     e match {
-      case LocalVar(n) => e.asInstanceOf[LocalVar].typ==Perm
+      case LocalVar(n, typ) => typ==Perm
       case e:PermExp => true
       case CondExp(g,x,y) => perm_exp(x) || perm_exp(y)
       case _  => false
@@ -163,7 +162,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   //def div(o:O,e1:Exp,e2:Exp) :Exp = Div(e1,e2)(NoPosition,new OriginInfo(o))
   override def div(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n) => if (e1.asInstanceOf[LocalVar].typ==Perm)
+      case LocalVar(n, typ) => if (typ==Perm)
           PermDiv(e1,e2)(NoPosition,new OriginInfo(o))
         else
           Div(e1,e2)(NoPosition,new OriginInfo(o))
@@ -173,7 +172,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def frac(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n) => if (e1.asInstanceOf[LocalVar].typ==Perm)
+      case LocalVar(n, typ) => if (typ==Perm)
           PermDiv(e1,e2)(NoPosition,new OriginInfo(o))
         else
           FractionalPerm(e1,e2)(NoPosition,new OriginInfo(o))
@@ -184,7 +183,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   override def mod(o:O,e1:Exp,e2:Exp) :Exp = Mod(e1,e2)(NoPosition,new OriginInfo(o))
   override def add(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n) => if (e1.asInstanceOf[LocalVar].typ==Perm)
+      case LocalVar(n, typ) => if (typ==Perm)
           PermAdd(e1,e2)(NoPosition,new OriginInfo(o))
         else
           Add(e1,e2)(NoPosition,new OriginInfo(o))
@@ -194,7 +193,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def sub(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n) => if (e1.asInstanceOf[LocalVar].typ==Perm)
+      case LocalVar(n, typ) => if (typ==Perm)
           PermSub(e1,e2)(NoPosition,new OriginInfo(o))
         else
           Sub(e1,e2)(NoPosition,new OriginInfo(o))
@@ -204,7 +203,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def neg(o:O,e1:Exp):Exp = Minus(e1)(NoPosition,new OriginInfo(o))
   
-  override def local_name(o:O,name:String,t:Type):Exp = LocalVar(name)(t, NoPosition, new OriginInfo(o))
+  override def local_name(o:O,name:String,t:Type):Exp = LocalVar(name, t)(NoPosition, new OriginInfo(o), NoTrafos)
 
   override def null_(o:O):Exp = NullLit()(NoPosition,new OriginInfo(o))
 
@@ -216,7 +215,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   
   override def exists(o:O,vars:List[Triple[O,String,Type]],e:Exp):Exp = {
-    Exists(to_decls(o,vars),e)(NoPosition,new OriginInfo(o))
+    Exists(to_decls(o,vars),Seq(),e)(NoPosition,new OriginInfo(o))
   }
   override def old(o:O,e:Exp):Exp = Old(e)(NoPosition,new OriginInfo(o))
  

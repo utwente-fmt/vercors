@@ -4,8 +4,8 @@
 //:: verdict Pass
 
 class ZeroArrayIC {
-  invariant ar != null ** N>0;
-	invariant ar.length == N;
+  context_everywhere ar != null ** N>0;
+	context_everywhere ar.length == N;
 	
   context (\forall* int i;0 <= i && i < N ; Perm(ar[i],write));
   ensures (\forall int i;0 <= i && i < N ; ar[i]==0);

@@ -4,7 +4,7 @@
 //:: verdict Pass
 
 /*@
-  invariant a != NULL && b != NULL && c != NULL;
+  context_everywhere a != NULL && b != NULL && c != NULL;
   context \pointer(a, len, write);
   context \pointer(b, len, 1/2);
   context \pointer(c, len, write);

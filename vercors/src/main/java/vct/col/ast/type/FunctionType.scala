@@ -38,4 +38,7 @@ case class FunctionType(val params:List[Type], val result:Type) extends Type wit
   override def accept_simple[T](m:TypeMapping[T]) = handle_standard(() => m.map(this))
   override def supertypeof(context:ProgramUnit, otherType:Type) = false
   override val zero = null
+
+  override def debugTreeChildrenFields: Iterable[String] = Seq("params", "result", "args")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

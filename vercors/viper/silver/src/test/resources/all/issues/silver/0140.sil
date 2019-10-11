@@ -1,4 +1,0 @@
-method test(b: Bool) {
-  //:: ExpectedOutput(assert.failed:wand.not.found)
-  assert true --* b ==> (true --* true)
-}

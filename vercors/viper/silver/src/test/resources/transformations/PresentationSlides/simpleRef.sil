@@ -1,4 +1,0 @@
-method main() returns ()
-{
-   assert((true ==> (true && true)) ==> (false || (false && false)))
-}

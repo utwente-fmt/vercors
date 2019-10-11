@@ -3,16 +3,19 @@ package vct.col.ast.stmt.composite;
 
 import hre.ast.MessageOrigin;
 import hre.lang.HREError;
+import scala.collection.JavaConverters;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.util.ASTMapping;
 import vct.col.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.BeforeAfterAnnotations;
-import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.util.ASTUtils;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 import static hre.lang.System.Debug;
 
@@ -167,5 +170,14 @@ public class LoopStatement extends ASTNode implements BeforeAfterAnnotations {
     cb.ensures(contract.post_condition);
   }
 
+  @Override
+  public scala.collection.Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("contract", "init_block", "entry_guard", "body", "exit_guard", "update_block"));
+  }
+
+  @Override
+  public scala.collection.Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
+  }
 }
 

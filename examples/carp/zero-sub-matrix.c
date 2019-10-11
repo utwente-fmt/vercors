@@ -4,10 +4,10 @@
 //:: verdict Pass
 
 /*@
-  invariant \pointer(matrix, M, write);
-  invariant (\forall* int i; 0 <= i && i < M;
+  context_everywhere \pointer(matrix, M, write);
+  context_everywhere (\forall* int i; 0 <= i && i < M;
             (\forall* int j; 0 <= j && j < N; Perm(matrix[i][j], write)));
-  invariant M > 0 && N > 0 && step >= N;
+  context_everywhere M > 0 && N > 0 && step >= N;
   ensures (\forall int i; 0 <= i && i < M;
             (\forall int j; 0 <= j && j < N; matrix[i][j] == 0));
 @*/

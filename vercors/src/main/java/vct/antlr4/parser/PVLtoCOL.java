@@ -117,7 +117,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
         cb.ensures(convert(ctx2,1));
         continue;
       }
-      if (match(ctx2,"invariant",null,";")){
+      if (match(ctx2,"context_everywhere",null,";")){
         cb.appendInvariant(convert(ctx2,1));
         continue;
       }
@@ -580,7 +580,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       }
       Warning("incomplete match of parallel region");
     }
-    if (match(ctx,"invariant",null,"(",null,")",null)){
+    if (match(ctx,"context_everywhere",null,"(",null,")",null)){
       String label=getIdentifier(ctx, 1);
       ASTNode inv=convert(ctx, 3);
       ASTNode block=convert(ctx, 5);

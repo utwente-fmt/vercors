@@ -1,7 +1,0 @@
-
-field Counterx: Int
-
-predicate Counter$MonitorInvariant(this: Ref) {
-  //:: ExpectedOutput(consistency.error)
-  (acc(this.Counterx, write) && (old(this.Counterx) < this.Counterx))
-}

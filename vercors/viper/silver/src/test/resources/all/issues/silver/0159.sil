@@ -1,9 +1,0 @@
-field x: Int
-
-method m(e: Ref)
-{
-  //:: ExpectedOutput(assert.failed:receiver.not.injective)
-  //:: ExpectedOutput(assert.failed:insufficient.permission)
-  //:: MissingOutput(assert.failed:insufficient.permission, /silicon/issue/34/)
-  assert forall i: Int :: i < 4 && i > 0 ==> acc(e.x)
-}
