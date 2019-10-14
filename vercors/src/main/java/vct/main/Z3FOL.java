@@ -9,7 +9,7 @@ import static hre.lang.System.Debug;
 public class Z3FOL {
   
   public static void test(){
-    MessageProcess z3=new MessageProcess("vct-z3","/smt2","/in");
+    MessageProcess z3=new MessageProcess(new String[] {"vct-z3","/smt2","/in"});
     z3.send("(set-option :produce-models true)");
     z3.send("(set-option :print-success false)");
     // TODO: replace by String logic argument

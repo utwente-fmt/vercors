@@ -5,7 +5,8 @@ import hre.ast.TrackingOutput;
 import hre.ast.TrackingTree;
 import hre.config.IntegerSetting;
 import hre.config.StringSetting;
-import hre.io.ModuleShell;
+import hre.io.Message;
+import hre.io.MessageProcess;
 import hre.io.SplittingOutputStream;
 
 import java.io.*;
@@ -21,38 +22,18 @@ import static hre.lang.System.*;
  *
  */
 public class Main {
-
-  public static StringSetting z3_module;
-  public static StringSetting boogie_module;
-  public static StringSetting dafny_module;
-  // The default timeout is set to half an hour, to give Z3 plenty of time yet avoid run-aways. 
+  // The default timeout is set to half an hour, to give Z3 plenty of time yet avoid run-aways.
   public static IntegerSetting boogie_timeout=new IntegerSetting(1800);
-  public static StringSetting chalice_module;
-  public static StringSetting silicon_module;
-  
-  static {
-	  String OS=System.getProperty("os.name");
-	  if(OS.startsWith("Windows")){
-		  z3_module=new StringSetting("z3/4.3.0");
-	  } else {
-		  z3_module=new StringSetting("z3/4.3.1");
-	  }
-	  boogie_module=new StringSetting("boogie/2012-10-22");
-	  //chalice_module=new StringSetting("chalice/2012-11-20");
-	  chalice_module=new StringSetting("chalice/2013-12-17");
-	  dafny_module=new StringSetting("dafny/1.9.6");
-	  silicon_module=new StringSetting("chalice2sil");
-  }
-  
+
   /**
    * Generate Boogie code and optionally verify a class.
    * @param arg The class for which code must be generated.
    */
   public static BoogieReport TestBoogie(ProgramUnit arg){
     int timeout=boogie_timeout.get();
-    ModuleShell shell=Configuration.getShell(z3_module.get(),boogie_module.get());
+    MessageProcess shell=Configuration.getShell(z3_module.get(),boogie_module.get());
     try {
-      File boogie_input_file=File.createTempFile("boogie-input",".bpl",shell.shell_dir.toFile());
+      File boogie_input_file=File.createTempFile("boogie-input",".bpl",shell.getWorkingDirectory().toFile());
       boogie_input_file.deleteOnExit();
       final PrintWriter boogie_input;
       
@@ -67,7 +48,7 @@ public class Main {
       TrackingOutput boogie_code=new TrackingOutput(boogie_input,true);
       BoogieSyntax.getBoogie().print(boogie_code,arg);
       TrackingTree tree=boogie_code.close();
-      File boogie_xml_file=File.createTempFile("boogie-output",".xml",shell.shell_dir.toFile());
+      File boogie_xml_file=File.createTempFile("boogie-output",".xml",shell.getWorkingDirectory().toFile());
       boogie_xml_file.deleteOnExit();
       //shell.send("which boogie");
       //shell.send("pwd");
@@ -90,9 +71,9 @@ public class Main {
    */
   public static DafnyReport TestDafny(ProgramUnit arg){
     int timeout=boogie_timeout.get();
-    ModuleShell shell=Configuration.getShell(z3_module.get(),dafny_module.get());
+    MessageProcess shell=Configuration.getShell(z3_module.get(),dafny_module.get());
     try {
-      File boogie_input_file=File.createTempFile("dafny-input",".dfy",shell.shell_dir.toFile());
+      File boogie_input_file=File.createTempFile("dafny-input",".dfy",shell.getWorkingDirectory().toFile());
       boogie_input_file.deleteOnExit();
       final PrintWriter boogie_input;
       
@@ -132,8 +113,8 @@ public class Main {
    */
   public static ChaliceReport TestChalice(final ProgramUnit program){
     int timeout=boogie_timeout.get();
-    ModuleShell shell=Configuration.getShell(z3_module.get(),boogie_module.get(),chalice_module.get());
-    File shell_dir=shell.shell_dir.toFile();
+    MessageProcess shell=Configuration.getShell(z3_module.get(),boogie_module.get(),chalice_module.get());
+    File shell_dir=shell.getWorkingDirectory().toFile();
     Output("Checking with Chalice");
     try {
       File chalice_input_file=File.createTempFile("chalice-input",".chalice",shell_dir);
@@ -186,8 +167,8 @@ public class Main {
    *
    */
   public static SiliconReport TestSilicon(final ProgramUnit program){
-    ModuleShell shell=Configuration.getShell(z3_module.get(),silicon_module.get());
-    File shell_dir=shell.shell_dir.toFile();
+    MessageProcess shell=Configuration.getShell(z3_module.get(),silicon_module.get());
+    File shell_dir=shell.getWorkingDirectory().toFile();
     Output("Checking with chalice2sil and silicon");
     try {
       File chalice_input_file=File.createTempFile("chalice-input",".chalice",shell_dir);
@@ -207,7 +188,7 @@ public class Main {
       final TrackingOutput chalice_code=new TrackingOutput(chalice_input,true);
       BoogieSyntax.getChalice().print(chalice_code, program);
       TrackingTree tree=chalice_code.close();
-      File silicon_xml_file=File.createTempFile("silicon-output",".xml",shell.shell_dir.toFile());
+      File silicon_xml_file=File.createTempFile("silicon-output",".xml",shell.getWorkingDirectory().toFile());
       silicon_xml_file.deleteOnExit();
       shell.send("chalice --xml %s %s",silicon_xml_file.getName(),chalice_input_file.getName());
       shell.send("exit");

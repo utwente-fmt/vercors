@@ -136,7 +136,7 @@ public class CommandLineTesting {
         String testcmd_prefix = "<test>";
         PrintStream cmds = null;
         if (command_file.used()) {
-            // testcmd_prefix = "java -cp " + Configuration.getHome().toString() + "/vct-tool.jar vct.main.TestRun ";
+             testcmd_prefix = "java -Xss128M -cp " + System.getProperty("java.class.path") + " vct.main.TestRun";
             try {
                 cmds = new PrintStream(new FileOutputStream(command_file.get()));
             } catch (FileNotFoundException e) {

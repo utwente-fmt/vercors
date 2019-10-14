@@ -1,5 +1,7 @@
 import com.typesafe.sbt.packager.MappingsHelper._
 
+ThisBuild / turbo := true
+
 enablePlugins(PackPlugin)
 enablePlugins(JavaAppPackaging)
 

@@ -31,7 +31,8 @@ public class SMTinter {
 	 * @return the output form the SMT Solver in the form of a SMTresult class
 	 */
 	public SMTresult checkTripleZ3(String[] smtTriple, String[] variables, String logicType){
-		MessageProcess z3=new MessageProcess("vct-z3","/smt2","/in");
+		// TODO: it appears the command below depends on a script that no longer exists. See also Z3FOL.
+		MessageProcess z3=new MessageProcess(new String[] {"vct-z3","/smt2","/in"});
 		List<String> ans = new ArrayList<String>();
 		boolean keepgoing = true;
 		boolean satisfied = false;
