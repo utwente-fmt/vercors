@@ -32,13 +32,7 @@ public class ToolTest {
     idx++;
     String test_name=stackTraceElements[idx].getMethodName();
     VCTResult res=new VCTResult();
-    Path f=Configuration.getHome();
     String OS=System.getProperty("os.name");
-    for(int i=1;i<args.length;i++){
-      if (args[i].startsWith("//")){
-        args[i]=f+args[i].substring(1);
-      }
-    }
     MessageProcess p=null;
     ModuleShell sh=null;
     res.verdict=TestReport.Verdict.Inconclusive;
@@ -47,11 +41,9 @@ public class ToolTest {
       if (args[1].equals("--syntax")){
         args[1]="--passes=standardize,check,java";
       }
-      if (OS.startsWith("Windows")){
-        args[0]=f+"\\windows\\bin\\"+args[0]+".cmd"; //DRB --added
-      } else {
-        args[0]=f+"/unix/bin/"+args[0]; //DRB --added
-      }
+      
+      args[0] = "java -Xss128M -cp " + System.getProperty("java.class.path") + " vct.main.Main";
+
       sh=Configuration.getShell();
       res.verdict=null;
       args[0] += " --progress"; // To capture verification time

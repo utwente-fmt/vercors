@@ -1,4 +1,7 @@
+import com.typesafe.sbt.packager.MappingsHelper._
+
 enablePlugins(PackPlugin)
+enablePlugins(JavaAppPackaging)
 
 lazy val viper_api = (project in file("viper"))
 lazy val parsers = (project in file("parsers"))
@@ -23,14 +26,20 @@ lazy val vercors = (project in file("."))
     scalacOptions += "-feature",
     scalacOptions += "-unchecked",
     scalacOptions += "-Dscalac.patmat.analysisBudget=off",
+    
+    // Disable documentation generation
+    sources in (Compile, doc) := Seq(),
+
+    mappings in Universal += file("../README.md") -> "README.md",
+    mappings in Universal ++= directory("../examples"),
 
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
     // repository that contains all classes and resources relevant for testing.
     // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
     // allows them to access the Sil test suite.
-
     publishArtifact in(Test, packageBin) := true,
 
+    mainClass in (Compile, run) := Some("vct.main.Main"),
     assembly / mainClass := Some("vct.main.Main"),    // Define JAR's entry point
     assemblyMergeStrategy in assembly := {
       case "logback.xml" => MergeStrategy.first

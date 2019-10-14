@@ -87,26 +87,8 @@
     <property name="prefix" value="vercors-dist"/>
     <mkdir dir="${dist}"/>
     <zip destfile="${dist}/vercors-1.0.0.zip" >
-			<!-- Z3 modules -->
-      <zipfileset dir="${deps}/modules/z3" prefix="${prefix}/deps/modules/z3" excludes="**/*~" />
-      <zipfileset dir="${deps}/z3" prefix="${prefix}/deps/z3" excludes="**/*~,**/*.cmd,**/*.exe,**/bin/*" />
-      <zipfileset dir="${deps}/z3" prefix="${prefix}/deps/z3" filemode="755" excludes="**/*~" includes="**/*.cmd,**/*.exe,**/bin/*" />
-
-			<!-- Boogie modules -->
-      <zipfileset dir="${deps}/modules/boogie" prefix="${prefix}/deps/modules/boogie" excludes="**/*~" />
-      <zipfileset dir="${deps}/boogie" prefix="${prefix}/deps/boogie" excludes="**/*~,**/*.cmd,**/*.exe,**/bin/*" />
-      <zipfileset dir="${deps}/boogie" prefix="${prefix}/deps/boogie" filemode="755" excludes="**/*~" includes="**/*.cmd,**/*.exe,**/bin/*" />
-
- 		 <!-- Chalice modules -->
-      <zipfileset dir="${deps}/modules/chalice" prefix="${prefix}/deps/modules/chalice" excludes="**/*~" />
-      <zipfileset dir="${deps}/chalice" prefix="${prefix}/deps/chalice" excludes="**/*~,**/*.cmd,**/*.exe,**/bin/*" />
-      <zipfileset dir="${deps}/chalice" prefix="${prefix}/deps/chalice" filemode="755" excludes="**/*~" includes="**/*.cmd,**/*.exe,**/bin/*" />
-
 			<!-- Binaries, configs, examples, libraries -->
       <zipfileset dir="." prefix="${prefix}" includes="README,INSTALL" />
-      <zipfileset dir="config" prefix="${prefix}/config" excludes="*~" filemode="755" />
-      <zipfileset dir="libs" prefix="${prefix}/libs" />
-      <zipfileset dir="modules" prefix="${prefix}/modules" filemode="755" excludes="**/*~,.git,init/*sh,init/perl,init/python,init/lisp,init/modulerc" />
       <zipfileset dir="examples" prefix="${prefix}/examples" includes="**/*.java,**/*.pvl,**/*.c,README,**/SEEALSO,backends/**/*" excludes="**/*~" />
 
 			<!-- VerCors and Viper jars -->

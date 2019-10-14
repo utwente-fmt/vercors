@@ -52,74 +52,74 @@ public class CommandLineTesting {
         for (String dir : selftest) {
             if (dir.equals("")) {
                 tasks.put("self-sat", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "z3", "-smt2", "//examples/backends/test-sat.smt");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "z3", "-smt2", Configuration.getSelfTestPath("test-sat.smt").getAbsolutePath());
                     res.mustSay("p true");
                     res.mustSay("q true");
                     check(res, "z3", "sat");
                 });
 
                 tasks.put("self-unsat", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "z3", "-smt2", "//examples/backends/test-unsat.smt");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "z3", "-smt2", Configuration.getSelfTestPath("test-unsat.smt").getAbsolutePath());
                     res.mustSay("unsat");
                     check(res, "z3", "unsat");
                 });
 
                 tasks.put("self-pass", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "boogie", "//examples/backends/test-pass.bpl");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "boogie", Configuration.getSelfTestPath("test-pass.bpl").getAbsolutePath());
                     res.mustSay("Boogie program verifier finished with 1 verified, 0 errors");
                     check(res, "boogie", "passing");
                 });
 
                 tasks.put("self-fail", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "boogie", "//examples/backends/test-fail.bpl");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "boogie", Configuration.getSelfTestPath("test-fail.bpl").getAbsolutePath());
                     res.mustSay("Boogie program verifier finished with 0 verified, 1 error");
                     check(res, "boogie", "failing");
                 });
 
                 tasks.put("self-pass-chalice", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "chalice", "//examples/backends/test-pass.chalice");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "chalice", Configuration.getSelfTestPath("test-pass.chalice").getAbsolutePath());
                     res.mustSay("Boogie program verifier finished with 3 verified, 0 errors");
                     check(res, "chalice", "passing");
                 });
 
                 tasks.put("self-fail-chalice", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "chalice", "//examples/backends/test-fail.chalice");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "chalice", Configuration.getSelfTestPath("test-fail.chalice").getAbsolutePath());
                     res.mustSay("Boogie program verifier finished with 2 verified, 1 error");
                     check(res, "chalice", "failing");
                 });
 
                 tasks.put("self-pass-dafny", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "dafny", "/compile:0", "//examples/backends/test-pass.dfy");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "dafny", "/compile:0", Configuration.getSelfTestPath("test-pass.dfy").getAbsolutePath());
                     res.mustSay("Dafny program verifier finished with 2 verified, 0 errors");
                     check(res, "dafny", "passing");
                 });
 
                 tasks.put("self-fail-dafny", () -> {
-                    VCTResult res = runtest(tt, Verdict.Error, "dafny", "/compile:0", "//examples/backends/test-fail.dfy");
+                    VCTResult res = runtest(tt, Verdict.Error, "dafny", "/compile:0", Configuration.getSelfTestPath("test-fail.dfy").getAbsolutePath());
                     res.mustSay("Dafny program verifier finished with 1 verified, 1 error");
                     check(res, "dafny", "failing");
                 });
 
                 tasks.put("self-pass-carbon", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "carbon", "//examples/backends/test-pass.sil");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "carbon", Configuration.getSelfTestPath("test-pass.sil").getAbsolutePath());
                     res.mustSay("No errors found.");
                     check(res, "carbon", "passing");
                 });
 
                 tasks.put("self-fail-carbon", () -> {
-                    VCTResult res = runtest(tt, Verdict.Error, "carbon", "//examples/backends/test-fail.sil");
+                    VCTResult res = runtest(tt, Verdict.Error, "carbon", Configuration.getSelfTestPath("test-fail.sil").getAbsolutePath());
                     res.mustSay("Assignment might fail. Divisor 0 might be zero.");
                     check(res, "carbon", "failing");
                 });
 
                 tasks.put("self-pass-silicon", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "silicon", "//examples/backends/test-pass.sil");
+                    VCTResult res = runtest(tt, Verdict.Inconclusive, "silicon", Configuration.getSelfTestPath("test-pass.sil").getAbsolutePath());
                     res.mustSay("No errors found.");
                     check(res, "silicon", "passing");
                 });
 
                 tasks.put("self-fail-silicon", () -> {
-                    VCTResult res = runtest(tt, Verdict.Error, "silicon", "//examples/backends/test-fail.sil");
+                    VCTResult res = runtest(tt, Verdict.Error, "silicon", Configuration.getSelfTestPath("test-fail.sil").getAbsolutePath());
                     res.mustSay("Assignment might fail. Divisor 0 might be zero.");
                     check(res, "silicon", "failing");
                 });
@@ -136,7 +136,7 @@ public class CommandLineTesting {
         String testcmd_prefix = "<test>";
         PrintStream cmds = null;
         if (command_file.used()) {
-            testcmd_prefix = "java -cp " + Configuration.getHome().toString() + "/vct-tool.jar vct.main.TestRun ";
+            // testcmd_prefix = "java -cp " + Configuration.getHome().toString() + "/vct-tool.jar vct.main.TestRun ";
             try {
                 cmds = new PrintStream(new FileOutputStream(command_file.get()));
             } catch (FileNotFoundException e) {

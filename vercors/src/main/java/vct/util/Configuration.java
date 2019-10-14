@@ -3,6 +3,7 @@ package vct.util;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -32,7 +33,7 @@ public class Configuration {
   /**
    * 
    */
-  public static final StringListSetting modulepath;
+  // public static final StringListSetting modulepath;
   
   /**
    * Switch behavior of witness encoding.
@@ -122,7 +123,7 @@ public class Configuration {
     clops.add(enable_post_check.getDisable("disable barrier post check during kernel verification"),"disable-post-check");
     clops.add(witness_constructors.getEnable("use constructors for witnesses"),"witness-constructors");
     clops.add(witness_constructors.getDisable("inline constructors for witnesses"),"witness-inline");
-    clops.add(Configuration.modulepath.getAppendOption("configure path for finding back end modules"),"module-path");
+    //clops.add(Configuration.modulepath.getAppendOption("configure path for finding back end modules"),"module-path");
     clops.add(cpp_command.getAssign("set the C Pre Processor command"),"cpp");
     clops.add(cpp_include_path.getAppendOption("add to the CPP include path"),'I',"include");
     clops.add(cpp_defines.getAppendOption("add to the CPP defined variables"),'D');
@@ -135,127 +136,162 @@ public class Configuration {
   public static Option profiling_option=profiling.getOptionalAssign("Enable profiling");
   
   public static StringListSetting skip=new StringListSetting();
-  
-  /**
-   * Contains the absolute path to the home of the tool set installation.
-   */
-  private static Path home;
- 
-  private static Path tool_home;
-  
-  static {
-    String tmp=System.getenv("VCT_HOME");
-    if (tmp==null){
-      ClassLoader loader=Configuration.class.getClassLoader();
-      URL url=loader.getResource("vct/util/Configuration.class");
-      File f=null;
-      Debug("origin is %s", f);
-      switch(url.getProtocol()){
-      case "file":
-        f=new File(url.getFile());
-        for(int i=0;i<5;i++) f=f.getParentFile();
-      case "jar":
-        tmp=url.getFile();
-        if (tmp.startsWith("file:")) tmp=tmp.substring(5); else break;
-        int idx=tmp.indexOf("!");
-        if (idx<0) break;
-        tmp=tmp.substring(0,idx);
-        f=new File(tmp);
-        f=f.getParentFile();
-      }
-      if (f==null){
-        throw new Error("Could not deduce VCT_HOME");
-      }
-      Debug("home is %s", f);
-      tmp=f.toString();
-      // Remove the file: prefix that shows up while executing under ant.
-      if (tmp.startsWith("file:")) tmp=tmp.substring(5);
-    }
-    home=Paths.get(tmp).toAbsolutePath().normalize();
-    if (!home.toFile().isDirectory()){
-      throw new Error("VCT_HOME value "+tmp+" is not a directory");
-    }
-    Path module_deps=home.resolve("deps").resolve("modules");
-    if (!module_deps.toFile().isDirectory()){
-      module_deps=home.getParent().getParent().resolve(Paths.get("modules"));
-      if (!module_deps.toFile().isDirectory()){
-        hre.lang.System.Warning("dependency modules not found");
-      }
-    }
-    tool_home=module_deps.getParent();
-    modulepath=new StringListSetting(module_deps.toString());
-  }
 
-  /**
-   * Get the home of the VerCors Tool installation.
-   * @return VerCors Tool home.
-   */
-  public static Path getHome(){
-    return home;
-  }
-  
-  /**
-   * Get the home of the Third party tools installation.
-   * @return Tools home.
-   */
-  public static Path getToolHome(){
-    return tool_home;
-  }
-
-  /**
-   * 
-   */
-  public static ModuleShell getShell(String ... modules){
-    ModuleShell shell;
+  private static File getFileOrAbort(String file) {
     try {
-      if (modules.length==0){
-        return new ModuleShell();
-      }
-      shell = new ModuleShell(getHome().resolve(Paths.get("modules")));
-      for (String p:modulepath){
-        shell.send("module use %s",p);
-      }
-      for (String m:modules){
-        shell.send("module load %s",m);
-      }
-      shell.send("module list -t");
-      shell.send("echo ==== 1>&2");
-      String line;
-      for(;;){
-        Message msg=shell.recv();
-        if (msg.getFormat().equals("stdout: %s")){
-          line=(String)msg.getArg(0);
-          continue;
-        }
-        if (msg.getFormat().equals("stderr: %s")){
-          line=(String)msg.getArg(0);
-          if (line.equals("Currently Loaded Modulefiles:")) break;
-          if (line.equals("No Modulefiles Currently Loaded.")) break;
-          continue;
-        }
-        Warning("unexpected shell response");
-        Abort(msg.getFormat(),msg.getArgs());
-      }
-      for(;;){
-        Message msg=shell.recv();
-        Debug(msg.getFormat(),msg.getArgs());
-        String fmt=msg.getFormat();
-        if (fmt.equals("stderr: %s")||fmt.equals("stdout: %s")){
-          line=(String)msg.getArg(0);
-          if (line.contains("echo ====")) continue;
-          if (line.contains("====")) break;
-          Progress("module %s loaded",line);
-          continue;
-        } 
-        Warning("unexpected shell response");
-        Abort(msg.getFormat(),msg.getArgs());
-      }
-    } catch (IOException e) {
+      Debug("getting resource %s", file);
+      return new File(Configuration.class.getResource("/" + file).toURI());
+    } catch(URISyntaxException e) {
       DebugException(e);
-      throw new Error(e.getMessage());
+      Abort("Could not find required file or directory %s", file);
+      return null;
     }
-    return shell;
   }
+
+  public static File getConfigFile(String file) {
+    return getFileOrAbort("config/" + file);
+  }
+
+  public static File getCIncludePath() {
+    return getFileOrAbort("include");
+  }
+
+  public static File getSelfTestPath(String test) {
+    return getFileOrAbort("selftest/" + test);
+  }
+
+  public static Path getZ3Path() {
+    Path base = getFileOrAbort("deps/z3/4.8.5").toPath();
+    String os = System.getProperty("os.name");
+
+    if(os.startsWith("Windows")) {
+      return base.resolve("Windows NT").resolve("intel").resolve("bin").resolve("z3.exe");
+    } else if(os.startsWith("Mac")) {
+      return base.resolve("Darwin").resolve("x86_64").resolve("bin").resolve("z3");
+    } else {
+      return base.resolve("Linux").resolve("x86_64").resolve("bin").resolve("z3");
+    }
+  }
+  
+  // /**
+  //  * Contains the absolute path to the home of the tool set installation.
+  //  */
+  // private static Path home;
+ 
+  // private static Path tool_home;
+  
+  // static {
+  //   String tmp=System.getenv("VCT_HOME");
+  //   if (tmp==null){
+  //     ClassLoader loader=Configuration.class.getClassLoader();
+  //     URL url=loader.getResource("vct/util/Configuration.class");
+  //     File f=null;
+  //     Debug("origin is %s", f);
+  //     switch(url.getProtocol()){
+  //     case "file":
+  //       f=new File(url.getFile());
+  //       for(int i=0;i<5;i++) f=f.getParentFile();
+  //     case "jar":
+  //       tmp=url.getFile();
+  //       if (tmp.startsWith("file:")) tmp=tmp.substring(5); else break;
+  //       int idx=tmp.indexOf("!");
+  //       if (idx<0) break;
+  //       tmp=tmp.substring(0,idx);
+  //       f=new File(tmp);
+  //       f=f.getParentFile();
+  //     }
+  //     if (f==null){
+  //       throw new Error("Could not deduce VCT_HOME");
+  //     }
+  //     Debug("home is %s", f);
+  //     tmp=f.toString();
+  //     // Remove the file: prefix that shows up while executing under ant.
+  //     if (tmp.startsWith("file:")) tmp=tmp.substring(5);
+  //   }
+  //   home=Paths.get(tmp).toAbsolutePath().normalize();
+  //   if (!home.toFile().isDirectory()){
+  //     throw new Error("VCT_HOME value "+tmp+" is not a directory");
+  //   }
+  //   Path module_deps=home.resolve("deps").resolve("modules");
+  //   if (!module_deps.toFile().isDirectory()){
+  //     module_deps=home.getParent().getParent().resolve(Paths.get("modules"));
+  //     if (!module_deps.toFile().isDirectory()){
+  //       hre.lang.System.Warning("dependency modules not found");
+  //     }
+  //   }
+  //   tool_home=module_deps.getParent();
+  //   modulepath=new StringListSetting(module_deps.toString());
+  // }
+
+  // /**
+  //  * Get the home of the VerCors Tool installation.
+  //  * @return VerCors Tool home.
+  //  */
+  // public static Path getHome(){
+  //   return home;
+  // }
+  
+  // /**
+  //  * Get the home of the Third party tools installation.
+  //  * @return Tools home.
+  //  */
+  // public static Path getToolHome(){
+  //   return tool_home;
+  // }
+
+  public static ModuleShell getShell(String ... modules){
+    return null;
+  //   ModuleShell shell;
+  //   try {
+  //     if (modules.length==0){
+  //       return new ModuleShell();
+  //     }
+  //     shell = new ModuleShell(getHome().resolve(Paths.get("modules")));
+  //     for (String p:modulepath){
+  //       shell.send("module use %s",p);
+  //     }
+  //     for (String m:modules){
+  //       shell.send("module load %s",m);
+  //     }
+  //     shell.send("module list -t");
+  //     shell.send("echo ==== 1>&2");
+  //     String line;
+  //     for(;;){
+  //       Message msg=shell.recv();
+  //       if (msg.getFormat().equals("stdout: %s")){
+  //         line=(String)msg.getArg(0);
+  //         continue;
+  //       }
+  //       if (msg.getFormat().equals("stderr: %s")){
+  //         line=(String)msg.getArg(0);
+  //         if (line.equals("Currently Loaded Modulefiles:")) break;
+  //         if (line.equals("No Modulefiles Currently Loaded.")) break;
+  //         continue;
+  //       }
+  //       Warning("unexpected shell response");
+  //       Abort(msg.getFormat(),msg.getArgs());
+  //     }
+  //     for(;;){
+  //       Message msg=shell.recv();
+  //       Debug(msg.getFormat(),msg.getArgs());
+  //       String fmt=msg.getFormat();
+  //       if (fmt.equals("stderr: %s")||fmt.equals("stdout: %s")){
+  //         line=(String)msg.getArg(0);
+  //         if (line.contains("echo ====")) continue;
+  //         if (line.contains("====")) break;
+  //         Progress("module %s loaded",line);
+  //         continue;
+  //       } 
+  //       Warning("unexpected shell response");
+  //       Abort(msg.getFormat(),msg.getArgs());
+  //     }
+  //   } catch (IOException e) {
+  //     DebugException(e);
+  //     throw new Error(e.getMessage());
+  //   }
+  //   return shell;
+  }
+
   /**
    * Get the syntax that is to be used for diagnostic output.
    */

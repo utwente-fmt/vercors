@@ -33,8 +33,8 @@ public abstract class ViperAPI<O,Err,T,E,S,DFunc,DAxiom,P> {
    * @return test report
    */
   public abstract List<? extends ViperError<O>> verify(
-      Path tool_home,
-      Properties settings,
+      Path z3Path,
+      Properties z3Settings,
       P program,
       java.util.Set<O> reachable,
       VerificationControl<O> control);

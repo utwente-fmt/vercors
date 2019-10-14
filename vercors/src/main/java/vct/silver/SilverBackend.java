@@ -48,52 +48,53 @@ public class SilverBackend {
   public static <T,E,S,DFunc,DAxiom,Program>
   ViperAPI<Origin,VerificationError,T,E,S,DFunc,DAxiom,Program>
   getSilverModuleVerifier(String tool){
-    boolean parser=tool.equals("parser");
-    if (parser){
-      tool="silicon";
-    }
-    File jarfile;
-    jarfile=Configuration.getToolHome().resolve(silver_module.get()+"/"+tool+".jar").toFile();
-    Container container;
+    return null;
+    // boolean parser=tool.equals("parser");
+    // if (parser){
+    //   tool="silicon";
+    // }
+    // File jarfile;
+    // jarfile=Configuration.getToolHome().resolve(silver_module.get()+"/"+tool+".jar").toFile();
+    // Container container;
 
-      container=new JarContainer(jarfile);
-    Object obj;
-    //TODO: Properties silver_props=new Properties();
-    //TODO: Properties verifier_props=new Properties();
-    try {
-      ClassLoader loader=new ContainerClassLoader(container);
-      //TODO: InputStream is=loader.getResourceAsStream("silver.hglog");
-      //TODO: silver_props.load(is);
-      //TODO: is.close();
-      //TODO: is=loader.getResourceAsStream("verifier.hglog");
-      //TODO: verifier_props.load(is);
-      //TODO: is.close();
-      Class<?> v_class;
-      if (parser) {
-        v_class=loader.loadClass("viper.api.SilverImplementation");
-      } else if (tool.contains("silicon")){
-        v_class=loader.loadClass("viper.api.SiliconVerifier");
-      } else if (tool.contains("carbon")) {
-        v_class=loader.loadClass("viper.api.CarbonVerifier");
-      } else {
-        throw new HREError("cannot guess the main class of %s",tool);
-      }
-      Constructor<?>[] constructors = v_class.getConstructors();
-      if (constructors.length!=1) {
-        throw new HREError("class had %d constructors instead of 1",constructors.length);
-      }
-      obj=constructors[0].newInstance(new HREOrigins());
-    } catch(Exception e) {
-      DebugException(e);
-      throw new HREError("Exception %s",e);
-    }
-    if (!(obj instanceof ViperAPI)){
-      hre.lang.System.Fail("Plugin is incompatible: cannot cast verifier.");
-    }
-    @SuppressWarnings("unchecked")
-    ViperAPI<Origin,VerificationError,T,E,S,DFunc,DAxiom,Program> verifier=(ViperAPI<Origin, VerificationError, T, E, S, DFunc, DAxiom, Program>)obj;
-    //verifier.set_tool_home(Configuration.getToolHome());
-    return verifier;
+    //   container=new JarContainer(jarfile);
+    // Object obj;
+    // //TODO: Properties silver_props=new Properties();
+    // //TODO: Properties verifier_props=new Properties();
+    // try {
+    //   ClassLoader loader=new ContainerClassLoader(container);
+    //   //TODO: InputStream is=loader.getResourceAsStream("silver.hglog");
+    //   //TODO: silver_props.load(is);
+    //   //TODO: is.close();
+    //   //TODO: is=loader.getResourceAsStream("verifier.hglog");
+    //   //TODO: verifier_props.load(is);
+    //   //TODO: is.close();
+    //   Class<?> v_class;
+    //   if (parser) {
+    //     v_class=loader.loadClass("viper.api.SilverImplementation");
+    //   } else if (tool.contains("silicon")){
+    //     v_class=loader.loadClass("viper.api.SiliconVerifier");
+    //   } else if (tool.contains("carbon")) {
+    //     v_class=loader.loadClass("viper.api.CarbonVerifier");
+    //   } else {
+    //     throw new HREError("cannot guess the main class of %s",tool);
+    //   }
+    //   Constructor<?>[] constructors = v_class.getConstructors();
+    //   if (constructors.length!=1) {
+    //     throw new HREError("class had %d constructors instead of 1",constructors.length);
+    //   }
+    //   obj=constructors[0].newInstance(new HREOrigins());
+    // } catch(Exception e) {
+    //   DebugException(e);
+    //   throw new HREError("Exception %s",e);
+    // }
+    // if (!(obj instanceof ViperAPI)){
+    //   hre.lang.System.Fail("Plugin is incompatible: cannot cast verifier.");
+    // }
+    // @SuppressWarnings("unchecked")
+    // ViperAPI<Origin,VerificationError,T,E,S,DFunc,DAxiom,Program> verifier=(ViperAPI<Origin, VerificationError, T, E, S, DFunc, DAxiom, Program>)obj;
+    // //verifier.set_tool_home(Configuration.getToolHome());
+    // return verifier;
   }
   
   public static <T,E,S,DFunc,DAxiom,Program>
@@ -152,7 +153,7 @@ public class SilverBackend {
     try {
       HashSet<Origin> reachable=new HashSet<Origin>();
       List<? extends ViperError<Origin>> errs=verifier.verify(
-          Configuration.getToolHome(),settings,program,reachable,control);
+          Configuration.getZ3Path(),settings,program,reachable,control);
       if (errs.size()>0){
         for(ViperError<Origin> e:errs){
           log.error(e);

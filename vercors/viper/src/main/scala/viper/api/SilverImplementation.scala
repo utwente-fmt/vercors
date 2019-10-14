@@ -53,7 +53,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
     }
   }
  
-  override def verify(tool_home:Path,settings:Properties,prog:Prog,reachable:java.util.Set[O],
+  override def verify(z3Path:Path,z3Settings:Properties,prog:Prog,reachable:java.util.Set[O],
       control:VerificationControl[O]) : List[viper.api.ViperError[O]] = {
     val program = Program(prog.domains.asScala.toList,
               prog.fields.asScala.toList,
@@ -69,7 +69,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
     
     val report = new java.util.ArrayList[viper.api.ViperError[O]]()
     Reachable.reachable.clear()
-    val verifier=createVerifier(tool_home,settings)
+    val verifier=createVerifier(z3Path,z3Settings)
     //println("verifier: "+ verifier);
     //Progress("running verify");
     val res = verifier.verify(program)
@@ -141,7 +141,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
   }
  
   // Members declared in viper.api.SilverImplementation
-  def createVerifier(tool_home: java.nio.file.Path,settings: java.util.Properties): 
+  def createVerifier(z3Path: java.nio.file.Path, z3Settings: java.util.Properties): 
    viper.silver.verifier.Verifier = {
      new viper.silver.verifier.NoVerifier
   }
