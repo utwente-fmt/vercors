@@ -27,11 +27,13 @@ before_cache:
 matrix:
   include:
     - script:
-      - ls -lasFh /usr/lib/jvm/java-11-openjdk-amd64/lib
-      - ls -lasFh ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/src/main/scala
-      - ls -lasFh ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/target/scala-2.12/classes/viper/silicon
+      - stat /usr/lib/jvm/java-11-openjdk-amd64/lib/libjava.so
+      - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/src/main/scala/verifier/BaseVerifier.scala
+      - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/target/scala-2.12/classes/viper/silicon/verifier/BaseVerifier.class
       - cd vercors
       - sbt compile
+      - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/src/main/scala/verifier/BaseVerifier.scala
+      - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/target/scala-2.12/classes/viper/silicon/verifier/BaseVerifier.class
     #   - ./travis_fold.sh fibonacci "Checking manual example" "vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl"
     #   - SPLIT=0/5 ./travis_fold.sh test "Executing tests" "vct --tool=silicon --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress"
     # - script:
