@@ -27,6 +27,9 @@ before_cache:
 matrix:
   include:
     - script:
+      - sudo mv /bin/tar /bin/tar-orig
+      - sudo mv travis_tar.sh /bin/tar
+      - sudo chmod +x /bin/tar
       - stat /usr/lib/jvm/java-11-openjdk-amd64/lib/libjava.so
       - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/src/main/scala/verifier/BaseVerifier.scala
       - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/target/scala-2.12/classes/viper/silicon/verifier/BaseVerifier.class
