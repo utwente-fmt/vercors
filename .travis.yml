@@ -44,4 +44,4 @@ matrix:
     - script:
       - SPLIT=4/5 ./.travis/build.sh  
     - script:
-      - ./travis_fold.sh sonar "Sonar" "sonar-scanner"
+      - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
