@@ -6,6 +6,13 @@ scala: 2.13.1
 env:
   - PATH=$TRAVIS_BUILD_DIR/unix/bin:$PATH
 
+# A few notes on caching:
+# SBT is very picky when it comes to recompilation. It boils down to the modify time and path of the source and class 
+# files. If the modify time of the JVM changes, the full project is recompiled. This is why the openjdk version is left
+# default; that version is already installed. Dynamic installation causes the modify time to be different for each
+# travis run. Furthermore, travis uses tar for caching, which by default has insufficient accuracy in the modify time
+# for SBT. That is why the executable is replaced with a script that flags tar to store the archive in posix format,
+# which does offer sufficient resolution.
 
 addons:
   sonarcloud:
@@ -27,33 +34,14 @@ before_cache:
 matrix:
   include:
     - script:
-      - sudo mv /bin/tar /bin/tar-orig
-      - sudo mv travis_tar.sh /bin/tar
-      - sudo chmod +x /bin/tar
-      - stat /usr/lib/jvm/java-11-openjdk-amd64/lib/libjava.so
-      - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/src/main/scala/verifier/BaseVerifier.scala
-      - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/target/scala-2.12/classes/viper/silicon/verifier/BaseVerifier.class
-      - cd vercors
-      - sbt compile
-      - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/src/main/scala/verifier/BaseVerifier.scala
-      - stat ~/.sbt/1.0/staging/dee1b76501a650a18611/silicon/target/scala-2.12/classes/viper/silicon/verifier/BaseVerifier.class
-    #   - ./travis_fold.sh fibonacci "Checking manual example" "vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl"
-    #   - SPLIT=0/5 ./travis_fold.sh test "Executing tests" "vct --tool=silicon --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress"
-    # - script:
-    #   - ./travis_fold.sh build "Building VerCors" "sh travis_build.sh"
-    #   - ./travis_fold.sh fibonacci "Checking manual example" "vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl"
-    #   - SPLIT=1/5 ./travis_fold.sh test "Executing tests" "vct --tool=silicon --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress"
-    # - script:
-    #   - ./travis_fold.sh build "Building VerCors" "sh travis_build.sh"
-    #   - ./travis_fold.sh fibonacci "Checking manual example" "vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl"
-    #   - SPLIT=2/5 ./travis_fold.sh test "Executing tests" "vct --tool=silicon --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress"
-    # - script:
-    #   - ./travis_fold.sh build "Building VerCors" "sh travis_build.sh"
-    #   - ./travis_fold.sh fibonacci "Checking manual example" "vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl"
-    #   - SPLIT=3/5 ./travis_fold.sh test "Executing tests" "vct --tool=silicon --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress"
-    # - script:
-    #   - ./travis_fold.sh build "Building VerCors" "sh travis_build.sh"
-    #   - ./travis_fold.sh fibonacci "Checking manual example" "vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl"
-    #   - SPLIT=4/5 ./travis_fold.sh test "Executing tests" "vct --tool=silicon --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress"
-    # - script:
-    #   - ./travis_fold.sh sonar "Sonar" "sonar-scanner"
+      - SPLIT=0/5 ./.travis/build.sh
+    - script:
+      - SPLIT=1/5 ./.travis/build.sh
+    - script:
+      - SPLIT=2/5 ./.travis/build.sh
+    - script:
+      - SPLIT=3/5 ./.travis/build.sh
+    - script:
+      - SPLIT=4/5 ./.travis/build.sh  
+    - script:
+      - ./travis_fold.sh sonar "Sonar" "sonar-scanner"
