@@ -1269,53 +1269,53 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Drop:
     case Take:
     {
-      if (!t1.isPrimitive(PrimitiveSort.Sequence)) {
+      if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
         Fail("base must be of sequence type");
       }
-      if (!t2.isInteger()) {
-        Fail("count has type '%s' rather than integer", t2);
+      if (!tt[1].isInteger()) {
+        Fail("count has type '%s' rather than integer", tt[1]);
       }
-      e.setType(t1);
+      e.setType(tt[0]);
       break;
     }
     case Slice:
     {
-      if (!t1.isPrimitive(PrimitiveSort.Sequence)) {
+      if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
         Fail("base must be of sequence type");
       }
-      if (!t2.isInteger()) {
-        Fail("left count has type '%s' rather than integer", t2);
+      if (!tt[1].isInteger()) {
+        Fail("left count has type '%s' rather than integer", tt[1]);
       }
-      if (!t3.isInteger()) {
-        Fail("right count has type '%s' rather than integer", t3);
+      if (!tt[2].isInteger()) {
+        Fail("right count has type '%s' rather than integer", tt[2]);
       }
-      e.setType(t1);
+      e.setType(tt[0]);
       break;
     }
 
     case SeqUpdate: {
-      if (!t1.isPrimitive(PrimitiveSort.Sequence)) {
+      if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
         Fail("base must be of sequence type");
       }
 
-      // for example, if `t1` is of type `seq<int>`, then `innerType` shall be `int`.
-      Type innerType = (Type)t1.firstarg();
+      // for example, if `tt[0]` is of type `seq<int>`, then `innerType` shall be `int`.
+      Type innerType = (Type)tt[0].firstarg();
 
-      if (!t2.isInteger()) {
-        Fail("index has type '%s' rather than integer", t2);
+      if (!tt[1].isInteger()) {
+        Fail("index has type '%s' rather than integer", tt[1]);
       }
 
-      if (!t3.equals(innerType)) {
-        Fail("the replacing element has type '%s' but should be '%s'", t3, innerType);
+      if (!tt[2].equals(innerType)) {
+        Fail("the replacing element has type '%s' but should be '%s'", tt[2], innerType);
       }
 
-      e.setType(t1);
+      e.setType(tt[0]);
       break;
     }
 
     case Subscript:
     {
-      if (!(t1 instanceof PrimitiveType)) Fail("base must be array or sequence type.");
+      if (!(tt[0] instanceof PrimitiveType)) Fail("base must be array or sequence type.");
       PrimitiveType t=(PrimitiveType)tt[0];
         if (t.isPrimitive(PrimitiveSort.Option)) {
           if (!(t.firstarg() instanceof PrimitiveType)) Fail("base must be array or sequence type.");
@@ -1478,7 +1478,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 //            v.value(i).setType(t);
 //          }
 //        } else {
-//          Abort("cannot use %s to initialize %s", t2, t);
+//          Abort("cannot use %s to initialize %s", tt[1], t);
 //        }
 //      }
 //    }
