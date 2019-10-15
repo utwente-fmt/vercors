@@ -20,6 +20,7 @@ import vct.col.rewrite.MultiSubstitution;
 import vct.col.rewrite.TypeVarSubstitution;
 import vct.silver.SilverTypeMap;
 import vct.util.Configuration;
+import vct.col.util.SequenceUtils;
 
 /**
  * This class implements type checking of simple object oriented programs.
@@ -1269,7 +1270,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Drop:
     case Take:
     {
-      if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
+      SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfoOrFail(tt[0], "Expected this expression to be of a sequence type, but got %s.");
+
+      if (info.getSequenceSort() != PrimitiveSort.Sequence && info.getSequenceSort() != PrimitiveSort.Array) {
         Fail("base must be of sequence type");
       }
       if (!tt[1].isInteger()) {
