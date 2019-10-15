@@ -676,10 +676,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         break;
     }
   }
-  public void visit(OperatorExpression e){
+
+  public void visit(OperatorExpression e) {
     Debug("operator %s", e.operator());
     StandardOperator op = e.operator();
-    if (op==StandardOperator.PointsTo && e.arg(2).isa(StandardOperator.BindOutput)){
+    if (op == StandardOperator.PointsTo && e.arg(2).isa(StandardOperator.BindOutput)) {
       e.arg(0).accept(this);
       e.arg(1).accept(this);
       enter(e.arg(2));
@@ -688,608 +689,583 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(new PrimitiveType(PrimitiveSort.Resource));
       return;
     }
-    if (op==StandardOperator.AbstractState){
+    if (op == StandardOperator.AbstractState) {
       e.arg(0).accept(this);
-      Type t=e.arg(0).getType();
-      if (t==null) Fail("Data type unknown.");
-      if (!(t instanceof ClassType)){
+      Type t = e.arg(0).getType();
+      if (t == null) Fail("Data type unknown.");
+      if (!(t instanceof ClassType)) {
         Fail("Data type must be a class type.");
       }
-      ASTClass cl=source().find((ClassType)t);
+      ASTClass cl = source().find((ClassType) t);
       variables.enter();
-      for(DeclarationStatement decl:cl.dynamicFields()){
-        variables.add(decl.name(),new VariableInfo(decl,Kind.Local));
+      for (DeclarationStatement decl : cl.dynamicFields()) {
+        variables.add(decl.name(), new VariableInfo(decl, Kind.Local));
       }
       e.arg(1).accept(this);
-      t=e.arg(1).getType();
-      if (t==null) Fail("Formula type unknown.");
-      if(!t.isBoolean()){
-        Fail("expression type is %s rather than boolean",t);
+      t = e.arg(1).getType();
+      if (t == null) Fail("Formula type unknown.");
+      if (!t.isBoolean()) {
+        Fail("expression type is %s rather than boolean", t);
       }
       variables.leave();
       e.setType(new PrimitiveType(PrimitiveSort.Resource));
       return;
     }
     super.visit(e);
-    ASTNode argss[]=e.argsJava().toArray(new ASTNode[0]);
-    Type tt[]=new Type[argss.length];
-    for(int i=0;i<argss.length;i++){
-      if (argss[i] instanceof Type) continue;
-      tt[i]=argss[i].getType();
-      if (tt[i]==null){
-        Fail("type of argument %d is unknown at %s in expression %s",i+1,e.getOrigin(),Configuration.getDiagSyntax().print(e));
-      }
-    }
-    Type t1=null,t2=null,t3=null;
-    if(op.arity() >= 1) t1 = e.arg(0).getType();
-    if(op.arity() >= 2) t2 = e.arg(1).getType();
-    if(op.arity() >= 3) t3 = e.arg(2).getType();
 
-    if (op.arity()==2) {
-      if (t1==null) Fail("type of left argument unknown");
-      if (t2==null) Fail("type of right argument unknown");
+    ASTNode[] operatorArgs = e.argsJava().toArray(new ASTNode[0]);
+
+    if (e.operator().arity() != -1 && operatorArgs.length != e.operator().arity()) {
+      throw Failure("Operator %s has incorrect number of argument (have %d, want %d)", e.operator(), operatorArgs.length, e.operator().arity());
     }
 
+    Type[] tt = new Type[operatorArgs.length];
 
-    switch(op){
-    case VectorRepeat:
-    {
-      Type t=e.arg(0).getType();
-      e.setType(new PrimitiveType(PrimitiveSort.Sequence,t));
-      break;
-    }
-    case VectorCompare:
-    {
-      e.setType(new PrimitiveType(PrimitiveSort.Sequence,new PrimitiveType(PrimitiveSort.Integer)));
-      break;
-    }
-    case MatrixRepeat:
-    {
-      Type t=e.arg(0).getType();
-      e.setType(new PrimitiveType(PrimitiveSort.Sequence,new PrimitiveType(PrimitiveSort.Sequence,t)));
-      break;
-    }
-    case MatrixCompare:
-    {
-      e.setType(new PrimitiveType(PrimitiveSort.Sequence,new PrimitiveType(PrimitiveSort.Sequence,new PrimitiveType(PrimitiveSort.Integer))));
-      break;
-    }
-    case MatrixSum:{
-      Type t=e.arg(1).getType();
-      t = (Type)((PrimitiveType) t).firstarg();
-      t = (Type)((PrimitiveType) t).firstarg();
-      e.setType(t);
-      break;
-    }
-    case FoldPlus:
-    {
-      Type t=e.arg(0).getType();
-      if (t.isPrimitive(PrimitiveSort.Sequence)){
-        t = (Type)((PrimitiveType) t).firstarg();
-        if (!t.isPrimitive(PrimitiveSort.Integer)){
-          Fail("first argument of summation must be a sequence of integers");
-        }
-      } else {
-        Fail("first argument of summation must be a sequence");
+    for (int i = 0; i < operatorArgs.length; i++) {
+      tt[i] = operatorArgs[i].getType();
+      if (tt[i] == null) {
+        throw Failure("Operator %s has argument %s, which has no type.", e.operator(), operatorArgs[i]);
       }
-      t=e.arg(1).getType();
-      if (t.isPrimitive(PrimitiveSort.Sequence)){
-        t = (Type)((PrimitiveType) t).firstarg();
-      } else {
-        Fail("argument of summation must be a sequence");
-      }
-      if(t.isPrimitive(PrimitiveSort.Boolean)){
-        e.setType(new PrimitiveType(PrimitiveSort.Integer));
-      } else {
-        e.setType(t);
-      }
-      break;
     }
-    case IndependentOf:
-    {
-      e.setType(t1);
-      break;
-    }
-    case PVLidleToken:
-    case PVLjoinToken:
-    {
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    }
-    case IterationOwner:{
-      e.setType(new PrimitiveType(PrimitiveSort.Integer));
-      break;
-    }
-    case TypeOf:{
-      e.setType(new ClassType("<<null>>"));
-      break;
-    }
-    case History:{
-      String type=tt[0].toString();
-      if(!type.endsWith("History")){
-        Fail("First argument of History must be a History class, not %s.",type);
-      }
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    }
-    case Future:{
-      String type=tt[0].toString();
-      if(!type.endsWith("Future")){
-        Fail("First argument of Future must be a Future class, not %s.",type);
-      }
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    }
-    case NewSilver:{
-      // TODO: check arguments.
-      e.setType(new ClassType("Ref"));
-      break;
-    }
-    case RangeSeq:{
-      if (!t1.isInteger()) Fail("type of left argument is %s rather than integer",t1);
-      if (!t2.isInteger()) Fail("type of right argument is %s rather than integer",t2);
-      e.setType(new PrimitiveType(PrimitiveSort.Sequence,t1));
-      break;
-    }
-    case Instance:
-    case SubType:
-    case SuperType:
-    {
-      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
-      break;
-    }
-    case Cast:
-    {
-      ASTNode t = e.arg(0);
-      ASTNode exp = e.arg(1);
-      if (t instanceof Type) {
-        e.setType((Type)t);
 
-        if(((Type) t).isPrimitive(PrimitiveSort.Option)) {
-          exp.setType((Type) t);
-        }
-      } else {
-        Fail("cannot cast to non-type %s",t.getClass());
-      }
-      break;
-    }
-    case Or:
-    {
-      if (t1.isPrimitive(PrimitiveSort.Process)){
-        if (!t2.isPrimitive(PrimitiveSort.Process)){
-          Fail("Cannot compose process with %s",t2);
-        }
-        e.setType(t1);
+    switch (op) {
+      case VectorRepeat: {
+        e.setType(new PrimitiveType(PrimitiveSort.Sequence, tt[0]));
         break;
       }
-      // fall through on purpose.
-    }
-    case And:
-    case IFF:
-    {
-      if (!t1.isBoolean()) Fail("type of left argument is %s rather than boolean at %s",t1,e.getOrigin());
-      if (!t2.isBoolean()) Fail("type of right argument is %s rather than boolean at %s",t2,e.getOrigin());
-      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
-      break;
-    }
-    case Member:
-    {
-      if (t2.isPrimitive(PrimitiveSort.Sequence)||t2.isPrimitive(PrimitiveSort.Set)||t2.isPrimitive(PrimitiveSort.Bag)){
-        if (!t1.equals(t2.firstarg())){
-          Fail("%s cannot be a member of %s",t1,t2);
+      case VectorCompare: {
+        e.setType(new PrimitiveType(PrimitiveSort.Sequence, new PrimitiveType(PrimitiveSort.Integer)));
+        break;
+      }
+      case MatrixRepeat: {
+        e.setType(new PrimitiveType(PrimitiveSort.Sequence, new PrimitiveType(PrimitiveSort.Sequence, tt[0])));
+        break;
+      }
+      case MatrixCompare: {
+        e.setType(new PrimitiveType(PrimitiveSort.Sequence, new PrimitiveType(PrimitiveSort.Sequence, new PrimitiveType(PrimitiveSort.Integer))));
+        break;
+      }
+      case MatrixSum: {
+        Type t = (Type) ((PrimitiveType) tt[1]).firstarg();
+        t = (Type) ((PrimitiveType) t).firstarg();
+        e.setType(t);
+        break;
+      }
+      case FoldPlus: {
+        Type t = tt[0];
+        if (t.isPrimitive(PrimitiveSort.Sequence)) {
+          t = (Type) ((PrimitiveType) t).firstarg();
+          if (!t.isPrimitive(PrimitiveSort.Integer)) {
+            Fail("first argument of summation must be a sequence of integers");
+          }
+        } else {
+          Fail("first argument of summation must be a sequence");
         }
-      } else {
-        Fail("cannot determine members of %s",t2);
+        t = e.arg(1).getType();
+        if (t.isPrimitive(PrimitiveSort.Sequence)) {
+          t = (Type) ((PrimitiveType) t).firstarg();
+        } else {
+          Fail("argument of summation must be a sequence");
+        }
+        if (t.isPrimitive(PrimitiveSort.Boolean)) {
+          e.setType(new PrimitiveType(PrimitiveSort.Integer));
+        } else {
+          e.setType(t);
+        }
+        break;
       }
-      if (t2.isPrimitive(PrimitiveSort.Bag)){
+      case IndependentOf: {
+        e.setType(tt[0]);
+        break;
+      }
+      case PVLidleToken:
+      case PVLjoinToken: {
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      }
+      case IterationOwner: {
         e.setType(new PrimitiveType(PrimitiveSort.Integer));
-      } else {
+        break;
+      }
+      case TypeOf: {
+        e.setType(new ClassType("<<null>>"));
+        break;
+      }
+      case History: {
+        String type = tt[0].toString();
+        if (!type.endsWith("History")) {
+          Fail("First argument of History must be a History class, not %s.", type);
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      }
+      case Future: {
+        String type = tt[0].toString();
+        if (!type.endsWith("Future")) {
+          Fail("First argument of Future must be a Future class, not %s.", type);
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      }
+      case NewSilver: {
+        // TODO: check arguments.
+        e.setType(new ClassType("Ref"));
+        break;
+      }
+      case RangeSeq: {
+        if (!tt[0].isInteger()) Fail("type of left argument is %s rather than integer", tt[0]);
+        if (!tt[1].isInteger()) Fail("type of right argument is %s rather than integer", tt[1]);
+        e.setType(new PrimitiveType(PrimitiveSort.Sequence, tt[0]));
+        break;
+      }
+      case Instance:
+      case SubType:
+      case SuperType: {
         e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
       }
-      break;
-    }
-    case NewArray:
-    {
-      t1=(Type)e.arg(0);
-      t2=e.arg(1).getType();
-      if (t2==null) Fail("type of subscript unknown at %s",e.getOrigin());
-      if (!t2.isInteger()) {
-        Fail("subcript has type %s rather than integer",t2);
-      }
+      case Cast: {
+        ASTNode t = e.arg(0);
+        ASTNode exp = e.arg(1);
+        if (t instanceof Type) {
+          e.setType((Type) t);
 
-      e.setType(t1);
-      break;
-    }
-    case Implies:
-    {
-      if (!t1.isBoolean()) Fail("type of left argument is %s rather than boolean at %s",t1,e.getOrigin());
-      if (!t2.isBoolean()&&!t2.isPrimitive(PrimitiveSort.Resource)){
-        Fail("type of right argument is %s rather than boolean or resource at %s",t2,e.getOrigin());
+          if (((Type) t).isPrimitive(PrimitiveSort.Option)) {
+            exp.setType((Type) t);
+          }
+        } else {
+          Fail("cannot cast to non-type %s", t.getClass());
+        }
+        break;
       }
-      e.setType(t2);
-      break;
-    }
-    case Star:
-    case Wand:
-    {
-      if (!t1.isBoolean() && !t1.isPrimitive(PrimitiveSort.Resource)) Fail("type of right argument is %s rather than boolean/resource at %s",t1,e.getOrigin());
-      if (!t2.isBoolean() && !t2.isPrimitive(PrimitiveSort.Resource)) Fail("type of right argument is %s rather than boolean/resource at %s",t2,e.getOrigin());
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    }
-    case CurrentPerm:{
-      check_location(e.arg(0),"argument of CurrentPerm");
-      t1=e.arg(0).getType();
-      if (t1==null) Fail("type of argument unknown at %s",e.getOrigin());
-      e.setType(new PrimitiveType(PrimitiveSort.Fraction));
-      break;
-    }
-    case Scale:
-    {
-      if (!t1.isNumeric()) Fail("scalar is %s rather than a numeric type at %s",t1,e.getOrigin());
-      if (!t2.isResource()) Fail("Cannot scale type %s",t1);
-      force_frac(e.arg(0));
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    }
-    case Unfolding:{
-      if (!t1.isResource()) Fail("Cannot unfold type %s",t1);
-      e.setType(t2);
-      break;
-    }
-    case Held:
-    {
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    }
-    case HistoryPerm:
-    case ActionPerm:
-    case Perm:
-    {
-      check_location(e.arg(0),"first argument");
-      if (!t2.isBoolean() && !t2.isNumeric()) Fail("type of right argument is %s rather than a numeric type at %s",t2,e.getOrigin());
-      force_frac(e.arg(1));
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    }
-    case PointsTo:
-    {
-      check_location(e.arg(0),"first argument");
-      t1=e.arg(0).getType();
-      if (t1==null) Fail("type of left argument unknown at %s",e.getOrigin());
-      t2=e.arg(1).getType();
-      if (t2==null) Fail("type of middle argument unknown at %s",e.getOrigin());
-      if (!t2.isBoolean() && !t2.isNumeric()) Fail("type of middle argument is %s rather than a numeric type at %s",t2,e.getOrigin());
-      force_frac(e.arg(1));
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      if (t3==null) Fail("type of right argument unknown at %s",e.getOrigin());
-      if (!t3.comparableWith(source(), t1)){
-        Fail("types of location and value (%s/%s) incomparable at %s",
-            t1,t3,e.getOrigin());
+      case Or: {
+        if (tt[0].isPrimitive(PrimitiveSort.Process)) {
+          if (!tt[1].isPrimitive(PrimitiveSort.Process)) {
+            Fail("Cannot compose process with %s", tt[1]);
+          }
+          e.setType(tt[0]);
+          break;
+        }
+        // fall through on purpose.
       }
+      case And:
+      case IFF: {
+        if (!tt[0].isBoolean()) Fail("type of left argument is %s rather than boolean at %s", tt[0], e.getOrigin());
+        if (!tt[1].isBoolean()) Fail("type of right argument is %s rather than boolean at %s", tt[1], e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
+      }
+      case Member: {
+        if (tt[1].isPrimitive(PrimitiveSort.Sequence) || tt[1].isPrimitive(PrimitiveSort.Set) || tt[1].isPrimitive(PrimitiveSort.Bag)) {
+          if (!tt[0].equals(tt[1].firstarg())) {
+            Fail("%s cannot be a member of %s", tt[0], tt[1]);
+          }
+        } else {
+          Fail("cannot determine members of %s", tt[1]);
+        }
+        if (tt[1].isPrimitive(PrimitiveSort.Bag)) {
+          e.setType(new PrimitiveType(PrimitiveSort.Integer));
+        } else {
+          e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        }
+        break;
+      }
+      case NewArray: {
+        tt[0] = (Type) e.arg(0);
+        tt[1] = e.arg(1).getType();
+        if (tt[1] == null) Fail("type of subscript unknown at %s", e.getOrigin());
+        if (!tt[1].isInteger()) {
+          Fail("subcript has type %s rather than integer", tt[1]);
+        }
 
-      if(t1.isPrimitive(PrimitiveSort.Option)) {
-          e.arg(2).setType(t1);
+        e.setType(tt[0]);
+        break;
       }
-      break;
-    }
-    case Contribution:
-    {
-      t1=e.arg(0).getType();
-      if (t1==null) Fail("type of left argument unknown at %s",e.getOrigin());
-      check_loc_val(t1,e.arg(1),"Types of location (%s) and contribution (%s) do not match.");
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    }
-    case Value:
-      check_location(e.arg(0),"argument");
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    case AddsTo:
-    case ReducibleSum:
-    case ReducibleMin:
-    case ReducibleMax:
-    case ArrayPerm:
-      // TODO: check arguments
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    case Set:
-    case Assign:
-    case AddAssign:
-    case SubAssign:
-    case MulAssign:
-    case DivAssign:
-    case RemAssign:
-    case AndAssign:
-    case XorAssign:
-    case OrAssign:
-    case ShlAssign:
-    case ShrAssign:
-    case SShrAssign:
-    {
-      if (e.arg(0) instanceof NameExpression){
-        NameExpression name=(NameExpression)e.arg(0);
-        if (name.getKind()==NameExpression.Kind.Label) break;
+      case Implies: {
+        if (!tt[0].isBoolean()) Fail("type of left argument is %s rather than boolean at %s", tt[0], e.getOrigin());
+        if (!tt[1].isBoolean() && !tt[1].isPrimitive(PrimitiveSort.Resource)) {
+          Fail("type of right argument is %s rather than boolean or resource at %s", tt[1], e.getOrigin());
+        }
+        e.setType(tt[1]);
+        break;
       }
-      if (t1.getClass()!=t2.getClass()) {
-        Fail("Types of left and right-hand side arguments in assignment are incomparable at "+e.getOrigin());
+      case Star:
+      case Wand: {
+        if (!tt[0].isBoolean() && !tt[0].isPrimitive(PrimitiveSort.Resource))
+          Fail("type of right argument is %s rather than boolean/resource at %s", tt[0], e.getOrigin());
+        if (!tt[1].isBoolean() && !tt[1].isPrimitive(PrimitiveSort.Resource))
+          Fail("type of right argument is %s rather than boolean/resource at %s", tt[1], e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
       }
-      e.setType(t1);
-      break;
-    }
-    case EQ:
-    case NEQ:
-    {
-      if (!t1.comparableWith(source(),t2)) {
-        Fail("Types of left and right-hand side argument are uncomparable: %s/%s",t1,t2);
+      case CurrentPerm: {
+        check_location(e.arg(0), "argument of CurrentPerm");
+        tt[0] = e.arg(0).getType();
+        if (tt[0] == null) Fail("type of argument unknown at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Fraction));
+        break;
       }
-      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
-      if (t1.isPrimitive(PrimitiveSort.ZFraction) || t1.isPrimitive(PrimitiveSort.Fraction)){
-        force_frac(e.arg(1));
-      }
-      if (t2.isPrimitive(PrimitiveSort.ZFraction) || t2.isPrimitive(PrimitiveSort.Fraction)){
+      case Scale: {
+        if (!tt[0].isNumeric()) Fail("scalar is %s rather than a numeric type at %s", tt[0], e.getOrigin());
+        if (!tt[1].isResource()) Fail("Cannot scale type %s", tt[0]);
         force_frac(e.arg(0));
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
       }
-      if(t1.isPrimitive(PrimitiveSort.Option)) {
-        e.arg(1).setType(t1);
-      } else if(t2.isPrimitive(PrimitiveSort.Option)) {
-        e.arg(0).setType(t2);
+      case Unfolding: {
+        if (!tt[0].isResource()) Fail("Cannot unfold type %s", tt[0]);
+        e.setType(tt[1]);
+        break;
       }
-      break;
-    }
-    case ValidArray:{
-      //TODO: check argument types.
-      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
-      break;
-    }
-    case ValidMatrix:{
-      //TODO: check argument types.
-      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
-      break;
-    }
-    case ValidPointer:
-      if(!t2.isIntegerType()) {
-        Fail("The second argument to \\pointer should be an integer at %s", e.arg(1).getOrigin());
+      case Held: {
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
       }
+      case HistoryPerm:
+      case ActionPerm:
+      case Perm: {
+        check_location(e.arg(0), "first argument");
+        if (!tt[1].isBoolean() && !tt[1].isNumeric())
+          Fail("type of right argument is %s rather than a numeric type at %s", tt[1], e.getOrigin());
+        force_frac(e.arg(1));
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      }
+      case PointsTo: {
+        check_location(e.arg(0), "first argument");
+        tt[0] = e.arg(0).getType();
+        if (tt[0] == null) Fail("type of left argument unknown at %s", e.getOrigin());
+        tt[1] = e.arg(1).getType();
+        if (tt[1] == null) Fail("type of middle argument unknown at %s", e.getOrigin());
+        if (!tt[1].isBoolean() && !tt[1].isNumeric())
+          Fail("type of middle argument is %s rather than a numeric type at %s", tt[1], e.getOrigin());
+        force_frac(e.arg(1));
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        if (tt[2] == null) Fail("type of right argument unknown at %s", e.getOrigin());
+        if (!tt[2].comparableWith(source(), tt[0])) {
+          Fail("types of location and value (%s/%s) incomparable at %s",
+                  tt[0], tt[2], e.getOrigin());
+        }
 
-      force_frac(e.arg(2));
-
-      if(!t1.isPrimitive(PrimitiveSort.Pointer)) {
-        SequenceUtils.expectArray(e.arg(0), "The first argument to \\pointer (%s) should be a pointer, but was of type %s");
+        if (tt[0].isPrimitive(PrimitiveSort.Option)) {
+          e.arg(2).setType(tt[0]);
+        }
+        break;
       }
+      case Contribution: {
+        tt[0] = e.arg(0).getType();
+        if (tt[0] == null) Fail("type of left argument unknown at %s", e.getOrigin());
+        check_loc_val(tt[0], e.arg(1), "Types of location (%s) and contribution (%s) do not match.");
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      }
+      case Value:
+        check_location(e.arg(0), "argument");
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      case AddsTo:
+      case ReducibleSum:
+      case ReducibleMin:
+      case ReducibleMax:
+      case ArrayPerm:
+        // TODO: check arguments
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      case Set:
+      case Assign:
+      case AddAssign:
+      case SubAssign:
+      case MulAssign:
+      case DivAssign:
+      case RemAssign:
+      case AndAssign:
+      case XorAssign:
+      case OrAssign:
+      case ShlAssign:
+      case ShrAssign:
+      case SShrAssign: {
+        if (e.arg(0) instanceof NameExpression) {
+          NameExpression name = (NameExpression) e.arg(0);
+          if (name.getKind() == NameExpression.Kind.Label) break;
+        }
+        if (tt[0].getClass() != tt[1].getClass()) {
+          Fail("Types of left and right-hand side arguments in assignment are incomparable at " + e.getOrigin());
+        }
+        e.setType(tt[0]);
+        break;
+      }
+      case EQ:
+      case NEQ: {
+        if (!tt[0].comparableWith(source(), tt[1])) {
+          Fail("Types of left and right-hand side argument are uncomparable: %s/%s", tt[0], tt[1]);
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        if (tt[0].isPrimitive(PrimitiveSort.ZFraction) || tt[0].isPrimitive(PrimitiveSort.Fraction)) {
+          force_frac(e.arg(1));
+        }
+        if (tt[1].isPrimitive(PrimitiveSort.ZFraction) || tt[1].isPrimitive(PrimitiveSort.Fraction)) {
+          force_frac(e.arg(0));
+        }
+        if (tt[0].isPrimitive(PrimitiveSort.Option)) {
+          e.arg(1).setType(tt[0]);
+        } else if (tt[1].isPrimitive(PrimitiveSort.Option)) {
+          e.arg(0).setType(tt[1]);
+        }
+        break;
+      }
+      case ValidArray: {
+        //TODO: check argument types.
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
+      }
+      case ValidMatrix: {
+        //TODO: check argument types.
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
+      }
+      case ValidPointer:
+        if (!tt[1].isIntegerType()) {
+          Fail("The second argument to \\pointer should be an integer at %s", e.arg(1).getOrigin());
+        }
 
-      e.setType(new PrimitiveType(PrimitiveSort.Resource));
-      break;
-    case Values:{
-      Type t=e.arg(0).getType();
+        force_frac(e.arg(2));
+
+        if (!tt[0].isPrimitive(PrimitiveSort.Pointer)) {
+          SequenceUtils.expectArray(e.arg(0), "The first argument to \\pointer (%s) should be a pointer, but was of type %s");
+        }
+
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      case ValidPointerIndex:
+        if (!tt[1].isIntegerType()) {
+          Fail("The second argument to \\pointer_index should be an integer at %s", e.arg(1).getOrigin());
+        }
+
+        force_frac(e.arg(2));
+
+        if (!tt[0].isPrimitive(PrimitiveSort.Pointer)) {
+          SequenceUtils.expectArray(e.arg(0), "The first argument to \\pointer_index (%s) should be a pointer, but was of type %s");
+        }
+
+        e.setType(new PrimitiveType(PrimitiveSort.Resource));
+        break;
+      case Values: {
+        Type t = e.arg(0).getType();
 //      if (!t.isPrimitive(PrimitiveSort.Array)){
 //
 //      }
-      if(t.isPrimitive(PrimitiveSort.Option)) {
-        t = (Type) t.firstarg();
+        if (t.isPrimitive(PrimitiveSort.Option)) {
+          t = (Type) t.firstarg();
+        }
+        if (!t.isPrimitive(PrimitiveSort.Array)) {
+          Abort("First argument to values must be array-like at " + e.getOrigin());
+        } else {
+          t = (Type) t.firstarg();
+        }
+        if (t.isPrimitive(PrimitiveSort.Cell)) {
+          t = (Type) t.firstarg();
+        }
+        tt[0] = e.arg(1).getType();
+        if (tt[0] == null) Fail("type of from argument unknown at " + e.getOrigin());
+        if (!tt[0].isInteger()) Fail("type of from argument should be integer at " + e.getOrigin());
+        tt[1] = e.arg(2).getType();
+        if (tt[1] == null) Fail("type of upto argument unknown at " + e.getOrigin());
+        if (!tt[1].isInteger()) Fail("type of upto argument should be integer at " + e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Sequence, t));
+        break;
       }
-      if(!t.isPrimitive(PrimitiveSort.Array)) {
-        Abort("First argument to values must be array-like at "+e.getOrigin());
-      } else {
-        t = (Type) t.firstarg();
-      }
-      if(t.isPrimitive(PrimitiveSort.Cell)) {
-        t = (Type) t.firstarg();
-      }
-      t1=e.arg(1).getType();
-      if (t1==null) Fail("type of from argument unknown at "+e.getOrigin());
-      if (!t1.isInteger()) Fail("type of from argument should be integer at "+e.getOrigin());
-      t2=e.arg(2).getType();
-      if (t2==null) Fail("type of upto argument unknown at "+e.getOrigin());
-      if (!t2.isInteger()) Fail("type of upto argument should be integer at "+e.getOrigin());
-      e.setType(new PrimitiveType(PrimitiveSort.Sequence, t));
-      break;
-    }
-    case ITE:
-    {
-      Type t=e.arg(0).getType();
-      if (!t.isBoolean()){
-        Abort("First argument of if-the-else must be boolean at "+e.getOrigin());
-      }
-      t1=e.arg(1).getType();
-      if (t1==null) Fail("type of left argument unknown at "+e.getOrigin());
-      t2=e.arg(2).getType();
-      if (t2==null) Fail("type of right argument unknown at "+e.getOrigin());
+      case ITE: {
+        Type t = e.arg(0).getType();
+        if (!t.isBoolean()) {
+          Abort("First argument of if-the-else must be boolean at " + e.getOrigin());
+        }
+        tt[0] = e.arg(1).getType();
+        if (tt[0] == null) Fail("type of left argument unknown at " + e.getOrigin());
+        tt[1] = e.arg(2).getType();
+        if (tt[1] == null) Fail("type of right argument unknown at " + e.getOrigin());
 
-      if(!t1.comparableWith(source(), t2)) {
-        Fail("Types of left and right-hand side argument are uncomparable at "+e.getOrigin());
-      }
+        if (!tt[0].comparableWith(source(), tt[1])) {
+          Fail("Types of left and right-hand side argument are uncomparable at " + e.getOrigin());
+        }
 
-      if (t2.supertypeof(source(), t1)) {
-        //Warning("ITE type %s",t2);
-        e.setType(t2);
-      } else if(t1.supertypeof(source(), t2)) {
-        //Warning("ITE type %s",t1);
-        e.setType(t1);
-      }
-      if (t1.isPrimitive(PrimitiveSort.ZFraction) || t1.isPrimitive(PrimitiveSort.Fraction)){
-        force_frac(e.arg(2));
-      }
-      if (t2.isPrimitive(PrimitiveSort.ZFraction) || t2.isPrimitive(PrimitiveSort.Fraction)){
-        force_frac(e.arg(1));
-      }
-      break;
-    }
-    case Not:
-    {
-      Type t=e.arg(0).getType();
-      if (!t.isBoolean()){
-        Abort("Argument of negation must be boolean at "+e.getOrigin());
-      }
-      e.setType(t);
-      break;
-    }
-    case OptionSome:{
-      Type t=e.arg(0).getType();
-      e.setType(new PrimitiveType(PrimitiveSort.Option,t));
-      break;
-    }
-    case OptionGet:{
-      Type t=e.arg(0).getType();
-      if (!t.isPrimitive(PrimitiveSort.Option)){
-        Fail("argument of option get is %s rather than option<?>",t);
-      }
-      e.setType((Type)((PrimitiveType)t).firstarg());
-      break;
-    }
-    case Identity:
-    {
-      Type t=e.arg(0).getType();
-      e.setType(t);
-      break;
-    }
-    case PreIncr:
-    case PreDecr:
-    case PostIncr:
-    case PostDecr:
-    case UMinus:
-    case UPlus:
-    {
-      Type t=e.arg(0).getType();
-      if (!t.isNumeric()){
-        Fail("Argument of %s must be a numeric type",op);
-      }
-      e.setType(t);
-      break;
-    }
-    case Exp:{
-      if (!t1.isNumeric()){
-        Fail("First argument of %s is %s rather than a numeric type",op,t1);
-      }
-      if (!t2.isInteger()){
-        Fail("Second argument of %s is %s rather than integer",op,t2);
-      }
-      e.setType(t1);
-      break;
-    }
-    case Plus:
-    { // handle concatenation meaning of +
-      if (t1.isPrimitive(PrimitiveSort.Sequence)||t1.isPrimitive(PrimitiveSort.Set)||t1.isPrimitive(PrimitiveSort.Bag)){
-        if (!t1.comparableWith(source(),t2)) {
-          Fail("Types of left and right-hand side argument are uncomparable: %s/%s",t1,t2);
+        if (tt[1].supertypeof(source(), tt[0])) {
+          //Warning("ITE type %s",tt[1]);
+          e.setType(tt[1]);
+        } else if (tt[0].supertypeof(source(), tt[1])) {
+          //Warning("ITE type %s",tt[0]);
+          e.setType(tt[0]);
         }
-        e.setType(t1);
-        break;
-      }
-      if (t1.isPrimitive(PrimitiveSort.Process)){
-        if (!t2.isPrimitive(PrimitiveSort.Process)){
-          Fail("Cannot compose process with %s",t2);
+        if (tt[0].isPrimitive(PrimitiveSort.ZFraction) || tt[0].isPrimitive(PrimitiveSort.Fraction)) {
+          force_frac(e.arg(2));
         }
-        e.setType(t1);
-        break;
-      }
-      if(t1.isPrimitive(PrimitiveSort.Pointer) || SequenceUtils.getTypeInfo(t1) != null) {
-        if(!t2.isPrimitive(PrimitiveSort.Integer)) {
-          Fail("Cannot add a value of type %s to a pointer", t2);
+        if (tt[1].isPrimitive(PrimitiveSort.ZFraction) || tt[1].isPrimitive(PrimitiveSort.Fraction)) {
+          force_frac(e.arg(1));
         }
-        e.setType(t1);
         break;
       }
-      checkMathOperator(e, op, t1, t2);
-      break;
-    }
-    case Mult:
-    {
-      // handle cartesian product meaning of *
-      if (t1.isPrimitive(PrimitiveSort.Sequence) && t2.isPrimitive(PrimitiveSort.Sequence)){
-        t1=(Type)((PrimitiveType)t1).firstarg();
-        t2=(Type)((PrimitiveType)t2).firstarg();
-        e.setType(new PrimitiveType(PrimitiveSort.Sequence,new TupleType(new Type[] { t1, t2 })));
-        break;
-      }
-      // handle intersection meaning of *
-      if (t1.isPrimitive(PrimitiveSort.Set)||t1.isPrimitive(PrimitiveSort.Bag)){
-        if (!t1.comparableWith(source(),t2)) {
-          Fail("Types of left and right-hand side argument are uncomparable: %s/%s",t1,t2);
+      case Not: {
+        Type t = e.arg(0).getType();
+        if (!t.isBoolean()) {
+          Abort("Argument of negation must be boolean at " + e.getOrigin());
         }
-        e.setType(t1);
+        e.setType(t);
         break;
       }
-      if (t1.isPrimitive(PrimitiveSort.Process)){
-        if (!t2.isPrimitive(PrimitiveSort.Process)){
-          Fail("Cannot compose process with %s",t2);
+      case OptionSome: {
+        Type t = e.arg(0).getType();
+        e.setType(new PrimitiveType(PrimitiveSort.Option, t));
+        break;
+      }
+      case OptionGet: {
+        Type t = e.arg(0).getType();
+        if (!t.isPrimitive(PrimitiveSort.Option)) {
+          Fail("argument of option get is %s rather than option<?>", t);
         }
-        e.setType(t1);
+        e.setType((Type) ((PrimitiveType) t).firstarg());
         break;
       }
-      checkMathOperator(e, op, t1, t2);
-      break;
-    }
-    case Minus:
-    {
-      // handle set minus meaning of -
-      if (t1.isPrimitive(PrimitiveSort.Set)||t1.isPrimitive(PrimitiveSort.Bag)){
-        if (!t1.comparableWith(source(),t2)) {
-          Fail("Types of left and right-hand side argument are uncomparable: %s/%s",t1,t2);
+      case Identity: {
+        Type t = e.arg(0).getType();
+        e.setType(t);
+        break;
+      }
+      case PreIncr:
+      case PreDecr:
+      case PostIncr:
+      case PostDecr:
+      case UMinus:
+      case UPlus: {
+        Type t = e.arg(0).getType();
+        if (!t.isNumeric()) {
+          Fail("Argument of %s must be a numeric type", op);
         }
-        e.setType(t1);
+        e.setType(t);
         break;
       }
-    }
-    case Div:
-    case Mod:
-    {
-      checkMathOperator(e, op, t1, t2);
-      break;
-    }
-    case BitAnd:
-    case BitOr:
-    case BitNot:
-    case BitXor:
-    {
-      if (t1.equalSize(t2)){
-        e.setType(t1);
-      } else {
-        Fail("Types of left and right-hand side argument are different (%s/%s).",t1,t2);
+      case Exp: {
+        if (!tt[0].isNumeric()) {
+          Fail("First argument of %s is %s rather than a numeric type", op, tt[0]);
+        }
+        if (!tt[1].isInteger()) {
+          Fail("Second argument of %s is %s rather than integer", op, tt[1]);
+        }
+        e.setType(tt[0]);
+        break;
       }
-      break;
-    }
-    case RightShift:
-    case LeftShift:
-    case UnsignedRightShift:
-    {
-      if (!t1.isIntegerType()){
-        Fail("First argument of %s must be integer type, not %s",op,t1);
+      case Plus: { // handle concatenation meaning of +
+        if (tt[0].isPrimitive(PrimitiveSort.Sequence) || tt[0].isPrimitive(PrimitiveSort.Set) || tt[0].isPrimitive(PrimitiveSort.Bag)) {
+          if (!tt[0].comparableWith(source(), tt[1])) {
+            Fail("Types of left and right-hand side argument are uncomparable: %s/%s", tt[0], tt[1]);
+          }
+          e.setType(tt[0]);
+          break;
+        }
+        if (tt[0].isPrimitive(PrimitiveSort.Process)) {
+          if (!tt[1].isPrimitive(PrimitiveSort.Process)) {
+            Fail("Cannot compose process with %s", tt[1]);
+          }
+          e.setType(tt[0]);
+          break;
+        }
+        if (tt[0].isPrimitive(PrimitiveSort.Pointer) || SequenceUtils.getTypeInfo(tt[0]) != null) {
+          if (!tt[1].isPrimitive(PrimitiveSort.Integer)) {
+            Fail("Cannot add a value of type %s to a pointer", tt[1]);
+          }
+          e.setType(tt[0]);
+          break;
+        }
+        checkMathOperator(e, op, tt[0], tt[1]);
+        break;
       }
-      if (!t2.isIntegerType()){
-        Fail("Second argument of %s must be integer type, not %s",op,t2);
+      case Mult: {
+        // handle cartesian product meaning of *
+        if (tt[0].isPrimitive(PrimitiveSort.Sequence) && tt[1].isPrimitive(PrimitiveSort.Sequence)) {
+          tt[0] = (Type) ((PrimitiveType) tt[0]).firstarg();
+          tt[1] = (Type) ((PrimitiveType) tt[1]).firstarg();
+          e.setType(new PrimitiveType(PrimitiveSort.Sequence, new TupleType(new Type[]{tt[0], tt[1]})));
+          break;
+        }
+        // handle intersection meaning of *
+        if (tt[0].isPrimitive(PrimitiveSort.Set) || tt[0].isPrimitive(PrimitiveSort.Bag)) {
+          if (!tt[0].comparableWith(source(), tt[1])) {
+            Fail("Types of left and right-hand side argument are uncomparable: %s/%s", tt[0], tt[1]);
+          }
+          e.setType(tt[0]);
+          break;
+        }
+        if (tt[0].isPrimitive(PrimitiveSort.Process)) {
+          if (!tt[1].isPrimitive(PrimitiveSort.Process)) {
+            Fail("Cannot compose process with %s", tt[1]);
+          }
+          e.setType(tt[0]);
+          break;
+        }
+        checkMathOperator(e, op, tt[0], tt[1]);
+        break;
       }
-      e.setType(t1);
-      break;
-    }
-    case GTE:
-    case LTE:
-    case LT:
-    case GT:
-    {
-      if (!t1.isNumeric()){
-        Fail("First argument of %s is %s rather than a numeric type",op,t1);
+      case Minus: {
+        // handle set minus meaning of -
+        if (tt[0].isPrimitive(PrimitiveSort.Set) || tt[0].isPrimitive(PrimitiveSort.Bag)) {
+          if (!tt[0].comparableWith(source(), tt[1])) {
+            Fail("Types of left and right-hand side argument are uncomparable: %s/%s", tt[0], tt[1]);
+          }
+          e.setType(tt[0]);
+          break;
+        }
       }
-      if (!t2.isNumeric()){
-        Fail("Second argument of %s is %s rather than a numeric type",op,t2);
+      case Div:
+      case Mod: {
+        checkMathOperator(e, op, tt[0], tt[1]);
+        break;
       }
-      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
-      break;
-    }
-    case Old:
-    {
-      Type t=e.arg(0).getType();
-      if (t==null) Fail("type of argument is unknown at %s",e.getOrigin());
-      e.setType(t);
-      break;
-    }
-    case New:
-    {
-      ASTNode t=e.arg(0);
-      if (!(t instanceof ClassType)) Fail("argument to new is not a class type");
-      e.setType((Type)t);
-      break;
-    }
+      case BitAnd:
+      case BitOr:
+      case BitNot:
+      case BitXor: {
+        if (tt[0].equalSize(tt[1])) {
+          e.setType(tt[0]);
+        } else {
+          Fail("Types of left and right-hand side argument are different (%s/%s).", tt[0], tt[1]);
+        }
+        break;
+      }
+      case RightShift:
+      case LeftShift:
+      case UnsignedRightShift: {
+        if (!tt[0].isIntegerType()) {
+          Fail("First argument of %s must be integer type, not %s", op, tt[0]);
+        }
+        if (!tt[1].isIntegerType()) {
+          Fail("Second argument of %s must be integer type, not %s", op, tt[1]);
+        }
+        e.setType(tt[0]);
+        break;
+      }
+      case GTE:
+      case LTE:
+      case LT:
+      case GT: {
+        if (!tt[0].isNumeric()) {
+          Fail("First argument of %s is %s rather than a numeric type", op, tt[0]);
+        }
+        if (!tt[1].isNumeric()) {
+          Fail("Second argument of %s is %s rather than a numeric type", op, tt[1]);
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
+      }
+      case Old: {
+        Type t = e.arg(0).getType();
+        if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
+        e.setType(t);
+        break;
+      }
+      case New: {
+        ASTNode t = e.arg(0);
+        if (!(t instanceof ClassType)) Fail("argument to new is not a class type");
+        e.setType((Type) t);
+        break;
+      }
     case Drop:
     case Take:
     {
@@ -1340,123 +1316,119 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Subscript:
     {
       if (!(t1 instanceof PrimitiveType)) Fail("base must be array or sequence type.");
-      PrimitiveType t=(PrimitiveType)t1;
-
-      if(t.isPrimitive(PrimitiveSort.Option)) {
-        if (!(t.firstarg() instanceof PrimitiveType)) Fail("base must be array or sequence type.");
-        t = (PrimitiveType) t.firstarg();
-      }
-
-      switch(t.sort){
-        case Pointer:
-        case Sequence:
-        case Array:
-        {
-          t1=(Type)t.firstarg();
-          break;
+      PrimitiveType t=(PrimitiveType)tt[0];
+        if (t.isPrimitive(PrimitiveSort.Option)) {
+          if (!(t.firstarg() instanceof PrimitiveType)) Fail("base must be array or sequence type.");
+          t = (PrimitiveType) t.firstarg();
         }
-        default: Fail("base must be array or sequence type.");
-      }
 
-      if(t1.isPrimitive(PrimitiveSort.Cell)) {
-        t1 = (Type) t1.firstarg();
-      }
+        switch (t.sort) {
+          case Pointer:
+          case Sequence:
+          case Array: {
+            tt[0] = (Type) t.firstarg();
+            break;
+          }
+          default:
+            Fail("base must be array or sequence type.");
+        }
 
-      if (!t2.isInteger()) {
-        Fail("subcript has type %s rather than integer",t2);
-      }
-      e.setType(t1);
-      break;
-    }
-    case Head:{
-      Type t=e.arg(0).getType();
-      if (t==null) Fail("type of argument is unknown at %s",e.getOrigin());
-      if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of head is not a sequence");
-      e.setType((Type)t.firstarg());
-      break;
-    }
-    case Tail:{
-      Type t=e.arg(0).getType();
-      if (t==null) Fail("type of argument is unknown at %s",e.getOrigin());
-      if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of tail is not a sequence");
-      e.setType(t);
-      break;
-    }
-    case Size:
-    {
-      Type t=e.arg(0).getType();
-      if (t==null) Fail("type of argument is unknown at %s",e.getOrigin());
-      if (!(t.isPrimitive(PrimitiveSort.Sequence)||t.isPrimitive(PrimitiveSort.Bag)||t.isPrimitive(PrimitiveSort.Set))) {
-        Fail("argument of size is not a set, sequence, or bag");
-      }
-      e.setType(new PrimitiveType(PrimitiveSort.Integer));
-      break;
-    }
-    case Length:
-    {
-      Type t=e.arg(0).getType();
-      if (t==null) Fail("type of argument is unknown at %s",e.getOrigin());
+        if (tt[0].isPrimitive(PrimitiveSort.Cell)) {
+          tt[0] = (Type) tt[0].firstarg();
+        }
 
-      SequenceUtils.expectArrayType(t, "Length expects an array as its argument, but got %s");
-      e.setType(new PrimitiveType(PrimitiveSort.Integer));
-      break;
-    }
-    case Append:
-    {
-      if (!t1.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
-      if (!t2.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
-      if (!t1.firstarg().equals(t2.firstarg())){
-        Fail("different sequence types in append");
-      }
-      e.setType(t1);
-      break;
-    }
-    case Wrap:{
-      ASTNode args[]=e.argsJava().toArray(new ASTNode[0]);
-      switch(args.length){
-      case 0:
-        e.setType(new PrimitiveType(PrimitiveSort.Void));
+        if (!tt[1].isInteger()) {
+          Fail("subcript has type %s rather than integer", tt[1]);
+        }
+        e.setType(tt[0]);
         break;
-      case 1:
-        e.setType(args[0].getType());
+      }
+      case Head: {
+        Type t = e.arg(0).getType();
+        if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
+        if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of head is not a sequence");
+        e.setType((Type) t.firstarg());
+        break;
+      }
+      case Tail: {
+        Type t = e.arg(0).getType();
+        if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
+        if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of tail is not a sequence");
+        e.setType(t);
+        break;
+      }
+      case Size: {
+        Type t = e.arg(0).getType();
+        if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
+        if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set))) {
+          Fail("argument of size is not a set, sequence, or bag");
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Integer));
+        break;
+      }
+      case Length: {
+        Type t = e.arg(0).getType();
+        if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
+
+        SequenceUtils.expectArrayType(t, "Length expects an array as its argument, but got %s");
+        e.setType(new PrimitiveType(PrimitiveSort.Integer));
+        break;
+      }
+      case Append: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
+        if (!tt[1].isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
+        if (!tt[0].firstarg().equals(tt[1].firstarg())) {
+          Fail("different sequence types in append");
+        }
+        e.setType(tt[0]);
+        break;
+      }
+      case Wrap: {
+        ASTNode args[] = e.argsJava().toArray(new ASTNode[0]);
+        switch (args.length) {
+          case 0:
+            e.setType(new PrimitiveType(PrimitiveSort.Void));
+            break;
+          case 1:
+            e.setType(args[0].getType());
+            break;
+          default:
+            Type types[] = new Type[args.length];
+            for (int i = 0; i < args.length; i++) {
+              types[i] = args[i].getType();
+            }
+            e.setType(new TupleType(types));
+            break;
+        }
+        break;
+      }
+      case Get: {
+        if (tt[0] == null) Fail("type of argument is unknown at %s", e.getOrigin());
+        e.setType(tt[0]);
+        break;
+      }
+      case AddrOf:
+        if (tt[0] == null) Fail("type of argument to AddrOf operator (&) is unknown at %s", e.getOrigin());
+        // TODO: determine whether type checking is necessary here.
+        e.setType(new PrimitiveType(PrimitiveSort.Pointer, e.arg(0).getType()));
+        break;
+      case Indirection:
+        if (tt[0] == null) Fail("type of argument to Indirection operator (*) is unknown at %s", e.getOrigin());
+
+        Type elementType;
+
+        if (!tt[0].isPrimitive(PrimitiveSort.Pointer)) {
+          SequenceUtils.SequenceInfo seqInfo = SequenceUtils.expectArray(e.arg(0), "The first argument to the indirection operator (*) should be a pointer, but was of type %s");
+          elementType = seqInfo.getElementType();
+        } else {
+          elementType = (Type) tt[0].firstarg();
+        }
+
+        e.setType(elementType);
         break;
       default:
-        Type types[]=new Type[args.length];
-        for(int i=0;i<args.length;i++){
-          types[i]=args[i].getType();
-        }
-        e.setType(new TupleType(types));
+        Abort("missing case of operator %s", op);
         break;
-      }
-      break;
-    }
-    case Get:{
-      if (t1==null) Fail("type of argument is unknown at %s",e.getOrigin());
-      e.setType(t1);
-      break;
-    }
-    case AddrOf:
-      if(t1 == null) Fail("type of argument to AddrOf operator (&) is unknown at %s", e.getOrigin());
-      // TODO: determine whether type checking is necessary here.
-      e.setType(new PrimitiveType(PrimitiveSort.Pointer, e.arg(0).getType()));
-      break;
-    case Indirection:
-      if(t1 == null) Fail("type of argument to Indirection operator (*) is unknown at %s", e.getOrigin());
-
-      Type elementType;
-
-      if(!t1.isPrimitive(PrimitiveSort.Pointer)) {
-        SequenceUtils.SequenceInfo seqInfo = SequenceUtils.expectArray(e.arg(0), "The first argument to the indirection operator (*) should be a pointer, but was of type %s");
-        elementType = seqInfo.getElementType();
-      } else {
-        elementType = (Type) t1.firstarg();
-      }
-
-      e.setType(elementType);
-      break;
-    default:
-      Abort("missing case of operator %s",op);
-      break;
     }
   }
 
@@ -1497,11 +1469,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 //      }
 //
 //      for (int i = 0; i < v.valuesLength(); i++) {
-//        Type t2=v.value(i).getType();
-//        if (t2==null){
+//        Type tt[1]=v.value(i).getType();
+//        if (tt[1]==null){
 //          Fail("untyped build argument %d",i);
 //        }
-//        if(t.equals(t2) || t.supertypeof(source(), t2) || (t instanceof ClassType && ((ClassType) t).getFullName().equals("Ref"))) {
+//        if(t.equals(tt[1]) || t.supertypeof(source(), tt[1]) || (t instanceof ClassType && ((ClassType) t).getFullName().equals("Ref"))) {
 //          if(t.isPrimitive(PrimitiveSort.Option)) {
 //            v.value(i).setType(t);
 //          }

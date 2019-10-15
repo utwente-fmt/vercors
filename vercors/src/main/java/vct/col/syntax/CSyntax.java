@@ -74,6 +74,7 @@ public class CSyntax extends Syntax{
 
     syntax.addFunction(SizeOf, "sizeof");
     syntax.addFunction(ValidPointer, "\\pointer");
+    syntax.addFunction(ValidPointerIndex, "\\pointer_index");
     syntax.addFunction(Values, "\\values");
     
     syntax.addPrimitiveType(PrimitiveSort.Double,"double");

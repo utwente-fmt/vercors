@@ -281,6 +281,11 @@ public enum StandardOperator {
    */
   ValidPointer(3),
   /**
+   * Declares the first argument to be a valid pointer with the offset given in the second argument, and assert
+   * permission only at that index.
+   */
+  ValidPointerIndex(3),
+  /**
    * Get the values from an array as a sequence form a start upto an end
    */
   Values(3),

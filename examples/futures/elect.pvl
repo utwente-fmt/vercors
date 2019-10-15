@@ -185,12 +185,12 @@ class Program {
 	given frac q1; // ownership of the program `p`
 	given frac q2; // ownershow of the future `f`
 	given process P;
-	invariant q1 != none && q2 != none;
-	invariant Perm(size, q1) ** Perm(maxvalue, q1);
-	invariant 0 <= rank && rank < size;
-	invariant 0 <= msg && msg < maxvalue;
-	invariant Perm(initialised, q1) ** initialised;
-	invariant Perm(f, q1) ** f != null;
+	context_everywhere q1 != none && q2 != none;
+	context_everywhere Perm(size, q1) ** Perm(maxvalue, q1);
+	context_everywhere 0 <= rank && rank < size;
+	context_everywhere 0 <= msg && msg < maxvalue;
+	context_everywhere Perm(initialised, q1) ** initialised;
+	context_everywhere Perm(f, q1) ** f != null;
 	requires Future(f, q2, f.Send(rank, msg) * P);
 	ensures Future(f, q2, P);
 	ensures size == \old(size);
@@ -208,11 +208,11 @@ class Program {
 	given int n;
 	given frac q1; // ownership of the program `p`
 	given frac q2; // ownershow of the future `f`
-	invariant q1 != none && q2 != none;
-	invariant Perm(size, q1) ** Perm(maxvalue, q1);
-	invariant 0 <= rank && rank < size;
-	invariant Perm(initialised, q1) ** initialised;
-	invariant Perm(f, q1) ** f != null;
+	context_everywhere q1 != none && q2 != none;
+	context_everywhere Perm(size, q1) ** Perm(maxvalue, q1);
+	context_everywhere 0 <= rank && rank < size;
+	context_everywhere Perm(initialised, q1) ** initialised;
+	context_everywhere Perm(f, q1) ** f != null;
 	requires Future(f, q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
 	ensures 0 <= \result && \result < maxvalue;
 	ensures size == \old(size);
@@ -257,12 +257,12 @@ class Program {
 	
 	given frac q1; // ownership of the program `p`
 	given frac q2; // ownershow of the future `p.f`
-	invariant q1 != none && q2 != none;
-	invariant Perm(size, q1);
-	invariant 0 <= rank && rank < size;
-	invariant Perm(initialised, q1) ** initialised;
-	invariant Perm(maxvalue, q1);
-	invariant 0 <= v && v < maxvalue;
+	context_everywhere q1 != none && q2 != none;
+	context_everywhere Perm(size, q1);
+	context_everywhere 0 <= rank && rank < size;
+	context_everywhere Perm(initialised, q1) ** initialised;
+	context_everywhere Perm(maxvalue, q1);
+	context_everywhere 0 <= v && v < maxvalue;
 	requires Perm(f, q1) ** f != null;
 	requires Future(f, q2, f.Elect(rank, size, v, maxvalue, 0));
 	ensures Perm(f, q1) ** f != null;
@@ -352,11 +352,11 @@ class Main {
 		unlock pr;
 	}
 	
-	invariant 0 < size;
-	invariant 0 < max;
-	invariant |xs| == size;
-	invariant (\forall int j; 0 <= j && j < |xs|; (\forall int k; 0 <= k && k < |xs| && j != k; xs[j] != xs[k]));
-	invariant (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < max);
+	context_everywhere 0 < size;
+	context_everywhere 0 < max;
+	context_everywhere |xs| == size;
+	context_everywhere (\forall int j; 0 <= j && j < |xs|; (\forall int k; 0 <= k && k < |xs| && j != k; xs[j] != xs[k]));
+	context_everywhere (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < max);
 	static void main(int size, int max, seq<int> xs) {
 		Future f = new Future();
 		f.channel = seq<seq<int>> { };
@@ -397,15 +397,15 @@ class Main {
 	
 	given frac q1; // ownership of the program `p`
 	given frac q2; // ownershow of the future `p.f`
-	invariant q1 != none && q2 != none;
-	invariant pr != null;
-	invariant Perm(pr.size, q1);
-	invariant Perm(pr.f, q1) ** pr.f != null;
-	invariant Perm(pr.maxvalue, q1);
-	invariant Perm(pr.initialised, q1) ** pr.initialised;
-	invariant 0 <= rank && rank <= pr.size;
-	invariant |xs| == pr.size;
-	invariant (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < pr.maxvalue);
+	context_everywhere q1 != none && q2 != none;
+	context_everywhere pr != null;
+	context_everywhere Perm(pr.size, q1);
+	context_everywhere Perm(pr.f, q1) ** pr.f != null;
+	context_everywhere Perm(pr.maxvalue, q1);
+	context_everywhere Perm(pr.initialised, q1) ** pr.initialised;
+	context_everywhere 0 <= rank && rank <= pr.size;
+	context_everywhere |xs| == pr.size;
+	context_everywhere (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < pr.maxvalue);
 	requires Future(pr.f, q2, pr.f.Spawn(rank, pr.size, xs, pr.maxvalue));
 	ensures pr == \old(pr);
 	ensures pr.size == \old(pr.size);
