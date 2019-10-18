@@ -1,15 +1,16 @@
 package vct.verifast;
 
 import hre.ast.TrackingTree;
-import hre.io.ModuleShell;
 import hre.ast.Origin;
 import hre.io.Message;
+import hre.io.MessageProcess;
+
 import static hre.lang.System.Debug;
 import static hre.lang.System.Warning;
 
 public class VeriFastReport  extends hre.util.TestReport {
 
-  public VeriFastReport(ModuleShell shell, TrackingTree tree) {
+  public VeriFastReport(MessageProcess shell, TrackingTree tree) {
     try {
       String line;
       for(;;){

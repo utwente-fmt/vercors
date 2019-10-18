@@ -56,7 +56,7 @@ public class Oracle {
   
   private static Map<String, Double> getMap(String name) {
     Map<String, Double> result = null;
-    Path p = Configuration.getHome().resolve(".learn").resolve(name + ".json");
+    Path p = new File(".learn").toPath().resolve(name + ".json");
     File f = p.toFile();
     if (f.exists()) {
       Gson gson = new GsonBuilder().create();
@@ -81,7 +81,7 @@ public class Oracle {
     List<String> lines = new ArrayList<String>();
     lines.add(json);
     try {
-      Path p = Configuration.getHome().resolve(".learn").resolve(name + ".json");
+      Path p = new File(".learn").toPath().resolve(name + ".json");
       File f = p.toFile();
       if (!f.exists()) {
         if(!f.getParentFile().mkdirs() || !f.createNewFile()) {

@@ -2,12 +2,13 @@ package vct.main;
 
 import hre.io.Message;
 import hre.io.MessageProcess;
-import hre.io.ModuleShell;
 import hre.util.TestReport;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,29 +33,26 @@ public class ToolTest {
     idx++;
     String test_name=stackTraceElements[idx].getMethodName();
     VCTResult res=new VCTResult();
-    Path f=Configuration.getHome();
     String OS=System.getProperty("os.name");
-    for(int i=1;i<args.length;i++){
-      if (args[i].startsWith("//")){
-        args[i]=f+args[i].substring(1);
-      }
-    }
     MessageProcess p=null;
-    ModuleShell sh=null;
+    MessageProcess sh=null;
     res.verdict=TestReport.Verdict.Inconclusive;
     switch(args[0]){
     case "vct":
+      ArrayList<String> command = new ArrayList<>();
+
+      Collections.addAll(command, "java", "-Xss128M", "-cp", System.getProperty("java.class.path"), "vct.main.Main");
+
       if (args[1].equals("--syntax")){
-        args[1]="--passes=standardize,check,java";
+        command.add("--passes=standardize,check,java");
       }
-      if (OS.startsWith("Windows")){
-        args[0]=f+"\\windows\\bin\\"+args[0]+".cmd"; //DRB --added
-      } else {
-        args[0]=f+"/unix/bin/"+args[0]; //DRB --added
-      }
+
+      command.add(args[1]);
+      command.add("--progress");
+
       sh=Configuration.getShell();
       res.verdict=null;
-      args[0] += " --progress"; // To capture verification time
+
       if (CommandLineTesting.savedir.used()){
         Path dir=Paths.get(CommandLineTesting.savedir.get()).toAbsolutePath();
         String ext="";
@@ -67,12 +65,15 @@ public class ToolTest {
         } else if (args[1].startsWith("--dafny")) {
           ext=".dfy";
         }
-        args[0]+=" --encoded="+dir+File.separator+test_name+ext;
+        command.add("--encoded="+dir+File.separator+test_name+ext);
       }
       if (SilverBackend.silver_module.used()){
-        args[0]+=" --silver-module="+SilverBackend.silver_module.get();
+        command.add("--silver-module="+SilverBackend.silver_module.get());
       }
-      //p=new MessageProcess(args);
+
+      command.add(args[2]);
+
+      p=new MessageProcess(command.toArray(new String[0]));
       break;
     case "z3":
       sh=Configuration.getShell(vct.boogie.Main.z3_module.get());
@@ -116,7 +117,7 @@ public class ToolTest {
        */
       for(int i=1;i<args.length;i++){
         if (args[i].startsWith("/") && new File(args[i]).isFile()){
-          Path path=sh.shell_dir.relativize(Paths.get(args[i]));
+          Path path=sh.getWorkingDirectory().relativize(Paths.get(args[i]));
           args[i]=path.toString();
         }
       }
@@ -132,7 +133,7 @@ public class ToolTest {
       }
       sh.send("%s",cmd);
       sh.send("exit");
-      p=sh.getProcess();
+      p=sh;
     }
     for(;;){
       Message msg=p.recv();

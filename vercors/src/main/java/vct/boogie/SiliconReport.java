@@ -4,7 +4,6 @@ package vct.boogie;
 import hre.ast.Origin;
 import hre.ast.TrackingTree;
 import hre.io.Message;
-import hre.io.ModuleShell;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,6 +12,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import hre.io.MessageProcess;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -60,7 +60,7 @@ public class SiliconReport extends hre.util.TestReport {
 	}
 
   //public BoogieReport(InputStream stream,String filename,TrackingTree tree) throws IOException {
-  public SiliconReport(ModuleShell shell, File boogie_xml_file, TrackingTree tree) throws IOException {
+  public SiliconReport(MessageProcess shell, File boogie_xml_file, TrackingTree tree) throws IOException {
     String line;
     for(;;){
       Message msg=shell.recv();

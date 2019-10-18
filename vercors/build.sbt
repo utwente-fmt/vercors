@@ -1,4 +1,5 @@
 import NativePackagerHelper._
+ThisBuild / turbo := true
 
 enablePlugins(PackPlugin)
 enablePlugins(JavaAppPackaging)
@@ -12,7 +13,7 @@ lazy val vercors = (project in file("."))
   .settings(
     name := "Vercors",
     organization := "University of Twente",
-    version := "0.1-SNAPSHOT",
+    version := "1.0.0",
     scalaVersion := "2.12.7",
 
     libraryDependencies += "commons-io" % "commons-io" % "2.4",
@@ -26,22 +27,25 @@ lazy val vercors = (project in file("."))
     scalacOptions += "-feature",
     scalacOptions += "-unchecked",
     scalacOptions += "-Dscalac.patmat.analysisBudget=off",
+    
+    // Disable documentation generation
+    sources in (Compile, doc) := Seq(),
+
+    mappings in Universal += file("../README.md") -> "README.md",
+    mappings in Universal ++= directory("../examples"),
 
     sources in doc in Compile := List(),
 
     discoveredMainClasses in Compile := Seq(),
     mainClass in Compile := Some("vct.main.Main"),
 
-    mappings in Universal ++= directory("../deps") -> "lib/deps",
-    mappings in Universal ++= directory("../config") -> "lib/config",
-
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
     // repository that contains all classes and resources relevant for testing.
     // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
     // allows them to access the Sil test suite.
-
     publishArtifact in(Test, packageBin) := true,
 
+    mainClass in (Compile, run) := Some("vct.main.Main"),
     assembly / mainClass := Some("vct.main.Main"),    // Define JAR's entry point
     assemblyMergeStrategy in assembly := {
       case "logback.xml" => MergeStrategy.first

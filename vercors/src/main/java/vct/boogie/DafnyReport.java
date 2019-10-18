@@ -4,7 +4,8 @@ package vct.boogie;
 import hre.ast.Origin;
 import hre.ast.TrackingTree;
 import hre.io.Message;
-import hre.io.ModuleShell;
+import hre.io.MessageProcess;
+
 import static hre.lang.System.Debug;
 import static hre.lang.System.Warning;
 
@@ -16,7 +17,7 @@ import static hre.lang.System.Warning;
  */
 public class DafnyReport extends hre.util.TestReport {
   
-  public DafnyReport(ModuleShell shell,TrackingTree tree){
+  public DafnyReport(MessageProcess shell, TrackingTree tree){
     try {
       String line;
       for(;;){

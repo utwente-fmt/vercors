@@ -1,5 +1,6 @@
 package vct.col.ast.util;
 
+import hre.lang.Failure;
 import hre.util.SingleNameSpace;
 import vct.col.ast.expr.BindingExpression;
 import vct.col.ast.expr.MethodInvokation;
@@ -618,6 +619,15 @@ public abstract class ASTFrame<T> {
       hre.lang.System.Fail(format,args);
     }
   }
+
+  public Failure Failure(String format, Object... args) {
+    if(current_node() != null) {
+      return hre.lang.System.Failure("At " + current_node() + ": " + format, args);
+    } else {
+      return hre.lang.System.Failure(format, args);
+    }
+  }
+
   public void Warning(String format,Object ...args){
     if (current_node()!=null){
       hre.lang.System.Warning("("+this.getClass()+"): at "+current_node().getOrigin()+": "+format, args);

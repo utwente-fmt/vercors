@@ -2,6 +2,7 @@ package vct.verifast;
 
 import java.io.*;
 
+import hre.io.MessageProcess;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.syntax.JavaDialect;
 import vct.col.syntax.JavaSyntax;
@@ -9,7 +10,6 @@ import vct.util.Configuration;
 import hre.ast.TrackingOutput;
 import hre.ast.TrackingTree;
 import hre.config.StringSetting;
-import hre.io.ModuleShell;
 import hre.io.SplittingOutputStream;
 
 public class Main {
@@ -22,9 +22,9 @@ public class Main {
 
   
   public static VeriFastReport TestVerifast(ProgramUnit arg){
-    ModuleShell shell=Configuration.getShell(verifast_module.get());
+    MessageProcess shell=Configuration.getShell(verifast_module.get());
     try {
-      File input_file=File.createTempFile("verifast-input",".java",shell.shell_dir.toFile());
+      File input_file=File.createTempFile("verifast-input",".java",shell.getWorkingDirectory().toFile());
       input_file.deleteOnExit();
       final PrintWriter input;
       

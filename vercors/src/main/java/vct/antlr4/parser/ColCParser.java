@@ -25,7 +25,7 @@ public class ColCParser extends ColIParser {
         Runtime runtime=Runtime.getRuntime();
                     	
       	String command=Configuration.cpp_command.get();
-      	command+=" -nostdinc -isystem "+Configuration.getHome().resolve("include");
+      	command+=" -nostdinc -isystem " + Configuration.getCIncludePath().getAbsolutePath();
         for(String p:Configuration.cpp_include_path){
           command+=" -I"+p;
         }

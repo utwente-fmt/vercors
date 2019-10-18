@@ -4,7 +4,7 @@ package vct.boogie;
 import hre.ast.Origin;
 import hre.ast.TrackingTree;
 import hre.io.Message;
-import hre.io.ModuleShell;
+import hre.io.MessageProcess;
 
 import java.util.*;
 
@@ -19,7 +19,7 @@ import static hre.lang.System.Warning;
  */
 public class ChaliceReport extends hre.util.TestReport {
   
-  public ChaliceReport(ModuleShell shell,HashSet<Origin> must_refute, TrackingTree tree){
+  public ChaliceReport(MessageProcess shell, HashSet<Origin> must_refute, TrackingTree tree){
     HashSet<Origin> has_refuted=new HashSet<Origin>();
     int real_errors=0;
     try {

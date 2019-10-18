@@ -11,19 +11,12 @@ import vct.util.Configuration;
 
 public class RewriteSystems {
 
-  static final File default_file;
-  
-  static {
-    File tmp=new File(new File(Configuration.getHome().toFile(),"config"),"rules.java");
-    default_file=tmp.getAbsoluteFile();
-  }
-  
   static Map<File,ProgramUnit> systems=new ConcurrentHashMap<File,ProgramUnit>();
   
   public static RewriteSystem getRewriteSystem(String name){
     File f=new File(name+".jspec");
     if (!f.exists()){
-      f=new File(new File(Configuration.getHome().toFile(),"config"),name+".jspec");
+      f=Configuration.getConfigFile(name + ".jspec");
     }
     ProgramUnit unit=systems.get(f);
     if (unit==null) synchronized(systems){
