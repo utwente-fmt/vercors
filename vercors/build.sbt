@@ -1,4 +1,7 @@
+import NativePackagerHelper._
+
 enablePlugins(PackPlugin)
+enablePlugins(JavaAppPackaging)
 
 lazy val viper_api = (project in file("viper"))
 lazy val parsers = (project in file("parsers"))
@@ -23,6 +26,14 @@ lazy val vercors = (project in file("."))
     scalacOptions += "-feature",
     scalacOptions += "-unchecked",
     scalacOptions += "-Dscalac.patmat.analysisBudget=off",
+
+    sources in doc in Compile := List(),
+
+    discoveredMainClasses in Compile := Seq(),
+    mainClass in Compile := Some("vct.main.Main"),
+
+    mappings in Universal ++= directory("../deps") -> "lib/deps",
+    mappings in Universal ++= directory("../config") -> "lib/config",
 
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
     // repository that contains all classes and resources relevant for testing.
