@@ -32,7 +32,7 @@
         <attribute name="Main-Class" value="vct.main.Main"/>
         <attribute name="Built-By" value="${user.name}"/>
       </manifest>
-      <zipfileset src="vercors/target/scala-2.12/Vercors-assembly-1.0.0.jar" excludes="META-INF/*" />
+      <zipfileset src="vercors/target/scala-2.12/Vercors-assembly-1.1.0.jar" excludes="META-INF/*" />
     </jar>
   </target>
 
@@ -86,7 +86,7 @@
   <target name="dist" depends="assembly">
     <property name="prefix" value="vercors-dist"/>
     <mkdir dir="${dist}"/>
-    <zip destfile="${dist}/vercors-1.0.0.zip" >
+    <zip destfile="${dist}/vercors-1.1.0.zip" >
 			<!-- Z3 modules -->
       <zipfileset dir="${deps}/modules/z3" prefix="${prefix}/deps/modules/z3" excludes="**/*~" />
       <zipfileset dir="${deps}/z3" prefix="${prefix}/deps/z3" excludes="**/*~,**/*.cmd,**/*.exe,**/bin/*" />

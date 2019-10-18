@@ -39,10 +39,22 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
     if (elems.size() == 0) EmptySeq(t)(NoPosition,new OriginInfo(o))
     else ExplicitSeq(elems.asScala)(NoPosition,new OriginInfo(o))
    
-  override def range(o:O,e1:Exp,e2:Exp) :Exp = RangeSeq(e1,e2)(NoPosition,new OriginInfo(o))
-  override def index(o:O,e1:Exp,e2:Exp) :Exp = SeqIndex(e1,e2)(NoPosition,new OriginInfo(o))
-  override def take(o:O,e1:Exp,e2:Exp) :Exp = SeqTake(e1,e2)(NoPosition,new OriginInfo(o))
-  override def drop(o:O,e1:Exp,e2:Exp) :Exp = SeqDrop(e1,e2)(NoPosition,new OriginInfo(o))
+  override def range(o:O, e1:Exp, e2:Exp): Exp = RangeSeq(e1, e2)(NoPosition,new OriginInfo(o))
+  override def index(o:O, e1:Exp, e2:Exp): Exp = SeqIndex(e1, e2)(NoPosition,new OriginInfo(o))
+  override def take(o:O, e1:Exp, e2:Exp): Exp = SeqTake(e1, e2)(NoPosition,new OriginInfo(o))
+  override def drop(o:O, e1:Exp, e2:Exp): Exp = SeqDrop(e1, e2)(NoPosition,new OriginInfo(o))
+
+  // WO: couldn't find a matching AST node in Silver, so for now I'm translating it like this
+  override def slice(o: O, e1: Exp, e2: Exp, e3: Exp): Exp = {
+    val sub = Sub(e3, e2)(NoPosition, new OriginInfo(o))
+    val drop = SeqDrop(e1, e2)(NoPosition, new OriginInfo(o))
+    SeqTake(drop, sub)(NoPosition, new OriginInfo(o))
+  }
+
+  override def seq_update(o: O, e1: Exp, e2: Exp, e3: Exp): Exp = {
+    SeqUpdate(e1, e2, e3)(NoPosition, new OriginInfo(o))
+  }
+
   override def size(o:O,e1:Exp) :Exp = {
       e1.typ match {
         case SeqType(_) => SeqLength(e1)(NoPosition,new OriginInfo(o))

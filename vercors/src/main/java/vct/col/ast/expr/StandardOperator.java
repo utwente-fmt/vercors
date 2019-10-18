@@ -163,10 +163,14 @@ public enum StandardOperator {
   Size(1),
   /** pre-pre element to list */
   Cons(2),
-  /** Drop elements from a list */
+  /** Drop elements from a list (for example `xs[3..]`) */
   Drop(2),
-  /** Take elements from a list */
+  /** Take elements from a list  (for example `xs[..3]`) */
   Take(2),
+  /** Taking a slice from a list  (for example `xs[1..3]`) */
+  Slice(3),
+  /** Updating a single element in a sequence (for example `xs[1 -> 12]`). */
+  SeqUpdate(3),
   /** append two lists */
   Append(2),
   /** check if an element is a member of a container. */
