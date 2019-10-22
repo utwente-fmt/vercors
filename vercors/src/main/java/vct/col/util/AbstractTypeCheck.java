@@ -1215,6 +1215,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
       }
       case Div:
+      case FloorDiv:
       case Mod: {
         checkMathOperator(e, op, tt[0], tt[1]);
         break;
@@ -1506,6 +1507,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Fail("Second argument of %s is %s rather than a numeric type",op,t2);
     }
     if (op==StandardOperator.Minus && t1.isPrimitive(PrimitiveSort.Fraction)){
+      e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
+    } else if(op == StandardOperator.Div) {
       e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
     } else {
       e.setType(t1);
