@@ -18,11 +18,9 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
+import hre.io.MessageProcess;
+import hre.io.MessageProcessEnvironment;
 import puptol.PuptolConfig;
 import rise4fun.Rise4funConfig;
 import hre.config.BooleanSetting;
@@ -36,133 +34,167 @@ import vct.util.Configuration;
 
 import static hre.lang.System.*;
 
-
 public class CommandLineTesting {
+    private static StringListSetting includes = new StringListSetting();
+    private static Option include_option;
+    private static StringListSetting excludes = new StringListSetting();
+    private static Option exclude_option;
 
+    private static StringListSetting langs = new StringListSetting();
+    private static Option lang_option;
+    private static StringListSetting backends = new StringListSetting();
+    private static Option backend_option;
+    private static StringListSetting selftest = new StringListSetting();
+    private static Option append_option;
+    protected static StringSetting savedir = new StringSetting(null);
+    public static IntegerSetting workers = new IntegerSetting(1);
+    public static StringSetting puptol_file = new StringSetting(null);
+    private static Option puptolupdate =
+        puptol_file.getAssign("update experiments in puptol file");
+    public static BooleanSetting rise4fun = new BooleanSetting(false);
+    private static Option rise4fun_option = rise4fun.getEnable("yield rise4fun experiments as JSON");
+
+    private Rise4funConfig rise4funConfig = null;
+    private PuptolConfig puptolConfig = null;
+    private final TestcaseVisitor testcaseVisitor = new TestcaseVisitor();
+    private final HashMap<String, Integer> times = new HashMap<String, Integer>();
+    private final HashMap<String, Testcase> untested = new HashMap<String, Testcase>();
+    private final HashMap<String, String> failures = new HashMap<String, String>();
+
+    private MessageProcessEnvironment z3;
+    private MessageProcessEnvironment boogie;
+    private MessageProcessEnvironment chalice;
+    private MessageProcessEnvironment dafny;
+    private MessageProcessEnvironment carbon;
+    private MessageProcessEnvironment silicon;
+    private MessageProcessEnvironment vercors;
+
+    public CommandLineTesting() throws IOException {
+        z3 = Configuration.getZ3();
+        boogie = Configuration.getBoogie();
+        chalice = Configuration.getChalice();
+        dafny = Configuration.getDafny();
+        carbon = Configuration.getCarbon();
+        silicon = Configuration.getSilicon();
+        vercors = Configuration.getThisVerCors();
+    }
+
+    public static void add_options(OptionParser clops) {
+        append_option = selftest.getAppendOption("execute test suites from the command line. " +
+            "Each test suite is a folder which is scanned for valid test inputs");
+        clops.add(append_option, "test");
+        clops.add(backend_option = backends.getAppendOption("select the back ends to run tests for"), "tool");
+        clops.add(lang_option = langs.getAppendOption("select test input languages"), "lang");
+        clops.add(savedir.getAssign("save intermediate files to given directory"), "save-intermediate");
+        clops.add(include_option = includes.getAppendOption("include test suites"), "include-suite");
+        clops.add(exclude_option = excludes.getAppendOption("exclude test suites"), "exclude-suite");
+        clops.add(puptolupdate, "puptol-config");
+        clops.add(rise4fun_option, "rise4fun-json");
+        clops.add(workers.getAssign("set the number of parallel tests"), "test-workers");
+    }
 
     public static boolean enabled() {
         return append_option.used();
     }
 
-    public static void run_testsuites() {
-        HashMap<String, Runnable> tasks = new HashMap<>();
-
-        ToolTest tt = new ToolTest();
-        TestcaseVisitor tv = new TestcaseVisitor();
+    private void registerSelfTests(HashMap<String, Runnable> tasks) {
         for (String dir : selftest) {
             if (dir.equals("")) {
                 tasks.put("self-sat", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "z3", "-smt2", Configuration.getSelfTestPath("test-sat.smt").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, z3.withArgs("-smt2", Configuration.getSelfTestPath("test-sat.smt").getAbsolutePath()));
                     res.mustSay("p true");
                     res.mustSay("q true");
                     check(res, "z3", "sat");
                 });
 
                 tasks.put("self-unsat", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "z3", "-smt2", Configuration.getSelfTestPath("test-unsat.smt").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, z3.withArgs("-smt2", Configuration.getSelfTestPath("test-unsat.smt").getAbsolutePath()));
                     res.mustSay("unsat");
                     check(res, "z3", "unsat");
                 });
 
                 tasks.put("self-pass", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "boogie", Configuration.getSelfTestPath("test-pass.bpl").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, boogie.withArgs(Configuration.getSelfTestPath("test-pass.bpl").getAbsolutePath()));
                     res.mustSay("Boogie program verifier finished with 1 verified, 0 errors");
                     check(res, "boogie", "passing");
                 });
 
                 tasks.put("self-fail", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "boogie", Configuration.getSelfTestPath("test-fail.bpl").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, boogie.withArgs(Configuration.getSelfTestPath("test-fail.bpl").getAbsolutePath()));
                     res.mustSay("Boogie program verifier finished with 0 verified, 1 error");
                     check(res, "boogie", "failing");
                 });
 
                 tasks.put("self-pass-chalice", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "chalice", Configuration.getSelfTestPath("test-pass.chalice").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, chalice.withArgs(Configuration.getSelfTestPath("test-pass.chalice").getAbsolutePath()));
                     res.mustSay("Boogie program verifier finished with 3 verified, 0 errors");
                     check(res, "chalice", "passing");
                 });
 
                 tasks.put("self-fail-chalice", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "chalice", Configuration.getSelfTestPath("test-fail.chalice").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, chalice.withArgs(Configuration.getSelfTestPath("test-fail.chalice").getAbsolutePath()));
                     res.mustSay("Boogie program verifier finished with 2 verified, 1 error");
                     check(res, "chalice", "failing");
                 });
 
                 tasks.put("self-pass-dafny", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "dafny", "/compile:0", Configuration.getSelfTestPath("test-pass.dfy").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, dafny.withArgs("/compile:0", Configuration.getSelfTestPath("test-pass.dfy").getAbsolutePath()));
                     res.mustSay("Dafny program verifier finished with 2 verified, 0 errors");
                     check(res, "dafny", "passing");
                 });
 
                 tasks.put("self-fail-dafny", () -> {
-                    VCTResult res = runtest(tt, Verdict.Error, "dafny", "/compile:0", Configuration.getSelfTestPath("test-fail.dfy").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Error, dafny.withArgs("/compile:0", Configuration.getSelfTestPath("test-fail.dfy").getAbsolutePath()));
                     res.mustSay("Dafny program verifier finished with 1 verified, 1 error");
                     check(res, "dafny", "failing");
                 });
 
                 tasks.put("self-pass-carbon", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "carbon", Configuration.getSelfTestPath("test-pass.sil").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, carbon.withArgs(Configuration.getSelfTestPath("test-pass.sil").getAbsolutePath()));
                     res.mustSay("No errors found.");
                     check(res, "carbon", "passing");
                 });
 
                 tasks.put("self-fail-carbon", () -> {
-                    VCTResult res = runtest(tt, Verdict.Error, "carbon", Configuration.getSelfTestPath("test-fail.sil").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Error, carbon.withArgs(Configuration.getSelfTestPath("test-fail.sil").getAbsolutePath()));
                     res.mustSay("Assignment might fail. Divisor 0 might be zero.");
                     check(res, "carbon", "failing");
                 });
 
                 tasks.put("self-pass-silicon", () -> {
-                    VCTResult res = runtest(tt, Verdict.Inconclusive, "silicon", Configuration.getSelfTestPath("test-pass.sil").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Inconclusive, silicon.withArgs(Configuration.getSelfTestPath("test-pass.sil").getAbsolutePath()));
                     res.mustSay("No errors found.");
                     check(res, "silicon", "passing");
                 });
 
                 tasks.put("self-fail-silicon", () -> {
-                    VCTResult res = runtest(tt, Verdict.Error, "silicon", Configuration.getSelfTestPath("test-fail.sil").getAbsolutePath());
+                    VCTResult res = runtest(Verdict.Error, silicon.withArgs(Configuration.getSelfTestPath("test-fail.sil").getAbsolutePath()));
                     res.mustSay("Assignment might fail. Divisor 0 might be zero.");
                     check(res, "silicon", "failing");
                 });
             } else {
                 try {
                     EnumSet<FileVisitOption> opts = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
-                    Files.walkFileTree(Paths.get(dir), opts, 10, tv);
+                    Files.walkFileTree(Paths.get(dir), opts, 10, testcaseVisitor);
                 } catch (IOException e) {
                     DebugException(e);
                 }
             }
         }
+    }
 
-        String testcmd_prefix = "<test>";
-        PrintStream cmds = null;
-        if (command_file.used()) {
-             testcmd_prefix = "java -Xss128M -cp " + System.getProperty("java.class.path") + " vct.main.TestRun";
-            try {
-                cmds = new PrintStream(new FileOutputStream(command_file.get()));
-            } catch (FileNotFoundException e) {
-                System.exit(1);
-            }
-        }
-
+    private void registerTests(HashMap<String, Runnable> tasks) {
         // if enabled, construct new puptol configuration
-        PuptolConfig puptol_config = null;
         if (puptol_file.used()) {
-            puptol_config = new PuptolConfig();
+            puptolConfig = new PuptolConfig();
         }
 
         // if enabled, construct new rise4fun configuration
-        Rise4funConfig rise4fun_config = null;
         if (rise4fun.get()) {
-            rise4fun_config = new Rise4funConfig();
+            rise4funConfig = new Rise4funConfig();
         }
 
-        HashMap<String, Integer> times = new HashMap<String, Integer>();
-        int successes = 0;
-        HashMap<String, Testcase> untested = new HashMap<String, Testcase>();
-        HashMap<String, String> failures = new HashMap<String, String>();
-
-
-        for (Entry<String, Testcase> item : tv.testsuite.entrySet()) {
+        for (Entry<String, Testcase> item : testcaseVisitor.testsuite.entrySet()) {
             String name = item.getKey();
             Testcase test = item.getValue();
             if (test.tools.isEmpty()) {
@@ -217,7 +249,7 @@ public class CommandLineTesting {
                     for (Path f : test.files) file = f;
 
                     // add example to the rise4fun suite
-                    rise4fun_config.addExample(name, file.toString());
+                    rise4funConfig.addExample(name, file.toString());
 
                     // skip the actual test execution
                     continue;
@@ -226,7 +258,7 @@ public class CommandLineTesting {
                 if (puptol_file.used()) {
                     if (test.files.size() != 1) {
                         Output("cannot configure %s/%s in puptol: too many files",
-                                name, tool);
+                            name, tool);
                         continue;
                     }
                     Path file = null;
@@ -253,36 +285,23 @@ public class CommandLineTesting {
                         Debug("  option: %s", opt);
                     }
                     Debug("to be added to %s", experiment);
-                    puptol_config.add(experiment, path, name, tool, filename, test.options);
+                    puptolConfig.add(experiment, path, name, tool, filename, test.options);
                     continue;
                 }
-                ArrayList<String> cmd = new ArrayList<String>();
-                cmd.add("vct");
+                MessageProcessEnvironment env = vercors.copy();
                 switch (tool) {
                     case "silicon":
                     case "carbon":
-                        cmd.add("--silver=" + tool);
+                        env.addArg("--silver=" + tool);
                         break;
                     default:
-                        cmd.add("--" + tool);
+                        env.addArg("--" + tool);
                 }
-                for (String opt : test.options) cmd.add(opt);
-                for (Path f : test.files) cmd.add(f.toAbsolutePath().toString());
-                if (command_file.used()) {
-                    String testcmd = testcmd_prefix + test.verdict;
-                    for (String s : cmd) {
-                        testcmd += " " + s;
-                    }
-                    Progress("test %s/%s : %s", name, tool, testcmd);
-                    cmds.printf("test %s::%s << EOF%n", name, tool);
-                    cmds.printf("%s%n", testcmd);
-                    cmds.printf("EOF%n");
-                    continue;
-                }
-                Debug("%s", String.join(" ", cmd));
+                for (String opt : test.options) env.addArg(opt);
+                for (Path f : test.files) env.addArg(f.toAbsolutePath().toString());
                 tasks.put("suite-" + item.getKey(), () -> {
                     try {
-                        TestResult tr = new TestResult(cmd, tt, test, name, tool).call();
+                        TestResult tr = new TestResult(env, test, name, tool).call();
                         times.put(tr.name + "/" + tr.tool, tr.res.times.get("entire run"));
                         if (tr.res.verdict == null) {
                             tr.res.verdict = Verdict.Error;
@@ -293,14 +312,14 @@ public class CommandLineTesting {
                                 if (method.equals("any")) continue;
                                 if (!contains_method(tr.res.pass_methods, method)) {
                                     failures.put(tr.name + "/" + tr.tool + "/" + method, String.format(
-                                            "method did not pass"));
+                                        "method did not pass"));
                                     ok = false;
                                 }
                             }
                             for (String method : tr.test.fail_methods) {
                                 if (!contains_method(tr.res.fail_methods, method)) {
                                     failures.put(tr.name + "/" + tr.tool + "/" + method, String.format(
-                                            "method did not fail"));
+                                        "method did not fail"));
                                     ok = false;
                                 }
                             }
@@ -308,7 +327,7 @@ public class CommandLineTesting {
                                 for (String failed : tr.res.fail_methods) {
                                     if (!allowed_method(tr.test.fail_methods, failed)) {
                                         failures.put(tr.name + "/" + tr.tool + "/" + failed, String.format(
-                                                "method failed unexpectedly"));
+                                            "method failed unexpectedly"));
                                         ok = false;
                                     }
                                 }
@@ -317,13 +336,11 @@ public class CommandLineTesting {
                                 Progress("%s/%s: Pass", tr.name, tr.tool);
                             } else {
                                 Progress("%s/%s: Fail (method list)", tr.name, tr.tool);
-                                Debug("%s", String.join(" ", tr.command));
                             }
                         } else {
                             Progress("%s/%s: Fail (%s/%s)", tr.name, tr.tool, tr.res.verdict, tr.test.verdict);
-                            Debug("%s", String.join(" ", tr.command));
                             failures.put(tr.name + "/" + tr.tool, String.format(
-                                    "verdict is %s instead of %s", tr.res.verdict, tr.test.verdict));
+                                "verdict is %s instead of %s", tr.res.verdict, tr.test.verdict));
                         }
                     } catch (Exception e) {
                         DebugException(e);
@@ -332,45 +349,50 @@ public class CommandLineTesting {
                 });
             }
         }
+    }
 
+    private void runTests(HashMap<String, Runnable> tasks) {
         ArrayList<String> sortedTaskKeys = new ArrayList<>(tasks.keySet());
         Collections.sort(sortedTaskKeys);
 
-        int splitModulus = 1, splitOffset = 0;
+        int splitDivisor = 1, splitModulus = 0;
 
         String split = System.getenv("SPLIT");
-        if(split != null) {
+        if (split != null) {
             String[] parts = split.split("/");
 
-            if(parts.length != 2) {
+            if (parts.length != 2) {
                 Warning("%s", "SPLIT environment variable in incorrect format, will ignore and run all tests.");
             }
 
             try {
                 // Temp, because we want to parse both integers first before setting the variables.
                 int temp = Integer.parseInt(parts[0]);
-                splitModulus = Integer.parseInt(parts[1]);
-                splitOffset = temp;
-            } catch(NumberFormatException e) {
+                splitDivisor = Integer.parseInt(parts[1]);
+                splitModulus = temp;
+            } catch (NumberFormatException e) {
                 Warning("%s", "SPLIT environment variable in incorrect format, will ignore and run all tests.");
             }
         }
 
-        for(int i = splitOffset; i < sortedTaskKeys.size(); i += splitModulus) {
+        for (int i = splitModulus; i < sortedTaskKeys.size(); i += splitDivisor) {
             tasks.get(sortedTaskKeys.get(i)).run();
         }
+    }
+
+    private void printResults() {
 
         // if rise4fun configuration is enabled, write the config data as JSON to stderr
         if (rise4fun.get()) {
-            Debug("%s", rise4fun_config.toJson());
+            Debug("%s", rise4funConfig.toJson());
         }
 
         if (puptol_file.used()) {
-            puptol_config.update(puptol_file.get());
+            puptolConfig.update(puptol_file.get());
         }
         boolean pass = true;
-        for (String file : tv.files_by_name.keySet()) {
-            Set<Path> items = tv.files_by_name.get(file);
+        for (String file : testcaseVisitor.files_by_name.keySet()) {
+            Set<Path> items = testcaseVisitor.files_by_name.get(file);
             if (items.size() > 1) {
                 Warning("Warning: there are multiple instance of %s:", file);
                 for (Path p : items) {
@@ -399,6 +421,7 @@ public class CommandLineTesting {
         for (String t : list) {
             Output("%35s: %10d", t, times.get(t));
         }
+        int successes = 0;
         if (failures.isEmpty()) {
             Verdict("all %d tests passed", successes);
         } else {
@@ -409,10 +432,10 @@ public class CommandLineTesting {
             }
             Verdict("total %s successes and %d failures", successes, failures.size());
         }
-        if (tv.unmarked.size() > 0) {
+        if (testcaseVisitor.unmarked.size() > 0) {
             pass = false;
-            Warning("there were %d unmarked files:", tv.unmarked.size());
-            for (Path p : tv.unmarked) {
+            Warning("there were %d unmarked files:", testcaseVisitor.unmarked.size());
+            for (Path p : testcaseVisitor.unmarked) {
                 Warning("  %s", p);
             }
         }
@@ -421,6 +444,15 @@ public class CommandLineTesting {
         } else {
             System.exit(1);
         }
+    }
+
+    public void runAll() {
+        HashMap<String, Runnable> tasks = new HashMap<>();
+
+        registerSelfTests(tasks);
+        registerTests(tasks);
+        runTests(tasks);
+        printResults();
     }
 
     private static boolean allowed_method(HashSet<String> fail_methods, String failed) {
@@ -453,88 +485,36 @@ public class CommandLineTesting {
         }
     }
 
-    private static VCTResult runtest(ToolTest tt, Verdict expect, String... args) {
+    private static VCTResult runtest(Verdict expect, MessageProcessEnvironment env) {
         Progress("executing");
-        for (String s : args) Debug(" %s", s);
-        VCTResult res;
-        res = tt.run(args);
+        VCTResult res = new ToolTest().run(env);
         if (res.verdict == expect) {
             res.verdict = Verdict.Pass;
         } else {
-            Fail("%s did not execute properly", args[0]);
+            Fail("%s did not execute properly", env.getProcess());
         }
         return res;
     }
-
-    private static StringListSetting includes = new StringListSetting();
-    private static Option include_option;
-    private static StringListSetting excludes = new StringListSetting();
-    private static Option exclude_option;
-
-
-    private static StringListSetting langs = new StringListSetting();
-    private static Option lang_option;
-    private static StringListSetting backends = new StringListSetting();
-    private static Option backend_option;
-    private static StringListSetting selftest = new StringListSetting();
-    private static Option append_option;
-    protected static StringSetting savedir = new StringSetting(null);
-
-    public static IntegerSetting workers = new IntegerSetting(1);
-
-    public static StringSetting command_file = new StringSetting(null);
-    private static Option commandlines =
-            command_file.getAssign("output file with list of commands instead");
-
-    public static StringSetting puptol_file = new StringSetting(null);
-    private static Option puptolupdate =
-            puptol_file.getAssign("update experiments in puptol file");
-
-    public static BooleanSetting rise4fun = new BooleanSetting(false);
-    private static Option rise4fun_option = rise4fun.getEnable("yield rise4fun experiments as JSON");
-
-    public static void add_options(OptionParser clops) {
-        append_option = selftest.getAppendOption("execute test suites from the command line. " +
-                "Each test suite is a folder which is scanned for valid test inputs");
-        clops.add(append_option, "test");
-        clops.add(backend_option = backends.getAppendOption("select the back ends to run tests for"), "tool");
-        clops.add(lang_option = langs.getAppendOption("select test input languages"), "lang");
-        clops.add(savedir.getAssign("save intermediate files to given directory"), "save-intermediate");
-        clops.add(include_option = includes.getAppendOption("include test suites"), "include-suite");
-        clops.add(exclude_option = excludes.getAppendOption("exclude test suites"), "exclude-suite");
-        clops.add(commandlines, "commands");
-        clops.add(puptolupdate, "puptol-config");
-        clops.add(rise4fun_option, "rise4fun-json");
-        clops.add(workers.getAssign("set the number of parallel tests"), "test-workers");
-    }
-
 }
 
 class TestResult implements Callable<TestResult> {
 
-    public TestResult(ArrayList<String> cmd, ToolTest tt, Testcase test, String name, String tool) {
-        command = cmd.toArray(new String[0]);
-        this.tt = tt;
+    public TestResult(MessageProcessEnvironment env, Testcase test, String name, String tool) {
+        this.env = env;
         this.test = test;
         this.name = name;
         this.tool = tool;
     }
 
     String name;
-
     String tool;
-
     Testcase test;
-
     VCTResult res;
-
-    String command[];
-
-    ToolTest tt;
+    MessageProcessEnvironment env;
 
     @Override
     public TestResult call() throws Exception {
-        res = tt.run(command);
+        res = new ToolTest().run(env);
         return this;
     }
 

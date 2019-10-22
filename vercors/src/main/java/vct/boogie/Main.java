@@ -7,6 +7,7 @@ import hre.config.IntegerSetting;
 import hre.config.StringSetting;
 import hre.io.Message;
 import hre.io.MessageProcess;
+import hre.io.MessageProcessEnvironment;
 import hre.io.SplittingOutputStream;
 
 import java.io.*;
@@ -31,8 +32,8 @@ public class Main {
    */
   public static BoogieReport TestBoogie(ProgramUnit arg){
     int timeout=boogie_timeout.get();
-    MessageProcess shell=Configuration.getShell(z3_module.get(),boogie_module.get());
     try {
+      MessageProcessEnvironment shell = Configuration.getBoogie();
       File boogie_input_file=File.createTempFile("boogie-input",".bpl",shell.getWorkingDirectory().toFile());
       boogie_input_file.deleteOnExit();
       final PrintWriter boogie_input;
@@ -50,14 +51,11 @@ public class Main {
       TrackingTree tree=boogie_code.close();
       File boogie_xml_file=File.createTempFile("boogie-output",".xml",shell.getWorkingDirectory().toFile());
       boogie_xml_file.deleteOnExit();
-      //shell.send("which boogie");
-      //shell.send("pwd");
-      //shell.send("ls -al");
-      shell.send("boogie /timeLimit:%s /xml:%s %s",timeout,boogie_xml_file.getName(),boogie_input_file.getName());
-      //shell.send("ls -al");
-      shell.send("exit");
-      BoogieReport output=new BoogieReport("Boogie",shell,boogie_xml_file,tree);
-      return output;
+      shell.addArg("/timeLimit:" + timeout);
+      shell.addArg("/xml:" + boogie_xml_file.getName());
+      shell.addArg(boogie_input_file.getName());
+      MessageProcess process = shell.startProcess();
+      return new BoogieReport("Boogie", process, boogie_xml_file, tree);
     } catch (Exception e) {
       DebugException(e);
       hre.lang.System.Abort("internal error");
@@ -71,8 +69,8 @@ public class Main {
    */
   public static DafnyReport TestDafny(ProgramUnit arg){
     int timeout=boogie_timeout.get();
-    MessageProcess shell=Configuration.getShell(z3_module.get(),dafny_module.get());
     try {
+      MessageProcessEnvironment shell = Configuration.getDafny();
       File boogie_input_file=File.createTempFile("dafny-input",".dfy",shell.getWorkingDirectory().toFile());
       boogie_input_file.deleteOnExit();
       final PrintWriter boogie_input;
@@ -88,17 +86,10 @@ public class Main {
       TrackingOutput boogie_code=new TrackingOutput(boogie_input,true);
       BoogieSyntax.getDafny().print(boogie_code,arg);
       TrackingTree tree=boogie_code.close();
-      //File boogie_xml_file=File.createTempFile("dafny-output",".xml",shell.shell_dir.toFile());
-      //boogie_xml_file.deleteOnExit();
-      //shell.send("which boogie");
-      //shell.send("pwd");
-      //shell.send("ls -al");
-      //shell.send("dafny /compile:0 /timeLimit:%s /xml:%s %s",timeout,boogie_xml_file.getName(),boogie_input_file.getName());
-      shell.send("dafny /compile:0 /timeLimit:%s %s",timeout,boogie_input_file.getName());
-      //shell.send("ls -al");
-      shell.send("exit");
-      DafnyReport output=new DafnyReport(shell,tree);
-      return output;
+      shell.addArg("/compile:0");
+      shell.addArg("/timeLimit:" + timeout);
+      shell.addArg(boogie_input_file.getName());
+      return new DafnyReport(shell.startProcess(), tree);
     } catch (Exception e) {
       DebugException(e);
       hre.lang.System.Abort("internal error");
@@ -113,14 +104,12 @@ public class Main {
    */
   public static ChaliceReport TestChalice(final ProgramUnit program){
     int timeout=boogie_timeout.get();
-    MessageProcess shell=Configuration.getShell(z3_module.get(),boogie_module.get(),chalice_module.get());
-    File shell_dir=shell.getWorkingDirectory().toFile();
-    Output("Checking with Chalice");
     try {
+      MessageProcessEnvironment shell=Configuration.getChalice();
+      File shell_dir=shell.getWorkingDirectory().toFile();
+      Output("Checking with Chalice");
       File chalice_input_file=File.createTempFile("chalice-input",".chalice",shell_dir);
-      //if (!vct.util.Configuration.keep_temp_files.get()){
-        chalice_input_file.deleteOnExit();
-      //}
+      chalice_input_file.deleteOnExit();
       final PrintWriter chalice_input;
       
       if (vct.util.Configuration.backend_file.get()==null){
@@ -133,74 +122,15 @@ public class Main {
       }
       final TrackingOutput chalice_code=new TrackingOutput(chalice_input,true);
       AbstractBoogiePrinter printer=BoogieSyntax.getChalice().print(chalice_code, program);
-      /*
-      final ChalicePrinter printer=new ChalicePrinter(chalice_code);
-      
-      for(ASTClass cl:program.classes()){
-        if (cl.getStaticCount()>0){
-          throw new Error("class "+cl.getName()+" has static entries");
-        } else {
-          cl.accept(printer);
-        }
-      }
-      */
       TrackingTree tree=chalice_code.close();
-        //shell.send("which chalice");
-        //shell.send("pwd");
-        //shell.send("ls -al");
-        shell.send("chalice -boogieOpt:timeLimit:%d -noTermination %s",timeout,chalice_input_file.getName());
-        //shell.send("ls -al");
-        shell.send("exit");
-        ChaliceReport output=new ChaliceReport(shell,((ChalicePrinter)printer).refutes,tree);
-        return output;
+      shell.addArg("-boogieOpt:timeLimit:" + timeout);
+      shell.addArg("-noTermination");
+      shell.addArg(chalice_input_file.getName());
+      return new ChaliceReport(shell.startProcess(),((ChalicePrinter)printer).refutes,tree);
     } catch (Exception e) {
       Warning("error: ");
       DebugException(e);
       return null;
     }
-  }
-
-  /**
-   * Pretty print a Chalice program and optionally verify it.
-   * 
-   * @param program AST of the Chalice program.
-   *
-   */
-  public static SiliconReport TestSilicon(final ProgramUnit program){
-    MessageProcess shell=Configuration.getShell(z3_module.get(),silicon_module.get());
-    File shell_dir=shell.getWorkingDirectory().toFile();
-    Output("Checking with chalice2sil and silicon");
-    try {
-      File chalice_input_file=File.createTempFile("chalice-input",".chalice",shell_dir);
-      //if (!vct.util.Configuration.keep_temp_files.get()){
-        chalice_input_file.deleteOnExit();
-      //}
-      final PrintWriter chalice_input;
-      
-      if (vct.util.Configuration.backend_file.get()==null){
-        chalice_input=new PrintWriter(chalice_input_file);
-      } else {
-        OutputStream temp=new FileOutputStream(chalice_input_file);
-        File encoded_file=new File(vct.util.Configuration.backend_file.get());
-        OutputStream encoded=new FileOutputStream(encoded_file);
-        chalice_input=new PrintWriter(new SplittingOutputStream(temp,encoded));
-      }
-      final TrackingOutput chalice_code=new TrackingOutput(chalice_input,true);
-      BoogieSyntax.getChalice().print(chalice_code, program);
-      TrackingTree tree=chalice_code.close();
-      File silicon_xml_file=File.createTempFile("silicon-output",".xml",shell.getWorkingDirectory().toFile());
-      silicon_xml_file.deleteOnExit();
-      shell.send("chalice --xml %s %s",silicon_xml_file.getName(),chalice_input_file.getName());
-      shell.send("exit");
-      SiliconReport output=new SiliconReport(shell,silicon_xml_file,tree);
-      return output;
-    } catch (Exception e) {
-      Warning("error: ");
-      DebugException(e);
-      return null;
-    }
-
   }
 }
-
-

@@ -153,7 +153,7 @@ public class SilverBackend {
     try {
       HashSet<Origin> reachable=new HashSet<Origin>();
       List<? extends ViperError<Origin>> errs=verifier.verify(
-          Configuration.getZ3Path(),settings,program,reachable,control);
+          Configuration.getZ3Path().toPath(),settings,program,reachable,control);
       if (errs.size()>0){
         for(ViperError<Origin> e:errs){
           log.error(e);

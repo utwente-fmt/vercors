@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.function.Supplier;
 
 import hre.io.MessageProcess;
+import hre.io.MessageProcessEnvironment;
 import vct.antlr4.parser.Parsers;
 import vct.col.syntax.JavaDialect;
 import vct.col.syntax.JavaSyntax;
@@ -106,9 +107,7 @@ public class Configuration {
         clops.add(detailed_errors.getEnable("produce detailed error messages"),"detail");
         clops.add(backend_file.getAssign("filename for storing the back-end input"),"encoded");
         clops.add(vct.boogie.Main.boogie_timeout.getAssign("boogie time limit"),"boogie-limit");
-        clops.add(vct.silver.SilverBackend.silver_module.getAssign("name of the silver environment module"),"silver-module");
         clops.add(vct.silver.SilverBackend.silicon_z3_timeout.getAssign("Set the Z3 timeout for Silicon"),"silicon-z3-timeout");
-        // clops.add(pvl_type_check.getDisable("disable type check in PVL parser"),"no-pvl-check");
         clops.add(assume_single_group.getEnable("enable single group assumptions"),"single-group");
         clops.add(auto_barrier.getDisable("Disable automatic permission revokation for barriers"),"disable-auto-barrier");
         clops.add(enable_resource_check.getDisable("disable barrier resource check during kernel verification"),"disable-resource-check");
@@ -181,6 +180,18 @@ public class Configuration {
         }
     }
 
+    public static File getBoogieZ3Path() {
+        return getZ3Path();
+    }
+
+    public static File getDafnyZ3Path() {
+        return getZ3Path();
+    }
+
+    public static File getChaliceZ3Path() {
+        return getZ3Path();
+    }
+
     public static File getBoogiePath() {
         File base = getFileOrAbort("/deps/boogie/2012-10-22/");
         String os = System.getProperty("os.name");
@@ -203,57 +214,95 @@ public class Configuration {
         }
     }
 
-    public static MessageProcess getShell(String ... modules){
-        return null;
-        ModuleShell shell;
-        try {
-            if (modules.length==0){
-                return new ModuleShell();
-            }
-            shell = new ModuleShell(getHome().resolve(Paths.get("modules")));
-            for (String p:modulepath){
-                shell.send("module use %s",p);
-            }
-            for (String m:modules){
-                shell.send("module load %s",m);
-            }
-            shell.send("module list -t");
-            shell.send("echo ==== 1>&2");
-            String line;
-            for(;;){
-                Message msg=shell.recv();
-                if (msg.getFormat().equals("stdout: %s")){
-                    line=(String)msg.getArg(0);
-                    continue;
-                }
-                if (msg.getFormat().equals("stderr: %s")){
-                    line=(String)msg.getArg(0);
-                    if (line.equals("Currently Loaded Modulefiles:")) break;
-                    if (line.equals("No Modulefiles Currently Loaded.")) break;
-                    continue;
-                }
-                Warning("unexpected shell response");
-                Abort(msg.getFormat(),msg.getArgs());
-            }
-            for(;;){
-                Message msg=shell.recv();
-                Debug(msg.getFormat(),msg.getArgs());
-                String fmt=msg.getFormat();
-                if (fmt.equals("stderr: %s")||fmt.equals("stdout: %s")){
-                    line=(String)msg.getArg(0);
-                    if (line.contains("echo ====")) continue;
-                    if (line.contains("====")) break;
-                    Progress("module %s loaded",line);
-                    continue;
-                }
-                Warning("unexpected shell response");
-                Abort(msg.getFormat(),msg.getArgs());
-            }
-        } catch (IOException e) {
-            DebugException(e);
-            throw new Error(e.getMessage());
+    public static File getDafnyPath() {
+        File base = getFileOrAbort("/deps/dafny/1.9.6/");
+        String os = System.getProperty("os.name");
+
+        if(os.startsWith("Windows")) {
+            return join(base, "windows");
+        } else {
+            return join(base, "unix");
         }
-        return shell;
+    }
+
+    public static MessageProcessEnvironment getZ3() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment("z3");
+        env.setTemporaryWorkingDirectory();
+        env.addPath(getZ3Path().getAbsolutePath());
+        return env;
+    }
+
+    public static MessageProcessEnvironment getBoogie() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment("boogie");
+        env.setTemporaryWorkingDirectory();
+        env.setEnvironmentVar("BOOGIE_Z3_EXE", getBoogieZ3Path().getAbsolutePath());
+        env.addPath(getBoogiePath().getAbsolutePath());
+        env.addPath(getBoogieZ3Path().getAbsolutePath());
+        return env;
+    }
+
+    public static MessageProcessEnvironment getDafny() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment("dafny");
+        env.setTemporaryWorkingDirectory();
+        env.addPath(getDafnyPath().getAbsolutePath());
+        env.addPath(getDafnyZ3Path().getParentFile().getAbsolutePath());
+        return env;
+    }
+
+    public static MessageProcessEnvironment getChalice() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment("chalice");
+        env.setTemporaryWorkingDirectory();
+        env.addPath(getChalicePath().getAbsolutePath());
+        env.addPath(getBoogiePath().getAbsolutePath());
+        env.addPath(getChaliceZ3Path().getAbsolutePath());
+        return env;
+    }
+
+    private static File getThisJava() throws IOException {
+        File javaHome = new File(System.getProperty("java.home"));
+        File javaBin = join(javaHome, "bin");
+        File javaExe;
+
+        if((javaExe = join(javaBin, "java")).exists()) {
+            return javaExe;
+        } else if((javaExe = join(javaBin, "java.exe")).exists()) {
+            return javaExe;
+        } else {
+            throw new IOException("Could not find the current java.");
+        }
+    }
+
+    public static MessageProcessEnvironment getThisVerCors() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
+        env.setTemporaryWorkingDirectory();
+        // We need the current path, as vercors e.g. needs clang on the path.
+        String[] thisPath = System.getenv("PATH").split(File.pathSeparator);
+        for(String thisPathPart : thisPath) {
+            env.addPath(thisPathPart);
+        }
+        env.addArg("-Xss128M");
+        env.addArg("-cp", System.getProperty("java.class.path"));
+        env.addArg("vct.main.Main");
+        env.addArg("--debug", "vct.antlr4.parser.ColCParser");
+        return env;
+    }
+
+    public static MessageProcessEnvironment getCarbon() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
+        env.setTemporaryWorkingDirectory();
+        env.addArg("-Xss128M");
+        env.addArg("-cp", System.getProperty("java.class.path"));
+        env.addArg("viper.api.CarbonVerifier");
+        return env;
+    }
+
+    public static MessageProcessEnvironment getSilicon() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
+        env.setTemporaryWorkingDirectory();
+        env.addArg("-Xss128M");
+        env.addArg("-cp", System.getProperty("java.class.path"));
+        env.addArg("viper.api.SiliconVerifier");
+        return env;
     }
 
     /**

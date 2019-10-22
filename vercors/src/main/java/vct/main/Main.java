@@ -109,14 +109,10 @@ public class Main
       clops.add(boogie.getEnable("select Boogie backend"),"boogie");
       BooleanSetting chalice=new BooleanSetting(false);
       clops.add(chalice.getEnable("select Chalice backend"),"chalice");
-      BooleanSetting chalice2sil=new BooleanSetting(false);
-      clops.add(chalice2sil.getEnable("select Silicon backend via chalice2sil"),"chalice2sil");
       final StringSetting silver=new StringSetting("silver");
       clops.add(silver.getAssign("select Silver backend (silicon/carbon)"),"silver");
       clops.add(silver.getAssign("select Silicon backend","silicon"),"silicon");
       clops.add(silver.getAssign("select Carbon backend","carbon"),"carbon");
-      BooleanSetting verifast=new BooleanSetting(false);
-      clops.add(verifast.getEnable("select Verifast backend"),"verifast");
       BooleanSetting dafny=new BooleanSetting(false);
       clops.add(dafny.getEnable("select Dafny backend"),"dafny");
 
@@ -243,10 +239,10 @@ public class Main
         throw new HREExitException(0);
       }
       if (CommandLineTesting.enabled()){
-        CommandLineTesting.run_testsuites();
+        new CommandLineTesting().runAll();
         throw new HREExitException(0);
       }
-      if (!(boogie.get() || chalice.get() || chalice2sil.get() || silver.used() || dafny.get() || verifast.get() || pass_list.iterator().hasNext())) {
+      if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
       }
       if (silver.used()){
@@ -335,13 +331,7 @@ public class Main
         //passes.add("reorder");
         //passes.add("check");
         passes.add("dafny"); // run backend
-      } else if (verifast.get()) {
-        passes=new LinkedBlockingDeque<String>();
-        passes.add("java_resolve");
-        passes.add("standardize");
-        passes.add("check");
-        passes.add("verifast"); // run backend
-      } else if (silver.used()||chalice.get()||chalice2sil.get()) {
+      } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
         passes.add("java_resolve");
 
@@ -569,12 +559,7 @@ public class Main
           passes.add("chalice-preprocess");
           passes.add("standardize");
           passes.add("check");
-
-          if (chalice.get()){
-            passes.add("chalice"); // call backend
-          } else {
-            passes.add("silicon-chalice"); // call backend
-          }
+          passes.add("chalice");
         }
       } else {
       	Abort("no back-end or passes specified");
@@ -720,11 +705,6 @@ public class Main
     defined_checks.put("dafny",new ValidationPass("verify with Dafny"){
       public TestReport apply(ProgramUnit arg,String ... args){
         return vct.boogie.Main.TestDafny(arg);
-      }
-    });
-    defined_checks.put("silicon-chalice",new ValidationPass("verify Chalice code with Silicon"){
-      public TestReport apply(ProgramUnit arg,String ... args){
-        return vct.boogie.Main.TestSilicon(arg);
       }
     });
     defined_checks.put("silver",new ValidationPass("verify input with Silver"){
@@ -1109,14 +1089,6 @@ public class Main
     defined_passes.put("strip_constructors",new CompilerPass("Strip constructors from classes"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new StripConstructors(arg).rewriteAll();
-      }
-    });
-    defined_checks.put("verifast",new ValidationPass("verify with VeriFast"){
-      public TestReport apply(ProgramUnit arg,String ... args){
-        PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-        vct.col.print.JavaPrinter.dump(out,JavaDialect.JavaVeriFast,arg);
-        out.close();
-        return vct.verifast.Main.TestVerifast(arg);
       }
     });
     branching_pass(defined_passes,"voidcalls","Replace return value by out parameter.",VoidCalls.class);
