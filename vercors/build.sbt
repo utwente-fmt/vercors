@@ -9,7 +9,7 @@ lazy val vercors = (project in file("."))
   .settings(
     name := "Vercors",
     organization := "University of Twente",
-    version := "0.1-SNAPSHOT",
+    version := "1.1.0",
     scalaVersion := "2.12.7",
 
     libraryDependencies += "commons-io" % "commons-io" % "2.4",

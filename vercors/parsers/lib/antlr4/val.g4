@@ -83,6 +83,7 @@ valPrimary
     | '\\matrix' '(' expression ',' expression ',' expression ')'
     | '\\array'  '(' expression ',' expression ')'
     | '\\pointer' '(' expression ',' expression ',' expression ')'
+    | '\\pointer_index' '(' expression ',' expression ',' expression ')'
     | '\\values' '(' expression ',' expression ',' expression ')'
     | '\\sum' '(' expression ',' expression ')'
     | '\\vcmp' '(' expression ',' expression ')'

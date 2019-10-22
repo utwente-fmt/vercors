@@ -31,7 +31,7 @@ export TOOL_HOME
 
 VCT_PATH=$VCT_HOME/hre/bin
 VCT_PATH+=$SEP$VCT_HOME/parsers/bin
-VCT_PATH+=$SEP$VCT_HOME/vercors/target/scala-2.12/Vercors-assembly-0.1-SNAPSHOT.jar
+VCT_PATH+=$SEP$VCT_HOME/vercors/target/scala-2.12/Vercors-assembly-1.1.0.jar
 
 VMARGS="-Xss128M"
 i=0
