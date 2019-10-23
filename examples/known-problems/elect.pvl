@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case LeaderElect
-//:: suite puptol
+//:: suite problem-fail
 //:: tool silicon
 //:: option --check-history
 
@@ -262,16 +262,17 @@ class Program {
 	context_everywhere 0 <= rank && rank < size;
 	context_everywhere Perm(initialised, q1) ** initialised;
 	context_everywhere Perm(maxvalue, q1);
-	context_everywhere 0 <= v && v < maxvalue;
+	context_everywhere 0 <= vArg && vArg < maxvalue;
 	requires Perm(f, q1) ** f != null;
-	requires Future(f, q2, f.Elect(rank, size, v, maxvalue, 0));
+	requires Future(f, q2, f.Elect(rank, size, vArg, maxvalue, 0));
 	ensures Perm(f, q1) ** f != null;
 	ensures Future(f, q2, f.Done(rank, \result));
 	ensures 0 <= \result && \result < maxvalue;
 	ensures size == \old(size);
 	ensures maxvalue == \old(maxvalue);
 	ensures f == \old(f);
-	int elect(int rank, int v) {
+	int elect(int rank, int vArg) {
+	  int v = vArg;
 		int n = 0;
 		
 		loop_invariant size == \old(size);

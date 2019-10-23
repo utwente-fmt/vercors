@@ -804,16 +804,44 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
   @Override
   public ASTNode visitLexpr(LexprContext ctx) {
     ASTNode res=convert(ctx,0);
-    int N=ctx.children.size();
 
-    for(int i=1; i<N; i++) {
-      Lexpr_accessContext access = (Lexpr_accessContext) ctx.getChild(i);
+    int N = ctx.children.size();
 
-      if (match(access,".",null)){
-        res=create.dereference(res,getGeneralizedIdentifier(access,1));
-      } else if(match(access,"[",null,"]")){
-        res=create.expression(StandardOperator.Subscript,res,convert(access,1));
-      } else {
+    for(int i = 1; i < N; i++) {
+      Lexpr_accessContext access = (Lexpr_accessContext)ctx.getChild(i);
+
+      // matching a dereference operation (for example `o.f`)
+      if (match(access,".", null)) {
+        res = create.dereference(res, getGeneralizedIdentifier(access,1));
+      }
+
+      // matching an array indexing (for example `a[1]`)
+      else if (match(access,"[", null, "]")) {
+        res = create.expression(StandardOperator.Subscript, res, convert(access,1));
+      }
+
+      // matching a take operation (for example `xs[..2]`)
+      else if (match(access, "[", "..", null, "]")) {
+        res = create.expression(StandardOperator.Take, res, convert(access,2));
+      }
+
+      // matching a drop operation (for example `xs[4..]`)
+      else if (match(access, "[", null, "..", "]")) {
+        res = create.expression(StandardOperator.Drop, res, convert(access,1));
+      }
+
+      // matching a slicing operation (for example `xs[2..4]`)
+      else if (match(access, "[", null, "..", null, "]")) {
+        res = create.expression(StandardOperator.Slice, res, convert(access,1), convert(access,3));
+      }
+
+      // matching a sequence updating operation (for example `xs[2 -> 43]`)
+      else if (match(access, "[", null, "->", null, "]")) {
+        res = create.expression(StandardOperator.SeqUpdate, res, convert(access,1), convert(access,3));
+      }
+
+      // fail on all other patterns
+      else {
         Fail("unknown lexpr");
       }
     }
