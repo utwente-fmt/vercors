@@ -283,7 +283,6 @@ public class Configuration {
         env.addArg("-Xss128M");
         env.addArg("-cp", System.getProperty("java.class.path"));
         env.addArg("vct.main.Main");
-        env.addArg("--debug", "vct.antlr4.parser.ColCParser");
         return env;
     }
 
