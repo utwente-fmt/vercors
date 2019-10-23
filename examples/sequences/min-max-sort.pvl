@@ -1,39 +1,33 @@
-/**
-NOT PROVEN YET
-*/
-
 class MinMaxSort {
-    requires |input| > 0;
+    ensures |\result| == |input|;
     ensures MinMaxSort.sorted(\result);
     seq<int> MinMaxSort(seq<int> input) {
         seq<int> unsorted = input;
-	
-	int low = 0;
-	int upp = |unsorted|;
+        seq<int> left = [t:int];
+        seq<int> right = [t:int];
 
-        loop_invariant |input| == |unsorted|;
+        loop_invariant |input| == |left| + |right| + |unsorted|;
+        loop_invariant (\forall int l; 0 <= l && l < |left|; left[l] in input);
+        loop_invariant (\forall int l; 0 <= l && l < |right|; right[l] in input);
         loop_invariant (\forall int l; 0 <= l && l < |unsorted|; unsorted[l] in input);
-        loop_invariant (\forall int l; 0 <= l && l < |input|; input[l] in unsorted);
-	loop_invariant 0 <= low;
-	loop_invariant low <= upp && upp <= |unsorted|;
-        loop_invariant (upp < |unsorted|) ==> MinMaxSort.sorted(unsorted[upp..]);
-        while (upp > low ) {
-            int maxOfSeq = MinMaxSort.max(unsorted[low..upp]);   
-	    unsorted = MinMaxSort.swap(unsorted, maxOfSeq, upp-1);
-	    upp = upp - 1;	
-        }
-        return unsorted ;
-    }
+        loop_invariant !empty(unsorted) ==> (\forall int l; 0 <= l && l < |right|; right[l] >= unsorted[MinMaxSort.max(unsorted)]);
+        loop_invariant !empty(unsorted) ==> (\forall int l; 0 <= l && l < |left|; left[l] <= unsorted[MinMaxSort.min(unsorted)]);
+        loop_invariant (\forall int l; 0 <= l && l < |left|;
+            (\forall int k; 0 <= k && k < |right|; left[l] <= right[k])
+        );
+        loop_invariant MinMaxSort.sorted(left);
+        loop_invariant MinMaxSort.sorted(right);
+        while (|unsorted| >= 2) {
+            int maxOfSeq = MinMaxSort.max(unsorted);            //assert (\forall int l; 0 <= l && l < |unsorted|; unsorted[l] <= unsorted[maxOfSeq]);
+            right = unsorted[maxOfSeq] :: right;
+            unsorted = remove(unsorted, maxOfSeq);
 
-    requires 0 <= i && i < |xs|;
-    requires 0 <= j && j < |xs|;
-    ensures |\result| == |xs|;
-    ensures (\forall int k; 0 <= k && k < |xs| && k != i && k != j; \result[k] == xs[k]);
-    ensures (\forall int k; 0 <= k && k < |\result| && k != i && k != j; \result[k] == xs[k]);
-    ensures xs[i] in \result && xs[j] in \result;
-    ensures \result[j] == xs[i];
-    ensures \result[i] == xs[j];
-    pure static seq<int> swap(seq<int> xs, int i, int j);
+            int minOfSeq = MinMaxSort.min(unsorted);            //assert (\forall int l; 0 <= l && l < |unsorted|; unsorted[l] <= unsorted[maxOfSeq]);
+            left = left ++ unsorted[minOfSeq];
+            unsorted = remove(unsorted, minOfSeq);
+        }
+        return left + unsorted +  right;
+    }
 
     requires |xs| > 0;
     ensures 0 <= \result && \result < |xs|;
@@ -78,3 +72,4 @@ class MinMaxSort {
     pure static boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
 
 }
+
