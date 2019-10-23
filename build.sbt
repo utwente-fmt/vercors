@@ -2,7 +2,6 @@ import NativePackagerHelper._
 
 ThisBuild / turbo := true
 
-enablePlugins(PackPlugin)
 enablePlugins(JavaAppPackaging)
 enablePlugins(DebianPlugin)
 
@@ -68,12 +67,4 @@ lazy val vercors = (project in file("."))
         // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
         // allows them to access the Sil test suite.
         publishArtifact in(Test, packageBin) := true,
-
-        assembly / mainClass := Some("vct.main.Main"), // Define JAR's entry point
-        assemblyMergeStrategy in assembly := {
-            case "logback.xml" => MergeStrategy.first
-            case x =>
-                val oldStrategy = (assemblyMergeStrategy in assembly).value
-                oldStrategy(x)
-        }
     )

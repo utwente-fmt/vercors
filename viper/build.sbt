@@ -47,11 +47,4 @@ lazy val viper_api = (project in file("."))
     name := "viper-api",
     organization := "vercors",
     version := "1.0-SNAPSHOT",
-
-    assemblyMergeStrategy in assembly := {
-      case "logback.xml" => MergeStrategy.first
-      case x =>
-        val oldStrategy = (assemblyMergeStrategy in assembly).value
-        oldStrategy(x)
-    }
   )
