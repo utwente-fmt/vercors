@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+BIN=$(dirname $0)
+
+JAVA_FILES=""
+for f in "$@" ; do
+  case "$f" in
+    *.pvl)
+      echo "compiling $f"
+      $BIN/run-class vct.main.Main --passes=pvl-compile,codegen=. "$f"
+      tmp=`echo $f | sed 's/pvl/java/'`
+      JAVA_FILES="$JAVA_FILES $tmp"
+    ;;
+    *)
+      JAVA_FILES="$JAVA_FILES $f"
+    ;;
+  esac
+done
+echo "compiling $JAVA_FILES"
+exec javac -cp $(cat $BIN/.classpath) $JAVA_FILES
