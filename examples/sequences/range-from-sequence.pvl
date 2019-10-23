@@ -1,5 +1,4 @@
-class Test {
-
+class Range {
 
 	void main() {
 		seq<int> a = seq<int> {1, 4, 5, 7, 8};
@@ -22,20 +21,18 @@ class Test {
 		seq<int> g = seq<int> {1, 2, 3, 4, 5};	
 		assert g[2..] == seq<int> {3, 4,5};
 		
-		int i = 0;
-		int N = 10;
-		int[] k = new int[10];
-		
-		//loop_invariant 0 <= i && i <= N;
-		//while (i < k.length) {	
-		//	i = i + 1;
-		//}
+		Object x = new Object(1);
+		Object y = new Object(4);
+		Object z = new Object(6);
+		seq<Object> h = seq<Object> {x, y, z};
+	 	assert h[..1] == seq<Object> {x};	
 	}
-	
-
-
-	//requires n <= |xs|;
-	//static pure seq<int> aTake(seq<int> xs, int n) =
-	//	0 < n ? seq<int> { head(xs) } + Test.aTake(tail(xs), n - 1) : seq<int> { };
-	
 }
+
+class Object {
+	int var;
+
+	Object (int v) {
+		var = v;
+	}
+}	

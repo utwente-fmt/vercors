@@ -18,6 +18,7 @@ import vct.antlr4.generated.PVFullParser;
 import vct.antlr4.generated.PVFullParser.*;
 import vct.antlr4.generated.PVFullVisitor;
 
+import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.generic.ASTNode;
@@ -40,6 +41,7 @@ import vct.col.ast.type.Type;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.stmt.decl.VariableDeclaration;
+import vct.col.rewrite.InferADTTypes;
 import vct.col.syntax.PVLSyntax;
 import vct.col.syntax.Syntax;
 import static vct.col.ast.type.ASTReserved.*;
@@ -246,7 +248,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     }
     if (match(ctx, "empty", tuple)) {
       ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
-      return create.expression(StandardOperator.Empty, args);
+      return create.expression(StandardOperator.EQ, create.constant(0), create.expression(StandardOperator.Size, args));
     }
     if (match(ctx,"remove",tuple)){
       ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
@@ -380,22 +382,12 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       return create.struct_value(create.primitive_type(PrimitiveSort.Bag,t),null,args);
     }
     if (match(ctx, "[", null, "]")) {
-      if (ctx.children.get(1) instanceof TypeContext) {
-        Type t=checkType(convert(ctx,1));
-        return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, t), null);
-      }
-
-      // ctx.children.get(1) instanceof ArgumentsContext
       ASTNode[] args = getValues((ParserRuleContext)ctx.children.get(1));
-      Optional<Type> t = Arrays.stream(args).map(ASTNode::getType).filter(Objects::nonNull).findFirst();
-      if (t.isPresent()) {
-        return create.struct_value(create.primitive_type(PrimitiveSort.Sequence,t.get()),null,args);
-      } else {
-          // Currently, a sequence of type Void is created. After a type check,
-          // the InferADTTypes.scala rewrite pass tranforms the Sequence<Void> into a sequence with the type of the
-          // first element in the sequence. The check if all elements are of the same type is checked somewhere later.
-        return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, create.primitive_type(PrimitiveSort.Void)),null,args);
-      }
+      return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, create.type_variable(InferADTTypes.typeVariableName())),null,args);
+    }
+    if (match(ctx, "[t:", null, "]")) {
+      Type t=checkType(convert(ctx,1));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, t), null);
     }
     return visit(ctx);
   }

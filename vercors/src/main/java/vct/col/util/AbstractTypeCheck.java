@@ -16,10 +16,12 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.RecursiveVisitor;
+import vct.col.rewrite.InferADTTypes;
 import vct.col.rewrite.MultiSubstitution;
 import vct.col.rewrite.TypeVarSubstitution;
 import vct.silver.SilverTypeMap;
 import vct.util.Configuration;
+import viper.silver.ast.TypeVar;
 
 /**
  * This class implements type checking of simple object oriented programs.
@@ -1429,40 +1431,37 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     // TODO: type check cannot derive a useful type from only the values
     v.setType(v.type());
 
-    if (v.getType().isPrimitive(PrimitiveSort.Sequence)) {
+    if (v.getType().isPrimitive(PrimitiveSort.Sequence) &&
+            v.getType().firstarg() instanceof TypeVariable &&
+            ((TypeVariable) v.getType().firstarg()).name().equals(InferADTTypes.typeVariableName())
+    ) {
 
-
-      Type element = (Type) v.getType().firstarg();
+      TypeVariable element = (TypeVariable) v.getType().firstarg();
       // The scala array of values is converted into a java list and the types of the ASTNodes are collected into a Set.
-      Set<Type> valueTypes = JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).collect(Collectors.toSet());
-
+      Set<Type> valueTypes = JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).filter(Objects::nonNull).collect(Collectors.toSet());
 
       // Instead of having it void, there should be a special type called infer.
       // This type should only be used for ADTs which have simple constructors.
       // For the rest, inference is not really something part of VerCors.
       //TODO check if instance of Type in the condition
-      if (!element.isVoid() && valueTypes.stream().anyMatch(v1 -> !v1.equals((Type) v.getType().firstarg()))) {
-        // TODO check which types are incompatible.
-
+      if (valueTypes.size() > 1) {
         // TODO should there be another case where the sequence type is not equal to the sequence element type?
-        valueTypes.add((Type) v.getType().firstarg());
-        Fail("sequence elements must be of the same type: " + valueTypes);
+        Fail("sequence elements must be of the same type: " + valueTypes, v.getOrigin());
+      } else if (valueTypes.size() == 0) {
+        Fail("At %s: Could not infer type of Sequence", v.getOrigin());
+      } else {
+        // Inference is possible, thus get the type from the values.
+        Type valueType = valueTypes.iterator().next();
 
-      } else if (valueTypes.size() == 1) {
-        // Infer the type from the values.
-        element = valueTypes.iterator().next();
-
-        PrimitiveType returnType = new PrimitiveType(PrimitiveSort.Sequence,element);
+        PrimitiveType returnType = new PrimitiveType(PrimitiveSort.Sequence,valueType);
         returnType.setOrigin(v.getOrigin());
         v.setType(returnType);
-
-        ASTFactory<ParseTree> create = new ASTFactory<ParseTree>();
-      } else {
-                Fail("At %s: Could not infer type of Sequence", v.getOrigin());
       }
 
+      Type inferredElementType = (Type) v.getType().firstarg();
+
       for (ASTNode node : JavaConverters.asJavaIterable(v.values())) {
-        node.setType(element);
+        node.setType(inferredElementType);
       }
     }
 

@@ -3,7 +3,7 @@ class MaxSort {
     ensures MaxSort.sorted(\result);
     seq<int> maxsort(seq<int> input) {
         seq<int> unsorted = input;
-        seq<int> result = [int];
+        seq<int> result = [t:int];
 
         loop_invariant |input| == |result| + |unsorted|;
         loop_invariant (\forall int l; 0 <= l && l < |result|; result[l] in input);
@@ -38,9 +38,6 @@ class MaxSort {
                 MaxSort.maxhelper(xs, j+1)
             )
     ;
-
-
-    pure static boolean test(seq<int> a) = !empty(a) ? true : false;
 
 	pure static boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
 

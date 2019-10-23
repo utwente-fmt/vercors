@@ -34,14 +34,14 @@ atomExpression
  | identifier ':' atomExpression
  | atomExpression 'with' block
  | atomExpression 'then' block
+ | <assoc=right> atomExpression '::' atomExpression
+ | atomExpression '++' atomExpression
  | ('!'|'-') atomExpression
  | atomExpression '^^' atomExpression
  | atomExpression ('*'|'/'|'%') atomExpression
  | atomExpression ( '+' | '-' ) atomExpression
  | atomExpression ( '<' | '<=' | '>=' | '>') atomExpression
  | atomExpression ( '==' | '!=' ) atomExpression
- | <assoc=right> atomExpression '::' atomExpression
- | atomExpression '++' atomExpression
  | atomExpression '[' (atomExpression '..' | '..' atomExpression | atomExpression '..' atomExpression )']'
  | atomExpression ('in' | '!in') atomExpression
  | '?' identifier
@@ -66,12 +66,12 @@ atomExpression
  | valPrimary
  ;
 
-arguments: ( | expression (',' expression)*);
+arguments: (expression (',' expression)*);
 
 collectionConstructors :
  | CONTAINER '<' type '>' values
  | '[' arguments ']'
- | '[' type ']';
+ | '[t:' type ']';
 
 expr
  : atomExpression
@@ -152,7 +152,7 @@ fence_list : ( 'local' | 'global' )* ;
 
 invariant : ( 'loop_invariant' expr ';' )* ;
 
-lexpr : ('this' | '\\result' | identifier | collectionConstructors) lexpr_access* ;
+lexpr : ('this' | '\\result' | identifier) lexpr_access* ;
 
 lexpr_access
  : '.' gen_id

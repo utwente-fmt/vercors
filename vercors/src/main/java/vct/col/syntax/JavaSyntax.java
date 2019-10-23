@@ -68,7 +68,12 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(Indirection,"\\indirect");
         syntax.addFunction(StructDeref,"\\structderef");
         syntax.addFunction(IterationOwner,"\\owner");
-        
+        syntax.addFunction(Empty,"empty");
+        syntax.addFunction(Remove, "remove");
+        syntax.addFunction(RangeFromSeq, "range");
+        syntax.addRightFix(PrependSingle, "::", 110);
+        syntax.addLeftFix(AppendSingle, "++", 110);
+
         syntax.addFunction(Values,"\\values");
         
         syntax.addOperator(Unfolding,140,"\\unfolding","\\in","");

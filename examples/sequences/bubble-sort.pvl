@@ -17,7 +17,7 @@ class Bubble {
 			loop_invariant 0 <= i && i <= lastUnsorted;
     	    loop_invariant Bubble.sorted(out[lastUnsorted..]);
             loop_invariant Bubble.partitioned(out, lastUnsorted);
-            loop_invariant (\forall int k;0 0 <= k && k < i; out[k] <= out[i]);
+            loop_invariant (\forall int k; 0 <= k && k < i; out[k] <= out[i]);
 			while (i < lastUnsorted) {
 				if (out[i] > out[i+1]) {
 					int tmp = out[i];

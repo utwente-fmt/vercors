@@ -36,11 +36,15 @@ public class PVLSyntax {
       syntax.addFunction(Perm,"Perm");
       syntax.addFunction(HistoryPerm,"HPerm");
       syntax.addFunction(Future,"Future");
-//      syntax.addFunction(Remove, "remove");
-//      syntax.addFunction(RangeFromSeq, "range");
+      syntax.addFunction(Empty,"empty");
+      syntax.addFunction(Remove, "remove");
+      syntax.addFunction(RangeFromSeq, "range");
+      syntax.addFunction(RangeFromSeq, "take");
+      syntax.addFunction(RangeFromSeq, "drop");
       //syntax.addFunction(Head,"head");
       //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
+
       syntax.addFunction(PointsTo,"PointsTo");
       syntax.addFunction(Identity,"id");
       syntax.addFunction(IterationOwner,"\\owner");
@@ -59,7 +63,7 @@ public class PVLSyntax {
       syntax.addLeftFix(Div,"/",120);
       syntax.addLeftFix(Mod,"%",120);
       // 11 additive  + -
-      syntax.addRightFix(PrependSingle, "::", 115);
+      syntax.addRightFix(PrependSingle, "::", 110);
       syntax.addLeftFix(AppendSingle, "++", 110);
       syntax.addLeftFix(Plus,"+",110);
       syntax.addLeftFix(Minus,"-",110);

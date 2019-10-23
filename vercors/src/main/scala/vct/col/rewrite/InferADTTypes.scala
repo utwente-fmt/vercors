@@ -5,13 +5,16 @@ import vct.col.ast.expr.StandardOperator
 import vct.col.ast.expr.constant.StructValue
 import vct.col.ast.stmt.decl.ProgramUnit
 
+object InferADTTypes {
+  val typeVariableName = "INFER_ADT_TYPE"
+}
+
 class InferADTTypes(source: ProgramUnit) extends AbstractRewriter(source, true) {
+
 
   override def visit(v: StructValue): Unit = {
     if(v.getType.isPrimitive(PrimitiveSort.Sequence)) { //&&
       result = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, v.getType.firstarg), null, v.values: _*)
-//      return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, create.primitive_type(PrimitiveSort.Void)), null, args)
-
       //      v.getType.firstarg.asInstanceOf[Type].isVoid) {
 //
 //      val valueTypes = v.values.toStream.map(_.getType).filter(_ != null).toSeq
