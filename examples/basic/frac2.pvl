@@ -4,7 +4,7 @@
 
 class Test {
     given frac p;
-    context_everywhere 0f/1 < p && p < 1f/1;
+    context_everywhere 0\1 < p && p < 1\1;
     void test() {
 
     }

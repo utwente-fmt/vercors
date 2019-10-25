@@ -25,9 +25,9 @@ class Application {
     History h=new History();
     h.x=1;
     //@ create h;
-    //@ split h, 1f/3, empty, 2f/3, empty;
-    do_incr(h) /*@ with { p = empty; q = 1f/3; } @*/;
-    //@ merge h, 2f/3, empty, 1f/3, h.single(1);
+    //@ split h, 1\3, empty, 2\3, empty;
+    do_incr(h) /*@ with { p = empty; q = 1\3; } @*/;
+    //@ merge h, 2\3, empty, 1\3, h.single(1);
     //@ assert AbstractState(h,x==1);
     //@ destroy h , h.single(1) ;
     //@ assert h.x==2;

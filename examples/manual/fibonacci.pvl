@@ -17,8 +17,8 @@ class Fib {
   
   int input, output;
   
-  requires Perm(input,1f/10) ** Perm(output,1);
-  ensures  Perm(input,1f/10) ** Perm(output,1) ** output==fib(input);
+  requires Perm(input,1\10) ** Perm(output,1);
+  ensures  Perm(input,1\10) ** Perm(output,1) ** output==fib(input);
   void run() {
     if (input<2) {
       output = 1;

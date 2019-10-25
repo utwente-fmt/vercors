@@ -8,10 +8,10 @@ class C {
   /*@
     resource P();
 
-    requires ([1f/2]P()) ** ([read]P());
+    requires ([1\2]P()) ** ([read]P());
     pure int good_order();
     
-    requires ([read]P()) ** ([1f/2]P());
+    requires ([read]P()) ** ([1\2]P());
     pure int bad_order();
 
     requires P();

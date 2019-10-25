@@ -1303,7 +1303,7 @@ multiplicativeExpression
 	|	multiplicativeExpression '*' unaryExpression
 	|	multiplicativeExpression '/' unaryExpression
 	|	multiplicativeExpression '%' unaryExpression
-	|   multiplicativeExpression 'f/' unaryExpression
+	|   multiplicativeExpression '\\' unaryExpression
 	;
 
 unaryExpression

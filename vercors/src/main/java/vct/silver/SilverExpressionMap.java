@@ -59,7 +59,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(ConstantExpression e) {
     if (e.value() instanceof IntegerValue){
       int v = ((IntegerValue)e.value()).value();
-      if (e.getType().isPrimitive(PrimitiveSort.Fraction)){
+      if (e.getType().isPrimitive(PrimitiveSort.Rational)){
         switch(v){
           case 0 : return create.no_perm(e.getOrigin());
           case 1 : return create.write_perm(e.getOrigin());
@@ -137,7 +137,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       }
     }
     case FloorDiv:
-      return create.div(o, e1, e2);
+      return create.floor_div(o, e1, e2);
     case Div:
       return create.frac(o, e1, e2);
     case Mod: return create.mod(o,e1,e2);
@@ -146,6 +146,8 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         return create.append(o,e1,e2);
       } else if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)){
         return create.union(o,e1,e2);
+      } else if(e.getType().isPrimitive(PrimitiveSort.Rational)) {
+        return create.perm_add(o, e1, e2);
       } else {
         return create.add(o,e1,e2);
       }

@@ -12,7 +12,7 @@
 
 
 /*@
-  context \pointer(a, len, 1f/2) ** \pointer(b, len, 1f/2);
+  context \pointer(a, len, 1\2) ** \pointer(b, len, 1\2);
   context \pointer(c, len, write) ** \pointer(d, len, write);
   ensures   (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
   ensures   (\forall  int k;0 <= k && k < len ; d[k]==a[k]*b[k]);
@@ -22,7 +22,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
 #pragma omp parallel
 {
 /*@
-  context \pointer(a, len, 1f/2) ** \pointer(b, len, 1f/2);
+  context \pointer(a, len, 1\2) ** \pointer(b, len, 1\2);
   context \pointer(c, len, write) ** \pointer(d, len, write);
   ensures   (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
   ensures   (\forall  int k;0 <= k && k < len ; d[k]==a[k]*b[k]);
@@ -37,7 +37,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
    for(int i=0;i<len;i++)
     /*@
       context a != NULL && c != NULL;
-      context Perm(c[i],1) ** Perm(a[i],1f/4);
+      context Perm(c[i],1) ** Perm(a[i],1\4);
       ensures c[i] == a[i];
     @*/
     {
@@ -47,7 +47,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     for(int i=0;i<len;i++)
     /*@
       context b != NULL && c != NULL;
-      context Perm(c[i],1) ** Perm(b[i],1f/4);
+      context Perm(c[i],1) ** Perm(b[i],1\4);
       ensures c[i] == \old(c[i]) + b[i];
     @*/
     {
@@ -63,7 +63,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     for(int i=0;i<len;i++)
     /*@
       context a != NULL && d != NULL;
-      context Perm(d[i],1) ** Perm(a[i],1f/4);
+      context Perm(d[i],1) ** Perm(a[i],1\4);
       ensures d[i] == a[i];
     @*/
     {
@@ -73,7 +73,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     for(int i=0;i<len;i++)
     /*@
       context b != NULL && d != NULL;
-      context Perm(d[i],1) ** Perm(b[i],1f/4);
+      context Perm(d[i],1) ** Perm(b[i],1\4);
       ensures d[i] == \old(d[i]) * b[i];
     @*/
     {

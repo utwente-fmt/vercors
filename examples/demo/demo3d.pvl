@@ -34,7 +34,7 @@ class Program {
 	
 	given seq<int> xs;
 	context_everywhere A != null && A.length == |xs| && 0 < A.length;
-	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1f/2));
+	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
 	context (\forall int i; 0 <= i && i < A.length; A[i] == xs[i]);
 	ensures \result == sum(xs);
 	int parsum(int[] A) {
@@ -45,7 +45,7 @@ class Program {
 		context_everywhere inv(HPerm(model.sum, 1)) //;
 		{
 			par (int tid = 0 .. A.length)
-				context Perm(A[tid], 1f/4) ** A[tid] == xs[tid];
+				context Perm(A[tid], 1\4) ** A[tid] == xs[tid];
 				requires Future(model, 1/|xs|, model.incr(A[tid]) * model.done(A[tid]));
 				ensures Future(model, 1/|xs|, model.done(A[tid]));
 			{

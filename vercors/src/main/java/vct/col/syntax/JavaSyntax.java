@@ -125,7 +125,7 @@ public class JavaSyntax extends Syntax {
     // 12 multiplicative  * / %
     syntax.addLeftFix(Mult,"*",120);
     syntax.addLeftFix(FloorDiv,"/",120);
-    syntax.addLeftFix(Div,"f/",120);
+    syntax.addLeftFix(Div,"\\",120);
     syntax.addLeftFix(Mod,"%",120);
     // 11 additive  + -
     syntax.addLeftFix(Plus,"+",110);

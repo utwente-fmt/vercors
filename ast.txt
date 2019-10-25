@@ -1,0 +1,55 @@
+- Exp
+    - Op
+        - Unary(Exp)
+        - Binary(Exp, Exp)
+        - Nary(Seq[Exp])
+    - Constant
+        - Value
+        - Reserved
+    - Reference
+        - Name(String)
+        - InternalReference(Declaration)
+    - Dereference(Exp, String)
+    - Invoke(Seq[Exp])
+    - Binder+Scope
+        - Quantifier(Exp, Exp) -> Forall, Exists
+        - Reduction(Exp, Exp) -> Sum, Product
+        - Let(Seq[(Declaration, Exp)]), Exp)
+    - Type
+        - PrimitiveType
+        - NamedType(Reference)
+
+- Statement
+    - CompositeStatement
+        - Block(Seq[Statement])
+        - If(Seq[(Exp, Statement)], Statement)
+        - Loop(entry:Exp, exit:Exp, init:Statement, update:Statement, body:Statement)
+        - Switch(Exp, Seq[(Exp, Statement)])
+        - TryCatch(Statement, Seq[(Declaration, Statement)], finally:Option[Statement])
+    - TerminalStatement
+        - Assignment(Reference, Exp)
+        - Return(Option[Exp])
+        - VariableDeclaration(Declaration, Option[Exp])
+
+- Declaration(String)
+    - Class(Seq(Declaration))
+    - Axiom(Exp)
+    - Variable(Type)
+    - Method(Type, Seq[Variable], Statement)
+        - Constructor
+        - Predicate
+        - Plain
+    - Namespace(Seq[Declaration])
+    - TypeVariable
+
+- Program(Seq[Declaration])
+
+
++Scope
++Named
++Contract
+
+Lemma?
+Parallel?
+VectorBlock?
+ADT?

@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import com.sun.org.apache.bcel.internal.classfile.ConstantValue;
 import hre.ast.MessageOrigin;
 
 import java.io.File;
@@ -9,6 +10,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.antlr4.parser.Parsers;
 import vct.col.ast.expr.*;
+import vct.col.ast.expr.constant.ConstantExpression;
+import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
@@ -18,6 +21,8 @@ import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.UndefinedMapping;
 import vct.col.util.ASTUtils;
 import vct.util.Configuration;
+
+import static hre.lang.System.Output;
 
 /**
  * This rewriter converts a program with classes into
@@ -179,6 +184,12 @@ public class SilverClassReduction extends AbstractRewriter {
       } else {
         result=create.unresolved_name(THIS);
       }
+    } else if(e.isReserved(ASTReserved.FullPerm) || e.isReserved(ASTReserved.ReadPerm)) {
+      fractions = true;
+      result = create.invokation(null, null, "new_frac", e);
+    } else if(e.isReserved(ASTReserved.NoPerm)) {
+      fractions = true;
+      result = create.invokation(null, null, "new_zfrac", e);
     } else {
       super.visit(e);
     }
@@ -192,10 +203,9 @@ public class SilverClassReduction extends AbstractRewriter {
   public static final String THIS="diz";
   
   private boolean options=false;
-  
   private boolean arrays = false;
-  
-  private boolean floats=false;
+  private boolean floats = false;
+  private boolean fractions = false;
   
   private AtomicInteger option_count=new AtomicInteger();
   private HashMap<String, String> option_get = new HashMap<String, String>();
@@ -376,14 +386,6 @@ public class SilverClassReduction extends AbstractRewriter {
       }
       break;      
     }
-    case Plus:{
-      if (e.getType().isPrimitive(PrimitiveSort.Float)){
-        result=create.domain_call("VCTFloat", "fadd", rewrite(e.argsJava()));
-      } else {
-        super.visit(e); 
-      }
-      break;
-    }
     case OptionSome:{
       options=true;
       Type t=rewrite(e.getType());
@@ -459,6 +461,73 @@ public class SilverClassReduction extends AbstractRewriter {
       }
       break;
     }
+    case Div:
+    case Plus:
+    case Minus:
+    case LT:
+    case LTE:
+    case EQ:
+    case NEQ:
+    case GT:
+    case GTE: {
+      if(e.operator() == StandardOperator.Plus && e.getType().isPrimitive(PrimitiveSort.Float)){
+        result = create.domain_call("VCTFloat", "fadd", rewrite(e.argsJava()));
+        return;
+      }
+
+      ASTNode left = e.arg(0), right = e.arg(1);
+
+      if(left.getType() != null && left.getType().isFraction()) {
+        fractions = true;
+        String method = left.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
+        left = create.invokation(null, null, method, rewrite(left));
+      } else {
+        left = rewrite(left);
+      }
+
+      if(right.getType() != null && right.getType().isFraction()) {
+        fractions = true;
+        String method = right.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
+        right = create.invokation(null, null, method, rewrite(right));
+      } else {
+        right = rewrite(right);
+      }
+
+      if(e.getType() != null && e.getType().isFraction()) {
+        fractions = true;
+        String method = e.getType().isPrimitive(PrimitiveSort.ZFraction) ? "new_zfrac" : "new_frac";
+        result = create.invokation(null, null, method, create.expression(e.operator(), left, right));
+      } else {
+        result = create.expression(e.operator(), left, right);
+      }
+      break;
+    }
+    case HistoryPerm:
+    case ActionPerm:
+    case Perm: {
+      ASTNode permVal = e.arg(1);
+      if(permVal.getType().isFraction()) {
+        String method = e.arg(1).getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
+        permVal = create.invokation(null, null, method, rewrite(permVal));
+      } else {
+        permVal = rewrite(permVal);
+      }
+
+      result = create.expression(e.operator(), rewrite(e.arg(0)), permVal);
+      break;
+    }
+    case PointsTo: {
+      ASTNode permVal = e.arg(1);
+      if(permVal.getType().isFraction()) {
+        String method = e.arg(1).getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
+        permVal = create.invokation(null, null, method, rewrite(permVal));
+      } else {
+        permVal = rewrite(permVal);
+      }
+
+      result = create.expression(e.operator(), rewrite(e.arg(0)), permVal, rewrite(e.arg(2)));
+      break;
+    }
     default:
       super.visit(e);
     }
@@ -475,6 +544,18 @@ public class SilverClassReduction extends AbstractRewriter {
       option_get_type.put(t,  type);
     }
     return method;
+  }
+
+  @Override
+  public void visit(ConstantExpression val) {
+    if(val.value() instanceof IntegerValue && val.getType().isFraction()) {
+      fractions = true;
+      String method = val.getType().isPrimitive(PrimitiveSort.ZFraction) ? "new_zfrac" : "new_frac";
+      val.setType(new PrimitiveType(PrimitiveSort.Rational));
+      result = create.invokation(null, null, method, val);
+    } else {
+      super.visit(val);
+    }
   }
 
   @Override
@@ -569,7 +650,7 @@ public class SilverClassReduction extends AbstractRewriter {
       String s=silverTypeString(t);
       ref_class.add_dynamic(create.field_decl(s+SEP+"item",t));
     }
-    if (options || floats || arrays){
+    if (options || floats || arrays || fractions){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
       File file=new File(new File(Configuration.getHome().toFile(),"config"),preludeFile);
       ProgramUnit prelude=Parsers.getParser("sil").parse(file);
@@ -590,6 +671,18 @@ public class SilverClassReduction extends AbstractRewriter {
           case "VCTArray":
             if (arrays) res.add(n);
             break;
+          case "frac":
+          case "zfrac":
+            if(fractions) res.add(n);
+            break;
+          }
+        } else if(n instanceof Method) {
+          Method method = (Method) n;
+          switch(method.name()) {
+            case "new_frac":
+            case "new_zfrac":
+              if(fractions) res.add(method);
+              break;
           }
         }
       }

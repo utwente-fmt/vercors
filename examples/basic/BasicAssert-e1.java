@@ -7,7 +7,7 @@ class Ref {
   boolean test;
 
   /*@
-    requires b ** Perm(r.test,1f/2);
+    requires b ** Perm(r.test,1\2);
   @*/
   void t1(boolean b, int d,Ref r)
   {

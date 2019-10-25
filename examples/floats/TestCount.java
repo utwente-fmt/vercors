@@ -9,7 +9,7 @@ class TestCount {
   /*@
     given seq<int> vals;
     context_everywhere array != null
-      ** (\forall* int i ; 0 <= i && i < array.length ; Perm(array[i],1f/2))
+      ** (\forall* int i ; 0 <= i && i < array.length ; Perm(array[i],1\2))
       ** (vals.length==array.length)
       ** (\forall int i ; 0 <= i && i < array.length ; array[i]== vals[i])
       ;

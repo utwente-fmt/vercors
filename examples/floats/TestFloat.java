@@ -34,7 +34,7 @@ class TestFloat {
   /*@
     given seq<float> vals;
     context_everywhere a!=null ** (a.length == |vals|);
-    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1f/2,vals[i]));
+    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1\2,vals[i]));
     ensures \result == \sum([0 .. a.length),vals);
   @*/
   public float add(float a[]){
@@ -53,7 +53,7 @@ class TestFloat {
     given seq<float> vals;
     context_everywhere a!=null ** (a.length == |vals|);
     context_everywhere b!=null ** (a.length == b.length);
-    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1f/2,vals[i]));
+    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1\2,vals[i]));
     context_everywhere (\forall* int i; 0 <= i && i < a.length;Perm(b[i],1));
     ensures (\forall int i ; 0 <= i && i < b.length ; b[i] == \sum([0 ..i),vals));
   @*/
@@ -74,7 +74,7 @@ class TestFloat {
     given seq<int> vals;
     context_everywhere a!=null ** (a.length == |vals|);
     context_everywhere b!=null ** (a.length == b.length);
-    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1f/2,vals[i]));
+    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1\2,vals[i]));
     context_everywhere (\forall* int i; 0 <= i && i < a.length;Perm(b[i],1));
     ensures (\forall int i ; 0 <= i && i < b.length ; b[i] == \sum([0 ..i),vals));
   @*/

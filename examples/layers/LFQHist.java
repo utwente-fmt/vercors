@@ -81,8 +81,8 @@ final class AtomicNode {
 final class Queue {
 
   /*@
-    requires Value(hist) ** PointsTo(hist_active,1f/2,true);
-    ensures Value(hist)  ** PointsTo(hist_active,1f/2,false)
+    requires Value(hist) ** PointsTo(hist_active,1\2,true);
+    ensures Value(hist)  ** PointsTo(hist_active,1\2,false)
       ** HPerm(hist.q,1);
   void end_history(){
     atomic ( this ) {
@@ -94,7 +94,7 @@ final class Queue {
   /*@ given History hist;
      requires HPerm(hist.q,1) ** hist.q==seq<int>{};
      ensures Value(this.hist) ** this.hist == hist
-        ** PointsTo(hist_active,1f/2,true); @*/
+        ** PointsTo(hist_active,1\2,true); @*/
   public Queue(){
     //@ this.hist=hist;
     //@ hist_active=true;
@@ -151,7 +151,7 @@ final class Queue {
     RPerm(tail) ** ([read]reachable(begin,tail.ref)) **
     Perm(last,1) ** ([read]reachable(begin,last)) **
     //begin(context_everywhere)
-    Perm(hist_active,1f/2) ** Value(hist) ** (hist_active ==> 
+    Perm(hist_active,1\2) ** Value(hist) ** (hist_active ==> 
     HPerm(hist.q,1) ** chain(head.ref,last,hist.q))
     //end(context_everywhere)
     ** RPointsTo(last.next,null);
@@ -221,9 +221,9 @@ final class Queue {
   }
 
   /*@
-    requires Perm(last,1f/2) ** RPerm(last.next)
+    requires Perm(last,1\2) ** RPerm(last.next)
       ** ([read]reachable(n1,n2)) ** ([read]reachable(n1,last));
-    ensures  Perm(last,1f/2) ** RPerm(last.next)
+    ensures  Perm(last,1\2) ** RPerm(last.next)
       ** last==\old(last) ** last.next.ref==\old(last.next.ref)
       ** (n2!=last ==> final_link(n2) ** reachable(n1,n2.next.ref)
                                       ** Value(n2.next.ref.next));
@@ -282,15 +282,15 @@ final class Queue {
   /*@
     requires Perm(last,1) ** last==n1 ** RPointsTo(last.next,n2);
     requires RPointsTo(n2.next,null) ** Perm(n2.val,1);
-    requires Value(hist) ** HPerm(hist.q,1f/2);
-    requires Value(head) ** Perm(head.ref,1f/2)
+    requires Value(hist) ** HPerm(hist.q,1\2);
+    requires Value(head) ** Perm(head.ref,1\2)
       ** chain(head.ref,last,hist.q) ** Value(begin)
       ** ([read]reachable(begin,last))
       ** ([read]reachable(begin,head.ref));
     ensures  Perm(last,1) ** last==n2 ** RPointsTo(last.next,null);
     ensures  Value(begin) ** ([read]reachable(begin,last));
-    ensures  Value(hist) ** HPerm(hist.q,1f/2);
-    ensures  Value(head) ** Perm(head.ref,1f/2)
+    ensures  Value(hist) ** HPerm(hist.q,1\2);
+    ensures  Value(head) ** Perm(head.ref,1\2)
       ** chain(head.ref,last,hist.q+seq<int>{\old(n2.val)})
       ** head.ref==\old(head.ref);
   @*/

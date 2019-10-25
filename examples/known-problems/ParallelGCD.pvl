@@ -36,44 +36,44 @@ class ParallelGCD {
     Future F=new Future();
     F.x=x; F.y=y;
     create F, F.gcd();
-    split  F, 1f/2, F.tx(), 1f/2, F.ty();
+    split  F, 1\2, F.tx(), 1\2, F.ty();
 
     context_everywhere inv( HPerm(F.x,write) ** HPerm(F.y,write) ** F.x > 0 ** F.y > 0 ){
       par T0()
-        requires Future(F,1f/2,F.tx());
-        ensures Future(F,1f/2,empty);
+        requires Future(F,1\2,F.tx());
+        ensures Future(F,1\2,empty);
       {
         boolean run = true;
-        loop_invariant run?Future(F,1f/2,F.tx()):Future(F,1f/2,empty);
+        loop_invariant run?Future(F,1\2,F.tx()):Future(F,1\2,empty);
         while(run){
           atomic(inv){
             if(F.x > F.y){
-              choose F, 1f/2, F.tx(), F.decr_x()*F.tx();
-              action(F,1f/2,F.tx(),F.decr_x()){ F.x = F.x - F.y; }
+              choose F, 1\2, F.tx(), F.decr_x()*F.tx();
+              action(F,1\2,F.tx(),F.decr_x()){ F.x = F.x - F.y; }
             }
             if(F.x==F.y){
-              choose F, 1f/2, F.tx(), F.done();
-              action(F,1f/2,empty,F.done()){ run=false; }
+              choose F, 1\2, F.tx(), F.done();
+              action(F,1\2,empty,F.done()){ run=false; }
         } } }
       } and T1() #\(\cdots\)#
 //end(main)
-        requires Future(F,1f/2,F.ty());
-        ensures Future(F,1f/2,empty);
+        requires Future(F,1\2,F.ty());
+        ensures Future(F,1\2,empty);
       {
         boolean run = true;
-        loop_invariant run?Future(F,1f/2,F.ty()):Future(F,1f/2,empty);
+        loop_invariant run?Future(F,1\2,F.ty()):Future(F,1\2,empty);
         while(run){
           atomic(inv){
             if(F.y>F.x)
             {
-              choose F, 1f/2, F.ty(), F.decr_y()*F.ty();
-              action(F,1f/2,F.ty(),F.decr_y()){
+              choose F, 1\2, F.ty(), F.decr_y()*F.ty();
+              action(F,1\2,F.ty(),F.decr_y()){
                 F.y = F.y - F.x;
               }
             }
             if(F.x==F.y){
-              choose F, 1f/2, F.ty(), F.done();
-              action(F,1f/2,empty,F.done()){
+              choose F, 1\2, F.ty(), F.done();
+              action(F,1\2,empty,F.done()){
                 run=false;
               }
             }
@@ -82,7 +82,7 @@ class ParallelGCD {
       }
 //begin(main)
     }
-    merge F, 1f/2, empty, 1f/2, empty;
+    merge F, 1\2, empty, 1\2, empty;
     destroy F;
     return F.x;
   }

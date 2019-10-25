@@ -10,21 +10,21 @@
 #include <omp.h>
 
 /*@
-  context \pointer(a, len, 1f/2) ** \pointer(b, len, 1f/2) ** \pointer(c, len, write);
+  context \pointer(a, len, 1\2) ** \pointer(b, len, 1\2) ** \pointer(c, len, write);
   ensures   (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
 @*/
 void add(int len,int a[],int b[],int c[]){
   #pragma omp parallel
   {
     /*@
-      context \pointer(a, len, 1f/2) ** \pointer(b, len, 1f/2) ** \pointer(c, len, write);
+      context \pointer(a, len, 1\2) ** \pointer(b, len, 1\2) ** \pointer(c, len, write);
       ensures (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
     @*/
     #pragma omp for schedule(static) nowait
     for(int i=0;i<len;i++)
     /*@
       context a != NULL && c != NULL;
-      context Perm(c[i],1) ** Perm(a[i],1f/2);
+      context Perm(c[i],1) ** Perm(a[i],1\2);
       ensures c[i] == a[i];
     @*/
     {
@@ -34,7 +34,7 @@ void add(int len,int a[],int b[],int c[]){
     for(int i=0;i<len;i++)
     /*@
       context b != NULL && c != NULL;
-      context Perm(c[i],1) ** Perm(b[i],1f/2);
+      context Perm(c[i],1) ** Perm(b[i],1\2);
       ensures c[i] == \old(c[i]) + b[i];
     @*/
     {

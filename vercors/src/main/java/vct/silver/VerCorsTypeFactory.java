@@ -49,7 +49,7 @@ public class VerCorsTypeFactory implements
 
   @Override
   public Type Perm() {
-    Type res=create.primitive_type(PrimitiveSort.ZFraction);
+    Type res=create.primitive_type(PrimitiveSort.Rational);
     return res;
   }
   

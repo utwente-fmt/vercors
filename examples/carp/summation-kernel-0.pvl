@@ -8,27 +8,27 @@ class Ref {
   int res;
 
   context_everywhere ar != null ** N > 0 ** M > 0 ** \array(ar,M*N);
-  context Perm(res,write) ** (\forall* int i;0 <= i && i < M*N ; Perm(ar[i],1f/2));
+  context Perm(res,write) ** (\forall* int i;0 <= i && i < M*N ; Perm(ar[i],1\2));
   requires res==0;
   void do_sum(int M,int N, int[M*N] ar){
 		
     context_everywhere outer( Perm(res,write) ){
       par kern(int g = 0 .. M)
-        context (\forall* int k ; 0 <= k && k < N ; Perm(ar[g*N+k],1f/4));
+        context (\forall* int k ; 0 <= k && k < N ; Perm(ar[g*N+k],1\4));
       {
         int[1] temp=new int[1]; temp[0]=0;
         context_everywhere inner( \array(temp,1) ** Perm(temp[0],write) ){
           par workgroup(int t = 0 .. N)
 						context_everywhere 0 <= g && g < M;
-            requires Perm(ar[g*N+t],1f/4);
-            ensures t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(ar[g*N+k],1f/4));
+            requires Perm(ar[g*N+t],1\4);
+            ensures t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(ar[g*N+k],1\4));
           {
             atomic(inner){ temp[0]=temp[0]+ar[g*N+t]; }
             barrier(workgroup){
 							context 0 <= g && g < M;
 							context 0 <= t && t < N; // TODO REMOVE??
-              requires Perm(ar[g*N+t],1f/4);
-              ensures  t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(ar[g*N+k],1f/4));
+              requires Perm(ar[g*N+t],1\4);
+              ensures  t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(ar[g*N+k],1\4));
             }
             if(t==0){ int tmp;
               atomic(inner){ tmp=temp[0]; }

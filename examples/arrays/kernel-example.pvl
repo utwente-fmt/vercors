@@ -9,12 +9,12 @@ class Ref {
 	context_everywhere a.length == tcount && b.length == tcount && c.length == tcount;
   requires (\forall* int i; 0 <= i && i < tcount; Perm(a[i], write));
   requires (\forall* int i; 0 <= i && i < tcount; Perm(b[i], write));
-  requires (\forall* int i; 0 <= i && i < tcount; Perm(c[i], 1f/4)); // Perm(c[i], read) also possible (1)
+  requires (\forall* int i; 0 <= i && i < tcount; Perm(c[i], 1\4)); // Perm(c[i], read) also possible (1)
   void main(int tcount, int[] a, int[] b, int[] c) {
     par fwd (int tid=0..tcount)
       requires Perm(a[tid], write);
       requires Perm(b[tid], write);
-      requires Perm(c[tid], 1f/4); // Perm(c[tid], read) also possible (2)
+      requires Perm(c[tid], 1\4); // Perm(c[tid], read) also possible (2)
     {
       b[tid]=c[tid]; 
       barrier(fwd) {
@@ -22,9 +22,9 @@ class Ref {
         // losing all permissions:
         context  Perm(a[tid], write);
         requires Perm(b[tid], write);
-        requires Perm(c[tid], 1f/4); // Perm(c[tid], read) also possible (3)
-        ensures  Perm(b[tid], 1f/4); // Perm(b[tid], read) also possible (1)
-        ensures  tid>0 ==> Perm(b[tid-1], 1f/4); // Perm(b[tid-1], read) also possible (2)
+        requires Perm(c[tid], 1\4); // Perm(c[tid], read) also possible (3)
+        ensures  Perm(b[tid], 1\4); // Perm(b[tid], read) also possible (1)
+        ensures  tid>0 ==> Perm(b[tid-1], 1\4); // Perm(b[tid-1], read) also possible (2)
       }
       if(tid>0) {
         a[tid]=b[tid-1]+b[tid];

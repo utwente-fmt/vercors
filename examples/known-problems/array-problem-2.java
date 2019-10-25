@@ -24,8 +24,8 @@ class C {
   /*@
     requires Value(array);
     requires array!=null;
-    requires (\forall* int i ; 0 <= i && i < array.length;Perm(array[i],1f/100));
-    requires (\forall* int i ; 0 <= i && i < array.length;Perm(array[i].F,1f/100));
+    requires (\forall* int i ; 0 <= i && i < array.length;Perm(array[i],1\100));
+    requires (\forall* int i ; 0 <= i && i < array.length;Perm(array[i].F,1\100));
     requires (\forall int i ; 0 <= i && i < array.length; array[i].F > 0 );
   @*/
   void test2(){
