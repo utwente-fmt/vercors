@@ -580,7 +580,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       }
       Warning("incomplete match of parallel region");
     }
-    if (match(ctx,"context_everywhere",null,"(",null,")",null)){
+    if (match(ctx,"invariant",null,"(",null,")",null)){
       String label=getIdentifier(ctx, 1);
       ASTNode inv=convert(ctx, 3);
       ASTNode block=convert(ctx, 5);
