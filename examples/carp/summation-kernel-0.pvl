@@ -12,12 +12,12 @@ class Ref {
   requires res==0;
   void do_sum(int M,int N, int[M*N] ar){
 		
-    context_everywhere outer( Perm(res,write) ){
+    invariant outer( Perm(res,write) ){
       par kern(int g = 0 .. M)
         context (\forall* int k ; 0 <= k && k < N ; Perm(ar[g*N+k],1/4));
       {
         int[1] temp=new int[1]; temp[0]=0;
-        context_everywhere inner( \array(temp,1) ** Perm(temp[0],write) ){
+        invariant inner( \array(temp,1) ** Perm(temp[0],write) ){
           par workgroup(int t = 0 .. N)
 						context_everywhere 0 <= g && g < M;
             requires Perm(ar[g*N+t],1/4);

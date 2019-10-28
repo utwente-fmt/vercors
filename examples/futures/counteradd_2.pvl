@@ -28,7 +28,7 @@ class Program {
 		create f, f.pardecr();
 		split f, 1/2, f.decr(), 1/2, f.decr();
 
-		context_everywhere lockinv(HPerm(f.counter, write)) {
+		invariant lockinv(HPerm(f.counter, write)) {
 			par T0()
 				requires Future(f, 1/2, f.decr());
 				ensures Future(f, 1/2, empty);

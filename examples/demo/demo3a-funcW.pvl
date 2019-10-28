@@ -67,7 +67,7 @@ class ArraySum {
 		
 		this.sum = 0;
 		
-		context_everywhere inv(Perm(this.sum, 1) ** this.sum == sum(contrib))
+		invariant inv(Perm(this.sum, 1) ** this.sum == sum(contrib))
 		{
 			par (int tid = 0 .. A.length)
 				context Perm(A[tid], 1/2);
