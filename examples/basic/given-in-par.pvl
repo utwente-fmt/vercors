@@ -1,0 +1,11 @@
+class Test {
+
+	given frac p;
+	void call();
+
+	void test() {
+		par T0() {
+			call() with { p = 1; };
+		}
+	}
+}
