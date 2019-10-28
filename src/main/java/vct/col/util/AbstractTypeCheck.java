@@ -805,6 +805,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!type.endsWith("Future")) {
           Fail("First argument of Future must be a Future class, not %s.", type);
         }
+        force_frac(e.arg(1));
         e.setType(new PrimitiveType(PrimitiveSort.Resource));
         break;
       }
@@ -1532,6 +1533,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
 
   private void force_frac(ASTNode arg) {
+    if(arg instanceof OperatorExpression && ((OperatorExpression) arg).operator() == StandardOperator.FloorDiv) {
+      Warning("Encountered an integer division '%s' where a fraction was expected, did you mean a fraction division here?", arg);
+    }
+
     if(arg.getType().isPrimitive(PrimitiveSort.Integer)) {
       arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
     }

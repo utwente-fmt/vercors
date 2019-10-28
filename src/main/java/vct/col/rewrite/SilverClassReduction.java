@@ -329,6 +329,24 @@ public class SilverClassReduction extends AbstractRewriter {
     t=create.class_type("MatrixExpression",args);
     return t;
   }
+
+  private ASTNode getFracVal(ASTNode node) {
+    fractions = true;
+    String method = node.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
+    node = rewrite(node);
+
+    if(node instanceof MethodInvokation && (((MethodInvokation) node).method.equals("new_frac") || ((MethodInvokation) node).method.equals("new_zfrac"))) {
+      return ((MethodInvokation) node).getArg(0);
+    } else {
+      return create.invokation(null, null, method, node);
+    }
+  }
+
+  private ASTNode packFracVal(Type t, ASTNode node) {
+    fractions = true;
+    String method = t.isPrimitive(PrimitiveSort.ZFraction) ? "new_zfrac" : "new_frac";
+    return create.invokation(null, null, method, node);
+  }
   
   @Override
   public void visit(OperatorExpression e){
@@ -470,7 +488,7 @@ public class SilverClassReduction extends AbstractRewriter {
     case NEQ:
     case GT:
     case GTE: {
-      if(e.operator() == StandardOperator.Plus && e.getType().isPrimitive(PrimitiveSort.Float)){
+      if(e.operator() == StandardOperator.Plus && e.getType() != null && e.getType().isPrimitive(PrimitiveSort.Float)){
         result = create.domain_call("VCTFloat", "fadd", rewrite(e.argsJava()));
         return;
       }
@@ -478,25 +496,19 @@ public class SilverClassReduction extends AbstractRewriter {
       ASTNode left = e.arg(0), right = e.arg(1);
 
       if(left.getType() != null && left.getType().isFraction()) {
-        fractions = true;
-        String method = left.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
-        left = create.invokation(null, null, method, rewrite(left));
+        left = getFracVal(left);
       } else {
         left = rewrite(left);
       }
 
       if(right.getType() != null && right.getType().isFraction()) {
-        fractions = true;
-        String method = right.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
-        right = create.invokation(null, null, method, rewrite(right));
+        right = getFracVal(right);
       } else {
         right = rewrite(right);
       }
 
       if(e.getType() != null && e.getType().isFraction()) {
-        fractions = true;
-        String method = e.getType().isPrimitive(PrimitiveSort.ZFraction) ? "new_zfrac" : "new_frac";
-        result = create.invokation(null, null, method, create.expression(e.operator(), left, right));
+        result = packFracVal(e.getType(), create.expression(e.operator(), left, right));
       } else {
         result = create.expression(e.operator(), left, right);
       }
@@ -507,8 +519,7 @@ public class SilverClassReduction extends AbstractRewriter {
     case Perm: {
       ASTNode permVal = e.arg(1);
       if(permVal.getType().isFraction()) {
-        String method = e.arg(1).getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
-        permVal = create.invokation(null, null, method, rewrite(permVal));
+        permVal = getFracVal(permVal);
       } else {
         permVal = rewrite(permVal);
       }
@@ -516,11 +527,20 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal);
       break;
     }
+    case Scale: {
+      ASTNode permVal = e.arg(0);
+      if (permVal.getType().isFraction()) {
+        permVal = getFracVal(permVal);
+      } else {
+        permVal = rewrite(permVal);
+      }
+      result = create.expression(StandardOperator.Scale, permVal, rewrite(e.arg(1)));
+      break;
+    }
     case PointsTo: {
       ASTNode permVal = e.arg(1);
       if(permVal.getType().isFraction()) {
-        String method = e.arg(1).getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
-        permVal = create.invokation(null, null, method, rewrite(permVal));
+        permVal = getFracVal(permVal);
       } else {
         permVal = rewrite(permVal);
       }
@@ -549,10 +569,8 @@ public class SilverClassReduction extends AbstractRewriter {
   @Override
   public void visit(ConstantExpression val) {
     if(val.value() instanceof IntegerValue && val.getType().isFraction()) {
-      fractions = true;
-      String method = val.getType().isPrimitive(PrimitiveSort.ZFraction) ? "new_zfrac" : "new_frac";
       val.setType(new PrimitiveType(PrimitiveSort.Rational));
-      result = create.invokation(null, null, method, val);
+      result = packFracVal(val.getType(), val);
     } else {
       super.visit(val);
     }

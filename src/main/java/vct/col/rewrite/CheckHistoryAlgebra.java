@@ -314,7 +314,13 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     args[1]=create.field_decl("proc1",adt_type);
     args[2]=create.field_decl("frac2",create.primitive_type(PrimitiveSort.Fraction));
     args[3]=create.field_decl("proc2",adt_type);
-    
+
+    ASTNode fracSumBound = create.expression(
+            StandardOperator.LTE,
+            create.expression(StandardOperator.Plus, create.local_name("frac1"), create.local_name("frac2")),
+            create.reserved_name(FullPerm)
+    );
+
     ASTNode split1=create.invokation(null, null, "hist_idle",
         create.local_name("frac1"),create.local_name("proc1")
     );
@@ -327,11 +333,13 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     );
     ContractBuilder split_cb=new ContractBuilder();
     ContractBuilder merge_cb=new ContractBuilder();
-    
+
+    split_cb.requires(fracSumBound);
     split_cb.requires(merge);
     split_cb.ensures(split1);
     split_cb.ensures(split2);
-    
+
+    merge_cb.requires(fracSumBound);
     merge_cb.requires(split1);
     merge_cb.requires(split2);
     merge_cb.ensures(merge);
