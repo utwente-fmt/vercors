@@ -1,3 +1,7 @@
+//:: cases GivenInPar
+//:: tools silicon
+//:: verdict Pass
+
 class Test {
 
 	given frac p;
