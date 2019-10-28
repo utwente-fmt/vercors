@@ -14,7 +14,7 @@ class Ref {
   ensures  (\forall int i;0 <= i && i < M*N ; ar[i]==\old(ar[i]));
   void do_sum(int M,int N, int[M*N] ar){
     int[M] temp=new int[M];
-    context_everywhere outer(
+    invariant outer(
       Perm(res,write)
     ){
       par kern(int g = 0 .. M)
@@ -28,7 +28,7 @@ class Ref {
           ensures contrib[t]==0;
         { contrib[t] = 0; }
         
-        context_everywhere inner(
+        invariant inner(
           \array(temp,1) ** Perm(temp[0],1) **
           \array(contrib,N) ** (\forall* int k; 0 <= k && k < N ; Perm(contrib[k],1/2))
           // temp[0]==(\sum int k; 0 <= k && k < N ; contrib[k])

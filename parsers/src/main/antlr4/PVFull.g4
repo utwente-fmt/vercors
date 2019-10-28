@@ -91,7 +91,7 @@ statement
  | 'barrier' '(' identifier ( ';' id_list )? ')' ( '{' contract '}' | contract block )
  | contract 'par' par_unit ( 'and' par_unit )*
  | 'vec' '(' iter ')' block
- | 'context_everywhere' identifier '(' expr ')' block
+ | 'invariant' identifier '(' expr ')' block
  | 'atomic' '(' id_list ')' block
  | invariant 'while' '(' expr ')' statement
  | invariant 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement

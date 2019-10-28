@@ -34,7 +34,7 @@ class Program {
 		assert Future(model, 1/2, model.incr()) ** Future(model, 1/2, model.incr()) ** HPerm(model.x, 1); // and now we have this
 
 		// moving the the `HPerm(...)` predicate to the resource invariant (so that both threads can atomically write to model.x)
-		context_everywhere inv(HPerm(model.x, 1)) //;
+		invariant inv(HPerm(model.x, 1)) //;
 		{
 			assert Future(model, 1/2, model.incr()) ** Future(model, 1/2, model.incr()); // now we are left with this
 

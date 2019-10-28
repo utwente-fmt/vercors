@@ -12,7 +12,7 @@ class Ref {
   ensures (\forall int i;0 <= i && i < N ; ar[i]==0);
   void vector(int N, int[N] ar){
     x=0;
-    context_everywhere inv( Perm(x,1/2) **
+    invariant inv( Perm(x,1/2) **
       (x==0 ==> (\forall* int k;0 <= k && k < N ; Perm(ar[k],write)))
     ){
       par main(int i = 0 .. N)
