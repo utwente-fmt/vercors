@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.ast.MessageOrigin
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.constant.StructValue
-import vct.col.ast.expr.{Dereference, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{Binder, BindingExpression, Dereference, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
@@ -385,10 +385,10 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     var rowJ: ASTNode = create.expression(StandardOperator.Subscript, matrix, quantJ0)
 
     if(seqInfo0.isCell) {
-      conditions += create.starall(quantGuard, create.expression(StandardOperator.Perm, row, create.reserved_name(ASTReserved.ReadPerm)), quantDecls: _*)
       row = create.dereference(row, "item")
       rowI = create.dereference(rowI, "item")
       rowJ = create.dereference(rowJ, "item")
+      conditions += create.starall(quantGuard, create.expression(StandardOperator.Perm, row, create.reserved_name(ASTReserved.ReadPerm)), quantDecls: _*)
     }
 
     if(seqInfo1.isOpt) {
@@ -435,7 +435,10 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
 
       val triggers = Array(Array(cellI, cellJ))
 
-      conditions += create.starall(triggers, quantGuard, claim, quantDecls:_*)
+      val condition = new BindingExpression(Binder.Star, new PrimitiveType(PrimitiveSort.Resource), quantDecls, triggers, quantGuard, claim)
+      condition.setOrigin(create.getOrigin)
+
+      conditions += condition
     }
 
     conditions.reduce(star)
