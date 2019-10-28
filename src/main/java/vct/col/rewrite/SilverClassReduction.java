@@ -1,6 +1,5 @@
 package vct.col.rewrite;
 
-import com.sun.org.apache.bcel.internal.classfile.ConstantValue;
 import hre.ast.MessageOrigin;
 
 import java.io.File;
