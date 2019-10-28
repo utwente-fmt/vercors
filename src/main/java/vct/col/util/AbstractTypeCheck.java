@@ -1254,6 +1254,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!tt[1].isNumeric()) {
           Fail("Second argument of %s is %s rather than a numeric type", op, tt[1]);
         }
+
+        if(tt[0].isFraction()) force_frac(e.arg(1));
+        else if(tt[1].isFraction()) force_frac(e.arg(0));
+
         e.setType(new PrimitiveType(PrimitiveSort.Boolean));
         break;
       }
