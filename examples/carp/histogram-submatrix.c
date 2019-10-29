@@ -1,7 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases HistogramSubMatrix
-// tools silicon
-// verdict Pass
+//:: tools silicon
+//:: verdict Pass
 
 /*@
   given seq<seq<int> > data;
@@ -50,4 +50,3 @@ void histogram(int M,int N,int step,int matrix[M][step],int P,int hist[P]){
     }
   }
 }
-
