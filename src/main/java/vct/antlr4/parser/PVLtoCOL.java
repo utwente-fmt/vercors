@@ -304,30 +304,6 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     if (match(ctx,"(","\\sum",null,null,";",null,";",null,")")){
       return create.summation(convert(ctx,5),convert(ctx,7),create.field_decl(getIdentifier(ctx,3),(Type)convert(ctx,2)));
     }
-    if (match(ctx,"idle",tuple)){
-      ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
-      return create.expression(StandardOperator.PVLidleToken,args);
-    }
-    if (match(ctx,"running",tuple)){
-      ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
-      return create.expression(StandardOperator.PVLjoinToken,args);
-    }
-    if (match(ctx,"held",tuple)){
-      ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
-      return create.expression(StandardOperator.Held,args);
-    }
-    if (match(ctx,"head",tuple)){
-      ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
-      return create.expression(StandardOperator.Head,args);
-    }
-    if (match(ctx,"tail",tuple)){
-      ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
-      return create.expression(StandardOperator.Tail,args);
-    }
-    if (match(ctx,"Some",tuple)){
-      ASTNode args[]=getTuple((ParserRuleContext)ctx.getChild(1));
-      return create.expression(StandardOperator.OptionSome,args);
-    }
     if (match(0,true,ctx,"[",null,"]",null)){
       return create.expression(StandardOperator.Scale,convert(ctx,1),convert(ctx,3)); 
     }
@@ -345,11 +321,6 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       Type t=checkType(convert(ctx,2));
       ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(4),"{",",","}");
       return create.struct_value(create.primitive_type(PrimitiveSort.Bag,t),null,args);
-    }
-    if (match(ctx,"ExprContext",".","ExprContext")){
-      ASTNode e1=convert(ctx.children.get(0));
-      ASTNode e2=convert(ctx.children.get(2));
-      return create.dereference(e1,e2.toString());
     }
     if (match(ctx,"!",null)){
       return create.expression(StandardOperator.Not,convert(ctx,1));
