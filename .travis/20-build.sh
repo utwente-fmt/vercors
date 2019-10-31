@@ -1,3 +1,2 @@
 #!/bin/bash
-cd vercors
-sbt assembly
+sbt compile

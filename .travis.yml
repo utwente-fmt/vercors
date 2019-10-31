@@ -7,7 +7,7 @@ env:
   - PATH=$TRAVIS_BUILD_DIR/unix/bin:$PATH
 
 # A few notes on caching:
-# SBT is very picky when it comes to recompilation. It boils down to the modify time and path of the source and class 
+# SBT is very picky when it comes to recompilation. It boils down to the modify time and path of the source and class
 # files. If the modify time of the JVM changes, the full project is recompiled. This is why the openjdk version is left
 # default; that version is already installed. Dynamic installation causes the modify time to be different for each
 # travis run. Furthermore, travis uses tar for caching, which by default has insufficient accuracy in the modify time
@@ -42,6 +42,7 @@ matrix:
     - script:
       - SPLIT=3/5 ./.travis/build.sh
     - script:
-      - SPLIT=4/5 ./.travis/build.sh  
+      - SPLIT=4/5 ./.travis/build.sh
     - script:
+      - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
       - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"

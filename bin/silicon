@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+BIN=$(dirname $0)
+$BIN/run-class viper.silicon.SiliconRunner $@
