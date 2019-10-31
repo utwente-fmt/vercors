@@ -51,8 +51,8 @@ lazy val vercors = (project in file("."))
         // Disable documentation generation
         sources in (Compile, doc) := Seq(),
 
-        mappings in Universal += file("../README.md") -> "README.md",
-        mappings in Universal ++= directory("../examples"),
+        mappings in Universal += file("README.md") -> "README.md",
+        mappings in Universal ++= directory("examples"),
 
         // Copy the resources not in the jar and add them to the classpath.
         mappings in Universal ++= directory(sourceDirectory.value / "main" / "universal" / "res"),
