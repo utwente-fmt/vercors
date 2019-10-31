@@ -3,6 +3,7 @@ package vct.col.util;
 import java.util.HashSet;
 import java.util.Hashtable;
 
+import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.expr.BindingExpression;
 import vct.col.ast.stmt.composite.BlockStatement;
@@ -177,5 +178,13 @@ public class NameScanner extends RecursiveVisitor<Object> {
         vars.put(name,old);
       }
     }
+  }
+
+  @Override
+  public void visit(MethodInvokation invokation) {
+    super.visit(invokation);
+    // The before/after annotations of methods contain the given/yields mappings, so don't include them as though they
+    // are free names.
+    auto_before_after = false;
   }
 }

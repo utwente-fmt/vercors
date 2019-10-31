@@ -299,21 +299,34 @@ public class Flatten extends AbstractRewriter {
       }
     }
   }
+
+  private ASTNode visit(IfStatement s, int i) {
+    if(s.getGuard(i) == IfStatement.elseGuard()) {
+      return rewrite(s.getStatement(i));
+    } else {
+      IfStatement result = new IfStatement();
+      ASTNode guard = rewrite(s.getGuard(i));
+
+      block_stack.push(current_block);
+      current_block = create.block();
+      visit_body(s.getStatement(i));
+      result.addClause(guard, current_block);
+      current_block = block_stack.pop();
+
+      if(i < s.getCount()-1) {
+        block_stack.push(current_block);
+        current_block = create.block();
+        current_block.addStatement(visit(s, i+1));
+        result.addClause(IfStatement.elseGuard(), current_block);
+        current_block = block_stack.pop();
+      }
+
+      return result;
+    }
+  }
   
   public void visit(IfStatement s) {
-    IfStatement res=new IfStatement();
-    res.setOrigin(s.getOrigin());
-    int N=s.getCount();
-    for(int i=0;i<N;i++){
-      ASTNode guard=s.getGuard(i);
-      if (guard!=IfStatement.elseGuard()) guard=guard.apply(copy_pure);
-      block_stack.push(current_block);
-      current_block=create.block();
-      visit_body(s.getStatement(i));
-      res.addClause(guard,current_block);
-      current_block=block_stack.pop();
-    }
-    result=res; return ;
+    result = visit(s, 0);
   }
 
   public void visit(Method m) {
