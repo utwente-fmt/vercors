@@ -109,6 +109,8 @@ newExpr
 target
  : target '.' gen_id
  | target '[' expr ']'
+ | nonTarget '.' gen_id
+ | nonTarget '[' expr ']'
  | targetUnit
  ;
 
@@ -144,7 +146,6 @@ nonTargetUnit
 
 targetUnit
  : identifier
- | 'this' '.' identifier
  ;
 
 builtinMethod
