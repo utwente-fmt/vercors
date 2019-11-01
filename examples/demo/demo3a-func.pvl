@@ -13,9 +13,9 @@ class ArraySum {
 	  (i == A.length) ? 0 : A[i] + sum_contrib(A, i + 1);
 
     given int[A.length] contrib;
-	invariant A != null;
-	invariant contrib != null;
-	invariant contrib.length == A.length;
+	context_everywhere A != null;
+	context_everywhere contrib != null;
+	context_everywhere contrib.length == A.length;
 	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1/2));
 	context (\forall* int i; 0 <= i && i < A.length; Perm(contrib[i], 1));
 	context Perm(this.sum, write);

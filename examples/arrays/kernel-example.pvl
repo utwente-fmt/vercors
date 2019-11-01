@@ -4,9 +4,9 @@
 //:: verdict Pass
 
 class Ref {
-  invariant a != null && b != null && c != null;
-  invariant tcount >= 0;
-	invariant a.length == tcount && b.length == tcount && c.length == tcount;
+  context_everywhere a != null && b != null && c != null;
+  context_everywhere tcount >= 0;
+	context_everywhere a.length == tcount && b.length == tcount && c.length == tcount;
   requires (\forall* int i; 0 <= i && i < tcount; Perm(a[i], write));
   requires (\forall* int i; 0 <= i && i < tcount; Perm(b[i], write));
   requires (\forall* int i; 0 <= i && i < tcount; Perm(c[i], 1/4)); // Perm(c[i], read) also possible (1)

@@ -5,8 +5,8 @@
 //:: options --explicit
 
 /*
- Example: Semaphore 
- Description: Semaphore using AtomicInteger as synchronizer. 
+ Example: Semaphore
+ Description: Semaphore using AtomicInteger as synchronizer.
  Author: Afshin Amighi
  Status: Pass.
  command: vct --chalice --explicit Semaphore.java
@@ -37,7 +37,7 @@ public class Semaphore{
     //@ given int max;
     //@ requires max >0 && x <=max && n<=max && 100%max==0;
     //@ requires cri:inv(part(0,n,max)-part(0,x,max));
-    //@ ensures  \result ==> cepi:inv(part(0,x,max)-part(0,n,max)); 
+    //@ ensures  \result ==> cepi:inv(part(0,x,max)-part(0,n,max));
     //@ ensures !\result ==> ceni:inv(part(0,n,max)-part(0,x,max));
     public boolean compareAndSet(int x, int n);
 
@@ -60,8 +60,8 @@ public class Semaphore{
             r = compareAndSet(c,nextc) /*@ with { max=permits; cri = tcri; } then { tcepi = cepi; tceni = ceni; } @*/;
             //@    assert (c*100)/permits-(nextc*100)/permits == 100/permits;
 
-            /*@ 
-             if(r){ 
+            /*@
+             if(r){
                 tae = tcepi;
              }else{
                 unfold tceni: inv(part(0,nextc,permits)-part(0,c,permits));
@@ -103,7 +103,7 @@ public class Semaphore{
         //@    assert (nextc*100)/permits-(c*100)/permits == 100/permits;
         // fold tcri: inv(part(0,nextc,permits)-part(0,c,permits));
         r = compareAndSet(c,nextc) /*@ with { max = permits; cri = trr; } then { tcepi = cepi; tceni = ceni; } @*/;
-        /*@ if(r){ 
+        /*@ if(r){
             unfold tcepi:inv(part(0,c,permits)-part(0,nextc,permits));
          }else{
              tre=tceni;
@@ -128,4 +128,3 @@ public class Semaphore{
         }
     }
 }
-

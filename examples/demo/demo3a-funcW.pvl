@@ -55,7 +55,7 @@ class ArraySum {
 	/* ** Implementation */
 
 	yields seq<int> contrib;
-	invariant A != null;
+	context_everywhere A != null;
 	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1/2));
 	context Perm(this.sum, write);
 	ensures |contrib| == A.length;

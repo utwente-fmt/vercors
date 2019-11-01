@@ -38,8 +38,8 @@ class Graph {
 	}
 	
 	yields seq<int> P;
-	invariant marked != null && marked.length == n;
-	invariant 0 <= x && x < n && 0 <= y && y < n;
+	context_everywhere marked != null && marked.length == n;
+	context_everywhere 0 <= x && x < n && 0 <= y && y < n;
 	context 0 < n && Graph(n, G);
 	context (\forall* int j; 0 <= j && j < n; Perm(marked[j], write));
 	ensures \result ==> 0 < |P|;

@@ -12,7 +12,7 @@
 
 // Should work, but doesn't. See also zero-sub-matrix-par.c
 // /*@
-//   invariant M > 0 && N > 0;
+//   context_everywhere M > 0 && N > 0;
 //   context \pointer(matrix, M, write);
 //   context (\forall* int i; 0 <= i && i < M;
 //             (\forall* int j; 0 <= j && j < N; Perm(matrix[i][j], write)));

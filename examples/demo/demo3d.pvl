@@ -22,18 +22,18 @@ class Future {
 class Program {
 	static pure int sum(seq<int> xs) = 0 < |xs| ? head(xs) + sum(tail(xs)) : 0;
 	
-	invariant model != null && 0 < |xs|;
+	context_everywhere model != null && 0 < |xs|;
 	requires Future(model, 1, model.P(xs));
 	ensures (\forall* int i; 0 <= i && i < |xs|; Future(model, 1/|xs|, model.incr(xs[i]) * model.done(xs[i])));
 	void lemma_P_split_all(Future model, seq<int> xs);
 	
-	invariant model != null && 0 < |xs|;
+	context_everywhere model != null && 0 < |xs|;
 	requires (\forall* int i; 0 <= i && i < |xs|; Future(model, 1/|xs|, model.done(xs[i])));
 	ensures Future(model, 1, empty);
 	void lemma_done_merge_all(Future model, seq<int> xs);
 	
 	given seq<int> xs;
-	invariant A != null && A.length == |xs| && 0 < A.length;
+	context_everywhere A != null && A.length == |xs| && 0 < A.length;
 	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1/2));
 	context (\forall int i; 0 <= i && i < A.length; A[i] == xs[i]);
 	ensures \result == sum(xs);

@@ -5,7 +5,7 @@
 
 public class ZeroArray {
     /*@ 
-        invariant ar != null;
+        context_everywhere ar != null;
         requires Perm(ar[*],1);
         ensures Perm(ar[*],1) ** (\forall int k ; 0 <= k && k < ar.length ; ar[k]==0 ) ;
      */

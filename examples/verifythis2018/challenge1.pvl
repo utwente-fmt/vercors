@@ -148,7 +148,7 @@ class GapBuffer {
 	}
 	
 	given seq<int> contents;
-	invariant Perm(l, 1/4) ** Perm(r, 1/3) ** Perm(a, 1/3) ** K > 0;
+	context_everywhere Perm(l, 1/4) ** Perm(r, 1/3) ** Perm(a, 1/3) ** K > 0;
 	context Represents(contents);
 	ensures l < r;
 	void grow(int K) {
@@ -198,7 +198,7 @@ class GapBuffer {
 	
 	given seq<int> contents;
 	yields seq<int> newcontents;
-	invariant Perm(l, 1/3) ** Perm(r, 1/3) ** Perm(a, 1/3) ** K > 0;
+	context_everywhere Perm(l, 1/3) ** Perm(r, 1/3) ** Perm(a, 1/3) ** K > 0;
 	requires Represents(contents);
 	ensures Represents(newcontents);
 	ensures |newcontents| == |contents| + 1;

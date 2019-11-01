@@ -11,8 +11,8 @@ float res;
   context \pointer(ar, N, 1/2);
   context Perm(res,write);
   context ar_values == \values(ar, 0, N);
-  invariant N>0;
-  invariant |ar_values| == N;
+  context_everywhere N>0;
+  context_everywhere |ar_values| == N;
 
   ensures  res==(\sum int k ; 0 <= k && k < N ; ar_values[k] );
 @*/

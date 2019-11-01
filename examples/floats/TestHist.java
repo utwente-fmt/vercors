@@ -7,11 +7,11 @@ class Testhist {
   
   /*@
     given seq<int> vals;
-    invariant a != null && hist != null && a.length == |vals|;
-    invariant (\forall* int i; 0 <= i && i < a.length ; Perm(a[i],1/2));
-    invariant (\forall* int i; 0 <= i && i < hist.length ; Perm(hist[i],1));
-    invariant (\forall int i; 0 <= i && i < a.length ; 0 <= a[i] && a[i] < hist.length);
-    invariant (\forall int i; 0 <= i && i < a.length ; a[i] == vals[i] );
+    context_everywhere a != null && hist != null && a.length == |vals|;
+    context_everywhere (\forall* int i; 0 <= i && i < a.length ; Perm(a[i],1/2));
+    context_everywhere (\forall* int i; 0 <= i && i < hist.length ; Perm(hist[i],1));
+    context_everywhere (\forall int i; 0 <= i && i < a.length ; 0 <= a[i] && a[i] < hist.length);
+    context_everywhere (\forall int i; 0 <= i && i < a.length ; a[i] == vals[i] );
     ensures   (\forall int i; 0 <= i && i < hist.length ;
                  hist[i]==\sum([0 .. a.length),\vcmp(vals,\vrep(i))));
   @*/

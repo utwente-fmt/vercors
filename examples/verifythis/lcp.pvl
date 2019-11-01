@@ -2,10 +2,10 @@
 //:: cases LeastCommonPrefix
 
 class LCP {
-	invariant a != null;
-	invariant (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
-	invariant 0 <= x && x < a.length;
-	invariant 0 <= y && y < a.length;
+	context_everywhere a != null;
+	context_everywhere (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
+	context_everywhere 0 <= x && x < a.length;
+	context_everywhere 0 <= y && y < a.length;
 	ensures 0 <= \result + x && \result + x <= a.length;
 	ensures 0 <= \result + y && \result + y <= a.length;
 	ensures (\forall* int k; 0 <= k && k < a.length; Value(a[k]));

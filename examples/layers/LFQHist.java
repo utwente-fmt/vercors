@@ -150,10 +150,10 @@ final class Queue {
     RPerm(head) ** ([read]reachable(begin,head.ref)) **
     RPerm(tail) ** ([read]reachable(begin,tail.ref)) **
     Perm(last,1) ** ([read]reachable(begin,last)) **
-    //begin(invariant)
+    //begin(context_everywhere)
     Perm(hist_active,1/2) ** Value(hist) ** (hist_active ==> 
     HPerm(hist.q,1) ** chain(head.ref,last,hist.q))
-    //end(invariant)
+    //end(context_everywhere)
     ** RPointsTo(last.next,null);
    */
    
