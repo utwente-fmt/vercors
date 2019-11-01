@@ -29,6 +29,7 @@ contract : valContractClause* ;
 
 args : type identifier ( ',' type identifier )* | ;
 
+
 expr
  : identifier ':' expr
  | expr 'with' block
@@ -84,6 +85,7 @@ multExpr
  : multExpr '*' powExpr
  | multExpr '/' powExpr
  | multExpr '%' powExpr
+ | multExpr '\\' powExpr
  | powExpr
  ;
 
