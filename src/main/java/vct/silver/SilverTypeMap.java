@@ -93,7 +93,10 @@ public class SilverTypeMap<T> implements TypeMapping<T> {
       case Boolean:
         return create.Bool();
       case ZFraction:
+        return create.domain_type("zfrac", new HashMap<>());
       case Fraction:
+        return create.domain_type("frac", new HashMap<>());
+      case Rational:
         return create.Perm();
       case Sequence:
         return create.List(map(t.firstarg()));

@@ -805,6 +805,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!type.endsWith("Future")) {
           Fail("First argument of Future must be a Future class, not %s.", type);
         }
+        force_frac(e.arg(1));
         e.setType(new PrimitiveType(PrimitiveSort.Resource));
         break;
       }
@@ -1215,6 +1216,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
       }
       case Div:
+      case FloorDiv:
       case Mod: {
         checkMathOperator(e, op, tt[0], tt[1]);
         break;
@@ -1252,6 +1254,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!tt[1].isNumeric()) {
           Fail("Second argument of %s is %s rather than a numeric type", op, tt[1]);
         }
+
+        if(tt[0].isFraction()) force_frac(e.arg(1));
+        else if(tt[1].isFraction()) force_frac(e.arg(0));
+
         e.setType(new PrimitiveType(PrimitiveSort.Boolean));
         break;
       }
@@ -1505,8 +1511,25 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     if (!t2.isNumeric()){
       Fail("Second argument of %s is %s rather than a numeric type",op,t2);
     }
+
+    if(op == StandardOperator.FloorDiv && (t1.isFraction() || t2.isFraction())) {
+      Fail("Integer division may not involve fractions");
+    }
+
     if (op==StandardOperator.Minus && t1.isPrimitive(PrimitiveSort.Fraction)){
       e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
+    } else if(op == StandardOperator.Div) {
+      // If the numerator is a (z)frac, copy that type. Otherwise, try to infer the type from a constant integer expr
+      // in the numerator.
+      if(t1.isPrimitive(PrimitiveSort.Fraction)) {
+        e.setType(new PrimitiveType(PrimitiveSort.Fraction));
+      } else if(t1.isPrimitive(PrimitiveSort.ZFraction)) {
+        e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
+      } else if(t1.isPrimitive(PrimitiveSort.Integer) && e.arg(0) instanceof ConstantExpression && !e.arg(0).isConstant(0)){
+        e.setType(new PrimitiveType(PrimitiveSort.Fraction));
+      } else {
+        e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
+      }
     } else {
       e.setType(t1);
     }
@@ -1514,33 +1537,51 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
 
   private void force_frac(ASTNode arg) {
-    if (arg.getType().isPrimitive(PrimitiveSort.ZFraction)||
-        arg.getType().isPrimitive(PrimitiveSort.Fraction)) {
-      if (arg instanceof OperatorExpression){
-        OperatorExpression e=(OperatorExpression)arg;
-        switch(e.operator()){
+    if(arg instanceof OperatorExpression && ((OperatorExpression) arg).operator() == StandardOperator.FloorDiv) {
+      Warning("Encountered an integer division '%s' where a fraction was expected, did you mean a fraction division here?", arg);
+    }
+
+    if(arg.getType().isPrimitive(PrimitiveSort.Integer)) {
+      arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
+    }
+
+    if(arg instanceof OperatorExpression) {
+      OperatorExpression op = (OperatorExpression) arg;
+      switch(op.operator()) {
         case ITE:
-          force_frac(e.arg(1));
-          force_frac(e.arg(2));
+          force_frac(op.arg(1));
+          force_frac(op.arg(2));
           break;
-        }
-      }
-      return;
-    }
-    arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
-    if (arg instanceof OperatorExpression){
-      OperatorExpression e=(OperatorExpression)arg;
-      switch(e.operator()){
-      case Div:
-        //force_frac(e.getArg(0));
-        break;
-      default:
-        for(ASTNode n:e.argsJava()){
-          force_frac(n);
-        }
-        break;
       }
     }
+
+//    if (arg.getType().isPrimitive(PrimitiveSort.ZFraction)||
+//        arg.getType().isPrimitive(PrimitiveSort.Fraction)) {
+//      if (arg instanceof OperatorExpression){
+//        OperatorExpression e=(OperatorExpression)arg;
+//        switch(e.operator()){
+//        case ITE:
+//          force_frac(e.arg(1));
+//          force_frac(e.arg(2));
+//          break;
+//        }
+//      }
+//      return;
+//    }
+//    arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
+//    if (arg instanceof OperatorExpression){
+//      OperatorExpression e=(OperatorExpression)arg;
+//      switch(e.operator()){
+//      case Div:
+//        //force_frac(e.getArg(0));
+//        break;
+//      default:
+//        for(ASTNode n:e.argsJava()){
+//          force_frac(n);
+//        }
+//        break;
+//      }
+//    }
   }
 
   public void visit(Dereference e){

@@ -8,7 +8,7 @@ float res;
 
 /*@
   given seq<float> ar_values;
-  context \pointer(ar, N, 1/2);
+  context \pointer(ar, N, 1\2);
   context Perm(res,write);
   context ar_values == \values(ar, 0, N);
   context_everywhere N>0;
@@ -21,7 +21,7 @@ void do_sum(int N,float ar[N]){
   for(int i=0;i<N;i++)
     /*@
       context ar != NULL;
-      context Perm(ar[i], 1/2);
+      context Perm(ar[i], 1\2);
       context ar_values[i] == ar[i];
 
       requires Reducible(res, +);

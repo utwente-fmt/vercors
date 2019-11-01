@@ -7,14 +7,14 @@ class Counter {
 	int count;
 	
 	requires Perm(count, 1);
-	ensures Perm(count, 1/2);
+	ensures Perm(count, 1\2);
 	ensures count == \old(count) + n;
 	void incr(int n) {
 		count = count + n;
 	}
 	
 	requires Perm(count, 1);
-	ensures Perm(count, 1/2);
+	ensures Perm(count, 1\2);
 	ensures count == \old(count) + 2 * n;
 	void incr2(int n) {
 		incr(n);

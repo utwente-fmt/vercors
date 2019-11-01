@@ -26,28 +26,28 @@ class Program {
 		Future f = new Future();
 		f.counter = count;
 		create f, f.pardecr();
-		split f, 1/2, f.decr(), 1/2, f.decr();
+		split f, 1\2, f.decr(), 1\2, f.decr();
 
 		invariant lockinv(HPerm(f.counter, write)) {
 			par T0()
-				requires Future(f, 1/2, f.decr());
-				ensures Future(f, 1/2, empty);
+				requires Future(f, 1\2, f.decr());
+				ensures Future(f, 1\2, empty);
 			{
 				atomic(lockinv) {
-					action(f, 1/2, empty, f.decr()) { f.counter = f.counter - 1; }
+					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - 1; }
 				}
 			}
 			and T1()
-				requires Future(f, 1/2, f.decr());
-				ensures Future(f, 1/2, empty);
+				requires Future(f, 1\2, f.decr());
+				ensures Future(f, 1\2, empty);
 			{
 				atomic(lockinv) {
-					action(f, 1/2, empty, f.decr()) { f.counter = f.counter - 1; }
+					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - 1; }
 				}
 			}
 		}
 
-		merge f, 1/2, empty, 1/2, empty;
+		merge f, 1\2, empty, 1\2, empty;
 		destroy f;
 
 		return f.counter;

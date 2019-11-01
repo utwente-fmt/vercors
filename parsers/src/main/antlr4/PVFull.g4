@@ -85,6 +85,7 @@ multExpr
  : multExpr '*' powExpr
  | multExpr '/' powExpr
  | multExpr '%' powExpr
+ | multExpr '\\' powExpr
  | powExpr
  ;
 

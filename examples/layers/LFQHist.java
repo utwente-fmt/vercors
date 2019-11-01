@@ -9,7 +9,7 @@
 
 final class History {/*@
     seq<int> q;
-    
+
     modifies q;
     ensures  q==\old(q)+seq<int>{e};
     process  put(int e);
@@ -33,20 +33,20 @@ final class History {/*@
 final class Integer {
 
   int val;
-  
+
   /*@
     ensures Value(val)**val==v;
   @*/
   Integer(int v){
     val=v;
   }
-  
+
 }
 
 final class Node {
 
   int val;
-  
+
   AtomicNode next;
 
 }
@@ -57,9 +57,9 @@ final class AtomicNode {
   Node ref;
 
   void set(Node n){ this.ref = n; }
-  
+
 	Node get(){ return this.ref; }
-	
+
 	boolean compareAndSet(Node e, Node v){
 		boolean res=(this.ref==e);
 		if(res) {
@@ -81,8 +81,8 @@ final class AtomicNode {
 final class Queue {
 
   /*@
-    requires Value(hist) ** PointsTo(hist_active,1/2,true);
-    ensures Value(hist)  ** PointsTo(hist_active,1/2,false)
+    requires Value(hist) ** PointsTo(hist_active,1\2,true);
+    ensures Value(hist)  ** PointsTo(hist_active,1\2,false)
       ** HPerm(hist.q,1);
   void end_history(){
     atomic ( this ) {
@@ -94,7 +94,7 @@ final class Queue {
   /*@ given History hist;
      requires HPerm(hist.q,1) ** hist.q==seq<int>{};
      ensures Value(this.hist) ** this.hist == hist
-        ** PointsTo(hist_active,1/2,true); @*/
+        ** PointsTo(hist_active,1\2,true); @*/
   public Queue(){
     //@ this.hist=hist;
     //@ hist_active=true;
@@ -120,17 +120,17 @@ final class Queue {
     // n is a final link in the history list.
     inline static resource final_link(Node n)=
       Value(n.next)**Value(n.next.ref)**n.next.ref!=null;
-    
+
     resource reachable(Node n1,Node n2)=
       (n1!=n2 ==> final_link(n1) ** reachable(n1.next.ref,n2));
   @*/
 
   /*@
-  
+
   // n is a link in the live data part of the history list.
   inline static resource chain_link(Node n,int val)=
     final_link(n) ** PointsTo(n.next.ref.val,1,val);
-  
+
   // the final field ref is an atomic reference,
   // for which we have write permission.
   inline static resource RPerm(loc<AtomicNode> ref)=
@@ -140,23 +140,23 @@ final class Queue {
   // for which we have write permission and know the value.
   inline static resource RPointsTo(loc<AtomicNode> ref, Node val)=
     Value(ref) ** Perm(ref.ref,1) ** ref.ref==val;
-  
+
   resource chain(Node n1,Node n2,seq<int> vals)=
     n1 !=null ** n2 !=null ** (n1==n2 ? vals==seq<int>{} :
       (|vals|>0 ** chain_link(n1,head(vals))
        ** chain(n1.next.ref,n2,tail(vals))));
-  
+
   resource csl_invariant() = Value(begin) **
     RPerm(head) ** ([read]reachable(begin,head.ref)) **
     RPerm(tail) ** ([read]reachable(begin,tail.ref)) **
     Perm(last,1) ** ([read]reachable(begin,last)) **
     //begin(context_everywhere)
-    Perm(hist_active,1/2) ** Value(hist) ** (hist_active ==> 
+    Perm(hist_active,1\2) ** Value(hist) ** (hist_active ==>
     HPerm(hist.q,1) ** chain(head.ref,last,hist.q))
     //end(context_everywhere)
     ** RPointsTo(last.next,null);
    */
-   
+
   /*@
     given seq<int> ovals; given int nval;
     requires chain(n1,n2,ovals) ** chain_link(n2,nval)
@@ -184,14 +184,14 @@ final class Queue {
       return;
     }
   }
-  
+
   /*@
     given frac p;
     given process P;
     requires p!=none ** Value(hist) **  Hist(hist,p,P) **
-      Value(head) ** Value(tail) ** PointsTo(hist_active,p/2,true);
+      Value(head) ** Value(tail) ** PointsTo(hist_active,p\2,true);
     ensures  Value(head) ** Value(tail)
-      ** Value(hist) ** PointsTo(hist_active,p/2,true)
+      ** Value(hist) ** PointsTo(hist_active,p\2,true)
       ** (\result!=null ==> Value(\result.val)
            ** Hist(hist,p,P * hist.get(\result.val)))
       ** (\result==null ==> Hist(hist,p,P));
@@ -209,7 +209,7 @@ final class Queue {
       with {
         if (head.ref==n1) {
           unfold chain(n1,last,hist.q);
-//begin(actionblock)            
+//begin(actionblock)
  { action hist, p , P, hist.get(n2.val); hist.q=tail(hist.q); }
 //end(actionblock)
         }
@@ -221,9 +221,9 @@ final class Queue {
   }
 
   /*@
-    requires Perm(last,1/2) ** RPerm(last.next)
+    requires Perm(last,1\2) ** RPerm(last.next)
       ** ([read]reachable(n1,n2)) ** ([read]reachable(n1,last));
-    ensures  Perm(last,1/2) ** RPerm(last.next)
+    ensures  Perm(last,1\2) ** RPerm(last.next)
       ** last==\old(last) ** last.next.ref==\old(last.next.ref)
       ** (n2!=last ==> final_link(n2) ** reachable(n1,n2.next.ref)
                                       ** Value(n2.next.ref.next));
@@ -231,7 +231,7 @@ final class Queue {
   void lemma_readable_or_last(Node n1,Node n2){
     if (n2!=last){
       //@ unfold [read]reachable(n1,n2);
-      //@ unfold [read]reachable(n1,last);      
+      //@ unfold [read]reachable(n1,last);
       if (n1==n2) {
         //@ unfold [read]reachable(n2,last);
         //@ unfold [read]reachable(n2.next.ref,last);
@@ -250,9 +250,9 @@ final class Queue {
     given process P;
     requires p!=none ** Value(head) ** Value(tail) ** Value(hist)
       ** Hist(hist,p,P) ** Perm(nn.val,1)
-      ** RPointsTo(nn.next,null) ** PointsTo(hist_active,p/2,true);
+      ** RPointsTo(nn.next,null) ** PointsTo(hist_active,p\2,true);
     ensures  Value(head) ** Value(tail) ** Value(hist)
-      ** PointsTo(hist_active,p/2,true) **
+      ** PointsTo(hist_active,p\2,true) **
       (\result ? Hist(hist,p,P * hist.put(\old(nn.val))) :
          Hist(hist,p,P) ** Perm(nn.val,1) ** RPointsTo(nn.next,null));
   @*/
@@ -272,7 +272,7 @@ final class Queue {
             { action hist, p, P, hist.put(\old(nn.val));
               hist.q=hist.q+seq<int>{\old(nn.val)}; }
           }
-        } @*/; 
+        } @*/;
     } else {
       tail.compareAndSet(n1,n2);
     }
@@ -282,15 +282,15 @@ final class Queue {
   /*@
     requires Perm(last,1) ** last==n1 ** RPointsTo(last.next,n2);
     requires RPointsTo(n2.next,null) ** Perm(n2.val,1);
-    requires Value(hist) ** HPerm(hist.q,1/2);
-    requires Value(head) ** Perm(head.ref,1/2)
+    requires Value(hist) ** HPerm(hist.q,1\2);
+    requires Value(head) ** Perm(head.ref,1\2)
       ** chain(head.ref,last,hist.q) ** Value(begin)
       ** ([read]reachable(begin,last))
       ** ([read]reachable(begin,head.ref));
     ensures  Perm(last,1) ** last==n2 ** RPointsTo(last.next,null);
     ensures  Value(begin) ** ([read]reachable(begin,last));
-    ensures  Value(hist) ** HPerm(hist.q,1/2);
-    ensures  Value(head) ** Perm(head.ref,1/2)
+    ensures  Value(hist) ** HPerm(hist.q,1\2);
+    ensures  Value(head) ** Perm(head.ref,1\2)
       ** chain(head.ref,last,hist.q+seq<int>{\old(n2.val)})
       ** head.ref==\old(head.ref);
   @*/
@@ -303,7 +303,7 @@ final class Queue {
     append_lemma(head.ref,n1,n2)
     /*@ with { ovals=hist.q; nval=n2.val; } @*/;
   }
-  
+
 /*@
   requires ([read]reachable(n1,n2)) ** ([read]reachable(n2,n3));
   ensures  reachable(n1,n3);
@@ -318,7 +318,7 @@ final class Queue {
       lemma_rebuild_full(n2,n3);
     }
   }
-  
+
   /*@
     requires ([read]reachable(n1,n2));
     ensures  reachable(n1,n2);
@@ -332,4 +332,3 @@ final class Queue {
   }
 
 }
-

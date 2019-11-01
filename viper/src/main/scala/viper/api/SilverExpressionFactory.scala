@@ -172,16 +172,14 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
     }
   }
   //def div(o:O,e1:Exp,e2:Exp) :Exp = Div(e1,e2)(NoPosition,new OriginInfo(o))
-  override def div(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermDiv(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          Div(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermDiv(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => Div(e1,e2)(NoPosition,new OriginInfo(o))
-    }
+  override def floor_div(o:O, e1:Exp, e2:Exp) :Exp = {
+    Div(e1, e2)(NoPosition, new OriginInfo(o))
   }
+
+  override def div(o:O, e1:Exp, e2:Exp): Exp = {
+    PermDiv(e1, e2)(NoPosition, new OriginInfo(o))
+  }
+
   override def frac(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
       case LocalVar(n, typ) => if (typ==Perm)
@@ -202,6 +200,9 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
       case e:PermExp => PermAdd(e1,e2)(NoPosition,new OriginInfo(o))
       case _  => Add(e1,e2)(NoPosition,new OriginInfo(o))
     }
+  }
+  override def perm_add(o: O, e1: Exp, e2: Exp): Exp = {
+    PermAdd(e1, e2)(NoPosition, new OriginInfo(o))
   }
   override def sub(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
