@@ -63,6 +63,12 @@ class simplify_quant_pass1 {
     e2 < e3 && e1 <= e2 == (e2 \memberof [e1..e3))
   }
 
+  axiom starall_bool {
+    (\forall* int i; b1; b2)
+      ==
+    (\forall int i; b1; b2)
+  }
+
   axiom A3 {
     (\forall int i; b1 ; (\forall int j; (b2!j) && b3 ; b4 ) )
       ==
@@ -170,7 +176,7 @@ class simplify_quant_pass1 {
    axiom constant { (\forall* int i;( i \memberof [ e1 .. e2 )) ; Perm( (e3!i) , (e4!i) ) )
                  ==
                    e1 < e2 ==> Perm(e3,e4*(e2-e1)) }
-   
+
    axiom right_plus { (\forall* int i;( i \memberof [ e1 .. e2 )) ; Perm( ar [ i+(e3!i) ] , (e4!i) ) )
                  ==
                  (\forall* int i;  ( i \memberof [ e1+e3 .. e2+e3 )) ; Perm( ar [ i ] , e4 ) ) }
@@ -369,15 +375,15 @@ class simplify_quant_pass1 {
     }
 
     axiom split1 {
-       (\forall* int i;e1;e2**e3)
+       (\forall* int i;b1;r1**r2)
          ==
-       (\forall* int i;e1;e2) ** (\forall* int i;e1;e3)
+       (\forall* int i;b1;r1) ** (\forall* int i;b1;r2)
     }
 
     axiom split2 {
-       (\forall* int i;e1;PointsTo(e2,e3,e4))
+       (\forall* int i;b1;PointsTo(e2,e3,e4))
          ==
-       (\forall* int i;e1;Perm(e2,e3)) ** (\forall int i;e1;e2==e4)
+       (\forall* int i;b1;Perm(e2,e3)) ** (\forall int i;b1;e2==e4)
     }
 
     /* // SJ: unfortunately, this introduces an existential quantifier which is not always a good thing...

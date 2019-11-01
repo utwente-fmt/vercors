@@ -100,6 +100,10 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
 
   @Override
   public Boolean map(NameExpression e, ASTNode a) {
+    if(a == null || a.getType() == null || !e.getType().supertypeof(null, a.getType())) {
+      return false;
+    }
+
     String name=e.getName();
     Ref<ASTNode> ref=match.get(name);
     if(ref==null){
@@ -426,7 +430,7 @@ class MatchSubstitution extends AbstractRewriter {
           // variable used in rewrite system, but not in LHS? 
           super.visit(e);
         } else {
-          result=copy_rw.rewrite(n);
+          result = n;
         }
       }
     }
@@ -462,6 +466,15 @@ class MatchSubstitution extends AbstractRewriter {
       result=create.binder(e.binder,rewrite(e.result_type),decls,rewrite(e.triggers),rewrite(e.select),rewrite(e.main));
     }
   }
+
+  @Override
+  public void post_visit(ASTNode node) {
+    if(result.getType() == null) {
+      result.setType(node.getType());
+    }
+
+    super.post_visit(node);
+  }
    
 }
 
@@ -476,6 +489,7 @@ class Normalizer extends AbstractRewriter {
   
   @Override
   public void post_visit(ASTNode node){
+    result.setType(node.getType());
     Ref<ASTNode> ref=new Ref<ASTNode>(result);
     boolean again=(node instanceof ExpressionNode) && trs.step(ref);
     super.post_visit(node);
