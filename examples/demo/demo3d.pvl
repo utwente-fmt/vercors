@@ -41,8 +41,7 @@ class Program {
 		Future model = new Future();
 		create model, model.P(xs);
 		lemma_P_split_all(model, xs);
-
-		context_everywhere inv(HPerm(model.sum, 1)) //;
+		invariant inv(HPerm(model.sum, 1)) //;
 		{
 			par (int tid = 0 .. A.length)
 				context Perm(A[tid], 1\4) ** A[tid] == xs[tid];

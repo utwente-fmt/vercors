@@ -38,7 +38,7 @@ class ParallelGCD {
     create F, F.gcd();
     split  F, 1\2, F.tx(), 1\2, F.ty();
 
-    context_everywhere inv( HPerm(F.x,write) ** HPerm(F.y,write) ** F.x > 0 ** F.y > 0 ){
+    invariant inv( HPerm(F.x,write) ** HPerm(F.y,write) ** F.x > 0 ** F.y > 0 ){
       par T0()
         requires Future(F,1\2,F.tx());
         ensures Future(F,1\2,empty);

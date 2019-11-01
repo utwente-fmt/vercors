@@ -14,7 +14,7 @@ lazy val vercors = (project in file("."))
     .settings(
         name := "Vercors",
         organization := "University of Twente",
-        version := "1.1.0",
+        version := "1.2.0",
         maintainer := "VerCors Team <vercors@lists.utwente.nl>",
         packageSummary := "A tool for static verification of parallel programs",
         packageDescription :=
@@ -51,8 +51,8 @@ lazy val vercors = (project in file("."))
         // Disable documentation generation
         sources in (Compile, doc) := Seq(),
 
-        mappings in Universal += file("../README.md") -> "README.md",
-        mappings in Universal ++= directory("../examples"),
+        mappings in Universal += file("README.md") -> "README.md",
+        mappings in Universal ++= directory("examples"),
 
         // Copy the resources not in the jar and add them to the classpath.
         mappings in Universal ++= directory(sourceDirectory.value / "main" / "universal" / "res"),

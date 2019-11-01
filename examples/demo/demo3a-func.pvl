@@ -21,8 +21,8 @@ class ArraySum {
 	context Perm(this.sum, write);
 	requires (\forall* int i; 0 <= i && i < A.length; contrib[i] == 0);
 	void sum(int[] A) {
-		context_everywhere inv(Perm(this.sum, write) **
-		              (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2)) **
+		invariant inv(Perm(this.sum, write) **
+		              (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1/2)) **
 			      this.sum == sum_contrib(contrib, 0)){ 
 			par (int tid = 0 .. A.length)
 				requires Perm(A[tid], 1\2);

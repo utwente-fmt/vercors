@@ -187,7 +187,7 @@ class Challenge3 {
 	void mult(seq<seq<int>> M, seq<int> x, int N, int[N] y, int msize) {
 		lemma_sum_nterm_all(N, res, pos, term);
 
-		context_everywhere atom(
+		invariant atom(
 			y != null **
 			(\forall* int i; 0 <= i && i < N; Perm(y[i], 1)) **
 			(\forall int i; 0 <= i && i < msize && term[i]; 0 <= pos[i] && pos[i] < N) **
