@@ -29,46 +29,127 @@ contract : valContractClause* ;
 
 args : type identifier ( ',' type identifier )* | ;
 
-atomExpression
- : lexpr
- | identifier ':' atomExpression
- | atomExpression 'with' block
- | atomExpression 'then' block
- | CONTAINER '<' type '>' values
- | ('!'|'-') atomExpression
- | atomExpression '^^' atomExpression
- | atomExpression ('*'|'/'|'%') atomExpression
- | atomExpression ( '+' | '-' ) atomExpression
- | atomExpression ( '<' | '<=' | '>=' | '>') atomExpression
- | atomExpression ( '==' | '!=' ) atomExpression
- | atomExpression 'in' atomExpression
- | '?' identifier
- | lexpr '->' identifier tuple
- | ( identifier | lexpr | 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' ) tuple
- | '(' expr ')'
- | '\\owner' '(' expr ',' expr ',' expr ')'
- | 'id' '(' expr ')'
- | 'new' identifier tuple
+
+expr
+ : identifier ':' expr
+ | expr 'with' block
+ | expr 'then' block
+ | 'unfolding' expr 'in' expr
+ | iteExpr
+ ;
+
+iteExpr
+ : implicationExpr '?' implicationExpr ':' iteExpr
+ | implicationExpr
+ ;
+
+implicationExpr
+ : implicationExpr '==>' andOrExpr
+ | implicationExpr '-*' andOrExpr
+ | andOrExpr
+ ;
+
+andOrExpr
+ : andOrExpr '&&' eqExpr
+ | andOrExpr '||' eqExpr
+ | andOrExpr '**' eqExpr
+ | eqExpr
+ ;
+
+eqExpr
+ : eqExpr '==' relExpr
+ | eqExpr '!=' relExpr
+ | relExpr
+ ;
+
+relExpr
+ : relExpr '<' addExpr
+ | relExpr '<=' addExpr
+ | relExpr '>=' addExpr
+ | relExpr '>' addExpr
+ | setExpr
+ ;
+
+setExpr
+ : setExpr 'in' addExpr
+ | addExpr
+ ;
+
+addExpr
+ : addExpr '+' multExpr
+ | addExpr '-' multExpr
+ | multExpr
+ ;
+
+multExpr
+ : multExpr '*' powExpr
+ | multExpr '/' powExpr
+ | multExpr '%' powExpr
+ | powExpr
+ ;
+
+powExpr
+ : powExpr '^^' unaryExpr
+ | unaryExpr
+ ;
+
+unaryExpr
+ : '!' unaryExpr
+ | '-' unaryExpr
+ | newExpr
+ ;
+
+newExpr
+ : 'new' identifier tuple
  | 'new' non_array_type new_dims
+ | nonTarget
+ | target
+ ;
+
+target
+ : target '.' gen_id
+ | target '[' expr ']'
+ | nonTarget '.' gen_id
+ | nonTarget '[' expr ']'
+ | targetUnit
+ ;
+
+nonTarget
+ : nonTarget '.' gen_id
+ | nonTarget tuple
+ | nonTarget '[' '..' expr ']'
+ | nonTarget '[' expr ('..' expr?)? ']'
+ | nonTarget '[' expr '->' expr ']'
+ | nonTarget '->' identifier tuple
+ | nonTargetUnit
+ ;
+
+nonTargetUnit
+ : 'this'
  | 'null'
  | 'true'
  | 'false'
- | '\\result'
  | 'current_thread'
- | identifier
- | NUMBER
+ | '\\result'
+ | CONTAINER '<' type '>' values
+ | builtinMethod tuple
+ | '\\owner' '(' expr ',' expr ',' expr ')'
+ | 'id' '(' expr ')'
  | '|' expr '|'
+ | '?' identifier
+ | NUMBER
  | values
- | 'unfolding' expr 'in' expr
+ | '(' expr ')'
+ | identifier
  | valPrimary
  ;
 
-expr
- : atomExpression
- | expr ('&&'|'**') expr
- | expr '||' expr
- | expr ('==>'|'-*') expr
- | expr '?' expr ':' expr
+targetUnit
+ : identifier
+ ;
+
+builtinMethod
+ : 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some'
  ;
 
 values : '{' ( | expr (',' expr)*) '}';
@@ -110,7 +191,7 @@ allowedForStatement
  : type identifier ('=' expr | (',' identifier)* )
  | expr
  | identifier ('++'|'--')
- | lexpr '=' expr
+ | target '=' expr
  ;
 
 par_unit
@@ -141,15 +222,6 @@ decl : type identifier ( '=' expr )? ;
 fence_list : ( 'local' | 'global' )* ;
 
 invariant : ( 'loop_invariant' expr ';' )* ;
-
-lexpr : ('this' | '\\result' | identifier ) lexpr_access* ;
-
-lexpr_access
- : '.' gen_id
- | '[' '..' expr ']'
- | '[' expr ('..' expr?)? ']'
- | '[' expr '->' expr ']'
- ;
 
 non_array_type
  : CONTAINER '<' type '>'
