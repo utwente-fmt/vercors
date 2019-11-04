@@ -17,7 +17,7 @@ public class QuickSelect {
     //@ static int random_between(int low, int high);
     
     //@ context a != null;
-    //@ context Perm(a[*], 1/2);
+    //@ context Perm(a[*], 1\2);
     //@ static void printArray(int[] a, int l, int h);
 
     //@ context a != null;
@@ -30,10 +30,10 @@ public class QuickSelect {
         a[h] = t;
     }
 
-    //@ invariant a != null;
-    //@ invariant 0<=low && low<=high && high<a.length;
-    //@ invariant (\forall* int i; 0<=i && i<a.length && (i<low || i>high); Perm(a[i], 1/2));
-    //@ invariant (\forall* int i; low<=i && i<=high; Perm(a[i], write));
+    //@ context_everywhere a != null;
+    //@ context_everywhere 0<=low && low<=high && high<a.length;
+    //@ context_everywhere (\forall* int i; 0<=i && i<a.length && (i<low || i>high); Perm(a[i], 1\2));
+    //@ context_everywhere (\forall* int i; low<=i && i<=high; Perm(a[i], write));
     //@ requires (\exists int i; low<=i && i<=high; a[i] == pivot);
     //@ ensures low<=\result && \result<=high;
     //@ ensures (\forall int i; low<=i && i<\result; a[i] < pivot);
@@ -92,10 +92,10 @@ public class QuickSelect {
         }
     }
 
-    //@ invariant list != null;
-    //@ invariant list.length > 0;
+    //@ context_everywhere list != null;
+    //@ context_everywhere list.length > 0;
     //@ context  0<=k && k<list.length;
-    //@ invariant (\forall* int i; 0<=i && i<list.length; Perm(list[i], write));
+    //@ context_everywhere (\forall* int i; 0<=i && i<list.length; Perm(list[i], write));
     //@ ensures (\exists int i; 0<=i && i<list.length; list[i] == \result);
     //@ ensures (\forall int i; 0<=i && i<=k; list[i] <= \result);
     //@ ensures (\forall int i; k<= i && i<list.length; \result <= list[i]);

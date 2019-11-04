@@ -1,14 +1,14 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases HistogramSubMatrix
-// tools silicon
-// verdict Pass
+//:: tools silicon
+//:: verdict Pass
 
 /*@
   given seq<seq<int> > data;
   given frac p;
-  invariant p!=none && M>0 && N > 0 && P > 0 && step >= N;
-  invariant \matrix(matrix,M,N) ** \array(hist,P);
-  invariant |data| == M && (\forall int i; 0<=i && i<|data|; |data[i]| == N);
+  context_everywhere p!=none && M>0 && N > 0 && P > 0 && step >= N;
+  context_everywhere \matrix(matrix,M,N) ** \array(hist,P);
+  context_everywhere |data| == M && (\forall int i; 0<=i && i<|data|; |data[i]| == N);
 
   context (\forall* int i1 ; 0 <= i1 && i1 < M ;
              (\forall* int j1 ; 0 <= j1 && j1 < N ;
@@ -50,4 +50,3 @@ void histogram(int M,int N,int step,int matrix[M][step],int P,int hist[P]){
     }
   }
 }
-

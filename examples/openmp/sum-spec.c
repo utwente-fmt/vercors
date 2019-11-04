@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case OpenMPsum
-//:: tools 
+//:: tools
 
 
 /*
@@ -18,7 +18,7 @@ variables is the sum of the processed array elements.
 #include <stdio.h>
 
 /*@
-  invariant a != NULL;
+  context_everywhere a != NULL;
   requires \length(a)==len;
 @*/
 int sum(int len,int a[]){
@@ -44,13 +44,11 @@ int sum(int len,int a[]){
 int main(int argc, char *argv[]){
   int a[]={1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
   int i,tmp;
-  
+
   printf("a: ");
   for(i=0;i<16;i++){printf("%4d",a[i]);}
   printf("\n");
-  
+
   tmp=sum(16,a);
   printf("sum is %d\n",tmp);
 }
-
-

@@ -5,8 +5,8 @@
 
 class Clear {
 
-	invariant A != null;
-	invariant (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
+	context_everywhere A != null;
+	context_everywhere (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
 	ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
 	void clear(int[] A) {
 		int i = 0;
@@ -19,7 +19,7 @@ class Clear {
 		}
 	}
 	
-	invariant A != null;
+	context_everywhere A != null;
 	context (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
 	ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
 	void clearPar(int[] A) {
