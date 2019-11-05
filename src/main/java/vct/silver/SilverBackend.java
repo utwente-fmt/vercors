@@ -1,6 +1,7 @@
 package vct.silver;
 
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.rewrite.SatCheckRewriter;
 import viper.api.*;
 
 import java.io.File;
@@ -153,7 +154,32 @@ public class SilverBackend {
     try {
       HashSet<Origin> reachable=new HashSet<Origin>();
       List<? extends ViperError<Origin>> errs=verifier.verify(
-          Configuration.getZ3Path().toPath(),settings,program,reachable,control);
+          Configuration.getZ3Path().toPath(),settings,program,control);
+
+      // Filter SatCheck errors that are to be expected
+      HashSet<SatCheckRewriter.AssertOrigin> satCheckAssertsSeen = new HashSet<>();
+      errs.removeIf(e -> {
+        for (int i = 0; i < e.getExtraCount(); i++) {
+          Origin origin = e.getOrigin(i);
+          if (origin instanceof SatCheckRewriter.AssertOrigin) {
+            satCheckAssertsSeen.add((SatCheckRewriter.AssertOrigin) origin);
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      // For each satCheckAssert that did not error, it means the contract was requires false; or something similar
+      // Therefore, we warn the user that their contracts are unsound
+      HashSet<Origin> expectedSatCheckAsserts = vercors.getSatCheckAsserts();
+      for (Origin expectedSatCheckAssert : expectedSatCheckAsserts) {
+        if (!satCheckAssertsSeen.contains(expectedSatCheckAssert)) {
+          ViperErrorImpl<Origin> error = new ViperErrorImpl<Origin>(expectedSatCheckAssert, "method.precondition.unsound:method.precondition.false");
+          log.error(error);
+        }
+      }
+
       if (errs.size()>0){
         for(ViperError<Origin> e:errs){
           log.error(e);
@@ -185,6 +211,7 @@ public class SilverBackend {
         }
       }
     } catch (Exception e){
+      // TODO: This bad boy swallows exceptions without a sound?
       log.exception(e);
     } finally {
       control.done();

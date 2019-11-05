@@ -53,7 +53,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
     }
   }
  
-  override def verify(z3Path:Path,z3Settings:Properties,prog:Prog,reachable:java.util.Set[O],
+  override def verify(z3Path:Path,z3Settings:Properties,prog:Prog,
       control:VerificationControl[O]) : List[viper.api.ViperError[O]] = {
     val program = Program(prog.domains.asScala.toList,
               prog.fields.asScala.toList,
@@ -68,7 +68,6 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
     val detail = Reachable.gonogo.detail();
     
     val report = new java.util.ArrayList[viper.api.ViperError[O]]()
-    Reachable.reachable.clear()
     val verifier=createVerifier(z3Path,z3Settings)
     //println("verifier: "+ verifier);
     //Progress("running verify");
@@ -134,9 +133,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
          }
        
     }
-    Reachable.reachable.map(
-      o => reachable.add(o.asInstanceOf[OriginInfo[O]].loc)
-    )
+
     report
   }
  
