@@ -9,7 +9,7 @@ val silver_url = uri("hg:https://bitbucket.org/viperproject/silver#1a2059df2fc34
 val carbon_url = uri("hg:https://bitbucket.org/viperproject/carbon#1565055c99f3b07d71f02f99de092d3077491d66")
 val silicon_url = uri("hg:https://bitbucket.org/viperproject/silicon#ea1e7c4eaded6ef66b106f8f65d85d25e944a624")
 
-scalaVersion := "2.13.1"
+scalaVersion := "2.12.7"
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
