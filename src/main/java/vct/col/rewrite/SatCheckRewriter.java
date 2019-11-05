@@ -18,7 +18,11 @@ import vct.col.ast.type.Type;
 import vct.col.util.OriginWrapper;
 
 public class SatCheckRewriter extends AbstractRewriter {
-    static int i = 0;
+    public static class AssertOrigin extends BranchOrigin {
+        public AssertOrigin(String branch, Origin base){
+            super(branch, base);
+        }
+    }
 
     public SatCheckRewriter(ProgramUnit source) {
         super(source);
@@ -26,6 +30,8 @@ public class SatCheckRewriter extends AbstractRewriter {
 
     @Override
     public void visit(Method m) {
+        // TODO: Are there any enter/exit methods or something I should call?
+
         // Find out if contract is intentionally false
         // Since if it is marked as false intentionally we do not have to check it
         Contract contract = m.getContract();
@@ -36,8 +42,11 @@ public class SatCheckRewriter extends AbstractRewriter {
         if (m.getBody() != null && !intentional_false && (m.kind == Method.Kind.Plain || m.kind == Method.Kind.Constructor)) {
             // Create { assert false; } block
             ASTNode my_assert = create.special(ASTSpecial.Kind.Assert, create.constant(false));
-            BranchOrigin my_branch = new BranchOrigin("contract satisfiability check", null);
-            OriginWrapper.wrap(null, my_assert, my_branch);
+            AssertOrigin my_branch = new AssertOrigin("contract satisfiability check", m.getOrigin());
+            // TODO: I use the method's origin so I think this is correct?
+            my_assert.clearOrigin();
+            my_assert.setOrigin(my_branch);
+//            OriginWrapper.wrap(null, my_assert, my_branch); // TODO: Previous code was doing this. Why?
             BlockStatement blockStatement = create.block(my_assert);
 
             // Create an extra method containing it
@@ -50,6 +59,8 @@ public class SatCheckRewriter extends AbstractRewriter {
                     m.usesVarArgs(),
                     blockStatement
             );
+
+            blockStatement.setParent(assert_method);
 
             currentTargetClass.add(assert_method);
         }
