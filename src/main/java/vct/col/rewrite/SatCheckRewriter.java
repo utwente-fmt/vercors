@@ -17,6 +17,15 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.Type;
 import vct.col.util.OriginWrapper;
 
+// Encountered bugs:
+// TODO: (In SilverBackend.java) This bad boy swallows exceptions without a sound?
+// TODO: Contract.getOrigin() is null below?
+// TODO: pass/fail is not adhered to in test?
+// TODO: Add vim temporary files to gitignore?
+
+// Still need to do:
+// TODO: Java tests
+
 public class SatCheckRewriter extends AbstractRewriter {
     public static class AssertOrigin extends BranchOrigin {
         public AssertOrigin(String branch, Origin base){
@@ -30,26 +39,38 @@ public class SatCheckRewriter extends AbstractRewriter {
 
     @Override
     public void visit(Method m) {
-        // TODO: Are there any enter/exit methods or something I should call?
+        super.visit(m);
 
-        // Find out if contract is intentionally false
-        // Since if it is marked as false intentionally we do not have to check it
+        // If there is no contract it cannot be false
+        // If there is no body it's an abstract method, and hence the user is allowed to create unsoundness
         Contract contract = m.getContract();
-        boolean intentional_false = contract != null && contract.pre_condition.isConstant(false);;
+        if (contract == null || m.getBody() == null) {
+            return;
+        }
 
-        // If the contract is not intentionally false and the method is not abstract,
-        // create a proof obligation that shows the contract is satisfiable
-        if (m.getBody() != null && !intentional_false && (m.kind == Method.Kind.Plain || m.kind == Method.Kind.Constructor)) {
-            // Create { assert false; } block
+        // Do not sat-check if there is a false literal in the contract
+        boolean intentional_false = contract.pre_condition.isConstant(false);
+
+        if (!intentional_false && (m.kind == Method.Kind.Plain || m.kind == Method.Kind.Constructor)) {
             ASTNode my_assert = create.special(ASTSpecial.Kind.Assert, create.constant(false));
-            AssertOrigin my_branch = new AssertOrigin("contract satisfiability check", m.getOrigin());
-            // TODO: I use the method's origin so I think this is correct?
+
+            // We want to use contract origin, but that is null at the moment (probably because of a bug)
+            // So until then we just use the method origin.
+            Origin origin = m.getOrigin();
+            if (contract.getOrigin() != null) {
+                origin = contract.getOrigin();
+            }
+            // This way we tag the assert we produced. These are then collected in SilverStatementMap.
+            // By collecting them later we allow other passes to delete them or modify them
+            // In SilverBackend we check if they indeed all error. The ones that do not error, we report as error
+            AssertOrigin my_branch = new AssertOrigin("contract satisfiability check", origin);
+
             my_assert.clearOrigin();
             my_assert.setOrigin(my_branch);
-//            OriginWrapper.wrap(null, my_assert, my_branch); // TODO: Previous code was doing this. Why?
+
             BlockStatement blockStatement = create.block(my_assert);
 
-            // Create an extra method containing it
+            // Create method that will serve as a proof obligation for the satisfiability of the contract
             Method assert_method = create.method_kind(
                     m.getKind(),
                     rewrite(m.getReturnType()),
@@ -64,9 +85,6 @@ public class SatCheckRewriter extends AbstractRewriter {
 
             currentTargetClass.add(assert_method);
         }
-
-        // After visit, result should be equal to the rewritten version of m, i.e. nicely deep cloned
-        super.visit(m);
     }
 
 }

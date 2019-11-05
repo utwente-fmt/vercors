@@ -76,9 +76,8 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
     //println("verifier output: "+ res);
     res match {
       case Success =>
-        Output("Success!")
+        ()
       case Failure(errors) =>
-        Output("Errors! (%d)", errors.length.asInstanceOf[java.lang.Integer])
         errors foreach { e =>
           if (detail) show("error", e)
           e match {
@@ -104,11 +103,8 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
                 //ve match {
                 case in: viper.silver.ast.Infoed =>
                   //show("offending node's info", in.info)
-                  
                   in.info match {
                     case in: OriginInfo[O] => {
-                      // TODO: Maybe we can test this loc for message string, or set it to SatisfiableCheckOrigin type or something so we can test it with types?
-                      // And then if so, not show the error?
                       val loc = in.loc;
                       //report.add(error_factory.generic_error(loc,err))
                       error.add_extra(loc,because);
