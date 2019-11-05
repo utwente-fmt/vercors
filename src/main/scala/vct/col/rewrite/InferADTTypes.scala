@@ -1,7 +1,6 @@
 package vct.col.rewrite
 
-import vct.col.ast.`type`.{PrimitiveSort, Type, TypeVariable}
-import vct.col.ast.expr.StandardOperator
+import vct.col.ast.`type`.{PrimitiveSort, TypeVariable}
 import vct.col.ast.expr.constant.StructValue
 import vct.col.ast.stmt.decl.ProgramUnit
 

@@ -22,7 +22,6 @@ import vct.col.rewrite.TypeVarSubstitution;
 import vct.silver.SilverTypeMap;
 import vct.util.Configuration;
 import vct.col.util.SequenceUtils;
-import viper.silver.ast.TypeVar;
 
 /**
  * This class implements type checking of simple object oriented programs.
@@ -1383,15 +1382,14 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         break;
       }
       case Remove: {
-        if (!t1.isPrimitive(PrimitiveSort.Sequence)) Fail("first argument of remove is not a sequence");
-        if (!t2.isInteger()) Fail("second argument of remove is not an integer");
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) Fail("first argument of remove is not a sequence");
+        if (!tt[1].isInteger()) Fail("second argument of remove is not an integer");
 
-        e.setType(t1);
+        e.setType(tt[0]);
         break;
       }
     case Size:
     {
-      case Size: {
         Type t = e.arg(0).getType();
         if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
         if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set))) {
@@ -1419,20 +1417,20 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       case PrependSingle:
       {
-        if (!t2.isPrimitive(PrimitiveSort.Sequence)) Fail("right argument of prepend is not a sequence");
-        if (!t1.equals(t2.firstarg())){
+        if (!tt[1].isPrimitive(PrimitiveSort.Sequence)) Fail("right argument of prepend is not a sequence");
+        if (!tt[0].equals(tt[1].firstarg())){
             Fail("wrong type to prepend to sequence");
         }
-        e.setType(t2);
+        e.setType(tt[1]);
         break;
       }
       case AppendSingle:
       {
-        if (!t1.isPrimitive(PrimitiveSort.Sequence)) Fail("left argument of append is not a sequence");
-        if (!t2.equals(t1.firstarg())){
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) Fail("left argument of append is not a sequence");
+        if (!tt[1].equals(tt[0].firstarg())){
             Fail("wrong type to append to sequence");
         }
-        e.setType(t1);
+        e.setType(tt[0]);
         break;
       }
       case Wrap: {

@@ -226,6 +226,11 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
   }
 
   @Override
+  public ASTNode visitSeqAddExpr(SeqAddExprContext ctx) {
+    return doExpr(ctx);
+  }
+
+  @Override
   public ASTNode visitUnaryExpr(UnaryExprContext ctx) {
     return doExpr(ctx);
   }
@@ -459,6 +464,18 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, t), null);
     }
     return visit(ctx);
+  }
+
+  private ASTNode[] getValues(ParserRuleContext ctx) {
+    if (ctx.children == null) {
+      return new ASTNode[0];
+    }
+    int N=(ctx.children.size()+1)/2;
+    ASTNode res[]=new ASTNode[N];
+    for(int i=0;i<N;i++){
+      res[i]=convert(ctx,2*i);
+    }
+    return res;
   }
 
   @Override

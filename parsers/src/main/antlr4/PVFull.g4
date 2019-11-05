@@ -91,6 +91,12 @@ multExpr
 
 powExpr
  : powExpr '^^' unaryExpr
+ | seqAddExpr
+ ;
+
+seqAddExpr:
+ | unaryExpr '::' seqAddExpr
+ | seqAddExpr '++' unaryExpr
  | unaryExpr
  ;
 
@@ -145,15 +151,13 @@ nonTargetUnit
  | valPrimary
  ;
 
-//
-// | <assoc=right> atomExpression '::' atomExpression
-// | atomExpression '++' atomExpression
-//arguments: (expression (',' expression)*);
-//
-//collectionConstructors :
-// | CONTAINER '<' type '>' values
-// | '[' arguments ']'
-// | '[t:' type ']';
+
+arguments: (expression (',' expression)*);
+
+collectionConstructors :
+ | CONTAINER '<' type '>' values
+ | '[' arguments ']'
+ | '[t:' type ']';
 
 targetUnit
  : identifier
