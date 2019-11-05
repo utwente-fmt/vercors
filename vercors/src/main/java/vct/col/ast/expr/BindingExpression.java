@@ -1,5 +1,7 @@
 package vct.col.ast.expr;
 
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.ExpressionNode;
 import vct.col.ast.type.Type;
@@ -20,7 +22,17 @@ public class BindingExpression extends ExpressionNode {
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
     return map.map(this,arg);
   }
-  
+
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("select", "main"));
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("binder", "result_type"));
+  }
+
   public final Binder binder;
   public final ASTNode select;
   public final ASTNode main;

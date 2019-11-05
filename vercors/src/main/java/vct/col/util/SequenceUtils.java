@@ -100,8 +100,8 @@ public class SequenceUtils {
         // The sequence must be of type Sequence, Bag or Array
         boolean isSeqLike = (
                 sequenceType.isPrimitive(PrimitiveSort.Sequence) ||
-                        sequenceType.isPrimitive(PrimitiveSort.Bag) ||
-                        sequenceType.isPrimitive(PrimitiveSort.Array)
+                sequenceType.isPrimitive(PrimitiveSort.Bag) ||
+                sequenceType.isPrimitive(PrimitiveSort.Array)
         );
 
         if(!isSeqLike) {
@@ -188,7 +188,7 @@ public class SequenceUtils {
      * @return The new node, or null if some error occurs
      */
     public static ASTNode access(ASTFactory<?> create, ASTNode seq, ASTNode index) {
-        return accessUsingType(create, seq.getType(), seq, index);
+       return accessUsingType(create, seq.getType(), seq, index);
     }
 
     public static ASTNode accessUsingType(ASTFactory<?> create, Type sequenceType, ASTNode seq, ASTNode index) {
@@ -246,9 +246,9 @@ public class SequenceUtils {
 
     public static Type arrayCell(ASTFactory<?> create, Type elementType) {
         return create.primitive_type(PrimitiveSort.Array,
-                create.primitive_type(PrimitiveSort.Cell,
-                        elementType
-                )
+            create.primitive_type(PrimitiveSort.Cell,
+                elementType
+            )
         );
     }
 
@@ -258,9 +258,9 @@ public class SequenceUtils {
 
     public static Type seqCell(ASTFactory<?> create, Type elementType) {
         return create.primitive_type(PrimitiveSort.Sequence,
-                create.primitive_type(PrimitiveSort.Cell,
-                        elementType
-                )
+            create.primitive_type(PrimitiveSort.Cell,
+                elementType
+            )
         );
     }
 }

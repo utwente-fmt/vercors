@@ -2,9 +2,12 @@ package vct.col.ast.stmt.decl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 
 import hre.lang.HREError;
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
 import vct.col.util.ASTMapping;
 import vct.col.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -17,6 +20,16 @@ import vct.util.ClassName;
 import static hre.lang.System.Debug;
 
 public class NameSpace extends ASTDeclaration implements ASTSequence<NameSpace> {
+
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("imports", "space"));
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("full_name"));
+  }
 
   public static class Import {
     

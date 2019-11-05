@@ -5,48 +5,48 @@ class simplify_quant_pass1 {
   boolean b1,b2,b3,b4;
   resource r1,r2;
   int i,j,k;
-  
+
   axiom aunitr { e1+0 == e1 }
   axiom aunitl { 0+e1 == e1 }
-  
+
   axiom munitr { e1*1 == e1 }
   axiom munitl { 1*e1 == e1 }
-  
+
   axiom I2 {
     0 * e1 == 0
   }
   axiom I3 {
     e1 * 0 == 0
   }
-  
+
   axiom I1 {
     e1 * e2 + e2 == (e1+1) * e2
   }
 
   axiom sub_0 { e1 - 0 == e1 }
-  
+
   // SJ: this can be true if 1 / 0 = 0, violating that e1/e1 == 1 (and acceptably so).
   axiom div_1 { ( 1 / e1 ) * e2 == e2 / e1 }
   axiom div_2 { e2 * ( 1 / e1 ) == e2 / e1 }
-  
+
   // SJ: div_3 is not true for e1 == 0
   // axiom div_3 { e1 / e1 == 1 }
   axiom div_4 { e1 / 1 == e1 }
-  
+
   axiom B1 {
     true && b1 == b1
   }
   axiom B1or {
     true || b1 == true
   }
-  
+
   axiom B2or {
     false || b1 == b1
   }
   axiom B2 {
     false && b1 == false
   }
-  
+
   // SJ: added these because I ran into this at some point:
   // in forall clauses a 0 <= i && i < n gets turned into something with a \meberof clause
   axiom GE {
@@ -55,14 +55,14 @@ class simplify_quant_pass1 {
   axiom GE_strict {
     e1 > e2 == e2 < e1
   }
-  
+
   axiom A2 {
     e1 <= e2 && e2 < e3 == (e2 \memberof [e1..e3))
   }
   axiom A2_comm { // SJ: again, this is sometimes written in the 'wrong' order, so I added the other version
     e2 < e3 && e1 <= e2 == (e2 \memberof [e1..e3))
   }
-  
+
   axiom A3 {
     (\forall int i; b1 ; (\forall int j; (b2!j) && b3 ; b4 ) )
       ==
@@ -79,42 +79,42 @@ class simplify_quant_pass1 {
                  (\let int i=e1 ; b1 ==> r1 ) }
 
   axiom A4 {
-    (\forall* int i; b1 ; b2 ==> b4 ) 
+    (\forall* int i; b1 ; b2 ==> b4 )
       ==
-    (\forall* int i; b1 && b2 ; b4 ) 
+    (\forall* int i; b1 && b2 ; b4 )
   }
-  
+
   axiom A4b {
-    (\forall int i; b1 ; b2 ==> b4 ) 
+    (\forall int i; b1 ; b2 ==> b4 )
       ==
-    (\forall int i; b1 && b2 ; b4 ) 
+    (\forall int i; b1 && b2 ; b4 )
   }
-  
+
   axiom A5 {
     (i \memberof [e1 .. e2)) && i > e3
       ==
     (i \memberof [e1<=e3?e3+1:e1 .. e2))
   }
-  
+
   axiom A6 {
     (i \memberof [e1 .. e2)) && i < e3
       ==
     (i \memberof [e1 .. e3<e2?e3:e2))
   }
-  
+
   // SJ: repaired by adding the exist here.
   axiom A7 {
-    (\forall* int i; b1 ; Value((e1!i)) ) 
+    (\forall* int i; b1 ; Value((e1!i)) )
       ==
     (\exists int i; true ; b1 ) ==> Value(e1)
   }
-  
+
   axiom A1 {
     (\forall int i; (i \memberof [ e1 .. e2 )) ; (b1!i))
       ==
     e1 < e2 ==> b1
   }
-  
+
 /*
 // SJ: the more generic version of the above, as shown below, can make it harder to solve things
   axiom A1 {
@@ -125,18 +125,18 @@ class simplify_quant_pass1 {
 */
 
   int ar[];
-  
-  
+
+
 //  axiom deindex2 {
 //    (\forall* int i; e1 ; Perm(ar[ this.multidim_index_2(e2,e3,e4,e5) ], e6 ))
 //    ==
 //    (\forall* int i; e1 ; Perm(ar[ e4*e3 + e5 ], e6 ))
 //  }
-  
+
   axiom perm_any {
     Perm(ar[*],e1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],e1))
   }
-  
+
   axiom array_perm {
     ArrayPerm(ar,e1,e2,e3,e4)
      ==
@@ -150,7 +150,7 @@ class simplify_quant_pass1 {
    axiom inlist { (\forall* int i; e1 <= i && i < e2 ; r1 )
                  ==
                  (\forall* int i;  ( i \memberof [ e1 .. e2 )) ; r1 ) }
-                 
+
    axiom inlistb { (\forall int i; e1 <= i && i < e2 ; b1 )
                  ==
                  (\forall int i;  ( i \memberof [ e1 .. e2 )) ; b1 ) }
@@ -170,15 +170,15 @@ class simplify_quant_pass1 {
    axiom constant { (\forall* int i;( i \memberof [ e1 .. e2 )) ; Perm( (e3!i) , (e4!i) ) )
                  ==
                    e1 < e2 ==> Perm(e3,e4*(e2-e1)) }
-
+   
    axiom right_plus { (\forall* int i;( i \memberof [ e1 .. e2 )) ; Perm( ar [ i+(e3!i) ] , (e4!i) ) )
                  ==
                  (\forall* int i;  ( i \memberof [ e1+e3 .. e2+e3 )) ; Perm( ar [ i ] , e4 ) ) }
-                 
+
    axiom minus { (\forall* int i;( i \memberof [ e1 .. e2 )) ; Perm( ar [ i-(e3!i) ] , (e4!i) ) )
                  ==
                  (\forall* int i;  ( i \memberof [ e1-e3 .. e2-e3 )) ; Perm( ar [ i ] , e4 ) ) }
-                 
+
    axiom left_plusb { (\forall int i;( i \memberof [ e1 .. e2 )) ; ar [ (e3!i) + i ] == (e4!i) )
                  ==
                  (\forall int i;  ( i \memberof [ e3+e1 .. e3+e2 )) ; ar [ i ] == e4 ) }
@@ -195,7 +195,7 @@ class simplify_quant_pass1 {
           ar[k_fresh] == \old(ar[k_fresh]) )
    }
    */
-   
+
 
 // SJ: I repaired this from something that was clearly false. Unsure if it helps.
    axiom nested_bool_1 {
@@ -208,7 +208,7 @@ class simplify_quant_pass1 {
           (\let int i=k_fresh/e2 ; (\let int j=k_fresh%e2 ;
              ar[ e3 + j ] == e4 )))
    }
-   
+
 // SJ: same as above, but with i and j flipped
    axiom nested_bool_2 {
         (\forall int j;( j \memberof [ 0 .. e2 )) ;
@@ -222,7 +222,7 @@ class simplify_quant_pass1 {
             ar[ e3 + j ] == e4 )))
    }
 
-   /* 
+   /*
    // SJ: Does not hold if e1 <= 0 or if e2 > e3, did not try to fix: rule didn't seem all that needed
    axiom nested_bool_1_a_0 {
         (\forall int i;( i \memberof [ 0 .. e1 )) ;
@@ -233,7 +233,7 @@ class simplify_quant_pass1 {
        (\forall int k_fresh;(k_fresh \memberof [ 0 .. e1*e3)) && (k_fresh % e3 < e2);
           (ar[k_fresh] \memberof e4))
    }
-   
+
 //   axiom nested_bool_1_a {
 //        (\forall int i;( i \memberof [ 0 .. e1 )) ;
 //           (\forall int j;( j \memberof [ 0 .. e2 )) ;
@@ -243,7 +243,7 @@ class simplify_quant_pass1 {
 //          (\let int i=k_fresh/e2 ; (\let int j=k_fresh%e2 ;
 //             (ar[ e3 + j ] \memberof e4) )))
 //   }
-   
+
    axiom nested_bool_2_a {
         (\forall int j;( j \memberof [ 0 .. e2 )) ;
           (\forall int i;( i \memberof [ 0 .. e1 )) ;
@@ -254,11 +254,11 @@ class simplify_quant_pass1 {
             (ar[ e3 + j ] \memberof e4) )))
    } */
 
-   // SJ: given that e1 / 0 = 0, this implies that e1 % 0 = e1, violating e1 % d < d (and acceptably so..) 
+   // SJ: given that e1 / 0 = 0, this implies that e1 % 0 = e1, violating e1 % d < d (and acceptably so..)
    axiom div_mod {
      (e1 / e2) * e2 + (e1 % e2) == e1
    }
-   
+
 
    axiom reorder_1 {
      ( j \memberof ([ e3 * i .. e3 * (i + 1) )))
@@ -277,7 +277,7 @@ class simplify_quant_pass1 {
      e1 > 0 && e2 > 0 && e3 < e4 ==> (\forall* int i;( i \memberof ([ e1 * e2 * e3 .. e1 * e2 * e4 )));Perm(ar[i],e5))
    }
    */
-   
+
    // SJ: I added the requirement that e3 should not depend on i.
    // This rule is probably useful for paralel blocks
    axiom nested_1 {
@@ -287,7 +287,7 @@ class simplify_quant_pass1 {
         ==
         e3 > 0 ==> (\forall* int j;( j \memberof ([ e1 * e3 .. e2 * e3 )) ); r1 )
         }
-   
+
    /* // SJ: I guess these are allready taken care of by the rule nested_1, plus they are wrong..
    axiom nested_Z1 {
         (\forall* int i;( i \memberof ([ e1 .. e2 )) );
@@ -315,7 +315,7 @@ class simplify_quant_pass1 {
           (e4 <= e3) ==>
         (\forall* int j;( j \memberof ([ e1 * e3 .. e2 * e3 )) ) && (j % e3 < e4); r1 )
         } */
-   
+
    // SJ: same as in nested_1: I don't see where this would be useful, but it's nice to have the symmetry
    axiom nested_1b {
         (\forall int i;( i \memberof ([ e1 .. e2 )) );
@@ -335,7 +335,7 @@ class simplify_quant_pass1 {
         (\forall int j;( j \memberof ([ e1 * e3 .. e2 * e3 )) ) && (j % e3 < e4); b1 )
         }
    */
-   
+
    /* // SJ: not repaired yet, fortunately, this is not really needed either
    axiom nested_2 {
         (\forall* int i;( i \memberof ([ e1 .. e2 )) );
@@ -344,7 +344,7 @@ class simplify_quant_pass1 {
         ==
         (\forall* int j;( j \memberof ([ (e4 + e1) * e3 .. (e4 + e2) * e3 )) ); r1 )
         }
-        
+
    axiom nested_2x {
         (\forall* int i;( i \memberof ([ e1 .. e2 )) );
           (\forall* int k ; (b1!i) ;
@@ -355,31 +355,31 @@ class simplify_quant_pass1 {
         (\forall* int j;( j \memberof ([ (e4 + e1) * e3 .. (e4 + e2) * e3 )) ); r1 ))
         }
     */
-    
+
     axiom lin1 {
         (\forall* int i;( i \memberof [ e1 * (e2!i) * (e3!i) .. e4 )) ; r1 )
            ==
         (\forall* int i;( i \memberof [ e1 * (e2*e3) .. e4 )) ; r1 )
     }
-    
+
     axiom lin2 {
         (\forall* int i;( i \memberof [ e4 .. e1 * (e2!i) * (e3!i))) ; r1 )
            ==
         (\forall* int i;( i \memberof [ e4 .. e1 * (e2*e3))) ; r1 )
     }
-    
+
     axiom split1 {
        (\forall* int i;e1;e2**e3)
          ==
        (\forall* int i;e1;e2) ** (\forall* int i;e1;e3)
     }
-        
+
     axiom split2 {
        (\forall* int i;e1;PointsTo(e2,e3,e4))
          ==
        (\forall* int i;e1;Perm(e2,e3)) ** (\forall int i;e1;e2==e4)
     }
-    
+
     /* // SJ: unfortunately, this introduces an existential quantifier which is not always a good thing...
     axiom nested_value {
       (\forall* int i ; e1 ; (\forall* int j ; (e2!i) ; Value((e3!i))))
@@ -387,5 +387,5 @@ class simplify_quant_pass1 {
       (\exists int i; true ; e1 ) ==> (\forall* int j ; e2 ; Value(e3))
     }
     */
-    
+
 }

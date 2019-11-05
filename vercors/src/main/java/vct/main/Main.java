@@ -38,6 +38,9 @@ import vct.col.syntax.Syntax;
 import vct.col.util.FeatureScanner;
 import vct.col.util.JavaTypeCheck;
 import vct.col.util.SimpleTypeCheck;
+import vct.learn.SpecialCountVisitor;
+import vct.learn.NonLinCountVisitor;
+import vct.learn.Oracle;
 import vct.logging.ErrorMapping;
 import vct.logging.ExceptionMessage;
 import vct.logging.PassReport;
@@ -57,6 +60,8 @@ public class Main
   private static ProgramUnit program=new ProgramUnit();
 
   private static List<ClassName> classes;
+  
+  private static Map<String, SpecialCountVisitor> counters = new HashMap<String, SpecialCountVisitor>();
 
   static class ChaliceTask implements Callable<TestReport> {
     private ClassName class_name;
@@ -139,6 +144,10 @@ public class Main
       clops.add(show_after.getAppendOption("Show source code after given passes"),"show-after");
       StringSetting show_file=new StringSetting(null);
       clops.add(show_file.getAssign("redirect show output to files instead of stdout"),"save-show");
+      CollectSetting debugBefore = new CollectSetting();
+      CollectSetting debugAfter = new CollectSetting();
+      clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before");
+      clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after");
       StringListSetting stop_after=new StringListSetting();
       clops.add(stop_after.getAppendOption("Stop after given passes"),"stop-after");
 
@@ -161,6 +170,12 @@ public class Main
       BooleanSetting sat_check=new BooleanSetting(true);
       clops.add(sat_check.getDisable("Disable checking if method pre-conditions are satisfiable"), "disable-sat");
 
+      IntegerSetting trigger_generation = new IntegerSetting(0);
+      clops.add(trigger_generation.getOptionalAssign("Try to simplify universal quantifiers and generate triggers for them."), "triggers");
+      
+      BooleanSetting learn = new BooleanSetting(false);
+      clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn");
+      
       Configuration.add_options(clops);
 
       String input[]=clops.parse(args);
@@ -346,6 +361,14 @@ public class Main
         passes.add("check");
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
+
+        if(features.usesOperator(StandardOperator.AddrOf)) {
+          passes.add("lift_declarations");
+        }
+
+        passes.add("java-check");
+        passes.add("pointers_to_arrays");
+        passes.add("java-check");
         passes.add("array_null_values"); // rewrite null values for array types into None
         passes.add("java-check");
         if (silver.used()){
@@ -484,6 +507,10 @@ public class Main
           //passes.add("standardize");
           //passes.add("check");
 
+          if(trigger_generation.get() > 0) {
+            passes.add("simple_triggers=" + trigger_generation.get());
+            passes.add("check");
+          }
           passes.add("silver-class-reduction"); // remove the class (since all names are now unique), only one class remains
           passes.add("standardize");
           passes.add("check");
@@ -557,6 +584,10 @@ public class Main
       } else {
       	Abort("no back-end or passes specified");
       }
+      if(learn.get()) {
+        passes.addFirst("count=" + silver.get() + "_before_rewrite");
+        passes.add("learn=" + globalStart);
+      }
       {
         int fatal_errs=0;
         @SuppressWarnings("unused")
@@ -573,6 +604,9 @@ public class Main
             pass_args=pass_args[1].split("\\+");
           }
           CompilerPass task=defined_passes.get(pass);
+          if(debugBefore.has(pass)) {
+            program.dump();
+          }
           if (show_before.contains(pass)){
             String name=show_file.get();
             if (name!=null){
@@ -604,6 +638,9 @@ public class Main
               Fail("unknown pass %s",pass);
             }
           }
+          if(debugAfter.has(pass)) {
+            program.dump();
+          }
           if (show_after.contains(pass)){
             String name=show_file.get();
             if (name!=null){
@@ -629,6 +666,10 @@ public class Main
       Verdict("The final verdict is Error");
     } catch (Throwable e) {
       DebugException(e);
+      Verdict("An unexpected error occured in VerCors! " +
+              "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. " +
+              "You can see the full exception by adding '--debug vct.main.Main' to the flags.");
+      Verdict("The final verdict is Error");
       throw e;
     } finally {
       Progress("entire run took %d ms",System.currentTimeMillis()-globalStart);
@@ -740,6 +781,17 @@ public class Main
     defined_passes.put("array_null_values", new CompilerPass("rewrite null values for arrays to None") {
       public ProgramUnit apply(ProgramUnit arg, String... args) {
           return new ArrayNullValues(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("pointers_to_arrays", new CompilerPass("rewrite pointers to arrays") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new PointersToArrays(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("lift_declarations", new CompilerPass("lift declarations to cell of the declared types, to treat locals as heap locations.") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new LiftDeclarations(arg).rewriteAll();
       }
     });
     defined_passes.put("java-check",new CompilerPass("run a Java aware type check"){
@@ -888,6 +940,9 @@ public class Main
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new FlattenBeforeAfter(arg).rewriteAll();
       }
+    });
+    defined_passes.put("flatten_variable_declarations", new CompilerPass("put the base type in declarations") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) { return new FlattenVariableDeclarations(arg).rewriteAll(); }
     });
     defined_passes.put("inline",new CompilerPass("Inline all methods marked as inline"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
@@ -1091,6 +1146,49 @@ public class Main
         return new ChalicePreProcess(arg).rewriteAll();
       }
     });
+    defined_passes.put("simple_triggers", new CompilerPass("Add triggers to quantifiers if possible") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        ProgramUnit res = arg;
+        int val = Integer.valueOf(args[0]);
+        // First gather quantified variables for quantifiers without triggers.
+        res = new OptimizeQuantifiers(res).rewriteAll();
+        // For quantifiers without triggers, and complex subscripts not containing quantified variables, add quantifier variable equal to the complex subscript.
+        if ((val & 2) > 0) {
+          res = new RewriteComplexUnitSubscripts(res).rewriteAll();
+        }
+        // Try to add triggers for the now possibly simplified quantifiers.
+        if ((val & 1) > 0) {
+          res = new AddSimpleTriggers(res).rewriteAll();
+        }
+        return res;
+      }
+    });
+    defined_passes.put("count",new CompilerPass("Count nodes."){
+        public ProgramUnit apply(ProgramUnit arg,String ... args){
+          NonLinCountVisitor cv = new NonLinCountVisitor(arg);
+          cv.count();
+          if(args.length == 1) {
+            counters.put(args[0], cv);
+          } else {
+            Abort("Learn is used without an oracle");
+          }
+          return arg;
+        }
+      });
+    defined_passes.put("learn",new CompilerPass("Learn unit times from counted AST nodes."){
+        public ProgramUnit apply(ProgramUnit arg,String ... args){
+          if(args.length == 1) {
+            long start_time = Long.valueOf(args[0]);
+            long time = System.currentTimeMillis() - start_time;
+            for(Map.Entry<String, SpecialCountVisitor> entry: counters.entrySet()) {
+              Oracle.tell(entry.getKey(), entry.getValue(), time);
+            }
+          } else {
+            Abort("Learn is used without a starting time.");
+          }
+          return arg;
+        }
+      });
   }
 
 

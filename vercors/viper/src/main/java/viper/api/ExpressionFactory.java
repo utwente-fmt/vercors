@@ -50,10 +50,10 @@ public interface ExpressionFactory<O,T,E> {
   public E union(O o, E e1, E e2);
   
   public E predicate_call(O o,String name,List<E> args); 
-  public E function_call(O o,String name,List<E> args,T rt,List<Triple<O,String,T>> pars);
+  public E function_call(O o,String name,List<E> args,T rt);
   public E result(O o,T t);
   
-  public E domain_call(O o,String name,List<E> args,Map<String,T> dpars,T rt,List<Triple<O,String,T>> pars,String domain); 
+  public E domain_call(O o,String name,List<E> args,Map<String,T> dpars,T rt,String domain);
  
   public E field_access(O o,E e1, E e2);
   public E scale_access(O o,E e1, E e2);

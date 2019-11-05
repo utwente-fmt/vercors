@@ -1,6 +1,0 @@
-import "liba.sil"
-
-method main()
-{
-    assert LibB(77, false)
-}

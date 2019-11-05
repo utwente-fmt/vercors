@@ -1,7 +1,11 @@
 .metadata/
 .project
+.classpath
+.settings/
+target/
 dist/
 doc/
+.learn
 tmp
 tmp.*
 vct-tool.jar

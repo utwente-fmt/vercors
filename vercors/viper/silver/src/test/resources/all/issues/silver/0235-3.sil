@@ -1,9 +1,0 @@
-method m3()
-{
-    var x: Int := 10
-}
-
-method m4()
-{
-    var x: Int
-}

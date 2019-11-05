@@ -87,13 +87,12 @@ public class System {
         }
 
         private void writeLines() {
-            String[] lines = buffer.split("\\r?\\n");
+            String[] lines = buffer.split("\\r?\\n", -1);
+            buffer = lines[lines.length - 1];
 
             for (int i = 0; i < lines.length - 1; i++) {
                 System.log(level, outputs, "%s", lines[i]);
             }
-
-            buffer = lines[lines.length - 1];
         }
 
         @Override
@@ -109,8 +108,9 @@ public class System {
 
         private void doFlush() {
             if (!buffer.equals("")) {
-                System.log(level, outputs, "%s", buffer);
+                String toLog = buffer;
                 buffer = "";
+                System.log(level, outputs, "%s", toLog);
             }
         }
     }
@@ -177,7 +177,7 @@ public class System {
 
         int idx = 2;
         while (stackTraceElements[idx].getClassName().equals("hre.lang.System")
-                || stackTraceElements[idx].getClassName().equals("vct.col.ast.ASTFrame")) {
+                || stackTraceElements[idx].getClassName().equals("vct.col.ast.util.ASTFrame")) {
             idx++;
         }
 
@@ -278,17 +278,17 @@ public class System {
         return new Failure(String.format(format, args));
     }
 
-    static {
-        final UncaughtExceptionHandler parent = Thread.getDefaultUncaughtExceptionHandler();
-        UncaughtExceptionHandler eh = new UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-                if (e instanceof HREExitException) {
-                    java.lang.System.exit(((HREExitException) e).exit);
-                }
-                parent.uncaughtException(t, e);
-            }
-        };
-        Thread.setDefaultUncaughtExceptionHandler(eh);
-    }
+//    static {
+//        final UncaughtExceptionHandler parent = Thread.getDefaultUncaughtExceptionHandler();
+//        UncaughtExceptionHandler eh = new UncaughtExceptionHandler() {
+//            @Override
+//            public void uncaughtException(Thread t, Throwable e) {
+//                if (e instanceof HREExitException) {
+//                    java.lang.System.exit(((HREExitException) e).exit);
+//                }
+//                parent.uncaughtException(t, e);
+//            }
+//        };
+//        Thread.setDefaultUncaughtExceptionHandler(eh);
+//    }
 }

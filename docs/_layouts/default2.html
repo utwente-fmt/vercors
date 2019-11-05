@@ -21,24 +21,31 @@
 		</noscript>
 		<!--[if lte IE 8]><link rel="stylesheet" href="css/ie/v8.css" /><![endif]-->
 	</head>
-		<body class="no-sidebar">
+    <body class="no-sidebar">
 
-		<!-- Header -->
-			<div id="header">
-				<div class="container">
-						
-					<!-- Logo -->
-						<h1><a href="{{ "/index.html" | prepend: site.baseurl }}" id="logo">The VerCors Toolset</a></h1>
-					
-					{% include nav2.html %}								
+            <div id="header">
+                    <div class="container">
+                            
+                        <!-- Logo -->
+                        <h1><a href="{{ "/index.html" | prepend: site.baseurl }}" id="logo">The VerCors Verifier</a></h1>
+                        
+                        <!-- Nav -->
+                    ​	 {% include nav.html %}
+                        
+                        <!-- Banner -->
+                        <div id="banner">
+                            <div class="container">
+                            <section>
+                                <a href="https://github.com/utwente-fmt/vercors" class="button alt" target="_blank">View on Github</a>
+                            </section>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-							</div>
-						</div>
+            {{content}}
 
-						{{content}}
+            {% include footer.html %}		
 
-						{% include footer.html %}		
-
-					</body>
-
-					</html>
+    </body>
+</html>

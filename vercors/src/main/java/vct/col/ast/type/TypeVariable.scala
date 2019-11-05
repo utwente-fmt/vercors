@@ -18,4 +18,7 @@ case class TypeVariable(val name:String) extends Type with VisitorHelper {
     case tv:TypeVariable => tv.name.equals(this.name)
     case _ => false
   }
+
+  override def debugTreeChildrenFields: Iterable[String] = Seq("args")
+  override def debugTreePropertyFields: Iterable[String] = Seq("name")
 }

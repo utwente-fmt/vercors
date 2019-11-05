@@ -1,7 +1,0 @@
-define Q() true
-define P() Q()
-
-method test() {
-  //:: ExpectedOutput(parser.error)
-  assert perm(P()) == none
-}

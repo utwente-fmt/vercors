@@ -1,9 +1,0 @@
-field val : Int
-
-method test(x: Ref, y: Ref) {
-    inhale acc(x.val) && (x != y ==> acc(y.val))
-    x.val := 4
-    y.val := 3
-    //:: ExpectedOutput(assert.failed:assertion.false)
-    assert x.val == 4 
-}

@@ -1,6 +1,0 @@
-import "complex_other2.sil"
-
-function foo(x: Int): Int {
-    x+1
-} 
-

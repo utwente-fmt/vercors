@@ -1,17 +1,12 @@
 package vct.antlr4.parser;
 
-import java.util.ArrayList;
-
 import hre.lang.Failure;
-
-import org.antlr.v4.runtime.BufferedTokenStream;
-import org.antlr.v4.runtime.Parser;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.Vocabulary;
+import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
-
+import vct.antlr4.generated.CMLLexer;
+import vct.antlr4.generated.CMLParser.*;
+import vct.antlr4.generated.CMLVisitor;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
@@ -27,9 +22,12 @@ import vct.col.ast.type.Type;
 import vct.col.ast.type.TypeOperator;
 import vct.col.syntax.CSyntax;
 import vct.col.syntax.Syntax;
-import vct.antlr4.generated.*;
-import vct.antlr4.generated.CMLParser.*;
+import vct.col.util.SequenceUtils;
 import vct.util.Configuration;
+
+import java.util.ArrayList;
+
+import static hre.lang.System.Debug;
 
 /**
  * Convert CML (C Modeling Language) parse trees to COL.
@@ -102,14 +100,41 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     }
   }
 
-  private Type getPointer(Type t,ParserRuleContext ctx){
-    if(match(ctx,"*")){
-      return create.primitive_type(PrimitiveSort.Pointer,t);
-    }
+  private ASTDeclaration getPointer(ASTDeclaration decl, ParserRuleContext ctx){
     if(match(ctx,"*",null)){
-      t=getPointer(t,(ParserRuleContext)ctx.getChild(1));
-      return create.primitive_type(PrimitiveSort.Pointer,t);
+      Debug("pointer");
+      decl = getPointer(decl,(ParserRuleContext)ctx.getChild(1));
+    } else if(match(ctx, "**", null)) {
+      // This must be a separate rule, as ** is tokenized separately for separating conjunction.
+      Debug("pointer pointer");
+      decl = getPointer(decl,(ParserRuleContext)ctx.getChild(1));
+      decl = getPointer(decl,(ParserRuleContext)ctx.getChild(1));
     }
+
+    if(decl instanceof DeclarationStatement) {
+      DeclarationStatement result = new DeclarationStatement(
+              decl.name(),
+              create.primitive_type(PrimitiveSort.Pointer, ((DeclarationStatement) decl).type()),
+              ((DeclarationStatement) decl).init()
+      );
+
+      result.setOrigin(decl.getOrigin());
+      return result;
+    } else if(decl instanceof Method) {
+      Method result = new Method(
+              ((Method) decl).getKind(),
+              ((Method) decl).getName(),
+              create.primitive_type(PrimitiveSort.Pointer, ((Method) decl).getReturnType()),
+              ((Method) decl).getContract(),
+              ((Method) decl).getArgs(),
+              ((Method) decl).usesVarArgs(),
+              ((Method) decl).getBody()
+      );
+
+      result.setOrigin(decl.getOrigin());
+      return result;
+    }
+
     return null;
   }
 
@@ -250,15 +275,15 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
 
   @Override
   public ASTNode visitDeclarationSpecifiers(DeclarationSpecifiersContext ctx) {
-    hre.lang.System.Debug("\"decl specs\" %s",ctx.toStringTree(parser));
+    Debug("\"decl specs\" %s",ctx.toStringTree(parser));
     int i=ctx.getChildCount()-1;
     ParserRuleContext tmp=(ParserRuleContext)((ParserRuleContext)ctx.getChild(i)).getChild(0);
-    hre.lang.System.Debug("\"last:\" %s",tmp.toStringTree(parser));
+    Debug("\"last:\" %s",tmp.toStringTree(parser));
     String name=null;
     if (expect!=null && expect==DeclarationStatement.class){
       if (match(tmp,"TypedefName")){
         name=getIdentifier(tmp, 0);
-        hre.lang.System.Debug("\"name:\" %s",name);
+        Debug("\"name:\" %s",name);
         i=i-1;
         tmp=(ParserRuleContext)((ParserRuleContext)ctx.getChild(i)).getChild(0);
       } else {
@@ -268,7 +293,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     if (match(tmp,"TypedefName")){
       tmp=(ParserRuleContext)((ParserRuleContext)tmp).getChild(0);
     } 
-    hre.lang.System.Debug("\"type:\" %s",tmp.toStringTree(parser));
+    Debug("\"type:\" %s",tmp.toStringTree(parser));
     expect=Type.class;
     ASTNode t=convert(tmp);
     Type type=null;
@@ -282,9 +307,9 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     i=i-1;
     while(i>=0){
       if (i==0 && match((ParserRuleContext)ctx.getChild(0),"StorageClassSpecifier")){
-          hre.lang.System.Debug("\"class:\" %s",ctx.getChild(0).toStringTree(parser));
+          Debug("\"class:\" %s",ctx.getChild(0).toStringTree(parser));
           String sclass=((ParserRuleContext)((ParserRuleContext)ctx.getChild(0))).getText();
-          hre.lang.System.Debug("\"class:\" %s",sclass);
+          Debug("\"class:\" %s",sclass);
           switch(sclass){
           case "typedef":
             return create.field_decl(name,create.primitive_type(PrimitiveSort.Class) ,type);
@@ -297,7 +322,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
             hre.lang.System.Abort("missing case");
           }
       } else if (match((ParserRuleContext)ctx.getChild(i),"TypeQualifier")){
-        hre.lang.System.Debug("\"tspec:\" %s",ctx.getChild(i).toStringTree(parser));
+        Debug("\"tspec:\" %s",ctx.getChild(i).toStringTree(parser));
         String modifier=((ParserRuleContext)((ParserRuleContext)ctx.getChild(i))).getText();
         switch(modifier){
         case "const":
@@ -319,7 +344,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
           hre.lang.System.Abort("unknown type modifier: %s",modifier);
         }
       } else  if (match((ParserRuleContext)ctx.getChild(i),"TypeSpecifier")){
-        hre.lang.System.Debug("\"tspec:\" %s",ctx.getChild(i).toStringTree(parser));
+        Debug("\"tspec:\" %s",ctx.getChild(i).toStringTree(parser));
         String modifier=((ParserRuleContext)((ParserRuleContext)ctx.getChild(i))).getText();
         switch(modifier){
         case "const":
@@ -378,9 +403,10 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   @Override
   public ASTNode visitDeclarator(DeclaratorContext ctx) {
     if (match(ctx,"Pointer",null)){
-      DeclarationStatement d=(DeclarationStatement)convert(ctx,1);
-      Type t=getPointer(d.getType(),(ParserRuleContext)ctx.getChild(0));
-      return create.field_decl(d.name(), t);//create.primitive_type(Sort.Pointer,d.getType()));
+      ASTDeclaration innerDeclarator = (ASTDeclaration) convert(ctx,1);
+      return getPointer(innerDeclarator, (ParserRuleContext)ctx.getChild(0));
+    } else if(match(ctx, "DirectDeclarator")) {
+      return convert(ctx, 0);
     }
     return null;
   }
@@ -427,19 +453,33 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
       return create.method_kind(Method.Kind.Plain, VariableDeclaration.common_type, null, name, args, varargs, null);
     }
     if (match(ctx,null,"[","]")){
+      Debug("unspecified array dimension");
       DeclarationStatement d=(DeclarationStatement)convert(ctx,0);
+      // Multi-dimensional arrays should not be Option inbetween dimensions, so if the subtype is an array dimension, we
+      // strip the option type from the subtype.
       Type t=d.getType();
-      t=create.primitive_type(PrimitiveSort.Array,t);
+      SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfo(t);
+      if(info != null && info.isOpt() && info.isCell() && info.getSequenceSort() == PrimitiveSort.Array) {
+        t = SequenceUtils.optArrayCell(create, info.getSequenceType());
+      } else {
+        t = SequenceUtils.optArrayCell(create, t);
+      }
       return create.field_decl(d.name(), t);
     }
     int N=ctx.getChildCount();
     if (match(0,true,ctx,null,"[") && match(N-1,false,ctx,"]")){
+      Debug("specified array dimension %s", convert(ctx, 2));
       DeclarationStatement d=(DeclarationStatement)convert(ctx,0);
       Type t=d.getType();
       if (N>4) {
         hre.lang.System.Warning("ignoring %d modifiers in declaration",N-4);
       }
-      t=create.primitive_type(PrimitiveSort.Array,t,convert(ctx,N-2));
+      SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfo(t);
+      if(info != null && info.isOpt() && info.isCell() && info.getSequenceSort() == PrimitiveSort.Array) {
+        t = SequenceUtils.optArrayCell(create, info.getSequenceType());
+      } else {
+        t = SequenceUtils.optArrayCell(create, t);
+      }
       return create.field_decl(d.name(), t);
     }
     return null;
@@ -529,42 +569,17 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
 
   @Override
   public ASTNode visitFunctionDefinition(FunctionDefinitionContext ctx) {
-    int ofs;
-    Type t;
-    if (match(0,true,ctx,"DeclaratorContext")) {
-      t=create.primitive_type(PrimitiveSort.Integer);
-      ofs=0;
-    } else {
-      t=(Type)convert(ctx,0);
-      ofs=1;
+    if(!match(ctx, "DeclarationSpecifiers", "Declarator", "CompoundStatement")) {
+      throw new Failure("Declaring parameters types after the method declaration is unsupported.");
     }
-    String name=null;
-    ArrayList<DeclarationStatement> args=new ArrayList<DeclarationStatement>();
-    if (match((DeclaratorContext)ctx.getChild(ofs),"DirectDeclaratorContext")){
-      DirectDeclaratorContext decl_ctx=(DirectDeclaratorContext)((DeclaratorContext)ctx.getChild(ofs)).getChild(0);
-      if (match(decl_ctx,null,"(","ParameterTypeListContext",")")){
-        enter(decl_ctx);
-        name=getIdentifier(decl_ctx, 0);
-        ParserRuleContext arg_ctx=(ParserRuleContext)decl_ctx.getChild(2);
-        
-        convert_parameters(args, arg_ctx);
-        leave(decl_ctx,null);
-      } else if (match(decl_ctx,null,"(",")")) {
-        name=getIdentifier(decl_ctx, 0);
-      } else {
-        return null;
-      }
-    } else {
-      throw hre.lang.System.Failure("unknown declarator%ntree: %s",ctx.getChild(ofs).toStringTree(parser));
-    }
-    ofs++;
-    ASTNode body;
-    if (match(ofs,false,ctx,(String)null)){
-      body=convert(ctx,ofs);
-    } else {
-      return null;
-    }
-    return create.method_decl(t, null, name, args.toArray(new DeclarationStatement[0]), body);
+
+    Type declSpec = (Type)convert(ctx,0);
+    Method declaration = (Method) convert(ctx, 1);
+    declaration.setBody(convert(ctx, 2));
+
+    VariableDeclaration result = create.variable_decl(declSpec);
+    result.add(declaration);
+    return result;
   }
 
   @Override
@@ -636,7 +651,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   public ASTNode visitInitializer(InitializerContext ctx) {
     if (match(ctx,"{","InitializerList","}")){
       ASTNode values[]=convert_linked_list((ParserRuleContext)ctx.getChild(1),",");
-      Type t=create.primitive_type(PrimitiveSort.Array, create.primitive_type(PrimitiveSort.Integer));
+      Type t=SequenceUtils.arrayCell(create, create.primitive_type(PrimitiveSort.Integer));
       return create.struct_value(t,null,values);
     }
     return null;
@@ -848,7 +863,6 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
 
   @Override
   public ASTNode visitPureFunctionDeclaration(PureFunctionDeclarationContext ctx) {
-    hre.lang.System.Warning("pure function");
     Type t=checkType(convert(ctx,0));
     ASTNode expr=convert(ctx,3);
     int ofs=1;

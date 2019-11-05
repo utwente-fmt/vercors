@@ -1,5 +1,7 @@
 package vct.col.ast.stmt.decl
 
+import vct.col.ast.generic.ASTNode
+
 import scala.collection.JavaConverters._
 import vct.col.ast.util.ASTVisitor
 import vct.col.util.{ASTMapping, ASTMapping1, VisitorHelper}
@@ -49,4 +51,7 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def getDeclName = new ClassName(name)
+
+  override def debugTreeChildrenFields(): Iterable[String] = Seq("parameters")
+  override def debugTreePropertyFields(): Iterable[String] = Seq("name")
 }

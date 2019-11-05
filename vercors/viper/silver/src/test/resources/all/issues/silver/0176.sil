@@ -1,6 +1,0 @@
-domain T {
-    axiom a {
-        forall i: Int :: f(i) != f(i + 1)
-    }
-    function f(i: Int) : T
-}

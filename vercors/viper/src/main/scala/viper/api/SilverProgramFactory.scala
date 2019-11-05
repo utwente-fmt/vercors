@@ -57,7 +57,6 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
       t, // function type
       pres.asScala, // sequence of preconditions
       posts.asScala, // sequence of postconditions
-      None, // decreases clause (optional)
       b // function body
     )(NoPosition, new OriginInfo(o), NoTrafos))
   }
@@ -269,8 +268,8 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
        case AnySetMinus(e1,e2) => ve.any_set_minus(o,m(e1),m(e2))
        case AnySetUnion(e1,e2) => ve.any_set_union(o,m(e1),m(e2))
        case AnySetIntersection(e1,e2) => ve.any_set_intersection(o,m(e1),m(e2))
-       case Result() => ve.result(o,map_type(v,exp.typ));
-       case LocalVar(n) => ve.local_name(o,n,map_type(v,exp.typ))
+       case Result(t) => ve.result(o,map_type(v,t));
+       case LocalVar(n,t) => ve.local_name(o,n,map_type(v,t))
        case IntLit(i) => ve.Constant(o,i.toInt)
        case TrueLit() => ve.Constant(o,true)
        case FalseLit() => ve.Constant(o,false)
@@ -307,8 +306,7 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
        case Or(e1,e2) => ve.or(o,map_expr(v,e1),map_expr(v,e2))
        case Implies(e1,e2) => ve.implies(o,map_expr(v,e1),map_expr(v,e2))
        case FuncApp(name,args) => ve.function_call(o,name,map_expr(v,args),
-           map_type(v, exp.asInstanceOf[FuncApp].typ),
-           map_decls(v,exp.asInstanceOf[FuncApp].formalArgs))
+           map_type(v, exp.asInstanceOf[FuncApp].typ))
        case CondExp(e1,e2,e3) => ve.cond(o,map_expr(v,e1),map_expr(v,e2),map_expr(v,e3))
        case Unfolding(e1,e2) => ve.unfolding_in(o,map_expr(v,e1),map_expr(v,e2))
        case PredicateAccessPredicate(e1,e2) =>  ve.scale_access(o,map_expr(v,e1),map_expr(v,e2))
@@ -316,7 +314,6 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
        case DomainFuncApp(name,args,typemap) =>
          ve.domain_call(o,name,map_expr(v,args), map_type_map(v,typemap),
              map_type(v, exp.asInstanceOf[DomainFuncApp].typ),
-             map_decls(v,exp.asInstanceOf[DomainFuncApp].formalArgs),
              exp.asInstanceOf[DomainFuncApp].domainName)
        case Forall(vars,triggers,e) =>
          val trigs : List[List[E2]] = (triggers map {
@@ -393,9 +390,9 @@ object Parser extends viper.silver.frontend.SilFrontend {
     configureVerifier(Nil);
     init(silicon)
     reset(java.nio.file.Paths.get(name))
-    parse()         /* Parse into intermediate (mutable) AST */
-    typecheck()     /* Resolve and typecheck */
-    translate()     /* Convert intermediate AST to final (mainly immutable) AST */
+    parsing()
+    semanticAnalysis()
+    translation()
     _program match {
       case Some(Program(domains,fields,functions,predicates,methods)) => 
         val prog=new Prog();

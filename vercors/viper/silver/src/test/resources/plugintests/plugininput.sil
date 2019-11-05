@@ -1,8 +1,0 @@
-import "pluginimport.sil"
-
-method meth(a: Int) returns (b: Int)
-requires a > 0
-ensures b > 0
-{
-    b := a * getRandomNumber()
-}

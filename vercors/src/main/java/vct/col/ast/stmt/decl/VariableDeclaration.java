@@ -2,10 +2,9 @@ package vct.col.ast.stmt.decl;
 
 import hre.ast.MessageOrigin;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
+import scala.collection.JavaConverters;
 import vct.col.util.ASTMapping;
 import vct.col.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -147,5 +146,15 @@ public class VariableDeclaration extends ASTNode {
       }
     }
     return list;
+  }
+
+  @Override
+  public scala.collection.Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("basetype", "vars"));
+  }
+
+  @Override
+  public scala.collection.Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
   }
 }

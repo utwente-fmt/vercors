@@ -151,8 +151,7 @@ public class VerCorsExpressionFactory implements
   
   @Override
   public ASTNode domain_call(Origin o, String name,
-      java.util.List<ASTNode> args, Map<String, Type> dpars, Type rt,
-      java.util.List<viper.api.Triple<Origin,String,Type>> pars, String domain) {
+      java.util.List<ASTNode> args, Map<String, Type> dpars, Type rt, String domain) {
     enter(o);
     MethodInvokation res=create.invokation(
         create.class_type(domain,toArray(dpars)),
@@ -273,8 +272,7 @@ public class VerCorsExpressionFactory implements
 
   @Override
   public ASTNode function_call(Origin o, String name,
-      java.util.List<ASTNode> args, Type rt,
-      java.util.List<viper.api.Triple<Origin,String,Type>> pars) {
+      java.util.List<ASTNode> args, Type rt) {
     enter(o);
     ASTNode res=create.invokation(null,null,name, args);
     leave();

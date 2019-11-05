@@ -18,4 +18,7 @@ case class FieldAccess(val classname:ClassName, val `object`:ASTNode, val name:S
   override def accept_simple[T,A](map:ASTMapping1[T,A], arg:A) = map.map(this, arg)
   override def accept_simple[T](visitor:ASTVisitor[T]) = visitor.visit(this)
   override def accept_simple[T](map:ASTMapping[T]) = map.map(this)
+
+  override def debugTreeChildrenFields(): Iterable[String] = Seq("object", "value")
+  override def debugTreePropertyFields(): Iterable[String] = Seq("classname", "name")
 }

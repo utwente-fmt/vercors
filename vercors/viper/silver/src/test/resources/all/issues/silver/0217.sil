@@ -1,8 +1,0 @@
-define P(x) x
-
-method foo(x: Bool)
-  requires x
-{
-  //:: ExpectedOutput(parser.error)
-  assert P  // <-- Here there should be an error because a parameter is missing
-}

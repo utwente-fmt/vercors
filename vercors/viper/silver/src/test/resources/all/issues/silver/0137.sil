@@ -1,8 +1,0 @@
-method f(n: Int) returns (res: Int)
-{
-    if (n > 100) { res := n - 10}
-    else {
-        //:: ExpectedOutput(typechecker.error)
-        res := f(f(n + 11))
-    }
-}

@@ -5,15 +5,17 @@ import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.constant.StructValue
 import vct.col.ast.expr.{Dereference, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
+import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
 import vct.col.util.SequenceUtils
+import vct.col.util.SequenceUtils.SequenceInfo
 
 import scala.collection.mutable
 
 object RewriteArrayRef {
   val constructorName: mutable.Map[(Type, Int), String] = mutable.Map()
   val valuesName: mutable.Map[Type, String] = mutable.Map()
+  val subName: mutable.Map[Type, String] = mutable.Map()
 
   val namesUsed: mutable.Set[String] = mutable.Set()
 
@@ -22,8 +24,8 @@ object RewriteArrayRef {
     while(namesUsed contains str) {
       result += "$"
     }
-    namesUsed += str
-    str
+    namesUsed += result
+    result
   }
 
   def getArrayConstructor(t: Type, definedDimensions: Int): String = {
@@ -32,6 +34,10 @@ object RewriteArrayRef {
 
   def getArrayValues(t: Type): String = {
     valuesName getOrElseUpdate(t, getUniqueName("array_values_" + t.toString))
+  }
+
+  def getSubArray(t: Type): String = {
+    subName getOrElseUpdate(t, getUniqueName("sub_array_" + t.toString))
   }
 }
 
@@ -50,6 +56,13 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     create.setOrigin(new MessageOrigin("Array Values Functions"))
     for ((t, name) <- RewriteArrayRef.valuesName) {
       res.add(arrayValuesFor(t, name))
+    }
+    create.leave()
+
+    create.enter()
+    create.setOrigin(new MessageOrigin("Generated Subarray Functions"))
+    for((t, name) <- RewriteArrayRef.subName) {
+      res.add(subArrayFor(t, name))
     }
     create.leave()
 
@@ -101,6 +114,27 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
         val size0 = rewrite(operator.arg(1))
         val size1 = rewrite(operator.arg(2))
         result = validMatrixFor(matrix, t, size0, size1)
+      case StandardOperator.ValidPointer =>
+        val t = operator.arg(0).getType
+        val array = rewrite(operator.arg(0))
+        val size = rewrite(operator.arg(1))
+        val perm = rewrite(operator.arg(2))
+        result = validPointerFor(array, t, size, perm)
+      case StandardOperator.Drop =>
+        val seqInfo = SequenceUtils.getInfoOrFail(operator.arg(0), "Expected a sequence type at %s, but got %s")
+        if(seqInfo.getSequenceSort == PrimitiveSort.Array) {
+          val array = rewrite(operator.arg(0))
+          array.setType(seqInfo.getCompleteType)
+
+          val dropCount = rewrite(operator.arg(1))
+          var properArray = array
+          if(seqInfo.isOpt) {
+            properArray = create.expression(StandardOperator.OptionGet, properArray)
+          }
+          result = create.invokation(null, null, RewriteArrayRef.getSubArray(seqInfo.getCompleteType), array, dropCount, create.expression(StandardOperator.Length, properArray))
+        } else {
+          super.visit(operator)
+        }
       case _ =>
         super.visit(operator)
     }
@@ -271,6 +305,32 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     conditions.reduce(and _)
   }
 
+  def validPointerFor(input: ASTNode, t: Type, size: ASTNode, perm: ASTNode): ASTNode = {
+    val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
+    val seqInfo = SequenceUtils.expectArrayType(t, "Expected an array type here, but got %s")
+
+    if(!seqInfo.isOpt || !seqInfo.isCell) {
+      Fail("Expected a pointer type here, but got %s", t)
+    }
+
+    var value = input
+
+    conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
+    value = create.expression(StandardOperator.OptionGet, value)
+
+    conditions += lte(size, create.expression(StandardOperator.Length, value))
+
+    conditions += create.starall(
+      and(lte(constant(0), name("__i")), less(name("__i"), size)),
+      create.expression(StandardOperator.Perm,
+        create.dereference(create.expression(StandardOperator.Subscript, value, name("__i")), "item"),
+        perm),
+      List(new DeclarationStatement("__i", create.primitive_type(PrimitiveSort.Integer))):_*
+    )
+
+    conditions.reduce(star _)
+  }
+
   def validMatrixFor(input: ASTNode, t: Type, size0: ASTNode, size1: ASTNode): ASTNode = {
     val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
     val seqInfo0 = SequenceUtils.expectArrayType(t, "Expected a matrix type here, but got %s")
@@ -299,7 +359,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     var rowJ: ASTNode = create.expression(StandardOperator.Subscript, matrix, quantJ0)
 
     if(seqInfo0.isCell) {
-      conditions += create.starall(quantGuard, create.expression(StandardOperator.Perm, row), quantDecls: _*)
+      conditions += create.starall(quantGuard, create.expression(StandardOperator.Perm, row, create.reserved_name(ASTReserved.ReadPerm)), quantDecls: _*)
       row = create.dereference(row, "item")
       rowI = create.dereference(rowI, "item")
       rowJ = create.dereference(rowJ, "item")
@@ -353,5 +413,58 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     }
 
     conditions.reduce(star)
+  }
+
+  def subArrayFor(t: Type, methodName: String): ASTNode = {
+    var result: ASTNode = create.reserved_name(ASTReserved.Result)
+    var array: ASTNode = name("array")
+
+    val contract = new ContractBuilder
+    val from: ASTNode = name("from")
+    val to: ASTNode = name("to")
+    val seqInfo = SequenceUtils.expectArrayType(t, "Expected array at %s but got %s")
+    val i: ASTNode = name("i")
+    val iDecl: Array[DeclarationStatement] = Array(create.field_decl("i", create.primitive_type(PrimitiveSort.Integer)))
+
+    if(seqInfo.isOpt) {
+      contract.requires(neq(array, create.reserved_name(ASTReserved.OptionNone)))
+      contract.ensures(neq(result, create.reserved_name(ASTReserved.OptionNone)))
+      array = create.expression(StandardOperator.OptionGet, array)
+      result = create.expression(StandardOperator.OptionGet, result)
+    }
+
+    contract.ensures(eq(create.expression(StandardOperator.Length, result), create.expression(StandardOperator.Minus, to, from)))
+
+    contract.requires(List(
+      lte(constant(0), from),
+      lte(from, to),
+      lte(to, create.expression(StandardOperator.Length, array))
+    ).reduce(and))
+
+    var eqLeft: ASTNode = create.expression(StandardOperator.Subscript, array, create.expression(StandardOperator.Plus, i, from))
+    var eqRight: ASTNode = create.expression(StandardOperator.Subscript, result, i)
+
+    contract.ensures(create.forall(
+      and(lte(constant(0), i), less(i, create.expression(StandardOperator.Minus, to, from))),
+      eq(eqLeft, eqRight),
+      iDecl:_*
+    ))
+
+    contract.ensures(
+      create.expression(StandardOperator.Implies,
+        and(eq(from, constant(0)), eq(to, create.expression(StandardOperator.Length, array))),
+        eq(result, array)
+      )
+    )
+
+    val arguments = Array(
+      new DeclarationStatement("array", t),
+      new DeclarationStatement("from", create.primitive_type(PrimitiveSort.Integer)),
+      new DeclarationStatement("to", create.primitive_type(PrimitiveSort.Integer))
+    )
+
+    val declaration = create.method_kind(Method.Kind.Pure, t, contract.getContract, methodName, arguments, false, null)
+    declaration.setStatic(true)
+    declaration
   }
 }

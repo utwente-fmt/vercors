@@ -1,6 +1,0 @@
-method here()
-{
-    var x: Bool := true
-    var xi: Int := 4
-    exhale ( true || (x == (xi < 5)))
-}

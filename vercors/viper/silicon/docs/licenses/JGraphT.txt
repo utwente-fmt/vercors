@@ -1,1 +1,0 @@
-http://jgrapht.org/LGPL.html

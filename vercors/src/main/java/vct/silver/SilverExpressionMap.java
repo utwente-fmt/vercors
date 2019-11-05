@@ -243,14 +243,14 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         AxiomaticDataType adt=(AxiomaticDataType)m.getParent();
         HashMap<String, T> dpars=new HashMap<String, T>();
         type.domain_type(dpars,(ClassType)e.object);
-        return create.domain_call(o, name, args, dpars, rt, pars, adt.name());
+        return create.domain_call(o, name, args, dpars, rt, adt.name());
       } else {
         
         ArrayList<Triple<Origin,String,T>> pars=new ArrayList<Triple<Origin,String,T>>();
         for(DeclarationStatement decl:m.getArgs()){
           pars.add(new Triple<Origin,String,T>(decl.getOrigin(),decl.name(),decl.getType().apply(type)));
         }
-        return create.function_call(o, name, args, rt, pars);
+        return create.function_call(o, name, args, rt);
       }
     }
     case Predicate:{

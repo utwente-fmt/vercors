@@ -1,8 +1,0 @@
-predicate P(s: Set[Int]) /* Exception occurred if P was *not* used */
-
-method test() {
-  assert true
-}
-
-field f: Set[Bool]
-function foo(s: Set[Ref]): Ref

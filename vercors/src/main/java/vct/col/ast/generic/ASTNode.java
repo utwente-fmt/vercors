@@ -27,7 +27,7 @@ import static hre.lang.System.Fail;
 import static hre.lang.System.Warning;
 
 /** common features of all AST nodes. */
-public abstract class ASTNode implements ASTFlags {
+public abstract class ASTNode implements ASTFlags, DebugNode {
 
   @Override
   public String toString(){

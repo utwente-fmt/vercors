@@ -1,6 +1,8 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.col.ast.expr;
 
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
 import vct.col.ast.expr.ExpressionNode;
 import vct.col.util.ASTMapping;
 import vct.col.util.ASTMapping1;
@@ -25,6 +27,16 @@ public class MethodInvokation extends ExpressionNode {
   @Override
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
     return map.map(this,arg);
+  }
+
+  @Override
+  public Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("object", "args"));
+  }
+
+  @Override
+  public Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("method", "dispatch"));
   }
 
   public final ASTNode object;

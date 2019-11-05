@@ -1,9 +1,0 @@
-method main()
-{
-    define macro(x) x + macro2(x*x)
-
-    define macro2(y) y + 1
-
-    assert(5 + (5*5 + 1) == 31)
-}
-

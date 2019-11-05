@@ -7,6 +7,7 @@ import hre.util.Function;
 
 import java.util.*;
 
+import scala.collection.JavaConverters;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.util.ASTMapping;
 import vct.col.util.ASTMapping1;
@@ -37,6 +38,17 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
     return map.map(this,arg);
   }
+
+  @Override
+  public scala.collection.Iterable<String> debugTreeChildrenFields() {
+    return JavaConverters.iterableAsScalaIterable(Arrays.asList("parameters", "super_classes", "implemented_classes", "entries"));
+  }
+
+  @Override
+  public scala.collection.Iterable<String> debugTreePropertyFields() {
+    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("kind"));
+  }
+
   /**
    * Enumeration of the kinds of classes that are considered.
    * 

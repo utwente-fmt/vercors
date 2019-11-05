@@ -13,4 +13,7 @@ class TypeMock(val _args:List[ASTNode]) extends Type(_args) {
   override def accept_simple[T](m:ASTMapping[T]) = throw new Exception()
   override def accept_simple[T](m:TypeMapping[T]) = throw new Exception()
   override def supertypeof(context:ProgramUnit, t:Type) = false
+
+  override def debugTreeChildrenFields: Iterable[String] = Seq("_args")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

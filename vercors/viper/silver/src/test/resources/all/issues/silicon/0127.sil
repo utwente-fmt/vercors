@@ -1,5 +1,0 @@
-domain IMap[K, V] {
-  function keys_set(map: IMap[K,V]): Set[K]
-  function keys_seq(map: IMap[K,V]): Seq[K]
-  function keys_mset(map: IMap[K,V]): Multiset[K]
-}

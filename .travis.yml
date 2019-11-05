@@ -37,7 +37,7 @@ script:
 # Test one example that shows all error messages
 - vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl
 # Test the remaining examples while hiding messages
-- vct --tool=silicon --lang=java,pvl --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress
+- vct --tool=silicon --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress
 # Run the Sonar scanner
 - sonar-scanner
 

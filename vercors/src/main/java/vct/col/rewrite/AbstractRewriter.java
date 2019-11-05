@@ -128,11 +128,11 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
   
   public AbstractRewriter(ProgramUnit source){
-    this(source,new ProgramUnit(),false);
+    this(source,new ProgramUnit(source),false);
   }
   
   public AbstractRewriter(ProgramUnit source,boolean do_scope){
-    this(source,new ProgramUnit(),do_scope);
+    this(source,new ProgramUnit(source),do_scope);
   }
   
   public void pre_visit(ASTNode n){

@@ -1,8 +1,0 @@
-method test()
-{
-  if (true)
-  {
-    //:: ExpectedOutput(parser.error)
-    . // misplaced dot
-  }
-}

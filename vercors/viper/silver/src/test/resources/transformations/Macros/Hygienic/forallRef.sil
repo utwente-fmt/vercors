@@ -1,9 +1,0 @@
-define macro(x, y) forall i: Int :: 0 <= i && i < y ==> i < x
-
-method main()
-{
-    var a: Int := 6
-    var b: Int := 4
-    assert(forall i: Int :: 0 <= i && i < b ==> i < a)
-    assert(forall i$0: Int :: 0 <= i$0 && i$0 < b ==> i$0 < a)
-}

@@ -1,6 +1,0 @@
-field val:Int
-
-predicate isArray(xs:Ref)
-{
-    forall i:Int :: acc(xs.val)
-}

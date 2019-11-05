@@ -1,6 +1,0 @@
-	method test(this:Ref)
-		requires forall i:Int :: true;
-		requires forall i:Int :: true;
-	{
-
-	}

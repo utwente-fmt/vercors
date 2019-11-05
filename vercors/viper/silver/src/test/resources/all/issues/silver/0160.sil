@@ -1,7 +1,0 @@
-define b 2
-
-method a()
-{
-  //:: ExpectedOutput(parser.error)
-  b()
-}

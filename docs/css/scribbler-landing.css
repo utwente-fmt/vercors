@@ -5,15 +5,16 @@
   margin: 1rem 0 0 1rem;
 }
 
+/*
 nav {
   background-color: var(--bg-color);
 }
-
+*/
 /* hero section */
 .hero {
   text-align: center;
   background-color: var(--bg-color);
-  padding: 2rem 0 10rem 0;
+  padding: 0.1rem 0 0.1rem 0;
 }
 
 .hero__title {
@@ -89,15 +90,15 @@ nav {
 
 .keybinding__detail:first-child .keybinding__title {
   position: absolute;
-  right: 0.5rem;
+  right: 4rem;
   top: -2rem;
   background-color: white;
-  padding: 0 0.5rem;
+  padding: 0 1rem;
 }
 
 .keybinding__detail:last-child .keybinding__title {
   position: absolute;
-  left: 0.5rem;
+  left: 2rem;
   top: -2rem;
   background-color: white;
   padding: 0 0.5rem;

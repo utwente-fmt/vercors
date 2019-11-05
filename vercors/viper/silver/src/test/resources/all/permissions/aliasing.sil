@@ -1,9 +1,0 @@
-field f: Int
-
-method test(x: Ref, y: Ref, b: Bool, k: Perm) {
-  inhale none < k 
-  inhale acc(x.f, k) && acc(y.f, k)
-  inhale b <==> x == y
-  
-  exhale b ==> x.f == y.f
-}
