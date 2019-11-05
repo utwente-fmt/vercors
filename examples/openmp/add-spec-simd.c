@@ -11,10 +11,10 @@
 #include <omp.h>
 
 /*@
-  invariant a != NULL && b != NULL && c != NULL;
-  invariant len>0 && (len % 4 == 0) && \length(a)==len && \length(b)==len && \length(c)==len;
-  context   (\forall* int k;0 <= k && k < len ; Perm(a[k],1/2));
-  context   (\forall* int k;0 <= k && k < len ; Perm(b[k],1/2));
+  context_everywhere a != NULL && b != NULL && c != NULL;
+  context_everywhere len>0 && (len % 4 == 0) && \length(a)==len && \length(b)==len && \length(c)==len;
+  context   (\forall* int k;0 <= k && k < len ; Perm(a[k],1\2));
+  context   (\forall* int k;0 <= k && k < len ; Perm(b[k],1\2));
   context   (\forall* int k;0 <= k && k < len ; Perm(c[k],1));
   ensures   (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
 @*/
@@ -22,15 +22,15 @@ void add(int len,int a[],int b[],int c[]){
   #pragma omp parallel
   {
     /*@
-      context (\forall* int k;0 <= k && k < len ; Perm(a[k],1/2));
-      context (\forall* int k;0 <= k && k < len ; Perm(b[k],1/2));
+      context (\forall* int k;0 <= k && k < len ; Perm(a[k],1\2));
+      context (\forall* int k;0 <= k && k < len ; Perm(b[k],1\2));
       context (\forall* int k;0 <= k && k < len ; Perm(c[k],1));
       ensures (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
     @*/
     #pragma omp for simd schedule(static) simdlen(4)
     for(int i=0;i<len;i++)
     /*@
-      context Perm(c[i],1) ** Perm(b[i],1/2) ** Perm(a[i],1/2);
+      context Perm(c[i],1) ** Perm(b[i],1\2) ** Perm(a[i],1\2);
       ensures c[i] == a[i] + b[i];
     @*/
     {

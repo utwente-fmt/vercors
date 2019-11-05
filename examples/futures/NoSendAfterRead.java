@@ -88,18 +88,18 @@ class Sender {
 
 /*@  
      requires Value(d) ** Value(d.F); //skip(run)
-     requires Future(d.F,1/2,d.F.nsar()); 
+     requires Future(d.F,1\2,d.F.nsar()); 
   requires Value(l) ** Value(l.d) ** l.d==d; //skip(run)
 @*/ public void run(){
 /*@ loop_invariant Value(d) ** Value(d.F) ** Value(l)//skip(run)
     ** Value(l.d) ** l.d==d; //skip(run)
-    loop_invariant Future(d.F,1/2,d.F.nsar());
+    loop_invariant Future(d.F,1\2,d.F.nsar());
 @*/ while(true){
       l.lock();
       if (l.flag){
-        //@ choose d.F,1/2,d.F.nsar(),d.F.send()*d.F.nsar(); //skip(run)
+        //@ choose d.F,1\2,d.F.nsar(),d.F.send()*d.F.nsar(); //skip(run)
         d.send()
-            /*@ with { p=1/2; P=d.F.nsar();} @*/; //skip(run)
+            /*@ with { p=1\2; P=d.F.nsar();} @*/; //skip(run)
       }
       l.unlock();
     }
@@ -112,21 +112,21 @@ class Reader {
   Lock l;
 /*@ requires Value(d) ** Value(l) ** Value(l.d) ** //skip(run)
      l.d==d ** Value(d.F); //skip(run)
-    requires Future(d.F,1/2,d.F.rs());
+    requires Future(d.F,1\2,d.F.rs());
 @*/ public void run(){
 /*@ loop_invariant Value(d) ** Value(d.F) ** Value(l) ** //skip(run)
       Value(l.d) ** l.d==d; // skip(run)  
-    loop_invariant Future(d.F,1/2,d.F.rs()); @*/
+    loop_invariant Future(d.F,1\2,d.F.rs()); @*/
     while(true){
       l.lock();
-      //@ choose d.F,1/2,d.F.rs(),d.F.clear()*d.F.rs(); //skip(run)
-      { //@ action d.F,1/2,d.F.rs(),d.F.clear();
+      //@ choose d.F,1\2,d.F.rs(),d.F.clear()*d.F.rs(); //skip(run)
+      { //@ action d.F,1\2,d.F.rs(),d.F.clear();
         l.flag=false;
         //@ d.F.flag=false;
       }
-      //@ choose d.F,1/2,d.F.rs(),d.F.receive()*d.F.rs(); //skip(run)
+      //@ choose d.F,1\2,d.F.rs(),d.F.receive()*d.F.rs(); //skip(run)
       d.receive()
-          /*@ with { p=1/2; P=d.F.rs();} @*/; //skip(run)
+          /*@ with { p=1\2; P=d.F.rs();} @*/; //skip(run)
       l.unlock();
     }
   }

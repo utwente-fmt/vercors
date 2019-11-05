@@ -1,0 +1,11 @@
+//:: cases Frac2
+//:: tools silicon
+//:: verdict Pass
+
+class Test {
+    given frac p;
+    context_everywhere 0\1 < p && p < 1\1;
+    void test() {
+
+    }
+}

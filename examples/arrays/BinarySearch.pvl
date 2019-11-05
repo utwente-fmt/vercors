@@ -9,12 +9,12 @@ class BinarySearch {
 	boolean found;
 
 	// we require permissions for all shared memory involved
-	invariant items != null;
-	invariant Perm(this.found, write);
-	invariant (\forall* int j; 0 <= j && j < items.length; Perm(items[j], write));
+	context_everywhere items != null;
+	context_everywhere Perm(this.found, write);
+	context_everywhere (\forall* int j; 0 <= j && j < items.length; Perm(items[j], write));
 	
 	// 'items' is a sorted array
-	invariant (\forall int j; 0 <= j && j < items.length;
+	context_everywhere (\forall int j; 0 <= j && j < items.length;
 							(\forall int k; 0 <= k && k < items.length && j < k;
 								items[j] <= items[k]));
 	

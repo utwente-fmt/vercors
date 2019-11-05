@@ -7,7 +7,7 @@
  */
 class parvec {
 
-  invariant ar!=null ** ar.length==M;
+  context_everywhere ar!=null ** ar.length==M;
   context (\forall* int i; 0 <= i && i < M ; Perm(ar[i],1));
   ensures (\forall int i; 0 <= i && i < M ; ar[i]==2);
   void main(int M,int[M] ar){

@@ -4,8 +4,8 @@
 //:: verdict Pass
 
 class Ref {
-  invariant x != null;
-  invariant tcount >= 0;
+  context_everywhere x != null;
+  context_everywhere tcount >= 0;
   requires (\forall* int i; 0 <= i && i < tcount; Perm(x[i], write));
   ensures  (\forall* int i; 0 <= i && i < tcount; Perm(x[i], write) ** x[i]==0);
   void main(int tcount, int[tcount] x){

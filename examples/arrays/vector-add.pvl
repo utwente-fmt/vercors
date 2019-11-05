@@ -3,18 +3,10 @@
 //:: tools silicon
 //:: verdict Pass
 
-class Counter {
-  ensures \result == k;
-  int letest(int k) {
-    seq<int> a = seq<int> {1, 2, 3};
-    return k;
-  }
-}
-
 class Ref {
-  invariant a != null && b != null && c != null;
-	invariant tcount >= 0;
-	invariant a.length == tcount && b.length == tcount && c.length == tcount;
+  context_everywhere a != null && b != null && c != null;
+	context_everywhere tcount >= 0;
+	context_everywhere a.length == tcount && b.length == tcount && c.length == tcount;
   context (\forall* int i; 0 <= i && i < tcount; Perm(a[i], write));
   context (\forall* int i; 0 <= i && i < tcount; Perm(b[i], read));
   context (\forall* int i; 0 <= i && i < tcount; Perm(c[i], read));
@@ -32,14 +24,5 @@ class Ref {
     {
       a[tid]=b[tid]+c[tid];
     }
-    test(2);
-    Counter count = new Counter();
-    count.letest(3);
-  }
-  
-  ensures \result == klmnop;
-  int test(int klmnop) {
-    return klmnop;
   }
 }
- 

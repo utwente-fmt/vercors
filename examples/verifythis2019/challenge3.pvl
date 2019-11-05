@@ -82,10 +82,10 @@ class Challenge3 {
 		}
 	}
 
-	invariant 0 <= N;
-	invariant 0 <= tid && tid < |res|;
-	invariant |pos| == |res| && |term| == |res|;
-	invariant !term[tid];
+	context_everywhere 0 <= N;
+	context_everywhere 0 <= tid && tid < |res|;
+	context_everywhere |pos| == |res| && |term| == |res|;
+	context_everywhere !term[tid];
 	ensures (\forall int i; 0 <= i && i < N && i != x; sum(update(res, tid, v), update(pos, tid, x), update(term, tid, true), i) == sum(res, pos, term, i));
 	void lemma_sum_upd_all(int N, seq<int> res, seq<int> pos, seq<boolean> term, int tid, int x, int v) {
 		int k = 0;
@@ -110,9 +110,9 @@ class Challenge3 {
 		}
 	}
 	
-	invariant 0 <= N;
-	invariant |pos| == |res| && |term| == |res|;
-	invariant (\forall int i; 0 <= i && i < |term|; !term[i]);
+	context_everywhere 0 <= N;
+	context_everywhere |pos| == |res| && |term| == |res|;
+	context_everywhere (\forall int i; 0 <= i && i < |term|; !term[i]);
 	ensures (\forall int i; 0 <= i && i < N; sum(res, pos, term, i) == 0);
 	void lemma_sum_nterm_all(int N, seq<int> res, seq<int> pos, seq<boolean> term) {
 		int k = 0;
@@ -134,9 +134,9 @@ class Challenge3 {
 		}
 	}
 	
-	invariant 0 <= N;
-	invariant |pos| == |res| && |term| == |res|;
-	invariant (\forall int i; 0 <= i && i < |term|; term[i]);
+	context_everywhere 0 <= N;
+	context_everywhere |pos| == |res| && |term| == |res|;
+	context_everywhere (\forall int i; 0 <= i && i < |term|; term[i]);
 	ensures (\forall int i; 0 <= i && i < N; sum(res, pos, term, i) == sumsimple(res, pos, i));
 	void lemma_sum_tosimple_all(int N, seq<int> res, seq<int> pos, seq<boolean> term) {
 		int k = 0;
@@ -171,12 +171,12 @@ class Challenge3 {
 	yields seq<int> res; // thread-local contributions
 	yields seq<boolean> term; // thread-local termination
 	yields seq<int> pos; // the position in `y` of the thread-local contributions
-	invariant |M| == msize && |res| == msize && |term| == msize && |pos| == msize;
-	invariant y != null && y.length == N && 0 < N;
-	invariant (\forall int i; 0 <= i && i < |M|; |M[i]| == 3);
-	invariant (\forall int i; 0 <= i && i < |M|; 0 <= M[i][0] && M[i][0] < N);
-	invariant (\forall int i; 0 <= i && i < |M|; 0 <= M[i][1] && M[i][1] < N);
-	invariant |x| == N;
+	context_everywhere |M| == msize && |res| == msize && |term| == msize && |pos| == msize;
+	context_everywhere y != null && y.length == N && 0 < N;
+	context_everywhere (\forall int i; 0 <= i && i < |M|; |M[i]| == 3);
+	context_everywhere (\forall int i; 0 <= i && i < |M|; 0 <= M[i][0] && M[i][0] < N);
+	context_everywhere (\forall int i; 0 <= i && i < |M|; 0 <= M[i][1] && M[i][1] < N);
+	context_everywhere |x| == N;
 	context (\forall* int i; 0 <= i && i < N; Perm(y[i], 1));
 	requires (\forall int i; 0 <= i && i < N; y[i] == 0);
 	requires (\forall int i; 0 <= i && i < msize; res[i] == 0 && !term[i]);
