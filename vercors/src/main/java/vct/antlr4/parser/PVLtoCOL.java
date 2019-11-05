@@ -385,7 +385,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       ASTNode[] args = getValues((ParserRuleContext)ctx.children.get(1));
       return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, create.type_variable(InferADTTypes.typeVariableName())),null,args);
     }
-    if (match(ctx, "[t:", null, "]")) {
+    if (match(ctx, "[t:", type_expr, "]")) {
       Type t=checkType(convert(ctx,1));
       return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, t), null);
     }

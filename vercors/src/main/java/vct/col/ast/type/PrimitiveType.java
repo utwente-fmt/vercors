@@ -35,13 +35,19 @@ public final class PrimitiveType extends Type {
       case Pointer:
       case Location:
       case Option:
-        if (N!=1) Abort("illegal argument count");
+        if (N!=1) {
+          Abort("illegal argument count");
+        }
         break;
       case Array:
-        if (N<1 || N>2) Abort("illegal argument count");
+        if (N<1 || N>2) {
+          Abort("illegal argument count");
+        }
         break;
       default:
-        if (N!=0) Abort("illegal argument count");
+        if (N!=0) {
+          Abort("illegal argument count");
+        }
     }
     this.sort=sort;
   }

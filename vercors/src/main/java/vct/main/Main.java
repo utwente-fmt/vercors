@@ -341,7 +341,9 @@ public class Main
           passes.add("pvl-encode"); // translate built-in statements into methods and fake method calls.
         }
         passes.add("check");
-//        passes.add("infer_adt_types");
+        passes.add("infer_adt_types");
+
+        passes.add("check");
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
         passes.add("array_null_values"); // rewrite null values for array types into None
