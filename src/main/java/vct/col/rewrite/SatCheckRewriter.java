@@ -21,7 +21,6 @@ import vct.col.util.OriginWrapper;
 // TODO: (In SilverBackend.java) This bad boy swallows exceptions without a sound?
 // TODO: Contract.getOrigin() is null below?
 // TODO: pass/fail is not adhered to in test?
-// TODO: Add vim temporary files to gitignore?
 
 // Still need to do:
 // TODO: Java tests
