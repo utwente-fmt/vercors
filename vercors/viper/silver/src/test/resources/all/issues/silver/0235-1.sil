@@ -1,6 +1,0 @@
-method m1()
-{
-    //:: ExpectedOutput(parser.error)
-    var x: Int := 1 0
-}
-

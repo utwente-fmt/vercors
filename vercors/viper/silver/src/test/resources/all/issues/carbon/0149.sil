@@ -1,5 +1,0 @@
-function range___create__(): Ref
-  /*ensures range___contains__(result, 0)*/
-  ensures (forall i: Int :: range___contains__(result, i))
-
-function range___contains__(self: Ref, item: Int): Bool

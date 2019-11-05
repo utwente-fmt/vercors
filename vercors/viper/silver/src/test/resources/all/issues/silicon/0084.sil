@@ -1,8 +1,0 @@
-field f: Int
-
-predicate inv(this: Ref) { acc(this.f, 1/2) }
-
-method test(S: Seq[Ref])
-  requires forall x: Ref :: x in S ==> acc(inv(x), write)
-{
-}

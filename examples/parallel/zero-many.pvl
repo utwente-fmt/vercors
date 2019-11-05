@@ -4,9 +4,9 @@
 class ZeroMany {
   int x;
 
-  invariant ar != null && matrix != null && M>=0 && N>=0;
-	invariant ar.length == N;
-	invariant \matrix(matrix, M, N);
+  context_everywhere ar != null && matrix != null && M>=0 && N>=0;
+	context_everywhere ar.length == N;
+	context_everywhere \matrix(matrix, M, N);
   context Perm(x,1);
   context (\forall* int i;0 <= i && i < N ; Perm(ar[i],write));
   context (\forall* int i1 ; 0 <= i1 && i1 < M ;

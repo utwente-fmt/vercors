@@ -1,9 +1,0 @@
-field f: Int;
-field g: Int
-
-method foo() {
-  var x1: Int;
-  var x2: Int
-  var x3: Int := 0;
-  var x4: Int := 0
-}

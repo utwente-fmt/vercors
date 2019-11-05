@@ -1,7 +1,0 @@
-define Q(x) P(x)
-//:: ExpectedOutput(parser.error)
-define P(x) Q(x) // <-- by mistake we call Q again
-method foo(y: Bool) {
-  assert P(y)
-}
-

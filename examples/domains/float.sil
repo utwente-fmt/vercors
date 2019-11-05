@@ -54,8 +54,8 @@ method test(xs : Seq[Float]) {
     
     
     while(i<|xs|)
-      invariant 0 <= i && i <= |xs|
-      invariant S == fsum(xs[0..i])
+      context_everywhere 0 <= i && i <= |xs|
+      context_everywhere S == fsum(xs[0..i])
     {
       assert xs[0..i+1]==xs[0..i]++xs[i..i+1]
       //assert fsum(xs[0..i+1])==fadd(fsum(xs[0..i]),fsum(xs[i..i+1]))

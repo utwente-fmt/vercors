@@ -1,6 +1,0 @@
-function Nodes(): Int
-  //  requires result>0;
-  ensures (forall i: Int :: i in [0..result) ==> true);
-{
-  5 //+ result
-}

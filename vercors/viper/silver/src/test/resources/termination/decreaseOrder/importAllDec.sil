@@ -1,7 +1,0 @@
-import "../decreaseOrder/int_decreases.sil"
-import "../decreaseOrder/bool_decreases.sil"
-import "../decreaseOrder/ref_decreases.sil"
-import "../decreaseOrder/seq_decreases.sil"
-import "../decreaseOrder/set_decreases.sil"
-import "../decreaseOrder/multiSet_decreases.sil"
-import "../decreaseOrder/pred_decreases.sil"

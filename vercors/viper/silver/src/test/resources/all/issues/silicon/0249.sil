@@ -1,7 +1,0 @@
-function int___box__(int: Int): Ref
-  ensures (forall other: Int ::  (int___box__(other) == result) == (other == int))
-
-method test(i: Int, j: Int) {
-  assume int___box__(i) == int___box__(j)
-  assert i == j
-}

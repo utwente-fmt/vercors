@@ -1,8 +1,0 @@
-method main()
-{
-    var i:Int := 1
-    var j:Int := 2
-    
-    assert(i == 1)
-    assert(j != 1)
-}

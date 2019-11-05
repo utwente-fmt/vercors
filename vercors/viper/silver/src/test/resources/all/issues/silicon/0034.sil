@@ -1,7 +1,0 @@
-method m(x:Int) {
-    //:: ExpectedOutput(assert.failed:assertion.false)
-    assert x > 0 
-    //:: ExpectedOutput(assert.failed:assertion.false)
-    //:: MissingOutput(assert.failed:assertion.false, /silicon/issue/34/)
-    assert x > 42
-}

@@ -1,6 +1,0 @@
-method test1(xs: Seq[Int])
-  //:: ExpectedOutput(not.wellformed:seq.index.length)
-  requires forall i: Int :: 0 <= i && i <= |xs| ==> xs[i] == 0
-
-method test2(xs: Seq[Int])
-  requires forall i: Int :: 0 <= i && i < |xs| ==> xs[i] == 0

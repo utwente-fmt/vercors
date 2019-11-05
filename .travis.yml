@@ -1,23 +1,20 @@
-os: osx
-osx_image: xcode9.3
+dist: bionic
 
 language: scala
-scala:
-- 2.11.7
-
-jdk:
-- oraclejdk8
+scala: 2.13.1
 
 env:
   - PATH=$TRAVIS_BUILD_DIR/unix/bin:$PATH
 
+# A few notes on caching:
+# SBT is very picky when it comes to recompilation. It boils down to the modify time and path of the source and class
+# files. If the modify time of the JVM changes, the full project is recompiled. This is why the openjdk version is left
+# default; that version is already installed. Dynamic installation causes the modify time to be different for each
+# travis run. Furthermore, travis uses tar for caching, which by default has insufficient accuracy in the modify time
+# for SBT. That is why the executable is replaced with a script that flags tar to store the archive in posix format,
+# which does offer sufficient resolution.
+
 addons:
-  apt:
-    packages:
-      - tcl
-      - texlive
-      - texlive-latex-recommended
-      - texlive-latex-extra
   sonarcloud:
     organization: utwente-fmt
     token:
@@ -25,36 +22,27 @@ addons:
 
 cache:
   directories:
-   - $HOME/.ivy2
-   - $HOME/Library/Caches/Homebrew
-   - /usr/local/Homebrew
+   - ~/.cache/coursier
+   - ~/.ivy2/cache
+   - ~/.sbt
 
-script:
-# Install ant
-- brew install ant
-# Compile the tool
-- sh travis_build.sh
-# Test one example that shows all error messages
-- vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl
-# Test the remaining examples while hiding messages
-- vct --tool=silicon --exclude-suite=slow,medium,problem-fail,skip-travis --test=$TRAVIS_BUILD_DIR/examples --progress
-# Run the Sonar scanner
-- sonar-scanner
+before_cache:
+  - rm -fv $HOME/.ivy2/.sbt.ivy.lock
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt        -name "*.lock"               -print -delete
 
-#deploy:
-#  provider: releases
-#  api_key:
-#    secure: MFGqeFi8E9eLtcy+5wQ/+xgSKyg3QY2Jm0wRBk6GWyIh3WUdjhI0Fqe3rII/r+AyB2tC3tA8zNzNRar1wOYgVr8zLQwwsfq+K/PfeOPitkKiPmUICeZXEXpTgOhkg53vynN+ZXwV4UcEKR64Z7LMK0mWqpCf3jzv8S9fu0/zV/cwo86LNbHPTRJtVxst25YUVL9X9U3lV7Q+KvRgephjuIG2gz/Ce63uVxVGiTMFETzeL0FM8hdSQUCcRKIFysDxhOh+oofPLkGQOQsET4atNYsqmEXOMnZjU07muqXTrsybz/PhTW2Ioi3AdCR/tfNnoOhBiON6hWyR66db8DKNfiyLmFvyEFsOLm5nNhucU4wvRslRyMfayn+D4nRc/I0I4ozifl0WXfqBbtAqFtUUV1cuWZfIDH9OJF5YfB2mbUs9FYo5CpopjNnGV8rlkzzGm15EWQhMTeq1qpxl+E2NsY0UZ3DoxLRzLEvoykpN9VatiYkrpX6jG9g2u1GZ6E/fDw5NwouUI/tLeaFhvHydMx7GVewKRNWuLC0hct92tKWtjV9tLCVzOoHGuDmWZVRLH6Zn5XJvCfhBZvu7RcM9S5UdJbdW5PYf8qYgTqteIoXYKQUofOGUCsbsBncLuiRT9I1pXMYolAcd06KfTdmhk6QHYCAN1JP6Rgz//r3osSc=
-#  file: 'dist/vercors-$TRAVIS_TAG.zip'
-#  on:
-#    repo: utwente-fmt/vercors
-#    tags: true
-
-deploy:
-  provider: releases
-  api_key:
-    secure: MFGqeFi8E9eLtcy+5wQ/+xgSKyg3QY2Jm0wRBk6GWyIh3WUdjhI0Fqe3rII/r+AyB2tC3tA8zNzNRar1wOYgVr8zLQwwsfq+K/PfeOPitkKiPmUICeZXEXpTgOhkg53vynN+ZXwV4UcEKR64Z7LMK0mWqpCf3jzv8S9fu0/zV/cwo86LNbHPTRJtVxst25YUVL9X9U3lV7Q+KvRgephjuIG2gz/Ce63uVxVGiTMFETzeL0FM8hdSQUCcRKIFysDxhOh+oofPLkGQOQsET4atNYsqmEXOMnZjU07muqXTrsybz/PhTW2Ioi3AdCR/tfNnoOhBiON6hWyR66db8DKNfiyLmFvyEFsOLm5nNhucU4wvRslRyMfayn+D4nRc/I0I4ozifl0WXfqBbtAqFtUUV1cuWZfIDH9OJF5YfB2mbUs9FYo5CpopjNnGV8rlkzzGm15EWQhMTeq1qpxl+E2NsY0UZ3DoxLRzLEvoykpN9VatiYkrpX6jG9g2u1GZ6E/fDw5NwouUI/tLeaFhvHydMx7GVewKRNWuLC0hct92tKWtjV9tLCVzOoHGuDmWZVRLH6Zn5XJvCfhBZvu7RcM9S5UdJbdW5PYf8qYgTqteIoXYKQUofOGUCsbsBncLuiRT9I1pXMYolAcd06KfTdmhk6QHYCAN1JP6Rgz//r3osSc=
-  file: 'src/tex/manual.pdf'
-  on:
-    repo: utwente-fmt/vercors
-    tags: true
+matrix:
+  include:
+    - script:
+      - SPLIT=0/5 ./.travis/build.sh
+    - script:
+      - SPLIT=1/5 ./.travis/build.sh
+    - script:
+      - SPLIT=2/5 ./.travis/build.sh
+    - script:
+      - SPLIT=3/5 ./.travis/build.sh
+    - script:
+      - SPLIT=4/5 ./.travis/build.sh
+    - script:
+      - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
+      - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"

@@ -33,8 +33,8 @@ class TestFloat {
 
   /*@
     given seq<float> vals;
-    invariant a!=null ** (a.length == |vals|);
-    invariant (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1/2,vals[i]));
+    context_everywhere a!=null ** (a.length == |vals|);
+    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1\2,vals[i]));
     ensures \result == \sum([0 .. a.length),vals);
   @*/
   public float add(float a[]){
@@ -51,10 +51,10 @@ class TestFloat {
 
   /*@
     given seq<float> vals;
-    invariant a!=null ** (a.length == |vals|);
-    invariant b!=null ** (a.length == b.length);
-    invariant (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1/2,vals[i]));
-    invariant (\forall* int i; 0 <= i && i < a.length;Perm(b[i],1));
+    context_everywhere a!=null ** (a.length == |vals|);
+    context_everywhere b!=null ** (a.length == b.length);
+    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1\2,vals[i]));
+    context_everywhere (\forall* int i; 0 <= i && i < a.length;Perm(b[i],1));
     ensures (\forall int i ; 0 <= i && i < b.length ; b[i] == \sum([0 ..i),vals));
   @*/
   public void prefixsum(float a[],float b[]){
@@ -72,10 +72,10 @@ class TestFloat {
  
   /*@
     given seq<int> vals;
-    invariant a!=null ** (a.length == |vals|);
-    invariant b!=null ** (a.length == b.length);
-    invariant (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1/2,vals[i]));
-    invariant (\forall* int i; 0 <= i && i < a.length;Perm(b[i],1));
+    context_everywhere a!=null ** (a.length == |vals|);
+    context_everywhere b!=null ** (a.length == b.length);
+    context_everywhere (\forall* int i; 0 <= i && i < a.length;PointsTo(a[i],1\2,vals[i]));
+    context_everywhere (\forall* int i; 0 <= i && i < a.length;Perm(b[i],1));
     ensures (\forall int i ; 0 <= i && i < b.length ; b[i] == \sum([0 ..i),vals));
   @*/
   public void prefixisum(int a[],int b[]){

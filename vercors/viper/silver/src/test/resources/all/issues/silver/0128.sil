@@ -1,6 +1,0 @@
-function balance(this: Ref): Int
-
-method deposit()
-  //:: ExpectedOutput(typechecker.error)
-  ensures  balance == 5
-{}

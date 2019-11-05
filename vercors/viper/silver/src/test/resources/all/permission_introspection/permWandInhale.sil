@@ -1,9 +1,0 @@
-//:: IgnoreFile(/Carbon/issue/243/)
-field f: Int
-field g: Int
-
-method m(x:Ref, y: Ref) {
-    inhale acc(x.f) --* acc(x.g)
-    inhale perm(acc(y.f) --* acc(y.g)) == write
-    assert x == y
-}

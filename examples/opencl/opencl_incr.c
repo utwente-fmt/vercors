@@ -5,7 +5,7 @@
 #include <opencl.h>
 
 /*@
-  invariant c!=NULL;
+  context_everywhere c!=NULL;
   requires Perm(c[get_global_id(0)],write);
   ensures  PointsTo(c[get_global_id(0)],write,\old(c[get_global_id(0)])+1);
 @*/

@@ -1,3 +1,0 @@
-domain IntPointer {
-  function loc(ptr:IntPointer) : Ref
-}

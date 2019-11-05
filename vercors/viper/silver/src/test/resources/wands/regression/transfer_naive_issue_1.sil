@@ -1,8 +1,0 @@
-//:: IgnoreFile(/carbon/issue/216/)
-field f:Ref
-
-method t01(x:Ref) {
-
-package acc(x.f)&&acc(x.f.f) --* acc(x.f)&&acc(x.f.f)
-
-}

@@ -1,8 +1,0 @@
-//:: IgnoreFile(/carbon/issue/216/)
-field f: Int
-
-method test(x: Ref) {
-  package (false) --* true {
-      package (acc(x.f) --* false)
-  }
-}

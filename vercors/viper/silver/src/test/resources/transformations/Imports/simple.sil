@@ -1,8 +1,0 @@
-import "simple_other.sil"
-
-method main()
-{
-    assert(true)
-    asdf()
-}
-

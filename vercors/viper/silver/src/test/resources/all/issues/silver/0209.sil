@@ -1,9 +1,0 @@
-domain Qux {
-  function qux(b: Bool, h: Int): Bool
-}
-
-define Q(b) forall i: Int :: qux(b, i)
-
-method test06(c: Bool) {
-  assume Q(Q(c))
-}

@@ -13,10 +13,10 @@ an efficient prefix sum implementation for GP-GPU.
 class Ref {
 
 	////////// KERNEL
-	invariant N==16 && H==6; // H = log(N)/log(2) + 2, N should be a power of 2
-	invariant \matrix(tree,H,N*2);
-	invariant \array(input,N*2);
-	invariant \array(output,N*2);
+	context_everywhere N==16 && H==6; // H = log(N)/log(2) + 2, N should be a power of 2
+	context_everywhere \matrix(tree,H,N*2);
+	context_everywhere \array(input,N*2);
+	context_everywhere \array(output,N*2);
 	requires (\forall* int i; 0<=i && i<N*2; Perm(input[i], read));
 	requires (\forall* int i; 0<=i && i<N*2; Perm(output[i], write));
 	requires (\forall* int i; 0<=i && i<N*2;

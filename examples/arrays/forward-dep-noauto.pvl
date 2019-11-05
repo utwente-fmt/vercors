@@ -4,13 +4,13 @@
 //:: verdict Pass
 
 class Ref {
-  invariant a != null && b != null && c != null;
-  invariant tcount >= 0;
-	invariant a.length == tcount && b.length == tcount && c.length == tcount;
+  context_everywhere a != null && b != null && c != null;
+  context_everywhere tcount >= 0;
+	context_everywhere a.length == tcount && b.length == tcount && c.length == tcount;
   context  (\forall* int i; 0 <= i && i < tcount; Perm(b[i], read));
   context  (\forall* int i; 0 <= i && i < tcount; Perm(c[i], write));
   requires (\forall* int i; 0 <= i && i < tcount; Perm(a[i], write));
-  ensures  (\forall* int i; 0 <= i && i < tcount; Perm(a[i], 1/2)); // Perm(a[i], write) also possible or Perm[a[i], read) also possible (1)
+  ensures  (\forall* int i; 0 <= i && i < tcount; Perm(a[i], 1\2)); // Perm(a[i], write) also possible or Perm[a[i], read) also possible (1)
   context  (\forall  int i; 0 <= i && i < tcount; b[i]==i);
   ensures  (\forall  int i; 0 <= i && i < tcount; a[i]==i+1);
   ensures  (\forall  int i; 1 <= i && i < tcount; c[i]==i+2);
@@ -19,9 +19,9 @@ class Ref {
       context  Perm(b[tid], read);
       context  Perm(c[tid], write);
       requires Perm(a[tid], write);
-      ensures  Perm(a[tid], 1/2); // Perm(a[tid], read) also possible (2)
-      ensures  tid>0 ==> Perm(a[tid-1], 1/2); // Perm(a[tid-1], read) also possible (3)
-      ensures  tid==tcount-1 ==> Perm(a[tid], 1/2); // Perm(a[tid], read) also possible (4)
+      ensures  Perm(a[tid], 1\2); // Perm(a[tid], read) also possible (2)
+      ensures  tid>0 ==> Perm(a[tid-1], 1\2); // Perm(a[tid-1], read) also possible (3)
+      ensures  tid==tcount-1 ==> Perm(a[tid], 1\2); // Perm(a[tid], read) also possible (4)
       context  b[tid]==tid;
       ensures  a[tid]==tid+1;
       ensures  tid>0 ==> c[tid]==tid+2; 
@@ -29,8 +29,8 @@ class Ref {
       a[tid]=b[tid]+1; 
       barrier(fwd) {
 				context 0 <= tid && tid < tcount;
-        requires tid<tcount-1 ==> Perm(a[tid], 1/2); // Perm(a[tid], read) also possible (5)    
-        ensures  tid>0 ==> Perm(a[tid-1], 1/2); // Perm(a[tid-1], read) also possible (6)
+        requires tid<tcount-1 ==> Perm(a[tid], 1\2); // Perm(a[tid], read) also possible (5)    
+        ensures  tid>0 ==> Perm(a[tid-1], 1\2); // Perm(a[tid-1], read) also possible (6)
         requires tid<tcount-1 ==> a[tid]==tid+1;  
         ensures  tid>0 ==> a[tid-1]==tid;
       }
