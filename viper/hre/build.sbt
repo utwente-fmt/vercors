@@ -1,4 +1,4 @@
-scalaVersion := "2.12.7"
+scalaVersion := "2.13.1"
 
 lazy val hre = (project in file("."))
   .settings(

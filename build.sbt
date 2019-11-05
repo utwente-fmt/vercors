@@ -32,7 +32,7 @@ lazy val vercors = (project in file("."))
         libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
         libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
 
-        scalaVersion := "2.12.7",
+        scalaVersion := "2.13.1",
 
         scalacOptions += "-deprecation",
         scalacOptions += "-feature",
