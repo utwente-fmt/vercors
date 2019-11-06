@@ -17,9 +17,6 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.Type;
 import vct.col.util.OriginWrapper;
 
-// Still need to do:
-// TODO: Java tests
-
 public class SatCheckRewriter extends AbstractRewriter {
     public static class AssertOrigin extends BranchOrigin {
         public AssertOrigin(String branch, Origin base){
