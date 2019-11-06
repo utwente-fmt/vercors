@@ -17,7 +17,7 @@ public class QuickSelect {
     //@ static int random_between(int low, int high);
     
     //@ context a != null;
-    //@ context Perm(a[*], 1/2);
+    //@ context Perm(a[*], 1\2);
     //@ static void printArray(int[] a, int l, int h);
 
     //@ context a != null;
@@ -32,7 +32,7 @@ public class QuickSelect {
 
     //@ context_everywhere a != null;
     //@ context_everywhere 0<=low && low<=high && high<a.length;
-    //@ context_everywhere (\forall* int i; 0<=i && i<a.length && (i<low || i>high); Perm(a[i], 1/2));
+    //@ context_everywhere (\forall* int i; 0<=i && i<a.length && (i<low || i>high); Perm(a[i], 1\2));
     //@ context_everywhere (\forall* int i; low<=i && i<=high; Perm(a[i], write));
     //@ requires (\exists int i; low<=i && i<=high; a[i] == pivot);
     //@ ensures low<=\result && \result<=high;

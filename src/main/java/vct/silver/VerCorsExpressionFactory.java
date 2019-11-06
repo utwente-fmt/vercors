@@ -35,6 +35,11 @@ public class VerCorsExpressionFactory implements
   }
 
   @Override
+  public ASTNode perm_add(Origin o, ASTNode e1, ASTNode e2) {
+    return add(o, e1, e2);
+  }
+
+  @Override
   public ASTNode and(Origin o, ASTNode e1, ASTNode e2) {
     enter(o);
     ASTNode res;
@@ -131,6 +136,14 @@ public class VerCorsExpressionFactory implements
     return res;
   }
   
+  @Override
+  public ASTNode floor_div(Origin o, ASTNode e1, ASTNode e2) {
+    enter(o);
+    ASTNode res=create.expression(StandardOperator.FloorDiv, e1,e2);
+    leave();
+    return res;
+  }
+
   @Override
   public ASTNode div(Origin o, ASTNode e1, ASTNode e2) {
     enter(o);

@@ -14,8 +14,8 @@ class parvec {
   context_everywhere b!=null ** b.length==M;
   context_everywhere c!=null ** c.length==M;
   context   (\forall* int i; 0 <= i && i < M ; Perm(a[i],1));
-  context   (\forall* int i; 0 <= i && i < M ; Perm(b[i],1/2));
-  context   (\forall* int i; 0 <= i && i < M ; Perm(c[i],1/2));
+  context   (\forall* int i; 0 <= i && i < M ; Perm(b[i],1\2));
+  context   (\forall* int i; 0 <= i && i < M ; Perm(c[i],1\2));
   ensures   (\forall  int i; 0 <= i && i < M ; a[i]==b[i]+c[i]);
   void main(int M,int N,int[] a,int[] b, int[] c){
     vec(int j=0..M){

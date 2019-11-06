@@ -1,0 +1,13 @@
+//:: cases FractionComparison
+//:: tools silicon
+//:: verdict Pass
+
+class Test {
+    given frac p;
+    given frac q;
+    requires p < q;
+    requires 0 < p;
+    void test() {
+        
+    }
+}
