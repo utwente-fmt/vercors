@@ -1,7 +1,5 @@
 package vct.col.rewrite;
 
-import static hre.lang.System.Debug;
-import static hre.lang.System.Fail;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import hre.lang.Ref;
@@ -26,6 +24,8 @@ import vct.col.ast.type.*;
 import vct.col.util.ASTUtils;
 import vct.util.Configuration;
 
+import static hre.lang.System.*;
+
 class RewriteRule {
   public final String name;
   public final Set<String> vars;
@@ -42,7 +42,7 @@ class RewriteRule {
 class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
   
   public Hashtable<String,Ref<ASTNode>> match=new Hashtable<String, Ref<ASTNode>>();
-  
+
   public MatchLinear(Set<String> vars){
     for(String name:vars){
       match.put(name,new Ref<ASTNode>());
