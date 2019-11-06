@@ -1,0 +1,33 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases def
+//:: suite ContractSatisfiable
+//:: tools silicon
+//:: option --disable-sat
+//:: verdict Pass 
+
+class MyClass {
+  // User indicates no checking is desired for this function
+  requires false;
+  void foo() {
+    // Should not be detected
+    assert 1 == 2;
+  }
+
+  // User makes a mistake here, but should not be triggered
+  requires 3 == 4;
+  void bar() {
+    // Also should not be detected
+    assert 5 == 6;
+  }
+
+  // User error, should not be detected
+  requires a > 0 && a < 0 && b > 10;
+  void complicated_arguments(int a, int b) {
+    // Should not be detected
+    assert b < 10;
+  }
+
+  // Also should be fine
+  void baz() {
+  }
+}

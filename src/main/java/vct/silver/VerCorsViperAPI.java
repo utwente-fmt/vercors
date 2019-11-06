@@ -5,10 +5,7 @@ import hre.ast.Origin;
 
 import java.io.PrintWriter;
 import java.nio.file.Path;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.Axiom;
@@ -26,11 +23,18 @@ public class VerCorsViperAPI extends ViperAPI<
     Method, Axiom, ProgramUnit> {
 
   public Hashtable<String,Set<Origin>> refuted=new Hashtable<String,Set<Origin>>();
+
+  private VerCorsProgramFactory programFactory;
+
+  HashSet<Origin> getSatCheckAsserts() {
+    return new HashSet<>(programFactory.satCheckAsserts);
+  }
   
   private VerCorsViperAPI(HREOrigins origin, VerCorsTypeFactory type,
       VerCorsExpressionFactory expr, VerCorsStatementFactory stat,
       VerCorsProgramFactory prog) {
     super(origin, type, expr, stat, prog);
+    programFactory = prog;
   }
 
   public static VerCorsViperAPI get() {
@@ -48,7 +52,7 @@ public class VerCorsViperAPI extends ViperAPI<
 
   @Override
   public List<? extends ViperError<Origin>> verify(Path z3Path,
-      Properties z3Settings, ProgramUnit program, Set<Origin> reachable,
+      Properties z3Settings, ProgramUnit program,
       VerificationControl<Origin> control) {
     throw new Error("Using VerCors backends for Viper is not implemented.");
   }

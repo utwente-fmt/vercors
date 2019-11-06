@@ -53,7 +53,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
     }
   }
  
-  override def verify(z3Path:Path,z3Settings:Properties,prog:Prog,reachable:java.util.Set[O],
+  override def verify(z3Path:Path,z3Settings:Properties,prog:Prog,
       control:VerificationControl[O]) : List[viper.api.ViperError[O]] = {
     val program = Program(prog.domains.asScala.toList,
               prog.fields.asScala.toList,
@@ -68,7 +68,6 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
     val detail = Reachable.gonogo.detail();
     
     val report = new java.util.ArrayList[viper.api.ViperError[O]]()
-    Reachable.reachable.clear()
     val verifier=createVerifier(z3Path,z3Settings)
     //println("verifier: "+ verifier);
     //Progress("running verify");
@@ -77,9 +76,8 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
     //println("verifier output: "+ res);
     res match {
       case Success =>
-        Output("Success!")
+        ()
       case Failure(errors) =>
-        Output("Errors! (%d)", errors.length.asInstanceOf[java.lang.Integer])
         errors foreach { e =>
           if (detail) show("error", e)
           e match {
@@ -92,7 +90,6 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
               val error = ve.offendingNode match {
                 //ve match {
                  case in: viper.silver.ast.Infoed =>
-                  //show("offending node's info", in.info)
                   locFromInfo(in.info) match {
                     case Some(loc) => new viper.api.ViperErrorImpl[O](loc,err)
                     case None => new viper.api.ViperErrorImpl[O](in.pos+": "+err)
@@ -106,11 +103,9 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
                 //ve match {
                 case in: viper.silver.ast.Infoed =>
                   //show("offending node's info", in.info)
-                  
                   in.info match {
                     case in: OriginInfo[O] => {
-                      val loc=in.asInstanceOf[OriginInfo[O]].loc
-                      
+                      val loc = in.loc;
                       //report.add(error_factory.generic_error(loc,err))
                       error.add_extra(loc,because);
                     }
@@ -134,9 +129,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
          }
        
     }
-    Reachable.reachable.map(
-      o => reachable.add(o.asInstanceOf[OriginInfo[O]].loc)
-    )
+
     report
   }
  
