@@ -456,7 +456,7 @@ class MatchSubstitution extends AbstractRewriter {
     if (e.binder== Binder.Let){
       HashMap<NameExpression, ASTNode> map=new HashMap<NameExpression, ASTNode>();
       for(int i=0;i<decls.length;i++){
-        map.put(create.local_name(decls[i].name()), rewrite(decls[i].initJava()));
+        map.put(create.local_name(decls[i].name()), decls[i].initJava());
       }
       Substitution sigma=new Substitution(source(),map);
       ASTNode tmp=rewrite(e.main);
