@@ -189,7 +189,10 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   protected boolean in_requires=false;
   protected boolean in_ensures=false;
   
-  /** Rewrite contract while adding to a contract builder. */
+  /**
+   * Rewrite contract using a contract builder.
+   * WARNING: Does not preserve origin!
+   */
   public void rewrite(Contract c,ContractBuilder cb){
     if (c==null) return;
     cb.given(rewrite(c.given));
@@ -214,14 +217,14 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     if (c.signals!=null) for(DeclarationStatement decl:c.signals){
       cb.signals((ClassType)rewrite(decl.getType()), decl.name(), rewrite(decl.initJava()));
     }
-    //cb.requires(rewrite(c.pre_condition));
-    //cb.ensures(rewrite(c.post_condition));
   }
   public Contract rewrite(Contract c){
     if (c==null) return null;
     ContractBuilder cb=new ContractBuilder();
     rewrite(c,cb);
-    return cb.getContract();
+    Contract contract = cb.getContract();
+    contract.setOrigin(c.getOrigin());
+    return contract;
   }
 
   public <E extends ASTNode> ArrayList<E> rewrite(ArrayList<E> list){
@@ -481,6 +484,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     Method.Kind kind=m.kind;
     Type rt=rewrite(m.getReturnType());
     Contract c=currentContractBuilder.getContract();
+    if (mc != null) {
+      c.setOrigin(mc.getOrigin());
+    }
     currentContractBuilder=null;
     ASTNode body=rewrite(m.getBody());
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
