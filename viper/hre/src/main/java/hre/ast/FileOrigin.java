@@ -26,7 +26,7 @@ public class FileOrigin extends Origin {
   }
 
   private static Hashtable<String,FileContext> data=new Hashtable<String,FileContext>();
-  
+
   public void printContext(int before,int after){
     String file=getName();
     FileContext fc=data.get(file);
@@ -103,6 +103,42 @@ public class FileOrigin extends Origin {
 
     public FileOrigin merge(FileOrigin origin){
       return new FileOrigin(file_name,first_line,first_col,origin.last_line,origin.last_col);
+    }
+
+  /**
+   * Merges this and origin into the combined area they represent.
+   * ensures \return == FileOrigin(Math.min(this, origin), Math.max(this, origin))
+   * @param origin
+   * @return
+   */
+    public FileOrigin maximumMerge(FileOrigin origin) {
+      assert file_name == origin.file_name;
+
+      int new_first_line, new_first_col, new_last_line, new_last_col;
+
+      if (first_line < origin.first_line) {
+        new_first_line = first_line;
+        new_first_col = first_col;
+      } else if (first_line == origin.first_line) {
+        new_first_line = first_line;
+        new_first_col = Math.min(first_col, origin.first_col);
+      } else {
+        new_first_line = origin.first_line;
+        new_first_col = origin.first_col;
+      }
+
+      if (last_line < origin.last_line) {
+        new_last_line = origin.last_line;
+        new_last_col = origin.last_col;
+      } else if (last_line == origin.last_line) {
+        new_last_line = last_line;
+        new_last_col = Math.max(last_col, origin.last_col);
+      } else {
+        new_last_line = last_line;
+        new_last_col = last_col;
+      }
+
+      return new FileOrigin(file_name, new_first_line, new_first_col, new_last_line, new_last_col);
     }
 
     public FileOrigin(String file_name,int first_line, int first_col){
