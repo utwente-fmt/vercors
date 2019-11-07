@@ -345,16 +345,19 @@ public class Main
         )){
           passes.add("pvl-encode"); // translate built-in statements into methods and fake method calls.
         }
-        passes.add("check");
-        passes.add("infer_adt_types");
 
-        passes.add("check");
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
 
         if(features.usesOperator(StandardOperator.AddrOf)) {
           passes.add("lift_declarations");
         }
+
+        passes.add("check");
+        passes.add("infer_adt_types");
+
+        passes.add("check");
+        passes.add("standardize");
 
         passes.add("java-check");
         passes.add("pointers_to_arrays");
@@ -478,7 +481,7 @@ public class Main
 
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
         passes.add("check");
-        passes.add("rewrite_sequences");
+        passes.add("rewrite_sequence_functions");
         passes.add("check");
         passes.add("flatten");
         passes.add("assign");
@@ -1014,7 +1017,7 @@ public class Main
         return new RewriteArrayRef(arg).rewriteAll();
       }
     });
-    defined_passes.put("rewrite_sequences",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
+    defined_passes.put("rewrite_sequence_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new RewriteSequenceFunctions(arg).rewriteAll();
       }
