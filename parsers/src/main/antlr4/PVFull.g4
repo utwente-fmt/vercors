@@ -138,7 +138,7 @@ nonTargetUnit
  | 'false'
  | 'current_thread'
  | '\\result'
- | CONTAINER '<' type '>' values
+ | collectionConstructors
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
@@ -151,11 +151,10 @@ nonTargetUnit
  | valPrimary
  ;
 
-
 arguments: (expression (',' expression)*);
 
-collectionConstructors :
- | CONTAINER '<' type '>' values
+collectionConstructors
+ : CONTAINER '<' type '>' values
  | '[' arguments ']'
  | '[t:' type ']';
 
@@ -164,7 +163,7 @@ targetUnit
  ;
 
 builtinMethod
- : 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some'
+ : 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some' | 'empty'
  ;
 
 values : '{' ( | expr (',' expr)*) '}';
