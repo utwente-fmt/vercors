@@ -64,13 +64,11 @@ class simplify_quant_pass1 {
     e2 < e3 && e1 <= e2 == (e2 \memberof [e1..e3))
   }
 
-  /*
   axiom starall_bool {
     (\forall* int i; b1; b2)
       ==
     (\forall int i; b1; b2)
   }
-  */
 
   axiom A3 {
     (\forall int i; b1 ; (\forall int j; (b2!j) && b3 ; b4 ) )
