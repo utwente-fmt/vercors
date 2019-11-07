@@ -145,37 +145,54 @@ public class Standardize extends AbstractRewriter {
       }
       case Drop:
       {
-        Type seqElementType = (Type) e.arg(0).getType().firstarg();
-        ASTNode sequence = e.arg(0).apply(this);
-        ASTNode index = e.arg(1).apply(this);
-        result = create.expression(StandardOperator.RangeFromSeq, sequence, index, create.expression(StandardOperator.Size, sequence));
-        break;
-      }
-        case Take: {
+        if (e.arg(0).getType() != null) {
           Type seqElementType = (Type) e.arg(0).getType().firstarg();
           ASTNode sequence = e.arg(0).apply(this);
           ASTNode index = e.arg(1).apply(this);
-          result = create.expression(StandardOperator.RangeFromSeq, sequence, constant(0), index);
+          result = create.expression(StandardOperator.RangeFromSeq, sequence, index, create.expression(StandardOperator.Size, sequence));
+        } else {
+          super.visit(e);
+        }
         break;
       }
-        case PrependSingle: {
+        case Take: {
+          if (e.arg(0).getType() != null) {
+            Type seqElementType = (Type) e.arg(0).getType().firstarg();
+            ASTNode sequence = e.arg(0).apply(this);
+            ASTNode index = e.arg(1).apply(this);
+            result = create.expression(StandardOperator.RangeFromSeq, sequence, constant(0), index);
+          } else {
+            super.visit(e);
+          }
+        break;
+      }
+      case PrependSingle: {
         Type seqElementType = e.arg(0).getType();
-	    ASTNode var = e.arg(0).apply(this);
-	    ASTNode seq = e.arg(1).apply(this);
+        if (seqElementType != null) {
+          ASTNode var = e.arg(0).apply(this);
+          ASTNode seq = e.arg(1).apply(this);
 
-	    StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-	    result = create.expression(StandardOperator.Append, newSeq, seq);
+          StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
+          result = create.expression(StandardOperator.Append, newSeq, seq);
+        } else {
+          super.visit(e);
+        }
 	    break;
       }
 	  case AppendSingle:
 	  {
 	    Type seqElementType = e.arg(1).getType();
-        ASTNode var=e.arg(1).apply(this);
-        ASTNode seq=e.arg(0).apply(this);
+	    if (seqElementType != null) {
+          ASTNode var = e.arg(1).apply(this);
+          ASTNode seq = e.arg(0).apply(this);
 
-        StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType),null,var);
-        result = create.expression(StandardOperator.Append, seq, newSeq);
-	    break;
+          StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
+          result = create.expression(StandardOperator.Append, seq, newSeq);
+
+        } else {
+          super.visit(e);
+        }
+        break;
 	  }
       case Empty: {
         Type seqElementType = e.arg(0).getType();
