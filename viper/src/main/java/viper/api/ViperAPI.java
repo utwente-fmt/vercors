@@ -36,7 +36,6 @@ public abstract class ViperAPI<O,Err,T,E,S,DFunc,DAxiom,P> {
       Path z3Path,
       Properties z3Settings,
       P program,
-      java.util.Set<O> reachable,
       VerificationControl<O> control);
   
   public abstract void write_program(PrintWriter pw,P program);
