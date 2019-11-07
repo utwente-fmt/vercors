@@ -2,6 +2,7 @@ package vct.col.util;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.antlr.runtime.tree.ParseTree;
 import scala.collection.JavaConverters;
@@ -1393,7 +1394,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         Type t = e.arg(0).getType();
         if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
         if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set))) {
-          Fail("argument of size is not a set, sequence, or bag");
+          Fail("argument of size is not a set, sequence, or PrimitiveSort.Bag");
         }
         e.setType(new PrimitiveType(PrimitiveSort.Integer));
         break;
@@ -1488,22 +1489,21 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     // TODO: type check cannot derive a useful type from only the values
     v.setType(v.type());
 
-    if (v.type().isPrimitive(PrimitiveSort.Sequence) &&
+    Set<PrimitiveSort> collections = Stream.of(PrimitiveSort.Sequence,PrimitiveSort.Set,PrimitiveSort.Bag).collect(Collectors.toSet());
+
+    if (collections.stream().anyMatch(s -> v.type().isPrimitive(s)) &&
             v.type().firstarg() instanceof TypeVariable &&
             ((TypeVariable) v.type().firstarg()).name().equals(InferADTTypes.typeVariableName())
     ) {
-
-      TypeVariable element = (TypeVariable) v.getType().firstarg();
       // The scala array of values is converted into a java list and the types of the ASTNodes are collected into a Set.
       Set<Type> valueTypes = JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).filter(Objects::nonNull).collect(Collectors.toSet());
 
       if (valueTypes.size() == 1) {
         // Inference is possible, thus get the type from the values.
         Type valueType = valueTypes.iterator().next();
+        PrimitiveSort sort = ((PrimitiveType)v.type()).sort;
 
-
-        PrimitiveType returnType = new PrimitiveType(PrimitiveSort.Sequence,valueType);
-        returnType.setOrigin(v.getOrigin());
+        PrimitiveType returnType = new PrimitiveType(sort,valueType);
         v.setType(returnType);
       } else if (valueTypes.size() > 1) {
         // TODO should there be another case where the sequence type is not equal to the sequence element type?
@@ -1518,6 +1518,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         node.setType(inferredElementType);
       }
     }
+
 
     if(v.getType().isPrimitive(PrimitiveSort.Array)) {
       Type element = (Type) v.getType().firstarg();

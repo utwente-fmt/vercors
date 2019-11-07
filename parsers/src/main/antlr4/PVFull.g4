@@ -156,7 +156,12 @@ arguments: (expression (',' expression)*);
 collectionConstructors
  : CONTAINER '<' type '>' values
  | '[' arguments ']'
- | '[t:' type ']';
+ | '[t:' type ']'
+ | '{' arguments '}'
+ | '{t:' type '}'
+ | 'b{' arguments '}'
+ | 'b{t:' type '}'
+ ;
 
 targetUnit
  : identifier
