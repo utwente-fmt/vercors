@@ -41,8 +41,8 @@ public class PVLSyntax {
       syntax.addFunction(Empty,"empty");
       syntax.addFunction(Remove, "remove");
       syntax.addFunction(RangeFromSeq, "range");
-      syntax.addFunction(RangeFromSeq, "take");
-      syntax.addFunction(RangeFromSeq, "drop");
+      syntax.addFunction(Take, "take");
+      syntax.addFunction(Drop, "drop");
       //syntax.addFunction(Head,"head");
       //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
@@ -57,6 +57,7 @@ public class PVLSyntax {
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
+      syntax.addOperator(Slice, 10, "[","","..","","]");
 
       syntax.addPrefix(Not, "!", 130);
       syntax.addPrefix(UMinus, "-", 130);
@@ -111,7 +112,7 @@ public class PVLSyntax {
       //  1 assignment  = += -= *= /= %= &= ^= |= <<= >>= >>>=
        */
       syntax.addRightFix(Assign,"=",10);
-      
+
       /*
       syntax.addRightFix(AddAssign,"+=",10);
       syntax.addRightFix(SubAssign,"-=",10);

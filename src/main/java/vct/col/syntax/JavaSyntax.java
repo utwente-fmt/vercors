@@ -115,7 +115,8 @@ public class JavaSyntax extends Syntax {
     syntax.addOperator(NewArray,-1,"new ","[","]");
     syntax.addOperator(Subscript,145,"","[","]"); // TODO: check if relative order to Select is OK!
     syntax.addOperator(Cast,145,"((",")",")");
-    
+    syntax.addOperator(Slice, 145, "[","","..","","]");
+
     // Java Operators  Precedence
     // 14 postfix  expr++ expr--
     syntax.addPostfix(PostIncr,"++",140);
@@ -161,7 +162,7 @@ public class JavaSyntax extends Syntax {
     //  2 ternary   ? :    
     syntax.addOperator(ITE,20,"","?",":","");
     //  1 assignment  = += -= *= /= %= &= ^= |= <<= >>= >>>=
-        
+
     syntax.addRightFix(Assign,"=",10);
     syntax.addRightFix(AddAssign,"+=",10);
     syntax.addRightFix(SubAssign,"-=",10);
