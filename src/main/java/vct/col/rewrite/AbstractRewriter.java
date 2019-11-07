@@ -223,7 +223,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     ContractBuilder cb=new ContractBuilder();
     rewrite(c,cb);
     Contract contract = cb.getContract();
-    contract.setOrigin(c.getOrigin());
+    if (contract.getOrigin() == null) {
+      contract.setOrigin(c.getOrigin());
+    }
     return contract;
   }
 
@@ -484,7 +486,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     Method.Kind kind=m.kind;
     Type rt=rewrite(m.getReturnType());
     Contract c=currentContractBuilder.getContract();
-    if (mc != null) {
+    if (mc != null && c.getOrigin() == null) {
       c.setOrigin(mc.getOrigin());
     }
     currentContractBuilder=null;

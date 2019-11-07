@@ -156,23 +156,6 @@ public class Contract extends ASTNode {
     }
   }
 
-  /*
-   * Infers origin of the contract based on the minimum and maximum origin
-   * bounds of all the constituent clauses.
-   */
-  public Origin inferOrigin() {
-//    this.invariant=inv;
-//    this. pre_condition= pre_condition;
-//    this.post_condition=post_condition;
-//    this.given=given;
-//    this.yields=yields;
-//    this.modifies=modifies;
-//    this.accesses=accesses;
-//    this.signals=signals;
-
-    new FileOrigin()
-  }
-
   @Override
   public Iterable<String> debugTreeChildrenFields() {
     return JavaConverters.iterableAsScalaIterable(Arrays.asList("invariant", "pre_condition", "post_condition", "given", "yields", "signals", "modifies", "accesses"));

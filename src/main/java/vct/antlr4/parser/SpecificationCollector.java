@@ -1,6 +1,7 @@
 package vct.antlr4.parser;
 
 
+import hre.ast.FileOrigin;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.composite.BlockStatement;
@@ -12,11 +13,16 @@ import vct.col.ast.util.ContractBuilder;
 import vct.col.rewrite.AbstractRewriter;
 import vct.col.syntax.Syntax;
 
+import static hre.lang.System.Output;
+
 /**
  * Rewrite an AST with specifications in the form of comments
  * to an AST with specifications in the from of ASTs. 
  */
 public class SpecificationCollector extends AbstractRewriter {
+
+  private FileOrigin contractStart;
+  private FileOrigin previousContractOrigin;
   
   private Syntax syntax;
   
@@ -48,6 +54,12 @@ public class SpecificationCollector extends AbstractRewriter {
       super.visit(s);
       return;
     }
+
+    if (contractStart == null) {
+      contractStart = (FileOrigin) s.getOrigin();
+    }
+    previousContractOrigin = (FileOrigin) s.getOrigin();
+
     switch(s.kind){
     case Modifies:{
       currentContractBuilder.modifies(rewrite(s.args));
@@ -139,6 +151,14 @@ public class SpecificationCollector extends AbstractRewriter {
   @Override
   public void visit(Method m){
     super.visit(m);
+
+    Contract newContract = ((Method) result).getContract();
+    if (newContract != null && newContract.getOrigin() == null) {
+      newContract.setOrigin(contractStart.merge(previousContractOrigin));
+      contractStart = null;
+      previousContractOrigin = null;
+    }
+
     currentContractBuilder=new ContractBuilder();
   }
   @Override
