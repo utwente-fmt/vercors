@@ -21,9 +21,11 @@ import static hre.lang.System.Output;
  */
 public class SpecificationCollector extends AbstractRewriter {
 
-  private FileOrigin contractStart;
-  private FileOrigin previousContractOrigin;
-  
+  /**
+   * Keep track of the region in which contract parts (requires, ensures, etc.) were encountered
+   */
+  private FileOrigin contractStart, previousContractOrigin;
+
   private Syntax syntax;
   
   public SpecificationCollector(Syntax syntax,ProgramUnit source) {
@@ -55,9 +57,12 @@ public class SpecificationCollector extends AbstractRewriter {
       return;
     }
 
+    // If we have not been recording the contract region, mark the start
     if (contractStart == null) {
       contractStart = (FileOrigin) s.getOrigin();
     }
+    // Update the previously seen origin, so we can see where the last place was
+    // where we saw a contract part
     previousContractOrigin = (FileOrigin) s.getOrigin();
 
     switch(s.kind){
@@ -152,9 +157,18 @@ public class SpecificationCollector extends AbstractRewriter {
   public void visit(Method m){
     super.visit(m);
 
+    // Whenever a contract has no origin but we've been gathering contract components, add the recorded
+    // region of contract components to the contract
     Contract newContract = ((Method) result).getContract();
-    if (newContract != null && newContract.getOrigin() == null) {
+    if (newContract != null && newContract.getOrigin() == null && contractStart != null) {
       newContract.setOrigin(contractStart.merge(previousContractOrigin));
+      contractStart = null;
+      previousContractOrigin = null;
+    } else {
+      // Otherwise, erase the previously recorded region. Either the contract already had an origin (which
+      // means we should discard the recorded origin), or there wasn't a contract at all, which means the
+      // recorded should not be used if present. Or there wasn't a recorded region, in which case this doesn't
+      // affect anything.
       contractStart = null;
       previousContractOrigin = null;
     }
