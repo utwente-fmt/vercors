@@ -37,7 +37,7 @@ public class BoogieSyntax extends Syntax {
     syntax.addPrefix(UMinus,"-",130);
     syntax.addPrefix(UPlus,"+",130);
     syntax.addLeftFix(Mult,"*",120);
-    syntax.addLeftFix(Div,"/",120);
+    syntax.addLeftFix(FloorDiv,"/",120);
     syntax.addLeftFix(Mod,"%",120);
     syntax.addLeftFix(Plus,"+",110);
     syntax.addLeftFix(Minus,"-",110);

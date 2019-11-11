@@ -1,5 +1,6 @@
 package vct.silver;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -42,7 +43,8 @@ public class VerCorsProgramFactory implements
   }
   
   public Hashtable<String,Set<Origin>> refuted;
-  
+  public HashSet<Origin> satCheckAsserts = new HashSet<>();
+
   private ASTFactory<?> create;
    
   @Override
@@ -327,6 +329,10 @@ public class VerCorsProgramFactory implements
         throw new HREError("bad entry: %s",entry.getClass());
       }
     }
+
+    // Save the encountered sat check assert origins for later
+    satCheckAsserts = stat.satCheckAsserts;
+
     long end=System.currentTimeMillis();
     hre.lang.System.Progress("conversion took %dms",end-base);
     return program;

@@ -19,7 +19,7 @@ class test {
     context (\forall* int i;0<=i && i < 10 ; Perm(y[i],1));
     context (\forall* int i;0<=i && i < 10 ; Perm(z[i],1));
     par fst_(int i=0..10)
-      context Perm(x[i],1) ** Perm(z[i],1/20);
+      context Perm(x[i],1) ** Perm(z[i],1\20);
     {
       x[i]=z[i];
       x[i]=0;
@@ -28,7 +28,7 @@ class test {
     {
       y[j]=0;
     } and trd_(int k=0..10;snd_(k)) // snd_(k)
-      context Perm(z[k],1) ** Perm(y[k],1/2);
+      context Perm(z[k],1) ** Perm(y[k],1\2);
     {
       z[k]=y[k];
     }

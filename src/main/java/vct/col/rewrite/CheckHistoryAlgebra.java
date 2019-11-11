@@ -230,7 +230,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
         add_split_merge_methods(cl);
 
         DeclarationStatement args[]=new DeclarationStatement[2];
-        args[0]=create.field_decl("frac",create.primitive_type(PrimitiveSort.Fraction));
+        args[0]=create.field_decl("fr",create.primitive_type(PrimitiveSort.Fraction));
         args[1]=create.field_decl("proc",adt_type);
         hist_class.add(create.predicate("hist_idle", null, args));
         result=hist_class;
@@ -314,7 +314,13 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     args[1]=create.field_decl("proc1",adt_type);
     args[2]=create.field_decl("frac2",create.primitive_type(PrimitiveSort.Fraction));
     args[3]=create.field_decl("proc2",adt_type);
-    
+
+    ASTNode fracSumBound = create.expression(
+            StandardOperator.LTE,
+            create.expression(StandardOperator.Plus, create.local_name("frac1"), create.local_name("frac2")),
+            create.reserved_name(FullPerm)
+    );
+
     ASTNode split1=create.invokation(null, null, "hist_idle",
         create.local_name("frac1"),create.local_name("proc1")
     );
@@ -327,11 +333,13 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     );
     ContractBuilder split_cb=new ContractBuilder();
     ContractBuilder merge_cb=new ContractBuilder();
-    
+
+    split_cb.requires(fracSumBound);
     split_cb.requires(merge);
     split_cb.ensures(split1);
     split_cb.ensures(split2);
-    
+
+    merge_cb.requires(fracSumBound);
     merge_cb.requires(split1);
     merge_cb.requires(split2);
     merge_cb.ensures(merge);
@@ -362,10 +370,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     DeclarationStatement args_long[]=new DeclarationStatement[2+K+N];
     ASTNode do_args[]=new ASTNode[2+K];
     ASTNode args[]=new ASTNode[N];
-    args_short[0]=args_long[0]=create.field_decl("frac",create.primitive_type(PrimitiveSort.Fraction));
+    args_short[0]=args_long[0]=create.field_decl("fr",create.primitive_type(PrimitiveSort.Fraction));
     args_short[1]=args_long[1]=create.field_decl("proc",adt_type);
     String access_name[]=new String[K];
-    do_args[0]=create.local_name("frac");
+    do_args[0]=create.local_name("fr");
     do_args[1]=create.local_name("proc");
     for(int i=0;i<K;i++){
       access_name[i]=((FieldAccess)c.accesses[i]).name() + "_frac";
@@ -382,14 +390,14 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     ASTNode action_proc=create.domain_call("Process", "p_seq",
         create.domain_call("Process","p_"+m.name(), args), create.local_name("proc"));
     ASTNode proc_action=create.domain_call("Process", "p_seq", create.local_name("proc"),create.domain_call("Process","p_"+m.name(), args));
-    begin_cb.requires(create.expression(StandardOperator.NEQ,create.local_name("frac"),create.reserved_name(ASTReserved.NoPerm)));
-    begin_cb.ensures(create.expression(StandardOperator.NEQ,create.local_name("frac"),create.reserved_name(ASTReserved.NoPerm)));
-    commit_cb.requires(create.expression(StandardOperator.NEQ,create.local_name("frac"),create.reserved_name(ASTReserved.NoPerm)));
-    commit_cb.ensures(create.expression(StandardOperator.NEQ,create.local_name("frac"),create.reserved_name(ASTReserved.NoPerm)));
-    begin_cb.requires(create.invokation(null, null,"hist_idle",create.local_name("frac"),is_history?proc:action_proc));
+    begin_cb.requires(create.expression(StandardOperator.NEQ,create.local_name("fr"),create.reserved_name(ASTReserved.NoPerm)));
+    begin_cb.ensures(create.expression(StandardOperator.NEQ,create.local_name("fr"),create.reserved_name(ASTReserved.NoPerm)));
+    commit_cb.requires(create.expression(StandardOperator.NEQ,create.local_name("fr"),create.reserved_name(ASTReserved.NoPerm)));
+    commit_cb.ensures(create.expression(StandardOperator.NEQ,create.local_name("fr"),create.reserved_name(ASTReserved.NoPerm)));
+    begin_cb.requires(create.invokation(null, null,"hist_idle",create.local_name("fr"),is_history?proc:action_proc));
     begin_cb.ensures(create.invokation(null, null,"hist_do_"+m.name(), do_args));
     commit_cb.requires(create.invokation(null, null,"hist_do_"+m.name(), do_args));
-    commit_cb.ensures(create.invokation(null, null,"hist_idle",create.local_name("frac"),is_history?proc_action:proc));
+    commit_cb.ensures(create.invokation(null, null,"hist_idle",create.local_name("fr"),is_history?proc_action:proc));
     HashMap<NameExpression,ASTNode> old_map=new HashMap<NameExpression, ASTNode>();
     HashMap<NameExpression,ASTNode> new_map=new HashMap<NameExpression, ASTNode>();
     if (c.modifies!=null) for(ASTNode n:c.modifies){

@@ -167,6 +167,16 @@ public final class PrimitiveType extends Type {
           return true;
         }
         break;
+      case ZFraction:
+        if(t instanceof ClassType && ((ClassType) t).getName().equals("zfrac")) {
+          return true;
+        }
+        // fallthrough
+      case Fraction:
+        if(t instanceof ClassType && ((ClassType) t).getName().equals("frac")) {
+          return true;
+        }
+        break;
     }
     if (t instanceof PrimitiveType){
       PrimitiveType pt=(PrimitiveType)t;
@@ -177,6 +187,16 @@ public final class PrimitiveType extends Type {
       case Sequence:
       case Array:
         return false;
+      case Rational:
+        switch(pt.sort) {
+          case ZFraction:
+          case Fraction:
+          case Integer:
+          case Short:
+          case Byte:
+            return true;
+        }
+        break;
       case ZFraction:
         switch(pt.sort){
         case Fraction:
@@ -270,6 +290,11 @@ public final class PrimitiveType extends Type {
     return this.sort==sort;
   }
 
+  @Override
+  public boolean isFraction() {
+    return isPrimitive(PrimitiveSort.ZFraction) || isPrimitive(PrimitiveSort.Fraction) || isPrimitive(PrimitiveSort.Rational);
+  }
+
   public ASTNode zero(){
     switch(sort){
     case Array:
@@ -281,6 +306,8 @@ public final class PrimitiveType extends Type {
       return new ConstantExpression(0);
     case Fraction:
       return new ConstantExpression(0);
+    case Rational:
+      return new NameExpression(ASTReserved.NoPerm);
     case Integer:
       return new ConstantExpression(0);
     case Long:
@@ -327,7 +354,7 @@ public final class PrimitiveType extends Type {
   }
 
   public boolean isNumeric() {
-    return isIntegerType() || isFloatType() || sort==PrimitiveSort.Fraction || sort==PrimitiveSort.ZFraction ;
+    return isIntegerType() || isFloatType() || sort==PrimitiveSort.Fraction || sort==PrimitiveSort.ZFraction || sort == PrimitiveSort.Rational;
   }
   private boolean isFloatType() {
     switch(sort){

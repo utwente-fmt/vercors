@@ -36,14 +36,16 @@ public class PVLSyntax {
       syntax.addFunction(Perm,"Perm");
       syntax.addFunction(HistoryPerm,"HPerm");
       syntax.addFunction(Future,"Future");
-      //syntax.addFunction(Head,"head");
-      //syntax.addFunction(Tail,"tail");
+      syntax.addFunction(Head,"head");
+      syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
       syntax.addFunction(PointsTo,"PointsTo");
       syntax.addFunction(Identity,"id");
       syntax.addFunction(IterationOwner,"\\owner");
       //syntax.addFunction(ArrayPerm,"ArrayPerm");
       syntax.addFunction(Old,"\\old");
+
+      syntax.addFunction(OptionSome, "Some");
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
@@ -54,7 +56,8 @@ public class PVLSyntax {
       syntax.addLeftFix(Exp,"^^",125);
       // 12 multiplicative  * / %
       syntax.addLeftFix(Mult,"*",120);
-      syntax.addLeftFix(Div,"/",120);
+      syntax.addLeftFix(FloorDiv,"/",120);
+      syntax.addLeftFix(Div, "\\", 120);
       syntax.addLeftFix(Mod,"%",120);
       // 11 additive  + -
       syntax.addLeftFix(Plus,"+",110);
@@ -143,9 +146,9 @@ public class PVLSyntax {
       
       syntax.addFunction(PVLidleToken,"idle");
       syntax.addFunction(PVLjoinToken,"running");
+      syntax.addFunction(Held, "held");
       
       syntax.addReserved(ASTReserved.Any, "*");
-      
       
       syntax.addFunction(ValidArray,"\\array");
       syntax.addFunction(ValidMatrix,"\\matrix");

@@ -451,5 +451,4 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
     origin=new BranchOrigin(branch,origin);
     return this;
   }
-
 }

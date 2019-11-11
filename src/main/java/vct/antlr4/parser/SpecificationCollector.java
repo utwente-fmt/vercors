@@ -1,6 +1,7 @@
 package vct.antlr4.parser;
 
 
+import hre.ast.FileOrigin;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.composite.BlockStatement;
@@ -12,12 +13,19 @@ import vct.col.ast.util.ContractBuilder;
 import vct.col.rewrite.AbstractRewriter;
 import vct.col.syntax.Syntax;
 
+import static hre.lang.System.Output;
+
 /**
  * Rewrite an AST with specifications in the form of comments
  * to an AST with specifications in the from of ASTs. 
  */
 public class SpecificationCollector extends AbstractRewriter {
-  
+
+  /**
+   * Keep track of the region in which contract parts (requires, ensures, etc.) were encountered
+   */
+  private FileOrigin contractStart, previousContractOrigin;
+
   private Syntax syntax;
   
   public SpecificationCollector(Syntax syntax,ProgramUnit source) {
@@ -48,6 +56,15 @@ public class SpecificationCollector extends AbstractRewriter {
       super.visit(s);
       return;
     }
+
+    // If we have not been recording the contract region, mark the start
+    if (contractStart == null) {
+      contractStart = (FileOrigin) s.getOrigin();
+    }
+    // Update the previously seen origin, so we can see where the last place was
+    // where we saw a contract part
+    previousContractOrigin = (FileOrigin) s.getOrigin();
+
     switch(s.kind){
     case Modifies:{
       currentContractBuilder.modifies(rewrite(s.args));
@@ -139,6 +156,23 @@ public class SpecificationCollector extends AbstractRewriter {
   @Override
   public void visit(Method m){
     super.visit(m);
+
+    // Whenever a contract has no origin but we've been gathering contract components, add the recorded
+    // region of contract components to the contract
+    Contract newContract = ((Method) result).getContract();
+    if (newContract != null && newContract.getOrigin() == null && contractStart != null) {
+      newContract.setOrigin(contractStart.merge(previousContractOrigin));
+      contractStart = null;
+      previousContractOrigin = null;
+    } else {
+      // Otherwise, erase the previously recorded region. Either the contract already had an origin (which
+      // means we should discard the recorded origin), or there wasn't a contract at all, which means the
+      // recorded should not be used if present. Or there wasn't a recorded region, in which case this doesn't
+      // affect anything.
+      contractStart = null;
+      previousContractOrigin = null;
+    }
+
     currentContractBuilder=new ContractBuilder();
   }
   @Override

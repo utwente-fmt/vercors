@@ -18,7 +18,9 @@ public enum StandardOperator {
   Minus(2),
   /** Multiplication. */
   Mult(2),
-  /** Division. */
+  /** Integer Division. */
+  FloorDiv(2),
+  /** Mathematical Division */
   Div(2),
   /** Modulo or remainder. */
   Mod(2),

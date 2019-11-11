@@ -652,8 +652,8 @@ body {
 /* Footer */
 
 	#footer {
-		padding: 10px 0;
-		color: #fff;
+		padding: 2% 2%;
+		color: #fff;		
 	}
 
 		#footer .major h2 {
@@ -668,7 +668,7 @@ body {
 		#footer .copyright {
 			margin-top: 2em;
 			padding-top: 2em;
-			border-top: 1px solid;
+			border-top: 2px solid;
 			border-color: rgba(192, 192, 192, 0.15);
 			text-align: justify;
 			color: inherit;

@@ -1,6 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.col.ast.stmt.decl;
 
+import hre.ast.FileOrigin;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 
@@ -154,7 +155,6 @@ public class Contract extends ASTNode {
       throw t;
     }
   }
-
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {

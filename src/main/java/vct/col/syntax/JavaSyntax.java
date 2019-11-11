@@ -124,7 +124,8 @@ public class JavaSyntax extends Syntax {
     syntax.addPrefix(PreDecr, "--", 130);
     // 12 multiplicative  * / %
     syntax.addLeftFix(Mult,"*",120);
-    syntax.addLeftFix(Div,"/",120);
+    syntax.addLeftFix(FloorDiv,"/",120);
+    syntax.addLeftFix(Div,"\\",120);
     syntax.addLeftFix(Mod,"%",120);
     // 11 additive  + -
     syntax.addLeftFix(Plus,"+",110);
@@ -183,6 +184,7 @@ public class JavaSyntax extends Syntax {
     syntax.addPrimitiveType(PrimitiveSort.Short,"short");
     syntax.addPrimitiveType(PrimitiveSort.Process,"process");
     syntax.addPrimitiveType(PrimitiveSort.String,"String");
+    syntax.addPrimitiveType(PrimitiveSort.Rational, "rational");
     
 
     syntax.addReserved(Public,"public");

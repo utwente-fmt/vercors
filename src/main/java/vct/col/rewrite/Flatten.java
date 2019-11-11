@@ -32,7 +32,21 @@ public class Flatten extends AbstractRewriter {
   private BlockStatement current_block=null;
   private BlockStatement declaration_block=null;
   private static long counter=0;
-  
+
+  /**
+   * Whenever this is true, the flattener is not inside an expression.
+   * The first expression encountered when this is true is responsible for
+   * setting it to false before traversing deeper into the expression.
+   * This allows each rewrite step to detect if they are the toplevel expression
+   * or nested within an expression (and hence if they should be rewritten
+   * into a variable or not)
+   *
+   * It is false by default s.t. everything is moved into a variable by default.
+   * Specific statements (assign, return) can set it to true so the first expression
+   * encountered after that point is not moved out, but the second expression after it is.
+    */
+  private boolean toplevel = false;
+
   @Override
   public void visit(ASTSpecial s){
     result=copy_pure.rewrite(s);
@@ -47,6 +61,8 @@ public class Flatten extends AbstractRewriter {
 
   public void visit(MethodInvokation e) {
     Debug("call to %s",e.method);
+    boolean old_toplevel = toplevel;
+    toplevel = false;
     ASTNode object=rewrite(e.object);
     int N=e.getArity();
     ASTNode args[]=new ASTNode[N];
@@ -57,7 +73,7 @@ public class Flatten extends AbstractRewriter {
     if (e.getType()==null){
       Abort("result type of call unknown at %s",e.getOrigin());
     }
-    if (e.getType().isVoid()||e.getType().isNull()||declaration_block==null){
+    if (e.getType().isVoid()||e.getType().isNull()||declaration_block==null||old_toplevel){
       result=create.invokation(object,rewrite(e.dispatch),e.method,args);
       ((MethodInvokation)result).set_before(copy_rw.rewrite(e.get_before()));
       ((MethodInvokation)result).set_after(copy_rw.rewrite(e.get_after()));
@@ -66,7 +82,7 @@ public class Flatten extends AbstractRewriter {
       ASTNode n=create.field_decl(name,e.getType());
       Debug("inserting in %s",declaration_block);
       declaration_block.addStatement(n);
-      Debug("assigning resutl of call");
+      Debug("assigning result of call");
       MethodInvokation call=create.invokation(object,rewrite(e.dispatch),e.method,args);
       call.set_before(copy_pure.rewrite(e.get_before()));
       call.set_after(copy_pure.rewrite(e.get_after()));
@@ -79,6 +95,7 @@ public class Flatten extends AbstractRewriter {
       result=create.local_name(name);
       auto_labels=false;
     }
+    toplevel = old_toplevel;
   }
  
   public void visit(OperatorExpression e){
@@ -189,7 +206,9 @@ public class Flatten extends AbstractRewriter {
         Abort("internal error: current block is null");
       }
       current_block.addStatement(create.field_decl(name,t,null));
+      toplevel = true;
       init=init.apply(this);
+      toplevel = false;
       result=create.assignment(create.local_name(name),init);
     } else {
       result=create.field_decl(name,t,null);
@@ -198,18 +217,20 @@ public class Flatten extends AbstractRewriter {
   
   @Override
   public void visit(AssignmentStatement s) {
+    toplevel = true;
     ASTNode loc=s.location();
     ASTNode val=s.expression();
     if (loc instanceof Dereference
     && !val.getType().equals(ClassType.nullType())
     && !val.getType().equals(ClassType.labelType())){
       loc=rewrite(loc);
-      val=add_as_var(val);      
+      val=add_as_var(val);
     } else {
       loc=rewrite(loc);
       val=rewrite(val);
     }
     result=create.assignment(loc,val);
+    toplevel = false;
     //if (//s.getLocation().getType().equals(ClassType.label_type)||
     //    s.getExpression().getType().equals(ClassType.label_type)){
     //  ASTNode loc=s.getLocation().apply(this);
@@ -276,7 +297,9 @@ public class Flatten extends AbstractRewriter {
   public void visit(ReturnStatement s){
     ASTNode e=s.getExpression();
     if (e!=null){
-      e=add_as_var(e);
+      toplevel = true;
+      e = e.apply(this);
+      toplevel = false;
       result=create.return_statement(e);
     } else {
       result=create.return_statement();

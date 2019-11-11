@@ -7,6 +7,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static hre.lang.System.Debug;
+import static hre.lang.System.Warning;
 
 /**
  * Provides communication with a interactive external process.

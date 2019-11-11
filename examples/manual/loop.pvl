@@ -2,6 +2,11 @@
 //:: cases LoopPVL
 //:: tools silicon
 //begin(all)
+
+class Counter {
+  int x;
+}
+
 class Loop {
   requires c!=null ** Perm(c.x,1);
   requires y>=0;

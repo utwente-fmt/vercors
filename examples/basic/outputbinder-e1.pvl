@@ -9,7 +9,7 @@ class C {
 
   int x;
   
-  requires PointsTo(x,1/2,15);
+  requires PointsTo(x,1\2,15);
   ensures  PointsTo(x,1 / 2,?x_25) ** x_25==37;
   void test(){
     x = 37;

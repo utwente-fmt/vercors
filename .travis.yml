@@ -45,4 +45,10 @@ matrix:
       - SPLIT=4/5 ./.travis/build.sh
     - script:
       - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
+      - echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";
+      - >
+        if [ "${TRAVIS_SECURE_ENV_VARS}" == "false" ]; then
+        echo;
+        echo "The check is running for a pull request for an external repo. At the moment Travis does not support running Sonar for external repositories. The build will fail.";
+        fi;
       - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"

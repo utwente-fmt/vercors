@@ -1,0 +1,11 @@
+//:: cases BracketIssues
+//:: tools silicon
+//:: verdict Pass
+
+class Test {
+    requires 0 < |xs|;
+    void test1(seq<int> xs, seq<int> ys) {
+        assert xs[0] == (xs + ys)[0];
+        assert xs[0] == \old(xs)[0];
+    }
+}

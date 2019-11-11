@@ -17,3 +17,5 @@ tmp.*
 vct-tool.jar
 *~
 
+# Vim swap file
+*.swp

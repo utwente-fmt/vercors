@@ -45,7 +45,7 @@ public class NonLinCountVisitor extends TypesCountVisitor {
       public void visit(OperatorExpression e) {
         switch (e.operator()) {
         case Mult:
-        case Div:
+        case FloorDiv:
         case Mod:
           if (ASTUtils.find_name(e, name)) {
             res.set(true);
