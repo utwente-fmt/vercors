@@ -306,6 +306,8 @@ public final class PrimitiveType extends Type {
       return new ConstantExpression(0);
     case Fraction:
       return new ConstantExpression(0);
+    case Rational:
+      return new NameExpression(ASTReserved.NoPerm);
     case Integer:
       return new ConstantExpression(0);
     case Long:

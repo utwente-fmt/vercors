@@ -184,7 +184,7 @@ public class JavaSyntax extends Syntax {
     syntax.addPrimitiveType(PrimitiveSort.Short,"short");
     syntax.addPrimitiveType(PrimitiveSort.Process,"process");
     syntax.addPrimitiveType(PrimitiveSort.String,"String");
-    syntax.addPrimitiveType(PrimitiveSort.Rational, "Perm");
+    syntax.addPrimitiveType(PrimitiveSort.Rational, "rational");
     
 
     syntax.addReserved(Public,"public");

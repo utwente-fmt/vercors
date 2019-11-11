@@ -401,17 +401,21 @@ public class Main
           if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
             passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
             passes.add("standardize");
-            passes.add("check");
           }
           // passes.add("recognize_multidim"); // translate matrices as a flat array (like c does in memory)
+          passes.add("check");
           passes.add("simplify_quant"); // reduce nesting of quantifiers
-          if (features.usesSummation()||features.usesIterationContracts()) passes.add("simplify_sums"); // set of rewrite rules for removing summations
+          if (features.usesSummation()||features.usesIterationContracts()) {
+            passes.add("check");
+            passes.add("simplify_sums"); // set of rewrite rules for removing summations
+          }
           passes.add("standardize");
           passes.add("check");
         }
 
         if (features.usesKernels()){// 8 feb 2018: is this now dead code (to be)? (SB)
           passes.add("kernel-split");
+          passes.add("check");
           passes.add("simplify_quant");
           passes.add("standardize");
           passes.add("check");
@@ -479,8 +483,8 @@ public class Main
         passes.add("assign");
         passes.add("reorder");
         passes.add("standardize");
-        passes.add("check");
 
+        passes.add("check");
         passes.add("simplify_quant");
         passes.add("standardize");
         passes.add("check");
@@ -543,7 +547,9 @@ public class Main
 
         if (silver.used()) {
           passes.add("scale-always"); // syntax: in silicon [p]predicate() is mandatory, so change pred() to [1]pred()
+          passes.add("check"); // the rewrite system needs a type check
           passes.add("silver-optimize"); // rewrite to things that silver likes better
+          passes.add("check"); // the rewrite system needs a type check
           passes.add("quant-optimize"); // some illegal-quantifier constructions need to be written differently (plus optimize)
           passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
           passes.add("standardize");
@@ -551,6 +557,7 @@ public class Main
 
           passes.add("silver");
         } else { //CHALICE
+          passes.add("check"); // rewrite system needs a type check
           passes.add("chalice-optimize");
           passes.add("standardize-functions");
           passes.add("standardize");
