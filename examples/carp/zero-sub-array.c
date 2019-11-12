@@ -11,8 +11,7 @@
 void zero(int M, int matrix[M]){
   for(int i=0; i<M; i++)
   /*@
-    requires matrix != NULL;
-    context Perm(matrix[i], write);
+    context \pointer_index(matrix, i, write);
     ensures matrix[i] == 0;
   @*/
   {
