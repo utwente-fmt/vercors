@@ -4,10 +4,11 @@
 //:: verdict Pass
 
 class Ref {
+  given frac p;
   context_everywhere a != null && b != null && c != null;
   context_everywhere tcount >= 0;
-	context_everywhere a.length == tcount && b.length == tcount && c.length == tcount;
-  context  (\forall* int i; 0 <= i && i < tcount; Perm(b[i], read));
+  context_everywhere a.length == tcount && b.length == tcount && c.length == tcount;
+  context  (\forall* int i; 0 <= i && i < tcount; Perm(b[i], p));
   context  (\forall* int i; 0 <= i && i < tcount; Perm(c[i], write));
   requires (\forall* int i; 0 <= i && i < tcount; Perm(a[i], write));
   ensures  (\forall* int i; 0 <= i && i < tcount; Perm(a[i], 1\2)); // Perm(a[i], write) also possible or Perm[a[i], read) also possible (1)
@@ -16,7 +17,7 @@ class Ref {
   ensures  (\forall  int i; 1 <= i && i < tcount; c[i]==i+2);
   void main(int tcount, int[] a, int[] b, int[] c) {
     par fwd (int tid=0..tcount)
-      context  Perm(b[tid], read);
+      context  Perm(b[tid], p);
       context  Perm(c[tid], write);
       requires Perm(a[tid], write);
       ensures  Perm(a[tid], 1\2); // Perm(a[tid], read) also possible (2)
