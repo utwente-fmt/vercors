@@ -318,10 +318,16 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
           while (loc instanceof Dereference){
             loc=((Dereference)loc).obj();
           }
-          if (loc.isa(StandardOperator.Subscript)){
-            loc=((OperatorExpression)loc).arg(1);
-            good=loc instanceof NameExpression;
+          if (loc instanceof MethodInvokation
+                  && ((MethodInvokation) loc).object instanceof ClassType
+                  && ((ClassType) ((MethodInvokation) loc).object).getName().equals("VCTArray")
+                  && ((MethodInvokation) loc).method.startsWith("loc")) {
+            loc = ((MethodInvokation) loc).getArg(0);
           }
+          if(loc instanceof MethodInvokation && ((MethodInvokation) loc).method.startsWith("getVCTOption")) {
+            loc = ((MethodInvokation) loc).getArg(0);
+          }
+          good=loc instanceof NameExpression;
         }
         if(!good){
           hre.lang.System.Warning("Possible simplification failure: %s",e);
