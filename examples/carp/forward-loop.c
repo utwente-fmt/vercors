@@ -17,18 +17,18 @@
 @*/
 void example(int a[],int b[],int c[],int len){
   for(int i=0;i < len;i++) /*@
-    requires Perm(a[i],write);
-    requires Perm(b[i],1\2);
-    requires Perm(c[i],write);
+    requires \pointer_index(a, i, write);
+    requires \pointer_index(b, i, 1\2);
+    requires \pointer_index(c, i, write);
 
-    ensures Perm(a[i],1\2);
-    ensures Perm(b[i],1\2);
-    ensures Perm(c[i],write);
+    ensures \pointer_index(a, i, 1\2);
+    ensures \pointer_index(b, i, 1\2);
+    ensures \pointer_index(c, i, write);
 
     requires b[i]==i;
 
-    ensures  i>0 ==> Perm(a[i-1],1\2);
-    ensures  i==len-1 ==> Perm(a[i],1\2);
+    ensures  i>0 ==> \pointer_index(a, i-1, 1\2);
+    ensures  i==len-1 ==> \pointer_index(a, i, 1\2);
 
     ensures  a[i]==i+1;
     ensures  b[i]==i;
@@ -37,11 +37,11 @@ void example(int a[],int b[],int c[],int len){
     a[i]=b[i]+1;
     /*@
       S1:if (i < len-1) {
-        send 0 <= i ** i < len ** Perm(a[i],1\2) ** a[i]==i+1 to S2,1;
+        send 0 <= i ** i < len ** \pointer_index(a, i, 1\2) ** a[i]==i+1 to S2,1;
       }
     @*/
     S2:if (i>0) {
-      //@ recv 0 < i ** i < len ** Perm(a[i-1],1\2) ** a[i-1]==i from S1,1;
+      //@ recv 0 < i ** i < len ** \pointer_index(a, i-1, 1\2) ** a[i-1]==i from S1,1;
       c[i]=a[i-1]+2;
     }
   }
