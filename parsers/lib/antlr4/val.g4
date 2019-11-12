@@ -22,6 +22,7 @@ valContractClause
  | 'yields' type identifier ';'
  | 'context_everywhere' expression ';'
  | 'context' expression ';'
+ | 'signals' '(' type identifier ')' expression ';'
  ;
 
 valStatement
