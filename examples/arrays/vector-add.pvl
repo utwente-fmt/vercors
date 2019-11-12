@@ -4,20 +4,22 @@
 //:: verdict Pass
 
 class Ref {
+  given frac p;
+  given frac q;
   context_everywhere a != null && b != null && c != null;
 	context_everywhere tcount >= 0;
 	context_everywhere a.length == tcount && b.length == tcount && c.length == tcount;
   context (\forall* int i; 0 <= i && i < tcount; Perm(a[i], write));
-  context (\forall* int i; 0 <= i && i < tcount; Perm(b[i], read));
-  context (\forall* int i; 0 <= i && i < tcount; Perm(c[i], read));
+  context (\forall* int i; 0 <= i && i < tcount; Perm(b[i], p));
+  context (\forall* int i; 0 <= i && i < tcount; Perm(c[i], q));
   ensures (\forall  int i; 0 <= i && i < tcount; b[i]==\old(b[i])); // already encapsulated by read permission (requires) on b
   ensures (\forall  int i; 0 <= i && i < tcount; c[i]==\old(c[i])); // already encapsulated by read permission (requires) on c
   ensures (\forall  int i; 0 <= i && i < tcount; a[i]==b[i]+c[i]);
   void main(int tcount, int[] a, int[] b, int[] c) {
     par (int tid=0..tcount) 
       context Perm(a[tid], write);
-      context Perm(b[tid], read);
-      context Perm(c[tid], read);
+      context Perm(b[tid], p);
+      context Perm(c[tid], q);
       ensures b[tid]==\old(b[tid]); // already encapsulated by read permission (requires) on b[tid]
       ensures c[tid]==\old(c[tid]); // already encapsulated by read permission (requires) on c[tid]
       ensures a[tid]==b[tid]+c[tid];
