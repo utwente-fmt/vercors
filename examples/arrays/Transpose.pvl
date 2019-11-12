@@ -8,8 +8,7 @@
 */
 
 class Ref {
-  context_everywhere out != null && inp != null && M>0 && N > 0;
-	context_everywhere out.length == M*N && inp.length == N*M;
+  context_everywhere \matrix(inp, N, M) ** \matrix(out, M, N);
   context  (\forall* int i1 ; 0 <= i1 && i1 < M ;
              (\forall* int j1 ; 0 <= j1 && j1 < N ;
                Perm(out[i1][j1],write)));
