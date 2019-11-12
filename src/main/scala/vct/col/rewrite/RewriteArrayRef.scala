@@ -71,6 +71,17 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
 
   override def visit(operator: OperatorExpression): Unit = {
     operator.operator match {
+      case StandardOperator.ValidArray =>
+        val t = operator.arg(0).getType
+        val array = rewrite(operator.arg(0))
+        val size = rewrite(operator.arg(1))
+        result = validArrayFor(array, t, size)
+      case StandardOperator.ValidMatrix =>
+        val t = operator.arg(0).getType
+        val matrix = rewrite(operator.arg(0))
+        val size0 = rewrite(operator.arg(1))
+        val size1 = rewrite(operator.arg(2))
+        result = validMatrixFor(matrix, t, size0, size1)
       case StandardOperator.NewArray =>
         result = create.invokation(
           null, null,
@@ -103,29 +114,6 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
       case StandardOperator.Values =>
         val array = operator.arg(0)
         result = create.invokation(null, null, RewriteArrayRef.getArrayValues(array.getType), rewrite(operator.args.toArray):_*)
-      case StandardOperator.ValidArray =>
-        val t = operator.arg(0).getType
-        val array = rewrite(operator.arg(0))
-        val size = rewrite(operator.arg(1))
-        result = validArrayFor(array, t, size)
-      case StandardOperator.ValidMatrix =>
-        val t = operator.arg(0).getType
-        val matrix = rewrite(operator.arg(0))
-        val size0 = rewrite(operator.arg(1))
-        val size1 = rewrite(operator.arg(2))
-        result = validMatrixFor(matrix, t, size0, size1)
-      case StandardOperator.ValidPointer =>
-        val t = operator.arg(0).getType
-        val array = rewrite(operator.arg(0))
-        val size = rewrite(operator.arg(1))
-        val perm = rewrite(operator.arg(2))
-        result = validPointerFor(array, t, size, perm)
-      case StandardOperator.ValidPointerIndex =>
-        val t = operator.arg(0).getType
-        val array = rewrite(operator.arg(0))
-        val index = rewrite(operator.arg(1))
-        val perm = rewrite(operator.arg(2))
-        result = validPointerIndexFor(array, t, index, perm)
       case StandardOperator.Drop =>
         val seqInfo = SequenceUtils.getInfoOrFail(operator.arg(0), "Expected a sequence type at %s, but got %s")
         if(seqInfo.getSequenceSort == PrimitiveSort.Array) {
@@ -295,6 +283,59 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     declaration
   }
 
+  def subArrayFor(t: Type, methodName: String): ASTNode = {
+    var result: ASTNode = create.reserved_name(ASTReserved.Result)
+    var array: ASTNode = name("array")
+
+    val contract = new ContractBuilder
+    val from: ASTNode = name("from")
+    val to: ASTNode = name("to")
+    val seqInfo = SequenceUtils.expectArrayType(t, "Expected array at %s but got %s")
+    val i: ASTNode = name("i")
+    val iDecl: Array[DeclarationStatement] = Array(create.field_decl("i", create.primitive_type(PrimitiveSort.Integer)))
+
+    if(seqInfo.isOpt) {
+      contract.requires(neq(array, create.reserved_name(ASTReserved.OptionNone)))
+      contract.ensures(neq(result, create.reserved_name(ASTReserved.OptionNone)))
+      array = create.expression(StandardOperator.OptionGet, array)
+      result = create.expression(StandardOperator.OptionGet, result)
+    }
+
+    contract.ensures(eq(create.expression(StandardOperator.Length, result), create.expression(StandardOperator.Minus, to, from)))
+
+    contract.requires(List(
+      lte(constant(0), from),
+      lte(from, to),
+      lte(to, create.expression(StandardOperator.Length, array))
+    ).reduce(and))
+
+    var eqLeft: ASTNode = create.expression(StandardOperator.Subscript, array, create.expression(StandardOperator.Plus, i, from))
+    var eqRight: ASTNode = create.expression(StandardOperator.Subscript, result, i)
+
+    contract.ensures(create.forall(
+      and(lte(constant(0), i), less(i, create.expression(StandardOperator.Minus, to, from))),
+      eq(eqLeft, eqRight),
+      iDecl:_*
+    ))
+
+    contract.ensures(
+      create.expression(StandardOperator.Implies,
+        and(eq(from, constant(0)), eq(to, create.expression(StandardOperator.Length, array))),
+        eq(result, array)
+      )
+    )
+
+    val arguments = Array(
+      new DeclarationStatement("array", t),
+      new DeclarationStatement("from", create.primitive_type(PrimitiveSort.Integer)),
+      new DeclarationStatement("to", create.primitive_type(PrimitiveSort.Integer))
+    )
+
+    val declaration = create.method_kind(Method.Kind.Pure, t, contract.getContract, methodName, arguments, false, null)
+    declaration.setStatic(true)
+    declaration
+  }
+
   def validArrayFor(input: ASTNode, t: Type, size: ASTNode): ASTNode = {
     val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
     val seqInfo = SequenceUtils.expectArrayType(t, "Expected an array type here, but got %s")
@@ -309,52 +350,6 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     conditions += eq(create.expression(StandardOperator.Length, value), size)
 
     conditions.reduce(and _)
-  }
-
-  def validPointerFor(input: ASTNode, t: Type, size: ASTNode, perm: ASTNode): ASTNode = {
-    val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
-    val seqInfo = SequenceUtils.expectArrayType(t, "Expected an array type here, but got %s")
-
-    if(!seqInfo.isOpt || !seqInfo.isCell) {
-      Fail("Expected a pointer type here, but got %s", t)
-    }
-
-    var value = input
-
-    conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
-    value = create.expression(StandardOperator.OptionGet, value)
-
-    conditions += lte(size, create.expression(StandardOperator.Length, value))
-
-    conditions += create.starall(
-      and(lte(constant(0), name("__i")), less(name("__i"), size)),
-      create.expression(StandardOperator.Perm,
-        create.dereference(create.expression(StandardOperator.Subscript, value, name("__i")), "item"),
-        perm),
-      List(new DeclarationStatement("__i", create.primitive_type(PrimitiveSort.Integer))):_*
-    )
-
-    conditions.reduce(star _)
-  }
-
-  def validPointerIndexFor(input: ASTNode, t: Type, index: ASTNode, perm: ASTNode): ASTNode = {
-    val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
-    val seqInfo = SequenceUtils.expectArrayType(t, "Expected an array type here, but got %s")
-
-    if(!seqInfo.isOpt || !seqInfo.isCell) {
-      Fail("Expected a pointer type here, but got %s", t)
-    }
-
-    var value = input
-    conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
-    value = create.expression(StandardOperator.OptionGet, value)
-
-    conditions += less(index, create.expression(StandardOperator.Length, value))
-    conditions += create.expression(StandardOperator.Perm,
-      create.dereference(create.expression(StandardOperator.Subscript, value, index), "item"),
-      perm)
-
-    conditions.reduce(star _)
   }
 
   def validMatrixFor(input: ASTNode, t: Type, size0: ASTNode, size1: ASTNode): ASTNode = {
@@ -442,58 +437,5 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     }
 
     conditions.reduce(star)
-  }
-
-  def subArrayFor(t: Type, methodName: String): ASTNode = {
-    var result: ASTNode = create.reserved_name(ASTReserved.Result)
-    var array: ASTNode = name("array")
-
-    val contract = new ContractBuilder
-    val from: ASTNode = name("from")
-    val to: ASTNode = name("to")
-    val seqInfo = SequenceUtils.expectArrayType(t, "Expected array at %s but got %s")
-    val i: ASTNode = name("i")
-    val iDecl: Array[DeclarationStatement] = Array(create.field_decl("i", create.primitive_type(PrimitiveSort.Integer)))
-
-    if(seqInfo.isOpt) {
-      contract.requires(neq(array, create.reserved_name(ASTReserved.OptionNone)))
-      contract.ensures(neq(result, create.reserved_name(ASTReserved.OptionNone)))
-      array = create.expression(StandardOperator.OptionGet, array)
-      result = create.expression(StandardOperator.OptionGet, result)
-    }
-
-    contract.ensures(eq(create.expression(StandardOperator.Length, result), create.expression(StandardOperator.Minus, to, from)))
-
-    contract.requires(List(
-      lte(constant(0), from),
-      lte(from, to),
-      lte(to, create.expression(StandardOperator.Length, array))
-    ).reduce(and))
-
-    var eqLeft: ASTNode = create.expression(StandardOperator.Subscript, array, create.expression(StandardOperator.Plus, i, from))
-    var eqRight: ASTNode = create.expression(StandardOperator.Subscript, result, i)
-
-    contract.ensures(create.forall(
-      and(lte(constant(0), i), less(i, create.expression(StandardOperator.Minus, to, from))),
-      eq(eqLeft, eqRight),
-      iDecl:_*
-    ))
-
-    contract.ensures(
-      create.expression(StandardOperator.Implies,
-        and(eq(from, constant(0)), eq(to, create.expression(StandardOperator.Length, array))),
-        eq(result, array)
-      )
-    )
-
-    val arguments = Array(
-      new DeclarationStatement("array", t),
-      new DeclarationStatement("from", create.primitive_type(PrimitiveSort.Integer)),
-      new DeclarationStatement("to", create.primitive_type(PrimitiveSort.Integer))
-    )
-
-    val declaration = create.method_kind(Method.Kind.Pure, t, contract.getContract, methodName, arguments, false, null)
-    declaration.setStatic(true)
-    declaration
   }
 }
