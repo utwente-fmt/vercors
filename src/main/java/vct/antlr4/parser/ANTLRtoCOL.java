@@ -468,7 +468,6 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
       } else if (match(ctx,"yields",null,";")){
         return create.special_decl(ASTSpecial.Kind.Yields,create.block(convert(ctx,1)));
       } else if (match(ctx, "signals", "(", null, null, ")", null, ";")) {
-//        DeclarationStatement decl = create.field_decl(getIdentifier(ctx, 3), checkType(convert(ctx, 2)), convert(ctx, 5));
         SignalsClause signals = create.signals_clause(getIdentifier(ctx, 3), checkType(convert(ctx, 2)), convert(ctx, 5));
         return create.special_decl(Signals, signals);
       }
