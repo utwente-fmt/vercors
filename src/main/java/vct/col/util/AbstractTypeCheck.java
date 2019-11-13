@@ -520,6 +520,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (contract.accesses!=null) for(ASTNode n:contract.accesses){
         n.accept(this);
       }
+      if (contract.signals!= null) for(ASTNode n:contract.signals){
+        n.accept(this);
+      }
     }
     if (body!=null && (body instanceof BlockStatement)) {
       //TODO: determine type of block
@@ -567,8 +570,16 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
             Abort("mismatch of kinds %s/%s for name %s",kind,info.kind,name);
           }
         }
-        DeclarationStatement decl=(DeclarationStatement)info.reference;
-        e.setType(decl.getType());
+        // TODO (Bob): This does not scale. Refactor?
+        if (info.reference instanceof DeclarationStatement) {
+          DeclarationStatement decl=(DeclarationStatement)info.reference;
+          e.setType(decl.getType());
+        } else if (info.reference instanceof SignalsClause) {
+          SignalsClause s = (SignalsClause) info.reference;
+          e.setType(s.type());
+        } else {
+          Abort("info.reference is not an instance of neither DeclarationStatement or SignalsClause: %s", info.reference);
+        }
         break;
       }
       case Method:
@@ -1866,5 +1877,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     c.block().apply(this);
+  }
+
+  @Override
+  public void visit(SignalsClause s) {
+    super.visit(s);
+    Type conditionType = s.condition().getType();
+    // TODO (Bob): Pretty specific. Ok, or should it be some subtyping check?
+    if (!(conditionType.isResource() || conditionType.isBoolean())) {
+      Abort("Condition must be resource or boolean");
+    }
   }
 }

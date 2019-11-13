@@ -499,6 +499,18 @@ public abstract class ASTFrame<T> {
       }
     }
 
+    @Override
+    public void visit(SignalsClause s) {
+      switch (action) {
+        case ENTER:
+          variables.enter();
+          variables.add(s.name(), new VariableInfo(s, NameExpression.Kind.Local)); // TODO (Bob): Should it be local?
+          break;
+        case LEAVE:
+          variables.leave();
+          break;
+      }
+    }
   };
   
   private void recursively_add_class_info(ASTClass cl) {
