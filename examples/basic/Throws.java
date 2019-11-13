@@ -1,18 +1,25 @@
-class Exception {
-    int exception_id;
-    Exception(int _exception_id) {
-        exception_id = _exception_id;
-    }
-}
+//class Exception {
+//    int exception_id;
+//    Exception(int _exception_id) {
+//        exception_id = _exception_id;
+//    }
+//}
 
-class MyClass {
+//import java.lang.Exception;
+
+//final class MyException extends Exception { }
+
+final class MyException { }
+
+final class MyClass {
     int x;
 
     //@ requires Perm(x, 1);
-    //@ signals (Exception e) Perm(x, 1) ** x == 4 ** Perm(e.exception_id, 1) ** e.exception_id == 18;
+    //@ ensures false; // Indicate that the function is not allowed to terminate by NOT throwing
+    //@ signals (Exception e) Perm(x, 1) ** x == 4;
     void foo() {
         int y = 3;
         x = y;
-        throw new Exception(22);
+        throw new MyException();
     }
 }

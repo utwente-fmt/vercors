@@ -49,7 +49,16 @@ public class Flatten extends AbstractRewriter {
 
   @Override
   public void visit(ASTSpecial s){
-    result=copy_pure.rewrite(s);
+    if (s.kind == ASTSpecial.Kind.Throw) {
+      Debug("throwing value %s",s.args[0]);
+      toplevel = false; // False because if a constructor appears it should be moved out. If it's a var, it's a useless move, but too bad.
+      ASTNode arg=rewrite(s.args[0]);
+      toplevel = false;
+      Debug("recreating throw with possibly flattened var");
+      result = create.special(ASTSpecial.Kind.Throw,arg);
+    } else {
+      result=copy_pure.rewrite(s);
+    }
   }
   public void visit(BlockStatement s){
     block_stack.push(current_block);
