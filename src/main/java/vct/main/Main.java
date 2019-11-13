@@ -348,6 +348,7 @@ public class Main
 
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
+        passes.add("while-labels");
 
         if(features.usesOperator(StandardOperator.AddrOf)) {
           passes.add("lift_declarations");
@@ -1153,6 +1154,11 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("while-labels", new CompilerPass("Insert explicit labels for break statements in while loops.") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new WhileLabels(arg).rewriteAll();
+      }
+    });
   }
 
 
