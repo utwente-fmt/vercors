@@ -416,4 +416,10 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   public S map(Switch s) {
     return null;
   }
+
+  @Override
+  public S map(SignalsClause s) {
+    Abort("Cannot map signals clause to silver statement");
+    return null;
+  }
 }

@@ -403,4 +403,10 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     }
   }
 
+  @Override
+  public void visit(SignalsClause s) {
+      s.getType().accept(this);
+      dispatch(s.condition());
+  }
+
 }

@@ -1,6 +1,7 @@
 package vct.col.rewrite;
 
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.util.ContractBuilder;
@@ -29,8 +30,9 @@ public class Parenthesize extends AbstractRewriter {
     cb.appendInvariant(rewrite(c.invariant));
     cb.requires(rewrite(c.pre_condition));
     cb.ensures(rewrite(c.post_condition));
-    if (c.signals!=null) for(DeclarationStatement decl:c.signals){
-      cb.signals((ClassType)rewrite(decl.getType()),decl.name(), rewrite(decl.initJava()));      
+    if (c.signals!=null) for(SignalsClause decl:c.signals){
+//      cb.signals((ClassType)rewrite(decl.getType()),decl.name(), rewrite(decl.initJava()));
+        cb.signals(rewrite(decl));
     }
   }
 

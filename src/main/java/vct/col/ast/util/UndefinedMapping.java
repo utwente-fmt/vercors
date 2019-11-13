@@ -254,4 +254,8 @@ public class UndefinedMapping<T> implements ASTMapping<T> {
     return null;
   }
 
+  @Override
+  public T map(SignalsClause s) {
+    return null;
+  }
 }

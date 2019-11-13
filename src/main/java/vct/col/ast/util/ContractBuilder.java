@@ -6,6 +6,7 @@ import hre.ast.FileOrigin;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.stmt.decl.VariableDeclaration;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
@@ -27,7 +28,7 @@ public class ContractBuilder {
   private ArrayList<DeclarationStatement> yields=new ArrayList<DeclarationStatement>();
   private HashSet<ASTNode> modifiable;
   private HashSet<ASTNode> accessible;
-  private ArrayList<DeclarationStatement> signals=new ArrayList<DeclarationStatement>();
+  private ArrayList<SignalsClause> signals=new ArrayList<SignalsClause>();
   
   public boolean isEmpty() {
     return  invariant.isConstant(default_true)
@@ -175,7 +176,7 @@ public class ContractBuilder {
     if (accessible!=null){
       accs=accessible.toArray(new ASTNode[0]);
     }
-    return new Contract(given.toArray(decls),yields.toArray(decls),mods,accs,invariant,pre_condition,post_condition,signals.toArray(decls));
+    return new Contract(given.toArray(decls),yields.toArray(decls),mods,accs,invariant,pre_condition,post_condition,signals.toArray(new SignalsClause[0]));
   }
   public void modifies(ASTNode ... locs) {
     empty=false;
@@ -196,12 +197,12 @@ public class ContractBuilder {
     return new Contract(new DeclarationStatement[0],new DeclarationStatement[0],default_true,default_true,default_true);
   }
 
-  public void signals(ClassType type, String name, ASTNode expr) {
-    DeclarationStatement decl=new DeclarationStatement(name,type,expr);
-    FileOrigin o1=(FileOrigin)type.getOrigin();
-    FileOrigin o2=(FileOrigin)expr.getOrigin();
-    decl.setOrigin(o1.merge(o2));
-    signals.add(decl);
+  public void signals(SignalsClause signals_clause) {
+//    DeclarationStatement decl=new DeclarationStatement(name,type,expr);
+//    FileOrigin o1=(FileOrigin)type.getOrigin();
+//    FileOrigin o2=(FileOrigin)expr.getOrigin();
+//    decl.setOrigin(o1.merge(o2));
+    signals.add(signals_clause);
   }
 
   public void requires(Iterable<ASTNode> collection) {

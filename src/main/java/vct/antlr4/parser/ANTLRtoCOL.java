@@ -22,20 +22,17 @@ import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
-import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.type.ClassType;
-import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.col.ast.stmt.decl.VariableDeclaration;
 import vct.col.syntax.Syntax;
 import vct.col.util.ASTFactory;
 import static hre.lang.System.*;
@@ -470,6 +467,10 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
         return create.special_decl(ASTSpecial.Kind.Given,create.block(decl));
       } else if (match(ctx,"yields",null,";")){
         return create.special_decl(ASTSpecial.Kind.Yields,create.block(convert(ctx,1)));
+      } else if (match(ctx, "signals", "(", null, null, ")", null, ";")) {
+//        DeclarationStatement decl = create.field_decl(getIdentifier(ctx, 3), checkType(convert(ctx, 2)), convert(ctx, 5));
+        SignalsClause signals = create.signals_clause(getIdentifier(ctx, 3), checkType(convert(ctx, 2)), convert(ctx, 5));
+        return create.special_decl(Signals, signals);
       }
       ParseTree tmp=ctx.getChild(0);
       int N=ctx.getChildCount();

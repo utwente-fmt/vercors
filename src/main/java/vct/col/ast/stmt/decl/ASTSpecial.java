@@ -64,7 +64,7 @@ public class ASTSpecial extends ASTDeclaration {
     Join,
     Comment,
     Invariant,
-    Contract, Requires, Ensures, Given(-1), Yields(-1), Modifies(-1), Pragma,
+    Contract, Requires, Ensures, Given(-1), Yields(-1), Signals, Modifies(-1), Pragma,
     RequiresAndEnsures(1),
     Accessible(-1),
     StaticEntry(0),

@@ -514,5 +514,11 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(Switch s) {
     return null;
   }
+
+  @Override
+  public E map(SignalsClause s) {
+    Abort("Cannot map signals clause to silver expression");
+    return null;
+  }
   
 }

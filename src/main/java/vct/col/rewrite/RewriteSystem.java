@@ -382,7 +382,11 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
   public Boolean map(Switch s, ASTNode a) {
     return null;
   }
-  
+
+  @Override
+  public Boolean map(SignalsClause s, ASTNode a) {
+    return null;
+  }
 }
 
 class MatchSubstitution extends AbstractRewriter {
@@ -475,7 +479,7 @@ class MatchSubstitution extends AbstractRewriter {
 
     super.post_visit(node);
   }
-   
+
 }
 
 class Normalizer extends AbstractRewriter {

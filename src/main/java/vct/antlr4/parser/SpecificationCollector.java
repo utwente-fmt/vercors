@@ -51,6 +51,7 @@ public class SpecificationCollector extends AbstractRewriter {
     case Invariant:
     case Modifies:
     case Accessible:
+    case Signals:
       if (currentContractBuilder != null) break;
     default:
       super.visit(s);
@@ -114,6 +115,9 @@ public class SpecificationCollector extends AbstractRewriter {
       break;
     case Invariant:
       currentContractBuilder.appendInvariant(rewrite(s.args[0]));
+      break;
+    case Signals:
+      currentContractBuilder.signals(rewrite((SignalsClause) s.args[0]));
       break;
     default:
       Abort("Missing case %s",s.kind);

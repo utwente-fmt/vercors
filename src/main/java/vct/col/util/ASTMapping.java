@@ -102,4 +102,6 @@ public interface ASTMapping<R> {
 
   public R map(Switch s);
 
+  public R map(SignalsClause s);
+
 }

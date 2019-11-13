@@ -1461,7 +1461,24 @@ public Axiom axiom(String name, ASTNode exp){
    * @return The AST structure that represents the decrementation.
    */
   public ASTNode postfix_decrement(String varname) {
-    return postfix_operator(varname, StandardOperator.Minus); 
+    return postfix_operator(varname, StandardOperator.Minus);
   }
+
+//  public DeclarationStatement field_decl(Origin o,String name, Type type,ASTNode init) {
+//    if (type.isNull()){
+//      Abort("cannot declare variable %s of <<null>> type.",name);
+//    }
+//    DeclarationStatement res=new DeclarationStatement(name,type,init);
+//    res.setOrigin(o);
+//    res.accept_if(post);
+//    return res;
+//  }
+
+    public SignalsClause signals_clause(String name, Type type, ASTNode condition) {
+      SignalsClause signals_clause = new SignalsClause(name, type, condition);
+      signals_clause.setOrigin(origin_stack.get());
+      signals_clause.accept_if(post);
+      return signals_clause;
+    }
 }
 

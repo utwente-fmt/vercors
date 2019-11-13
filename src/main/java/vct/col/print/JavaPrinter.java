@@ -660,12 +660,12 @@ public class JavaPrinter extends AbstractPrinter {
         e.accept(this);
         out.lnprintf(";");
       }
-      for (DeclarationStatement d:contract.signals){
+      for (SignalsClause s:contract.signals){
         out.printf("signals (");
-        d.getType().accept(this);
-        out.printf(" %s) ",d.name());
+        s.getType().accept(this);
+        out.printf(" %s) ",s .name());
         nextExpr();
-        d.initJava().accept(this);
+        s.condition().accept(this);
         out.lnprintf(";");
       }      
       if (contract.modifies!=null){
