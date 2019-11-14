@@ -5,7 +5,7 @@ final class MyClass {
             myLoop2: while(true) {
                 break myLoop2;
                 switch(false) {
-                    case 0:
+                    case 3:
                         break;
                     default:
                         break; // Test case, this one should not be changed
