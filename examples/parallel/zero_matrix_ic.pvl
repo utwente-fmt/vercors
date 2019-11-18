@@ -4,7 +4,8 @@
 class ZeroMatrixIC {
 
   context_everywhere matrix != null && M>0 && N > 0;
-	context_everywhere matrix.length == M * N;
+  context_everywhere matrix.length == M;
+  context_everywhere (\forall int i1; 0 <= i1 && i1 < M; matrix[i1].length == N);
   context  (\forall* int i1 ; 0 <= i1 && i1 < M ;
              (\forall* int j1 ; 0 <= j1 && j1 < N ;
                Perm(matrix[i1][j1],write)));
