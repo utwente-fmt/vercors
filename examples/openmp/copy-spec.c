@@ -20,7 +20,7 @@ void copy(int len,int a[],int b[]){
   for(i=0;i<len;i++)
   /*@
     context a != NULL && b != NULL;
-    context Perm(a[i],1) ** Perm(b[i],1\4);
+    context \pointer_index(a, i, 1) ** \pointer_index(b, i, 1\4);
     ensures a[i] == b[i];
   @*/
   {
