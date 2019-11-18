@@ -8,7 +8,7 @@ final class MyClass extends Exception {
                     case 3:
                         break;
                     default:
-                        break; // Test case, this one should not be changed
+                        break myLoop2;
                 }
                 x = 3;
             }

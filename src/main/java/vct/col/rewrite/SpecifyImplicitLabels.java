@@ -13,49 +13,58 @@ import java.util.Optional;
 
 import static hre.lang.System.Output;
 
-public class WhileLabels extends AbstractRewriter {
+// TODO (Bob): Possibly remove labels if they're not referred to by breaks, continues...? Then VerCors can (possibly) assume a statement does not need a try-catch if there's no label
+
+public class SpecifyImplicitLabels extends AbstractRewriter {
     int counter = 0;
 
     List<NameExpression> labelStack = new ArrayList<>();
 
-    public WhileLabels(ProgramUnit source) {
+    public SpecifyImplicitLabels(ProgramUnit source) {
         super(source);
     }
 
-    String generateWhileLabel() {
-        return "__while_" + (counter++);
+    String generateLabel(String prefix) {
+        return "__" + prefix + "_" + (counter++);
     }
 
-    public void visit(LoopStatement loopStatement) {
+    public void enterLabelScope(String prefix, ASTNode statement) {
         // Reuse an existing label or create a new one
         NameExpression currentLabel;
-        if (loopStatement.labels() > 0) {
-            currentLabel = loopStatement.getLabel(0);
+        if (statement.labels() > 0) {
+            currentLabel = statement.getLabel(0);
         } else {
-            currentLabel = create.label(generateWhileLabel());
+            currentLabel = create.label(generateLabel(prefix));
         }
 
         labelStack.add(currentLabel);
+    }
 
-        super.visit(loopStatement);
+    public void exitLabelScope() {
+        NameExpression currentLabel = labelStack.remove(labelStack.size() - 1);
 
         // Add currentlabel if the node has no labels yet
         if (result.labels() == 0) {
             result.addLabel(currentLabel);
         }
+    }
 
-        labelStack.remove(labelStack.size() - 1);
+    public void visit(LoopStatement loopStatement) {
+        enterLabelScope("while", loopStatement);
+
+        super.visit(loopStatement);
+
+        exitLabelScope();
     }
 
     public void visit(Switch switchStatement) {
-        labelStack.add(null);
+        enterLabelScope("switch", switchStatement);
         super.visit(switchStatement);
-        labelStack.remove(labelStack.size() - 1);
+        exitLabelScope();
     }
 
     public void visit(ASTSpecial special) {
-        // If it is a break/continue without a label, and we're not in a switch expression (which pushes a null on the labelStack),
-        // add the current label. Otherwise just copy over the thing.
+        // If it is a break/continue without a label add the current label. Otherwise just copy over the thing.
 
         boolean isAbrupt = special.kind == ASTSpecial.Kind.Break || special.kind == ASTSpecial.Kind.Continue;
         if (!isAbrupt) {
@@ -64,7 +73,8 @@ public class WhileLabels extends AbstractRewriter {
         }
 
         NameExpression currentLabel = labelStack.get(labelStack.size() - 1);
-        if (special.args.length == 0 && currentLabel != null) {
+        if (currentLabel == null) Abort("Null label is not allowed");
+        if (special.args.length == 0) {
             result = new ASTSpecial(special.kind, new ASTNode[]{ currentLabel });
         } else {
             super.visit(special);
