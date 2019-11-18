@@ -22,4 +22,16 @@ final class MyClass {
         x = y;
         throw new MyException();
     }
+
+    //@ requires Perm(x, 1);
+    //@ ensures Perm(x, 1) ** x == 10;
+    void bar() {
+        int y = 3;
+        x = y;
+        try {
+            throw new MyException();
+        } catch (MyException e) {
+            x = 10;
+        }
+    }
 }

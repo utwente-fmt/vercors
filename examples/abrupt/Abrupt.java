@@ -1,4 +1,4 @@
-final class MyClass {
+final class MyClass extends Exception {
     void foo() {
         int x = 0;
         while(true) {
