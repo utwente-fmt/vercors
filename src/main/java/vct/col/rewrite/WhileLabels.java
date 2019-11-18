@@ -56,9 +56,15 @@ public class WhileLabels extends AbstractRewriter {
     public void visit(ASTSpecial special) {
         // If it is a break/continue without a label, and we're not in a switch expression (which pushes a null on the labelStack),
         // add the current label. Otherwise just copy over the thing.
+
         boolean isAbrupt = special.kind == ASTSpecial.Kind.Break || special.kind == ASTSpecial.Kind.Continue;
+        if (!isAbrupt) {
+            super.visit(special);
+            return;
+        }
+
         NameExpression currentLabel = labelStack.get(labelStack.size() - 1);
-        if (isAbrupt && special.args.length == 0 && currentLabel != null) {
+        if (special.args.length == 0 && currentLabel != null) {
             result = new ASTSpecial(special.kind, new ASTNode[]{ currentLabel });
         } else {
             super.visit(special);
