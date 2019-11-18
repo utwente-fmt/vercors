@@ -23,8 +23,7 @@ void add(int len,int a[],int b[],int c[]){
     #pragma omp for schedule(static) nowait
     for(int i=0;i<len;i++)
     /*@
-      context a != NULL && c != NULL;
-      context Perm(c[i],1) ** Perm(a[i],1\2);
+      context \pointer_index(c, i, 1) ** \pointer_index(a, i, 1\2);
       ensures c[i] == a[i];
     @*/
     {
@@ -33,8 +32,7 @@ void add(int len,int a[],int b[],int c[]){
     #pragma omp for schedule(static)
     for(int i=0;i<len;i++)
     /*@
-      context b != NULL && c != NULL;
-      context Perm(c[i],1) ** Perm(b[i],1\2);
+      context \pointer_index(c, i, 1) ** \pointer_index(b, i, 1\2);
       ensures c[i] == \old(c[i]) + b[i];
     @*/
     {
