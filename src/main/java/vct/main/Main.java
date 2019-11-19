@@ -348,7 +348,6 @@ public class Main
 
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
-        passes.add("specify-implicit-labels");
 
         if(features.usesOperator(StandardOperator.AddrOf)) {
           passes.add("lift_declarations");
@@ -421,6 +420,10 @@ public class Main
           passes.add("standardize");
           passes.add("check");
         }
+
+        // Abrupt termination encoding passes
+        passes.add("specify-implicit-labels");
+        passes.add("check"); // Fix up lost methods defs...?
 
         boolean has_type_adt=false;
         if (silver.used()) {
