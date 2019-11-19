@@ -69,7 +69,7 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(StructDeref,"\\structderef");
         syntax.addFunction(IterationOwner,"\\owner");
         syntax.addFunction(Empty,"empty");
-        syntax.addFunction(Remove, "remove");
+        syntax.addFunction(RemoveAt, "remove");
         syntax.addFunction(RangeFromSeq, "range");
         syntax.addRightFix(PrependSingle, "::", 110);
         syntax.addLeftFix(AppendSingle, "++", 110);

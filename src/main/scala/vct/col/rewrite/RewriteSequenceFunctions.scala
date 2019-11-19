@@ -58,7 +58,7 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
 
   override def visit(operator: OperatorExpression): Unit = {
     operator.operator match {
-      case StandardOperator.Remove =>
+      case StandardOperator.RemoveAt =>
         val sequenceType = operator.arg(0).getType
         result = create.invokation(null, null, RewriteSequenceFunctions.getRemoveFunction(sequenceType), rewrite(operator.args.toArray):_*)
       case StandardOperator.RangeFromSeq =>

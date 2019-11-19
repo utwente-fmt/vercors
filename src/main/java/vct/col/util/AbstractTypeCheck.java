@@ -2,9 +2,7 @@ package vct.col.util;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import org.antlr.runtime.tree.ParseTree;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpression.Kind;
 import vct.col.ast.expr.*;
@@ -22,7 +20,6 @@ import vct.col.rewrite.MultiSubstitution;
 import vct.col.rewrite.TypeVarSubstitution;
 import vct.silver.SilverTypeMap;
 import vct.util.Configuration;
-import vct.col.util.SequenceUtils;
 
 /**
  * This class implements type checking of simple object oriented programs.
@@ -1382,7 +1379,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(e.arg(0).getType());
         break;
       }
-      case Remove: {
+      case RemoveAt: {
         if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) Fail("first argument of remove is not a sequence");
         if (!tt[1].isInteger()) Fail("second argument of remove is not an integer");
 
@@ -1489,7 +1486,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     // TODO: type check cannot derive a useful type from only the values
     v.setType(v.type());
 
-    Set<PrimitiveSort> collections = Stream.of(PrimitiveSort.Sequence,PrimitiveSort.Set,PrimitiveSort.Bag).collect(Collectors.toSet());
+    List<PrimitiveSort> collections = Arrays.asList(PrimitiveSort.Sequence,PrimitiveSort.Set,PrimitiveSort.Bag);
 
     if (collections.stream().anyMatch(s -> v.type().isPrimitive(s)) &&
             v.type().firstarg() instanceof TypeVariable &&
