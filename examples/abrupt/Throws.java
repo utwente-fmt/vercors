@@ -11,6 +11,10 @@
 
 final class MyException { }
 
+final class FooException { }
+
+final class BarException { }
+
 final class MyClass {
     int x;
 
@@ -18,7 +22,7 @@ final class MyClass {
     //@ ensures false; // Indicate that the function is not allowed to terminate by NOT throwing
     //@ signals (MyException e) Perm(x, 1) ** x == 4;
     //@ signals (FooException) Perm(x, 1) ** x == 4;
-    void foo() {
+    void foo() throws MyException, FooException {
         int y = 3;
         x = y;
         throw new MyException();
@@ -33,7 +37,7 @@ final class MyClass {
             throw new MyException();
         } catch (MyException e) {
             x = 10;
-        } catch (FooException | BarException e) {
+        } catch (FooException | BarException | MyException e) {
             x = 20;
         }
     }
