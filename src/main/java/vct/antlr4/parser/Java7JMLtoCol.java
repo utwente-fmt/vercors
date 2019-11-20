@@ -549,7 +549,9 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
 
   @Override
   public ASTNode visitCatchType(CatchTypeContext ctx) {
-
+    if (ctx.children.size() > 1) {
+      Abort("Catch type union not supported yet");
+    }
     return null;
   }
 
