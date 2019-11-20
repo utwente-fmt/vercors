@@ -22,19 +22,19 @@ public class AbruptRewriter extends AbstractRewriter {
     private Set<NameExpression> breakLabels = new HashSet<>();
     private Set<NameExpression> continueLabels = new HashSet<>();
 
-    public String generateBreakLabel(NameExpression label) {
-        return "__break_" + label.getName();
+    public NameExpression generateBreakLabel(NameExpression label) {
+        return create.unresolved_name("__break_" + label.getName());
     }
 
-    public String generateContinueLabel(NameExpression label) {
-        return "__continue_" + label.getName();
+    public NameExpression generateContinueLabel(NameExpression label) {
+        return create.unresolved_name("__continue_" + label.getName());
     }
 
     @Override
     public void post_visit(ASTNode node) {
         if (!(result instanceof LoopStatement)) {
             for (NameExpression label : node.getLabels()) {
-                NameExpression breakLabel = create.unresolved_name(generateBreakLabel(label));
+                NameExpression breakLabel = generateBreakLabel(label);
                 // Apparently this is how the "empty labeled statement" (label: ;) is parsed and encoded in COL.
                 ASTNode breakTarget = create.comment(";").labeled(breakLabel.getName());
 
@@ -68,7 +68,7 @@ public class AbruptRewriter extends AbstractRewriter {
             // The targets are where to jump if "break/continue labelX" is called. Naturally the targets are not the same
             // location as the label itself, hence we need separate target labels.
 
-            NameExpression continueLabel = create.unresolved_name(generateContinueLabel(label));
+            NameExpression continueLabel = generateContinueLabel(label);
             ASTNode continueTarget = create.comment(";").labeled(continueLabel.getName());
             // Only create continue target if code actually continues to label
             if (continueLabels.contains(continueLabel)) {
@@ -77,7 +77,7 @@ public class AbruptRewriter extends AbstractRewriter {
                 Debug("Pepending %s to while loop", continueTarget);
             }
 
-            NameExpression breakLabel = create.unresolved_name(generateBreakLabel(label));
+            NameExpression breakLabel = generateBreakLabel(label);
             ASTNode breakTarget = create.comment(";").labeled(breakLabel.getName());
             // Only create break target if code actually breaks to label
             if (breakLabels.contains(breakLabel)) {
@@ -114,7 +114,7 @@ public class AbruptRewriter extends AbstractRewriter {
 
     private void visitContinue(ASTSpecial continueStatement) {
         NameExpression label = (NameExpression) continueStatement.args[0];
-        NameExpression newLabel = create.unresolved_name(generateContinueLabel(label));
+        NameExpression newLabel = generateContinueLabel(label);
         Debug("Turning continue into goto %s", newLabel.getName());
         result = create.special(ASTSpecial.Kind.Goto, newLabel);
         continueLabels.add(newLabel);
@@ -122,7 +122,7 @@ public class AbruptRewriter extends AbstractRewriter {
 
     public void visitBreak(ASTSpecial breakStatement) {
         NameExpression label = (NameExpression) breakStatement.args[0];
-        NameExpression newLabel = create.unresolved_name(generateBreakLabel(label));
+        NameExpression newLabel = generateBreakLabel(label);
         Debug("Turning break into goto %s", newLabel.getName());
         result = create.special(ASTSpecial.Kind.Goto, newLabel);
         breakLabels.add(newLabel);
