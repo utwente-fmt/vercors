@@ -426,6 +426,7 @@ public class Main
         passes.add("check"); // Fix up lost methods defs...?
         if (!features.usesFinallyClause()) {
           passes.add("abrupt-rewrite");
+          passes.add("check");
         } else {
           Warning("Not encoding abrupt...");
         }

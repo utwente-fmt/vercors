@@ -8,13 +8,13 @@ final class MyClass {
         }
         //@ assert x == 10;
         while(true) {
-            myLoop2: while(true) {
+            myLoop2: myLoop3: myLoop4: while(true) {
                 break myLoop2;
                 switch(false) {
                     case 3:
                         break;
                     default:
-                        break myLoop2;
+                        break myLoop3;
                 }
                 x = 3;
             }
