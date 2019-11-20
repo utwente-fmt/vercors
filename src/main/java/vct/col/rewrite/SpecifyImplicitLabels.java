@@ -73,7 +73,7 @@ public class SpecifyImplicitLabels extends AbstractRewriter {
         if (special.args.length == 0 && labelStack.size() > 0) {
             NameExpression currentLabel = labelStack.get(labelStack.size() - 1);
             if (currentLabel == null) Abort("Null label is not allowed");
-            result = new ASTSpecial(special.kind, new ASTNode[]{currentLabel});
+            result = create.special(special.kind, new ASTNode[]{currentLabel});
         } else if (special.args.length == 0 && labelStack.size() == 0) {
             // If there is no break target but also no switch/while in scope, that's an error
             Abort("Break without target is only allowed within while or switch statements");
