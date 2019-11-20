@@ -3,6 +3,7 @@ package vct.col.util;
 import java.util.EnumSet;
 import java.util.HashSet;
 
+import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -10,17 +11,12 @@ import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.expr.Binder;
 import vct.col.ast.expr.BindingExpression;
 import vct.col.ast.stmt.decl.Contract;
-import vct.col.ast.stmt.composite.ForEachLoop;
-import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.stmt.composite.ParallelBlock;
-import vct.col.ast.stmt.composite.ParallelInvariant;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.RecursiveVisitor;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.col.ast.stmt.composite.VectorBlock;
 
 public class FeatureScanner extends RecursiveVisitor<Object> {
 
@@ -32,6 +28,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private boolean has_statics=false;
   private boolean has_dynamics=false;
   private boolean has_doubles=false;
+  private boolean has_finally_clause=false;
   private boolean has_longs=false;
   private boolean has_processes=false;
   private boolean has_inheritance=false;
@@ -65,6 +62,10 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   
   public boolean usesDoubles(){
     return has_doubles;
+  }
+
+  public boolean usesFinallyClause(){
+    return has_finally_clause;
   }
   
   public boolean usesSummation(){
@@ -189,5 +190,12 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   }
   public boolean usesPragma(String string) {
     return pragmas.contains(string);
+  }
+
+  public void visit(TryCatchBlock tryCatchBlock) {
+      super.visit(tryCatchBlock);
+      if (tryCatchBlock.after() != null) {
+        has_finally_clause = true;
+      }
   }
 }

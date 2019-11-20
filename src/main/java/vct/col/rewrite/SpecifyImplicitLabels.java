@@ -50,10 +50,8 @@ public class SpecifyImplicitLabels extends AbstractRewriter {
     }
 
     public void visit(LoopStatement loopStatement) {
-        enterLabelScope("while", loopStatement);
-
+        enterLabelScope("loop", loopStatement);
         super.visit(loopStatement);
-
         exitLabelScope();
     }
 
@@ -65,18 +63,22 @@ public class SpecifyImplicitLabels extends AbstractRewriter {
 
     public void visit(ASTSpecial special) {
         // If it is a break/continue without a label add the current label. Otherwise just copy over the thing.
-
         boolean isAbrupt = special.kind == ASTSpecial.Kind.Break || special.kind == ASTSpecial.Kind.Continue;
         if (!isAbrupt) {
             super.visit(special);
             return;
         }
 
-        NameExpression currentLabel = labelStack.get(labelStack.size() - 1);
-        if (currentLabel == null) Abort("Null label is not allowed");
-        if (special.args.length == 0) {
-            result = new ASTSpecial(special.kind, new ASTNode[]{ currentLabel });
+        // If there is no break target
+        if (special.args.length == 0 && labelStack.size() > 0) {
+            NameExpression currentLabel = labelStack.get(labelStack.size() - 1);
+            if (currentLabel == null) Abort("Null label is not allowed");
+            result = new ASTSpecial(special.kind, new ASTNode[]{currentLabel});
+        } else if (special.args.length == 0 && labelStack.size() == 0) {
+            // If there is no break target but also no switch/while in scope, that's an error
+            Abort("Break without target is only allowed within while or switch statements");
         } else {
+            // There already is a break target, so we can just skip it
             super.visit(special);
         }
     }

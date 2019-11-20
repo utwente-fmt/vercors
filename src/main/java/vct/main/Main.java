@@ -424,6 +424,11 @@ public class Main
         // Abrupt termination encoding passes
         passes.add("specify-implicit-labels");
         passes.add("check"); // Fix up lost methods defs...?
+        if (!features.usesFinallyClause()) {
+          passes.add("abrupt-rewrite");
+        } else {
+          Warning("Not encoding abrupt...");
+        }
 
         boolean has_type_adt=false;
         if (silver.used()) {
@@ -1160,6 +1165,11 @@ public class Main
     defined_passes.put("specify-implicit-labels", new CompilerPass("Insert explicit labels for break statements in while loops.") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new SpecifyImplicitLabels(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("abrupt-rewrite", new CompilerPass("Rewrite abrupt termination (break, continue, return) into jumps (does not work when finally is present)") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new AbruptRewriter(arg).rewriteAll();
       }
     });
   }
