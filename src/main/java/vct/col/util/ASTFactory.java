@@ -1480,5 +1480,18 @@ public Axiom axiom(String name, ASTNode exp){
       signals_clause.accept_if(post);
       return signals_clause;
     }
+
+    public ASTSpecial jump(NameExpression label) {
+      return special(ASTSpecial.Kind.Goto, label);
+    }
+
+    public ASTSpecial label_decl(NameExpression label) {
+      return label_decl(label.getName());
+    }
+
+    public ASTSpecial label_decl(String label) {
+      // Apparently this is how the "empty labeled statement" (in java: "label: ;") is parsed and encoded in COL.
+      return (ASTSpecial) comment(";").labeled(label);
+    }
 }
 

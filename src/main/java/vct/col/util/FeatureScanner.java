@@ -20,6 +20,7 @@ import vct.col.ast.type.Type;
 
 public class FeatureScanner extends RecursiveVisitor<Object> {
 
+
   public FeatureScanner(){
     super(null,null);
   }
@@ -34,6 +35,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private boolean has_inheritance=false;
   private boolean has_kernels=false;
   private boolean has_iteration_contracts=false;
+  private boolean has_switch=false;
   private boolean uses_csl=false;
   private EnumSet<StandardOperator> ops_used=EnumSet.noneOf(StandardOperator.class);
   private EnumSet<ASTSpecial.Kind> specials_used=EnumSet.noneOf(ASTSpecial.Kind.class);
@@ -98,6 +100,10 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   
   public boolean usesIterationContracts(){
     return has_iteration_contracts;
+  }
+
+  public boolean usesSwitch() {
+    return this.has_switch;
   }
 
   public void pre_visit(ASTNode node){
@@ -197,5 +203,10 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
       if (tryCatchBlock.after() != null) {
         has_finally_clause = true;
       }
+  }
+
+  public void visit(Switch switchStatement) {
+    super.visit(switchStatement);
+    has_switch = true;
   }
 }

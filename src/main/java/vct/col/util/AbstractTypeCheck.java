@@ -1888,4 +1888,20 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Abort("Condition must be resource or boolean");
     }
   }
+
+  public void visit(Switch switchStatement) {
+    // First type all the subparts
+    super.visit(switchStatement);
+
+    Type matchType = switchStatement.expr.getType();
+
+    for (Switch.Case switchCase : switchStatement.cases) {
+        for (ASTNode caseExpr : switchCase.cases) {
+          if (caseExpr == null) continue;
+          if (!matchType.comparableWith(source(), caseExpr.getType())) {
+            Abort("Case expr type should be comparable to switch expr type");
+          }
+        }
+    }
+  }
 }

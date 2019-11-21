@@ -10,11 +10,11 @@ final class MyClass {
         while(true) {
             myLoop2: myLoop3: myLoop4: while(true) {
                 break myLoop2;
-                switch(false) {
-                    case 3:
-                        break;
+                switch(3) {
                     default:
                         break myLoop3;
+                    case 3:
+                        break;
                 }
                 x = 3;
             }

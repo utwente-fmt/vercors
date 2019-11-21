@@ -430,6 +430,9 @@ public class Main
         } else {
           Warning("Not encoding abrupt...");
         }
+        if (features.usesSwitch()) {
+          passes.add("unfold-switch");
+        }
 
         boolean has_type_adt=false;
         if (silver.used()) {
@@ -1171,6 +1174,11 @@ public class Main
     defined_passes.put("abrupt-rewrite", new CompilerPass("Rewrite abrupt termination (break, continue, return) into jumps (does not work when finally is present)") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new AbruptRewriter(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("unfold-switch", new CompilerPass("Unfold switch to chain of if-statements that jump to sections.") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new UnfoldSwitch(arg).rewriteAll();
       }
     });
   }

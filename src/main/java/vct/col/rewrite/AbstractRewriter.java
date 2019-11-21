@@ -712,6 +712,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode and(ASTNode e1,ASTNode e2){
     return create.expression(StandardOperator.And,e1,e2);
   }
+  public ASTNode or(ASTNode e1, ASTNode e2){
+    return create.expression(StandardOperator.Or,e1,e2);
+  }
   public ASTNode plus(ASTNode e1,ASTNode e2){
     return create.expression(StandardOperator.Plus,e1,e2);
   }

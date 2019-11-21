@@ -40,11 +40,12 @@ public class SpecifyImplicitLabels extends AbstractRewriter {
         labelStack.add(currentLabel);
     }
 
-    public void exitLabelScope() {
+    public void exitLabelScope(ASTNode node) {
         NameExpression currentLabel = labelStack.remove(labelStack.size() - 1);
 
-        // Add currentlabel if the node has no labels yet
-        if (result.labels() == 0) {
+        // Add currentlabel if the original node has no labels yet
+        // Since they will be copied over in the post visit step
+        if (node.labels() == 0) {
             result.addLabel(currentLabel);
         }
     }
@@ -52,13 +53,13 @@ public class SpecifyImplicitLabels extends AbstractRewriter {
     public void visit(LoopStatement loopStatement) {
         enterLabelScope("loop", loopStatement);
         super.visit(loopStatement);
-        exitLabelScope();
+        exitLabelScope(loopStatement);
     }
 
     public void visit(Switch switchStatement) {
         enterLabelScope("switch", switchStatement);
         super.visit(switchStatement);
-        exitLabelScope();
+        exitLabelScope(switchStatement);
     }
 
     public void visit(ASTSpecial special) {

@@ -1,15 +1,18 @@
 package vct.col.rewrite;
 
+import com.google.common.collect.Iterables;
 import org.antlr.v4.codegen.model.Loop;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.LoopStatement;
+import vct.col.ast.stmt.composite.Switch;
 import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -18,7 +21,6 @@ public class AbruptRewriter extends AbstractRewriter {
         super(source);
     }
 
-    // TODO (Bob): Should this be a stack of sets? As methods can be nested at some point.
     private Set<NameExpression> breakLabels = new HashSet<>();
     private Set<NameExpression> continueLabels = new HashSet<>();
 
@@ -33,19 +35,35 @@ public class AbruptRewriter extends AbstractRewriter {
     @Override
     public void post_visit(ASTNode node) {
         if (!(result instanceof LoopStatement)) {
+            BlockStatement block = create.block();
+            ArrayList<NameExpression> originalLabels = new ArrayList<>();
+
             for (NameExpression label : node.getLabels()) {
                 NameExpression breakLabel = generateBreakLabel(label);
-                // Apparently this is how the "empty labeled statement" (label: ;) is parsed and encoded in COL.
-                ASTNode breakTarget = create.comment(";").labeled(breakLabel.getName());
+                ASTNode breakTarget = create.label_decl(breakLabel);
 
                 // Only create break target if code actually breaks to label
                 // While loops are labeled properly in their own visit
-                if (breakLabels.contains(breakLabel) && !(result instanceof LoopStatement)) {
-                    result = create.block(result, breakTarget);
+                if (breakLabels.contains(breakLabel)) {
+                    block.add(breakTarget);
+                    // Save it for later
+                    originalLabels.add(label);
                     Debug("Creating block containing node and %s", breakTarget);
                 }
 
                 breakLabels.remove(breakLabel);
+            }
+
+            // Only replace the statement with a block if the labels are actually used
+            if (block.size() > 0) {
+                // Add the original label back to the replicated statement
+                for (NameExpression label : originalLabels) {
+                    result.addLabel(label);
+                }
+                block.prepend(result);
+                result = block;
+                // Clear the labels so they won't be copied in the post_visit call to the new generated block
+                node.clearLabels();
             }
         }
 
@@ -69,7 +87,7 @@ public class AbruptRewriter extends AbstractRewriter {
             // location as the label itself, hence we need separate target labels.
 
             NameExpression continueLabel = generateContinueLabel(label);
-            ASTNode continueTarget = create.comment(";").labeled(continueLabel.getName());
+            ASTNode continueTarget = create.label_decl(continueLabel);
             // Only create continue target if code actually continues to label
             if (continueLabels.contains(continueLabel)) {
                 BlockStatement blockStatement = (BlockStatement) ((LoopStatement) result).getBody();
@@ -78,7 +96,7 @@ public class AbruptRewriter extends AbstractRewriter {
             }
 
             NameExpression breakLabel = generateBreakLabel(label);
-            ASTNode breakTarget = create.comment(";").labeled(breakLabel.getName());
+            ASTNode breakTarget = create.label_decl(breakLabel);
             // Only create break target if code actually breaks to label
             if (breakLabels.contains(breakLabel)) {
                 breakTargets.add(breakTarget);
@@ -92,6 +110,8 @@ public class AbruptRewriter extends AbstractRewriter {
         // If there were one or more break targets, replace the resulting while loop with a block containing the while
         // loop, followed by all the break targets
         if (breakTargets.size() > 0) {
+            // This is needed because the post_visit step usually does fixate, but if we put our while loop inside a block
+            // then the post_visit won't call fixate on the members, so we have to do it ourselves...?
             ((LoopStatement) result).fixate();
             breakTargets.prepend(result);
             result = breakTargets;
@@ -116,7 +136,7 @@ public class AbruptRewriter extends AbstractRewriter {
         NameExpression label = (NameExpression) continueStatement.args[0];
         NameExpression newLabel = generateContinueLabel(label);
         Debug("Turning continue into goto %s", newLabel.getName());
-        result = create.special(ASTSpecial.Kind.Goto, newLabel);
+        result = create.jump(newLabel);
         continueLabels.add(newLabel);
     }
 
@@ -124,7 +144,7 @@ public class AbruptRewriter extends AbstractRewriter {
         NameExpression label = (NameExpression) breakStatement.args[0];
         NameExpression newLabel = generateBreakLabel(label);
         Debug("Turning break into goto %s", newLabel.getName());
-        result = create.special(ASTSpecial.Kind.Goto, newLabel);
+        result = create.jump(newLabel);
         breakLabels.add(newLabel);
     }
 
@@ -132,5 +152,4 @@ public class AbruptRewriter extends AbstractRewriter {
         Warning("Trycatchblock not yet implemented");
         super.visit(tryCatchBlock);
     }
-
 }
