@@ -1895,13 +1895,22 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
     Type matchType = switchStatement.expr.getType();
 
+    int numberDefaults = 0;
     for (Switch.Case switchCase : switchStatement.cases) {
-        for (ASTNode caseExpr : switchCase.cases) {
-          if (caseExpr == null) continue;
-          if (!matchType.comparableWith(source(), caseExpr.getType())) {
-            Abort("Case expr type should be comparable to switch expr type");
-          }
+      for (ASTNode caseExpr : switchCase.cases) {
+        // Count the default nodes
+        if (caseExpr == null) {
+          numberDefaults++;
+          continue;
         }
+        if (!matchType.comparableWith(source(), caseExpr.getType())) {
+          Abort("Case expr type should be comparable to switch expr type");
+        }
+      }
+    }
+
+    if (numberDefaults > 1) {
+      Abort("Switch statement at % cannot contain more than one default statement", switchStatement.getOrigin());
     }
   }
 }
