@@ -423,16 +423,15 @@ public class Main
 
         // Abrupt termination encoding passes
         passes.add("specify-implicit-labels");
-        passes.add("check"); // Fix up lost methods defs...?
         if (!features.usesFinallyClause()) {
           passes.add("abrupt-rewrite");
-          passes.add("check");
         } else {
           Warning("Not encoding abrupt...");
         }
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
         }
+        passes.add("check"); // Fix up lost methods defs
 
         boolean has_type_adt=false;
         if (silver.used()) {

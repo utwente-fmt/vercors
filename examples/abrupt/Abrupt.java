@@ -1,7 +1,8 @@
 final class MyClass {
+    boolean p();
     void foo() {
         int x = 0;
-        my_if: if (true) {
+        my_if: if (p()) {
             x = 10;
             break my_if;
             x = 11;
