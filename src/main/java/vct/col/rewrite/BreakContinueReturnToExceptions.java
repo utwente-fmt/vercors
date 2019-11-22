@@ -94,7 +94,7 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
         if (encounteredReturn) {
             // Wrap body in try-catch
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
-            tryCatchBlock.addCatchClause(create.field_decl("e", getExceptionType("result", "")), create.block());
+            tryCatchBlock.addCatchClause(create.field_decl("e", getExceptionType("return", "")), create.block());
             resultMethod.setBody(tryCatchBlock);
 
             encounteredReturn = false;
@@ -164,39 +164,37 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
         }
     }
 
-//    public void visit(MethodInvokation e){
-//        // TODO (Bob): Clean this up?
-//        Method m=e.getDefinition();
-//        if (m==null) Abort("unexpected null method definition at %s",e.getOrigin());
-//        switch(m.kind){
-//            case Predicate:
-//            case Pure:
-//                super.visit(e);
-//                return;
-//            default:
-//                break;
-//        }
-//        if (!m.getReturnType().isVoid()){
-//            Fail("unexpected invokation of non-void method %s at %s",e.method,e.getOrigin());
-//        }
-//        int N=e.getArity();
-//        ASTNode args[]=new ASTNode[N+1];
-//        args[0]=create.local_name("sys__thrown");
-//        for(int i=0;i<N;i++){
-//            args[i+1]=rewrite(e.getArg(i));
-//        }
-//        MethodInvokation res=create.invokation(rewrite(e.object), rewrite(e.dispatch) , e.method , args );
-//        for(NameExpression lbl:e.getLabels()){
-//            Debug("VOIDCALLS: copying label %s",lbl);
-//            res.addLabel(rewrite(lbl));
-//        }
-//        res.set_before(rewrite(e.get_before()));
-//        res.set_after(rewrite(e.get_after()));
-//        result=res;
-//    }
+    public void visit(MethodInvokation e){
+        switch(e.getDefinition().kind){
+            case Predicate:
+            case Pure:
+                super.visit(e);
+                return;
+        }
+
+        // Non-void case should be handled by
+        if (!e.getDefinition().getReturnType().isVoid()){
+            Fail("unexpected invokation of non-void method %s at %s",e.method,e.getOrigin());
+        }
+
+        int N=e.getArity();
+        ASTNode args[]=new ASTNode[N+1];
+        args[0]=create.local_name("sys__thrown");
+        for(int i=0;i<N;i++){
+            args[i+1]=rewrite(e.getArg(i));
+        }
+        MethodInvokation res=create.invokation(rewrite(e.object), rewrite(e.dispatch) , e.method , args );
+        for(NameExpression lbl:e.getLabels()){
+            Debug("VOIDCALLS: copying label %s",lbl);
+            res.addLabel(rewrite(lbl));
+        }
+        res.set_before(rewrite(e.get_before()));
+        res.set_after(rewrite(e.get_after()));
+        result=res;
+    }
 
     public void visit(DeclarationStatement declarationStatement) {
-        if (declarationStatement.init() != null) {
+        if (!declarationStatement.init().isEmpty()) {
             Abort("Declaration statement with init was not unfolded");
         }
 
@@ -204,35 +202,21 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
     }
 
     public void visit(AssignmentStatement assign){
-        super.visit(assign);
-        AssignmentStatement resultAssign = (AssignmentStatement) result;
+        if (assign.expression() instanceof MethodInvokation){
+            MethodInvokation invokation = (MethodInvokation) super.visit(assign.expression);
+            AssignmentStatement resultAssign = (AssignmentStatement) result;
 
-        if (resultAssign.expression() instanceof MethodInvokation){
-            MethodInvokation invocation = (MethodInvokation) resultAssign.expression();
+            MethodInvokation invocation = (MethodInvokation) assign.expression();
             if (invocation.getDefinition().kind == Method.Kind.Plain) {
-                ArrayList<ASTNode> args = new ArrayList<ASTNode>(Arrays.asList(invocation.getArgs()));
+                MethodInvokation resultInvocation = (MethodInvokation) resultAssign.expression();
+                ArrayList<ASTNode> args = new ArrayList<ASTNode>(Arrays.asList(resultInvocation.getArgs()));
                 args.add(0, resultAssign.location());
-                invocation.setArgs(args.toArray(new ASTNode[0]));
+                resultInvocation.setArgs(args.toArray(new ASTNode[0]));
 
                 result = invocation;
-
-//                int N = e.getArity();
-//                ASTNode args[] = new ASTNode[N + 2];
-//                args[0] = create.local_name("sys__thrown");
-//                args[1] = rewrite(assign.location());
-
-//                for (int i = 0; i < N; i++) {
-//                    args[i + 2] = rewrite(e.getArg(i));
-//                }
-//                MethodInvokation res = create.invokation(rewrite(e.object), rewrite(e.dispatch), e.method, args);
-//                for (NameExpression lbl : e.getLabels()) {
-//                    Debug("VOIDCALLS: copying label %s", lbl);
-//                    res.addLabel(rewrite(lbl));
-//                }
-//                res.set_before(rewrite(e.get_before()));
-//                res.set_after(rewrite(e.get_after()));
-//                result = res;
             }
+        } else {
+            super.visit(assign);
         }
     }
 }

@@ -3,7 +3,7 @@ class Java {
 
     int foo() {
         boolean ppp = p();
-        my_if: if (p()) {
+        my_if: if (ppp) {
             break my_if;
         }
 
