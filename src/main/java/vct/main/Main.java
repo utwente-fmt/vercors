@@ -422,17 +422,22 @@ public class Main
         }
 
         // Abrupt termination encoding passes
+        // TODO (Bob): Only execute these if there are continues/breaks?
         passes.add("specify-implicit-labels");
-        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
-          passes.add("break-continue-to-goto");
-        } else {
-          // TODO (Bob): This is not needed when finished
-          Warning("Not encoding continue/break...");
-        }
+        passes.add("continue-to-break");
+//        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
+//          passes.add("break-continue-to-goto");
+//        } else {
+//          // TODO (Bob): This is not needed when finished
+//          Warning("Not encoding continue/break...");
+//        }
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
         }
-        passes.add("check"); // Fix up lost methods defs
+        passes.add("break-continue-return-to-exceptions");
+        // TODO: Set usesInheritance() to true
+        passes.add("java-resolve-types");
+        passes.add("check"); // Fix up lost methods defs and such
 
         boolean has_type_adt=false;
         if (silver.used()) {
@@ -1005,9 +1010,14 @@ public class Main
    });
    defined_passes.put("java_resolve",new CompilerPass("Resolve the library dependencies of a java program"){
      public ProgramUnit apply(ProgramUnit arg,String ... args){
-       return new JavaResolver(arg).rewriteAll();
+       return new JavaResolver(arg, true).rewriteAll();
      }
    });
+    defined_passes.put("java-resolve-types",new CompilerPass("Resolve leftover unresolved library dependencies of a java program"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new JavaResolver(arg, false).rewriteAll();
+      }
+    });
    defined_passes.put("propagate-invariants",new CompilerPass("propagate invariants"){
      public ProgramUnit apply(ProgramUnit arg,String ... args){
        return new PropagateInvariants(arg).rewriteAll();
@@ -1176,9 +1186,19 @@ public class Main
         return new BreakContinueToGoto(arg).rewriteAll();
       }
     });
+    defined_passes.put("break-continue-return-to-exceptions", new CompilerPass("Rewrite break, continue into exceptions") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new BreakContinueReturnToExceptions(arg).rewriteAll();
+      }
+    });
     defined_passes.put("unfold-switch", new CompilerPass("Unfold switch to chain of if-statements that jump to sections.") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new UnfoldSwitch(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("continue-to-break", new CompilerPass("Convert continues into breaks") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new ContinueToBreak(arg).rewriteAll();
       }
     });
   }

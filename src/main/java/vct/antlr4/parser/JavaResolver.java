@@ -26,9 +26,11 @@ import vct.util.ClassName;
 public class JavaResolver extends AbstractRewriter {
 
   private ClassLoader path=this.getClass().getClassLoader();
+  private boolean enforceConstructorNaming;
   
-  public JavaResolver(ProgramUnit source) {
+  public JavaResolver(ProgramUnit source, boolean enforceConstructorNaming) {
     super(source);
+    this.enforceConstructorNaming = enforceConstructorNaming;
   }
   
   private boolean ensures_loaded(String ... name){
@@ -326,7 +328,7 @@ public class JavaResolver extends AbstractRewriter {
 
   @Override
   public void visit(Method m) {
-    if(m.getKind() == Method.Kind.Constructor) {
+    if(m.getKind() == Method.Kind.Constructor && enforceConstructorNaming) {
       if(!m.getName().equals(current_class().getName())) {
         Fail("Constructor has a different name (%s) than the class in which it is defined (%s). Did you mean to add a return type to turn it into a method?", m.getName(), current_class().getName());
       }
