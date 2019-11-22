@@ -38,6 +38,7 @@ final class MyClass {
             }
 
             //@ assert x == 40 || x == 5;
+            x = 500;
             break;
         }
 

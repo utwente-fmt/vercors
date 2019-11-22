@@ -11,13 +11,14 @@ import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.stmt.terminal.ReturnStatement;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
-public class AbruptRewriter extends AbstractRewriter {
-    public AbruptRewriter(ProgramUnit source) {
+public class BreakContinueToGoto extends AbstractRewriter {
+    public BreakContinueToGoto(ProgramUnit source) {
         super(source);
     }
 
@@ -136,6 +137,7 @@ public class AbruptRewriter extends AbstractRewriter {
         NameExpression label = (NameExpression) continueStatement.args[0];
         NameExpression newLabel = generateContinueLabel(label);
         Debug("Turning continue into goto %s", newLabel.getName());
+        Warning("Loop invariant checking not implemented!");
         result = create.jump(newLabel);
         continueLabels.add(newLabel);
     }
@@ -144,12 +146,13 @@ public class AbruptRewriter extends AbstractRewriter {
         NameExpression label = (NameExpression) breakStatement.args[0];
         NameExpression newLabel = generateBreakLabel(label);
         Debug("Turning break into goto %s", newLabel.getName());
+        Warning("Loop invariant checking not implemented!");
         result = create.jump(newLabel);
         breakLabels.add(newLabel);
     }
 
-    public void visit(TryCatchBlock tryCatchBlock) {
-        Warning("Trycatchblock not yet implemented");
-        super.visit(tryCatchBlock);
+    public void visit(ReturnStatement returnStatement) {
+        super.visit(returnStatement);
+        Warning("Return statement not implemented");
     }
 }

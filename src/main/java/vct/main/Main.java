@@ -423,10 +423,11 @@ public class Main
 
         // Abrupt termination encoding passes
         passes.add("specify-implicit-labels");
-        if (!features.usesFinallyClause()) {
-          passes.add("abrupt-rewrite");
+        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
+          passes.add("break-continue-to-goto");
         } else {
-          Warning("Not encoding abrupt...");
+          // TODO (Bob): This is not needed when finished
+          Warning("Not encoding continue/break...");
         }
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
@@ -1170,9 +1171,9 @@ public class Main
         return new SpecifyImplicitLabels(arg).rewriteAll();
       }
     });
-    defined_passes.put("abrupt-rewrite", new CompilerPass("Rewrite abrupt termination (break, continue, return) into jumps (does not work when finally is present)") {
+    defined_passes.put("break-continue-to-goto", new CompilerPass("Rewrite break, continue into jumps") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new AbruptRewriter(arg).rewriteAll();
+        return new BreakContinueToGoto(arg).rewriteAll();
       }
     });
     defined_passes.put("unfold-switch", new CompilerPass("Unfold switch to chain of if-statements that jump to sections.") {
