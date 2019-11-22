@@ -110,6 +110,10 @@ public class MethodInvokation extends ExpressionNode {
   public ASTNode[] getArgs() {
     return Arrays.copyOf(args,args.length);
   }
+
+  public void setArgs(ASTNode[] args) {
+    this.args = Arrays.copyOf(args, args.length);
+  }
   
   public void setDefinition(Method m){
     definition=m;

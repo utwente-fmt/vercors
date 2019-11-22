@@ -422,18 +422,17 @@ public class Main
         }
 
         // Abrupt termination encoding passes
-        // TODO (Bob): Only execute these if there are continues/breaks?
         passes.add("specify-implicit-labels");
         passes.add("continue-to-break");
 //        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
 //          passes.add("break-continue-to-goto");
-//        } else {
-//          // TODO (Bob): This is not needed when finished
-//          Warning("Not encoding continue/break...");
 //        }
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
         }
+        passes.add("check");
+        passes.add("flatten");
+        passes.add("check");
         passes.add("break-continue-return-to-exceptions");
         // TODO: Set usesInheritance() to true
         passes.add("java-resolve-types");

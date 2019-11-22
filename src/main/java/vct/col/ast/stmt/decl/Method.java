@@ -53,7 +53,7 @@ public class Method extends ASTDeclaration {
   };
  
   private final Type return_type;
-  private final DeclarationStatement args [];
+  private DeclarationStatement args [];
   private final boolean var_args;
   private Hashtable<String, Contract> spec=new Hashtable<String,Contract>();
   private ASTNode body;
@@ -138,6 +138,9 @@ public class Method extends ASTDeclaration {
   }
   public ASTNode getBody(){
     return body;
+  }
+  public void setArgs(DeclarationStatement[] args) {
+    this.args=Arrays.copyOf(args,args.length);
   }
   public DeclarationStatement[] getArgs() {
     return args;

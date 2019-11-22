@@ -39,6 +39,7 @@ public class ContinueToBreak extends AbstractRewriter {
             for (NameExpression usedLabel : usedLabels) {
                 inner.addLabel(create.label(usedLabel.getName() + "_continue"));
             }
+            resultLoop.setBody(loopBody);
         }
     }
 

@@ -2,6 +2,7 @@ class Java {
     boolean p();
 
     int foo() {
+        boolean ppp = p();
         my_if: if (p()) {
             break my_if;
         }
