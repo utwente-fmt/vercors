@@ -20,7 +20,6 @@ import java.util.Set;
 
 public class BreakContinueReturnToExceptions extends AbstractRewriter {
     private Set<String> breakLabels = new HashSet<>();
-    private Set<String> continueLabels = new HashSet<>();
     private boolean encounteredReturn = false;
     private Set<String> exceptionTypes = new HashSet<>();
 
@@ -46,25 +45,28 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
     }
 
     public void post_visit(ASTNode node) {
-        if (!(result instanceof LoopStatement)) {
-            // Wrap statement in try-catch if one of the labels is broken to
-            // Collect all used break labels within statement
-            ArrayList<NameExpression> usedLabels = new ArrayList<>();
-            for (NameExpression label : node.getLabels()) {
-                if (breakLabels.contains(label.getName())) {
-                    usedLabels.add(label);
-                    breakLabels.remove(label.getName());
-                }
+        // Wrap statement in try-catch if one of the labels is broken to
+        // Collect all used break labels within statement
+        ArrayList<NameExpression> usedLabels = new ArrayList<>();
+        for (NameExpression label : node.getLabels()) {
+            if (breakLabels.contains(label.getName())) {
+                usedLabels.add(label);
+                breakLabels.remove(label.getName());
+            }
+        }
+
+        if (usedLabels.size() > 0) {
+            // There were breaks involved! Add catch clauses
+            TryCatchBlock tryCatchBlock = create.try_catch(create.block(result), null);
+            for (NameExpression label : usedLabels) {
+                tryCatchBlock.addCatchClause(create.field_decl("e", getExceptionType("break", label.getName())), create.block());
             }
 
-            if (usedLabels.size() > 0) {
-                // There were breaks involved! Add catch clauses
-                TryCatchBlock tryCatchBlock = create.try_catch(create.block(result), null);
-                for (NameExpression label : usedLabels) {
-                    tryCatchBlock.addCatchClause(create.field_decl("e", getExceptionType("break", label.getName())), create.block());
-                }
-                result = tryCatchBlock;
+            if (result instanceof LoopStatement) {
+                ((LoopStatement) result).fixate();
             }
+
+            result = tryCatchBlock;
         }
 
         super.post_visit(node);
@@ -82,14 +84,9 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
             encounteredReturn = false;
         }
 
-        if (breakLabels.size() + continueLabels.size() != 0) {
-            Warning("Some break or continue labels were not deleted, even though they should be. This indicates a logic error.");
+        if (breakLabels.size() != 0) {
+            Warning("Some break labels were not deleted, even though they should be. This indicates a logic error.");
         }
-    }
-
-    public void visit(LoopStatement loopStatement) {
-        super.visit(loopStatement);
-        // Wrap in try and wrap body in try if any of the labels is broken to
     }
 
     public void visit(ASTSpecial special) {
@@ -101,15 +98,9 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
                 visitBreak(special);
                 break;
             case Continue:
-                visitContinue(special);
+                Abort("Not supported");
                 break;
         }
-    }
-
-    private void visitContinue(ASTSpecial continueStatement) {
-        String id = ((NameExpression) continueStatement.args[0]).getName();
-        continueLabels.add(id);
-        result = create.special(ASTSpecial.Kind.Throw, create.new_object(getExceptionType("continue", id)));
     }
 
     public void visitBreak(ASTSpecial breakStatement) {

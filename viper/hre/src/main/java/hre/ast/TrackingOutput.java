@@ -12,6 +12,8 @@ import java.util.Stack;
  *
  */
 public class TrackingOutput {
+  public static int num_spaces = 4;
+
   private PrintWriter output;
 //  private boolean show;
 
@@ -75,14 +77,14 @@ public class TrackingOutput {
     parent.tree.add(frame.tree,frame.line,frame.col,line,col);
     frame=parent;
   }
-  public void incrIndent(){ indent+=2; }
+  public void incrIndent(){ indent+=num_spaces; }
   public void decrIndent(){ 
     if (delayed_ghost){
       delayed_ghost=false;
-      indent-=2;
+      indent-=num_spaces;
       println("@*/");
     }
-    indent-=2;
+    indent-=4;
   }
   
   
@@ -98,7 +100,7 @@ public class TrackingOutput {
   }
   public void print(String s){
     if (delayed_ghost){
-      indent-=2;
+      indent-=num_spaces;
     }
     if(atnewline){
       for(int i=0;i<indent;i++) {
