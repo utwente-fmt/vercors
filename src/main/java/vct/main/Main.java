@@ -333,6 +333,19 @@ public class Main
         passes.add("dafny"); // run backend
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
+
+        // Abrupt termination encoding passes
+        passes.add("specify-implicit-labels");
+        passes.add("continue-to-break");
+//        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
+//          passes.add("break-continue-to-goto");
+//        }
+        if (features.usesSwitch()) {
+          passes.add("unfold-switch");
+        }
+        // TODO (Bob): _Only_ resort to exceptions if finally is used in the program!
+        passes.add("break-continue-return-to-exceptions");
+
         passes.add("java_resolve");
 
         if (silver.used() &&
@@ -420,23 +433,6 @@ public class Main
           passes.add("standardize");
           passes.add("check");
         }
-
-        // Abrupt termination encoding passes
-        passes.add("specify-implicit-labels");
-        passes.add("continue-to-break");
-//        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
-//          passes.add("break-continue-to-goto");
-//        }
-        if (features.usesSwitch()) {
-          passes.add("unfold-switch");
-        }
-        passes.add("check");
-        passes.add("flatten");
-        passes.add("check");
-        passes.add("break-continue-return-to-exceptions");
-        // TODO: Set usesInheritance() to true
-        passes.add("java-resolve-types");
-        passes.add("check"); // Fix up lost methods defs and such
 
         boolean has_type_adt=false;
         if (silver.used()) {

@@ -1,6 +1,7 @@
 package vct.col.rewrite;
 
 import org.antlr.v4.codegen.model.Loop;
+import scala.reflect.internal.Trees;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
@@ -10,10 +11,9 @@ import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
-import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.ClassType;
-import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.*;
 import vct.col.ast.util.ContractBuilder;
+import vct.util.ClassName;
 import viper.silver.ast.Declaration;
 
 import javax.naming.Name;
@@ -36,14 +36,40 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
     }
 
     public ClassType getExceptionType(String prefix, String id) {
+        return getExceptionType(prefix, id, new PrimitiveType(PrimitiveSort.Void));
+    }
+
+    public ClassType getExceptionType(String prefix, String id, Type arg) {
         String name = "__" + prefix + "_" + id + "_ex";
 
         if (!exceptionTypes.contains(name)) {
-            target().add(create.new_class(
+            ASTClass exceptionClass = create.new_class(
                     name,
                     null,
-                    create.class_type(new String[]{"java", "lang", "Exception"}
-                    )));
+                    // Uncomment to turn on inheritance of exceptions
+                    // create.class_type(new String[]{"java", "lang", "Exception"})
+                    null
+                    );
+
+            if (arg != null && !arg.isVoid()) {
+                // TODO (Bob): Add contract that adds ensures \result == arg;
+                // TODO (Bob): Permissions
+                Method exceptionConstructor = create.method_kind(
+                        Method.Kind.Constructor,
+                        create.primitive_type(PrimitiveSort.Void),
+                        new ContractBuilder().getContract(),
+                        name,
+                        new DeclarationStatement[] {
+                                create.field_decl("result", arg)
+                        },
+                        null
+                );
+                exceptionClass.add(exceptionConstructor);
+            } else {
+                create.addZeroConstructor(exceptionClass);
+            }
+
+            target().add(exceptionClass);
             exceptionTypes.add(name);
         }
 
@@ -79,37 +105,23 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
     }
 
     public void visit(Method method) {
-        switch(method.kind){
-            case Predicate:
-            case Pure:
-                result=copy_rw.rewrite(method);
-                return;
-            default:
-                break;
-        }
+        super.visit(method);
 
         super.visit(method);
         Method resultMethod = (Method) result;
 
         if (encounteredReturn) {
-            // Wrap body in try-catch
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
-            tryCatchBlock.addCatchClause(create.field_decl("e", getExceptionType("return", "")), create.block());
-            resultMethod.setBody(tryCatchBlock);
+
+            ClassType exceptionType = getExceptionType("return", method.getName());
+            ClassName exceptionClassName = new ClassName(exceptionType.getNameFull());
+            ASTNode getReturnValueExpr = create.get_field(exceptionClassName, create.field_name("e"), "value");
+            ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
+            BlockStatement returnBlock = create.block(create.return_statement());
+            tryCatchBlock.addCatchClause(create.field_decl("e", exceptionType), create.block(returnStatement));
+            resultMethod.setBody(create.block(tryCatchBlock));
 
             encounteredReturn = false;
-        }
-
-        if (!method.getReturnType().isVoid()) {
-            // Add sys__result param on the front
-            ArrayList<DeclarationStatement> args = new ArrayList<DeclarationStatement>(Arrays.asList(resultMethod.getArgs()));
-
-            DeclarationStatement sys__result = new DeclarationStatement("sys__result",rewrite(method.getReturnType()));
-            sys__result.setOrigin(method);
-            sys__result.setFlag(ASTFlags.OUT_ARG, true);
-            args.add(0, sys__result);
-
-            resultMethod.setArgs(args.toArray(new DeclarationStatement[0]));
         }
 
         if (breakLabels.size() != 0) {
@@ -142,81 +154,21 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
         encounteredReturn = true;
 
         ASTNode expr = returnStatement.getExpression();
-        BlockStatement block = create.block();
+
+        // TODO (Bob): Account for overloading?
+        ASTSpecial returnThrow = null;
         if (expr != null){
-            block.add(create.assignment(create.local_name("sys__result"),rewrite(expr)));
-        }
-        for(ASTNode n : returnStatement.get_after()){
-            block.add(rewrite(n));
-        }
-
-        ASTSpecial returnThrow = create.special(ASTSpecial.Kind.Throw, create.new_object(getExceptionType("return", "")));
-        block.add(returnThrow);
-
-        result = block ;
-    }
-
-    public void visit(NameExpression e){
-        if (e.isReserved(ASTReserved.Result)){
-            result=create.unresolved_name("sys__result");
+            ClassType exceptionType = getExceptionType("return", current_method().getName(), current_method().getReturnType());
+            returnThrow = create.special(ASTSpecial.Kind.Throw, create.new_object(exceptionType, rewrite(expr)));
         } else {
-            super.visit(e);
+            ClassType exceptionType = getExceptionType("return", current_method().getName());
+            returnThrow = create.special(ASTSpecial.Kind.Throw, create.new_object(exceptionType));
         }
-    }
+       result = returnThrow;
 
-    public void visit(MethodInvokation e){
-        switch(e.getDefinition().kind){
-            case Predicate:
-            case Pure:
-                super.visit(e);
-                return;
-        }
-
-        // Non-void case should be handled by
-        if (!e.getDefinition().getReturnType().isVoid()){
-            Fail("unexpected invokation of non-void method %s at %s",e.method,e.getOrigin());
-        }
-
-        int N=e.getArity();
-        ASTNode args[]=new ASTNode[N+1];
-        args[0]=create.local_name("sys__thrown");
-        for(int i=0;i<N;i++){
-            args[i+1]=rewrite(e.getArg(i));
-        }
-        MethodInvokation res=create.invokation(rewrite(e.object), rewrite(e.dispatch) , e.method , args );
-        for(NameExpression lbl:e.getLabels()){
-            Debug("VOIDCALLS: copying label %s",lbl);
-            res.addLabel(rewrite(lbl));
-        }
-        res.set_before(rewrite(e.get_before()));
-        res.set_after(rewrite(e.get_after()));
-        result=res;
-    }
-
-    public void visit(DeclarationStatement declarationStatement) {
-        if (!declarationStatement.init().isEmpty()) {
-            Abort("Declaration statement with init was not unfolded");
-        }
-
-        super.visit(declarationStatement);
-    }
-
-    public void visit(AssignmentStatement assign){
-        if (assign.expression() instanceof MethodInvokation){
-            MethodInvokation invokation = (MethodInvokation) super.visit(assign.expression);
-            AssignmentStatement resultAssign = (AssignmentStatement) result;
-
-            MethodInvokation invocation = (MethodInvokation) assign.expression();
-            if (invocation.getDefinition().kind == Method.Kind.Plain) {
-                MethodInvokation resultInvocation = (MethodInvokation) resultAssign.expression();
-                ArrayList<ASTNode> args = new ArrayList<ASTNode>(Arrays.asList(resultInvocation.getArgs()));
-                args.add(0, resultAssign.location());
-                resultInvocation.setArgs(args.toArray(new ASTNode[0]));
-
-                result = invocation;
-            }
-        } else {
-            super.visit(assign);
-        }
+        // TODO: Add this in the catch clause?
+        // for(ASTNode n : returnStatement.get_after()){
+        //     block.add(rewrite(n));
+        // }
     }
 }

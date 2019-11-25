@@ -114,6 +114,12 @@ public class MethodInvokation extends ExpressionNode {
   public void setArgs(ASTNode[] args) {
     this.args = Arrays.copyOf(args, args.length);
   }
+
+  public void addArg(int position, ASTNode arg) {
+    ArrayList<ASTNode> newArgsList = new ArrayList<ASTNode>(Arrays.asList(args));
+    newArgsList.add(position, arg);
+    args = newArgsList.toArray(new ASTNode[0]);
+  }
   
   public void setDefinition(Method m){
     definition=m;
