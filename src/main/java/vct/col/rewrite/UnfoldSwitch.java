@@ -60,6 +60,7 @@ public class UnfoldSwitch extends AbstractRewriter {
                     ifGuard = or(ifGuard, comparison);
                 }
             }
+            // TODO (Bob): Use create.fold here instead of manually building the if guard
 
             // Add if to the chain that jumps to the case statements
             NameExpression caseIDLabel = generateCaseIDLabel(switchID, caseID);

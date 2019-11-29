@@ -1012,7 +1012,7 @@ public class JavaPrinter extends AbstractPrinter {
     out.printf("switch (");
     nextExpr();
     s.expr.accept(this);
-    out.println("){");
+    out.println(") {");
     for(Case c:s.cases){
       for(ASTNode n:c.cases){
         if (n == null) {
@@ -1031,7 +1031,7 @@ public class JavaPrinter extends AbstractPrinter {
       }
       out.decrIndent();
     }
-    out.println("}");
+    out.print("}");
   }
   
   @Override
@@ -1455,5 +1455,14 @@ public class JavaPrinter extends AbstractPrinter {
     
     out.print(")");
     c.block().accept(this);
+  }
+
+  @Override
+  public void visit(SynchronizedBlock synchronizedBlock) {
+    out.print("synchronized (");
+    nextExpr();
+    synchronizedBlock.expr().apply(this);
+    out.print(") ");
+    synchronizedBlock.body().apply(this);
   }
 }

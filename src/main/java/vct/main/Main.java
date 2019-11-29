@@ -362,6 +362,8 @@ public class Main
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
 
+        passes.add("unfold-synchronized");
+
         if(features.usesOperator(StandardOperator.AddrOf)) {
           passes.add("lift_declarations");
         }
@@ -1194,6 +1196,11 @@ public class Main
     defined_passes.put("continue-to-break", new CompilerPass("Convert continues into breaks") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new ContinueToBreak(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("unfold-synchronized", new CompilerPass("Convert synchronized to try-finally") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new UnfoldSynchronized(arg).rewriteAll();
       }
     });
   }
