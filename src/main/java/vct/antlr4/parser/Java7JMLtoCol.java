@@ -20,10 +20,7 @@ import vct.col.ast.generic.ASTList;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.generic.BeforeAfterAnnotations;
-import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.composite.ForEachLoop;
-import vct.col.ast.stmt.composite.LoopStatement;
-import vct.col.ast.stmt.composite.TryCatchBlock;
+import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
@@ -37,8 +34,10 @@ import vct.col.syntax.Syntax;
 import vct.antlr4.generated.Java7JMLParser.*;
 import vct.antlr4.generated.*;
 import vct.util.Configuration;
+import viper.silver.cfg.Block;
 
 import static hre.lang.System.*;
+import static vct.col.ast.type.ASTReserved.Synchronized;
 
 /**
  * Convert JML parse trees to COL.
@@ -1497,6 +1496,9 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
       String label=getIdentifier(ctx,0);
       res.labeled(label);
       return res;
+    }
+    if (match(ctx, "synchronized", null, null)) {
+      return create.synchronized_block(convert(ctx, 1), (BlockStatement) convert(ctx, 2));
     }
     return null;
   }

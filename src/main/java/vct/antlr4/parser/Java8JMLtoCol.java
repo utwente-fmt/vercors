@@ -2182,8 +2182,7 @@ public class Java8JMLtoCol extends ANTLRtoCOL implements Java8JMLVisitor<ASTNode
 
   @Override
   public ASTNode visitSynchronizedStatement(SynchronizedStatementContext ctx) {
-    
-    return null;
+    return create.synchronized_block(convert(ctx, 2), (BlockStatement) convert(ctx, 4));
   }
 
   @Override

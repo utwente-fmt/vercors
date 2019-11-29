@@ -258,4 +258,7 @@ public class UndefinedMapping<T> implements ASTMapping<T> {
   public T map(SignalsClause s) {
     return null;
   }
+
+  @Override
+  public T map(SynchronizedBlock s) { return null; }
 }

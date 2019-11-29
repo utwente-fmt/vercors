@@ -1492,5 +1492,12 @@ public Axiom axiom(String name, ASTNode exp){
     public ASTSpecial label_decl(NameExpression label) {
       return special(Kind.Label, label);
     }
+
+  public SynchronizedBlock synchronized_block(ASTNode expr, BlockStatement block) {
+    SynchronizedBlock synchronizedBlock = new SynchronizedBlock(expr, block);
+    synchronizedBlock.setOrigin(origin_stack.get());
+    synchronizedBlock.accept_if(post);
+    return synchronizedBlock;
+  }
 }
 

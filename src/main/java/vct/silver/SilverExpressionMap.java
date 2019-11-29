@@ -520,5 +520,11 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     Abort("Cannot map signals clause to silver expression");
     return null;
   }
+
+  @Override
+  public E map(SynchronizedBlock s) {
+    Abort("Cannot map synchronized block to silver expression");
+    return null;
+  }
   
 }

@@ -8,7 +8,7 @@ final class MyClass {
     }
 
     void increment() {
-        synchronized(this) {
+        synchronized (this) {
             x += 1;
         }
     }

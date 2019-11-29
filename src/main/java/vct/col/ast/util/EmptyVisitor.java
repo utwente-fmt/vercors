@@ -301,5 +301,10 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
   public void visit(SignalsClause s) {
 
   }
+
+  @Override
+  public void visit(SynchronizedBlock s) {
+
+  }
   
 }

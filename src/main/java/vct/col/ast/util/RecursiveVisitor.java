@@ -409,4 +409,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(s.condition());
   }
 
+  public void visit(SynchronizedBlock s) {
+    dispatch(s.expr());
+    dispatch(s.body());
+  }
 }

@@ -7,6 +7,7 @@ import java.util.List;
 
 import hre.ast.Origin;
 import hre.lang.HREError;
+import org.antlr.v4.codegen.model.Sync;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -420,6 +421,12 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   @Override
   public S map(SignalsClause s) {
     Abort("Cannot map signals clause to silver statement");
+    return null;
+  }
+
+  @Override
+  public S map(SynchronizedBlock s) {
+    Abort("Cannot map synchronized block to silver statement");
     return null;
   }
 }

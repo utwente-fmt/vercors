@@ -167,6 +167,7 @@ public class AbstractVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
 
   @Override public void visit(SignalsClause s) { visit_any(s); }
 
+  @Override public void visit(SynchronizedBlock s) { visit_any(s); }
 }
 
 

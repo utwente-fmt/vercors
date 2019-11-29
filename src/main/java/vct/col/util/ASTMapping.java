@@ -104,4 +104,5 @@ public interface ASTMapping<R> {
 
   public R map(SignalsClause s);
 
+  public R map(SynchronizedBlock s);
 }

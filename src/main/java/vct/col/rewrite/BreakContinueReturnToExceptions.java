@@ -29,8 +29,6 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
     private boolean encounteredReturn = false;
     private Set<String> exceptionTypes = new HashSet<>();
 
-    boolean createdReturnExceptionType = false;
-
     public BreakContinueReturnToExceptions(ProgramUnit source) {
         super(source);
     }
@@ -105,8 +103,6 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
     }
 
     public void visit(Method method) {
-        super.visit(method);
-
         super.visit(method);
         Method resultMethod = (Method) result;
 

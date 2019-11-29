@@ -107,6 +107,7 @@ public interface ASTVisitor<T> {
 
   public void visit(SignalsClause s);
 
+  public void visit(SynchronizedBlock s);
 }
 
 
