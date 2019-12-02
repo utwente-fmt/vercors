@@ -308,6 +308,9 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
   public ConstantExpression constant(int i) {
     return constant(origin_stack.get(),i);
   }
+  public ConstantExpression constant(char c) {
+    return constant(origin_stack.get(), c);
+  }
   public ConstantExpression constant(long i) {
     return constant(origin_stack.get(),i);
   }
@@ -354,6 +357,11 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
   }
   public ConstantExpression constant(String s) {
     return constant(origin_stack.get(),s);
+  }
+  public ConstantExpression constant(Origin origin, char c) {
+    ConstantExpression res = new ConstantExpression(c, origin);
+    res.accept_if(post);
+    return res;
   }
   
    

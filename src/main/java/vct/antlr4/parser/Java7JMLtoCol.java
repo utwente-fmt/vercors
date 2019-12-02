@@ -1218,7 +1218,11 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     }
     if (t==CharacterLiteral){
       String text=tok.getText();
-      return create.constant(StringEscapeUtils.unescapeJava(text.substring(1,text.length()-1)));
+      String innerString = StringEscapeUtils.unescapeJava(text.substring(1,text.length()-1));
+      if (innerString.length() != 1) {
+        Abort("Character literal can only contain 1 character");
+      }
+      return create.constant(innerString.charAt(0));
     }
     if (match(ctx,"true")) return create.constant(true);
     if (match(ctx,"false")) return create.constant(false);

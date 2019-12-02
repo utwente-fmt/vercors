@@ -314,6 +314,8 @@ public final class PrimitiveType extends Type {
       return new ConstantExpression((long)0);
     case Double:
       return new ConstantExpression((double)0);
+    case Char:
+      return new ConstantExpression((char) 0);
     case Sequence:
     case Set:
     case Bag:
