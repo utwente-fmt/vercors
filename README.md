@@ -6,8 +6,10 @@ This repository hosts VerCors, a toolset for the verification of concurrent and 
 A list of verified examples and case studies is maintained online and can be found [here](https://utwente.nl/vercors). This webpage also contains an online interface for VerCors and allows you to try VerCors online.
 
 ## Installation
+VerCors requires a java runtime environment (version 8 or later), as well as clang if you want support for C.
+
 ### Linux
-Currently we support debian-based systems; let us know if you need something else! VerCors needs a java runtime environment (8+) and (optionally) clang, so install them by running:
+Currently we support debian-based systems; let us know if you need something else! Install the dependencies:
 
 ```shell script
 sudo apt install clang openjdk-8-jre 
@@ -20,17 +22,18 @@ sudo dpkg -i Vercors_x.y.z_all.deb
 ```
 
 ### Mac
-VerCors needs a java runtime environment (8+) and (optionally) clang, so install them by running:
+You can for example obtain the dependencies through homebrew:
 
 ```shell script
-brew cask install adoptopenjdk11-jre
-
+brew cask install java
 ```
+
+This should install the latest release of OpenJDK. Clang should already be installed through XCode.
 
 Obtain the latest zip release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest) and unzip it. You can find the run script for VerCors in the `bin` subdirectory.
 
 ### Windows
-VerCors needs a java runtime environment (8+) and (optionally) clang. You can obtain a java runtime environment e.g. [here](https://jdk.java.net). Make sure that the environment variable `JAVA_HOME` points to wherever you unpack the JDK. clang can be obtained as part of the llvm toolchain [here](https://clang.llvm.org/). Make sure that `clang` is added to the path.
+You can obtain a java runtime environment e.g. [here](https://jdk.java.net). Make sure that the environment variable `JAVA_HOME` points to wherever you unpack the JDK. clang can be obtained as part of the llvm toolchain [here](https://clang.llvm.org/). Make sure that `clang` is added to the path.
 
 Next, download the latest zip release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest) and unzip it. You can find the batch script for VerCors in the `bin` subdirectory.
 
