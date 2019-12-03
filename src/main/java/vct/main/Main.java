@@ -4,6 +4,7 @@ package vct.main;
 
 import java.io.*;
 import java.lang.reflect.Constructor;
+import java.time.Instant;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
@@ -96,6 +97,8 @@ public class Main
 
       OptionParser clops=new OptionParser();
       clops.add(clops.getHelpOption(),'h',"help");
+      BooleanSetting version = new BooleanSetting(false);
+      clops.add(version.getEnable("Output the current version and exit"), "version");
 
       ChoiceSetting logLevel = new ChoiceSetting(new String[] {"silent", "abort", "result", "warning", "info", "progress", "debug", "all"}, "info");
       clops.add(logLevel.getSetOption("Set the logging level"), "verbosity");
@@ -222,6 +225,12 @@ public class Main
 
       System.setErr(new hre.io.ForbiddenPrintStream(System.err));
       System.setOut(new hre.io.ForbiddenPrintStream(System.out));
+
+      if(version.get()) {
+        Output("%s %s", BuildInfo.name(), BuildInfo.version());
+        Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion(), BuildInfo.scalaVersion(), Instant.ofEpochMilli(BuildInfo.builtAtMillis()));
+        return;
+      }
 
       Hashtable<String,CompilerPass> defined_passes=new Hashtable<String,CompilerPass>();
       Hashtable<String,ValidationPass> defined_checks=new Hashtable<String,ValidationPass>();
