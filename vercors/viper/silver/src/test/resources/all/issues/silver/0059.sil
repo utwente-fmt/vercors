@@ -1,9 +1,0 @@
-method m(a: Seq[Int])
-  requires (exists j: Int :: j in a && j > 0)
-  requires (exists j: Int :: (0 <= j && j < |a|) && (a[j] > 0))
-  requires (forall j: Int :: j in a ==> (exists k: Int :: k in a && k > 0))
-{
-  assert (exists j: Int :: j in a && j > 0)
-  assert (exists j: Int :: (0 <= j && j < |a|) && (a[j] > 0))
-  assert (forall j: Int :: j in a ==> (exists k: Int :: k in a && k > 0))
-}

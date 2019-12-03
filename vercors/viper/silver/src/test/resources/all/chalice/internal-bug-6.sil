@@ -1,6 +1,0 @@
-  function foo(this: Ref): Ref
-  { this }
-  method m(this: Ref, b: Bool)
-  {
-    var c: Ref := (b ? null : foo(this))
-  }

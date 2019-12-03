@@ -3,10 +3,10 @@
 
 class Relaxed {
 	
-	invariant a != null;
-	invariant pat != null;
-	invariant (\forall* int k; 0 <= k && k < pat.length; Value(pat[k]));
-	invariant (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
+	context_everywhere a != null;
+	context_everywhere pat != null;
+	context_everywhere (\forall* int k; 0 <= k && k < pat.length; Value(pat[k]));
+	context_everywhere (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
 	requires pat.length <= a.length;
 	boolean isRelaxedPrefix(int[] pat, int[] a) {
 		int splitpoint = 0; // ghost

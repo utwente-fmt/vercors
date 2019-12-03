@@ -1,5 +1,0 @@
-method Quantifiersforall10(x: Int)
-  requires (forall i: Int :: (i in [0..10)) ==> (x > i))
-  ensures  (forall i: Int :: (i in [0..10)) ==> (x > i))
-{
-}

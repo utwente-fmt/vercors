@@ -1,5 +1,0 @@
-method m()
-{
-    //:: ExpectedOutput(consistency.error)
-    assert forall i : Int :: {} true
-}

@@ -1,5 +1,0 @@
-import "sub/libA.sil"
-
-method test1() {
-  assert b1()
-}

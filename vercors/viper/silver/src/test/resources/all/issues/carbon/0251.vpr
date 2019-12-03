@@ -1,5 +1,0 @@
-field f : Int
-
-method m(r: Ref)
- requires let r2 == (r) in (acc(r2.f) && r2.f > 0)
-{}

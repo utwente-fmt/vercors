@@ -1,0 +1,14 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases SeqImmutable
+//:: tools silicon
+//:: verdict Error
+
+class Test {
+    seq<int> x;
+
+    requires |x| > 0;
+    requires Perm(x[0], write);
+    void test() {
+        x[0] = 3;
+    }
+}

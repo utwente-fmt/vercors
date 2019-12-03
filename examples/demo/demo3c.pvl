@@ -1,0 +1,43 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases demo3c
+//:: tools silicon
+//:: verdict Pass
+
+class Worker {
+	Main main;
+	int val;
+	
+	requires m != null;
+	ensures Perm(main, 1) ** main != null ** main == m;
+	ensures Perm(val, 1) ** val == v;
+	Worker(Main m, int v) {
+		this.main = m;
+		this.val = v;
+	}
+	
+	context Perm(main, 1\2) ** main != null;
+	context Perm(val, 1\2);
+	void run() {
+		lock main;
+		main.sum = main.sum + val;
+		unlock main;
+	}
+}
+
+class Main {
+	int sum;
+
+	resource lock_invariant() = Perm(this.sum, 1);
+	
+	Main() {
+	}
+	
+	void sum(seq<int> xs) {
+		if (0 < |xs|) {
+			Worker w = new Worker(this, head(xs));
+			fork w;
+			sum(tail(xs));
+			join w;
+		}
+	}
+}

@@ -40,5 +40,3 @@ method f_bad: Fail (loop invariant maintenance violation)
     }
     return res;
   }
-
-

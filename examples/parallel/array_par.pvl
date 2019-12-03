@@ -5,27 +5,27 @@
 class Ref {
   int x;
   
-  invariant ar != null && N>0;
-	invariant ar.length == N;
+  context_everywhere ar != null && N>0;
+	context_everywhere ar.length == N;
   context Perm(x,1);
   context (\forall* int i;0 <= i && i < N ; Perm(ar[i],write));
   ensures (\forall int i;0 <= i && i < N ; ar[i]==0);
   void vector(int N, int[N] ar){
     x=0;
-    invariant inv( Perm(x,1/2) **
+    invariant inv( Perm(x,1\2) **
       (x==0 ==> (\forall* int k;0 <= k && k < N ; Perm(ar[k],write)))
     ){
       par main(int i = 0 .. N)
-        requires i==0 ==> Perm(x,1/2) ** x==0;
+        requires i==0 ==> Perm(x,1\2) ** x==0;
         ensures  Perm(ar[i],write) ** ar[i]==0;
-        ensures  i==0 ==> Perm(x,1/2) ** x==1;
+        ensures  i==0 ==> Perm(x,1\2) ** x==1;
       {
         if (i==0) { assert x==0; }
         barrier(main ; inv)
 					context 0 <= i && i < N;
-          requires i==0 ==> Perm(x,1/2) ** x==0;
+          requires i==0 ==> Perm(x,1\2) ** x==0;
           ensures  Perm(ar[i],write);
-          ensures  i==0 ==> Perm(x,1/2) ** x==1;
+          ensures  i==0 ==> Perm(x,1\2) ** x==1;
         {
           x=1;
         }

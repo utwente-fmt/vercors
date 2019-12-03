@@ -1,7 +1,0 @@
-field b: Bool
-field f: Int
-
-method test(x: Ref)
-  requires acc(x.b)
-  requires !x.b ==> acc(x.f,write)
-{}

@@ -1,8 +1,0 @@
-field f: Int
-
-method even_odd(S: Seq[Ref])
-  requires forall i: Int :: i in [0..|S|) ==> acc(S[i].f)
-{
-  exhale forall i: Int :: i in [0..|S|) && i % 2 == 0 ==> acc(S[i].f)
-  exhale forall i: Int :: i in [0..|S|) && i % 2 == 1 ==> acc(S[i].f)
-}

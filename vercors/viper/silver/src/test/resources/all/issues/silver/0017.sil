@@ -1,8 +1,0 @@
-predicate valid1(this: Ref) {
-  //:: ExpectedOutput(typechecker.error)
-  acc(this.valid)
-}
-
-predicate valid(this: Ref) {
-  true
-}

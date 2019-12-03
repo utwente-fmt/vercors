@@ -1,8 +1,0 @@
-import "complex_other1.sil"
-
-method main()
-{
-    var x: Int := 5
-    assert(foo(5) > bar(macro(x)))
-}
-

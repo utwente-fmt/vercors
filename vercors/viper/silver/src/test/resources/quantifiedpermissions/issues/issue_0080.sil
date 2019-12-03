@@ -1,7 +1,0 @@
-//:: IgnoreFile(/silver/issue/53/)
-field f:Int
-
-method m(xs: Seq[Ref], a: Int, b: Int)
-  //:: ExpectedOutput(internal:feature.unsupported)
-  requires forall x: Int :: x in [0..|xs|) ==> true && acc(xs[a*x+b].f, write)
-{}

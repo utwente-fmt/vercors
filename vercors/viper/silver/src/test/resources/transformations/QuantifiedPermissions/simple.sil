@@ -1,6 +1,0 @@
-field f:Int
-
-method m1(xs:Seq[Ref])
-  requires forall x:Ref :: x in xs ==> acc(x.f) && x.f > 0
-  ensures forall x:Ref :: x in xs ==> acc(x.f) && x.f > 0
-  {}

@@ -1,0 +1,10 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases ConstructorName
+//:: tools silicon
+//:: verdict Error
+
+class Name1 {
+    Name2() {
+        // Incorrect constructor name
+    }
+}

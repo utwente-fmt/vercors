@@ -1,0 +1,69 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases demo4
+//:: tools silicon
+//:: options --check-history --check-defined
+//:: verdict Pass
+
+// for analysing the models' contract, run: `vct --silicon --check-defined demo4.pvl`
+// for analysing that the program correctly implements the model, run: `vct --silicon --check-history demo4.pvl`
+
+class Future {
+	int x;
+
+	modifies x;
+	ensures x == \old(x) + 2;
+	process incr();
+
+	modifies x;
+	ensures x == \old(x) + 4;
+	process OG() = incr() || incr();
+}
+
+class Program {
+
+	ensures \result == x + 4;
+	int main(int x) {
+		Future model = new Future();
+		model.x = x;
+		assert Perm(model.x, 1); // now we have this
+
+		create model, model.OG(); // initialise the model
+		assert Future(model, 1, model.OG()) ** HPerm(model.x, 1); // now we have this
+
+		split model, 1\2, model.incr(), 1\2, model.incr(); // splitting the model
+		assert Future(model, 1\2, model.incr()) ** Future(model, 1\2, model.incr()) ** HPerm(model.x, 1); // and now we have this
+
+		// moving the the `HPerm(...)` predicate to the resource invariant (so that both threads can atomically write to model.x)
+		invariant inv(HPerm(model.x, 1)) //;
+		{
+			assert Future(model, 1\2, model.incr()) ** Future(model, 1\2, model.incr()); // now we are left with this
+
+			// fork and join both threads, and distribute the model accordingly
+			par Thread1()
+				requires Future(model, 1\2, model.incr());
+				ensures Future(model, 1\2, empty);
+			{
+				atomic (inv) {
+					action(model, 1\2, empty, model.incr()) { model.x = model.x + 2; }
+				}
+			}
+			and Thread2()
+				requires Future(model, 1\2, model.incr());
+				ensures Future(model, 1\2, empty);
+			{
+				atomic (inv) {
+					action(model, 1\2, empty, model.incr()) { model.x = model.x + 2; }
+				}
+			}
+
+			assert Future(model, 1\2, empty) ** Future(model, 1\2, empty); // after both threads have terminated, we are left with this
+			merge model, 1\2, empty, 1\2, empty; // we may merge the two models back into one again
+			assert Future(model, 1, empty); // which gives us this
+		}
+
+		assert Future(model, 1, empty) ** HPerm(model.x, 1); // here we got back the HPerm(...) predicate from the resource context_everywhere
+		destroy model; // finalise the model
+
+		return model.x;
+	}
+}

@@ -1,7 +1,0 @@
-import "libb.sil"
-domain LibA {
-    function foo(x: Int): Bool
-    axiom bar {
-        forall n: Int :: foo(n) == true
-    }
-}

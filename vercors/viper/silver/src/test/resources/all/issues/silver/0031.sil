@@ -1,7 +1,0 @@
-predicate valid(){
-  true
-}
-
-method test()
-  requires acc(valid())
-{}

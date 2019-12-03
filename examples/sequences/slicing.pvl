@@ -1,0 +1,33 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case SequenceSlicing
+//:: suite puptol
+//:: tool silicon
+
+class Test {
+	
+	void test1() {
+		seq<int> xs = seq<int>{ 1, 2, 3, 4, 5 };
+		assert xs[1] == 2;
+		assert xs[4] == 5;
+	}
+	
+	void test2() {
+		seq<int> xs = seq<int>{ 1, 2, 3, 4, 5 };
+		assert xs[1..] == seq<int>{ 2, 3, 4, 5 };
+		assert xs[1..][2..] == xs[3..];
+	}
+	
+	void test3() {
+		seq<int> xs = seq<int>{ 1, 2, 3, 4, 5 };
+		assert xs[..2] == seq<int>{ 1, 2 };
+		assert xs[..3][..2] == seq<int>{ 1, 2 };
+	}
+	
+	void test4(int i) {
+		seq<int> xs = seq<int>{ 1, 2, 3, 4, 5 };
+		assert xs[1..3] == seq<int> { 2, 3 };
+		assert xs[1..3] == xs[1..][..3 - 1];
+		assert xs[2..2] == seq<int> { };
+	}
+}
+

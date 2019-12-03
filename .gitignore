@@ -1,10 +1,21 @@
 .metadata/
 .project
+.classpath
+.settings/
+target/
+project/target/
 dist/
 doc/
+.idea/*
+.cache-main
+.cache-tests
+.classpath
+.project
+.learn
 tmp
 tmp.*
 vct-tool.jar
-
 *~
 
+# Vim swap file
+*.swp

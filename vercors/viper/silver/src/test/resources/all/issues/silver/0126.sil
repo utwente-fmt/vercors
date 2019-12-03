@@ -1,9 +1,0 @@
-function g(xs: Seq[Ref]): Seq[Ref]
-
-method f() {
-  var a: Ref
-  var b: Ref
-  var s: Seq[Ref]
-  assume g(Seq(b) ++ Seq[Ref]()) == s
-  assert g(Seq(b)) == s
-}

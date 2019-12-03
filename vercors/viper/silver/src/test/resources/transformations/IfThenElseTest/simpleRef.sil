@@ -1,8 +1,0 @@
-method main() returns ()
-{
-   var x: Int := 0
-   var y: Int := 1
-
-   assert(x + y >= x)
-   assert(x+y == x+y)
-}

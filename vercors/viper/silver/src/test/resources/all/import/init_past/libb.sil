@@ -1,6 +1,0 @@
-function LibB(a: Int, b: Bool): Bool
-    requires true
-    requires true
-    requires foo(1)
-    ensures result == (b || foo(a))
-import   "liba.sil"

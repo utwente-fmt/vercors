@@ -1,3 +1,0 @@
-method test01(xs: Set[Ref]) {
-  assume forall x: Ref :: {x in xs} x in xs ==> true
-}

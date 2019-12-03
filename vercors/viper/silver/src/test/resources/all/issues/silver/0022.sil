@@ -1,7 +1,0 @@
-field keys: Seq[Int]
-
-method test(this: Ref, b: Bool)
-  requires acc(this.keys)
-{
-  this.keys := (b ? Seq() : this.keys);
-}

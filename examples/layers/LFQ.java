@@ -139,9 +139,9 @@ final class Queue {
     return res; }
 
   /*@
-    requires Perm(last,1/2) ** RPerm(last.next) **
+    requires Perm(last,1\2) ** RPerm(last.next) **
       ([read]reachable(n1,n2)) ** ([read]reachable(n1,last));
-    ensures  Perm(last,1/2) ** RPerm(last.next) **
+    ensures  Perm(last,1\2) ** RPerm(last.next) **
       last==\old(last) ** last.next.val==\old(last.next.val);
     ensures  n2!=last ==> final_link(n2) **
       reachable(n1,n2.next.val) ** Value(n2.next.val.next);
@@ -182,12 +182,12 @@ final class Queue {
   /*@
     requires Perm(last,1) ** last==n1 ** RPointsTo(last.next,n2)
       ** RPointsTo(n2.next,null) ** Perm(n2.val,1)
-      ** Value(head) ** Perm(head.val,1/2) ** chain(head.val,last)
+      ** Value(head) ** Perm(head.val,1\2) ** chain(head.val,last)
       ** Value(begin) ** ([read]reachable(begin,last))
       ** ([read]reachable(begin,head.val));
     ensures  Perm(last,1) ** last==n2 ** RPointsTo(last.next,null)
       ** Value(begin) ** ([read]reachable(begin,last))
-      ** Value(head) ** Perm(head.val,1/2)
+      ** Value(head) ** Perm(head.val,1\2)
       ** chain(head.val,last) ** head.val==\old(head.val);
   @*/
   void lemma_shift_last(Node n1,Node n2){

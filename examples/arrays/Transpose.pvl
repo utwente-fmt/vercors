@@ -8,14 +8,14 @@
 */
 
 class Ref {
-  invariant out != null && inp != null && M>0 && N > 0;
-	invariant out.length == M*N && inp.length == N*M;
+  context_everywhere out != null && inp != null && M>0 && N > 0;
+	context_everywhere out.length == M*N && inp.length == N*M;
   context  (\forall* int i1 ; 0 <= i1 && i1 < M ;
              (\forall* int j1 ; 0 <= j1 && j1 < N ;
                Perm(out[i1][j1],write)));
   context  (\forall* int i1 ; 0 <= i1 && i1 < N ;
              (\forall* int j1 ; 0 <= j1 && j1 < M ;
-               Perm(inp[i1][j1],1/2)));
+               Perm(inp[i1][j1],1\2)));
   ensures  (\forall int i ; 0 <= i && i < M ;
              (\forall int j ; 0 <= j && j < N ;
                out[i][j]==inp[j][i]));
@@ -25,7 +25,7 @@ class Ref {
   void transpose(int M,int N,int[M][N] out,int[N][M] inp){
     par(int i=0..M,int j=0..N)
         context  Perm(out[i][j],write);
-        context  Perm(inp[j][i],1/4);
+        context  Perm(inp[j][i],1\4);
         ensures  out[i][j]==inp[j][i];
       {
         out[i][j]=inp[j][i];

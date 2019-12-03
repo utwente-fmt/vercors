@@ -1,8 +1,0 @@
-method m1(n: Int)
-  //:: ExpectedOutput(consistency.error)
-  requires (old[l](n) == n)
-  //:: ExpectedOutput(consistency.error)
-  ensures (old[l](n) == n)
-{
-	label l
-}

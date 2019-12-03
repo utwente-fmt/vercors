@@ -1,0 +1,26 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases demo3b
+//:: tools silicon
+//:: verdict Pass
+
+class ArraySum {
+	int sum;
+	
+	resource lock_invariant() = Perm(this.sum, 1);
+	
+	ArraySum() {
+	}
+
+	context_everywhere A != null;
+	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
+	void sum(int[] A) {
+		par (int tid = 0 .. A.length)
+			requires Perm(A[tid], 1\2);
+			ensures Perm(A[tid], 1\2);
+		{
+			lock this;
+			sum = sum + A[tid];
+			unlock this;
+		}
+	}
+}

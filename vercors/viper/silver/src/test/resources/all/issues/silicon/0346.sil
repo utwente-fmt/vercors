@@ -1,6 +1,0 @@
-function equiv(): Bool
-
-method test() {
-  var b: Bool := equiv()
-  assert b == equiv()
-}
