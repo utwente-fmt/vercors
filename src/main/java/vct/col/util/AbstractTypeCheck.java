@@ -1543,7 +1543,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
   private void force_frac(ASTNode arg) {
     if(arg instanceof OperatorExpression && ((OperatorExpression) arg).operator() == StandardOperator.FloorDiv) {
-      Warning("Encountered an integer division '%s' where a fraction was expected, did you mean a fraction division here?", arg);
+      Warning("Encountered an integer division ('/') '%s' where a fraction was expected, did you mean a fraction division ('\\') here?", arg);
     }
 
     if(arg.getType().isPrimitive(PrimitiveSort.Integer)) {
