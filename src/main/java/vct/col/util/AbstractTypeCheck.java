@@ -232,8 +232,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     Method m=find_method(e);
     e.setDefinition(m);
 
-    if(current_method() != null && current_method().getKind() == Method.Kind.Pure && m.getKind() != Method.Kind.Pure) {
-      Fail("Cannot call a non-pure method in the definition of a pure method.");
+    if(current_method() != null && current_method().getKind() == Method.Kind.Pure && (m.getKind() != Method.Kind.Pure && m.getKind() != Method.Kind.Predicate)) {
+      // We're in the body of a pure method, but neither is the invoked method pure, nor are we applying a predicate
+      if(!current_method().getReturnType().isPrimitive(PrimitiveSort.Process)) {
+        // But process definitions are exempt, as they are all pure even when VerCors thinks they are not.
+        Fail("Cannot call a non-pure method in the definition of a pure method.");
+      }
+
     }
 
     if (m.getParent() instanceof AxiomaticDataType){
