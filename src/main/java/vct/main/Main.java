@@ -4,6 +4,7 @@ package vct.main;
 
 import java.io.*;
 import java.lang.reflect.Constructor;
+import java.time.Instant;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
@@ -23,6 +24,7 @@ import hre.util.CompositeReport;
 import hre.util.TestReport;
 import vct.antlr4.parser.JavaResolver;
 import vct.antlr4.parser.Parsers;
+import hre.tools.TimeKeeper;
 import vct.col.annotate.DeriveModifies;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
@@ -45,6 +47,7 @@ import vct.logging.ErrorMapping;
 import vct.logging.ExceptionMessage;
 import vct.logging.PassReport;
 import vct.silver.ErrorDisplayVisitor;
+import vct.test.CommandLineTesting;
 import vct.util.ClassName;
 import vct.util.Configuration;
 
@@ -74,13 +77,13 @@ public class Main
     @Override
     public TestReport call() {
       Progress("Validating class %s...",class_name.toString("."));
-      long start=System.currentTimeMillis();
+      TimeKeeper tk = new TimeKeeper();
       ProgramUnit task=new FilterClass(program,class_name.name).rewriteAll();
       task=new Standardize(task).rewriteAll();
       new SimpleTypeCheck(task).check();
       TestReport report=vct.boogie.Main.TestChalice(task);
       Progress("%s: result is %s (%dms)",class_name.toString("."),
-          report.getVerdict(),System.currentTimeMillis()-start);
+          report.getVerdict(), tk.show());
       return report;
     }
 
@@ -89,13 +92,16 @@ public class Main
   public static void main(String[] args) throws Throwable
   {
     int exit=0;
-    long globalStart = System.currentTimeMillis();
+    long wallStart = System.currentTimeMillis();
+    TimeKeeper tk = new TimeKeeper();
     try {
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info);
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info);
 
       OptionParser clops=new OptionParser();
       clops.add(clops.getHelpOption(),'h',"help");
+      BooleanSetting version = new BooleanSetting(false);
+      clops.add(version.getEnable("Output the current version and exit"), "version");
 
       ChoiceSetting logLevel = new ChoiceSetting(new String[] {"silent", "abort", "result", "warning", "info", "progress", "debug", "all"}, "info");
       clops.add(logLevel.getSetOption("Set the logging level"), "verbosity");
@@ -116,7 +122,7 @@ public class Main
       BooleanSetting dafny=new BooleanSetting(false);
       clops.add(dafny.getEnable("select Dafny backend"),"dafny");
 
-      CommandLineTesting.add_options(clops);
+      CommandLineTesting.addOptions(clops);
 
       final BooleanSetting check_defined=new BooleanSetting(false);
       clops.add(check_defined.getEnable("check if defined processes satisfy their contracts."),"check-defined");
@@ -223,6 +229,12 @@ public class Main
       System.setErr(new hre.io.ForbiddenPrintStream(System.err));
       System.setOut(new hre.io.ForbiddenPrintStream(System.out));
 
+      if(version.get()) {
+        Output("%s %s", BuildInfo.name(), BuildInfo.version());
+        Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion(), BuildInfo.scalaVersion(), Instant.ofEpochMilli(BuildInfo.builtAtMillis()));
+        return;
+      }
+
       Hashtable<String,CompilerPass> defined_passes=new Hashtable<String,CompilerPass>();
       Hashtable<String,ValidationPass> defined_checks=new Hashtable<String,ValidationPass>();
 
@@ -239,7 +251,7 @@ public class Main
         throw new HREExitException(0);
       }
       if (CommandLineTesting.enabled()){
-        new CommandLineTesting().runAll();
+        CommandLineTesting.runTests();
         throw new HREExitException(0);
       }
       if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
@@ -263,7 +275,7 @@ public class Main
       report.setOutput(program);
       report.add(new ErrorDisplayVisitor());
       int cnt = 0;
-      long startTime = System.currentTimeMillis();
+      tk.show();
       for(String name : input){
         File f=new File(name);
         if (!no_context.get()){
@@ -272,7 +284,7 @@ public class Main
         program.add(Parsers.parseFile(f.getPath()));
         cnt++;
       }
-      Progress("Parsed %d file(s) in: %dms",cnt,System.currentTimeMillis() - startTime);
+      Progress("Parsed %d file(s) in: %dms",cnt, tk.show());
 
       if (boogie.get() || sequential_spec.get()) {
         program.setSpecificationFormat(SpecificationFormat.Sequential);
@@ -573,7 +585,7 @@ public class Main
       }
       if(learn.get()) {
         passes.addFirst("count=" + silver.get() + "_before_rewrite");
-        passes.add("learn=" + globalStart);
+        passes.add("learn=" + wallStart);
       }
       {
         int fatal_errs=0;
@@ -608,19 +620,19 @@ public class Main
             }
           }
           if (task!=null){
-            startTime = System.currentTimeMillis();
+            tk.show();
             report=task.apply_pass(report,pass_args);
             fatal_errs=report.getFatal();
             program=report.getOutput();
-            Progress("[%02d%%] %s took %d ms",100*(passCount-passes.size())/passCount, pass, System.currentTimeMillis()-startTime);
+            Progress("[%02d%%] %s took %d ms",100*(passCount-passes.size())/passCount, pass, tk.show());
           } else {
             ValidationPass check=defined_checks.get(pass);
             if (check!=null){
               Progress("Applying %s ...", pass);
-              startTime = System.currentTimeMillis();
+              tk.show();
               report=check.apply_pass(report,pass_args);
               fatal_errs=report.getFatal();
-              Progress(" ... pass took %d ms",System.currentTimeMillis()-startTime);
+              Progress(" ... pass took %d ms", tk.show());
             } else {
               Fail("unknown pass %s",pass);
             }
@@ -659,7 +671,7 @@ public class Main
       Verdict("The final verdict is Error");
       throw e;
     } finally {
-      Progress("entire run took %d ms",System.currentTimeMillis()-globalStart);
+      Progress("entire run took %d ms",System.currentTimeMillis()-wallStart);
       System.exit(exit);
     }
   }
@@ -722,8 +734,8 @@ public class Main
     });
     defined_checks.put("chalice",new ValidationPass("verify with Chalice"){
       public TestReport apply(ProgramUnit arg,String ... args){
+        TimeKeeper tk = new TimeKeeper();
         if (separate_checks.get()) {
-          long start=System.currentTimeMillis();
           CompositeReport res=new CompositeReport();
           ExecutorService queue=Executors.newFixedThreadPool(1);
           ArrayList<Future<TestReport>> list=new ArrayList<Future<TestReport>>();
@@ -744,12 +756,11 @@ public class Main
               Abort("%s",e);
             }
           }
-          Progress("verification took %dms", System.currentTimeMillis()-start);
+          Progress("verification took %dms", tk.show());
           return res;
         } else {
-          long start=System.currentTimeMillis();
           TestReport report=vct.boogie.Main.TestChalice(arg);
-          Progress("verification took %dms", System.currentTimeMillis()-start);
+          Progress("verification took %dms", tk.show());
           return report;
         }
       }

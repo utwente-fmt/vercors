@@ -6,8 +6,13 @@ set -e
 # refer to this script to run classes from the vercors project.
 
 BIN=$(dirname $0)
-if [ ! -f "$BIN/.classpath" ]; then
-    sbt "export compile:fullClasspath" 2>/dev/null | grep -v "^\\[" > "$BIN/.classpath"
+if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
+    #    Instruct sbt to export the classpath
+    #    |                               Duplicate stdout to...
+    #    |                               |     grep, filtering _out_ lines starting with "["
+    #    |                               |     |              save that to .classpath
+    #    |                               |     |              |                      display _only_ lines starting with "["
+    sbt "export compile:fullClasspath" | tee >(grep -v "^\\[" > "$BIN/.classpath") | grep "^\\["
 fi
 
 CLASSPATH=$(cat "$BIN/.classpath")
