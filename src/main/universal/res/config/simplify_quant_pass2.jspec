@@ -6,6 +6,7 @@ class simplify_quant_pass2 {
   boolean b1,b2,b3,b4;
   resource r1,r2;
   int i,j,k;
+  rational p1,p2;
   
   int ar[];
   
@@ -25,9 +26,9 @@ class simplify_quant_pass2 {
   // simplify x*a+b index.
   // PROBLEM: this is wrong if e3 < 0!
   axiom simplify_linear_ab {
-    (\forall* int i;( i \memberof [ e1 .. e2 )) ; Perm( ar [ i*(e3!i) +(e4!i) ] , (e5!i) ))
+    (\forall* int i;( i \memberof [ e1 .. e2 )) ; Perm( ar [ i*(e3!i) +(e4!i) ] , (p1!i) ))
      ==
-    (\forall* int i;( i \memberof [ e1*e3+e4 .. e2*e3+e4 )) && (i - e4) % e3 == 0 ; Perm( ar [ i ] , e5 ))
+    (\forall* int i;( i \memberof [ e1*e3+e4 .. e2*e3+e4 )) && (i - e4) % e3 == 0 ; Perm( ar [ i ] , p1 ))
   }
   
   // completion for b==0.
@@ -57,9 +58,9 @@ class simplify_quant_pass2 {
   }
   
   axiom simplify_shift_3 {
-    (\forall* int i; b1 ; Perm( ar [ i - (e1!i) ] , (e2!i) ))
+    (\forall* int i; b1 ; Perm( ar [ i - (e1!i) ] , (p1!i) ))
       ==
-    (\forall* int k_fresh ; (\let int i=k_fresh+e1;b1) ; Perm( ar [ k_fresh ] , e2 ))
+    (\forall* int k_fresh ; (\let int i=k_fresh+e1;b1) ; Perm( ar [ k_fresh ] , p1 ))
   }
   
   axiom simplify_shift_scale_1 {

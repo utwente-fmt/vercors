@@ -40,7 +40,7 @@ public class ArrayNullValues extends AbstractRewriter {
             case Plus:
             case Minus:
             case Mult:
-            case Div:
+            case FloorDiv:
             case Mod:
             case BitAnd:
             case BitOr:

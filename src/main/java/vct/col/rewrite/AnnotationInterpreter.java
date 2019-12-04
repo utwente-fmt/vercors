@@ -4,14 +4,11 @@ import hre.lang.HREError;
 
 import java.util.ArrayList;
 
-import vct.col.ast.stmt.decl.ASTFlags;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.NameExpression;
-import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.Type;
 
 public class AnnotationInterpreter extends AbstractRewriter {
@@ -27,6 +24,10 @@ public class AnnotationInterpreter extends AbstractRewriter {
     Type returns=rewrite(m.getReturnType());
     ContractBuilder cb=new ContractBuilder();
     rewrite(m.getContract(),cb);
+    Contract contract = cb.getContract();
+    if (contract != null && contract.getOrigin() == null) {
+      contract.setOrigin(m.getContract().getOrigin());
+    }
     String name=m.getName();
     DeclarationStatement args[]=rewrite(m.getArgs());
     ASTNode body=rewrite(m.getBody());
@@ -43,7 +44,7 @@ public class AnnotationInterpreter extends AbstractRewriter {
         ann.add(rewrite(a));
       }
     }
-    Method res=create.method_kind(kind, returns, cb.getContract(), name, args, varArgs, body);
+    Method res=create.method_kind(kind, returns, contract, name, args, varArgs, body);
     if (m.annotated()) {
       res.attach();
       for (ASTNode a : ann){

@@ -9,6 +9,7 @@ import java.util.Set;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
+import hre.tools.TimeKeeper;
 import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -42,7 +43,8 @@ public class VerCorsProgramFactory implements
   }
   
   public Hashtable<String,Set<Origin>> refuted;
-  
+  public HashSet<Origin> satCheckAsserts = new HashSet<>();
+
   private ASTFactory<?> create;
    
   @Override
@@ -190,7 +192,7 @@ public class VerCorsProgramFactory implements
     SilverStatementMap<T, E, S> stat=new SilverStatementMap<T,E,S>(api,type,expr);
     P program=api.prog.program();
     
-    long base=System.currentTimeMillis();
+    TimeKeeper tk = new TimeKeeper();
     for(ASTNode entry:arg) {
       if (entry instanceof Method) {
         Method m = (Method)entry;
@@ -327,8 +329,11 @@ public class VerCorsProgramFactory implements
         throw new HREError("bad entry: %s",entry.getClass());
       }
     }
-    long end=System.currentTimeMillis();
-    hre.lang.System.Progress("conversion took %dms",end-base);
+
+    // Save the encountered sat check assert origins for later
+    satCheckAsserts = stat.satCheckAsserts;
+
+    hre.lang.System.Progress("conversion took %dms", tk.show());
     return program;
   }
 

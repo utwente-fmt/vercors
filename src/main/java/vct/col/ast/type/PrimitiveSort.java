@@ -13,10 +13,12 @@ public enum PrimitiveSort {
 	Float,
 	Double,
 	Char,
-	/** A non-zero fraction */
+	/** A fraction in (0, 1] */
 	Fraction,
-	/** A zero-able fraction */
+	/** A fraction in [0, 1] */
 	ZFraction,
+	/** A rational */
+	Rational,
 	Void,
 	String,
 	Class,

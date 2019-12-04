@@ -10,6 +10,7 @@ import hre.lang.HREError;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.rewrite.SatCheckRewriter;
 import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
@@ -19,6 +20,8 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.util.ASTUtils;
 import static hre.lang.System.Abort;
+import static hre.lang.System.Output;
+
 import viper.api.*;
 
 public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
@@ -31,6 +34,7 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   private SilverExpressionMap<T,E> expr;
 
   public HashSet<Origin> refuted=null;
+  public HashSet<Origin> satCheckAsserts = new HashSet<>();
   
   public SilverStatementMap(ViperAPI<Origin,?,T,E,S,?,?,?> backend,SilverTypeMap<T> type,SilverExpressionMap<T,E> expr){
     this.create = backend.stat;
@@ -274,6 +278,9 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     case Exhale:
       return create.exhale(special.getOrigin(),special.args[0].apply(expr));
     case Assert:
+      if (special.getOrigin() instanceof SatCheckRewriter.AssertOrigin) {
+        satCheckAsserts.add(special.getOrigin());
+      }
       return create.assert_(special.getOrigin(),special.args[0].apply(expr));
     case Refute: {
       refuted.add(special.getOrigin());

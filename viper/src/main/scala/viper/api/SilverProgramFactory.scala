@@ -278,6 +278,9 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
        case EqCmp(e1,e2) => ve.eq(o,map_expr(v,e1),map_expr(v,e2))
        case NeCmp(e1,e2) => ve.neq(o,map_expr(v,e1),map_expr(v,e2))
        case GtCmp(e1,e2) => ve.gt(o,map_expr(v,e1),map_expr(v,e2))
+       case PermLtCmp(e1, e2) => ve.lt(o, map_expr(v, e1), map_expr(v, e2))
+       case PermLeCmp(e1, e2) => ve.lte(o, map_expr(v, e1), map_expr(v, e2))
+       case PermGeCmp(e1, e2) => ve.gte(o, map_expr(v, e1), map_expr(v, e2))
        case PermGtCmp(e1,e2) => ve.gt(o,map_expr(v,e1),map_expr(v,e2))
        case LtCmp(e1,e2) => ve.lt(o,map_expr(v,e1),map_expr(v,e2))
        case GeCmp(e1,e2) => ve.gte(o,map_expr(v,e1),map_expr(v,e2))
@@ -289,7 +292,7 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
        case PermMul(e1,e2) => ve.mult(o,map_expr(v,e1),map_expr(v,e2))
        case PermSub(e1,e2) => ve.sub(o,map_expr(v,e1),map_expr(v,e2))
        case IntPermMul(e1,e2) => ve.mult(o,map_expr(v,e1),map_expr(v,e2));
-       case Div(e1,e2) => ve.div(o,map_expr(v,e1),map_expr(v,e2))
+       case Div(e1,e2) => ve.floor_div(o,map_expr(v,e1),map_expr(v,e2))
        case Add(e1,e2) => ve.add(o,map_expr(v,e1),map_expr(v,e2))
        case Sub(e1,e2) => ve.sub(o,map_expr(v,e1),map_expr(v,e2))
        case Minus(e) => ve.neg(o,map_expr(v,e))

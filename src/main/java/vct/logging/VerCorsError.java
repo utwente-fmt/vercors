@@ -27,13 +27,14 @@ public class VerCorsError extends AbstractMessage {
     InvariantNotPreserved,
     InvariantBroken,
     PostConditionFailed,
-    UnspecifiedError,
     MagicWandUnproven,
     MagicWandPreCondition,
     NotWellFormed,
     ApplicationPreCondition,
     CallPreCondition,
-    AssignmentFailed
+    AssignmentFailed,
+    MethodPreConditionUnsound,
+    UnspecifiedError
   }
   
   /**
@@ -46,6 +47,7 @@ public class VerCorsError extends AbstractMessage {
     AssertionFalse,
     DivisionByZero,
     InsufficientPermission,
+    MethodPreConditionFalse,
     UnspecifiedCause
   }
   
@@ -93,6 +95,9 @@ public class VerCorsError extends AbstractMessage {
     case "call.precondition":
       code=CallPreCondition;
       break;
+    case "method.precondition.unsound":
+      code=MethodPreConditionUnsound;
+      break;
     default:
       hre.lang.System.Warning("unspecified error %s",err[0]);
       code=UnspecifiedError;
@@ -110,6 +115,9 @@ public class VerCorsError extends AbstractMessage {
       break;
     case "receiver.not.injective":
       sub=InsufficientPermission;
+      break;
+    case "method.precondition.false":
+      sub = MethodPreConditionFalse;
       break;
     default:
       hre.lang.System.Warning("unspecified cause %s",err[1]);

@@ -1,12 +1,14 @@
 package vct.silver;
 
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.rewrite.SatCheckRewriter;
 import viper.api.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -151,37 +153,45 @@ public class SilverBackend {
     }
     ViperControl control=new ViperControl(log);
     try {
-      HashSet<Origin> reachable=new HashSet<Origin>();
-      List<? extends ViperError<Origin>> errs=verifier.verify(
-          Configuration.getZ3Path().toPath(),settings,program,reachable,control);
-      if (errs.size()>0){
-        for(ViperError<Origin> e:errs){
-          log.error(e);
-        }
-      }
-      HashSet<Origin> accounted=new HashSet<Origin>();
-      Configuration.detailed_errors.get();
-      for(String method:control.verified_methods){
-        boolean pass=true;
-        for(Origin o:vercors.refuted.get(method)){
-          if(!reachable.contains(o)){
-            log.exception(new HREException("%s: unreachable",o));
-            pass=false;
-          } else {
-            accounted.add(o);
+      // Call into Viper to verify!
+      List<? extends ViperError<Origin>> rawErrors = verifier.verify(
+              Configuration.getZ3Path().toPath(),
+              settings,
+              program,
+              control
+      );
+      // Put it in a new list so we can add ViperErrors to it ourselves
+      List<ViperError<Origin>> errors = new ArrayList<>(rawErrors);
+
+      // Filter SatCheck errors that are to be expected
+      HashSet<SatCheckRewriter.AssertOrigin> satCheckAssertsSeen = new HashSet<>();
+      errors.removeIf(e -> {
+        for (int i = 0; i < e.getExtraCount(); i++) {
+          Origin origin = e.getOrigin(i);
+          if (origin instanceof SatCheckRewriter.AssertOrigin) {
+            satCheckAssertsSeen.add((SatCheckRewriter.AssertOrigin) origin);
+            return true;
           }
         }
-        Output("method verdict %s %s",method,pass?"PASS":"FAIL");
-      }
-      for(String method:control.failed_methods){
-        Output("method verdict %s FAIL",method);
-        for(Origin o:vercors.refuted.get(method)){
-          accounted.add(o);
+        return false;
+      });
+
+      // For each satCheckAssert that did not error, it means the contract was requires false; or something similar
+      // Therefore, we warn the user that their contracts are unsound
+      HashSet<Origin> expectedSatCheckAsserts = vercors.getSatCheckAsserts();
+      for (Origin expectedSatCheckAssert : expectedSatCheckAsserts) {
+        if (!satCheckAssertsSeen.contains(expectedSatCheckAssert)) {
+          ViperErrorImpl<Origin> error = new ViperErrorImpl<Origin>(expectedSatCheckAssert, "method.precondition.unsound:method.precondition.false");
+          errors.add(error);
         }
       }
-      for(Origin o:reachable){
-        if (!accounted.contains(o)){
-          Warning("unregistered location %s marked reachable",o);
+
+      if (errors.size() == 0) {
+        Output("Success!");
+      } else {
+        Output("Errors! (%d)", errors.size());
+        for(ViperError<Origin> e:errors){
+          log.error(e);
         }
       }
     } catch (Exception e){

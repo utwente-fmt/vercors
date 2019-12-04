@@ -3,10 +3,12 @@ package hre.io;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static hre.lang.System.Debug;
+import static hre.lang.System.Warning;
 
 /**
  * Provides communication with a interactive external process.

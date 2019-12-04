@@ -102,30 +102,30 @@ class Sender extends Thread {
   /*@
     resource preFork(frac p)=p==write
       ** Value(this.queue) ** queue!=null ** Value(queue.hist)
-      ** Value(this.input) ** PointsTo(queue.hist_active,1/4,true)
+      ** Value(this.input) ** PointsTo(queue.hist_active,1\4,true)
       ** Value(this.vals) ** input != null
       ** input.length==|vals|
       ** (\forall* int i; 0 <= i && i < |vals| ; Perm(input[i],1))
       ** (\forall  int i; 0 <= i && i < |vals| ; input[i]==vals[i])
-      ** Hist(queue.hist,1/2,empty)
+      ** Hist(queue.hist,1\2,empty)
       ** true;
       
     resource postJoin(frac p)=p==write
       ** Value(this.queue) ** queue!=null ** Value(queue.hist)
-      ** Value(this.input) ** PointsTo(queue.hist_active,1/4,true)
+      ** Value(this.input) ** PointsTo(queue.hist_active,1\4,true)
       ** Value(this.vals) ** input != null
       ** input.length==|vals|
       ** (\forall* int i; 0 <= i && i < |vals| ; Perm(input[i],1))
       ** (\forall  int i; 0 <= i && i < |vals| ; input[i]==vals[i])
-      ** Hist(queue.hist,1/2,queue.hist.put_all(vals))
+      ** Hist(queue.hist,1\2,queue.hist.put_all(vals))
       ** true;
   @*/
   
   /*@
     given    seq<int>vals;
     requires input!=null ** input.length==|vals| ** queue!=null
-      ** Value(queue.hist) ** Hist(queue.hist,1/2,empty)
-      ** PointsTo(queue.hist_active,1/4,true)
+      ** Value(queue.hist) ** Hist(queue.hist,1\2,empty)
+      ** PointsTo(queue.hist_active,1\4,true)
       ** (\forall* int i; 0 <= i && i < |vals| ; Perm(input[i],1))
       ** (\forall  int i; 0 <= i && i < |vals| ; input[i]==vals[i]);
     ensures  Value(this.queue) ** queue!=null
@@ -147,29 +147,29 @@ class Sender extends Thread {
     int N=input.length;
     int i=0;
     
-    //@ assert Hist(queue.hist,1/2,queue.hist.put_all(take(vals,i)));
+    //@ assert Hist(queue.hist,1\2,queue.hist.put_all(take(vals,i)));
     
     
     /*@
       loop_invariant 0 <= i ** i <= N 
       ** Value(this.queue) ** queue!=null ** Value(queue.hist)
-      ** Value(this.input) ** PointsTo(queue.hist_active,1/4,true)
+      ** Value(this.input) ** PointsTo(queue.hist_active,1\4,true)
       ** Value(this.vals) ** input != null
       ** N==input.length ** N==|vals|
       ** (\forall* int k; 0 <= k < |vals| ; Perm(input[k],1))
       ** (\forall  int k; 0 <= k < |vals| ; input[k]==vals[k])
-      ** Hist(queue.hist,1/2,queue.hist.put_all(take(vals,i)));
+      ** Hist(queue.hist,1\2,queue.hist.put_all(take(vals,i)));
     @*/
     while(i<N){
       queue.put(input[i])
-      /*@ with { p=1/2 ; P = queue.hist.put_all(take(vals,i));} @*/;
-      //@ assert Hist(queue.hist,1/2,
+      /*@ with { p=1\2 ; P = queue.hist.put_all(take(vals,i));} @*/;
+      //@ assert Hist(queue.hist,1\2,
       //@    queue.hist.put_all(take(vals,i)+seq<int>{vals[i]}));
       //@ assert take(vals,i)+seq<int>{vals[i]}==take(vals,i+1);
       i=i+1;
-      //@ assert Hist(queue.hist,1/2,queue.hist.put_all(take(vals,i)));
+      //@ assert Hist(queue.hist,1\2,queue.hist.put_all(take(vals,i)));
     }
-    //@ assert Hist(queue.hist,1/2,queue.hist.put_all(take(vals,N)));
+    //@ assert Hist(queue.hist,1\2,queue.hist.put_all(take(vals,N)));
     //@ assert take(vals,N)==vals;
     //@ fold this.postJoin@Thread(1);
     //@ fold this.postJoin@Sender(1);
@@ -189,27 +189,27 @@ class Receiver extends Thread {
   /*@
     resource preFork(frac p)=p==write
       ** Value(this.queue) ** queue!=null ** Value(queue.hist)
-      ** Value(this.output) ** PointsTo(queue.hist_active,1/4,true)
+      ** Value(this.output) ** PointsTo(queue.hist_active,1\4,true)
       ** Perm(this.vals,1) ** output != null
       ** (\forall* int i; 0 <= i && i < output.length ; Perm(output[i],1))
-      ** Hist(queue.hist,1/2,empty)
+      ** Hist(queue.hist,1\2,empty)
       ** true;
       
     resource postJoin(frac p)=p==write
       ** Value(this.queue) ** queue!=null ** Value(queue.hist)
-      ** Value(this.output) ** PointsTo(queue.hist_active,1/4,true)
+      ** Value(this.output) ** PointsTo(queue.hist_active,1\4,true)
       ** Perm(this.vals,1) ** output != null
       ** output.length==|vals|
       ** (\forall* int i; 0 <= i < |vals| ; Perm(output[i],1))
       ** (\forall  int i; 0 <= i < |vals| ; output[i]==vals[i])
-      ** Hist(queue.hist,1/2,queue.hist.get_all(vals))
+      ** Hist(queue.hist,1\2,queue.hist.get_all(vals))
       ** true;
   @*/
   
   /*@
     requires queue!=null ** Value(queue.hist)
-      ** Hist(queue.hist,1/2,empty) ** output != null
-      ** PointsTo(queue.hist_active,1/4,true)
+      ** Hist(queue.hist,1\2,empty) ** output != null
+      ** PointsTo(queue.hist_active,1\4,true)
       ** (\forall* int i; 0 <= i < output.length ; Perm(output[i],1));
     ensures  Value(this.queue) ** queue!=null
       ** this.queue==queue ** Value(this.output)
@@ -230,13 +230,13 @@ class Receiver extends Thread {
     /*@ loop_invariant Value(queue) ** Value(queue.hist)
     ** Value(output) ** output != null ** Perm(vals,1) ** 0 <= i <= N
     ** i==|vals| ** N==output.length
-    ** PointsTo(queue.hist_active,1/4,true) 
+    ** PointsTo(queue.hist_active,1\4,true) 
     ** (\forall* int k; 0 <= k < N ; Perm(output[k],1))
     ** (\forall int k; 0 <= k < i ; output[k]==vals[k])
-    ** Hist(queue.hist,1/2,queue.hist.get_all(vals)); @*/
+    ** Hist(queue.hist,1\2,queue.hist.get_all(vals)); @*/
     while(i<N){
       output[i]=queue.get()/*@ with {
-          p=1/2 ; P = queue.hist.get_all(vals);} @*/;
+          p=1\2 ; P = queue.hist.get_all(vals);} @*/;
       //@ vals=vals+seq<int>{output[i]};
       i=i+1;
     }
@@ -253,7 +253,7 @@ public class AbstractQueue {
   /*@ given History hist;
    requires HPerm(hist.q,1) ** hist.q==seq<int>{};
    ensures Value(this.hist) ** this.hist == hist
-     ** PointsTo(hist_active,1/2,true); @*/
+     ** PointsTo(hist_active,1\2,true); @*/
   public AbstractQueue(){
     //@ assume false;
   }
@@ -277,8 +277,8 @@ public class AbstractQueue {
 @*/ public int get();
 
 /*@
-  requires Value(hist) ** PointsTo(hist_active,1/2,true);
-  ensures Value(hist)  ** PointsTo(hist_active,1/2,false)** HPerm(hist.q,1);
+  requires Value(hist) ** PointsTo(hist_active,1\2,true);
+  ensures Value(hist)  ** PointsTo(hist_active,1\2,false)** HPerm(hist.q,1);
   void end_history();
 @*/
   
@@ -302,7 +302,7 @@ public class Main {
     //@ create hist;
     AbstractQueue q=new AbstractQueue()
     /*@ with { hist=hist; } @*/;
-    //@ split q.hist, 1/2, empty, 1/2, empty;
+    //@ split q.hist, 1\2, empty, 1\2, empty;
 
     
     Sender   s=new Sender(q,input)/*@ with {vals=contents;} @*/;
@@ -318,9 +318,9 @@ public class Main {
     //@ open r.postJoin@Receiver(1);
     //@ unfold r.postJoin@Receiver(1);
   
-    //@ assert Hist(hist,1/2,hist.put_all(s.vals));
-    //@ assert Hist(hist,1/2,hist.get_all(r.vals));
-    //@ merge hist, 1/2, hist.put_all(s.vals), 1/2, hist.get_all(r.vals);
+    //@ assert Hist(hist,1\2,hist.put_all(s.vals));
+    //@ assert Hist(hist,1\2,hist.get_all(r.vals));
+    //@ merge hist, 1\2, hist.put_all(s.vals), 1\2, hist.get_all(r.vals);
     //@ q.end_history();
     //@ destroy hist, hist.feed(s.vals,r.vals);
 

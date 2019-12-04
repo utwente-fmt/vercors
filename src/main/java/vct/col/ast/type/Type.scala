@@ -41,6 +41,7 @@ abstract class Type(val args:List[ASTNode]) extends ASTNode {
   def equalSize(t:Type) = false
   
   def isPrimitive(fraction:PrimitiveSort) = false
+  def isFraction = false
   def isBoolean = false
   def isInteger = false
   def isDouble = false

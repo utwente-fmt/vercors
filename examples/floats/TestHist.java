@@ -8,7 +8,7 @@ class Testhist {
   /*@
     given seq<int> vals;
     context_everywhere a != null && hist != null && a.length == |vals|;
-    context_everywhere (\forall* int i; 0 <= i && i < a.length ; Perm(a[i],1/2));
+    context_everywhere (\forall* int i; 0 <= i && i < a.length ; Perm(a[i],1\2));
     context_everywhere (\forall* int i; 0 <= i && i < hist.length ; Perm(hist[i],1));
     context_everywhere (\forall int i; 0 <= i && i < a.length ; 0 <= a[i] && a[i] < hist.length);
     context_everywhere (\forall int i; 0 <= i && i < a.length ; a[i] == vals[i] );

@@ -99,10 +99,12 @@ public interface ExpressionFactory<O,T,E> {
   public E let(O o,String v, T t, E e1, E e2);
   
   public E mult(O o, E e1, E e2);
-  public E div(O o, E e1, E e2);
+  public E floor_div(O o, E e1, E e2);
   public E mod(O o, E e1, E e2);
+  public E div(O o, E e1, E e2);
   public E frac(O o, E e1, E e2);
   public E add(O o, E e1, E e2);
+  public E perm_add(O o, E e1, E e2);
   public E sub(O o, E e1, E e2);
   public E neg(O o, E e1);
 

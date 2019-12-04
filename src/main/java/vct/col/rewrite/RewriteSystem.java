@@ -1,7 +1,5 @@
 package vct.col.rewrite;
 
-import static hre.lang.System.Debug;
-import static hre.lang.System.Fail;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import hre.lang.Ref;
@@ -26,6 +24,8 @@ import vct.col.ast.type.*;
 import vct.col.util.ASTUtils;
 import vct.util.Configuration;
 
+import static hre.lang.System.*;
+
 class RewriteRule {
   public final String name;
   public final Set<String> vars;
@@ -42,7 +42,7 @@ class RewriteRule {
 class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
   
   public Hashtable<String,Ref<ASTNode>> match=new Hashtable<String, Ref<ASTNode>>();
-  
+
   public MatchLinear(Set<String> vars){
     for(String name:vars){
       match.put(name,new Ref<ASTNode>());
@@ -100,6 +100,10 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
 
   @Override
   public Boolean map(NameExpression e, ASTNode a) {
+    if(a == null || a.getType() == null || !e.getType().supertypeof(null, a.getType())) {
+      return false;
+    }
+
     String name=e.getName();
     Ref<ASTNode> ref=match.get(name);
     if(ref==null){
@@ -426,7 +430,7 @@ class MatchSubstitution extends AbstractRewriter {
           // variable used in rewrite system, but not in LHS? 
           super.visit(e);
         } else {
-          result=copy_rw.rewrite(n);
+          result = n;
         }
       }
     }
@@ -452,7 +456,7 @@ class MatchSubstitution extends AbstractRewriter {
     if (e.binder== Binder.Let){
       HashMap<NameExpression, ASTNode> map=new HashMap<NameExpression, ASTNode>();
       for(int i=0;i<decls.length;i++){
-        map.put(create.local_name(decls[i].name()), rewrite(decls[i].initJava()));
+        map.put(create.local_name(decls[i].name()), decls[i].initJava());
       }
       Substitution sigma=new Substitution(source(),map);
       ASTNode tmp=rewrite(e.main);
@@ -461,6 +465,15 @@ class MatchSubstitution extends AbstractRewriter {
     } else {
       result=create.binder(e.binder,rewrite(e.result_type),decls,rewrite(e.triggers),rewrite(e.select),rewrite(e.main));
     }
+  }
+
+  @Override
+  public void post_visit(ASTNode node) {
+    if(result.getType() == null) {
+      result.setType(node.getType());
+    }
+
+    super.post_visit(node);
   }
    
 }
@@ -476,6 +489,7 @@ class Normalizer extends AbstractRewriter {
   
   @Override
   public void post_visit(ASTNode node){
+    result.setType(node.getType());
     Ref<ASTNode> ref=new Ref<ASTNode>(result);
     boolean again=(node instanceof ExpressionNode) && trs.step(ref);
     super.post_visit(node);

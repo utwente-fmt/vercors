@@ -69,17 +69,26 @@ public class VoidCalls extends AbstractRewriter {
     ASTNode expr=s.getExpression();
     BlockStatement res=create.block();
     if (expr!=null){
-      res.add(create.assignment(create.local_name("sys__result"),rewrite(expr)));
+      if (expr instanceof MethodInvokation) {
+        MethodInvokation method_invokation = (MethodInvokation) expr;
+        Method m = method_invokation.getDefinition();
+        if (m == null) Abort("cannot process invokation of %s without definition",method_invokation.method);
+        if (m.kind == Method.Kind.Plain) {
+          res.add(invokation_into_variable(method_invokation, create.local_name("sys__result")));
+        }
+      } else {
+        res.add(create.assignment(create.local_name("sys__result"),rewrite(expr)));
+      }
     }
-      for(ASTNode n : s.get_after()){
-        res.add(rewrite(n));
-      }
-      ASTNode post=rewrite(current_method().getContract().post_condition);
-      if (current_method().getContract()!=null){
-        res.add(create.special(ASTSpecial.Kind.Assert,post).set_branch(RETURN_BRANCH));
-      }
-      res.add(create.special(ASTSpecial.Kind.Assume,create.constant(false)));
-      result=res;
+    for(ASTNode n : s.get_after()){
+      res.add(rewrite(n));
+    }
+    ASTNode post=rewrite(current_method().getContract().post_condition);
+    if (current_method().getContract()!=null){
+      res.add(create.special(ASTSpecial.Kind.Assert,post).set_branch(RETURN_BRANCH));
+    }
+    res.add(create.special(ASTSpecial.Kind.Assume,create.constant(false)));
+    result=res;
 //    } else {
 //      super.visit(s);
 //    }
@@ -104,31 +113,44 @@ public class VoidCalls extends AbstractRewriter {
   
   public void visit(AssignmentStatement s){
     if (s.expression() instanceof MethodInvokation){
-      MethodInvokation e=(MethodInvokation)s.expression();
-      Method m=e.getDefinition();
-      if (m==null) Abort("cannot process invokation of %s without definition",e.method);
-      if (m.kind==Method.Kind.Plain){
-        int N=e.getArity();
-        ASTNode args[]=new ASTNode[N+1];
-        args[0]=rewrite(s.location());
-        for(int i=0;i<N;i++){
-          args[i+1]=rewrite(e.getArg(i));
+        MethodInvokation method_invokation = (MethodInvokation) s.expression();
+        Method m = method_invokation.getDefinition();
+        if (m == null) Abort("cannot process invokation of %s without definition",method_invokation.method);
+        if (m.kind == Method.Kind.Plain) {
+          result = invokation_into_variable(method_invokation, s.location());
+          return;
         }
-        args[0]=rewrite(s.location());
-        MethodInvokation res=create.invokation(rewrite(e.object), rewrite(e.dispatch) , e.method , args );
-        for(NameExpression lbl:e.getLabels()){
-          Debug("VOIDCALLS: copying label %s",lbl);
-          res.addLabel(rewrite(lbl));
-        }
-        res.set_before(rewrite(e.get_before()));
-        HashMap<NameExpression,ASTNode>map=new HashMap<NameExpression,ASTNode>();
-        map.put(create.reserved_name(ASTReserved.Result),rewrite(s.location()));
-        Substitution subst=new Substitution(source(),map);
-        res.set_after(subst.rewrite(e.get_after()));
-        result=res;
-        return;
-      }
     }
     super.visit(s);
+  }
+
+  /**
+   * Turns a method invokation with a location into a method invokation that assigns the result to the first parameter.
+   * Only works for plain methods, throws otherwise. Applies rewrite to both the method invokation and its constituents, and the location.
+   */
+  private MethodInvokation invokation_into_variable(MethodInvokation method_invokation, ASTNode location) {
+    Method method=method_invokation.getDefinition();
+    if (method == null) Abort("cannot process invokation of %s without definition",method_invokation.method);
+    if (method.kind != Method.Kind.Plain) {
+      Abort("MethodInvokation is not plain");
+    }
+    int N=method_invokation.getArity();
+    ASTNode args[]=new ASTNode[N+1];
+    args[0]=rewrite(location);
+    for(int i=0;i<N;i++){
+      args[i+1]=rewrite(method_invokation.getArg(i));
+    }
+    args[0]=rewrite(location);
+    MethodInvokation res=create.invokation(rewrite(method_invokation.object), rewrite(method_invokation.dispatch) , method_invokation.method , args );
+    for(NameExpression lbl:method_invokation.getLabels()){
+      Debug("VOIDCALLS: copying label %s",lbl);
+      res.addLabel(rewrite(lbl));
+    }
+    res.set_before(rewrite(method_invokation.get_before()));
+    HashMap<NameExpression,ASTNode> map=new HashMap<NameExpression,ASTNode>();
+    map.put(create.reserved_name(ASTReserved.Result),rewrite(location));
+    Substitution subst=new Substitution(source(),map);
+    res.set_after(subst.rewrite(method_invokation.get_after()));
+    return res;
   }
 }
