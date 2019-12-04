@@ -2,6 +2,7 @@ import NativePackagerHelper._
 
 ThisBuild / turbo := true
 
+enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
 enablePlugins(DebianPlugin)
 
@@ -43,6 +44,10 @@ lazy val vercors = (project in file("."))
         /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
         separated by "--". We instead want to accept only VerCors arguments, so we force "--" into the arguments. */
         javaOptions in Universal ++= Seq("-J-Xss128M", "--"),
+
+        buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+        buildInfoOptions += BuildInfoOption.BuildTime,
+        buildInfoPackage := "vct.main",
 
         /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
         the classpath. That way the resources are not packed into the jar. */
