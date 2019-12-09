@@ -126,7 +126,7 @@ public class ContractBuilder {
     if (pre_condition==default_true) {
       pre_condition=condition;
     } else {
-      ASTNode tmp=post_condition;
+      ASTNode tmp=pre_condition;
       if (at_end){
         pre_condition = new OperatorExpression(StandardOperator.Star, new ASTNode[] { pre_condition, condition });
       } else {

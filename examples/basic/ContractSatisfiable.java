@@ -34,7 +34,7 @@ class MyClass {
   }
 
   // User error, should be detected
-  requires a > 0 && a < 0 && b > 10;
+  //@ requires a > 0 && a < 0 && b > 10;
   void complicated_arguments(int a, int b) {
     // Should not be detected
     //@ assert b < 10;

@@ -1,5 +1,6 @@
 package vct.antlr4.parser;
 
+import hre.tools.TimeKeeper;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import vct.col.ast.generic.ASTSequence;
@@ -18,13 +19,13 @@ public class Java8JMLCommentParser extends CommentParser<Java8JMLParser,Java8JML
 
   @Override
   public TempSequence parse_contract(ASTSequence<?> seq) {
-    long begin=System.currentTimeMillis();
+    TimeKeeper tk = new TimeKeeper();
     ParseTree tree=parser.specificationSequence();
-    long middle=System.currentTimeMillis();
+    long middle = tk.show();
     ec.report();
     TempSequence res=Java8JMLtoCol.convert_seq(tree, "embedded_comments", tokens, parser);
-    long end=System.currentTimeMillis();
-    hre.lang.System.Progress("comment parsing/conversion %d/%d",middle-begin,end-middle);
+    long end = tk.show();
+    hre.lang.System.Progress("comment parsing/conversion %d/%d", middle, end);
     return res;
   }
 

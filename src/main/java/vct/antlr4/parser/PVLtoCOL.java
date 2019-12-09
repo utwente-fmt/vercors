@@ -132,7 +132,9 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       }
       throw new HREError("missing case %s",ctx2.toStringTree(parser));
     }
-    return cb.getContract(false);
+    Contract contract = cb.getContract(false);
+    contract.setOrigin(origin(ctx.start,ctx.stop));
+    return contract;
   }
 
   @Override
