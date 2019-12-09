@@ -1391,7 +1391,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         Type t = e.arg(0).getType();
         if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
         if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set))) {
-          Fail("argument of size is not a set, sequence, or PrimitiveSort.Bag");
+          Fail("argument of size is not a set, sequence, or bag");
         }
         e.setType(new PrimitiveType(PrimitiveSort.Integer));
         break;
