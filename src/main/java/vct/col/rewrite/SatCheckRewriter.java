@@ -71,10 +71,11 @@ public class SatCheckRewriter extends AbstractRewriter {
                     m.usesVarArgs(),
                     blockStatement
             );
+            assert_method.setStatic(m.isStatic());
 
             blockStatement.setParent(assert_method);
 
-            currentTargetClass.add(assert_method);
+            target().add(assert_method);
         }
     }
 

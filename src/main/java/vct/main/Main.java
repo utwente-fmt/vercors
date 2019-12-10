@@ -345,6 +345,7 @@ public class Main
         passes.add("dafny"); // run backend
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
+        passes.add("record_pointers");
         passes.add("java_resolve");
 
         if (silver.used() &&
@@ -912,6 +913,11 @@ public class Main
     defined_passes.put("flatten",new CompilerPass("remove nesting of expression"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new Flatten(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("record_pointers", new CompilerPass("rewrite pointers to record classes as plain classes") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new RewriteRecordPointers(arg).rewriteAll();
       }
     });
     defined_passes.put("ghost-lift",new CompilerPass("Lift ghost code to real code"){

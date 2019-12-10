@@ -10,19 +10,11 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import hre.tools.TimeKeeper;
-import vct.col.ast.stmt.decl.ASTFlags;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.ASTClass;
-import vct.col.ast.stmt.decl.Axiom;
-import vct.col.ast.stmt.decl.AxiomaticDataType;
 import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
 import vct.col.util.ASTFactory;
@@ -325,6 +317,8 @@ public class VerCorsProgramFactory implements
             throw new HREError("bad special declaration entry: %s",s.kind);
 
         }
+      } else if(entry instanceof TypeAlias) {
+        // There is nothing to do; type aliases are resolved to the correct type at the usage site.
       } else {
         throw new HREError("bad entry: %s",entry.getClass());
       }

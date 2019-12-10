@@ -395,7 +395,7 @@ public class Java8JMLtoCol extends ANTLRtoCOL implements Java8JMLVisitor<ASTNode
 
   public DeclarationStatement getFormalParameter(ParserRuleContext ctx) {
     if (match(ctx,null,null)){
-      VariableDeclaration decl=create.variable_decl(checkType(convert(ctx,0)));
+      MultipleDeclaration decl=create.multiple_decl(checkType(convert(ctx,0)));
       DeclarationStatement var=getVariableDeclaratorId((ParserRuleContext)ctx.getChild(1));
       decl.add(var);
       DeclarationStatement vars[]=decl.flatten();
@@ -434,7 +434,7 @@ public class Java8JMLtoCol extends ANTLRtoCOL implements Java8JMLVisitor<ASTNode
 
   public DeclarationStatement getLastFormalParameter(ParserRuleContext ctx) {
     if (match(ctx,null,"...",null)){
-      VariableDeclaration decl=create.variable_decl(checkType(convert(ctx,0)));
+      MultipleDeclaration decl=create.multiple_decl(checkType(convert(ctx,0)));
       DeclarationStatement var=getVariableDeclaratorId((ParserRuleContext)ctx.getChild(2));
       decl.add(var);
       DeclarationStatement vars[]=decl.flatten();
@@ -665,7 +665,7 @@ public class Java8JMLtoCol extends ANTLRtoCOL implements Java8JMLVisitor<ASTNode
     }
     Type t=checkType(convert(ctx,base));
     ASTNode vars[]=convert_list((ParserRuleContext)ctx.getChild(base+1),",");
-    VariableDeclaration decl=create.variable_decl(t);
+    MultipleDeclaration decl=create.multiple_decl(t);
     for(int i=0;i<vars.length;i++){
       DeclarationStatement tmp;
       if (vars[i] instanceof NameExpression){

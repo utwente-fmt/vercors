@@ -434,6 +434,17 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
     res.accept_if(post);
     return res;    
   }
+
+  public TypeAlias type_alias(Origin o, Type type, String name) {
+    TypeAlias res = new TypeAlias(type, name);
+    res.setOrigin(o);
+    res.accept_if(post);
+    return res;
+  }
+
+  public TypeAlias type_alias(Type type, String name) {
+    return type_alias(origin_stack.get(), type, name);
+  }
   
   /**
    * Create a name expression that refers to a field name.
@@ -1095,8 +1106,8 @@ public NameExpression unresolved_name(String name) {
   return res;
 }
 
-public VariableDeclaration variable_decl(Type type) {
-  VariableDeclaration res=new VariableDeclaration(type);
+public MultipleDeclaration multiple_decl(Type type) {
+  MultipleDeclaration res=new MultipleDeclaration(type);
   res.setOrigin(origin_stack.get());
   res.accept_if(post);
   return res;

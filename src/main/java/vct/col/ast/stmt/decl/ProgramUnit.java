@@ -4,6 +4,7 @@ import hre.ast.MessageOrigin;
 
 import java.util.*;
 
+import hre.lang.Failure;
 import scala.collection.JavaConverters;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
@@ -11,6 +12,7 @@ import vct.col.ast.generic.DebugNode;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.util.ASTFactory;
 import vct.util.ClassName;
@@ -237,6 +239,12 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
     if (cl==null){
       cl=library.get(name);
     }
+    if (cl == null) {
+      ASTDeclaration decl = find_decl(name.name);
+      if (decl instanceof ASTClass) {
+        cl = (ASTClass) decl;
+      }
+    }
     return cl;
   }
 
@@ -258,13 +266,33 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
     return m;
   }
 
-  public ASTDeclaration find_decl(String[] nameFull) {
+  public ASTDeclaration find_immediate_decl(String[] nameFull) {
     ClassName class_name=new ClassName(nameFull);
     ASTDeclaration res=decl_map.get(class_name);
     if (res==null){
       res=library.get(class_name);
     }
+
     return res;
+  }
+
+  public ASTDeclaration find_decl(String[] nameFull) {
+    ASTDeclaration res = find_immediate_decl(nameFull);
+
+    if(res instanceof TypeAlias) {
+      TypeAlias typeAlias = (TypeAlias) res;
+      if(typeAlias.aliasedType() instanceof ClassType) {
+        return find_decl(((ClassType) typeAlias.aliasedType()).getNameFull());
+      } else {
+        Fail("Cannot determine declaration site: %s names a type alias referring to %s, " +
+                "of which the name cannot be determined.",
+                nameFull[nameFull.length-1],
+                typeAlias.aliasedType());
+        return null;
+      }
+    } else {
+      return res;
+    }
   }
   
   public Method find_adt(String ... nameFull) {
@@ -287,8 +315,8 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
   public ProgramUnit add(ASTNode item) {
     if (item instanceof ASTDeclaration){
       add((ASTDeclaration)item);
-    } else if(item instanceof VariableDeclaration) {
-      for(ASTDeclaration d:((VariableDeclaration)item).flatten_decl()){
+    } else if(item instanceof MultipleDeclaration) {
+      for(ASTDeclaration d:((MultipleDeclaration)item).flatten_decl()){
         add(d);
       }
     } else {

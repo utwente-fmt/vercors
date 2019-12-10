@@ -664,8 +664,8 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
     
   @Override
-  public void visit(VariableDeclaration decl) {
-    VariableDeclaration res=create.variable_decl(decl.basetype);
+  public void visit(MultipleDeclaration decl) {
+    MultipleDeclaration res=create.multiple_decl(decl.basetype);
     for(ASTDeclaration d:decl.get()){
       res.add(rewrite(d));
     }
@@ -869,5 +869,10 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       case_list.add(rwc);
     }
     result = create.switch_statement(expr, case_list);
+  }
+
+  @Override
+  public void visit(TypeAlias alias) {
+    result = create.type_alias(rewrite(alias.aliasedType()), alias.name());
   }
 }

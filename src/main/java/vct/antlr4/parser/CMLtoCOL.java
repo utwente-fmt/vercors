@@ -19,6 +19,7 @@ import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.ast.type.TypeExpression;
 import vct.col.ast.type.TypeOperator;
 import vct.col.syntax.CSyntax;
 import vct.col.syntax.Syntax;
@@ -27,6 +28,7 @@ import vct.util.Configuration;
 
 import java.util.ArrayList;
 
+import static hre.lang.System.Abort;
 import static hre.lang.System.Debug;
 
 /**
@@ -39,6 +41,11 @@ import static hre.lang.System.Debug;
  * @author <a href="mailto:s.c.c.blom@utwente.nl">Stefan Blom</a>
 */
 public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
+  /**
+   * Since regular declarations ("int x;") and typedefs ("typedef struct S{} name;") share the same grammatical structure,
+   * we need to remember whether a type ("typedef struct S{}") was marked as typedef, in addition to the type returned.
+   */
+  private boolean flag_in_typedef = false;
 
   private static <E extends ASTSequence<?>> E convert(E unit, ParseTree tree, String file_name, BufferedTokenStream tokens, org.antlr.v4.runtime.Parser parser) {
     ANTLRtoCOL visitor=new CMLtoCOL(unit, CSyntax.getCML(),file_name,tokens,parser,CMLLexer.Identifier,CMLLexer.CH_COMMENT);
@@ -100,6 +107,21 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     }
   }
 
+  private Type addPointer(Type t) {
+    if(t instanceof TypeExpression) {
+      if(t.nrOfArguments() != 1) {
+        throw hre.lang.System.Failure("Cannot add indirection to a type-expression which has non-unary arity.");
+      }
+
+      return create.type_expression(
+              ((TypeExpression) t).operator(),
+              addPointer(((TypeExpression) t).firstType())
+      );
+    } else {
+      return create.primitive_type(PrimitiveSort.Pointer, t);
+    }
+  }
+
   private ASTDeclaration getPointer(ASTDeclaration decl, ParserRuleContext ctx){
     if(match(ctx,"*",null)){
       Debug("pointer");
@@ -114,7 +136,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     if(decl instanceof DeclarationStatement) {
       DeclarationStatement result = new DeclarationStatement(
               decl.name(),
-              create.primitive_type(PrimitiveSort.Pointer, ((DeclarationStatement) decl).type()),
+              addPointer(((DeclarationStatement) decl).type()),
               ((DeclarationStatement) decl).init()
       );
 
@@ -124,11 +146,19 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
       Method result = new Method(
               ((Method) decl).getKind(),
               ((Method) decl).getName(),
-              create.primitive_type(PrimitiveSort.Pointer, ((Method) decl).getReturnType()),
+              addPointer(((Method) decl).getReturnType()),
               ((Method) decl).getContract(),
               ((Method) decl).getArgs(),
               ((Method) decl).usesVarArgs(),
               ((Method) decl).getBody()
+      );
+
+      result.setOrigin(decl.getOrigin());
+      return result;
+    } else if(decl instanceof TypeAlias) {
+      TypeAlias result = new TypeAlias(
+              addPointer(((TypeAlias) decl).aliasedType()),
+              decl.name()
       );
 
       result.setOrigin(decl.getOrigin());
@@ -244,9 +274,10 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
       expect=null;
       return res;
     } else if (match(ctx,null,null,";")){
-      VariableDeclaration res=create.variable_decl(checkType(convert(ctx,0)));
+      Type t = checkType(convert(ctx,0));
       ParserRuleContext list=(ParserRuleContext)ctx.getChild(1);
       ASTNode decls[]=convert_linked_list(list,",");
+      MultipleDeclaration res=create.multiple_decl(t);
       for(int i=0;i<decls.length;i++){
         if (decls[i] instanceof ASTDeclaration){
           res.add((ASTDeclaration)decls[i]);
@@ -258,6 +289,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
           return null;
         }
       }
+      flag_in_typedef = false;
       return res;
     }
     return null;
@@ -302,7 +334,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     } else if (t instanceof NameExpression){
       type=create.class_type(((NameExpression)t).getName());
     } else {
-      hre.lang.System.Abort("cannot convert %s/%s to type",tmp.toStringTree(parser),t.getClass());
+      Abort("cannot convert %s/%s to type",tmp.toStringTree(parser),t.getClass());
     }
     i=i-1;
     while(i>=0){
@@ -312,14 +344,16 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
           Debug("\"class:\" %s",sclass);
           switch(sclass){
           case "typedef":
-            return create.field_decl(name,create.primitive_type(PrimitiveSort.Class) ,type);
+            this.flag_in_typedef = true;
+            break;
           case "extern":
             type=create.__extern(type);
+            break;
           case "static":
             type=create.__static(type);
             break;
           default:
-            hre.lang.System.Abort("missing case");
+            Abort("missing case");
           }
       } else if (match((ParserRuleContext)ctx.getChild(i),"TypeQualifier")){
         Debug("\"tspec:\" %s",ctx.getChild(i).toStringTree(parser));
@@ -341,7 +375,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
           type=create.__long(type);
           break;
         default:
-          hre.lang.System.Abort("unknown type modifier: %s",modifier);
+          Abort("unknown type modifier: %s",modifier);
         }
       } else  if (match((ParserRuleContext)ctx.getChild(i),"TypeSpecifier")){
         Debug("\"tspec:\" %s",ctx.getChild(i).toStringTree(parser));
@@ -372,7 +406,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
           type=create.__local(type);
           break;
         default:
-          hre.lang.System.Abort("unknown type modifier: %s",modifier);
+          Abort("unknown type modifier: %s",modifier);
         }
       } else {
         ASTNode n=convert(ctx,i);
@@ -383,7 +417,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
           }
           type.addLabel(l);
         } else {
-          hre.lang.System.Abort("cannot handle modifier %s at %s",ctx.getChild(i).toStringTree(parser),n.getOrigin());
+          Abort("cannot handle modifier %s at %s",ctx.getChild(i).toStringTree(parser),n.getOrigin());
         }
       }
       i=i-1;
@@ -391,7 +425,13 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     if (name==null){
       return type;
     } else {
-      return create.field_decl(name,type);
+      if(flag_in_typedef) {
+        flag_in_typedef = false;
+        return create.type_alias(type, name);
+      } else {
+        return create.field_decl(name,type);
+      }
+
     }
   }
 
@@ -436,7 +476,11 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   public ASTNode visitDirectDeclarator(DirectDeclaratorContext ctx) {
     if (match(ctx,(String)null)){
       String name=getIdentifier(ctx,0);
-      return create.field_decl(name, VariableDeclaration.common_type);
+      if(flag_in_typedef) {
+        return create.type_alias(MultipleDeclaration.common_type, name);
+      } else {
+        return create.field_decl(name, MultipleDeclaration.common_type);
+      }
     }
     boolean pars=false;
     if (match(ctx,null,"(",")")||(pars=match(ctx,null,"(","ParameterTypeList",")"))){
@@ -450,7 +494,9 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
         Type t=args.get(args.size()-1).getType();
         varargs=t.isPrimitive(PrimitiveSort.CVarArgs);
       }
-      return create.method_kind(Method.Kind.Plain, VariableDeclaration.common_type, null, name, args, varargs, null);
+      Method result = create.method_kind(Method.Kind.Plain, MultipleDeclaration.common_type, null, name, args, varargs, null);
+      result.setStatic(true);
+      return result;
     }
     if (match(ctx,null,"[","]")){
       Debug("unspecified array dimension");
@@ -574,10 +620,11 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     }
 
     Type declSpec = (Type)convert(ctx,0);
+    if(flag_in_typedef) Abort("Parameters cannot be marked typedef");
     Method declaration = (Method) convert(ctx, 1);
     declaration.setBody(convert(ctx, 2));
 
-    VariableDeclaration result = create.variable_decl(declSpec);
+    MultipleDeclaration result = create.multiple_decl(declSpec);
     result.add(declaration);
     return result;
   }
@@ -681,7 +728,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
         ofs+=2;
       } else if (match(ofs,true,ctx,"(",null,null,";")){
         init=convert(ctx,ofs+1);
-        init=((VariableDeclaration)init).flatten()[0];
+        init=((MultipleDeclaration)init).flatten()[0];
         test=convert(ctx,ofs+2);
         ofs+=3;
       } else {
@@ -765,11 +812,12 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   public ASTNode visitParameterDeclaration(ParameterDeclarationContext ctx) {
     if (match(ctx,null,null)){
       Type t=(Type)convert(ctx,0);
+      if(flag_in_typedef) Abort("Parameters cannot be marked typedef");
       ParseTree var=ctx.getChild(1);
       if (var instanceof ParserRuleContext){
         ASTNode v=convert(ctx,1);
         if (v instanceof DeclarationStatement){
-          VariableDeclaration decl=create.variable_decl(t);
+          MultipleDeclaration decl=create.multiple_decl(t);
           decl.add((DeclarationStatement)v);
           ASTDeclaration vars[]=decl.flatten();
           if (vars.length==1) return vars[0];
@@ -965,7 +1013,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   public ASTNode visitStructDeclaration(StructDeclarationContext ctx) {
     if (match(ctx,null,null,";")){
       Type t=checkType(convert(ctx,0));
-      VariableDeclaration decl=create.variable_decl(t);
+      MultipleDeclaration decl=create.multiple_decl(t);
       ASTNode n = convert(ctx,1);
       decl.add((DeclarationStatement)n);
       return decl;

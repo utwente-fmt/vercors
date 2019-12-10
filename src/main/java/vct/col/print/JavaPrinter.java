@@ -5,10 +5,7 @@ import hre.ast.TrackingOutput;
 import hre.ast.TrackingTree;
 import hre.lang.HREError;
 
-import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.util.List;
-import java.util.Map.Entry;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
@@ -1388,7 +1385,7 @@ public class JavaPrinter extends AbstractPrinter {
   }
 
   @Override
-  public void visit(VariableDeclaration decl){
+  public void visit(MultipleDeclaration decl){
     decl.basetype.accept(this);
     String sep=" ";
     for(ASTDeclaration dd:decl.get()){
@@ -1451,5 +1448,14 @@ public class JavaPrinter extends AbstractPrinter {
     
     out.print(")");
     c.block().accept(this);
+  }
+
+  @Override
+  public void visit(TypeAlias alias) {
+    out.print("typedef ");
+    alias.aliasedType().accept(this);
+    out.print(" ");
+    out.print(alias.name());
+    out.print(";\n");
   }
 }

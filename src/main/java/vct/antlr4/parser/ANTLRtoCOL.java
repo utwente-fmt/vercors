@@ -8,7 +8,6 @@ import java.util.List;
 
 import hre.ast.FileOrigin;
 import hre.ast.Origin;
-import hre.lang.Failure;
 import hre.lang.HREError;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
@@ -35,7 +34,7 @@ import vct.col.ast.expr.NameExpression;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.col.ast.stmt.decl.VariableDeclaration;
+import vct.col.ast.stmt.decl.MultipleDeclaration;
 import vct.col.syntax.Syntax;
 import vct.col.util.ASTFactory;
 import static hre.lang.System.*;
@@ -741,8 +740,8 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
           decl.setGhost(true);
           if (decl instanceof DeclarationStatement){
             cb.given((DeclarationStatement)decl);
-          } else if (decl instanceof VariableDeclaration){
-            cb.given((VariableDeclaration)convert(clause,1));
+          } else if (decl instanceof MultipleDeclaration){
+            cb.given((MultipleDeclaration)convert(clause,1));
           }
         } else if (match(clause,"given",null,null,";")){
           DeclarationStatement decl=create.field_decl(getIdentifier(clause,2),checkType(convert(clause,1)));
@@ -752,8 +751,8 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
           ASTNode decl=convert(clause,1);
           if (decl instanceof DeclarationStatement){
             cb.yields((DeclarationStatement)convert(clause,1));
-          } else if (decl instanceof VariableDeclaration){
-            cb.yields((VariableDeclaration)convert(clause,1));
+          } else if (decl instanceof MultipleDeclaration){
+            cb.yields((MultipleDeclaration)convert(clause,1));
           }          
         }  else {
           throw hre.lang.System.Failure("bad clause %s",t);

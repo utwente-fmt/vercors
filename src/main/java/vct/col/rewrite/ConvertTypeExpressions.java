@@ -45,6 +45,28 @@ public class ConvertTypeExpressions extends AbstractRewriter {
     }
     result=res;
   }
+
+  @Override
+  public void visit(TypeAlias alias) {
+    Type type = alias.aliasedType();
+
+    while(type instanceof TypeExpression) {
+      TypeExpression typeExpression = (TypeExpression) type;
+      switch(typeExpression.operator()) {
+        case Static:
+          type = typeExpression.firstType();
+          break;
+        case Extern:
+          type = typeExpression.firstType();
+          break;
+        default:
+          Fail("cannot deal with type operator %s", typeExpression.operator());
+      }
+    }
+
+    TypeAlias newAlias = create.type_alias(type, alias.name());
+    result = newAlias;
+  }
   
   @Override
   public void visit(Method m){

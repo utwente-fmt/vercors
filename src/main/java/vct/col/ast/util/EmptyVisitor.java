@@ -190,7 +190,7 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
   }
 
   @Override
-  public void visit(VariableDeclaration variableDeclaration) {
+  public void visit(MultipleDeclaration multipleDeclaration) {
     // TODO Auto-generated method stub
     
   }
@@ -296,5 +296,10 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
     // TODO Auto-generated method stub
     
   }
-  
+
+  @Override
+  public void visit(TypeAlias alias) {
+
+  }
+
 }

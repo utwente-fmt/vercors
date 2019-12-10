@@ -412,7 +412,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   }
 
   @Override
-  public E map(VariableDeclaration variableDeclaration) {
+  public E map(MultipleDeclaration multipleDeclaration) {
     return null;
   }
 
@@ -520,5 +520,10 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(Switch s) {
     return null;
   }
-  
+
+  @Override
+  public E map(TypeAlias alias) {
+    return null;
+  }
+
 }

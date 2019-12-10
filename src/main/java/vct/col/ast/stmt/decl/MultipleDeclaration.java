@@ -29,7 +29,7 @@ import static hre.lang.System.Debug;
  * @author Stefan Blom
  *
  */
-public class VariableDeclaration extends ASTNode {
+public class MultipleDeclaration extends ASTNode {
 
   @Override
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
@@ -53,14 +53,14 @@ public class VariableDeclaration extends ASTNode {
   /**
    * Multiple variable declarations on top of the given base type.
    */
-  private ArrayList<ASTDeclaration> vars=new ArrayList<ASTDeclaration>();
+  private ArrayList<ASTDeclaration> subDeclarations = new ArrayList<ASTDeclaration>();
   
   /**
    * Create an empty list of variables.
    * 
    * @param basetype
    */
-  public VariableDeclaration(Type basetype){
+  public MultipleDeclaration(Type basetype){
     this.basetype=basetype;
   }
   
@@ -98,14 +98,14 @@ public class VariableDeclaration extends ASTNode {
    * @param decl
    */
   public void add(ASTDeclaration decl){
-    vars.add(decl);
+    subDeclarations.add(decl);
   }
   
   /**
    * Iterate over the (variable) declarations.
    */
   public Iterable<ASTDeclaration> get(){
-    return vars;
+    return subDeclarations;
   }
 
   /**
@@ -128,7 +128,7 @@ public class VariableDeclaration extends ASTNode {
     AbstractRewriter rw=new MultiSubstitution(null,map);
     rw.create.setOrigin(getOrigin());
     map.put(COMMON_NAME,basetype);
-    for(ASTDeclaration decl:vars){
+    for(ASTDeclaration decl: subDeclarations){
       if (decl instanceof DeclarationStatement){
         DeclarationStatement d=(DeclarationStatement)decl;
         String name=d.name();
@@ -140,6 +140,8 @@ public class VariableDeclaration extends ASTNode {
           tmp.setStatic(isStatic());
         }
         list.add(tmp);
+      } else if(decl instanceof TypeAlias) {
+        list.add(rw.rewrite(decl));
       } else {
         Method m=(Method)decl;
         list.add(rw.rewrite(m));

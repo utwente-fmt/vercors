@@ -37,7 +37,7 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.Method.Kind;
-import vct.col.ast.stmt.decl.VariableDeclaration;
+import vct.col.ast.stmt.decl.MultipleDeclaration;
 import vct.col.syntax.PVLSyntax;
 import vct.col.syntax.Syntax;
 
@@ -843,7 +843,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     if (ctx.children.size()==4){
       res=create.field_decl(getIdentifier(ctx,2),(Type)convert(ctx.children.get(1)));
     } else {
-      VariableDeclaration decl=new VariableDeclaration((Type)convert(ctx.children.get(1)));
+      MultipleDeclaration decl=new MultipleDeclaration((Type)convert(ctx.children.get(1)));
       int N=ctx.children.size();
       for(int i=2;i<N;i+=2){
         String name=getIdentifier(ctx,i);
@@ -872,7 +872,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     if (ctx.children.size()==3){
       return create.field_decl(getIdentifier(ctx,1),(Type)convert(ctx.children.get(0)));
     } else {
-      VariableDeclaration decl=new VariableDeclaration((Type)convert(ctx.children.get(0)));
+      MultipleDeclaration decl=new MultipleDeclaration((Type)convert(ctx.children.get(0)));
       int N=ctx.children.size();
       for(int i=1;i<N;i+=2){
         String name=getIdentifier(ctx,i);

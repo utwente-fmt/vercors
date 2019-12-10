@@ -6,7 +6,7 @@ import hre.ast.FileOrigin;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
-import vct.col.ast.stmt.decl.VariableDeclaration;
+import vct.col.ast.stmt.decl.MultipleDeclaration;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
@@ -78,14 +78,14 @@ public class ContractBuilder {
     for(DeclarationStatement d:decls) given.add(d);
   }
   
-  public void given(VariableDeclaration decl){
+  public void given(MultipleDeclaration decl){
 	empty=false;
     for(DeclarationStatement d:decl.flatten()){
       given.add(d);
     }
   }
 
-  public void yields(VariableDeclaration decl){
+  public void yields(MultipleDeclaration decl){
     empty=false;
     for(DeclarationStatement d:decl.flatten()){
       yields.add(d);
