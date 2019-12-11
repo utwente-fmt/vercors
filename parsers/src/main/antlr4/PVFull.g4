@@ -168,7 +168,7 @@ targetUnit
  ;
 
 builtinMethod
- : 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some' | 'empty'
+ : 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some'
  ;
 
 values : '{' ( | expr (',' expr)*) '}';

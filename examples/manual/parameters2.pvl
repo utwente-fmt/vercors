@@ -8,7 +8,7 @@ class parameters {
   requires c!=null ** Perm(c.x,p);
   yields   frac q;
   ensures  c!=null ** Perm(c.x,q) ** q <= p;
-  void drop1(Counter c){
+  void drop(Counter c){
     q = p;
   }
 
@@ -16,7 +16,7 @@ class parameters {
     Counter c=new Counter();
     c.x=37;
     frac q;
-    drop1(c) with { p = 1; } then { q = q ; } ;
-    drop1(c) with { p = q; } ;
+    drop(c) with { p = 1; } then { q = q ; } ;
+    drop(c) with { p = q; } ;
   }
 }

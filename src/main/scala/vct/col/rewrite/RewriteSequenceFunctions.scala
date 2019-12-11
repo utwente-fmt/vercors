@@ -11,7 +11,6 @@ import scala.collection.mutable
 
 object RewriteSequenceFunctions {
   val getRemoveName: mutable.Map[Type, String] = mutable.Map()
-  val getRangeName: mutable.Map[Type, String] = mutable.Map()
 
   val namesUsed: mutable.Set[String] = mutable.Set()
 
@@ -27,12 +26,6 @@ object RewriteSequenceFunctions {
   def getRemoveFunction(t: Type): String = {
     getRemoveName getOrElseUpdate(t, getUniqueName("remove_by_index_" + t.toString))
   }
-
-  def getRangeFunction(t: Type): String = {
-    getRangeName getOrElseUpdate(t, getUniqueName("take_range_" + t.toString))
-  }
-
-
 }
 
 class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(source) {
@@ -46,13 +39,6 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
     }
     create.leave()
 
-    create.enter()
-    create.setOrigin(new MessageOrigin("Sequence Function: Range"))
-    for ((t, name) <- RewriteSequenceFunctions.getRangeName) {
-      res.add(takeRangeFromSequence(t, name))
-    }
-    create.leave()
-
     res
   }
 
@@ -61,64 +47,11 @@ class RewriteSequenceFunctions(source: ProgramUnit) extends AbstractRewriter(sou
       case StandardOperator.RemoveAt =>
         val sequenceType = operator.arg(0).getType
         result = create.invokation(null, null, RewriteSequenceFunctions.getRemoveFunction(sequenceType), rewrite(operator.args.toArray):_*)
-      case StandardOperator.RangeFromSeq =>
-        val sequenceType = operator.arg(0).getType
-        result = create.invokation(null, null, RewriteSequenceFunctions.getRangeFunction(sequenceType), rewrite(operator.args.toArray):_*)
       case _ =>
         super.visit(operator)
     }
   }
 
-
-
-
-  def takeRangeFromSequence(sequenceType: Type, functionName: String): ASTNode = {
-    val contract = new ContractBuilder
-    val result = create.reserved_name(ASTReserved.Result, sequenceType)
-
-    val sequenceArgName = "seq0"
-    val startArgName = "lowerbound0"
-    val stopArgName = "upperbound0"
-
-    val sequenceArg = new DeclarationStatement(sequenceArgName, sequenceType)
-    val startArg = new DeclarationStatement(startArgName, create.primitive_type(PrimitiveSort.Integer))
-    val stopArg = new DeclarationStatement(stopArgName, create.primitive_type(PrimitiveSort.Integer))
-
-    contract.requires(validIndex(sequenceArgName, startArgName))
-    contract.requires(validIndex(sequenceArgName, stopArgName, inclusive = true))
-    contract.requires(lte(name(startArgName), name(stopArgName)))
-
-    contract.ensures(eq(size(result), minus(name(stopArgName), name(startArgName))))
-
-    val forAllIndex = new DeclarationStatement("j0", create.primitive_type(PrimitiveSort.Integer))
-    val indexNode = name(forAllIndex.name)
-
-
-    contract.ensures(
-      create.forall(
-        valueInRange(indexNode, name(startArgName), name(stopArgName)),
-        eq(
-          get(result, minus(indexNode, name(startArgName))),
-          get(name(sequenceArgName), indexNode)),
-        forAllIndex
-      )
-    )
-
-    contract.ensures(
-      create.forall(
-        valueInRange(name(indexNode.getName), constant(0), size(result)),
-        eq(
-          get(result, indexNode),
-          get(name(sequenceArgName), plus(indexNode, name(startArgName)))),
-        forAllIndex
-      )
-    )
-
-    val functionArguments = List(sequenceArg, startArg, stopArg)
-    val declaration = create.function_decl(sequenceType, contract.getContract, functionName, functionArguments.toArray, null)
-    declaration.setStatic(true)
-    declaration
-  }
 
   def removeFromSequenceByIndex(sequenceType: Type, functionName: String): ASTNode = {
     val contract = new ContractBuilder

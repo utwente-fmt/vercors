@@ -143,29 +143,6 @@ public class Standardize extends AbstractRewriter {
         }
         break;
       }
-      case Drop:
-      {
-        if (e.arg(0).getType() != null) {
-          Type seqElementType = (Type) e.arg(0).getType().firstarg();
-          ASTNode sequence = e.arg(0).apply(this);
-          ASTNode index = e.arg(1).apply(this);
-          result = create.expression(StandardOperator.RangeFromSeq, sequence, index, create.expression(StandardOperator.Size, sequence));
-        } else {
-          super.visit(e);
-        }
-        break;
-      }
-        case Take: {
-          if (e.arg(0).getType() != null) {
-            Type seqElementType = (Type) e.arg(0).getType().firstarg();
-            ASTNode sequence = e.arg(0).apply(this);
-            ASTNode index = e.arg(1).apply(this);
-            result = create.expression(StandardOperator.RangeFromSeq, sequence, constant(0), index);
-          } else {
-            super.visit(e);
-          }
-        break;
-      }
       case PrependSingle: {
         Type seqElementType = e.arg(0).getType();
         if (seqElementType != null) {

@@ -10,7 +10,7 @@ class MaxSort {
     //  sequence for the result    //
     /////////////////////////////////
     ensures |\result| == |input|;
-    ensures MaxAltSort.sorted(\result);
+    ensures sorted(\result);
     seq<int> sort(seq<int> input) {
         seq<int> unsorted = input;
         seq<int> result = [t:int];
@@ -18,10 +18,10 @@ class MaxSort {
         loop_invariant |input| == |result| + |unsorted|;
         loop_invariant (\forall int l; 0 <= l && l < |result|; result[l] in input);
         loop_invariant (\forall int l; 0 <= l && l < |unsorted|; unsorted[l] in input);
-        loop_invariant !empty(unsorted) ==> (\forall int l; 0 <= l && l < |result|; result[l] >= unsorted[MaxAltSort.max(unsorted)]);
-        loop_invariant MaxAltSort.sorted(result);
-        while (!empty(unsorted)) {
-            int maxOfSeq = MaxAltSort.max(unsorted);
+        loop_invariant !isEmpty(unsorted) ==> (\forall int l; 0 <= l && l < |result|; result[l] >= unsorted[max(unsorted)]);
+        loop_invariant sorted(result);
+        while (!isEmpty(unsorted)) {
+            int maxOfSeq = max(unsorted);
             result = unsorted[maxOfSeq] :: result;
             unsorted = remove(unsorted, maxOfSeq);
         }
@@ -86,7 +86,7 @@ class MaxSort {
     requires |xs| > 0;
     ensures 0 <= \result && \result < |xs|;
     ensures (\forall int i; 0 <= i && i < |xs|; xs[i] <= xs[\result]);
-    pure static int max(seq<int> xs) = MaxAltSort.maxhelper(xs, 0);
+    pure static int max(seq<int> xs) = maxhelper(xs, 0);
 
     requires |xs| > 0;
     requires 0 <= j && j < |xs|;
@@ -96,10 +96,9 @@ class MaxSort {
     pure static int maxhelper(seq<int> xs, int j) =
         j == |xs|-1 ?
             j:
-            (xs[j] > xs[MaxAltSort.maxhelper(xs, j+1)] ?
+            (xs[j] > xs[maxhelper(xs, j+1)] ?
                 j:
-                MaxAltSort.maxhelper(xs, j+1)
+                maxhelper(xs, j+1)
             )
     ;
 }
-

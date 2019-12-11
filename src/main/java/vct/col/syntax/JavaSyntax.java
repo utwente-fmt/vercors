@@ -55,8 +55,6 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(CurrentPerm,"perm");
         syntax.addFunction(HistoryPerm,"HPerm");
         syntax.addOperator(Scale,130,"[","]","");
-        syntax.addFunction(Drop,"drop");
-        syntax.addFunction(Take,"take");
         syntax.addFunction(History,"Hist");
         syntax.addFunction(Future,"Future");
         syntax.addFunction(AbstractState,"AbstractState");
@@ -68,9 +66,7 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(Indirection,"\\indirect");
         syntax.addFunction(StructDeref,"\\structderef");
         syntax.addFunction(IterationOwner,"\\owner");
-        syntax.addFunction(Empty,"empty");
         syntax.addFunction(RemoveAt, "remove");
-        syntax.addFunction(RangeFromSeq, "range");
         syntax.addRightFix(PrependSingle, "::", 110);
         syntax.addLeftFix(AppendSingle, "++", 110);
 

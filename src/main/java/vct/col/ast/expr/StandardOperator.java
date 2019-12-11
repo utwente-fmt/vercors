@@ -179,8 +179,6 @@ public enum StandardOperator {
   PrependSingle(2),
   /** Append a single value to list (to the end)*/
   AppendSingle(2),
-  /** Take a range from a list*/
-  RangeFromSeq(3),
   /** Remove the value of a list by an index*/
   RemoveAt(2),
   /** Check if list is empty, this operator will be extended for usage with other collections like sets and bags */

@@ -38,11 +38,8 @@ public class PVLSyntax {
       syntax.addFunction(Future,"Future");
       syntax.addFunction(Head,"head");
       syntax.addFunction(Tail,"tail");
-      syntax.addFunction(Empty,"empty");
+      syntax.addFunction(Empty,"isEmpty");
       syntax.addFunction(RemoveAt, "remove");
-      syntax.addFunction(RangeFromSeq, "range");
-      syntax.addFunction(Take, "take");
-      syntax.addFunction(Drop, "drop");
       //syntax.addFunction(Head,"head");
       //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
