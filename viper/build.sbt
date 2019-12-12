@@ -7,7 +7,7 @@ import sbt.internal._
  re-import the project into their IDE, as the location of the viper projects below will change. */
 val silver_url = uri("hg:https://bitbucket.org/viperproject/silver#1a2059df2fc348a6a777e73e00ad10a4c129da0f")
 val carbon_url = uri("hg:https://bitbucket.org/viperproject/carbon#1565055c99f3b07d71f02f99de092d3077491d66")
-val silicon_url = uri("hg:https://bitbucket.org/viperproject/silicon#ea1e7c4eaded6ef66b106f8f65d85d25e944a624")
+val silicon_url = uri("hg:https://bitbucket.org/viperproject/silicon#44fda0b4d7d8fb5c8cb9cd04216bb849003ae8c7")
 
 scalaVersion := "2.12.7"
 
