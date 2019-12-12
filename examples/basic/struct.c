@@ -1,3 +1,6 @@
+//:: suite problem-fail
+//:: case c-struct-support
+
 void test() {
     int *x = NULL;
 }
