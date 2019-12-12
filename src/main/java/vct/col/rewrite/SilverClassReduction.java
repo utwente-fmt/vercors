@@ -478,19 +478,52 @@ public class SilverClassReduction extends AbstractRewriter {
       }
       break;
     }
+    case Mult:
     case Div:
+    case FloorDiv:
     case Plus:
     case Minus:
+    case GT:
     case LT:
+      if(e.first().getType() != null && e.first().getType().isPrimitive(PrimitiveSort.Float) &&
+              e.second().getType() != null && e.second().getType().isPrimitive(PrimitiveSort.Float)){
+        String method = null;
+        switch(e.operator()) {
+          case Mult:
+            method = "fprod";
+            break;
+          case Div:
+          case FloorDiv:
+            method = "fdiv";
+            break;
+          case Plus:
+            method = "fadd";
+            break;
+          case Minus:
+            method = "fsubs";
+            break;
+          case GT:
+            method = "fgt";
+            break;
+          case LT:
+            method = "flt";
+            break;
+        }
+        floats = true;
+        result = create.domain_call("VCTFloat", method, rewrite(e.argsJava()));
+        return;
+      }
+    case UMinus:
+      if(e.first().getType() != null && e.first().getType().isPrimitive(PrimitiveSort.Float)) {
+        floats = true;
+        result = create.domain_call("VCTFloat", "fneg", rewrite(e.argsJava()));
+        return;
+      }
+      break;
     case LTE:
     case EQ:
     case NEQ:
-    case GT:
     case GTE: {
-      if(e.operator() == StandardOperator.Plus && e.getType() != null && e.getType().isPrimitive(PrimitiveSort.Float)){
-        result = create.domain_call("VCTFloat", "fadd", rewrite(e.argsJava()));
-        return;
-      }
 
       ASTNode left = e.arg(0), right = e.arg(1);
 

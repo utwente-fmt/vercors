@@ -154,20 +154,107 @@ domain VectorExpression[T] {
 }
 
 domain VCTFloat {
-  function zero() : VCTFloat
-  function ffromint(i:Int) : VCTFloat
-  function fadd(f1 : VCTFloat,f2:VCTFloat):VCTFloat
+    function zero(): VCTFloat
+    function feps(): VCTFloat
+    function ffromint(i:Int) : VCTFloat
 
-  axiom commutative_add {
-    forall f1 : VCTFloat, f2 : VCTFloat :: fadd(f1,f2)==fadd(f2,f1)
-  }
+    function fadd(f1: VCTFloat, f2: VCTFloat): VCTFloat
+    function fsubs(f1: VCTFloat, f2: VCTFloat): VCTFloat
+    function fprod(f1: VCTFloat, f2: VCTFloat): VCTFloat
+    function fdiv(f1: VCTFloat, f2: VCTFloat): VCTFloat
 
-  axiom zero_int {
-    ffromint(0)==zero()
-  }
+    function fneg(f: VCTFloat): VCTFloat
 
-  axiom zero_add {
-    forall f1 : VCTFloat :: fadd(f1,zero()) == f1
-  }
+    function fgt(f1: VCTFloat, f2:VCTFloat): Bool
+    function flt(f1: VCTFloat, f2:VCTFloat): Bool
 
+    // epsilon is bigger than zero
+    axiom eps_bigger_than_zero{
+        fgt(feps(),zero())
+    }
+
+    // // Epsilon is smaller or equal to every other float except for zero.
+    // axiom eps_leq_floats{
+    //     forall f: VCTFloat :: fgt(f,feps()) || fgt(fneg(f),feps()) || f == feps()
+    // }
+
+    axiom add_subs_eq_zero{
+        forall f1: VCTFloat, f2: VCTFloat :: fsubs(fadd(f1,f2),f2) == f1
+    }
+
+    axiom negatives{
+        forall f: VCTFloat :: fgt(f, zero()) ==> fgt(zero(), fneg(f))
+    }
+
+    axiom gt_lt{
+        forall f1: VCTFloat, f2: VCTFloat:: {fgt(f1, f2), flt(f2, f1)} fgt(f1, f2) <==> flt(f2, f1)
+    }
+
+    axiom lt_gt{
+        forall f1: VCTFloat, f2: VCTFloat:: {fgt(f1, f2), flt(f1, f2)} flt(f1, f2) ==> fgt(f2, f1)
+    }
+
+    axiom fgt_axiom{
+        forall f1: VCTFloat, f2: VCTFloat:: fgt(f1, f2) ==> !fgt(f2, f1)
+    }
+
+    axiom flt_axiom_1{
+        forall f1: VCTFloat, f2: VCTFloat:: flt(f1, f2) ==> !flt(f2, f1)
+    }
+
+    axiom diff_sign{
+        forall f1: VCTFloat, f2: VCTFloat:: fgt(f1, zero()) && flt(f2, zero()) && flt(f1,f2) ==> flt(fsubs(f1,f2), zero())
+    }
+
+    axiom add_positives{
+        forall f1: VCTFloat, f2: VCTFloat::
+        {fadd(f1,f2)}
+            fgt(f1, zero()) && fgt(f2, zero()) ==> fgt(fadd(f1,f2), zero())
+    }
+
+    axiom double_neg {
+        forall f: VCTFloat:: fneg(fneg(f)) == f
+    }
+
+    axiom commutative_add {
+        forall f1 : VCTFloat, f2 : VCTFloat :: fadd(f1,f2)==fadd(f2,f1)
+    }
+
+    axiom zero_int {
+        ffromint(0)==zero()
+    }
+
+    axiom zero_add {
+        forall f1 : VCTFloat :: fadd(f1,zero()) == f1
+    }
+
+    axiom pos_substr{
+        forall f1: VCTFloat, f2: VCTFloat:: {fsubs(f1,f2)} fgt(f1, f2) <==> fgt(fsubs(f1,f2),zero())
+    }
+
+    axiom neg_substr{
+        forall f1: VCTFloat, f2: VCTFloat:: {fsubs(f1,f2)} fgt(f2, f1) <==> flt(fsubs(f1,f2),zero())
+    }
+
+    axiom subs_equals{
+        forall f: VCTFloat:: fsubs(f,f) == zero()
+    }
+
+    // axiom side_change_1{
+    //     forall f1: VCTFloat, f2: VCTFloat, f3: VCTFloat:: fadd(f1,f2) == f3 <==> f1 == fsubs(f3,f2)
+    // }
+
+    // axiom side_change_2{
+    //     forall f1: VCTFloat, f2: VCTFloat, f3: VCTFloat:: fsubs(f1,f2) == f3 <==> f1 == fadd(f3,f2)
+    // }
+
+    // axiom ax01
+    // {
+    //     forall f1: VCTFloat, f2:VCTFloat :: f1 == fadd(f1, f2) <==> f1 == zero()
+    // }
+
+    // axiom ax02
+    // {
+    //     forall f1: VCTFloat, f2:VCTFloat :: f2 == fsubs(f2, f1) <==> f1 == zero()
+    // }
 }

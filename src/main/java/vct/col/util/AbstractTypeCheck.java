@@ -167,7 +167,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (type[i]==null) Abort("argument %d has no type.",i);
       }
       ASTClass cl=source().find(object_type.getNameFull());
-      if (cl==null) Fail("could not find class %s used in %s",object_type.getFullName(),e);
+      if (cl==null) {
+        Fail("could not find class %s used in %s",object_type.getFullName(),e);
+      }
       m=cl.find(e.method,object_type,type);
       while(m==null && cl.super_classes.length>0){
         cl=source().find(cl.super_classes[0].getNameFull());
