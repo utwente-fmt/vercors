@@ -513,13 +513,14 @@ public class SilverClassReduction extends AbstractRewriter {
         result = create.domain_call("VCTFloat", method, rewrite(e.argsJava()));
         return;
       }
+      // fallthrough
     case UMinus:
       if(e.first().getType() != null && e.first().getType().isPrimitive(PrimitiveSort.Float)) {
         floats = true;
         result = create.domain_call("VCTFloat", "fneg", rewrite(e.argsJava()));
         return;
       }
-      break;
+      // fallthrough
     case LTE:
     case EQ:
     case NEQ:
