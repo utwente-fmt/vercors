@@ -153,6 +153,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
               ((Method) decl).getBody()
       );
 
+      result.setStatic(decl.isStatic());
       result.setOrigin(decl.getOrigin());
       return result;
     } else if(decl instanceof TypeAlias) {

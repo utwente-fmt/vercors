@@ -23,13 +23,15 @@ public class ConvertTypeExpressions extends AbstractRewriter {
   
   @Override
   public void visit(DeclarationStatement d){
-    boolean extern=false;
+    boolean extern = false;
+    boolean zstatic = false;
     Type t=d.getType();
     while(t instanceof TypeExpression){
       TypeExpression e=(TypeExpression)t;
       switch (e.operator()) {
       case Static:
         t=e.firstType();
+        zstatic = true;
         break;
       case Extern:
         extern=true;
@@ -43,6 +45,7 @@ public class ConvertTypeExpressions extends AbstractRewriter {
     if (extern){
       res.setFlag(ASTFlags.EXTERN,true);
     }
+    res.setStatic(zstatic);
     result=res;
   }
 

@@ -72,9 +72,9 @@ public class ColIParser implements vct.col.util.Parser {
     Debug("after desugaring",pu);
 
     // TODO: encoding as class should not be necessary. 
-//    pu=new EncodeAsClass(pu).rewriteAll();
-//    Progress("Encoding as class took %dms",tk.show());
-//    Debug("after encoding as class %s",pu);
+    pu=new EncodeAsClass(pu).rewriteAll();
+    Progress("Encoding as class took %dms",tk.show());
+    Debug("after encoding as class %s",pu);
     
     pu=new FilterSpecIgnore(pu).rewriteAll();
     pu=new StripUnusedExtern(pu).rewriteAll();

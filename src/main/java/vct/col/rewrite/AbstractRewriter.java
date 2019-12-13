@@ -406,6 +406,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     if (init!=null) init=init.apply(this);
     DeclarationStatement res=new DeclarationStatement(name,t,init);
     res.setOrigin(s.getOrigin());
+    res.copyMissingFlags(s);
     result=res; return ;
   }
 
@@ -492,6 +493,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     currentContractBuilder=null;
     ASTNode body=rewrite(m.getBody());
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
+    result.setStatic(m.isStatic());
   }
 
   @Override
