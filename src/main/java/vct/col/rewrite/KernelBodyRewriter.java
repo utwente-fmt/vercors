@@ -2,6 +2,8 @@ package vct.col.rewrite;
 
 import java.util.ArrayList;
 
+import vct.col.ast.expr.Dereference;
+import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
@@ -20,24 +22,33 @@ class KernelBodyRewriter extends AbstractRewriter {
   public KernelBodyRewriter(ProgramUnit source) {
     super(source);
   }
-  
+
   @Override
-  public void visit(MethodInvokation e){
+  public void visit(MethodInvokation e) {
     ASTNode arg;
-    switch(e.method){
-    case "get_global_id" :
-      arg=e.getArg(0);
-      if (arg.isConstant(0)) {
-        //result=create.local_name("opencl_tid");
-        result=plus(mult(create.local_name("opencl_gid"),create.local_name("opencl_gsize")),
-            create.local_name("opencl_lid"));
-        return;
-      } else {
-        Fail("bad dimension: %s",arg);
-      }
+    switch (e.method) {
+      case "get_global_id":
+        arg = e.getArg(0);
+        if (arg.isConstant(0)) {
+          //result=create.local_name("opencl_tid");
+          result = plus(mult(create.local_name("opencl_gid"), create.local_name("opencl_gsize")),
+                  create.local_name("opencl_lid"));
+        } else {
+          Fail("bad dimension: %s", arg);
+        }
+        break;
+      case "get_local_id":
+        arg = e.getArg(0);
+        if(arg.isConstant(0)) {
+          result = create.local_name("opencl_lid");
+        } else {
+          Fail("bad dimension: %s", arg);
+        }
+        break;
       default:
         super.visit(e);
     }
+
   }
   
   @Override
@@ -96,5 +107,28 @@ class KernelBodyRewriter extends AbstractRewriter {
     iters=new DeclarationStatement[]{outer_decl};
     body=create.block(create.region(null,create.parallel_block("kernel_block", gcb.getContract(),iters, body)));
     result=create.method_decl(returns, kcb.getContract(), m.name(), decls, body);
+  }
+
+  @Override
+  public void visit(OperatorExpression e) {
+    switch(e.operator()) {
+      case StructSelect:
+        if(e.arg(1).isName("x")) {
+          if(e.arg(0).isName("threadIdx")) {
+            result = name("opencl_lid");
+          } else if(e.arg(0).isName("blockIdx")) {
+            result = name("opencl_gid");
+          } else if(e.arg(0).isName("blockDim")) {
+            result = name("opencl_gsize");
+          } else {
+            super.visit(e);
+          }
+        } else {
+          super.visit(e);
+        }
+        break;
+      default:
+        super.visit(e);
+    }
   }
 }

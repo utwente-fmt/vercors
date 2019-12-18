@@ -96,7 +96,7 @@ public class Configuration {
     /**
      * The command that invokes the C pre processor.
      */
-    public static final StringSetting cpp_command=new StringSetting("clang -C -E");
+    public static final StringSetting cpp_command=new StringSetting("clang -C -E -nocudainc -nocudalib");
 
     /**
      * Add the VCT library options to the given option parser.

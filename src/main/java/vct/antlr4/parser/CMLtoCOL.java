@@ -363,6 +363,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
           type=create.__long(type);
           break;
         case "__kernel":
+        case "__global__":
           type=create.__kernel(type);
           break;
         case "__global":

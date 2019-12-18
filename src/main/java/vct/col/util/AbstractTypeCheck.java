@@ -649,6 +649,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           case "tid":
           case "gid":
           case "lid":
+          case "threadIdx":
+          case "blockIdx":
+          case "blockDim":
             e.setType(new PrimitiveType(PrimitiveSort.Integer));
             break;
           default:
@@ -710,6 +713,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       variables.leave();
       e.setType(new PrimitiveType(PrimitiveSort.Resource));
+      return;
+    }
+    if (op == StandardOperator.StructSelect) {
+      e.arg(0).accept(this);
+      // TODO: do struct member checking.
+      // This is hardcoded for the CUDA numberings, threadIdx.x etc.
+      e.setType(new PrimitiveType(PrimitiveSort.Integer));
       return;
     }
     super.visit(e);

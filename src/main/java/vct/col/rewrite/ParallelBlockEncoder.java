@@ -180,6 +180,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       check_cb.ensures(tmp);
       guard_decls.add(create.field_decl(decl.name(), decl.getType()));
       check_vars.remove(decl.name());
+      check_vars.putAll(free_vars(decl.initJava()));
     }
     
     ASTNode iters_guard=create.fold(StandardOperator.And,guard_list);

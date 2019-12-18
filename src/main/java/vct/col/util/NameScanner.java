@@ -3,14 +3,12 @@ package vct.col.util;
 import java.util.HashSet;
 import java.util.Hashtable;
 
-import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.expr.BindingExpression;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.composite.ForEachLoop;
 import vct.col.ast.stmt.composite.LoopStatement;
-import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.composite.ParallelBlock;
 import vct.col.ast.util.RecursiveVisitor;
 import vct.col.ast.type.Type;
@@ -49,8 +47,31 @@ public class NameScanner extends RecursiveVisitor<Object> {
           t.accept(this);
         }
         return;
+      case Unresolved: {
+        switch (e.getName()) {
+          case "tcount":
+          case "gsize":
+          case "tid":
+          case "gid":
+          case "lid":
+          case "threadIdx":
+          case "blockIdx":
+          case "blockDim":
+            vars.put(e.getName(), e.getType());
+            return;
+        }
+      }
       default:
         Abort("missing case %s %s in name scanner",e.getKind(),e.getName());
+    }
+  }
+
+  public void visit(OperatorExpression e) {
+    if(e.operator() == StandardOperator.StructDeref || e.operator() == StandardOperator.StructSelect) {
+      e.first().accept(this);
+      // TODO: implement struct field checking; skipping dereferenced field here
+    } else {
+      super.visit(e);
     }
   }
   

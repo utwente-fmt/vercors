@@ -13,6 +13,8 @@ import vct.col.ast.util.ContractBuilder;
 import vct.col.rewrite.AbstractRewriter;
 import vct.col.syntax.Syntax;
 
+import java.util.ArrayList;
+
 import static hre.lang.System.Output;
 
 /**
@@ -268,7 +270,11 @@ public class SpecificationCollector extends AbstractRewriter {
           }
           break;
         }
-        if (j<N && block.get(j) instanceof LoopStatement) {
+        if (j<N && block.get(j) instanceof LoopStatement ||
+                (block.get(j) instanceof MethodInvokation && (
+                        ((MethodInvokation) block.get(j)).method.equals("barrier")
+                     || ((MethodInvokation) block.get(j)).method.equals("__syncthreads")))
+        ) {
           currentContractBuilder=new ContractBuilder();
         } else {
           j--;
@@ -292,9 +298,17 @@ public class SpecificationCollector extends AbstractRewriter {
   }
   
   @Override
-  public void visit(MethodInvokation m){
-    StandardOperator op=syntax.parseFunction(m.method);
-    if (op!=null && op.arity()==m.getArity()){
+  public void visit(MethodInvokation m) {
+    StandardOperator op = syntax.parseFunction(m.method);
+    if((m.method.equals("barrier") || m.method.equals("__syncthreads")) && currentContractBuilder != null) {
+      Contract contract = currentContractBuilder.getContract();
+      if(contract != null) {
+        rewrite(contract, currentContractBuilder);
+      }
+      currentContractBuilder = null;
+      ArrayList<String> invariants = new ArrayList<>();
+      result = create.barrier("group_block", contract, invariants, null);
+    } else if (op!=null && op.arity()==m.getArity()){
       result=create.expression(op,rewrite(m.getArgs()));
     } else {
       super.visit(m);

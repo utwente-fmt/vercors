@@ -1,7 +1,5 @@
-#ifndef OPENCL_H
-#define OPENCL_H
-#define CLK_GLOBAL_MEM_FENCE
-#define CLK_LOCAL_MEM_FENCE
+#ifndef CUDA_H
+#define CUDA_H
 
 extern /*@ pure @*/ int get_work_dim(); // Number of dimensions in use
 
@@ -35,7 +33,7 @@ extern /*@ pure @*/ int get_enqueued_num_sub_groups (); //
 
 extern /*@ pure @*/ int get_sub_group_id (); // Sub-group ID
 
-extern /*@ pure @*/ void barrier(); // barrier definition
+extern /*@ pure @*/ void __syncthreads(); // barrier definition
 
 extern /*@ pure @*/ int get_sub_group_local_id (); // Unique work-item ID
 
