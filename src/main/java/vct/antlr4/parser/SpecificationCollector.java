@@ -270,10 +270,10 @@ public class SpecificationCollector extends AbstractRewriter {
           }
           break;
         }
-        if (j<N && block.get(j) instanceof LoopStatement ||
+        if (j<N && (block.get(j) instanceof LoopStatement ||
                 (block.get(j) instanceof MethodInvokation && (
                         ((MethodInvokation) block.get(j)).method.equals("barrier")
-                     || ((MethodInvokation) block.get(j)).method.equals("__syncthreads")))
+                     || ((MethodInvokation) block.get(j)).method.equals("__syncthreads"))))
         ) {
           currentContractBuilder=new ContractBuilder();
         } else {
