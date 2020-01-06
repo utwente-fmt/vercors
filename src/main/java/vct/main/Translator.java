@@ -635,7 +635,7 @@ public class Translator {
 		}
 
 		public Boolean getResult(){
-			return new Boolean(abort);
+			return Boolean.valueOf(abort);
 		}
 		  
 		/** Return from the current scan if set. */
