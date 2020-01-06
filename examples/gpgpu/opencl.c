@@ -1,4 +1,5 @@
-
+//:: cases BasicOpenCL
+//:: verdict Pass
 
 #include <opencl.h>
 

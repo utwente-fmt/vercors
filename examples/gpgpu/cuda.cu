@@ -1,3 +1,6 @@
+//:: cases BasicCuda
+//:: verdict Pass
+
 #include <cuda.h>
 
 /*@

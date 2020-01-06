@@ -19,7 +19,7 @@ import static hre.lang.System.Warning;
 
 public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
   public static final String OPTION_START = "//::";
-  public static final Set<String> TESTCASE_EXTENSIONS = new HashSet<>(Arrays.asList("c", "java", "pvl", "sil"));
+  public static final Set<String> TESTCASE_EXTENSIONS = new HashSet<>(Arrays.asList("c", "cu", "java", "pvl", "sil"));
 
   public final HashMap<String, Case> testsuite = new HashMap<String, Case>();
   public HashSet<Path> unmarked = new HashSet<Path>();
