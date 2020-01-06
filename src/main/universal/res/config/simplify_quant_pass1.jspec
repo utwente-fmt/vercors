@@ -186,9 +186,9 @@ class simplify_quant_pass1 {
 
    axiom constant_2 {
         (\forall* int i; (i \memberof [e1 .. e2));
-            (\forall* int j; (j \memberof [e3 .. e4)); Perm((e5!i), (e6!i))))
+            (\forall* int j; (j \memberof [(e3!i) .. (e4!i))); Perm((e5!i), (p1!i))))
         ==
-        (e1 < e2) ==> (\forall* int j; (j \memberof [e3 .. e4)); Perm(e5, (e2 - e1) * e6))
+        (e1 < e2) ==> (\forall* int j; (j \memberof [e3 .. e4)); Perm(e5, (e2 - e1) * p1))
    }
 
    axiom right_plus { (\forall* int i;( i \memberof [ e1 .. e2 )) ; Perm( ar [ i+(e3!i) ] , (p1!i) ) )
