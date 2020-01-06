@@ -1563,13 +1563,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           force_frac(op.arg(1));
           force_frac(op.arg(2));
           break;
-        case Mult:
-        case Div:
-        case Plus:
-        case Minus:
-          force_frac(op.arg(0));
-          force_frac(op.arg(1));
-          break;
       }
     }
 
