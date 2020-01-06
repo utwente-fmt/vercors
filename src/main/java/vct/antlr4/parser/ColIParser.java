@@ -1,27 +1,19 @@
 package vct.antlr4.parser;
 
-import static hre.lang.System.*;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-
 import hre.tools.TimeKeeper;
-import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
-
-import vct.antlr4.generated.*;
+import vct.antlr4.generated.CMLLexer;
+import vct.antlr4.generated.CMLParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.rewrite.ConvertTypeExpressions;
-import vct.col.rewrite.EncodeAsClass;
-import vct.col.rewrite.FilterSpecIgnore;
-import vct.col.rewrite.FlattenVariableDeclarations;
-import vct.col.rewrite.StripUnusedExtern;
-import vct.col.rewrite.VerCorsDesugar;
+import vct.col.rewrite.*;
 import vct.col.syntax.CSyntax;
+
+import java.io.*;
+
+import static hre.lang.System.*;
 
 /**
  * Parse specified code and convert the contents to COL. 
@@ -32,7 +24,7 @@ public class ColIParser implements vct.col.util.Parser {
     TimeKeeper tk=new TimeKeeper();
     ErrorCounter ec=new ErrorCounter(file_name);
 
-    ANTLRInputStream input = new ANTLRInputStream(stream);
+    CharStream input = CharStreams.fromStream(stream);
     CMLLexer lexer = new CMLLexer(input);
     lexer.removeErrorListeners();
     lexer.addErrorListener(ec);

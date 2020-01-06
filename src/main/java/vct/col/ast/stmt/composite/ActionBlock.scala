@@ -1,7 +1,6 @@
 package vct.col.ast.stmt.composite
 
 import scala.collection.JavaConverters._
-import scala.collection.JavaConversions.mapAsScalaMap
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.ASTVisitor
 import vct.col.util.{ASTMapping, ASTMapping1, VisitorHelper}
@@ -24,7 +23,7 @@ case class ActionBlock(val history:ASTNode, val fraction:ASTNode, val process:AS
 
   /** Added to retain compatibility with Java (by converting `map` to a Scala structure) */
   def this(history:ASTNode, fraction:ASTNode, process:ASTNode, action:ASTNode, map:java.util.Map[String,ASTNode], block:ASTNode) =
-    this(history, fraction, process, action, map.toMap, block)
+    this(history, fraction, process, action, map.asScala.toMap, block)
 
   /** Iterates over all key/value pairs in `map` and applies `f` on each pair */
   def foreach(f:(String,ASTNode)=>Unit) = map.foreach { case (k,v) => f(k,v) }

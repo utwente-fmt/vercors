@@ -12,6 +12,7 @@ lazy val parsers = (project in file("parsers"))
 lazy val vercors = (project in file("."))
     .dependsOn(viper_api)
     .dependsOn(parsers)
+    .aggregate(viper_api, parsers)
     .settings(
         name := "Vercors",
         organization := "University of Twente",
@@ -39,6 +40,10 @@ lazy val vercors = (project in file("."))
         scalacOptions += "-feature",
         scalacOptions += "-unchecked",
         scalacOptions += "-Dscalac.patmat.analysisBudget=off",
+
+        javacOptions += "-Xlint:deprecation",
+        javacOptions += "-Xlint:unchecked",
+        javacOptions += "-deprecation",
 
         javaOptions in (Compile, run) += "-J-Xss128M",
         /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are

@@ -4,11 +4,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
-import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 
@@ -31,9 +32,9 @@ public class OMPParser {
   
   public static OMPpragma parse(String pragma){
     InputStream stream=new ByteArrayInputStream(pragma.getBytes());
-    ANTLRInputStream input;
+    CharStream input;
     try {
-      input = new ANTLRInputStream(stream);
+      input = CharStreams.fromStream(stream);
     } catch (IOException e) {
       throw new Error(e.getMessage());
     }

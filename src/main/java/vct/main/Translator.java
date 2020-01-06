@@ -622,7 +622,7 @@ public class Translator {
 		}
 	}
 	
-  private static class StringPrinter extends AbstractVisitor{
+  private static class StringPrinter extends AbstractVisitor<Boolean> {
 		private int currentWorkingTriple;
 		private int treeDepth;
 		private List<String> variablelenLijst;
@@ -864,7 +864,7 @@ public class Translator {
 		    	variablelenLijst.add("result");
 		    	variablelenLijst.add(getZ3Type(m.getReturnType()));
 		    }
-		    outputToString.printf("%s%n", arguments);
+		    outputToString.printf("%s%n", (Object[])arguments);
 		    hoareTriple.add(currentWorkingTriple, "");
 		    for(int i=0;arguments.length > i;i++){
 		    	this.visit(arguments[i]);
@@ -874,7 +874,7 @@ public class Translator {
 		    String args[]=new String[N];
 		    for(int i=0;i<N;i++){
 		    	args[i]=m.getArgument(i);
-		    	outputToString.printf("found argument %s%n",m.getArgs());
+		    	outputToString.printf("found argument %s%n",(Object[])m.getArgs());
 		    }
 		    Contract contract=m.getContract();
 		    if(contract !=null){

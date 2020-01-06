@@ -8,7 +8,8 @@ import java.io.FileNotFoundException;
 
 import hre.lang.HREExitException;
 import hre.tools.TimeKeeper;
-import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -30,7 +31,7 @@ public class ColPVLParser implements vct.col.util.Parser {
         TimeKeeper tk=new TimeKeeper();
         ErrorCounter ec=new ErrorCounter(file_name);
 
-        ANTLRInputStream input = new ANTLRInputStream(new FileInputStream(file));
+        CharStream input = CharStreams.fromStream(new FileInputStream(file));
         PVFullLexer lexer = new PVFullLexer(input);
         lexer.removeErrorListeners();
         lexer.addErrorListener(ec);
