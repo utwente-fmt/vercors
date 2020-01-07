@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases SumSeqOfInts
+//:: tools silicon
+//:: verdict Pass
+
 class SumSeqOfInts {
 
     requires |ys| > 10;
@@ -9,8 +14,6 @@ class SumSeqOfInts {
         assert (\sum int k; 0 <= k && k < |xs|; xs[k]) == 55;
         assert (\sum int k; 4 <= k && k < 6; xs[k]) == 11;
     }
-
-
 
 }
 
