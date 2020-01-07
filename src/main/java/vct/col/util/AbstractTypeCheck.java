@@ -469,6 +469,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     if(s.location().isa(StandardOperator.Subscript)) {
       // Need to check that the sequence is assignable
       OperatorExpression location = (OperatorExpression) s.location();
+
+      if(location.first().getType().isPrimitive(PrimitiveSort.Pointer)) {
+        return;
+      }
+
       SequenceUtils.SequenceInfo seqInfo = SequenceUtils.getTypeInfo(location.first().getType());
       if(!seqInfo.isAssignable()) {
         Fail("Elements of %s, which is of type %s, are immutable.", location.first(), location.first().getType());
