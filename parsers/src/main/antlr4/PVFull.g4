@@ -91,6 +91,12 @@ multExpr
 
 powExpr
  : powExpr '^^' unaryExpr
+ | seqAddExpr
+ ;
+
+seqAddExpr
+ : unaryExpr '::' seqAddExpr
+ | seqAddExpr '++' unaryExpr
  | unaryExpr
  ;
 
@@ -132,7 +138,7 @@ nonTargetUnit
  | 'false'
  | 'current_thread'
  | '\\result'
- | CONTAINER '<' type '>' values
+ | collectionConstructors
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
@@ -143,6 +149,18 @@ nonTargetUnit
  | '(' expr ')'
  | identifier
  | valPrimary
+ ;
+
+arguments: (expression (',' expression)*);
+
+collectionConstructors
+ : CONTAINER '<' type '>' values
+ | '[' arguments ']'
+ | '[t:' type ']'
+ | '{' arguments '}'
+ | '{t:' type '}'
+ | 'b{' arguments '}'
+ | 'b{t:' type '}'
  ;
 
 targetUnit

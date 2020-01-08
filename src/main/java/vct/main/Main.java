@@ -365,6 +365,12 @@ public class Main
           passes.add("lift_declarations");
         }
 
+        passes.add("check");
+        passes.add("infer_adt_types");
+
+        passes.add("check");
+        passes.add("standardize");
+
         passes.add("java-check");
         passes.add("pointers_to_arrays");
         passes.add("java-check");
@@ -490,6 +496,8 @@ public class Main
         }
 
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
+        passes.add("check");
+        passes.add("rewrite_sequence_functions");
         passes.add("check");
         passes.add("flatten");
         passes.add("assign");
@@ -1025,6 +1033,16 @@ public class Main
    defined_passes.put("rewrite_arrays",new CompilerPass("rewrite arrays to sequences of cells"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new RewriteArrayRef(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("rewrite_sequence_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new RewriteSequenceFunctions(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("infer_adt_types",new CompilerPass("Transform typeless collection constructors by inferring their types."){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new InferADTTypes(arg).rewriteAll();
       }
     });
     defined_passes.put("rm_cons",new CompilerPass("???"){

@@ -16,6 +16,7 @@ import vct.antlr4.generated.PVFullParser;
 import vct.antlr4.generated.PVFullParser.*;
 import vct.antlr4.generated.PVFullVisitor;
 
+import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.generic.ASTNode;
@@ -38,6 +39,7 @@ import vct.col.ast.type.Type;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.stmt.decl.VariableDeclaration;
+import vct.col.rewrite.InferADTTypes;
 import vct.col.syntax.PVLSyntax;
 import vct.col.syntax.Syntax;
 
@@ -226,6 +228,11 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
   }
 
   @Override
+  public ASTNode visitSeqAddExpr(SeqAddExprContext ctx) {
+    return doExpr(ctx);
+  }
+
+  @Override
   public ASTNode visitUnaryExpr(UnaryExprContext ctx) {
     return doExpr(ctx);
   }
@@ -308,21 +315,6 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     }
     if (match(0,true,ctx,"[",null,"]",null)){
       return create.expression(StandardOperator.Scale,convert(ctx,1),convert(ctx,3)); 
-    }
-    if (match(ctx,"seq","<",null,">",null)){
-      Type t=checkType(convert(ctx,2));
-      ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(4),"{",",","}");
-      return create.struct_value(create.primitive_type(PrimitiveSort.Sequence,t),null,args);
-    }
-    if (match(ctx,"set","<",null,">",null)){
-      Type t=checkType(convert(ctx,2));
-      ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(4),"{",",","}");
-      return create.struct_value(create.primitive_type(PrimitiveSort.Set,t),null,args);
-    }
-    if (match(ctx,"bag","<",null,">",null)){
-      Type t=checkType(convert(ctx,2));
-      ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(4),"{",",","}");
-      return create.struct_value(create.primitive_type(PrimitiveSort.Bag,t),null,args);
     }
     if (match(ctx,"!",null)){
       return create.expression(StandardOperator.Not,convert(ctx,1));
@@ -431,6 +423,73 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     }
 
     return visit(ctx);
+  }
+
+  @Override
+  public ASTNode visitCollectionConstructors(CollectionConstructorsContext ctx) {
+    // Sequence Constructors
+    if (match(ctx,"seq","<",null,">",null)){
+      Type t=checkType(convert(ctx,2));
+      ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(4),"{",",","}");
+      return create.struct_value(create.primitive_type(PrimitiveSort.Sequence,t),null,args);
+    }
+    if (match(ctx, "[", null, "]")) {
+      ASTNode[] args = getValues((ParserRuleContext)ctx.children.get(1));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, create.type_variable(InferADTTypes.typeVariableName())),null,args);
+    }
+    if (match(ctx, "[t:", type_expr, "]")) {
+      Type t=checkType(convert(ctx,1));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Sequence, t), null);
+    }
+
+    // Set Constructors
+    if (match(ctx,"set","<",null,">",null)){
+      Type t=checkType(convert(ctx,2));
+      ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(4),"{",",","}");
+      return create.struct_value(create.primitive_type(PrimitiveSort.Set,t),null,args);
+    }
+    if (match(ctx, "{", null, "}")) {
+      ASTNode[] args = getValues((ParserRuleContext)ctx.children.get(1));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Set, create.type_variable(InferADTTypes.typeVariableName())),null,args);
+    }
+    if (match(ctx, "{t:", type_expr, "}")) {
+      Type t=checkType(convert(ctx,1));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Set, t), null);
+    }
+
+    // Bag Constructors
+    if (match(ctx,"bag","<",null,">",null)){
+      Type t=checkType(convert(ctx,2));
+      ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(4),"{",",","}");
+      return create.struct_value(create.primitive_type(PrimitiveSort.Bag,t),null,args);
+    }
+    if (match(ctx, "b{", null, "}")) {
+      ASTNode[] args = getValues((ParserRuleContext)ctx.children.get(1));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Bag, create.type_variable(InferADTTypes.typeVariableName())),null,args);
+    }
+    if (match(ctx, "b{t:", type_expr, "}")) {
+      Type t=checkType(convert(ctx,1));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Bag, t), null);
+    }
+
+    return visit(ctx);
+  }
+
+  private ASTNode[] getValues(ParserRuleContext ctx) {
+    if (ctx.children == null) {
+      return new ASTNode[0];
+    }
+    int N=(ctx.children.size()+1)/2;
+    ASTNode res[]=new ASTNode[N];
+    for(int i=0;i<N;i++){
+      res[i]=convert(ctx,2*i);
+    }
+    return res;
+  }
+
+  @Override
+  public ASTNode visitArguments(ArgumentsContext ctx) {
+    return null;
   }
 
   @Override
@@ -893,7 +952,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
   public ASTNode visitProgram(ProgramContext ctx) {
     return null;
   }
-  
+
   private ASTNode[] getTuple(ParserRuleContext ctx){
     int N=(ctx.children.size()-1)/2;
     ASTNode res[]=new ASTNode[N];

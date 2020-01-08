@@ -715,6 +715,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode plus(ASTNode e1,ASTNode e2){
     return create.expression(StandardOperator.Plus,e1,e2);
   }
+  public ASTNode minus(ASTNode e1,ASTNode e2){
+    return create.expression(StandardOperator.Minus,e1,e2);
+  }
   public ASTNode mult(ASTNode e1,ASTNode e2){
     return create.expression(StandardOperator.Mult,e1,e2);
   }
@@ -730,12 +733,19 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode eq(ASTNode e1,ASTNode e2){
     return create.expression(StandardOperator.EQ,e1,e2);
   }
+  public ASTNode size(ASTNode e1) {
+    return create.expression(StandardOperator.Size, e1);
+  }
   public ASTNode star(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.Star,e1,e2);
   }
   public ASTNode invoke(ASTNode object,String method,ASTNode ... args){
   	return create.invokation(object, null, method, args);
   }
+  public ASTNode get(ASTNode e1, ASTNode index){
+    return create.expression(StandardOperator.Subscript, e1, index);
+  }
+
 
   @Override
   public void visit(ActionBlock ab) {
