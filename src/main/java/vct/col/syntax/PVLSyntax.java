@@ -39,7 +39,7 @@ public class PVLSyntax {
       syntax.addFunction(Head,"head");
       syntax.addFunction(Tail,"tail");
       syntax.addFunction(Empty,"isEmpty");
-      syntax.addFunction(RemoveAt, "remove");
+      syntax.addFunction(RemoveAt, "removeAt");
       //syntax.addFunction(Head,"head");
       //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
