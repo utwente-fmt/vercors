@@ -23,7 +23,7 @@ class MaxSort {
         while (!isEmpty(unsorted)) {
             int maxOfSeq = max(unsorted);
             result = unsorted[maxOfSeq] :: result;
-            unsorted = remove(unsorted, maxOfSeq);
+            unsorted = removeAt(unsorted, maxOfSeq);
         }
         return result;
     }
