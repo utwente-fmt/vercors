@@ -223,7 +223,7 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
        case If(c, s1, s2) => api.stat.if_then_else(o,
            map_expr(api,c),map_stat(api,s1),map_stat(api,s2))
        case Inhale(e) => api.stat.inhale(o,map_expr(api,e))
-       case Label(e,invs:Seq[E2]) => api.stat.label(o,e,invs.asJava)
+       case Label(e,invs) => api.stat.label(o,e,invs.asInstanceOf[Seq[E2]].asJava)
        case NewStmt(v, fs) => {
          val names=fs map {
            x => x.name
@@ -242,6 +242,10 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
          throw new Error("apply not implemented");
        case Package(_, _) =>
          throw new Error("package not implemented");
+       case Assume(_) =>
+         throw new Error("assume not implemented")
+       case _: ExtensionStmt =>
+         throw new Error("non-explicit extension statements are not supported")
      }
   }
 
