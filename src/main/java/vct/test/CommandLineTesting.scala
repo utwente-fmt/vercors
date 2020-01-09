@@ -260,8 +260,7 @@ object CommandLineTesting {
         }
 
         if(travisTestOutput.get()) {
-          Output("travis_fold:start:case_output");
-          Output("%s", "\u001b[0KOutput...");
+          Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput...");
 
           tasks(taskKey).log.foreach {
             case msg if msg.getFormat == "stdout: %s" =>
