@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import vct.antlr4.parser.Parsers;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
+import vct.col.ast.expr.constant.DoubleValue;
 import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.util.ASTMapping;
@@ -604,6 +605,10 @@ public class SilverClassReduction extends AbstractRewriter {
     if(val.value() instanceof IntegerValue && val.getType().isFraction()) {
       val.setType(new PrimitiveType(PrimitiveSort.Rational));
       result = packFracVal(val.getType(), val);
+    } else if(val.value() instanceof DoubleValue) {
+      DoubleValue doubleValue = (DoubleValue) val.value();
+      result = create.domain_call("VCTFloat", "ffromint", create.constant((int) doubleValue.value()));
+      result.setType(create.class_type("VCTFloat"));
     } else {
       super.visit(val);
     }
