@@ -244,7 +244,7 @@ object CommandLineTesting {
           Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput from case...");
 
           for(msg <- tasks(taskKey).log) {
-            Output(msg.getFormat, msg.getArgs)
+            Output(msg.getFormat, msg.getArgs:_*)
           }
 
           Output("travis_fold:end:case_output");
