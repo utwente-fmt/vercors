@@ -69,6 +69,9 @@ object CommandLineTesting {
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
 
+  private val travisTestOutput = new BooleanSetting(false)
+  private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
+
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
   private lazy val z3 = Configuration.getZ3
@@ -132,6 +135,7 @@ object CommandLineTesting {
     parser.add(builtinTestOption, "test-builtin")
     parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
+    parser.add(travisTestOutputOption, "travis-test-output")
   }
 
   def getCases: Map[String, Case] = {
@@ -253,6 +257,21 @@ object CommandLineTesting {
             Output("- Method verdict of method %s was fail, but expected pass", name)
           case DoesNotSay(text) =>
             Output("- Output did not contain '%s'", text)
+        }
+
+        if(travisTestOutput.get()) {
+          Output("travis_fold:start:case_output");
+          Output("%s", "\u001b[0KOutput...");
+
+          tasks(taskKey).log.foreach {
+            case msg if msg.getFormat == "stdout: %s" =>
+              Output("%s", msg.getArg(0).asInstanceOf[String])
+            case msg if msg.getFormat == "stderr: %s" =>
+              Output("%s", msg.getArg(0).asInstanceOf[String])
+            case _ => // ignore
+          }
+
+          Output("travis_fold:end:case_output");
         }
       }
     }
