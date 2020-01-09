@@ -27,7 +27,6 @@ typedef struct {
     int y;
 } Anondef;
 
-
 /*@ context Perm(adef->x, write);
 @*/
 void otherMethod(Adef *adef) {
