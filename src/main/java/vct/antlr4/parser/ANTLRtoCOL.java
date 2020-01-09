@@ -21,6 +21,7 @@ import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import vct.col.ast.expr.Binder;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.generic.ASTSequence;
@@ -38,6 +39,8 @@ import vct.col.ast.type.Type;
 import vct.col.ast.stmt.decl.VariableDeclaration;
 import vct.col.syntax.Syntax;
 import vct.col.util.ASTFactory;
+import viper.carbon.boogie.Decl;
+
 import static hre.lang.System.*;
 import static vct.col.ast.stmt.decl.ASTSpecial.Kind.*;
 import static vct.col.ast.expr.StandardOperator.*;
@@ -817,6 +820,12 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
     if (match(ctx,"(","\\let",null,null,"=",null,";",null,")")){
       return create.let_expr(create.field_decl(getIdentifier(ctx,3),checkType(convert(ctx,2)),convert(ctx,5)),convert(ctx,7));
     }
+    if (match(ctx, "(", "\\max", null, null, ";", null, ";", null, ")")) {
+      return create.max(convert(ctx, 5), convert(ctx, 7), create.field_decl(getIdentifier(ctx,3), checkType(convert(ctx,2))));
+    }
+    if (match(ctx, "(", "\\min", null, null, ";", null, ";", null, ")")) {
+      return create.min(convert(ctx, 5), convert(ctx, 7), create.field_decl(getIdentifier(ctx, 3), checkType(convert(ctx, 2))));
+    }
     if (match(ctx,"\\unfolding",null,"\\in",null)){
       return create.expression(StandardOperator.Unfolding,convert(ctx,1),convert(ctx,3));
     }
@@ -1008,6 +1017,12 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
           checkType(convert(ctx,2)),
           convert(ctx,5));
       return create.let_expr(decl, convert(ctx,7));
+    }
+    if (match(ctx, "(", "\\max", null, null, ";", null, ";", null, ")")) {
+      return create.max(convert(ctx, 5), convert(ctx, 7), create.field_decl(getIdentifier(ctx,3),checkType(convert(ctx,2))));
+    }
+    if (match(ctx, "(", "\\min", null, null, ";", null, ";", null, ")")) {
+      return create.max(convert(ctx, 5), convert(ctx, 7), create.field_decl(getIdentifier(ctx,3),checkType(convert(ctx,2))));
     }
     if (match(ctx,"[",null,"]",null)){
       return create.expression(Scale,convert(ctx,1),convert(ctx,3));

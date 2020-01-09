@@ -565,6 +565,35 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
       }
       return res;
     }
+
+    public BindingExpression min(ASTNode guard, ASTNode claim, DeclarationStatement... decl) {
+      BindingExpression result = new BindingExpression(
+              Binder.Min,
+              null,
+              decl,
+              null,
+              guard,
+              claim
+      );
+      result.setOrigin(origin_stack.get());
+      result.accept_if(post);
+      return result;
+    }
+
+  public BindingExpression max(ASTNode guard, ASTNode claim, DeclarationStatement... decl) {
+    BindingExpression result = new BindingExpression(
+            Binder.Max,
+            null,
+            decl,
+            null,
+            guard,
+            claim
+    );
+    result.setOrigin(origin_stack.get());
+    result.accept_if(post);
+    return result;
+  }
+
   public BindingExpression let_expr(DeclarationStatement decl,ASTNode in) {
     BindingExpression res=new BindingExpression(
         Binder.Let,

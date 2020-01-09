@@ -506,6 +506,12 @@ public class JavaPrinter extends AbstractPrinter {
       case Sum:
         binder="\\sum";
         break;
+      case Max:
+        binder="\\max";
+        break;
+      case Min:
+        binder="\\min";
+        break;
       default:
         Abort("binder %s unimplemented",e.binder);
     }

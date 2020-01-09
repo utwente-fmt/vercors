@@ -1743,6 +1743,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       break;
     }
     case Sum:
+    case Max:
+    case Min:
       e.setType(t);
       break;
     }

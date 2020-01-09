@@ -76,6 +76,8 @@ valPrimary
     | '(' '\\exists' type identifier ';' expression ';' expression ')'
     | '(' '\\let' type identifier '=' expression ';' expression ')'
     | '(' '\\sum' type identifier ';' expression ';' expression ')'
+    | '(' '\\min' type identifier ';' expression ';' expression ')'
+    | '(' '\\max' type identifier ';' expression ';' expression ')'
     | '\\length' '(' expression ')'
     | '\\old' '(' expression ')'
     | '\\id' '(' expression ')'

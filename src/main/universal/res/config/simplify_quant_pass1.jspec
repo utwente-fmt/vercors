@@ -413,4 +413,28 @@ class simplify_quant_pass1 {
          ==
         (e1 < e2) ==> (e2 <= e3)
     }
+
+    axiom simplify_bound_max {
+        (\forall int i; (i \memberof [e1 .. e2)); e3 < (e4 ! i))
+         ==
+        (e1 < e2) ==> ((\max int i; (i \memberof [e1 .. e2)); e3) < e4)
+    }
+
+     axiom max_indep_add {
+        (\max int i; (i \memberof [e1 .. e2)); e3 + (e4!i))
+         ==
+        e4 + (\max int i; (i \memberof [e1 .. e2)); e3)
+     }
+
+     axiom max_indep_mult {
+         (\max int i; (i \memberof [e1 .. e2)); e3 * (e4!i))
+          ==
+         e4 * (\max int i; (i \memberof [e1 .. e2)); e3)
+      }
+
+      axiom max_quant_var {
+        (\max int i; (i \memberof [e1 .. e2)); i)
+         ==
+        (e2 - 1)
+      }
 }

@@ -7,5 +7,7 @@ public enum Binder {
 	Sum,
 	Product,
 	Star,
-	Let
+	Let,
+	Max,
+	Min
 }
