@@ -240,6 +240,16 @@ object CommandLineTesting {
         fails += 1
         Progress("[%02d%%] Fail: %s", Int.box(progress), taskKey)
 
+        if(travisTestOutput.get()) {
+          Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput from case...");
+
+          for(msg <- tasks(taskKey).log) {
+            Output(msg.getFormat, msg.getArgs)
+          }
+
+          Output("travis_fold:end:case_output");
+        }
+
         reasons.foreach {
           case NullMessage =>
             Output("- Received a null message (internal error?)")
@@ -257,20 +267,6 @@ object CommandLineTesting {
             Output("- Method verdict of method %s was fail, but expected pass", name)
           case DoesNotSay(text) =>
             Output("- Output did not contain '%s'", text)
-        }
-
-        if(travisTestOutput.get()) {
-          Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput...");
-
-          tasks(taskKey).log.foreach {
-            case msg if msg.getFormat == "stdout: %s" =>
-              Output("%s", msg.getArg(0).asInstanceOf[String])
-            case msg if msg.getFormat == "stderr: %s" =>
-              Output("%s", msg.getArg(0).asInstanceOf[String])
-            case _ => // ignore
-          }
-
-          Output("travis_fold:end:case_output");
         }
       }
     }
