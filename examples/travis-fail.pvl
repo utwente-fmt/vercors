@@ -1,9 +1,0 @@
-//:: cases travis-fail
-//:: tools silicon
-//:: verdict Pass
-
-class Test {
-    void test() {
-        assert 1 == 2;
-    }
-}
