@@ -288,6 +288,9 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
   public ConstantExpression constant(double i) {
     return constant(origin_stack.get(),i);
   }
+  public ConstantExpression constant(float f) {
+    return constant(origin_stack.get(), f);
+  }
   public ConstantExpression constant(E origin,boolean b) {
     return constant(origin_source.create(origin),b);
   }
@@ -327,6 +330,13 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
     res.accept_if(post);
     return res;    
   }
+
+  public ConstantExpression constant(Origin origin, float f) {
+    ConstantExpression res = new ConstantExpression(f, origin);
+    res.accept_if(post);
+    return res;
+  }
+
   /**
    * Create a new integer constant.
    */
