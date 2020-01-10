@@ -71,7 +71,8 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   override def any_set_minus(o:O,e1:Exp,e2:Exp):Exp = add(AnySetMinus(e1,e2)_,o)
   override def any_set_union(o:O,e1:Exp,e2:Exp):Exp = add(AnySetUnion(e1,e2)_,o)
   override def any_set_intersection(o:O,e1:Exp,e2:Exp):Exp = add(AnySetIntersection(e1,e2)_,o)
-  
+  override def any_set_subset(o:O,e1:Exp,e2:Exp):Exp = add(AnySetSubset(e1,e2)_,o)
+
   override def domain_call(o: O,name:String,args:List[Exp], dpars: java.util.Map[String,Type],
       rt:Type,domain:String) : Exp = {
       val tm : Map[viper.silver.ast.TypeVar,viper.silver.ast.Type] = dpars.entrySet().asScala.map {

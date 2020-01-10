@@ -123,12 +123,23 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     case Subscript: return create.index(o,e1,e2);
     
     case GT: return create.gt(o,e1,e2);
-    case LT: return create.lt(o,e1,e2);
     case GTE: return create.gte(o,e1,e2);
-    case LTE: return create.lte(o,e1,e2);
+    case LT: {
+      if (e.arg(0).getType().isPrimitive(PrimitiveSort.Set)){
+        return create.and(o, create.any_set_subset(o, e1, e2), create.lt(o, create.size(o, e1), create.size(o, e2)));
+      } else {
+        return create.lt(o,e1,e2);
+      }
+    }
+    case LTE: {
+      if (e.arg(0).getType().isPrimitive(PrimitiveSort.Set)){
+        return create.any_set_subset(o, e1, e2);
+      } else {
+        return create.lte(o,e1,e2);
+      }
+    }
     case EQ: return create.eq(o,e1,e2);
     case NEQ: return create.neq(o,e1,e2);
-
     case Mult:{
       if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)){
         return create.any_set_intersection(o,e1,e2);

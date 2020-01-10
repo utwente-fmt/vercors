@@ -1258,8 +1258,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         break;
       }
       case GTE:
-      case LTE:
-      case LT:
       case GT: {
         if (!tt[0].isNumeric()) {
           Fail("First argument of %s is %s rather than a numeric type", op, tt[0]);
@@ -1274,6 +1272,21 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(new PrimitiveType(PrimitiveSort.Boolean));
         break;
       }
+      case LTE:
+      case LT:
+        if (!tt[0].isNumeric() && !tt[0].isPrimitive(PrimitiveSort.Set)) {
+          Fail("First argument of %s is %s rather than a numeric type or set", op, tt[0]);
+        } else if (!tt[0].equals(tt[1])) {
+          Fail("Type of right side does not match the left side");
+        }
+
+        if (tt[0].isNumeric() && tt[1].isNumeric()) {
+          if (tt[0].isFraction()) force_frac(e.arg(1));
+          else if (tt[1].isFraction()) force_frac(e.arg(0));
+        }
+
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
       case Old: {
         Type t = e.arg(0).getType();
         if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
