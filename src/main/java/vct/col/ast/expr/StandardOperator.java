@@ -191,6 +191,10 @@ public enum StandardOperator {
   Head(1),
   /** tail of a list. */
   Tail(1),
+  /** Proper subset */
+  SubSet(2),
+  /** Subset */
+  SubSetEq(2),
   /** Bind an output argument of a method to this pattern.
    *  E.g. <code>?x</code> and <code>?(x,y)M</code>. 
    */

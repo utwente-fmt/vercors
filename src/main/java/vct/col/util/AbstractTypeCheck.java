@@ -1274,8 +1274,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       case LTE:
       case LT:
-        if (!tt[0].isNumeric() && !tt[0].isPrimitive(PrimitiveSort.Set)) {
-          Fail("First argument of %s is %s rather than a numeric type or set", op, tt[0]);
+        if (!tt[0].isNumeric() && !tt[0].isPrimitive(PrimitiveSort.Set) && !tt[0].isPrimitive(PrimitiveSort.Bag)) {
+          Fail("First argument of %s is %s rather than a numeric type, set or a bag", op, tt[0]);
         } else if (!tt[0].equals(tt[1])) {
           Fail("Type of right side does not match the left side");
         }
@@ -1347,6 +1347,17 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(tt[0]);
       break;
     }
+    case SubSet:
+    case SubSetEq:
+//      if (!(tt[0].isPrimitive(PrimitiveSort.Set) && tt[1].isPrimitive(PrimitiveSort.Set)) && !(tt[0].isPrimitive(PrimitiveSort.Bag) && tt[1].isPrimitive(PrimitiveSort.Bag))) {
+      if (!tt[0].isPrimitive(PrimitiveSort.Set) && !tt[0].isPrimitive(PrimitiveSort.Bag)) {
+        Fail("First argument of %s is %s rather than a set or a bag", op, tt[0]);
+      } else if (!tt[0].equals(tt[1])) {
+        Fail("Type of right side does not match the left side");
+      }
+      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+      break;
+
     case Empty: {
       Type t = e.arg(0).getType();
       if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of empty not a sequence");

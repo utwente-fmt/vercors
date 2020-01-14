@@ -81,7 +81,7 @@ public class VerCorsExpressionFactory implements
       enter(o);
       //TODO check what to put here.
       // Basically, the LTE operator is used in PVL, but this does not have to hold for any other language.
-      ASTNode res= create.expression(StandardOperator.LTE, e1, e2);
+      ASTNode res= create.expression(StandardOperator.SubSet, e1, e2);
       leave();
     return res;
   }

@@ -91,12 +91,12 @@ public class Standardize extends AbstractRewriter {
           e.setKind(info.kind);
         } else {
           switch (name){
-            case "false":
-              result=create.constant(false);
-              return;
-            case "true":
-              result=create.constant(true);
-              return;
+          case "false":
+            result=create.constant(false);
+            return;
+          case "true":
+            result=create.constant(true);
+            return;
           }
         }
         super.visit(e);
@@ -113,79 +113,42 @@ public class Standardize extends AbstractRewriter {
   public void visit(OperatorExpression e){
     if (e.getParent() instanceof BlockStatement){
       switch(e.operator()){
-        case Assign:
-        {
-          ASTNode var=e.arg(0).apply(this);
-          ASTNode val=e.arg(1).apply(this);
-          result=create.assignment(var,val);
-          break;
-        }
-        case PostIncr:
-        case PreIncr:
-        {
-          ASTNode arg=e.arg(0);
-          if (arg instanceof NameExpression){
-            ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Plus,rewrite(arg),create.constant(e.getOrigin(),1));
-            result=create.assignment(rewrite(arg),incr);
-          } else {
-            super.visit(e);
-          }
-          break;
-        }
-        case PostDecr:
-        case PreDecr:
-        {
-          ASTNode arg=e.arg(0);
-          if (arg instanceof NameExpression){
-            ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Minus,rewrite(arg),create.constant(e.getOrigin(),1));
-            result=create.assignment(rewrite(arg),incr);
-          } else {
-            super.visit(e);
-          }
-          break;
-        }
-      }
-    }
-
-    switch (e.operator()) {
-      case PrependSingle: {
-        Type seqElementType = e.arg(0).getType();
-        if (seqElementType != null) {
-          ASTNode var = e.arg(0).apply(this);
-          ASTNode seq = e.arg(1).apply(this);
-
-          StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-          result = create.expression(StandardOperator.Append, newSeq, seq);
-        } else {
-          super.visit(e);
-        }
-        break;
-      }
-      case AppendSingle:
+      case Assign:
       {
-        Type seqElementType = e.arg(1).getType();
-        if (seqElementType != null) {
-          ASTNode var = e.arg(1).apply(this);
-          ASTNode seq = e.arg(0).apply(this);
-
-          StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-          result = create.expression(StandardOperator.Append, seq, newSeq);
-
+        ASTNode var=e.arg(0).apply(this);
+        ASTNode val=e.arg(1).apply(this);
+        result=create.assignment(var,val);
+        break;
+      }
+      case PostIncr:
+      case PreIncr:
+      {
+        ASTNode arg=e.arg(0);
+        if (arg instanceof NameExpression){
+          ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Plus,rewrite(arg),create.constant(e.getOrigin(),1));
+          result=create.assignment(rewrite(arg),incr);
         } else {
           super.visit(e);
         }
         break;
       }
-      case Empty: {
-        Type seqElementType = e.arg(0).getType();
-        ASTNode seq = e.arg(0).apply(this);
-        result = eq(constant(0), size(seq));
+      case PostDecr:
+      case PreDecr:
+      {
+        ASTNode arg=e.arg(0);
+        if (arg instanceof NameExpression){
+          ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Minus,rewrite(arg),create.constant(e.getOrigin(),1));
+          result=create.assignment(rewrite(arg),incr);
+        } else {
+          super.visit(e);
+        }
         break;
       }
-    }
-
-    // If none of the cases above match
-    if (result == null) {
+      default:
+        super.visit(e);
+        break;
+      }
+    } else {
       super.visit(e);
     }
   }
