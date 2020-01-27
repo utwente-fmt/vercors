@@ -1,0 +1,90 @@
+\ProvidesPackage{listings-pvl}[2020/01/13 PVL Listing Language Package]
+
+\RequirePackage{listings,xcolor}
+
+%%%%% Define colors %%%%%
+\definecolor{pvlgrey}{rgb}{0.46,0.45,0.48}
+\definecolor{pvlgreen}{HTML}{65CC2D}
+\definecolor{pvlblue}{HTML}{4D5BFF}
+\definecolor{pvlinfixcolor}{HTML}{999C94}
+\definecolor{darkpvlinfixcolor}{HTML}{5A5C57}
+
+%%%%% Define Language %%%%%
+\lstdefinelanguage{PVL}
+{
+	basicstyle=\ttfamily,
+	columns=fullflexible,
+	sensitive=true, 
+	breaklines=true,
+	%%%%% All keywords (and comments) %%%%%
+	%Comments
+	commentstyle=\color{pvlgrey},
+	morecomment=[l]{//}, 
+	morecomment=[s]{/*}{*/}, 
+	%Types
+	morekeywords=[2]{
+		int, boolean, void, resource,
+		frac, zfrac, process, seq,
+		set, bag, option
+	},
+	keywordstyle=[2]\color{pvlblue},
+	%Flow-constructs
+	morekeywords=[3]{
+		return, if, else, for,
+		while, par, vec, atomic,
+		barrier, fork, join, wait,
+		notify, lock, unlock,
+	},
+	keywordstyle=[3]\color{pvlblue},
+	%Other keywords
+	morekeywords=[4]{
+		class, pure, new, this
+	},
+	keywordstyle=[4]\color{pvlblue},
+	%Specification-only Expressions
+	%Resources, Futures and Histories
+	morekeywords=[5]{
+		Perm, PointsTo, Value, History,
+		HPerm, Hist, action, AbstractState,
+		create, destroy, split, merge,
+		modifies, accessible, Future, choose
+	},
+	keywordstyle=[5]\color{purple},
+	%Verification flow constructs
+	morekeywords=[6]{
+		assert, assume, requires, ensures,
+		context, loop_invariant, invariant, given,
+		yields, with, then, unfolding,
+		in, refute, inhale, exhale,
+		fold, unfold
+	},
+	keywordstyle=[6]\color{pvlgreen},
+	%Keywords preceded by backslashes.
+	moretexcs={forall,exists,result,old},
+	texcsstyle=*\color{orange},
+	%Infix operators
+	literate=
+	{\ \&\&\ }{{\color{pvlinfixcolor}\  \&\& }}{3}
+	{\ ||\ }{{\color{pvlinfixcolor}\  || }}{3}
+	{\ ==>\ }{{\color{pvlinfixcolor}\  ==> }}{3}
+	{\ ==\ }{{\color{darkpvlinfixcolor}\  == }}{3}
+	{\ !=\ }{{\color{darkpvlinfixcolor}\  != }}{3}
+	{\ !\ }{{\color{darkpvlinfixcolor}\  ! }}{2}
+	{\ <\ }{{\color{darkpvlinfixcolor}\  < }}{3}
+	{\ >\ }{{\color{darkpvlinfixcolor}\ > }}{3}
+	{\ >=\ }{{\color{darkpvlinfixcolor}\  >= }}{3}
+	{\ <=\ }{{{\color{darkpvlinfixcolor}\ <= }}}{3}
+	{\ +\ }{{\color{darkpvlinfixcolor}\  + }}{3}
+	{\ -\ }{{\color{darkpvlinfixcolor}\  - }}{3}
+	{\ *\ }{{\color{darkpvlinfixcolor}\  * }}{3}
+	{\ /\ }{{\color{darkpvlinfixcolor}\  / }}{3}
+	{\ ++\ }{{\color{darkpvlinfixcolor}\  ++ }}{3}
+	{\ --\ }{{\color{darkpvlinfixcolor}\  -- }}{3}
+	{\ **\ }{{\color{darkpvlinfixcolor}\  ** }}{3}
+	{\ -*\ }{{\color{darkpvlinfixcolor}\  -* }}{3}
+	{\ ?\ }{{\color{darkpvlinfixcolor}\  ? }}{3}
+	{\ :\ }{{\color{darkpvlinfixcolor}\  : }}{3}
+}[keywords,tex,comments]
+
+
+\endinput

@@ -1,0 +1,256 @@
+\documentclass[a4paper]{scrartcl}
+\usepackage[T1]{fontenc}
+\usepackage[toc]{multitoc}
+\renewcommand*{\multicolumntoc}{2}
+\setlength{\columnseprule}{0.5pt}
+
+\usepackage{
+	geometry,
+	listings-pvl
+}
+
+\title{\LaTeX\ Listings - PVL Syntax Highlighting}
+\date{25 Jan. 2020}
+\author{\"Omer \c{S}akar}
+
+
+
+
+
+
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+	A package defining a \texttt{listings} language to (syntax) highlight PVL.
+\end{abstract}
+
+\tableofcontents
+
+\section{Requirements}
+The following \LaTeX packages are required to be installed on your system:
+\begin{itemize}
+	\setlength\itemsep{0cm}
+	\item \texttt{listings}
+	\item \texttt{xcolor}
+\end{itemize}
+
+\section{How to use}
+The listings language is called PVL and can be used by setting the listings option \texttt{language}.
+
+\begin{verbatim}
+\begin{lstlisting}[language=PVL]
+    // PVL CODE
+\end{lstlisting}
+\end{verbatim}
+
+Or,
+
+\begin{verbatim}
+\lstinputlisting[language=PVL]{path/to/pvlfile.pvl}
+\end{verbatim}
+
+Other listings options can be set after specifying the language. If you have encoding issues (for example by changing the default font), try adding \textbackslash usepackage[T1]\{fontenc\} after specifying the document class. 
+ 
+\section{Details about the package}
+\subsection{Groups of keywords}
+Keywords are grouped (loosely) based on the PVL Syntax page:
+
+	\begin{itemize}
+		\setlength\itemsep{0cm}
+		\item \textbf{Class 2}:	int, boolean, void, resource, frac, zfrac, process, seq, set, bag, option
+		\item \textbf{Class 3}: return, if, else, for, while, par, vec, atomic, barrier, fork, join, wait, notify, lock, unlock
+		\item \textbf{Class 4}: class, pure, new, this
+		\item \textbf{Class 5}: Perm, PointsTo, Value, History, HPerm, Hist, action, AbstractState, create, destroy, split, merge, modifies, accessible, Future, choose
+		\item \textbf{Class 6}: assert, assume, requires, ensures, context, loop\_invariant, invariant, given, yields, with, then, unfolding, in, refute, inhale, exhale, fold, unfold
+		\item A group for keywords starting with a backslash
+		\item A group for infix operators
+	\end{itemize}
+
+\subsection{Adding more keywords}
+How keywords are added depends on which group of keywords it belongs to.
+
+\begin{itemize}
+	\item If the keyword starts with a backslash, then it is added by using the listings option \texttt{moretexcs}. For example, if we want to highlight \texttt{\textbackslash myFunc}, then we add the following option:
+		\begin{verbatim}
+\lstset{
+    language=PVL,
+    moretexcs={myFunc},
+}
+		\end{verbatim}
+	\item If the keyword is an infix operator, then it is added by using the listings option \texttt{literate}. For example, if we want to highlight an imaginary operator $!@$, then we add the following option:
+		\begin{verbatim}
+\lstset{
+    language=PVL,
+    literate={\ !@\ }{{\color{red}\  !@ }}{3}
+}
+		\end{verbatim}
+	For the exact syntax of the \texttt{literate} option, please see the documentation for the \texttt{listings} package.
+
+	\item If the keyword does not fall into one of the previous categories and you want to add it to an existing class, then it is added by using the listings option \texttt{morekeywords}. For example, if we want to add a type \texttt{float} to class 2, then we add the following option:
+	\begin{verbatim}
+\lstset{
+    language=PVL,
+    morekeywords=[2]{
+        float
+    }
+}
+	\end{verbatim}
+	
+	\item If the keyword should be in a new class, then we use a combination of the listings options \texttt{morekeywords} for adding the keyword and \texttt{keywordstyle} to define the style/color. The first six classes are in use, so any class above class 6 should be free. For example, if we want to add a keyword \texttt{context\_everywhere} to a new class 8 and it should be colored \color{red}red\color{black}, then we add the following options:
+	
+	\begin{verbatim}
+\lstset{
+    language=PVL,
+    morekeywords=[8]{
+        context\_everywhere
+    },
+    keywordstyle=[8]\color{red}
+}
+\end{verbatim}
+\end{itemize}
+
+
+\subsection{Colors}
+The different groups of keywords have the following coloring scheme:
+
+\begin{itemize}
+	\setlength\itemsep{0cm}
+	\item Comments -> \textbackslash \verb|color{pvlgrey}|
+	\item Class 2 -> \textbackslash \verb|color{pvlblue}|,
+	\item Class 3 -> \textbackslash \verb|color{pvlblue}|,
+	\item Class 4 -> \textbackslash \verb|color{pvlblue}|,
+	\item Class 5 -> \textbackslash \verb|color{\color{purple}|,
+	\item Class 6 -> \textbackslash \verb|color{pvlgreen}|,
+	\item Keywords starting with backslash -> \textbackslash \verb|color{orange}|,
+	\item The infix operators $\&\&$, $||$, $==>$ -> \textbackslash \verb|color{pvlinfixcolor}|,
+	\item The rest of the infix operators -> \textbackslash \verb|color{darkpvlinfixcolor}|,
+\end{itemize}
+
+\noindent These colors are defined as follows:
+
+\begin{verbatim}
+    \definecolor{pvlgrey}{rgb}{0.46,0.45,0.48}
+    \definecolor{pvlgreen}{HTML}{65CC2D}
+    \definecolor{pvlblue}{HTML}{4D5BFF}
+    \definecolor{pvlinfixcolor}{HTML}{999C94}
+    \definecolor{darkpvlinfixcolor}{HTML}{5A5C57}
+\end{verbatim}
+
+\noindent To change the colors, either redefine the color with the names above or overwrite the style option for the correct group of keywords. For example, if we want to have all keywords black and bold again, then we can do the following:
+
+\begin{verbatim}
+\lstset{
+    language=PVL,
+    commentstyle=\bfseries\color{black}, % For comments
+    keywordstyle=[2]\bfseries\color{black}, % For class 2 keywords
+    keywordstyle=[3]\bfseries\color{black}, % For class 3 keywords
+    keywordstyle=[4]\bfseries\color{black}, % For class 4 keywords
+    keywordstyle=[5]\bfseries\color{black}, % For class 5 keywords
+    keywordstyle=[6]\bfseries\color{black}, % For class 6 keywords
+    texcsstyle=*\bfseries\color{black}, % For keywords starting with backslash
+}
+\end{verbatim}
+
+\section{Example PVL code}
+Since this package only defines syntax highlighting for PVL and no styling/formatting for the listings, it is probably a good idea to add some styling to your PVL code. This could be either by using \textbackslash lstset\{language=PVL, $<$options$>$\} or define a new language using \textbackslash lstdefinelanguage\{NewLanguageName\}\{language=PVL, $<$options$>$\}.
+
+Below we show a piece of PVL code twice. Figure \ref{fig:plain_pvl} is plain PVL highlighting for the example (i.e. no other options set) and Figure \ref{fig:styled_pvl} is a styled version using a listings language \texttt{AnotherPVL} defined as in Figure \ref{fig:anotherpvl}.
+
+\begin{figure}
+\begin{lstlisting}[language=PVL]
+class Incrementer {
+	requires n >= 0;
+	ensures |\result| == |input|;
+	ensures (\forall int k; 0 <= k && k < |\result|; \result[k] == input[k]+n);
+	seq<int> incrementAllByN(seq<int> input, int n) {
+		seq<int> res = seq<int> {};
+		int i = 0;
+		
+		loop_invariant 0 <= i && i <= |input|;
+		loop_invariant i == |res|;
+		loop_invariant (\forall int k; 0 <= k && k < i; res[k] == input[k]+n);
+		while (i < |input|) {
+			res = res + seq<int> {input[i]+n};
+			i = i + 1;
+		}
+		return res;
+	}
+}
+\end{lstlisting}
+\caption{Plain PVL Syntax highlighting}
+\label{fig:plain_pvl}
+\end{figure}
+
+\lstdefinelanguage{AnotherPVL} {
+	language=PVL,
+	numbers=left, 
+	numberstyle=\small, 
+	numbersep=8pt, 
+	frame=single, 
+	framexleftmargin=15pt,
+	tabsize=2,
+	basicstyle=\footnotesize\ttfamily,
+	breaklines=true,
+	postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+	showspaces=false,
+	showtabs=false,
+	showstringspaces=true,
+	breakatwhitespace=true,
+}
+
+
+\begin{figure}
+	\begin{lstlisting}[language=AnotherPVL]
+class Incrementer {
+    requires n >= 0;
+    ensures |\result| == |input|;
+    ensures (\forall int k; 0 <= k && k < |\result|; \result[k] == input[k]+n);
+    seq<int> incrementAllByN(seq<int> input, int n) {
+        seq<int> res = seq<int> {};
+        int i = 0;
+        
+        loop_invariant 0 <= i && i <= |input|;
+        loop_invariant i == |res|;
+        loop_invariant (\forall int k; 0 <= k && k < i; res[k] == input[k]+n);
+        while (i < |input|) {
+            res = res + seq<int> {input[i]+n};
+            i = i + 1;
+        }
+        return res;
+    }
+}
+\end{lstlisting}
+\caption{Styled PVL Syntax highlighting (with the language in Figure \ref{fig:anotherpvl})}
+\label{fig:styled_pvl}
+\end{figure}
+
+\begin{figure}
+\begin{lstlisting}[    
+    basicstyle=\footnotesize\ttfamily,
+    frame=single, 
+	framexleftmargin=15pt,
+	]
+\lstdefinelanguage{AnotherPVL} {
+    language=PVL,
+    numbers=left, 
+    numberstyle=\small, 
+    numbersep=8pt, 
+    frame=single, 
+    framexleftmargin=15pt,
+    tabsize=2,
+    basicstyle=\footnotesize\ttfamily,
+    breaklines=true,
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+    showspaces=false,
+    showtabs=false,
+    showstringspaces=true,
+    breakatwhitespace=true,
+}
+	\end{lstlisting}
+	\caption{The definition of the listings language \texttt{AnotherPVL}}
+	\label{fig:anotherpvl}
+\end{figure}
+
+\end{document}
