@@ -12,7 +12,6 @@ lazy val parsers = (project in file("parsers"))
 lazy val vercors = (project in file("."))
     .dependsOn(viper_api)
     .dependsOn(parsers)
-    .aggregate(viper_api, parsers)
     .settings(
         name := "Vercors",
         organization := "University of Twente",

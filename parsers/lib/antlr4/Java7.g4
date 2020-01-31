@@ -141,7 +141,8 @@ interfaceDeclaration
     ;
 
 typeList
-    :   type (',' type)*
+    :   type
+    |   type ',' typeList
     ;
 
 classBody
@@ -293,7 +294,12 @@ primitiveType
     );
 
 typeArguments
-    :   '<' typeArgument (',' typeArgument)* '>'
+    :   '<' typeArgumentList '>'
+    ;
+
+typeArgumentList
+    :   typeArgument
+    |   typeArgument ',' typeArgumentList
     ;
 
 typeArgument
@@ -542,7 +548,7 @@ expression
     |   expression '.' explicitGenericInvocation
     |   expression '[' expression ']'
     |   expression '->' javaIdentifier arguments
-    |   expression ( '@' javaIdentifier )? arguments
+    |   expression predicateLoc? arguments
     |   'new' creator
     |   '(' type ')' expression
     |   expression ('++' | '--')
@@ -577,6 +583,7 @@ expression
         )
         expression
     ;
+predicateLoc: '@' javaIdentifier;
 
 primary
     :   '(' expression ')'
@@ -644,7 +651,7 @@ explicitGenericInvocationSuffix
     ;
 
 arguments
-    :   '(' ( expression ( ',' expression )* )? ')'
+    :   '(' expressionList? ')'
     ;
 
 // LEXER

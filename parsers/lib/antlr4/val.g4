@@ -73,11 +73,10 @@ valPrimary
     | '['  expression '..' expression ')'
     | '*'
     | '\\current_thread'
-    | '(' '\\forall*' type identifier '=' expression '..' expression ';' expression ')' 
-    | '(' '\\forall*' type identifier ';' expression ';' expression ')'
-    | '(' '\\forall' type identifier ';' expression ';' expression ')'
-    | '(' '\\forall' type identifier '=' expression '..' expression ';' expression ')' 
-    | '(' '\\exists' type identifier ';' expression ';' expression ')'
+    | '(' ('\\forall*'|'\\forall'|'\\exists')
+        type identifier '=' expression '..' expression ';' expression ')'
+    | '(' ('\\forall*'|'\\forall'|'\\exists')
+        type identifier ';' expression ';' expression ')'
     | '(' '\\let' type identifier '=' expression ';' expression ')'
     | '(' '\\sum' type identifier ';' expression ';' expression ')'
     | '\\length' '(' expression ')'
@@ -99,8 +98,8 @@ valPrimary
     ;
 
 valReserved
- : 'create' | 'action' | 'destroy' | 'send' | 'recv' | 'use' | 'open' | 'close'
- | 'atomic'  | 'from' | 'merge' | 'split' | 'process' | 'apply' | 'label'
+ : ('create' | 'action' | 'destroy' | 'send' | 'recv' | 'use' | 'open' | 'close'
+ | 'atomic'  | 'from' | 'merge' | 'split' | 'process' | 'apply' | 'label')
  | '\\result' | '\\current_thread'
  ;
 
