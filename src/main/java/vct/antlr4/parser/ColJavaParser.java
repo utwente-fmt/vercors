@@ -57,11 +57,11 @@ public class ColJavaParser implements vct.col.util.Parser {
             parser.addErrorListener(ec);
             lexer.removeErrorListeners();
             lexer.addErrorListener(ec);
-            ParseTree tree = parser.compilationUnit();
+            Java7JMLParser.CompilationUnitContext tree = parser.compilationUnit();
             ec.report();
             Progress("first parsing pass took %dms",tk.show());
             
-            pu=Java7JMLtoCol.convert_tree(tree,file_name,tokens,parser);
+            pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
             Progress("AST conversion took %dms",tk.show());
             Debug("program after Java parsing:%n%s",pu);
             
@@ -79,11 +79,11 @@ public class ColJavaParser implements vct.col.util.Parser {
             lexer.removeErrorListeners();
             lexer.addErrorListener(ec);
             
-            ParseTree tree = parser.compilationUnit();
+            Java7JMLParser.CompilationUnitContext tree = parser.compilationUnit();
             ec.report();
             Progress("first parsing pass took %dms",tk.show());
             
-            pu=Java7JMLtoCol.convert_tree(tree,file_name,tokens,parser);
+            pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
             Progress("AST conversion took %dms",tk.show());
             Debug("program after Java parsing:%n%s",pu);
             break;

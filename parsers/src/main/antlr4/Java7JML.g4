@@ -6,7 +6,7 @@ identifier : javaIdentifier ;
 
 extraIdentifier : valReserved ;
 
-extraType : 'resource' | 'process' | 'frac' | 'zfrac' | 'rational' ;
+extraType : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational');
 
 extraAnnotation
     : 'pure'

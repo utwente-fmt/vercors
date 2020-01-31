@@ -9,26 +9,39 @@ import val;
 
 expression : expr ;
 
-program  : (claz|kernel|block|field|method_decl)* (block)? EOF ;
+program  : programDecl* block? EOF ;
 
-claz : contract 'class' identifier '{'( field | method_decl | constructor )* '}' ;
+programDecl : claz|kernel|block|field|methodDecl ;
 
-kernel : 'kernel' identifier '{' ( kernel_field | method_decl )* '}' ;
+claz : contract 'class' identifier '{' clazMember* '}' ;
+clazMember : field | methodDecl | constructor;
 
-kernel_field : ('global' | 'local') type identifier ( ',' identifier )* ';' ;
+kernel : 'kernel' identifier '{' kernelMember* '}' ;
+kernelMember : kernelField | methodDecl ;
 
-field : type identifier ( ',' identifier )* ';' ;
+kernelField : ('global' | 'local') type identifierList ';' ;
+
+field : type identifierList ';' ;
 
 modifiers : ( 'static' | 'thread_local' | 'inline' | 'pure' )*;
 
-method_decl : contract modifiers type identifier '(' args ')' ( '=' expr ';' | ';' | block ) ;
+methodDecl : contract modifiers type identifier '(' args? ')' methodBody ;
+methodBody : '=' expr ';' | constructorBody ;
 
-constructor : contract identifier '(' args ')' ( block | ';' ) ;
+constructor : contract identifier '(' args? ')' constructorBody ;
+constructorBody : ';' | block ;
 
 contract : valContractClause* ;
 
-args : type identifier ( ',' type identifier )* | ;
+args
+    : type identifier
+    | type identifier args
+    ;
 
+exprList
+    : expr
+    | expr ',' exprList
+    ;
 
 expr
  : identifier ':' expr
@@ -108,7 +121,7 @@ unaryExpr
 
 newExpr
  : 'new' identifier tuple
- | 'new' non_array_type new_dims
+ | 'new' nonArrayType newDims
  | nonTarget
  | target
  ;
@@ -125,7 +138,8 @@ nonTarget
  : nonTarget '.' gen_id
  | nonTarget tuple
  | nonTarget '[' '..' expr ']'
- | nonTarget '[' expr ('..' expr?)? ']'
+ | nonTarget '[' expr ']'
+ | nonTarget '[' expr '..' expr? ']'
  | nonTarget '[' expr '->' expr ']'
  | nonTarget '->' identifier tuple
  | nonTargetUnit
@@ -151,7 +165,7 @@ nonTargetUnit
  | valPrimary
  ;
 
-arguments: (expression (',' expression)*);
+arguments: exprList;
 
 collectionConstructors
  : CONTAINER '<' type '>' values
@@ -168,12 +182,12 @@ targetUnit
  ;
 
 builtinMethod
- : 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some'
+ : ('Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some')
  ;
 
-values : '{' ( | expr (',' expr)*) '}';
+values : '{' exprList? '}';
 
-tuple : '(' ( | expr (',' expr)*) ')';
+tuple : '(' exprList? ')';
 
 block : '{' statement* '}' ;
 
@@ -187,12 +201,12 @@ statement
  | 'join' expr ';'
  | 'action' tuple block
  | valStatement
- | 'if' '(' expr ')' statement ( 'else' statement )?
- | 'barrier' '(' identifier ( ';' id_list )? ')' ( '{' contract '}' | contract block )
- | contract 'par' par_unit ( 'and' par_unit )*
+ | 'if' '(' expr ')' statement elseBlock?
+ | 'barrier' '(' identifier barrierTags? ')' barrierBody
+ | contract 'par' parUnitList
  | 'vec' '(' iter ')' block
  | 'invariant' identifier '(' expr ')' block
- | 'atomic' '(' id_list ')' block
+ | 'atomic' '(' identifierList ')' block
  | invariant 'while' '(' expr ')' statement
  | invariant 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
  | block
@@ -202,37 +216,47 @@ statement
  | allowedForStatement ';'
  ;
 
+elseBlock: 'else' statement;
+barrierTags: ';' identifierList;
+barrierBody: '{' contract '}' | contract block;
+parUnitList: parUnit | parUnit 'and' parUnitList;
+
 forStatementList
  : allowedForStatement (',' allowedForStatement)*
  ;
 
 allowedForStatement
- : type identifier ('=' expr | (',' identifier)* )
+ : type declList
  | expr
  | identifier ('++'|'--')
  | target '=' expr
  ;
 
-par_unit
- : identifier? '(' iters ( ';' wait_list )? ')' contract block
+declList
+ : identifier declInit?
+ | identifier declInit? ',' declList
+ ;
+
+declInit
+ : '=' expr
+ ;
+
+parUnit
+ : identifier? '(' iters? parWaitList? ')' contract block
  | contract block
  ;
 
-wait_list : wait_for ( ',' wait_for )* ;
+iters: iter | iter ',' iters;
+iter: type identifier '=' expr '..' expr;
 
-wait_for : identifier ( '(' id_arg_list ')' ) ? ;
-
-id_arg_list : id_arg ( ',' id_arg )* ;
-
-id_arg : identifier | '*' ;
-
-id_list : ( identifier ( ',' identifier )* )? ;
+parWaitList: ';' waitList;
+waitList: waitFor | waitFor ',' waitList;
+waitFor: identifier waitForArgs?;
+waitForArgs: '(' idArgList ')';
+idArgList: idArg | idArg ',' idArgList;
+idArg: identifier | '*';
 
 with_then : ( 'with' block )? ('then' block)? ;
-
-iters : ( iter ( ',' iter )* )? ;
-
-iter : type identifier '=' expr '..' expr ;
 
 decls  : ( decl ( ',' decl )* )? ;
 
@@ -240,35 +264,50 @@ decl : type identifier ( '=' expr )? ;
 
 fence_list : ( 'local' | 'global' )* ;
 
-invariant : ( 'loop_invariant' expr ';' )* ;
+invariantList: invariant*;
+invariant: 'loop_invariant' expr ';';
 
-non_array_type
+nonArrayType
  : CONTAINER '<' type '>'
  | 'option' '<' type '>'
- | ( 'string' | 'process' | 'int' | 'boolean' | 'zfrac' | 'frac' | 'resource' | 'void' | classType )
+ | ('string' | 'process' | 'int' | 'boolean' | 'zfrac' | 'frac' | 'resource' | 'void')
+ | classType
  ;
 
 type
- : non_array_type type_dims
+ : nonArrayType typeDims
  ;
 
-type_dims
- : ('[' expr ']')*
- | ('[' ']')*
+typeDims
+ : quantifiedDim*
+ | anonDim*
  ;
 
-new_dims
- : ('[' expr ']')+
+newDims
+ : quantifiedDim+
+ ;
+
+quantifiedDim
+ : '[' expr ']'
+ ;
+
+anonDim
+ : '[' ']'
  ;
 
 gen_id : identifier | CONTAINER ;
 
 classType : identifier typeArgs?;
 
-typeArgs : '<' expr (',' expr)* '>';
+typeArgs : '<' exprList '>';
 
 
 CONTAINER : 'seq' | 'set' | 'bag' ;
+
+identifierList
+    : identifier
+    | identifier ',' identifierList
+    ;
 
 identifier : Identifier | valReserved ;
 

@@ -13,11 +13,12 @@ lazy val parsers = (project in file(".")).settings(
             grammarFiles: Set[File] => {
                 for(grammarFile <- grammarFiles) {
                     val exitCode = scala.sys.process.Process("java", Seq(
-                        "-cp", Path.makeString(cp),
+                        "-cp", "/home/pieter/antlr4/classes/artifacts/antlr4_jar/antlr4.jar",
                         "org.antlr.v4.Tool",
                         "-o", target.toString,
                         "-lib", ((unmanagedBase in Compile).value / "antlr4").toString,
                         "-listener", "-visitor",
+                        "-scala-extractor-objects",
                         "-package", "vct.antlr4.generated",
                         grammarFile.toString
                     )) ! log
@@ -26,7 +27,7 @@ lazy val parsers = (project in file(".")).settings(
                         sys.error(s"Antlr4 failed with exit code $exitCode")
                     }
                 }
-                (target ** "*.java").get.toSet
+                (target ** "*.java").get.toSet ++ (target ** "*.scala").get.toSet
             }
         }
 

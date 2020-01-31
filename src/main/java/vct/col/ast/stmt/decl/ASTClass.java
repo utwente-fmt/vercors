@@ -33,7 +33,6 @@ import static hre.lang.System.Debug;
  *
  */
 public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
-
   @Override
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
     return map.map(this,arg);

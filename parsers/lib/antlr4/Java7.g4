@@ -55,8 +55,9 @@ packageDeclaration
     ;
 
 importDeclaration
-    :   'import' 'static'? qualifiedName ('.' '*')? ';'
+    :   'import' 'static'? qualifiedName importAll? ';'
     ;
+importAll: '.' '*';
 
 typeDeclaration
     :   classOrInterfaceModifier* classDeclaration
@@ -94,22 +95,28 @@ variableModifier
     ;
 
 classDeclaration
-    :   'class' javaIdentifier typeParameters?
-        ('extends' type)?
-        ('implements' typeList)?
-        classBody
+    :   'class' javaIdentifier typeParameters? ext? imp? classBody
     ;
+ext: 'extends' type;
+imp: 'implements' typeList;
 
 typeParameters
-    :   '<' typeParameter (',' typeParameter)* '>'
+    :   '<' typeParameterList '>'
+    ;
+
+typeParameterList
+    :   typeParameter
+    |   typeParameterList ',' typeParameterList
     ;
 
 typeParameter
-    :   javaIdentifier ('extends' typeBound)?
+    :   javaIdentifier typeParameterBound?
     ;
+typeParameterBound: 'extends' typeBound;
 
 typeBound
-    :   type ('&' type)*
+    :   type
+    |   type '&' typeBound
     ;
 
 enumDeclaration
@@ -170,11 +177,11 @@ memberDeclaration
    for invalid return type after parsing.
  */
 methodDeclaration
-    :   (type|'void') javaIdentifier formalParameters dims?
-        ('throws' qualifiedNameList)?
-        (   methodBody
-        |   ';'
-        )
+    :   typeOrVoid javaIdentifier formalParameters dims? methodBodyOrEmpty
+    ;
+
+throwy
+    :   'throws' qualifiedNameList
     ;
 
 genericMethodDeclaration
@@ -229,12 +236,14 @@ genericInterfaceMethodDeclaration
     ;
 
 variableDeclarators
-    :   variableDeclarator (',' variableDeclarator)*
+    :   variableDeclarator
+    |   variableDeclarator ',' variableDeclarators
     ;
 
 variableDeclarator
-    :   variableDeclaratorId ('=' variableInitializer)?
+    :   variableDeclaratorId variableDeclaratorInit?
     ;
+variableDeclaratorInit: '=' variableInitializer;
 
 variableDeclaratorId
     :   javaIdentifier dims?
@@ -259,16 +268,21 @@ type
     |   extraType
     ;
 
-dims
-    : '[' ']' ('[' ']')*
+typeOrVoid
+    : 'void'
+    | type
     ;
 
+dims: dim*;
+dim: '[' ']';
+
 classOrInterfaceType
-    :   javaIdentifier typeArguments? ('.' javaIdentifier typeArguments? )*
+    :   javaIdentifier typeArguments?
+    |   classOrInterfaceType '.' javaIdentifier typeArguments?
     ;
 
 primitiveType
-    :   'boolean'
+    :(  'boolean'
     |   'char'
     |   'byte'
     |   'short'
@@ -276,7 +290,7 @@ primitiveType
     |   'long'
     |   'float'
     |   'double'
-    ;
+    );
 
 typeArguments
     :   '<' typeArgument (',' typeArgument)* '>'
@@ -296,15 +310,21 @@ formalParameters
     ;
 
 formalParameterList
-    :   formalParameter (',' formalParameter)* (',' lastFormalParameter)?
-    |   lastFormalParameter
+    :   varargsFormalParameter
+    |   initFormalParameterList
+    |   initFormalParameterList ',' varargsFormalParameter
+    ;
+
+initFormalParameterList
+    :   formalParameter
+    |   formalParameter ',' initFormalParameterList
     ;
 
 formalParameter
     :   variableModifier* type variableDeclaratorId
     ;
 
-lastFormalParameter
+varargsFormalParameter
     :   variableModifier* type '...' variableDeclaratorId
     ;
 
@@ -312,12 +332,18 @@ methodBody
     :   block
     ;
 
+methodBodyOrEmpty
+    :   ';'
+    |   methodBody
+    ;
+
 constructorBody
     :   block
     ;
 
 qualifiedName
-    :   javaIdentifier ('.' javaIdentifier)*
+    :   javaIdentifier
+    |   javaIdentifier '.' qualifiedName
     ;
 
 literal

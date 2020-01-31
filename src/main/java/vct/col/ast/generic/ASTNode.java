@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.antlr.runtime.tree.ParseTree;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.composite.Hole;
@@ -137,6 +138,11 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
       this.origin=new MessageOrigin("NULL ORIGIN");
     }
     this.origin=origin;
+  }
+
+  public ASTNode from(Origin origin) {
+    setOrigin(origin);
+    return this;
   }
   
   public Origin getOrigin(){

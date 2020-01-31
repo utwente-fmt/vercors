@@ -37,7 +37,6 @@ import vct.col.util.NameScanner;
  * @author Stefan Blom
  */ 
 public class AbstractRewriter extends AbstractVisitor<ASTNode> {
-
   private static ThreadLocal<AbstractRewriter> tl=new ThreadLocal<AbstractRewriter>();
 
   public static <R extends ASTNode> Hashtable<String, Type> free_vars(List<R> nodes) {

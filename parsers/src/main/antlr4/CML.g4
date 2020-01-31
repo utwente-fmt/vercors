@@ -4,7 +4,7 @@ import val, C;
 
 /* Define for use by C grammar */
 
-extraIdentifier : valReserved ;
+extraIdentifier : valReserved # test;
 
 extraPrimary : valPrimary ;
 

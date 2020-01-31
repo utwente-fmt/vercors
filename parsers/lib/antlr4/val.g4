@@ -11,11 +11,15 @@ grammar val;
    valStatement      - proof guiding statements
    valReserved       - reserved identifiers
  */
- 
+
+expressionList
+    : expression
+    | expression ',' expressionList
+    ;
 
 valContractClause
- : 'modifies' expression (',' expression)* ';'
- | 'accessible' expression (',' expression)* ';'
+ : 'modifies' expressionList ';'
+ | 'accessible' expressionList ';'
  | 'requires' expression ';'
  | 'ensures' expression ';'
  | 'given' type identifier ';'
@@ -56,11 +60,11 @@ valStatement
  | 'spec_ignore' '}'
  | 'spec_ignore' '{'
  | 'action' expression ',' expression ',' expression ',' expression ( ',' expression ',' expression )* ';'
- | 'atomic' '(' ( expression (',' expression)* )? ')' block
+ | 'atomic' '(' ( expressionList )? ')' block
  ;
 
 valPrimary
-    : type '{' ( expression (',' expression)* )? '}'
+    : type '{' ( expressionList )? '}'
     | '[' expression ']' expression
     | '|' expression '|'
     | '\\unfolding' expression '\\in' expression

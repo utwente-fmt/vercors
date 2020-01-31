@@ -1,33 +1,14 @@
 package vct.antlr4.parser;
 
-import hre.lang.Failure;
-import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.BufferedTokenStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.antlr.v4.runtime.tree.TerminalNode;
-import vct.antlr4.generated.CMLLexer;
-import vct.antlr4.generated.CMLParser.*;
-import vct.antlr4.generated.CMLVisitor;
-import vct.col.ast.expr.NameExpression;
-import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.expr.StandardOperator;
+import vct.antlr4.generated.CMLBaseVisitor;
+import vct.antlr4.generated.CMLParser;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
-import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.composite.LoopStatement;
-import vct.col.ast.stmt.decl.*;
-import vct.col.ast.stmt.decl.ASTClass.ClassKind;
-import vct.col.ast.stmt.decl.ASTSpecial.Kind;
-import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.type.Type;
-import vct.col.ast.type.TypeOperator;
-import vct.col.syntax.CSyntax;
 import vct.col.syntax.Syntax;
-import vct.col.util.SequenceUtils;
-import vct.util.Configuration;
-
-import java.util.ArrayList;
-
-import static hre.lang.System.Debug;
 
 /**
  * Convert CML (C Modeling Language) parse trees to COL.
@@ -38,9 +19,12 @@ import static hre.lang.System.Debug;
  * 
  * @author <a href="mailto:s.c.c.blom@utwente.nl">Stefan Blom</a>
 */
-public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
+public class CMLtoCOL extends CMLBaseVisitor<ASTNode> {
+  public static TempSequence convert_seq(ParseTree tree, String embedded_comments, CommonTokenStream tokens, CMLParser parser) {
+    return null;
+  }
 
-  private static <E extends ASTSequence<?>> E convert(E unit, ParseTree tree, String file_name, BufferedTokenStream tokens, org.antlr.v4.runtime.Parser parser) {
+  /*private static <E extends ASTSequence<?>> E convert(E unit, ParseTree tree, String file_name, BufferedTokenStream tokens, org.antlr.v4.runtime.Parser parser) {
     ANTLRtoCOL visitor=new CMLtoCOL(unit, CSyntax.getCML(),file_name,tokens,parser,CMLLexer.Identifier,CMLLexer.CH_COMMENT);
     visitor.scan_to(unit,tree);
     return unit;
@@ -1123,7 +1107,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   @Override
   public ASTNode visitValStatement(ValStatementContext ctx) {
     return getValStatement(ctx);
-  }
+  }*/
 
 
 }
