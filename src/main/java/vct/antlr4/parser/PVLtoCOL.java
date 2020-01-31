@@ -3,7 +3,10 @@ package vct.antlr4.parser;
 import hre.lang.HREError;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -16,7 +19,6 @@ import vct.antlr4.generated.PVFullParser;
 import vct.antlr4.generated.PVFullParser.*;
 import vct.antlr4.generated.PVFullVisitor;
 
-import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.generic.ASTNode;
@@ -426,7 +428,48 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
   }
 
   @Override
-  public ASTNode visitCollectionConstructors(CollectionConstructorsContext ctx) {
+  public ASTNode visitSetCompSelectors(SetCompSelectorsContext ctx) {
+    return null;
+  }
+
+  @Override
+  public ASTNode visitSetCompSelector(SetCompSelectorContext ctx) {
+    return null;
+  }
+
+  public DeclarationStatement[] getVariableDecls(ParserRuleContext ctx) {
+    if (ctx.children == null) {
+      Fail("The variables of set comprehension cannot be empty.");
+    }
+
+    int N=(ctx.children.size()+1)/2;
+    DeclarationStatement res[]=new DeclarationStatement[N];
+    for(int i=0;i<N;i++){
+      ParserRuleContext declaredVars = (ParserRuleContext) ctx.getChild(2*i);
+      Type varType = checkType(convert(declaredVars, 0));
+      String varName = getIdentifier(declaredVars, 1);
+      res[i] = create.field_decl(varName, varType);
+    }
+    return res;
+  }
+    public ASTNode[] getVarBounds(ParserRuleContext ctx) {
+    if (ctx.children == null) {
+      Fail("The selectors of set comprehension cannot be empty.");
+    }
+
+    int N=(ctx.children.size()+1)/2;
+    ASTNode res[]=new ASTNode[N];
+    for(int i=0;i<N;i++){
+      ParserRuleContext declaredVars = (ParserRuleContext) ctx.getChild(2*i);
+      if (match(declaredVars, null, null, "<-", null)) {
+        res[i] = create.expression(StandardOperator.Member, convert(declaredVars, 1), convert(declaredVars, 3));
+      }
+    }
+    return Arrays.stream(res).filter(Objects::nonNull).toArray(ASTNode[]::new);
+  }
+
+  @Override
+  public ASTNode visitCollectionConstructor(CollectionConstructorContext ctx) {
     // Sequence Constructors
     if (match(ctx,"seq","<",null,">",null)){
       Type t=checkType(convert(ctx,2));
@@ -447,6 +490,22 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       Type t=checkType(convert(ctx,2));
       ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(4),"{",",","}");
       return create.struct_value(create.primitive_type(PrimitiveSort.Set,t),null,args);
+    }
+
+    if (match(ctx,"set","<",null,">","{",null,"|",null,";",null,"}")) {
+      Type t=checkType(convert(ctx,2)); // 2 the type of the resulting sequence
+
+      // 7 declared variable with possible domain
+      DeclarationStatement[] variables = getVariableDecls((ParserRuleContext)ctx.getChild(7));
+      ASTNode[] varBounds = getVarBounds((ParserRuleContext)ctx.getChild(7));
+
+      return create.setComp(
+              create.primitive_type(PrimitiveSort.Set, t),
+              convert(ctx,9), // 9 The main or the claim
+              convert(ctx,5), // 5 the resulting expression
+              varBounds, // Selector.
+              variables // Declaration of variable
+      );
     }
     if (match(ctx, "{", null, "}")) {
       ASTNode[] args = getValues((ParserRuleContext)ctx.children.get(1));

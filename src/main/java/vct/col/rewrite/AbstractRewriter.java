@@ -612,7 +612,11 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   
   @Override
   public void visit(BindingExpression e){
-    result=create.binder(e.binder,rewrite(e.result_type),rewrite(e.getDeclarations()),rewrite(e.triggers), rewrite(e.select), rewrite(e.main));
+    if (e instanceof SetComprehension) {
+      result = create.setComp(rewrite(e.result_type), rewrite(e.select), rewrite(e.main), ((SetComprehension) e).boundedVariables, e.getDeclarations());
+    } else {
+      result=create.binder(e.binder,rewrite(e.result_type),rewrite(e.getDeclarations()),rewrite(e.triggers), rewrite(e.select), rewrite(e.main));
+    }
   }
   
   @Override

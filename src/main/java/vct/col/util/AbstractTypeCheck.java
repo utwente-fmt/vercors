@@ -21,6 +21,8 @@ import vct.col.rewrite.TypeVarSubstitution;
 import vct.silver.SilverTypeMap;
 import vct.util.Configuration;
 
+import static vct.col.ast.expr.Binder.SetComp;
+
 /**
  * This class implements type checking of simple object oriented programs.
  *
@@ -1808,9 +1810,23 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(res);
       break;
     }
-    case Sum:
+    case Sum: {
       e.setType(t);
       break;
+    }
+    case SetComp: {
+        //TODO check if expressions are of the same type. Check if exprs are of the correct type.
+        // Set the type for the set (I dont know which child that will be)
+        if (!t.equals(e.result_type.firstarg())){
+          Fail("The type of the set does not match the type of the returned elements.");
+        }
+      ASTNode[] boundedVars = ((SetComprehension) e).boundedVariables;
+      for(int i=0;i<boundedVars.length;i++){
+        boundedVars[i].accept(this);
+      }
+        e.setType(e.result_type);
+        break;
+     }
     }
   }
 

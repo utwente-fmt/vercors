@@ -138,7 +138,7 @@ nonTargetUnit
  | 'false'
  | 'current_thread'
  | '\\result'
- | collectionConstructors
+ | collectionConstructor
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
@@ -153,8 +153,12 @@ nonTargetUnit
 
 arguments: (expression (',' expression)*);
 
-collectionConstructors
+setCompSelector: type identifier ('<-' (identifier | collectionConstructor))?;
+setCompSelectors: setCompSelector (',' setCompSelector)*;
+
+collectionConstructor
  : CONTAINER '<' type '>' values
+ | CONTAINER '<' type '>' '{' expr '|' setCompSelectors ';' expr '}'
  | '[' arguments ']'
  | '[t:' type ']'
  | '{' arguments '}'
