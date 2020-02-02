@@ -5,20 +5,21 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.type.Type;
 
+import java.util.Map;
+
 public class SetComprehension extends BindingExpression {
 
-    public  ASTNode[] boundedVariables;
+    public Map<NameExpression, ASTNode> variables;
 
     /**
-     *
-     * @param result_type
+     *  @param result_type
      * @param decls
      * @param selector
      * @param main
-     * @param boundedVariables
+     * @param variables
      */
-    public SetComprehension(Type result_type, DeclarationStatement[] decls, ASTNode selector, ASTNode main, ASTNode[] boundedVariables) {
+    public SetComprehension(Type result_type, DeclarationStatement[] decls, ASTNode selector, ASTNode main, Map<NameExpression, ASTNode> variables) {
         super(Binder.SetComp, result_type, decls, new ASTNode[0][], selector, main);
-        this.boundedVariables = boundedVariables;
+        this.variables = variables;
     }
 }

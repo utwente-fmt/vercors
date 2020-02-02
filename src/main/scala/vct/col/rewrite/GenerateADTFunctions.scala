@@ -1,14 +1,19 @@
 package vct.col.rewrite
 
+import java.util
+import java.util.stream.{Collectors, StreamSupport}
+
 import hre.ast.{MessageOrigin, Origin}
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
+import vct.col.ast.`type`
+import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.{Binder, BindingExpression, NameExpression, OperatorExpression, SetComprehension, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
 
+import collection.JavaConverters
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
 
 object GenerateADTFunctions {
   val getRemoveFromSeqName: mutable.Map[Type, String] = mutable.Map()
@@ -59,9 +64,13 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     binding.binder match {
       case Binder.SetComp =>
         // Get Arguments
-        var boundedVariables = binding.asInstanceOf[SetComprehension].boundedVariables
-        val args = binding.asInstanceOf[SetComprehension].boundedVariables.map(_.asInstanceOf[OperatorExpression].arg(1))
-        result = create.invokation(null, null, GenerateADTFunctions.getSetCompFunction(binding.asInstanceOf[SetComprehension]), rewrite(args.toArray): _*);
+        var boundedVariables = binding.asInstanceOf[SetComprehension].variables
+        val args = JavaConverters.collectionAsScalaIterable(binding.asInstanceOf[SetComprehension].variables.values())
+
+        result = create.invokation(null,
+          null,
+          GenerateADTFunctions.getSetCompFunction(binding.asInstanceOf[SetComprehension]),
+          rewrite(args.toArray): _*);
       case _ =>
         super.visit(binding)
     }
@@ -77,30 +86,56 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     }
   }
 
-
   def generateSetComprehensionFunction(setComprehension: SetComprehension, functionName: String): ASTNode = {
     val resultType = setComprehension.result_type
     val contract = new ContractBuilder
     val result = create.reserved_name(ASTReserved.Result, resultType)
 
 
-    var selector: ASTNode = create.constant(true)
-    if (setComprehension.boundedVariables != null && !setComprehension.boundedVariables.isEmpty) {
-      selector = setComprehension.boundedVariables.map(boundedVar =>
-        create.expression(StandardOperator.Member,
-          boundedVar.asInstanceOf[OperatorExpression].arg(0),
-          create.argument_name("setCompArg" + boundedVar.asInstanceOf[OperatorExpression].arg(0).asInstanceOf[NameExpression].getName)
+    //    val asdfasdf = StreamSupport.stream(this.source.find("Edge").fields().spliterator(), false)
+    //      .filter( _.isInstanceOf [DeclarationStatement]).collect(Collectors.toList())
 
+    val usedClasses = setComprehension.getDeclarations().filter(_.`type`.isInstanceOf[ClassType])
+    for (clazz <- usedClasses) {
+      val fields = this.source.find(clazz.`type`.asInstanceOf[ClassType].getName).dynamicFields().asScala
+      val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
+      for (field <- fields) {
+        conditions +=
+          create.starall(
+            create.expression(StandardOperator.Member, name(clazz.getDeclName.toString()), name("setCompArg" + clazz.getDeclName.toString)),
+            create.expression(
+              StandardOperator.Value,
+              create.dereference(create.local_name(clazz.name),
+                field.name)
+            )
+            ,
+            clazz
+          )
+      }
+      contract.requires(conditions.reduce(star _))
+
+      val a = 1 + 1
+    }
+
+
+    var selector: ASTNode = null
+    if (setComprehension.variables != null && !setComprehension.variables.isEmpty) {
+      selector = JavaConverters.collectionAsScalaIterable(setComprehension.variables.entrySet()).map(entry =>
+        create.expression(StandardOperator.Member,
+          entry.getKey,
+          create.argument_name("setCompArg" + entry.getKey.getName)
         )
       ).reduce(create.expression(StandardOperator.And, _, _))
     }
 
-    val argsOfFunction = setComprehension.boundedVariables.map( boundedVar =>
-      new DeclarationStatement(
-        "setCompArg" + boundedVar.asInstanceOf[OperatorExpression].arg(0).asInstanceOf[NameExpression].getName,
-        boundedVar.asInstanceOf[OperatorExpression].arg(1).getType
+
+    val argsOfFunction = JavaConverters.collectionAsScalaIterable(setComprehension.variables.entrySet())
+      .map(boundedVar =>
+        new DeclarationStatement(
+          "setCompArg" + boundedVar.getKey.getName,
+          boundedVar.getValue.getType
+        )
       )
-    )
 
     //// Do all the work
     contract.ensures(
@@ -111,7 +146,7 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
           setComprehension.select,
           create.expression(StandardOperator.Member, setComprehension.main, result)
         ),
-        setComprehension.getDeclarations:_*
+        setComprehension.getDeclarations: _*
       )
     )
 

@@ -1065,7 +1065,7 @@ public ASTSpecial special(Origin origin, ASTSpecial.Kind kind, ASTNode ... args)
    * @param decl The declared variables.
    * @return
    */
-  public ASTNode setComp(Type resultType, ASTNode selector, ASTNode main, ASTNode[] varBounds, DeclarationStatement[] decl) {
+  public ASTNode setComp(Type resultType, ASTNode selector, ASTNode main, Map<NameExpression, ASTNode> varBounds, DeclarationStatement[] decl) {
     if (decl.length == 0) {
       Fail("For set comprehension, at least one declaration is needed.");
     }
@@ -1075,7 +1075,6 @@ public ASTSpecial special(Origin origin, ASTSpecial.Kind kind, ASTNode ... args)
             selector,
             main,
             varBounds
-
     );
     res.setOrigin(origin_stack.get());
     res.accept_if(post);

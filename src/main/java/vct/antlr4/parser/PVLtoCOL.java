@@ -2,10 +2,7 @@ package vct.antlr4.parser;
 
 import hre.lang.HREError;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
@@ -28,6 +25,7 @@ import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.generic.BeforeAfterAnnotations;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
@@ -438,8 +436,8 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
   }
 
   public DeclarationStatement[] getVariableDecls(ParserRuleContext ctx) {
-    if (ctx.children == null) {
-      Fail("The variables of set comprehension cannot be empty.");
+    if (ctx.children == null || ctx.children.isEmpty()) {
+      Fail("Set comprehension must quantify over at least one type.");
     }
 
     int N=(ctx.children.size()+1)/2;
@@ -447,25 +445,29 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     for(int i=0;i<N;i++){
       ParserRuleContext declaredVars = (ParserRuleContext) ctx.getChild(2*i);
       Type varType = checkType(convert(declaredVars, 0));
+      if (varType instanceof ClassType && declaredVars.children.size() < 4) {
+        // I.e. A class is quantified over but the domain is not specified.
+        Fail("All variables with type class must have bounds");
+      }
       String varName = getIdentifier(declaredVars, 1);
       res[i] = create.field_decl(varName, varType);
     }
     return res;
   }
-    public ASTNode[] getVarBounds(ParserRuleContext ctx) {
-    if (ctx.children == null) {
-      Fail("The selectors of set comprehension cannot be empty.");
+    public Map<NameExpression, ASTNode> getVarBounds(ParserRuleContext ctx) {
+    if (ctx.children == null || ctx.children.isEmpty()) {
+      Fail("Set comprehension must quantify over at least one type.");
     }
 
     int N=(ctx.children.size()+1)/2;
-    ASTNode res[]=new ASTNode[N];
+    Map<NameExpression, ASTNode> res = new HashMap<>();
     for(int i=0;i<N;i++){
       ParserRuleContext declaredVars = (ParserRuleContext) ctx.getChild(2*i);
       if (match(declaredVars, null, null, "<-", null)) {
-        res[i] = create.expression(StandardOperator.Member, convert(declaredVars, 1), convert(declaredVars, 3));
+        res.put((NameExpression) convert(declaredVars, 1), convert(declaredVars, 3));
       }
     }
-    return Arrays.stream(res).filter(Objects::nonNull).toArray(ASTNode[]::new);
+    return res;
   }
 
   @Override
@@ -497,7 +499,7 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
 
       // 7 declared variable with possible domain
       DeclarationStatement[] variables = getVariableDecls((ParserRuleContext)ctx.getChild(7));
-      ASTNode[] varBounds = getVarBounds((ParserRuleContext)ctx.getChild(7));
+      Map<NameExpression, ASTNode> varBounds = getVarBounds((ParserRuleContext)ctx.getChild(7));
 
       return create.setComp(
               create.primitive_type(PrimitiveSort.Set, t),
