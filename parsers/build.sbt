@@ -1,7 +1,7 @@
 lazy val antlrTask = taskKey[Seq[File]]("Generate visitors and listeners from ANTLR grammars")
 
 lazy val parsers = (project in file(".")).settings(
-    libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.8-1",
+    libraryDependencies += "antlr" % "antlr" % "4.8-extractors" from "https://github.com/niomaster/antlr4/releases/download/4.8-extractors/antlr4.jar",
 
     antlrTask := {
         val cp = (dependencyClasspath in Compile).value.files
@@ -13,7 +13,7 @@ lazy val parsers = (project in file(".")).settings(
             grammarFiles: Set[File] => {
                 for(grammarFile <- grammarFiles) {
                     val exitCode = scala.sys.process.Process("java", Seq(
-                        "-cp", "/home/pieter/antlr4/classes/artifacts/antlr4_jar/antlr4.jar",
+                        "-cp", Path.makeString(cp),
                         "org.antlr.v4.Tool",
                         "-o", target.toString,
                         "-lib", ((unmanagedBase in Compile).value / "antlr4").toString,
