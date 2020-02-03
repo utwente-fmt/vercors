@@ -2,24 +2,23 @@ package vct.antlr4.parser
 
 import java.util.{ArrayList => JavaArrayList}
 
-import hre.ast.FileOrigin
-
-import scala.collection.JavaConverters._
+import hre.lang.System._
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
-import vct.antlr4.generated.PVFullParser._
 import vct.antlr4.generated.PVFullParser
+import vct.antlr4.generated.PVFullParser._
 import vct.antlr4.generated.PVFullParserPatterns._
+import vct.col.ast.`type`.ASTReserved._
 import vct.col.ast.`type`.{PrimitiveSort, Type}
+import vct.col.ast.expr.StandardOperator._
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
 import vct.col.ast.stmt.decl.Method.Kind
 import vct.col.ast.stmt.decl._
-import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.`type`.ASTReserved._
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression}
 import vct.col.ast.util.ContractBuilder
-import vct.col.util.ASTFactory
+
+import scala.collection.JavaConverters._
 
 object PVLtoCOL2 {
   def convert(tree: ProgramContext, file_name: String, tokens: CommonTokenStream, parser: PVFullParser): ProgramUnit = {
@@ -36,8 +35,8 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       case Program0(decls, None, _eof) =>
         decls.map(convertDecl).foreach(_.foreach(output.add))
       case Program0(_, Some(block), _eof) =>
-        // I think program greedily matches programDecls, which mathces block also???
-        ???
+        // I think program greedily matches programDecls, which matches block also?(tree)
+        ?(tree)
     }
 
     output
@@ -46,9 +45,9 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
   def convertDecl(tree: ParserRuleContext): Seq[ASTDeclaration] = tree match {
     case ProgramDecl0(claz) => Seq(convertClass(claz))
     case ProgramDecl1(kernel) => Seq(convertKernel(kernel))
-    case ProgramDecl2(block) => ??? // What's a block doing at the top level?
-    case ProgramDecl3(field) => ??? // This is global state?
-    case ProgramDecl4(method_decl) => ??? // Global method?
+    case ProgramDecl2(block) => ?(tree) // What's a block doing at the top level?
+    case ProgramDecl3(field) => ?(tree) // This is global state?
+    case ProgramDecl4(method_decl) => ?(tree) // Global method?
 
     case ClazMember0(field) => convertField(field)
     case ClazMember1(method) => Seq(convertMethod(method))
@@ -86,7 +85,8 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
   }
 
   def convertKernelField(tree: KernelFieldContext): ASTDeclaration = origin(tree, tree match {
-    case _ => ???
+    case KernelField0(locality, t, idList, _) =>
+      ?(tree)
   })
 
   def convertMethod(method: MethodDeclContext): Method = origin(method, method match {
@@ -104,7 +104,9 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
           case "static" => result.setStatic(true)
           case "thread_local" => result.setFlag(ASTFlags.THREAD_LOCAL, true)
           case "inline" => result.setFlag(ASTFlags.INLINE, true)
-          case "pure" => // Currently determined by body definition
+          case "pure" =>
+            Warning("The pure modifier is ignored, as the purity of a function is " +
+              "derived from its declaration style (f(){} vs. f() = exp;)")
         }
       }
       result
@@ -112,7 +114,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
 
   def convertConstructor(method: ConstructorContext): Method = origin(method, method match {
     case Constructor0(contract, name, "(", args, ")", bodyNode) =>
-      val returns = create primitive_type(PrimitiveSort.Void)
+      val returns = create primitive_type PrimitiveSort.Void
       val (_, body) = convertBody(bodyNode)
       create method_kind(Kind.Constructor, returns, convertContract(contract),
         convertID(name), args.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
@@ -143,6 +145,11 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
 
   def convertID(identifier: IdentifierContext): String = identifier match {
     case Identifier0(name) => name
+    case Identifier1(ValReserved0(_)) => ?(identifier) //forbidden
+    case Identifier1(ValReserved1("\\result")) =>
+      ?(identifier) // incorrect context for expression?
+    case Identifier1(ValReserved2("\\current_thread")) =>
+      ?(identifier) // same
   }
 
   def convertIDList(list: IdentifierListContext): Seq[String] = list match {
@@ -166,6 +173,11 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       expr(exp) +: convertExpList(expList)
   }
 
+  def convertExpList(args: ValuesContext): Seq[ASTNode] = args match {
+    case Values0(_, exps, _) =>
+      ?(args)
+  }
+
   def convertValExpList(args: ExpressionListContext): Seq[ASTNode] = args match {
     case ExpressionList0(exp) =>
       Seq(expr(exp))
@@ -186,14 +198,14 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
         case ann: BeforeAfterAnnotations =>
           ann.set_before(convertBlock(block)); ann
         case _ =>
-          ???
+          ?(tree)
       }
     case Expr2(exp, "then", block) =>
       expr(exp) match {
         case ann: BeforeAfterAnnotations =>
           ann.set_before(convertBlock(block)); ann
         case _ =>
-          ???
+          ?(tree)
       }
     case Expr3("unfolding", exp, "in", inExp) =>
       create expression(Unfolding, expr(exp), expr(inExp))
@@ -228,7 +240,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case MultExpr2(left, "%", right) => create expression(Mod, expr(left), expr(right))
     case MultExpr3(left, "\\", right) => create expression(Div, expr(left), expr(right))
     case MultExpr4(powExp) => expr(powExp)
-    case PowExpr0(left, "^^", right) => ???
+    case PowExpr0(left, "^^", right) => ?(tree)
     case PowExpr1(seqAddExp) => expr(seqAddExp)
     case SeqAddExpr0(x, "::", xs) => create expression(PrependSingle, expr(x), expr(xs))
     case SeqAddExpr1(xs, "++", ys) => create expression(Append, expr(xs), expr(ys))
@@ -271,7 +283,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
         case deref: Dereference =>
           create invokation(deref.obj, null, deref.field, convertExpList(args):_*)
         case other =>
-          ???
+          ?(tree)
       }
     case NonTarget2(seq, "[", "..", to, "]") =>
       create expression(Take, expr(seq), expr(to))
@@ -315,16 +327,31 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
         case "held" => create expression(Held, args:_*)
         case "Some" => create expression(OptionSome, args:_*)
       }
-    case NonTargetUnit8(_owner, "(", a, ",", b, ",", c, ")") => ???
+    case NonTargetUnit8(_owner, "(", a, ",", b, ",", c, ")") => ?(tree)
     case NonTargetUnit9("id", "(", exp, ")") => expr(exp)
     case NonTargetUnit10("|", seq, "|") => create expression(Size, expr(seq))
-    case NonTargetUnit11("?", id) => ???
+    case NonTargetUnit11("?", id) => ?(tree)
     case NonTargetUnit12(num) => create constant Integer.parseInt(num)
-    case NonTargetUnit13(seq) => ???
+    case NonTargetUnit13(seq) => ?(tree)
     case NonTargetUnit14("(", exp, ")") => expr(exp)
     case NonTargetUnit15(id) => create unresolved_name convertID(id)
     case NonTargetUnit16(valPrimary) => expr(valPrimary)
     case DeclInit0("=", exp) => expr(exp)
+
+    case CollectionConstructors0(container, _, t, _, values) =>
+      ?(tree)
+    case CollectionConstructors1("[", exps, "]") =>
+      ?(tree)
+    case CollectionConstructors2("[t:", t, "]") =>
+      ?(tree)
+    case CollectionConstructors3("{", exps, "}") =>
+      ?(tree)
+    case CollectionConstructors4("b{", exps, "}") =>
+      ?(tree)
+    case CollectionConstructors5("b{t:", t, "}") =>
+      ?(tree)
+
+    case x: ValPrimaryContext => ?(tree)
   })
 
   def convertType(t: ParserRuleContext): Type = origin(t, t match {
@@ -399,7 +426,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       builder.appendInvariant(expr(exp))
   }
 
-  def convertBlock(block: BlockContext): BlockStatement = block match {
+  def convertBlock(block: ParserRuleContext): BlockStatement = block match {
     case Block0(_, statements, _) =>
       create block(statements.map(convertStat):_*)
   }
@@ -413,7 +440,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case Statement4("notify", exp, _) => create special(ASTSpecial.Kind.Notify, expr(exp))
     case Statement5("fork", exp, _) => create special(ASTSpecial.Kind.Fork, expr(exp))
     case Statement6("join", exp, _) => create special(ASTSpecial.Kind.Join, expr(exp))
-    case Statement7("action", args, block) => ???
+    case Statement7("action", args, block) => ?(stat)
     case Statement8(valStat) => convertStat(valStat)
     case Statement9("if", "(", cond, ")", thenStat, maybeElseStat) =>
       create ifthenelse(expr(cond), convertStat(thenStat), maybeElseStat.map(convertStat).orNull)
@@ -452,12 +479,14 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
         convertContract(invariants)
       )
     case Statement17(block) => convertBlock(block)
-    case Statement18("{*", exp, "*}") => ???
+    case Statement18("{*", exp, "*}") => ?(stat)
     case Statement19("goto", label, _) =>
       create special(ASTSpecial.Kind.Goto, create unresolved_name convertID(label))
     case Statement20("label", label, _) =>
       create special(ASTSpecial.Kind.Label, create unresolved_name convertID(label))
     case Statement21(stat, _) => convertStat(stat)
+    case ForStatementList0(x) => ?(stat)
+    case ForStatementList1(x, ",", xs) => ?(stat)
     case AllowedForStatement0(tNode, decls) =>
       val t = convertType(tNode)
       val result = new VariableDeclaration(t)
@@ -471,6 +500,8 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case AllowedForStatement2(id, "--") => create expression(PostDecr, create unresolved_name convertID(id))
     case AllowedForStatement3(target, "=", exp) =>
       create assignment(expr(target), expr(exp))
+
+    case x: ValStatementContext => ?(x)
   })
 
   def convertParUnitList(tree: ParUnitListContext): Seq[ParallelBlock] = tree match {

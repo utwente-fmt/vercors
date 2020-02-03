@@ -165,15 +165,13 @@ nonTargetUnit
  | valPrimary
  ;
 
-arguments: exprList;
-
 collectionConstructors
  : CONTAINER '<' type '>' values
- | '[' arguments ']'
+ | '[' exprList ']'
  | '[t:' type ']'
- | '{' arguments '}'
+ | '{' exprList '}'
  | '{t:' type '}'
- | 'b{' arguments '}'
+ | 'b{' exprList '}'
  | 'b{t:' type '}'
  ;
 
@@ -222,7 +220,8 @@ barrierBody: '{' contract '}' | contract block;
 parUnitList: parUnit | parUnit 'and' parUnitList;
 
 forStatementList
- : allowedForStatement (',' allowedForStatement)*
+ : allowedForStatement
+ | allowedForStatement ',' forStatementList
  ;
 
 allowedForStatement
@@ -255,14 +254,6 @@ waitFor: identifier waitForArgs?;
 waitForArgs: '(' idArgList ')';
 idArgList: idArg | idArg ',' idArgList;
 idArg: identifier | '*';
-
-with_then : ( 'with' block )? ('then' block)? ;
-
-decls  : ( decl ( ',' decl )* )? ;
-
-decl : type identifier ( '=' expr )? ;
-
-fence_list : ( 'local' | 'global' )* ;
 
 invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
