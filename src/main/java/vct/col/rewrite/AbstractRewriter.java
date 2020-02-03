@@ -232,7 +232,15 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public <E extends ASTNode, F extends ASTNode> Map<E, F> rewrite(Map<E,F> map){
     HashMap<E, F> res=new HashMap<E,F>();
     for(Map.Entry<E, F> entry:map.entrySet()){
-      res.put(rewrite(entry.getKey()), rewrite(entry.getValue()));
+      E key = null;
+      F value = null;
+      if (entry.getKey() != null) {
+        key = rewrite(entry.getKey());
+      }
+      if (entry.getValue() != null) {
+        value = rewrite(entry.getValue());
+      }
+      res.put(key, value);
     }
     return res;
   }
