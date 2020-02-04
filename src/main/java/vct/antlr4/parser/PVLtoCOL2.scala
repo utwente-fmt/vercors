@@ -8,15 +8,16 @@ import vct.antlr4.generated.PVFullParser
 import vct.antlr4.generated.PVFullParser._
 import vct.antlr4.generated.PVFullParserPatterns._
 import vct.col.ast.`type`.ASTReserved._
-import vct.col.ast.`type`.{PrimitiveSort, Type}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
 import vct.col.ast.stmt.decl.Method.Kind
 import vct.col.ast.stmt.decl._
 import vct.col.ast.util.ContractBuilder
+import vct.col.rewrite.InferADTTypes
 
 import scala.collection.JavaConverters._
 
@@ -53,7 +54,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case ClazMember1(method) => Seq(convertMethod(method))
     case ClazMember2(constructor) => Seq(convertConstructor(constructor))
 
-    case KernelMember0(field) => Seq(convertKernelField(field))
+    case KernelMember0(field) => convertKernelField(field)
     case KernelMember1(method) => Seq(convertMethod(method))
   }
 
@@ -84,9 +85,14 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       convertIDList(ids).map(DeclarationStatement(_, typ, None))
   }
 
-  def convertKernelField(tree: KernelFieldContext): ASTDeclaration = origin(tree, tree match {
+  def convertKernelField(tree: KernelFieldContext): Seq[ASTDeclaration] = origin(tree, tree match {
     case KernelField0(locality, t, idList, _) =>
-      ??(tree)
+      val typ = convertType(t)
+      convertIDList(idList).map(id => {
+        val decl = create field_decl(id, typ)
+        decl.setStatic(locality == "global")
+        decl
+      })
   })
 
   def convertMethod(method: MethodDeclContext): Method = origin(method, method match {
@@ -145,12 +151,24 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
 
   def convertID(identifier: IdentifierContext): String = identifier match {
     case Identifier0(name) => name
-    case Identifier1(ValReserved0(_)) => ??(identifier) //forbidden
+    case Identifier1(ValReserved0(_)) =>
+      fail(identifier, "This identifier is reserved and cannot be declared or used.")
     case Identifier1(ValReserved1("\\result")) =>
-      ??(identifier) // incorrect context for expression?
+      fail(identifier, "This identifier is reserved and cannot be declared.")
     case Identifier1(ValReserved2("\\current_thread")) =>
-      ??(identifier) // same
+      fail(identifier, "This identifier is reserved and cannot be declared.")
   }
+
+  def convertIDName(identifier: IdentifierContext): NameExpression = origin(identifier, identifier match {
+    case Identifier0(name) =>
+      create unresolved_name name
+    case Identifier1(ValReserved0(_)) =>
+      fail(identifier, "This identifier is reserved and cannot be declared or used.")
+    case Identifier1(ValReserved1("\\result")) =>
+      create reserved_name ASTReserved.Result
+    case Identifier1(ValReserved2("\\current_thread")) =>
+      create reserved_name ASTReserved.CurrentThread
+  })
 
   def convertIDList(list: IdentifierListContext): Seq[String] = list match {
     case IdentifierList0(id) => Seq(convertID(id))
@@ -174,8 +192,8 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
   }
 
   def convertExpList(args: ValuesContext): Seq[ASTNode] = args match {
-    case Values0(_, exps, _) =>
-      ??(args)
+    case Values0(_, None, _) => Seq()
+    case Values0(_, Some(values), _) => convertExpList(values)
   }
 
   def convertValExpList(args: ExpressionListContext): Seq[ASTNode] = args match {
@@ -198,14 +216,14 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
         case ann: BeforeAfterAnnotations =>
           ann.set_before(convertBlock(block)); ann
         case _ =>
-          ??(tree)
+          fail(tree, "This expression does not allow for with/then annotations.")
       }
     case Expr2(exp, "then", block) =>
       expr(exp) match {
         case ann: BeforeAfterAnnotations =>
-          ann.set_before(convertBlock(block)); ann
+          ann.set_after(convertBlock(block)); ann
         case _ =>
-          ??(tree)
+          fail(tree, "This expression does not allow for with/then annotations.")
       }
     case Expr3("unfolding", exp, "in", inExp) =>
       create expression(Unfolding, expr(exp), expr(inExp))
@@ -272,7 +290,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       create dereference(expr(nonTarget), convertID(prop))
     case Target3(seq, "[", idx, "]") =>
       create expression(Subscript, expr(seq), expr(idx))
-    case Target4(TargetUnit0(id)) => create unresolved_name(convertID(id))
+    case Target4(TargetUnit0(id)) => convertIDName(id)
 
     case NonTarget0(nonTarget, ".", prop) =>
       create dereference(expr(nonTarget), convertID(prop))
@@ -282,8 +300,8 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
           create invokation(null, null, name.getName, convertExpList(args):_*)
         case deref: Dereference =>
           create invokation(deref.obj, null, deref.field, convertExpList(args):_*)
-        case other =>
-          ??(tree)
+        case _ =>
+          fail(obj, "Cannot apply method invokation to this expression.")
       }
     case NonTarget2(seq, "[", "..", to, "]") =>
       create expression(Take, expr(seq), expr(to))
@@ -327,31 +345,131 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
         case "held" => create expression(Held, args:_*)
         case "Some" => create expression(OptionSome, args:_*)
       }
-    case NonTargetUnit8(_owner, "(", a, ",", b, ",", c, ")") => ??(tree)
+    case NonTargetUnit8(_owner, "(", a, ",", b, ",", c, ")") =>
+      create expression(IterationOwner, expr(a), expr(b), expr(c))
     case NonTargetUnit9("id", "(", exp, ")") => expr(exp)
     case NonTargetUnit10("|", seq, "|") => create expression(Size, expr(seq))
-    case NonTargetUnit11("?", id) => ??(tree)
+    case NonTargetUnit11("?", id) => create expression(BindOutput, convertIDName(id))
     case NonTargetUnit12(num) => create constant Integer.parseInt(num)
     case NonTargetUnit13(seq) => ??(tree)
     case NonTargetUnit14("(", exp, ")") => expr(exp)
-    case NonTargetUnit15(id) => create unresolved_name convertID(id)
+    case NonTargetUnit15(id) => convertIDName(id)
     case NonTargetUnit16(valPrimary) => expr(valPrimary)
     case DeclInit0("=", exp) => expr(exp)
 
-    case CollectionConstructors0(container, _, t, _, values) =>
-      ??(tree)
+    case CollectionConstructors0(container, _, elemType, _, values) =>
+      create struct_value(
+        create primitive_type(container match {
+          case "seq" => PrimitiveSort.Sequence
+          case "set" => PrimitiveSort.Set
+          case "bag" => PrimitiveSort.Bag
+        }, convertType(elemType)),
+        null,
+        convertExpList(values):_*
+      )
     case CollectionConstructors1("[", exps, "]") =>
-      ??(tree)
+      create struct_value(create primitive_type(
+        PrimitiveSort.Sequence, InferADTTypes.typeVariable
+      ), null, convertExpList(exps):_*)
     case CollectionConstructors2("[t:", t, "]") =>
-      ??(tree)
+      create struct_value(create primitive_type(
+        PrimitiveSort.Sequence, convertType(t)),
+        null)
     case CollectionConstructors3("{", exps, "}") =>
-      ??(tree)
-    case CollectionConstructors4("b{", exps, "}") =>
-      ??(tree)
-    case CollectionConstructors5("b{t:", t, "}") =>
-      ??(tree)
+      create struct_value(create primitive_type(
+        PrimitiveSort.Set, InferADTTypes.typeVariable
+      ), null, convertExpList(exps):_*)
+    case CollectionConstructors4("{t:", t, "}") =>
+      create struct_value(create primitive_type(
+        PrimitiveSort.Set, convertType(t)),
+        null)
+    case CollectionConstructors5("b{", exps, "}") =>
+      create struct_value(create primitive_type(
+        PrimitiveSort.Bag, InferADTTypes.typeVariable
+      ), null, convertExpList(exps):_*)
+    case CollectionConstructors6("b{t:", t, "}") =>
+      create struct_value(create primitive_type(
+        PrimitiveSort.Bag, convertType(t)),
+        null)
 
-    case x: ValPrimaryContext => ??(tree)
+    case ValPrimary0(t, "{", maybeExps, "}") =>
+      val exps = maybeExps.map(convertValExpList).getOrElse(Seq())
+      create struct_value(convertType(t), null, exps:_*)
+    case ValPrimary1("[", factor, "]", exp) =>
+      create expression(Scale, expr(factor), expr(exp))
+    case ValPrimary2("|", seq, "|") =>
+      create expression(Size, expr(seq))
+    case ValPrimary3("\\unfolding", pred, "\\in", exp) =>
+      create expression(Unfolding, expr(pred), expr(exp))
+    case ValPrimary4("(", exp, "!", indepOf, ")") =>
+      create expression(IndependentOf, expr(exp), create unresolved_name indepOf)
+    case ValPrimary5("(", x, "\\memberof", xs, ")") =>
+      create expression(Member, expr(x), expr(xs))
+    case ValPrimary6("[", from, "..", to, ")") =>
+      create expression(RangeSeq, expr(from), expr(to))
+    case ValPrimary7("*") =>
+      create reserved_name ASTReserved.Any
+    case ValPrimary8("\\current_thread") =>
+      create reserved_name ASTReserved.CurrentThread
+    case ValPrimary9(_, binderName, t, id, "=", fr, "..", to, _, main, _) =>
+      val name = convertID(id)
+      val decl = create field_decl(name, convertType(t))
+      val guard = create expression(And,
+        create expression(LTE, expr(fr), create unresolved_name(name)),
+        create expression(StandardOperator.LT, create unresolved_name(name), expr(to))
+      )
+      binderName match {
+        case "\\forall*" => create starall(guard, expr(main), decl)
+        case "\\forall" => create forall(guard, expr(main), decl)
+        case "\\exists" => create exists(guard, expr(main), decl)
+      }
+    case ValPrimary10(_, binderName, t, id, _, guard, _, main, _) =>
+      val decl = create field_decl(convertID(id), convertType(t))
+      binderName match {
+        case "\\forall*" => create starall(expr(guard), expr(main), decl)
+        case "\\forall" => create forall(expr(guard), expr(main), decl)
+        case "\\exists" => create exists(expr(guard), expr(main), decl)
+      }
+    case ValPrimary11(_, "\\let", t, id, "=", exp, _, body, _) =>
+      create let_expr(create field_decl(convertID(id), convertType(t), expr(exp)), expr(body))
+    case ValPrimary12(_, "\\sum", t, id, _, guard, _, main, _) =>
+      create summation(expr(guard), expr(main), create field_decl(convertID(id), convertType(t)))
+    case ValPrimary13("\\length", "(", exp, ")") =>
+      create expression(Length, expr(exp))
+    case ValPrimary14("\\old", "(", exp, ")") =>
+      create expression(Old, expr(exp))
+    case ValPrimary15("\\id", "(", exp, ")") =>
+      create expression(Identity, expr(exp))
+    case ValPrimary16("\\typeof", "(", exp, ")") =>
+      create expression(TypeOf, expr(exp))
+    case ValPrimary17("\\matrix", "(", m, _, size0, _, size1, ")") =>
+      create expression(ValidMatrix, expr(m), expr(size0), expr(size1))
+    case ValPrimary18("\\array", "(", a, _, size0, ")") =>
+      create expression(ValidArray, expr(a), expr(size0))
+    case ValPrimary19("\\pointer", "(", p, _, size0, _, perm, ")") =>
+      create expression(ValidPointer, expr(p), expr(size0), expr(perm))
+    case ValPrimary20("\\pointer_index", "(", p, _, idx, _, perm, ")") =>
+      create expression(ValidPointerIndex, expr(p), expr(idx), expr(perm))
+    case ValPrimary21("\\values", "(", a, _, fr, _, to, ")") =>
+      create expression(Values, expr(a), expr(fr), expr(to))
+    case ValPrimary22("\\sum", "(", a, _, b, ")") =>
+      create expression(FoldPlus, expr(a), expr(b))
+    case ValPrimary23("\\vcmp", "(", a, _, b, ")") =>
+      create expression(VectorCompare, expr(a), expr(b))
+    case ValPrimary24("\\vrep", "(", v, ")") =>
+      create expression(VectorRepeat, expr(v))
+    case ValPrimary25("\\msum", "(", a, _, b, ")") =>
+      create expression(MatrixSum, expr(a), expr(b))
+    case ValPrimary26("\\mcmp", "(", a, _, b, ")") =>
+      create expression(MatrixCompare, expr(a), expr(b))
+    case ValPrimary27("\\mrep", "(", m, ")") =>
+      create expression(MatrixRepeat, expr(m))
+    case ValPrimary28("Reducible", "(", exp, _, "+", ")") =>
+      create expression(ReducibleSum, expr(exp))
+    case ValPrimary28("Reducible", "(", exp, _, "min", ")") =>
+      create expression(ReducibleMin, expr(exp))
+    case ValPrimary28("Reducible", "(", exp, _, "max", ")") =>
+      create expression(ReducibleMax, expr(exp))
   })
 
   def convertType(t: ParserRuleContext): Type = origin(t, t match {
@@ -472,21 +590,21 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       create while_loop(expr(cond), convertStat(body), convertContract(invariants))
     case Statement16(invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
       create for_loop(
-        maybeInit.map(convertStat).orNull,
+        maybeInit.map(convertStatList).map(create block(_:_*)).orNull,
         maybeCond.map(expr).getOrElse(create constant true),
-        maybeUpdate.map(convertStat).orNull,
+        maybeUpdate.map(convertStatList).map(create block(_:_*)).orNull,
         convertStat(body),
         convertContract(invariants)
       )
     case Statement17(block) => convertBlock(block)
-    case Statement18("{*", exp, "*}") => ??(stat)
+    case Statement18("{*", exp, "*}") =>
+      ??(stat)
+      // This seems to have something to do with Hoare logic
     case Statement19("goto", label, _) =>
-      create special(ASTSpecial.Kind.Goto, create unresolved_name convertID(label))
+      create special(ASTSpecial.Kind.Goto, convertIDName(label))
     case Statement20("label", label, _) =>
-      create special(ASTSpecial.Kind.Label, create unresolved_name convertID(label))
+      create special(ASTSpecial.Kind.Label, convertIDName(label))
     case Statement21(stat, _) => convertStat(stat)
-    case ForStatementList0(x) => ??(stat)
-    case ForStatementList1(x, ",", xs) => ??(stat)
     case AllowedForStatement0(tNode, decls) =>
       val t = convertType(tNode)
       val result = new VariableDeclaration(t)
@@ -496,13 +614,18 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       }
       result
     case AllowedForStatement1(exp) => expr(exp)
-    case AllowedForStatement2(id, "++") => create expression(PostIncr, create unresolved_name convertID(id))
-    case AllowedForStatement2(id, "--") => create expression(PostDecr, create unresolved_name convertID(id))
+    case AllowedForStatement2(id, "++") => create expression(PostIncr, convertIDName(id))
+    case AllowedForStatement2(id, "--") => create expression(PostDecr, convertIDName(id))
     case AllowedForStatement3(target, "=", exp) =>
       create assignment(expr(target), expr(exp))
 
     case x: ValStatementContext => ??(x)
   })
+
+  def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {
+    case ForStatementList0(x) => Seq(convertStat(x))
+    case ForStatementList1(x, ",", xs) => convertStat(x) +: convertStatList(xs)
+  }
 
   def convertParUnitList(tree: ParUnitListContext): Seq[ParallelBlock] = tree match {
     case ParUnitList0(x) => Seq(convertParUnit(x))
@@ -548,7 +671,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case IdArgList0(x) => Seq(x)
     case IdArgList1(x, ",", xs) => x +: convertIdArgs(xs)
   }).map {
-    case IdArg0(id) => create unresolved_name(convertID(id))
+    case IdArg0(id) => convertIDName(id)
     case IdArg1("*") => create reserved_name(Any)
   }
 }

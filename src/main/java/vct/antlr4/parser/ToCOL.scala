@@ -26,13 +26,19 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: Parser
     node
   }
 
+  def fail(tree: ParserRuleContext, format: String, args: String*): Nothing = {
+    val message = String.format(format, args:_*)
+    fileOrigin(tree).report("error", message)
+    throw new HREExitException(1)
+  }
+
   /**
    * Print notice and exit, because a rule is unimplemented in the conversion to COL. Named after the scala
    * "unimplemented" method, [[???]]
    */
   def ??(tree: ParserRuleContext): Nothing = {
-    fileOrigin(tree).report("error",
-      String.format("This construct (%s) is syntactically valid, but not supported by VerCors.", tree.getClass.getSimpleName))
-    throw new HREExitException(1)
+    fail(tree,
+      "This construct (%s) is syntactically valid, but not supported by VerCors.",
+      tree.getClass.getSimpleName)
   }
 }
