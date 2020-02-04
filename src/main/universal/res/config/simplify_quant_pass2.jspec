@@ -87,6 +87,5 @@ class simplify_quant_pass2 {
     ==
     (e1 > 0) ==> (\forall* int j;(j \memberof [ 0 .. (e1*e2) ) ); r1)
   }
-
 }
 

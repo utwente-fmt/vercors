@@ -17,8 +17,7 @@ void zero(int len,int a[]){
   #pragma omp parallel for private(i)
   for(i=0;i<len;i++)
   /*@
-    context a != NULL;
-    context Perm(a[i],1);
+    context \pointer_index(a, i, 1);
     ensures a[i] == 0;
   @*/
   {

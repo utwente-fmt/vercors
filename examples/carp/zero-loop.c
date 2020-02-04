@@ -10,8 +10,7 @@
 void zero_array(int ar[],int len){
     for(int i=0;i < len;i++)
        /*@
-        context ar != NULL;
-        context Perm(ar[i], write);
+        context \pointer_index(ar, i, write);
         ensures ar[i] == 0;
        @*/
     {

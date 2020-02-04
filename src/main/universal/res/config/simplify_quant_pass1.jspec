@@ -395,4 +395,9 @@ class simplify_quant_pass1 {
     }
     */
 
+    axiom simplify_bound {
+        (\forall int i; (i \memberof [e1 .. e2)); i < (e3!i))
+         ==
+        (e1 < e2) ==> (e2 <= e3)
+    }
 }

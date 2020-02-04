@@ -21,6 +21,8 @@ public class QuickSelect {
     //@ static void printArray(int[] a, int l, int h);
 
     //@ context a != null;
+    //@ context 0 <= l && l < a.length;
+    //@ context 0 <= h && h < a.length;
     //@ context Perm(a[l], write) ** Perm(a[h], write);
     //@ ensures a[l] == \old(a[h]);
     //@ ensures a[h] == \old(a[l]);

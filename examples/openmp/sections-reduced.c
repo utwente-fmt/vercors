@@ -36,8 +36,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     #pragma omp for schedule(static) nowait
    for(int i=0;i<len;i++)
     /*@
-      context a != NULL && c != NULL;
-      context Perm(c[i],1) ** Perm(a[i],1\4);
+      context \pointer_index(c, i, 1) ** \pointer_index(a, i, 1\4);
       ensures c[i] == a[i];
     @*/
     {
@@ -46,8 +45,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     #pragma omp for schedule(static)
     for(int i=0;i<len;i++)
     /*@
-      context b != NULL && c != NULL;
-      context Perm(c[i],1) ** Perm(b[i],1\4);
+      context \pointer_index(c, i, 1) ** \pointer_index(b, i, 1\4);
       ensures c[i] == \old(c[i]) + b[i];
     @*/
     {
@@ -62,8 +60,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     #pragma omp for schedule(static) nowait
     for(int i=0;i<len;i++)
     /*@
-      context a != NULL && d != NULL;
-      context Perm(d[i],1) ** Perm(a[i],1\4);
+      context \pointer_index(d, i, 1) ** \pointer_index(a, i, 1\4);
       ensures d[i] == a[i];
     @*/
     {
@@ -72,8 +69,7 @@ void addmul(int len,int a[],int b[],int c[], int d[])
     #pragma omp for schedule(static)
     for(int i=0;i<len;i++)
     /*@
-      context b != NULL && d != NULL;
-      context Perm(d[i],1) ** Perm(b[i],1\4);
+      context \pointer_index(d, i, 1) ** \pointer_index(b, i, 1\4);
       ensures d[i] == \old(d[i]) * b[i];
     @*/
     {
