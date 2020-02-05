@@ -724,7 +724,7 @@ public class SilverClassReduction extends AbstractRewriter {
       String s=silverTypeString(t);
       ref_class.add_dynamic(create.field_decl(s+SEP+"item",t));
     }
-    if (options || floats || arrays || fractions){
+    if (options || floats || arrays || fractions || maps){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
       File file = Configuration.getConfigFile(preludeFile);
       ProgramUnit prelude=Parsers.getParser("sil").parse(file);
@@ -750,11 +750,9 @@ public class SilverClassReduction extends AbstractRewriter {
             if(fractions) res.add(n);
             break;
           case "VCTMap":
-            if(maps) res.add(n);
-            break;
           case "VCTTuple":
             if(maps) res.add(n);
-            break;
+             break;
           }
         } else if(n instanceof Method) {
           Method method = (Method) n;
