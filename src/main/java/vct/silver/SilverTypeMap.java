@@ -106,6 +106,9 @@ public class SilverTypeMap<T> implements TypeMapping<T> {
         return create.Bag(map(t.firstarg()));
       case String:
         return create.List(create.Int());
+//      case Map:
+//        // TODO Empty map or do I need to pass the type parameters
+//        return create.domain_type("VCTMap", new HashMap<>());
       default:
         throw new HREError("primitive type %s unsupported",t.sort);
     }

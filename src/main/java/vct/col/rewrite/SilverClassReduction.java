@@ -11,7 +11,9 @@ import vct.antlr4.parser.Parsers;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
+import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.stmt.decl.Method.Kind;
+import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.*;
@@ -205,7 +207,9 @@ public class SilverClassReduction extends AbstractRewriter {
   private boolean arrays = false;
   private boolean floats = false;
   private boolean fractions = false;
-  
+  private boolean maps = false;
+
+
   private AtomicInteger option_count=new AtomicInteger();
   private HashMap<String, String> option_get = new HashMap<String, String>();
   private HashMap<String, Type> option_get_type = new HashMap<String, Type>();
@@ -239,6 +243,13 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.class_type("VCTArray", ct);
       break;
     }
+    case Map:
+      maps = true;
+      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      args.get(0).addLabel(create.label("K"));
+      args.get(1).addLabel(create.label("V"));
+      result=create.class_type("VCTMap",args);
+      break;
     default:
       super.visit(t);
       break;
@@ -296,6 +307,7 @@ public class SilverClassReduction extends AbstractRewriter {
       result=create.class_type("Ref");
     }
   }
+
   @Override
   public void visit(Dereference e){
     if (e.obj().getType()==null){
@@ -547,6 +559,42 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal, rewrite(e.arg(2)));
       break;
     }
+    case MapBuild:
+      //TODO
+      /**
+       *   function vctmap_keys(m:VCTMap[K,V]): Set[K]
+       *   function vctmap_card(m:VCTMap[K,V]): Int
+       *   function vctmap_values(m: VCTMap[K,V]): Set[V]
+       *   function vctmap_get(m:VCTMap[K,V], k:K): V
+       *
+       *   function vctmap_empty(): VCTMap[K,V]
+       *   function vctmap_build(m: VCTMap[K,V], k: K, v:V): VCTMap[K,V]
+       *   function vctmap_equals(m1: VCTMap[K,V], m2:VCTMap[K,V]): Bool
+       *   function vctmap_disjoint(m1: VCTMap[K,V], m2:VCTMap[K,V]): Bool
+       *   function vctmap_remove(m:VCTMap[K,V], k: K): VCTMap[K,V]
+       */
+      break;
+    case MapEquality:
+      //TODO
+      break;
+    case MapDisjoint:
+      //TODO
+      break;
+    case MapKeySet:
+      //TODO
+      break;
+    case MapCardinality:
+      //TODO
+      break;
+    case MapValueSet:
+      //TODO
+      break;
+    case MayGetByKey:
+      //TODO
+      break;
+    case MapRemoveKey:
+      //TODO
+      break;
     default:
       super.visit(e);
     }
@@ -572,6 +620,15 @@ public class SilverClassReduction extends AbstractRewriter {
       result = packFracVal(val.getType(), val);
     } else {
       super.visit(val);
+    }
+  }
+
+  @Override
+  public void visit(StructValue v) {
+    if (v.type().isPrimitive(PrimitiveSort.Map)) {
+      result = create.invokation(rewrite(v.type()),null,"vctmap_empty");
+    } else {
+      super.visit(v);
     }
   }
 
@@ -691,6 +748,12 @@ public class SilverClassReduction extends AbstractRewriter {
           case "frac":
           case "zfrac":
             if(fractions) res.add(n);
+            break;
+          case "VCTMap":
+            if(maps) res.add(n);
+            break;
+          case "VCTTuple":
+            if(maps) res.add(n);
             break;
           }
         } else if(n instanceof Method) {

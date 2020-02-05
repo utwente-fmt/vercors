@@ -87,7 +87,20 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(ValidMatrix,"\\matrix");
         syntax.addFunction(ValidPointer,"\\pointer");
         syntax.addFunction(ValidPointerIndex, "\\pointer_index");
-        
+
+        // TODO this should eventually be removed (below)
+        syntax.addFunction(MapBuild, "buildMap");
+        syntax.addFunction(MapEquality, "equalsMap");
+        syntax.addFunction(MapDisjoint, "disjointMap");
+        syntax.addFunction(MapKeySet, "keysMap");
+        syntax.addFunction(MapCardinality, "cardMap");
+        syntax.addFunction(MapValueSet, "valuesMap");
+        syntax.addFunction(MayGetByKey, "getFromMap");
+        syntax.addFunction(MapRemoveKey, "removeFromMap");
+        syntax.addPrimitiveType(PrimitiveSort.Map,"map");
+        // TODO this should eventually be removed (above)
+
+
         JavaVerCorsSyntax=syntax;
         
       }

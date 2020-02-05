@@ -323,7 +323,23 @@ public enum StandardOperator {
   /**
    * compare matrices pointwise
    */
-  MatrixCompare(2)
+  MatrixCompare(2),
+  /** add a key/value pair to a map*/
+  MapBuild(3),
+  /** check if two maps are equal */
+  MapEquality(2),
+  /** check if the keyset of two maps are disjoint */
+  MapDisjoint(2),
+  /** get the keyset of a map */
+  MapKeySet(1),
+  /** get the cardinality of a map */
+  MapCardinality(1),
+  /** get the set of values of a map */
+  MapValueSet(1),
+  /** get the value of a map by a key */
+  MayGetByKey(2),
+  /** remove a key/value pair from a map by its key*/
+  MapRemoveKey(2)
   ;
 
   private final int arity;

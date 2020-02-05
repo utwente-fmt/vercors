@@ -32,5 +32,6 @@ public enum PrimitiveSort {
 	Process,
 	Pointer,
 	CVarArgs,
-	Option
+	Option,
+	Map
 }

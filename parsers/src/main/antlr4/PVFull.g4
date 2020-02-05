@@ -139,6 +139,7 @@ nonTargetUnit
  | 'current_thread'
  | '\\result'
  | collectionConstructors
+ | 'map' '<' type ',' type '>' '{' '}'
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
@@ -245,6 +246,7 @@ invariant : ( 'loop_invariant' expr ';' )* ;
 non_array_type
  : CONTAINER '<' type '>'
  | 'option' '<' type '>'
+ | 'map' '<' type ',' type '>'
  | ( 'string' | 'process' | 'int' | 'boolean' | 'zfrac' | 'frac' | 'resource' | 'void' | classType )
  ;
 

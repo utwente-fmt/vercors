@@ -422,6 +422,12 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       return create.expression(StandardOperator.SeqUpdate, convert(ctx, 0), convert(ctx,2), convert(ctx,4));
     }
 
+    // Initializing a map
+    if(match(ctx, "map", "<", null, ",", null, ">", "{","}")) {
+      Type t1 = checkType(convert(ctx,2));
+      Type t2 = checkType(convert(ctx,4));
+      return create.struct_value(create.primitive_type(PrimitiveSort.Map, t1, t2), null);
+    }
     return visit(ctx);
   }
 
@@ -538,6 +544,11 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     if (match(ctx,"bag","<",null,">")){
       Type t=checkType(convert(ctx,2));
       return create.primitive_type(PrimitiveSort.Bag,t);
+    }
+    if (match(ctx,"map","<",null,",", null, ">")){
+      Type t1=checkType(convert(ctx,2));
+      Type t2=checkType(convert(ctx,4));
+      return create.primitive_type(PrimitiveSort.Map,t1, t2);
     }
     if (match(ctx,null,"<",null,">")) {
       String name=getIdentifier(ctx,0);

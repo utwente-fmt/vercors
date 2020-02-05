@@ -1480,6 +1480,30 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
         e.setType(elementType);
         break;
+      case MapBuild:
+        //TODO
+        break;
+      case MapEquality:
+        //TODO
+        break;
+      case MapDisjoint:
+        //TODO
+        break;
+      case MapKeySet:
+        //TODO
+        break;
+      case MapCardinality:
+        //TODO
+        break;
+      case MapValueSet:
+        //TODO
+        break;
+      case MayGetByKey:
+        //TODO
+        break;
+      case MapRemoveKey:
+        //TODO
+        break;
       default:
         Abort("missing case of operator %s", op);
         break;
