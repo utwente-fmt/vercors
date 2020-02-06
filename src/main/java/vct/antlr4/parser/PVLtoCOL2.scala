@@ -85,15 +85,15 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       convertIDList(ids).map(DeclarationStatement(_, typ, None))
   }
 
-  def convertKernelField(tree: KernelFieldContext): Seq[ASTDeclaration] = origin(tree, tree match {
+  def convertKernelField(tree: KernelFieldContext): Seq[ASTDeclaration] = tree match {
     case KernelField0(locality, t, idList, _) =>
       val typ = convertType(t)
       convertIDList(idList).map(id => {
         val decl = create field_decl(id, typ)
         decl.setStatic(locality == "global")
-        decl.asInstanceOf[ASTDeclaration]
+        decl
       })
-  })
+  }
 
   def convertMethod(method: MethodDeclContext): Method = origin(method, method match {
     case MethodDecl0(contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
@@ -561,10 +561,10 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case Statement7("action", tup, blockNode) =>
       val args = convertExpList(tup)
       if (args.size != 4) {
-        fail(args, "action takes exactly 4 arguments, but %d were supplied.", args.size)
+        fail(tup, "action takes exactly 4 arguments, but %d were supplied.", Int.box(args.size))
       }
       val block = convertBlock(blockNode)
-      create action_block(args(0), args(1), args(2), args(3), Map(), block)
+      create action_block(args(0), args(1), args(2), args(3), Map().asJava, block)
     case Statement8(valStat) => convertStat(valStat)
     case Statement9("if", "(", cond, ")", thenStat, maybeElseStat) =>
       create ifthenelse(expr(cond), convertStat(thenStat), maybeElseStat.map(convertStat).orNull)
@@ -687,7 +687,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case action: ValStatement30Context =>
       ??(action)
     case ValStatement31(_atomic, _, resList, _, block) =>
-      create csl_atomic(convertBlock(block), convertValExpList(resList):_*)
+      create csl_atomic(convertBlock(block), resList.map(convertValExpList).getOrElse(Seq()):_*)
   })
 
   def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {

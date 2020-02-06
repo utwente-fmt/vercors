@@ -26,7 +26,7 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: Parser
     node
   }
 
-  def fail(tree: ParserRuleContext, format: String, args: String*): Nothing = {
+  def fail(tree: ParserRuleContext, format: String, args: Object*): Nothing = {
     val message = String.format(format, args:_*)
     fileOrigin(tree).report("error", message)
     throw new HREExitException(1)
