@@ -1481,28 +1481,40 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(elementType);
         break;
       case MapBuild:
-        //TODO
-        break;
-      case MapEquality:
-        //TODO
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("First argument is not a map at %s", e.getOrigin());
+        if (!tt[0].firstarg().equals(tt[1])) Fail("Type of key %s to add does not match the key type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
+        if (!tt[0].secondarg().equals(tt[2])) Fail("Type of value %s to add does not match the value type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
+        e.setType(tt[0]);
         break;
       case MapDisjoint:
-        //TODO
+      case MapEquality:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("First argument is not a map at %s", e.getOrigin());
+        if (!tt[1].isPrimitive(PrimitiveSort.Map)) Fail("Second argument is not a map at %s", e.getOrigin());
+        if (!tt[0].firstarg().equals(tt[1].firstarg()) || !tt[0].secondarg().equals(tt[1].secondarg()))
+          Fail("Cannot compare maps with different types %s and %s at %s", tt[0], tt[1], e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
         break;
       case MapKeySet:
-        //TODO
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("Argument is not a map at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Set, tt[0].firstarg()));
         break;
       case MapCardinality:
-        //TODO
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("Argument is not a map at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Integer));
         break;
       case MapValueSet:
-        //TODO
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("Argument is not a map at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Set, tt[0].secondarg()));
         break;
       case MayGetByKey:
-        //TODO
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("First argument is not a map at %s", e.getOrigin());
+        if (!tt[0].firstarg().equals(tt[1])) Fail("Type of key %s to add does not match the key type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
+        e.setType((Type) tt[0].secondarg());
         break;
       case MapRemoveKey:
-        //TODO
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("First argument is not a map at %s", e.getOrigin());
+        if (!tt[0].firstarg().equals(tt[1])) Fail("Type of key %s to add does not match the key type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
+        e.setType(tt[0]);
         break;
       default:
         Abort("missing case of operator %s", op);

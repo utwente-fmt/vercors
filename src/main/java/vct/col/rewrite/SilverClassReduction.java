@@ -559,42 +559,46 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal, rewrite(e.arg(2)));
       break;
     }
-    case MapBuild:
-      //TODO
-      /**
-       *   function vctmap_keys(m:VCTMap[K,V]): Set[K]
-       *   function vctmap_card(m:VCTMap[K,V]): Int
-       *   function vctmap_values(m: VCTMap[K,V]): Set[V]
-       *   function vctmap_get(m:VCTMap[K,V], k:K): V
-       *
-       *   function vctmap_empty(): VCTMap[K,V]
-       *   function vctmap_build(m: VCTMap[K,V], k: K, v:V): VCTMap[K,V]
-       *   function vctmap_equals(m1: VCTMap[K,V], m2:VCTMap[K,V]): Bool
-       *   function vctmap_disjoint(m1: VCTMap[K,V], m2:VCTMap[K,V]): Bool
-       *   function vctmap_remove(m:VCTMap[K,V], k: K): VCTMap[K,V]
-       */
+    case MapBuild:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.getType()), null, "vctmap_build", args);
       break;
-    case MapEquality:
-      //TODO
+    }
+    case MapEquality: {
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_equals", args);
       break;
-    case MapDisjoint:
-      //TODO
+    }
+    case MapDisjoint:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_disjoint", args);
       break;
-    case MapKeySet:
-      //TODO
+    }
+    case MapKeySet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_keys", args);
       break;
-    case MapCardinality:
-      //TODO
+    }
+    case MapCardinality:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_card", args);
       break;
-    case MapValueSet:
-      //TODO
+    }
+    case MapValueSet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_values", args);
       break;
-    case MayGetByKey:
-      //TODO
+    }
+    case MayGetByKey:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_get", args);
       break;
-    case MapRemoveKey:
-      //TODO
+    }
+    case MapRemoveKey:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_remove", args);
       break;
+    }
     default:
       super.visit(e);
     }
