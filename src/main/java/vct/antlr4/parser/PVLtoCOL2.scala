@@ -36,7 +36,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       case Program0(decls, None, _eof) =>
         decls.map(convertDecl).foreach(_.foreach(output.add))
       case Program0(_, Some(block), _eof) =>
-        // I think program greedily matches programDecls, which matches block also?(tree)
+        // I think program greedily matches programDecls, which matches block also
         ??(tree)
     }
 
@@ -91,7 +91,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       convertIDList(idList).map(id => {
         val decl = create field_decl(id, typ)
         decl.setStatic(locality == "global")
-        decl
+        decl.asInstanceOf[ASTDeclaration]
       })
   })
 
@@ -558,7 +558,13 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case Statement4("notify", exp, _) => create special(ASTSpecial.Kind.Notify, expr(exp))
     case Statement5("fork", exp, _) => create special(ASTSpecial.Kind.Fork, expr(exp))
     case Statement6("join", exp, _) => create special(ASTSpecial.Kind.Join, expr(exp))
-    case Statement7("action", args, block) => ??(stat)
+    case Statement7("action", tup, blockNode) =>
+      val args = convertExpList(tup)
+      if (args.size != 4) {
+        fail(args, "action takes exactly 4 arguments, but %d were supplied.", args.size)
+      }
+      val block = convertBlock(blockNode)
+      create action_block(args(0), args(1), args(2), args(3), Map(), block)
     case Statement8(valStat) => convertStat(valStat)
     case Statement9("if", "(", cond, ")", thenStat, maybeElseStat) =>
       create ifthenelse(expr(cond), convertStat(thenStat), maybeElseStat.map(convertStat).orNull)
@@ -598,8 +604,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
       )
     case Statement17(block) => convertBlock(block)
     case Statement18("{*", exp, "*}") =>
-      ??(stat)
-      // This seems to have something to do with Hoare logic
+      create special(ASTSpecial.Kind.HoarePredicate, expr(exp))
     case Statement19("goto", label, _) =>
       create special(ASTSpecial.Kind.Goto, convertIDName(label))
     case Statement20("label", label, _) =>
@@ -619,7 +624,70 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVFull
     case AllowedForStatement3(target, "=", exp) =>
       create assignment(expr(target), expr(exp))
 
-    case x: ValStatementContext => ??(x)
+    case ValStatement0(_loop_invariant, exp, _) =>
+      ??(stat)
+    case ValStatement1(_create, block) =>
+      create lemma(convertBlock(block))
+    case ValStatement2(_qed, exp, _) =>
+      create special(ASTSpecial.Kind.QED, expr(exp))
+    case ValStatement3(_apply, exp, _) =>
+      create special(ASTSpecial.Kind.Apply, expr(exp))
+    case ValStatement4(_use, exp, _) =>
+      create special(ASTSpecial.Kind.Use, expr(exp))
+    case ValStatement5(_create, hist, _) =>
+      create special(ASTSpecial.Kind.CreateHistory, expr(hist))
+    case ValStatement6(_create, fut, _, proc, _) =>
+      create special(ASTSpecial.Kind.CreateFuture, expr(fut), expr(proc))
+    case ValStatement7(_destroy, fut, _, proc, _) =>
+      create special(ASTSpecial.Kind.DestroyFuture, expr(fut), expr(proc))
+    case ValStatement8(_destroy, hist, _) =>
+      create special(ASTSpecial.Kind.DestroyHistory, expr(hist))
+    case ValStatement9(_split, fut, _, perm1, _, proc1, _, perm2, _, proc2, _) =>
+      create special(ASTSpecial.Kind.SplitHistory, expr(fut), expr(perm1), expr(proc1), expr(perm2), expr(proc2))
+    case ValStatement10(_merge, fut, _, perm1, _, proc1, _, perm2, _, proc2, _) =>
+      create special(ASTSpecial.Kind.MergeHistory, expr(fut), expr(perm1), expr(proc1), expr(perm2), expr(proc2))
+    case ValStatement11(_choose, fut, _, perm, _, proc1, _, proc2, _) =>
+      create special(ASTSpecial.Kind.ChooseHistory, expr(fut), expr(perm), expr(proc1), expr(proc2))
+    case ValStatement12(_fold, pred, _) =>
+      create special(ASTSpecial.Kind.Fold, expr(pred))
+    case ValStatement13(_unfold, pred, _) =>
+      create special(ASTSpecial.Kind.Unfold, expr(pred))
+    case ValStatement14(_open, pred, _) =>
+      create special(ASTSpecial.Kind.Open, expr(pred))
+    case ValStatement15(_close, pred, _) =>
+      create special(ASTSpecial.Kind.Close, expr(pred))
+    case ValStatement16(_assert, assn, _) =>
+      create special(ASTSpecial.Kind.Assert, expr(assn))
+    case ValStatement17(_assume, assn, _) =>
+      create special(ASTSpecial.Kind.Assume, expr(assn))
+    case ValStatement18(_inhale, res, _) =>
+      create special(ASTSpecial.Kind.Inhale, expr(res))
+    case ValStatement19(_exhale, res, _) =>
+      create special(ASTSpecial.Kind.Exhale, expr(res))
+    case ValStatement20(_label, lbl, _) =>
+      create special(ASTSpecial.Kind.Label, convertIDName(lbl))
+    case ValStatement21(_refute, assn, _) =>
+      create special(ASTSpecial.Kind.Refute, expr(assn))
+    case ValStatement22(_witness, pred, _) =>
+      create special(ASTSpecial.Kind.Witness, expr(pred))
+    case ValStatement23(_ghost, code) =>
+      ??(stat)
+    case ValStatement24(_send, res, _to, lbl, _, thing, _) =>
+      create special(ASTSpecial.Kind.Send, expr(res), create unresolved_name lbl, expr(thing))
+    case ValStatement25(_recv, res, _from, lbl, _, thing, _) =>
+      create special(ASTSpecial.Kind.Recv, expr(res), create unresolved_name(lbl), expr(thing))
+    case ValStatement26(_transfer, exp, _) =>
+      ??(stat)
+    case ValStatement27(_csl_subject, obj, _) =>
+      create special(ASTSpecial.Kind.CSLSubject, expr(obj))
+    case ValStatement28(_spec_ignore, "}") =>
+      create special ASTSpecial.Kind.SpecIgnoreEnd
+    case ValStatement29(_spec_ignore, "{") =>
+      create special ASTSpecial.Kind.SpecIgnoreStart
+    case action: ValStatement30Context =>
+      ??(action)
+    case ValStatement31(_atomic, _, resList, _, block) =>
+      create csl_atomic(convertBlock(block), convertValExpList(resList):_*)
   })
 
   def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {

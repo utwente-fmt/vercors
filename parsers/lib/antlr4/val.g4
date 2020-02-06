@@ -60,11 +60,11 @@ valStatement
  | 'spec_ignore' '}'
  | 'spec_ignore' '{'
  | 'action' expression ',' expression ',' expression ',' expression ( ',' expression ',' expression )* ';'
- | 'atomic' '(' ( expressionList )? ')' block
+ | 'atomic' '(' expressionList? ')' block
  ;
 
 valPrimary
-    : type '{' ( expressionList )? '}'
+    : type '{' expressionList? '}'
     | '[' expression ']' expression
     | '|' expression '|'
     | '\\unfolding' expression '\\in' expression
