@@ -2,6 +2,7 @@ package vct.silver;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import hre.ast.Origin;
@@ -241,7 +242,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
           pars.add(new Triple<Origin, String, T>(decl.getOrigin(),decl.name(),t2));
         }
         AxiomaticDataType adt=(AxiomaticDataType)m.getParent();
-        HashMap<String, T> dpars=new HashMap<String, T>();
+        LinkedHashMap<String, T> dpars=new LinkedHashMap<String, T>();
         type.domain_type(dpars,(ClassType)e.object);
         return create.domain_call(o, name, args, dpars, rt, adt.name());
       } else {
