@@ -139,7 +139,7 @@ nonTargetUnit
  | 'current_thread'
  | '\\result'
  | collectionConstructors
- | 'map' '<' type ',' type '>' '{' '}'
+ | 'map' '<' type ',' type '>' mapValues
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
@@ -171,6 +171,8 @@ targetUnit
 builtinMethod
  : 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some'
  ;
+
+mapValues : '{' ( | (expr '->' expr (',' expr '->' expr)*)) '}';
 
 values : '{' ( | expr (',' expr)*) '}';
 

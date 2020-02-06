@@ -51,15 +51,15 @@ public class PVLSyntax {
       syntax.addFunction(Old,"\\old");
 
       syntax.addFunction(OptionSome, "Some");
-
-      syntax.addFunction(MapBuild, "buildMap");
-      syntax.addFunction(MapEquality, "equalsMap");
-      syntax.addFunction(MapDisjoint, "disjointMap");
-      syntax.addFunction(MapKeySet, "keysMap");
-      syntax.addFunction(MapCardinality, "cardMap");
-      syntax.addFunction(MapValueSet, "valuesMap");
-      syntax.addFunction(MayGetByKey, "getFromMap");
-      syntax.addFunction(MapRemoveKey, "removeFromMap");
+                                                                     // Alternative syntax
+      syntax.addFunction(MapBuild, "buildMap");               // map + (1, true)
+      syntax.addFunction(MapEquality, "equalsMap");           // map == map2
+      syntax.addFunction(MapDisjoint, "disjointMap");         //
+      syntax.addFunction(MapKeySet, "keysMap");               //
+      syntax.addFunction(MapCardinality, "cardMap");          // |map|
+      syntax.addFunction(MapValueSet, "valuesMap");           //
+      syntax.addFunction(MayGetByKey, "getFromMap");          // map[i]
+      syntax.addFunction(MapRemoveKey, "removeFromMap");      //
 
 
       syntax.addOperator(Size,-1,"|","|");

@@ -1558,6 +1558,17 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
 
+    if (v.getType().isPrimitive(PrimitiveSort.Map)) {
+      Type keyType = (Type) v.getType().firstarg();
+      Type valueType = (Type) v.getType().secondarg();
+      for (int i=0; i < v.valuesArray().length; i+=2) {
+        if (!keyType.equals(v.valuesArray()[i].getType())) {
+          Fail("Key type %s does not match value type of the map %s at %s", v.valuesArray()[i].getType(), keyType, v.valuesArray()[i].getOrigin());
+        } else if (!valueType.equals(v.valuesArray()[i+1].getType())) {
+            Fail("Key type %s does not match value type of the map %s at %s", v.valuesArray()[i+1].getType(), valueType, v.valuesArray()[i+1].getOrigin());
+          }
+      }
+    }
 
     if(v.getType().isPrimitive(PrimitiveSort.Array)) {
       Type element = (Type) v.getType().firstarg();

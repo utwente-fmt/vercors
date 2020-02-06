@@ -3,7 +3,9 @@ package vct.antlr4.parser;
 import hre.lang.HREError;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Objects;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -423,10 +425,14 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     }
 
     // Initializing a map
-    if(match(ctx, "map", "<", null, ",", null, ">", "{","}")) {
+    if(match(ctx, "map", "<", null, ",", null, ">",null)) {
       Type t1 = checkType(convert(ctx,2));
       Type t2 = checkType(convert(ctx,4));
-      return create.struct_value(create.primitive_type(PrimitiveSort.Map, t1, t2), null);
+      ASTNode[] pairs = convert_pairs(ctx.getChild(6), "{",",","->","}");
+      if (pairs.length %2 != 0 || Arrays.stream(pairs).anyMatch(Objects::isNull)) {
+        Fail("Values of map are not pairs");
+      }
+      return create.struct_value(create.primitive_type(PrimitiveSort.Map, t1, t2), null, pairs);
     }
     return visit(ctx);
   }
@@ -1046,6 +1052,11 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       Type t=create.primitive_type(PrimitiveSort.Set,create.primitive_type(PrimitiveSort.Location));
       return create.struct_value(t,null,args); 
     }
+    return null;
+  }
+
+  @Override
+  public ASTNode visitMapValues(MapValuesContext ctx) {
     return null;
   }
 

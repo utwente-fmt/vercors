@@ -630,7 +630,12 @@ public class SilverClassReduction extends AbstractRewriter {
   @Override
   public void visit(StructValue v) {
     if (v.type().isPrimitive(PrimitiveSort.Map)) {
-      result = create.invokation(rewrite(v.type()),null,"vctmap_empty");
+      Type resultType = rewrite(v.type());
+      ASTNode map = create.invokation(resultType,null,"vctmap_empty");
+      for (int i=0; i < v.valuesArray().length; i+=2) {
+        map = create.invokation(resultType, null, "vctmap_build", map, v.valuesArray()[i], v.valuesArray()[i+1]);
+      }
+      result = map;
     } else {
       super.visit(v);
     }

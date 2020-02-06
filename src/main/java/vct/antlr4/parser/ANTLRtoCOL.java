@@ -603,6 +603,35 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
     return res;
   }
 
+  protected ASTNode[] convert_pairs(ParseTree tree,String open,String sep, String pairSep, String close){
+    ParserRuleContext ctx=(ParserRuleContext)tree;
+    int N=ctx.getChildCount();
+    if (match(0,true,ctx,open)&&match(N-1,true,ctx,close)){
+      return convert_pairs(ctx,1,N-1,sep, pairSep);
+    }
+    return null;
+  }
+  protected ASTNode[] convert_pairs(ParserRuleContext ctx,String sep, String pairSep){
+    if (ctx==null || ctx.children==null) {
+      return new ASTNode[0];
+    } else {
+      return convert_pairs(ctx,0,ctx.getChildCount(), sep, pairSep);
+    }
+  }
+  protected ASTNode[] convert_pairs(ParserRuleContext ctx,int from,int upto,String sep, String pairSep){
+    int N=(upto-from+1)/4;
+    ASTNode[] res=new ASTNode [N*2];
+    for(int i=0;i<N;i++){
+      res[2*i]=convert(ctx,from+4*i);
+      res[2*i+1]=convert(ctx,from+4*i+2);
+      if (i+3<N && !match(from+4*i+1,true,ctx,pairSep) && !match(from+4*i+3,true,ctx,sep)){
+        Debug("bad separator");
+        return null;
+      }
+    }
+    return res;
+  }
+
   protected boolean instance(Object item,String pattern){
     Class<?> cls=context.get(pattern);
     if (cls==null){
