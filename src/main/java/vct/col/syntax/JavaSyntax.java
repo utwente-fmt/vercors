@@ -95,7 +95,7 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(MapKeySet, "keysMap");
         syntax.addFunction(MapCardinality, "cardMap");
         syntax.addFunction(MapValueSet, "valuesMap");
-        syntax.addFunction(MayGetByKey, "getFromMap");
+        syntax.addFunction(MapGetByKey, "getFromMap");
         syntax.addFunction(MapRemoveKey, "removeFromMap");
         syntax.addPrimitiveType(PrimitiveSort.Map,"map");
         // TODO this should eventually be removed (above)

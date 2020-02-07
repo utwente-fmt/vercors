@@ -52,13 +52,13 @@ public class PVLSyntax {
 
       syntax.addFunction(OptionSome, "Some");
                                                                      // Alternative syntax
-      syntax.addFunction(MapBuild, "buildMap");               // map + (1, true)
-      syntax.addFunction(MapEquality, "equalsMap");           // map == map2
+      syntax.addFunction(MapBuild, "buildMap");               // map + (1, true) (DONE)
+      syntax.addFunction(MapEquality, "equalsMap");           // map == map2 (DONE)
       syntax.addFunction(MapDisjoint, "disjointMap");         //
       syntax.addFunction(MapKeySet, "keysMap");               //
-      syntax.addFunction(MapCardinality, "cardMap");          // |map|
+      syntax.addFunction(MapCardinality, "cardMap");          // |map| (DONE)
       syntax.addFunction(MapValueSet, "valuesMap");           //
-      syntax.addFunction(MayGetByKey, "getFromMap");          // map[i]
+      syntax.addFunction(MapGetByKey, "getFromMap");          // map[i] (DONE)
       syntax.addFunction(MapRemoveKey, "removeFromMap");      //
 
 

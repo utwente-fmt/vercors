@@ -13,7 +13,6 @@ import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.stmt.decl.Method.Kind;
-import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.*;
@@ -22,8 +21,6 @@ import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.UndefinedMapping;
 import vct.col.util.ASTUtils;
 import vct.util.Configuration;
-
-import static hre.lang.System.Output;
 
 /**
  * This rewriter converts a program with classes into
@@ -589,7 +586,7 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.invokation(rewrite(e.first().getType()), null, "vctmap_values", args);
       break;
     }
-    case MayGetByKey:{
+    case MapGetByKey:{
       List<ASTNode> args = rewrite(e.argsJava());
       result = create.invokation(rewrite(e.first().getType()), null, "vctmap_get", args);
       break;

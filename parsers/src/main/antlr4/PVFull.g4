@@ -97,6 +97,7 @@ powExpr
 seqAddExpr
  : unaryExpr '::' seqAddExpr
  | seqAddExpr '++' unaryExpr
+ | seqAddExpr '++' '(' unaryExpr ',' unaryExpr ')'
  | unaryExpr
  ;
 

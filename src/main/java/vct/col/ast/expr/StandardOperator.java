@@ -337,7 +337,7 @@ public enum StandardOperator {
   /** get the set of values of a map */
   MapValueSet(1),
   /** get the value of a map by a key */
-  MayGetByKey(2),
+  MapGetByKey(2),
   /** remove a key/value pair from a map by its key*/
   MapRemoveKey(2)
   ;

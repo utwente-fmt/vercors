@@ -434,6 +434,9 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       }
       return create.struct_value(create.primitive_type(PrimitiveSort.Map, t1, t2), null, pairs);
     }
+    if (match(ctx, null, "++", "(", null,",", null, ")")) {
+      return create.expression(StandardOperator.MapBuild, convert(ctx, 0), convert(ctx,3), convert(ctx,5));
+    }
     return visit(ctx);
   }
 
