@@ -25,9 +25,6 @@ public class ADTOperatorRewriter extends AbstractRewriter {
         super(source, true);
     }
 
-
-
-
     @Override
     public void visit(OperatorExpression e) {
         switch (e.operator()) {
