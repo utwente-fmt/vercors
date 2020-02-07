@@ -1,18 +1,9 @@
 package vct.col.rewrite;
 
-import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
-import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.type.Type;
-import vct.util.ClassName;
 
 import static vct.col.ast.type.PrimitiveSort.Map;
 
