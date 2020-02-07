@@ -1275,11 +1275,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       case LTE:
       case LT:
         if (!tt[0].isNumeric() && !tt[0].isPrimitive(PrimitiveSort.Set) && !tt[0].isPrimitive(PrimitiveSort.Bag)) {
-          Fail("First argument of %s is %s rather than a numeric type, set or a bag", op, tt[0]);
-        } else if (!tt[0].equals(tt[1])) {
+          Fail("Left argument of %s is %s rather than a numeric type, set or a bag", op, tt[0]);
+        } else if (tt[0].isNumeric() && !tt[1].isNumeric()) {
+          Fail("Right argument of %s is %s rather than a numeric type", op, tt[1]);
+        } else if ((tt[0].isPrimitive(PrimitiveSort.Set) || tt[0].isPrimitive(PrimitiveSort.Bag)) && !tt[0].equals(tt[1])) {
           Fail("Type of right side does not match the left side");
         }
-
         if (tt[0].isNumeric() && tt[1].isNumeric()) {
           if (tt[0].isFraction()) force_frac(e.arg(1));
           else if (tt[1].isFraction()) force_frac(e.arg(0));
