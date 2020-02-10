@@ -13,6 +13,7 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.ContractBuilder;
+import vct.col.util.ASTFactory;
 import vct.util.ClassName;
 import viper.silver.ast.Declaration;
 
@@ -37,6 +38,11 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
         return getExceptionType(prefix, id, new PrimitiveType(PrimitiveSort.Void));
     }
 
+    /**
+     * Returns a class type parameterized by a prefix and id. If it doesn't exist also creates a class definition.
+     * If arg is not Void or null, then a constructor is added for the class that takes an argument. This argument
+     * is added in the e field in the class.
+     */
     public ClassType getExceptionType(String prefix, String id, Type arg) {
         String name = "__" + prefix + "_" + id + "_ex";
 
@@ -63,6 +69,7 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
                         null
                 );
                 exceptionClass.add(exceptionConstructor);
+                exceptionClass.add(create.field_decl("value", arg));
             } else {
                 create.addZeroConstructor(exceptionClass);
             }
@@ -111,9 +118,8 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
 
             ClassType exceptionType = getExceptionType("return", method.getName());
             ClassName exceptionClassName = new ClassName(exceptionType.getNameFull());
-            ASTNode getReturnValueExpr = create.get_field(exceptionClassName, create.field_name("e"), "value");
+            ASTNode getReturnValueExpr = create.dereference(create.local_name("e"), "value");
             ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
-            BlockStatement returnBlock = create.block(create.return_statement());
             tryCatchBlock.addCatchClause(create.field_decl("e", exceptionType), create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
 
@@ -162,7 +168,7 @@ public class BreakContinueReturnToExceptions extends AbstractRewriter {
         }
        result = returnThrow;
 
-        // TODO: Add this in the catch clause?
+        // TODO (Bob): Add this in the catch clause?
         // for(ASTNode n : returnStatement.get_after()){
         //     block.add(rewrite(n));
         // }

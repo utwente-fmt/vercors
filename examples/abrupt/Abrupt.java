@@ -1,7 +1,7 @@
 final class MyClass {
     boolean p();
 
-    void foo() {
+    int foo() {
         int x = 0;
 
         my_if: if (p()) {
@@ -37,11 +37,17 @@ final class MyClass {
                 //@ assert x == 40;
             }
 
+			if (x == 41) {
+				return 30;
+   			} 
+
             //@ assert x == 40 || x == 5;
             x = 500;
             break;
         }
 
         //@ assert x == 1 || x == 0 || x == 40 || x == 5;
+
+		return 31;
     }
 }

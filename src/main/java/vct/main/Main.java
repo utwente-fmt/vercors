@@ -335,16 +335,18 @@ public class Main
         passes=new LinkedBlockingDeque<String>();
 
         // Abrupt termination encoding passes
+        // TODO (Bob): Special case for java only?
         passes.add("specify-implicit-labels");
         passes.add("continue-to-break");
-        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
-          passes.add("break-continue-to-goto");
-        }
+//        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
+//          passes.add("break-continue-to-goto");
+//        }
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
         }
-        // TODO (Bob): _Only_ resort to exceptions if finally is used in the program!
-//        passes.add("break-continue-return-to-exceptions");
+        // TODO (Bob): _Only_ resort to exceptions if finally is used in the program! See appendix A.
+        //
+        passes.add("break-continue-return-to-exceptions");
 
         passes.add("java_resolve");
 
