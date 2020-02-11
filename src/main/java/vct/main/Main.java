@@ -359,6 +359,7 @@ public class Main
         // TODO (Bob): _Only_ resort to exceptions if finally is used in the program! See appendix A.
         //
         passes.add("break-continue-return-to-exceptions");
+        passes.add("intro-exc-var");
 
         passes.add("java_resolve");
 
@@ -1232,6 +1233,11 @@ public class Main
     defined_passes.put("unfold-synchronized", new CompilerPass("Convert synchronized to try-finally") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new UnfoldSynchronized(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("intro-exc-var", new CompilerPass("Introduces the auxiliary __exc variable for use by excetional control flow") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new IntroExcVar(arg).rewriteAll();
       }
     });
   }

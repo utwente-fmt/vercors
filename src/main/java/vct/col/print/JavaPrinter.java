@@ -76,7 +76,11 @@ public class JavaPrinter extends AbstractPrinter {
     for (CatchClause cb : tcb.catches()) {
       out.print("catch (");
       nextExpr();
-      cb.decl().accept(this);
+      if (cb.decl() != null) {
+        cb.decl().accept(this);
+      } else {
+        out.print("/* No catch formal parameter */");
+      }
       out.print(")");
       cb.block().accept(this);
     }
