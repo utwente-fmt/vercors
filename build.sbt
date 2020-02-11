@@ -2,6 +2,7 @@ import NativePackagerHelper._
 
 ThisBuild / turbo := true
 
+enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
 enablePlugins(DebianPlugin)
 
@@ -14,7 +15,7 @@ lazy val vercors = (project in file("."))
     .settings(
         name := "Vercors",
         organization := "University of Twente",
-        version := "1.2.0",
+        version := "1.3.0",
         maintainer := "VerCors Team <vercors@lists.utwente.nl>",
         packageSummary := "A tool for static verification of parallel programs",
         packageDescription :=
@@ -32,17 +33,25 @@ lazy val vercors = (project in file("."))
         libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
         libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
 
-        scalaVersion := "2.12.7",
+        scalaVersion := "2.12.10",
 
-        scalacOptions += "-deprecation",
-        scalacOptions += "-feature",
-        scalacOptions += "-unchecked",
-        scalacOptions += "-Dscalac.patmat.analysisBudget=off",
+        scalacOptions in ThisBuild += "-deprecation",
+        scalacOptions in ThisBuild += "-feature",
+        scalacOptions in ThisBuild += "-unchecked",
+        scalacOptions in ThisBuild += "-Dscalac.patmat.analysisBudget=off",
+
+        javacOptions in ThisBuild += "-Xlint:deprecation",
+        javacOptions in ThisBuild += "-Xlint:unchecked",
+        javacOptions in ThisBuild += "-deprecation",
 
         javaOptions in (Compile, run) += "-J-Xss128M",
         /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
         separated by "--". We instead want to accept only VerCors arguments, so we force "--" into the arguments. */
         javaOptions in Universal ++= Seq("-J-Xss128M", "--"),
+
+        buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+        buildInfoOptions += BuildInfoOption.BuildTime,
+        buildInfoPackage := "vct.main",
 
         /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
         the classpath. That way the resources are not packed into the jar. */

@@ -21,7 +21,7 @@ object RewriteArrayRef {
 
   def getUniqueName(str: String): String = {
     var result = str.replaceAll("[^a-zA-Z0-9$_']", "_")
-    while(namesUsed contains str) {
+    while(namesUsed contains result) {
       result += "$"
     }
     namesUsed += result
@@ -208,6 +208,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
       case PrimitiveSort.Option => create.expression(StandardOperator.OptionGet, value)
       case PrimitiveSort.Array => create.expression(StandardOperator.Subscript, value, name("i" + dimension))
       case PrimitiveSort.Cell => create.dereference(value, "item")
+      case _ => return (t, value)
     }
 
     val newDimension = if(pType.sort == PrimitiveSort.Array) dimension + 1 else dimension

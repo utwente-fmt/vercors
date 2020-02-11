@@ -184,6 +184,8 @@ public final class PrimitiveType extends Type {
       if (equals(t)) return true;
       switch(this.sort){
       case Void:
+      case Set:
+      case Bag:
       case Sequence:
       case Array:
         return false;

@@ -21,9 +21,13 @@ public class ColSilverParser implements vct.col.util.Parser {
   }
   
   public static <T,E,S,Decl,DFunc,DAxiom,Program>
-  ProgramUnit run_test(File f){
-    ViperAPI<Origin,VerificationError,T,E,S,DFunc,DAxiom,Program> viper=
-        SilverBackend.getVerifier("parser");
+  ProgramUnit run_test(File f) {
+    ViperAPI<Origin, VerificationError, ?, ?, ?, ?, ?, ?> viper =
+            SilverBackend.getVerifier("parser");
+    return run_test(f, viper);
+  }
+
+  public static <Program> ProgramUnit run_test(File f, ViperAPI<Origin, VerificationError, ?, ?, ?, ?, ?, Program> viper) {
     Program program=viper.prog.parse_program(f.toString());
     if (program==null){
       throw new HREError("parsing %s failed",f);

@@ -55,8 +55,6 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(CurrentPerm,"perm");
         syntax.addFunction(HistoryPerm,"HPerm");
         syntax.addOperator(Scale,130,"[","]","");
-        syntax.addFunction(Drop,"drop");
-        syntax.addFunction(Take,"take");
         syntax.addFunction(History,"Hist");
         syntax.addFunction(Future,"Future");
         syntax.addFunction(AbstractState,"AbstractState");
@@ -68,7 +66,10 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(Indirection,"\\indirect");
         syntax.addFunction(StructDeref,"\\structderef");
         syntax.addFunction(IterationOwner,"\\owner");
-        
+        syntax.addFunction(RemoveAt, "remove");
+        syntax.addRightFix(PrependSingle, "::", 110);
+        syntax.addLeftFix(AppendSingle, "++", 110);
+
         syntax.addFunction(Values,"\\values");
 
         syntax.addOperator(Unfolding,140,"\\unfolding","\\in","");
@@ -110,7 +111,8 @@ public class JavaSyntax extends Syntax {
     syntax.addOperator(NewArray,-1,"new ","[","]");
     syntax.addOperator(Subscript,145,"","[","]"); // TODO: check if relative order to Select is OK!
     syntax.addOperator(Cast,145,"((",")",")");
-    
+    syntax.addOperator(Slice, 145, "[","","..","","]");
+
     // Java Operators  Precedence
     // 14 postfix  expr++ expr--
     syntax.addPostfix(PostIncr,"++",140);
@@ -156,7 +158,7 @@ public class JavaSyntax extends Syntax {
     //  2 ternary   ? :    
     syntax.addOperator(ITE,20,"","?",":","");
     //  1 assignment  = += -= *= /= %= &= ^= |= <<= >>= >>>=
-        
+
     syntax.addRightFix(Assign,"=",10);
     syntax.addRightFix(AddAssign,"+=",10);
     syntax.addRightFix(SubAssign,"-=",10);
