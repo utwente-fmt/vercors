@@ -115,6 +115,8 @@ case class DebugSession() {
         dump(indent, opt.get.asInstanceOf[Object], prefix)
       case s: String =>
         Output("%s'%s'", indent_str(indent) + prefix, s)
+      case null =>
+        Output("%s", indent_str(indent) + prefix + "null")
       case _ =>
         Output("%s", indent_str(indent) + prefix + obj.getClass.getSimpleName + "???")
     }

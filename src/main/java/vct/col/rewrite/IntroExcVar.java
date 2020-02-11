@@ -9,6 +9,7 @@ import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.terminal.ReturnStatement;
+import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.util.ClassName;
 
@@ -42,7 +43,18 @@ public class IntroExcVar extends AbstractRewriter {
         TryCatchBlock resultTryCatch = (TryCatchBlock) result;
 
         for (CatchClause catchClause : resultTryCatch.catches()) {
+            // Note that prepend is used here, which means the statements are added in reverse order
+
+            // Set the exc variable to null, since the exception is now being handled by the local catch clause
+            catchClause.block().prepend(create.assignment(
+                    create.local_name("__exc"),
+                    create.reserved_name(ASTReserved.Null)
+            ));
+
             // TODO (Bob): Once we have subtyping turn this into regular assignment, since this is a hack
+            // Suprised it even works w.r.t. typechecking
+            // Assign the global exc variable to the local formal parameter of the catch block
+            // This way of any assertions or permissions on the exc variable were given earlier, they can also be used here
             catchClause.block().prepend(create.special(ASTSpecial.Kind.Assume,
                     create.expression(StandardOperator.EQ, create.local_name(catchClause.decl().name()), create.local_name("__exc"))));
         }
