@@ -113,12 +113,10 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
           )
       }
       contract.requires(conditions.reduce(star _))
-
-      val a = 1 + 1
     }
 
 
-    var selector: ASTNode = null
+    var selector: ASTNode = create.constant(true)
     if (setComprehension.variables != null && !setComprehension.variables.isEmpty) {
       selector = JavaConverters.collectionAsScalaIterable(setComprehension.variables.entrySet()).map(entry =>
         create.expression(StandardOperator.Member,
