@@ -33,7 +33,7 @@ public class IntroExcVar extends AbstractRewriter {
 
         BlockStatement body = (BlockStatement) resultMethod.getBody();
         if (body != null) {
-            body.prepend(create.field_decl("__exc", create.class_type(new String[]{"java", "lang", "Object"})));
+            body.prepend(create.field_decl("sys__exc", create.class_type(new String[]{"java", "lang", "Object"})));
         }
     }
 
@@ -47,7 +47,7 @@ public class IntroExcVar extends AbstractRewriter {
 
             // Set the exc variable to null, since the exception is now being handled by the local catch clause
             catchClause.block().prepend(create.assignment(
-                    create.local_name("__exc"),
+                    create.local_name("sys__exc"),
                     create.reserved_name(ASTReserved.Null)
             ));
 
@@ -56,7 +56,7 @@ public class IntroExcVar extends AbstractRewriter {
             // Assign the global exc variable to the local formal parameter of the catch block
             // This way of any assertions or permissions on the exc variable were given earlier, they can also be used here
             catchClause.block().prepend(create.special(ASTSpecial.Kind.Assume,
-                    create.expression(StandardOperator.EQ, create.local_name(catchClause.decl().name()), create.local_name("__exc"))));
+                    create.expression(StandardOperator.EQ, create.local_name(catchClause.decl().name()), create.local_name("sys__exc"))));
         }
     }
 }
