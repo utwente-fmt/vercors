@@ -397,7 +397,7 @@ class simplify_quant_pass1 {
     */
 
   axiom simplify_distribute_perm_par {
-    (\forall* int tid;(tid \memberof [e1 .. e2)); (\forall* int i; (i \memberof [e3 .. e4)); Perm(e5, p1\e6)))
+    (\forall* int tid;(tid \memberof [e1 .. e2)); ((\forall* int i; (i \memberof [e3 .. e4)); Perm(e5, p1\e6))!tid))
     ==
     (e1 < e2) ==> (\forall* int i; (i \memberof [e3 .. e4)); Perm(e5, (p1 * (e2 - e1))\e6))
   }
