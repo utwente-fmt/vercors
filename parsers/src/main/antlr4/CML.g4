@@ -36,4 +36,4 @@ block : compoundStatement ;
 
 /* Define for use by comment parser */
 
-specificationSequence : ( externalDeclaration | statement )* ;
+specificationSequence : ( externalDeclaration | statement | valInvocationAnnotation)* ;
