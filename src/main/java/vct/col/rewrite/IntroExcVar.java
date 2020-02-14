@@ -22,6 +22,10 @@ public class IntroExcVar extends AbstractRewriter {
         super(source);
     }
 
+    public static boolean canThrow(Method method) {
+        return method.getContract().signals.length > 0; // || method.hasAttribute(THROWS); // ???
+    }
+
     public void visit(Method method) {
         super.visit(method);
         Method resultMethod = (Method) result;
