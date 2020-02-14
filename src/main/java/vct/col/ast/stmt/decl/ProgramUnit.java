@@ -52,7 +52,7 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
     return format;
   }
   
-  private static HashMap<ClassName, ASTClass> library=new HashMap<ClassName, ASTClass>();
+  public static HashMap<ClassName, ASTClass> library=new HashMap<ClassName, ASTClass>();
   
   static {
     ASTFactory<?> create=new ASTFactory<Object>();

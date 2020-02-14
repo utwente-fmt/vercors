@@ -98,7 +98,7 @@ public class JavaEncoder extends AbstractRewriter {
       prefix="procedure_";
     } else {
       String name[]=cls.getFullName();
-      if (m.name().equals(cls.name())){
+      if (m.name().equals(cls.name()) || m.getKind() == Kind.Constructor){
         prefix="constructor_";
       } else {
         prefix="method_";

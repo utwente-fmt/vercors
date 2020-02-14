@@ -13,6 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.stream.Collectors;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
@@ -898,6 +899,45 @@ public class Main
     defined_passes.put("java-encode",new CompilerPass("Encode Java overloading and inheritance"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         arg=new JavaEncoder(arg).rewriteAll();
+
+        // Squash ALL the libraries!!
+        HashMap<ClassName, ASTClass> library = ProgramUnit.library;
+        ProgramUnit.library = new HashMap<>();
+        HashMap<ASTClass, ASTClass> transformedMapping = new HashMap<>();
+        for (ClassName className : library.keySet()) {
+          ASTClass javaClass = library.get(className);
+
+          if (!transformedMapping.containsKey(javaClass)) {
+            ProgramUnit programUnit = new ProgramUnit();
+            programUnit.add(javaClass);
+            programUnit = new JavaEncoder(programUnit).rewriteAll();
+
+            if (programUnit.size() != 2) {
+              Abort("Encoding somehow produced more than 2 classes");
+            }
+
+            ASTClass option1 = (ASTClass) programUnit.get(0);
+            ASTClass option2 = (ASTClass) programUnit.get(1);
+
+            ASTClass encodedClass = null;
+            if (option1.name().equals("EncodedGlobalVariables")) {
+              // 2 is our guy
+              encodedClass = option2;
+            } else if (option2.name().equals("EncodedGlobalVariables")) {
+              // 1 is our gal
+              encodedClass = option1;
+            } else {
+              Abort("Encoding should have produced 1 global var class and 1 other class");
+            }
+
+            transformedMapping.put(javaClass, encodedClass);
+          }
+
+          ASTClass encodedClass = transformedMapping.get(javaClass);
+          ProgramUnit.library.put(className, encodedClass);
+          ProgramUnit.library.put(new ClassName(encodedClass.name()), encodedClass);
+        }
+
         return arg;
       }
     });
