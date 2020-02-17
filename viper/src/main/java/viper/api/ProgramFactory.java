@@ -39,7 +39,7 @@ public interface ProgramFactory<O,Err,T,E,S,DFunc,DAxiom,P> {
   
   public DAxiom daxiom(O o,String name,E expr,String domain);
   
-  public DFunc dfunc(O o,String name,List<Triple<O,String,T>> args,T t,String domain);
+  public DFunc dfunc(O o,String name,List<Triple<O,String,T>> args,T t,String domain, boolean unique);
   
   public void add_adt(P p,O o,String name,List<DFunc> funs,List<DAxiom> axioms,List<String> pars);
 

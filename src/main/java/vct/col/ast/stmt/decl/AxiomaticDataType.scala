@@ -6,6 +6,7 @@ import scala.collection.JavaConverters._
 import vct.col.ast.util.ASTVisitor
 import vct.col.util.{ASTMapping, ASTMapping1, VisitorHelper}
 import vct.util.ClassName
+import hre.lang.System.Abort
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -38,6 +39,16 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
 
   def add_cons(m:Method) : Unit = {
     m.setFlag(ASTFlags.STATIC, true)
+    m.setParent(this)
+    constructors += m
+  }
+
+  def add_unique_cons(m:Method) : Unit = {
+    if (m.getArgs.length != 0) {
+      Abort("Unique constructors cannot have any formal parameters");
+    }
+
+    m.setFlag(ASTFlags.UNIQUE, true);
     m.setParent(this)
     constructors += m
   }
