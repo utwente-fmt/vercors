@@ -154,7 +154,7 @@ public class VerCorsProgramFactory implements
       List<Triple<Origin,String,Type>> args, Type t, String domain, boolean unique) {
     enter(o);
     Method res=create.function_decl(t,null, name,create.to_decls(args),null);
-    res.setFlag(ASTFlags.UNIQUE, true);
+    res.setFlag(ASTFlags.UNIQUE, unique);
     leave();
     return res;
   }
