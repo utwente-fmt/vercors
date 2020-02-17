@@ -59,9 +59,24 @@ public class JavaResolver extends AbstractRewriter {
       create.enter();
       create.setOrigin(new MessageOrigin("library class %s",cl_name));
       ASTClass res=create.new_class(ClassName.toString(name,FQN_SEP),null,null);
-      target().library_add(cln,res);
+      // TODO (Bob): Is this the right design decision?
+      // Do not add the original class name to the library, as the class is renamed anyway!
+      // This way we keep a single name of the class in the program consistently
+      // Whenever it breaks we'll just have to fix it with the "real" name
+//      target().library_add(cln,res);
       target().library_add(new ClassName(cln.toString(FQN_SEP)),res);
-      for(java.lang.reflect.Method m:cl.getMethods()){
+      // TODO (Bob): We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass, ideally. But maybe that's wrong, and then that stuff should be handled right here.
+      // However another possibility is to also pull in the extends/implements keywords here and make vercors understand them so flattening can happen whenever we want.
+      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
+        // Only public methods are allowed since protected is only accesible from the same package (and we're not std) and private is not accesible altogether
+        if (!Modifier.isPublic(m.getModifiers())) {
+          continue;
+        }
+        // We skip bridge methods (i.e. methods generated to bridge the gap between a method returning float[] and a method returning Object).
+        // https://stackoverflow.com/questions/1961350/problem-in-the-getdeclaredmethods-java
+        if (m.isBridge()) {
+          continue;
+        }
         Class<?> c=m.getReturnType();
         Type returns = convert_type(c);
         Class<?> pars[]=m.getParameterTypes();
@@ -93,6 +108,7 @@ public class JavaResolver extends AbstractRewriter {
         decl.setFlag(ASTFlags.STATIC,Modifier.isStatic(field.getModifiers()));
         res.add(decl);
       }
+      target().add(res);
       create.leave();
       return true;
     } catch (ClassNotFoundException e) {

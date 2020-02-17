@@ -11,7 +11,9 @@ import scala.collection.JavaConverters._
 
 class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
   def visitType(t: Type): Type = {
-    if(t.isPrimitive(PrimitiveSort.Pointer)) {
+    if (t == null) {
+      t
+    } else if(t.isPrimitive(PrimitiveSort.Pointer)) {
       create.primitive_type(PrimitiveSort.Option,
         create.primitive_type(PrimitiveSort.Array,
           create.primitive_type(PrimitiveSort.Cell,
