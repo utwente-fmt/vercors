@@ -83,7 +83,8 @@ public class JavaResolver extends AbstractRewriter {
     	  for(int i=0;i<pars.length;i++){
     		  args[i]=create.field_decl("x"+i, convert_type(pars[i]));
     	  }
-    	  Method ast = create.method_kind(Kind.Constructor, null, null, m.getName(), args, null);
+    	  // Use class name here to uphold convention that constructor name == class name.
+    	  Method ast = create.method_kind(Kind.Constructor, null, null, res.getName(), args, null);
     	  res.add(ast);
       }
       for(java.lang.reflect.Field field:cl.getFields()){
