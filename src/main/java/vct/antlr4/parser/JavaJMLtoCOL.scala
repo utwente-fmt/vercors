@@ -2,9 +2,9 @@ package vct.antlr4.parser
 
 import org.antlr.v4.runtime.tree.TerminalNode
 import org.antlr.v4.runtime.{CommonToken, CommonTokenStream, ParserRuleContext}
-import vct.antlr4.generated.Java7JMLParser
-import vct.antlr4.generated.Java7JMLParser._
-import vct.antlr4.generated.Java7JMLParserPatterns._
+import vct.antlr4.generated.JavaParser
+import vct.antlr4.generated.JavaParser._
+import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{MethodInvokation, NameExpression, StandardOperator}
@@ -13,12 +13,12 @@ import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, DeclarationStatement, NameSpace, ProgramUnit}
 
 object JavaJMLtoCOL {
-  def convert(tree: CompilationUnitContext, fileName: String, tokens: CommonTokenStream, parser: Java7JMLParser): ProgramUnit = {
+  def convert(tree: CompilationUnitContext, fileName: String, tokens: CommonTokenStream, parser: JavaParser): ProgramUnit = {
     JavaJMLtoCOL(fileName, tokens, parser).convertUnit(tree)
   }
 }
 
-case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Java7JMLParser)
+case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: JavaParser)
   extends ToCOL(fileName, tokens, parser) {
   def convertUnit(tree: CompilationUnitContext): ProgramUnit = tree match {
     case CompilationUnit0(maybePackage, imports, decls, _) =>
@@ -297,22 +297,13 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       } else {
         create expression(RightShift, expr(left), expr(right))
       }
-    case compExpr: Expression17Context =>
-      val left = compExpr.children.get(0).asInstanceOf[ParserRuleContext]
-      val right = compExpr.children.get(compExpr.children.size() - 1).asInstanceOf[ParserRuleContext]
-      if(compExpr.children.size() == 4) {
-        if(compExpr.children.get(1).asInstanceOf[TerminalNode].getText == "<") {
-          create expression(LTE, expr(left), expr(right))
-        } else {
-          create expression(GTE, expr(left), expr(right))
-        }
-      } else {
-        if(compExpr.children.get(1).asInstanceOf[TerminalNode].getText == "<") {
-          create expression(StandardOperator.LT, expr(left), expr(right))
-        } else {
-          create expression(StandardOperator.GT, expr(left), expr(right))
-        }
-      }
+    case Expression17(left, comp, right) =>
+      create expression(comp match {
+        case "<" => StandardOperator.LT
+        case "<=" => LTE
+        case ">=" => GTE
+        case ">" => StandardOperator.GT
+      }, expr(left), expr(right))
     case Expression18(obj, "instanceof", t) =>
       create expression(Instance, expr(obj), convertType(t))
     case Expression19(left, "==", right) =>

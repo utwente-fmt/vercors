@@ -1,14 +1,10 @@
 package vct.antlr4.parser;
 
-import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.tree.ParseTree;
-import vct.antlr4.generated.CMLBaseVisitor;
-import vct.antlr4.generated.CMLParser;
+import vct.antlr4.generated.CParser;
+import vct.antlr4.generated.CParserBaseVisitor;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.generic.ASTSequence;
-import vct.col.syntax.Syntax;
 
 /**
  * Convert CML (C Modeling Language) parse trees to COL.
@@ -19,8 +15,8 @@ import vct.col.syntax.Syntax;
  * 
  * @author <a href="mailto:s.c.c.blom@utwente.nl">Stefan Blom</a>
 */
-public class CMLtoCOL extends CMLBaseVisitor<ASTNode> {
-  public static TempSequence convert_seq(ParseTree tree, String embedded_comments, CommonTokenStream tokens, CMLParser parser) {
+public class CMLtoCOL extends CParserBaseVisitor<ASTNode> {
+  public static TempSequence convert_seq(ParseTree tree, String embedded_comments, CommonTokenStream tokens, CParser parser) {
     return null;
   }
 

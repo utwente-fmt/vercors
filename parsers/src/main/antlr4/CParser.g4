@@ -1,20 +1,23 @@
-grammar CML;
-
-import val, C;
+parser grammar CParser;
+options {tokenVocab = LangCLexer;}
+import LangCParser, SpecParser;
 
 /* Define for use by C grammar */
 
-extraIdentifier : valReserved # test;
+extraIdentifier : valReserved;
 
-extraPrimary : valPrimary ;
+extraPrimary : valPrimary;
 
-extraStatement : valContractClause | valStatement ;
+extraStatement : valEmbedStatementBlock;
 
 extraType : 'resource' | 'process' | 'frac' | 'zfrac' | 'bool' | identifier typeArgs ;
 
 extraDeclaration
  : pureFunctionDeclaration
  ;
+
+startSpec: LineStartSpec | BlockStartSpec;
+endSpec: EndSpec;
 
 /* auxiliary defs */
 
@@ -33,7 +36,3 @@ identifier : clangIdentifier ;
 block : compoundStatement ;
 
 // expression already defined by C grammar
-
-/* Define for use by comment parser */
-
-specificationSequence : ( externalDeclaration | statement )* ;

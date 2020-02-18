@@ -31,7 +31,7 @@ import vct.col.ast.util.ContractBuilder;
 import vct.col.syntax.JavaDialect;
 import vct.col.syntax.JavaSyntax;
 import vct.col.syntax.Syntax;
-import vct.antlr4.generated.Java7JMLParser.*;
+import vct.antlr4.generated.JavaParser.*;
 import vct.antlr4.generated.*;
 import vct.util.Configuration;
 
@@ -42,12 +42,12 @@ import static hre.lang.System.*;
  *
  * @author <a href="mailto:s.c.c.blom@utwente.nl">Stefan Blom</a>
 */
-public class Java7JMLtoCol extends Java7JMLBaseVisitor<ASTNode> {
-  public static ProgramUnit convert_tree(ParseTree tree, String file_name, CommonTokenStream tokens, Java7JMLParser parser) {
+public class Java7JMLtoCol extends JavaParserBaseVisitor<ASTNode> {
+  public static ProgramUnit convert_tree(ParseTree tree, String file_name, CommonTokenStream tokens, JavaParser parser) {
     return null;
   }
 
-  public static TempSequence convert_seq(ParseTree tree, String embedded_comments, CommonTokenStream tokens, Java7JMLParser parser) {
+  public static TempSequence convert_seq(ParseTree tree, String embedded_comments, CommonTokenStream tokens, JavaParser parser) {
     return null;
   }
 

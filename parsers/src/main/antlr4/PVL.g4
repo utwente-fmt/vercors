@@ -1,11 +1,5 @@
-grammar PVFull;
-
-import val;
-
-@lexer::members {
-    public static final int CH_COMMENT = 1;
-    public static final int CH_LINEDIRECTION = 2;
-}
+grammar PVL;
+import SpecParser;
 
 expression : expr ;
 
@@ -35,7 +29,7 @@ contract : valContractClause* ;
 
 args
     : type identifier
-    | type identifier args
+    | type identifier ',' args
     ;
 
 exprList
@@ -205,8 +199,8 @@ statement
  | 'vec' '(' iter ')' block
  | 'invariant' identifier '(' expr ')' block
  | 'atomic' '(' identifierList ')' block
- | invariant 'while' '(' expr ')' statement
- | invariant 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+ | invariantList 'while' '(' expr ')' statement
+ | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
  | block
  | '{*' expr '*}'
  | 'goto' identifier ';'
@@ -305,8 +299,8 @@ identifier : Identifier | valReserved ;
 Identifier  : ('a'..'z'|'A'..'Z') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
 NUMBER : ('0'..'9')+;
 
-COMMENT : '/*' .*? '*/' { setChannel(CH_COMMENT); } ;
-LINE_COMMENT : '//' .*? '\n' { setChannel(CH_COMMENT); } ;
+COMMENT : '/*' .*? '*/' -> skip;
+LINE_COMMENT : '//' .*? '\n' -> skip;
 
 WS  :   (   ' '
         |   '\t'
@@ -317,3 +311,7 @@ WS  :   (   ' '
 EmbeddedLatex
     : '#' ~[\r\n]* '#' -> skip
     ;
+
+// There's no such thing as embedding contracts in PVL
+startSpec: EOF EOF;
+endSpec: EOF EOF;

@@ -1,6 +1,6 @@
-grammar Java7JML;
-
-import val,Java7;
+parser grammar JavaParser;
+options {tokenVocab = LangJavaLexer;}
+import LangJavaParser, SpecParser;
 
 identifier : javaIdentifier ;
 
@@ -34,6 +34,9 @@ extraDeclaration
     | axiomDeclaration
     | valContractClause
     ;
+
+startSpec: LineStartSpec | BlockStartSpec;
+endSpec: EndSpec;
 
 /* We use the elements of the Java 7 grammar to define
  function and axiom declarations.

@@ -2,8 +2,8 @@ package vct.antlr4.parser
 
 import org.antlr.v4.runtime.{BufferedTokenStream, Parser}
 import org.antlr.v4.runtime.tree.ParseTree
-import vct.antlr4.generated.CMLParser.{StorageClassSpecifierContext, TypeQualifierContext}
-import vct.antlr4.generated.CMLParserPatterns._
+import vct.antlr4.generated.CParser.{StorageClassSpecifierContext, TypeQualifierContext}
+import vct.antlr4.generated.CParserPatterns._
 import vct.col.ast.`type`.{Type, TypeExpression}
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.`type`.TypeOperator._

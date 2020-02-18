@@ -5,8 +5,8 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
-import vct.antlr4.generated.CMLLexer;
-import vct.antlr4.generated.CMLParser;
+import vct.antlr4.generated.LangCLexer;
+import vct.antlr4.generated.CParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.rewrite.*;
 import vct.col.syntax.CSyntax;
@@ -25,11 +25,11 @@ public class ColIParser implements vct.col.util.Parser {
     ErrorCounter ec=new ErrorCounter(file_name);
 
     CharStream input = CharStreams.fromStream(stream);
-    CMLLexer lexer = new CMLLexer(input);
+    LangCLexer lexer = new LangCLexer(input);
     lexer.removeErrorListeners();
     lexer.addErrorListener(ec);
     CommonTokenStream tokens = new CommonTokenStream(lexer);
-    CMLParser parser = new CMLParser(tokens);
+    CParser parser = new CParser(tokens);
     parser.removeErrorListeners();
     parser.addErrorListener(ec);
     ParseTree tree = parser.compilationUnit();
@@ -42,11 +42,6 @@ public class ColIParser implements vct.col.util.Parser {
     Progress("AST conversion took %dms",tk.show());
     Debug("after conversion %s",pu);
     
-    pu=new CommentRewriter(pu,new CMLCommentParser(ec)).rewriteAll();
-    Progress("Specification parsing took %dms",tk.show());
-    ec.report();
-    Debug("after comment processing %s",pu);
-
     pu=new FlattenVariableDeclarations(pu).rewriteAll();
     Progress("Flattening variables took %dms",tk.show());
     Debug("after flattening variable decls %s",pu);

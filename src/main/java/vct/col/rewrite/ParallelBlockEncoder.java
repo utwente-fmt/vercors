@@ -238,7 +238,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     ContractBuilder main_cb=new ContractBuilder();
     Hashtable<String,Type> main_vars=free_vars(region.blocksJava());
     BlockStatement body;
-    if (region.contract() == null) {
+    if (region.contract() == null || region.contract().isEmpty()) {
       for (ParallelBlock pb : region.blocksJava()) {
         Contract c=(Contract)rewrite((ASTNode)pb);
         if (c!=null){

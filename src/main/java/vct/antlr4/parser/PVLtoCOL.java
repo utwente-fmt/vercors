@@ -3,8 +3,8 @@ package vct.antlr4.parser;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-import vct.antlr4.generated.PVFullBaseVisitor;
-import vct.antlr4.generated.PVFullParser;
+import vct.antlr4.generated.PVLBaseVisitor;
+import vct.antlr4.generated.PVLParser;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ProgramUnit;
 
@@ -13,8 +13,8 @@ import vct.col.ast.stmt.decl.ProgramUnit;
  * 
  * @author <a href="mailto:s.c.c.blom@utwente.nl">Stefan Blom</a>
 */
-public class PVLtoCOL extends PVFullBaseVisitor<ASTNode> {
-  public static ProgramUnit convert(ParseTree tree, String file_name, CommonTokenStream tokens, PVFullParser parser) {
+public class PVLtoCOL extends PVLBaseVisitor<ASTNode> {
+  public static ProgramUnit convert(ParseTree tree, String file_name, CommonTokenStream tokens, PVLParser parser) {
     return null;
   }
 
@@ -716,7 +716,7 @@ public class PVLtoCOL extends PVFullBaseVisitor<ASTNode> {
 //      return create.ifthenelse(convert(ctx,2),convert(ctx,4),convert(ctx,6));
 //    }
 //    if (match(ctx,null,"while","(",null,")",null)){
-//      PVFullParser.InvariantContext inv_ctx=(PVFullParser.InvariantContext)ctx.children.get(0);
+//      PVLParser.InvariantContext inv_ctx=(PVLParser.InvariantContext)ctx.children.get(0);
 //      int N = (inv_ctx.children==null) ? 0 : inv_ctx.children.size()/3;
 //      ASTNode invs[]=new ASTNode[N];
 //      for(int i=0;i<N;i++){
@@ -725,7 +725,7 @@ public class PVLtoCOL extends PVFullBaseVisitor<ASTNode> {
 //      return create.while_loop(convert(ctx,3),convert(ctx,5),invs);
 //    }
 //    if (match(ctx, null, "for", "(", null, ";", null, ";", null, ")", null)) {
-//      PVFullParser.InvariantContext invariantContext = (PVFullParser.InvariantContext)ctx.children.get(0);
+//      PVLParser.InvariantContext invariantContext = (PVLParser.InvariantContext)ctx.children.get(0);
 //      int invariantCount = (invariantContext.children == null) ? 0 : invariantContext.children.size() / 3;
 //      ASTNode invariants[] = new ASTNode[invariantCount];
 //

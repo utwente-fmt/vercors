@@ -1,4 +1,4 @@
-grammar val;
+parser grammar SpecParser;
 
 /**
  imported grammar rules
@@ -6,31 +6,45 @@ grammar val;
    identifier
    type
    block
- exported grammar rules
-   valContractClause - contract clause
-   valStatement      - proof guiding statements
-   valReserved       - reserved identifiers
+   startSpec - the rule entering the lexer into specification mode
+   endSpec - the rule exiting the lexer from specification mode
+ exported grammar rules for PVL
+   valContractClause        - contract clause
+   valStatement             - proof guiding statements
+   valWithThen              - with/then statement to use given/yields ghost arguments
+   valReserved              - reserved identifiers
+ exported grammar rules for other languages
+   valEmbedContract         - sequence of contract clauses embedded in sequence of comments
+   valEmbedContractBlock    - sequence of contract clauses embedded in one comment
+   valEmbedStatementBlock   - sequence of valStatements embedded in a comment
+   valEmbedWithThenBlock    - with and/or then in one comment
+   valEmbedWithThen         - with and/or then in a sequence of comments
  */
 
-expressionList
+valExpressionList
     : expression
-    | expression ',' expressionList
+    | expression ',' valExpressionList
+    ;
+
+valLabelList
+    : identifier
+    | identifier ',' valLabelList
     ;
 
 valContractClause
- : 'modifies' expressionList ';'
- | 'accessible' expressionList ';'
+ : 'modifies' valExpressionList ';'
+ | 'accessible' valExpressionList ';'
  | 'requires' expression ';'
  | 'ensures' expression ';'
  | 'given' type identifier ';'
  | 'yields' type identifier ';'
  | 'context_everywhere' expression ';'
  | 'context' expression ';'
+ | 'loop_invariant' expression ';'
  ;
 
 valStatement
- : 'loop_invariant' expression ';'
- | 'create' block               // create a magic wand
+ : 'create' block               // create a magic wand
  | 'qed' expression ';'
  | 'apply' expression ';'
  | 'use' expression ';'
@@ -60,11 +74,20 @@ valStatement
  | 'spec_ignore' '}'
  | 'spec_ignore' '{'
  | 'action' expression ',' expression ',' expression ',' expression ( ',' expression ',' expression )* ';'
- | 'atomic' '(' expressionList? ')' block
+ | 'atomic' '(' valLabelList? ')' block
+ ;
+
+valWithThenMapping
+ : identifier '=' expression ';'
+ ;
+
+valWithThen
+ : 'with' '{' valWithThenMapping* '}'
+ | 'then' '{' valWithThenMapping* '}'
  ;
 
 valPrimary
-    : type '{' expressionList? '}'
+    : type '{' valExpressionList? '}'
     | '[' expression ']' expression
     | '|' expression '|'
     | '\\unfolding' expression '\\in' expression
@@ -99,7 +122,30 @@ valPrimary
 
 valReserved
  : ('create' | 'action' | 'destroy' | 'send' | 'recv' | 'use' | 'open' | 'close'
- | 'atomic'  | 'from' | 'merge' | 'split' | 'process' | 'apply' | 'label')
- | '\\result' | '\\current_thread'
+        | 'atomic'  | 'from' | 'merge' | 'split' | 'process' | 'apply' | 'label')
+ | '\\result'
+ | '\\current_thread'
+ | 'none' // No permission
+ | 'write' // Full permission
+ | 'read' // Any read permission
+ | 'None' // The empty value of the option type
+ | 'empty' // The empty process in the context of Models
  ;
 
+valEmbedContract: valEmbedContractBlock+;
+
+valEmbedContractBlock
+ : startSpec valContractClause* endSpec
+ ;
+
+valEmbedStatementBlock
+ : startSpec valStatement* endSpec
+ ;
+
+valEmbedWithThenBlock
+ : startSpec valWithThen* endSpec
+ ;
+
+valEmbedWithThen
+ : valEmbedWithThenBlock+
+ ;
