@@ -17,6 +17,8 @@ import vct.col.ast.util.ContractBuilder;
 public class AddTypeADT extends AbstractRewriter {
 
   public static final String type_adt="TYPE";
+  public static final String objectName = "java_DOT_lang_DOT_Object";
+  public static final String objectCons = "class_" + objectName;
 
   private AxiomaticDataType adt;
   
@@ -29,8 +31,6 @@ public class AddTypeADT extends AbstractRewriter {
     create.enter();
     create.setOrigin(new MessageOrigin("Generated type system ADT"));
     adt=create.adt(type_adt);
-    ClassType adt_type=create.class_type(type_adt);
-    adt.add_cons(create.function_decl(create.class_type(type_adt),null,"class_Object",new DeclarationStatement[0],null));
     adt.add_map(create.function_decl(
         create.primitive_type(PrimitiveSort.Boolean),
         null,
@@ -41,16 +41,6 @@ public class AddTypeADT extends AbstractRewriter {
         },
         null
     ));
-    adt.add_axiom(create.axiom("object_top",create.forall(
-        create.constant(true),
-        create.invokation(adt_type, null,"instanceof",create.invokation(adt_type,null,"class_Object"),create.local_name("t")),
-        new DeclarationStatement[]{create.field_decl("t",create.class_type(type_adt))}
-    )));
-    adt.add_axiom(create.axiom("object_eq",create.forall(
-        create.constant(true),
-        create.invokation(adt_type, null,"instanceof",create.local_name("t"),create.local_name("t")),
-        new DeclarationStatement[]{create.field_decl("t",create.class_type(type_adt))}
-    )));
     create.leave();
     target().add(adt);
   }
@@ -92,29 +82,61 @@ public class AddTypeADT extends AbstractRewriter {
   public void visit(ASTClass cl){
     super.visit(cl);
     ASTClass res=(ASTClass)result;
-    adt.add_cons(create.function_decl(create.class_type(type_adt),null, "class_"+cl.name(), new DeclarationStatement[0],null));
-    if (cl.super_classes.length==0){
-      for(String other:rootclasses){
-        adt.add_axiom(create.axiom("different_"+other+"_" + cl.name(),
-            create.expression(StandardOperator.Not,
-               create.invokation(create.class_type(type_adt), null,"instanceof",
-                   create.invokation(create.class_type(type_adt),null,"class_"+other),
-                   create.invokation(create.class_type(type_adt),null,"class_"+cl.name())))
-        ));
-        adt.add_axiom(create.axiom("different_"+cl.name()+"_"+other,
-            create.expression(StandardOperator.Not,
-               create.invokation(create.class_type(type_adt), null,"instanceof",
-                   create.invokation(create.class_type(type_adt),null,"class_"+cl.name()),
-                   create.invokation(create.class_type(type_adt),null,"class_"+other)))
-        ));
-      }
-      rootclasses.add(cl.name());
+    addTypeConstructor(cl);
+    if (cl.super_classes.length==0) {
+      addDirectSuperclassAxiom(cl);
     } else {
       // TODO
     }
     result=res;
   }
-  
+
+  private void addTypeConstructor(ASTClass cl) {
+    adt.add_unique_cons(create.function_decl(
+            create.class_type(type_adt),
+            null,
+            "class_"+cl.name(),
+            new DeclarationStatement[0],
+            null
+            ));
+  }
+
+  private void addDirectSuperclassAxiom(ASTClass cl) {
+    String cl_adt_constructor = "class_" + cl.name();
+    String type_var = "t";
+    // Axiom: forall t: TYPE :: (t != ct || t == cl) ? instanceof(cl, t) : !instanceof(cl, t)
+    // In other words: cl is only an instance of object and cl, and nothing else
+    // This will need to be significantly enhanced to allow for a type system with a partial order/inheritance
+    adt.add_axiom(create.axiom(cl.name() + "_direct_superclass",
+            create.forall(
+                    create.constant(true),
+                    create.expression(StandardOperator.ITE,
+                            create.expression(StandardOperator.Or,
+                                    create.expression(StandardOperator.EQ,
+                                            create.local_name(type_var),
+                                            create.domain_call(type_adt, objectCons)
+                                            ),
+                                    create.expression(StandardOperator.EQ,
+                                            create.local_name(type_var),
+                                            create.domain_call(type_adt, cl_adt_constructor)
+                                            )
+                            ),
+                            create.domain_call(type_adt, "instanceof",
+                                    create.domain_call(type_adt, cl_adt_constructor),
+                                    create.local_name(type_var)
+                                    ),
+                            create.expression(StandardOperator.Not,
+                                    create.domain_call(type_adt, "instanceof",
+                                            create.domain_call(type_adt, cl_adt_constructor),
+                                            create.local_name(type_var)
+                                            )
+                                    )
+                            ),
+                    create.field_decl(type_var, create.class_type(type_adt))
+                    )
+            ));
+  }
+
   public void visit(OperatorExpression e){
     switch(e.operator()){
     case EQ:
@@ -147,5 +169,4 @@ public class AddTypeADT extends AbstractRewriter {
       break;
     }
   }
-  
 }

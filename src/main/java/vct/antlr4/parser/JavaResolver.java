@@ -367,6 +367,9 @@ public class JavaResolver extends AbstractRewriter {
         target().add(tmp);
       }
     }
+
+    ensures_loaded("java", "lang", "Object");
+
     target().index_classes();
     return target();
   }
