@@ -25,8 +25,8 @@ valContractClause
  ;
 
 valInvocationAnnotation
- : 'with' '{' (identifier '=' expression ';')* '}' ';'
- | 'then' '{' (identifier '=' expression ';')* '}' ';'
+ : 'with' '{' (identifier '=' expression ';')* '}'
+ | 'then' '{' (identifier '=' expression ';')* '}'
  ;
 
 valStatement

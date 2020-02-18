@@ -277,6 +277,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
 
   @Override
   public ASTNode visitDeclarationSpecifiers(DeclarationSpecifiersContext ctx) {
+
     Debug("\"decl specs\" %s",ctx.toStringTree(parser));
     int i=ctx.getChildCount()-1;
     ParserRuleContext tmp=(ParserRuleContext)((ParserRuleContext)ctx.getChild(i)).getChild(0);
@@ -544,6 +545,11 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   }
 
   @Override
+  public ASTNode visitExtraAnnotation(ExtraAnnotationContext ctx) {
+    return null;
+  }
+
+  @Override
   public ASTNode visitExtraIdentifier(ExtraIdentifierContext ctx) {
     return null;
   }
@@ -569,6 +575,12 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     return getValType(ctx);
   }
 
+  private void scanMethodAnnotations(Method target, DeclarationSpecifiersContext declSpecs) {
+    for(ParseTree child : declSpecs.children) {
+      scan_comments_after(target.annotations(), child);
+    }
+  }
+
   @Override
   public ASTNode visitFunctionDefinition(FunctionDefinitionContext ctx) {
     if(!match(ctx, "DeclarationSpecifiers", "Declarator", "CompoundStatement")) {
@@ -578,6 +590,8 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     Type declSpec = (Type)convert(ctx,0);
     Method declaration = (Method) convert(ctx, 1);
     declaration.setBody(convert(ctx, 2));
+
+    scanMethodAnnotations(declaration, (DeclarationSpecifiersContext)ctx.getChild(0));
 
     VariableDeclaration result = create.variable_decl(declSpec);
     result.add(declaration);

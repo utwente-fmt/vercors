@@ -16,6 +16,10 @@ extraDeclaration
  : pureFunctionDeclaration
  ;
 
+extraAnnotation
+ : 'pure'
+ ;
+
 /* auxiliary defs */
 
 typeArgs : '<' ((expression | type) (',' (expression | type))*)? '>' ;
