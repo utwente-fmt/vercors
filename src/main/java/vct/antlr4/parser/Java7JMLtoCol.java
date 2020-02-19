@@ -214,6 +214,7 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
         scan_comments_before(before,ctx.getChild(1));
       }
       ASTList after=new ASTList();
+      // scan with and then annotations:
       scan_comments_after(after,ctx);
       ASTNode om=convert(ctx,0);
       ASTNode args[]=convert_list(ctx.getChild(static_dispatch?3:1),"(",",",")");
@@ -950,15 +951,9 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     if (match(ctx,"csl_subject",null,";")){
       return create.special(ASTSpecial.Kind.CSLSubject,convert(ctx,1));
     }
-    if (match(ctx,"with",null)){
-        return create.special(ASTSpecial.Kind.With,convert(ctx,1));
-      }
     if (match(ctx,"label",null)){
         return create.special(ASTSpecial.Kind.Label,convert(ctx,1));
       }
-    if (match(ctx,"then",null)){
-      return create.special(ASTSpecial.Kind.Then,convert(ctx,1));
-    }
     if (match(ctx,"proof",null)){
       return create.special(ASTSpecial.Kind.Proof,convert(ctx,1));
     }
@@ -1594,6 +1589,30 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
   public ASTNode visitValContractClause(ValContractClauseContext ctx) {
 
     return null;
+  }
+
+  @Override
+  public ASTNode visitValInvocationAnnotation(ValInvocationAnnotationContext ctx) {
+    if (match(0, true, ctx,"with") ||
+            match(0, true, ctx,"then")){
+      BlockStatement block = create.block();
+
+      int offset = 2;
+      while(!match(offset, true, ctx, "}")) {
+        String givenName = getIdentifier(ctx, offset);
+        ASTNode givenValue = convert(ctx, offset+2);
+        block.add(create.assignment(create.unresolved_name(givenName), givenValue));
+        offset += 4;
+      }
+
+      ASTSpecial.Kind kind = match(0, true, ctx, "with") ? Kind.With : Kind.Then;
+      return create.special(kind, block);
+    }
+
+    return null;
+
+//     : 'with' '{' (identifier '=' expression ';')* '}' ';'
+//     | 'then' '{' (identifier '=' expression ';')* '}' ';'
   }
 
   @Override
