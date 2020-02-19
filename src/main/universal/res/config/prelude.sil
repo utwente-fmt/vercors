@@ -101,8 +101,6 @@ domain MatrixExpression[T] {
       msum(product(vrange(i,j+1),cols),mseq(xs))
       == vadd(msum(product(vrange(i,j),cols),mseq(xs)),vsum(cols,vseq(xs[i])))
   }
-
-
 }
 
 
@@ -117,42 +115,43 @@ domain VectorExpression[T] {
   function vsum(is:VectorIndex,xs: VectorExpression[T]): T
   function vget(v:VectorExpression[T],i:Int):T
   function vadd(t1:T,t2:T):T
-
+  function vsize(v: VectorExpression[T]): Int
   function vdummy(v:Seq[Int]):VectorExpression[T]
 
   axiom vrep_idx {
     forall i:Int, t:T :: { vget(vrep(t),i) } vget(vrep(t),i) == t
   }
-
   axiom add_int {
     forall i:Int, j:Int :: { vadd(i,j) } vadd(i,j) == i + j
   }
-
   axiom vseq_get {
     forall i:Int, xs : Seq[T] :: { vget(vseq(xs),i) } vget(vseq(xs),i) == xs[i]
   }
-
   axiom vcmp_get {
     forall i:Int, xs : VectorExpression[T], ys : VectorExpression[T] ::
       { vget(vcmp(xs,ys),i) } vget(vcmp(xs,ys),i) == ((vget(xs,i)==vget(ys,i))?1:0)
   }
-
   axiom add_float {
     forall i:VCTFloat, j:VCTFloat :: { vadd(i,j) } vadd(i,j) == fadd(i,j)
   }
-
   axiom zero_vsum_f_r {
     forall xs : VectorExpression[VCTFloat], i:Int ::
       { vsum(vrange(i,i),xs) } vsum(vrange(i,i),xs) == zero()
   }
-
   axiom zero_vsum_i_r {
-    forall xs : VectorExpression[Int], i:Int ::
-      { vsum(vrange(i,i),xs) } vsum(vrange(i,i),xs) == 0
+    (forall xs: VectorExpression[Int], i: Int :: { vsum(vrange(i, i), xs) } vsum(vrange(i, i), xs) == 0)
   }
-
+  axiom vsize_axiom {
+      forall xs: Seq[T] :: vsize(vseq(xs)) == |xs|
+  }
+  axiom vsize_axiom_2 {
+      forall t: T :: vsize(vrep(t)) == 1
+  }
   axiom extend_vsum_r {
     forall xs: VectorExpression[T], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= 0 && j > i) ==> vsum(vrange(i, j), xs) == vadd(vsum(vrange(i, j-1), xs), vget(xs, j-1))
+  }
+  axiom extend_vsum_r2 {
+    forall xs: VectorExpression[Int], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i < 0 || i >= j || j >= vsize(xs)) ==> (vsum(vrange(i, j), xs) == 0)
   }
 }
 
