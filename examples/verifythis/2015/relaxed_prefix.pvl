@@ -138,6 +138,85 @@ class Relaxed {
 }
 
 //
+// Solution by Mohsen Safari, Petra van den Bos, and Bob Rubbens
+//
+
+class Relaxed2 {
+  // Output ghost parameters
+  yields int pivot;
+  yields int pivot2;
+
+  // Memory safety
+  context_everywhere pat != null;
+  context_everywhere a != null;
+  context_everywhere a.length > 0;
+  context_everywhere pat.length > 0;
+  context_everywhere pat.length <= a.length;
+  context_everywhere (\forall* int i ; i >= 0 && i < pat.length ; Perm(pat[i], read));
+  context_everywhere (\forall* int i ; i >= 0 && i < a.length ; Perm(a[i], read));
+
+  ensures \result ==> pivot >= -1 && pivot < pat.length;
+  // Either a full prefix is found
+  ensures \result && pivot == -1 ==> (\forall int i = 0 .. pat.length; a[i] == pat[i]);
+  // Or a relaxed one given a pivot
+  ensures \result && pivot != -1 ==> (\forall int i = 0 .. pivot; pat[i] == a[i]);
+  ensures \result && pivot != -1 ==> (\forall int i = pivot + 1 .. pat.length; pat[i] == a[i - 1]);
+
+  // Or there are at least 2 indices where elements differ, and the rest is equal
+  // Implying there is no posible relaxed prefix we missed
+  ensures !\result ==>
+            (pivot >= 0 && pivot < pat.length)
+            && (pivot2 >= 1 && pivot2 < pat.length)
+            && (pat[pivot] != a[pivot])
+            && (pat[pivot2] != a[pivot2 - 1])
+            && pivot != pivot2;
+  ensures !\result ==> (\forall int i = 0 .. pivot; pat[i] == a[i]);
+  ensures !\result ==> (\forall int i = pivot + 1 .. pivot2; pat[i] == a[i - 1]);
+  boolean isRelaxedPrefix(int[] pat, int[] a) {
+    int shift = 0;
+    boolean isPrefix = true;
+    pivot = -1;
+    pivot2 = -1;
+
+    // General bounds
+    loop_invariant i >= 0 && i <= pat.length;
+    loop_invariant shift == 0 || shift == 1;
+    loop_invariant i - shift >= 0;
+    loop_invariant pivot >= -1 && pivot < pat.length;
+    loop_invariant pivot2 == -1 || pivot2 >= 1 && pivot2 < pat.length;
+
+    // A full prefix might be found
+    loop_invariant isPrefix && shift == 0 ==> (\forall int j = 0 .. i; pat[j] == a[j]);
+    // Or a relaxed prefix might be found
+    loop_invariant isPrefix && shift == 1 ==> pivot >= 0 && pivot < pat.length;
+    loop_invariant isPrefix && shift == 1 ==> (\forall int j = 0 .. pivot; pat[j] == a[j]);
+    loop_invariant isPrefix && shift == 1 ==> (\forall int j = pivot + 1 .. i; pat[j] == a[j-1]);
+
+    // If there is no prefix 2 indices are found where the elements differ
+    loop_invariant !isPrefix ==> pivot != -1 && pivot2 != -1;
+    loop_invariant !isPrefix ==> pivot != pivot2;
+    loop_invariant !isPrefix ==> (\forall int i = 0 .. pivot; pat[i] == a[i]);
+    loop_invariant !isPrefix ==> (\forall int i = pivot + 1 .. pivot2; pat[i] == a[i - 1]);
+    loop_invariant pivot != -1 ==> pivot < i;
+    loop_invariant pivot != -1 ==> (pat[pivot] != a[pivot]);
+    loop_invariant pivot2 != -1 ==> (pat[pivot2] != a[pivot2-1]);
+    for(int i = 0; i < pat.length && isPrefix; i++) {
+      if(pat[i] != a[i - shift]) {
+        if(shift == 0) {
+          shift = 1;
+          pivot = i;
+        } else {
+          isPrefix = false;
+          pivot2 = i;
+        }
+      }
+    }
+
+    return isPrefix;
+  }
+}
+
+//
 // Extra solution 
 //
 
