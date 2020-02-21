@@ -144,6 +144,25 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLPar
         convertID(name), args.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
   })
 
+  def convertContract(contract: ParserRuleContext): Contract = origin(contract, contract match {
+    case Contract0(clauses) =>
+      val contractBuilder = new ContractBuilder
+      clauses.foreach(convertValClause(_, contractBuilder))
+      contractBuilder.getContract(false)
+    case InvariantList0(invariants) =>
+      val contractBuilder = new ContractBuilder
+      invariants.foreach(convertInvariant(_, contractBuilder))
+      contractBuilder.getContract(false)
+    case valClause: ValContractClauseContext =>
+      val contractBuilder = new ContractBuilder
+      convertValClause(valClause, contractBuilder)
+      contractBuilder.getContract(false)
+    case invClause: InvariantContext =>
+      val contractBuilder = new ContractBuilder
+      convertInvariant(invClause, contractBuilder)
+      contractBuilder.getContract(false)
+  })
+
   def convertArgs(args: ArgsContext): Seq[DeclarationStatement] = args match {
     case Args0(t, name) =>
       Seq(create.field_decl(convertID(name), convertType(t)))
@@ -169,33 +188,15 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLPar
 
   def convertID(identifier: IdentifierContext): String = identifier match {
     case Identifier0(name) => name
-    case Identifier1(ValReserved0(_)) =>
-      fail(identifier, "This identifier is reserved and cannot be declared or used.")
-    case Identifier1(ValReserved1("\\result")) =>
-      fail(identifier, "This identifier is reserved and cannot be declared.")
-    case Identifier1(ValReserved2("\\current_thread")) =>
-      fail(identifier, "This identifier is reserved and cannot be declared.")
+    case Identifier1(reserved) =>
+      fail(reserved, "This identifier is reserved and cannot be declared.")
   }
 
   def convertIDName(identifier: IdentifierContext): NameExpression = origin(identifier, identifier match {
     case Identifier0(name) =>
       create unresolved_name name
-    case Identifier1(ValReserved0(_)) =>
-      fail(identifier, "This identifier is reserved and cannot be declared or used.")
-    case Identifier1(ValReserved1("\\result")) =>
-      create reserved_name ASTReserved.Result
-    case Identifier1(ValReserved2("\\current_thread")) =>
-      create reserved_name ASTReserved.CurrentThread
-    case Identifier1(ValReserved3("none")) =>
-      create reserved_name ASTReserved.NoPerm
-    case Identifier1(ValReserved4("write")) =>
-      create reserved_name ASTReserved.FullPerm
-    case Identifier1(ValReserved5("read")) =>
-      create reserved_name ASTReserved.ReadPerm
-    case Identifier1(ValReserved6("None")) =>
-      create reserved_name ASTReserved.OptionNone
-    case Identifier1(ValReserved7("empty")) =>
-      create reserved_name ASTReserved.EmptyProcess
+    case Identifier1(reserved) =>
+      convertValReserved(reserved)
   })
 
   def convertIDList(list: IdentifierListContext): Seq[String] = list match {
@@ -222,20 +223,6 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLPar
   def convertExpList(args: ValuesContext): Seq[ASTNode] = args match {
     case Values0(_, None, _) => Seq()
     case Values0(_, Some(values), _) => convertExpList(values)
-  }
-
-  def convertValExpList(args: ValExpressionListContext): Seq[ASTNode] = args match {
-    case ValExpressionList0(exp) =>
-      Seq(expr(exp))
-    case ValExpressionList1(exp, ",", expList) =>
-      expr(exp) +: convertValExpList(expList)
-  }
-
-  def convertValLabelList(args: ValLabelListContext): Seq[ASTNode] = args match {
-    case ValLabelList0(label) =>
-      Seq(create label(convertID(label)))
-    case ValLabelList1(label, _, labels) =>
-      (create label convertID(label)) +: convertValLabelList(labels)
   }
 
   // Also needs expression (val)
@@ -310,11 +297,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLPar
           case QuantifiedDim0(_, size, _) => expr(size)
         }.toArray
       }
-      var arrayType = baseType
-      for(_ <- 0 until dimSizes.size)
-        arrayType = create.primitive_type(PrimitiveSort.Option,
-          create.primitive_type(PrimitiveSort.Array,
-            create.primitive_type(PrimitiveSort.Cell, arrayType)))
+      var arrayType = addDims(baseType, dimSizes.size)
       create expression(NewArray, arrayType, dimSizes)
     case NewExpr2(nonTarget) => expr(nonTarget)
     case NewExpr3(target) => expr(target)
@@ -391,7 +374,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLPar
     case NonTargetUnit13(seq) => ??(tree)
     case NonTargetUnit14("(", exp, ")") => expr(exp)
     case NonTargetUnit15(id) => convertIDName(id)
-    case NonTargetUnit16(valPrimary) => expr(valPrimary)
+    case NonTargetUnit16(valPrimary) => valExpr(valPrimary)
     case DeclInit0("=", exp) => expr(exp)
 
     case CollectionConstructors0(container, _, elemType, _, values) =>
@@ -429,6 +412,315 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLPar
         PrimitiveSort.Bag, convertType(t)),
         null)
 
+
+  })
+
+  def addDims(t: Type, dimCount: Int): Type = {
+    if (dimCount == 0) {
+      t
+    } else {
+      var result = create.primitive_type(PrimitiveSort.Cell, t)
+      for(i <- 0 until dimCount) {
+        result = create.primitive_type(PrimitiveSort.Array, result)
+      }
+      create.primitive_type(PrimitiveSort.Option, result)
+    }
+  }
+
+  def convertType(t: ParserRuleContext): Type = origin(t, t match {
+    case Type0(t, dims) =>
+      val dimCount = dims match {
+        case TypeDims0(dims) => dims.size
+        case TypeDims1(dims) => dims.size
+      }
+      var result = addDims(convertType(t), dimCount)
+      result
+
+    case NonArrayType0(container, "<", innerType, ">") =>
+      val kind = container match {
+        case "seq" => PrimitiveSort.Sequence
+        case "set" => PrimitiveSort.Set
+        case "bag" => PrimitiveSort.Bag
+      }
+      create.primitive_type(kind, convertType(innerType))
+    case NonArrayType1("option", "<", t, ">") =>
+      create.primitive_type(PrimitiveSort.Option, convertType(t))
+    case NonArrayType2(primitive) =>
+      create.primitive_type(primitive match {
+        case "string" => PrimitiveSort.String
+        case "process" => PrimitiveSort.Process
+        case "int" => PrimitiveSort.Integer
+        case "boolean" => PrimitiveSort.Boolean
+        case "zfrac" => PrimitiveSort.ZFraction
+        case "frac" => PrimitiveSort.Fraction
+        case "resource" => PrimitiveSort.Resource
+        case "void" => PrimitiveSort.Void
+      })
+    case NonArrayType3(ClassType0(name, maybeTypeArgs)) =>
+      create class_type(convertID(name), (maybeTypeArgs match {
+        case None => Seq()
+        case Some(TypeArgs0(_, args, _)) =>
+          convertExpList(args)
+      }).asJava)
+  })
+
+  def convertInvariant(inv: InvariantContext, builder: ContractBuilder): Unit = inv match {
+    case Invariant0(_loop_invariant, exp, _) =>
+      builder.appendInvariant(expr(exp))
+  }
+
+  def convertBlock(block: ParserRuleContext): BlockStatement = block match {
+    case Block0(_, statements, _) =>
+      create block(statements.map(convertStat):_*)
+  }
+
+  def convertStat(stat: ParserRuleContext): ASTNode = origin(stat, stat match {
+    case Statement0("return", None, _) => create.return_statement()
+    case Statement0("return", Some(value), _) => create.return_statement(expr(value))
+    case Statement1("lock", exp, _) => create special(ASTSpecial.Kind.Lock, expr(exp))
+    case Statement2("unlock", exp, _) => create special(ASTSpecial.Kind.Unlock, expr(exp))
+    case Statement3("wait", exp, _) => create special(ASTSpecial.Kind.Wait, expr(exp))
+    case Statement4("notify", exp, _) => create special(ASTSpecial.Kind.Notify, expr(exp))
+    case Statement5("fork", exp, _) => create special(ASTSpecial.Kind.Fork, expr(exp))
+    case Statement6("join", exp, _) => create special(ASTSpecial.Kind.Join, expr(exp))
+    case Statement7("action", tup, blockNode) =>
+      val args = convertExpList(tup)
+      val argsOK = args.size >= 4 && args.size % 2 == 0
+      if (!argsOK) {
+        fail(tup, "action takes four arguments plus any number of pairs, but %d arguments were supplied.", Int.box(args.size))
+      }
+      val nameMap =
+        (4 until args.size by 2).map(i => {
+          args(i).asInstanceOf[NameExpression].getName -> args(i+1)
+        }).toMap
+      val block = convertBlock(blockNode)
+      create action_block(args(0), args(1), args(2), args(3), nameMap.asJava, block)
+    case Statement8(valStat) => convertValStat(valStat)
+    case Statement9("if", "(", cond, ")", thenStat, maybeElseStat) =>
+      create ifthenelse(expr(cond), convertStat(thenStat), maybeElseStat.map(convertStat).orNull)
+    case ElseBlock0("else", stat) => convertStat(stat)
+    case Statement10("barrier", "(", name, maybeTags, ")", bodyNode) =>
+      val tags = maybeTags match {
+        case Some(BarrierTags0(_, tags)) => convertIDList(tags)
+        case None => Seq()
+      }
+      val (maybeBody, contract) = bodyNode match {
+        case BarrierBody0("{", contract, "}") =>
+          (None, convertContract(contract))
+        case BarrierBody1(contract, body) =>
+          (Some(convertBlock(body)), convertContract(contract))
+      }
+      val tagsJavaList = new JavaArrayList[String](tags.asJava)
+      create barrier(convertID(name), contract, tagsJavaList, maybeBody.orNull)
+    case Statement11(contract, "par", parUnitList) =>
+      val parUnits = convertParUnitList(parUnitList)
+      val javaParUnits = new JavaArrayList[ParallelBlock](parUnits.asJava)
+      create region(convertContract(contract), javaParUnits)
+    case Statement12("vec", "(", iter, ")", block) =>
+      create vector_block(convertParIter(iter), convertBlock(block))
+    case Statement13("invariant", label, "(", resource, ")", block) =>
+      create invariant_block(convertID(label), expr(resource), convertBlock(block))
+    case Statement14("atomic", "(", invariants, ")", block) =>
+      create parallel_atomic(convertBlock(block), convertIDList(invariants):_*)
+    case Statement15(invariants, "while", "(", cond, ")", body) =>
+      create while_loop(expr(cond), convertStat(body), convertContract(invariants))
+    case Statement16(invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
+      create for_loop(
+        maybeInit.map(convertStatList).map(create block(_:_*)).orNull,
+        maybeCond.map(expr).getOrElse(create constant true),
+        maybeUpdate.map(convertStatList).map(create block(_:_*)).orNull,
+        convertStat(body),
+        convertContract(invariants)
+      )
+    case Statement17(block) => convertBlock(block)
+    case Statement18("{*", exp, "*}") =>
+      create special(ASTSpecial.Kind.HoarePredicate, expr(exp))
+    case Statement19("goto", label, _) =>
+      create special(ASTSpecial.Kind.Goto, convertIDName(label))
+    case Statement20("label", label, _) =>
+      create special(ASTSpecial.Kind.Label, convertIDName(label))
+    case Statement21(stat, _) => convertStat(stat)
+    case AllowedForStatement0(tNode, decls) =>
+      val t = convertType(tNode)
+      val result = new VariableDeclaration(t)
+      val statements = convertDeclList(decls).foreach{
+        case (name, init) =>
+          result.add(DeclarationStatement(name, VariableDeclaration.common_type, init))
+      }
+      result
+    case AllowedForStatement1(exp) => expr(exp)
+    case AllowedForStatement2(id, "++") => create expression(PostIncr, convertIDName(id))
+    case AllowedForStatement2(id, "--") => create expression(PostDecr, convertIDName(id))
+    case AllowedForStatement3(target, "=", exp) =>
+      create assignment(expr(target), expr(exp))
+  })
+
+  def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {
+    case ForStatementList0(x) => Seq(convertStat(x))
+    case ForStatementList1(x, ",", xs) => convertStat(x) +: convertStatList(xs)
+  }
+
+  def convertParUnitList(tree: ParUnitListContext): Seq[ParallelBlock] = tree match {
+    case ParUnitList0(x) => Seq(convertParUnit(x))
+    case ParUnitList1(x, "and", xs) => convertParUnit(x) +: convertParUnitList(xs)
+  }
+
+  def convertParUnit(tree: ParUnitContext): ParallelBlock = origin(tree, tree match {
+    case ParUnit0(maybeLabel, _, maybeIters, maybeWaitList, _, contract, block) =>
+      val label = maybeLabel.map(convertID).getOrElse("")
+      val iters = maybeIters.map(convertParIters).getOrElse(Seq())
+      val waitList = maybeWaitList.map(convertParWaitList).getOrElse(Seq())
+      create parallel_block(label, convertContract(contract), iters.toArray, convertBlock(block), waitList.toArray[ASTNode])
+    case ParUnit1(contract, block) =>
+      create parallel_block("", convertContract(contract), Array(), convertBlock(block))
+  })
+
+  def convertParIters(tree: ItersContext): Seq[DeclarationStatement] = tree match {
+    case Iters0(x) => Seq(convertParIter(x))
+    case Iters1(x, ",", xs) => convertParIter(x) +: convertParIters(xs)
+  }
+
+  def convertParIter(tree: IterContext): DeclarationStatement = origin(tree, tree match {
+    case Iter0(t, name, "=", left, "..", right) =>
+      val range = create expression(RangeSeq, expr(left), expr(right))
+      create field_decl(convertID(name), convertType(t), range)
+  })
+
+  def convertParWaitList(tree: ParserRuleContext): Seq[MethodInvokation] = tree match {
+    case ParWaitList0(_, list) => convertParWaitList(list)
+    case WaitList0(x) => Seq(convertParWait(x))
+    case WaitList1(x, ",", xs) => convertParWait(x) +: convertParWaitList(xs)
+  }
+
+  def convertParWait(tree: WaitForContext): MethodInvokation = origin(tree, tree match {
+    case WaitFor0(name, maybeArgs) =>
+      create invokation(null, null, convertID(name), (maybeArgs match {
+        case None => Seq()
+        case Some(WaitForArgs0(_, args, _)) => convertIdArgs(args)
+      }):_*)
+  })
+
+  def convertIdArgs(tree: IdArgListContext): Seq[ASTNode] = (tree match {
+    case IdArgList0(x) => Seq(x)
+    case IdArgList1(x, ",", xs) => x +: convertIdArgs(xs)
+  }).map {
+    case IdArg0(id) => convertIDName(id)
+    case IdArg1("*") => create reserved_name(Any)
+  }
+
+  /* === Start of duplicated code block ===
+   * Below here are the conversion methods for specification constructs. Because they are generated via a language-
+   * specific parser, each language has a different set of classes for the ANTLR nodes of specifications. They are
+   * however named identically, so we choose to keep this block of code textually the same across the different
+   * languages.
+   *
+   * If you change anything here, please propagate the change to:
+   *  - PVLtoCOL.scala
+   *  - JavaJMLtoCOL.scala
+   *  - CMLtoCOL.scala
+   */
+  def convertValExpList(args: ValExpressionListContext): Seq[ASTNode] = args match {
+    case ValExpressionList0(exp) =>
+      Seq(expr(exp))
+    case ValExpressionList1(exp, ",", expList) =>
+      expr(exp) +: convertValExpList(expList)
+  }
+
+  def convertValLabelList(args: ValLabelListContext): Seq[ASTNode] = args match {
+    case ValLabelList0(label) =>
+      Seq(create label(convertID(label)))
+    case ValLabelList1(label, _, labels) =>
+      (create label convertID(label)) +: convertValLabelList(labels)
+  }
+
+  def convertValClause(clause: ValContractClauseContext,
+                       builder: ContractBuilder): Unit = clause match {
+    case ValContractClause0(_modifies, names, _) =>
+      builder.modifies(convertValExpList(names):_*)
+    case ValContractClause1(_accessible, names, _) =>
+      builder.accesses(convertValExpList(names):_*)
+    case ValContractClause2(_requires, exp, _) =>
+      builder.requires(expr(exp))
+    case ValContractClause3(_ensures, exp, _) =>
+      builder.ensures(expr(exp))
+    case ValContractClause4(_given, t, name, _) =>
+      builder.`given`(create.field_decl(convertID(name), convertType(t)))
+    case ValContractClause5(_yields, t, name, _) =>
+      builder.yields(create.field_decl(convertID(name), convertType(t)))
+    case ValContractClause6(_context_everywhere, exp, _) =>
+      builder.appendInvariant(expr(exp))
+    case ValContractClause7(_context, exp, _) =>
+      builder.context(expr(exp))
+    case ValContractClause8(_loop_invariant, exp, _) =>
+      builder.appendInvariant(expr(exp))
+  }
+
+  def convertValStat(stat: ValStatementContext): ASTNode = origin(stat, stat match {
+    case ValStatement0(_create, block) =>
+      create lemma(convertBlock(block))
+    case ValStatement1(_qed, exp, _) =>
+      create special(ASTSpecial.Kind.QED, expr(exp))
+    case ValStatement2(_apply, exp, _) =>
+      create special(ASTSpecial.Kind.Apply, expr(exp))
+    case ValStatement3(_use, exp, _) =>
+      create special(ASTSpecial.Kind.Use, expr(exp))
+    case ValStatement4(_create, hist, _) =>
+      create special(ASTSpecial.Kind.CreateHistory, expr(hist))
+    case ValStatement5(_create, fut, _, proc, _) =>
+      create special(ASTSpecial.Kind.CreateFuture, expr(fut), expr(proc))
+    case ValStatement6(_destroy, hist, _, proc, _) =>
+      create special(ASTSpecial.Kind.DestroyHistory, expr(hist), expr(proc))
+    case ValStatement7(_destroy, fut, _) =>
+      create special(ASTSpecial.Kind.DestroyFuture, expr(fut))
+    case ValStatement8(_split, fut, _, perm1, _, proc1, _, perm2, _, proc2, _) =>
+      create special(ASTSpecial.Kind.SplitHistory, expr(fut), expr(perm1), expr(proc1), expr(perm2), expr(proc2))
+    case ValStatement9(_merge, fut, _, perm1, _, proc1, _, perm2, _, proc2, _) =>
+      create special(ASTSpecial.Kind.MergeHistory, expr(fut), expr(perm1), expr(proc1), expr(perm2), expr(proc2))
+    case ValStatement10(_choose, fut, _, perm, _, proc1, _, proc2, _) =>
+      create special(ASTSpecial.Kind.ChooseHistory, expr(fut), expr(perm), expr(proc1), expr(proc2))
+    case ValStatement11(_fold, pred, _) =>
+      create special(ASTSpecial.Kind.Fold, expr(pred))
+    case ValStatement12(_unfold, pred, _) =>
+      create special(ASTSpecial.Kind.Unfold, expr(pred))
+    case ValStatement13(_open, pred, _) =>
+      create special(ASTSpecial.Kind.Open, expr(pred))
+    case ValStatement14(_close, pred, _) =>
+      create special(ASTSpecial.Kind.Close, expr(pred))
+    case ValStatement15(_assert, assn, _) =>
+      create special(ASTSpecial.Kind.Assert, expr(assn))
+    case ValStatement16(_assume, assn, _) =>
+      create special(ASTSpecial.Kind.Assume, expr(assn))
+    case ValStatement17(_inhale, res, _) =>
+      create special(ASTSpecial.Kind.Inhale, expr(res))
+    case ValStatement18(_exhale, res, _) =>
+      create special(ASTSpecial.Kind.Exhale, expr(res))
+    case ValStatement19(_label, lbl, _) =>
+      create special(ASTSpecial.Kind.Label, convertIDName(lbl))
+    case ValStatement20(_refute, assn, _) =>
+      create special(ASTSpecial.Kind.Refute, expr(assn))
+    case ValStatement21(_witness, pred, _) =>
+      create special(ASTSpecial.Kind.Witness, expr(pred))
+    case ValStatement22(_ghost, code) =>
+      ??(stat)
+    case ValStatement23(_send, res, _to, lbl, _, thing, _) =>
+      create special(ASTSpecial.Kind.Send, expr(res), create unresolved_name lbl, expr(thing))
+    case ValStatement24(_recv, res, _from, lbl, _, thing, _) =>
+      create special(ASTSpecial.Kind.Recv, expr(res), create unresolved_name(lbl), expr(thing))
+    case ValStatement25(_transfer, exp, _) =>
+      ??(stat)
+    case ValStatement26(_csl_subject, obj, _) =>
+      create special(ASTSpecial.Kind.CSLSubject, expr(obj))
+    case ValStatement27(_spec_ignore, "}") =>
+      create special ASTSpecial.Kind.SpecIgnoreEnd
+    case ValStatement28(_spec_ignore, "{") =>
+      create special ASTSpecial.Kind.SpecIgnoreStart
+    case action: ValStatement29Context =>
+      ??(action)
+    case ValStatement30(_atomic, _, resList, _, block) =>
+      create csl_atomic(convertBlock(block), resList.map(convertValLabelList).getOrElse(Seq()):_*)
+  })
+
+  def valExpr(exp: ValPrimaryContext): ASTNode = origin(exp, exp match {
     case ValPrimary0(t, "{", maybeExps, "}") =>
       val exps = maybeExps.map(convertValExpList).getOrElse(Seq())
       create struct_value(convertType(t), null, exps:_*)
@@ -509,278 +801,24 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLPar
       create expression(ReducibleMax, expr(exp))
   })
 
-  def convertType(t: ParserRuleContext): Type = origin(t, t match {
-    case Type0(t, dims) =>
-      val dimCount = dims match {
-        case TypeDims0(dims) => dims.size
-        case TypeDims1(dims) => dims.size
-      }
-      var result = convertType(t)
-      for(_ <- 0 until dimCount)
-        result = create.primitive_type(PrimitiveSort.Option,
-          create.primitive_type(PrimitiveSort.Array,
-            create.primitive_type(PrimitiveSort.Cell, result)))
-      result
-
-    case NonArrayType0(container, "<", innerType, ">") =>
-      val kind = container match {
-        case "seq" => PrimitiveSort.Sequence
-        case "set" => PrimitiveSort.Set
-        case "bag" => PrimitiveSort.Bag
-      }
-      create.primitive_type(kind, convertType(innerType))
-    case NonArrayType1("option", "<", t, ">") =>
-      create.primitive_type(PrimitiveSort.Option, convertType(t))
-    case NonArrayType2(primitive) =>
-      create.primitive_type(primitive match {
-        case "string" => PrimitiveSort.String
-        case "process" => PrimitiveSort.Process
-        case "int" => PrimitiveSort.Integer
-        case "boolean" => PrimitiveSort.Boolean
-        case "zfrac" => PrimitiveSort.ZFraction
-        case "frac" => PrimitiveSort.Fraction
-        case "resource" => PrimitiveSort.Resource
-        case "void" => PrimitiveSort.Void
-      })
-    case NonArrayType3(ClassType0(name, maybeTypeArgs)) =>
-      create class_type(convertID(name), (maybeTypeArgs match {
-        case None => Seq()
-        case Some(TypeArgs0(_, args, _)) =>
-          convertExpList(args)
-      }).asJava)
+  def convertValReserved(reserved: ValReservedContext): NameExpression = origin(reserved, reserved match {
+    case ValReserved0(_) =>
+      fail(reserved, "This identifier is reserved and cannot be declared or used.")
+    case ValReserved1("\\result") =>
+      create reserved_name ASTReserved.Result
+    case ValReserved2("\\current_thread") =>
+      create reserved_name ASTReserved.CurrentThread
+    case ValReserved3("none") =>
+      create reserved_name ASTReserved.NoPerm
+    case ValReserved4("write") =>
+      create reserved_name ASTReserved.FullPerm
+    case ValReserved5("read") =>
+      create reserved_name ASTReserved.ReadPerm
+    case ValReserved6("None") =>
+      create reserved_name ASTReserved.OptionNone
+    case ValReserved7("empty") =>
+      create reserved_name ASTReserved.EmptyProcess
   })
 
-  def convertContract(contract: ParserRuleContext): Contract = origin(contract, contract match {
-    case Contract0(clauses) =>
-      val contractBuilder = new ContractBuilder
-      clauses.foreach(convertClause(_, contractBuilder))
-      contractBuilder.getContract(false)
-    case InvariantList0(invariants) =>
-      val contractBuilder = new ContractBuilder
-      invariants.foreach(convertClause(_, contractBuilder))
-      contractBuilder.getContract(false)
-    case _: ValContractClauseContext | _: InvariantContext =>
-      val contractBuilder = new ContractBuilder
-      convertClause(contract, contractBuilder)
-      contractBuilder.getContract(false)
-  })
-
-  def convertClause(clause: ParserRuleContext,
-                    builder: ContractBuilder): Unit = clause match {
-    case ValContractClause0(_modifies, names, _) =>
-      builder.modifies(convertValExpList(names):_*)
-    case ValContractClause1(_accessible, names, _) =>
-      builder.accesses(convertValExpList(names):_*)
-    case ValContractClause2(_requires, exp, _) =>
-      builder.requires(expr(exp))
-    case ValContractClause3(_ensures, exp, _) =>
-      builder.ensures(expr(exp))
-    case ValContractClause4(_given, t, name, _) =>
-      builder.`given`(create.field_decl(convertID(name), convertType(t)))
-    case ValContractClause5(_yields, t, name, _) =>
-      builder.yields(create.field_decl(convertID(name), convertType(t)))
-    case ValContractClause6(_context_everywhere, exp, _) =>
-      builder.appendInvariant(expr(exp))
-    case ValContractClause7(_context, exp, _) =>
-      builder.context(expr(exp))
-    case Invariant0(_loop_invariant, exp, _) =>
-      builder.appendInvariant(expr(exp))
-  }
-
-  def convertBlock(block: ParserRuleContext): BlockStatement = block match {
-    case Block0(_, statements, _) =>
-      create block(statements.map(convertStat):_*)
-  }
-
-  def convertStat(stat: ParserRuleContext): ASTNode = origin(stat, stat match {
-    case Statement0("return", None, _) => create.return_statement()
-    case Statement0("return", Some(value), _) => create.return_statement(expr(value))
-    case Statement1("lock", exp, _) => create special(ASTSpecial.Kind.Lock, expr(exp))
-    case Statement2("unlock", exp, _) => create special(ASTSpecial.Kind.Unlock, expr(exp))
-    case Statement3("wait", exp, _) => create special(ASTSpecial.Kind.Wait, expr(exp))
-    case Statement4("notify", exp, _) => create special(ASTSpecial.Kind.Notify, expr(exp))
-    case Statement5("fork", exp, _) => create special(ASTSpecial.Kind.Fork, expr(exp))
-    case Statement6("join", exp, _) => create special(ASTSpecial.Kind.Join, expr(exp))
-    case Statement7("action", tup, blockNode) =>
-      val args = convertExpList(tup)
-      if (args.size != 4) {
-        fail(tup, "action takes exactly 4 arguments, but %d were supplied.", Int.box(args.size))
-      }
-      val block = convertBlock(blockNode)
-      create action_block(args(0), args(1), args(2), args(3), Map().asJava, block)
-    case Statement8(valStat) => convertStat(valStat)
-    case Statement9("if", "(", cond, ")", thenStat, maybeElseStat) =>
-      create ifthenelse(expr(cond), convertStat(thenStat), maybeElseStat.map(convertStat).orNull)
-    case ElseBlock0("else", stat) => convertStat(stat)
-    case Statement10("barrier", "(", name, maybeTags, ")", bodyNode) =>
-      val tags = maybeTags match {
-        case Some(BarrierTags0(_, tags)) => convertIDList(tags)
-        case None => Seq()
-      }
-      val (maybeBody, contract) = bodyNode match {
-        case BarrierBody0("{", contract, "}") =>
-          (None, convertContract(contract))
-        case BarrierBody1(contract, body) =>
-          (Some(convertBlock(body)), convertContract(contract))
-      }
-      val tagsJavaList = new JavaArrayList[String](tags.asJava)
-      create barrier(convertID(name), contract, tagsJavaList, maybeBody.orNull)
-    case Statement11(contract, "par", parUnitList) =>
-      val parUnits = convertParUnitList(parUnitList)
-      val javaParUnits = new JavaArrayList[ParallelBlock](parUnits.asJava)
-      create region(convertContract(contract), javaParUnits)
-    case Statement12("vec", "(", iter, ")", block) =>
-      create vector_block(convertParIter(iter), convertBlock(block))
-    case Statement13("invariant", label, "(", resource, ")", block) =>
-      create invariant_block(convertID(label), expr(resource), convertBlock(block))
-    case Statement14("atomic", "(", invariants, ")", block) =>
-      create parallel_atomic(convertBlock(block), convertIDList(invariants):_*)
-    case Statement15(invariants, "while", "(", cond, ")", body) =>
-      create while_loop(expr(cond), convertStat(body), convertContract(invariants))
-    case Statement16(invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
-      create for_loop(
-        maybeInit.map(convertStatList).map(create block(_:_*)).orNull,
-        maybeCond.map(expr).getOrElse(create constant true),
-        maybeUpdate.map(convertStatList).map(create block(_:_*)).orNull,
-        convertStat(body),
-        convertContract(invariants)
-      )
-    case Statement17(block) => convertBlock(block)
-    case Statement18("{*", exp, "*}") =>
-      create special(ASTSpecial.Kind.HoarePredicate, expr(exp))
-    case Statement19("goto", label, _) =>
-      create special(ASTSpecial.Kind.Goto, convertIDName(label))
-    case Statement20("label", label, _) =>
-      create special(ASTSpecial.Kind.Label, convertIDName(label))
-    case Statement21(stat, _) => convertStat(stat)
-    case AllowedForStatement0(tNode, decls) =>
-      val t = convertType(tNode)
-      val result = new VariableDeclaration(t)
-      val statements = convertDeclList(decls).foreach{
-        case (name, init) =>
-          result.add(DeclarationStatement(name, VariableDeclaration.common_type, init))
-      }
-      result
-    case AllowedForStatement1(exp) => expr(exp)
-    case AllowedForStatement2(id, "++") => create expression(PostIncr, convertIDName(id))
-    case AllowedForStatement2(id, "--") => create expression(PostDecr, convertIDName(id))
-    case AllowedForStatement3(target, "=", exp) =>
-      create assignment(expr(target), expr(exp))
-
-    case ValStatement0(_create, block) =>
-      create lemma(convertBlock(block))
-    case ValStatement1(_qed, exp, _) =>
-      create special(ASTSpecial.Kind.QED, expr(exp))
-    case ValStatement2(_apply, exp, _) =>
-      create special(ASTSpecial.Kind.Apply, expr(exp))
-    case ValStatement3(_use, exp, _) =>
-      create special(ASTSpecial.Kind.Use, expr(exp))
-    case ValStatement4(_create, hist, _) =>
-      create special(ASTSpecial.Kind.CreateHistory, expr(hist))
-    case ValStatement5(_create, fut, _, proc, _) =>
-      create special(ASTSpecial.Kind.CreateFuture, expr(fut), expr(proc))
-    case ValStatement6(_destroy, hist, _, proc, _) =>
-      create special(ASTSpecial.Kind.DestroyHistory, expr(hist), expr(proc))
-    case ValStatement7(_destroy, fut, _) =>
-      create special(ASTSpecial.Kind.DestroyFuture, expr(fut))
-    case ValStatement8(_split, fut, _, perm1, _, proc1, _, perm2, _, proc2, _) =>
-      create special(ASTSpecial.Kind.SplitHistory, expr(fut), expr(perm1), expr(proc1), expr(perm2), expr(proc2))
-    case ValStatement9(_merge, fut, _, perm1, _, proc1, _, perm2, _, proc2, _) =>
-      create special(ASTSpecial.Kind.MergeHistory, expr(fut), expr(perm1), expr(proc1), expr(perm2), expr(proc2))
-    case ValStatement10(_choose, fut, _, perm, _, proc1, _, proc2, _) =>
-      create special(ASTSpecial.Kind.ChooseHistory, expr(fut), expr(perm), expr(proc1), expr(proc2))
-    case ValStatement11(_fold, pred, _) =>
-      create special(ASTSpecial.Kind.Fold, expr(pred))
-    case ValStatement12(_unfold, pred, _) =>
-      create special(ASTSpecial.Kind.Unfold, expr(pred))
-    case ValStatement13(_open, pred, _) =>
-      create special(ASTSpecial.Kind.Open, expr(pred))
-    case ValStatement14(_close, pred, _) =>
-      create special(ASTSpecial.Kind.Close, expr(pred))
-    case ValStatement15(_assert, assn, _) =>
-      create special(ASTSpecial.Kind.Assert, expr(assn))
-    case ValStatement16(_assume, assn, _) =>
-      create special(ASTSpecial.Kind.Assume, expr(assn))
-    case ValStatement17(_inhale, res, _) =>
-      create special(ASTSpecial.Kind.Inhale, expr(res))
-    case ValStatement18(_exhale, res, _) =>
-      create special(ASTSpecial.Kind.Exhale, expr(res))
-    case ValStatement19(_label, lbl, _) =>
-      create special(ASTSpecial.Kind.Label, convertIDName(lbl))
-    case ValStatement20(_refute, assn, _) =>
-      create special(ASTSpecial.Kind.Refute, expr(assn))
-    case ValStatement21(_witness, pred, _) =>
-      create special(ASTSpecial.Kind.Witness, expr(pred))
-    case ValStatement22(_ghost, code) =>
-      ??(stat)
-    case ValStatement23(_send, res, _to, lbl, _, thing, _) =>
-      create special(ASTSpecial.Kind.Send, expr(res), create unresolved_name lbl, expr(thing))
-    case ValStatement24(_recv, res, _from, lbl, _, thing, _) =>
-      create special(ASTSpecial.Kind.Recv, expr(res), create unresolved_name(lbl), expr(thing))
-    case ValStatement25(_transfer, exp, _) =>
-      ??(stat)
-    case ValStatement26(_csl_subject, obj, _) =>
-      create special(ASTSpecial.Kind.CSLSubject, expr(obj))
-    case ValStatement27(_spec_ignore, "}") =>
-      create special ASTSpecial.Kind.SpecIgnoreEnd
-    case ValStatement28(_spec_ignore, "{") =>
-      create special ASTSpecial.Kind.SpecIgnoreStart
-    case action: ValStatement29Context =>
-      ??(action)
-    case ValStatement30(_atomic, _, resList, _, block) =>
-      create csl_atomic(convertBlock(block), resList.map(convertValLabelList).getOrElse(Seq()):_*)
-  })
-
-  def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {
-    case ForStatementList0(x) => Seq(convertStat(x))
-    case ForStatementList1(x, ",", xs) => convertStat(x) +: convertStatList(xs)
-  }
-
-  def convertParUnitList(tree: ParUnitListContext): Seq[ParallelBlock] = tree match {
-    case ParUnitList0(x) => Seq(convertParUnit(x))
-    case ParUnitList1(x, "and", xs) => convertParUnit(x) +: convertParUnitList(xs)
-  }
-
-  def convertParUnit(tree: ParUnitContext): ParallelBlock = origin(tree, tree match {
-    case ParUnit0(maybeLabel, _, maybeIters, maybeWaitList, _, contract, block) =>
-      val label = maybeLabel.map(convertID).getOrElse("")
-      val iters = maybeIters.map(convertParIters).getOrElse(Seq())
-      val waitList = maybeWaitList.map(convertParWaitList).getOrElse(Seq())
-      create parallel_block(label, convertContract(contract), iters.toArray, convertBlock(block), waitList.toArray[ASTNode])
-    case ParUnit1(contract, block) =>
-      create parallel_block("", convertContract(contract), Array(), convertBlock(block))
-  })
-
-  def convertParIters(tree: ItersContext): Seq[DeclarationStatement] = tree match {
-    case Iters0(x) => Seq(convertParIter(x))
-    case Iters1(x, ",", xs) => convertParIter(x) +: convertParIters(xs)
-  }
-
-  def convertParIter(tree: IterContext): DeclarationStatement = origin(tree, tree match {
-    case Iter0(t, name, "=", left, "..", right) =>
-      val range = create expression(RangeSeq, expr(left), expr(right))
-      create field_decl(convertID(name), convertType(t), range)
-  })
-
-  def convertParWaitList(tree: ParserRuleContext): Seq[MethodInvokation] = tree match {
-    case ParWaitList0(_, list) => convertParWaitList(list)
-    case WaitList0(x) => Seq(convertParWait(x))
-    case WaitList1(x, ",", xs) => convertParWait(x) +: convertParWaitList(xs)
-  }
-
-  def convertParWait(tree: WaitForContext): MethodInvokation = origin(tree, tree match {
-    case WaitFor0(name, maybeArgs) =>
-      create invokation(null, null, convertID(name), (maybeArgs match {
-        case None => Seq()
-        case Some(WaitForArgs0(_, args, _)) => convertIdArgs(args)
-      }):_*)
-  })
-
-  def convertIdArgs(tree: IdArgListContext): Seq[ASTNode] = (tree match {
-    case IdArgList0(x) => Seq(x)
-    case IdArgList1(x, ",", xs) => x +: convertIdArgs(xs)
-  }).map {
-    case IdArg0(id) => convertIDName(id)
-    case IdArg1("*") => create reserved_name(Any)
-  }
+  /* === End of duplicated code block === */
 }

@@ -400,7 +400,10 @@ JavaLetterOrDigit
 // Additional symbols not defined in the lexical specification
 //
 
-AT : '@';
+AT
+    : '@' {if(inBlockSpec || inLineSpec){ skip(); }}
+    ;
+
 ELLIPSIS : '...';
 
 //
@@ -417,7 +420,10 @@ EndSpec
     | {inLineSpec}? ('\n'|'\r\n') {inLineSpec = false;}
     ;
 
-WS  :  [ \t\r\n\u000C]+ -> skip
+/* This token must not match multiple whitespace chars at once, because EndSpec in line comment mode must have
+ * precedence, and longer tokens always have priority over shorter once, regardless of declaration order.
+ */
+WS  :  [ \t\r\n\u000C] -> skip
     ;
 
 EmbeddedLatex
@@ -436,10 +442,10 @@ Identifier
 
 mode COMMENT;
 BlockCommentStop: '*/' -> mode(DEFAULT_MODE), skip;
-BlockCommentContent: .+? -> skip;
 BlockStartSpec: '@' {inBlockSpec = true;} -> mode(DEFAULT_MODE);
+BlockCommentContent: .+? -> skip;
 
 mode LINE_COMMENT;
 LineCommentStop: ('\n'|'\r\n') -> mode(DEFAULT_MODE), skip;
-LineCommentContent: .+? -> skip;
 LineStartSpec: '@' {inLineSpec = true;} -> mode(DEFAULT_MODE);
+LineCommentContent: .+? -> skip;

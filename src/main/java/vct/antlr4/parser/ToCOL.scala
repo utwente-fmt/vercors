@@ -4,8 +4,9 @@ import hre.ast.FileOrigin
 import hre.lang.HREExitException
 import org.antlr.v4.runtime.{CommonTokenStream, Parser, ParserRuleContext}
 import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.decl.Contract
+import vct.col.ast.util.ContractBuilder
 import vct.col.util.ASTFactory
-import hre.lang.System._
 
 abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: Parser) {
   val create = new ASTFactory[ParserRuleContext]()
@@ -24,6 +25,24 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: Parser
       node.setOrigin(fileOrigin(tree))
     }
     node
+  }
+
+  def origin[T <: ASTNode](tree: ParserRuleContext, nodes: Seq[T]): Seq[T] = {
+    for(node <- nodes) {
+      if(node.getOrigin == null) {
+        node.setOrigin(fileOrigin(tree))
+      }
+    }
+    nodes
+  }
+
+  def getContract[T](tree: Option[T], converter: (T, ContractBuilder) => Unit): Contract = {
+    val builder = new ContractBuilder()
+    tree match {
+      case Some(node) => converter(node, builder)
+      case None => // leave contract empty
+    }
+    builder.getContract
   }
 
   def fail(tree: ParserRuleContext, format: String, args: Object*): Nothing = {

@@ -156,7 +156,7 @@ interfaceBody
 classBodyDeclaration
     :   ';'
     |   'static'? block
-    |   modifier* memberDeclaration
+    |   valEmbedContract? modifier* memberDeclaration
     ;
 
 memberDeclaration
@@ -178,7 +178,7 @@ memberDeclaration
    for invalid return type after parsing.
  */
 methodDeclaration
-    :   typeOrVoid javaIdentifier formalParameters dims? methodBodyOrEmpty
+    :   typeOrVoid javaIdentifier formalParameters dims? throwy? methodBodyOrEmpty
     ;
 
 throwy
@@ -190,7 +190,7 @@ genericMethodDeclaration
     ;
 
 constructorDeclaration
-    :   javaIdentifier formalParameters ('throws' qualifiedNameList)?
+    :   javaIdentifier formalParameters throwy?
         constructorBody
     ;
 
@@ -218,7 +218,12 @@ interfaceMemberDeclaration
     ;
 
 constDeclaration
-    :   type constantDeclarator (',' constantDeclarator)* ';'
+    :   type constantDeclaratorList ';'
+    ;
+
+constantDeclaratorList
+    :   constantDeclarator
+    |   constantDeclarator ',' constantDeclaratorList
     ;
 
 constantDeclarator
@@ -227,9 +232,7 @@ constantDeclarator
 
 // see matching of [] comment in methodDeclaratorRest
 interfaceMethodDeclaration
-    :   (type|'void') javaIdentifier formalParameters dims?
-        ('throws' qualifiedNameList)?
-        ';'
+    :   typeOrVoid javaIdentifier formalParameters dims? throwy? ';'
     ;
 
 genericInterfaceMethodDeclaration
@@ -447,10 +450,10 @@ localVariableDeclaration
 
 statement
     :   block
-    |   ASSERT expression (':' expression)? ';'
-    |   'if' parExpression statement ('else' statement)?
-    |   'for' '(' forControl ')' statement
-    |   'while' parExpression statement
+    |   ASSERT expression assertMessage? ';'
+    |   'if' parExpression statement elseBlock?
+    |   valEmbedContract? 'for' '(' forControl ')' statement
+    |   valEmbedContract? 'while' parExpression statement
     |   'do' statement 'while' parExpression ';'
     |   'try' block (catchClause+ finallyBlock? | finallyBlock)
     |   'try' resourceSpecification block catchClause* finallyBlock?
@@ -463,8 +466,11 @@ statement
     |   ';'
     |   statementExpression ';'
     |   javaIdentifier ':' statement
-    |   extraStatement
+    |   valEmbedStatementBlock
     ;
+
+assertMessage: ':' expression;
+elseBlock: 'else' statement;
 
 catchClause
     :   'catch' '(' variableModifier* catchType javaIdentifier ')' block
