@@ -1,3 +1,10 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+
+//:: cases relaxed_prefix
+//:: tools silicon
+//:: verdict Pass
+
+
 /*
  * RELAXED PREFIX from VerifyThis 2015
  * ===========================
