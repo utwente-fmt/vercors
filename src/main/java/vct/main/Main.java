@@ -345,7 +345,6 @@ public class Main
         passes.add("dafny"); // run backend
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
-        passes.add("java_resolve");
 
         if (silver.used() &&
            (features.usesSpecial(ASTSpecial.Kind.Lock)
