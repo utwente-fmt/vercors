@@ -15,9 +15,13 @@ import org.antlr.v4.runtime.tree.ParseTree;
 
 import vct.antlr4.generated.PVFullLexer;
 import vct.antlr4.generated.PVFullParser;
+import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.rewrite.FlattenVariableDeclarations;
+import vct.col.rewrite.PVLEncoder;
 import vct.col.syntax.PVLSyntax;
+import vct.col.util.FeatureScanner;
 
 /**
  * Parse specified code and convert the contents to COL. 
@@ -56,6 +60,21 @@ public class ColPVLParser implements vct.col.util.Parser {
         
         pu=new PVLPostProcessor(pu).rewriteAll();
         Progress("Post processing pass took %dms",tk.show());
+
+        FeatureScanner features=new FeatureScanner();
+        pu.accept(features);
+
+        if ((features.usesSpecial(ASTSpecial.Kind.Lock)
+              ||features.usesSpecial(ASTSpecial.Kind.Unlock)
+              ||features.usesSpecial(ASTSpecial.Kind.Fork)
+              ||features.usesSpecial(ASTSpecial.Kind.Join)
+              ||features.usesOperator(StandardOperator.PVLidleToken)
+              ||features.usesOperator(StandardOperator.PVLjoinToken)
+            )){
+          pu = new PVLEncoder(pu).rewriteAll();
+          Progress("Encoding PVL-specific operators took %dms",tk.show());
+        }
+
         return pu;
       } catch(HREExitException e) {
         throw e;
