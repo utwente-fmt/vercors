@@ -54,7 +54,7 @@ public class ADTOperatorRewriter extends AbstractRewriter {
             }
             case LTE:
             case LT:
-                if (e.arg(0).getType().isPrimitive(PrimitiveSort.Set)) {
+                if (e.arg(0).getType().isPrimitive(PrimitiveSort.Set) || e.arg(0).getType().isPrimitive(PrimitiveSort.Bag)) {
                     StandardOperator op = (e.operator().equals(StandardOperator.LT)) ? StandardOperator.SubSet : StandardOperator.SubSetEq;
                     ASTNode e1 = e.arg(0).apply(this);
                     ASTNode e2 = e.arg(1).apply(this);
