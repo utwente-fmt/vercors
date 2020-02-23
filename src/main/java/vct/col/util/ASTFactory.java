@@ -1069,7 +1069,7 @@ public ASTSpecial special(Origin origin, ASTSpecial.Kind kind, ASTNode ... args)
     if (decl.length == 0) {
       Fail("For set comprehension, at least one declaration is needed.");
     }
-    BindingExpression res = new SetComprehension(
+    SetComprehension res = new SetComprehension(
             resultType,
             decl,
             selector,

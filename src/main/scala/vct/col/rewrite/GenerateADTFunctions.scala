@@ -10,6 +10,7 @@ import vct.col.ast.expr.{Binder, BindingExpression, NameExpression, OperatorExpr
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
+import vct.col.util.FieldAccessCollector
 
 import collection.JavaConverters
 import scala.collection.mutable
@@ -91,22 +92,24 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     val contract = new ContractBuilder
     val result = create.reserved_name(ASTReserved.Result, resultType)
 
+    val fieldCollector = new FieldAccessCollector
+    setComprehension.main.apply(fieldCollector)
+    setComprehension.select.apply(fieldCollector)
 
-    //    val asdfasdf = StreamSupport.stream(this.source.find("Edge").fields().spliterator(), false)
-    //      .filter( _.isInstanceOf [DeclarationStatement]).collect(Collectors.toList())
+    val fieldAccessses = fieldCollector.getFieldAccesses
 
-    val usedClasses = setComprehension.getDeclarations().filter(_.`type`.isInstanceOf[ClassType])
+    val usedClasses = setComprehension.getDeclarations.filter(_.`type`.isInstanceOf[ClassType])
+
     for (clazz <- usedClasses) {
-      val fields = this.source.find(clazz.`type`.asInstanceOf[ClassType].getName).dynamicFields().asScala
       val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
-      for (field <- fields) {
+      for (field <- fieldAccessses.asScala) {
         conditions +=
           create.starall(
             create.expression(StandardOperator.Member, name(clazz.getDeclName.toString()), name("setCompArg" + clazz.getDeclName.toString)),
             create.expression(
               StandardOperator.Value,
               create.dereference(create.local_name(clazz.name),
-                field.name)
+                field.field)
             )
             ,
             clazz
@@ -114,7 +117,6 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
       }
       contract.requires(conditions.reduce(star _))
     }
-
 
     var selector: ASTNode = create.constant(true)
     if (setComprehension.variables != null && !setComprehension.variables.isEmpty) {
