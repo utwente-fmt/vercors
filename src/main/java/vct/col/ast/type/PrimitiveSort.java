@@ -33,5 +33,6 @@ public enum PrimitiveSort {
 	Pointer,
 	CVarArgs,
 	Option,
-	Map
+	Map,
+	Tuple
 }

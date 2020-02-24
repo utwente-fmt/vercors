@@ -205,6 +205,7 @@ public class SilverClassReduction extends AbstractRewriter {
   private boolean floats = false;
   private boolean fractions = false;
   private boolean maps = false;
+  private boolean tuple = false;
 
 
   private AtomicInteger option_count=new AtomicInteger();
@@ -240,8 +241,17 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.class_type("VCTArray", ct);
       break;
     }
+    case Tuple: {
+      tuple = true;
+      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      args.get(0).addLabel(create.label("F"));
+      args.get(1).addLabel(create.label("S"));
+      result=create.class_type("VCTTuple",args);
+      break;
+    }
     case Map:
       maps = true;
+      tuple = true;
       List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
       args.get(0).addLabel(create.label("K"));
       args.get(1).addLabel(create.label("V"));
@@ -596,6 +606,18 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.invokation(rewrite(e.first().getType()), null, "vctmap_remove", args);
       break;
     }
+      case TupleFst:{
+        ASTNode type = rewrite(e.first().getType().firstarg());
+        List<ASTNode> args = rewrite(e.argsJava());
+        result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_fst", args);
+        break;
+    }
+    case TupleSnd:{
+        ASTNode type = rewrite(e.first().getType().secondarg());
+        List<ASTNode> args = rewrite(e.argsJava());
+        result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_snd", args);
+        break;
+      }
     default:
       super.visit(e);
     }
@@ -633,7 +655,11 @@ public class SilverClassReduction extends AbstractRewriter {
         map = create.invokation(resultType, null, "vctmap_build", map, v.valuesArray()[i], v.valuesArray()[i+1]);
       }
       result = map;
-    } else {
+    } if (v.type().isPrimitive(PrimitiveSort.Tuple)) {
+      Type resultType = rewrite(v.type());
+      result =  create.invokation(resultType,null,"vcttuple_tuple", rewrite(v.valuesArray()));;
+    }
+    else {
       super.visit(v);
     }
   }
@@ -730,7 +756,7 @@ public class SilverClassReduction extends AbstractRewriter {
       String s=silverTypeString(t);
       ref_class.add_dynamic(create.field_decl(s+SEP+"item",t));
     }
-    if (options || floats || arrays || fractions || maps){
+    if (options || floats || arrays || fractions || maps || tuple){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
       File file = Configuration.getConfigFile(preludeFile);
       ProgramUnit prelude=Parsers.getParser("sil").parse(file);
@@ -756,9 +782,11 @@ public class SilverClassReduction extends AbstractRewriter {
             if(fractions) res.add(n);
             break;
           case "VCTMap":
-          case "VCTTuple":
             if(maps) res.add(n);
-             break;
+            break;
+          case "VCTTuple":
+            if (maps || tuple) res.add(n);
+              break;
           }
         } else if(n instanceof Method) {
           Method method = (Method) n;

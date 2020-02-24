@@ -13,6 +13,7 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.TypeMapping;
+import scala.collection.JavaConverters.*;
 
 import static hre.lang.System.Abort;
 import static hre.lang.System.Debug;
@@ -20,6 +21,7 @@ import static hre.lang.System.Fail;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 public final class PrimitiveType extends Type {
@@ -47,6 +49,7 @@ public final class PrimitiveType extends Type {
         if (N<1 || N>2) Abort("illegal argument count");
         break;
       case Map:
+      case Tuple:
         if (N != 2) Abort("illegal argument count");
         break;
       default:
@@ -194,6 +197,7 @@ public final class PrimitiveType extends Type {
       case Bag:
       case Sequence:
       case Map:
+      case Tuple:
       case Array:
         return false;
       case Rational:

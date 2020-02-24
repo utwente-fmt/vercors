@@ -1523,6 +1523,14 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!tt[0].firstarg().equals(tt[1])) Fail("Type of key %s to add does not match the key type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
         e.setType(tt[0]);
         break;
+      case TupleFst:
+        if (!tt[0].isPrimitive(PrimitiveSort.Tuple)) Fail("The argument is not a tuple at %s", e.getOrigin());
+        e.setType((Type) tt[0].firstarg());
+        break;
+      case TupleSnd:
+        if (!tt[0].isPrimitive(PrimitiveSort.Tuple)) Fail("The argument is not a tuple at %s", e.getOrigin());
+        e.setType((Type) tt[0].secondarg());
+        break;
       default:
         Abort("missing case of operator %s", op);
         break;
@@ -1576,6 +1584,18 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           }
       }
     }
+    if (v.getType().isPrimitive(PrimitiveSort.Tuple)) {
+      Type keyType = (Type) v.getType().firstarg();
+      Type valueType = (Type) v.getType().secondarg();
+      if (v.valuesArray().length == 2) {
+        if (!v.value(0).getType().equals(keyType)) {
+          Fail("The first type %s does not match type of the first value %s at %s", keyType, v.value(0).getType(), v.value(0).getOrigin());
+        } else if (!v.value(1).getType().equals(valueType)) {
+          Fail("The second type %s does not match type of the second value %s at %s", valueType, v.value(1).getType(), v.value(1).getOrigin());
+        }
+      }
+    }
+
 
     if(v.getType().isPrimitive(PrimitiveSort.Array)) {
       Type element = (Type) v.getType().firstarg();

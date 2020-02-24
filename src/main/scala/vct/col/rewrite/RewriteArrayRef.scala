@@ -171,7 +171,9 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(struct_value: StructValue): Unit = {
-    RewriteArrayRef.getArrayConstructor(struct_value.getType, 1)
+    if (!struct_value.`type`.isPrimitive(PrimitiveSort.Tuple)) {
+      RewriteArrayRef.getArrayConstructor(struct_value.getType, 1)
+    }
     super.visit(struct_value)
   }
 

@@ -339,7 +339,11 @@ public enum StandardOperator {
   /** get the value of a map by a key */
   MapGetByKey(2),
   /** remove a key/value pair from a map by its key*/
-  MapRemoveKey(2)
+  MapRemoveKey(2),
+  /** Get the first element form the tuple */
+  TupleFst(1),
+  /** Get the second element form the tuple  */
+  TupleSnd(1)
   ;
 
   private final int arity;

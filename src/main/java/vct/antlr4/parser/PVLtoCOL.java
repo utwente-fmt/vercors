@@ -437,6 +437,15 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     if (match(ctx, null, "++", "(", null,",", null, ")")) {
       return create.expression(StandardOperator.MapBuild, convert(ctx, 0), convert(ctx,3), convert(ctx,5));
     }
+    if(match(ctx, "tuple", "<", null, ",", null, ">",null)) {
+      Type t1 = checkType(convert(ctx,2));
+      Type t2 = checkType(convert(ctx,4));
+      ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(6),"{",",","}");
+      if (args.length != 2) {
+        Fail("Tuple constructor requires two values");
+      }
+      return create.struct_value(create.primitive_type(PrimitiveSort.Tuple, t1, t2), null, args);
+    }
     return visit(ctx);
   }
 
@@ -558,6 +567,11 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       Type t1=checkType(convert(ctx,2));
       Type t2=checkType(convert(ctx,4));
       return create.primitive_type(PrimitiveSort.Map,t1, t2);
+    }
+    if (match(ctx,"tuple","<",null,",", null, ">")){
+      Type t1=checkType(convert(ctx,2));
+      Type t2=checkType(convert(ctx,4));
+      return create.primitive_type(PrimitiveSort.Tuple,t1, t2);
     }
     if (match(ctx,null,"<",null,">")) {
       String name=getIdentifier(ctx,0);

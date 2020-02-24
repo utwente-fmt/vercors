@@ -61,6 +61,9 @@ public class PVLSyntax {
       syntax.addFunction(MapGetByKey, "getFromMap");          // map[i] (DONE)
       syntax.addFunction(MapRemoveKey, "removeFromMap");      //
 
+      syntax.addFunction(TupleFst, "getFst");
+      syntax.addFunction(TupleSnd, "getSnd");
+
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
