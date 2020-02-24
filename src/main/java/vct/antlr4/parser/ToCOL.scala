@@ -36,12 +36,9 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: Parser
     nodes
   }
 
-  def getContract[T](tree: Option[T], converter: (T, ContractBuilder) => Unit): Contract = {
+  def getContract[T](converters: (ContractBuilder => Unit)*): Contract = {
     val builder = new ContractBuilder()
-    tree match {
-      case Some(node) => converter(node, builder)
-      case None => // leave contract empty
-    }
+    converters.foreach(_(builder))
     builder.getContract
   }
 

@@ -83,7 +83,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(decl)
     case ClassBodyDeclaration2(maybeContract, mods, member) =>
       val decls = convertDecl(member)
-      val contract = getContract(maybeContract, convertValContract)
+      val contract = getContract(convertValContract(maybeContract))
       decls.foreach(decl => {
         mods.map(convertModifier).foreach(mod => decl.attach(mod))
         decl match {
@@ -337,10 +337,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       Seq(create ifthenelse(expr(cond),
         create block(convertStat(whenTrue):_*),
         maybeWhenFalse.map(stat => create block(convertStat(stat):_*)).orNull))
-    case Statement3(maybeContract, "for", "(", ForControl0(forEachControl), ")", body) =>
+    case Statement3(maybeContract, "for", "(", ForControl0(forEachControl), ")", maybeContract2, body) =>
       ??(forEachControl) // for(a : b) is unsupported
-    case Statement3(maybeContract, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", body) =>
-      val contract = getContract(maybeContract, convertValContract)
+    case Statement3(maybeContract, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract2, body) =>
+      val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
       val loop = create for_loop(
         maybeInit.map(stat => create block(convertStat(stat):_*)).orNull,
         maybeCond.map(expr).orNull,
@@ -349,8 +349,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       )
       loop.setContract(contract)
       Seq(loop)
-    case Statement4(maybeContract, "while", cond, body) =>
-      val contract = getContract(maybeContract, convertValContract)
+    case Statement4(maybeContract, "while", cond, maybeContract2, body) =>
+      val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
       val loop = create while_loop(expr(cond), create block(convertStat(body):_*))
       loop.setContract(contract)
       Seq(loop)
@@ -547,8 +547,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       (create label convertID(label)) +: convertValLabelList(labels)
   }
 
-  def convertValClause(clause: ValContractClauseContext,
-                       builder: ContractBuilder): Unit = clause match {
+  def convertValClause(clause: ValContractClauseContext) = (builder: ContractBuilder) => clause match {
     case ValContractClause0(_modifies, names, _) =>
       builder.modifies(convertValExpList(names):_*)
     case ValContractClause1(_accessible, names, _) =>
@@ -739,17 +738,19 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create reserved_name ASTReserved.EmptyProcess
   })
 
-  def convertValContract(contract: ValEmbedContractContext, builder: ContractBuilder): Unit = contract match {
-    case ValEmbedContract0(blocks) =>
+  def convertValContract(contract: Option[ValEmbedContractContext]) = (builder: ContractBuilder) => contract match {
+    case Some(ValEmbedContract0(blocks)) =>
       for(block <- blocks) {
-        convertValContractBlock(block, builder)
+        convertValContractBlock(block)(builder)
       }
+    case None =>
+      // nop
   }
 
-  def convertValContractBlock(contract: ValEmbedContractBlockContext, builder: ContractBuilder): Unit = contract match {
+  def convertValContractBlock(contract: ValEmbedContractBlockContext) = (builder: ContractBuilder) => contract match {
     case ValEmbedContractBlock0(_startSpec, clauses, _endSpec) =>
       for(clause <- clauses) {
-        convertValClause(clause, builder)
+        convertValClause(clause)(builder)
       }
   }
 

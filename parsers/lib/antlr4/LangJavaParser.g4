@@ -452,8 +452,8 @@ statement
     :   block
     |   ASSERT expression assertMessage? ';'
     |   'if' parExpression statement elseBlock?
-    |   valEmbedContract? 'for' '(' forControl ')' statement
-    |   valEmbedContract? 'while' parExpression statement
+    |   valEmbedContract? 'for' '(' forControl ')' valEmbedContract? statement
+    |   valEmbedContract? 'while' parExpression valEmbedContract? statement
     |   'do' statement 'while' parExpression ';'
     |   'try' block (catchClause+ finallyBlock? | finallyBlock)
     |   'try' resourceSpecification block catchClause* finallyBlock?
