@@ -655,11 +655,10 @@ public class SilverClassReduction extends AbstractRewriter {
         map = create.invokation(resultType, null, "vctmap_build", map, v.valuesArray()[i], v.valuesArray()[i+1]);
       }
       result = map;
-    } if (v.type().isPrimitive(PrimitiveSort.Tuple)) {
+    } else if (v.type().isPrimitive(PrimitiveSort.Tuple)) {
       Type resultType = rewrite(v.type());
       result =  create.invokation(resultType,null,"vcttuple_tuple", rewrite(v.valuesArray()));;
-    }
-    else {
+    } else {
       super.visit(v);
     }
   }
