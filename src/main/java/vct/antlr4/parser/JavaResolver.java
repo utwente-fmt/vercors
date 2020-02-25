@@ -67,33 +67,43 @@ public class JavaResolver extends AbstractRewriter {
       target().library_add(new ClassName(cln.toString(FQN_SEP)),res);
       // TODO (Bob): We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass, ideally. But maybe that's wrong, and then that stuff should be handled right here.
       // However another possibility is to also pull in the extends/implements keywords here and make vercors understand them so flattening can happen whenever we want.
-      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
-        // Only public methods are allowed since protected is only accesible from the same package (and we're not std) and private is not accesible altogether
-        if (!Modifier.isPublic(m.getModifiers())) {
-          continue;
-        }
-        // We skip bridge methods (i.e. methods generated to bridge the gap between a method returning float[] and a method returning Object).
-        // https://stackoverflow.com/questions/1961350/problem-in-the-getdeclaredmethods-java
-        if (m.isBridge()) {
-          continue;
-        }
-        Class<?> c=m.getReturnType();
-        Type returns = convert_type(c);
-        Class<?> pars[]=m.getParameterTypes();
-        DeclarationStatement args[]=new DeclarationStatement[pars.length];
-        for(int i=0;i<pars.length;i++){
-          args[i]=create.field_decl("x"+i, convert_type(pars[i]));
-        }
-        if (m.isVarArgs()){
-          DeclarationStatement old=args[pars.length-1];
-          args[pars.length-1] = create.field_decl(old.name(), (Type)old.getType().firstarg());
-        }
-        Method ast=create.method_kind(Method.Kind.Plain , returns, null, m.getName(),args, m.isVarArgs() , null);
-        ast.setFlag(ASTFlags.STATIC,Modifier.isStatic(m.getModifiers()));
-        res.add(ast);
-      }
+      // Temporarily switch off including methods
+      // TODO (Bob): We want these methods around if they are used in the rest of the program! So figure out a way to include them but also prune the added imports
+//      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
+//        // Only public methods are allowed since protected is only accesible from the same package (and we're not std) and private is not accesible altogether
+//        if (!Modifier.isPublic(m.getModifiers())) {
+//          continue;
+//        }
+//        // We skip bridge methods (i.e. methods generated to bridge the gap between a method returning float[] and a method returning Object).
+//        // https://stackoverflow.com/questions/1961350/problem-in-the-getdeclaredmethods-java
+//        if (m.isBridge()) {
+//          continue;
+//        }
+//        Class<?> c=m.getReturnType();
+//        Type returns = convert_type(c);
+//        Class<?> pars[]=m.getParameterTypes();
+//        DeclarationStatement args[]=new DeclarationStatement[pars.length];
+//        for(int i=0;i<pars.length;i++){
+//          args[i]=create.field_decl("x"+i, convert_type(pars[i]));
+//        }
+//        if (m.isVarArgs()){
+//          DeclarationStatement old=args[pars.length-1];
+//          args[pars.length-1] = create.field_decl(old.name(), (Type)old.getType().firstarg());
+//        }
+//        Method ast=create.method_kind(Method.Kind.Plain , returns, null, m.getName(),args, m.isVarArgs() , null);
+//        ast.setFlag(ASTFlags.STATIC,Modifier.isStatic(m.getModifiers()));
+//        res.add(ast);
+//      }
       for (java.lang.reflect.Constructor<?> m : cl.getConstructors()) {
     	  Class<?> pars[]=m.getParameterTypes();
+    	  // We only allow imported constructors without formal parameters. This is to make sure
+          // not too many types are imported.
+          // (since each parameter type causes another import of a new type with new constructors)
+          // Once we figure out how to prune the imported classes
+          // (either at import time or as a distinct pass) we can re-enable this again.
+    	  if (pars.length != 0) {
+    	    continue;
+          }
     	  DeclarationStatement args[]=new DeclarationStatement[pars.length];
     	  for(int i=0;i<pars.length;i++){
     		  args[i]=create.field_decl("x"+i, convert_type(pars[i]));
