@@ -61,16 +61,10 @@ public class JavaResolver extends AbstractRewriter {
       create.enter();
       create.setOrigin(new MessageOrigin("library class %s",cl_name));
       ASTClass res=create.new_class(ClassName.toString(name,FQN_SEP),null,null);
-      // TODO (Bob): Is this the right design decision?
-      // Do not add the original class name to the library, as the class is renamed anyway!
-      // This way we keep a single name of the class in the program consistently
-      // Whenever it breaks we'll just have to fix it with the "real" name
-//      target().library_add(cln,res);
       target().library_add(new ClassName(cln.toString(FQN_SEP)),res);
-      // TODO (Bob): We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass, ideally. But maybe that's wrong, and then that stuff should be handled right here.
-      // However another possibility is to also pull in the extends/implements keywords here and make vercors understand them so flattening can happen whenever we want.
       // Temporarily switch off including methods
       // TODO (Bob): We want these methods around if they are used in the rest of the program! So figure out a way to include them but also prune the added imports
+      // We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass.
 //      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
 //        // Only public methods are allowed since protected is only accesible from the same package (and we're not std) and private is not accesible altogether
 //        if (!Modifier.isPublic(m.getModifiers())) {
