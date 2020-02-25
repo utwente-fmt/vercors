@@ -61,7 +61,6 @@ public class JavaResolver extends AbstractRewriter {
       create.enter();
       create.setOrigin(new MessageOrigin("library class %s",cl_name));
       ASTClass res=create.new_class(ClassName.toString(name,FQN_SEP),null,null);
-      target().library_add(new ClassName(cln.toString(FQN_SEP)),res);
       // Temporarily switch off including methods
       // TODO (Bob): We want these methods around if they are used in the rest of the program! So figure out a way to include them but also prune the added imports
       // We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass.
