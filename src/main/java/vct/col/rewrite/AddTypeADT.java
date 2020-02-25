@@ -104,7 +104,7 @@ public class AddTypeADT extends AbstractRewriter {
   private void addDirectSuperclassAxiom(ASTClass cl) {
     String cl_adt_constructor = "class_" + cl.name();
     String type_var = "t";
-    // Axiom: forall t: TYPE :: (t != ct || t == cl) ? instanceof(cl, t) : !instanceof(cl, t)
+    // Axiom: forall t: TYPE :: (t == Object || t == cl) ? instanceof(cl, t) : !instanceof(cl, t)
     // In other words: cl is only an instance of object and cl, and nothing else
     // This will need to be significantly enhanced to allow for a type system with a partial order/inheritance
     adt.add_axiom(create.axiom(cl.name() + "_direct_superclass",
