@@ -17,8 +17,7 @@ import vct.col.ast.util.ContractBuilder;
 public class AddTypeADT extends AbstractRewriter {
 
   public static final String type_adt="TYPE";
-  public static final String objectName = "java_DOT_lang_DOT_Object";
-  public static final String objectCons = "class_" + objectName;
+  public static final String javaObjectName = "java_DOT_lang_DOT_Object";
 
   private AxiomaticDataType adt;
   
@@ -83,10 +82,15 @@ public class AddTypeADT extends AbstractRewriter {
     super.visit(cl);
     ASTClass res=(ASTClass)result;
     addTypeConstructor(cl);
+    // Assume classes extend Object by default
     if (cl.super_classes.length==0) {
-      addDirectSuperclassAxiom(cl);
+      addDirectSuperclassAxiom(new ClassType(cl.getName()), new ClassType(javaObjectName));
+    } else if (cl.super_classes.length == 1 && cl.super_classes[0].getName().equals(javaObjectName)){
+      // And otherwise a class can only extend Object
+      addDirectSuperclassAxiom(new ClassType(cl.getName()), cl.super_classes[0]);
     } else {
       // TODO
+      Abort("Cannot extend more than one class or extend something else than Object");
     }
     result=res;
   }
@@ -101,33 +105,34 @@ public class AddTypeADT extends AbstractRewriter {
             ));
   }
 
-  private void addDirectSuperclassAxiom(ASTClass cl) {
-    String cl_adt_constructor = "class_" + cl.name();
+  private void addDirectSuperclassAxiom(ClassType child, ClassType parent) {
+    String child_adt_constructor = "class_" + child.getName();
+    String parent_adt_constructor = "class_" + parent.getName();
     String type_var = "t";
     // Axiom: forall t: TYPE :: (t == Object || t == cl) ? instanceof(cl, t) : !instanceof(cl, t)
     // In other words: cl is only an instance of object and cl, and nothing else
     // This will need to be significantly enhanced to allow for a type system with a partial order/inheritance
-    adt.add_axiom(create.axiom(cl.name() + "_direct_superclass",
+    adt.add_axiom(create.axiom(child.getName() + "_direct_superclass",
             create.forall(
                     create.constant(true),
                     create.expression(StandardOperator.ITE,
                             create.expression(StandardOperator.Or,
                                     create.expression(StandardOperator.EQ,
                                             create.local_name(type_var),
-                                            create.domain_call(type_adt, objectCons)
+                                            create.domain_call(type_adt, parent_adt_constructor)
                                             ),
                                     create.expression(StandardOperator.EQ,
                                             create.local_name(type_var),
-                                            create.domain_call(type_adt, cl_adt_constructor)
+                                            create.domain_call(type_adt, child_adt_constructor)
                                             )
                             ),
                             create.domain_call(type_adt, "instanceof",
-                                    create.domain_call(type_adt, cl_adt_constructor),
+                                    create.domain_call(type_adt, child_adt_constructor),
                                     create.local_name(type_var)
                                     ),
                             create.expression(StandardOperator.Not,
                                     create.domain_call(type_adt, "instanceof",
-                                            create.domain_call(type_adt, cl_adt_constructor),
+                                            create.domain_call(type_adt, child_adt_constructor),
                                             create.local_name(type_var)
                                             )
                                     )
