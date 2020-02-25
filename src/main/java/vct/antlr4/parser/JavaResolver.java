@@ -362,17 +362,6 @@ public class JavaResolver extends AbstractRewriter {
   
   @Override
   public ProgramUnit rewriteAll(){
-    // TODO (Bob): Temporary workaround to ensure Object is resolved for java programs. Preferably this is enforced somehow in language
-    // specific passes so we don't have to scan for keywords.
-    FeatureScanner features=new FeatureScanner();
-    source().accept(features);
-    if (features.usesOperator(StandardOperator.Instance)
-          || features.usesInheritance()
-          || features.usesOperator(StandardOperator.TypeOf)
-    ){
-      ensures_loaded("java", "lang", "Object");
-    }
-
     for(ASTDeclaration n:source().get()){
       queue.add(n);
     }

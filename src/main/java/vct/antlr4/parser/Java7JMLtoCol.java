@@ -134,7 +134,8 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
 
   public ASTClass getClassOrIntefaceDeclaration(ParserRuleContext ctx) {
     int N=ctx.getChildCount()-1;
-    ClassType[]bases=null;
+    // https://docs.oracle.com/javase/specs/jls/se7/html/jls-4.html#jls-4.10 4.10.2
+    ClassType[] bases = new ClassType[]{create.class_type(new String[]{"java", "lang", "Object"})};
     ClassType[]supports=null;
     ContractBuilder cb=new ContractBuilder();
     DeclarationStatement parameters[]=null;
@@ -180,6 +181,7 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     } else {
       return null;
     }
+
     ASTClass cl=create.ast_class(getIdentifier(ctx,1), kind ,parameters, bases , supports );
     scan_body(cl,(ParserRuleContext)ctx.getChild(N));
     cl.setContract(cb.getContract());
