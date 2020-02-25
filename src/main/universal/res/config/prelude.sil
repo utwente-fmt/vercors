@@ -176,8 +176,6 @@ domain VCTFloat {
 
 }
 
-
-
 domain VCTTuple[F,S] {
   function vcttuple_tuple(f:F, s:S): VCTTuple[F,S]
   function vcttuple_fst(t:VCTTuple[F,S]): F

@@ -174,7 +174,7 @@ builtinMethod
  : 'Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some'
  ;
 
-mapValues : '{' ( | (expr '->' expr (',' expr '->' expr)*)) '}';
+mapValues : '{' ( | expr '->' expr (',' expr '->' expr)*) '}';
 
 values : '{' ( | expr (',' expr)*) '}';
 
