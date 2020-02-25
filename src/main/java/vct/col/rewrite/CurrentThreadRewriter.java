@@ -98,7 +98,7 @@ public class CurrentThreadRewriter extends AbstractRewriter {
    */
   private boolean affected(Method m){
     Type returnType = m.getReturnType();
-    if (returnType != null && returnType.isPrimitive(PrimitiveSort.Process)) return false;
+    if (returnType.isPrimitive(PrimitiveSort.Process)) return false;
     switch(m.kind){
       case Constructor:
       case Plain:
