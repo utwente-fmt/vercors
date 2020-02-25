@@ -23,6 +23,7 @@ public class IntroExcVar extends AbstractRewriter {
     }
 
     public static boolean canThrow(Method method) {
+        // TODO (Bob): When the new parsers are merged (and the AST is updated correspondingly) extend this by checking the throws as well
         return method.getContract().signals.length > 0; // || method.hasAttribute(THROWS); // ???
     }
 
@@ -37,7 +38,7 @@ public class IntroExcVar extends AbstractRewriter {
 
         BlockStatement body = (BlockStatement) resultMethod.getBody();
         if (body != null) {
-            body.prepend(create.field_decl("sys__exc", create.class_type(new String[]{"java", "lang", "Object"})));
+            body.prepend(create.field_decl("sys__exc", create.class_type("java_DOT_lang_DOT_Object")));
         }
     }
 
