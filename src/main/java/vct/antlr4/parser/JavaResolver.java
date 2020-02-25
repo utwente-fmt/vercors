@@ -12,6 +12,7 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.stmt.decl.NameSpace.Import;
 import vct.col.ast.generic.ASTNode;
@@ -20,6 +21,7 @@ import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
 import vct.col.rewrite.AbstractRewriter;
+import vct.col.util.FeatureScanner;
 import vct.col.util.Parser;
 import vct.util.ClassName;
 
@@ -367,6 +369,17 @@ public class JavaResolver extends AbstractRewriter {
   
   @Override
   public ProgramUnit rewriteAll(){
+    // TODO (Bob): Temporary workaround to ensure Object is resolved for java programs. Preferably this is enforced somehow in language
+    // specific passes so we don't have to scan for keywords.
+    FeatureScanner features=new FeatureScanner();
+    source().accept(features);
+    if (features.usesOperator(StandardOperator.Instance)
+          || features.usesInheritance()
+          || features.usesOperator(StandardOperator.TypeOf)
+    ){
+      ensures_loaded("java", "lang", "Object");
+    }
+
     for(ASTDeclaration n:source().get()){
       queue.add(n);
     }
