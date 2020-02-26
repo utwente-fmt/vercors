@@ -25,12 +25,20 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class BreakContinueReturnToExceptions extends AbstractRewriter {
+/**
+ * Turns a program with break and return into a program using exceptions for control flow.
+ * Note that while all uses of return are replaced with throws, it is not the case that after this pass
+ * no return is present in the function. The pass places one return at the end of the function so another
+ * pass later can decide how return should be encoded (e.g. via assignment to a variable, or something else). The
+ * pass then also ensures that all control flow from break and return is redirected to this one return statement
+ * using exceptions.
+ */
+public class BreakReturnToExceptions extends AbstractRewriter {
     private Set<String> breakLabels = new HashSet<>();
     private boolean encounteredReturn = false;
     private Set<String> exceptionTypes = new HashSet<>();
 
-    public BreakContinueReturnToExceptions(ProgramUnit source) {
+    public BreakReturnToExceptions(ProgramUnit source) {
         super(source);
     }
 

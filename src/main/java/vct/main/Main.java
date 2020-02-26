@@ -13,7 +13,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.stream.Collectors;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
@@ -347,18 +346,25 @@ public class Main
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
 
-        // Abrupt termination encoding passes
-        passes.add("specify-implicit-labels");
-        passes.add("continue-to-break");
+        boolean usesBreakContinue = features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue);
+
+        if (usesBreakContinue) {
+          passes.add("specify-implicit-labels");
+        }
+
+        if (features.usesSpecial(ASTSpecial.Kind.Continue)) {
+          passes.add("continue-to-break");
+        }
+
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
         }
+
         // TODO (Bob): _Only_ resort to exceptions if finally is used in the program! See appendix A.
-        //
-        if (features.usesFinallyClause()) {
-          passes.add("break-continue-return-to-exceptions");
-        } else {
-          passes.add("break-continue-to-goto");
+        if (features.usesFinallyClause() && usesBreakContinue) {
+          passes.add("break-return-to-exceptions");
+        } else if (usesBreakContinue) {
+          passes.add("break-to-goto");
         }
 
         passes.add("java_resolve");
@@ -1215,14 +1221,14 @@ public class Main
         return new SpecifyImplicitLabels(arg).rewriteAll();
       }
     });
-    defined_passes.put("break-continue-to-goto", new CompilerPass("Rewrite break, continue into jumps") {
+    defined_passes.put("break-to-goto", new CompilerPass("Rewrite break, continue into jumps") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new BreakContinueToGoto(arg).rewriteAll();
+        return new BreakToGoto(arg).rewriteAll();
       }
     });
-    defined_passes.put("break-continue-return-to-exceptions", new CompilerPass("Rewrite break, continue into exceptions") {
+    defined_passes.put("break-return-to-exceptions", new CompilerPass("Rewrite break, continue into exceptions") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new BreakContinueReturnToExceptions(arg).rewriteAll();
+        return new BreakReturnToExceptions(arg).rewriteAll();
       }
     });
     defined_passes.put("unfold-switch", new CompilerPass("Unfold switch to chain of if-statements that jump to sections.") {

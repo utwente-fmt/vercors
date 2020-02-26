@@ -17,8 +17,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
-public class BreakContinueToGoto extends AbstractRewriter {
-    public BreakContinueToGoto(ProgramUnit source) {
+public class BreakToGoto extends AbstractRewriter {
+    public BreakToGoto(ProgramUnit source) {
         super(source);
     }
 
