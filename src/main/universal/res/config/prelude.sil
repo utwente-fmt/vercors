@@ -4,7 +4,7 @@ domain frac {
     function frac_val(a: frac): Perm
 
     axiom frac_eq {
-        (forall a: frac, b: frac :: {frac_val(a), frac_val(b)} frac_val(a) == frac_val(b) ==> a == b)
+        (forall a: frac, b: frac :: {frac_val(a), frac_val(b)} frac_val(a) == frac_val(b) <==> a == b)
     }
 
     axiom frac_bound {
@@ -21,7 +21,7 @@ domain zfrac {
     function zfrac_val(a: zfrac): Perm
 
     axiom zfrac_eq {
-        (forall a: zfrac, b: zfrac :: {zfrac_val(a), zfrac_val(b)} zfrac_val(a) == zfrac_val(b) ==> a == b)
+        (forall a: zfrac, b: zfrac :: {zfrac_val(a), zfrac_val(b)} zfrac_val(a) == zfrac_val(b) <==> a == b)
     }
 
     axiom zfrac_bound {
