@@ -60,6 +60,8 @@ public class PVLSyntax {
       syntax.addFunction(MapValueSet, "valuesMap");           //
       syntax.addFunction(MapGetByKey, "getFromMap");          // map[i] (DONE)
       syntax.addFunction(MapRemoveKey, "removeFromMap");      //
+      syntax.addFunction(MapItemSet, "itemsMap");      //
+
 
       syntax.addFunction(TupleFst, "getFst");
       syntax.addFunction(TupleSnd, "getSnd");

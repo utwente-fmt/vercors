@@ -1523,6 +1523,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!tt[0].firstarg().equals(tt[1])) Fail("Type of key %s to add does not match the key type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
         e.setType(tt[0]);
         break;
+      case MapItemSet:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("Argument is not a map at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Set, new PrimitiveType(PrimitiveSort.Tuple, tt[0].firstarg(), tt[0].secondarg())));
+        break;
       case TupleFst:
         if (!tt[0].isPrimitive(PrimitiveSort.Tuple)) Fail("The argument is not a tuple at %s", e.getOrigin());
         e.setType((Type) tt[0].firstarg());

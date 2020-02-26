@@ -340,6 +340,8 @@ public enum StandardOperator {
   MapGetByKey(2),
   /** remove a key/value pair from a map by its key*/
   MapRemoveKey(2),
+  /** get a set of items (i.e. tuples) from a map*/
+  MapItemSet(1),
   /** Get the first element form the tuple */
   TupleFst(1),
   /** Get the second element form the tuple  */

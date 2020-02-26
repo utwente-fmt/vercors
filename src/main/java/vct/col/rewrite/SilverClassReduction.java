@@ -606,6 +606,11 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.invokation(rewrite(e.first().getType()), null, "vctmap_remove", args);
       break;
     }
+      case MapItemSet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_items", args);
+      break;
+    }
       case TupleFst:{
         ASTNode type = rewrite(e.first().getType().firstarg());
         List<ASTNode> args = rewrite(e.argsJava());
