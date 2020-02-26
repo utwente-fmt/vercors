@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases Knuth_Tabulate
+//:: tools silicon
+//:: verdict Pass
+
 final class MyClass {
     int i;
 

@@ -563,7 +563,7 @@ public class Main
         // if (has_type_adt){
         //   passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
         // } else {
-        //   passes.add("voidcalls");
+        passes.add("create-return-parameter");
         // }
 
         passes.add("standardize");
@@ -1161,7 +1161,7 @@ public class Main
         return new StripConstructors(arg).rewriteAll();
       }
     });
-    branching_pass(defined_passes,"voidcalls","Replace return value by out parameter.",VoidCalls.class);
+    branching_pass(defined_passes,"create-return-parameter","Replace return value by out parameter.", CreateReturnParameter.class);
     defined_passes.put("voidcallsthrown",new CompilerPass("Replace return value and thrown exceptions by out parameters."){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new VoidCallsThrown(arg).rewriteAll();

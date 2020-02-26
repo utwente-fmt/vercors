@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases Abrupt
+//:: tools silicon
+//:: verdict Pass
+
 final class MyClass {
     boolean p();
 

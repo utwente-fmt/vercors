@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases Synchronized
+//:: tools silicon
+//:: verdict Pass
+
 final class MyClass {
     resource lock_invariant() = Perm(this.x, 1);
 

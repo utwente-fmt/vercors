@@ -1,5 +1,7 @@
 package vct.col.rewrite;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import vct.col.ast.stmt.decl.ASTFlags;
@@ -18,18 +20,22 @@ import vct.col.ast.type.PrimitiveSort;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
 
-public class VoidCalls extends AbstractRewriter {
+public class CreateReturnParameter extends AbstractRewriter {
 
   private static final String RETURN_BRANCH = "return branch";
+  private static final String RETURN_VAR = "sys__result";
 
-  public VoidCalls(ProgramUnit source, ErrorMapping map) {
+  public CreateReturnParameter(ProgramUnit source, ErrorMapping map) {
     super(source);
+    // TODO (Bob): In the case of abrupt control flow this is not that useful, since
+    // there is only one return at the end now. Ideally if no finally is present, the contracts
+    // should be checked at the actual return sites, and not just the synthetic return site at the end.
     map.add(RETURN_BRANCH,ErrorCode.AssertFailed,ErrorCode.PostConditionFailed);
   }
   
   public void visit(NameExpression e){
     if (e.isReserved(ASTReserved.Result)){
-      result=create.unresolved_name("sys__result");
+      result=create.unresolved_name(RETURN_VAR);
     } else {
       super.visit(e);
     }
@@ -47,15 +53,15 @@ public class VoidCalls extends AbstractRewriter {
     if (m.getReturnType().isVoid()){
       super.visit(m);
     } else {
-      DeclarationStatement m_args[]=m.getArgs();
-      int N=m_args.length;
-      DeclarationStatement args[]=new DeclarationStatement[N+1];
-      args[0]=new DeclarationStatement("sys__result",rewrite(m.getReturnType()));
-      args[0].setOrigin(m);
-      args[0].setFlag(ASTFlags.OUT_ARG, true);
-      for(int i=0;i<N;i++){
-        args[i+1]=rewrite(m_args[i]);
+      ArrayList<DeclarationStatement> args = new ArrayList<>(Arrays.asList(m.getArgs()));
+      for(int i=0; i<args.size(); i++){
+        args.set(i, rewrite(args.get(i)));
       }
+
+      DeclarationStatement outArg = create.field_decl(RETURN_VAR, rewrite(m.getReturnType()));
+      outArg.setFlag(ASTFlags.OUT_ARG, true);
+      args.add(0, outArg);
+
       result=create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
           rewrite(m.getContract()),
@@ -83,15 +89,13 @@ public class VoidCalls extends AbstractRewriter {
     for(ASTNode n : s.get_after()){
       res.add(rewrite(n));
     }
+
     ASTNode post=rewrite(current_method().getContract().post_condition);
     if (current_method().getContract()!=null){
       res.add(create.special(ASTSpecial.Kind.Assert,post).set_branch(RETURN_BRANCH));
     }
     res.add(create.special(ASTSpecial.Kind.Assume,create.constant(false)));
     result=res;
-//    } else {
-//      super.visit(s);
-//    }
   }
   
   public void visit(MethodInvokation e){

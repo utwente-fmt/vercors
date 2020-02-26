@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases Finally
+//:: tools silicon
+//:: verdict Pass
+
 class Finally {
     void foo() {
         int x;

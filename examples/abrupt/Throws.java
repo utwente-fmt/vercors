@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases Throws
+//:: tools silicon
+//:: verdict Pass
+
 //class Exception {
 //    int exception_id;
 //    Exception(int _exception_id) {

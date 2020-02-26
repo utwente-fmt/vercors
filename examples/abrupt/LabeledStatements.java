@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases LabeledStatements
+//:: tools silicon
+//:: verdict Pass
+
 class MyClass {
     void ex1() {
         LABEL: try {

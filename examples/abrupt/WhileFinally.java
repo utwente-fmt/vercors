@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases WhileFinally
+//:: tools silicon
+//:: verdict Pass
+
 class Java {
     boolean p();
 
