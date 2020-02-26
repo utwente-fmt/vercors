@@ -2,6 +2,10 @@ parser grammar CParser;
 options {tokenVocab = LangCLexer;}
 import LangCParser, SpecParser;
 
+@parser::members {
+    private static int ghostLevel = 0;
+}
+
 /* Define for use by C grammar */
 
 extraIdentifier : valReserved;

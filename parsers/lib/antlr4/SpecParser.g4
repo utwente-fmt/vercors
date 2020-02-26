@@ -5,7 +5,7 @@ parser grammar SpecParser;
    expression
    identifier
    type
-   block
+   statement
    startSpec - the rule entering the lexer into specification mode
    endSpec - the rule exiting the lexer from specification mode
  exported grammar rules for PVL
@@ -43,8 +43,12 @@ valContractClause
  | 'loop_invariant' expression ';'
  ;
 
+valBlock
+ : '{' valStatement* '}'
+ ;
+
 valStatement
- : 'create' block               // create a magic wand
+ : 'create' valBlock               // create a magic wand
  | 'qed' expression ';'
  | 'apply' expression ';'
  | 'use' expression ';'
@@ -66,7 +70,7 @@ valStatement
  | 'label' identifier ';' 
  | 'refute' expression ';' 
  | 'witness' expression ';'
- | 'ghost' block
+ | 'ghost' {ghostLevel++;} statement {ghostLevel--;}
  | 'send' expression 'to' Identifier ',' expression ';'
  | 'recv' expression 'from' Identifier ',' expression ';'
  | 'transfer' expression ';' 
@@ -74,7 +78,7 @@ valStatement
  | 'spec_ignore' '}'
  | 'spec_ignore' '{'
  | 'action' expression ',' expression ',' expression ',' expression ( ',' expression ',' expression )* ';'
- | 'atomic' '(' valLabelList? ')' block
+ | 'atomic' '(' valLabelList? ')' statement
  ;
 
 valWithThenMapping

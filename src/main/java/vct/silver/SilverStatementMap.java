@@ -416,4 +416,9 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   public S map(Switch s) {
     return null;
   }
+
+  @Override
+  public S map(TryWithResources t) {
+    return null;
+  }
 }

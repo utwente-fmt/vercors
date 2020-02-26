@@ -9,7 +9,7 @@ import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{MethodInvokation, NameExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.BlockStatement
+import vct.col.ast.stmt.composite.{BlockStatement, TryCatchBlock, TryWithResources}
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
 
@@ -71,7 +71,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case TypeDeclaration1(mods, enumDecl) =>
       ??(enumDecl)
     case TypeDeclaration2(mods, interfaceDecl) =>
-      ??(interfaceDecl)
+      val cls = convertClass(interfaceDecl)
+      mods.map(convertModifier).foreach(mod => cls.attach(mod))
+      Seq(cls)
     case TypeDeclaration3(mods, annotationDecl) =>
       ??(annotationDecl)
     case TypeDeclaration4(_extraSemicolon) => Seq()
@@ -154,6 +156,18 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       Seq(create axiom(name, create expression(EQ, expr(left), expr(right))))
   })
 
+  def convertResource(res: ResourceContext): DeclarationStatement = origin(res, res match {
+    case Resource0(mods, t, name, "=", init) =>
+      val decl = create field_decl(convertID(name), convertType(t), expr(init))
+      mods.map(convertModifier).foreach(decl.attach(_))
+      decl
+  })
+
+  def convertResourceList(res: ResourcesContext): Seq[DeclarationStatement] = origin(res, res match {
+    case Resources0(x) => Seq(convertResource(x))
+    case Resources1(x, _, xs) => convertResource(x) +: convertResourceList(xs)
+  })
+
   def convertModifier(modifier: ParserRuleContext): NameExpression = origin(modifier, modifier match {
     case Modifier0(mod) => convertModifier(mod)
     case Modifier1(ExtraAnnotation0("pure")) =>
@@ -187,6 +201,22 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(annotation)
   })
 
+  def convertClass(decl: InterfaceDeclarationContext): ASTClass = origin(decl, decl match {
+    case InterfaceDeclaration0(_, _, Some(typeParams), _, _) =>
+      ??(typeParams)
+    case InterfaceDeclaration0("interface", name, None, maybeExtends, InterfaceBody0(_, decls, _)) =>
+      val ext = maybeExtends match {
+        case None => Seq()
+        case Some(IntExt0(_, typeList)) => convertTypeList(typeList).map {
+          case t: ClassType => t
+          case resolvedType => fail(typeList, "Can only extend from an interface type, but found %s", resolvedType)
+        }
+      }
+      val int = create ast_class(convertID(name), ASTClass.ClassKind.Interface, Array(), ext.toArray, Array())
+      decls.map(convertDecl).foreach(_.foreach(int.add))
+      int
+  })
+
   def convertClass(decl: ClassDeclarationContext): ASTClass = origin(decl, decl match {
     case ClassDeclaration0(_, _, Some(typeParams), _, _, _) =>
       ??(typeParams) // generics are not supported.
@@ -195,15 +225,14 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case None => Seq()
         case Some(Ext0(_, t)) => Seq(convertType(t) match {
           case t: ClassType => t
-          case _ => ??(t)
-            // The ast does not allow bases that are not of ClassType, but the grammar does
+          case resolvedType => fail(t, "Can only extend from a class type, but found %s", resolvedType)
         })
       }
       val imp = maybeImplements match {
         case None => Seq()
         case Some(Imp0(_, typeList)) => convertTypeList(typeList).map {
           case t: ClassType => t
-            case _ => ??(typeList) // see above
+          case resolvedType => fail(typeList, "Can only implement an interface type, but found %s", resolvedType)
         }
       }
       val cls = create ast_class(convertID(name), ASTClass.ClassKind.Plain, Array(), ext.toArray, imp.toArray)
@@ -217,18 +246,29 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case TypeArguments0("<", xs, ">") => convertTypeList(xs)
     case TypeArgumentList0(x) => Seq(convertType(x))
     case TypeArgumentList1(x, _, xs) => convertType(x) +: convertTypeList(xs)
+    case CatchType0(x) => Seq(convertType(x))
+    case CatchType1(x, "|", xs) => convertType(x) +: convertTypeList(xs)
+  }
+
+  def addDims(t: Type, dimCount: Int): Type = {
+    var result = t
+    for(_ <- 0 until dimCount) {
+      result =
+        create.primitive_type(PrimitiveSort.Option,
+          create.primitive_type(PrimitiveSort.Array,
+            create.primitive_type(PrimitiveSort.Cell, result)))
+    }
+    result
   }
 
   def convertType(tree: ParserRuleContext, extraDims: Int): Type = {
-    var t = convertType(tree)
-    for(_ <- 0 until extraDims)
-      t = create.primitive_type(PrimitiveSort.Option,
-            create.primitive_type(PrimitiveSort.Array,
-              create.primitive_type(PrimitiveSort.Cell, t)))
-    t
+    addDims(convertType(tree), extraDims)
   }
 
   def convertType(tree: ParserRuleContext): Type = origin(tree, tree match {
+    case qualified: QualifiedNameContext =>
+      create class_type convertQualifiedName(qualified).toArray
+
     case TypeOrVoid0("void") => create primitive_type PrimitiveSort.Void
     case TypeOrVoid1(t) => convertType(t)
 
@@ -263,7 +303,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       if(name.equals("seq")) {
         args match {
           case Seq(subType) => create primitive_type(PrimitiveSort.Sequence, subType)
-          case _ => ??(tree)
+          case _ => fail(tree, "Built-in type seq takes exactly one type argument")
         }
       } else {
         create class_type(name, args:_*)
@@ -273,8 +313,22 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(innerType) // inner classes are unsupported
 
     case TypeArgument0(t) => convertType(t)
-    case wildcard: TypeArgument1Context => ??(wildcard)
+    case wildcard: TypeArgument1Context => ??(wildcard) // generics are unsupported
+
+    case CreatedName0(classType) => create class_type(convertClassType(classType).toArray)
+    case CreatedName1(primitiveType) => convertType(primitiveType)
   })
+
+  def convertClassType(tree: ClassTypeDiamondListContext): Seq[String] = tree match {
+    case ClassTypeDiamondList0(name, Some(typeArgs)) =>
+      ??(typeArgs)
+    case ClassTypeDiamondList0(name, None) =>
+      Seq(convertID(name))
+    case ClassTypeDiamondList1(name, Some(typeArgs), _, names) =>
+      ??(typeArgs)
+    case ClassTypeDiamondList1(name, None, _, names) =>
+      convertID(name) +: convertClassType(names)
+  }
 
   def convertParams(params: ParserRuleContext): (Seq[DeclarationStatement], Boolean) = params match {
     case FormalParameters0(_, None, _) => (Seq(), false)
@@ -315,13 +369,35 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       (convertID(name), extraDims, Some(expr(init)))
   }
 
+  def convertBlock(block: FinallyBlockContext): BlockStatement = origin(block, block match {
+    case FinallyBlock0(_, block) => convertBlock(block)
+  })
+
   def convertBlock(block: BlockContext): BlockStatement = origin(block, block match {
     case Block0(_, stats, _) =>
       create block(stats.flatMap(convertStat):_*)
   })
 
+  def addCatchClauses(tryBlock: TryCatchBlock, catchClauses: Seq[CatchClauseContext]): Unit = {
+    catchClauses.foreach {
+      case CatchClause0(_, _, Seq(mod, _*), _, _, _, _) =>
+        ??(mod)
+      case CatchClause0("catch", _, Seq(), types, name, _, block) =>
+        tryBlock.addCatchClause(convertID(name), convertTypeList(types), convertBlock(block))
+    }
+  }
+
+  def addCatchClauses(tryBlock: TryWithResources, catchClauses: Seq[CatchClauseContext]): Unit = {
+    catchClauses.foreach {
+      case CatchClause0(_, _, Seq(mod, _*), _, _, _, _) =>
+        ??(mod)
+      case CatchClause0("catch", _, Seq(), types, name, _, block) =>
+        tryBlock.addCatchClause(convertID(name), convertTypeList(types), convertBlock(block))
+    }
+  }
+
   def convertStat(stat: ParserRuleContext): Seq[ASTNode] = origin(stat, stat match {
-    // Statement that occurs in a block
+    // BlockStatement is a statement that may occur in a block, not a block in itself.
     case BlockStatement0(LocalVariableDeclarationStatement0(varDecl, _)) =>
       convertDecl(varDecl)
     case BlockStatement1(stat) =>
@@ -356,40 +432,48 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       Seq(loop)
     case Statement5("do", body, "while", cond, _) =>
       ??(stat) // do-while unsupported
-    case _: Statement6Context =>
-      ??(stat) // try-catch unsupported
-    case _: Statement7Context =>
-      ??(stat) // try-with-catch unuspported
-    case Statement8("switch", obj, "{", caseStatMappings, extraCases, "}") =>
+    case Statement6("try", block, catchClauses, maybeFinally) =>
+      val tryBlock = create try_catch(convertBlock(block), maybeFinally.map(convertBlock).orNull)
+      addCatchClauses(tryBlock, catchClauses)
+      Seq(tryBlock)
+    case Statement7("try", block, uiteindelijk) =>
+      Seq(create try_catch(convertBlock(block), convertBlock(uiteindelijk)))
+    case Statement8("try", ResourceSpecification0(_, res, _, _), block, catchClauses, maybeFinally) =>
+      val tryBlock = create try_with_resources(convertBlock(block), maybeFinally.map(convertBlock).orNull)
+      convertResourceList(res).foreach(tryBlock.addResource)
+      addCatchClauses(tryBlock, catchClauses)
+      Seq(tryBlock)
+    case Statement9("switch", obj, "{", caseStatMappings, extraCases, "}") =>
       ??(stat) // switch unsupported
-    case Statement9("synchronized", obj, body) =>
+    case Statement10("synchronized", obj, body) =>
+      // new node: expression + block
       ??(stat) // synchronizing on objects unsupported
-    case Statement10("return", maybeValue, _) =>
+    case Statement11("return", maybeValue, _) =>
       Seq(maybeValue match {
         case None => create return_statement()
         case Some(value) => create return_statement(expr(value))
       })
-    case Statement11("throw", exc, _) =>
-      ??(stat) // exceptions unsupported
-    case Statement12("break", maybeLabel, _) =>
+    case Statement12("throw", exc, _) =>
+      Seq(create special(ASTSpecial.Kind.Throw, expr(exc)))
+    case Statement13("break", maybeLabel, _) =>
       Seq(maybeLabel match {
         case None => create special(ASTSpecial.Kind.Break)
         case Some(lbl) => create special(ASTSpecial.Kind.Break, convertIDName(lbl))
       })
-    case Statement13("continue", maybeLabel, _) =>
+    case Statement14("continue", maybeLabel, _) =>
       Seq(maybeLabel match {
         case None => create special(ASTSpecial.Kind.Continue)
         case Some(lbl) => create special(ASTSpecial.Kind.Continue, convertIDName(lbl))
       })
-    case Statement14(";") =>
+    case Statement15(";") =>
       Seq() // nop
-    case Statement15(exp, _) =>
+    case Statement16(exp, _) =>
       Seq(expr(exp))
-    case Statement16(label, ":", stat) =>
+    case Statement17(label, ":", stat) =>
       val res = convertStat(stat)
       res.foreach(_.addLabel(convertIDName(label)))
       res
-    case Statement17(valStatement) =>
+    case Statement18(valStatement) =>
       convertValStat(valStatement)
 
     case ForInit0(varDecl) => convertDecl(varDecl)
@@ -402,6 +486,27 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Arguments0(_, Some(xs), _) => exprList(xs)
     case ExpressionList0(exp) => Seq(expr(exp))
     case ExpressionList1(x, _, xs) => expr(x) +: exprList(xs)
+    case SpecifiedDims0(x) => Seq(expr(x))
+    case SpecifiedDims1(x, xs) => expr(x) +: exprList(xs)
+  }
+
+  def getArrayInitializerList(initializers: VariableInitializerListContext,
+                              dims: Int, baseType: Type): Seq[ASTNode] = initializers match {
+    case VariableInitializerList0(initializer) =>
+      Seq(getArrayInitializer(initializer, dims, baseType))
+    case VariableInitializerList1(initializer, _, initializers) =>
+      getArrayInitializer(initializer, dims, baseType) +:
+        getArrayInitializerList(initializers, dims, baseType)
+  }
+
+  def getArrayInitializer(initializer: ParserRuleContext, dims: Int, baseType: Type): ASTNode = initializer match {
+    case ArrayInitializer0("{", "}") =>
+      create struct_value(addDims(baseType, dims), null)
+    case ArrayInitializer1("{", initializers, _, "}") =>
+      create struct_value(addDims(baseType, dims), null, getArrayInitializerList(initializers, dims-1, baseType):_*)
+
+    case VariableInitializer0(arrayInitializer) => getArrayInitializer(arrayInitializer, dims, baseType)
+    case VariableInitializer1(exp) => expr(exp)
   }
 
   def expr(tree: ParserRuleContext): ASTNode = origin(tree, tree match {
@@ -412,10 +517,29 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Expression0(primary) => expr(primary)
     case Expression1(obj, ".", field) =>
       create dereference(expr(obj), convertID(field))
-    case Expression2(obj, ".", "this") => ??(tree)
-    case Expression3(obj, ".", "new", typeArgs, creator) => ??(tree)
-    case Expression4(obj, ".", "super", suffix) => ??(tree)
+    case Expression2(obj, ".", "this") =>
+      ??(tree)
+      /* This is used to refer to a specific "this", within the context of an inner class (which is defined wrt an
+      * outer class instance, unless it is defined as static). We should start supporting this if we end up
+      * implementing inner classes. */
+    case Expression3(obj, ".", "new", typeArgs, creator) =>
+      ??(tree)
+      /* This is again used in inner classes, where you instantiate an inner class with respect to a specific instance
+       * of the outer class. Normally it is instantiated with respect to the current ("this") instance of the outer
+       * class. */
+    case Expression4(obj, ".", "super", suffix) =>
+      ??(tree)
+      /*
+      Two cases, either suffix = arguments:
+        Then this is an invocation of a constructor, whereby classname.super is called a
+        qualified superclass constructor
+      Or suffix = '.' identifier arguments:
+        then classname.super is the qualifying type of the method call <identifier arguments>
+
+      inheritance is unsupported
+      */
     case Expression5(obj, ".", invokation) =>
+      ??(invokation) // no idea...
       expr(invokation) match {
         case call: MethodInvokation if call.`object` == null =>
           create invokation(expr(obj), null, call.method, call.getArgs:_*)
@@ -424,7 +548,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Expression6(seq, "[", idx, "]") =>
       create expression(Subscript, expr(seq), expr(idx))
     case Expression7(_, _, _, _) => ??(tree) //arrow type
-    case Expression8(_, Some(predicateLoc), _) => ??(tree)
+    case Expression8(_, Some(predicateEntryType), _) =>
+      // the predicate entry type is set as dispatch of an invokation
+      ??(tree)
     case Expression8(obj, None, argsNode) =>
       val args = exprList(argsNode)
       expr(obj) match {
@@ -432,8 +558,21 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
           create invokation(null, null, name.getName, args:_*)
         case _ => ??(tree)
       }
-    case Expression9("new", creator) => ??(tree)
-    case Expression10("(", t, ")", exp) => ??(tree)
+    case Expression9("new", Creator0(typeArgs, _, _)) =>
+      ??(typeArgs) // generics are unsupported
+    case Expression9("new", Creator1(name, creator)) => (name, creator) match {
+      case (CreatedName1(primitiveType), CreatorRest1(_classCreator)) =>
+        fail(primitiveType, "This is invalid syntax; it parsed as a constructor call on a primitive type.")
+      case (t, CreatorRest0(ArrayCreatorRest0(Dims0(dims), initializer))) =>
+        val baseType = convertType(t)
+        getArrayInitializer(initializer, dims.size, baseType)
+      case (t, CreatorRest0(ArrayCreatorRest1(specDims, maybeAnonDims))) =>
+        val anonDims = maybeAnonDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
+        val knownDims = exprList(specDims)
+        create expression(NewArray, convertType(t, knownDims.size + anonDims), knownDims.toArray)
+    }
+
+    case Expression10("(", t, ")", exp) => create expression(Cast, convertType(t), expr(exp))
     case Expression11(exp, "++") => create expression(PostIncr, expr(exp))
     case Expression11(exp, "--") => create expression(PostDecr, expr(exp))
     case Expression12("+", exp) => expr(exp)
@@ -506,8 +645,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Primary3(Literal4(s)) => create constant s.equals("true")
     case Primary3(Literal5("null")) => create reserved_name(ASTReserved.Null)
     case Primary4(name) => convertIDName(name)
-    case Primary5(t, ".", "class") => ??(tree)
-    case Primary6("void", ".", "class") => ??(tree)
+    case Primary5(t, ".", "class") =>
+      ??(tree) // reflection is unsupported
+    case Primary6("void", ".", "class") =>
+      ??(tree) // reflection is unsupported
     case _: Primary7Context => ??(tree) // generic invocation?
     case Primary8(extra) => expr(extra)
 
@@ -520,6 +661,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case VariableDeclaratorInit0(_, exp) => expr(exp)
     case VariableInitializer0(arr) => ??(arr)
     case VariableInitializer1(exp) => expr(exp)
+    case SpecifiedDim0("[", dimSize, "]") => expr(dimSize)
   })
 
   /* === Start of duplicated code block ===
@@ -568,6 +710,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       builder.appendInvariant(expr(exp))
   }
 
+  def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {
+    case ValBlock0("{", statements, "}") =>
+      create block(statements.map(convertValStat):_*)
+  })
+
   def convertValStat(stat: ValEmbedStatementBlockContext): Seq[ASTNode] = origin(stat, stat match {
     case ValEmbedStatementBlock0(_startSpec, stats, _endSpec) =>
       stats.map(convertValStat)
@@ -575,7 +722,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertValStat(stat: ValStatementContext): ASTNode = origin(stat, stat match {
     case ValStatement0(_create, block) =>
-      create lemma(convertBlock(block))
+      create lemma(convertValBlock(block))
     case ValStatement1(_qed, exp, _) =>
       create special(ASTSpecial.Kind.QED, expr(exp))
     case ValStatement2(_apply, exp, _) =>
@@ -619,7 +766,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValStatement21(_witness, pred, _) =>
       create special(ASTSpecial.Kind.Witness, expr(pred))
     case ValStatement22(_ghost, code) =>
-      ??(stat)
+      create block(convertStat(code):_*)
     case ValStatement23(_send, res, _to, lbl, _, thing, _) =>
       create special(ASTSpecial.Kind.Send, expr(res), create unresolved_name lbl, expr(thing))
     case ValStatement24(_recv, res, _from, lbl, _, thing, _) =>
@@ -634,8 +781,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create special ASTSpecial.Kind.SpecIgnoreStart
     case action: ValStatement29Context =>
       ??(action)
-    case ValStatement30(_atomic, _, resList, _, block) =>
-      create csl_atomic(convertBlock(block), resList.map(convertValLabelList).getOrElse(Seq()):_*)
+    case ValStatement30(_atomic, _, resList, _, stat) =>
+      create csl_atomic(create block(convertStat(stat):_*), resList.map(convertValLabelList).getOrElse(Seq()):_*)
   })
 
   def valExpr(exp: ValPrimaryContext): ASTNode = origin(exp, exp match {

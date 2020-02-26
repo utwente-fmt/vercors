@@ -1,5 +1,6 @@
 package vct.col.ast.stmt.composite
 
+import vct.col.ast.`type`.Type
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.ASTVisitor
@@ -26,12 +27,14 @@ class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[t
   /**
    * Adds a catch clause (i.e. an exception handler) to the try-catch-block AST node,
    * for example: "{@code catch (ExceptionType e) S}", with "{@code S}" the body of the exception handler.
-   * 
-   * @param decl The declaration that determines the exception type to handle (e.g. "{@code ExceptionType e}").
+   *
    * @param block The body statement block of the catch clause (e.g. the handler body "{@code S}").
    */
-  def addCatchClause(decl:DeclarationStatement, block:BlockStatement) : Unit =
-    catchClauses += new CatchClause(decl, block)
+  def addCatchClause(name: String, catchTypes: Seq[Type], block: BlockStatement) : Unit =
+    catchClauses += new CatchClause(name, catchTypes, block)
+
+  def addCatchClauseArray(name: String, catchTypes: Array[Type], block: BlockStatement): Unit =
+    addCatchClause(name, catchTypes.toSeq, block)
 
   override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))

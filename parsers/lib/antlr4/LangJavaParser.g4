@@ -40,11 +40,6 @@
  */
 parser grammar LangJavaParser;
 
-@lexer::members {
-    public static final int CH_COMMENT = 1;
-    public static final int CH_LINEDIRECTION = 2;
-}
-
 // starting point for parsing a java file
 compilationUnit
     :   packageDeclaration? importDeclaration* typeDeclaration* EOF
@@ -137,8 +132,9 @@ enumBodyDeclarations
     ;
 
 interfaceDeclaration
-    :   'interface' javaIdentifier typeParameters? ('extends' typeList)? interfaceBody
+    :   'interface' javaIdentifier typeParameters? intExt? interfaceBody
     ;
+intExt: 'extends' typeList;
 
 typeList
     :   type
@@ -259,7 +255,13 @@ variableInitializer
     ;
 
 arrayInitializer
-    :   '{' (variableInitializer (',' variableInitializer)* (',')? )? '}'
+    :   '{' '}'
+    |   '{' variableInitializerList ','? '}'
+    ;
+
+variableInitializerList
+    :   variableInitializer
+    |   variableInitializer ',' variableInitializerList
     ;
 
 enumConstantName
@@ -277,7 +279,7 @@ typeOrVoid
     | type
     ;
 
-dims: dim*;
+dims: dim+;
 dim: '[' ']';
 
 classOrInterfaceType
@@ -455,7 +457,8 @@ statement
     |   valEmbedContract? 'for' '(' forControl ')' valEmbedContract? statement
     |   valEmbedContract? 'while' parExpression valEmbedContract? statement
     |   'do' statement 'while' parExpression ';'
-    |   'try' block (catchClause+ finallyBlock? | finallyBlock)
+    |   'try' block catchClause+ finallyBlock?
+    |   'try' block finallyBlock
     |   'try' resourceSpecification block catchClause* finallyBlock?
     |   'switch' parExpression '{' switchBlockStatementGroup* switchLabel* '}'
     |   'synchronized' parExpression block
@@ -467,6 +470,7 @@ statement
     |   statementExpression ';'
     |   javaIdentifier ':' statement
     |   valEmbedStatementBlock
+    |   {ghostLevel>0}? valStatement
     ;
 
 assertMessage: ':' expression;
@@ -477,7 +481,8 @@ catchClause
     ;
 
 catchType
-    :   qualifiedName ('|' qualifiedName)*
+    :   qualifiedName
+    |   qualifiedName '|' catchType
     ;
 
 finallyBlock
@@ -489,7 +494,8 @@ resourceSpecification
     ;
 
 resources
-    :   resource (';' resource)*
+    :   resource
+    |   resource ';' resources
     ;
 
 resource
@@ -555,7 +561,7 @@ expression
     |   expression '.' explicitGenericInvocation
     |   expression '[' expression ']'
     |   expression '->' javaIdentifier arguments
-    |   expression predicateLoc? arguments
+    |   expression predicateEntryType? arguments
     |   'new' creator
     |   '(' type ')' expression
     |   expression ('++' | '--')
@@ -590,7 +596,7 @@ expression
         )
         expression
     ;
-predicateLoc: '@' javaIdentifier;
+predicateEntryType: '@' javaIdentifier; // TODO: Find correct class type
 
 primary
     :   '(' expression ')'
@@ -606,12 +612,19 @@ primary
 
 creator
     :   nonWildcardTypeArguments createdName classCreatorRest
-    |   createdName (arrayCreatorRest | classCreatorRest)
+    |   createdName creatorRest
     ;
 
+creatorRest: arrayCreatorRest | classCreatorRest;
+
 createdName
-    :   javaIdentifier typeArgumentsOrDiamond? ('.' javaIdentifier typeArgumentsOrDiamond?)*
+    :   classTypeDiamondList
     |   primitiveType
+    ;
+
+classTypeDiamondList
+    :   javaIdentifier typeArgumentsOrDiamond?
+    |   javaIdentifier typeArgumentsOrDiamond? '.' classTypeDiamondList
     ;
 
 innerCreator
@@ -619,11 +632,16 @@ innerCreator
     ;
 
 arrayCreatorRest
-    :   '['
-        (   ']' ('[' ']')* arrayInitializer
-        |   expression ']' ('[' expression ']')* ('[' ']')*
-        )
+    :   dims arrayInitializer
+    |   specifiedDims dims?
     ;
+
+specifiedDims
+    :   specifiedDim
+    |   specifiedDim specifiedDims
+    ;
+
+specifiedDim: '[' expression ']';
 
 classCreatorRest
     :   arguments classBody?

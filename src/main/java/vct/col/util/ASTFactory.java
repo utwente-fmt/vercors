@@ -704,7 +704,7 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
     return method_kind(kind,returns,contract,name,args.toArray(new DeclarationStatement[args.size()]),varArgs,body);
   }
   public Method method_kind(Method.Kind kind,Type returns,Contract contract,String name,DeclarationStatement args[],boolean varArgs,ASTNode body){
-    Method res=new Method(kind,name,returns,contract,args,varArgs,body);
+    Method res=new Method(kind,name,returns,new Type[0],contract,args,varArgs,body);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
@@ -798,10 +798,10 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
     return csl_atomic(origin,block,labels);
   }
   
-  public ParallelAtomic csl_atomic(BlockStatement block,ASTNode ... invs){
+  public ParallelAtomic csl_atomic(ASTNode block,ASTNode ... invs){
     return csl_atomic(origin_stack.get(),block,invs);
   }
-  public ParallelAtomic csl_atomic(Origin origin,BlockStatement block,ASTNode ... invs){
+  public ParallelAtomic csl_atomic(Origin origin,ASTNode block,ASTNode ... invs){
     ParallelAtomic res = new ParallelAtomic(block, invs);
     res.setOrigin(origin);
     res.accept_if(post);
@@ -1263,6 +1263,17 @@ public Axiom axiom(String name, ASTNode exp){
   public TryCatchBlock try_catch(Origin o, BlockStatement main,
       BlockStatement after) {
     TryCatchBlock res=new TryCatchBlock(main,after);
+    res.setOrigin(o);
+    res.accept_if(post);
+    return res;
+  }
+
+  public TryWithResources try_with_resources(BlockStatement main, BlockStatement after) {
+    return try_with_resources(origin_stack.get(), main, after);
+  }
+
+  public TryWithResources try_with_resources(Origin o, BlockStatement main, BlockStatement after) {
+    TryWithResources res = new TryWithResources(main, after);
     res.setOrigin(o);
     res.accept_if(post);
     return res;

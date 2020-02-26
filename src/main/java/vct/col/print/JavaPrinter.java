@@ -76,7 +76,14 @@ public class JavaPrinter extends AbstractPrinter {
     for (CatchClause cb : tcb.catches()) {
       out.print("catch (");
       nextExpr();
-      cb.decl().accept(this);
+      boolean first = true;
+      for(Type t : cb.javaCatchTypes()) {
+        if(!first) out.print(" | ");
+        t.accept(this);
+        first = false;
+      }
+      out.print(" ");
+      out.print(cb.name());
       out.print(")");
       cb.block().accept(this);
     }
@@ -1305,7 +1312,7 @@ public class JavaPrinter extends AbstractPrinter {
     };
     
     out.printf(")");
-    visit(pa.block());
+    pa.block().accept(this);
   }
 
   @Override

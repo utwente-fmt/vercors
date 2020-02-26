@@ -48,7 +48,7 @@ class JavaArrayExamples {
       ensures  Perm(a[i],write);
     @*/
     {
-      //@ S1:if(i>0){ recv 0 < i ** i < a.length ** Perm(a[i],1\2) from S2,1; }
+      //@ ghost S1:if(i>0){ recv 0 < i ** i < a.length ** Perm(a[i],1\2) from S2,1; }
       S2:if (i < a.length-1) {
         a[i]=a[i+1];
         //@ send 0 <= i ** i < a.length - 1 ** Perm(a[i+1],1\2) to S1,1;

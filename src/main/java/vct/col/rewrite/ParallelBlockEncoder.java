@@ -493,7 +493,14 @@ public class ParallelBlockEncoder extends AbstractRewriter {
 
   @Override
   public void visit(ParallelAtomic pa){
-    BlockStatement block=rewrite(pa.block());
+    ASTNode atomicStat = rewrite(pa.block());
+    BlockStatement block;
+
+    if(atomicStat instanceof BlockStatement) {
+      block = (BlockStatement) atomicStat;
+    } else {
+      block = create.block(atomicStat);
+    }
     
     for (ASTNode node : pa.synclistJava()) {
       if (node instanceof NameExpression){

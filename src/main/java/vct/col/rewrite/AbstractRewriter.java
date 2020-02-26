@@ -11,6 +11,7 @@ import java.util.Map;
 
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
+import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -807,14 +808,18 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       BlockStatement tmp=currentBlock;
       currentBlock=new BlockStatement();
       currentBlock.setOrigin(cc.block().getOrigin());
-      DeclarationStatement d=rewrite(cc.decl());
+      Type[] newCatchTypes = new Type[cc.catchTypes().size()];
+      Type[] oldCatchTypes = cc.javaCatchTypes();
+      for(int i = 0; i < newCatchTypes.length; i++) {
+        newCatchTypes[i] = rewrite(oldCatchTypes[i]);
+      }
       for(ASTNode S:cc.block()){
         currentBlock.add(rewrite(S));
       }
       BlockStatement block=currentBlock;
       currentBlock=tmp;
       post_visit(cc.block());
-      res.addCatchClause(d, block);
+      res.addCatchClauseArray(cc.name(), newCatchTypes, block);
     }
     result=res;
   }

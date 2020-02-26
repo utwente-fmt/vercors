@@ -1,6 +1,10 @@
 grammar PVL;
 import SpecParser;
 
+@parser::members {
+    private static int ghostLevel = 0;
+}
+
 expression : expr ;
 
 program  : programDecl* block? EOF ;

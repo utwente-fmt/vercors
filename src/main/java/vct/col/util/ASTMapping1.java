@@ -101,4 +101,6 @@ public interface ASTMapping1<R,A1> {
   public R map(Constraining c, A1 a);
 
   public R map(Switch s,A1 a);
+
+  public R map(TryWithResources t, A1 a);
 }

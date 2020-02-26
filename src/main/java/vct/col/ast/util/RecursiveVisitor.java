@@ -357,13 +357,28 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(tcb.main());
     for (CatchClause c : tcb.catches()) {
       enter(c.block());
-      dispatch(c.decl());
+      dispatch(c.javaCatchTypes());
       for(ASTNode S:c.block()){
         dispatch(S);
       }
       leave(c.block());
     }
     dispatch(tcb.after());
+  }
+
+  @Override
+  public void visit(TryWithResources t) {
+    dispatch(t.javaResources());
+    dispatch(t.main());
+    for(CatchClause clause : t.clauses()) {
+      enter(clause.block());
+      dispatch(clause.javaCatchTypes());
+      for(ASTNode stat : clause.block()) {
+        dispatch(stat);
+      }
+      leave(clause.block());
+    }
+    dispatch((BlockStatement)t.after().orNull(null));
   }
 
   @Override
@@ -402,5 +417,4 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       for(ASTNode n:c.stats) dispatch(n);
     }
   }
-
 }

@@ -2,6 +2,10 @@ parser grammar JavaParser;
 options {tokenVocab = LangJavaLexer;}
 import LangJavaParser, SpecParser;
 
+@parser::members {
+    private static int ghostLevel = 0;
+}
+
 identifier : javaIdentifier ;
 
 extraIdentifier : valReserved ;
