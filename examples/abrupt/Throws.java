@@ -27,20 +27,22 @@ final class MyClass {
     //@ ensures false; // Indicate that the function is not allowed to terminate by NOT throwing
     //@ signals (FooException e) Perm(x, 1) ** x == 4;
 //    void foo() throws MyException, FooException {
-    void foo() {
+    final int foo() {
         int y = 3;
         x = y;
 //        throw new MyException();
+        return 10;
     }
 
     //@ requires Perm(x, 1);
     //@ ensures Perm(x, 1) ** x == 10;
-    void bar() {
+    final void bar() {
         int y = 3;
         x = y;
         try {
             foo();
             throw new MyException();
+            x = 13;
         } catch (MyException e) {
             x = 10;
             // TODO (Bob): Implement this

@@ -21,7 +21,7 @@ import java.util.Arrays;
  * TODO: Only introduce if it throws or if throwing happens in the method.
  */
 public class IntroExcVar extends AbstractRewriter {
-    public final String excVar = "sys__exc";
+    public static final String excVar = "sys__exc";
     public final String objectClass = "java_DOT_lang_DOT_Object";
 
     public IntroExcVar(ProgramUnit source) {

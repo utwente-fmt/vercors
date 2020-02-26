@@ -1493,6 +1493,10 @@ public Axiom axiom(String name, ASTNode exp){
       return special(ASTSpecial.Kind.Goto, label);
     }
 
+    public ASTSpecial jump(String targetLabel) {
+      return special(ASTSpecial.Kind.Goto, label(targetLabel));
+    }
+
     public ASTSpecial label_decl(String labelName) {
       return label_decl(label(labelName));
     }

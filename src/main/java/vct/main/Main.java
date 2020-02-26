@@ -526,6 +526,7 @@ public class Main
         passes.add("flatten");
         passes.add("check");
         passes.add("intro-exc-var"); // TODO (Bob): Is this the right place...?
+        passes.add("encode-try-throw-signals");
         passes.add("check");
         passes.add("assign");
         passes.add("reorder");
@@ -1246,9 +1247,14 @@ public class Main
         return new UnfoldSynchronized(arg).rewriteAll();
       }
     });
-    defined_passes.put("intro-exc-var", new CompilerPass("Introduces the auxiliary __exc variable for use by excetional control flow") {
+    defined_passes.put("intro-exc-var", new CompilerPass("Introduces the auxiliary sys__exc variable for use by excetional control flow") {
       public ProgramUnit apply(ProgramUnit arg,String ... args) {
         return new IntroExcVar(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("encode-try-throw-signals", new CompilerPass("Encodes exceptional control flow into gotos and exceptional contracts into regular contracts") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new EncodeTryThrowSignals(arg).rewriteAll();
       }
     });
   }
