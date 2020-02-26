@@ -3,6 +3,7 @@ package vct.col.util;
 import java.util.EnumSet;
 import java.util.HashSet;
 
+import com.google.common.collect.Iterables;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
@@ -30,6 +31,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private boolean has_dynamics=false;
   private boolean has_doubles=false;
   private boolean has_finally_clause=false;
+  private boolean has_catch_clause=false;
   private boolean has_longs=false;
   private boolean has_processes=false;
   private boolean has_inheritance=false;
@@ -69,7 +71,11 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   public boolean usesFinallyClause(){
     return has_finally_clause;
   }
-  
+
+  public boolean usesCatchClause() {
+    return has_catch_clause;
+  }
+
   public boolean usesSummation(){
     return binders_used.contains(Binder.Sum);
   }
@@ -202,6 +208,9 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
       super.visit(tryCatchBlock);
       if (tryCatchBlock.after() != null) {
         has_finally_clause = true;
+      }
+      if (Iterables.size(tryCatchBlock.catches()) > 0) {
+        has_catch_clause = true;
       }
   }
 

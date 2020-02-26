@@ -1,23 +1,30 @@
 package vct.col.rewrite;
 
 import jdk.nashorn.internal.ir.Block;
+import scala.collection.immutable.Stream;
+import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
+import vct.col.util.FeatureScanner;
 import vct.util.ClassName;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 /**
- * Introduces the exc variable into each method.
+ * Introduces the exc variable into each method. Assuming flattened code.
  * TODO: Only introduce if it throws or if throwing happens in the method.
  */
 public class IntroExcVar extends AbstractRewriter {
+    public final String excVar = "sys__exc";
+    public final String objectClass = "java_DOT_lang_DOT_Object";
+
     public IntroExcVar(ProgramUnit source) {
         super(source);
     }
@@ -27,8 +34,13 @@ public class IntroExcVar extends AbstractRewriter {
         return method.getContract().signals.length > 0; // || method.hasAttribute(THROWS); // ???
     }
 
+    public static boolean canThrow(MethodInvokation methodInvokation) {
+        return methodInvokation.getDefinition().getContract().signals.length > 0;
+    }
+
     public void visit(Method method) {
         super.visit(method);
+
         Method resultMethod = (Method) result;
 
         // Only consider plain methods or constructors
@@ -36,9 +48,20 @@ public class IntroExcVar extends AbstractRewriter {
             return;
         }
 
-        BlockStatement body = (BlockStatement) resultMethod.getBody();
-        if (body != null) {
-            body.prepend(create.field_decl("sys__exc", create.class_type("java_DOT_lang_DOT_Object")));
+        FeatureScanner scanner = new FeatureScanner();
+        resultMethod.accept(scanner);
+
+        if (canThrow(resultMethod)) {
+            // Add out parameter
+            ArrayList<DeclarationStatement> args = new ArrayList<>(Arrays.asList(resultMethod.getArgs()));
+            DeclarationStatement exceptionOutArgument = create.field_decl(excVar, create.class_type(objectClass));
+            exceptionOutArgument.setFlag(ASTFlags.OUT_ARG, true);
+            args.add(0, exceptionOutArgument);
+            resultMethod.setArgs(args.toArray(new DeclarationStatement[args.size()]));
+        } else if (scanner.usesFinallyClause() || scanner.usesCatchClause()) {
+            // Add local variable
+            BlockStatement body = (BlockStatement) resultMethod.getBody();
+            body.prepend(create.field_decl(excVar, create.class_type(objectClass)));
         }
     }
 
@@ -62,6 +85,22 @@ public class IntroExcVar extends AbstractRewriter {
             // This way of any assertions or permissions on the exc variable were given earlier, they can also be used here
             catchClause.block().prepend(create.special(ASTSpecial.Kind.Assume,
                     create.expression(StandardOperator.EQ, create.local_name(catchClause.decl().name()), create.local_name("sys__exc"))));
+        }
+    }
+
+    public void visit(MethodInvokation methodInvokation) {
+        super.visit(methodInvokation);
+
+        // Only consider constructors and plain methods
+        Method.Kind methodKind = methodInvokation.getDefinition().kind;
+        if (!(methodKind == Method.Kind.Constructor || methodKind == Method.Kind.Plain)) {
+            return;
+        }
+
+        if (canThrow(methodInvokation)) {
+            // Add exception parameter
+            MethodInvokation resultInvokation = (MethodInvokation) result;
+            resultInvokation.addArg(0, create.local_name(excVar));
         }
     }
 }

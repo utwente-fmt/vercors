@@ -102,8 +102,10 @@ public class VoidCallsThrown extends AbstractRewriter {
     block.add(catches);
     //block.add(create.special(Kind.Inhale,create.constant(false)));
     block.add(create.special(Kind.Label,create.unresolved_name("Finally_"+block_no)));
-    for (ASTNode S : tcb.after()) {
-      block.add(rewrite(S));
+    if (tcb.after() != null) {
+      for (ASTNode S : tcb.after()) {
+        block.add(rewrite(S));
+      }
     }
     result=block;
   }

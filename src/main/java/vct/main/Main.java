@@ -348,19 +348,18 @@ public class Main
         passes=new LinkedBlockingDeque<String>();
 
         // Abrupt termination encoding passes
-        // TODO (Bob): Special case for java only?
         passes.add("specify-implicit-labels");
         passes.add("continue-to-break");
-//        if (features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue)) {
-//          passes.add("break-continue-to-goto");
-//        }
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
         }
         // TODO (Bob): _Only_ resort to exceptions if finally is used in the program! See appendix A.
         //
-        passes.add("break-continue-return-to-exceptions");
-        passes.add("intro-exc-var");
+        if (features.usesFinallyClause()) {
+          passes.add("break-continue-return-to-exceptions");
+        } else {
+          passes.add("break-continue-to-goto");
+        }
 
         passes.add("java_resolve");
 
@@ -519,6 +518,9 @@ public class Main
         passes.add("rewrite_sequence_functions");
         passes.add("check");
         passes.add("flatten");
+        passes.add("check");
+        passes.add("intro-exc-var"); // TODO (Bob): Is this the right place...?
+        passes.add("check");
         passes.add("assign");
         passes.add("reorder");
         passes.add("standardize");
@@ -551,12 +553,13 @@ public class Main
           passes.add("check");
         }
 
+        // TODO (Bob): This was moved way up, before java_resolve it seems. Is that ok?
+        // if (has_type_adt){
+        //   passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
+        // } else {
+        //   passes.add("voidcalls");
+        // }
 
-        if (has_type_adt){
-          passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
-        } else {
-          passes.add("voidcalls");
-        }
         passes.add("standardize");
         passes.add("check");
 

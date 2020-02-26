@@ -7,9 +7,9 @@
 
 //import java.lang.Exception;
 
-final class MyException extends Exception { }
+//final class MyException extends Exception { }
 
-//final class MyException { }
+final class MyException { }
 
 final class FooException { }
 
@@ -20,12 +20,12 @@ final class MyClass {
 
     //@ requires Perm(x, 1);
     //@ ensures false; // Indicate that the function is not allowed to terminate by NOT throwing
-    // TODO (Bob): Implement this
-    // //@ signals (FooException) Perm(x, 1) ** x == 4;
-    void foo() throws MyException, FooException {
+    //@ signals (FooException e) Perm(x, 1) ** x == 4;
+//    void foo() throws MyException, FooException {
+    void foo() {
         int y = 3;
         x = y;
-        throw new MyException();
+//        throw new MyException();
     }
 
     //@ requires Perm(x, 1);
@@ -34,6 +34,7 @@ final class MyClass {
         int y = 3;
         x = y;
         try {
+            foo();
             throw new MyException();
         } catch (MyException e) {
             x = 10;
