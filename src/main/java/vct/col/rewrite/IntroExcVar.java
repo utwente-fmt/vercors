@@ -1,6 +1,5 @@
 package vct.col.rewrite;
 
-import jdk.nashorn.internal.ir.Block;
 import scala.collection.immutable.Stream;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
