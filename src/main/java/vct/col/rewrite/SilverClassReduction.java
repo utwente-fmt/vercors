@@ -481,6 +481,7 @@ public class SilverClassReduction extends AbstractRewriter {
     case Div:
     case Plus:
     case Minus:
+    case Mult:
     case LT:
     case LTE:
     case EQ:

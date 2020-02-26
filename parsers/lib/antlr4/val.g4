@@ -25,6 +25,11 @@ valContractClause
  | 'signals' '(' type identifier ')' expression ';'
  ;
 
+valInvocationAnnotation
+ : 'with' '{' (identifier '=' expression ';')* '}'
+ | 'then' '{' (identifier '=' expression ';')* '}'
+ ;
+
 valStatement
  : 'loop_invariant' expression ';'
  | 'create' block               // create a magic wand

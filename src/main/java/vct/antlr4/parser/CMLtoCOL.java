@@ -7,9 +7,11 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import vct.antlr4.generated.CMLLexer;
 import vct.antlr4.generated.CMLParser.*;
 import vct.antlr4.generated.CMLVisitor;
+import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTList;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.stmt.composite.BlockStatement;
@@ -275,6 +277,7 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
 
   @Override
   public ASTNode visitDeclarationSpecifiers(DeclarationSpecifiersContext ctx) {
+
     Debug("\"decl specs\" %s",ctx.toStringTree(parser));
     int i=ctx.getChildCount()-1;
     ParserRuleContext tmp=(ParserRuleContext)((ParserRuleContext)ctx.getChild(i)).getChild(0);
@@ -542,6 +545,11 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   }
 
   @Override
+  public ASTNode visitExtraAnnotation(ExtraAnnotationContext ctx) {
+    return null;
+  }
+
+  @Override
   public ASTNode visitExtraIdentifier(ExtraIdentifierContext ctx) {
     return null;
   }
@@ -567,6 +575,12 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     return getValType(ctx);
   }
 
+  private void scanMethodAnnotations(Method target, DeclarationSpecifiersContext declSpecs) {
+    for(ParseTree child : declSpecs.children) {
+      scan_comments_after(target.annotations(), child);
+    }
+  }
+
   @Override
   public ASTNode visitFunctionDefinition(FunctionDefinitionContext ctx) {
     if(!match(ctx, "DeclarationSpecifiers", "Declarator", "CompoundStatement")) {
@@ -576,6 +590,8 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     Type declSpec = (Type)convert(ctx,0);
     Method declaration = (Method) convert(ctx, 1);
     declaration.setBody(convert(ctx, 2));
+
+    scanMethodAnnotations(declaration, (DeclarationSpecifiersContext)ctx.getChild(0));
 
     VariableDeclaration result = create.variable_decl(declSpec);
     result.add(declaration);
@@ -811,11 +827,23 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
     if (match(ctx,null,"(",null,")")){
       String name=getIdentifier(ctx,0);
       ASTNode args[]=convert_linked_list((ParserRuleContext)ctx.getChild(2),",");
-      return create.invokation(null,null,name, args);
+      ASTList after = new ASTList();
+      scan_comments_after(after, ctx);
+      MethodInvokation invokation = create.invokation(null,null,name, args);
+      for (ASTNode node : after) {
+        invokation.get_after().add(node);
+      }
+      return invokation;
     }
     if (match(ctx,null,"(",")")){
       String name=getIdentifier(ctx,0);
-      return create.invokation(null,null,name,new ASTNode[0]);
+      ASTList after = new ASTList();
+      scan_comments_after(after, ctx);
+      MethodInvokation invokation = create.invokation(null,null,name,new ASTNode[0]);
+      for (ASTNode node : after) {
+        invokation.get_after().add(node);
+      }
+      return invokation;
     }
     ParseTree t=ctx.getChild(0);
     if (t instanceof TerminalNode){
@@ -1107,6 +1135,30 @@ public class CMLtoCOL extends ANTLRtoCOL implements CMLVisitor<ASTNode> {
   public ASTNode visitValContractClause(ValContractClauseContext ctx) {
     
     return null;
+  }
+
+  @Override
+  public ASTNode visitValInvocationAnnotation(ValInvocationAnnotationContext ctx) {
+    if (match(0, true, ctx,"with") ||
+            match(0, true, ctx,"then")){
+      BlockStatement block = create.block();
+
+      int offset = 2;
+      while(!match(offset, true, ctx, "}")) {
+        String givenName = getIdentifier(ctx, offset);
+        ASTNode givenValue = convert(ctx, offset+2);
+        block.add(create.assignment(create.unresolved_name(givenName), givenValue));
+        offset += 4;
+      }
+
+      ASTSpecial.Kind kind = match(0, true, ctx, "with") ? Kind.With : Kind.Then;
+      return create.special(kind, block);
+    }
+
+    return null;
+
+//     : 'with' '{' (identifier '=' expression ';')* '}' ';'
+//     | 'then' '{' (identifier '=' expression ';')* '}' ';'
   }
 
   @Override

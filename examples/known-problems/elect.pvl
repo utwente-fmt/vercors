@@ -82,9 +82,9 @@ class Program {
 	Future f;
 	
 	resource lock_invariant() =
-		Perm(initialised, 1/2) ** Perm(size, 1/2) **
-		Perm(maxvalue, 1/2) ** 0 < maxvalue **
-		(initialised ? Perm(f, 1/2) ** f != null: true) **
+		Perm(initialised, 1\2) ** Perm(size, 1\2) **
+		Perm(maxvalue, 1\2) ** 0 < maxvalue **
+		(initialised ? Perm(f, 1\2) ** f != null: true) **
 		(initialised ? HPerm(f.channel, write) ** size == |f.channel| : true) **
 		(initialised ? HPerm(f.results, write) ** size == |f.results| : true) **
 		(initialised ==> (\forall int i; 0 <= i && i < size; (\forall int j; 0 <= j && j < |f.channel[i]|; 0 <= f.channel[i][j] && f.channel[i][j] < maxvalue)));
@@ -96,10 +96,10 @@ class Program {
 	requires |f.results| == |f.channel|;
 	requires |f.channel| == size;
 	requires (\forall int i; 0 <= i && i < |f.channel|; (\forall int j; 0 <= j && j < |f.channel[i]|; 0 <= f.channel[i][j] && f.channel[i][j] < max));
-	ensures Perm(this.f, 1/2) ** this.f == f;
-	ensures Perm(this.size, 1/2) ** this.size == size;
-	ensures Perm(this.maxvalue, 1/2) ** this.maxvalue == max;
-	ensures Perm(this.initialised, 1/2) ** this.initialised;
+	ensures Perm(this.f, 1\2) ** this.f == f;
+	ensures Perm(this.size, 1\2) ** this.size == size;
+	ensures Perm(this.maxvalue, 1\2) ** this.maxvalue == max;
+	ensures Perm(this.initialised, 1\2) ** this.initialised;
 	Program(Future f, int size, int max) {
 		this.f = f;
 		this.maxvalue = max;
@@ -148,9 +148,9 @@ class Program {
 
 	given frac q;
 	context q != none;
-	context Perm(maxvalue, 1/2);
-	context Perm(size, 1/2) ** 0 <= size;
-	context f != null ** HPerm(f.channel, 1/2);
+	context Perm(maxvalue, 1\2);
+	context Perm(size, 1\2) ** 0 <= size;
+	context f != null ** HPerm(f.channel, 1\2);
 	context 0 <= rank && rank < size;
 	requires 0 <= x && x <= w;
 	requires Future(f, q, f.SigmaRecv(rank, size, v, w, maxvalue, n));
@@ -330,11 +330,11 @@ class Main {
 		this.r2 = r2;
 	}
 	
-	context Perm(rank, 1/2);
-	context Perm(val, 1/2);
-	context Perm(pr, 1/2) ** pr != null;
-	context Perm(r1, 1/2) ** r1 != none;
-	context Perm(r2, 1/2) ** r2 != none;
+	context Perm(rank, 1\2);
+	context Perm(val, 1\2);
+	context Perm(pr, 1\2) ** pr != null;
+	context Perm(r1, 1\2) ** r1 != none;
+	context Perm(r2, 1\2) ** r2 != none;
 	context Perm(pr.f, r1) ** pr.f != null;
 	context Perm(pr.size, r1);
 	context Perm(pr.maxvalue, r1);
@@ -384,7 +384,7 @@ class Main {
 		
 		// run the leader election program
 		Program pr = new Program(f, size, max);
-		spawn(0, pr, xs) with { q1 = 1/2; q2 = 1; };
+		spawn(0, pr, xs) with { q1 = 1\2; q2 = 1; };
 		
 		// finalise the future
 		lock pr;
@@ -415,20 +415,20 @@ class Main {
 	ensures Future(pr.f, q2, empty);
 	static void spawn(int rank, Program pr, seq<int> xs) {
 		if (rank < pr.size) {
-			Main m = new Main(pr, rank, xs[rank], q1/2, q2/2);
+			Main m = new Main(pr, rank, xs[rank], q1\2, q2\2);
 			
 			// split off an `Elect` process
 			assert Future(pr.f, q2, pr.f.Spawn(rank, pr.size, xs, pr.maxvalue));
 			assert Future(pr.f, q2, pr.f.Elect(rank, pr.size, xs[rank], pr.maxvalue, 0) || pr.f.Spawn(rank + 1, pr.size, xs, pr.maxvalue));
-			split pr.f, (q2 / 2), pr.f.Elect(rank, pr.size, xs[rank], pr.maxvalue, 0), (q2 / 2), pr.f.Spawn(rank + 1, pr.size, xs, pr.maxvalue);
+			split pr.f, (q2 \ 2), pr.f.Elect(rank, pr.size, xs[rank], pr.maxvalue, 0), (q2 \ 2), pr.f.Spawn(rank + 1, pr.size, xs, pr.maxvalue);
 			
 			// spawn and join the remaining threads
 			fork m;
-			spawn(rank + 1, pr, xs) with { q1 = q1/2; q2 = q2/2; };
+			spawn(rank + 1, pr, xs) with { q1 = q1\2; q2 = q2\2; };
 			join m;
 			
 			// merge the resulting empty processes
-			merge pr.f, q2/2, empty, q2/2, empty;
+			merge pr.f, q2\2, empty, q2\2, empty;
 		}
 	}
 }

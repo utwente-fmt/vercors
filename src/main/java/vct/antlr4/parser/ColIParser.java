@@ -55,6 +55,12 @@ public class ColIParser implements vct.col.util.Parser {
     Progress("Shuffling specifications took %dms",tk.show());    
     Debug("after collecting specifications %s",pu);
 
+    pu = new RewriteWithThen(pu).rewriteAll();
+    Progress("rewriting with/then blocks took %dms", tk.show());
+
+    pu = new AnnotationInterpreter(pu).rewriteAll();
+    Progress("rewriting extra annotations took %dms", tk.show());
+
     pu=new ConvertTypeExpressions(pu).rewriteAll();
     Progress("converting type expressions took %dms",tk.show());
     Debug("after converting type expression %s",pu);

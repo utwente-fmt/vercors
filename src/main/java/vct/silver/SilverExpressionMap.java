@@ -106,7 +106,8 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     case Old: return create.old(o,e1);
     
     case Size: return create.size(o,e1);
-    case Tail: return create.drop(o,e1,create.Constant(o,1));
+    case Head: return create.index(o, e1, create.Constant(o,0));
+    case Tail: return create.drop(o, e1, create.Constant(o,1));
     case Drop: return create.drop(o, e1, e2);
     case Take: return create.take(o, e1, e2);
     case Slice: return create.slice(o, e1, e2, e3);
