@@ -7,6 +7,7 @@ import java.util.List;
 
 import hre.ast.Origin;
 import hre.lang.HREError;
+import hre.lang.HREException;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -289,7 +290,9 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     case Assume: return create.inhale(special.getOrigin(),special.args[0].apply(expr));
     case Fold: return create.fold(special.getOrigin(),special.args[0].apply(expr));
     case Unfold: return create.unfold(special.getOrigin(),special.args[0].apply(expr));
-    case Fresh: return create.fresh(special.getOrigin(),do_names(special.args));
+    case Fresh:
+      throw new HREError("Fresh is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");
+      // return create.fresh(special.getOrigin(),do_names(special.args));
     default:
       throw new HREError("cannot map special %s",special.kind);
     }
@@ -409,7 +412,8 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
 
   @Override
   public S map(Constraining c) {
-    return create.constraining(c.getOrigin(), do_names(c.varsJava()), c.block().apply(this));
+    throw new HREError("Constraining is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");
+    // return create.constraining(c.getOrigin(), do_names(c.varsJava()), c.block().apply(this));
   }
 
   @Override

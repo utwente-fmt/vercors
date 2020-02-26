@@ -174,32 +174,12 @@ public class VerCorsStatementFactory implements
     return loop;
   }
 
-  @Override
-  public ASTNode constraining(Origin o, List<ASTNode> nodes, ASTNode body) {
-    enter(o);
-    ArrayList<NameExpression> names=new ArrayList<NameExpression>();
-    for(ASTNode n:nodes){
-      names.add((NameExpression)n);
-    }
-    Constraining res=create.constraining(checkBlock(body), names);
-    leave();
-    return res;
-  }
-
   private BlockStatement checkBlock(ASTNode body) {
     if (body instanceof BlockStatement){
       return (BlockStatement)body;
     } else {
       throw new HREError("not a block statement");
     }
-  }
-
-  @Override
-  public ASTNode fresh(Origin o, List<ASTNode> names) {
-    enter(o);
-    ASTNode res=create.special(ASTSpecial.Kind.Fresh,names);
-    leave();
-    return res;
   }
 
 }

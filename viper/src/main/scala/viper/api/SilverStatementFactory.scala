@@ -89,26 +89,5 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
   // TODO not sure if 'scopedDecls' (of the class 'Seqn') is properly handled here
   override def block(o:O, stats:List[Stmt]): Stmt =
     Seqn(stats.asScala, Seq())(NoPosition, new OriginInfo(o))
-  
-  def constraining(o:O, ps:List[Exp], body:Stmt) : Stmt = {
-    val vars = ps.asScala.map {
-      x => x.asInstanceOf[LocalVar]
-    }
-    
-    // TODO not sure if the local variables declarations are still handled properly...
-    val b : Seqn = body match {
-      case null => Seqn(Seq(), Seq())()
-      case s => Seqn(Seq(s), Seq())(s.pos, s.info, s.errT)
-    }
-    
-    Constraining(vars, b)(NoPosition, new OriginInfo(o))
-  }
-  
-  def fresh(o: O,ps: List[Exp]): Stmt = {
-    val vars=ps.asScala.map {
-      x => x.asInstanceOf[LocalVar]
-    }
-    Fresh(vars)(NoPosition,new OriginInfo(o))
-  }
 }
 
