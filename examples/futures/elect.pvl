@@ -1,6 +1,5 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case LeaderElect
-//:: suite problem-fail
 //:: tool silicon
 //:: option --check-history
 
