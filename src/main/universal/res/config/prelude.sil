@@ -307,7 +307,7 @@ domain VCTMap[K,V] {
     forall m: VCTMap[K,V], k: K :: {vctmap_card(vctmap_remove(m, k))} !(k in vctmap_keys(m)) ==> vctmap_card(m) == vctmap_card(vctmap_remove(m, k))
   }
   axiom vctMapRemoveAx7 {
-    forall t1: VCTTuple[K,V], m1: VCTMap[K,V] :: {t1 in vctmap_items(m1)} (t1 in vctmap_items(m1)) ==> !(t1 in vctmap_items(vctmap_remove(m1, vcttuple_fst(t1))))
+    forall t1: VCTTuple[Int,Bool], m1: VCTMap[Int,Bool] :: {vctmap_remove(m1, vcttuple_fst(t1))} !(t1 in vctmap_items(vctmap_remove(m1, vcttuple_fst(t1))))
   }
   axiom vctMapRemoveAx8 {
     forall m: VCTMap[K,V], k: K :: {k in vctmap_keys(m)} !(k in vctmap_keys(m)) ==> vctmap_equals(m, vctmap_remove(m, k))
