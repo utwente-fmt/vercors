@@ -3,10 +3,14 @@ package vct.col.rewrite;
 import com.google.common.collect.Lists;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.CatchClause;
+import vct.col.ast.stmt.composite.IfStatement;
 import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.terminal.AssignmentStatement;
+import vct.col.ast.type.ASTReserved;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -144,6 +148,8 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             Abort("Nearesthandlerlabel was null, even though there should have been a handler!");
         }
 
+        currentBlock.add(create.label_decl(entryLabels.get(catchClause)));
+
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.Not,
                     create.invokation(create.class_type(type_adt), null,"instanceof",
@@ -153,8 +159,6 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                     ),
                 create.jump(fallbackHandler)
                 ));
-
-        currentBlock.add(create.label_decl(entryLabels.get(catchClause)));
 
         DeclarationStatement argument = rewrite(catchClause.decl());
         currentBlock.add(argument);
@@ -214,7 +218,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         }
 
         if (nearestHandlerLabel != null) {
-            // This might not be true once we can nest methods (or classes)
+            // This might not be true once we can nest methods (or classes). If that's the case adapt it or delete it
             Abort("Nearesthandlerlabel was not null, even though we are entering a fresh method!");
         }
 
@@ -232,6 +236,72 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     }
 
     public void visit(MethodInvokation invokation) {
-        Abort("Not implemented!");
+        super.visit(invokation);
+
+        Method.Kind methodKind = invokation.getDefinition().getKind();
+        if (!(methodKind == Method.Kind.Plain || methodKind == Method.Kind.Constructor)) {
+            return;
+        }
+
+        if (!invokation.getDefinition().getReturnType().isVoid()) {
+            Abort("Non-void method invokation can only be used as expression of assignment");
+        }
+
+        // If there's no contract we do not need to account for exceptions being thrown
+        /* TODO (Bob): Use some sort of formal definition like "can throw" here, preferably encoded in a static? function?
+                       Since the throws clause here matters as well!
+         */
+        if (invokation.getDefinition().getContract().signals.length == 0) {
+            return;
+        }
+
+        // Non-void method invokation that is a statement: just add the invokation and append an if statement
+        currentBlock.add(result);
+        result = null;
+        currentBlock.add(createExceptionCheck(nearestHandlerLabel));
+//        } else if (invokation.getDefinition().getReturnType().isVoid() && invokation.getParent() instanceof AssignmentStatement) {
+//            // Parent will take care of it, so we do not have to do anything
+//        } else {
+//            // Error condition!
+//            // Void must have blcok statement as parent
+//            // Non-void must have assignment as parent
+//            if (invokation.getDefinition().getReturnType().isVoid()) {
+//                Abort("Void method invokation can only be actual statement");
+//            } else {
+//            }
+//        }
+    }
+
+    public void visit(AssignmentStatement assignment) {
+        // First rewrite the assignment statement, careful not to trigger the visit(MethodInvokation) we defined above
+        if (assignment.expression() instanceof MethodInvokation) {
+            MethodInvokation invokation = (MethodInvokation) assignment.expression();
+            super.visit(invokation);
+            MethodInvokation resultInvokation = (MethodInvokation) result;
+
+            ASTNode resultLocation = assignment.location().apply(this);
+
+            result = create.assignment(resultLocation, resultInvokation);
+
+            // Then, if exceptions are involved, insert a check that possibly jumps to a handler
+            // TODO (Bob): Use can throw here or smth
+            if (invokation.getDefinition().getContract().signals.length > 0) {
+                currentBlock.add(result);
+                result = null;
+                currentBlock.add(createExceptionCheck(nearestHandlerLabel));
+            }
+        } else {
+            super.visit(assignment);
+        }
+    }
+
+    public IfStatement createExceptionCheck(String handlerLabel) {
+        return create.ifthenelse(
+                    create.expression(StandardOperator.NEQ,
+                            create.local_name(excVar),
+                            create.reserved_name(ASTReserved.Null)
+                    ),
+                    create.jump(handlerLabel)
+            );
     }
 }

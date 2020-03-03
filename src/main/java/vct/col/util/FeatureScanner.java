@@ -14,6 +14,7 @@ import vct.col.ast.expr.BindingExpression;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.OperatorExpression;
+import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.RecursiveVisitor;
 import vct.col.ast.expr.StandardOperator;
@@ -32,6 +33,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private boolean has_doubles=false;
   private boolean has_finally_clause=false;
   private boolean has_catch_clause=false;
+  private boolean has_return=false;
   private boolean has_longs=false;
   private boolean has_processes=false;
   private boolean has_inheritance=false;
@@ -75,6 +77,8 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   public boolean usesCatchClause() {
     return has_catch_clause;
   }
+
+  public boolean usesReturn() { return has_return; }
 
   public boolean usesSummation(){
     return binders_used.contains(Binder.Sum);
@@ -217,5 +221,10 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   public void visit(Switch switchStatement) {
     super.visit(switchStatement);
     has_switch = true;
+  }
+
+  public void visit(ReturnStatement returnStatement) {
+    super.visit(returnStatement);
+    has_return = true;
   }
 }

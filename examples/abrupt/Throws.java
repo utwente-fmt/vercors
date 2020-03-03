@@ -18,36 +18,34 @@ final class MyException { }
 
 final class FooException { }
 
-final class BarException { }
-
 final class MyClass {
     int x;
 
     //@ requires Perm(x, 1);
-    //@ ensures false; // Indicate that the function is not allowed to terminate by NOT throwing
-    //@ signals (FooException e) Perm(x, 1) ** x == 4;
-//    void foo() throws MyException, FooException {
-    final int foo() {
-        int y = 3;
-        x = y;
-//        throw new MyException();
-        return 10;
+    //@ signals (FooException e) Perm(x, 1) ** x == 10;
+    //@ ensures Perm(x, 1) ** x == (\old(x) + 1);
+    final void foo() {
+        x = x + 1;
     }
 
     //@ requires Perm(x, 1);
-    //@ ensures Perm(x, 1) ** x == 10;
+    //@ ensures Perm(x, 1) ** (x == 40 || x == 50);
     final void bar() {
-        int y = 3;
-        x = y;
         try {
             foo();
+            x = 20;
             throw new MyException();
-            x = 13;
+            //@ assert false;
+            x = 30;
         } catch (MyException e) {
-            x = 10;
-            // TODO (Bob): Implement this
-//        } catch (FooException | BarException | MyException e) {
-//            x = 20;
+            //@ assert x == 20;
+            x = 40;
+            //@ assert x == 40;
+        } catch (FooException f) {
+            //@ assert x == 10;
+            x = 50;
+            //@ assert x == 50;
         }
+        //@ assert x == 40 || x == 50;
     }
 }

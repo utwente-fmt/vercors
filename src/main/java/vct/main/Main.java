@@ -361,10 +361,10 @@ public class Main
         }
 
         // TODO (Bob): _Only_ resort to exceptions if finally is used in the program! See appendix A.
-        if (features.usesFinallyClause() && usesBreakContinue) {
+        if (features.usesFinallyClause() && (usesBreakContinue || features.usesReturn())) {
           passes.add("break-return-to-exceptions");
-        } else if (usesBreakContinue) {
-          passes.add("break-to-goto");
+        } else if (usesBreakContinue || features.usesReturn()) {
+          passes.add("break-return-to-goto");
         }
 
         passes.add("java_resolve");
@@ -526,6 +526,7 @@ public class Main
         passes.add("flatten");
         passes.add("check");
         passes.add("intro-exc-var"); // TODO (Bob): Is this the right place...?
+        passes.add("check");
         passes.add("encode-try-throw-signals");
         passes.add("check");
         passes.add("assign");
@@ -1222,9 +1223,9 @@ public class Main
         return new SpecifyImplicitLabels(arg).rewriteAll();
       }
     });
-    defined_passes.put("break-to-goto", new CompilerPass("Rewrite break, continue into jumps") {
+    defined_passes.put("break-return-to-goto", new CompilerPass("Rewrite break, return into jumps") {
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new BreakToGoto(arg).rewriteAll();
+        return new BreakReturnToGoto(arg).rewriteAll();
       }
     });
     defined_passes.put("break-return-to-exceptions", new CompilerPass("Rewrite break, continue into exceptions") {
