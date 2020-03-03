@@ -3,17 +3,6 @@
 //:: tools silicon
 //:: verdict Pass
 
-//class Exception {
-//    int exception_id;
-//    Exception(int _exception_id) {
-//        exception_id = _exception_id;
-//    }
-//}
-
-//import java.lang.Exception;
-
-//final class MyException extends Exception { }
-
 final class MyException { }
 
 final class FooException { }
