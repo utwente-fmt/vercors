@@ -805,22 +805,29 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
   @Override
   public void visit(TryCatchBlock tcb){
-    TryCatchBlock res = create.try_catch(rewrite(tcb.main()), rewrite(tcb.after()));
-    for (CatchClause cc : tcb.catches()) {
-      pre_visit(cc.block());
-      BlockStatement tmp=currentBlock;
-      currentBlock=new BlockStatement();
-      currentBlock.setOrigin(cc.block().getOrigin());
-      DeclarationStatement d=rewrite(cc.decl());
-      for(ASTNode S:cc.block()){
-        currentBlock.add(rewrite(S));
-      }
-      BlockStatement block=currentBlock;
-      currentBlock=tmp;
-      post_visit(cc.block());
-      res.addCatchClause(d, block);
+    BlockStatement newMain = rewrite(tcb.main());
+
+    // TODO (Bob): Why isn't CatchClause a full AST node? Then we could just rewrite each catch clause in turn!
+    ArrayList<CatchClause> newCatchClauses = new ArrayList<>();
+    for (CatchClause catchClause : tcb.catches()) {
+      pre_visit(catchClause.block());
+
+      DeclarationStatement newDecl = rewrite(catchClause.decl());
+      BlockStatement newBlock = rewrite(catchClause.block());
+
+      post_visit(catchClause.block());
+
+      newCatchClauses.add(new CatchClause(newDecl, newBlock));
+
     }
-    result=res;
+
+    BlockStatement newAfter = rewrite(tcb.after());
+
+    TryCatchBlock newTcb = create.try_catch(newMain, newAfter);
+    for (CatchClause newCatchClause : newCatchClauses) {
+      newTcb.addCatchClause(newCatchClause);
+    }
+    result = newTcb;
   }
   
   @Override
