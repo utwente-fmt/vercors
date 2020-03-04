@@ -42,8 +42,36 @@ public class AddTypeADT extends AbstractRewriter {
         },
         null
     ));
+    adt.add_map(create.function_decl(
+            create.class_type(type_adt),
+            null,
+            "direct_superclass",
+            new DeclarationStatement[] {
+                    create.field_decl("t", create.class_type(type_adt))
+            },
+            null
+    ));
+    addInstanceOfAxiom();
     create.leave();
     target().add(adt);
+  }
+
+  public void addInstanceOfAxiom() {
+    adt.add_axiom(create.axiom("instanceof_superclass", create.forall(
+            create.constant(true),
+            create.expression(StandardOperator.EQ,
+                    create.domain_call(type_adt, "instanceof", create.local_name("t"), create.local_name("u")),
+                    create.expression(StandardOperator.Or,
+                            create.expression(StandardOperator.EQ, create.local_name("t"), create.local_name("u")),
+                            create.expression(StandardOperator.EQ,
+                                    create.domain_call(type_adt, "direct_superclass", create.local_name("t")),
+                                    create.local_name("u")
+                                    )
+                            )
+                    ),
+            create.field_decl("t", create.class_type(type_adt)),
+            create.field_decl("u", create.class_type(type_adt))
+    )));
   }
 
   @Override
@@ -110,38 +138,11 @@ public class AddTypeADT extends AbstractRewriter {
   private void addDirectSuperclassAxiom(ClassType child, ClassType parent) {
     String child_adt_constructor = "class_" + child.getName();
     String parent_adt_constructor = "class_" + parent.getName();
-    String type_var = "t";
-    // Axiom: forall t: TYPE :: (t == Object || t == cl) ? instanceof(cl, t) : !instanceof(cl, t)
-    // In other words: cl is only an instance of object and cl, and nothing else
-    // This will need to be significantly enhanced to allow for a type system with a partial order/inheritance
     adt.add_axiom(create.axiom(child.getName() + "_direct_superclass",
-            create.forall(
-                    create.constant(true),
-                    create.expression(StandardOperator.ITE,
-                            create.expression(StandardOperator.Or,
-                                    create.expression(StandardOperator.EQ,
-                                            create.local_name(type_var),
-                                            create.domain_call(type_adt, parent_adt_constructor)
-                                            ),
-                                    create.expression(StandardOperator.EQ,
-                                            create.local_name(type_var),
-                                            create.domain_call(type_adt, child_adt_constructor)
-                                            )
-                            ),
-                            create.domain_call(type_adt, "instanceof",
-                                    create.domain_call(type_adt, child_adt_constructor),
-                                    create.local_name(type_var)
-                                    ),
-                            create.expression(StandardOperator.Not,
-                                    create.domain_call(type_adt, "instanceof",
-                                            create.domain_call(type_adt, child_adt_constructor),
-                                            create.local_name(type_var)
-                                            )
-                                    )
-                            ),
-                    create.field_decl(type_var, create.class_type(type_adt))
-                    )
-            ));
+            create.expression(StandardOperator.EQ,
+              create.domain_call(type_adt, "direct_superclass", create.domain_call(type_adt, child_adt_constructor)),
+              create.domain_call(type_adt, parent_adt_constructor)
+            )));
   }
 
   public void visit(OperatorExpression e){
