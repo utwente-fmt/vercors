@@ -7,12 +7,14 @@ import java.util.Set;
 import hre.ast.MessageOrigin;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.ContractBuilder;
+import vct.col.util.ASTFactory;
 
 public class AddTypeADT extends AbstractRewriter {
 
@@ -173,5 +175,26 @@ public class AddTypeADT extends AbstractRewriter {
       super.visit(e);
       break;
     }
+  }
+
+  /**
+   * Encodes an instanceof operation as encoded by the AddTypeADT phase. Intended to be reused if any instanceof
+   * checks need to be added later on.
+   * @param create ASTFactory used at the call site
+   * @param expr The expression the typeof operator will be applied to. Will be copied into the resulting expression
+   * @param type Currently assumed to be a class type. TODO: but if extended to pvl this could be any type? Need to consider nullness...
+   * @return Condition that is true if expr instanceof type holds
+   */
+  public static ASTNode expr_instanceof(ASTFactory<?> create, AbstractRewriter copy_rw, ASTNode expr, ClassType type) {
+    return create.expression(StandardOperator.And,
+            create.expression(StandardOperator.NEQ,
+              copy_rw.rewrite(expr),
+              create.reserved_name(ASTReserved.Null)
+              ),
+            create.invokation(create.class_type(type_adt), null,"instanceof",
+              create.expression(StandardOperator.TypeOf, copy_rw.rewrite(expr)),
+              create.invokation(create.class_type(type_adt),null,"class_" + type
+              )
+            ));
   }
 }

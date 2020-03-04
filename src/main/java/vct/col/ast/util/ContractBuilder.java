@@ -202,6 +202,7 @@ public class ContractBuilder {
 //    FileOrigin o1=(FileOrigin)type.getOrigin();
 //    FileOrigin o2=(FileOrigin)expr.getOrigin();
 //    decl.setOrigin(o1.merge(o2));
+    empty = false;
     signals.add(signals_clause);
   }
 

@@ -30,6 +30,7 @@ public class IntroExcVar extends AbstractRewriter {
 
     public static boolean canThrow(Method method) {
         // TODO (Bob): When the new parsers are merged (and the AST is updated correspondingly) extend this by checking the throws as well
+        // TODO (Bob): Move to method class!
         return method.getContract().signals.length > 0; // || method.hasAttribute(THROWS); // ???
     }
 
@@ -57,10 +58,14 @@ public class IntroExcVar extends AbstractRewriter {
             exceptionOutArgument.setFlag(ASTFlags.OUT_ARG, true);
             args.add(0, exceptionOutArgument);
             resultMethod.setArgs(args.toArray(new DeclarationStatement[args.size()]));
-        } else if (scanner.usesFinallyClause() || scanner.usesCatchClause()) {
-            // Add local variable
+
+            // Set initial value to null
             BlockStatement body = (BlockStatement) resultMethod.getBody();
-            body.prepend(create.field_decl(excVar, create.class_type(objectClass)));
+            body.prepend(create.assignment(create.local_name(excVar), create.reserved_name(ASTReserved.Null)));
+        } else if (scanner.usesFinallyClause() || scanner.usesCatchClause()) {
+            // Add local variable and init as null
+            BlockStatement body = (BlockStatement) resultMethod.getBody();
+            body.prepend(create.field_decl(excVar, create.class_type(objectClass), create.reserved_name(ASTReserved.Null)));
         }
     }
 

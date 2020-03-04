@@ -91,6 +91,7 @@ public class VerCorsSyntax {
     syntax.add_annotation(ASTSpecial.Kind.RequiresAndEnsures, "context");
     syntax.add_annotation(ASTSpecial.Kind.Label, "label");
     syntax.add_annotation(ASTSpecial.Kind.CSLSubject, "csl_subject");
+    syntax.add_annotation(ASTSpecial.Kind.Signals, "signals");
     
     syntax.addFunction(StandardOperator.ValidArray,"\\array");
     syntax.addFunction(StandardOperator.ValidMatrix,"\\matrix");

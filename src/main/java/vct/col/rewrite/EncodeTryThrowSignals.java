@@ -2,6 +2,7 @@ package vct.col.rewrite;
 
 import com.google.common.collect.Lists;
 import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
@@ -11,6 +12,7 @@ import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.type.ASTReserved;
+import vct.col.ast.type.ClassType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +38,12 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      * always holds the label of the next finally or catch clause that a throw should jump to.
      */
     String nearestHandlerLabel = null;
+
+    /**
+     * Holds the name of the variable in the current signals clause. If not in a signals clause, should be null.
+     * Used to replace the variable when it is encountered with the excVar variable.
+     */
+    String currentExceptionVarName = null;
 
     public String generateLabel(String prefix, String id) {
         return prefix + "_" + id + "_" + counter++;
@@ -214,25 +222,111 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         if (method.getBody() == null) {
             super.visit(method);
-            return;
+        } else {
+            if (nearestHandlerLabel != null) {
+                // This might not be true once we can nest methods (or classes). If that's the case adapt it or delete it
+                Abort("Nearesthandlerlabel was not null, even though we are entering a fresh method!");
+            }
+
+            // TODO (Bob): What about overloading? This should be handled in another phase, but currently I am not sure...
+            String unhandledExceptionHandler = generateLabel("method_end", method.getName());
+            nearestHandlerLabel = unhandledExceptionHandler;
+
+            super.visit(method);
+
+            nearestHandlerLabel = null;
+
+            Method resultMethod = (Method) result;
+            BlockStatement methodBody = (BlockStatement) resultMethod.getBody();
+            methodBody.add(create.label_decl(unhandledExceptionHandler));
         }
 
-        if (nearestHandlerLabel != null) {
-            // This might not be true once we can nest methods (or classes). If that's the case adapt it or delete it
-            Abort("Nearesthandlerlabel was not null, even though we are entering a fresh method!");
-        }
-
-        // TODO (Bob): What about overloading? This should be handled in another phase, but currently I am not sure...
-        String unhandledExceptionHandler = generateLabel("method_end", method.getName());
-        nearestHandlerLabel = unhandledExceptionHandler;
-
-        super.visit(method);
-
-        nearestHandlerLabel = null;
-
+        // Encode signals & adjust ensures
         Method resultMethod = (Method) result;
-        BlockStatement methodBody = (BlockStatement) resultMethod.getBody();
-        methodBody.add(create.label_decl(unhandledExceptionHandler));
+        Contract contract = resultMethod.getContract();
+
+        if (contract.signals.length > 0) {
+            ASTNode newPostCondition = create.expression(StandardOperator.Implies,
+                    create.expression(StandardOperator.EQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
+                    contract.post_condition
+                    );
+
+            ASTNode flattenedSignals = flattenSignals(contract.signals);
+
+            ASTNode excVarTypeConstrain = create.expression(StandardOperator.Implies,
+                    create.expression(StandardOperator.NEQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
+                    constrainExcPostcondition(contract.signals)
+                    );
+
+            resultMethod.setContract(new Contract(
+                    contract.given,
+                    contract.yields,
+                    contract.modifies,
+                    contract.accesses,
+                    contract.invariant,
+                    contract.pre_condition,
+                    create.expression(StandardOperator.Star,
+                            newPostCondition,
+                            create.expression(StandardOperator.Star, flattenedSignals, excVarTypeConstrain)
+                    )
+            ));
+        }
+    }
+
+    /**
+     * Creates an expression that is true if the type of excVar is an instance of one of the signal's clauses types.
+     * I.e. excVar instanceof signalsType0 || excVar instanceof signalsType1 || .. || excVar instanceof signalsTypeN-1
+     * It uses the instanceof encoding in AddTypeADT
+     */
+    private ASTNode constrainExcPostcondition(SignalsClause[] signals) {
+        if (signals.length == 0) {
+            return create.constant(true);
+        }
+
+        ASTNode constraint = AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) signals[0].type());
+
+        for (int i = 1; i < signals.length; i++) {
+            constraint = create.expression(StandardOperator.Or,
+                    constraint,
+                    AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) signals[0].type()));
+        }
+
+        return constraint;
+    }
+
+    public void visit(NameExpression e){
+        if (currentExceptionVarName != null && e.getName().equals(currentExceptionVarName)) {
+            result=create.local_name(excVar);
+        } else {
+            super.visit(e);
+        }
+    }
+
+    private ASTNode flattenSignals(SignalsClause[] signals) {
+        if (signals.length == 0) {
+            return create.constant(true);
+        }
+
+        ASTNode flattenedSignals = flattenSignals(signals[0]);
+
+        for (int i = 1; i < signals.length; i++) {
+            flattenedSignals = create.expression(StandardOperator.Star, flattenedSignals, flattenSignals(signals[i]));
+        }
+
+        return flattenedSignals;
+    }
+
+    private ASTNode flattenSignals(SignalsClause signals) {
+        currentExceptionVarName = signals.name();
+
+        ASTNode condition = rewrite(signals.condition());
+
+        currentExceptionVarName = null;
+
+        return create.expression(StandardOperator.Implies,
+                AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) signals.type()),
+                condition
+                );
     }
 
     public void visit(MethodInvokation invokation) {
@@ -248,10 +342,10 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         }
 
         // If there's no contract we do not need to account for exceptions being thrown
-        /* TODO (Bob): Use some sort of formal definition like "can throw" here, preferably encoded in a static? function?
-                       Since the throws clause here matters as well!
+        /* TODO (Bob): Signals is leading, throws needs to be compiled away in the java phase! Also below!
          */
-        if (invokation.getDefinition().getContract().signals.length == 0) {
+        SignalsClause[] signals = invokation.getDefinition().getContract().signals;
+        if (signals == null || signals.length == 0) {
             return;
         }
 
@@ -259,17 +353,6 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         currentBlock.add(result);
         result = null;
         currentBlock.add(createExceptionCheck(nearestHandlerLabel));
-//        } else if (invokation.getDefinition().getReturnType().isVoid() && invokation.getParent() instanceof AssignmentStatement) {
-//            // Parent will take care of it, so we do not have to do anything
-//        } else {
-//            // Error condition!
-//            // Void must have blcok statement as parent
-//            // Non-void must have assignment as parent
-//            if (invokation.getDefinition().getReturnType().isVoid()) {
-//                Abort("Void method invokation can only be actual statement");
-//            } else {
-//            }
-//        }
     }
 
     public void visit(AssignmentStatement assignment) {

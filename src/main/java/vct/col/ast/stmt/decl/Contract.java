@@ -68,7 +68,7 @@ public class Contract extends ASTNode {
     this.post_condition=post_condition;
     this.given=given;
     this.yields=yields;
-    this.signals=null;
+    this.signals=new SignalsClause[0];
     modifies=null;
     accesses=null;
     build_labels();
@@ -89,7 +89,7 @@ public class Contract extends ASTNode {
     this.yields=yields;
     this.modifies=modifies;
     this.accesses=accesses;
-    this.signals=null;
+    this.signals=new SignalsClause[0];
     build_labels();
   }
   
