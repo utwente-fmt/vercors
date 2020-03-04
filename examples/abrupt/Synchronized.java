@@ -4,7 +4,7 @@
 //:: verdict Pass
 
 final class MyClass {
-    resource lock_invariant() = Perm(this.x, 1);
+    final resource lock_invariant() = Perm(this.x, 1);
 
     int x;
 

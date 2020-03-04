@@ -37,6 +37,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
     private Set<String> breakLabels = new HashSet<>();
     private boolean encounteredReturn = false;
     private Set<String> exceptionTypes = new HashSet<>();
+    private int uniqueCatchVarCounter = 0;
 
     public BreakReturnToExceptions(ProgramUnit source) {
         super(source);
@@ -44,6 +45,15 @@ public class BreakReturnToExceptions extends AbstractRewriter {
 
     public ClassType getExceptionType(String prefix, String id) {
         return getExceptionType(prefix, id, new PrimitiveType(PrimitiveSort.Void));
+    }
+
+    /**
+     * Generates a unique catch var name. Vercors doesn't scope variables properly so each variable name needs to be unique.
+     * If this is ever fixed or offloaded to some separate phase this method can be replaced with just the constant "e".
+     */
+    private String getUniqueCatchVarName() {
+        // ucv == unique catch var
+        return "__ucv_" + uniqueCatchVarCounter++;
     }
 
     /**
@@ -104,7 +114,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             // There were breaks involved! Add catch clauses
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(result), null);
             for (NameExpression label : usedLabels) {
-                tryCatchBlock.addCatchClause(create.field_decl("e", getExceptionType("break", label.getName())), create.block());
+                tryCatchBlock.addCatchClause(create.field_decl(getUniqueCatchVarName(), getExceptionType("break", label.getName())), create.block());
             }
 
             if (result instanceof LoopStatement) {
@@ -126,9 +136,10 @@ public class BreakReturnToExceptions extends AbstractRewriter {
 
             ClassType exceptionType = getExceptionType("return", method.getName());
             ClassName exceptionClassName = new ClassName(exceptionType.getNameFull());
-            ASTNode getReturnValueExpr = create.dereference(create.local_name("e"), "value");
+            String catchVarName = getUniqueCatchVarName();
+            ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), "value");
             ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
-            tryCatchBlock.addCatchClause(create.field_decl("e", exceptionType), create.block(returnStatement));
+            tryCatchBlock.addCatchClause(create.field_decl(catchVarName, exceptionType), create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
 
             encounteredReturn = false;

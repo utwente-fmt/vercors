@@ -369,21 +369,26 @@ public class Main
 
         passes.add("java_resolve");
 
+        passes.add("standardize");
+        passes.add("java-check"); // marking function: stub
+
+        passes.add("unfold-synchronized");
+
         if (silver.used() &&
-           (features.usesSpecial(ASTSpecial.Kind.Lock)
-          ||features.usesSpecial(ASTSpecial.Kind.Unlock)
-          ||features.usesSpecial(ASTSpecial.Kind.Fork)
-          ||features.usesSpecial(ASTSpecial.Kind.Join)
-          ||features.usesOperator(StandardOperator.PVLidleToken)
-          ||features.usesOperator(StandardOperator.PVLjoinToken)
+           ( features.usesSpecial(ASTSpecial.Kind.Lock)
+          || features.usesSpecial(ASTSpecial.Kind.Unlock)
+          || features.usesSpecial(ASTSpecial.Kind.Fork)
+          || features.usesSpecial(ASTSpecial.Kind.Join)
+          || features.usesOperator(StandardOperator.PVLidleToken)
+          || features.usesOperator(StandardOperator.PVLjoinToken)
+          || features.usesSynchronizedStatement()
+          || features.usesSynchronizedModifier()
         )){
           passes.add("pvl-encode"); // translate built-in statements into methods and fake method calls.
         }
 
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
-
-        passes.add("unfold-synchronized");
 
         if(features.usesOperator(StandardOperator.AddrOf)) {
           passes.add("lift_declarations");

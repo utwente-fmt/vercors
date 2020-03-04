@@ -123,7 +123,11 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
     public void visitTryBody(TryCatchBlock tryCatchBlock) {
         BlockStatement newMain = rewrite(tryCatchBlock.main());
-        newMain.add(create.jump(postLabels.get(tryCatchBlock)));
+        if (tryCatchBlock.after() != null) {
+            newMain.add(create.jump(entryLabels.get(tryCatchBlock.after())));
+        } else {
+            newMain.add(create.jump(postLabels.get(tryCatchBlock)));
+        }
         currentBlock.add(newMain);
     }
 

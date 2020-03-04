@@ -18,7 +18,7 @@ class Java {
         while (pp) {
             try {
                 try {
-                    //@ assert x == 0;
+                    //@ assert x == 0 || x == 4;
                     x = 1;
                     break;
                     x = 2;

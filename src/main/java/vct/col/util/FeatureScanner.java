@@ -22,7 +22,6 @@ import vct.col.ast.type.Type;
 
 public class FeatureScanner extends RecursiveVisitor<Object> {
 
-
   public FeatureScanner(){
     super(null,null);
   }
@@ -41,6 +40,8 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private boolean has_iteration_contracts=false;
   private boolean has_switch=false;
   private boolean uses_csl=false;
+  private boolean has_synchronized_statement = false;
+  private boolean has_synchronized_modifier = false;
   private EnumSet<StandardOperator> ops_used=EnumSet.noneOf(StandardOperator.class);
   private EnumSet<ASTSpecial.Kind> specials_used=EnumSet.noneOf(ASTSpecial.Kind.class);
   private EnumSet<Binder> binders_used=EnumSet.noneOf(Binder.class);
@@ -116,6 +117,14 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
     return this.has_switch;
   }
 
+  public boolean usesSynchronizedStatement() {
+    return has_synchronized_statement;
+  }
+
+  public boolean usesSynchronizedModifier() {
+    return has_synchronized_modifier;
+  }
+
   public void pre_visit(ASTNode node){
     super.pre_visit(node);
     Type t=node.getType();
@@ -142,6 +151,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   @Override
   public void visit(Method m){
     uses_csl = uses_csl || m.name().equals("csl_invariant");
+    has_synchronized_modifier = m.isSynchronized();
     super.visit(m);
   }
   @Override
@@ -226,5 +236,10 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   public void visit(ReturnStatement returnStatement) {
     super.visit(returnStatement);
     has_return = true;
+  }
+
+  public void visit(SynchronizedBlock synchronizedBlock) {
+    super.visit(synchronizedBlock);
+    has_synchronized_statement = true;
   }
 }

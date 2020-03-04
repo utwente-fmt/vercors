@@ -7,7 +7,8 @@ class CB {
     boolean p();
 
     void foo() {
-        while (p()) {
+        boolean pp = p();
+        while (pp) {
             continue;
             break;
         }

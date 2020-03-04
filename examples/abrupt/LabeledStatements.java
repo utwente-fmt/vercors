@@ -4,20 +4,25 @@
 //:: verdict Pass
 
 class MyClass {
+    boolean p();
+
     void ex1() {
         LABEL: try {
-           // Some code.
+            // Some code.
         } catch(Exception e) {
-           if(condition) {
-              break LABEL;
-           }
-           // Remaining code.
+            boolean pp = p();
+            if(pp) {
+                break LABEL;
+            }
+            // Remaining code.
         }
     }
 
     void ex2() {
-        LABEL: if (condition()) {
-            if (condition2()) {
+        boolean pp = p();
+        LABEL: if (pp) {
+            pp = p();
+            if (pp) {
                 break LABEL;
             }
         }
