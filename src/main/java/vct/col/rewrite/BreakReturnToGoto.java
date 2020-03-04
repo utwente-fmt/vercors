@@ -140,14 +140,15 @@ public class BreakReturnToGoto extends AbstractRewriter {
     public void visitBreak(ASTSpecial breakStatement) {
         NameExpression label = (NameExpression) breakStatement.args[0];
         NameExpression newLabel = generateBreakLabel(label);
-        Debug("Turning break into goto %s", newLabel.getName());
-        Warning("Loop invariant checking not implemented!");
         result = create.jump(newLabel);
         breakLabels.add(newLabel);
     }
 
     public void visit(ReturnStatement returnStatement) {
         super.visit(returnStatement);
+        // TODO (Bob): Just implement is as a jump to the end!
+        // TODO (Bob): Insert postcondition here, since here it is guaranteed there is no finally!
+        // TODO (Bob): Check for finally in constructor? Or maybe on the fly, i.e. set a flag when finally is encountered? And if then return is encountered throw an error?
         Warning("Return statement not implemented");
     }
 }

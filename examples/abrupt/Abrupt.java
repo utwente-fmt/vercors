@@ -20,7 +20,7 @@ final class MyClass {
         //@ assert x == 1 || x == 0;
 
         boolean pp = p();
-        //@ loop_invariant x == 1 || x == 0 || x == 5 || x == 40;
+        //@ loop_invariant x == 1 || x == 0 || x == 500;
         while (pp) {
             x = 5;
             pp = p();
@@ -47,11 +47,13 @@ final class MyClass {
    			} 
 
             //@ assert x == 40 || x == 5;
+
             x = 500;
+
             break;
         }
 
-        //@ assert x == 1 || x == 0 || x == 40 || x == 5;
+        //@ assert x == 500 || x == 1 || x == 0;
 
 		return 31;
     }
