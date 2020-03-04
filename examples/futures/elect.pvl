@@ -1,6 +1,5 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case LeaderElect
-//:: suite problem-fail
 //:: tool silicon
 //:: option --check-history
 
@@ -281,6 +280,7 @@ class Program {
 		loop_invariant f == \old(f);
 		loop_invariant 0 <= n && n <= size;
 		loop_invariant Future(f, q2, f.Elect(rank, size, v, maxvalue, n));
+    loop_invariant 0 <= v && v < maxvalue;
 		while (n < size) {
 			lemma_fut_elect(f, rank, size, v, maxvalue, n) with { q = q2; };
 			
