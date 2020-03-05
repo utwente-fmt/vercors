@@ -30,10 +30,12 @@ public class ColJavaParser implements vct.col.util.Parser {
 
   public final int version;
   public final boolean twopass;
+  public final boolean topLevelSpecs;
   
-  public ColJavaParser(int version,boolean twopass){
+  public ColJavaParser(int version, boolean twopass, boolean topLevelSpecs){
     this.version=version;
     this.twopass=twopass;
+    this.topLevelSpecs = topLevelSpecs;
   }
   
   @Override
@@ -57,6 +59,9 @@ public class ColJavaParser implements vct.col.util.Parser {
             parser.addErrorListener(ec);
             lexer.removeErrorListeners();
             lexer.addErrorListener(ec);
+            if(this.topLevelSpecs) {
+              parser.specLevel = 1;
+            }
             JavaParser.CompilationUnitContext tree = parser.compilationUnit();
             ec.report();
             Progress("first parsing pass took %dms",tk.show());
@@ -73,6 +78,9 @@ public class ColJavaParser implements vct.col.util.Parser {
             parser.addErrorListener(ec);
             lexer.removeErrorListeners();
             lexer.addErrorListener(ec);
+            if(this.topLevelSpecs) {
+              parser.specLevel = 1;
+            }
             
             JavaParser.CompilationUnitContext tree = parser.compilationUnit();
             ec.report();

@@ -38,7 +38,6 @@ primaryExpression
     |   '__extension__'? '(' compoundStatement ')' // Blocks (GCC extension)
     |   '__builtin_va_arg' '(' unaryExpression ',' typeName ')'
     |   '__builtin_offsetof' '(' typeName ',' unaryExpression ')'
-    |   extraPrimary
     ;
 
 genericSelection
@@ -240,7 +239,6 @@ typeSpecifier
     |   enumSpecifier
     |   typedefName
     |   '__typeof__' '(' constantExpression ')' // GCC extension
-    |   extraType
     ;
 
 structOrUnionSpecifier
@@ -463,7 +461,6 @@ statement
     |   selectionStatement
     |   iterationStatement
     |   jumpStatement
-    |   extraStatement
     |   ('__asm' | '__asm__') ('volatile' | '__volatile__') '(' (logicalOrExpression (',' logicalOrExpression)*)? (':' (logicalOrExpression (',' logicalOrExpression)*)?)* ')' ';'
     ;
 
@@ -522,7 +519,6 @@ translationUnit
 
 externalDeclaration
     :   functionDefinition
-    |   extraDeclaration
     |   declaration
     |   ';' // stray ;
     ;
@@ -545,4 +541,4 @@ declarationList
     |   declarationList declaration
     ;
 
-clangIdentifier : extraIdentifier | Identifier ;
+clangIdentifier : Identifier ;

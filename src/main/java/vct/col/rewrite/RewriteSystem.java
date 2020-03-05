@@ -388,6 +388,11 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
     return null;
   }
 
+  @Override
+  public Boolean map(Synchronized sync, ASTNode a) {
+    return null;
+  }
+
 }
 
 class MatchSubstitution extends AbstractRewriter {

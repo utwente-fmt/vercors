@@ -302,4 +302,9 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
 
   }
 
+  @Override
+  public void visit(Synchronized sync) {
+
+  }
+
 }

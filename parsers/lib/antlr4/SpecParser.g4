@@ -2,15 +2,16 @@ parser grammar SpecParser;
 
 /**
  imported grammar rules
-   expression
-   identifier
-   type
-   statement
+   langExpr
+   langId
+   langType
+   langModifier
+   langStatement
    startSpec - the rule entering the lexer into specification mode
    endSpec - the rule exiting the lexer from specification mode
  exported grammar rules for PVL
    valContractClause        - contract clause
-   valStatement             - proof guiding statements
+   valStatement             - proof guiding statement
    valWithThen              - with/then statement to use given/yields ghost arguments
    valReserved              - reserved identifiers
  exported grammar rules for other languages
@@ -22,25 +23,25 @@ parser grammar SpecParser;
  */
 
 valExpressionList
-    : expression
-    | expression ',' valExpressionList
+    : langExpr
+    | langExpr ',' valExpressionList
     ;
 
 valLabelList
-    : identifier
-    | identifier ',' valLabelList
+    : langId
+    | langId ',' valLabelList
     ;
 
 valContractClause
  : 'modifies' valExpressionList ';'
  | 'accessible' valExpressionList ';'
- | 'requires' expression ';'
- | 'ensures' expression ';'
- | 'given' type identifier ';'
- | 'yields' type identifier ';'
- | 'context_everywhere' expression ';'
- | 'context' expression ';'
- | 'loop_invariant' expression ';'
+ | 'requires' langExpr ';'
+ | 'ensures' langExpr ';'
+ | 'given' langType langId ';'
+ | 'yields' langType langId ';'
+ | 'context_everywhere' langExpr ';'
+ | 'context' langExpr ';'
+ | 'loop_invariant' langExpr ';'
  ;
 
 valBlock
@@ -49,40 +50,40 @@ valBlock
 
 valStatement
  : 'create' valBlock               // create a magic wand
- | 'qed' expression ';'
- | 'apply' expression ';'
- | 'use' expression ';'
- | 'create' expression ';'             // create empty history
- | 'create' expression ',' expression ';'   // create given future
- | 'destroy' expression ',' expression ';'  // destroy given
- | 'destroy' expression ';'           // destroy empty future
- | 'split' expression ',' expression ',' expression ',' expression ',' expression ';'
- | 'merge' expression ',' expression ',' expression ',' expression ',' expression ';'
- | 'choose' expression ',' expression ',' expression ',' expression ';'
- | 'fold' expression ';'
- | 'unfold' expression ';'
- | 'open' expression ';'
- | 'close' expression ';'
- | 'assert' expression ';' 
- | 'assume' expression ';'
- | 'inhale' expression ';' 
- | 'exhale' expression ';'
- | 'label' identifier ';' 
- | 'refute' expression ';' 
- | 'witness' expression ';'
- | 'ghost' {ghostLevel++;} statement {ghostLevel--;}
- | 'send' expression 'to' Identifier ',' expression ';'
- | 'recv' expression 'from' Identifier ',' expression ';'
- | 'transfer' expression ';' 
- | 'csl_subject' expression ';'
+ | 'qed' langExpr ';'
+ | 'apply' langExpr ';'
+ | 'use' langExpr ';'
+ | 'create' langExpr ';'             // create empty history
+ | 'create' langExpr ',' langExpr ';'   // create given future
+ | 'destroy' langExpr ',' langExpr ';'  // destroy given
+ | 'destroy' langExpr ';'           // destroy empty future
+ | 'split' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ';'
+ | 'merge' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ';'
+ | 'choose' langExpr ',' langExpr ',' langExpr ',' langExpr ';'
+ | 'fold' langExpr ';'
+ | 'unfold' langExpr ';'
+ | 'open' langExpr ';'
+ | 'close' langExpr ';'
+ | 'assert' langExpr ';'
+ | 'assume' langExpr ';'
+ | 'inhale' langExpr ';'
+ | 'exhale' langExpr ';'
+ | 'label' langId ';'
+ | 'refute' langExpr ';'
+ | 'witness' langExpr ';'
+ | 'ghost' langStatement
+ | 'send' langExpr 'to' Identifier ',' langExpr ';'
+ | 'recv' langExpr 'from' Identifier ',' langExpr ';'
+ | 'transfer' langExpr ';'
+ | 'csl_subject' langExpr ';'
  | 'spec_ignore' '}'
  | 'spec_ignore' '{'
- | 'action' expression ',' expression ',' expression ',' expression ( ',' expression ',' expression )* ';'
- | 'atomic' '(' valLabelList? ')' statement
+ | 'action' langExpr ',' langExpr ',' langExpr ',' langExpr ( ',' langExpr ',' langExpr )* ';'
+ | 'atomic' '(' valLabelList? ')' langStatement
  ;
 
 valWithThenMapping
- : identifier '=' expression ';'
+ : langId '=' langExpr ';'
  ;
 
 valWithThen
@@ -91,37 +92,38 @@ valWithThen
  ;
 
 valPrimary
-    : type '{' valExpressionList? '}'
-    | '[' expression ']' expression
-    | '|' expression '|'
-    | '\\unfolding' expression '\\in' expression
-    | '(' expression '!' Identifier ')'
-    | '(' expression '\\memberof' expression ')'
-    | '['  expression '..' expression ')'
+    : langType '{' valExpressionList? '}'
+    | '[' langExpr ']' langExpr
+    | '|' langExpr '|'
+    | '\\unfolding' langExpr '\\in' langExpr
+    | '(' langExpr '!' Identifier ')'
+    | '(' langExpr '\\memberof' langExpr ')'
+    | '['  langExpr '..' langExpr ')'
     | '*'
     | '\\current_thread'
     | '(' ('\\forall*'|'\\forall'|'\\exists')
-        type identifier '=' expression '..' expression ';' expression ')'
+        langType langId '=' langExpr '..' langExpr ';' langExpr ')'
     | '(' ('\\forall*'|'\\forall'|'\\exists')
-        type identifier ';' expression ';' expression ')'
-    | '(' '\\let' type identifier '=' expression ';' expression ')'
-    | '(' '\\sum' type identifier ';' expression ';' expression ')'
-    | '\\length' '(' expression ')'
-    | '\\old' '(' expression ')'
-    | '\\id' '(' expression ')'
-    | '\\typeof' '(' expression ')'
-    | '\\matrix' '(' expression ',' expression ',' expression ')'
-    | '\\array'  '(' expression ',' expression ')'
-    | '\\pointer' '(' expression ',' expression ',' expression ')'
-    | '\\pointer_index' '(' expression ',' expression ',' expression ')'
-    | '\\values' '(' expression ',' expression ',' expression ')'
-    | '\\sum' '(' expression ',' expression ')'
-    | '\\vcmp' '(' expression ',' expression ')'
-    | '\\vrep' '(' expression ')'
-    | '\\msum' '(' expression ',' expression ')'
-    | '\\mcmp' '(' expression ',' expression ')'
-    | '\\mrep' '(' expression ')'
-    | 'Reducible' '(' expression ',' ('+' | Identifier ) ')'
+        langType langId ';' langExpr ';' langExpr ')'
+    | '(' '\\let' langType langId '=' langExpr ';' langExpr ')'
+    | '(' '\\sum' langType langId ';' langExpr ';' langExpr ')'
+    | '\\length' '(' langExpr ')'
+    | '\\old' '(' langExpr ')'
+    | '\\id' '(' langExpr ')'
+    | '\\typeof' '(' langExpr ')'
+    | '\\matrix' '(' langExpr ',' langExpr ',' langExpr ')'
+    | '\\array'  '(' langExpr ',' langExpr ')'
+    | '\\pointer' '(' langExpr ',' langExpr ',' langExpr ')'
+    | '\\pointer_index' '(' langExpr ',' langExpr ',' langExpr ')'
+    | '\\values' '(' langExpr ',' langExpr ',' langExpr ')'
+    | '\\sum' '(' langExpr ',' langExpr ')'
+    | '\\vcmp' '(' langExpr ',' langExpr ')'
+    | '\\vrep' '(' langExpr ')'
+    | '\\msum' '(' langExpr ',' langExpr ')'
+    | '\\mcmp' '(' langExpr ',' langExpr ')'
+    | '\\mrep' '(' langExpr ')'
+    | 'Reducible' '(' langExpr ',' ('+' | Identifier ) ')'
+    | langId ':' langExpr
     ;
 
 valReserved
@@ -132,8 +134,39 @@ valReserved
  | 'none' // No permission
  | 'write' // Full permission
  | 'read' // Any read permission
- | 'None' // The empty value of the option type
+ | 'None' // The empty value of the option langType
  | 'empty' // The empty process in the context of Models
+ ;
+
+valType
+ : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool')
+ | 'seq' '<' langType '>'
+ ;
+
+valDeclaration
+ : valContractClause* valModifier* langType langId '(' valArgList? ')' valPredicateDef
+ | 'axiom' langId '{' langExpr '==' langExpr '}'
+ ;
+
+valPredicateDef
+ : ';'
+ | '=' langExpr ';'
+ ;
+
+valModifier
+ :('pure'
+ | 'inline'
+ | 'thread_local'
+)| langModifier
+ ;
+
+valArgList
+ : valArg
+ | valArg ',' valArgList
+ ;
+
+valArg
+ : langType langId
  ;
 
 valEmbedContract: valEmbedContractBlock+;
@@ -152,4 +185,8 @@ valEmbedWithThenBlock
 
 valEmbedWithThen
  : valEmbedWithThenBlock+
+ ;
+
+valEmbedDeclarationBlock
+ : startSpec valDeclaration* endSpec
  ;

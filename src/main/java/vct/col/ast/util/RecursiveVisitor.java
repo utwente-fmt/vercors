@@ -382,6 +382,14 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   @Override
+  public void visit(Synchronized sync) {
+    dispatch(sync.expr());
+    enter(sync);
+    dispatch(sync.statement());
+    leave(sync);
+  }
+
+  @Override
   public void visit(FieldAccess a) {
     dispatch(a.object());
     dispatch(a.value());

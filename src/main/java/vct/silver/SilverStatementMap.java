@@ -421,4 +421,9 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   public S map(TryWithResources t) {
     return null;
   }
+
+  @Override
+  public S map(Synchronized sync) {
+    return null;
+  }
 }

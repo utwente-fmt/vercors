@@ -53,7 +53,7 @@ final class List {
         next=l;
         //@ unfold next.list(L2);
     } else {
-        //@ seq<int> tmp = next.contents();
+        //@ ghost seq<int> tmp = next.contents();
         //@ fold next.list(tmp);
         next.append_rec(l) /*@ with { L1 = tmp ; L2 = L2 ; } @*/;
         //@ unfold next.list(tmp+L2);

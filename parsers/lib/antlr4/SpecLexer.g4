@@ -6,18 +6,19 @@ FRAC: 'frac';
 ZFRAC: 'zfrac';
 BOOL: 'bool';
 RATIONAL: 'rational';
+SEQ: 'seq';
+
 PURE: 'pure';
 INLINE: 'inline';
 THREAD_LOCAL: 'thread_local';
+
 WITH: 'with';
 THEN: 'then';
 GIVEN: 'given';
 YIELDS: 'yields';
+
 AXIOM: 'axiom';
-ESCAPE: '\\';
-SEP_CONJ: '**';
-IMPLIES: '==>';
-WAND: '-*';
+
 MODIFIES: 'modifies';
 ACCESSIBLE: 'accessible';
 REQUIRES: 'requires';
@@ -25,6 +26,7 @@ ENSURES: 'ensures';
 CONTEXT_EVERYWHERE: 'context_everywhere';
 CONTEXT: 'context';
 LOOP_INVARIANT: 'loop_invariant';
+
 CREATE: 'create';
 QED: 'qed';
 APPLY: 'apply';
@@ -54,10 +56,10 @@ CSL_SUBJECT: 'csl_subject';
 SPEC_IGNORE: 'spec_ignore';
 ACTION: 'action';
 ATOMIC: 'atomic';
+
 UNFOLDING: '\\unfolding';
 IN: '\\in';
 MEMBEROF: '\\memberof';
-RANGE_TO: '..';
 CURRENT_THREAD: '\\current_thread';
 FORALL_STAR: '\\forall*';
 FORALL: '\\forall';
@@ -78,10 +80,18 @@ VREP: '\\vrep';
 MSUM: '\\msum';
 MCMP: '\\mcmp';
 MREP: '\\mrep';
-REDUCIBLE: 'Reducible';
 RESULT: '\\result';
+
+REDUCIBLE: 'Reducible';
+
 NONE: 'none';
 OPTION_NONE: 'None';
 WRITE: 'write';
 READ: 'read';
 EMPTY: 'empty';
+
+ESCAPE: '\\';
+SEP_CONJ: '**';
+IMPLIES: '==>';
+WAND: '-*';
+RANGE_TO: '..';

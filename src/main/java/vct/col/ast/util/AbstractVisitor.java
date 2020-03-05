@@ -166,6 +166,9 @@ public class AbstractVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override public void visit(Switch s) { visit_any(s); }
 
   @Override public void visit(TryWithResources t) { visit_any(t); }
+
+  @Override
+  public void visit(Synchronized sync) {
+    visit_any(sync);
+  }
 }
-
-

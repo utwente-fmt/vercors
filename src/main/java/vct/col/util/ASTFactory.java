@@ -223,15 +223,15 @@ public class ASTFactory<E> implements FrameControl {
     return block(origin_stack.get(),args);        
   }
 
-public BlockStatement block(Origin origin, ASTNode ... args) {
-  BlockStatement res=new BlockStatement();
-  for(ASTNode node:args){
-    res.addStatement(node);
+  public BlockStatement block(Origin origin, ASTNode ... args) {
+    BlockStatement res=new BlockStatement();
+    for(ASTNode node:args){
+      res.addStatement(node);
+    }
+    res.setOrigin(origin);
+    res.accept_if(post);
+    return res;
   }
-  res.setOrigin(origin);
-  res.accept_if(post);
-  return res;        
-}
 
 
   public ClassType class_type(E origin,String name[],ASTNode ... args){
@@ -1473,6 +1473,16 @@ public Axiom axiom(String name, ASTNode exp){
    */
   public ASTNode postfix_decrement(String varname) {
     return postfix_operator(varname, StandardOperator.Minus); 
+  }
+
+  public Synchronized syncBlock(ASTNode expr, ASTNode statement) {
+    return syncBlock(origin_stack.get(), expr, statement);
+  }
+
+  public Synchronized syncBlock(Origin origin, ASTNode expr, ASTNode statement) {
+    Synchronized sync = new Synchronized(expr, statement);
+    sync.setOrigin(origin);
+    return sync;
   }
 }
 

@@ -31,13 +31,11 @@ object CMLtoCOL2 {
       case ExternalDeclaration0(
         FunctionDefinition0(declSpecs, declarator, maybeDeclList, compoundStmt)) =>
         ???
-      case ExternalDeclaration1(ExtraDeclaration0(pureFuncDecl)) =>
+      case ExternalDeclaration1(Declaration0(declSpecs, maybeInitDecls, _)) =>
         ???
-      case ExternalDeclaration2(Declaration0(declSpecs, maybeInitDecls, _)) =>
+      case ExternalDeclaration1(Declaration1(staticAssertDeclaration)) =>
         ???
-      case ExternalDeclaration2(Declaration1(staticAssertDeclaration)) =>
-        ???
-      case ExternalDeclaration3(";") => Seq()
+      case ExternalDeclaration2(";") => Seq()
     }
   }
 

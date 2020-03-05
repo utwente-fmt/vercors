@@ -5,7 +5,11 @@ import SpecParser;
     private static int ghostLevel = 0;
 }
 
-expression : expr ;
+langExpr: expr;
+langId: identifier;
+langType: type;
+langModifier: modifier;
+langStatement: statement;
 
 program  : programDecl* block? EOF ;
 
@@ -21,9 +25,9 @@ kernelField : ('global' | 'local') type identifierList ';' ;
 
 field : type identifierList ';' ;
 
-modifiers : ( 'static' | 'thread_local' | 'inline' | 'pure' )*;
+modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
 
-methodDecl : contract modifiers type identifier '(' args? ')' methodBody ;
+methodDecl : contract modifier* type identifier '(' args? ')' methodBody ;
 methodBody : '=' expr ';' | constructorBody ;
 
 constructor : contract identifier '(' args? ')' constructorBody ;
@@ -164,7 +168,7 @@ nonTargetUnit
  ;
 
 collectionConstructors
- : CONTAINER '<' type '>' values
+ : container '<' type '>' values
  | '[' exprList ']'
  | '[t:' type ']'
  | '{' exprList '}'
@@ -257,7 +261,7 @@ invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
 
 nonArrayType
- : CONTAINER '<' type '>'
+ : container '<' type '>'
  | 'option' '<' type '>'
  | ('string' | 'process' | 'int' | 'boolean' | 'zfrac' | 'frac' | 'resource' | 'void')
  | classType
@@ -284,14 +288,14 @@ anonDim
  : '[' ']'
  ;
 
-gen_id : identifier | CONTAINER ;
+gen_id : identifier | container ;
 
 classType : identifier typeArgs?;
 
 typeArgs : '<' exprList '>';
 
 
-CONTAINER : 'seq' | 'set' | 'bag' ;
+container : ('seq' | 'set' | 'bag');
 
 identifierList
     : identifier

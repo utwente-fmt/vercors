@@ -259,4 +259,9 @@ public class UndefinedMapping<T> implements ASTMapping<T> {
     return null;
   }
 
+  @Override
+  public T map(Synchronized sync) {
+    return null;
+  }
+
 }

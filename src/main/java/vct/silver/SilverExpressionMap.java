@@ -526,4 +526,9 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     return null;
   }
 
+  @Override
+  public E map(Synchronized sync) {
+    return null;
+  }
+
 }

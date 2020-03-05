@@ -64,7 +64,6 @@ typeDeclaration
 
 modifier
     :   classOrInterfaceModifier
-    |   extraAnnotation
     |   (   'native'
         |   'synchronized'
         |   'transient'
@@ -152,7 +151,9 @@ interfaceBody
 classBodyDeclaration
     :   ';'
     |   'static'? block
+    |   valEmbedDeclarationBlock
     |   valEmbedContract? modifier* memberDeclaration
+    |   {specLevel>0}? valDeclaration
     ;
 
 memberDeclaration
@@ -165,7 +166,6 @@ memberDeclaration
     |   annotationTypeDeclaration
     |   classDeclaration
     |   enumDeclaration
-    |   extraDeclaration
     ;
 
 /* We use rule this even for void methods which cannot have [] after parameters.
@@ -200,6 +200,7 @@ fieldDeclaration
 
 interfaceBodyDeclaration
     :   modifier* interfaceMemberDeclaration
+    |   valEmbedDeclarationBlock
     |   ';'
     ;
 
@@ -271,7 +272,7 @@ enumConstantName
 type
     :   classOrInterfaceType dims?
     |   primitiveType dims?
-    |   extraType
+    |   {specLevel>0}? valType
     ;
 
 typeOrVoid
@@ -440,6 +441,7 @@ blockStatement
     :   localVariableDeclarationStatement
     |   statement
     |   typeDeclaration
+    |   valEmbedStatementBlock
     ;
 
 localVariableDeclarationStatement
@@ -467,10 +469,9 @@ statement
     |   'break' javaIdentifier? ';'
     |   'continue' javaIdentifier? ';'
     |   ';'
-    |   statementExpression ';'
+    |   statementExpression valEmbedWithThen? ';'
     |   javaIdentifier ':' statement
-    |   valEmbedStatementBlock
-    |   {ghostLevel>0}? valStatement
+    |   {specLevel>0}? valStatement
     ;
 
 assertMessage: ':' expression;
@@ -607,8 +608,8 @@ primary
     |   type '.' 'class'
     |   'void' '.' 'class'
     |   nonWildcardTypeArguments (explicitGenericInvocationSuffix | 'this' arguments)
-	|   extraPrimary
-    ;
+    |   {specLevel>0}? valPrimary
+	;
 
 creator
     :   nonWildcardTypeArguments createdName classCreatorRest
@@ -679,4 +680,8 @@ arguments
     :   '(' expressionList? ')'
     ;
 
-javaIdentifier : extraIdentifier | Identifier ;
+javaIdentifier
+    : {specLevel>0}? valReserved
+    | Identifier
+    | valReserved // allow reserved identifiers outside specification
+    ;

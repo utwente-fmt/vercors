@@ -7,8 +7,8 @@ import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{MethodInvokation, NameExpression, StandardOperator}
-import vct.col.ast.generic.ASTNode
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, StandardOperator}
+import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, TryCatchBlock, TryWithResources}
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
@@ -26,13 +26,13 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   def convertUnit(tree: CompilationUnitContext): ProgramUnit = tree match {
     case CompilationUnit0(maybePackage, imports, decls, _) =>
       val result = new ProgramUnit()
-      val namespace = maybePackage match {
+      val namespace = origin(tree, maybePackage match {
         case None => create namespace(NameSpace.NONAME)
         case Some(PackageDeclaration0(Seq(annotation, _*), _, _, _)) =>
           ??(annotation) // package declaration annotations are not supported.
         case Some(PackageDeclaration0(Seq(), "package", name, _)) =>
           create namespace(convertQualifiedName(name):_*)
-      }
+      })
       imports.foreach {
         case ImportDeclaration0("import", static, name, importAll, _) =>
           namespace.add_import(static.isDefined, importAll.isDefined, convertQualifiedName(name):_*)
@@ -48,19 +48,21 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   }
 
   def convertID(id: ParserRuleContext): String = id match {
-    case JavaIdentifier0(ExtraIdentifier0(id)) =>
-      fail(id, "This identifier is reserved and cannot be declared.")
+    case JavaIdentifier0(reserved) =>
+      fail(reserved, "This identifier is reserved, and may not be declared inside specifications.")
     case JavaIdentifier1(s) => s
-    case Identifier0(id) => convertID(id)
+    case JavaIdentifier2(reserved) =>
+      convertOverlappingValReservedID(reserved)
+    case LangId0(id) => convertID(id)
 
     case EnumConstantName0(id) => convertID(id)
   }
 
   def convertIDName(id: ParserRuleContext): NameExpression = origin(id, id match {
-    case JavaIdentifier0(ExtraIdentifier0(id)) =>
-      convertValReserved(id)
-    case JavaIdentifier1(s) => create unresolved_name s
-    case Identifier0(id) => convertIDName(id)
+    case JavaIdentifier0(reserved) => convertValReserved(reserved)
+    case JavaIdentifier1(s) => create unresolved_name(s)
+    case JavaIdentifier2(reserved) => convertOverlappingValReservedName(reserved)
+    case LangId0(id) => convertIDName(id)
   })
 
   def convertDecl(decl: ParserRuleContext): Seq[ASTDeclaration] = origin(decl, decl match {
@@ -83,7 +85,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       // This is a block that is executed on class load if "static" is present, otherwise
       // the code block is executed on every instance creation (prior to constructors, I think)
       ??(decl)
-    case ClassBodyDeclaration2(maybeContract, mods, member) =>
+    case ClassBodyDeclaration2(valEmbed) =>
+      convertValDecl(valEmbed)
+    case ClassBodyDeclaration3(maybeContract, mods, member) =>
       val decls = convertDecl(member)
       val contract = getContract(convertValContract(maybeContract))
       decls.foreach(decl => {
@@ -96,6 +100,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         }
       })
       decls
+    case ClassBodyDeclaration4(valDecl) =>
+      Seq(convertValDecl(valDecl))
     case InterfaceBodyDeclaration0(mods, member) =>
       val decls = convertDecl(member)
       decls.foreach(decl => mods.map(convertModifier).foreach(mod => decl.attach(mod)))
@@ -110,7 +116,6 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case MemberDeclaration6(fwd) => convertDecl(fwd)
     case MemberDeclaration7(fwd) => convertDecl(fwd)
     case MemberDeclaration8(fwd) => convertDecl(fwd)
-    case MemberDeclaration9(fwd) => convertDecl(fwd)
 
     case MethodDeclaration0(_, _, _, _, Some(throws), _) =>
       ??(throws) // exceptions are unsupported
@@ -152,8 +157,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         mods.foreach(mod => res.attach(mod))
         res
       }
-    case ExtraDeclaration1(AxiomDeclaration0("axiom", name, "{", left, "==", right, "}")) =>
-      Seq(create axiom(name, create expression(EQ, expr(left), expr(right))))
+//    case ExtraDeclaration1(AxiomDeclaration0("axiom", name, "{", left, "==", right, "}")) =>
+//      Seq(create axiom(name, create expression(EQ, expr(left), expr(right))))
   })
 
   def convertResource(res: ResourceContext): DeclarationStatement = origin(res, res match {
@@ -168,24 +173,21 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Resources1(x, _, xs) => convertResource(x) +: convertResourceList(xs)
   })
 
-  def convertModifier(modifier: ParserRuleContext): NameExpression = origin(modifier, modifier match {
+  def convertModifier(modifier: ModifierContext): NameExpression = origin(modifier, modifier match {
     case Modifier0(mod) => convertModifier(mod)
-    case Modifier1(ExtraAnnotation0("pure")) =>
-      create reserved_name(ASTReserved.Pure)
-    case Modifier1(ExtraAnnotation1("inline")) =>
-      create reserved_name(ASTReserved.Inline)
-    case Modifier1(ExtraAnnotation2("thread_local")) =>
-      create reserved_name(ASTReserved.ThreadLocal)
-    case Modifier2(mod) => mod match {
+    case Modifier1(mod) => mod match {
       case "native" => ??(modifier)
-      case "synchronized" => create reserved_name(ASTReserved.Synchronized)
+      case "synchronized" => create reserved_name (ASTReserved.Synchronized)
       case "transient" => ??(modifier)
-      case "volatile" => create reserved_name(ASTReserved.Volatile)
+      case "volatile" => create reserved_name (ASTReserved.Volatile)
     }
+  })
+
+  def convertModifier(modifier: ClassOrInterfaceModifierContext): NameExpression = origin(modifier, modifier match {
     case ClassOrInterfaceModifier0(annotation) =>
       ??(annotation)
     case ClassOrInterfaceModifier1(attribute) =>
-      create reserved_name(attribute match {
+      create reserved_name (attribute match {
         case "public" => ASTReserved.Public
         case "protected" => ASTReserved.Protected
         case "private" => ASTReserved.Private
@@ -195,11 +197,17 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case "strictfp" =>
           ??(modifier) // strict floating point math; unsupported.
       })
+  })
+
+  def convertModifier(modifier: VariableModifierContext): NameExpression = origin(modifier, modifier match {
     case VariableModifier0("final") =>
       create reserved_name ASTReserved.Final
     case VariableModifier1(annotation) =>
       ??(annotation)
   })
+
+  def convertModifier(langMod: LangModifierContext): NameExpression =
+    langMod match { case LangModifier0(mod) => convertModifier(mod) }
 
   def convertClass(decl: InterfaceDeclarationContext): ASTClass = origin(decl, decl match {
     case InterfaceDeclaration0(_, _, Some(typeParams), _, _) =>
@@ -250,13 +258,14 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case CatchType1(x, "|", xs) => convertType(x) +: convertTypeList(xs)
   }
 
+  def tCell(t: Type) = create.primitive_type(PrimitiveSort.Cell, t)
+  def tArray(t: Type) = create.primitive_type(PrimitiveSort.Array, t)
+  def tOpt(t: Type) = create.primitive_type(PrimitiveSort.Option, t)
+
   def addDims(t: Type, dimCount: Int): Type = {
     var result = t
     for(_ <- 0 until dimCount) {
-      result =
-        create.primitive_type(PrimitiveSort.Option,
-          create.primitive_type(PrimitiveSort.Array,
-            create.primitive_type(PrimitiveSort.Cell, result)))
+      result = tOpt(tArray(tCell(result)))
     }
     result
   }
@@ -269,6 +278,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case qualified: QualifiedNameContext =>
       create class_type convertQualifiedName(qualified).toArray
 
+    case LangType0(t) => convertType(t)
+
     case TypeOrVoid0("void") => create primitive_type PrimitiveSort.Void
     case TypeOrVoid1(t) => convertType(t)
 
@@ -276,14 +287,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       convertType(t, dims match { case None => 0; case Some(Dims0(dims)) => dims.size })
     case Type1(t, dims) =>
       convertType(t, dims match { case None => 0; case Some(Dims0(dims)) => dims.size })
-    case Type2(ExtraType0(name)) =>
-      create primitive_type(name match {
-        case "resource" => PrimitiveSort.Resource
-        case "process" => PrimitiveSort.Process
-        case "frac" => PrimitiveSort.Fraction
-        case "zfrac" => PrimitiveSort.ZFraction
-        case "rational" => PrimitiveSort.Rational
-      })
+    case Type2(valType) =>
+      convertValType(valType)
 
     case PrimitiveType0(name) =>
       create primitive_type(name match {
@@ -396,89 +401,115 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     }
   }
 
-  def convertStat(stat: ParserRuleContext): Seq[ASTNode] = origin(stat, stat match {
+  def convertStat(stat: BlockStatementContext): Seq[ASTNode] = origin(stat, stat match {
     // BlockStatement is a statement that may occur in a block, not a block in itself.
     case BlockStatement0(LocalVariableDeclarationStatement0(varDecl, _)) =>
       convertDecl(varDecl)
     case BlockStatement1(stat) =>
-      convertStat(stat)
+      Seq(convertStat(stat))
     case BlockStatement2(typeDecl) =>
       convertDecl(typeDecl)
+    case BlockStatement3(valEmbedBlock) =>
+      convertValStat(valEmbedBlock)
+  })
 
+  def convertStat(stat: StatementContext): ASTNode = origin(stat, stat match {
     case Statement0(block) =>
-      Seq(convertBlock(block))
+      convertBlock(block)
     case Statement1(_assert, exp, _message, _) =>
-      Seq(create special(ASTSpecial.Kind.Assert, expr(exp)))
+      create special(ASTSpecial.Kind.Assert, expr(exp))
     case Statement2("if", cond, whenTrue, maybeWhenFalse) =>
-      Seq(create ifthenelse(expr(cond),
-        create block(convertStat(whenTrue):_*),
-        maybeWhenFalse.map(stat => create block(convertStat(stat):_*)).orNull))
+      create ifthenelse(expr(cond),
+        convertStat(whenTrue),
+        maybeWhenFalse.map(convertStat).orNull)
     case Statement3(maybeContract, "for", "(", ForControl0(forEachControl), ")", maybeContract2, body) =>
       ??(forEachControl) // for(a : b) is unsupported
     case Statement3(maybeContract, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract2, body) =>
       val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
       val loop = create for_loop(
-        maybeInit.map(stat => create block(convertStat(stat):_*)).orNull,
+        maybeInit.map(convertStat).orNull,
         maybeCond.map(expr).orNull,
-        maybeUpdate.map(stat => create block(convertStat(stat):_*)).orNull,
-        create block(convertStat(body):_*)
+        maybeUpdate.map(convertStat).orNull,
+        convertStat(body)
       )
       loop.setContract(contract)
-      Seq(loop)
+      loop
     case Statement4(maybeContract, "while", cond, maybeContract2, body) =>
       val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
-      val loop = create while_loop(expr(cond), create block(convertStat(body):_*))
+      val loop = create while_loop(expr(cond), convertStat(body))
       loop.setContract(contract)
-      Seq(loop)
+      loop
     case Statement5("do", body, "while", cond, _) =>
       ??(stat) // do-while unsupported
     case Statement6("try", block, catchClauses, maybeFinally) =>
       val tryBlock = create try_catch(convertBlock(block), maybeFinally.map(convertBlock).orNull)
       addCatchClauses(tryBlock, catchClauses)
-      Seq(tryBlock)
+      tryBlock
     case Statement7("try", block, uiteindelijk) =>
-      Seq(create try_catch(convertBlock(block), convertBlock(uiteindelijk)))
+      create try_catch(convertBlock(block), convertBlock(uiteindelijk))
     case Statement8("try", ResourceSpecification0(_, res, _, _), block, catchClauses, maybeFinally) =>
       val tryBlock = create try_with_resources(convertBlock(block), maybeFinally.map(convertBlock).orNull)
       convertResourceList(res).foreach(tryBlock.addResource)
       addCatchClauses(tryBlock, catchClauses)
-      Seq(tryBlock)
+      tryBlock
     case Statement9("switch", obj, "{", caseStatMappings, extraCases, "}") =>
       ??(stat) // switch unsupported
     case Statement10("synchronized", obj, body) =>
-      // new node: expression + block
-      ??(stat) // synchronizing on objects unsupported
+      create syncBlock(expr(obj), convertBlock(body))
     case Statement11("return", maybeValue, _) =>
-      Seq(maybeValue match {
+      maybeValue match {
         case None => create return_statement()
         case Some(value) => create return_statement(expr(value))
-      })
+      }
     case Statement12("throw", exc, _) =>
-      Seq(create special(ASTSpecial.Kind.Throw, expr(exc)))
+      create special(ASTSpecial.Kind.Throw, expr(exc))
     case Statement13("break", maybeLabel, _) =>
-      Seq(maybeLabel match {
+      maybeLabel match {
         case None => create special(ASTSpecial.Kind.Break)
         case Some(lbl) => create special(ASTSpecial.Kind.Break, convertIDName(lbl))
-      })
+      }
     case Statement14("continue", maybeLabel, _) =>
-      Seq(maybeLabel match {
+      maybeLabel match {
         case None => create special(ASTSpecial.Kind.Continue)
         case Some(lbl) => create special(ASTSpecial.Kind.Continue, convertIDName(lbl))
-      })
+      }
     case Statement15(";") =>
-      Seq() // nop
-    case Statement16(exp, _) =>
-      Seq(expr(exp))
+      create block() //nop
+    case Statement16(exp, withThen, _) =>
+      val res = expr(exp)
+      withThen match {
+        case None => res
+        case Some(block) => res match {
+          case invokation: BeforeAfterAnnotations =>
+            invokation.set_after(create block(convertValWithThen(block):_*))
+            res
+          case _ =>
+            fail(block, "Cannot apply before/after annotations to expression of this kind")
+        }
+      }
     case Statement17(label, ":", stat) =>
       val res = convertStat(stat)
-      res.foreach(_.addLabel(convertIDName(label)))
+      res.addLabel(create label convertID(label))
       res
     case Statement18(valStatement) =>
       convertValStat(valStatement)
+  })
 
-    case ForInit0(varDecl) => convertDecl(varDecl)
-    case ForInit1(exps) => exprList(exps)
-    case ForUpdate0(exps) => exprList(exps)
+  def convertStat(stat: ElseBlockContext): ASTNode = origin(stat, stat match {
+    case ElseBlock0(_, stat) => convertStat(stat)
+  })
+
+  def convertStat(stat: ForInitContext): ASTNode = origin(stat, stat match {
+    case ForInit0(varDecl) =>
+      // Of course we can't put declarations inside an actual new scope, but these are dealt with explicitly.
+      flattenIfSingleStatement(convertDecl(varDecl))
+    case ForInit1(exps) =>
+      flattenIfSingleStatement(exprList(exps))
+  })
+
+  def convertStat(stat: ForUpdateContext): ASTNode = origin(stat, stat match {
+    case ForUpdate0(exps) =>
+      flattenIfSingleStatement(exprList(exps))
   })
 
   def exprList(tree: ParserRuleContext): Seq[ASTNode] = tree match {
@@ -501,9 +532,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def getArrayInitializer(initializer: ParserRuleContext, dims: Int, baseType: Type): ASTNode = initializer match {
     case ArrayInitializer0("{", "}") =>
-      create struct_value(addDims(baseType, dims), null)
+      create expression(OptionSome,
+        create struct_value(tArray(tCell(addDims(baseType, dims-1))), null))
     case ArrayInitializer1("{", initializers, _, "}") =>
-      create struct_value(addDims(baseType, dims), null, getArrayInitializerList(initializers, dims-1, baseType):_*)
+      create expression(OptionSome,
+        create struct_value(tArray(tCell(addDims(baseType, dims-1))), null, getArrayInitializerList(initializers, dims-1, baseType):_*))
 
     case VariableInitializer0(arrayInitializer) => getArrayInitializer(arrayInitializer, dims, baseType)
     case VariableInitializer1(exp) => expr(exp)
@@ -513,6 +546,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ParExpression0("(", exp, ")") => expr(exp)
     case StatementExpression0(exp) => expr(exp)
     case ConstantExpression0(exp) => expr(exp)
+    case LangExpr0(exp) => expr(exp)
 
     case Expression0(primary) => expr(primary)
     case Expression1(obj, ".", field) =>
@@ -538,16 +572,16 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
       inheritance is unsupported
       */
-    case Expression5(obj, ".", invokation) =>
-      ??(invokation) // no idea...
-      expr(invokation) match {
-        case call: MethodInvokation if call.`object` == null =>
-          create invokation(expr(obj), null, call.method, call.getArgs:_*)
-        case _ => ??(tree)
-      }
+    case Expression5(objNode, ".", invokation) =>
+      ??(tree)
     case Expression6(seq, "[", idx, "]") =>
       create expression(Subscript, expr(seq), expr(idx))
-    case Expression7(_, _, _, _) => ??(tree) //arrow type
+    case Expression7(objNode, "->", predicate, args) =>
+      val obj = expr(objNode)
+      create expression(Implies,
+          create expression(NEQ, obj, create reserved_name ASTReserved.Null),
+        create invokation(obj, null, convertID(predicate), exprList(args):_*)
+      )
     case Expression8(_, Some(predicateEntryType), _) =>
       // the predicate entry type is set as dispatch of an invokation
       ??(tree)
@@ -556,6 +590,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       expr(obj) match {
         case name: NameExpression =>
           create invokation(null, null, name.getName, args:_*)
+        case deref: Dereference =>
+          create invokation(deref.obj, null, deref.field, args:_*)
         case _ => ??(tree)
       }
     case Expression9("new", Creator0(typeArgs, _, _)) =>
@@ -650,13 +686,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Primary6("void", ".", "class") =>
       ??(tree) // reflection is unsupported
     case _: Primary7Context => ??(tree) // generic invocation?
-    case Primary8(extra) => expr(extra)
-
-    case ExtraPrimary0(label, ":", exp) =>
-      val res = expr(exp)
-      res.addLabel(create unresolved_name label)
-      res
-    case ExtraPrimary1(valPrimary) => valExpr(valPrimary)
+    case Primary8(valPrimary) =>
+      valExpr(valPrimary)
 
     case VariableDeclaratorInit0(_, exp) => expr(exp)
     case VariableInitializer0(arr) => ??(arr)
@@ -720,6 +751,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       stats.map(convertValStat)
   })
 
+  def convertValStat(stat: LangStatementContext): Seq[ASTNode] = origin(stat, stat match {
+    case LangStatement0(stat) =>
+      convertStat(stat)
+  })
+
   def convertValStat(stat: ValStatementContext): ASTNode = origin(stat, stat match {
     case ValStatement0(_create, block) =>
       create lemma(convertValBlock(block))
@@ -766,7 +802,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValStatement21(_witness, pred, _) =>
       create special(ASTSpecial.Kind.Witness, expr(pred))
     case ValStatement22(_ghost, code) =>
-      create block(convertStat(code):_*)
+      flattenIfSingleStatement(convertValStat(code))
     case ValStatement23(_send, res, _to, lbl, _, thing, _) =>
       create special(ASTSpecial.Kind.Send, expr(res), create unresolved_name lbl, expr(thing))
     case ValStatement24(_recv, res, _from, lbl, _, thing, _) =>
@@ -782,7 +818,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case action: ValStatement29Context =>
       ??(action)
     case ValStatement30(_atomic, _, resList, _, stat) =>
-      create csl_atomic(create block(convertStat(stat):_*), resList.map(convertValLabelList).getOrElse(Seq()):_*)
+      create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValLabelList).getOrElse(Seq()):_*)
   })
 
   def valExpr(exp: ValPrimaryContext): ASTNode = origin(exp, exp match {
@@ -864,6 +900,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create expression(ReducibleMin, expr(exp))
     case ValPrimary28("Reducible", "(", exp, _, "max", ")") =>
       create expression(ReducibleMax, expr(exp))
+    case ValPrimary29(label, _, exp) =>
+      val res = expr(exp)
+      res.addLabel(create label(convertID(label)))
+      res
   })
 
   def convertValReserved(reserved: ValReservedContext): NameExpression = origin(reserved, reserved match {
@@ -885,6 +925,26 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create reserved_name ASTReserved.EmptyProcess
   })
 
+  /**
+    * This method allows a language grammar to step into the reserved identifiers where they overlap with the underlying
+    * language, to allow their use there. They should be forbidden inside specifications.
+    * @param reserved the reserved identifier
+    * @return the string representation of the identifier
+    */
+  def convertOverlappingValReservedID(reserved: ValReservedContext): String = reserved match {
+    case ValReserved0(s) => s
+    case ValReserved1("\\result") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved2("\\current_thread") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved3(s) => s
+    case ValReserved4(s) => s
+    case ValReserved5(s) => s
+    case ValReserved6(s) => s
+    case ValReserved7(s) => s
+  }
+
+  def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =
+    create unresolved_name convertOverlappingValReservedID(reserved)
+
   def convertValContract(contract: Option[ValEmbedContractContext]) = (builder: ContractBuilder) => contract match {
     case Some(ValEmbedContract0(blocks)) =>
       for(block <- blocks) {
@@ -899,6 +959,83 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       for(clause <- clauses) {
         convertValClause(clause)(builder)
       }
+  }
+
+  def convertValType(t: ValTypeContext): Type = origin(t, t match {
+    case ValType0(s) => s match {
+      case "resource" => create primitive_type(PrimitiveSort.Resource)
+      case "process" => create primitive_type(PrimitiveSort.Process)
+      case "frac" => create primitive_type PrimitiveSort.Fraction
+      case "zfrac" => create primitive_type PrimitiveSort.ZFraction
+      case "rational" => create primitive_type PrimitiveSort.Rational
+      case "bool" => create primitive_type PrimitiveSort.Boolean
+    }
+    case ValType1("seq", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Sequence, convertType(subType))
+  })
+
+  def convertValArg(arg: ValArgContext): DeclarationStatement = origin(arg, arg match {
+    case ValArg0(t, id) =>
+      create field_decl(convertID(id), convertType(t))
+  })
+
+  def convertValArgList(argList: ValArgListContext): Seq[DeclarationStatement] = origin(argList, argList match {
+    case ValArgList0(arg) => Seq(convertValArg(arg))
+    case ValArgList1(arg, _, args) => convertValArg(arg) +: convertValArgList(args)
+  })
+
+  def convertValModifier(modifier: ValModifierContext): NameExpression = origin(modifier, modifier match {
+    case ValModifier0(s) => s match {
+      case "pure" => create reserved_name(ASTReserved.Pure)
+      case "inline" => create reserved_name(ASTReserved.Inline)
+      case "thread_local" => create reserved_name(ASTReserved.ThreadLocal)
+    }
+    case ValModifier1(langMod) => convertModifier(langMod)
+  })
+
+  def convertValDecl(decl: ValDeclarationContext): ASTDeclaration = origin(decl, decl match {
+    case ValDeclaration0(clauses, mods, t, name, _, args, _, body) =>
+      val contract = getContract(clauses.map(convertValClause):_*)
+      val func = create function_decl(
+        convertType(t),
+        contract,
+        convertID(name),
+        args.map(convertValArgList).getOrElse(Seq()).toArray,
+        body match {
+          case ValPredicateDef0(_) => null
+          case ValPredicateDef1("=", exp, _) => expr(exp)
+        }
+      )
+      mods.foreach(mod => func.attach(convertValModifier(mod)))
+      func
+    case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
+      create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
+  })
+
+  def convertValDecl(decl: ValEmbedDeclarationBlockContext): Seq[ASTDeclaration] = decl match {
+    case ValEmbedDeclarationBlock0(_, decls, _) =>
+      decls.map((decl) => convertValDecl(decl))
+  }
+
+  def convertValWithThen(withThen: ValWithThenContext): ASTNode = withThen match {
+    case ValWithThen0("with", _, mappings, _) =>
+      create special(ASTSpecial.Kind.With, create block(mappings.map {
+        case ValWithThenMapping0(name, _, exp, _) =>
+          create assignment(convertIDName(name), expr(exp))
+      }:_*))
+    case ValWithThen1("then", _, mappings, _) =>
+      create special(ASTSpecial.Kind.Then, create block(mappings.map {
+        case ValWithThenMapping0(name, _, exp, _) =>
+          create assignment(convertIDName(name), expr(exp))
+      }:_*))
+  }
+
+  def convertValWithThen(withThen: ValEmbedWithThenBlockContext): Seq[ASTNode] = withThen match {
+    case ValEmbedWithThenBlock0(_, mappings, _) => mappings.map(convertValWithThen)
+  }
+
+  def convertValWithThen(withThen: ValEmbedWithThenContext): Seq[ASTNode] = withThen match {
+    case ValEmbedWithThen0(blocks) => blocks.flatMap(convertValWithThen)
   }
 
   /* === End of duplicated code block === */

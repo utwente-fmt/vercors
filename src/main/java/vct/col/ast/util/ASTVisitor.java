@@ -106,6 +106,8 @@ public interface ASTVisitor<T> {
   public void visit(Switch s);
 
   public void visit(TryWithResources t);
+
+  public void visit(Synchronized sync);
 }
 
 

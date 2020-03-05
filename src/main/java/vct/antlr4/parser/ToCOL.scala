@@ -39,7 +39,12 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: Parser
   def getContract[T](converters: (ContractBuilder => Unit)*): Contract = {
     val builder = new ContractBuilder()
     converters.foreach(_(builder))
-    builder.getContract
+    builder.getContract(false)
+  }
+
+  def flattenIfSingleStatement(statements: Seq[ASTNode]): ASTNode = statements match {
+    case Seq(x) => x
+    case otherwise => create block(otherwise:_*)
   }
 
   def fail(tree: ParserRuleContext, format: String, args: Object*): Nothing = {
