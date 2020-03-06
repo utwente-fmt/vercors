@@ -34,7 +34,7 @@
 		keywords = {
 			patterns = (
 				{	name = 'entity.name.type.pvl';
-					match = '\b(class|kernel|global|local|static|thread_local|inline|pure|with|then|in|id|new|unfolding|return|lock|unlock|wait|notify|fork|join|if|else|barrier|par|and|vec|while|goto|void)\b';
+					match = '\b(class|kernel|global|local|static|thread_local|inline|pure|with|then|in|id|new|unfolding|return|lock|unlock|wait|notify|fork|join|if|else|barrier|par|and|vec|while|for|goto|void)\b';
 					captures = { 1 = { name = 'markup.bold'; }; };
 				},
 				{	name = 'keyword.operator.types.pvl';
@@ -71,7 +71,7 @@
 		specs = {
 			patterns = (
 				{	name = 'support.class.spec.pvl';
-					begin = '\b(resource|modifies|accessible|requires|ensures|given|yields|invariant|context|loop_invariant|create|qed|apply|use|create|destroy|split|merge|choose|fold|unfold|open|close|assert|assume|inhale|exhale|label|refute|witness|ghost|send|recv|transfer|csl_subject|spec_ignore)\b';
+					begin = '\b(resource|modifies|accessible|requires|ensures|given|yields|invariant|context|context_everywhere|loop_invariant|create|qed|apply|use|create|destroy|split|merge|choose|fold|unfold|open|close|assert|assume|inhale|exhale|label|refute|witness|ghost|send|recv|transfer|csl_subject|spec_ignore)\b';
 					end = ';';
 					captures = { 1 = { name = 'markup.bold'; }; };
 					patterns = (
