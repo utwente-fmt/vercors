@@ -45,7 +45,7 @@
 		operators = {
 			patterns = (
 				{	name = 'keyword.operator.pvl';
-					match = '&&|**';
+					match = '&&|\*\*';
 				},
 			);
 		};
