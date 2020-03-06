@@ -44,7 +44,17 @@ public class AnnotationInterpreter extends AbstractRewriter {
         ann.add(rewrite(a));
       }
     }
-    Method res=create.method_kind(kind, returns, contract, name, args, varArgs, body);
+
+    ArrayList<Type> new_throws_types = new ArrayList<>();
+    for (Type throws_type : m.getThrowsTypes()) {
+      Type new_throws_type = rewrite(throws_type);
+      if (new_throws_type != null) {
+        new_throws_types.add(new_throws_type);
+      }
+    }
+    Type[] new_throws_types_arr = new_throws_types.toArray(new Type[0]);
+
+    Method res=create.method_kind(kind, returns, contract, name, args, varArgs, body, new_throws_types_arr);
     if (m.annotated()) {
       res.attach();
       for (ASTNode a : ann){

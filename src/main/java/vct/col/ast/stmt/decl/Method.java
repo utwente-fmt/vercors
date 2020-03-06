@@ -58,6 +58,7 @@ public class Method extends ASTDeclaration {
   private Hashtable<String, Contract> spec=new Hashtable<String,Contract>();
   private ASTNode body;
   public final Kind kind;
+  private Type[] throws_types;
   
   public boolean usesVarArgs(){
     return var_args;
@@ -83,8 +84,12 @@ public class Method extends ASTDeclaration {
     
     this.kind=kind;
   }
-  
+
   public Method(Kind kind, String name,Type return_type,Contract contract,DeclarationStatement args[],boolean varArgs,ASTNode body){
+    this(kind, name, return_type, contract, args, varArgs, body, new Type[0]);
+  }
+
+  public Method(Kind kind, String name,Type return_type,Contract contract,DeclarationStatement args[],boolean varArgs,ASTNode body, Type[] throws_types){
     super(name);
     this.return_type=return_type;
     this.args=Arrays.copyOf(args,args.length);
@@ -94,7 +99,9 @@ public class Method extends ASTDeclaration {
     }
     this.body=body;
     this.kind=kind;
+    this.throws_types = throws_types;
     setContract(contract);
+
   }
 
   public Kind getKind(){ return kind; }
@@ -106,6 +113,8 @@ public class Method extends ASTDeclaration {
   public String getArgument(int i){ return args[i].name(); }
 
   public Type getArgType(int i){ return args[i].getType(); }
+
+  public Type[] getThrowsTypes() { return throws_types; }
 
   public void setContract(Contract contract){
     setContract("this",contract);

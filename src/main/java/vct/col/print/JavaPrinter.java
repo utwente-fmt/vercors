@@ -805,6 +805,16 @@ public class JavaPrinter extends AbstractPrinter {
       }
     }
     out.printf(")");
+    if (m.getThrowsTypes().length > 0) {
+      out.printf(" throws ");
+      Type[] throws_types = m.getThrowsTypes();
+      throws_types[0].apply(this);
+      for (int i = 1; i < throws_types.length; i++) {
+        out.printf(", ");
+        throws_types[i].apply(this);
+      }
+      out.printf(" ");
+    }
     if (contract!=null && dialect==JavaDialect.JavaVeriFast && !predicate){
       visitVeriFast(contract);
     }

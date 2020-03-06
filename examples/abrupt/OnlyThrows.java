@@ -4,5 +4,7 @@
 //:: verdict Pass
 
 final class MyClass {
-    void foo() throws Exception { }
+    MyClass() throws Exception, java.io.IOException {}
+
+    void foo() throws Exception, java.io.IOException { }
 }

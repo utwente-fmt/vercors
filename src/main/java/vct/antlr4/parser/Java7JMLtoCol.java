@@ -281,6 +281,32 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     return args;
   }
 
+  public Type[] getThrowsTypes(ParserRuleContext ctx) {
+    ASTSpecial specialThrowHack;
+    if (match(3, true, ctx, "throws", null)) {
+      // In the case of (interface) method "void f() throws ... {}"
+      specialThrowHack = (ASTSpecial) convert(ctx, 4);
+    } else if (match(4, true, ctx, "throws", null)) {
+      // In the case of (interface) method "void f() [] throws ... {}"
+      //                                 ^^ dims
+      specialThrowHack = (ASTSpecial) convert(ctx, 5);
+    } else if (match(2, true, ctx, "throws", null)) {
+      // In the case of constructor "C() throws ... {}"
+      specialThrowHack = (ASTSpecial) convert(ctx, 3);
+    } else {
+        return null;
+    }
+
+    Type[] throws_types = new Type[specialThrowHack.args.length];
+    int i = 0;
+    for (ASTNode probably_a_type : specialThrowHack.args) {
+      throws_types[i] = (Type) probably_a_type;
+      i += 1;
+    }
+
+    return throws_types;
+  }
+
   public Method getMethodDeclaration(ParserRuleContext ctx) {
     int N=ctx.getChildCount();
     Type t;
@@ -298,7 +324,13 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     } else {
       body=convert(ctx,N-1);
     }
-    Method res=create.method_kind(Method.Kind.Plain,t,null, name, args, varargs.get(), body);
+
+    Type[] throws_types = getThrowsTypes(ctx);
+    if (throws_types == null) {
+      throws_types = new Type[0];
+    }
+
+    Method res=create.method_kind(Method.Kind.Plain,t,null, name, args, varargs.get(), body, throws_types);
     res.setStatic(false);
     return res;
   }
@@ -676,13 +708,15 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     DeclarationStatement args[]=getFormalParameters(ctx.getChild(1),varargs);
     Type returns=create.primitive_type(PrimitiveSort.Void);
     ASTNode body;
+    Type[] throws_types;
     if (ctx.getChildCount()==3){
       body=convert(ctx,2);
+      throws_types = new Type[0];
     } else {
-      hre.lang.System.Warning("ignoring exceptiojns in contructor declaration");
       body=convert(ctx,4);
+      throws_types = getThrowsTypes(ctx);
     }
-    return create.method_kind(Method.Kind.Constructor, returns, null, name, args,varargs.get(),body);
+    return create.method_kind(Method.Kind.Constructor, returns, null, name, args,varargs.get(),body, throws_types);
   }
 
   @Override

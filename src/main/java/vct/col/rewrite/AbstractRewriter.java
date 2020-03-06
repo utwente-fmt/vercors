@@ -485,13 +485,22 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     }
     Method.Kind kind=m.kind;
     Type rt=rewrite(m.getReturnType());
+
+    ArrayList<Type> new_throws_types = new ArrayList<>();
+    for (Type throws_type : m.getThrowsTypes()) {
+      Type new_throws_type = rewrite(throws_type);
+      if (new_throws_type != null) {
+        new_throws_types.add(new_throws_type);
+      }
+    }
+
     Contract c=currentContractBuilder.getContract();
     if (mc != null && c.getOrigin() == null) {
       c.setOrigin(mc.getOrigin());
     }
     currentContractBuilder=null;
     ASTNode body=rewrite(m.getBody());
-    result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
+    result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body, new_throws_types.toArray(new Type[0]));
   }
 
   @Override
