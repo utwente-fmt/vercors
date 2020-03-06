@@ -1,7 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases QualifiedNames
 //:: tools silicon
-//:: verdict Fail
+//:: verdict Pass
 
 class QualifiedNames {
     void foo() {

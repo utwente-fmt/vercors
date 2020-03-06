@@ -1310,27 +1310,18 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
 
   @Override
   public ASTNode visitQualifiedName(QualifiedNameContext ctx) {
-    ASTNode n[]=convert_list(ctx,".");
-    ASTNode res=n[0];
-    for(int i=1;i<n.length;i++){
-      if (!(n[i] instanceof NameExpression)) return null;
-      String field=((NameExpression)n[i]).getName();
-      // This is a bit ugly, as a qualified name is not always a dereference. It can also be a path to a class
-      // through a few packages, such as java.lang.Exception, which means this method should return a classtype.
-      // Ideally interpretation of the qualification should be left to the upper parser levels, where the context
-      // is known. This method should return some kind of "qualifiedname" astnode, that can later be interpreted
-      // either as an expression or classtype or something.
-      res=create.dereference(res, field);
+    // Imports are handled at the top level. So a qualified name is always a type since it is only used by throws and catch
+    ASTNode[] nodes = convert_list(ctx, ".");
+    String[] names = new String[nodes.length];
+    for (int i = 0; i < nodes.length; i++) {
+      names[i] = ((NameExpression) nodes[i]).getName();
     }
-    return res;
+    return create.class_type(names);
   }
 
   @Override
   public ASTNode visitQualifiedNameList(QualifiedNameListContext ctx) {
     ASTNode types[] = convert_list(ctx, ",");
-    for (int i = 0; i < types.length; i++) {
-        types[i] = checkType(types[i]);
-    }
     // Would like to return a Type[] here, but since that's not currently possible we return a special.
     // Also, since this clause is only used by "throws", we use the kind Throw here.
     return create.special(Kind.Throw, types);
