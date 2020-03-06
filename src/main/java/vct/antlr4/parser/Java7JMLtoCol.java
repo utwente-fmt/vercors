@@ -692,9 +692,16 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
       String name=getIdentifier(ctx,0);
       return create.class_type(name);
     } else if (match(ctx,(String)null,"TypeArgumentsOrDiamond")) {
-      String name=getIdentifier(ctx,0);
-      ASTNode args[]=convert_list((ParserRuleContext)(((ParserRuleContext)ctx.getChild(1)).getChild(0)), "<", ",", ">");
+      String name = getIdentifier(ctx, 0);
+      ASTNode args[] = convert_list((ParserRuleContext) (((ParserRuleContext) ctx.getChild(1)).getChild(0)), "<", ",", ">");
       return create.class_type(name, args);
+    } else if (match(0, true, ctx, null, ".")) {
+      ASTNode[] nodes = convert_list(ctx, ".");
+      String[] names = new String[nodes.length];
+      for (int i = 0; i < nodes.length; i++) {
+        names[i] = ((NameExpression) nodes[i]).getName();
+      }
+      return create.class_type(names);
     } else {
       throw MissingCase(ctx);
     }
@@ -1308,6 +1315,11 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     for(int i=1;i<n.length;i++){
       if (!(n[i] instanceof NameExpression)) return null;
       String field=((NameExpression)n[i]).getName();
+      // This is a bit ugly, as a qualified name is not always a dereference. It can also be a path to a class
+      // through a few packages, such as java.lang.Exception, which means this method should return a classtype.
+      // Ideally interpretation of the qualification should be left to the upper parser levels, where the context
+      // is known. This method should return some kind of "qualifiedname" astnode, that can later be interpreted
+      // either as an expression or classtype or something.
       res=create.dereference(res, field);
     }
     return res;
@@ -1315,8 +1327,13 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
 
   @Override
   public ASTNode visitQualifiedNameList(QualifiedNameListContext ctx) {
-
-    return null;
+    ASTNode types[] = convert_list(ctx, ",");
+    for (int i = 0; i < types.length; i++) {
+        types[i] = checkType(types[i]);
+    }
+    // Would like to return a Type[] here, but since that's not currently possible we return a special.
+    // Also, since this clause is only used by "throws", we use the kind Throw here.
+    return create.special(Kind.Throw, types);
   }
 
   @Override

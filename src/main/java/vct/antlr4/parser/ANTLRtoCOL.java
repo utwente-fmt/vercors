@@ -21,6 +21,7 @@ import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import vct.col.ast.expr.Dereference;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.generic.ASTSequence;
@@ -767,12 +768,37 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
     res.setOrigin(origin(ctx.start,ctx.stop));
     return res;    
   }
+  public String[] dereferenceToQualifiedName(Dereference deref) {
+    ArrayList<String> parts = new ArrayList<>();
+
+    while (deref != null) {
+      String part = deref.field();
+      parts.add(0, part);
+
+      ASTNode nextDereference = deref.obj();
+      if (nextDereference instanceof Dereference) {
+        deref = (Dereference) nextDereference;
+      } else if (nextDereference instanceof NameExpression) {
+        NameExpression name = (NameExpression) nextDereference;
+        parts.add(0, name.getName());
+        deref = null;
+      } else {
+        Abort("Unexpected ASTNode type, should be either nameexpression or deref");
+      }
+    }
+
+    return parts.toArray(new String[parts.size()]);
+  }
+
   public Type checkType(ASTNode n){
     if (n instanceof Type) {
       return (Type)n;
     }
     if (n instanceof NameExpression){
       return create.class_type(n.getOrigin(),((NameExpression)n).getName());
+    }
+    if (n instanceof Dereference) {
+        return create.class_type(dereferenceToQualifiedName((Dereference) n));
     }
     throw hre.lang.System.Failure("%s node at %s is not a type",n.getClass(),n.getOrigin());
   }
