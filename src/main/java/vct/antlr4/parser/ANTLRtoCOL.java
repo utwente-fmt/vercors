@@ -8,7 +8,6 @@ import java.util.List;
 
 import hre.ast.FileOrigin;
 import hre.ast.Origin;
-import hre.lang.Failure;
 import hre.lang.HREError;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
