@@ -33,12 +33,16 @@ lazy val vercors = (project in file("."))
         libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
         libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
 
-        scalaVersion := "2.12.7",
+        scalaVersion := "2.12.10",
 
-        scalacOptions += "-deprecation",
-        scalacOptions += "-feature",
-        scalacOptions += "-unchecked",
-        scalacOptions += "-Dscalac.patmat.analysisBudget=off",
+        scalacOptions in ThisBuild += "-deprecation",
+        scalacOptions in ThisBuild += "-feature",
+        scalacOptions in ThisBuild += "-unchecked",
+        scalacOptions in ThisBuild += "-Dscalac.patmat.analysisBudget=off",
+
+        javacOptions in ThisBuild += "-Xlint:deprecation",
+        javacOptions in ThisBuild += "-Xlint:unchecked",
+        javacOptions in ThisBuild += "-deprecation",
 
         javaOptions in (Compile, run) += "-J-Xss128M",
         /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are

@@ -40,7 +40,7 @@ void destroyArgument(int x) {
 requires \pointer(a, 1, write);
 @*/
 void destroyPermission(int *a) {
-
+    a[0] = 1;
 }
 
 /*@

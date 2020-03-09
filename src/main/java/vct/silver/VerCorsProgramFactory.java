@@ -143,9 +143,10 @@ public class VerCorsProgramFactory implements
 
   @Override
   public Method dfunc(Origin o, String name,
-      List<Triple<Origin,String,Type>> args, Type t, String domain) {
+      List<Triple<Origin,String,Type>> args, Type t, String domain, boolean unique) {
     enter(o);
     Method res=create.function_decl(t,null, name,create.to_decls(args),null);
+    res.setFlag(ASTFlags.UNIQUE, unique);
     leave();
     return res;
   }
@@ -289,14 +290,14 @@ public class VerCorsProgramFactory implements
           for(DeclarationStatement decl:m.getArgs()){
             args.add(new Triple<Origin,String,T>(decl.getOrigin(),decl.name(),decl.getType().apply(type)));
           }
-          funcs.add(api.prog.dfunc(m.getOrigin(), m.name(), args,m.getReturnType().apply(type), adt.name()));
+          funcs.add(api.prog.dfunc(m.getOrigin(), m.name(), args,m.getReturnType().apply(type), adt.name(), m.isValidFlag(ASTFlags.UNIQUE) && m.getFlag(ASTFlags.UNIQUE)));
         }
         for(Method m:adt.mappingsJava()){
           List<Triple<Origin,String,T>> args=new ArrayList<Triple<Origin,String,T>>();
           for(DeclarationStatement decl:m.getArgs()){
             args.add(new Triple<Origin,String,T>(decl.getOrigin(),decl.name(),decl.getType().apply(type)));
           }
-          funcs.add(api.prog.dfunc(m.getOrigin(), m.name(), args, m.getReturnType().apply(type), adt.name()));
+          funcs.add(api.prog.dfunc(m.getOrigin(), m.name(), args, m.getReturnType().apply(type), adt.name(), m.isValidFlag(ASTFlags.UNIQUE) && m.getFlag(ASTFlags.UNIQUE)));
         }
         ArrayList<DAxiom> axioms=new ArrayList<DAxiom>();
         for (Axiom axiom : adt.axiomsJava()) {

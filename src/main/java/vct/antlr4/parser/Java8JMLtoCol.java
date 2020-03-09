@@ -2401,6 +2401,11 @@ public class Java8JMLtoCol extends ANTLRtoCOL implements Java8JMLVisitor<ASTNode
   }
 
   @Override
+  public ASTNode visitValInvocationAnnotation(ValInvocationAnnotationContext ctx) {
+    return null;
+  }
+
+  @Override
   public ASTNode visitValPrimary(ValPrimaryContext ctx) {
     return getValPrimary(ctx);
   }

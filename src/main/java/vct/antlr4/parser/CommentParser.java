@@ -1,17 +1,17 @@
 package vct.antlr4.parser;
 
-import static hre.lang.System.Failure;
-
-import java.io.IOException;
-import java.io.InputStream;
-
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.stmt.decl.Method;
 
-import org.antlr.v4.runtime.ANTLRInputStream;
-import org.antlr.v4.runtime.CommonTokenStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import static hre.lang.System.Failure;
 
 /**
  * Common setup for parsing specification comments.
@@ -34,9 +34,9 @@ public abstract class CommentParser<Parser extends org.antlr.v4.runtime.Parser,L
   }
 
   public Contract contract(ASTSequence<?> seq,InputStream fifo){
-    ANTLRInputStream input;
+    CharStream input;
     try {
-      input = new ANTLRInputStream(fifo);
+      input = CharStreams.fromStream(fifo);
     } catch (IOException e) {
       throw Failure("I/O error");
     }
@@ -68,9 +68,9 @@ public abstract class CommentParser<Parser extends org.antlr.v4.runtime.Parser,L
   public abstract TempSequence parse_contract(ASTSequence<?> seq);
 
   public void annotations(ASTNode node, InputStream fifo){
-    ANTLRInputStream input;
+    CharStream input;
     try {
-      input = new ANTLRInputStream(fifo);
+      input = CharStreams.fromStream(fifo);
     } catch (IOException e) {
       throw Failure("I/O error");
     }

@@ -1,8 +1,7 @@
 package vct.col.util;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpression.Kind;
@@ -16,11 +15,11 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.RecursiveVisitor;
+import vct.col.rewrite.InferADTTypes;
 import vct.col.rewrite.MultiSubstitution;
 import vct.col.rewrite.TypeVarSubstitution;
 import vct.silver.SilverTypeMap;
 import vct.util.Configuration;
-import vct.col.util.SequenceUtils;
 
 /**
  * This class implements type checking of simple object oriented programs.
@@ -231,6 +230,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
     Method m=find_method(e);
     e.setDefinition(m);
+
+    if(current_method() != null && current_method().getKind() == Method.Kind.Pure && (m.getKind() != Method.Kind.Pure && m.getKind() != Method.Kind.Predicate)) {
+      // We're in the body of a pure method, but neither is the invoked method pure, nor are we applying a predicate
+      if(!current_method().getReturnType().isPrimitive(PrimitiveSort.Process)) {
+        // But process definitions are exempt, as they are all pure even when VerCors thinks they are not.
+        Fail("Cannot call a non-pure method in the definition of a pure method.");
+      }
+
+    }
 
     if (m.getParent() instanceof AxiomaticDataType){
       Type t=m.getReturnType();
@@ -460,6 +468,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     if(s.location().isa(StandardOperator.Subscript)) {
       // Need to check that the sequence is assignable
       OperatorExpression location = (OperatorExpression) s.location();
+
+      if(location.first().getType().isPrimitive(PrimitiveSort.Pointer)) {
+        return;
+      }
+
       SequenceUtils.SequenceInfo seqInfo = SequenceUtils.getTypeInfo(location.first().getType());
       if(!seqInfo.isAssignable()) {
         Fail("Elements of %s, which is of type %s, are immutable.", location.first(), location.first().getType());
@@ -1321,7 +1334,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(tt[0]);
       break;
     }
+    case Empty: {
+      Type t = e.arg(0).getType();
+      if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of empty not a sequence");
+      e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+      break;
 
+    }
     case Subscript:
     {
       if (!(tt[0] instanceof PrimitiveType)) Fail("base must be array or sequence type.");
@@ -1366,7 +1385,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(t);
         break;
       }
-      case Size: {
+      case RemoveAt: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) Fail("first argument of remove is not a sequence");
+        if (!tt[1].isInteger()) Fail("second argument of remove is not an integer");
+
+        e.setType(tt[0]);
+        break;
+      }
+    case Size:
+    {
         Type t = e.arg(0).getType();
         if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
         if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set))) {
@@ -1388,6 +1415,24 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!tt[1].isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
         if (!tt[0].firstarg().equals(tt[1].firstarg())) {
           Fail("different sequence types in append");
+        }
+        e.setType(tt[0]);
+        break;
+      }
+      case PrependSingle:
+      {
+        if (!tt[1].isPrimitive(PrimitiveSort.Sequence)) Fail("right argument of prepend is not a sequence");
+        if (!tt[0].equals(tt[1].firstarg())){
+            Fail("wrong type to prepend to sequence");
+        }
+        e.setType(tt[1]);
+        break;
+      }
+      case AppendSingle:
+      {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) Fail("left argument of append is not a sequence");
+        if (!tt[1].equals(tt[0].firstarg())){
+            Fail("wrong type to append to sequence");
         }
         e.setType(tt[0]);
         break;
@@ -1446,6 +1491,37 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     super.visit(v);
     // TODO: type check cannot derive a useful type from only the values
     v.setType(v.type());
+
+    List<PrimitiveSort> collections = Arrays.asList(PrimitiveSort.Sequence,PrimitiveSort.Set,PrimitiveSort.Bag);
+
+    if (collections.stream().anyMatch(s -> v.type().isPrimitive(s)) &&
+            v.type().firstarg() instanceof TypeVariable &&
+            ((TypeVariable) v.type().firstarg()).name().equals(InferADTTypes.typeVariableName())
+    ) {
+      // The scala array of values is converted into a java list and the types of the ASTNodes are collected into a Set.
+      Set<Type> valueTypes = JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).filter(Objects::nonNull).collect(Collectors.toSet());
+
+      if (valueTypes.size() == 1) {
+        // Inference is possible, thus get the type from the values.
+        Type valueType = valueTypes.iterator().next();
+        PrimitiveSort sort = ((PrimitiveType)v.type()).sort;
+
+        PrimitiveType returnType = new PrimitiveType(sort,valueType);
+        v.setType(returnType);
+      } else if (valueTypes.size() > 1) {
+        // TODO should there be another case where the sequence type is not equal to the sequence element type?
+        Fail("sequence elements must be of the same type: " + valueTypes, v.getOrigin());
+      } else {
+        Fail("At %s: Could not infer type of Sequence", v.getOrigin());
+      }
+
+      Type inferredElementType = (Type) v.getType().firstarg();
+
+      for (ASTNode node : JavaConverters.asJavaIterable(v.values())) {
+        node.setType(inferredElementType);
+      }
+    }
+
 
     if(v.getType().isPrimitive(PrimitiveSort.Array)) {
       Type element = (Type) v.getType().firstarg();
@@ -1539,7 +1615,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
   private void force_frac(ASTNode arg) {
     if(arg instanceof OperatorExpression && ((OperatorExpression) arg).operator() == StandardOperator.FloorDiv) {
-      Warning("Encountered an integer division '%s' where a fraction was expected, did you mean a fraction division here?", arg);
+      Warning("Encountered an integer division ('/') '%s' where a fraction was expected, did you mean a fraction division ('\\') here?", arg);
     }
 
     if(arg.getType().isPrimitive(PrimitiveSort.Integer)) {

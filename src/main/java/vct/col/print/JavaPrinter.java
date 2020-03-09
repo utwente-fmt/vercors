@@ -749,6 +749,9 @@ public class JavaPrinter extends AbstractPrinter {
           case ASTFlags.EXTERN:
             out.printf("/*@ extern @*/ ");
             break;
+          case ASTFlags.UNIQUE:
+            out.printf("unique ");
+            break;
           default:
             throw new HREError("unknown flag %04x",i);
           }

@@ -54,23 +54,6 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
     return format;
   }
   
-  private static HashMap<ClassName, ASTClass> library=new HashMap<ClassName, ASTClass>();
-  
-  static {
-    ASTFactory<?> create=new ASTFactory<Object>();
-    create.setOrigin(new MessageOrigin("<<ProgramUnit>>"));
-    ASTClass seq=create.ast_class("seq", ClassKind.Plain, null,null, null);
-    Method len=create.function_decl(create.primitive_type(PrimitiveSort.Integer), null, "length", new DeclarationStatement[0], null);
-    seq.add_dynamic(len);
-    library.put(new ClassName("seq"),seq);
-    //ASTClass var=create.ast_class("var", ClassKind.Plain, null, null);
-    
-  }
-
-  public void library_add(ClassName name,ASTClass cl){
-    library.put(name,cl);
-  }
-
   private EnumMap<LanguageFlag, Boolean> languageFlags = new EnumMap<>(LanguageFlag.class);
 
   /**
@@ -122,7 +105,7 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
   public void addClass(String name[],ASTClass cl){
     addClass(new ClassName(name),cl);
   }
-  
+
   public void addClass(ClassType type,ASTClass cl){
     addClass(type.getNameFull(),cl);
   }
@@ -236,9 +219,6 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
         cl=base.find(name.name,1);
       }
     }
-    if (cl==null){
-      cl=library.get(name);
-    }
     if (cl == null) {
       ASTDeclaration decl = find_decl(name.name);
       if (decl instanceof ASTClass) {
@@ -269,10 +249,6 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
   public ASTDeclaration find_immediate_decl(String[] nameFull) {
     ClassName class_name=new ClassName(nameFull);
     ASTDeclaration res=decl_map.get(class_name);
-    if (res==null){
-      res=library.get(class_name);
-    }
-
     return res;
   }
 

@@ -7,7 +7,7 @@ import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression, S
 import vct.col.ast.generic.ASTNode
 import vct.col.util.SequenceUtils
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
@@ -74,7 +74,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
       method.getReturnType,
       newContract,
       method.getName,
-      args,
+      args.asJava,
       create.block(body:_*)
     )
 

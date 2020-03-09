@@ -1,7 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases demo4
 //:: tools silicon
-//:: options --check-history --check-defined
+//:: options --check-history
 //:: verdict Pass
 
 // for analysing the models' contract, run: `vct --silicon --check-defined demo4.pvl`

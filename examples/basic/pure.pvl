@@ -1,0 +1,14 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases Pure
+//:: tools silicon
+//:: verdict Error
+
+class Test {
+    int getImpureValue() {
+        return 42;
+    }
+
+    pure int getPureValue() {
+        return getImpureValue();
+    }
+}
