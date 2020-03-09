@@ -29,6 +29,7 @@ lazy val vercors = (project in file("."))
         libraryDependencies += "commons-io" % "commons-io" % "2.4",
         libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
         libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.1",
+        libraryDependencies += "io.github.nicolasstucki" %% "multisets" % "0.4",
         libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1",
         libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
         libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,

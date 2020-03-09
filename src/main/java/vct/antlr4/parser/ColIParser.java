@@ -32,12 +32,12 @@ public class ColIParser implements vct.col.util.Parser {
     CParser parser = new CParser(tokens);
     parser.removeErrorListeners();
     parser.addErrorListener(ec);
-    ParseTree tree = parser.compilationUnit();
+    CParser.CompilationUnitContext tree = parser.compilationUnit();
     Progress("first parsing pass took %dms",tk.show());
     ec.report();
     Debug("parser got: %s",tree.toStringTree(parser));
 
-    ProgramUnit pu=CMLtoCOL2.convert_pu(tree,file_name,tokens,parser);
+    ProgramUnit pu=CMLtoCOL2.convert(tree,file_name,tokens,parser);
     pu.setLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations, false);
     Progress("AST conversion took %dms",tk.show());
     Debug("after conversion %s",pu);
