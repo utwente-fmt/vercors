@@ -1,17 +1,12 @@
 package vct.col.rewrite;
 
-import com.google.common.collect.Iterables;
-import org.antlr.v4.codegen.model.Loop;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.LoopStatement;
-import vct.col.ast.stmt.composite.Switch;
-import vct.col.ast.stmt.composite.TryCatchBlock;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.ReturnStatement;
+import vct.col.ast.type.ASTReserved;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,12 +20,29 @@ public class BreakReturnToGoto extends AbstractRewriter {
     private Set<NameExpression> breakLabels = new HashSet<>();
     private Set<NameExpression> continueLabels = new HashSet<>();
 
+    boolean encounteredReturn = false;
+    String currentMethod = null;
+    boolean replaceResultVar = false;
+
+    /*
+     * Later an out parameter will be added called sys__result where the return value will be stored.
+     * (Or maybe with a different backend, not at all)
+     * However here that does not exist yet. So we create a local variable where the result is stored,
+     * and add a return statement at the end of the function that returns that local variable.
+     * Then the backend pass can decide how exactly that value is returned.
+     */
+    public static final String localReturnVarName = "sys__local__result";
+
     public NameExpression generateBreakLabel(NameExpression label) {
         return create.unresolved_name("__break_" + label.getName());
     }
 
     public NameExpression generateContinueLabel(NameExpression label) {
         return create.unresolved_name("__continue_" + label.getName());
+    }
+
+    public NameExpression generateReturnLabel(String postfix) {
+        return create.unresolved_name("__return_" + postfix);
     }
 
     @Override
@@ -72,10 +84,33 @@ public class BreakReturnToGoto extends AbstractRewriter {
     }
 
     public void visit(Method method) {
+        currentMethod = method.getName();
+
         super.visit(method);
+
+        currentMethod = null;
+
         if (breakLabels.size() + continueLabels.size() != 0) {
             Warning("Some break or continue labels were not deleted, even though they should be. This indicates a logic error.");
         }
+
+        if (encounteredReturn) {
+            DeclarationStatement localReturnVariable = create.field_decl(localReturnVarName, rewrite(method.getReturnType()));
+
+            NameExpression returnLabel = generateReturnLabel(method.getName());
+            ASTSpecial labelStatement = create.label_decl(returnLabel);
+
+            // TODO (Bob): Account for overloading in the label name, since if this pass is called early overloading isn't encoded yet
+            ReturnStatement finalReturn = create.return_statement(create.unresolved_name(localReturnVarName));
+
+            Method resultMethod = (Method) result;
+            BlockStatement body = (BlockStatement) resultMethod.getBody();
+            body.prepend(localReturnVariable);
+            body.append(labelStatement);
+            body.append(finalReturn);
+        }
+
+        encounteredReturn = false;
     }
 
     public void visit(LoopStatement loopStatement) {
@@ -144,11 +179,41 @@ public class BreakReturnToGoto extends AbstractRewriter {
         breakLabels.add(newLabel);
     }
 
+    public void visit(NameExpression nameExpression) {
+        // Reusing the pass like this is very messy, so maybe refactor it to separately use
+        // a substitution pass. But if this is the only thing we're doing it's fine.
+        if (replaceResultVar) {
+            if (nameExpression.isReserved(ASTReserved.Result)) {
+                result = create.unresolved_name(localReturnVarName);
+            } else {
+                super.visit(nameExpression);
+            }
+        } else {
+            super.visit(nameExpression);
+        }
+    }
+
     public void visit(ReturnStatement returnStatement) {
-        super.visit(returnStatement);
-        // TODO (Bob): Just implement is as a jump to the end!
-        // TODO (Bob): Insert postcondition here, since here it is guaranteed there is no finally!
-        // TODO (Bob): Check for finally in constructor? Or maybe on the fly, i.e. set a flag when finally is encountered? And if then return is encountered throw an error?
-        Warning("Return statement not implemented");
+        BlockStatement res=create.block();
+
+        if (returnStatement.getExpression() != null){
+            res.add(create.assignment(create.local_name(localReturnVarName), rewrite(returnStatement.getExpression())));
+        }
+
+        for(ASTNode n : returnStatement.get_after()) {
+            res.add(rewrite(n));
+        }
+
+        if (current_method().getContract()!=null){
+            replaceResultVar = true;
+            res.add(create.special(ASTSpecial.Kind.Assert,rewrite(current_method().getContract().post_condition)));
+            replaceResultVar = false;
+        }
+
+        res.add(create.jump(generateReturnLabel(current_method().getName())));
+
+        result = res;
+
+        encounteredReturn = true;
     }
 }

@@ -176,6 +176,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
 
         ASTNode expr = returnStatement.getExpression();
 
+        // TODO (Bob): If we know we didn't pass any finally's we can do a jump to the end and check the postcondition...?
         // TODO (Bob): Account for overloading?
         ASTSpecial returnThrow = null;
         if (expr != null){

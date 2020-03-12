@@ -173,7 +173,7 @@ public class ASTFactory<E> implements FrameControl {
   /**
    * Create an assignment statement/expression.
    */
-  public ASTNode assignment(ASTNode loc, ASTNode val) {
+  public AssignmentStatement assignment(ASTNode loc, ASTNode val) {
     AssignmentStatement res=new AssignmentStatement(loc,val);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
