@@ -49,7 +49,8 @@ public class VerCorsError extends AbstractMessage {
     InsufficientPermission,
     MethodPreConditionFalse,
     UnspecifiedCause,
-    OverlappingCatchClauseTypes
+    OverlappingCatchClauseTypes,
+    InvalidExceptionType;
   }
   
   

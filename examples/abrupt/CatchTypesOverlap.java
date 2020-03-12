@@ -1,7 +1,7 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases CatchTypesOverlap
 //:: tools silicon
-//:: verdict Fail
+//:: verdict Error
 
 class MyClass {
     void foo() {
@@ -12,7 +12,5 @@ class MyClass {
         } catch (Exception f) {
 
         }
-
-        //@ assert false;
     }
 }

@@ -90,6 +90,10 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     return new ClassName(getFullName());
   }
 
+  public ClassType toClassType() {
+    return new ClassType(getFullName(), Arrays.copyOf(parameters, parameters.length));
+  }
+
   /** Create a root class from a given block statement. */
   public ASTClass(BlockStatement node) {
     super("<<main>>");

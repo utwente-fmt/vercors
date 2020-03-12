@@ -115,8 +115,8 @@ public class AddTypeADT extends AbstractRewriter {
     // Assume classes extend Object by default
     if (cl.super_classes.length==0) {
       addDirectSuperclassAxiom(new ClassType(cl.getName()), new ClassType(javaObjectName));
-    } else if (cl.super_classes.length == 1 && cl.super_classes[0].getName().equals(javaObjectName)){
-      // And otherwise a class can only extend Object
+    } else if (cl.super_classes.length == 1) {
+      // And otherwise a class can only extend one class
       addDirectSuperclassAxiom(new ClassType(cl.getName()), cl.super_classes[0]);
     } else {
       // TODO

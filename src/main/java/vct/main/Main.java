@@ -360,7 +360,6 @@ public class Main
           passes.add("unfold-switch");
         }
 
-        // TODO (Bob): _Only_ resort to exceptions if finally is used in the program! See appendix A.
         if (features.usesFinallyClause() && (usesBreakContinue || features.usesReturn())) {
           passes.add("break-return-to-exceptions");
         } else if (usesBreakContinue || features.usesReturn()) {
@@ -370,7 +369,7 @@ public class Main
         passes.add("java_resolve");
 
         passes.add("standardize");
-        passes.add("java-check"); // marking function: stub
+        passes.add("java-check");
 
         passes.add("unfold-synchronized");
 
@@ -530,7 +529,7 @@ public class Main
         passes.add("check");
         passes.add("flatten");
         passes.add("check");
-        passes.add("intro-exc-var"); // TODO (Bob): Is this the right place...?
+        passes.add("intro-exc-var");
         passes.add("check");
         passes.add("encode-try-throw-signals");
         passes.add("check");
@@ -566,12 +565,7 @@ public class Main
           passes.add("check");
         }
 
-        // TODO (Bob): This was moved way up, before java_resolve it seems. Is that ok?
-        // if (has_type_adt){
-        //   passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
-        // } else {
         passes.add("create-return-parameter");
-        // }
 
         passes.add("standardize");
         passes.add("check");
@@ -831,8 +825,8 @@ public class Main
       }
     });
     defined_passes.put("java-check",new CompilerPass("run a Java aware type check"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        new JavaTypeCheck(arg).check();
+      public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
+        new JavaTypeCheck(report, arg).check();
         return arg;
       }
     });

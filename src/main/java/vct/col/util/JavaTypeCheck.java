@@ -1,21 +1,18 @@
 package vct.col.util;
 
-import hre.ast.Origin;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
+import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
-import vct.logging.PassAddVisitor;
 import vct.logging.PassReport;
 import vct.logging.VerCorsError;
-import vct.silver.ErrorDisplayVisitor;
-import viper.api.ViperError;
-import viper.api.ViperErrorImpl;
+import vct.logging.VerCorsError.ErrorCode;
+import vct.logging.VerCorsError.SubCode;
 
 import java.util.ArrayList;
-
-import static hre.lang.System.Output;
 
 /**
  * This class implements type checking of Java
@@ -24,10 +21,21 @@ import static hre.lang.System.Output;
  *
  */
 public class JavaTypeCheck extends AbstractTypeCheck {
+  PassReport passReport;
 
-  public JavaTypeCheck(ProgramUnit arg) {
+  public JavaTypeCheck(PassReport report, ProgramUnit arg) {
     super(arg);
+    this.passReport = report;
+
+    ASTClass throwableClass = source().find("java_DOT_lang_DOT_Throwable");
+    if (throwableClass != null) {
+      throwableType = throwableClass.toClassType();
+    } else {
+      throwableType = null;
+    }
   }
+
+  ClassType throwableType;
 
   @Override
   public void visit(TryCatchBlock tcb) {
@@ -37,15 +45,35 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     for (CatchClause catchClause : tcb.catches()) {
       Type caughtType = catchClause.decl().type();
       if (caughtTypes.contains(caughtType)) {
-        ViperErrorImpl<Origin> error = new ViperErrorImpl<Origin>(tcb.getOrigin(), "method.precondition.unsound:method.precondition.false");
-
-        PassReport passReport = new PassReport(source());
-        passReport.setOutput(source());
-        passReport.add(new ErrorDisplayVisitor());
-        passReport.add(new VerCorsError(VerCorsError.ErrorCode.NotWellFormed, VerCorsError.SubCode.OverlappingCatchClauseTypes, tcb.getOrigin(), new ArrayList<>(0)));
-        hre.lang.System.Fail("Cannot catch duplicate types");
+        report(
+                new VerCorsError(ErrorCode.NotWellFormed, SubCode.OverlappingCatchClauseTypes, tcb.getOrigin(), new ArrayList<>(0)),
+                "Cannot catch duplicate types"
+        );
       }
       caughtTypes.add(caughtType);
     }
+  }
+
+  public void visit(Method method) {
+    super.visit(method);
+
+    for (Type type : method.getThrowsTypes()) {
+      if (throwableType == null || !throwableType.supertypeof(source(), type)) {
+        report(
+                new VerCorsError(
+                        ErrorCode.NotWellFormed,
+                        SubCode.InvalidExceptionType,
+                        type.getOrigin(),
+                        new ArrayList<>(0)
+                ),
+                "Type in throws has to extend Throwable or be a subclass of Throwable"
+        );
+      }
+    }
+  }
+
+  public void report(VerCorsError error, String msg) {
+    passReport.add(error);
+    hre.lang.System.Fail(msg);
   }
 }
