@@ -34,15 +34,15 @@ public class BreakReturnToGoto extends AbstractRewriter {
     public static final String localReturnVarName = "sys__local__result";
 
     public NameExpression generateBreakLabel(NameExpression label) {
-        return create.unresolved_name("__break_" + label.getName());
+        return create.label("__break_" + label.getName());
     }
 
     public NameExpression generateContinueLabel(NameExpression label) {
-        return create.unresolved_name("__continue_" + label.getName());
+        return create.label("__continue_" + label.getName());
     }
 
     public NameExpression generateReturnLabel(String postfix) {
-        return create.unresolved_name("__return_" + postfix);
+        return create.label("__return_" + postfix);
     }
 
     @Override
@@ -95,19 +95,23 @@ public class BreakReturnToGoto extends AbstractRewriter {
         }
 
         if (encounteredReturn) {
-            DeclarationStatement localReturnVariable = create.field_decl(localReturnVarName, rewrite(method.getReturnType()));
-
             NameExpression returnLabel = generateReturnLabel(method.getName());
             ASTSpecial labelStatement = create.label_decl(returnLabel);
-
-            // TODO (Bob): Account for overloading in the label name, since if this pass is called early overloading isn't encoded yet
-            ReturnStatement finalReturn = create.return_statement(create.unresolved_name(localReturnVarName));
-
             Method resultMethod = (Method) result;
             BlockStatement body = (BlockStatement) resultMethod.getBody();
-            body.prepend(localReturnVariable);
+
+            // Always at least add a return label
+            // TODO (Bob): Account for overloading in the label name, since if this pass is called early overloading isn't encoded yet
             body.append(labelStatement);
-            body.append(finalReturn);
+
+            if (!method.getReturnType().isVoid()) {
+                // Add a local return variable and return statement as well if we're actually return a value
+                DeclarationStatement localReturnVariable = create.field_decl(localReturnVarName, rewrite(method.getReturnType()));
+                ReturnStatement finalReturn = create.return_statement(create.unresolved_name(localReturnVarName));
+
+                body.prepend(localReturnVariable);
+                body.append(finalReturn);
+            }
         }
 
         encounteredReturn = false;
