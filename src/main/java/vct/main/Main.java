@@ -233,6 +233,14 @@ public class Main
       if(version.get()) {
         Output("%s %s", BuildInfo.name(), BuildInfo.version());
         Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion(), BuildInfo.scalaVersion(), Instant.ofEpochMilli(BuildInfo.builtAtMillis()));
+        if (!BuildInfo.currentBranch().equals("master")) {
+          Output(
+                  "On branch %s, commit %s, %s",
+                  BuildInfo.currentBranch(),
+                  BuildInfo.currentShortCommit(),
+                  BuildInfo.gitHasChanges()
+          );
+        }
         return;
       }
 
