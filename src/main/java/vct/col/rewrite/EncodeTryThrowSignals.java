@@ -372,7 +372,8 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
             // Then, if exceptions are involved, insert a check that possibly jumps to a handler
             // TODO (Bob): Use can throw here or smth
-            if (invokation.getDefinition().getContract().signals.length > 0) {
+            Contract contract = invokation.getDefinition().getContract();
+            if (contract != null && contract.signals.length > 0) {
                 currentBlock.add(result);
                 result = null;
                 currentBlock.add(createExceptionCheck(nearestHandlerLabel));
