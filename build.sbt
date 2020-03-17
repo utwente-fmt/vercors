@@ -1,4 +1,5 @@
 import NativePackagerHelper._
+import sys.process._
 
 ThisBuild / turbo := true
 
@@ -8,6 +9,18 @@ enablePlugins(DebianPlugin)
 
 lazy val viper_api = (project in file("viper"))
 lazy val parsers = (project in file("parsers"))
+
+def hasGit = "which git" ! ProcessLogger(a => (), b => ()) == 0 // Right hand side of ! silences it
+def gitHasChanges =
+        if (hasGit) {
+                if (("git diff-index --quiet HEAD --" ! ProcessLogger(a => (), b => ())) == 1) {
+                        "with changes"
+                } else {
+                        ""
+                }
+        } else {
+                "unknown"
+        }
 
 lazy val vercors = (project in file("."))
     .dependsOn(viper_api)
@@ -49,7 +62,26 @@ lazy val vercors = (project in file("."))
         separated by "--". We instead want to accept only VerCors arguments, so we force "--" into the arguments. */
         javaOptions in Universal ++= Seq("-J-Xss128M", "--"),
 
-        buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+        buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
+                BuildInfoKey.action("currentBranch") {
+                        // If git doesn't exist in path abort
+                        if (hasGit) {
+                                ("git rev-parse --abbrev-ref HEAD" !!).stripLineEnd
+                        } else {
+                                "unknown"
+                        }
+                },
+                BuildInfoKey.action("currentShortCommit") {
+                        if (hasGit) {
+                                ("git rev-parse --short HEAD" !!).stripLineEnd
+                        } else {
+                                "unknown"
+                        }
+                },
+                BuildInfoKey.action("gitHasChanges") {
+                  gitHasChanges
+                }
+        ),
         buildInfoOptions += BuildInfoOption.BuildTime,
         buildInfoPackage := "vct.main",
 
