@@ -110,23 +110,34 @@ public class SilverBackend {
       List<ViperError<Origin>> errors = new ArrayList<>(rawErrors);
 
       // Filter SatCheck errors that are to be expected
+      // Also collect restOfContractOrigins to determine which contract failed other checks
+      // (i.e. maybe an array access was out of bounds, causing an error to be signaled from
+      // the contract. this error in turn hides the error from the assert, which is fine,
+      // but we need to know when this happens)
       HashSet<SatCheckRewriter.AssertOrigin> satCheckAssertsSeen = new HashSet<>();
+      HashSet<SatCheckRewriter.RestOfContractOrigin> restOfContractsSeen = new HashSet<>();
       errors.removeIf(e -> {
         for (int i = 0; i < e.getExtraCount(); i++) {
           Origin origin = e.getOrigin(i);
           if (origin instanceof SatCheckRewriter.AssertOrigin) {
             satCheckAssertsSeen.add((SatCheckRewriter.AssertOrigin) origin);
             return true;
+          } else if (origin instanceof SatCheckRewriter.RestOfContractOrigin) {
+            restOfContractsSeen.add((SatCheckRewriter.RestOfContractOrigin) origin);
+            return true;
           }
         }
         return false;
       });
 
-      // For each satCheckAssert that did not error, it means the contract was requires false; or something similar
+      // For each satCheckAssert that did not error, if its contract was besides that well formed
+      // (i.e. we didn't get an error from the contract inhale),
+      // it means the contract is unsatisfiable.
       // Therefore, we warn the user that their contracts are unsound
       HashSet<Origin> expectedSatCheckAsserts = vercors.getSatCheckAsserts();
       for (Origin expectedSatCheckAssert : expectedSatCheckAsserts) {
-        if (!satCheckAssertsSeen.contains(expectedSatCheckAssert)) {
+        SatCheckRewriter.AssertOrigin assertOrigin = (SatCheckRewriter.AssertOrigin) expectedSatCheckAssert;
+        if (!satCheckAssertsSeen.contains(assertOrigin) && !restOfContractsSeen.contains(assertOrigin.restOfContractOrigin)) {
           ViperErrorImpl<Origin> error = new ViperErrorImpl<Origin>(expectedSatCheckAssert, "method.precondition.unsound:method.precondition.false");
           errors.add(error);
         }
