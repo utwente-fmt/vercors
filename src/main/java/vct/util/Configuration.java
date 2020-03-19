@@ -168,7 +168,7 @@ public class Configuration {
     }
 
     public static File getZ3Path() {
-        File base = getFileOrAbort("/deps/z3/4.8.5");
+        File base = getFileOrAbort("/deps/z3/4.8.6");
         String os = System.getProperty("os.name");
 
         if(os.startsWith("Windows")) {

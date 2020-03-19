@@ -20,4 +20,6 @@ public interface ASTFlags {
 
   public final int EXTERN = 0x0100;
 
+  public final int UNIQUE = 0x0200;
+
 }

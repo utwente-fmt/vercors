@@ -44,17 +44,17 @@ case class DebugSession() {
     field.get(obj)
   }
 
-  private def shouldBeShortcut[T1, T2](obj: AnyRef): Boolean = obj match {
+  private def shouldBeShortcut(obj: AnyRef): Boolean = obj match {
     case null => true
     case node: DebugNode => isOnlyShortcut(node)
     case s: String => true
-    case map: util.HashMap[T1, T2] => map.isEmpty
-    case arr: Array[T1] => arr.isEmpty
-    case arr: util.ArrayList[T1] => arr.isEmpty
-    case list: List[T1] => list.isEmpty
-    case opt: Option[T1] => opt.isEmpty
-    case map: util.Hashtable[T1, T2] => map.isEmpty
-    case arr: ArrayBuffer[T1] => arr.isEmpty
+    case map: util.HashMap[_, _] => map.isEmpty
+    case arr: Array[_] => arr.isEmpty
+    case arr: util.ArrayList[_] => arr.isEmpty
+    case list: List[_] => list.isEmpty
+    case opt: Option[_] => opt.isEmpty
+    case map: util.Hashtable[_, _] => map.isEmpty
+    case arr: ArrayBuffer[_] => arr.isEmpty
     case _ => false
   }
 
@@ -68,50 +68,50 @@ case class DebugSession() {
     true
   }
 
-  private def getShortcut[T1, T2](obj: AnyRef): String = obj match {
+  private def getShortcut(obj: AnyRef): String = obj match {
     case null => "null"
     case node: DebugNode if isOnlyShortcut(node) => "(" + firstLine(node) + ")"
     case s: String => s
-    case map: util.HashMap[T1, T2] if map.isEmpty => "{}"
-    case arr: Array[T1] if arr.isEmpty => "[]"
-    case arr: util.ArrayList[T1] if arr.isEmpty => "[]"
-    case list: List[T1] if list.isEmpty => "[]"
-    case opt: Option[T1] if opt.isEmpty => "None"
-    case map: util.Hashtable[T1, T2] if map.isEmpty => "{}"
-    case arr: ArrayBuffer[T1] if arr.isEmpty => "[]"
+    case map: util.HashMap[_, _] if map.isEmpty => "{}"
+    case arr: Array[_] if arr.isEmpty => "[]"
+    case arr: util.ArrayList[_] if arr.isEmpty => "[]"
+    case list: List[_] if list.isEmpty => "[]"
+    case opt: Option[_] if opt.isEmpty => "None"
+    case map: util.Hashtable[_, _] if map.isEmpty => "{}"
+    case arr: ArrayBuffer[_] if arr.isEmpty => "[]"
     case _ => null
   }
 
-  private def dump[T1, T2](indent: Int, obj: Object, prefix: String): Unit = {
+  private def dump(indent: Int, obj: Object, prefix: String): Unit = {
     obj match {
       case node: DebugNode =>
         dumpNode(indent, node, prefix)
-      case map: util.Map[T1, T2] =>
+      case map: util.Map[_, _] =>
         Output("%s", indent_str(indent) + prefix + "Map")
         for (entry <- map.entrySet().asScala) {
           dump(indent + 1, entry.getValue.asInstanceOf[Object], "- " + entry.getKey.toString + ": ")
         }
-      case arr: Array[T1] =>
+      case arr: Array[_] =>
         Output("%s", indent_str(indent) + prefix + "List")
         for (value <- arr) {
           dump(indent + 1, value.asInstanceOf[Object], "- ")
         }
-      case arr: util.ArrayList[T1] =>
+      case arr: util.ArrayList[_] =>
         Output("%s", indent_str(indent) + prefix + "List")
         for (value <- arr.asScala) {
           dump(indent + 1, value.asInstanceOf[Object], "- ")
         }
-      case arr: ArrayBuffer[T1] =>
+      case arr: ArrayBuffer[_] =>
         Output("%s", indent_str(indent) + prefix + "List")
         for (value <- arr) {
           dump(indent + 1, value.asInstanceOf[Object], "- ")
         }
-      case list: List[T1] =>
+      case list: List[_] =>
         Output("%s", indent_str(indent) + prefix + "List")
         for (value <- list) {
           dump(indent + 1, value.asInstanceOf[Object], "- ")
         }
-      case opt: Option[T1] =>
+      case opt: Option[_] =>
         dump(indent, opt.get.asInstanceOf[Object], prefix)
       case s: String =>
         Output("%s'%s'", indent_str(indent) + prefix, s)

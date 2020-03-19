@@ -1,0 +1,19 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases SumSeqOfInts
+//:: tools silicon
+//:: verdict Pass
+
+class SumSeqOfInts {
+
+    requires |ys| > 10;
+    void main(seq<int> ys) {
+        assert (\sum int k; 1 <= k && k < 4; ys[k]) == (ys[1]+ys[2]+ys[3]);
+
+
+        seq<int> xs = seq<int> {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        assert (\sum int k; 0 <= k && k < |xs|; xs[k]) == 55;
+        assert (\sum int k; 4 <= k && k < 6; xs[k]) == 11;
+    }
+
+}
+

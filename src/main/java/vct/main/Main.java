@@ -13,6 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.stream.Collectors;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
@@ -232,6 +233,14 @@ public class Main
       if(version.get()) {
         Output("%s %s", BuildInfo.name(), BuildInfo.version());
         Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion(), BuildInfo.scalaVersion(), Instant.ofEpochMilli(BuildInfo.builtAtMillis()));
+        if (!BuildInfo.currentBranch().equals("master")) {
+          Output(
+                  "On branch %s, commit %s, %s",
+                  BuildInfo.currentBranch(),
+                  BuildInfo.currentShortCommit(),
+                  BuildInfo.gitHasChanges()
+          );
+        }
         return;
       }
 
@@ -898,6 +907,7 @@ public class Main
     defined_passes.put("java-encode",new CompilerPass("Encode Java overloading and inheritance"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         arg=new JavaEncoder(arg).rewriteAll();
+
         return arg;
       }
     });

@@ -61,8 +61,8 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
     )(NoPosition, new OriginInfo(o), NoTrafos))
   }
   
-  override def dfunc(o:O,name:String,args:List[Triple[O,String,Type]],t:Type,domain:String)={
-    DomainFunc(name,to_decls(o,args),t,false)(NoPosition,new OriginInfo(o),domain)
+  override def dfunc(o:O,name:String,args:List[Triple[O,String,Type]],t:Type,domain:String,unique:Boolean)={
+    DomainFunc(name,to_decls(o,args),t,unique)(NoPosition,new OriginInfo(o),domain)
   }
   
   override def daxiom(o:O,name:String,expr:Exp,domain:String)={
@@ -118,7 +118,7 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
             val o=get_info(x.info,x.pos,api.origin)
             val pars=map_decls(api, x.formalArgs)
             val res=map_type(api,x.typ)
-            api.prog.dfunc(o,x.name,pars,res,d.name)
+            api.prog.dfunc(o,x.name,pars,res,d.name, x.unique)
           }
         }).asJava
         val axioms:java.util.List[DAxiom2]=d.axioms.map {
@@ -223,7 +223,7 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
        case If(c, s1, s2) => api.stat.if_then_else(o,
            map_expr(api,c),map_stat(api,s1),map_stat(api,s2))
        case Inhale(e) => api.stat.inhale(o,map_expr(api,e))
-       case Label(e,invs:Seq[E2]) => api.stat.label(o,e,invs.asJava)
+       case Label(e,invs) => api.stat.label(o,e,invs.asInstanceOf[Seq[E2]].asJava)
        case NewStmt(v, fs) => {
          val names=fs map {
            x => x.name
@@ -242,6 +242,10 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
          throw new Error("apply not implemented");
        case Package(_, _) =>
          throw new Error("package not implemented");
+       case Assume(_) =>
+         throw new Error("assume not implemented")
+       case _: ExtensionStmt =>
+         throw new Error("non-explicit extension statements are not supported")
      }
   }
 

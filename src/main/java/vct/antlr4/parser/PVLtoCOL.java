@@ -52,8 +52,12 @@ import static vct.col.ast.type.ASTReserved.*;
  * @author <a href="mailto:s.c.c.blom@utwente.nl">Stefan Blom</a>
 */
 public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
+  @Override
+  public ASTNode visitValInvocationAnnotation(ValInvocationAnnotationContext ctx) {
+    return null;
+  }
 
-  public static ProgramUnit convert(ParseTree tree, String file_name,BufferedTokenStream tokens,org.antlr.v4.runtime.Parser parser) {
+  public static ProgramUnit convert(ParseTree tree, String file_name, BufferedTokenStream tokens, org.antlr.v4.runtime.Parser parser) {
     ProgramUnit unit=new ProgramUnit();
     PVLtoCOL visitor=new PVLtoCOL(unit,PVLSyntax.get(),file_name,tokens,parser);
     visitor.scan_to(unit,tree);

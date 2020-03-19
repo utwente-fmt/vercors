@@ -62,7 +62,7 @@ object VControl {
     Reachable.gonogo.progress("function %s: %s (%dms)",
         fun.name,
         (if (result) "Pass" else "Fail"),
-        new java.lang.Long(System.currentTimeMillis()-time));
+        Long.box(System.currentTimeMillis()-time));
   }
   
   def gonogo(fun : viper.silver.ast.Predicate):Boolean={
@@ -81,7 +81,7 @@ object VControl {
     Reachable.gonogo.progress("predicate %s: %s (%dms)",
         fun.name,
         (if (result) "Pass" else "Fail"),
-        new java.lang.Long(System.currentTimeMillis()-time));
+        Long.box(System.currentTimeMillis()-time));
   }
   
   def gonogo(fun : viper.silver.ast.Method):Boolean={
@@ -100,7 +100,7 @@ object VControl {
     Reachable.gonogo.progress("method %s: %s (%dms)",
         fun.name,
         (if (result) "Pass" else "Fail"),
-        new java.lang.Long(System.currentTimeMillis()-time));
+        Long.box(System.currentTimeMillis()-time));
   }
   
 }
