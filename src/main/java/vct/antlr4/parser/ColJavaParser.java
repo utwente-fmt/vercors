@@ -9,7 +9,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
 import hre.tools.TimeKeeper;
-import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -41,7 +42,7 @@ public class ColJavaParser implements vct.col.util.Parser {
       try {
         TimeKeeper tk=new TimeKeeper();
         
-        ANTLRInputStream input = new ANTLRInputStream(new FileInputStream(file));
+        CharStream input = CharStreams.fromStream(new FileInputStream(file));
 
         ProgramUnit pu;
         ErrorCounter ec=new ErrorCounter(file_name);
@@ -124,6 +125,9 @@ public class ColJavaParser implements vct.col.util.Parser {
         
         pu=new JavaPostProcessor(pu).rewriteAll();
         Progress("post processing took %dms",tk.show());        
+
+        pu = new RewriteWithThen(pu).rewriteAll();
+        Progress("rewriting with/then blocks took %dms", tk.show());
 
         pu=new AnnotationInterpreter(pu).rewriteAll();
         Progress("interpreting annotations took %dms",tk.show());        

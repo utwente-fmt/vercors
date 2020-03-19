@@ -93,7 +93,7 @@
 						</dict>
 					</dict>
 					<key>match</key>
-					<string>\b(class|kernel|global|local|static|thread_local|inline|pure|with|then|in|id|new|unfolding|return|lock|unlock|wait|notify|fork|join|if|else|barrier|par|and|vec|while|goto|void)\b</string>
+					<string>\b(class|kernel|global|local|static|thread_local|inline|pure|with|then|in|id|new|unfolding|return|lock|unlock|wait|notify|fork|join|if|else|barrier|par|and|vec|while|for|goto|void)\b</string>
 					<key>name</key>
 					<string>entity.name.type.pvl</string>
 				</dict>
@@ -111,7 +111,7 @@
 			<array>
 				<dict>
 					<key>match</key>
-					<string>&amp;&amp;|**</string>
+					<string>&amp;&amp;|\*\*</string>
 					<key>name</key>
 					<string>keyword.operator.pvl</string>
 				</dict>
@@ -161,7 +161,7 @@
 			<array>
 				<dict>
 					<key>begin</key>
-					<string>\b(resource|modifies|accessible|requires|ensures|given|yields|invariant|context|loop_invariant|create|qed|apply|use|create|destroy|split|merge|choose|fold|unfold|open|close|assert|assume|inhale|exhale|label|refute|witness|ghost|send|recv|transfer|csl_subject|spec_ignore)\b</string>
+					<string>\b(resource|modifies|accessible|requires|ensures|given|yields|invariant|context|context_everywhere|loop_invariant|create|qed|apply|use|create|destroy|split|merge|choose|fold|unfold|open|close|assert|assume|inhale|exhale|label|refute|witness|ghost|send|recv|transfer|csl_subject|spec_ignore)\b</string>
 					<key>captures</key>
 					<dict>
 						<key>1</key>

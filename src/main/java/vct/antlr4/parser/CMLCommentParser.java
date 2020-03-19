@@ -27,7 +27,9 @@ public class CMLCommentParser extends CommentParser<CMLParser,CMLLexer> {
 
   @Override
   public TempSequence parse_annotations() {
-	  throw new HREError("annotations for C not defined yet.");
+    ParseTree tree = parser.extraAnnotation();
+    ec.report();
+    return CMLtoCOL.convert_seq(tree, "embedded_comments", tokens, parser);
   }
 
 }

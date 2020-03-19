@@ -3,11 +3,10 @@ package vct.col.ast.stmt.composite
 import hre.ast.MessageOrigin
 import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.generic.{ASTNode, DebugNode}
-import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.util.ASTVisitor
+import vct.col.util.{ASTMapping, ASTMapping1, VisitorHelper}
 
 import scala.collection.mutable.ArrayBuffer
-import vct.col.util.{ASTMapping, ASTMapping1, VisitorHelper}
 
 object IfStatement {
   val elseGuard = new ConstantExpression(true, new MessageOrigin("else guard"))

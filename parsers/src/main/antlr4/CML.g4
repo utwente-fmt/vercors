@@ -16,6 +16,10 @@ extraDeclaration
  : pureFunctionDeclaration
  ;
 
+extraAnnotation
+ : 'pure'
+ ;
+
 /* auxiliary defs */
 
 typeArgs : '<' ((expression | type) (',' (expression | type))*)? '>' ;
@@ -36,4 +40,4 @@ block : compoundStatement ;
 
 /* Define for use by comment parser */
 
-specificationSequence : ( externalDeclaration | statement )* ;
+specificationSequence : ( externalDeclaration | statement | valInvocationAnnotation)* ;

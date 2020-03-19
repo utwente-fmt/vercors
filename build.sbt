@@ -1,4 +1,5 @@
 import NativePackagerHelper._
+import sys.process._
 
 ThisBuild / turbo := true
 
@@ -8,6 +9,18 @@ enablePlugins(DebianPlugin)
 
 lazy val viper_api = (project in file("viper"))
 lazy val parsers = (project in file("parsers"))
+
+def hasGit = "which git" ! ProcessLogger(a => (), b => ()) == 0 // Right hand side of ! silences it
+def gitHasChanges =
+        if (hasGit) {
+                if (("git diff-index --quiet HEAD --" ! ProcessLogger(a => (), b => ())) == 1) {
+                        "with changes"
+                } else {
+                        ""
+                }
+        } else {
+                "unknown"
+        }
 
 lazy val vercors = (project in file("."))
     .dependsOn(viper_api)
@@ -33,19 +46,42 @@ lazy val vercors = (project in file("."))
         libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
         libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
 
-        scalaVersion := "2.12.7",
+        scalaVersion := "2.12.10",
 
-        scalacOptions += "-deprecation",
-        scalacOptions += "-feature",
-        scalacOptions += "-unchecked",
-        scalacOptions += "-Dscalac.patmat.analysisBudget=off",
+        scalacOptions in ThisBuild += "-deprecation",
+        scalacOptions in ThisBuild += "-feature",
+        scalacOptions in ThisBuild += "-unchecked",
+        scalacOptions in ThisBuild += "-Dscalac.patmat.analysisBudget=off",
+
+        javacOptions in ThisBuild += "-Xlint:deprecation",
+        javacOptions in ThisBuild += "-Xlint:unchecked",
+        javacOptions in ThisBuild += "-deprecation",
 
         javaOptions in (Compile, run) += "-J-Xss128M",
         /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
         separated by "--". We instead want to accept only VerCors arguments, so we force "--" into the arguments. */
         javaOptions in Universal ++= Seq("-J-Xss128M", "--"),
 
-        buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+        buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
+                BuildInfoKey.action("currentBranch") {
+                        // If git doesn't exist in path abort
+                        if (hasGit) {
+                                ("git rev-parse --abbrev-ref HEAD" !!).stripLineEnd
+                        } else {
+                                "unknown"
+                        }
+                },
+                BuildInfoKey.action("currentShortCommit") {
+                        if (hasGit) {
+                                ("git rev-parse --short HEAD" !!).stripLineEnd
+                        } else {
+                                "unknown"
+                        }
+                },
+                BuildInfoKey.action("gitHasChanges") {
+                  gitHasChanges
+                }
+        ),
         buildInfoOptions += BuildInfoOption.BuildTime,
         buildInfoPackage := "vct.main",
 

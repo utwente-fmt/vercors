@@ -134,7 +134,8 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
 
   public ASTClass getClassOrIntefaceDeclaration(ParserRuleContext ctx) {
     int N=ctx.getChildCount()-1;
-    ClassType[]bases=null;
+    // https://docs.oracle.com/javase/specs/jls/se7/html/jls-4.html#jls-4.10 4.10.2
+    ClassType[] bases = new ClassType[]{create.class_type(new String[]{"java", "lang", "Object"})};
     ClassType[]supports=null;
     ContractBuilder cb=new ContractBuilder();
     DeclarationStatement parameters[]=null;
@@ -180,6 +181,7 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     } else {
       return null;
     }
+
     ASTClass cl=create.ast_class(getIdentifier(ctx,1), kind ,parameters, bases , supports );
     scan_body(cl,(ParserRuleContext)ctx.getChild(N));
     cl.setContract(cb.getContract());
@@ -214,6 +216,7 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
         scan_comments_before(before,ctx.getChild(1));
       }
       ASTList after=new ASTList();
+      // scan with and then annotations:
       scan_comments_after(after,ctx);
       ASTNode om=convert(ctx,0);
       ASTNode args[]=convert_list(ctx.getChild(static_dispatch?3:1),"(",",",")");
@@ -689,9 +692,16 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
       String name=getIdentifier(ctx,0);
       return create.class_type(name);
     } else if (match(ctx,(String)null,"TypeArgumentsOrDiamond")) {
-      String name=getIdentifier(ctx,0);
-      ASTNode args[]=convert_list((ParserRuleContext)(((ParserRuleContext)ctx.getChild(1)).getChild(0)), "<", ",", ">");
+      String name = getIdentifier(ctx, 0);
+      ASTNode args[] = convert_list((ParserRuleContext) (((ParserRuleContext) ctx.getChild(1)).getChild(0)), "<", ",", ">");
       return create.class_type(name, args);
+    } else if (match(0, true, ctx, null, ".")) {
+      ASTNode[] nodes = convert_list(ctx, ".");
+      String[] names = new String[nodes.length];
+      for (int i = 0; i < nodes.length; i++) {
+        names[i] = ((NameExpression) nodes[i]).getName();
+      }
+      return create.class_type(names);
     } else {
       throw MissingCase(ctx);
     }
@@ -950,15 +960,9 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
     if (match(ctx,"csl_subject",null,";")){
       return create.special(ASTSpecial.Kind.CSLSubject,convert(ctx,1));
     }
-    if (match(ctx,"with",null)){
-        return create.special(ASTSpecial.Kind.With,convert(ctx,1));
-      }
     if (match(ctx,"label",null)){
         return create.special(ASTSpecial.Kind.Label,convert(ctx,1));
       }
-    if (match(ctx,"then",null)){
-      return create.special(ASTSpecial.Kind.Then,convert(ctx,1));
-    }
     if (match(ctx,"proof",null)){
       return create.special(ASTSpecial.Kind.Proof,convert(ctx,1));
     }
@@ -1306,20 +1310,21 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
 
   @Override
   public ASTNode visitQualifiedName(QualifiedNameContext ctx) {
-    ASTNode n[]=convert_list(ctx,".");
-    ASTNode res=n[0];
-    for(int i=1;i<n.length;i++){
-      if (!(n[i] instanceof NameExpression)) return null;
-      String field=((NameExpression)n[i]).getName();
-      res=create.dereference(res, field);
+    // Imports are handled at the top level. So a qualified name is always a type since it is only used by throws and catch
+    ASTNode[] nodes = convert_list(ctx, ".");
+    String[] names = new String[nodes.length];
+    for (int i = 0; i < nodes.length; i++) {
+      names[i] = ((NameExpression) nodes[i]).getName();
     }
-    return res;
+    return create.class_type(names);
   }
 
   @Override
   public ASTNode visitQualifiedNameList(QualifiedNameListContext ctx) {
-
-    return null;
+    ASTNode types[] = convert_list(ctx, ",");
+    // Would like to return a Type[] here, but since that's not currently possible we return a special.
+    // Also, since this clause is only used by "throws", we use the kind Throw here.
+    return create.special(Kind.Throw, types);
   }
 
   @Override
@@ -1594,6 +1599,30 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
   public ASTNode visitValContractClause(ValContractClauseContext ctx) {
 
     return null;
+  }
+
+  @Override
+  public ASTNode visitValInvocationAnnotation(ValInvocationAnnotationContext ctx) {
+    if (match(0, true, ctx,"with") ||
+            match(0, true, ctx,"then")){
+      BlockStatement block = create.block();
+
+      int offset = 2;
+      while(!match(offset, true, ctx, "}")) {
+        String givenName = getIdentifier(ctx, offset);
+        ASTNode givenValue = convert(ctx, offset+2);
+        block.add(create.assignment(create.unresolved_name(givenName), givenValue));
+        offset += 4;
+      }
+
+      ASTSpecial.Kind kind = match(0, true, ctx, "with") ? Kind.With : Kind.Then;
+      return create.special(kind, block);
+    }
+
+    return null;
+
+//     : 'with' '{' (identifier '=' expression ';')* '}' ';'
+//     | 'then' '{' (identifier '=' expression ';')* '}' ';'
   }
 
   @Override

@@ -12,6 +12,7 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.stmt.decl.NameSpace.Import;
 import vct.col.ast.generic.ASTNode;
@@ -20,6 +21,7 @@ import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
 import vct.col.rewrite.AbstractRewriter;
+import vct.col.util.FeatureScanner;
 import vct.col.util.Parser;
 import vct.util.ClassName;
 
@@ -59,31 +61,51 @@ public class JavaResolver extends AbstractRewriter {
       create.enter();
       create.setOrigin(new MessageOrigin("library class %s",cl_name));
       ASTClass res=create.new_class(ClassName.toString(name,FQN_SEP),null,null);
-      target().library_add(cln,res);
-      target().library_add(new ClassName(cln.toString(FQN_SEP)),res);
-      for(java.lang.reflect.Method m:cl.getMethods()){
-        Class<?> c=m.getReturnType();
-        Type returns = convert_type(c);
-        Class<?> pars[]=m.getParameterTypes();
-        DeclarationStatement args[]=new DeclarationStatement[pars.length];
-        for(int i=0;i<pars.length;i++){
-          args[i]=create.field_decl("x"+i, convert_type(pars[i]));
-        }
-        if (m.isVarArgs()){
-          DeclarationStatement old=args[pars.length-1];
-          args[pars.length-1] = create.field_decl(old.name(), (Type)old.getType().firstarg());
-        }
-        Method ast=create.method_kind(Method.Kind.Plain , returns, null, m.getName(),args, m.isVarArgs() , null);
-        ast.setFlag(ASTFlags.STATIC,Modifier.isStatic(m.getModifiers()));
-        res.add(ast);
-      }
+      // Temporarily switch off including methods
+      // TODO (Bob): We want these methods around if they are used in the rest of the program! So figure out a way to include them but also prune the added imports
+      // We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass.
+//      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
+//        // Only public methods are allowed since protected is only accesible from the same package (and we're not std) and private is not accesible altogether
+//        if (!Modifier.isPublic(m.getModifiers())) {
+//          continue;
+//        }
+//        // We skip bridge methods (i.e. methods generated to bridge the gap between a method returning float[] and a method returning Object).
+//        // https://stackoverflow.com/questions/1961350/problem-in-the-getdeclaredmethods-java
+//        if (m.isBridge()) {
+//          continue;
+//        }
+//        Class<?> c=m.getReturnType();
+//        Type returns = convert_type(c);
+//        Class<?> pars[]=m.getParameterTypes();
+//        DeclarationStatement args[]=new DeclarationStatement[pars.length];
+//        for(int i=0;i<pars.length;i++){
+//          args[i]=create.field_decl("x"+i, convert_type(pars[i]));
+//        }
+//        if (m.isVarArgs()){
+//          DeclarationStatement old=args[pars.length-1];
+//          args[pars.length-1] = create.field_decl(old.name(), (Type)old.getType().firstarg());
+//        }
+//        Method ast=create.method_kind(Method.Kind.Plain , returns, null, m.getName(),args, m.isVarArgs() , null);
+//        ast.setFlag(ASTFlags.STATIC,Modifier.isStatic(m.getModifiers()));
+//        res.add(ast);
+//      }
       for (java.lang.reflect.Constructor<?> m : cl.getConstructors()) {
     	  Class<?> pars[]=m.getParameterTypes();
+    	  // We only allow imported constructors without formal parameters. This is to make sure
+          // not too many types are imported.
+          // (since each parameter type causes another import of a new type with new constructors)
+          // Once we figure out how to prune the imported classes
+          // (either at import time or as a distinct pass) we can re-enable this again.
+    	  if (pars.length != 0) {
+    	    continue;
+          }
     	  DeclarationStatement args[]=new DeclarationStatement[pars.length];
     	  for(int i=0;i<pars.length;i++){
     		  args[i]=create.field_decl("x"+i, convert_type(pars[i]));
     	  }
-    	  Method ast = create.method_kind(Kind.Constructor, null, null, m.getName(), args, null);
+    	  // Use class name here to uphold convention that constructor name == class name.
+          // Constructors return void, since an out parameter is added later.
+    	  Method ast = create.method_kind(Kind.Constructor, create.primitive_type(PrimitiveSort.Void), null, res.getName(), args, null);
     	  res.add(ast);
       }
       for(java.lang.reflect.Field field:cl.getFields()){
@@ -92,6 +114,7 @@ public class JavaResolver extends AbstractRewriter {
         decl.setFlag(ASTFlags.STATIC,Modifier.isStatic(field.getModifiers()));
         res.add(decl);
       }
+      target().add(res);
       create.leave();
       return true;
     } catch (ClassNotFoundException e) {
@@ -349,6 +372,7 @@ public class JavaResolver extends AbstractRewriter {
         target().add(tmp);
       }
     }
+
     target().index_classes();
     return target();
   }

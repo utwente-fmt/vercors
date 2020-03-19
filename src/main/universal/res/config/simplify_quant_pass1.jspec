@@ -6,6 +6,7 @@ class simplify_quant_pass1 {
   resource r1,r2;
   int i,j,k;
   rational p1,p2;
+  int tid;
 
   axiom aunitr { e1+0 == e1 }
   axiom aunitl { 0+e1 == e1 }
@@ -395,4 +396,9 @@ class simplify_quant_pass1 {
     }
     */
 
+  axiom simplify_distribute_perm_par {
+    (\forall* int tid;(tid \memberof [e1 .. e2)); ((\forall* int i; (i \memberof [e3 .. e4)); Perm(e5, p1\p2))!tid))
+    ==
+    (e1 < e2) ==> (\forall* int i; (i \memberof [e3 .. e4)); Perm(e5, (p1 * (e2 - e1))\p2))
+  }
 }
