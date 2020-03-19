@@ -15,9 +15,7 @@ extraAnnotation
     ;
 
 extraStatement
-    : 'with' block // not really a statement.
-    | 'then' block // not really a statement.
-    | 'given' localVariableDeclaration ';' // makes T x,y; possible
+    : 'given' localVariableDeclaration ';' // makes T x,y; possible
     | 'yields' localVariableDeclaration ';' // makes T x,y; possible
     | valContractClause
     | valStatement
@@ -51,7 +49,7 @@ axiomDeclaration
 /* The current API has only one category of specifications.
  * This is the specification sequence
  */
-specificationSequence : ( classBodyDeclaration | statement )* ;
+specificationSequence : ( classBodyDeclaration | statement | valInvocationAnnotation)* ;
 
 /* sequence of declarations only */
 javaDeclarations : classBodyDeclaration* ;

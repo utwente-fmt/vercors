@@ -89,6 +89,12 @@ public class SilverTypeMap<T> implements TypeMapping<T> {
   @Override
   public T map(PrimitiveType t) {
     switch(t.sort){
+      /* Hacky types to make Java standard library support work: */
+      case Long:
+      case Byte:
+      case Char:
+      case Short:
+      /* End of hacky types. */
       case Integer:
         return create.Int();
       case Boolean:

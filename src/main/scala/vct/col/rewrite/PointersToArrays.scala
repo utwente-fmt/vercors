@@ -7,7 +7,7 @@ import vct.col.ast.expr.{OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
   def visitType(t: Type): Type = {
@@ -52,7 +52,7 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(expr: OperatorExpression): Unit = {
-    val args = rewrite(expr.args)
+    val args = rewrite(expr.args.asJava)
     result = expr.operator match {
       case StandardOperator.AddrOf =>
         if(args.get(0).isa(StandardOperator.Subscript)) {
@@ -68,15 +68,15 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
           || (expr.arg(0).getType.isPrimitive(PrimitiveSort.Option) && expr.arg(0).getType.firstarg.asInstanceOf[Type].isPrimitive(PrimitiveSort.Array)) =>
         create.expression(StandardOperator.Drop, args.get(0), args.get(1))
       case otherOp =>
-        create.expression(otherOp, args:_*)
+        create.expression(otherOp, args)
     }
   }
 
   override def visit(value: StructValue): Unit = {
     result = create.struct_value(
       visitType(value.`type`),
-      value.map,
-      rewrite(value.values)
+      value.map.asJava,
+      rewrite(value.values.asJava)
     )
   }
 }

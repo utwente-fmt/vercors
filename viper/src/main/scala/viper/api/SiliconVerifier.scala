@@ -2,7 +2,7 @@ package viper.api
 
 import java.nio.file.Path
 import java.util.Properties
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class SiliconVerifier[O,Err](o:OriginFactory[O]) extends SilverImplementation[O,Err](o) {
 
@@ -10,7 +10,7 @@ class SiliconVerifier[O,Err](o:OriginFactory[O]) extends SilverImplementation[O,
     val silicon = new viper.silicon.Silicon(HREViperReporter(), Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
     var z3_config="\"";
     var sep="";
-    z3Settings.foreach {
+    z3Settings.asScala.foreach {
       entry => z3_config=z3_config+sep+(entry._1)+"="+(entry._2) ; sep=" "
     }
     z3_config+="\"";
