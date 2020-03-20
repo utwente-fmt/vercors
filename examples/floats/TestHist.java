@@ -19,7 +19,7 @@ class Testhist {
     int k=0;
     //@ loop_invariant 0 <= k && k <= hist.length;
     /*@ loop_invariant (\forall int i; 0 <= i && i < k ;
-         hist[i]==\sum([0 .. 0),\vcmp(vals,\vrep(i))) );
+         hist[i]==\sum({0 .. 0},\vcmp(vals,\vrep(i))) );
      */
     while(k<hist.length){
       hist[k]=0;
@@ -28,7 +28,7 @@ class Testhist {
     k=0;
     //@ loop_invariant 0 <= k && k <= a.length;
     //@ loop_invariant (\forall int i; 0 <= i && i < hist.length ;
-    //@                   hist[i]==\sum([0 .. k),\vcmp(vals,\vrep(i)))  );
+    //@                   hist[i]==\sum({0 .. k},\vcmp(vals,\vrep(i)))  );
     while(k<a.length){
       int v=a[k];
       hist[v]++;
