@@ -71,7 +71,7 @@ valPrimary
     | '\\unfolding' expression '\\in' expression
     | '(' expression '!' Identifier ')'
     | '(' expression '\\memberof' expression ')'
-    | '['  expression '..' expression ')'
+    | '{'  expression '..' expression '}'
     | '*'
     | '\\current_thread'
     | '(' '\\forall*' type identifier '=' expression '..' expression ';' expression ')' 
