@@ -38,7 +38,12 @@ public class PVLSyntax {
       syntax.addFunction(Future,"Future");
       syntax.addFunction(Head,"head");
       syntax.addFunction(Tail,"tail");
+      syntax.addFunction(Empty,"isEmpty");
+      syntax.addFunction(RemoveAt, "removeAt");
+      //syntax.addFunction(Head,"head");
+      //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
+
       syntax.addFunction(PointsTo,"PointsTo");
       syntax.addFunction(Identity,"id");
       syntax.addFunction(IterationOwner,"\\owner");
@@ -49,6 +54,7 @@ public class PVLSyntax {
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
+      syntax.addOperator(Slice, 10, "[","","..","","]");
 
       syntax.addPrefix(Not, "!", 130);
       syntax.addPrefix(UMinus, "-", 130);
@@ -60,8 +66,11 @@ public class PVLSyntax {
       syntax.addLeftFix(Div, "\\", 120);
       syntax.addLeftFix(Mod,"%",120);
       // 11 additive  + -
+      syntax.addRightFix(PrependSingle, "::", 110);
+      syntax.addLeftFix(AppendSingle, "++", 110);
       syntax.addLeftFix(Plus,"+",110);
       syntax.addLeftFix(Minus,"-",110);
+
 /*
       // 10 shift   << >> >>>
       syntax.addInfix(LeftShift,"<<", 100);
@@ -100,7 +109,7 @@ public class PVLSyntax {
       //  1 assignment  = += -= *= /= %= &= ^= |= <<= >>= >>>=
        */
       syntax.addRightFix(Assign,"=",10);
-      
+
       /*
       syntax.addRightFix(AddAssign,"+=",10);
       syntax.addRightFix(SubAssign,"-=",10);
@@ -147,9 +156,9 @@ public class PVLSyntax {
       syntax.addFunction(PVLidleToken,"idle");
       syntax.addFunction(PVLjoinToken,"running");
       syntax.addFunction(Held, "held");
-      
+
       syntax.addReserved(ASTReserved.Any, "*");
-      
+
       syntax.addFunction(ValidArray,"\\array");
       syntax.addFunction(ValidMatrix,"\\matrix");
     }

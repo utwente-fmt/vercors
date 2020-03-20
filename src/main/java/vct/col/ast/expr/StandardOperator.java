@@ -119,7 +119,7 @@ public enum StandardOperator {
   /**
    * Permission to a field that is part of an active history.
    */
-  HistoryPerm(2),
+   HistoryPerm(2),
   /**
    * Permission to a field that is part of an active history,
    * while an action is in progress.
@@ -175,6 +175,14 @@ public enum StandardOperator {
   SeqUpdate(3),
   /** append two lists */
   Append(2),
+  /** Prepend a single value to list */
+  PrependSingle(2),
+  /** Append a single value to list (to the end)*/
+  AppendSingle(2),
+  /** Remove the value of a list by an index*/
+  RemoveAt(2),
+  /** Check if list is empty, this operator will be extended for usage with other collections like sets and bags */
+  Empty(1),
   /** check if an element is a member of a container. */
   Member(2),
   AddrOf(1),
