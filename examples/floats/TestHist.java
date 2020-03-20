@@ -13,7 +13,7 @@ class Testhist {
     context_everywhere (\forall int i; 0 <= i && i < a.length ; 0 <= a[i] && a[i] < hist.length);
     context_everywhere (\forall int i; 0 <= i && i < a.length ; a[i] == vals[i] );
     ensures   (\forall int i; 0 <= i && i < hist.length ;
-                 hist[i]==\sum([0 .. a.length),\vcmp(vals,\vrep(i))));
+                 hist[i]==\sum({0 .. a.length},\vcmp(vals,\vrep(i))));
   @*/
   public void histogram(int a[],int hist[]){
     int k=0;

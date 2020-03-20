@@ -13,7 +13,7 @@ class TestCount {
       ** (vals.length==array.length)
       ** (\forall int i ; 0 <= i && i < array.length ; array[i]== vals[i])
       ;
-    ensures \result == \sum([0 .. array.length),\vcmp(vals,\vrep(3)));
+    ensures \result == \sum({0 .. array.length},\vcmp(vals,\vrep(3)));
   @*/
   public int test_count_1(int array[]){
     int res=0;
