@@ -37,7 +37,7 @@ public class VerCorsSyntax {
     syntax.addFunction(Get,"get?");
     syntax.addFunction(Set,"set!");
     syntax.addOperator(Size,999,"|","|");
-    syntax.addOperator(RangeSeq,-1,"[","..",")");
+    syntax.addOperator(RangeSeq,-1,"{","..","}");
     syntax.addLeftFix(Append,"+++",5);
     syntax.addLeftFix(Star,"**",4);
     
