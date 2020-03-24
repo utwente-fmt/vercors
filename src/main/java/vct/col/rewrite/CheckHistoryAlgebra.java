@@ -766,7 +766,11 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       body.add(rewrite(n));
     }
     body.add(create.invokation(hist, null, act.method+"_commit", args.toArray(new ASTNode[0])));
-    res.add(create.constraining(body, names));
+    if(names.isEmpty()) {
+      res.add(body);
+    } else {
+      res.add(create.constraining(body, names));
+    }
     result=res;
     in_action=false;
   }
