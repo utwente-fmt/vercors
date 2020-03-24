@@ -44,8 +44,8 @@ iteExpr
  ;
 
 implicationExpr
- : implicationExpr '==>' andOrExpr
- | implicationExpr '-*' andOrExpr
+ : andOrExpr '==>' implicationExpr
+ | andOrExpr '-*' implicationExpr
  | andOrExpr
  ;
 

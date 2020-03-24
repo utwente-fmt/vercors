@@ -8,7 +8,6 @@ import java.util.List;
 
 import hre.ast.FileOrigin;
 import hre.ast.Origin;
-import hre.lang.Failure;
 import hre.lang.HREError;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
@@ -1036,7 +1035,7 @@ public class ANTLRtoCOL implements ParseTreeVisitor<ASTNode> {
     if (match(ctx,"(",null,"!",null,")")){
       return create.expression(IndependentOf,convert(ctx,1),convert(ctx,3));
     }
-    if (match(ctx,"[",null,"..",null,")")){
+    if (match(ctx,"{",null,"..",null,"}")){
       return create.expression(RangeSeq,convert(ctx,1),convert(ctx,3));
     }
     if (match(ctx,"\\unfolding",null,"\\in",null)){
