@@ -368,6 +368,11 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       }
       return res;
     }
+    case Min:
+    case Max:
+      Abort("While translating to silver, a binding expression was encountered with binder 'min' or 'max'. In normal " +
+              "circumstances this type of expression should be simplified away. Please report this as a bug!");
+      break;
     default:
       Abort("binder %s not supported",e.binder);
     }
