@@ -22,7 +22,7 @@ final class List {
   public List next;
   
   /*@
-    public resource list(seq<int> c)=Perm(val,1)**Perm(next,1)**
+    public final resource list(seq<int> c)=Perm(val,1)**Perm(next,1)**
       ((next==null)?(c==seq<int>{val}):(|c| > 0 ** head(c)==val ** next.list(tail(c))));
   @*/
 
