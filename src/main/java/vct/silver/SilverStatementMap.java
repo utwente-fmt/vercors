@@ -1,29 +1,27 @@
 package vct.silver;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-
 import hre.ast.Origin;
 import hre.lang.HREError;
-import hre.lang.HREException;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
-import vct.col.rewrite.SatCheckRewriter;
-import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
+import vct.col.rewrite.SatCheckRewriter;
+import vct.col.util.ASTMapping;
 import vct.col.util.ASTUtils;
-import static hre.lang.System.Abort;
-import static hre.lang.System.Output;
-
 import viper.api.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+
+import static hre.lang.System.Abort;
 
 public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
 
@@ -292,7 +290,7 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     case Unfold: return create.unfold(special.getOrigin(),special.args[0].apply(expr));
     case Fresh:
       throw new HREError("Fresh is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");
-      // return create.fresh(special.getOrigin(),do_names(special.args));
+      // Old implementation: return create.fresh(special.getOrigin(),do_names(special.args));
     default:
       throw new HREError("cannot map special %s",special.kind);
     }
@@ -413,7 +411,7 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   @Override
   public S map(Constraining c) {
     throw new HREError("Constraining is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");
-    // return create.constraining(c.getOrigin(), do_names(c.varsJava()), c.block().apply(this));
+    // Old implementation: return create.constraining(c.getOrigin(), do_names(c.varsJava()), c.block().apply(this));
   }
 
   @Override
