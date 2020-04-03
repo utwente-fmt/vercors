@@ -321,7 +321,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
   
   @Override
-  public void visit(VariableDeclaration decl) {
+  public void visit(MultipleDeclaration decl) {
     dispatch(decl.basetype);
     for(ASTDeclaration d:decl.get()){
       dispatch(d);
@@ -401,6 +401,11 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       for(ASTNode n:c.cases) dispatch(n);
       for(ASTNode n:c.stats) dispatch(n);
     }
+  }
+
+  @Override
+  public void visit(TypeAlias alias) {
+    dispatch(alias.aliasedType());
   }
 
 }

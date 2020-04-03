@@ -23,13 +23,15 @@ public class ConvertTypeExpressions extends AbstractRewriter {
   
   @Override
   public void visit(DeclarationStatement d){
-    boolean extern=false;
+    boolean extern = false;
+    boolean zstatic = false;
     Type t=d.getType();
     while(t instanceof TypeExpression){
       TypeExpression e=(TypeExpression)t;
       switch (e.operator()) {
       case Static:
         t=e.firstType();
+        zstatic = true;
         break;
       case Extern:
         extern=true;
@@ -43,7 +45,30 @@ public class ConvertTypeExpressions extends AbstractRewriter {
     if (extern){
       res.setFlag(ASTFlags.EXTERN,true);
     }
+    res.setStatic(zstatic);
     result=res;
+  }
+
+  @Override
+  public void visit(TypeAlias alias) {
+    Type type = alias.aliasedType();
+
+    while(type instanceof TypeExpression) {
+      TypeExpression typeExpression = (TypeExpression) type;
+      switch(typeExpression.operator()) {
+        case Static:
+          type = typeExpression.firstType();
+          break;
+        case Extern:
+          type = typeExpression.firstType();
+          break;
+        default:
+          Fail("cannot deal with type operator %s", typeExpression.operator());
+      }
+    }
+
+    TypeAlias newAlias = create.type_alias(type, alias.name());
+    result = newAlias;
   }
   
   @Override

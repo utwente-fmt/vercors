@@ -337,7 +337,7 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
   public ASTNode getVariableDeclaration(ParserRuleContext var_ctx, ASTNode ... list) {
     int N=list.length-1;
     ASTNode vars[]=convert_list(var_ctx,",");
-    VariableDeclaration decl=create.variable_decl(checkType(list[N]));
+    MultipleDeclaration decl=create.multiple_decl(checkType(list[N]));
     for(int i=0;i<vars.length;i++){
       DeclarationStatement tmp;
       if (vars[i] instanceof NameExpression){
@@ -1025,14 +1025,14 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
   @Override
   public ASTNode visitFormalParameter(FormalParameterContext ctx) {
     if (match(ctx,null,null)){
-      VariableDeclaration decl=create.variable_decl(checkType(convert(ctx,0)));
+      MultipleDeclaration decl=create.multiple_decl(checkType(convert(ctx,0)));
       DeclarationStatement var=getVariableDeclaratorId((ParserRuleContext)ctx.getChild(1));
       decl.add(var);
       DeclarationStatement vars[]=decl.flatten();
       if (vars.length==1) return vars[0];
     }
     if (match(ctx,"final",null,null)){
-      VariableDeclaration decl=create.variable_decl(checkType(convert(ctx,1)));
+      MultipleDeclaration decl=create.multiple_decl(checkType(convert(ctx,1)));
       DeclarationStatement var=getVariableDeclaratorId((ParserRuleContext)ctx.getChild(2));
       decl.add(var);
       DeclarationStatement vars[]=decl.flatten();
@@ -1190,7 +1190,7 @@ public class Java7JMLtoCol extends ANTLRtoCOL implements Java7JMLVisitor<ASTNode
   @Override
   public ASTNode visitLastFormalParameter(LastFormalParameterContext ctx) {
     if (match(ctx,null,"...",null)){
-      VariableDeclaration decl=create.variable_decl(checkType(convert(ctx,0)));
+      MultipleDeclaration decl=create.multiple_decl(checkType(convert(ctx,0)));
       DeclarationStatement var=getVariableDeclaratorId((ParserRuleContext)ctx.getChild(2));
       decl.add(var);
       DeclarationStatement vars[]=decl.flatten();

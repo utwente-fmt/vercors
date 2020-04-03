@@ -68,7 +68,7 @@ public interface ASTMapping<R> {
 
   public R map(ASTSpecial special);
 
-  public R map(VariableDeclaration variableDeclaration);
+  public R map(MultipleDeclaration multipleDeclaration);
 
   public R map(TupleType tupleType);
 
@@ -101,5 +101,7 @@ public interface ASTMapping<R> {
   public R map(Constraining c);
 
   public R map(Switch s);
+
+  public R map(TypeAlias alias);
 
 }

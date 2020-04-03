@@ -77,6 +77,8 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
       args.asJava,
       create.block(body:_*)
     )
+
+    result.setStatic(method.isStatic)
   }
 
   override def visit(name: NameExpression): Unit = {

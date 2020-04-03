@@ -131,8 +131,8 @@ public class NameSpace extends ASTDeclaration implements ASTSequence<NameSpace> 
   public NameSpace add(ASTNode item) {
     if (item instanceof ASTDeclaration){
       space.add((ASTDeclaration)item);
-    } else if(item instanceof VariableDeclaration) {
-      for(DeclarationStatement d:((VariableDeclaration)item).flatten()){
+    } else if(item instanceof MultipleDeclaration) {
+      for(DeclarationStatement d:((MultipleDeclaration)item).flatten()){
         space.add(d);
       }
     } else if (item==null) {

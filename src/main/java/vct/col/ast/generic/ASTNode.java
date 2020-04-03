@@ -72,7 +72,9 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
   }
 
   public boolean getFlag(int flag){
-    if ((valid_flags & flag)!=flag) Abort("flag %d has not been set",flag);
+    if ((valid_flags & flag)!=flag) {
+      Abort("flag %d has not been set",flag);
+    }
     return (flags & flag)!=0 ;    
   }
 

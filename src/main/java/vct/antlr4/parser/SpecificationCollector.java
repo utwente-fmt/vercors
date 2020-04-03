@@ -150,7 +150,6 @@ public class SpecificationCollector extends AbstractRewriter {
     if (currentContractBuilder!=null && !currentContractBuilder.isEmpty()){
       Abort("class contains unattached contract clauses");
     }
-    currentContractBuilder=null;
   }
 
   @Override

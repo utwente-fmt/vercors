@@ -8,9 +8,9 @@
 */
 public class Refute {
 
-/*@
-  requires true;
-@*/
+  /*@
+    requires true;
+  @*/
   public void good(){
     //@ refute false;
   }

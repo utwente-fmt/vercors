@@ -33,12 +33,14 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
 
   def add_map(m:Method) : Unit = {
     m.setFlag(ASTFlags.STATIC, true)
+    m.setStatic(true)
     m.setParent(this)
     mappings += m
   }
 
   def add_cons(m:Method) : Unit = {
     m.setFlag(ASTFlags.STATIC, true)
+    m.setStatic(true)
     m.setParent(this)
     constructors += m
   }
@@ -49,6 +51,7 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
     }
 
     m.setFlag(ASTFlags.UNIQUE, true);
+    m.setStatic(true)
     m.setParent(this)
     constructors += m
   }

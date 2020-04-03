@@ -23,7 +23,7 @@ import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.composite.VectorBlock;
 import vct.col.ast.stmt.decl.ASTDeclaration;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.stmt.decl.VariableDeclaration;
+import vct.col.ast.stmt.decl.MultipleDeclaration;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.TypeVariable;
@@ -186,7 +186,7 @@ public class CountVisitor extends RecursiveVisitor<NodeCounter> {
   }
   
   @Override
-  public void visit(VariableDeclaration vd) {
+  public void visit(MultipleDeclaration vd) {
     counter.count(vd.getClass().getName());
     super.visit(vd);
   }

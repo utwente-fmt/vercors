@@ -406,6 +406,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     if (init!=null) init=init.apply(this);
     DeclarationStatement res=new DeclarationStatement(name,t,init);
     res.setOrigin(s.getOrigin());
+    res.copyMissingFlags(s);
     result=res; return ;
   }
 
@@ -492,6 +493,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     currentContractBuilder=null;
     ASTNode body=rewrite(m.getBody());
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
+    result.setStatic(m.isStatic());
   }
 
   @Override
@@ -664,8 +666,8 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
     
   @Override
-  public void visit(VariableDeclaration decl) {
-    VariableDeclaration res=create.variable_decl(decl.basetype);
+  public void visit(MultipleDeclaration decl) {
+    MultipleDeclaration res=create.multiple_decl(decl.basetype);
     for(ASTDeclaration d:decl.get()){
       res.add(rewrite(d));
     }
@@ -879,5 +881,10 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       case_list.add(rwc);
     }
     result = create.switch_statement(expr, case_list);
+  }
+
+  @Override
+  public void visit(TypeAlias alias) {
+    result = create.type_alias(rewrite(alias.aliasedType()), alias.name());
   }
 }

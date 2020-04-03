@@ -20,7 +20,6 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.util.ASTUtils;
 import static hre.lang.System.Abort;
-import static hre.lang.System.Output;
 
 import viper.api.*;
 
@@ -296,7 +295,7 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   }
 
   @Override
-  public S map(VariableDeclaration variableDeclaration) {
+  public S map(MultipleDeclaration multipleDeclaration) {
     
     return null;
   }
@@ -414,6 +413,11 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
 
   @Override
   public S map(Switch s) {
+    return null;
+  }
+
+  @Override
+  public S map(TypeAlias alias) {
     return null;
   }
 }

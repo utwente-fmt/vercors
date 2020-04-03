@@ -71,7 +71,7 @@ public interface ASTVisitor<T> {
 
   public void visit(ASTSpecial special);
 
-  public void visit(VariableDeclaration variableDeclaration);
+  public void visit(MultipleDeclaration multipleDeclaration);
 
   public void visit(TupleType tupleType);
 
@@ -104,6 +104,8 @@ public interface ASTVisitor<T> {
   public void visit(Constraining c);
 
   public void visit(Switch s);
+
+  public void visit(TypeAlias alias);
 
 }
 

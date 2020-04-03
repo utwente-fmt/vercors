@@ -1,7 +1,7 @@
 package vct.col.ast.util;
 
 import hre.lang.HREError;
-import vct.col.ast.stmt.decl.VariableDeclaration;
+import vct.col.ast.stmt.decl.MultipleDeclaration;
 import vct.col.ast.stmt.composite.VectorBlock;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -170,7 +170,7 @@ public class UndefinedMapping<T> implements ASTMapping<T> {
   }
 
   @Override
-  public T map(VariableDeclaration variableDeclaration) {
+  public T map(MultipleDeclaration multipleDeclaration) {
     return null;
   }
 
@@ -251,6 +251,11 @@ public class UndefinedMapping<T> implements ASTMapping<T> {
 
   @Override
   public T map(Switch s) {
+    return null;
+  }
+
+  @Override
+  public T map(TypeAlias alias) {
     return null;
   }
 

@@ -285,7 +285,7 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
   }
 
   @Override
-  public Boolean map(VariableDeclaration variableDeclaration, ASTNode a) {
+  public Boolean map(MultipleDeclaration multipleDeclaration, ASTNode a) {
     
     return null;
   }
@@ -382,7 +382,12 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
   public Boolean map(Switch s, ASTNode a) {
     return null;
   }
-  
+
+  @Override
+  public Boolean map(TypeAlias alias, ASTNode a) {
+    return null;
+  }
+
 }
 
 class MatchSubstitution extends AbstractRewriter {
