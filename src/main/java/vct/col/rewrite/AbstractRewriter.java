@@ -11,7 +11,6 @@ import java.util.Map;
 
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
-import scala.None;
 import scala.Option;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
