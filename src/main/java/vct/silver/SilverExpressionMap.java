@@ -14,6 +14,7 @@ import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
@@ -528,6 +529,11 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
 
   @Override
   public E map(Synchronized sync) {
+    return null;
+  }
+
+  @Override
+  public E map(CFunctionType t) {
     return null;
   }
 

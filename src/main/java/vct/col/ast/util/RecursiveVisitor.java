@@ -2,6 +2,10 @@ package vct.col.ast.util;
 
 import java.util.List;
 
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
+import vct.col.ast.langspecific.c.CFunctionType;
+import vct.col.ast.langspecific.c.ParamSpec;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -152,6 +156,14 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   
   private <R extends ASTNode> void dispatch(List<R> nodes) {
     for (R node : nodes) {
+      if (node != null) {
+        node.accept(this);
+      }
+    }
+  }
+
+  private <R extends ASTNode> void dispatch(Seq<R> nodes) {
+    for (R node : JavaConverters.seqAsJavaList(nodes)) {
       if (node != null) {
         node.accept(this);
       }
@@ -387,6 +399,17 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     enter(sync);
     dispatch(sync.statement());
     leave(sync);
+  }
+
+  @Override
+  public void visit(CFunctionType t) {
+    dispatch(t.returnType());
+
+    for(ParamSpec param : JavaConverters.seqAsJavaList(t.params())) {
+      if(param.t().isDefined()) {
+        dispatch(param.t().get());
+      }
+    }
   }
 
   @Override

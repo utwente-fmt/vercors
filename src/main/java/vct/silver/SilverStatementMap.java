@@ -10,6 +10,7 @@ import hre.lang.HREError;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.rewrite.SatCheckRewriter;
 import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
@@ -424,6 +425,11 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
 
   @Override
   public S map(Synchronized sync) {
+    return null;
+  }
+
+  @Override
+  public S map(CFunctionType t) {
     return null;
   }
 }

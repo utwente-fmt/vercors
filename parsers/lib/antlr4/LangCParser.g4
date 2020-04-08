@@ -38,6 +38,7 @@ primaryExpression
     |   '__extension__'? '(' compoundStatement ')' // Blocks (GCC extension)
     |   '__builtin_va_arg' '(' unaryExpression ',' typeName ')'
     |   '__builtin_offsetof' '(' typeName ',' unaryExpression ')'
+    |   {specLevel>0}? valPrimary
     ;
 
 genericSelection
@@ -85,7 +86,7 @@ unaryExpression
     ;
 
 unaryOperator
-    :   '&' | '*' | '+' | '-' | '~' | '!'
+    :   ('&' | '*' | '+' | '-' | '~' | '!')
     ;
 
 castExpression
@@ -157,7 +158,8 @@ logicalOrExpression
     ;
 
 conditionalExpression
-    :   logicalOrExpression ('?' expression ':' conditionalExpression)?
+    :   logicalOrExpression
+    |   logicalOrExpression '?' expression ':' conditionalExpression
     ;
 
 assignmentExpression
@@ -166,7 +168,7 @@ assignmentExpression
     ;
 
 assignmentOperator
-    :   '=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' | '&=' | '^=' | '|='
+    :   ('=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' | '&=' | '^=' | '|=')
     ;
 
 expression
@@ -179,16 +181,17 @@ constantExpression
     ;
 
 declaration
-    :   declarationSpecifiers initDeclaratorList? ';'
+    :   valEmbedContract? declarationSpecifiers initDeclaratorList? ';'
     |   staticAssertDeclaration
     ;
 
 declarationSpecifiers
-    :   declarationSpecifier+
+    // Non-greedy, because otherwise the name of a variable would be parsed as the typedefName of the type
+    :   declarationSpecifier+?
     ;
 
 declarationSpecifiers2
-    :   declarationSpecifier+
+    :   declarationSpecifier+?
     ;
 
 declarationSpecifier
@@ -482,6 +485,8 @@ blockItemList
 blockItem
     :   declaration
     |   statement
+    |   valEmbedStatementBlock
+    |   {specLevel>0}? valStatement
     ;
 
 expressionStatement
@@ -489,15 +494,17 @@ expressionStatement
     ;
 
 selectionStatement
-    :   'if' '(' expression ')' statement ('else' statement)?
+    :   'if' '(' expression ')' statement elseBranch?
     |   'switch' '(' expression ')' statement
     ;
 
+elseBranch: 'else' statement;
+
 iterationStatement
-    :   'while' '(' expression ')' statement
+    :   valEmbedContract? 'while' '(' expression ')' valEmbedContract? statement
     |   'do' statement 'while' '(' expression ')' ';'
-    |   'for' '(' expression? ';' expression? ';' expression? ')' statement
-    |   'for' '(' declaration expression? ';' expression? ')' statement
+    |   valEmbedContract? 'for' '(' expression? ';' expression? ';' expression? ')' valEmbedContract? statement
+    |   valEmbedContract? 'for' '(' declaration expression? ';' expression? ')' valEmbedContract? statement
     ;
 
 jumpStatement
@@ -532,7 +539,7 @@ specificationDeclaration : Placeholder ;
  * { return arg + 1; }
  */
 functionDefinition
-    :   declarationSpecifiers declarator declarationList? compoundStatement
+    :   valEmbedContract? declarationSpecifiers declarator declarationList? compoundStatement
     ;
 
 
@@ -541,4 +548,8 @@ declarationList
     |   declarationList declaration
     ;
 
-clangIdentifier : Identifier ;
+clangIdentifier
+    :   {specLevel>0}? valReserved
+    |   Identifier
+    |   valReserved
+    ;

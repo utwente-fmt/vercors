@@ -1,6 +1,7 @@
 package vct.col.ast.util;
 
 import hre.lang.HREError;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.stmt.decl.VariableDeclaration;
 import vct.col.ast.stmt.composite.VectorBlock;
 import vct.col.ast.expr.*;
@@ -261,6 +262,11 @@ public class UndefinedMapping<T> implements ASTMapping<T> {
 
   @Override
   public T map(Synchronized sync) {
+    return null;
+  }
+
+  @Override
+  public T map(CFunctionType t) {
     return null;
   }
 

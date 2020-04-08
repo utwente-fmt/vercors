@@ -108,13 +108,6 @@ Arrow : '->';
 Dot : '.';
 Ellipsis : '...';
 
-Identifier
-    :  IdentifierNondigit
-        (  IdentifierNondigit
-        |   Digit
-        )*
-    ;
-
 fragment
 IdentifierNondigit
     :   Nondigit
@@ -394,12 +387,24 @@ ASM__: '__asm__';
 ATTRIBUTE__: '__attribute__';
 VOLATILE__: '__volatile__';
 
+mode DEFAULT_MODE;
+Identifier
+    :  IdentifierNondigit
+        (  IdentifierNondigit
+        |   Digit
+        )*
+    ;
+
+ExtraAt
+    : {inBlockSpec}? ('\n'|'\r\n') [ \t\u000C]* '@' -> skip
+    ;
+
 mode COMMENT;
 BlockCommentStop: '*/' -> mode(DEFAULT_MODE), skip;
-BlockCommentContent: .+? -> skip;
 BlockStartSpec: '@' {inBlockSpec = true;} -> mode(DEFAULT_MODE);
+BlockCommentContent: .+? -> skip;
 
 mode LINE_COMMENT;
 LineCommentStop: ('\n'|'\r\n') -> mode(DEFAULT_MODE), skip;
-LineCommentContent: .+? -> skip;
 LineStartSpec: '@' {inLineSpec = true;} -> mode(DEFAULT_MODE);
+LineCommentContent: .+? -> skip;

@@ -844,7 +844,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValPrimary9(_, binderName, t, id, "=", fr, "..", to, _, main, _) =>
       val name = convertID(id)
       val decl = create field_decl(name, convertType(t))
-      val guard = create expression(And,
+      val guard = create expression(StandardOperator.And,
         create expression(LTE, expr(fr), create unresolved_name(name)),
         create expression(StandardOperator.LT, create unresolved_name(name), expr(to))
       )
@@ -926,11 +926,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   })
 
   /**
-    * This method allows a language grammar to step into the reserved identifiers where they overlap with the underlying
-    * language, to allow their use there. They should be forbidden inside specifications.
-    * @param reserved the reserved identifier
-    * @return the string representation of the identifier
-    */
+   * This method allows a language grammar to step into the reserved identifiers where they overlap with the underlying
+   * language, to allow their use there. They should be forbidden inside specifications.
+   * @param reserved the reserved identifier
+   * @return the string representation of the identifier
+   */
   def convertOverlappingValReservedID(reserved: ValReservedContext): String = reserved match {
     case ValReserved0(s) => s
     case ValReserved1("\\result") => fail(reserved, "This identifier is invalid in the current language")
@@ -951,7 +951,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         convertValContractBlock(block)(builder)
       }
     case None =>
-      // nop
+    // nop
   }
 
   def convertValContractBlock(contract: ValEmbedContractBlockContext) = (builder: ContractBuilder) => contract match {
@@ -1037,6 +1037,5 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   def convertValWithThen(withThen: ValEmbedWithThenContext): Seq[ASTNode] = withThen match {
     case ValEmbedWithThen0(blocks) => blocks.flatMap(convertValWithThen)
   }
-
   /* === End of duplicated code block === */
 }

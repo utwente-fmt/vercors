@@ -3,14 +3,14 @@ options {tokenVocab = LangCLexer;}
 import LangCParser, SpecParser;
 
 @parser::members {
-    private static int ghostLevel = 0;
+    public int specLevel = 0;
 }
 
 langExpr: expression;
 langId: clangIdentifier;
-langType: typeSpecifier;
+langType: typeSpecifier | {specLevel>0}? valType;
 langModifier: storageClassSpecifier;
-langStatement: statement;
+langStatement: blockItem;
 
-startSpec: LineStartSpec | BlockStartSpec;
-endSpec: EndSpec;
+startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;};
+endSpec: EndSpec {specLevel--;};

@@ -47,6 +47,16 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: Parser
     case otherwise => create block(otherwise:_*)
   }
 
+  def getOrFail[B](node: ParserRuleContext, thing: Either[String, B]): B = thing match {
+    case Left(err) => fail(node, err)
+    case Right(good) => good
+  }
+
+  def getOrFail[B](node: ParserRuleContext, thing: Option[B], message: String): B = thing match {
+    case None => fail(node, message)
+    case Some(b) => b
+  }
+
   def fail(tree: ParserRuleContext, format: String, args: Object*): Nothing = {
     val message = String.format(format, args:_*)
     fileOrigin(tree).report("error", message)

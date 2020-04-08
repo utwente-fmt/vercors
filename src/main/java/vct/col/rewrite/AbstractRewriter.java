@@ -15,6 +15,7 @@ import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
@@ -883,5 +884,10 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       case_list.add(rwc);
     }
     result = create.switch_statement(expr, case_list);
+  }
+
+  @Override
+  public void visit(CFunctionType t) {
+    
   }
 }
