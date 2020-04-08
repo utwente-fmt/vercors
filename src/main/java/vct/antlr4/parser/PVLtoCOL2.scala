@@ -108,12 +108,7 @@ case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLPar
 
       modifiers.foreach {
         case Modifier0("pure") =>
-          if (body.isEmpty) {
-            kind = Kind.Pure
-          } else {
-            Warning("The pure modifier is ignored, as the purity of a function is " +
-              "derived from its declaration style (f(){} vs. f() = exp;)")
-          }
+          kind = Kind.Pure
         case _ =>
       }
 
