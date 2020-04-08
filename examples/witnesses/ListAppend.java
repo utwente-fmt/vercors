@@ -76,16 +76,15 @@ final class List {
     List cursor=this;
     //@ seq<int> prefix=seq<int>{};
     //@ seq<int> suffix=L1;
-    
+
+    //@ create { qed this.list(L1+L2) -* this.list(L1+L2); }
+
     //@ loop_invariant cursor!=null;
     //@ loop_invariant cursor.list(suffix);
     //@ loop_invariant prefix+suffix==L1;
     //@ loop_invariant l!=null ** l.list(L2);
     //@ loop_invariant cursor.list(suffix+L2) -* this.list(L1+L2);
     while(cursor.get_next()/*@ with { L = suffix; } */ !=null)
-    /*@ with {
-        create { qed this.list(L1+L2) -* this.list(L1+L2); }
-    } @*/
     {
         //@ List tmp=cursor;
         //@ seq<int> tmp_suffix=suffix;

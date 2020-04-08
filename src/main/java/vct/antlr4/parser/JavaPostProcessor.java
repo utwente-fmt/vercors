@@ -110,30 +110,10 @@ public class JavaPostProcessor extends AbstractRewriter {
         return;
       }
     }
-    result=process_with_then(create.invokation(rewrite(e.object), e.dispatch, e.method, rewrite(e.getArgs())),e);
-  }
-  
-  private <T extends ASTNode & BeforeAfterAnnotations> ASTNode process_with_then(T dst,T src) {
-    for(ASTNode n:src.get_before()){
-      dst.get_before().add(rewrite(n));
-    }
-    for(ASTNode n:src.get_after()){
-      if (n.isSpecial(ASTSpecial.Kind.Label)) {
-    	String label=((NameExpression)((ASTSpecial)n).args[0]).getName();
-    	dst.labeled(label);
-      } else if (n.isSpecial(ASTSpecial.Kind.With)) {
-        for(ASTNode w : ((BlockStatement)((ASTSpecial)n).args[0])){
-          dst.get_before().add(rewrite(w));
-        }
-      } else if (n.isSpecial(ASTSpecial.Kind.Then)){
-        for(ASTNode w : ((BlockStatement)((ASTSpecial)n).args[0])){
-          dst.get_after().add(rewrite(w));
-        }
-      } else {
-        dst.get_after().add(rewrite(n));
-      }
-    }
-    return dst;
+    MethodInvokation res = create.invokation(rewrite(e.object), e.dispatch, e.method, rewrite(e.getArgs()));
+    res.set_before(rewrite(e.get_before()));
+    res.set_after(rewrite(e.get_after()));
+    result = res;
   }
 
   public void visit(NameExpression n){
@@ -190,9 +170,7 @@ public class JavaPostProcessor extends AbstractRewriter {
         } else {
           res=create.expression(e.operator(),arg0,arg1);
         }
-        res.clearBefore();
-        res.clearAfter();
-        result=process_with_then(res,e);
+        result=res;
         return;
       }
     default:
@@ -200,9 +178,7 @@ public class JavaPostProcessor extends AbstractRewriter {
     }
     super.visit(e);
     OperatorExpression res=(OperatorExpression) result;
-    res.clearBefore();
-    res.clearAfter();
-    result=process_with_then(res,e);
+    result=res;
   }
   
   private boolean is_comparison(StandardOperator operator) {
@@ -213,15 +189,6 @@ public class JavaPostProcessor extends AbstractRewriter {
     default:
       return false;
     }
-  }
-
-  @Override
-  public void visit(LoopStatement s){
-    super.visit(s);
-    LoopStatement res=(LoopStatement)result;
-    res.set_before(null);
-    res.set_after(null);
-    result=process_with_then(res,s);
   }
   
   @Override

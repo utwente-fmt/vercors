@@ -100,7 +100,9 @@ runGoals name settings crit
                            logError (display (T.pack e))
                            liftIO exitFailure
               Right v -> return v
-    -- todo: putCache should happen atomically, in case multiple instances are running..
+    -- todo: putCache should happen atomically, in case SplitVerify is called multiple times
+    -- We currently only make a single call to putCache
+    -- We can call this function much more aggressively if we use file-system atomicity
     putCache subtbl newCache
       = do fullCache <- getFullCache
            let newMap = Object$ foldr ($) (subtLookup fullCache subtbl) newCache
@@ -111,22 +113,32 @@ runGoals name settings crit
                      f files
 
 -- | Get a git version for the thing a command-line thing is run from
-getGitVersion :: (HasLogFunc env, HasProcessContext env)
-              => FilePath -> RIO env (ExitCode, Text, Char8.ByteString)
-getGitVersion command
- = do let prelimPath = takeDirectory $ command 
-      execPath <- if null prelimPath then do 
-          (_,o,_) <- proc "which" [command] readProcess
-          return (takeDirectory $ Char8.unpack o)
-        else return prelimPath
-      (exitCode,versionBS,errs) <- proc "git" ["-C",execPath,"rev-parse","HEAD"] readProcess
-      -- (exitCode,versionBS,errs) <- readProcess gitproc
-      versionRes <- case decodeUtf8' $ DBL.toStrict versionBS of
+getVersion :: (HasLogFunc env, HasProcessContext env)
+              => FilePath -> RIO env Text
+getVersion command
+ = do (exitCode, vctversion0, errs) <- proc command ["--version"] readProcess
+      vctversion <- if exitCode /= ExitSuccess then
+                       do let prelimPath = takeDirectory $ command 
+                          execPath <- if null prelimPath then do 
+                              (_,o,_) <- proc "which" [command] readProcess
+                              return (takeDirectory $ Char8.unpack o)
+                            else return prelimPath
+                          (exitCode2,versionBS,errs2) <- proc "git" ["-C",execPath,"rev-parse","HEAD"] readProcess
+                          if exitCode2 /= ExitSuccess then do
+                              logWarn "Could not retrieve vct-version via git. Updating vct will not cause a re-run!"
+                              logError . display . T.pack $ show errs
+                              logError . display . T.pack $ show errs2
+                              return versionBS
+                            else do logWarn $ "git-reported vct versions used!"
+                                    return versionBS
+                    else return vctversion0
+      versionRes <- case decodeUtf8' $ DBL.toStrict vctversion of
                   Left e     -> do logError "Git hash not returned in UTF8"
                                    logError . display . T.pack $ show errs
-                                   throwIO $ ReadFileUtf8Exception execPath e
+                                   logError . display . T.pack $ show e
+                                   error "Please report this as a bug (this might be a git issue but I'd like to find out if you get this)."
                   Right text -> return text
-      return (exitCode, versionRes, errs)
+      return versionRes
 
 handleVerCors :: (HasLogFunc env, HasProcessContext env)
   => (Text -> RIO env (HashMap Text Value))
@@ -139,11 +151,7 @@ handleVerCors :: (HasLogFunc env, HasProcessContext env)
 -- | handle a bunch of files using VerCors
 handleVerCors getCache putCache tempD settings crit files
  = do let vctCommand = maybe "vct" T.unpack $ critVct crit
-      (exitCode, vctversion, errs) <- getGitVersion vctCommand
-      if exitCode /= ExitSuccess then do
-          logWarn "Could not retrieve vct-version via git. Updating vct will not cause a re-run!"
-          logError . display . T.pack $ show errs
-        else logInfo $ display ("vct version used (git-reported): " <> vctversion)
+      vctversion <- getVersion vctCommand
       timezone <- liftIO$ getCurrentTimeZone
       cacheTbl <- getCache vctversion
       -- TODO: use .:? instead, to properly parse the cache file

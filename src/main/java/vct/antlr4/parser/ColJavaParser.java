@@ -105,6 +105,9 @@ public class ColJavaParser implements vct.col.util.Parser {
         pu=new JavaPostProcessor(pu).rewriteAll();
         Progress("post processing took %dms",tk.show());        
 
+        pu = new RewriteWithThen(pu).rewriteAll();
+        Progress("rewriting with/then blocks took %dms", tk.show());
+
         pu=new AnnotationInterpreter(pu).rewriteAll();
         Progress("interpreting annotations took %dms",tk.show());        
 
