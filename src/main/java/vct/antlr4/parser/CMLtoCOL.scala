@@ -18,8 +18,8 @@ import scala.collection.immutable.{Bag, HashedBagConfiguration}
 import scala.collection.mutable
 
 object CMLtoCOL {
-  def convert(tree: CompilationUnitContext, file_name: String, tokens: CommonTokenStream, parser: CParser): ProgramUnit = {
-    new CMLtoCOL(file_name, tokens, parser).convertProgram(tree)
+  def convert(tree: CompilationUnitContext, fileName: String, tokens: CommonTokenStream, parser: CParser): ProgramUnit = {
+    new CMLtoCOL(fileName, tokens, parser).convertProgram(tree)
   }
 }
 

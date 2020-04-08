@@ -22,8 +22,8 @@ import vct.col.rewrite.InferADTTypes
 import scala.collection.JavaConverters._
 
 object PVLtoCOL {
-  def convert(tree: ProgramContext, file_name: String, tokens: CommonTokenStream, parser: PVLParser): ProgramUnit = {
-    PVLtoCOL(file_name, tokens, parser).convertProgram(tree)
+  def convert(tree: ProgramContext, fileName: String, tokens: CommonTokenStream, parser: PVLParser): ProgramUnit = {
+    PVLtoCOL(fileName, tokens, parser).convertProgram(tree)
   }
 }
 
@@ -98,11 +98,6 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertMethod(method: MethodDeclContext): Method = origin(method, method match {
     case MethodDecl0(contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
-      /* FIXME: the logic to decide what is and isn't pure is really terrible: we should settle on one way. Currently
-       we consider the method declaration style (f(){} or f() = exp) ignoring the pure keyword, except in empty method
-       bodies, which are decided by the pure keyword, except for functions returning resources, which are always of
-       kind resource.
-       */
       val returns = convertType(returnType)
       var (kind, body) = convertBody(bodyNode)
 
@@ -552,7 +547,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case AllowedForStatement0(tNode, decls) =>
       val t = convertType(tNode)
       val result = new VariableDeclaration(t)
-      val statements = convertDeclList(decls).foreach{
+      convertDeclList(decls).foreach{
         case (name, init) =>
           result.add(DeclarationStatement(name, VariableDeclaration.common_type, init))
       }

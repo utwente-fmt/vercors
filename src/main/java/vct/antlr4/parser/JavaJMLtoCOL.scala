@@ -157,8 +157,6 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         mods.foreach(mod => res.attach(mod))
         res
       }
-//    case ExtraDeclaration1(AxiomDeclaration0("axiom", name, "{", left, "==", right, "}")) =>
-//      Seq(create axiom(name, create expression(EQ, expr(left), expr(right))))
   })
 
   def convertResource(res: ResourceContext): DeclarationStatement = origin(res, res match {

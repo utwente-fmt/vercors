@@ -11,11 +11,14 @@ import java.util.Map;
 
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
-import scala.collection.Seq;
+import scala.None;
+import scala.Option;
+import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.langspecific.c.CFunctionType;
+import vct.col.ast.langspecific.c.ParamSpec;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
@@ -888,6 +891,17 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   @Override
   public void visit(CFunctionType t) {
-    
+    Type returnType = rewrite(t.returnType());
+    List<ParamSpec> paramSpecs = new ArrayList<>();
+    for(ParamSpec spec : JavaConverters.asJavaIterable(t.params())) {
+      Option<Type> newType;
+      if(spec.t().isEmpty()) {
+        newType = Option.empty();
+      } else {
+        newType = Option.apply(rewrite(spec.t().get()));
+      }
+      paramSpecs.add(new ParamSpec(newType, spec.name()));
+    }
+    result = new CFunctionType(JavaConverters.asScalaBuffer(paramSpecs), returnType);
   }
 }
