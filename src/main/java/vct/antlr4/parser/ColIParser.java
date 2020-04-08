@@ -4,7 +4,6 @@ import hre.tools.TimeKeeper;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTree;
 import vct.antlr4.generated.LangCLexer;
 import vct.antlr4.generated.CParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
@@ -37,7 +36,7 @@ public class ColIParser implements vct.col.util.Parser {
     ec.report();
     Debug("parser got: %s",tree.toStringTree(parser));
 
-    ProgramUnit pu=CMLtoCOL2.convert(tree,file_name,tokens,parser);
+    ProgramUnit pu= CMLtoCOL.convert(tree,file_name,tokens,parser);
     pu.setLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations, false);
     Progress("AST conversion took %dms",tk.show());
     Debug("after conversion %s",pu);

@@ -21,13 +21,13 @@ import vct.col.rewrite.InferADTTypes
 
 import scala.collection.JavaConverters._
 
-object PVLtoCOL2 {
+object PVLtoCOL {
   def convert(tree: ProgramContext, file_name: String, tokens: CommonTokenStream, parser: PVLParser): ProgramUnit = {
-    PVLtoCOL2(file_name, tokens, parser).convertProgram(tree)
+    PVLtoCOL(file_name, tokens, parser).convertProgram(tree)
   }
 }
 
-case class PVLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: PVLParser)
+case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLParser)
   extends ToCOL(fileName, tokens, parser) {
   def convertProgram(tree: ProgramContext): ProgramUnit = {
     val output = new ProgramUnit()

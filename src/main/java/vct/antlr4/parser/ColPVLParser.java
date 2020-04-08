@@ -11,7 +11,6 @@ import hre.tools.TimeKeeper;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTree;
 
 import vct.antlr4.generated.PVLLexer;
 import vct.antlr4.generated.PVLParser;
@@ -44,7 +43,7 @@ public class ColPVLParser implements vct.col.util.Parser {
         ec.report();
         Debug("parser got: %s",tree.toStringTree(parser));
 
-        ProgramUnit pu = PVLtoCOL2.convert(tree,file_name,tokens,parser);
+        ProgramUnit pu = PVLtoCOL.convert(tree,file_name,tokens,parser);
         Progress("AST conversion pass took %dms",tk.show());
         
         pu=new FlattenVariableDeclarations(pu).rewriteAll();

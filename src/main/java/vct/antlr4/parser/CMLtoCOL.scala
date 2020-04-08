@@ -17,13 +17,13 @@ import vct.col.ast.util.ContractBuilder
 import scala.collection.immutable.{Bag, HashedBagConfiguration}
 import scala.collection.mutable
 
-object CMLtoCOL2 {
+object CMLtoCOL {
   def convert(tree: CompilationUnitContext, file_name: String, tokens: CommonTokenStream, parser: CParser): ProgramUnit = {
-    new CMLtoCOL2(file_name, tokens, parser).convertProgram(tree)
+    new CMLtoCOL(file_name, tokens, parser).convertProgram(tree)
   }
 }
 
-class CMLtoCOL2(fileName: String, tokens: CommonTokenStream, parser: CParser)
+class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   extends ToCOL(fileName, tokens, parser)
 {
   def convertProgram(tree: CompilationUnitContext): ProgramUnit = tree match {
