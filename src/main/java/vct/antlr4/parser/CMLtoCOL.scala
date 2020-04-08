@@ -927,7 +927,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create expression(IndependentOf, expr(exp), create unresolved_name indepOf)
     case ValPrimary5("(", x, "\\memberof", xs, ")") =>
       create expression(Member, expr(x), expr(xs))
-    case ValPrimary6("[", from, "..", to, ")") =>
+    case ValPrimary6("{", from, "..", to, "}") =>
       create expression(RangeSeq, expr(from), expr(to))
     case ValPrimary7("*") =>
       create reserved_name ASTReserved.Any

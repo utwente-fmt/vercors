@@ -98,7 +98,7 @@ valPrimary
     | '\\unfolding' langExpr '\\in' langExpr
     | '(' langExpr '!' Identifier ')'
     | '(' langExpr '\\memberof' langExpr ')'
-    | '['  langExpr '..' langExpr ')'
+    | '{'  langExpr '..' langExpr '}'
     | '*'
     | '\\current_thread'
     | '(' ('\\forall*'|'\\forall'|'\\exists')
