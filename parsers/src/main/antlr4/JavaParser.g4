@@ -12,5 +12,5 @@ langType: type;
 langModifier: classOrInterfaceModifier;
 langStatement: blockStatement;
 
-startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;};
+startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};

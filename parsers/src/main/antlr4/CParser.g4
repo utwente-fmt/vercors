@@ -12,5 +12,5 @@ langType: typeSpecifier | {specLevel>0}? valType;
 langModifier: storageClassSpecifier;
 langStatement: blockItem;
 
-startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;};
+startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};

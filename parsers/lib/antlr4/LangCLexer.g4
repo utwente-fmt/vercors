@@ -351,6 +351,7 @@ PragmaDirective
         { setChannel(2); }
     ;
 
+BlockStartSpecImmediate: '/*' [ \t\u000C]* '@';
 BlockCommentStart: '/*' -> mode(COMMENT), skip;
 LineCommentStart: '//' -> mode(LINE_COMMENT), skip;
 
@@ -401,7 +402,7 @@ ExtraAt
 
 mode COMMENT;
 BlockCommentStop: '*/' -> mode(DEFAULT_MODE), skip;
-BlockStartSpec: '@' {inBlockSpec = true;} -> mode(DEFAULT_MODE);
+BlockStartSpec: ('\n'|'\r\n') [ \t\u000C]* '@' {inBlockSpec = true;} -> mode(DEFAULT_MODE);
 BlockCommentContent: .+? -> skip;
 
 mode LINE_COMMENT;
