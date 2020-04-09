@@ -242,6 +242,7 @@ typeSpecifier
     |   enumSpecifier
     |   typedefName
     |   '__typeof__' '(' constantExpression ')' // GCC extension
+    |   {specLevel>0}? valType
     ;
 
 structOrUnionSpecifier

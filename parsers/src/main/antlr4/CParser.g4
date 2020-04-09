@@ -8,7 +8,7 @@ import LangCParser, SpecParser;
 
 langExpr: expression;
 langId: clangIdentifier;
-langType: typeSpecifier | {specLevel>0}? valType;
+langType: typeSpecifier;
 langModifier: storageClassSpecifier;
 langStatement: blockItem;
 
