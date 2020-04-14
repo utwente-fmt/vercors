@@ -97,10 +97,14 @@ castExpression
 
 multiplicativeExpression
     :   castExpression
-    |   multiplicativeExpression '*' castExpression
-    |   multiplicativeExpression '/' castExpression
-    |   multiplicativeExpression '%' castExpression
-    |   multiplicativeExpression '\\' castExpression
+    |   multiplicativeExpression multiplicativeOp castExpression
+    ;
+
+multiplicativeOp
+    : '*'
+    | '/'
+    | '%'
+    | {specLevel>0}? valMulOp
     ;
 
 additiveExpression
@@ -146,15 +150,22 @@ inclusiveOrExpression
 
 logicalAndExpression
     :   inclusiveOrExpression
-    |   logicalAndExpression '&&' inclusiveOrExpression
-    |   logicalAndExpression '**' inclusiveOrExpression
+    |   logicalAndExpression logicalAndOp inclusiveOrExpression
+    ;
+
+logicalAndOp
+    : '&&'
+    | {specLevel>0}? valAndOp
     ;
 
 logicalOrExpression
     :   logicalAndExpression
-    |   logicalOrExpression '||' logicalAndExpression
-    |   logicalOrExpression '==>' logicalAndExpression
-    |   logicalOrExpression '-*' logicalAndExpression
+    |   logicalOrExpression logicalOrOp logicalAndExpression
+    ;
+
+logicalOrOp
+    : '||'
+    | {specLevel>0}? valImpOp
     ;
 
 conditionalExpression

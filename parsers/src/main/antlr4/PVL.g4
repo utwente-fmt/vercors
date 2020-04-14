@@ -5,6 +5,9 @@ import SpecParser;
     private static int ghostLevel = 0;
 }
 
+VAL_INLINE: 'inline';
+VAL_ASSERT: 'assert';
+
 langExpr: expr;
 langId: identifier;
 langType: type;

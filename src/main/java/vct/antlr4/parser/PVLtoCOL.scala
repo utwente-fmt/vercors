@@ -721,9 +721,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValStatement22(_ghost, code) =>
       flattenIfSingleStatement(convertValStat(code))
     case ValStatement23(_send, res, _to, lbl, _, thing, _) =>
-      create special(ASTSpecial.Kind.Send, expr(res), create unresolved_name lbl, expr(thing))
+      create special(ASTSpecial.Kind.Send, expr(res), convertIDName(lbl), expr(thing))
     case ValStatement24(_recv, res, _from, lbl, _, thing, _) =>
-      create special(ASTSpecial.Kind.Recv, expr(res), create unresolved_name(lbl), expr(thing))
+      create special(ASTSpecial.Kind.Recv, expr(res), convertIDName(lbl), expr(thing))
     case ValStatement25(_transfer, exp, _) =>
       ??(stat)
     case ValStatement26(_csl_subject, obj, _) =>
@@ -749,7 +749,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValPrimary3("\\unfolding", pred, "\\in", exp) =>
       create expression(Unfolding, expr(pred), expr(exp))
     case ValPrimary4("(", exp, "!", indepOf, ")") =>
-      create expression(IndependentOf, expr(exp), create unresolved_name indepOf)
+      create expression(IndependentOf, expr(exp), convertIDName(indepOf))
     case ValPrimary5("(", x, "\\memberof", xs, ")") =>
       create expression(Member, expr(x), expr(xs))
     case ValPrimary6("{", from, "..", to, "}") =>
@@ -811,17 +811,34 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create expression(MatrixCompare, expr(a), expr(b))
     case ValPrimary27("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary28("Reducible", "(", exp, _, "+", ")") =>
-      create expression(ReducibleSum, expr(exp))
-    case ValPrimary28("Reducible", "(", exp, _, "min", ")") =>
-      create expression(ReducibleMin, expr(exp))
-    case ValPrimary28("Reducible", "(", exp, _, "max", ")") =>
-      create expression(ReducibleMax, expr(exp))
+    case ValPrimary28("Reducible", "(", exp, _, opNode, ")") =>
+      val opText = opNode match {
+        case ValReducibleOperator0("+") => "+"
+        case ValReducibleOperator1(id) => convertID(id)
+      }
+      create expression(opText match {
+        case "+" => ReducibleSum
+        case "min" => ReducibleMin
+        case "max" => ReducibleMax
+      }, expr(exp))
     case ValPrimary29(label, _, exp) =>
       val res = expr(exp)
       res.addLabel(create label(convertID(label)))
       res
   })
+
+  def convertValOp(op: ValImpOpContext): StandardOperator = op match {
+    case ValImpOp0("-*") => StandardOperator.Wand
+    case ValImpOp1("==>") => StandardOperator.Implies
+  }
+
+  def convertValOp(op: ValAndOpContext): StandardOperator = op match {
+    case ValAndOp0("**") => StandardOperator.Star
+  }
+
+  def convertValOp(op: ValMulOpContext): StandardOperator = op match {
+    case ValMulOp0("\\") => StandardOperator.Div
+  }
 
   def convertValReserved(reserved: ValReservedContext): NameExpression = origin(reserved, reserved match {
     case ValReserved0(_) =>

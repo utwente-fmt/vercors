@@ -601,20 +601,18 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def expr(exp: LogicalOrExpressionContext): ASTNode = origin(exp, exp match {
     case LogicalOrExpression0(andExp) => expr(andExp)
-    case LogicalOrExpression1(left, "||", right) =>
+    case LogicalOrExpression1(left, LogicalOrOp0("||"), right) =>
       create expression(StandardOperator.Or, expr(left), expr(right))
-    case LogicalOrExpression2(left, "==>", right) =>
-      create expression(StandardOperator.Implies, expr(left), expr(right))
-    case LogicalOrExpression3(left, "-*", right) =>
-      create expression(Wand, expr(left), expr(right))
+    case LogicalOrExpression1(left, LogicalOrOp1(valOp), right) =>
+      create expression(convertValOp(valOp), expr(left), expr(right))
   })
 
   def expr(exp: LogicalAndExpressionContext): ASTNode = origin(exp, exp match {
     case LogicalAndExpression0(orExp) => expr(orExp)
-    case LogicalAndExpression1(left, "&&", right) =>
+    case LogicalAndExpression1(left, LogicalAndOp0("&&"), right) =>
       create expression(StandardOperator.And, expr(left), expr(right))
-    case LogicalAndExpression2(left, "**", right) =>
-      create expression(StandardOperator.Star, expr(left), expr(right))
+    case LogicalAndExpression1(left, LogicalAndOp1(valOp), right) =>
+      create expression(convertValOp(valOp), expr(left), expr(right))
   })
 
   def expr(exp: InclusiveOrExpressionContext): ASTNode = origin(exp, exp match {
@@ -673,14 +671,14 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def expr(exp: MultiplicativeExpressionContext): ASTNode = origin(exp, exp match {
     case MultiplicativeExpression0(cast) => expr(cast)
-    case MultiplicativeExpression1(left, "*", right) =>
+    case MultiplicativeExpression1(left, MultiplicativeOp0("*"), right) =>
       create expression(StandardOperator.Mult, expr(left), expr(right))
-    case MultiplicativeExpression2(left, "/", right) =>
+    case MultiplicativeExpression1(left, MultiplicativeOp1("/"), right) =>
       create expression(StandardOperator.FloorDiv, expr(left), expr(right))
-    case MultiplicativeExpression3(left, "%", right) =>
+    case MultiplicativeExpression1(left, MultiplicativeOp2("%"), right) =>
       create expression(StandardOperator.Mod, expr(left), expr(right))
-    case MultiplicativeExpression4(left, "\\", right) =>
-      create expression(StandardOperator.Div, expr(left), expr(right))
+    case MultiplicativeExpression1(left, MultiplicativeOp3(valOp), right) =>
+      create expression(convertValOp(valOp), expr(left), expr(right))
   })
 
   def expr(exp: CastExpressionContext): ASTNode = origin(exp, exp match {
@@ -776,7 +774,6 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertType(t: LangTypeContext): Type = t match {
     case LangType0(t) => convertType(t)
-    case LangType1(valType) => convertValType(valType)
   }
 
   def convertType(t: TypeSpecifierContext): Type = {
@@ -896,9 +893,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValStatement22(_ghost, code) =>
       flattenIfSingleStatement(convertValStat(code))
     case ValStatement23(_send, res, _to, lbl, _, thing, _) =>
-      create special(ASTSpecial.Kind.Send, expr(res), create unresolved_name lbl, expr(thing))
+      create special(ASTSpecial.Kind.Send, expr(res), convertIDName(lbl), expr(thing))
     case ValStatement24(_recv, res, _from, lbl, _, thing, _) =>
-      create special(ASTSpecial.Kind.Recv, expr(res), create unresolved_name(lbl), expr(thing))
+      create special(ASTSpecial.Kind.Recv, expr(res), convertIDName(lbl), expr(thing))
     case ValStatement25(_transfer, exp, _) =>
       ??(stat)
     case ValStatement26(_csl_subject, obj, _) =>
@@ -924,7 +921,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValPrimary3("\\unfolding", pred, "\\in", exp) =>
       create expression(Unfolding, expr(pred), expr(exp))
     case ValPrimary4("(", exp, "!", indepOf, ")") =>
-      create expression(IndependentOf, expr(exp), create unresolved_name indepOf)
+      create expression(IndependentOf, expr(exp), convertIDName(indepOf))
     case ValPrimary5("(", x, "\\memberof", xs, ")") =>
       create expression(Member, expr(x), expr(xs))
     case ValPrimary6("{", from, "..", to, "}") =>
@@ -986,17 +983,34 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create expression(MatrixCompare, expr(a), expr(b))
     case ValPrimary27("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary28("Reducible", "(", exp, _, "+", ")") =>
-      create expression(ReducibleSum, expr(exp))
-    case ValPrimary28("Reducible", "(", exp, _, "min", ")") =>
-      create expression(ReducibleMin, expr(exp))
-    case ValPrimary28("Reducible", "(", exp, _, "max", ")") =>
-      create expression(ReducibleMax, expr(exp))
+    case ValPrimary28("Reducible", "(", exp, _, opNode, ")") =>
+      val opText = opNode match {
+        case ValReducibleOperator0("+") => "+"
+        case ValReducibleOperator1(id) => convertID(id)
+      }
+      create expression(opText match {
+        case "+" => ReducibleSum
+        case "min" => ReducibleMin
+        case "max" => ReducibleMax
+      }, expr(exp))
     case ValPrimary29(label, _, exp) =>
       val res = expr(exp)
       res.addLabel(create label(convertID(label)))
       res
   })
+
+  def convertValOp(op: ValImpOpContext): StandardOperator = op match {
+    case ValImpOp0("-*") => StandardOperator.Wand
+    case ValImpOp1("==>") => StandardOperator.Implies
+  }
+
+  def convertValOp(op: ValAndOpContext): StandardOperator = op match {
+    case ValAndOp0("**") => StandardOperator.Star
+  }
+
+  def convertValOp(op: ValMulOpContext): StandardOperator = op match {
+    case ValMulOp0("\\") => StandardOperator.Div
+  }
 
   def convertValReserved(reserved: ValReservedContext): NameExpression = origin(reserved, reserved match {
     case ValReserved0(_) =>

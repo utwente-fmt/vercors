@@ -72,8 +72,8 @@ valStatement
  | 'refute' langExpr ';'
  | 'witness' langExpr ';'
  | 'ghost' langStatement
- | 'send' langExpr 'to' Identifier ',' langExpr ';'
- | 'recv' langExpr 'from' Identifier ',' langExpr ';'
+ | 'send' langExpr 'to' langId ',' langExpr ';'
+ | 'recv' langExpr 'from' langId ',' langExpr ';'
  | 'transfer' langExpr ';'
  | 'csl_subject' langExpr ';'
  | 'spec_ignore' '}'
@@ -91,12 +91,16 @@ valWithThen
  | 'then' '{' valWithThenMapping* '}'
  ;
 
+valImpOp: '-*' | '==>';
+valAndOp: '**';
+valMulOp: '\\';
+
 valPrimary
     : langType '{' valExpressionList? '}'
     | '[' langExpr ']' langExpr
     | '|' langExpr '|'
     | '\\unfolding' langExpr '\\in' langExpr
-    | '(' langExpr '!' Identifier ')'
+    | '(' langExpr '!' langId ')'
     | '(' langExpr '\\memberof' langExpr ')'
     | '{'  langExpr '..' langExpr '}'
     | '*'
@@ -122,13 +126,23 @@ valPrimary
     | '\\msum' '(' langExpr ',' langExpr ')'
     | '\\mcmp' '(' langExpr ',' langExpr ')'
     | '\\mrep' '(' langExpr ')'
-    | 'Reducible' '(' langExpr ',' ('+' | Identifier ) ')'
+    | 'Reducible' '(' langExpr ',' valReducibleOperator ')'
     | langId ':' langExpr
     ;
 
+valReducibleOperator
+    : '+'
+    | langId
+    ;
+
 valReserved
- : ('create' | 'action' | 'destroy' | 'send' | 'recv' | 'use' | 'open' | 'close'
-        | 'atomic'  | 'from' | 'merge' | 'split' | 'process' | 'apply' | 'label')
+ : (VAL_INLINE | VAL_ASSERT | VAL_RESOURCE | VAL_PROCESS | VAL_FRAC | VAL_ZFRAC | VAL_BOOL | VAL_RATIONAL | VAL_SEQ
+    | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS | VAL_AXIOM | VAL_MODIFIES
+    | VAL_ACCESSIBLE | VAL_REQUIRES | VAL_ENSURES | VAL_CONTEXT_EVERYWHERE | VAL_CONTEXT | VAL_LOOP_INVARIANT
+    | VAL_CREATE | VAL_QED | VAL_APPLY | VAL_USE | VAL_DESTROY | VAL_SPLIT | VAL_MERGE | VAL_CHOOSE | VAL_FOLD
+    | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS
+    | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE
+    | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE)
  | '\\result'
  | '\\current_thread'
  | 'none' // No permission

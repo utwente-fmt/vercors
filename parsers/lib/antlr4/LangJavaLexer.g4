@@ -8,6 +8,9 @@ import SpecLexer;
 
 // LEXER
 
+VAL_INLINE    : 'inline';
+VAL_ASSERT    : EOF EOF;
+
 // §3.9 Keywords
 
 ABSTRACT      : 'abstract';
@@ -409,7 +412,7 @@ ELLIPSIS : '...';
 
 FileName : '"' ~[\r\n"]* '"' ;
 
-BlockStartSpecImmediate: '/*' [ \t\u000C]* '@';
+BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
 BlockCommentStart: '/*' -> mode(COMMENT), skip;
 LineCommentStart: '//' -> mode(LINE_COMMENT), skip;
 

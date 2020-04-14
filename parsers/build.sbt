@@ -12,6 +12,28 @@ lazy val parsers = (project in file(".")).settings(
         val log = streams.value.log
 
         val compileSets: Seq[(java.io.File, Boolean, Set[java.io.File])] = Seq(
+            /* Use these compilation sets to test that language tokens are not accidentally only defined in the
+               specification grammar:
+            (lib / "SpecLexer.g4", false, Set()),
+            (lib / "LangCLexer.g4", false,
+              Set(lib / "TestNoSpecLexer.g4")),
+            (lib / "LangJavaLexer.g4", false,
+              Set(lib / "TestNoSpecLexer.g4")),
+            (src / "PVL.g4", true,
+              Set(lib / "TestNoSpecParser.g4", lib / "TestNoSpecLexer.g4")),
+            (src / "CParser.g4", true,
+              Set(lib / "TestNoSpecParser.g4", lib / "TestNoSpecLexer.g4",
+                  lib / "LangCParser.g4", lib / "LangCLexer.g4")),
+            (src / "JavaParser.g4", true,
+              Set(lib / "TestNoSpecParser.g4", lib / "TestNoSpecLexer.g4",
+                  lib / "LangJavaParser.g4", lib / "LangJavaLexer.g4")),
+             */
+
+            /* Use this compilation set to test that language tokens are not necessary for the specification grammar:
+            (src / "TestNoLang.g4", true,
+              Set(lib / "SpecParser.g4", lib / "SpecLexer.g4")),
+             */
+
             (lib / "LangCLexer.g4", false,
               Set(lib / "SpecLexer.g4")),
             (lib / "LangJavaLexer.g4", false,

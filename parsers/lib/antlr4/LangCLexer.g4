@@ -6,6 +6,9 @@ import SpecLexer;
     private static boolean inLineSpec = false;
 }
 
+VAL_INLINE: EOF EOF;
+VAL_ASSERT: 'assert';
+
 Placeholder : EOF EOF ;
 
 Auto : 'auto';
@@ -24,6 +27,7 @@ Float : 'float';
 For : 'for';
 Goto : 'goto';
 If : 'if';
+Inline: 'inline';
 Int : 'int';
 Long : 'long';
 Register : 'register';
@@ -351,7 +355,7 @@ PragmaDirective
         { setChannel(2); }
     ;
 
-BlockStartSpecImmediate: '/*' [ \t\u000C]* '@';
+BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
 BlockCommentStart: '/*' -> mode(COMMENT), skip;
 LineCommentStart: '//' -> mode(LINE_COMMENT), skip;
 

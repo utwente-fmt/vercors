@@ -270,9 +270,10 @@ enumConstantName
     ;
 
 type
-    :   classOrInterfaceType dims?
+    // The specification types must go first, to prevent something like "Class not found: resource"
+    :   {specLevel>0}? valType
+    |   classOrInterfaceType dims?
     |   primitiveType dims?
-    |   {specLevel>0}? valType
     ;
 
 typeOrVoid
@@ -568,7 +569,7 @@ expression
     |   expression ('++' | '--')
     |   ('+'|'-'|'++'|'--') expression
     |   ('~'|'!') expression
-    |   expression ('*'|'/'|'\\'|'%') expression
+    |   expression mulOp expression
     |   expression ('+'|'-') expression
     |   expression ('<' '<' | '>' '>' '>' | '>' '>') expression
     |   expression ('<=' | '>=' | '>' | '<') expression
@@ -577,9 +578,9 @@ expression
     |   expression '&' expression
     |   expression '^' expression
     |   expression '|' expression
-    |   expression ('&&'|'**') expression
+    |   expression andOp expression
     |   expression '||' expression
-    |   expression ('==>'|'-*')  expression
+    |   expression impOp  expression
     |   expression '?' expression ':' expression
     |   <assoc=right> expression
         (   '='
@@ -598,6 +599,17 @@ expression
         expression
     ;
 predicateEntryType: '@' javaIdentifier; // TODO: Find correct class type
+mulOp
+    : ('*'|'/'|'%')
+    | {specLevel>0}? valMulOp
+    ;
+andOp
+    : ('&&')
+    | {specLevel>0}? valAndOp
+    ;
+impOp
+    : {specLevel>0}? valImpOp
+    ;
 
 primary
     :   '(' expression ')'
