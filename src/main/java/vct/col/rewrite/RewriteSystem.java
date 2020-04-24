@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.langspecific.*;
 import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -396,6 +397,36 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
 
   @Override
   public Boolean map(CFunctionType t, ASTNode a) {
+    return null;
+  }
+
+  @Override
+  public Boolean map(OMPParallel parallel, ASTNode arg) {
+    return null;
+  }
+
+  @Override
+  public Boolean map(OMPSection section, ASTNode arg) {
+    return null;
+  }
+
+  @Override
+  public Boolean map(OMPSections sections, ASTNode arg) {
+    return null;
+  }
+
+  @Override
+  public Boolean map(OMPFor loop, ASTNode arg) {
+    return null;
+  }
+
+  @Override
+  public Boolean map(OMPParallelFor loop, ASTNode arg) {
+    return null;
+  }
+
+  @Override
+  public Boolean map(OMPForSimd loop, ASTNode arg) {
     return null;
   }
 

@@ -16,6 +16,7 @@ import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.langspecific.*;
 import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.langspecific.c.ParamSpec;
 import vct.col.ast.stmt.composite.*;
@@ -902,5 +903,41 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       paramSpecs.add(new ParamSpec(newType, spec.name()));
     }
     result = new CFunctionType(JavaConverters.asScalaBuffer(paramSpecs), returnType);
+  }
+
+  @Override
+  public void visit(OMPParallel parallel) {
+    result = new OMPParallel(rewrite(parallel.block()), parallel.options(), rewrite(parallel.contract()));
+    result.setOrigin(parallel.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPSection section) {
+    result = new OMPSection(rewrite(section.block()));
+    result.setOrigin(section.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPSections sections) {
+    result = new OMPSections(rewrite(sections.block()));
+    result.setOrigin(sections.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPFor loop) {
+    result = new OMPFor(rewrite(loop.loop()), loop.options());
+    result.setOrigin(loop.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPParallelFor loop) {
+    result = new OMPParallelFor(rewrite(loop.loop()), loop.options());
+    result.setOrigin(loop.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPForSimd loop) {
+    result = new OMPForSimd(rewrite(loop.loop()), loop.options());
+    result.setOrigin(loop.getOrigin());
   }
 }

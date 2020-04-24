@@ -52,7 +52,7 @@ lazy val vercors = (project in file("."))
     scalacOptions in ThisBuild += "-deprecation",
     scalacOptions in ThisBuild += "-feature",
     scalacOptions in ThisBuild += "-unchecked",
-    scalacOptions in ThisBuild += "-Dscalac.patmat.analysisBudget=off",
+    scalacOptions in ThisBuild ++= Seq("-Ypatmat-exhaust-depth", "off"),
 
     javacOptions in ThisBuild += "-Xlint:deprecation",
     javacOptions in ThisBuild += "-Xlint:unchecked",

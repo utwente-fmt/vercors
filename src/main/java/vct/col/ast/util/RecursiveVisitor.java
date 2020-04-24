@@ -4,6 +4,7 @@ import java.util.List;
 
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
+import vct.col.ast.langspecific.*;
 import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.langspecific.c.ParamSpec;
 import vct.col.ast.stmt.composite.Switch.Case;
@@ -410,6 +411,37 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
         dispatch(param.t().get());
       }
     }
+  }
+
+  @Override
+  public void visit(OMPParallel parallel) {
+    dispatch(parallel.contract());
+    dispatch(parallel.block());
+  }
+
+  @Override
+  public void visit(OMPSection section) {
+    dispatch(section.block());
+  }
+
+  @Override
+  public void visit(OMPSections sections) {
+    dispatch(sections.block());
+  }
+
+  @Override
+  public void visit(OMPFor loop) {
+    dispatch(loop.loop());
+  }
+
+  @Override
+  public void visit(OMPParallelFor loop) {
+    dispatch(loop.loop());
+  }
+
+  @Override
+  public void visit(OMPForSimd loop) {
+    dispatch(loop.loop());
   }
 
   @Override

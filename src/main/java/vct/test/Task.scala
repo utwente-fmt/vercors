@@ -62,6 +62,14 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
             }
           }
 
+          if(line.contains("The final verdict is Error")) {
+            verdict = verdict match {
+              case Verdict.Inconclusive | Verdict.Error =>
+                Verdict.Error
+              case other => return Seq(InconsistentVerdict(other, Verdict.Error))
+            }
+          }
+
           if(line.startsWith("method verdict")) {
             val parts = line.split(" ")
             parts(3) match {

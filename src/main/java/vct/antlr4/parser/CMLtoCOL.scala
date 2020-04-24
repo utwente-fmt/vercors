@@ -1,18 +1,19 @@
 package vct.antlr4.parser
 
-import hre.lang.System._
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.CParser
 import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
-import vct.col.ast.`type`.{ASTReserved, FunctionType, PrimitiveSort, Type}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
+import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{NameExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.langspecific.c.{CFunctionType, ParamSpec}
-import vct.col.ast.stmt.composite.BlockStatement
+import vct.col.ast.langspecific._
+import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationStatement, ProgramUnit}
-import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.util.ContractBuilder
+import vct.col.util.SequenceUtils
 
 import scala.collection.immutable.{Bag, HashedBagConfiguration}
 import scala.collection.mutable
@@ -131,7 +132,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       convertParams(params)
     case ParameterTypeList1(params, ",", "...") =>
       convertParams(params) :+
-        ParamSpec(Some(create primitive_type PrimitiveSort.CVarArgs), None)
+        ParamSpec(Some(create primitive_type PrimitiveSort.CVarArgs), Some("..."))
   }
 
   def convertParams(tree: ParameterListContext): Seq[ParamSpec] = tree match {
@@ -191,7 +192,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       decls.map(decl => {
         val (initVal, innerDecl) = decl match {
           case InitDeclarator0(decl) => (None, decl)
-          case InitDeclarator1(decl, "=", init) => (Some(expr(init)), decl)
+          case InitDeclarator1(decl, "=", init) => (Some(init), decl)
         }
         val (direct, ptr) = innerDecl match {
           case Declarator0(maybePtr, decl, _) => (decl, maybePtr)
@@ -207,7 +208,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
             create method_decl(ret, contract, name, params.toArray, null)
           case _ =>
             failIfDefined(maybeContract, "Contract not allowed in this place.")
-            create field_decl(null, name, t, initVal.orNull)
+            create field_decl(null, name, t, initVal.map(convertInitializer(_, t)).orNull)
         }
       })
     case Declaration1(staticAssert) =>
@@ -457,9 +458,12 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       convertOverlappingValReservedName(reservedOutSpec)
   })
 
-  def convertStat(statement: CompoundStatementContext): BlockStatement = origin(statement, statement match {
+  def convertStat(statement: CompoundStatementContext): ASTNode = origin(statement, statement match {
     case CompoundStatement0("{", maybeBlock, "}") =>
       create block(maybeBlock.map(convertStatList).getOrElse(Seq()):_*)
+    case CompoundStatement1(ompPragma, "{", maybeContract, maybeBlock, "}") =>
+      val block = origin(statement, create block(maybeBlock.map(convertStatList).getOrElse(Seq()):_*))
+      convertOmpBlock(ompPragma, block, getContract(convertValContract(maybeContract)))
   })
 
   def convertStatList(block: BlockItemListContext): Seq[ASTNode] = block match {
@@ -487,6 +491,33 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case Statement5(jump) => convertStat(jump)
     case ext: Statement6Context => ??(ext)
   })
+
+  def convertOmpBlock(pragma: OmpBlockPragmaContext, block: BlockStatement, contract: Contract): ASTNode = origin(pragma, pragma match {
+    case OmpBlockPragma0("parallel", options) => OMPParallel(block, options.map(convertOmpOption), contract)
+    case OmpBlockPragma1("section") => OMPSection(block)
+    case OmpBlockPragma2("sections") => OMPSections(block)
+  })
+
+  def convertOmpLoop(pragma: OmpLoopPragmaContext, loop: LoopStatement): ASTNode = origin(pragma, pragma match {
+    case OmpLoopPragma0("for", options) => OMPFor(loop, options.map(convertOmpOption))
+    case OmpLoopPragma1("parallel", "for", options) => OMPParallelFor(loop, options.map(convertOmpOption))
+    case OmpLoopPragma2("for", "simd", options) => OMPForSimd(loop, options.map(convertOmpOption))
+  })
+
+  def convertOmpOption(option: OmpOptionContext): OMPOption = option match {
+    case OmpOption0("nowait") => OMPNoWait
+    case OmpOption1("private", "(", ids, ")") => OMPPrivate(convertOmpIdList(ids))
+    case OmpOption2("shared", "(", ids, ")") => OMPShared(convertOmpIdList(ids))
+    case OmpOption3("schedule", "(", "static", ")") => OMPSchedule(OMPStatic)
+    case OmpOption4("simdlen", "(", len, ")") => OMPSimdLen(Integer.parseInt(len))
+    case OmpOption5("num_threads", "(", n, ")") => OMPNumThreads(Integer.parseInt(n))
+    case OmpOption6("reduction", "(", reductionOp, ":", ids, ")") => ??(option)
+  }
+
+  def convertOmpIdList(tree: OmpIdListContext): Seq[String] = tree match {
+    case OmpIdList0(x) => Seq(x)
+    case OmpIdList1(x, _, xs) => x +: convertOmpIdList(xs)
+  }
 
   def convertStat(labeled: LabeledStatementContext): ASTNode = labeled match {
     case LabeledStatement0(label, ":", statNode) =>
@@ -522,24 +553,32 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create while_loop(expr(cond), convertStat(body), contract)
     case IterationStatement1("do", _, "while", _, _, _, _) =>
       ??(iteration)
-    case IterationStatement2(maybeContract1, "for", _, maybeInit, _, maybeCond, _, maybeUpdate, _, maybeContract2, body) =>
+    case IterationStatement2(maybeContract1, maybeOmp, "for", _, maybeInit, _, maybeCond, _, maybeUpdate, _, maybeContract2, body) =>
       val contract = getContract(convertValContract(maybeContract1), convertValContract(maybeContract2))
-      create for_loop(
+      val loop = create for_loop(
         maybeInit.map(expr).orNull,
         maybeCond.map(expr).orNull,
         maybeUpdate.map(expr).orNull,
         convertStat(body),
         contract
       )
-    case IterationStatement3(maybeContract1, "for", _, init, maybeCond, _, maybeUpdate, _, maybeContract2, body) =>
+      maybeOmp match {
+        case None => loop
+        case Some(pragma) => convertOmpLoop(pragma, loop)
+      }
+    case IterationStatement3(maybeContract1, maybeOmp, "for", _, init, maybeCond, _, maybeUpdate, _, maybeContract2, body) =>
       val contract = getContract(convertValContract(maybeContract1), convertValContract(maybeContract2))
-      create for_loop(
+      val loop = create for_loop(
         create block(convertDecl(init):_*),
         maybeCond.map(expr).orNull,
         maybeUpdate.map(expr).orNull,
         convertStat(body),
         contract
       )
+      maybeOmp match {
+        case None => loop
+        case Some(pragma) => convertOmpLoop(pragma, loop)
+      }
   }
 
   def convertStat(jump: JumpStatementContext): ASTNode = jump match {
@@ -554,6 +593,33 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case JumpStatement4("goto", _, _) =>
       ??(jump) // GCC extended goto's unsupported
   }
+
+  def convertInitializer(init: InitializerContext, t: Type): ASTNode = origin(init, init match {
+    case Initializer0(exp) => expr(exp)
+    case Initializer1("{", xs, "}") =>
+      convertInitializerList(xs, t)
+    case Initializer2("{", xs, _, "}") =>
+      convertInitializerList(xs, t)
+  })
+
+  def convertInitializerList(xs: InitializerListContext, t: Type): ASTNode = {
+    val seqInfo = SequenceUtils.getTypeInfoOrFail(t, "Array initializer is only applicable to array type")
+    val value = create struct_value(seqInfo.getSequenceType, null, convertInitializerListToSeq(xs, seqInfo.getElementType):_*)
+    if(seqInfo.isOpt) {
+      create expression(StandardOperator.OptionSome, value)
+    } else {
+      value
+    }
+  }
+
+  def convertInitializerListToSeq(xs: InitializerListContext, t: Type): Seq[ASTNode] = origin(xs, xs match {
+    case InitializerList0(designation, x) =>
+      failIfDefined(designation, "This designation is syntactically correct, but not supported by VerCors")
+      Seq(convertInitializer(x, t))
+    case InitializerList1(xs, _, designation, x) =>
+      failIfDefined(designation, "This designation is syntactically correct, but not supported by VerCors")
+      convertInitializerListToSeq(xs, t) :+ convertInitializer(x, t)
+  })
 
   def expr(exp: LangExprContext): ASTNode = exp match {
     case LangExpr0(e) => expr(e)
@@ -753,7 +819,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       // Floats are also tokenized as this const, so we should distinguish here
       create constant const.toInt
     case PrimaryExpression2(strings) =>
-      ??(exp)
+      // Pretty sure this completely ignores escape sequences, but we don't support strings anyway...
+      create constant strings.mkString("")
     case PrimaryExpression3("(", exp, ")") => expr(exp)
     case PrimaryExpression4(genericSelection) =>
       ??(genericSelection)

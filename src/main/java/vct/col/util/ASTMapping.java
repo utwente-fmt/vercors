@@ -4,6 +4,7 @@ import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.langspecific.*;
 import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
@@ -108,4 +109,11 @@ public interface ASTMapping<R> {
   public R map(Synchronized sync);
 
   public R map(CFunctionType t);
+
+  public R map(OMPParallel parallel);
+  public R map(OMPSection section);
+  public R map(OMPSections sections);
+  public R map(OMPFor loop);
+  public R map(OMPParallelFor loop);
+  public R map(OMPForSimd loop);
 }

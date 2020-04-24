@@ -1,5 +1,5 @@
 lexer grammar LangCLexer;
-import SpecLexer;
+import SpecLexer, LangOMPLexer;
 
 @lexer::members {
     private static boolean inBlockSpec = false;
@@ -350,10 +350,13 @@ LineDirective
         { setChannel(2); }
     ;
 
+/*
+used by OMP
 PragmaDirective
     :   '#' Whitespace? 'pragma' Whitespace ~[\r\n]*
         { setChannel(2); }
     ;
+*/
 
 BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
 BlockCommentStart: '/*' -> mode(COMMENT), skip;

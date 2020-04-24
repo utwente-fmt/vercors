@@ -28,6 +28,7 @@
 
 /** C 2011 grammar built from the C11 Spec */
 parser grammar C;
+import LangOMPParser;
 
 primaryExpression
     :   clangIdentifier
@@ -487,6 +488,7 @@ labeledStatement
 
 compoundStatement
     :   '{' blockItemList? '}'
+    |   ompBlockPragma '{' valEmbedContract? blockItemList? '}'
     ;
 
 blockItemList
@@ -515,8 +517,8 @@ elseBranch: 'else' statement;
 iterationStatement
     :   valEmbedContract? 'while' '(' expression ')' valEmbedContract? statement
     |   'do' statement 'while' '(' expression ')' ';'
-    |   valEmbedContract? 'for' '(' expression? ';' expression? ';' expression? ')' valEmbedContract? statement
-    |   valEmbedContract? 'for' '(' declaration expression? ';' expression? ')' valEmbedContract? statement
+    |   valEmbedContract? ompLoopPragma? 'for' '(' expression? ';' expression? ';' expression? ')' valEmbedContract? statement
+    |   valEmbedContract? ompLoopPragma? 'for' '(' declaration expression? ';' expression? ')' valEmbedContract? statement
     ;
 
 jumpStatement

@@ -7,6 +7,7 @@ import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.langspecific.*;
 import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
@@ -176,5 +177,35 @@ public class AbstractVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override
   public void visit(CFunctionType t) {
     visit_any(t);
+  }
+
+  @Override
+  public void visit(OMPParallel parallel) {
+    visit_any(parallel);
+  }
+
+  @Override
+  public void visit(OMPSection section) {
+    visit_any(section);
+  }
+
+  @Override
+  public void visit(OMPSections sections) {
+    visit_any(sections);
+  }
+
+  @Override
+  public void visit(OMPFor loop) {
+    visit_any(loop);
+  }
+
+  @Override
+  public void visit(OMPParallelFor loop) {
+    visit_any(loop);
+  }
+
+  @Override
+  public void visit(OMPForSimd loop) {
+    visit_any(loop);
   }
 }
