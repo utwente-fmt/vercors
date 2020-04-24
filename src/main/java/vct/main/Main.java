@@ -790,7 +790,6 @@ public class Main
     });
     defined_passes.put("check",new CompilerPass("run a basic type check"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        arg.toString();
         new SimpleTypeCheck(arg).check();
         return arg;
       }

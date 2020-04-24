@@ -230,6 +230,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case class StructOrUnionTypeSpec(tree: StructOrUnionSpecifierContext) extends TypeSpec
     // Unsupported: case class EnumTypeSpec(obj: Any) extends TypeSpec
     case class TypedefNameTypeSpec(name: String) extends TypeSpec
+    case class ValTypeSpec(t: Type) extends TypeSpec
 
     // Scala magic that can be safely ignored: needed to use bags ("multisets")
     private implicit val m1: HashedBagConfiguration[PrimitiveTypeSpec] = Bag.configuration.compact[PrimitiveTypeSpec]
@@ -376,10 +377,12 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     def add(tree: TypeSpecifierContext): Unit = tree match {
       case TypeSpecifier0(primitive) => _typeSpec += PrimitiveTypeSpec(primitive)
       case TypeSpecifier1("__extension__", _, _, _) => ??(tree)
-      case TypeSpecifier2(atomic) => ??(atomic)
-      case TypeSpecifier3(structOrUnion) => _typeSpec += StructOrUnionTypeSpec(structOrUnion)
-      case TypeSpecifier4(enum) => ??(enum)
-      case TypeSpecifier5(TypedefName0(id)) => _typeSpec += TypedefNameTypeSpec(convertID(id))
+      case TypeSpecifier2(valType) => _typeSpec += ValTypeSpec(convertValType(valType))
+      case TypeSpecifier3(atomic) => ??(atomic)
+      case TypeSpecifier4(structOrUnion) => _typeSpec += StructOrUnionTypeSpec(structOrUnion)
+      case TypeSpecifier5(enum) => ??(enum)
+      case TypeSpecifier6(TypedefName0(id)) => _typeSpec += TypedefNameTypeSpec(convertID(id))
+      case TypeSpecifier7("__typeof__", _, _, _) => ??(tree)
     }
 
     def add(tree: TypeQualifierContext): Unit = {
@@ -413,6 +416,12 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
         return Left("Function specifiers such as inline are not supported.")
       }
 
+      if(typeSpec.size == 1) {
+        typeSpec.head match {
+          case ValTypeSpec(t) => return Right(t)
+          case _ =>
+        }
+      }
 
       val primitive = primitiveTypeSets.get(typeSpec) match {
         case None =>

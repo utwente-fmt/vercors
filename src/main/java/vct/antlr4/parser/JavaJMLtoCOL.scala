@@ -605,6 +605,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         val anonDims = maybeAnonDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
         val knownDims = exprList(specDims)
         create expression(NewArray, convertType(t, knownDims.size + anonDims), knownDims.toArray)
+      case (t, CreatorRest1(ClassCreatorRest0(arguments, maybeBody))) =>
+        create new_object(convertType(t).asInstanceOf[ClassType], exprList(arguments):_*)
     }
 
     case Expression10("(", t, ")", exp) => create expression(Cast, convertType(t), expr(exp))
