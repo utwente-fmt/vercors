@@ -350,6 +350,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case FormalParameter0(Seq(), t, declaratorName) =>
       val (name, extraDims) = convertDeclaratorName(declaratorName)
       create field_decl(name, convertType(t, extraDims))
+    case VarargsFormalParameter0(Seq(mod, _*), _, _, _) =>
+      ??(mod)
+    case VarargsFormalParameter0(Seq(), t, "...", declaratorName) =>
+      val (name, extraDims) = convertDeclaratorName(declaratorName)
+      create field_decl(name, convertType(t, extraDims))
   })
 
   def convertDeclaratorName(decl: VariableDeclaratorIdContext): (String, Int) = decl match {

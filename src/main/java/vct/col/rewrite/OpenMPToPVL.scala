@@ -7,6 +7,7 @@ import vct.col.ast.langspecific._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
+import vct.col.util.FeatureScanner
 
 class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
   /* AST of parallel blocks than can be fused, or composed in parallel or sequentially. */
@@ -264,5 +265,41 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
 
   override def visit(fr: OMPFor): Unit = {
     throw Failure("omp for cannot be at the top level");
+  }
+
+  def tryParallel(loop: LoopStatement): Option[(Seq[DeclarationStatement], ASTNode, Contract)] = {
+    getParDeclFromLoop(loop) match {
+      case None => None
+      case Some((name, t, start, end)) =>
+        val decl = create field_decl(name, t, create expression(StandardOperator.RangeSeq, start, end))
+        
+        if(FeatureScanner.isIterationContract(loop.getContract)) {
+          Some((Seq(decl), loop.getBody, loop.getContract))
+        } else if(loop.getContract == null || loop.getContract.isEmpty) {
+          val body = loop.getBody match {
+            case block: BlockStatement if block.size == 1 => block.get(0)
+            case other => other
+          }
+          body match {
+            case loop: LoopStatement => tryParallel(loop) match {
+              case Some((decls, body, contract)) =>
+                Some((decl +: decls, body, contract))
+              case None => None
+            }
+            case _ => None
+          }
+        } else {
+          None
+        }
+    }
+  }
+
+  override def visit(loop: LoopStatement): Unit = {
+    tryParallel(loop) match {
+      case Some((decls, body, contract)) =>
+        result = create region(null, create parallel_block("auto", contract, decls.toArray, body.asInstanceOf[BlockStatement]))
+      case None =>
+        super.visit(loop)
+    }
   }
 }

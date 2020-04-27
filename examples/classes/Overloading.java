@@ -1,4 +1,4 @@
-f// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases JavaOverloading
 //:: tools silicon
 

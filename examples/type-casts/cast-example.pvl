@@ -1,7 +1,9 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases CastExamplePVL
 //:: tools silicon
-//:: verdict Pass
+//:: verdict Error
+
+// Casts are as of yet unsupported in PVL
 
 class C {
 	requires \typeof(this) == C;
