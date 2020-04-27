@@ -228,7 +228,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(typeParams) // generics are not supported.
     case ClassDeclaration0("class", name, None, maybeExtends, maybeImplements, ClassBody0(_, decls, _)) =>
       val ext = maybeExtends match {
-        case None => Seq()
+        case None => Seq(create class_type Array("java", "lang", "Object"))
         case Some(Ext0(_, t)) => Seq(convertType(t) match {
           case t: ClassType => t
           case resolvedType => fail(t, "Can only extend from a class type, but found %s", resolvedType)
