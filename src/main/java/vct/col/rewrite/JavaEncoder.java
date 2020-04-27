@@ -318,6 +318,7 @@ public class JavaEncoder extends AbstractRewriter {
     if (!m.isValidFlag(ASTFlags.FINAL)){
       m.setFlag(ASTFlags.FINAL, false);
     }
+    ASTClass definingClass = (ASTClass)m.getParent();
     ASTClass cls;
     // anything starting in a class named Atomic.... is inlined by CSL encoding.
     // uncomment the following lines if there is a problem with that....
@@ -337,13 +338,14 @@ public class JavaEncoder extends AbstractRewriter {
         Method tmp=cls.find(m.name(),null,arg_type);
         if (tmp!=null){
           m=tmp;
+          definingClass = cls;
           continue;
         }
       }
       break;
     }
     if (m != orig) return false;
-    return cls.getFlag(ASTFlags.FINAL) || m.getFlag(ASTFlags.FINAL);
+    return definingClass.getFlag(ASTFlags.FINAL) || m.getFlag(ASTFlags.FINAL);
   }
 
   private Hashtable<Method,Contract> contract_table = new Hashtable<Method,Contract>();
