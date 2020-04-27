@@ -5,7 +5,7 @@
 //:: option --check-history
 
 public class Future {/*@
-  boolean flag;
+  ghost boolean flag;
   
   accessible flag; //skip(all)
   requires flag;
@@ -35,11 +35,11 @@ class Device {
   ensures Future(F,1,F.nsar());
 @*/
   public Device() {
-    /*@
+    /*@ghost {
       F = new Future();
       F.flag = true;
       create F, F.nsar();
-    @*/
+    }@*/
   }
 
 /*@
@@ -65,7 +65,7 @@ class Device {
 }
 
 class Lock {
-  //@ Device d;
+  //@ ghost Device d;
   
   boolean flag;
   
@@ -122,7 +122,7 @@ class Reader {
       //@ choose d.F,1\2,d.F.rs(),d.F.clear()*d.F.rs(); //skip(run)
       { //@ action d.F,1\2,d.F.rs(),d.F.clear();
         l.flag=false;
-        //@ d.F.flag=false;
+        //@ ghost d.F.flag=false;
       }
       //@ choose d.F,1\2,d.F.rs(),d.F.receive()*d.F.rs(); //skip(run)
       d.receive()

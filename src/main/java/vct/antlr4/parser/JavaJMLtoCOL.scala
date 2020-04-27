@@ -681,7 +681,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Primary3(Literal0(s)) => create constant Integer.parseInt(s)
     case Primary3(Literal1(s)) => ??(tree) // float
     case Primary3(Literal2(s)) => ??(tree) // character
-    case Primary3(Literal3(s)) => ??(tree) // string
+    // Pretty sure this completely ignores escape sequences, but we don't support strings anyway...
+    // See also CMLtoCOL PrimaryExpression2
+    case Primary3(Literal3(s)) => create constant s
     case Primary3(Literal4(s)) => create constant s.equals("true")
     case Primary3(Literal5("null")) => create reserved_name(ASTReserved.Null)
     case Primary4(name) => convertIDName(name)
@@ -819,8 +821,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create special ASTSpecial.Kind.SpecIgnoreEnd
     case ValStatement28(_spec_ignore, "{") =>
       create special ASTSpecial.Kind.SpecIgnoreStart
-    case action: ValStatement29Context =>
-      ??(action)
+    case ValStatement29(_action, arg1, _, arg2, _, arg3, _, arg4, map, _) =>
+      if(!map.isEmpty) {
+        ??(map(0))
+      }
+      create action_block(expr(arg1), expr(arg2), expr(arg3), expr(arg4), Map().asJava, null)
     case ValStatement30(_atomic, _, resList, _, stat) =>
       create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValLabelList).getOrElse(Seq()):_*)
   })

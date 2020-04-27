@@ -829,6 +829,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create constant const.toInt
     case PrimaryExpression2(strings) =>
       // Pretty sure this completely ignores escape sequences, but we don't support strings anyway...
+      // See also JavaJMLtoCOL Literal3
       create constant strings.mkString("")
     case PrimaryExpression3("(", exp, ")") => expr(exp)
     case PrimaryExpression4(genericSelection) =>

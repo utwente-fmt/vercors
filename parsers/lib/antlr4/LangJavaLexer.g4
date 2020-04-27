@@ -412,14 +412,16 @@ ELLIPSIS : '...';
 
 FileName : '"' ~[\r\n"]* '"' ;
 
-BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
-BlockCommentStart: '/*' -> mode(COMMENT), skip;
-LineCommentStart: '//' -> mode(LINE_COMMENT), skip;
-
 EndSpec
     : {inBlockSpec}? '@'? '*/' {inBlockSpec = false;}
     | {inLineSpec}? ('\n'|'\r\n') {inLineSpec = false;}
     ;
+
+LineCommentStartInSpec: {inLineSpec}? '//' {inLineSpec=false;} -> mode(LINE_COMMENT);
+
+BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
+BlockCommentStart: '/*' -> mode(COMMENT), skip;
+LineCommentStart: '//' -> mode(LINE_COMMENT), skip;
 
 EmbeddedLatex
     : '#' ~[\r\n]* '#' -> skip

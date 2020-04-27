@@ -78,9 +78,11 @@ valStatement
  | 'csl_subject' langExpr ';'
  | 'spec_ignore' '}'
  | 'spec_ignore' '{'
- | 'action' langExpr ',' langExpr ',' langExpr ',' langExpr ( ',' langExpr ',' langExpr )* ';'
+ | 'action' langExpr ',' langExpr ',' langExpr ',' langExpr valActionMap* ';'
  | 'atomic' '(' valLabelList? ')' langStatement
  ;
+
+valActionMap: ',' langExpr ',' langExpr;
 
 valWithThenMapping
  : langId '=' langExpr ';'
