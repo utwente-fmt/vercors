@@ -85,9 +85,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       // This is a block that is executed on class load if "static" is present, otherwise
       // the code block is executed on every instance creation (prior to constructors, I think)
       ??(decl)
-    case ClassBodyDeclaration2(valEmbed) =>
-      convertValDecl(valEmbed)
-    case ClassBodyDeclaration3(maybeContract, mods, member) =>
+    case ClassBodyDeclaration2(maybeContract, mods, member) =>
       val decls = convertDecl(member)
       val contract = getContract(convertValContract(maybeContract))
       decls.foreach(decl => {
@@ -100,6 +98,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         }
       })
       decls
+    case ClassBodyDeclaration3(valEmbed) =>
+      convertValDecl(valEmbed)
     case ClassBodyDeclaration4(valDecl) =>
       Seq(convertValDecl(valDecl))
     case InterfaceBodyDeclaration0(mods, member) =>
@@ -1031,6 +1031,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       func
     case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
       create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
+    case ValDeclaration2("ghost", t, name, _) =>
+      create field_decl(convertID(name), convertType(t))
   })
 
   def convertValDecl(decl: ValEmbedDeclarationBlockContext): Seq[ASTDeclaration] = decl match {

@@ -160,6 +160,7 @@ valType
 valDeclaration
  : valContractClause* valModifier* langType langId '(' valArgList? ')' valPredicateDef
  | 'axiom' langId '{' langExpr '==' langExpr '}'
+ | 'ghost' langType langId ';'
  ;
 
 valPredicateDef

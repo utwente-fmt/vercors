@@ -129,11 +129,11 @@ final class Queue {
   Integer try_deq(){
     Node n1,n2; boolean tmp; Integer res=null;
     n1=head.get();
-    n2=n1.next.get()/*@ with {
-      lemma_readable_or_last(this.begin,n1); } @*/;
+    n2=n1.next.get();
+    //@ ghost lemma_readable_or_last(this.begin,n1);
     if (n2!=null) {
-      tmp=head.compareAndSet(n1,n2)/*@ with {
-        if (head.val==n1) { unfold chain(head.val,last); } } @*/;
+      tmp=head.compareAndSet(n1,n2);
+      //@ ghost if (head.val==n1) { unfold chain(head.val,last); }
       if(tmp){ res=new Integer(n2.val); }
     }
     return res; }
@@ -170,12 +170,12 @@ final class Queue {
   boolean try_enq(Node nn){
     Node n1,n2; boolean res=false;
     n1=tail.get();
-    n2=n1.next.get()/*@ with {
-      lemma_readable_or_last(this.begin,n1); } @*/;
+    n2=n1.next.get();
+    //@ ghost lemma_readable_or_last(this.begin,n1);
     if (n2==null) {
-      res=n1.next.compareAndSet(null,nn)/*@
-        with { lemma_readable_or_last(this.begin,n1); }
-        then { if (\result) { lemma_shift_last(n1,nn); } } @*/;
+      res=n1.next.compareAndSet(null,nn);
+      //@ ghost lemma_readable_or_last(this.begin,n1);
+      //@ ghost if(res) { lemma_shift_last(n1,nn); }
     } else { tail.compareAndSet(n1,n2); }
     return res; }
 

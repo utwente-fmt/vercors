@@ -151,8 +151,8 @@ interfaceBody
 classBodyDeclaration
     :   ';'
     |   'static'? block
-    |   valEmbedDeclarationBlock
     |   valEmbedContract? modifier* memberDeclaration
+    |   valEmbedDeclarationBlock
     |   {specLevel>0}? valDeclaration
     ;
 

@@ -944,6 +944,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       func
     case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
       create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
+    case ValDeclaration2("ghost", t, name, _) =>
+      create field_decl(convertID(name), convertType(t))
   })
 
   def convertValDecl(decl: ValEmbedDeclarationBlockContext): Seq[ASTDeclaration] = decl match {
