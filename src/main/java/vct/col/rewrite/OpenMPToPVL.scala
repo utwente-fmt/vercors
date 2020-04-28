@@ -274,7 +274,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
         val decl = create field_decl(name, t, create expression(StandardOperator.RangeSeq, start, end))
 
         if(FeatureScanner.isIterationContract(loop.getContract)) {
-          Some((Seq(decl), loop.getBody, loop.getContract))
+          Some((Seq(decl), rewrite(loop.getBody), loop.getContract))
         } else if(loop.getContract == null || loop.getContract.isEmpty) {
           val body = loop.getBody match {
             case block: BlockStatement if block.size == 1 => block.get(0)
