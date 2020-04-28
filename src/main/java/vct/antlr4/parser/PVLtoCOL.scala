@@ -927,6 +927,11 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValModifier1(langMod) => convertModifier(langMod)
   })
 
+  def convertValModifiers(modifiers: ValEmbedModifiersContext): Seq[NameExpression] = origin(modifiers, modifiers match {
+    case ValEmbedModifiers0(_, mods, _) =>
+      mods.map(convertValModifier)
+  })
+
   def convertValDecl(decl: ValDeclarationContext): ASTDeclaration = origin(decl, decl match {
     case ValDeclaration0(clauses, mods, t, name, _, args, _, body) =>
       val contract = getContract(clauses.map(convertValClause):_*)

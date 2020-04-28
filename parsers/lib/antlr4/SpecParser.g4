@@ -207,3 +207,7 @@ valEmbedWithThen
 valEmbedDeclarationBlock
  : startSpec valDeclaration* endSpec
  ;
+
+valEmbedModifiers
+ : startSpec valModifier* endSpec
+ ;

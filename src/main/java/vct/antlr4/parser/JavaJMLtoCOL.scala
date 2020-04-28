@@ -89,7 +89,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       val decls = convertDecl(member)
       val contract = getContract(convertValContract(maybeContract))
       decls.foreach(decl => {
-        mods.map(convertModifier).foreach(mod => decl.attach(mod))
+        mods.map(convertModifier).foreach(mods => mods.foreach (mod => decl.attach(mod)))
         decl match {
           case method: Method => method.setContract(contract)
           case other if maybeContract.isDefined =>
@@ -104,7 +104,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       Seq(convertValDecl(valDecl))
     case InterfaceBodyDeclaration0(mods, member) =>
       val decls = convertDecl(member)
-      decls.foreach(decl => mods.map(convertModifier).foreach(mod => decl.attach(mod)))
+      decls.foreach(decl => mods.map(convertModifier).foreach(mods => mods.foreach (mod => decl.attach(mod))))
       decls
 
     case MemberDeclaration0(fwd) => convertDecl(fwd)
@@ -171,14 +171,15 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Resources1(x, _, xs) => convertResource(x) +: convertResourceList(xs)
   })
 
-  def convertModifier(modifier: ModifierContext): NameExpression = origin(modifier, modifier match {
-    case Modifier0(mod) => convertModifier(mod)
-    case Modifier1(mod) => mod match {
+  def convertModifier(modifier: ModifierContext): Seq[NameExpression] = origin(modifier, modifier match {
+    case Modifier0(mod) => Seq(convertModifier(mod))
+    case Modifier1(mod) => Seq(mod match {
       case "native" => ??(modifier)
-      case "synchronized" => create reserved_name (ASTReserved.Synchronized)
+      case "synchronized" => create reserved_name ASTReserved.Synchronized
       case "transient" => ??(modifier)
-      case "volatile" => create reserved_name (ASTReserved.Volatile)
-    }
+      case "volatile" => create reserved_name ASTReserved.Volatile
+    })
+    case Modifier2(valMods) => convertValModifiers(valMods)
   })
 
   def convertModifier(modifier: ClassOrInterfaceModifierContext): NameExpression = origin(modifier, modifier match {
@@ -479,18 +480,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       }
     case Statement15(";") =>
       create block() //nop
-    case Statement16(exp, withThen, _) =>
-      val res = expr(exp)
-      withThen match {
-        case None => res
-        case Some(block) => res match {
-          case invokation: BeforeAfterAnnotations =>
-            invokation.set_after(create block(convertValWithThen(block):_*))
-            res
-          case _ =>
-            fail(block, "Cannot apply before/after annotations to expression of this kind")
-        }
-      }
+    case Statement16(exp, _) =>
+      expr(exp)
     case Statement17(label, ":", stat) =>
       val res = convertStat(stat)
       res.addLabel(create label convertID(label))
@@ -586,18 +577,24 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
           create expression(NEQ, obj, create reserved_name ASTReserved.Null),
         create invokation(obj, null, convertID(predicate), exprList(args):_*)
       )
-    case Expression8(_, Some(predicateEntryType), _) =>
+    case Expression8(_, Some(predicateEntryType), _, _) =>
       // the predicate entry type is set as dispatch of an invokation
       ??(tree)
-    case Expression8(obj, None, argsNode) =>
+    case Expression8(obj, None, argsNode, maybeWithThen) =>
       val args = exprList(argsNode)
-      expr(obj) match {
+      val res = expr(obj) match {
         case name: NameExpression =>
           create invokation(null, null, name.getName, args:_*)
         case deref: Dereference =>
           create invokation(deref.obj, null, deref.field, args:_*)
         case _ => ??(tree)
       }
+      maybeWithThen match {
+        case None =>
+        case Some(block) =>
+            res.set_after(create block(convertValWithThen(block):_*))
+      }
+      res
     case Expression9("new", Creator0(typeArgs, _, _)) =>
       ??(typeArgs) // generics are unsupported
     case Expression9("new", Creator1(name, creator)) => (name, creator) match {
@@ -1017,6 +1014,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       case "thread_local" => create reserved_name(ASTReserved.ThreadLocal)
     }
     case ValModifier1(langMod) => convertModifier(langMod)
+  })
+
+  def convertValModifiers(modifiers: ValEmbedModifiersContext): Seq[NameExpression] = origin(modifiers, modifiers match {
+    case ValEmbedModifiers0(_, mods, _) =>
+      mods.map(convertValModifier)
   })
 
   def convertValDecl(decl: ValDeclarationContext): ASTDeclaration = origin(decl, decl match {

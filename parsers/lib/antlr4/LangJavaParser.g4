@@ -69,6 +69,7 @@ modifier
         |   'transient'
         |   'volatile'
         )
+    |   valEmbedModifiers
     ;
 
 classOrInterfaceModifier
@@ -470,7 +471,7 @@ statement
     |   'break' javaIdentifier? ';'
     |   'continue' javaIdentifier? ';'
     |   ';'
-    |   statementExpression valEmbedWithThen? ';'
+    |   statementExpression ';'
     |   javaIdentifier ':' statement
     |   {specLevel>0}? valStatement
     ;
@@ -563,7 +564,7 @@ expression
     |   expression '.' explicitGenericInvocation
     |   expression '[' expression ']'
     |   expression '->' javaIdentifier arguments
-    |   expression predicateEntryType? arguments
+    |   expression predicateEntryType? arguments valEmbedWithThen?
     |   'new' creator
     |   '(' type ')' expression
     |   expression ('++' | '--')
