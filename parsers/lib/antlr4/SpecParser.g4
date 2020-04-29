@@ -162,7 +162,7 @@ valType
 valDeclaration
  : valContractClause* valModifier* langType langId '(' valArgList? ')' valPredicateDef
  | 'axiom' langId '{' langExpr '==' langExpr '}'
- | 'ghost' langType langId ';'
+ | valContractClause* 'ghost' langDecl
  ;
 
 valPredicateDef
@@ -190,14 +190,17 @@ valEmbedContract: valEmbedContractBlock+;
 
 valEmbedContractBlock
  : startSpec valContractClause* endSpec
+ | {specLevel>0}? valContractClause+
  ;
 
 valEmbedStatementBlock
  : startSpec valStatement* endSpec
+ | {specLevel>0}? valStatement+
  ;
 
 valEmbedWithThenBlock
  : startSpec valWithThen* endSpec
+ | {specLevel>0}? valWithThen+
  ;
 
 valEmbedWithThen
@@ -210,4 +213,5 @@ valEmbedDeclarationBlock
 
 valEmbedModifiers
  : startSpec valModifier* endSpec
+ | {specLevel>0}? valModifier+
  ;

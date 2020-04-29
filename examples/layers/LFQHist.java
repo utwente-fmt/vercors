@@ -8,7 +8,7 @@
  */
 
 final class History {/*@
-    seq<int> q;
+    ghost seq<int> q;
 
     modifies q;
     ensures  q==\old(q)+seq<int>{e};

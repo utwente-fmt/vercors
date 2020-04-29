@@ -43,6 +43,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     output
   }
 
+  def convertDecl(tree: LangDeclContext): ASTDeclaration = ???
+
   def convertDecl(tree: ParserRuleContext): Seq[ASTDeclaration] = tree match {
     case ProgramDecl0(claz) => Seq(convertClass(claz))
     case ProgramDecl1(kernel) => Seq(convertKernel(kernel))
@@ -732,8 +734,11 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create special ASTSpecial.Kind.SpecIgnoreEnd
     case ValStatement28(_spec_ignore, "{") =>
       create special ASTSpecial.Kind.SpecIgnoreStart
-    case action: ValStatement29Context =>
-      ??(action)
+    case ValStatement29(_action, arg1, _, arg2, _, arg3, _, arg4, map, _) =>
+      if(map.nonEmpty) {
+        ??(map.head)
+      }
+      create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
       create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValLabelList).getOrElse(Seq()):_*)
   })
@@ -949,8 +954,19 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       func
     case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
       create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
-    case ValDeclaration2("ghost", t, name, _) =>
-      create field_decl(convertID(name), convertType(t))
+    case ValDeclaration2(clauses, "ghost", langDecl) =>
+      val decl = convertDecl(langDecl)
+      if(clauses.nonEmpty) {
+        decl match {
+          case method: Method =>
+            method.setContract(getContract(clauses.map(convertValClause):_*))
+            method
+          case _ =>
+            fail(langDecl, "This constructor cannot have contract declarations")
+        }
+      } else {
+        decl
+      }
   })
 
   def convertValDecl(decl: ValEmbedDeclarationBlockContext): Seq[ASTDeclaration] = decl match {

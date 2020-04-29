@@ -11,7 +11,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.langspecific.c.{CFunctionType, ParamSpec}
 import vct.col.ast.langspecific._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
-import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationStatement, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
 import vct.col.util.SequenceUtils
 
@@ -39,6 +39,16 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   def convertTranslationUnits(tree: TranslationUnitContext): Seq[ASTDeclaration] = tree match {
     case TranslationUnit0(decl) => convertDecl(decl)
     case TranslationUnit1(units, decl) => convertTranslationUnits(units) ++ convertDecl(decl)
+  }
+
+  def convertDecl(decl: LangDeclContext): ASTDeclaration = decl match {
+    case LangDecl0(funcDecl) =>
+      val xs = convertDecl(funcDecl)
+      if(xs.size == 1) {
+        xs.head
+      } else {
+        ??(decl)
+      }
   }
 
   def convertDecl(tree: ExternalDeclarationContext): Seq[ASTDeclaration] = tree match {
@@ -981,8 +991,11 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create special ASTSpecial.Kind.SpecIgnoreEnd
     case ValStatement28(_spec_ignore, "{") =>
       create special ASTSpecial.Kind.SpecIgnoreStart
-    case action: ValStatement29Context =>
-      ??(action)
+    case ValStatement29(_action, arg1, _, arg2, _, arg3, _, arg4, map, _) =>
+      if(map.nonEmpty) {
+        ??(map.head)
+      }
+      create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
       create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValLabelList).getOrElse(Seq()):_*)
   })
@@ -1198,8 +1211,19 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       func
     case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
       create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
-    case ValDeclaration2("ghost", t, name, _) =>
-      create field_decl(convertID(name), convertType(t))
+    case ValDeclaration2(clauses, "ghost", langDecl) =>
+      val decl = convertDecl(langDecl)
+      if(clauses.nonEmpty) {
+        decl match {
+          case method: Method =>
+            method.setContract(getContract(clauses.map(convertValClause):_*))
+            method
+          case _ =>
+            fail(langDecl, "This constructor cannot have contract declarations")
+        }
+      } else {
+        decl
+      }
   })
 
   def convertValDecl(decl: ValEmbedDeclarationBlockContext): Seq[ASTDeclaration] = decl match {

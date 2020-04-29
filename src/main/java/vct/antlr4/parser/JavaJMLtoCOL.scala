@@ -65,6 +65,17 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case LangId0(id) => convertIDName(id)
   })
 
+  def convertDecl(decl: LangDeclContext): ASTDeclaration = decl match {
+    case LangDecl0(mods, member) =>
+      val decls = convertDecl(member)
+      if(decls.size == 1) {
+        mods.map(convertModifier).foreach(_.foreach(mod => decls.head.attach(mod)))
+        decls.head
+      } else {
+        ??(decl)
+      }
+  }
+
   def convertDecl(decl: ParserRuleContext): Seq[ASTDeclaration] = origin(decl, decl match {
     case TypeDeclaration0(mods, classDecl) =>
       val cls = convertClass(classDecl)
@@ -819,10 +830,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValStatement28(_spec_ignore, "{") =>
       create special ASTSpecial.Kind.SpecIgnoreStart
     case ValStatement29(_action, arg1, _, arg2, _, arg3, _, arg4, map, _) =>
-      if(!map.isEmpty) {
-        ??(map(0))
+      if(map.nonEmpty) {
+        ??(map.head)
       }
-      create action_block(expr(arg1), expr(arg2), expr(arg3), expr(arg4), Map().asJava, null)
+      create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
       create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValLabelList).getOrElse(Seq()):_*)
   })
@@ -1038,8 +1049,19 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       func
     case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
       create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
-    case ValDeclaration2("ghost", t, name, _) =>
-      create field_decl(convertID(name), convertType(t))
+    case ValDeclaration2(clauses, "ghost", langDecl) =>
+      val decl = convertDecl(langDecl)
+      if(clauses.nonEmpty) {
+        decl match {
+          case method: Method =>
+            method.setContract(getContract(clauses.map(convertValClause):_*))
+            method
+          case _ =>
+            fail(langDecl, "This constructor cannot have contract declarations")
+        }
+      } else {
+        decl
+      }
   })
 
   def convertValDecl(decl: ValEmbedDeclarationBlockContext): Seq[ASTDeclaration] = decl match {

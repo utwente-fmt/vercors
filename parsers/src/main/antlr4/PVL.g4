@@ -2,7 +2,7 @@ grammar PVL;
 import SpecParser;
 
 @parser::members {
-    private static int ghostLevel = 0;
+    private static int specLevel = 1;
 }
 
 VAL_INLINE: 'inline';
@@ -13,6 +13,7 @@ langId: identifier;
 langType: type;
 langModifier: modifier;
 langStatement: statement;
+langDecl: EOF EOF;
 
 program  : programDecl* block? EOF ;
 

@@ -11,6 +11,15 @@ langId: javaIdentifier;
 langType: type;
 langModifier: classOrInterfaceModifier;
 langStatement: blockStatement;
+langDecl: modifier* memberDeclaration;
 
-startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
-endSpec: EndSpec {specLevel--;} | LineCommentStartInSpec {specLevel--;};
+startSpec
+    : LineStartSpec {specLevel++;}
+    | BlockStartSpec {specLevel++;}
+    | BlockStartSpecImmediate {specLevel++;}
+    ;
+
+endSpec
+    : EndSpec {specLevel--;}
+    | LineCommentStartInSpec {specLevel--;}
+    ;

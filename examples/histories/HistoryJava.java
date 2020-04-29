@@ -22,11 +22,11 @@ class History {
 
   requires n >= 0 ;
   ensures  single(n)==(n>0?single(n-1)*incr():empty);
-  void lemma(int n);
+  ghost void lemma(int n);
   
   requires m>=0 && n >= 0 ;
   ensures single(m)*single(n)==single(m+n);
-  void single_axiom(int m,int n);
+  ghost void single_axiom(int m,int n);
   @*/
   
 }
