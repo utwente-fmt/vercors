@@ -992,7 +992,11 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       }
       create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
-      create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()):_*)
+      create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()).map {
+        case name: NameExpression if name.getKind == NameExpression.Kind.Unresolved =>
+          create label name.getName
+        case other => other
+      }:_*)
   })
 
   def valExpr(exp: ValPrimaryContext): ASTNode = origin(exp, exp match {
