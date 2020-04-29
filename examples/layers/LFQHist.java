@@ -84,7 +84,7 @@ final class Queue {
     requires Value(hist) ** PointsTo(hist_active,1\2,true);
     ensures Value(hist)  ** PointsTo(hist_active,1\2,false)
       ** HPerm(hist.q,1);
-  void end_history(){
+  ghost void end_history(){
     atomic ( this ) {
       hist_active=false;
     }
@@ -96,8 +96,8 @@ final class Queue {
      ensures Value(this.hist) ** this.hist == hist
         ** PointsTo(hist_active,1\2,true); @*/
   public Queue(){
-    //@ this.hist=hist;
-    //@ hist_active=true;
+    //@ ghost this.hist=hist;
+    //@ ghost hist_active=true;
     begin=new Node();
     begin.next=new AtomicNode(null);
     head=new AtomicNode(begin);

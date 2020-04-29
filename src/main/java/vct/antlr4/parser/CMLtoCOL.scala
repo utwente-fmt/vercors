@@ -925,6 +925,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   def convertValStat(stat: ValEmbedStatementBlockContext): Seq[ASTNode] = origin(stat, stat match {
     case ValEmbedStatementBlock0(_startSpec, stats, _endSpec) =>
       stats.map(convertValStat)
+    case ValEmbedStatementBlock1(stats) =>
+      stats.map(convertValStat)
   })
 
   def convertValStat(stat: LangStatementContext): Seq[ASTNode] = origin(stat, stat match {
@@ -1155,6 +1157,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       for(clause <- clauses) {
         convertValClause(clause)(builder)
       }
+    case ValEmbedContractBlock1(clauses) =>
+      for(clause <- clauses) {
+        convertValClause(clause)(builder)
+      }
   }
 
   def convertValType(t: ValTypeContext): Type = origin(t, t match {
@@ -1191,6 +1197,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertValModifiers(modifiers: ValEmbedModifiersContext): Seq[NameExpression] = origin(modifiers, modifiers match {
     case ValEmbedModifiers0(_, mods, _) =>
+      mods.map(convertValModifier)
+    case ValEmbedModifiers1(mods) =>
       mods.map(convertValModifier)
   })
 
@@ -1246,6 +1254,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertValWithThen(withThen: ValEmbedWithThenBlockContext): Seq[ASTNode] = withThen match {
     case ValEmbedWithThenBlock0(_, mappings, _) => mappings.map(convertValWithThen)
+    case ValEmbedWithThenBlock1(mappings) => mappings.map(convertValWithThen)
   }
 
   def convertValWithThen(withThen: ValEmbedWithThenContext): Seq[ASTNode] = withThen match {

@@ -9,7 +9,7 @@ public class Future {/*@
   
   accessible flag; //skip(all)
   requires flag;
-  process send();
+  process p_send();
   
   accessible flag; //skip(all)
   requires !flag;  //skip(all)
@@ -21,7 +21,7 @@ public class Future {/*@
   
   requires true; //skip(all)
   ensures true;  //skip(all)
-  process nsar()=send()*nsar()+clear()*rs();
+  process nsar()=p_send()*nsar()+clear()*rs();
   
   process rs()=clear()*rs()+receive()*rs();
 
@@ -46,7 +46,7 @@ class Device {
   given frac p; //skip(all)
   given process P; //skip(all)
   requires p!=none ** Value(F); //skip(all)
-  requires HPerm(F.flag,p) ** F.flag ** Future(F,p,F.send()*P);
+  requires HPerm(F.flag,p) ** F.flag ** Future(F,p,F.p_send()*P);
   ensures  p!=none ** Value(F); //skip(all)
   ensures HPerm(F.flag,p) ** F.flag ** Future(F,p,P);
 @*/
@@ -97,7 +97,7 @@ class Sender {
 @*/ while(true){
       l.lock();
       if (l.flag){
-        //@ choose d.F,1\2,d.F.nsar(),d.F.send()*d.F.nsar(); //skip(run)
+        //@ choose d.F,1\2,d.F.nsar(),d.F.p_send()*d.F.nsar(); //skip(run)
         d.send()
             /*@ with { p=1\2; P=d.F.nsar();} @*/; //skip(run)
       }
