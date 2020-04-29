@@ -109,12 +109,12 @@ final class Queue {
     //@ fold chain(begin,last,hist.q);
   }
 
-  //@ boolean hist_active;
-  //@ History hist;
-  //@ Node begin;
+  //@ ghost boolean hist_active;
+  //@ ghost History hist;
+  //@ ghost Node begin;
   AtomicNode head;
   AtomicNode tail;
-  //@ Node last;
+  //@ ghost Node last;
 
   /*@
     // n is a final link in the history list.
@@ -199,22 +199,16 @@ final class Queue {
   Integer try_deq(){
     Node n1,n2; boolean tmp; Integer res=null;
     n1=head.get();
-    n2=n1.next.get()/*@
-    with {
-      lemma_readable_or_last(this.begin,n1);
-    }
-    @*/;
+    //@ ghost lemma_readable_or_last(this.begin,n1);
+    n2=n1.next.get();
     if (n2!=null) {
-      tmp=head.compareAndSet(n1,n2)/*@
-      with {
-        if (head.ref==n1) {
-          unfold chain(n1,last,hist.q);
-//begin(actionblock)
- { action hist, p , P, hist.get(n2.val); hist.q=tail(hist.q); }
-//end(actionblock)
-        }
-      }
-      @*/;
+      /*@ ghost if (head.ref==n1) {
+        unfold chain(n1,last,hist.q);
+        //begin(actionblock)
+        { action hist, p , P, hist.get(n2.val); hist.q=tail(hist.q); }
+        //end(actionblock)
+      } */
+      tmp=head.compareAndSet(n1,n2);
       if(tmp) { res=new Integer(n2.val); }
     }
     return res;
@@ -259,20 +253,17 @@ final class Queue {
   boolean try_enq(Node nn){
     Node n1,n2; boolean res=false; int val;
     n1=tail.get();
-    n2=n1.next.get()/*@ with {
-      lemma_readable_or_last(this.begin,n1);
-    } @*/;
+    //@ ghost lemma_readable_or_last(this.begin,n1);
+    n2=n1.next.get();
     if (n2==null) {
-      res=n1.next.compareAndSet(null,nn)/*@ with {
-          lemma_readable_or_last(this.begin,n1);
-        } then {
-          if (\result) {
-            val=nn.val;
-            lemma_shift_last(n1,nn);
-            { action hist, p, P, hist.put(\old(nn.val));
-              hist.q=hist.q+seq<int>{\old(nn.val)}; }
-          }
-        } @*/;
+      //@ ghost lemma_readable_or_last(this.begin,n1);
+      res=n1.next.compareAndSet(null,nn);
+      /*@ ghost if (\result) {
+        val=nn.val;
+        lemma_shift_last(n1,nn);
+        { action hist, p, P, hist.put(\old(nn.val));
+          hist.q=hist.q+seq<int>{\old(nn.val)}; }
+      } */
     } else {
       tail.compareAndSet(n1,n2);
     }

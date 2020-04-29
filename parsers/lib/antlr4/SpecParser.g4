@@ -27,11 +27,6 @@ valExpressionList
     | langExpr ',' valExpressionList
     ;
 
-valLabelList
-    : langId
-    | langId ',' valLabelList
-    ;
-
 valContractClause
  : 'modifies' valExpressionList ';'
  | 'accessible' valExpressionList ';'
@@ -79,7 +74,7 @@ valStatement
  | 'spec_ignore' '}'
  | 'spec_ignore' '{'
  | 'action' langExpr ',' langExpr ',' langExpr ',' langExpr valActionMap* ';'
- | 'atomic' '(' valLabelList? ')' langStatement
+ | 'atomic' '(' valExpressionList? ')' langStatement
  ;
 
 valActionMap: ',' langExpr ',' langExpr;

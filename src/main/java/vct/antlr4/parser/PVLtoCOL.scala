@@ -632,13 +632,6 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       expr(exp) +: convertValExpList(expList)
   }
 
-  def convertValLabelList(args: ValLabelListContext): Seq[ASTNode] = args match {
-    case ValLabelList0(label) =>
-      Seq(create label(convertID(label)))
-    case ValLabelList1(label, _, labels) =>
-      (create label convertID(label)) +: convertValLabelList(labels)
-  }
-
   def convertValClause(clause: ValContractClauseContext) = (builder: ContractBuilder) => clause match {
     case ValContractClause0(_modifies, names, _) =>
       builder.modifies(convertValExpList(names):_*)
@@ -742,7 +735,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       }
       create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
-      create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValLabelList).getOrElse(Seq()):_*)
+      create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()):_*)
   })
 
   def valExpr(exp: ValPrimaryContext): ASTNode = origin(exp, exp match {
