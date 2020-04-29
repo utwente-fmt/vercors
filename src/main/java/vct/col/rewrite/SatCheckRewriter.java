@@ -7,14 +7,10 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.Type;
 import vct.col.util.OriginWrapper;
 
@@ -43,6 +39,17 @@ public class SatCheckRewriter extends AbstractRewriter {
 
     public SatCheckRewriter(ProgramUnit source) {
         super(source);
+    }
+
+    public void visit(ASTClass cls) {
+        for(Method method : cls.dynamicMethods()) {
+            if(method.getReturnType().isPrimitive(PrimitiveSort.Process)) {
+                result = copy_rw.rewrite(cls);
+                return;
+            }
+        }
+
+        super.visit(cls);
     }
 
     @Override
