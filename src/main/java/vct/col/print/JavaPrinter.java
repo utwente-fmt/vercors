@@ -12,6 +12,9 @@ import java.util.Map.Entry;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
+import vct.col.ast.langspecific.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -76,7 +79,14 @@ public class JavaPrinter extends AbstractPrinter {
     for (CatchClause cb : tcb.catches()) {
       out.print("catch (");
       nextExpr();
-      cb.decl().accept(this);
+      boolean first = true;
+      for(Type t : cb.javaCatchTypes()) {
+        if(!first) out.print(" | ");
+        t.accept(this);
+        first = false;
+      }
+      out.print(" ");
+      out.print(cb.name());
       out.print(")");
       cb.block().accept(this);
     }
@@ -1314,7 +1324,7 @@ public class JavaPrinter extends AbstractPrinter {
     };
     
     out.printf(")");
-    visit(pa.block());
+    pa.block().accept(this);
   }
 
   @Override
@@ -1460,5 +1470,90 @@ public class JavaPrinter extends AbstractPrinter {
     
     out.print(")");
     c.block().accept(this);
+  }
+
+  private void visitNames(Seq<String> names) {
+    boolean first = true;
+    for(String name : JavaConverters.asJavaIterable(names)) {
+      if(!first) out.print(", ");
+      first = false;
+      out.print(name);
+    }
+  }
+
+  private void visitOmpOptions(Seq<OMPOption> options) {
+    for(OMPOption option : JavaConverters.asJavaIterable(options)) {
+      out.print(" ");
+      if(option instanceof OMPNoWait$) {
+        out.print("nowait");
+      } else if(option instanceof OMPPrivate) {
+        out.print("private(");
+        visitNames(((OMPPrivate) option).names());
+        out.print(")");
+      } else if(option instanceof OMPShared) {
+        out.print("shared(");
+        visitNames(((OMPShared) option).names());
+        out.print(")");
+      } else if(option instanceof OMPSimdLen) {
+        out.printf("simdlen(%d)", ((OMPSimdLen) option).len());
+      } else if(option instanceof OMPNumThreads) {
+        out.printf("num_threads(%d)", ((OMPNumThreads) option).len());
+      } else if(option instanceof OMPSchedule) {
+        out.print("schedule(");
+        OMPScheduleChoice choice = ((OMPSchedule) option).schedule();
+        if(choice instanceof OMPStatic$) {
+          out.print("static");
+        } else {
+          out.print("??");
+        }
+        out.print(")");
+      } else {
+        out.print("??");
+      }
+    }
+  }
+
+  @Override
+  public void visit(OMPParallel parallel) {
+    out.print("#pragma omp parallel");
+    visitOmpOptions(parallel.options());
+    out.newline();
+    parallel.block().accept(this);
+  }
+
+  @Override
+  public void visit(OMPSection section) {
+    out.println("#pragma omp section");
+    section.block().accept(this);
+  }
+
+  @Override
+  public void visit(OMPSections sections) {
+    out.println("#pragma omp sections");
+    sections.block().accept(this);
+  }
+
+  @Override
+  public void visit(OMPFor loop) {
+    out.print("#pragma omp for");
+    visitOmpOptions(loop.options());
+    out.newline();
+    loop.loop().accept(this);
+  }
+
+  @Override
+  public void visit(OMPParallelFor loop) {
+    out.print("#pragma omp parallel for");
+    visitOmpOptions(loop.options());
+    out.newline();
+    loop.loop().accept(this);
+  }
+
+  @Override
+  public void visit(OMPForSimd loop) {
+    out.print("#pragma omp for simd");
+    visitOmpOptions(loop.options());
+    out.newline();
+    loop.loop().accept(this);
   }
 }

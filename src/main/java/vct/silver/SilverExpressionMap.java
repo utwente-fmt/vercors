@@ -14,6 +14,8 @@ import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.langspecific.*;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
@@ -526,5 +528,50 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(Switch s) {
     return null;
   }
-  
+
+  @Override
+  public E map(TryWithResources t) {
+    return null;
+  }
+
+  @Override
+  public E map(Synchronized sync) {
+    return null;
+  }
+
+  @Override
+  public E map(CFunctionType t) {
+    return null;
+  }
+
+  @Override
+  public E map(OMPParallel parallel) {
+    return null;
+  }
+
+  @Override
+  public E map(OMPSection section) {
+    return null;
+  }
+
+  @Override
+  public E map(OMPSections sections) {
+    return null;
+  }
+
+  @Override
+  public E map(OMPFor loop) {
+    return null;
+  }
+
+  @Override
+  public E map(OMPParallelFor loop) {
+    return null;
+  }
+
+  @Override
+  public E map(OMPForSimd loop) {
+    return null;
+  }
+
 }

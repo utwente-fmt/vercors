@@ -11,9 +11,14 @@ import java.util.Map;
 
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
+import scala.Option;
+import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.langspecific.*;
+import vct.col.ast.langspecific.c.CFunctionType;
+import vct.col.ast.langspecific.c.ParamSpec;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
@@ -37,7 +42,6 @@ import vct.col.util.NameScanner;
  * @author Stefan Blom
  */ 
 public class AbstractRewriter extends AbstractVisitor<ASTNode> {
-
   private static ThreadLocal<AbstractRewriter> tl=new ThreadLocal<AbstractRewriter>();
 
   public static <R extends ASTNode> Hashtable<String, Type> free_vars(List<R> nodes) {
@@ -808,14 +812,18 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       BlockStatement tmp=currentBlock;
       currentBlock=new BlockStatement();
       currentBlock.setOrigin(cc.block().getOrigin());
-      DeclarationStatement d=rewrite(cc.decl());
+      Type[] newCatchTypes = new Type[cc.catchTypes().size()];
+      Type[] oldCatchTypes = cc.javaCatchTypes();
+      for(int i = 0; i < newCatchTypes.length; i++) {
+        newCatchTypes[i] = rewrite(oldCatchTypes[i]);
+      }
       for(ASTNode S:cc.block()){
         currentBlock.add(rewrite(S));
       }
       BlockStatement block=currentBlock;
       currentBlock=tmp;
       post_visit(cc.block());
-      res.addCatchClause(d, block);
+      res.addCatchClauseArray(cc.name(), newCatchTypes, block);
     }
     result=res;
   }
@@ -879,5 +887,57 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       case_list.add(rwc);
     }
     result = create.switch_statement(expr, case_list);
+  }
+
+  @Override
+  public void visit(CFunctionType t) {
+    Type returnType = rewrite(t.returnType());
+    List<ParamSpec> paramSpecs = new ArrayList<>();
+    for(ParamSpec spec : JavaConverters.asJavaIterable(t.params())) {
+      Option<Type> newType;
+      if(spec.t().isEmpty()) {
+        newType = Option.empty();
+      } else {
+        newType = Option.apply(rewrite(spec.t().get()));
+      }
+      paramSpecs.add(new ParamSpec(newType, spec.name()));
+    }
+    result = new CFunctionType(JavaConverters.asScalaBuffer(paramSpecs), returnType);
+  }
+
+  @Override
+  public void visit(OMPParallel parallel) {
+    result = new OMPParallel(rewrite(parallel.block()), parallel.options(), rewrite(parallel.contract()));
+    result.setOrigin(parallel.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPSection section) {
+    result = new OMPSection(rewrite(section.block()));
+    result.setOrigin(section.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPSections sections) {
+    result = new OMPSections(rewrite(sections.block()));
+    result.setOrigin(sections.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPFor loop) {
+    result = new OMPFor(rewrite(loop.loop()), loop.options());
+    result.setOrigin(loop.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPParallelFor loop) {
+    result = new OMPParallelFor(rewrite(loop.loop()), loop.options());
+    result.setOrigin(loop.getOrigin());
+  }
+
+  @Override
+  public void visit(OMPForSimd loop) {
+    result = new OMPForSimd(rewrite(loop.loop()), loop.options());
+    result.setOrigin(loop.getOrigin());
   }
 }

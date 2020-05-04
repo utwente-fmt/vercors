@@ -104,7 +104,6 @@ public class ContractBuilder {
   }
   public void ensures(ASTNode condition,boolean at_end){
     empty=false;
-    if (condition.getOrigin()==null) throw new Error("condition "+condition.getClass()+" without origin");
     if (post_condition==default_true) {
       post_condition=condition;
     } else {
@@ -122,7 +121,6 @@ public class ContractBuilder {
   }
   public void requires(ASTNode condition,boolean at_end){
     empty=false;
-    if (condition.getOrigin()==null) throw new Error("condition "+condition.getClass()+" without origin");
     if (pre_condition==default_true) {
       pre_condition=condition;
     } else {
@@ -138,7 +136,6 @@ public class ContractBuilder {
 
   public void appendInvariant(ASTNode condition){
     empty=false;
-    if (condition.getOrigin()==null) throw new Error("condition "+condition.getClass()+" without origin");
     if (invariant==default_true) {
       invariant=condition;
     } else {
@@ -150,7 +147,6 @@ public class ContractBuilder {
   
   public void prependInvariant(ASTNode condition){
     empty=false;
-    if (condition.getOrigin()==null) throw new Error("condition "+condition.getClass()+" without origin");
     if (invariant==default_true) {
       invariant=condition;
     } else {

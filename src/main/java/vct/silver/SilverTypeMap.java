@@ -7,6 +7,7 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.type.*;
 import vct.col.ast.util.TypeMapping;
 import vct.col.rewrite.AbstractRewriter;
@@ -135,5 +136,10 @@ public class SilverTypeMap<T> implements TypeMapping<T> {
   @Override
   public T map(TypeVariable v) {
     return create.type_var(v.name());
+  }
+
+  @Override
+  public T map(CFunctionType t) {
+    throw new HREError("c function types are not supported");
   }
 }

@@ -391,9 +391,15 @@ public class Main
           // The new encoding does not apply to Chalice yet.
           // Maybe it never will.
           passes.add("java-encode"); // disambiguate overloaded stuff, copy inherited functions and specifications
+          passes.add("standardize");
+          passes.add("check");
         }
 
-        if (sat_check.get()) passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
+        if (sat_check.get()) {
+          passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
+          passes.add("standardize");
+          passes.add("check");
+        }
 
         if (features.usesIterationContracts()||features.usesPragma("omp")){
           passes.add("openmp2pvl"); // Converts *all* parallel loops! (And their compositions) Into ordered set of parallel blocks in pvl.
@@ -992,7 +998,7 @@ public class Main
     });
     defined_passes.put("openmp2pvl",new CompilerPass("Compile OpenMP pragmas to PVL"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new OpenMPtoPVL(arg).rewriteAll();
+        return new OpenMPToPVL(arg).rewriteAll();
       }
     });
     defined_passes.put("parallel_blocks",new CompilerPass("Encoded the proof obligations for parallel blocks"){

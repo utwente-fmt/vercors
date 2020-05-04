@@ -5,11 +5,11 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.ASTVisitor
 import vct.col.util.{ASTMapping, ASTMapping1, VisitorHelper}
 
-case class ParallelAtomic(val block:BlockStatement, val synclist:List[ASTNode]) extends ASTNode with VisitorHelper {
+case class ParallelAtomic(val block:ASTNode, val synclist:List[ASTNode]) extends ASTNode with VisitorHelper {
   require(synclist != null, "The list of synchronisation elements is null")
 
   /** Constructs a parallel atomic block from an array of synchronisation elements */
-  def this(block:BlockStatement, syncarray:Array[ASTNode]) = this(block, syncarray.toList)
+  def this(block:ASTNode, syncarray:Array[ASTNode]) = this(block, syncarray.toList)
 
   /** Yields a Java wrapper (for `java.util.List`) over the `synclist` collection  */
   def synclistJava = synclist.asJava

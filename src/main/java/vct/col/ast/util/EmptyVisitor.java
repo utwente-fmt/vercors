@@ -4,6 +4,8 @@ import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.langspecific.*;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
@@ -296,5 +298,49 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
     // TODO Auto-generated method stub
     
   }
-  
+
+  @Override
+  public void visit(TryWithResources t) {
+
+  }
+
+  @Override
+  public void visit(Synchronized sync) {
+
+  }
+
+  @Override
+  public void visit(CFunctionType t) {
+
+  }
+
+  @Override
+  public void visit(OMPParallel parallel) {
+
+  }
+
+  @Override
+  public void visit(OMPSection section) {
+
+  }
+
+  @Override
+  public void visit(OMPSections sections) {
+
+  }
+
+  @Override
+  public void visit(OMPFor loop) {
+
+  }
+
+  @Override
+  public void visit(OMPParallelFor loop) {
+
+  }
+
+  @Override
+  public void visit(OMPForSimd loop) {
+
+  }
 }

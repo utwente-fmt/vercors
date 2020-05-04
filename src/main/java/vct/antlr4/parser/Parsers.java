@@ -21,10 +21,10 @@ public class Parsers {
     case "cu":
       return new ColCParser();
     case "i":return new ColIParser();
-    case "java7":return new ColJavaParser(7,true);
-    case "java8":return new ColJavaParser(8,true);
-    case "java": return new ColJavaParser(java_version.get(),true);
-    case "jspec": return new ColJavaParser(7,false);
+    case "java7":return new ColJavaParser(7,true, false);
+    case "java8":return new ColJavaParser(8,true, false);
+    case "java": return new ColJavaParser(java_version.get(),true, false);
+    case "jspec": return new ColJavaParser(7,false, true);
     case "pvl":return new ColPVLParser();
     case "sil":return new ColSilverParser();
     }

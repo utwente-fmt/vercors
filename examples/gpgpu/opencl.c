@@ -15,7 +15,7 @@ __kernel void example(int a[], int b[], int len) {
     /*@
         context \pointer_index(a, get_local_id(0)*2, write);
         context \pointer_index(a, get_local_id(0)*2+1, write);
-    @*/
+    */
     barrier(CLK_LOCAL_MEM_FENCE);
     a[tid*2+1] = a[tid*2] * 2;
 }
