@@ -79,13 +79,9 @@ valStatement
 
 valActionMap: ',' langExpr ',' langExpr;
 
-valWithThenMapping
- : langId '=' langExpr ';'
- ;
-
 valWithThen
- : 'with' '{' valWithThenMapping* '}'
- | 'then' '{' valWithThenMapping* '}'
+ : 'with' langStatement
+ | 'then' langStatement
  ;
 
 valImpOp: '-*' | '==>';

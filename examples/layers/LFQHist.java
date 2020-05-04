@@ -8,7 +8,7 @@
  */
 
 final class History {/*@
-    ghost seq<int> q;
+    seq<int> q;
 
     modifies q;
     ensures  q==\old(q)+seq<int>{e};
@@ -84,7 +84,7 @@ final class Queue {
     requires Value(hist) ** PointsTo(hist_active,1\2,true);
     ensures Value(hist)  ** PointsTo(hist_active,1\2,false)
       ** HPerm(hist.q,1);
-  ghost void end_history(){
+  void end_history(){
     atomic ( this ) {
       hist_active=false;
     }
@@ -96,8 +96,8 @@ final class Queue {
      ensures Value(this.hist) ** this.hist == hist
         ** PointsTo(hist_active,1\2,true); @*/
   public Queue(){
-    //@ ghost this.hist=hist;
-    //@ ghost hist_active=true;
+    //@ this.hist=hist;
+    //@ hist_active=true;
     begin=new Node();
     begin.next=new AtomicNode(null);
     head=new AtomicNode(begin);
@@ -109,12 +109,12 @@ final class Queue {
     //@ fold chain(begin,last,hist.q);
   }
 
-  //@ ghost boolean hist_active;
-  //@ ghost History hist;
-  //@ ghost Node begin;
+  //@ boolean hist_active;
+  //@ History hist;
+  //@ Node begin;
   AtomicNode head;
   AtomicNode tail;
-  //@ ghost Node last;
+  //@ Node last;
 
   /*@
     // n is a final link in the history list.
@@ -199,16 +199,22 @@ final class Queue {
   Integer try_deq(){
     Node n1,n2; boolean tmp; Integer res=null;
     n1=head.get();
-    //@ ghost lemma_readable_or_last(this.begin,n1);
-    n2=n1.next.get();
+    n2=n1.next.get()/*@
+    with {
+      lemma_readable_or_last(this.begin,n1);
+    }
+    @*/;
     if (n2!=null) {
-      /*@ ghost if (head.ref==n1) {
-        unfold chain(n1,last,hist.q);
-        //begin(actionblock)
-        { action hist, p , P, hist.get(n2.val); hist.q=tail(hist.q); }
-        //end(actionblock)
-      } */
-      tmp=head.compareAndSet(n1,n2);
+      tmp=head.compareAndSet(n1,n2)/*@
+      with {
+        if (head.ref==n1) {
+          unfold chain(n1,last,hist.q);
+//begin(actionblock)
+ { action hist, p , P, hist.get(n2.val); hist.q=tail(hist.q); }
+//end(actionblock)
+        }
+      }
+      @*/;
       if(tmp) { res=new Integer(n2.val); }
     }
     return res;
@@ -253,17 +259,20 @@ final class Queue {
   boolean try_enq(Node nn){
     Node n1,n2; boolean res=false; int val;
     n1=tail.get();
-    //@ ghost lemma_readable_or_last(this.begin,n1);
-    n2=n1.next.get();
+    n2=n1.next.get()/*@ with {
+      lemma_readable_or_last(this.begin,n1);
+    } @*/;
     if (n2==null) {
-      //@ ghost lemma_readable_or_last(this.begin,n1);
-      res=n1.next.compareAndSet(null,nn);
-      /*@ ghost if (\result) {
-        val=nn.val;
-        lemma_shift_last(n1,nn);
-        { action hist, p, P, hist.put(\old(nn.val));
-          hist.q=hist.q+seq<int>{\old(nn.val)}; }
-      } */
+      res=n1.next.compareAndSet(null,nn)/*@ with {
+          lemma_readable_or_last(this.begin,n1);
+        } then {
+          if (\result) {
+            val=nn.val;
+            lemma_shift_last(n1,nn);
+            { action hist, p, P, hist.put(\old(nn.val));
+              hist.q=hist.q+seq<int>{\old(nn.val)}; }
+          }
+        } @*/;
     } else {
       tail.compareAndSet(n1,n2);
     }

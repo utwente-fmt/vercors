@@ -1075,16 +1075,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   }
 
   def convertValWithThen(withThen: ValWithThenContext): ASTNode = withThen match {
-    case ValWithThen0("with", _, mappings, _) =>
-      create special(ASTSpecial.Kind.With, create block(mappings.map {
-        case ValWithThenMapping0(name, _, exp, _) =>
-          create assignment(convertIDName(name), expr(exp))
-      }:_*))
-    case ValWithThen1("then", _, mappings, _) =>
-      create special(ASTSpecial.Kind.Then, create block(mappings.map {
-        case ValWithThenMapping0(name, _, exp, _) =>
-          create assignment(convertIDName(name), expr(exp))
-      }:_*))
+    case ValWithThen0("with", stat) =>
+      create special(ASTSpecial.Kind.With, flattenIfSingleStatement(convertValStat(stat)))
+    case ValWithThen1("then", stat) =>
+      create special(ASTSpecial.Kind.Then, flattenIfSingleStatement(convertValStat(stat)))
   }
 
   def convertValWithThen(withThen: ValEmbedWithThenBlockContext): Seq[ASTNode] = withThen match {
