@@ -4,6 +4,7 @@ import org.antlr.v4.codegen.model.Loop;
 import scala.reflect.internal.Trees;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.LoopStatement;
@@ -56,42 +57,63 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         return "__ucv_" + uniqueCatchVarCounter++;
     }
 
+    public String getExceptionClassName(String prefix, String id) {
+        return "__" + prefix + "_" + id + "_ex";
+    }
+
+    public ASTClass createExceptionClass(String prefix, String id, Type arg) {
+        String name = getExceptionClassName(prefix, id);
+
+        ASTClass exceptionClass = create.new_class(
+                name,
+                null,
+                // Uncomment to turn on inheritance of exceptions
+                // create.class_type(new String[]{"java", "lang", "Exception"})
+                null
+        );
+
+        if (arg != null && !arg.isVoid()) {
+            ContractBuilder cb = new ContractBuilder();
+            cb.ensures(create.expression(StandardOperator.Star,
+                    create.expression(StandardOperator.Perm,
+                            create.dereference(create.reserved_name(ASTReserved.This), "value"),
+                            create.reserved_name(ASTReserved.FullPerm)
+                    ),
+                    create.expression(StandardOperator.EQ,
+                            create.dereference(create.reserved_name(ASTReserved.This), "value"),
+                            create.argument_name("result")
+                    )
+            ));
+
+            Method exceptionConstructor = create.method_kind(
+                    Method.Kind.Constructor,
+                    create.primitive_type(PrimitiveSort.Void),
+                    cb.getContract(),
+                    name,
+                    new DeclarationStatement[] {
+                            create.field_decl("result", arg)
+                    },
+                    null
+            );
+            exceptionClass.add(exceptionConstructor);
+            exceptionClass.add(create.field_decl("value", arg));
+        } else {
+            create.addZeroConstructor(exceptionClass);
+        }
+
+        return exceptionClass;
+    }
+
     /**
      * Returns a class type parameterized by a prefix and id. If it doesn't exist also creates a class definition.
      * If arg is not Void or null, then a constructor is added for the class that takes an argument. This argument
      * is added in the e field in the class.
      */
     public ClassType getExceptionType(String prefix, String id, Type arg) {
-        String name = "__" + prefix + "_" + id + "_ex";
+        String name = getExceptionClassName(prefix, id);
 
         if (!exceptionTypes.contains(name)) {
-            ASTClass exceptionClass = create.new_class(
-                    name,
-                    null,
-                    // Uncomment to turn on inheritance of exceptions
-                    // create.class_type(new String[]{"java", "lang", "Exception"})
-                    null
-                    );
-
-            if (arg != null && !arg.isVoid()) {
-                // TODO (Bob): Add contract that adds ensures \result == arg;
-                // TODO (Bob): Permissions
-                Method exceptionConstructor = create.method_kind(
-                        Method.Kind.Constructor,
-                        create.primitive_type(PrimitiveSort.Void),
-                        new ContractBuilder().getContract(),
-                        name,
-                        new DeclarationStatement[] {
-                                create.field_decl("result", arg)
-                        },
-                        null
-                );
-                exceptionClass.add(exceptionConstructor);
-                exceptionClass.add(create.field_decl("value", arg));
-            } else {
-                create.addZeroConstructor(exceptionClass);
-            }
-
+            ASTClass exceptionClass = createExceptionClass(prefix, id, arg);
             target().add(exceptionClass);
             exceptionTypes.add(name);
         }
