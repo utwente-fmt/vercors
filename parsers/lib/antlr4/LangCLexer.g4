@@ -1,5 +1,5 @@
 lexer grammar LangCLexer;
-import SpecLexer, LangOMPLexer;
+import SpecLexer, LangOMPLexer, LangGPGPULexer;
 
 @lexer::members {
     private static boolean inBlockSpec = false;

@@ -1,5 +1,7 @@
 package vct.antlr4.parser
 
+import java.util
+
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.CParser
 import vct.antlr4.generated.CParser._
@@ -499,6 +501,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       convertValStat(valStat)
     case BlockItem3(valStat) =>
       Seq(convertValStat(valStat))
+    case BlockItem4(GpgpuLocalBarrier0(contract, _, _, _, _)) =>
+      Seq(create.barrier("group_barrier", getContract(convertValContract(contract)), new util.ArrayList[String](), null))
+    case BlockItem5(GpgpuGlobalBarrier0(contract, _, _, _, _)) =>
+      Seq(create.barrier("group_barrier", getContract(convertValContract(contract)), new util.ArrayList[String](), null))
   }
 
   def convertStat(statement: StatementContext): ASTNode = origin(statement, statement match {

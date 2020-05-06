@@ -43,6 +43,7 @@ lazy val parsers = (project in file(".")).settings(
             (src / "CParser.g4", true,
               Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",
                   lib / "LangCParser.g4", lib / "LangCLexer.g4",
+                  lib / "LangGPGPUParser.g4", lib / "LangGPGPULexer.g4",
                   lib / "LangOMPParser.g4", lib / "LangOMPLexer.g4")),
             (src / "JavaParser.g4", true,
               Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",

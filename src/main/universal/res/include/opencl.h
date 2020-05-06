@@ -1,7 +1,7 @@
 #ifndef OPENCL_H
 #define OPENCL_H
-#define CLK_GLOBAL_MEM_FENCE
-#define CLK_LOCAL_MEM_FENCE
+#define CLK_GLOBAL_MEM_FENCE __vercors_global_barrier__
+#define CLK_LOCAL_MEM_FENCE __vercors_local_barrier__
 
 extern /*@ pure @*/ int get_work_dim(); // Number of dimensions in use
 
@@ -35,7 +35,7 @@ extern /*@ pure @*/ int get_enqueued_num_sub_groups (); //
 
 extern /*@ pure @*/ int get_sub_group_id (); // Sub-group ID
 
-extern /*@ pure @*/ void barrier(); // barrier definition
+#define barrier(locality) __vercors_barrier__(locality)
 
 extern /*@ pure @*/ int get_sub_group_local_id (); // Unique work-item ID
 

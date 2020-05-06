@@ -33,7 +33,8 @@ extern /*@ pure @*/ int get_enqueued_num_sub_groups (); //
 
 extern /*@ pure @*/ int get_sub_group_id (); // Sub-group ID
 
-extern /*@ pure @*/ void __syncthreads(); // barrier definition
+#define __syncthreads() __vercors_barrier__(__vercors_local_barrier__)
+// extern /*@ pure @*/ void __syncthreads(); // barrier definition
 
 extern /*@ pure @*/ int get_sub_group_local_id (); // Unique work-item ID
 

@@ -28,7 +28,7 @@
 
 /** C 2011 grammar built from the C11 Spec */
 parser grammar C;
-import LangOMPParser;
+import LangOMPParser, LangGPGPUParser;
 
 primaryExpression
     :   clangIdentifier
@@ -501,6 +501,8 @@ blockItem
     |   statement
     |   valEmbedStatementBlock
     |   {specLevel>0}? valStatement
+    |   gpgpuLocalBarrier
+    |   gpgpuGlobalBarrier
     ;
 
 expressionStatement
