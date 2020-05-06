@@ -23,10 +23,9 @@ class AbruptTermination {
     void negatefirst() {
         /*@
             loop_invariant 0 <= i && i <= ia.length;
+            loop_invariant ia == \old(ia); // Extra invariant needed
             loop_invariant (\forall int j; 0<=j && j<i; ia[j] >= 0 && ia[j] == \old(ia[j]));
-            // Extra invariants needed for VerCors
-            loop_invariant (\forall int j; i<=j && j<ia.length; ia[j] == \old(ia[j]));
-            loop_invariant ia == \old(ia);
+            loop_invariant (\forall int j; i<=j && j<ia.length; ia[j] == \old(ia[j])); // Extra invariant needed
          */
         for (int i = 0 ; i < ia.length; i++) {
             if (ia[i] < 0) {
