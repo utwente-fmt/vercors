@@ -177,7 +177,10 @@ public class Main
       
       BooleanSetting learn = new BooleanSetting(false);
       clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn");
-      
+
+      BooleanSetting abruptTerminationViaExceptions = new BooleanSetting(false);
+      clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions");
+
       Configuration.add_options(clops);
 
       String input[]=clops.parse(args);
@@ -360,7 +363,7 @@ public class Main
           passes.add("unfold-switch");
         }
 
-        if (features.usesFinallyClause() && (usesBreakContinue || features.usesReturn())) {
+        if ((features.usesFinallyClause() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
           passes.add("break-return-to-exceptions");
         } else if (usesBreakContinue || features.usesReturn()) {
           passes.add("break-return-to-goto");
