@@ -108,11 +108,20 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         visitTryBody(tryCatchBlock);
 
-        nearestHandlerLabel = oldNearestHandlerLabel;
+        // If there is an after block, the next handler for each catch clause is the finally block.
+        // (The finally block will just forward control flow to the next handler anyway)
+        // Otherwise, the next handler is the actual next handler after this try block.
+        if (tryCatchBlock.after() != null) {
+            nearestHandlerLabel = entryLabels.get(tryCatchBlock.after());
+        } else {
+            nearestHandlerLabel = oldNearestHandlerLabel;
+        }
 
         for (CatchClause cc : catchClauses) {
             visitCatch(tryCatchBlock, cc);
         }
+
+        nearestHandlerLabel = oldNearestHandlerLabel;
 
         visitFinally(tryCatchBlock);
 
@@ -201,6 +210,15 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         currentBlock.add(create.label_decl(entryLabels.get(tryCatchBlock.after())));
         currentBlock.append(rewrite(tryCatchBlock.after()));
+
+        currentBlock.add(create.ifthenelse(
+                create.expression(StandardOperator.NEQ,
+                        create.local_name(excVar),
+                        create.reserved_name(ASTReserved.Null)
+                ),
+                create.jump(nearestHandlerLabel)
+        ));
+
         currentBlock.add(create.jump(postLabels.get(tryCatchBlock)));
 
         totalBlock.add(currentBlock);
