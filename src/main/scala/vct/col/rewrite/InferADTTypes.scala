@@ -6,6 +6,7 @@ import vct.col.ast.stmt.decl.ProgramUnit
 
 object InferADTTypes {
   val typeVariableName = "INFER_ADT_TYPE"
+  val typeVariable: TypeVariable = TypeVariable(typeVariableName)
 }
 
 /**

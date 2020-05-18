@@ -11,10 +11,9 @@ import hre.tools.TimeKeeper;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTree;
 
-import vct.antlr4.generated.PVFullLexer;
-import vct.antlr4.generated.PVFullParser;
+import vct.antlr4.generated.PVLLexer;
+import vct.antlr4.generated.PVLParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.rewrite.FlattenVariableDeclarations;
 import vct.col.syntax.PVLSyntax;
@@ -32,19 +31,19 @@ public class ColPVLParser implements vct.col.util.Parser {
         ErrorCounter ec=new ErrorCounter(file_name);
 
         CharStream input = CharStreams.fromStream(new FileInputStream(file));
-        PVFullLexer lexer = new PVFullLexer(input);
+        PVLLexer lexer = new PVLLexer(input);
         lexer.removeErrorListeners();
         lexer.addErrorListener(ec);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        PVFullParser parser = new PVFullParser(tokens);
+        PVLParser parser = new PVLParser(tokens);
         parser.removeErrorListeners();
         parser.addErrorListener(ec);
-        ParseTree tree = parser.program();
+        PVLParser.ProgramContext tree = parser.program();
         Progress("parsing pass took %dms",tk.show());
         ec.report();
         Debug("parser got: %s",tree.toStringTree(parser));
 
-        ProgramUnit pu=PVLtoCOL.convert(tree,file_name,tokens,parser);      
+        ProgramUnit pu = PVLtoCOL.convert(tree,file_name,tokens,parser);
         Progress("AST conversion pass took %dms",tk.show());
         
         pu=new FlattenVariableDeclarations(pu).rewriteAll();

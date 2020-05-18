@@ -27,8 +27,8 @@ class Testhist {
     }
     k=0;
     //@ loop_invariant 0 <= k && k <= a.length;
-    //@ loop_invariant (\forall int i; 0 <= i && i < hist.length ;
-    //@                   hist[i]==\sum({0 .. k},\vcmp(vals,\vrep(i)))  );
+    /*@ loop_invariant (\forall int i; 0 <= i && i < hist.length ;
+                          hist[i]==\sum({0 .. k},\vcmp(vals,\vrep(i)))  ); @*/
     while(k<a.length){
       int v=a[k];
       hist[v]++;

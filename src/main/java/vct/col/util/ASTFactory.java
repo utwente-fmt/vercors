@@ -223,15 +223,15 @@ public class ASTFactory<E> implements FrameControl {
     return block(origin_stack.get(),args);        
   }
 
-public BlockStatement block(Origin origin, ASTNode ... args) {
-  BlockStatement res=new BlockStatement();
-  for(ASTNode node:args){
-    res.addStatement(node);
+  public BlockStatement block(Origin origin, ASTNode ... args) {
+    BlockStatement res=new BlockStatement();
+    for(ASTNode node:args){
+      res.addStatement(node);
+    }
+    res.setOrigin(origin);
+    res.accept_if(post);
+    return res;
   }
-  res.setOrigin(origin);
-  res.accept_if(post);
-  return res;        
-}
 
 
   public ClassType class_type(E origin,String name[],ASTNode ... args){
@@ -704,7 +704,7 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
     return method_kind(kind,returns,contract,name,args.toArray(new DeclarationStatement[args.size()]),varArgs,body);
   }
   public Method method_kind(Method.Kind kind,Type returns,Contract contract,String name,DeclarationStatement args[],boolean varArgs,ASTNode body){
-    Method res=new Method(kind,name,returns,contract,args,varArgs,body);
+    Method res=new Method(kind,name,returns,new Type[0],contract,args,varArgs,body);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
@@ -798,10 +798,10 @@ public BlockStatement block(Origin origin, ASTNode ... args) {
     return csl_atomic(origin,block,labels);
   }
   
-  public ParallelAtomic csl_atomic(BlockStatement block,ASTNode ... invs){
+  public ParallelAtomic csl_atomic(ASTNode block,ASTNode ... invs){
     return csl_atomic(origin_stack.get(),block,invs);
   }
-  public ParallelAtomic csl_atomic(Origin origin,BlockStatement block,ASTNode ... invs){
+  public ParallelAtomic csl_atomic(Origin origin,ASTNode block,ASTNode ... invs){
     ParallelAtomic res = new ParallelAtomic(block, invs);
     res.setOrigin(origin);
     res.accept_if(post);
@@ -1268,6 +1268,17 @@ public Axiom axiom(String name, ASTNode exp){
     return res;
   }
 
+  public TryWithResources try_with_resources(BlockStatement main, BlockStatement after) {
+    return try_with_resources(origin_stack.get(), main, after);
+  }
+
+  public TryWithResources try_with_resources(Origin o, BlockStatement main, BlockStatement after) {
+    TryWithResources res = new TryWithResources(main, after);
+    res.setOrigin(o);
+    res.accept_if(post);
+    return res;
+  }
+
   public FieldAccess set_field(Origin o, ClassName claz, ASTNode obj, String name, ASTNode val){
     FieldAccess res=new FieldAccess(claz, obj, name, val);
     res.setOrigin(o);
@@ -1462,6 +1473,16 @@ public Axiom axiom(String name, ASTNode exp){
    */
   public ASTNode postfix_decrement(String varname) {
     return postfix_operator(varname, StandardOperator.Minus); 
+  }
+
+  public Synchronized syncBlock(ASTNode expr, ASTNode statement) {
+    return syncBlock(origin_stack.get(), expr, statement);
+  }
+
+  public Synchronized syncBlock(Origin origin, ASTNode expr, ASTNode statement) {
+    Synchronized sync = new Synchronized(expr, statement);
+    sync.setOrigin(origin);
+    return sync;
   }
 }
 

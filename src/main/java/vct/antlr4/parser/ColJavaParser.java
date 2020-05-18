@@ -30,10 +30,12 @@ public class ColJavaParser implements vct.col.util.Parser {
 
   public final int version;
   public final boolean twopass;
+  public final boolean topLevelSpecs;
   
-  public ColJavaParser(int version,boolean twopass){
+  public ColJavaParser(int version, boolean twopass, boolean topLevelSpecs){
     this.version=version;
     this.twopass=twopass;
+    this.topLevelSpecs = topLevelSpecs;
   }
   
   @Override
@@ -50,68 +52,45 @@ public class ColJavaParser implements vct.col.util.Parser {
         switch(version){
         case 7:
           if (twopass){
-            Lexer lexer = new Java7JMLLexer(input);
+            Lexer lexer = new LangJavaLexer(input);
             CommonTokenStream tokens = new CommonTokenStream(lexer);
-            Java7JMLParser parser = new Java7JMLParser(tokens);       
+            JavaParser parser = new JavaParser(tokens);
             parser.removeErrorListeners();
             parser.addErrorListener(ec);
             lexer.removeErrorListeners();
             lexer.addErrorListener(ec);
-            ParseTree tree = parser.compilationUnit();
+            if(this.topLevelSpecs) {
+              parser.specLevel = 1;
+            }
+            JavaParser.CompilationUnitContext tree = parser.compilationUnit();
             ec.report();
             Progress("first parsing pass took %dms",tk.show());
             
-            pu=Java7JMLtoCol.convert_tree(tree,file_name,tokens,parser);
+            pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
             Progress("AST conversion took %dms",tk.show());
             Debug("program after Java parsing:%n%s",pu);
-            
-            pu=new CommentRewriter(pu,new Java7JMLCommentParser(ec)).rewriteAll();
-            Progress("Specification parsing took %dms",tk.show());
-            ec.report();
-            Debug("program after specification parsing:%n%s",pu);
             break;
           } else {
-            Lexer lexer = new Java7JMLLexer(input);
+            Lexer lexer = new LangJavaLexer(input);
             CommonTokenStream tokens = new CommonTokenStream(lexer);
-            Java7JMLParser parser = new Java7JMLParser(tokens);
+            JavaParser parser = new JavaParser(tokens);
             parser.removeErrorListeners();
             parser.addErrorListener(ec);
             lexer.removeErrorListeners();
             lexer.addErrorListener(ec);
+            if(this.topLevelSpecs) {
+              parser.specLevel = 1;
+            }
             
-            ParseTree tree = parser.compilationUnit();
+            JavaParser.CompilationUnitContext tree = parser.compilationUnit();
             ec.report();
             Progress("first parsing pass took %dms",tk.show());
             
-            pu=Java7JMLtoCol.convert_tree(tree,file_name,tokens,parser);
+            pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
             Progress("AST conversion took %dms",tk.show());
             Debug("program after Java parsing:%n%s",pu);
             break;
           }
-        case 8:{
-          Lexer lexer = new Java8JMLLexer(input);
-          CommonTokenStream tokens = new CommonTokenStream(lexer);
-          Java8JMLParser parser = new Java8JMLParser(tokens);
-          parser.removeErrorListeners();
-          parser.addErrorListener(ec);
-          lexer.removeErrorListeners();
-          lexer.addErrorListener(ec);
-          ParseTree tree = parser.compilationUnit();
-          ec.report();
-          Progress("first parsing pass took %dms",tk.show());
-          
-          pu=Java8JMLtoCol.convert_tree(tree,file_name,tokens,parser);
-          Progress("AST conversion took %dms",tk.show());
-          Debug("program after Java parsing:%n%s",pu);
-          
-          if(twopass){
-            pu=new CommentRewriter(pu,new Java8JMLCommentParser(ec)).rewriteAll();
-            Progress("Specification parsing took %dms",tk.show());
-            ec.report();
-            Debug("program after specification parsing:%n%s",pu);
-          }
-          break;
-        }
         default:
           throw new Error("bad java version: "+version);
         }

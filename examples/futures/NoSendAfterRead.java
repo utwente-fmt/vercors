@@ -5,11 +5,11 @@
 //:: option --check-history
 
 public class Future {/*@
-  boolean flag;
+  ghost boolean flag;
   
   accessible flag; //skip(all)
   requires flag;
-  process send();
+  process p_send();
   
   accessible flag; //skip(all)
   requires !flag;  //skip(all)
@@ -21,7 +21,7 @@ public class Future {/*@
   
   requires true; //skip(all)
   ensures true;  //skip(all)
-  process nsar()=send()*nsar()+clear()*rs();
+  process nsar()=p_send()*nsar()+clear()*rs();
   
   process rs()=clear()*rs()+receive()*rs();
 
@@ -35,18 +35,18 @@ class Device {
   ensures Future(F,1,F.nsar());
 @*/
   public Device() {
-    /*@
+    /*@ghost {
       F = new Future();
       F.flag = true;
       create F, F.nsar();
-    @*/
+    }@*/
   }
 
 /*@
   given frac p; //skip(all)
   given process P; //skip(all)
   requires p!=none ** Value(F); //skip(all)
-  requires HPerm(F.flag,p) ** F.flag ** Future(F,p,F.send()*P);
+  requires HPerm(F.flag,p) ** F.flag ** Future(F,p,F.p_send()*P);
   ensures  p!=none ** Value(F); //skip(all)
   ensures HPerm(F.flag,p) ** F.flag ** Future(F,p,P);
 @*/
@@ -65,7 +65,7 @@ class Device {
 }
 
 class Lock {
-  //@ Device d;
+  //@ ghost Device d;
   
   boolean flag;
   
@@ -97,7 +97,7 @@ class Sender {
 @*/ while(true){
       l.lock();
       if (l.flag){
-        //@ choose d.F,1\2,d.F.nsar(),d.F.send()*d.F.nsar(); //skip(run)
+        //@ choose d.F,1\2,d.F.nsar(),d.F.p_send()*d.F.nsar(); //skip(run)
         d.send()
             /*@ with { p=1\2; P=d.F.nsar();} @*/; //skip(run)
       }
@@ -122,7 +122,7 @@ class Reader {
       //@ choose d.F,1\2,d.F.rs(),d.F.clear()*d.F.rs(); //skip(run)
       { //@ action d.F,1\2,d.F.rs(),d.F.clear();
         l.flag=false;
-        //@ d.F.flag=false;
+        //@ ghost d.F.flag=false;
       }
       //@ choose d.F,1\2,d.F.rs(),d.F.receive()*d.F.rs(); //skip(run)
       d.receive()

@@ -28,6 +28,7 @@ import static hre.lang.System.Debug;
 public class Method extends ASTDeclaration {
 
   public static final String JavaConstructor = "<<constructor>>";
+  public final Type[] throwy;
 
   @Override
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
@@ -53,7 +54,7 @@ public class Method extends ASTDeclaration {
   };
  
   private final Type return_type;
-  private final DeclarationStatement args [];
+  private final DeclarationStatement[] args;
   private final boolean var_args;
   private Hashtable<String, Contract> spec=new Hashtable<String,Contract>();
   private ASTNode body;
@@ -63,30 +64,22 @@ public class Method extends ASTDeclaration {
     return var_args;
   }
   
-  public Method(String name,Type return_type,Contract contract,DeclarationStatement args[],boolean varArgs,ASTNode body){
-    this(Kind.Plain,name,return_type,contract,args,varArgs,body);
-  }
-
-  public Method(Kind kind, String name, String args[], boolean many, FunctionType t) {
-    super(name);
-    this.return_type = t.result();
-    this.args=new DeclarationStatement[args.length];
-    this.var_args=many;
-    
-    int i = 0;
-    for (Type type : t.paramsJava()) {
-      this.args[i] = new DeclarationStatement(args[i], type);
-      this.args[i].setParent(this);
-      this.args[i].setOrigin(new MessageOrigin("dummy origin for argument " + i));
-      i++;
-    }
-    
-    this.kind=kind;
+  public Method(String name,Type return_type,Type[] throwy,Contract contract,DeclarationStatement args[],boolean varArgs,ASTNode body){
+    this(Kind.Plain,name,return_type,throwy,contract,args,varArgs,body);
   }
   
-  public Method(Kind kind, String name,Type return_type,Contract contract,DeclarationStatement args[],boolean varArgs,ASTNode body){
+  public Method(Kind kind,
+                String name,
+                Type return_type,
+                Type[] throwy,
+                Contract contract,
+                DeclarationStatement[] args,
+                boolean varArgs,
+                ASTNode body)
+  {
     super(name);
     this.return_type=return_type;
+    this.throwy = throwy;
     this.args=Arrays.copyOf(args,args.length);
     this.var_args=varArgs;
     for(int i=0;i<args.length;i++){

@@ -10,6 +10,8 @@ import hre.lang.HREError;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.langspecific.*;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.rewrite.SatCheckRewriter;
 import vct.col.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
@@ -20,7 +22,6 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.util.ASTUtils;
 import static hre.lang.System.Abort;
-import static hre.lang.System.Output;
 
 import viper.api.*;
 
@@ -414,6 +415,51 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
 
   @Override
   public S map(Switch s) {
+    return null;
+  }
+
+  @Override
+  public S map(TryWithResources t) {
+    return null;
+  }
+
+  @Override
+  public S map(Synchronized sync) {
+    return null;
+  }
+
+  @Override
+  public S map(CFunctionType t) {
+    return null;
+  }
+
+  @Override
+  public S map(OMPParallel parallel) {
+    return null;
+  }
+
+  @Override
+  public S map(OMPSection section) {
+    return null;
+  }
+
+  @Override
+  public S map(OMPSections sections) {
+    return null;
+  }
+
+  @Override
+  public S map(OMPFor loop) {
+    return null;
+  }
+
+  @Override
+  public S map(OMPParallelFor loop) {
+    return null;
+  }
+
+  @Override
+  public S map(OMPForSimd loop) {
     return null;
   }
 }

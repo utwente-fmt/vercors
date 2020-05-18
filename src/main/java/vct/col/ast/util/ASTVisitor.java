@@ -5,6 +5,8 @@ import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.langspecific.*;
+import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
@@ -105,6 +107,18 @@ public interface ASTVisitor<T> {
 
   public void visit(Switch s);
 
+  public void visit(TryWithResources t);
+
+  public void visit(Synchronized sync);
+
+  public void visit(CFunctionType t);
+
+  public void visit(OMPParallel parallel);
+  public void visit(OMPSection section);
+  public void visit(OMPSections sections);
+  public void visit(OMPFor loop);
+  public void visit(OMPParallelFor loop);
+  public void visit(OMPForSimd loop);
 }
 
 

@@ -18,7 +18,7 @@
 //             (\forall* int j; 0 <= j && j < N; Perm(matrix[i][j], write)));
 //   ensures (\forall int i; 0 <= i && i < M;
 //             (\forall int j; 0 <= j && j < N; matrix[i][j] == 0));
-// @*/
+// */
 // void zero_matrix(int M,int N,int matrix[M][N]){
 //   for(int i=0;i<M;i++){
 //     for(int j=0;j<N;j++)
@@ -27,7 +27,7 @@
 //         context Perm(matrix[i], 1/N);
 //         context Perm(matrix[i][j],write);
 //         ensures matrix[i][j] == 0;
-//       @*/
+//       */
 //     {
 //       matrix[i][j]=0;
 //     }
@@ -111,7 +111,7 @@ void forward_drf(int a[],int b[],int c[],int N){
   @*/ {
     a[i]=b[i]+1;
     /*@
-      S1:if (i< N-1) {
+      ghost S1:if (i< N-1) {
         send a != NULL ** 0 <= i ** i < N - 1 ** Perm(a[i],1\2) to S2,1;
       }
     @*/
@@ -142,7 +142,7 @@ void forward_full(int a[],int b[],int c[],int len){
   @*/ {
     a[i]=b[i]+1;
     /*@
-      FS1:if (i< len-1) {
+      ghost FS1:if (i< len-1) {
         send a != NULL ** 0 <= i ** i < len - 1 ** Perm(a[i],1\2) ** a[i]==i+1 to FS2,1;
       }
     @*/
@@ -167,7 +167,7 @@ void backward_drf(int a[],int b[],int c[],int N){
    @*/
     {
     /*@
-      T1:if (i>0) {
+      ghost T1:if (i>0) {
         recv a != NULL ** 0 < i ** i < N ** Perm(a[i],1\2) from T2,1;
       }
     @*/
@@ -207,7 +207,7 @@ void backward_full(int a[],int b[],int c[],int len){
    @*/
     {
     /*@
-      FT1:if (i>0) {
+      ghost FT1:if (i>0) {
         recv a != NULL ** 0 < i ** i < len ** i == (i-1)+1 ** Perm(a[i], 1\2) from FT2,1;
       }
     @*/

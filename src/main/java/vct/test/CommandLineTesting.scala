@@ -178,6 +178,8 @@ object CommandLineTesting {
           var conditions = mutable.ArrayBuffer[TaskCondition]()
           if (kees.verdict != null) {
             conditions += ExpectVerdict(kees.verdict)
+          } else {
+            conditions += ExpectVerdict(Verdict.Pass)
           }
           if (kees.pass_non_fail) {
             conditions += PassNonFail(kees.fail_methods.asScala.toSeq)

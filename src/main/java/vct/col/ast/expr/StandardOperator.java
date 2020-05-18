@@ -258,7 +258,8 @@ public enum StandardOperator {
    */
   Indirection(1),
   /**
-   * The iteration owner construct for OpenMP loops. 
+   * The iteration owner construct for OpenMP loops.
+   * TODO: unused; please document this!
    */
   IterationOwner(3),
   /**

@@ -138,6 +138,11 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
     }
     this.origin=origin;
   }
+
+  public ASTNode from(Origin origin) {
+    setOrigin(origin);
+    return this;
+  }
   
   public Origin getOrigin(){
     return origin;

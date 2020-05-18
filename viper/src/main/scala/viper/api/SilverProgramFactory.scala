@@ -86,6 +86,8 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
       case in: OriginInfo[OO]@unchecked => {
         in.loc
       }
+      case Synthesized =>
+        f.message("generated origin")
       case _ => y match {
         case SourcePosition(file,start,tmp) =>
           tmp match {
