@@ -48,6 +48,7 @@ lazy val parsers = (project in file(".")).settings(
               Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",
                   lib / "LangJavaParser.g4", lib / "LangJavaLexer.g4")),
             (src / "omp.g4", true, Set()),
+            (src / "Binder.g4", true, Set()),
         )
 
         val allInputFiles: Set[java.io.File] =

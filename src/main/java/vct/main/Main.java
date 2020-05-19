@@ -39,6 +39,7 @@ import vct.col.syntax.JavaDialect;
 import vct.col.syntax.JavaSyntax;
 import vct.col.syntax.Syntax;
 import vct.col.util.FeatureScanner;
+import vct.col.util.FindBinders;
 import vct.col.util.JavaTypeCheck;
 import vct.col.util.SimpleTypeCheck;
 import vct.learn.SpecialCountVisitor;
@@ -590,6 +591,7 @@ public class Main
           passes.add("standardize");
           passes.add("check");
 
+          passes.add("gen-triggers");
           passes.add("silver");
         } else { //CHALICE
           passes.add("check"); // rewrite system needs a type check
@@ -1198,6 +1200,11 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("gen-triggers", new CompilerPass("") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new Triggers(arg).rewriteAll();
+      }
+    });
   }
 
 

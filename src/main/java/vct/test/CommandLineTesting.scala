@@ -1,5 +1,6 @@
 package vct.test
 
+import java.io.{File, PrintWriter}
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util.concurrent.{Executors, Future}
 
@@ -231,6 +232,7 @@ object CommandLineTesting {
     }
 
     var fails = 0
+    val writer = new PrintWriter(new File("binders.txt"))
 
     for (((future, taskKey), i) <- futures.zipWithIndex) {
       val reasons = future.get()
@@ -238,6 +240,11 @@ object CommandLineTesting {
 
       if (reasons.isEmpty) {
         Progress("[%02d%%] Pass: %s", Int.box(progress), taskKey)
+        tasks(taskKey).log.foreach {
+          case msg if msg.getFormat == "stdout: %s" && msg.getArg(0).asInstanceOf[String].startsWith("[binder]") =>
+            writer.println(msg.getArg(0).asInstanceOf[String])
+          case _ =>
+        }
       } else {
         fails += 1
         Progress("[%02d%%] Fail: %s", Int.box(progress), taskKey)
