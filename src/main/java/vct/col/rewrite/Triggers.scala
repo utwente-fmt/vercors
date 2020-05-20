@@ -1,6 +1,6 @@
 package vct.col.rewrite
 
-import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, OperatorExpression}
+import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, LT, LTE, Member, NEQ, Scale, Size, Subscript}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.expr
@@ -8,42 +8,24 @@ import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit}
 
 case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
-  sealed abstract class NodeStructure(val origin: ASTNode) {
+  sealed abstract class Trigger(val origin: ASTNode) {
 
   }
 
-  sealed abstract class SupportedLeaf(origin: ASTNode) extends NodeStructure(origin)
-  class Name(name: String, origin: ASTNode) extends SupportedLeaf(origin) {
-    override def equals(obj: Any): Boolean = obj match {
-      case other: Name => other.name == name
-      case _ => false
-    }
-  }
+  case class Name(x: String)(origin: ASTNode) extends Trigger(origin)
+  case class Invokation(name: String, args: Seq[Trigger])(origin: ASTNode) extends Trigger(origin)
+  case class Expression(op: StandardOperator, args: Seq[Trigger])(origin: ASTNode) extends Trigger(origin)
+  case class Deref(obj: Trigger, field: String)(origin: ASTNode) extends Trigger(origin)
 
-//  class OtherSupportedLeaf(origin: ASTNode) extends SupportedLeaf(origin)
-
-  class UnsupportedLeaf(origin: ASTNode) extends NodeStructure(origin) {
-    override def equals(obj: Any): Boolean = obj match {
-      case other: UnsupportedLeaf => other.origin == origin
-      case _ => false
-    }
-  }
-
-  sealed abstract class SupportedComposite(val args: Seq[NodeStructure], origin: ASTNode) extends NodeStructure(origin)
-  class SupportedCompositeIgnoreOnChild(arg: NodeStructure, origin: ASTNode) extends SupportedComposite(Seq(arg), origin)
-  class OtherSupportedComposite(args: Seq[NodeStructure], origin: ASTNode) extends SupportedComposite(args, origin)
-
-  sealed abstract class UnsupportedComposite(val args: Seq[NodeStructure], origin: ASTNode) extends NodeStructure(origin)
-  class RelationalComposite(args: Seq[NodeStructure], origin: ASTNode) extends UnsupportedComposite(args, origin)
-  class OtherComposite(args: Seq[NodeStructure], origin: ASTNode) extends UnsupportedComposite(args, origin)
-
-
-
-  def getNodeStructure(node: ASTNode): NodeStructure = node match {
+  def getTriggers(node: ASTNode): (Set[Trigger], Boolean) = node match {
     case invok: MethodInvokation if Set(Method.Kind.Predicate, Method.Kind.Pure).contains(invok.getDefinition.kind) =>
       invok.method match {
         case "alen" =>
-          new SupportedCompositeIgnoreOnChild(getNodeStructure(invok.getArg(0)), invok)
+          val arg = invok.getArg(0)
+          val (childPatterns, allowChild) = getTriggers(arg)
+          childPatterns.filter(_.origin == arg) match {
+            case Seq() if allowChild => (Invokation("alen", ))
+          }
         case _ =>
           new OtherSupportedComposite(invok.getArgs.map(getNodeStructure), invok)
       }
@@ -67,13 +49,13 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
       new UnsupportedLeaf(node)
     case x =>
       Warning("The following node was encountered, but we cannot decide whether that is allowed in a trigger. We may " +
-        "discard valid triggers and come to an incorrect conclusion.", x)
+        "discard valid triggers and come to an incorrect conclusion.")
+      Warning("%s", x)
       new UnsupportedLeaf(node)
   }
 
   def tryComputeTrigger(decls: Array[DeclarationStatement], cond: ASTNode, body: ASTNode): BindingExpression = {
-    val struct = getNodeStructure(body)
-    val patterns = struct.getPatterns
+    val patterns = getTriggers(body)
   }
 
   override def visit(expr: BindingExpression): Unit = {
