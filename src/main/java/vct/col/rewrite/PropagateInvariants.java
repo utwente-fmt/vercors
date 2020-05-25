@@ -9,6 +9,7 @@ import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 
 public class PropagateInvariants extends AbstractRewriter {

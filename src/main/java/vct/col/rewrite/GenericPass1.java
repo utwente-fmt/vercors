@@ -4,12 +4,14 @@ import hre.util.SingleNameSpace;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
+import vct.col.ast.util.MultiSubstitution;
+import vct.col.ast.stmt.decl.*;
 
 public class GenericPass1 extends AbstractRewriter {
 

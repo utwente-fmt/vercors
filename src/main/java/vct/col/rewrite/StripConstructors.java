@@ -2,6 +2,7 @@ package vct.col.rewrite;
 
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 public class StripConstructors extends AbstractRewriter {
 

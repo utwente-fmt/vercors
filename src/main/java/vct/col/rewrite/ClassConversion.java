@@ -13,6 +13,7 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 
 /**
@@ -84,7 +85,7 @@ public class ClassConversion extends AbstractRewriter {
       String name = cl.name() + SEP + m.name();
       ArrayList<DeclarationStatement> args=new ArrayList<DeclarationStatement>();
       ASTNode body=m.getBody();
-      if (m.kind!=Method.Kind.Constructor && !m.isStatic()){
+      if (m.kind!= Method.Kind.Constructor && !m.isStatic()){
         args.add(create.field_decl(THIS,create.class_type(cl.name())));
         ASTNode nonnull=create.expression(StandardOperator.NEQ,
             create.local_name(THIS),

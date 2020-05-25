@@ -22,7 +22,8 @@ import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.AbstractRewriter;
 
 public class JavaEncoder extends AbstractRewriter {
 
