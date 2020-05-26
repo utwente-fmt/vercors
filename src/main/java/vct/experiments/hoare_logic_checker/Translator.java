@@ -960,9 +960,9 @@ public class Translator {
 		  
 		public void visit(BindingExpression e){
 			outputToString.printf("Found Binding Expression %s %n",e.toString());
-		    e.select.accept(this);
+		    e.select().accept(this);
 		    if (abort) return;
-		    e.main.accept(this);
+		    e.main().accept(this);
 		}
 		
 

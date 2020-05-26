@@ -229,8 +229,8 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
           Configuration.getDiagSyntax().print(e),
           Configuration.getDiagSyntax().print(a));
       ref.set(ee_decl);
-      if (ee.binder!=e.binder) return false;
-      return e.select.apply(this,ee.select) && e.main.apply(this,ee.main);
+      if (ee.binder()!=e.binder()) return false;
+      return e.select().apply(this,ee.select()) && e.main().apply(this,ee.main());
     } else {
       throw new HREError("non-linear left-hand side");
     }
@@ -500,17 +500,17 @@ class MatchSubstitution extends AbstractRewriter {
       }
       decls[i]=create.field_decl(dref.name(), rewrite(dref.getType()), rewrite(decls[i].initJava()));
     }
-    if (e.binder== Binder.Let){
+    if (e.binder() == Binder.Let){
       HashMap<NameExpression, ASTNode> map=new HashMap<NameExpression, ASTNode>();
       for(int i=0;i<decls.length;i++){
         map.put(create.local_name(decls[i].name()), decls[i].initJava());
       }
       Substitution sigma=new Substitution(source(),map);
-      ASTNode tmp=rewrite(e.main);
+      ASTNode tmp=rewrite(e.main());
       ASTNode res=sigma.rewrite(tmp);
       result=res;
     } else {
-      result=create.binder(e.binder,rewrite(e.result_type),decls,rewrite(e.triggers),rewrite(e.select),rewrite(e.main));
+      result=create.binder(e.binder(),rewrite(e.result_type()),decls,rewrite(e.javaTriggers()),rewrite(e.select()),rewrite(e.main()));
     }
   }
 

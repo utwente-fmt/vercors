@@ -28,7 +28,7 @@ public class SilverImplementIdentity extends AbstractRewriter {
   private String name=null;
   
   public void visit(BindingExpression e){
-    if (e.binder == Binder.Star) {
+    if (e.binder() == Binder.Star) {
       name = e.getDeclaration(0).name();
       super.visit(e);
       name=null;

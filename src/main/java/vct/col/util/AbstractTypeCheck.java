@@ -1772,8 +1772,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     super.visit(e);
     //result=create.binder(e.binder, rewrite(e.getDeclarations()), rewrite(e.select), rewrite(e.main));
     Type t;
-    if (e.select!=null){
-      t=e.select.getType();
+    if (e.select()!=null){
+      t=e.select().getType();
       if (t==null){
         Abort("Selection in binding expression without type.");
       }
@@ -1781,18 +1781,18 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         Fail("Selector in binding expression is %s instead of boolean.",t);
       }
     }
-    t=e.main.getType();
+    t=e.main().getType();
     if (t==null){
       Abort("Binding expression without type.");
     }
-    switch(e.binder){
+    switch(e.binder()){
     case Let:
       e.setType(t);
       break;
     case Star:{
       Type res=new PrimitiveType(PrimitiveSort.Resource);
       if (!res.supertypeof(source(), t)){
-        Fail("main argument of %s quantifier must be resource",e.binder);
+        Fail("main argument of %s quantifier must be resource",e.binder());
       }
       e.setType(res);
       break;
@@ -1801,7 +1801,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Forall:{
       Type res=new PrimitiveType(PrimitiveSort.Boolean);
       if (!res.supertypeof(source(), t)) {
-        Fail("main argument of %s quantifier must be boolean",e.binder);
+        Fail("main argument of %s quantifier must be boolean",e.binder());
       }
       e.setType(res);
       break;

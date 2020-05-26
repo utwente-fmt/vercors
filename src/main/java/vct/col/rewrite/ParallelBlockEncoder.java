@@ -788,9 +788,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ));  
       } else if(is_a_quantified(clause,Binder.Star,StandardOperator.ReducibleSum)){
         BindingExpression bclause=(BindingExpression)clause;
-        OperatorExpression expr=(OperatorExpression)bclause.main;
+        OperatorExpression expr=(OperatorExpression)bclause.main();
         main_cb.requires(create.starall(
-            bclause.select,
+            bclause.select(),
             create.expression(StandardOperator.Perm,
                 copy_rw.rewrite(expr.arg(0)),
                 create.reserved_name(ASTReserved.FullPerm)
@@ -817,9 +817,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ));
       } else if(is_a_quantified(clause,Binder.Star,StandardOperator.Contribution)){
         BindingExpression bclause=(BindingExpression)clause;
-        OperatorExpression expr=(OperatorExpression)bclause.main;
+        OperatorExpression expr=(OperatorExpression)bclause.main();
         main_cb.ensures(create.starall(
-            bclause.select,
+            bclause.select(),
             create.expression(StandardOperator.Perm,
                 copy_rw.rewrite(expr.arg(0)),
                 create.reserved_name(ASTReserved.FullPerm)
@@ -827,7 +827,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
             bclause.getDeclarations()
         ));
         main_cb.ensures(create.forall(
-            bclause.select,
+            bclause.select(),
             create.expression(StandardOperator.EQ,
                 copy_rw.rewrite(expr.arg(0)),
                 plus(create.expression(StandardOperator.Old,copy_rw.rewrite(expr.arg(0))),
@@ -865,9 +865,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ));
       } else if(is_a_quantified(clause,Binder.Star,StandardOperator.ReducibleSum)){
         BindingExpression bclause=(BindingExpression)clause;
-        OperatorExpression expr=(OperatorExpression)bclause.main;
+        OperatorExpression expr=(OperatorExpression)bclause.main();
         body_cb.requires(create.starall(
-            bclause.select,
+            bclause.select(),
             create.expression(StandardOperator.Perm,
                 copy_rw.rewrite(expr.arg(0)),
                 create.reserved_name(ASTReserved.FullPerm)
@@ -875,7 +875,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
             bclause.getDeclarations()
         ));
         body_cb.requires(create.forall(
-            bclause.select,
+            bclause.select(),
             create.expression(StandardOperator.EQ,
                 copy_rw.rewrite(expr.arg(0)),
                 create.constant(0)
@@ -896,9 +896,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ));       
       } else if(is_a_quantified(clause,Binder.Star,StandardOperator.Contribution)){
         BindingExpression bclause=(BindingExpression)clause;
-        OperatorExpression expr=(OperatorExpression)bclause.main;
+        OperatorExpression expr=(OperatorExpression)bclause.main();
         body_cb.ensures(create.starall(
-            bclause.select,
+            bclause.select(),
             create.expression(StandardOperator.Perm,
                 rewrite(expr.arg(0)),
                 create.reserved_name(ASTReserved.FullPerm)
@@ -906,7 +906,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
             bclause.getDeclarations()
         ));
         body_cb.ensures(create.forall(
-            bclause.select,
+            bclause.select(),
             create.expression(StandardOperator.EQ,
                 rewrite(expr.arg(0)),
                 rewrite(expr.arg(1))
@@ -940,8 +940,8 @@ public class ParallelBlockEncoder extends AbstractRewriter {
   private boolean is_a_quantified(ASTNode expr, Binder bd, StandardOperator op) {
     if (expr instanceof BindingExpression){
       BindingExpression b=(BindingExpression) expr;
-      if (b.binder==bd){
-        return b.main.isa(op);
+      if (b.binder()==bd){
+        return b.main().isa(op);
       }
     }
     return false;
