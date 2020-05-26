@@ -95,8 +95,8 @@ public class ChalicePreProcess extends AbstractRewriter {
   
   @Override
   public void visit(MethodInvokation e){
-    if (e.method.equals("length") && e.object.getType().isPrimitive(PrimitiveSort.Sequence)){
-      result=create.expression(StandardOperator.Size,rewrite(e.object));
+    if (e.method().equals("length") && e.object().getType().isPrimitive(PrimitiveSort.Sequence)){
+      result=create.expression(StandardOperator.Size,rewrite(e.object()));
     } else {
       super.visit(e);
     }

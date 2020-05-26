@@ -101,7 +101,7 @@ public class ExplicitPermissionEncoding extends AbstractRewriter {
           if (i.labels()==1){
             NameExpression lbl=i.getLabel(0);
             String pred_name=lbl.getName();
-            Type t=create.class_type(i.object.getType()+"_"+i.method);
+            Type t=create.class_type(i.object().getType()+"_"+i.method());
             DeclarationStatement decl=new DeclarationStatement(pred_name,t,create.reserved_name(Null));
             decl.setOrigin(i);
             cb.given(decl);
@@ -115,7 +115,7 @@ public class ExplicitPermissionEncoding extends AbstractRewriter {
           if (i.labels()==1){
             NameExpression lbl=i.getLabel(0);
             String pred_name=lbl.getName();
-            Type t=create.class_type(i.object.getType()+"_"+i.method);
+            Type t=create.class_type(i.object().getType()+"_"+i.method());
             DeclarationStatement decl=new DeclarationStatement(pred_name,t,create.reserved_name(Null));
             decl.setOrigin(i);
             cb.yields(decl);
@@ -143,7 +143,7 @@ public class ExplicitPermissionEncoding extends AbstractRewriter {
         if (i.labels()==1){
           NameExpression lbl=i.getLabel(0);
           String label_name=lbl.getName();
-          String pred_name=i.method;
+          String pred_name=i.method();
           String class_name=((ASTClass)i.getDefinition().getParent()).getName();
           Type t=create.class_type(class_name+"_"+pred_name);
           DeclarationStatement decl=new DeclarationStatement(label_name,t);
@@ -206,13 +206,13 @@ public class ExplicitPermissionEncoding extends AbstractRewriter {
       if (arg1 instanceof MethodInvokation){
         // instantiate predicate witnesses only
         MethodInvokation pred=(MethodInvokation)arg1;
-        String pred_name=pred.method;
+        String pred_name=pred.method();
         String class_name=((ASTClass)pred.getDefinition().getParent()).getName();
         Type t;
-        if (pred.dispatch==null){
+        if (pred.dispatch()==null){
           t=create.class_type(class_name+"_"+pred_name);
         } else {
-          t=create.class_type(class_name+"_"+pred_name+"_at_"+pred.dispatch);
+          t=create.class_type(class_name+"_"+pred_name+"_at_"+pred.dispatch());
         }
         result=create.field_decl(lbl, t);
       } else {
@@ -242,18 +242,18 @@ public class ExplicitPermissionEncoding extends AbstractRewriter {
       if (arg1.labels()==1){
         NameExpression lbl=arg1.getLabel(0);
         MethodInvokation pred=(MethodInvokation)arg1;
-        String pred_name=pred.method;
+        String pred_name=pred.method();
         String class_name=((ASTClass)pred.getDefinition().getParent()).getName();
         Type t=create.class_type(class_name+"_"+pred_name);
         ArrayList<ASTNode> args=new ArrayList<ASTNode>();
         ArrayList<ASTNode> cons_args=new ArrayList<ASTNode>();
-        args.add(pred.object.apply(copy_rw));
-        cons_args.add(pred.object.apply(copy_rw));
+        args.add(pred.object().apply(copy_rw));
+        cons_args.add(pred.object().apply(copy_rw));
         BlockStatement block=create.block(
             create.assignment(create.local_name(lbl.getName()),create.new_object((ClassType)t)),
             create.assignment(
                 create.dereference(create.local_name(lbl.getName()),"ref"),
-                rewrite(pred.object)
+                rewrite(pred.object())
             )
         );
         DeclarationStatement decls[]=pred.getDefinition().getArgs();
@@ -320,14 +320,14 @@ class ClauseEncoding extends AbstractRewriter {
 
   public void visit(MethodInvokation i) {
     if (i.getDefinition()==null){
-      //Abort("Missing definition of %s",i.method);
-      Warning("Ignoring missing definition of %s",i.method);
+      //Abort("Missing definition of %s",i.method());
+      Warning("Ignoring missing definition of %s",i.method());
       result=copy_rw.rewrite(i);
     } else if (i.getDefinition().getKind()!=Method.Kind.Predicate){
       result=copy_rw.rewrite(i);
     } else {
       if (i.labels()==0){
-        if (i.method.equals(WandEncoder.VALID)){
+        if (i.method().equals(WandEncoder.VALID)){
           result=copy_rw.rewrite(i);
           return;
         }
@@ -340,7 +340,7 @@ class ClauseEncoding extends AbstractRewriter {
       if (i.getDefinition().isStatic()){
         args=rewrite(i.getArgs());
       } else {
-        args=rewrite(i.object,i.getArgs());
+        args=rewrite(i.object(),i.getArgs());
       }
       body=star(body,invoke(
               create.unresolved_name(lbl.getName()),
@@ -494,9 +494,9 @@ class PredicateClassGenerator extends AbstractRewriter {
           super.visit(i);
           if (i.labels()==1){
             String name=i.getLabel(0).getName();
-            ClassType type=(ClassType)i.object.getType();
+            ClassType type=(ClassType)i.object().getType();
             String type_name[]=type.getNameFull();
-            type_name[type_name.length-1]+="_"+i.method;
+            type_name[type_name.length-1]+="_"+i.method();
             type=create.class_type(type_name);
             DeclarationStatement decl=create.field_decl(name,type);
             decl.setGhost(true);
@@ -546,26 +546,26 @@ class PredicateClassGenerator extends AbstractRewriter {
 
   public void visit(MethodInvokation call){
     String field_name=null;
-    if (call.object instanceof Dereference) {
-      field_name=((Dereference)call.object).field();
-    } else if (call.object instanceof NameExpression){
-      field_name=((NameExpression)call.object).getName();
+    if (call.object() instanceof Dereference) {
+      field_name=((Dereference)call.object()).field();
+    } else if (call.object() instanceof NameExpression){
+      field_name=((NameExpression)call.object()).getName();
       if (!field_name.equals("This")) {
         Abort("unexpected field name %s",field_name);
       }
     } else {
-      Abort("could not get field name at %s",call.object.getOrigin());
+      Abort("could not get field name at %s",call.object().getOrigin());
     }
     if (call.labels()==0){
-      Fail("unlabeled invokation of %s",call.method);
+      Fail("unlabeled invokation of %s",call.method());
     }
     String label_name=call.getLabel(0).getName();
     if (pred_class.find_field(label_name)!=null){
       Abort("label %s declared twice",label_name);
     }
-    String tmp[]=((ClassType)call.object.getType()).getNameFull();
+    String tmp[]=((ClassType)call.object().getType()).getNameFull();
     
-    tmp[tmp.length-1]=tmp[tmp.length-1]+"_"+call.method;
+    tmp[tmp.length-1]=tmp[tmp.length-1]+"_"+call.method();
     Type pred_type=create.class_type(tmp);
 
     pred_class.add_dynamic(create.field_decl(label_name,pred_type));
@@ -574,7 +574,7 @@ class PredicateClassGenerator extends AbstractRewriter {
     ASTNode exists=create.expression(StandardOperator.NEQ,create.field_name(label_name),create.reserved_name(Null)); 
     ASTNode valid=create.invokation(create.field_name(label_name), null, ("valid"));
     ASTNode check=create.invokation(create.field_name(label_name), null, ("check"),
-        rewrite(call.object,call.getArgs()));
+        rewrite(call.object(),call.getArgs()));
     auto_labels=false;
     result=create.expression(StandardOperator.Star,create.expression(StandardOperator.Star,exists,valid),check);
   }

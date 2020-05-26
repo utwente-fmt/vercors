@@ -24,7 +24,7 @@ public class InlinePredicatesRewriter extends AbstractRewriter {
     int N=def.getArity();
     HashMap<NameExpression,ASTNode> map=new HashMap<NameExpression, ASTNode>();
     Substitution sigma=new Substitution(source(),map);
-    map.put(create.reserved_name(ASTReserved.This), rewrite(e.object));
+    map.put(create.reserved_name(ASTReserved.This), rewrite(e.object()));
     for(int i=0;i<N;i++){
       map.put(create.unresolved_name(def.getArgument(i)),rewrite(e.getArg(i)));
     }

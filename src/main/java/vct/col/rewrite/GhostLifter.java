@@ -133,7 +133,7 @@ public class GhostLifter extends AbstractRewriter {
       }
       //TODO: check for unused arguments.
     }
-    MethodInvokation res=create.invokation(rewrite(m.object), m.dispatch, m.method, args.toArray(new ASTNode[0]));
+    MethodInvokation res=create.invokation(rewrite(m.object()), m.dispatch(), m.method(), args.toArray(new ASTNode[0]));
     if (m.get_before()!=null) res.set_before(before);
     if (m.get_after()!=null) res.set_after(after);
     result=res;

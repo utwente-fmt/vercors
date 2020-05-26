@@ -268,7 +268,7 @@ public class Method extends ASTDeclaration {
     if (node instanceof MethodInvokation){
       MethodInvokation s=(MethodInvokation)node;
       if (s.getDefinition()==target) return true;
-      if (find(target,scanned,s.object)) return true;
+      if (find(target,scanned,s.object())) return true;
       for(ASTNode child:s.getArgs()){
         if (find(target,scanned,child)) return true;
       }

@@ -116,17 +116,17 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
 
   public Method find_method(MethodInvokation e){
-    Method m=source().find_adt(e.method);
+    Method m=source().find_adt(e.method());
     if (m!=null){
       return m;
     }
-    m=source().find_procedure(e.method);
+    m=source().find_procedure(e.method());
     if (m!=null){
       return m;
     }
-    if (e.object==null && e.dispatch!=null){
+    if (e.object()==null && e.dispatch()!=null){
       // This is a constructor invokation.
-      ClassType t=e.dispatch;
+      ClassType t=e.dispatch();
       ASTClass cl=source().find(t.getNameFull());
       if (cl==null){
         Fail("class %s not found",t);
@@ -146,8 +146,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         return m;
       }
     }
-    if (e.object!=null){
-      ClassType object_type=(ClassType)e.object.getType();
+    if (e.object()!=null){
+      ClassType object_type=(ClassType)e.object().getType();
       int N=e.getArity();
       for(int i=0;i<N;i++){
         if (e.getArg(i).labels()>0) {
@@ -165,10 +165,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       ASTClass cl=source().find(object_type.getNameFull());
       if (cl==null) Fail("could not find class %s used in %s",object_type.getFullName(),e);
-      m=cl.find(e.method,object_type,type);
+      m=cl.find(e.method(),object_type,type);
       while(m==null && cl.super_classes.length>0){
         cl=source().find(cl.super_classes[0].getNameFull());
-        m=cl.find(e.method,object_type,type);
+        m=cl.find(e.method(),object_type,type);
       }
       if (m==null) {
         /*
@@ -190,7 +190,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
             tmp=tmp+","+type[i].toString();
           }
         }
-        Fail("could not find method %s(%s) in class %s at %s%n%s",e.method,tmp,object_type.getFullName(),e.getOrigin(),e);
+        Fail("could not find method %s(%s) in class %s at %s%n%s",e.method(),tmp,object_type.getFullName(),e.getOrigin(),e);
       }
       return m;
     }
@@ -201,14 +201,14 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   public void visit(MethodInvokation e){
     super.visit(e);
     ClassType object_type=null;
-    if (e.object!=null){
-      if(e.object.getType()==null){
-        Fail("object has no type at %s",e.object.getOrigin());
+    if (e.object()!=null){
+      if(e.object().getType()==null){
+        Fail("object has no type at %s",e.object().getOrigin());
       }
-      if (!(e.object.getType() instanceof ClassType)){
+      if (!(e.object().getType() instanceof ClassType)){
         Fail("invokation on non-class");
       }
-      object_type=(ClassType)e.object.getType();
+      object_type=(ClassType)e.object().getType();
     }
     int N=e.getArity();
     for(int i=0;i<N;i++){
@@ -242,10 +242,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Type t=m.getReturnType();
       Map<String,Type> map=new HashMap<String, Type>();
       TypeVarSubstitution sigma=new TypeVarSubstitution(source(),map);
-      if (!(e.object instanceof ClassType)){
-        Fail("%s is not an ADT in %s",e.object,e);
+      if (!(e.object() instanceof ClassType)){
+        Fail("%s is not an ADT in %s",e.object(),e);
       }
-      SilverTypeMap.get_adt_subst(sigma.copy_rw,map,(ClassType)e.object);
+      SilverTypeMap.get_adt_subst(sigma.copy_rw,map,(ClassType)e.object());
       e.setType(sigma.rewrite(t));
       return;
     }
@@ -394,10 +394,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         */
     switch(m.kind){
     case Constructor:
-      if (e.dispatch!=null){
-        e.setType(e.dispatch);
+      if (e.dispatch()!=null){
+        e.setType(e.dispatch());
       } else {
-        e.setType((Type)e.object);
+        e.setType((Type)e.object());
       }
       break;
     case Predicate:

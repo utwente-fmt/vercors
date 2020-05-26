@@ -9,9 +9,7 @@ import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
-import vct.col.ast.langspecific.*;
-import vct.col.ast.langspecific.c.CFunctionType;
-import vct.col.ast.langspecific.c.ParamSpec;
+import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.stmt.decl.*;
@@ -294,13 +292,13 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
   @Override
   public void visit(MethodInvokation e) {
-    ASTNode object=rewrite(e.object);
+    ASTNode object=rewrite(e.object());
     int N=e.getArity();
     ASTNode args[]=new ASTNode[N];
     for(int i=0;i<N;i++){
       args[i]=e.getArg(i).apply(this);
     }
-    MethodInvokation res=create.invokation(object,rewrite(e.dispatch),e.method,args);
+    MethodInvokation res=create.invokation(object,rewrite(e.dispatch()),e.method(),args);
     res.set_before(rewrite(e.get_before()));
     res.set_after(rewrite(e.get_after()));
     result=res;

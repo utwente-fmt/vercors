@@ -298,7 +298,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
             pb.dependency(i, create.invokation(null,null,dep, args));
           } else if (d instanceof MethodInvokation){
             MethodInvokation e=(MethodInvokation)d;
-            String dep=e.method;
+            String dep=e.method();
             HashSet<String> trans=must_deps.get(dep);
             if (trans==null) {
               Fail("dependency %s of %s is unknown",dep,pb.label());
@@ -341,7 +341,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
               for (int i = 0; i < pb.depslength(); i++) {
                 ASTNode dep_tmp = pb.dependency(i);
                 MethodInvokation dep=(MethodInvokation)dep_tmp;
-                String dname=dep.method;
+                String dname=dep.method();
                 if (pb2.label().equals(dname)){
                   ArrayList<ASTNode> parts=new ArrayList<ASTNode>();
                   

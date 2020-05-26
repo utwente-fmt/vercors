@@ -25,7 +25,7 @@ class KernelBodyRewriter extends AbstractRewriter {
   @Override
   public void visit(MethodInvokation e){
     ASTNode arg;
-    switch(e.method){
+    switch(e.method()){
     case "get_global_id" :
       arg=e.getArg(0);
       if (arg.isConstant(0)) {

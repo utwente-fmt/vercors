@@ -4,9 +4,7 @@ import java.util.List;
 
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
-import vct.col.ast.langspecific.*;
-import vct.col.ast.langspecific.c.CFunctionType;
-import vct.col.ast.langspecific.c.ParamSpec;
+import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -135,7 +133,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override
   public void visit(MethodInvokation e) {
     // TODO: fix dispatch(e.get_before());
-    dispatch(e.object);
+    dispatch(e.object());
     for(ASTNode arg:e.getArgs()){
       arg.accept(this);
     }

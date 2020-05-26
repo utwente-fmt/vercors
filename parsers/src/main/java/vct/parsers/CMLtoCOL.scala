@@ -8,8 +8,7 @@ import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{NameExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.langspecific.c.{CFunctionType, ParamSpec}
-import vct.col.ast.langspecific._
+import vct.col.ast.langspecific.c._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.ContractBuilder

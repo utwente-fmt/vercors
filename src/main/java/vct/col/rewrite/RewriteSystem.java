@@ -14,8 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
-import vct.col.ast.langspecific.*;
-import vct.col.ast.langspecific.c.CFunctionType;
+import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.util.ASTMapping1;
@@ -152,8 +151,8 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
   public Boolean map(MethodInvokation e, ASTNode a) {
     if (a instanceof MethodInvokation){
       MethodInvokation ee=(MethodInvokation)a;
-      if (!e.method.equals(ee.method)) return false;
-      if (!e.object.apply(this,ee.object)) return false;
+      if (!e.method().equals(ee.method())) return false;
+      if (!e.object().apply(this,ee.object())) return false;
       int N=e.getArity();
       for(int i=0;i<N;i++){
         if (!e.getArg(i).apply(this,ee.getArg(i))) return false;

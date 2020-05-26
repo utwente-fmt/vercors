@@ -15,7 +15,7 @@ public class SimplifyCalls extends AbstractRewriter {
   }
 
   public void visit(MethodInvokation e) {
-    ASTNode object=rewrite(e.object);
+    ASTNode object=rewrite(e.object());
     if (object instanceof NameExpression){
       NameExpression name=(NameExpression)object;
       if (name.getKind()==NameExpression.Kind.Reserved && name.getName().equals("this")){
@@ -32,7 +32,7 @@ public class SimplifyCalls extends AbstractRewriter {
     for(int i=0;i<N;i++){
       args[i]=e.getArg(i).apply(this);
     }
-    result=create.invokation(object,rewrite(e.dispatch),e.method,args);
+    result=create.invokation(object,rewrite(e.dispatch()),e.method(),args);
   }
 
 }
