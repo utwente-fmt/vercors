@@ -35,8 +35,7 @@ case class MethodInvokation(`object`: ASTNode, dispatch: ClassType, method: Stri
 
   def getArity: Int = args.length
   def getArg(i: Int): ASTNode = args(i)
-
-  def getArgs: Array[ASTNode] = args.toArray
+  def getArgs: Array[ASTNode] = args.toArray.clone
 
   def setDefinition(m: Method) = definition = m
   def getDefinition = definition
