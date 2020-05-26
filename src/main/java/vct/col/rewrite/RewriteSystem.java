@@ -16,15 +16,16 @@ import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.langspecific.*;
 import vct.col.ast.langspecific.c.CFunctionType;
-import vct.col.util.ASTMapping1;
-import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.util.ASTMapping1;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
-import vct.col.util.ASTUtils;
-import vct.util.Configuration;
+import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.Configuration;
+import vct.col.ast.util.AbstractRewriter;
 
 import static hre.lang.System.*;
 

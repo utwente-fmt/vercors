@@ -6,7 +6,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.langspecific._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, ProgramUnit}
-import vct.col.ast.util.ContractBuilder
+import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.FeatureScanner
 
 class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {

@@ -15,7 +15,8 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.col.util.LambdaHelper;
+import vct.col.ast.util.AbstractRewriter;
+import hre.util.LambdaHelper;
 
 public class Flatten extends AbstractRewriter {
 

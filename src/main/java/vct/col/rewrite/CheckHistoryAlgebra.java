@@ -8,15 +8,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.expr.*;
 import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.ActionBlock;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.*;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.Configuration;
 import vct.col.ast.util.ContractBuilder;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
-import vct.util.Configuration;
 import static vct.col.ast.expr.StandardOperator.Perm;
 import static vct.col.ast.expr.StandardOperator.PointsTo;
 import static vct.col.ast.expr.StandardOperator.EQ;
@@ -32,7 +33,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   public static enum Mode { AxiomVerification, ProgramVerification };
   public final Mode mode;
   
-  public CheckHistoryAlgebra(ProgramUnit source,Mode mode, ErrorMapping map) {
+  public CheckHistoryAlgebra(ProgramUnit source, Mode mode, ErrorMapping map) {
     super(source);
     this.mode=mode;
     map.add(ASSIGN_HIST,
@@ -464,7 +465,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     int N=m.getArity();
     ASTNode eq=c.post_condition;
     if (!eq.isa(EQ)){
-      Abort("cannot generate axiom for %s",Configuration.getDiagSyntax().print(eq)); 
+      Abort("cannot generate axiom for %s", Configuration.getDiagSyntax().print(eq));
     }
     ASTNode lhs=((OperatorExpression)c.post_condition).arg(0);
     ASTNode rhs=((OperatorExpression)c.post_condition).arg(1);

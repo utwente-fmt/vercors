@@ -14,12 +14,10 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
-import vct.col.ast.util.RecursiveVisitor;
-import vct.col.rewrite.InferADTTypes;
-import vct.col.rewrite.MultiSubstitution;
+import vct.col.ast.util.*;
+import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
-import vct.silver.SilverTypeMap;
-import vct.util.Configuration;
+import viper.api.SilverTypeMap;
 
 /**
  * This class implements type checking of simple object oriented programs.
@@ -516,7 +514,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (post_t==null) Abort("untyped post condition"); // TODO check boolean.
       if (!post_t.isPrimitive(PrimitiveSort.Boolean)){
         if (m.kind==Method.Kind.Pure){
-          for(ASTNode clause:ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)){
+          for(ASTNode clause: ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)){
             if (!clause.getType().isPrimitive(PrimitiveSort.Boolean)){
               clause.getOrigin().report("error","post condition of function "+m.name()+" is not a boolean");
               Fail("type error");
@@ -1857,7 +1855,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     for(ASTNode n:s.args){
       Type t=n.getType();
       if (t==null){
-        Abort("untyped argument to %s: %s",s.kind,Configuration.getDiagSyntax().print(n));
+        Abort("untyped argument to %s: %s",s.kind, Configuration.getDiagSyntax().print(n));
       }
     }
     Type t1;

@@ -10,8 +10,9 @@ import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.RecursiveVisitor;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
 
 public class AddSimpleTriggers extends AbstractRewriter {
   

@@ -1,16 +1,21 @@
 package viper.api
 
 import viper.silver.ast._
+
 import scala.collection.JavaConverters._
 import scala.collection.JavaConverters._
-import viper.silver.verifier.{Failure, Success, AbortedExceptionally, VerificationError}
+import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
+
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
 import java.nio.file.Path
+
+import hre.util
 import viper.silver.parser.PLocalVarDecl
+
 import scala.collection.mutable.WrappedArray
 
 
@@ -220,14 +225,14 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   override def null_(o:O):Exp = NullLit()(NoPosition,new OriginInfo(o))
 
-  override def forall(o:O,vars:List[Triple[O,String,Type]],triggers:List[List[Exp]],e:Exp):Exp = {
+  override def forall(o:O, vars:List[util.Triple[O,String,Type]], triggers:List[List[Exp]], e:Exp):Exp = {
     val tmp=triggers.asScala map {
       l => Trigger(l.asScala)(NoPosition,new OriginInfo(o))
     }
     Forall(to_decls(o,vars),tmp,e)(NoPosition,new OriginInfo(o))
   }
   
-  override def exists(o:O,vars:List[Triple[O,String,Type]],e:Exp):Exp = {
+  override def exists(o:O, vars:List[util.Triple[O,String,Type]], e:Exp):Exp = {
     Exists(to_decls(o,vars),Seq(),e)(NoPosition,new OriginInfo(o))
   }
   override def old(o:O,e:Exp):Exp = Old(e)(NoPosition,new OriginInfo(o))

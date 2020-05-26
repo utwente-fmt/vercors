@@ -5,6 +5,7 @@ import vct.col.ast.generic.BeforeAfterAnnotations;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 public class FlattenBeforeAfter extends AbstractRewriter {
 
