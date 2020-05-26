@@ -15,7 +15,7 @@ import vct.col.ast.`type`.Type
 
 case class BindingExpression(binder: Binder, result_type: Type, decls: Seq[DeclarationStatement], triggers: Seq[Seq[ASTNode]], select: ASTNode, main: ASTNode) extends ExpressionNode {
   def this(binder: Binder, result_type: Type, decls: Array[DeclarationStatement], triggers: Array[Array[ASTNode]], select: ASTNode, main: ASTNode) =
-    this(binder, result_type, decls.toSeq, triggers.map(_.toSeq).toSeq, select, main)
+    this(binder, result_type, decls.toSeq, if(triggers==null) null else triggers.map(_.toSeq).toSeq, select, main)
 
   override def debugTreeChildrenFields = Seq("select", "main")
   override def debugTreePropertyFields = Seq("binder", "result_type")
@@ -24,7 +24,8 @@ case class BindingExpression(binder: Binder, result_type: Type, decls: Seq[Decla
   def getDeclaration(i: Int): DeclarationStatement = decls(i)
   def getDeclarations: Array[DeclarationStatement] = decls.toArray
 
-  def javaTriggers: Array[Array[ASTNode]] = triggers.map(_.toArray).toArray
+  def javaTriggers: Array[Array[ASTNode]] =
+    if(triggers==null) null else triggers.map(_.toArray).toArray
 
   override def accept_simple[T](visitor: ASTVisitor[T]) = visitor.visit(this)
   override def accept_simple[T](map: ASTMapping[T]) = map.map(this)
