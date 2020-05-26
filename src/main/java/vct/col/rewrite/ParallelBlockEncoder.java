@@ -506,7 +506,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     for (ASTNode node : pa.synclistJava()) {
       if (node instanceof NameExpression){
         NameExpression name=(NameExpression)node;
-        if (name.getKind()==NameExpression.Kind.Label){
+        if (name.getKind()== NameExpressionKind.Label){
           boolean found=false;
           for(ASTNode ib:inv_blocks){
             if (ib instanceof ParallelInvariant){

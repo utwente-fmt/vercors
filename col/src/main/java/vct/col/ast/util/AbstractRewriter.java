@@ -140,7 +140,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void copy_labels(ASTNode dest,ASTNode source){
     for(NameExpression lbl:source.getLabels()){
       NameExpression copy=new NameExpression(lbl.getName());
-      copy.setKind(NameExpression.Kind.Label);
+      copy.setKind(NameExpressionKind.Label);
       copy.setOrigin(lbl.getOrigin());
       dest.addLabel(copy);
     }    

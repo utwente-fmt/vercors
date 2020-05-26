@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import scala.collection.JavaConverters;
-import vct.col.ast.expr.NameExpression.Kind;
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -40,7 +40,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   public void enter_after(ASTNode node){
     super.enter_after(node);
     if (node.isSpecial(ASTSpecial.Kind.Open)){
-      variables.add("member",new VariableInfo(null,Kind.Label));
+      variables.add("member",new VariableInfo(null, NameExpressionKind.Label));
     }
   }
 
@@ -545,7 +545,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   public void visit(NameExpression e){
     super.visit(e);
     Debug("%s name %s",e.getKind(),e.getName());
-    Kind kind = e.getKind();
+    NameExpressionKind kind = e.getKind();
     String name=e.getName();
     switch(kind){
       case Unresolved:{
@@ -571,8 +571,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
         e.setSite(info.reference);
         if (info.kind!=kind){
-          if ((kind==NameExpression.Kind.Local && info.kind==NameExpression.Kind.Argument)
-            ||(kind==NameExpression.Kind.Argument && info.kind==NameExpression.Kind.Local)){
+          if ((kind== NameExpressionKind.Local && info.kind== NameExpressionKind.Argument)
+            ||(kind== NameExpressionKind.Argument && info.kind== NameExpressionKind.Local)){
             Debug("mismatch of kinds %s/%s for name %s",kind,info.kind,name);
           } else {
             Abort("mismatch of kinds %s/%s for name %s",kind,info.kind,name);
@@ -711,7 +711,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       ASTClass cl = source().find((ClassType) t);
       variables.enter();
       for (DeclarationStatement decl : cl.dynamicFields()) {
-        variables.add(decl.name(), new VariableInfo(decl, Kind.Local));
+        variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
       }
       e.arg(1).accept(this);
       t = e.arg(1).getType();
@@ -999,7 +999,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       case SShrAssign: {
         if (e.arg(0) instanceof NameExpression) {
           NameExpression name = (NameExpression) e.arg(0);
-          if (name.getKind() == NameExpression.Kind.Label) break;
+          if (name.getKind() == NameExpressionKind.Label) break;
         }
         if (tt[0].getClass() != tt[1].getClass()) {
           Fail("Types of left and right-hand side arguments in assignment are incomparable at " + e.getOrigin());
@@ -1571,7 +1571,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     if (!(arg instanceof Dereference)
     && !(arg instanceof FieldAccess)
     && !arg.isa(StandardOperator.Subscript)
-    && !((arg instanceof NameExpression) && (((NameExpression)arg).getKind()==Kind.Field))
+    && !((arg instanceof NameExpression) && (((NameExpression)arg).getKind()== NameExpressionKind.Field))
     && !arg.getType().isPrimitive(PrimitiveSort.Location)
     && !arg.isa(StandardOperator.IndependentOf) // Ignore this check in jspec rules
     ){

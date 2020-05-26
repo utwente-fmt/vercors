@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.expr.MethodInvokation;
@@ -18,7 +19,7 @@ public class SimplifyCalls extends AbstractRewriter {
     ASTNode object=rewrite(e.object());
     if (object instanceof NameExpression){
       NameExpression name=(NameExpression)object;
-      if (name.getKind()==NameExpression.Kind.Reserved && name.getName().equals("this")){
+      if (name.getKind()== NameExpressionKind.Reserved && name.getName().equals("this")){
         object=null;
       }
     } else if (object instanceof ClassType) {

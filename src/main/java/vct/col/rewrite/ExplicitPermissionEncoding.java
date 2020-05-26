@@ -1,6 +1,8 @@
 package vct.col.rewrite;
 
 import java.util.ArrayList;
+
+import vct.col.ast.expr.*;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.ASTFlags;
@@ -15,14 +17,9 @@ import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.expr.Dereference;
 import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpression;
-import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
 import hre.config.Configuration;
 import static vct.col.ast.type.ASTReserved.*;
@@ -41,7 +38,7 @@ public class ExplicitPermissionEncoding extends AbstractRewriter {
 
   public AbstractRewriter copy_rw=new AbstractRewriter(source()){
     public void visit(NameExpression name){
-      if (name.getKind()==NameExpression.Kind.Label){
+      if (name.getKind()== NameExpressionKind.Label){
         result=new NameExpression(name.getName());
         result.setOrigin(create.getOrigin());
       } else {
@@ -178,7 +175,7 @@ public class ExplicitPermissionEncoding extends AbstractRewriter {
   }
    
   public void visit(NameExpression name){
-    if (name.getKind()==NameExpression.Kind.Label){
+    if (name.getKind()== NameExpressionKind.Label){
       result=new NameExpression(name.getName());
       result.setOrigin(create.getOrigin());
       return;
@@ -309,7 +306,7 @@ class ClauseEncoding extends AbstractRewriter {
 
   public AbstractRewriter copy_rw=new AbstractRewriter(source()){
     public void visit(NameExpression name){
-      if (name.getKind()==NameExpression.Kind.Label){
+      if (name.getKind()== NameExpressionKind.Label){
         result=new NameExpression(name.getName());
         result.setOrigin(create.getOrigin());
       } else {
@@ -580,7 +577,7 @@ class PredicateClassGenerator extends AbstractRewriter {
   }
 
   public void visit(NameExpression e){
-    NameExpression.Kind kind=e.getKind();
+    NameExpressionKind kind=e.getKind();
     String name=e.getName();
     switch(kind){
       case Local:

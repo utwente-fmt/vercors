@@ -559,7 +559,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   
   @Override
   public void visit(NameExpression e){
-    if (e.getKind()==NameExpression.Kind.Label){
+    if (e.getKind()== NameExpressionKind.Label){
       result=create.unresolved_name(e.getName());
     } else if (e.isReserved(ASTReserved.EmptyProcess)) {
       result=create.domain_call("Process", "p_empty");

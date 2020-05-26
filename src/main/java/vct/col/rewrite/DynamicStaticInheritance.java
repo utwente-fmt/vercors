@@ -3,6 +3,7 @@ package vct.col.rewrite;
 import java.util.HashSet;
 import java.util.Set;
 
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTDeclaration;
 import vct.col.ast.stmt.decl.ASTFlags;
@@ -52,14 +53,14 @@ public class DynamicStaticInheritance extends AbstractRewriter {
   public static boolean isThis(ASTNode n){
     if (!(n instanceof NameExpression)) return false;
     NameExpression name=(NameExpression)n;
-    if (name.getKind()!=NameExpression.Kind.Reserved) return false; 
+    if (name.getKind()!= NameExpressionKind.Reserved) return false;
     return name.reserved()==ASTReserved.This;
   }
   
   public static boolean isSuper(ASTNode n){
     if (!(n instanceof NameExpression)) return false;
     NameExpression name=(NameExpression)n;
-    if (name.getKind()!=NameExpression.Kind.Reserved) return false; 
+    if (name.getKind()!= NameExpressionKind.Reserved) return false;
     return name.getName().equals("super");
   }
 

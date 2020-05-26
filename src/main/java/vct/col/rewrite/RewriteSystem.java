@@ -459,7 +459,7 @@ class MatchSubstitution extends AbstractRewriter {
   
   @Override
   public void visit(NameExpression e){
-    if (e.getKind()==NameExpression.Kind.Reserved) {
+    if (e.getKind()== NameExpressionKind.Reserved) {
       super.visit(e);
       return;
     }
