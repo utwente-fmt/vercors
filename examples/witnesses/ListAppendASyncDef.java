@@ -18,7 +18,7 @@ final class List {
   public List next;
   
   /*@
-    public resource state()=
+    public final resource state()=
       Perm(val,1)**Perm(next,1)**next->state();
 
     requires state();
@@ -26,7 +26,7 @@ final class List {
         ((next==null)?(seq<int>{val})
                     :(seq<int>{val}+next.contents()));
 
-    public resource list(seq<int> c)=state() ** contents()==c;
+    public final resource list(seq<int> c)=state() ** contents()==c;
   @*/
 
   /*@
@@ -38,7 +38,7 @@ final class List {
     //@ fold state();
     //@ fold list(seq<int>{v});
   }
-  
+
   /*@
     given    seq<int> L1;
     given    seq<int> L2;
@@ -53,7 +53,7 @@ final class List {
         next=l;
         //@ unfold next.list(L2);
     } else {
-        //@ seq<int> tmp = next.contents();
+        //@ ghost seq<int> tmp = next.contents();
         //@ fold next.list(tmp);
         next.append_rec(l) /*@ with { L1 = tmp ; L2 = L2 ; } @*/;
         //@ unfold next.list(tmp+L2);

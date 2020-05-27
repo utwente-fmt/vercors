@@ -11,9 +11,9 @@ final class List {
 
   public int val;
   public List next;
-  
+
   /*@
-    public resource state()=
+    public final resource state()=
       Perm(val,1)**Perm(next,1)**next->state();
 
     requires state();
@@ -32,7 +32,7 @@ final class List {
     next=null;
     //@ fold state();
   }
-  
+
   /*@
     given    seq<int> L1;
     given    seq<int> L2;
@@ -45,7 +45,7 @@ final class List {
     if (next==null) {
         next=l;
     } else {
-        //@ seq<int> tmp = next.contents();
+        //@ ghost seq<int> tmp = next.contents();
         next.append_rec(l) /*@ with { L1 = tmp ; L2 = L2 ; } @*/;
     }
     //@ fold state();

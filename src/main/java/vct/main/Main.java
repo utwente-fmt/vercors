@@ -7,25 +7,16 @@ import java.lang.reflect.Constructor;
 import java.time.Instant;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
-import hre.debug.HeapDump;
-import hre.io.PrefixPrintWriter;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
-import hre.util.CompositeReport;
-import hre.util.TestReport;
-import vct.antlr4.parser.JavaResolver;
-import vct.antlr4.parser.Parsers;
+import vct.parsers.JavaResolver;
 import hre.tools.TimeKeeper;
-import vct.col.annotate.DeriveModifies;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.rewrite.DeriveModifies;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -34,22 +25,24 @@ import vct.col.ast.stmt.decl.SpecificationFormat;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.rewrite.*;
 import vct.col.rewrite.CheckHistoryAlgebra.Mode;
-import vct.col.syntax.JavaDialect;
-import vct.col.syntax.JavaSyntax;
-import vct.col.syntax.Syntax;
+import vct.col.ast.syntax.JavaDialect;
+import vct.col.ast.syntax.JavaSyntax;
+import vct.col.ast.syntax.Syntax;
 import vct.col.util.FeatureScanner;
 import vct.col.util.JavaTypeCheck;
 import vct.col.util.SimpleTypeCheck;
-import vct.learn.SpecialCountVisitor;
-import vct.learn.NonLinCountVisitor;
-import vct.learn.Oracle;
+import vct.experiments.learn.SpecialCountVisitor;
+import vct.experiments.learn.NonLinCountVisitor;
+import vct.experiments.learn.Oracle;
 import vct.logging.ErrorMapping;
 import vct.logging.ExceptionMessage;
 import vct.logging.PassReport;
+import vct.parsers.rewrite.FlattenVariableDeclarations;
+import vct.parsers.rewrite.InferADTTypes;
 import vct.silver.ErrorDisplayVisitor;
 import vct.test.CommandLineTesting;
-import vct.util.ClassName;
-import vct.util.Configuration;
+import vct.col.ast.util.ClassName;
+import hre.config.Configuration;
 
 import static hre.lang.System.*;
 
@@ -65,29 +58,6 @@ public class Main
   private static List<ClassName> classes;
   
   private static Map<String, SpecialCountVisitor> counters = new HashMap<String, SpecialCountVisitor>();
-
-  static class ChaliceTask implements Callable<TestReport> {
-    private ClassName class_name;
-    private ProgramUnit program;
-
-    public ChaliceTask(ProgramUnit program,ClassName class_name){
-      this.program=program;
-      this.class_name=class_name;
-    }
-    @Override
-    public TestReport call() {
-      Progress("Validating class %s...",class_name.toString("."));
-      TimeKeeper tk = new TimeKeeper();
-      ProgramUnit task=new FilterClass(program,class_name.name).rewriteAll();
-      task=new Standardize(task).rewriteAll();
-      new SimpleTypeCheck(task).check();
-      TestReport report=vct.boogie.Main.TestChalice(task);
-      Progress("%s: result is %s (%dms)",class_name.toString("."),
-          report.getVerdict(), tk.show());
-      return report;
-    }
-
-  }
 
   public static void main(String[] args) throws Throwable
   {
@@ -232,6 +202,14 @@ public class Main
       if(version.get()) {
         Output("%s %s", BuildInfo.name(), BuildInfo.version());
         Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion(), BuildInfo.scalaVersion(), Instant.ofEpochMilli(BuildInfo.builtAtMillis()));
+        if (!BuildInfo.currentBranch().equals("master")) {
+          Output(
+                  "On branch %s, commit %s, %s",
+                  BuildInfo.currentBranch(),
+                  BuildInfo.currentShortCommit(),
+                  BuildInfo.gitHasChanges()
+          );
+        }
         return;
       }
 
@@ -380,9 +358,15 @@ public class Main
           // The new encoding does not apply to Chalice yet.
           // Maybe it never will.
           passes.add("java-encode"); // disambiguate overloaded stuff, copy inherited functions and specifications
+          passes.add("standardize");
+          passes.add("check");
         }
 
-        if (sat_check.get()) passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
+        if (sat_check.get()) {
+          passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
+          passes.add("standardize");
+          passes.add("check");
+        }
 
         if (features.usesIterationContracts()||features.usesPragma("omp")){
           passes.add("openmp2pvl"); // Converts *all* parallel loops! (And their compositions) Into ordered set of parallel blocks in pvl.
@@ -619,11 +603,11 @@ public class Main
             if (name!=null){
               String file=String.format(name, pass);
               PrintWriter out=new PrintWriter(new FileOutputStream(file));
-              vct.util.Configuration.getDiagSyntax().print(out,program);
+              vct.col.ast.util.Configuration.getDiagSyntax().print(out,program);
               out.close();
             } else {
               PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-              vct.util.Configuration.getDiagSyntax().print(out, program);
+              vct.col.ast.util.Configuration.getDiagSyntax().print(out, program);
               out.close();
             }
           }
@@ -653,11 +637,11 @@ public class Main
             if (name!=null){
               String file=String.format(name, pass);
               PrintWriter out=new PrintWriter(new FileOutputStream(file));
-              vct.util.Configuration.getDiagSyntax().print(out,program);
+              vct.col.ast.util.Configuration.getDiagSyntax().print(out,program);
               out.close();
             } else {
               PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-              vct.util.Configuration.getDiagSyntax().print(out,program);
+              vct.col.ast.util.Configuration.getDiagSyntax().print(out,program);
               out.close();
             }
           }
@@ -700,19 +684,11 @@ public class Main
     defined_passes.put("c",new CompilerPass("print AST in C syntax"){
         public ProgramUnit apply(ProgramUnit arg,String ... args){
           PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-          vct.col.print.CPrinter.dump(out,arg);
+          vct.col.ast.print.CPrinter.dump(out,arg);
           out.close();
           return arg;
         }
       });
-    defined_passes.put("dump",new CompilerPass("dump AST"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        PrefixPrintWriter out=new PrefixPrintWriter(hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info));
-        HeapDump.tree_dump(out,arg,ASTNode.class);
-        out.close();
-        return arg;
-      }
-    });
     defined_passes.put("add-type-adt",new CompilerPass("Add an ADT that describes the types and use it to implement instanceof"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new AddTypeADT(arg).rewriteAll();
@@ -724,53 +700,10 @@ public class Main
         return new AssignmentRewriter(arg).rewriteAll();
       }
     });
-    defined_checks.put("boogie",new ValidationPass("verify with Boogie"){
-      public TestReport apply(ProgramUnit arg,String ... args){
-        return vct.boogie.Main.TestBoogie(arg);
-      }
-    });
-    defined_checks.put("dafny",new ValidationPass("verify with Dafny"){
-      public TestReport apply(ProgramUnit arg,String ... args){
-        return vct.boogie.Main.TestDafny(arg);
-      }
-    });
     defined_checks.put("silver",new ValidationPass("verify input with Silver"){
       @Override
       public PassReport apply_pass(PassReport arg,String ... args){
         return vct.silver.SilverBackend.TestSilicon(arg,silver.get());
-      }
-    });
-    defined_checks.put("chalice",new ValidationPass("verify with Chalice"){
-      public TestReport apply(ProgramUnit arg,String ... args){
-        TimeKeeper tk = new TimeKeeper();
-        if (separate_checks.get()) {
-          CompositeReport res=new CompositeReport();
-          ExecutorService queue=Executors.newFixedThreadPool(1);
-          ArrayList<Future<TestReport>> list=new ArrayList<Future<TestReport>>();
-          for(ClassName class_name:arg.classNames()){
-              Callable<TestReport> task=new ChaliceTask(arg,class_name);
-              Progress("submitting verification of %s",class_name.toString("."));
-              list.add(queue.submit(task));
-          }
-          queue.shutdown();
-          for(Future<TestReport> future:list){
-            try {
-              res.addReport(future.get());
-            } catch (InterruptedException e) {
-              DebugException(e);
-              Abort("%s",e);
-            } catch (ExecutionException e) {
-              DebugException(e);
-              Abort("%s",e);
-            }
-          }
-          Progress("verification took %dms", tk.show());
-          return res;
-        } else {
-          TestReport report=vct.boogie.Main.TestChalice(arg);
-          Progress("verification took %dms", tk.show());
-          return report;
-        }
       }
     });
     defined_passes.put("check",new CompilerPass("run a basic type check"){
@@ -898,6 +831,7 @@ public class Main
     defined_passes.put("java-encode",new CompilerPass("Encode Java overloading and inheritance"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         arg=new JavaEncoder(arg).rewriteAll();
+
         return arg;
       }
     });
@@ -974,7 +908,7 @@ public class Main
     });
     defined_passes.put("openmp2pvl",new CompilerPass("Compile OpenMP pragmas to PVL"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new OpenMPtoPVL(arg).rewriteAll();
+        return new OpenMPToPVL(arg).rewriteAll();
       }
     });
     defined_passes.put("parallel_blocks",new CompilerPass("Encoded the proof obligations for parallel blocks"){

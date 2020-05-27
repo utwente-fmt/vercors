@@ -4,6 +4,7 @@ import vct.col.ast.util.ASTFrame;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.util.AbstractRewriter;
 
 public class FilterClause extends AbstractRewriter {
 

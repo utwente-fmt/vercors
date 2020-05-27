@@ -34,7 +34,6 @@ class Exercise4 {
 }
 
 class JavaArrayExamples {
-
   /*@
     context_everywhere a != null;
     context (\forall* int i ; 0 <= i && i < a.length ; Perm(a[i],write));
@@ -48,7 +47,7 @@ class JavaArrayExamples {
       ensures  Perm(a[i],write);
     @*/
     {
-      //@ S1:if(i>0){ recv 0 < i ** i < a.length ** Perm(a[i],1\2) from S2,1; }
+      //@ ghost S1:if(i>0){ recv 0 < i ** i < a.length ** Perm(a[i],1\2) from S2,1; }
       S2:if (i < a.length-1) {
         a[i]=a[i+1];
         //@ send 0 <= i ** i < a.length - 1 ** Perm(a[i+1],1\2) to S1,1;
@@ -86,7 +85,7 @@ class JavaArrayExamples {
     {
       for(int j=0;j<N;j++)
       /*@
-				context 0 <= i && i < M;
+		context 0 <= i && i < M;
         context Perm(ar[i*N+j],write);
         ensures  ar[i*N+j]==0;
       @*/
@@ -101,7 +100,7 @@ class JavaArrayExamples {
     context (\forall* int k ; 0 <= k && k < ar.length ; Perm(ar[k],write));
     ensures (\forall  int k ; 0 <= k && k < ar.length ; ar[k]==0 ) ;
   @*/
-  public void zero_array_smart_nested(int ar[],int M,int N){
+  public void zero_array_smart_nested(int ar[],int M,int N) {
     for(int i=0;i<M;i++) {
       for(int j=0;j<N;j++)
       /*@

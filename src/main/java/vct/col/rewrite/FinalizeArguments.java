@@ -12,6 +12,7 @@ import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 
 /**
  * This rewriter converts all method argument to final arguments.

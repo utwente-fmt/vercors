@@ -36,7 +36,7 @@ void example(int a[],int b[],int c[],int len){
   @*/ {
     a[i]=b[i]+1;
     /*@
-      S1:if (i < len-1) {
+      ghost S1:if (i < len-1) {
         send 0 <= i ** i < len ** Perm(a[i],1\2) ** a[i]==i+1 to S2,1;
       }
     @*/

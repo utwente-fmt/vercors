@@ -1,31 +1,30 @@
 package vct.col.rewrite;
 
-import hre.ast.BranchOrigin;
+import hre.ast.AssertOrigin;
 import hre.ast.Origin;
-import scala.reflect.internal.Trees;
+import hre.ast.RestOfContractOrigin;
+import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.type.PrimitiveType;
-import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.type.Type;
-import vct.col.util.OriginWrapper;
+import vct.col.ast.util.AbstractRewriter;
 
 public class SatCheckRewriter extends AbstractRewriter {
-    public static class AssertOrigin extends BranchOrigin {
-        public AssertOrigin(String branch, Origin base){
-            super(branch, base);
-        }
-    }
 
     public SatCheckRewriter(ProgramUnit source) {
         super(source);
+    }
+
+    public void visit(ASTClass cls) {
+        for(Method method : cls.dynamicMethods()) {
+            if(method.getReturnType().isPrimitive(PrimitiveSort.Process)) {
+                result = copy_rw.rewrite(cls);
+                return;
+            }
+        }
+
+        super.visit(cls);
     }
 
     @Override
@@ -51,21 +50,48 @@ public class SatCheckRewriter extends AbstractRewriter {
             if (contract.getOrigin() != null) {
                 origin = contract.getOrigin();
             }
+
             // This way we tag the assert we produced. These are then collected in SilverStatementMap.
             // By collecting them later we allow other passes to delete them or modify them
             // In SilverBackend we check if they indeed all error. The ones that do not error, we report as error
-            AssertOrigin my_branch = new AssertOrigin("contract satisfiability check", origin);
-
+            RestOfContractOrigin restOfContractOrigin = new RestOfContractOrigin("origin indicating the rest of the contract. should be ignored if there is an error", origin);
+            AssertOrigin my_branch = new AssertOrigin("contract satisfiability check", origin, restOfContractOrigin);
             my_assert.clearOrigin();
             my_assert.setOrigin(my_branch);
 
-            BlockStatement blockStatement = create.block(my_assert);
+            BlockStatement blockStatement = create.block();
+
+            // Inhale precondition, invariant...
+            // Switched to inhales here (instead of just removing post condition from the contract) because I thought
+            // it would be easier to add special tracking origins. After implementing it it probably wouldn't have been
+            // hard to just leave it in the contract (setting a RestOfContractOrigin on the contract probably would've been
+            // enough?) but this seems to work well too. I guess this is less backend agnostic, so if we ever
+            // ditch viper this will have to change.
+            // And we also tag this inhale so we can detect errors caused by the contract
+            // and if the contract errors we shouldn't expect the assert error to show up
+            ASTSpecial contract_inhale = create.special(ASTSpecial.Kind.Inhale,
+                    create.expression(
+                            StandardOperator.Star,
+                            rewrite(m.getContract().invariant),
+                            rewrite(m.getContract().pre_condition)
+                    ));
+            contract_inhale.clearOrigin();
+            contract_inhale.setOrigin(restOfContractOrigin);
+            blockStatement.add(contract_inhale);
+
+            // Assert statement that's supposed to be unable to be verified, indicating the precondition
+            // is satisfiable
+            blockStatement.add(my_assert);
+
+            // Inhale false, to ensure that even though we skim the contract the postcondition really is not checked
+            ASTSpecial my_inhale = create.special(ASTSpecial.Kind.Inhale, create.constant(false));
+            blockStatement.add(my_inhale);
 
             // Create method that will serve as a proof obligation for the satisfiability of the contract
             Method assert_method = create.method_kind(
                     m.getKind(),
                     rewrite(m.getReturnType()),
-                    rewrite(m.getContract()),
+                    rewrite(skimContract(m.getContract())),
                     "__contract_unsatisfiable__" + m.name(),
                     rewrite(m.getArgs()),
                     m.usesVarArgs(),
@@ -76,6 +102,23 @@ public class SatCheckRewriter extends AbstractRewriter {
 
             currentTargetClass.add(assert_method);
         }
+    }
+
+    /*
+     * Skims the contract down to the parts needed to check if the function can even
+     * be called. Invariant gets added to only the precondition.
+     */
+    Contract skimContract(Contract contract) {
+        return new Contract(
+                contract.given,
+                contract.yields,
+                contract.modifies,
+                contract.accesses,
+                Contract.default_true,
+                Contract.default_true,
+                Contract.default_true, // The postcondition itself
+                new DeclarationStatement[0]        // And the signals clauses, since they encode to postconditions as well
+        );
     }
 
 }

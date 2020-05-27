@@ -4,11 +4,12 @@ import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
+import vct.col.ast.stmt.decl.*;
 
 public class ConstructorRewriter extends AbstractRewriter {
 

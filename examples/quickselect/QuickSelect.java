@@ -14,11 +14,11 @@ public class QuickSelect {
 
     //@ requires low<=high;
     //@ ensures low<=\result && \result<=high;
-    //@ static int random_between(int low, int high);
+    static int random_between(int low, int high);
     
     //@ context a != null;
     //@ context Perm(a[*], 1\2);
-    //@ static void printArray(int[] a, int l, int h);
+    static void printArray(int[] a, int l, int h);
 
     //@ context a != null;
     //@ context Perm(a[l], write) ** Perm(a[h], write);

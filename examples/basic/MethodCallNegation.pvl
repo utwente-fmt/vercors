@@ -1,0 +1,13 @@
+//:: case MethodCallNegation
+//:: tools silicon
+//:: verdict Pass
+
+class BlackOrRed {
+    boolean isBlack() {
+        return true;
+    }
+
+    boolean isRed() {
+        return !isBlack();
+    }
+}

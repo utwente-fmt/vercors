@@ -6,6 +6,7 @@ import vct.col.ast.type.ASTReserved;
 import vct.col.ast.expr.Dereference;
 import vct.col.ast.expr.FieldAccess;
 import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.util.AbstractRewriter;
 
 public class Simplify extends AbstractRewriter {
   

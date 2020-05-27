@@ -16,6 +16,7 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.util.OriginWrapper;
 
@@ -97,7 +98,8 @@ public class CurrentThreadRewriter extends AbstractRewriter {
    * @param m
    */
   private boolean affected(Method m){
-    if (m.getReturnType().isPrimitive(PrimitiveSort.Process)) return false;
+    Type returnType = m.getReturnType();
+    if (returnType.isPrimitive(PrimitiveSort.Process)) return false;
     switch(m.kind){
       case Constructor:
       case Plain:
