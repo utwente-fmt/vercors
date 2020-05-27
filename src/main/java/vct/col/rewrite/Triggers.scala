@@ -70,7 +70,7 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
   }
 
   def computeTriggers(names: Set[String], node: ASTNode): Seq[Set[ASTNode]] = {
-    val patterns = collectPatterns(node)._1
+    val patterns = collectPatterns(node)._1.filterNot(mentions(_).intersect(names).isEmpty)
     val patternsNoDirectChild = patterns.filter {
       case Dereference(obj, _) => !patterns.contains(obj)
       case OperatorExpression(Size, List(xs)) => !patterns.contains(xs)
@@ -78,9 +78,10 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
       case _ => true
     }
 
-    powerset(patternsNoDirectChild)
-      .filter(_.foldLeft(Set[String]())(_ ++ mentions(_)).intersect(names) == names)
-      .filter(set => set.forall(big => set.forall(small => big == small || contains(big, small))))
+    var triggers = powerset(patternsNoDirectChild)
+    triggers = triggers.filter(_.foldLeft(Set[String]())(_ ++ mentions(_)).intersect(names) == names)
+    triggers = triggers.filter(set => set.forall(big => set.forall(small => big == small || !contains(big, small))))
+    triggers
   }
 
   def tryComputeTrigger(decls: Array[DeclarationStatement], cond: ASTNode, body: ASTNode): Option[Set[Set[ASTNode]]] = {
@@ -102,7 +103,16 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
     computeTriggers(names, body) match {
       case Seq() => None
       case Seq(set) => Some(Set(set))
-      case _ => None
+      case triggers => body match {
+        case OperatorExpression(EQ | NEQ | LT | GT | LTE | GTE, List(left, right)) =>
+          val leftTriggers = triggers.filter(_.forall(contains(left, _)))
+          val rightTriggers = triggers.filter(_.forall(contains(right, _)))
+          if(leftTriggers.size == 1 && rightTriggers.size == 1) {
+            Some((leftTriggers ++ rightTriggers).toSet)
+          } else {
+            None
+          }
+      }
     }
   }
 
