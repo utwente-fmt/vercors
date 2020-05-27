@@ -77,7 +77,7 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
     val patternsNoDirectChild = patterns.filter {
       case Dereference(obj, _) => !patterns.contains(obj)
       case OperatorExpression(Size, List(xs)) => !patterns.contains(xs)
-      case MethodInvokation(_, _, "alen", List(arr)) => !patterns.contains(arr)
+      case MethodInvokation(_, _, "alen", Seq(arr)) => !patterns.contains(arr)
       case _ => true
     }
 
