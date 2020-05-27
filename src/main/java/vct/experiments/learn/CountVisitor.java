@@ -74,7 +74,7 @@ public class CountVisitor extends RecursiveVisitor<NodeCounter> {
   
   @Override
   public void visit(BindingExpression be) {
-    counter.count(be.getClass().getName(), be.binder.toString());
+    counter.count(be.getClass().getName(), be.binder().toString());
     super.visit(be);
   }
   

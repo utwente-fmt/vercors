@@ -48,7 +48,7 @@ public class GenericPass1 extends AbstractRewriter {
   public void visit(MethodInvokation e){
     Type t=e.getType();
     Type rt=e.getDefinition().getReturnType();
-    if(t.equals(rt) || (e.object instanceof Type)){
+    if(t.equals(rt) || (e.object() instanceof Type)){
       super.visit(e);
     } else {
       Warning("invokation: %s != %s",t,rt);
@@ -56,9 +56,9 @@ public class GenericPass1 extends AbstractRewriter {
       ASTNode tmp=result;
       result=create.expression(StandardOperator.Cast,create.class_type(((ClassType)t).getFullName()),tmp);
     }
-    //if (t instanceof ClassType && t.getArgCount()>0 && !(e.object instanceof Type)){
-      //ASTNode tmp=create.expression(StandardOperator.Cast,create.class_type(((ClassType)t).getFullName()),rewrite(e.object));
-      //result=create.invokation(tmp, e.dispatch, e.method, rewrite(e.getArgs()));
+    //if (t instanceof ClassType && t.getArgCount()>0 && !(e.object() instanceof Type)){
+      //ASTNode tmp=create.expression(StandardOperator.Cast,create.class_type(((ClassType)t).getFullName()),rewrite(e.object()));
+      //result=create.invokation(tmp, e.dispatch(), e.method(), rewrite(e.getArgs()));
       
     //} else {
     //  super.visit(e);

@@ -29,6 +29,7 @@ import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.JavaSyntax;
 import vct.col.ast.syntax.Syntax;
 import vct.col.util.FeatureScanner;
+import vct.col.util.FindBinders;
 import vct.col.util.JavaTypeCheck;
 import vct.col.util.SimpleTypeCheck;
 import vct.experiments.learn.SpecialCountVisitor;
@@ -557,6 +558,8 @@ public class Main
           passes.add("quant-optimize"); // some illegal-quantifier constructions need to be written differently (plus optimize)
           passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
           passes.add("standardize");
+          passes.add("check");
+          passes.add("gen-triggers");
           passes.add("check");
 
           passes.add("silver");
@@ -1116,6 +1119,11 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("gen-triggers", new CompilerPass("") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new Triggers(arg).rewriteAll();
+      }
+    });
   }
 
 

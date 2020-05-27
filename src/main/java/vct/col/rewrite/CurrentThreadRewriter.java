@@ -114,9 +114,9 @@ public class CurrentThreadRewriter extends AbstractRewriter {
   public void visit(MethodInvokation e){
     if (affected(e.getDefinition())){
       MethodInvokation res=create.invokation(
-          rewrite(e.object),
-          e.dispatch,
-          e.method,
+          rewrite(e.object()),
+          e.dispatch(),
+          e.method(),
           rewrite(create.local_name(ctname),e.getArgs())
       );
       res.set_before(rewrite(e.get_before()));

@@ -19,7 +19,7 @@ public class ConstructorRewriter extends AbstractRewriter {
 
   public void visit(MethodInvokation e){
     if (e.getDefinition()==null){
-      Warning("method invokation (%s) without definition",e.method);
+      Warning("method invokation (%s) without definition",e.method());
     } else if (e.getDefinition().kind== Method.Kind.Constructor) {
       Fail("%s cannot deal with instantiation that is not an assignment at %s",getClass(),e.getOrigin());
     }
@@ -37,10 +37,10 @@ public class ConstructorRewriter extends AbstractRewriter {
         ASTNode s1=create.assignment(rewrite(e.location()),create.expression(StandardOperator.New,rewrite(i.getType())));
         
         String method_name;
-        if (i.method.equals(Method.JavaConstructor)){
-          method_name=i.dispatch.toString();
+        if (i.method().equals(Method.JavaConstructor)){
+          method_name=i.dispatch().toString();
         } else {
-          method_name=i.method;
+          method_name=i.method();
         }
         method_name+="_init";
         MethodInvokation s2=create.invokation(rewrite(e.location()),null,method_name,rewrite(i.getArgs()));

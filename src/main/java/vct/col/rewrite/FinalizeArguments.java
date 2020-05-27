@@ -2,6 +2,7 @@ package vct.col.rewrite;
 
 import java.util.HashMap;
 
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
@@ -91,7 +92,7 @@ public class FinalizeArguments extends AbstractRewriter {
         ASTNode arg=e.arg(0);
         if (arg instanceof NameExpression){
           NameExpression name=(NameExpression)arg;
-          if (name.getKind()==NameExpression.Kind.Argument){
+          if (name.getKind()== NameExpressionKind.Argument){
             result=create.argument_name("__"+name.getName());
             break;
           }

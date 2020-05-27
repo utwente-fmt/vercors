@@ -58,11 +58,11 @@ domain VCTOption[T] {
   }
 
   axiom get_axiom_vct {
-    forall x: T :: getVCTOption(VCTSome(x)) == x
+    forall x: T :: {VCTSome(x)} getVCTOption(VCTSome(x)) == x
   }
 
   axiom get_axiom_vct_2 {
-    (forall x: VCTOption[T] :: VCTSome(getVCTOption(x)) == x)
+    (forall x: VCTOption[T] :: {VCTSome(getVCTOption(x))} VCTSome(getVCTOption(x)) == x)
   }
 }
 

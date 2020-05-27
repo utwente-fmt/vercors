@@ -3,12 +3,10 @@ package vct.test
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util.concurrent.{Executors, Future}
 
-import hre.config.{BooleanSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
+import hre.config._
 import hre.lang.HREExitException
+import hre.lang.System.{Output, Progress, Warning}
 import hre.util.TestReport.Verdict
-import hre.lang.System.Warning
-import hre.lang.System.Progress
-import hre.lang.System.Output
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -237,6 +235,11 @@ object CommandLineTesting {
 
       if (reasons.isEmpty) {
         Progress("[%02d%%] Pass: %s", Int.box(progress), taskKey)
+        tasks(taskKey).log.foreach {
+          case msg if msg.getFormat == "stderr: %s" && msg.getArg(0).asInstanceOf[String].contains("[!!]") =>
+            Warning("%s", msg.getArg(0).asInstanceOf[String])
+          case _ =>
+        }
       } else {
         fails += 1
         Progress("[%02d%%] Fail: %s", Int.box(progress), taskKey)
