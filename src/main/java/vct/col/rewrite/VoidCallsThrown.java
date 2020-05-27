@@ -11,6 +11,7 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.Method;
@@ -138,7 +139,7 @@ public class VoidCallsThrown extends AbstractRewriter {
       break;
     }
     if (!m.getReturnType().isVoid()){
-      Fail("unexpected invokation of non-void method %s at %s",e.method,e.getOrigin());
+      Fail("unexpected invokation of non-void method %s at %s",e.method(),e.getOrigin());
     }
     int N=e.getArity();
     ASTNode args[]=new ASTNode[N+1];
@@ -146,7 +147,7 @@ public class VoidCallsThrown extends AbstractRewriter {
     for(int i=0;i<N;i++){
       args[i+1]=rewrite(e.getArg(i));
     }
-    MethodInvokation res=create.invokation(rewrite(e.object), rewrite(e.dispatch) , e.method , args );
+    MethodInvokation res=create.invokation(rewrite(e.object()), rewrite(e.dispatch()) , e.method() , args );
     for(NameExpression lbl:e.getLabels()){
       Debug("VOIDCALLS: copying label %s",lbl);
       res.addLabel(rewrite(lbl));
@@ -160,7 +161,7 @@ public class VoidCallsThrown extends AbstractRewriter {
     if (s.expression() instanceof MethodInvokation){
       MethodInvokation e=(MethodInvokation)s.expression();
       Method m=e.getDefinition();
-      if (m==null) Abort("cannot process invokation of %s without definition",e.method);
+      if (m==null) Abort("cannot process invokation of %s without definition",e.method());
       if (m.kind==Method.Kind.Plain){
         int N=e.getArity();
         ASTNode args[]=new ASTNode[N+2];
@@ -169,7 +170,7 @@ public class VoidCallsThrown extends AbstractRewriter {
         for(int i=0;i<N;i++){
           args[i+2]=rewrite(e.getArg(i));
         }
-        MethodInvokation res=create.invokation(rewrite(e.object), rewrite(e.dispatch) , e.method , args );
+        MethodInvokation res=create.invokation(rewrite(e.object()), rewrite(e.dispatch()) , e.method() , args );
         for(NameExpression lbl:e.getLabels()){
           Debug("VOIDCALLS: copying label %s",lbl);
           res.addLabel(rewrite(lbl));

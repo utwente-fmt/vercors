@@ -13,7 +13,8 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.util.ClassName;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ClassName;
 
 /**
  * Standardize the representation of programs.
@@ -43,22 +44,22 @@ public class Standardize extends AbstractRewriter {
   }
 
   public void visit(MethodInvokation e){
-    ASTNode object=rewrite(e.object);
+    ASTNode object=rewrite(e.object());
     if(object==null){
-      Method m=source().find_adt(e.method);
+      Method m=source().find_adt(e.method());
       if (m!=null){
         String adt = ((AxiomaticDataType)m.getParent()).name();
         object=create.class_type(adt);
       }
     }
     if (object==null){
-      if (e.method.equals(Method.JavaConstructor)){
+      if (e.method().equals(Method.JavaConstructor)){
         object=null;
       } else if (current_class()!=null) {
         object=create.this_expression(create.class_type(current_class().getFullName()));
       }
     }
-    MethodInvokation res=create.invokation(object, rewrite(e.dispatch), e.method, rewrite(e.getArgs()));
+    MethodInvokation res=create.invokation(object, rewrite(e.dispatch()), e.method(), rewrite(e.getArgs()));
     res.set_before(rewrite(e.get_before()));
     res.set_after(rewrite(e.get_after()));
     result=res;

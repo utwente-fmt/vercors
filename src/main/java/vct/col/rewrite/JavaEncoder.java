@@ -22,7 +22,8 @@ import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.AbstractRewriter;
 
 public class JavaEncoder extends AbstractRewriter {
 
@@ -122,11 +123,11 @@ public class JavaEncoder extends AbstractRewriter {
     switch(s.kind){
     case Open:{
       MethodInvokation m=(MethodInvokation)s.args[0];
-      ASTNode object=rewrite(m.object);
+      ASTNode object=rewrite(m.object());
       currentBlock.add(create.special(ASTSpecial.Kind.Assert,
         create.expression(StandardOperator.EQ,
           create.expression(StandardOperator.TypeOf, object),
-          rewrite(m.dispatch)
+          rewrite(m.dispatch())
       )));
       String method=create_method_name(get_initial_definition(m.getDefinition()));
       ArrayList<ASTNode> args=new ArrayList<ASTNode>();
@@ -141,11 +142,11 @@ public class JavaEncoder extends AbstractRewriter {
     }
     case Close:{
       MethodInvokation m=(MethodInvokation)s.args[0];
-      ASTNode object=rewrite(m.object);
+      ASTNode object=rewrite(m.object());
       currentBlock.add(create.special(ASTSpecial.Kind.Assert,
         create.expression(StandardOperator.EQ,
           create.expression(StandardOperator.TypeOf, object),
-          rewrite(m.dispatch)
+          rewrite(m.dispatch())
       )));
       String method=create_method_name(get_initial_definition(m.getDefinition()));
       ArrayList<ASTNode> args=new ArrayList<ASTNode>();
@@ -494,17 +495,17 @@ public class JavaEncoder extends AbstractRewriter {
     }
     ASTNode object;
     if (m.kind==Method.Kind.Constructor){
-      object=rewrite(s.dispatch);
+      object=rewrite(s.dispatch());
     } else {
-      object=rewrite(s.object);
+      object=rewrite(s.object());
     }
-    ClassType dispatch=rewrite(s.dispatch);
+    ClassType dispatch=rewrite(s.dispatch());
     String method;
     Type ot=null;
-    if (s.object!=null){
-      ot=s.object.getType();
+    if (s.object()!=null){
+      ot=s.object().getType();
     }
-    if (s.object!=null && s.object.isReserved(ASTReserved.Super)
+    if (s.object()!=null && s.object().isReserved(ASTReserved.Super)
         && get_initial_definition(m)==get_initial_definition(current_method())){
       method=create_method_name("internal",(ClassType)ot,m);
     } else if (dispatch!=null) {

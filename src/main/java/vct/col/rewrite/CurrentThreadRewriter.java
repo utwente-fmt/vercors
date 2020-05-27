@@ -16,6 +16,7 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.util.OriginWrapper;
 
@@ -113,9 +114,9 @@ public class CurrentThreadRewriter extends AbstractRewriter {
   public void visit(MethodInvokation e){
     if (affected(e.getDefinition())){
       MethodInvokation res=create.invokation(
-          rewrite(e.object),
-          e.dispatch,
-          e.method,
+          rewrite(e.object()),
+          e.dispatch(),
+          e.method(),
           rewrite(create.local_name(ctname),e.getArgs())
       );
       res.set_before(rewrite(e.get_before()));

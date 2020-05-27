@@ -8,15 +8,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.expr.*;
 import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.ActionBlock;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.*;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.Configuration;
 import vct.col.ast.util.ContractBuilder;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
-import vct.util.Configuration;
 import static vct.col.ast.expr.StandardOperator.Perm;
 import static vct.col.ast.expr.StandardOperator.PointsTo;
 import static vct.col.ast.expr.StandardOperator.EQ;
@@ -32,7 +33,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   public static enum Mode { AxiomVerification, ProgramVerification };
   public final Mode mode;
   
-  public CheckHistoryAlgebra(ProgramUnit source,Mode mode, ErrorMapping map) {
+  public CheckHistoryAlgebra(ProgramUnit source, Mode mode, ErrorMapping map) {
     super(source);
     this.mode=mode;
     map.add(ASSIGN_HIST,
@@ -464,7 +465,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     int N=m.getArity();
     ASTNode eq=c.post_condition;
     if (!eq.isa(EQ)){
-      Abort("cannot generate axiom for %s",Configuration.getDiagSyntax().print(eq)); 
+      Abort("cannot generate axiom for %s", Configuration.getDiagSyntax().print(eq));
     }
     ASTNode lhs=((OperatorExpression)c.post_condition).arg(0);
     ASTNode rhs=((OperatorExpression)c.post_condition).arg(1);
@@ -538,7 +539,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
     if (m.getReturnType().isPrimitive(PrimitiveSort.Process)){
-      result=create.domain_call("Process", "p_"+e.method,rewrite(e.getArgs()));
+      result=create.domain_call("Process", "p_"+e.method(),rewrite(e.getArgs()));
     } else {
       ASTNode in_args[]=e.getArgs();
       ASTNode args[]=new ASTNode[in_args.length];
@@ -549,7 +550,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
           args[i]=rewrite(in_args[i]);
         }
       }
-      MethodInvokation res=create.invokation(rewrite(e.object), e.dispatch, e.method, args);
+      MethodInvokation res=create.invokation(rewrite(e.object()), e.dispatch(), e.method(), args);
       res.set_before(rewrite(e.get_before()));
       res.set_after(rewrite(e.get_after()));
       result=res;
@@ -558,7 +559,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   
   @Override
   public void visit(NameExpression e){
-    if (e.getKind()==NameExpression.Kind.Label){
+    if (e.getKind()== NameExpressionKind.Label){
       result=create.unresolved_name(e.getName());
     } else if (e.isReserved(ASTReserved.EmptyProcess)) {
       result=create.domain_call("Process", "p_empty");
@@ -761,11 +762,11 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       res.add(create.special(Kind.Fresh,create.local_name(name)));
     }
     BlockStatement body=create.block();
-    body.add(create.invokation(hist, null, act.method+"_begin", args.toArray(new ASTNode[0])));
+    body.add(create.invokation(hist, null, act.method()+"_begin", args.toArray(new ASTNode[0])));
     for(ASTNode n:(BlockStatement)ab.block()){
       body.add(rewrite(n));
     }
-    body.add(create.invokation(hist, null, act.method+"_commit", args.toArray(new ASTNode[0])));
+    body.add(create.invokation(hist, null, act.method()+"_commit", args.toArray(new ASTNode[0])));
     res.add(create.constraining(body, names));
     result=res;
     in_action=false;
@@ -929,7 +930,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     
     ASTNode tmp=create.invokation(null, null, "hist_idle",
         create.reserved_name(ASTReserved.FullPerm),
-        create.domain_call("Process","p_"+effect.method,def_names)
+        create.domain_call("Process","p_"+effect.method(),def_names)
     );
     if (hist){ cb.requires(tmp); } else { cb.ensures(tmp); }
 

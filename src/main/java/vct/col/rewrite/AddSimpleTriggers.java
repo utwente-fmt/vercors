@@ -10,8 +10,9 @@ import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.RecursiveVisitor;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
 
 public class AddSimpleTriggers extends AbstractRewriter {
   
@@ -21,13 +22,13 @@ public class AddSimpleTriggers extends AbstractRewriter {
   
   @Override
   public void visit(BindingExpression e) {
-    switch (e.binder) {
+    switch (e.binder()) {
     case Forall:
     case Star:
-      if (e.triggers == null || e.triggers.length == 0) {
-        ASTNode main = rewrite(e.main);
-        ASTNode triggers[][] = getTriggers(e.getDeclarations(), and(e.select, main));
-        result = create.binder(e.binder, e.result_type, e.getDeclarations(), triggers, e.select, main);
+      if (e.javaTriggers() == null || e.javaTriggers().length == 0) {
+        ASTNode main = rewrite(e.main());
+        ASTNode triggers[][] = getTriggers(e.getDeclarations(), and(e.select(), main));
+        result = create.binder(e.binder(), e.result_type(), e.getDeclarations(), triggers, e.select(), main);
       } else {
         super.visit(e);
       }

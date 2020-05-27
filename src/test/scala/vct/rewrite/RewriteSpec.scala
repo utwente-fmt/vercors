@@ -2,10 +2,8 @@ package vct.rewrite
 
 import org.scalatest.matchers.{MatchResult, Matcher}
 import org.scalatest.{FlatSpec, Matchers}
-import vct.col.ast.util.{ASTFrame, ASTVisitor}
 import vct.col.ast.generic.ASTNode
-import vct.col.rewrite.AbstractRewriter
-import vct.col.util.ASTFactory
+import vct.col.ast.util.{ASTFactory, ASTFrame, ASTVisitor, AbstractRewriter}
 
 case class RewriteSpec(rewriter: AbstractRewriter, before: ASTVisitor[_<:ASTNode]*) extends FlatSpec with Matchers {
   protected var create = new ASTFactory

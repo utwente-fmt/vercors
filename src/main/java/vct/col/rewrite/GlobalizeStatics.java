@@ -11,7 +11,8 @@ import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.constant.StructValue;
-import vct.util.ClassName;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ClassName;
 
 /**
  * Base class for rewriting all static entries as a single Global class.
@@ -143,14 +144,14 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
       if (processing_static){
         res=create.invokation(
           create.this_expression(create.class_type("Global")),
-          rewrite(e.dispatch),
-          prefix+"_"+e.method,
+          rewrite(e.dispatch()),
+          prefix+"_"+e.method(),
           rewrite(e.getArgs()));
       } else {
         res=create.invokation(
             create.local_name("global"),
-            rewrite(e.dispatch),
-            prefix+"_"+e.method,
+            rewrite(e.dispatch()),
+            prefix+"_"+e.method(),
             rewrite(e.getArgs()));        
       }
       if (e.get_before().size()>0) {

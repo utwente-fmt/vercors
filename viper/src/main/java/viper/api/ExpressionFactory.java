@@ -1,5 +1,7 @@
 package viper.api;
 
+import hre.util.Triple;
+
 import java.util.List;
 import java.util.Map;
 
@@ -69,7 +71,7 @@ public interface ExpressionFactory<O,T,E> {
   public E local_name(O o,String name, T t);
 
   /** Create an universal quantification. */
-  public E forall(O o,List<Triple<O,String,T>> vars,List<List<E>> triggers,E e);
+  public E forall(O o, List<Triple<O,String,T>> vars, List<List<E>> triggers, E e);
   
   /** Create an existential quantification. */
   public E exists(O o,List<Triple<O,String,T>> vars,E e);

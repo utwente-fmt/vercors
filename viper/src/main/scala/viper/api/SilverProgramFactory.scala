@@ -1,19 +1,25 @@
 package viper.api
 
 import viper.silver.ast._
+
 import scala.collection.JavaConverters._
 import scala.collection.JavaConverters._
-import viper.silver.verifier.{Failure, Success, AbortedExceptionally, VerificationError}
+import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
+
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
 import java.nio.file.Path
+
+import hre.ast.OriginFactory
+import hre.util.Triple
 import viper.silver.parser.PLocalVarDecl
+
 import scala.collection.mutable.WrappedArray
 
-class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
+class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
     DomainFunc,DomainAxiom,Prog] with FactoryUtils[O]{
 
   override def program() : Prog = new Prog 
@@ -108,8 +114,8 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
     case decl : LocalVarDecl => decl
   }
 
-  override def convert [Err2, T2, E2, S2, DFunc2, DAxiom2, P2](
-      api:ViperAPI[O,Err2,T2,E2,S2,DFunc2,DAxiom2,P2], in_prog: viper.api.Prog): P2 = {
+  override def convert [T2, E2, S2, DFunc2, DAxiom2, P2](
+      api:ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2], in_prog: viper.api.Prog): P2 = {
     val out_prog = api.prog.program()
     in_prog.domains.asScala.toList foreach {
       d => {
@@ -188,16 +194,16 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
     out_prog
   }
   
-  private def map_stats[Err2, T2, E2, S2, DFunc2, DAxiom2, P2](
-      verifier:viper.api.ViperAPI[O,Err2,T2,E2,S2,DFunc2,DAxiom2,P2],
+  private def map_stats[T2, E2, S2, DFunc2, DAxiom2, P2](
+      verifier:viper.api.ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2],
       stats:Seq[Stmt]):List[S2]={
     stats.map {
       e => map_stat(verifier,e)
     }.asJava
   }
   
-  private def map_stat[Err2, T2, E2, S2, DFunc2, DAxiom2, P2](
-      api:viper.api.ViperAPI[O,Err2,T2,E2,S2,DFunc2,DAxiom2,P2],
+  private def map_stat[T2, E2, S2, DFunc2, DAxiom2, P2](
+      api:viper.api.ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2],
       S:Stmt):S2={
      val o=get_info(S.info,S.pos,api.origin)
      S match {
@@ -251,16 +257,16 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
      }
   }
 
-  private def map_expr[Err2, T2, E2, S2, DFunc2, DAxiom2, P2](
-      verifier:viper.api.ViperAPI[O,Err2,T2,E2,S2,DFunc2,DAxiom2,P2],
+  private def map_expr[T2, E2, S2, DFunc2, DAxiom2, P2](
+      verifier:viper.api.ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2],
       exps:Seq[Exp]):List[E2]={
     exps.map {
       e => map_expr(verifier,e)
     }.asJava
   }
  
-  private def map_expr[Err2, T2, E2, S2, DFunc2, DAxiom2, P2](
-      v:viper.api.ViperAPI[O,Err2,T2,E2,S2,DFunc2,DAxiom2,P2],
+  private def map_expr[T2, E2, S2, DFunc2, DAxiom2, P2](
+      v:viper.api.ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2],
       exp:Exp):E2={
      val ve=v.expr
      val o=get_info(exp.info,exp.pos,v.origin)
@@ -354,26 +360,26 @@ class SilverProgramFactory[O,Err] extends ProgramFactory[O,Err,Type,Exp,Stmt,
      }
   }
   
-  private def map_type_map[Err2, T2, E2, S2, DFunc2, DAxiom2, P2](
-      verifier:viper.api.ViperAPI[O,Err2,T2,E2,S2,DFunc2,DAxiom2,P2],
+  private def map_type_map[T2, E2, S2, DFunc2, DAxiom2, P2](
+      verifier:viper.api.ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2],
        typemap: Map[TypeVar, Type]):java.util.Map[String,T2]
   ={
     (typemap map { case (k,v) => (k.toString(),map_type(verifier,v)) }).asJava 
   }
 
   
-  private def map_decls[Err2, T2, E2, S2, DFunc2, DAxiom2, P2](
-      verifier:viper.api.ViperAPI[O,Err2,T2,E2,S2,DFunc2,DAxiom2,P2],
+  private def map_decls[T2, E2, S2, DFunc2, DAxiom2, P2](
+      verifier:viper.api.ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2],
       decls:Seq[LocalVarDecl])={
     decls.map {
       d =>
         val o=get_info(d.info,d.pos,verifier.origin)
-        new viper.api.Triple[O,String,T2](o,d.name,map_type(verifier,d.typ))
+        new Triple[O,String,T2](o,d.name,map_type(verifier,d.typ))
     }.asJava
   }
 
-  private def map_type[Err2, T2, E2, S2, DFunc2, DAxiom2, P2](
-      verifier:viper.api.ViperAPI[O,Err2,T2,E2,S2,DFunc2,DAxiom2,P2],
+  private def map_type[T2, E2, S2, DFunc2, DAxiom2, P2](
+      verifier:viper.api.ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2],
       t:Type):T2={
     t match {
       case viper.silver.ast.Int => verifier._type.Int()

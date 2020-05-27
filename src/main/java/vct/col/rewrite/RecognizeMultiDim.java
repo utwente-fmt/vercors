@@ -14,6 +14,7 @@ import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 
 public class RecognizeMultiDim extends AbstractRewriter {
@@ -152,7 +153,7 @@ public class RecognizeMultiDim extends AbstractRewriter {
   
   public void visit(BindingExpression e){
     boolean rw_needed;
-    switch(e.binder){
+    switch(e.binder()){
     case Star:
     case Sum:
       rw_needed=true;
