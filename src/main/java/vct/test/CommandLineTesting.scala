@@ -262,11 +262,11 @@ object CommandLineTesting {
           case InternalError(description) =>
             Output("- Internal error: %s", description)
           case ProcessKilled =>
-            Output("- Test process was forcibly terminated")
+            Output("- Test process was forcibly terminated because it timed out")
           case MissingVerdict =>
             Output("- There was no verdict")
           case InconsistentVerdict(older, newer) =>
-            Output("- Inconsistent verdict: earlier verdict was %s, new veridct is %s", older, newer)
+            Output("- Inconsistent verdict: earlier verdict was %s, new verdict is %s", older, newer)
           case WrongVerdict(expect, got) =>
             Output("- Wrong verdict: expected %s, got %s", expect, got)
           case MethodPass(name) =>
