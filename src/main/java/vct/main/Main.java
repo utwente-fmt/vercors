@@ -559,8 +559,9 @@ public class Main
           passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
           passes.add("standardize");
           passes.add("check");
-
           passes.add("gen-triggers");
+          passes.add("check");
+
           passes.add("silver");
         } else { //CHALICE
           passes.add("check"); // rewrite system needs a type check

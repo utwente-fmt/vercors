@@ -1,67 +1,124 @@
 package vct.col.rewrite
 
-import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
-import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, LT, LTE, Member, NEQ, Scale, Size, Subscript}
+import vct.col.ast.`type`.ASTReserved
+import vct.col.ast.expr.{Binder, BindingExpression, Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.expr
+import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, ProgramUnit}
+import vct.col.ast.util.AbstractRewriter
+import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, LT, LTE, Member, NEQ, Scale, Size, Subscript}
 import vct.col.ast.expr.constant.ConstantExpression
-import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit}
 
 case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
-  sealed abstract class Trigger(val origin: ASTNode) {
-
-  }
-
-  case class Name(x: String)(origin: ASTNode) extends Trigger(origin)
-  case class Invokation(name: String, args: Seq[Trigger])(origin: ASTNode) extends Trigger(origin)
-  case class Expression(op: StandardOperator, args: Seq[Trigger])(origin: ASTNode) extends Trigger(origin)
-  case class Deref(obj: Trigger, field: String)(origin: ASTNode) extends Trigger(origin)
-
-  def getTriggers(node: ASTNode): (Set[Trigger], Boolean) = node match {
-    case invok: MethodInvokation if Set(Method.Kind.Predicate, Method.Kind.Pure).contains(invok.getDefinition.kind) =>
-      invok.method match {
-        case "alen" =>
-          val arg = invok.getArg(0)
-          val (childPatterns, allowChild) = getTriggers(arg)
-          childPatterns.filter(_.origin == arg) match {
-            case Seq() if allowChild => (Invokation("alen", ))
-          }
-        case _ =>
-          new OtherSupportedComposite(invok.getArgs.map(getNodeStructure), invok)
-      }
-    case exp: OperatorExpression => exp.operator match {
-      case LT | LTE | GT | GTE | EQ | NEQ =>
-        new RelationalComposite(exp.args.map(getNodeStructure), exp)
-      case Size =>
-        new SupportedCompositeIgnoreOnChild(getNodeStructure(exp.args.head), exp)
-      case Subscript | Scale | Member =>
-        new OtherSupportedComposite(exp.args.map(getNodeStructure), exp)
-      case _ =>
-        new OtherComposite(exp.args.map(getNodeStructure), exp)
+  def collectPatterns(node: ASTNode): (Set[ASTNode], Boolean) = node match {
+    case NameExpression(_, reserved, NameExpressionKind.Reserved) => reserved match {
+      case ASTReserved.Result => (Set(), true)
+      case _ => ???
     }
-    case deref: expr.Dereference =>
-      new SupportedCompositeIgnoreOnChild(getNodeStructure(deref.obj), deref)
-    case name: NameExpression =>
-      new Name(name.getName, name)
-    case binder: BindingExpression =>
-      new OtherComposite(Seq(binder.select, binder.main).map(getNodeStructure), binder)
-    case _: ConstantExpression =>
-      new UnsupportedLeaf(node)
-    case x =>
-      Warning("The following node was encountered, but we cannot decide whether that is allowed in a trigger. We may " +
-        "discard valid triggers and come to an incorrect conclusion.")
-      Warning("%s", x)
-      new UnsupportedLeaf(node)
+    case NameExpression(name, _, _) =>
+      (Set(), true)
+    case ConstantExpression(value) =>
+      (Set(), false)
+    case MethodInvokation(_, _, method, args) =>
+      val childPatterns = args.map(collectPatterns)
+      val childOK = childPatterns.forall(_._2)
+      val myPattern = if(childOK) Set(node) else Set()
+      (childPatterns.map(_._1).foldLeft(Set[ASTNode]())(_ ++ _) ++ myPattern, childOK)
+    case OperatorExpression(op, args) =>
+      if(Set(Scale, /*sequence*/ Subscript, Member, Size).contains(op)) {
+        val childPatterns = args.map(collectPatterns)
+        val childOK = childPatterns.forall(_._2)
+        val myPattern = if(childOK) Set(node) else Set()
+        (childPatterns.foldLeft(Set[ASTNode]())(_ ++ _._1) ++ myPattern, childOK)
+      } else {
+        (args.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
+      }
+    case Dereference(obj, field) =>
+      collectPatterns(obj) match {
+        case (pats, false) =>
+          (pats, false)
+        case (pats, true) =>
+          (pats + node, true)
+      }
+    case _ =>
+      Abort("%s", node)
+      ???
   }
 
-  def tryComputeTrigger(decls: Array[DeclarationStatement], cond: ASTNode, body: ASTNode): BindingExpression = {
-    val patterns = getTriggers(body)
+  def mentions(node: ASTNode): Set[String] = node match {
+    case NameExpression(name, _, _) => Set(name)
+    case ConstantExpression(_) => Set()
+    case MethodInvokation(_, _, _, args) => args.map(mentions).foldLeft(Set[String]())(_ ++ _)
+    case OperatorExpression(_, args) => args.map(mentions).foldLeft(Set[String]())(_ ++ _)
+    case Dereference(obj, _) => mentions(obj)
+  }
+
+  def contains(container: ASTNode, element: ASTNode): Boolean =
+    container == element || (container match {
+      case _: NameExpression | _: ConstantExpression => false
+      case MethodInvokation(_, _, _, args) => args.exists(contains(_, element))
+      case OperatorExpression(_, args) => args.exists(contains(_, element))
+      case Dereference(obj, _) => contains(obj, element)
+    })
+
+  def powerset[T](x: Set[T]): Seq[Set[T]] = {
+    if(x.isEmpty) {
+      Seq(Set())
+    } else {
+      val tail = powerset(x.tail)
+      tail ++ tail.map(_ + x.head)
+    }
+  }
+
+  def computeTriggers(names: Set[String], node: ASTNode): Seq[Set[ASTNode]] = {
+    val patterns = collectPatterns(node)._1
+    val patternsNoDirectChild = patterns.filter {
+      case Dereference(obj, _) => !patterns.contains(obj)
+      case OperatorExpression(Size, List(xs)) => !patterns.contains(xs)
+      case MethodInvokation(_, _, "alen", List(arr)) => !patterns.contains(arr)
+      case _ => true
+    }
+
+    powerset(patternsNoDirectChild)
+      .filter(_.foldLeft(Set[String]())(_ ++ mentions(_)).intersect(names) == names)
+      .filter(set => set.forall(big => set.forall(small => big == small || contains(big, small))))
+  }
+
+  def tryComputeTrigger(decls: Array[DeclarationStatement], cond: ASTNode, body: ASTNode): Option[Set[Set[ASTNode]]] = {
+    val names = decls.map(_.name).toSet
+
+    body match {
+      case OperatorExpression(EQ | NEQ | LT | GT | LTE | GTE, List(left, right)) =>
+        val leftTriggers = computeTriggers(names, left)
+        val rightTriggers = computeTriggers(names, right)
+        if(leftTriggers.size <= 1 && rightTriggers.size <= 1) {
+          val triggers = (leftTriggers ++ rightTriggers).toSet
+          if(triggers.nonEmpty) {
+            return Some(triggers)
+          }
+        }
+      case _ =>
+    }
+
+    computeTriggers(names, body) match {
+      case Seq() => None
+      case Seq(set) => Some(Set(set))
+      case _ => None
+    }
   }
 
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {
       case Binder.Forall if expr.triggers == null =>
-        result = tryComputeTrigger(expr.getDeclarations, rewrite(expr.select), rewrite(expr.main))
+        val select = rewrite(expr.select)
+        val main = rewrite(expr.main)
+        tryComputeTrigger(expr.getDeclarations, select, main) match {
+          case Some(trigger) =>
+            result = create forall(trigger.map(_.toArray).toArray, select, main, expr.getDeclarations:_*)
+          case None =>
+            Warning("Could not find a trigger for this expression:")
+            Warning("[!!] %s", expr)
+            result = create forall(null, select, main, expr.getDeclarations:_*)
+        }
       case _ =>
         super.visit(expr)
     }
