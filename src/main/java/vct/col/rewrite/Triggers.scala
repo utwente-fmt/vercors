@@ -5,7 +5,7 @@ import vct.col.ast.expr.{Binder, BindingExpression, Dereference, MethodInvokatio
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
-import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, LT, LTE, Member, NEQ, Scale, Size, Subscript}
+import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, LT, LTE, Member, NEQ, Scale, Size, Subscript, Implies}
 import vct.col.ast.expr.constant.ConstantExpression
 
 case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
@@ -87,28 +87,18 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
   def tryComputeTrigger(decls: Array[DeclarationStatement], cond: ASTNode, body: ASTNode): Option[Set[Set[ASTNode]]] = {
     val names = decls.map(_.name).toSet
 
-    body match {
-      case OperatorExpression(EQ | NEQ | LT | GT | LTE | GTE, List(left, right)) =>
-        val leftTriggers = computeTriggers(names, left)
-        val rightTriggers = computeTriggers(names, right)
-        if(leftTriggers.size <= 1 && rightTriggers.size <= 1) {
-          val triggers = (leftTriggers ++ rightTriggers).toSet
-          if(triggers.nonEmpty) {
-            return Some(triggers)
-          }
-        }
-      case _ =>
-    }
-
     computeTriggers(names, body) match {
       case Seq() => None
       case Seq(set) => Some(Set(set))
       case triggers => body match {
-        case OperatorExpression(EQ | NEQ | LT | GT | LTE | GTE, List(left, right)) =>
+        case op@OperatorExpression(EQ | NEQ | LT | GT | LTE | GTE, List(left, right)) =>
           val leftTriggers = triggers.filter(_.forall(contains(left, _)))
           val rightTriggers = triggers.filter(_.forall(contains(right, _)))
           if(leftTriggers.size == 1 && rightTriggers.size == 1) {
+            // Allow relational operators at the top if both sides generate exactly one trigger
             Some((leftTriggers ++ rightTriggers).toSet)
+          } else if(leftTriggers.size == 1 && op.operator == EQ) {
+            Some(leftTriggers.toSet)
           } else {
             None
           }
