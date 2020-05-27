@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static hre.lang.System.Debug;
 import static hre.lang.System.Warning;
@@ -47,6 +48,18 @@ public class MessageProcess {
 
         processStdin = new PrintStream(process.getOutputStream());
         new ProcessWatcher(process, processOutputLineQueue, stdout_parser, stderr_parser).start();
+
+        new Thread(() -> {
+            try {
+                /* This time is a little bit under the max no-output time of our CI */
+                if(!process.waitFor(8, TimeUnit.MINUTES)) {
+                    processOutputLineQueue.add(new Message("killed"));
+                    process.destroyForcibly();
+                }
+            } catch (InterruptedException e) {
+                // Unreachable
+            }
+        }).start();
     }
 
     public MessageProcess(String[] command_line) {

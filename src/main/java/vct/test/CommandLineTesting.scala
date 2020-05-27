@@ -184,7 +184,9 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          result += ("case-" + tool + "-" + name -> Task(vercors.withArgs(args:_*), conditions))
+          for(i <- 0 until 100) {
+            result += (s"case-$tool-$name-$i" -> Task(vercors.withArgs(args:_*), conditions))
+          }
         }
       }
     }
@@ -259,6 +261,8 @@ object CommandLineTesting {
             Output("- Received a null message (internal error?)")
           case InternalError(description) =>
             Output("- Internal error: %s", description)
+          case ProcessKilled =>
+            Output("- Test process was forcibly terminated")
           case MissingVerdict =>
             Output("- There was no verdict")
           case InconsistentVerdict(older, newer) =>
