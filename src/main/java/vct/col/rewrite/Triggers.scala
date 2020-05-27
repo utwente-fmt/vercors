@@ -11,7 +11,10 @@ import vct.col.ast.expr.constant.ConstantExpression
 case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
   def collectPatterns(node: ASTNode): (Set[ASTNode], Boolean) = node match {
     case NameExpression(_, reserved, NameExpressionKind.Reserved) => reserved match {
-      case ASTReserved.Result => (Set(), true)
+      case ASTReserved.Result =>
+        (Set(), true)
+      case ASTReserved.FullPerm | ASTReserved.NoPerm | ASTReserved.ReadPerm =>
+        (Set(), false)
       case _ => ???
     }
     case NameExpression(name, _, _) =>
@@ -108,16 +111,30 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
 
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {
-      case Binder.Forall if expr.triggers == null =>
+      case Binder.Forall | Binder.Star if expr.triggers == null =>
         val select = rewrite(expr.select)
         val main = rewrite(expr.main)
         tryComputeTrigger(expr.getDeclarations, select, main) match {
           case Some(trigger) =>
-            result = create forall(trigger.map(_.toArray).toArray, select, main, expr.getDeclarations:_*)
+            result = create binder(
+              expr.binder,
+              expr.result_type,
+              expr.getDeclarations,
+              trigger.map(_.toArray).toArray,
+              select,
+              main
+            )
           case None =>
             Warning("Could not find a trigger for this expression:")
             Warning("[!!] %s", expr)
-            result = create forall(null, select, main, expr.getDeclarations:_*)
+            result = create binder(
+              expr.binder,
+              expr.result_type,
+              expr.getDeclarations,
+              null,
+              select,
+              main
+            )
         }
       case _ =>
         super.visit(expr)
