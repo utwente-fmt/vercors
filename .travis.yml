@@ -36,7 +36,11 @@ matrix:
 #      running for a pull request for an external repo. At the moment Travis does not
 #      support running Sonar for external repositories. The build will fail."; fi;'
 #    - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
-  - script:
+  - addons:
+      apt:
+        packages:
+          - fakeroot
+    script:
     - ./.travis/travis_fold.sh build "Build Vercors" "sbt debian:packageBin universal:packageXzTarball"
     before_deploy:
     - git config --local user.name "Vercors Team"
