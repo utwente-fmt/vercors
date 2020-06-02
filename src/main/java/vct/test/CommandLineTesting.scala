@@ -184,9 +184,9 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          for(i <- 0 until 100) {
-            result += (s"case-$tool-$name-$i" -> Task(vercors.withArgs(args:_*), conditions))
-          }
+//          for(i <- 0 until 100) {
+            result += (s"case-$tool-$name" -> Task(vercors.withArgs(args:_*), conditions))
+//          }
         }
       }
     }
@@ -223,7 +223,7 @@ object CommandLineTesting {
 
     Progress("Submitting %d tasks to thread pool with %d worker(s)", Int.box(taskKeys.length), Int.box(workers.get()))
 
-    for (taskKey <- taskKeys) {
+    for (taskKey <- scala.util.Random.shuffle(taskKeys)) {
       val task = tasks(taskKey)
       val future = pool.submit(task)
       futures += ((future, taskKey))

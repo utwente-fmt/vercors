@@ -5,15 +5,15 @@ import vct.col.ast.expr.{Binder, BindingExpression, Dereference, MethodInvokatio
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
-import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, LT, LTE, Member, NEQ, Scale, Size, Subscript, Implies}
-import vct.col.ast.expr.constant.ConstantExpression
+import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, Implies, LT, LTE, Member, NEQ, Scale, Size, Subscript}
+import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 
 case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
   def collectPatterns(node: ASTNode): (Set[ASTNode], Boolean) = node match {
     case NameExpression(_, reserved, NameExpressionKind.Reserved) => reserved match {
       case ASTReserved.Result =>
         (Set(), true)
-      case ASTReserved.FullPerm | ASTReserved.NoPerm | ASTReserved.ReadPerm =>
+      case ASTReserved.FullPerm | ASTReserved.NoPerm | ASTReserved.ReadPerm | ASTReserved.Null =>
         (Set(), false)
       case _ => ???
     }
@@ -42,6 +42,8 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
         case (pats, true) =>
           (pats + node, true)
       }
+    case StructValue(_, _, xs) =>
+      (xs.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
     case _ =>
       Abort("%s", node)
       ???
@@ -105,6 +107,7 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
           } else {
             None
           }
+        case _ => None
       }
     }
   }

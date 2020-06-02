@@ -71,6 +71,10 @@ class simplify_quant_pass1 {
     (\forall int i; b1; b2)
   }
 
+  axiom quant_cond_main_equal {
+    (\forall int i; b1; b1) == true
+  }
+
   axiom A3 {
     (\forall int i; b1 ; (\forall int j; (b2!j) && b3 ; b4 ) )
       ==
