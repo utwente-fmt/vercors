@@ -45,8 +45,7 @@ matrix:
     before_deploy:
     - git config --local user.name "Vercors Team"
     - git config --local user.email "vercors@lists.utwente.nl"
-    - export COMMIT_TAG=v$(sbt version | tail -n1 | cut -b8-)-$(date +'%Y-%m-%d-%H%M%S')
-    - git tag $COMMIT_TAG
+    - git tag --force dev-prerelease
     deploy:
       skip_cleanup: true
       on:
@@ -55,6 +54,8 @@ matrix:
       api_key:
         secure: b4iofzSKeLe72qAJRwRkcPIFYKlnwOdT8Jk0o6Z2ml3QWghwg0XjinNkBvukT9mAfwF4fU/e0cqonXwLMti8azZ0Us59SWi8+GdYKnO9U5hWEEHY/3v42jspHS29khABkeJ7gULNIXpEWOGUDg/Muc/PbmUQqMctyRYPMDSmFsvF27ESvfOqPM21cS7wByovtvvkFR7FS6TNne/noiroC++zOkFGISf+y8UrVggCRyHsqi7a5Xep5wfVFSaZP/PYov2ewkLHl0eRmz0dJGtQNqVPfMx5hzd/xM73X+FwNzMHEJv4n1JeRKY5t3UizYL0hlJX1K5gMRmvmMEnr6hs8EpQftTw+ciLEVKJuVvec3cruSQueZmXrsLMmquaXyUdNoVnC7H+MoVT+u8IN40EbvWhUvolE8DvtxfMC53HbMEWStM5mHVncTW5f8ralC49hwjX/sWjCBDfcTbXHtHMQ649o20+fky+kKvHXa9/YrZDPAk6byY7u39kkM5GxJ940qO2nxUCr6hnpL8WOR4MhhwHAhOpERtbnVc07+vMH9bUbnkOuAtJbXTpjFNYQ1ep41ulqBihwSHX53gT/tfdXVcRxpY+kJRlUSAgkk1tn5IZPvZHuT6NG2A1m7NJ3rOC33759ufdlwW9/nhgdaAnW5sF9RxfCk5hNxK7kPfhyeI=
       prerelease: true
+      name: "Vercors Dev Build"
+      overwrite: true
       file_glob: true
       file:
         - $TRAVIS_BUILD_DIR/target/*.deb
