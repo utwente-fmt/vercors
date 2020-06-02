@@ -92,9 +92,9 @@ lazy val vercors = (project in file("."))
     scalacOptions in ThisBuild += "-unchecked",
     scalacOptions in ThisBuild ++= Seq("-Ypatmat-exhaust-depth", "off"),
 
-    javacOptions in ThisBuild += "-Xlint:deprecation",
-    javacOptions in ThisBuild += "-Xlint:unchecked",
-    javacOptions in ThisBuild += "-deprecation",
+    javacOptions in Compile += "-Xlint:deprecation",
+    javacOptions in Compile += "-Xlint:unchecked",
+    javacOptions in Compile += "-deprecation",
     javacOptions in doc := Seq(),
 
     javaOptions in (Compile, run) += "-J-Xss128M",
