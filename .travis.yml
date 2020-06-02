@@ -56,5 +56,5 @@ matrix:
       prerelease: true
       file_glob: true
       file:
-        - target/*.deb
-        - target/universal/*.txz
+        - $TRAVIS_BUILD_DIR/target/*.deb
+        - $TRAVIS_BUILD_DIR/target/universal/*.txz
