@@ -95,6 +95,7 @@ lazy val vercors = (project in file("."))
     javacOptions in ThisBuild += "-Xlint:deprecation",
     javacOptions in ThisBuild += "-Xlint:unchecked",
     javacOptions in ThisBuild += "-deprecation",
+    javacOptions in doc := Seq(),
 
     javaOptions in (Compile, run) += "-J-Xss128M",
     /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
