@@ -1,6 +1,11 @@
 dist: bionic
 language: scala
 scala: 2.13.1
+
+branches:
+  except:
+    - dev-prerelease
+
 env:
 - PATH=$TRAVIS_BUILD_DIR/unix/bin:$PATH
 addons:
