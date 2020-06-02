@@ -51,6 +51,7 @@ matrix:
     - git config --local user.name "Vercors Team"
     - git config --local user.email "vercors@lists.utwente.nl"
     - git tag --force dev-prerelease
+    - git push --force --tags
     deploy:
       skip_cleanup: true
       on:
