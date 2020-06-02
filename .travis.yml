@@ -48,6 +48,7 @@ matrix:
     - export COMMIT_TAG=v$(sbt version | tail -n1 | cut -b8-)-$(date +'%Y-%m-%d-%H%M%S')
     - git tag $COMMIT_TAG
     deploy:
+      skip_cleanup: true
       on:
         branch: ci-cd
       provider: releases
