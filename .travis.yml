@@ -5,11 +5,11 @@ branches:
   except:
   - dev-prerelease
 
-stages:
-  - test
-  - lint
-  - name: deploy
-    if: branch = dev AND type = push
+#stages:
+#  - test
+#  - lint
+#  - name: deploy
+#    if: branch = dev AND type = push
 
 
 env:
