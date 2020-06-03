@@ -40,7 +40,8 @@ matrix:
           echo "The check is running for a pull request for an external repo. At the moment Travis does not support running Sonar for external repositories. The build will fail.";
           fi;
         - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
-    - addons:
+    - if: branch = dev AND type = push
+      addons:
         apt:
           packages:
             - fakeroot
