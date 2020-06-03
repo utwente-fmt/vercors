@@ -36,7 +36,7 @@ matrix:
     - git config --local user.name "Vercors Team"
     - git config --local user.email "vercors@lists.utwente.nl"
     - git tag --force dev-prerelease
-    - git remote add origin https://${GH_TOKEN}@github.com/utwente-fmt/vercors.git
+    - git remote set-url origin https://${GH_TOKEN}@github.com/utwente-fmt/vercors.git
     - git push --force --tags
     deploy:
       skip_cleanup: true
