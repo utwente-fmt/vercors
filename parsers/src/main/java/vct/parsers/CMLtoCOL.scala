@@ -79,11 +79,6 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       Seq(create method_decl(t.returnType, contract, name, decls.toArray, body))
   })
 
-  def failIfDefined[T <: ParserRuleContext](node: Option[T], format: String, args: Object*): Unit = node match {
-    case Some(node) => fail(node, format, args)
-    case None => // do nothing
-  }
-
   def convertPointer(ptr: Option[PointerContext]): (Type => Type) = ptr match {
     case None => x => x
     case Some(ptr) => convertPointer(ptr)

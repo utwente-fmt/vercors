@@ -56,6 +56,11 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: org.an
     case Some(b) => b
   }
 
+  def failIfDefined[T <: ParserRuleContext](node: Option[T], format: String, args: Object*): Unit = node match {
+    case Some(node) => fail(node, format, args)
+    case None => // do nothing
+  }
+
   def fail(tree: ParserRuleContext, format: String, args: Object*): Nothing = {
     val message = String.format(format, args:_*)
     fileOrigin(tree).report("error", message)
