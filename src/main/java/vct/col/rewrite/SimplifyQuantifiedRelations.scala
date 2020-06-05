@@ -85,6 +85,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
         val values = maybeValues.map(_.get).distinct
         Some(extremeValue(values, maximizing))
       case UMinus => extremeValue(bounds, node, !maximizing)
+      case _ => None
     }
     case name: NameExpression if bounds.contains(name.getName) =>
       Some(if(maximizing) create expression(Minus, bounds(name.getName)._2, create constant 1) else bounds(name.getName)._1)
