@@ -548,6 +548,11 @@ public class ParallelBlockEncoder extends AbstractRewriter {
      * and put the statement on send_recv_map
      */
     public void visit(ASTSpecial statement) {
+        if(!statement.isSpecial(Kind.Send) && !statement.isSpecial(Kind.Recv)) {
+            super.visit(statement);
+            return;
+        }
+
         int N = counter.incrementAndGet();
         ContractBuilder cb = new ContractBuilder();
         BranchOrigin branch;
@@ -659,8 +664,6 @@ public class ParallelBlockEncoder extends AbstractRewriter {
                 result = create.invokation(null, null, recv_name, recv_args.toArray(new ASTNode[0]));
 
                 break;
-            default:
-                super.visit(statement);
 
         }
 
