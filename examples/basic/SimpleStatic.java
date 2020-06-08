@@ -1,3 +1,7 @@
+//:: case SimpleStatic
+//:: tools silicon
+//:: verdict Pass
+
 public class Example {
     /*@
        context_everywhere ar != null;
