@@ -27,6 +27,7 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.util.OriginWrapper;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
+import viper.silver.cfg.Block;
 
 public class ParallelBlockEncoder extends AbstractRewriter {
     private class SendRecvInfo {
@@ -128,6 +129,182 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         inv_blocks.pop();
     }
 
+    public BlockStatement visitRegionWithoutContract(ParallelRegion region, ContractBuilder main_cb) {
+        for (ParallelBlock pb : region.blocksJava()) {
+            Contract c = (Contract) rewrite((ASTNode) pb);
+            if (c != null) {
+                main_cb.requires(c.invariant);
+                main_cb.requires(c.pre_condition);
+                main_cb.ensures(c.post_condition);
+            } else {
+                main_cb.requires(create.constant(true));
+                main_cb.ensures(create.constant(true));
+            }
+        }
+
+        return null;
+    }
+
+    public void visitBlockForCheck(ParallelBlock block, BlockStatement regionBody) {
+        String block_name = "block_check_" + (++count);
+        Hashtable<String, Type> block_vars = free_vars(block);
+
+        Contract c = (Contract) rewrite((ASTNode) block);
+        currentTargetClass.add(create.method_decl(
+                create.primitive_type(PrimitiveSort.Void),
+                c,
+                block_name,
+                gen_pars(block_vars),
+                null
+        ));
+        regionBody.add(gen_call(block_name, block_vars));
+    }
+
+    public void visitBlockForBefore(ParallelRegion region, ParallelBlock pb, HashMap<String, HashSet<String>> may_deps, HashMap<String, HashSet<String>> must_deps, HashMap<String, ParallelBlock> blocks) {
+        /* before is a set of blocks that are guaranteed
+         * not to run concurrently with the current block.
+         */
+        HashSet<String> may = new HashSet<String>();
+        may.add(pb.label());
+        HashSet<String> must = new HashSet<String>();
+        must.add(pb.label());
+        for (int i = 0; i < pb.depslength(); i++) {
+            ASTNode d = pb.dependency(i);
+            if (d instanceof NameExpression) {
+                String dep = d.toString();
+                HashSet<String> trans = may_deps.get(dep);
+                if (trans == null) {
+                    Fail("dependency %s of %s is unknown", dep, pb.label());
+                }
+                may.addAll(trans);
+                must.addAll(must_deps.get(dep));
+                ParallelBlock pb2 = blocks.get(dep);
+                ASTNode args[] = new ASTNode[pb2.iterslength()];
+                for (int j = 0; j < args.length; j++) {
+                    args[j] = create.reserved_name(ASTReserved.Any);
+                }
+                pb.dependency(i, create.invokation(null, null, dep, args));
+            } else if (d instanceof MethodInvokation) {
+                MethodInvokation e = (MethodInvokation) d;
+                String dep = e.method;
+                HashSet<String> trans = must_deps.get(dep);
+                if (trans == null) {
+                    Fail("dependency %s of %s is unknown", dep, pb.label());
+                }
+                boolean add = true;
+                for (ASTNode a : e.getArgs()) {
+                    if (!a.isReserved(ASTReserved.Any)) {
+                        add = false;
+                        break;
+                    }
+                }
+                if (add) {
+                    must.addAll(trans);
+                }
+                may.addAll(may_deps.get(dep));
+            } else {
+                Fail("cannot deal with dependency %s", d);
+            }
+        }
+        for (String d : must_deps.keySet()) {
+            if(must.contains(d)) continue;
+            gen_consistent(region, blocks.get(d), pb, may.contains(d));
+
+            if(!may.contains(d)) continue;
+            ParallelBlock pb2 = blocks.get(d);
+            ArrayList<ASTNode> conds = new ArrayList<ASTNode>();
+            ArrayList<DeclarationStatement> decls = new ArrayList<DeclarationStatement>();
+
+            for (DeclarationStatement decl : pb2.itersJava()) {
+                decls.add(create.field_decl("x_" + decl.name(), decl.getType()));
+            }
+
+            HashMap<NameExpression, ASTNode> map = new HashMap<NameExpression, ASTNode>();
+            Substitution sigma = new Substitution(source(), map);
+
+            for (DeclarationStatement decl : pb.itersJava()) {
+                decls.add(create.field_decl("y_" + decl.name(), decl.getType()));
+                map.put(create.unresolved_name(decl.name()), create.unresolved_name("y_" + decl.name()));
+            }
+
+            for (int i = 0; i < pb.depslength(); i++) {
+                ASTNode dep_tmp = pb.dependency(i);
+                MethodInvokation dep = (MethodInvokation) dep_tmp;
+                String dname = dep.method;
+                if (pb2.label().equals(dname)) {
+                    ArrayList<ASTNode> parts = new ArrayList<ASTNode>();
+
+                    int j = 0;
+                    for (DeclarationStatement decl : pb2.itersJava()) {
+                        if (!dep.getArg(j).isReserved(ASTReserved.Any)) {
+                            parts.add(create.expression(StandardOperator.EQ,
+                                    create.argument_name("x_" + decl.name()),
+                                    sigma.rewrite(dep.getArg(j))
+                            ));
+                        }
+                        j++;
+                    }
+
+                    conds.add(create.fold(StandardOperator.And, parts));
+                } else {
+                    ParallelBlock pb1 = blocks.get(dname);
+                    if (must_deps.get(dname).contains(pb2.label())) {
+                        conds.add(create.constant(true));
+                        break;
+                    }
+
+                    int pb1_iterslength = pb1.iterslength();
+                    int pb2_iterslength = pb2.iterslength();
+                    ASTNode args[] = new ASTNode[pb2_iterslength + pb1_iterslength];
+
+                    int j = 0;
+                    for (DeclarationStatement decl : pb2.itersJava()) {
+                        args[j] = create.argument_name("x_" + decl.name());
+                        j++;
+                    }
+
+                    for (j = 0; j < pb1_iterslength; j++) {
+                        if (dep.getArg(j).isReserved(ASTReserved.Any)) {
+                            args[pb2_iterslength + j] = create.unresolved_name("z_" + j);
+                        } else {
+                            args[pb2_iterslength + j] = sigma.rewrite(dep.getArg(j));
+                        }
+                    }
+
+                    ASTNode cond = create.invokation(null, null, "before_" + pb2.label() + "_" + pb1.label(), args);
+                    conds.add(cond);
+                }
+            }
+            ASTNode cond = create.fold(StandardOperator.Or, conds);
+            currentTargetClass.add(create.function_decl(
+                    create.primitive_type(PrimitiveSort.Boolean),
+                    null,
+                    "before_" + pb2.label() + "_" + pb.label(),
+                    decls.toArray(new DeclarationStatement[0]),
+                    cond
+            ));
+        }
+        may_deps.put(pb.label(), may);
+        must_deps.put(pb.label(), must);
+        blocks.put(pb.label(), pb);
+    }
+
+    public BlockStatement visitRegionWithContract(ParallelRegion region, ContractBuilder main_cb) {
+        rewrite(region.contract(), main_cb);
+        HashMap<String, ParallelBlock> blocks = new HashMap<>();
+        HashMap<String, HashSet<String>> may_deps = new HashMap<>();
+        HashMap<String, HashSet<String>> must_deps = new HashMap<>();
+        for (ParallelBlock pb : region.blocksJava()) {
+            visitBlockForBefore(region, pb, may_deps, must_deps, blocks);
+        }
+
+        BlockStatement body = create.block();
+        for (ParallelBlock pb : region.blocksJava()) {
+            visitBlockForCheck(pb, body);
+        }
+        return body;
+    }
+
     /**
      * ?? distinguish on empty/absent contract
      */
@@ -139,171 +316,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         Hashtable<String, Type> main_vars = free_vars(region.blocksJava());
         BlockStatement body;
         if (region.contract() == null || region.contract().isEmpty()) {
-            for (ParallelBlock pb : region.blocksJava()) {
-                Contract c = (Contract) rewrite((ASTNode) pb);
-                if (c != null) {
-                    main_cb.requires(c.invariant);
-                    main_cb.requires(c.pre_condition);
-                    main_cb.ensures(c.post_condition);
-                } else {
-                    main_cb.requires(create.constant(true));
-                    main_cb.ensures(create.constant(true));
-                }
-            }
-            body = null;
+            body = visitRegionWithoutContract(region, main_cb);
         } else {
-            rewrite(region.contract(), main_cb);
-            body = create.block();
-            for (ParallelBlock pb : region.blocksJava()) {
-                String block_name = "block_check_" + (++count);
-                Hashtable<String, Type> block_vars = free_vars(pb);
-
-                Contract c = (Contract) rewrite((ASTNode) pb);
-                currentTargetClass.add(create.method_decl(
-                        create.primitive_type(PrimitiveSort.Void),
-                        c,
-                        block_name,
-                        gen_pars(block_vars),
-                        null
-                ));
-                body.add(gen_call(block_name, block_vars));
-            }
-            HashMap<String, ParallelBlock> blocks = new HashMap<String, ParallelBlock>();
-            HashMap<String, HashSet<String>> may_deps = new HashMap<String, HashSet<String>>();
-            HashMap<String, HashSet<String>> must_deps = new HashMap<String, HashSet<String>>();
-            for (ParallelBlock pb : region.blocksJava()) {
-                /* before is a set of blocks that are guaranteed
-                 * not to run concurrently with the current block.
-                 */
-                HashSet<String> may = new HashSet<String>();
-                may.add(pb.label());
-                HashSet<String> must = new HashSet<String>();
-                must.add(pb.label());
-                for (int i = 0; i < pb.depslength(); i++) {
-                    ASTNode d = pb.dependency(i);
-                    if (d instanceof NameExpression) {
-                        String dep = d.toString();
-                        HashSet<String> trans = may_deps.get(dep);
-                        if (trans == null) {
-                            Fail("dependency %s of %s is unknown", dep, pb.label());
-                        }
-                        may.addAll(trans);
-                        must.addAll(must_deps.get(dep));
-                        ParallelBlock pb2 = blocks.get(dep);
-                        ASTNode args[] = new ASTNode[pb2.iterslength()];
-                        for (int j = 0; j < args.length; j++) {
-                            args[j] = create.reserved_name(ASTReserved.Any);
-                        }
-                        pb.dependency(i, create.invokation(null, null, dep, args));
-                    } else if (d instanceof MethodInvokation) {
-                        MethodInvokation e = (MethodInvokation) d;
-                        String dep = e.method;
-                        HashSet<String> trans = must_deps.get(dep);
-                        if (trans == null) {
-                            Fail("dependency %s of %s is unknown", dep, pb.label());
-                        }
-                        boolean add = true;
-                        for (ASTNode a : e.getArgs()) {
-                            if (!a.isReserved(ASTReserved.Any)) {
-                                add = false;
-                                break;
-                            }
-                        }
-                        if (add) {
-                            must.addAll(trans);
-                        }
-                        may.addAll(may_deps.get(dep));
-                    } else {
-                        Fail("cannot deal with dependency %s", d);
-                    }
-                }
-                for (String d : must_deps.keySet()) {
-                    if (!must.contains(d)) {
-                        gen_consistent(region, blocks.get(d), pb, may.contains(d));
-                        if (may.contains(d)) {
-                            ParallelBlock pb2 = blocks.get(d);
-                            ArrayList<ASTNode> conds = new ArrayList<ASTNode>();
-                            ArrayList<DeclarationStatement> decls = new ArrayList<DeclarationStatement>();
-
-                            for (DeclarationStatement decl : pb2.itersJava()) {
-                                decls.add(create.field_decl("x_" + decl.name(), decl.getType()));
-                            }
-
-                            HashMap<NameExpression, ASTNode> map = new HashMap<NameExpression, ASTNode>();
-                            Substitution sigma = new Substitution(source(), map);
-
-                            for (DeclarationStatement decl : pb.itersJava()) {
-                                decls.add(create.field_decl("y_" + decl.name(), decl.getType()));
-                                map.put(create.unresolved_name(decl.name()), create.unresolved_name("y_" + decl.name()));
-                            }
-
-                            for (int i = 0; i < pb.depslength(); i++) {
-                                ASTNode dep_tmp = pb.dependency(i);
-                                MethodInvokation dep = (MethodInvokation) dep_tmp;
-                                String dname = dep.method;
-                                if (pb2.label().equals(dname)) {
-                                    ArrayList<ASTNode> parts = new ArrayList<ASTNode>();
-
-                                    int j = 0;
-                                    for (DeclarationStatement decl : pb2.itersJava()) {
-                                        if (!dep.getArg(j).isReserved(ASTReserved.Any)) {
-                                            parts.add(create.expression(StandardOperator.EQ,
-                                                    create.argument_name("x_" + decl.name()),
-                                                    sigma.rewrite(dep.getArg(j))
-                                            ));
-                                        }
-                                        j++;
-                                    }
-
-                                    conds.add(create.fold(StandardOperator.And, parts));
-                                } else {
-                                    ParallelBlock pb1 = blocks.get(dname);
-                                    if (must_deps.get(dname).contains(pb2.label())) {
-                                        conds.add(create.constant(true));
-                                        break;
-                                    }
-                                    ArrayList<DeclarationStatement> exists = new ArrayList<DeclarationStatement>();
-
-                                    int pb1_iterslength = pb1.iterslength();
-                                    int pb2_iterslength = pb2.iterslength();
-                                    ASTNode args[] = new ASTNode[pb2_iterslength + pb1_iterslength];
-
-                                    int j = 0;
-                                    for (DeclarationStatement decl : pb2.itersJava()) {
-                                        args[j] = create.argument_name("x_" + decl.name());
-                                        j++;
-                                    }
-
-                                    for (j = 0; j < pb1_iterslength; j++) {
-                                        if (dep.getArg(j).isReserved(ASTReserved.Any)) {
-                                            args[pb2_iterslength + j] = create.unresolved_name("z_" + j);
-                                        } else {
-                                            args[pb2_iterslength + j] = sigma.rewrite(dep.getArg(j));
-                                        }
-                                    }
-
-                                    ASTNode cond = create.invokation(null, null, "before_" + pb2.label() + "_" + pb1.label(), args);
-                                    if (exists.size() > 0) {
-                                        cond = create.exists(create.constant(true), cond, exists.toArray(new DeclarationStatement[0]));
-                                    }
-                                    conds.add(cond);
-                                }
-                            }
-                            ASTNode cond = create.fold(StandardOperator.Or, conds);
-                            currentTargetClass.add(create.function_decl(
-                                    create.primitive_type(PrimitiveSort.Boolean),
-                                    null,
-                                    "before_" + pb2.label() + "_" + pb.label(),
-                                    decls.toArray(new DeclarationStatement[0]),
-                                    cond
-                            ));
-                        }
-                    }
-                }
-                may_deps.put(pb.label(), may);
-                must_deps.put(pb.label(), must);
-                blocks.put(pb.label(), pb);
-            }
+            body = visitRegionWithContract(region, main_cb);
         }
         currentTargetClass.add(create.method_decl(
                 create.primitive_type(PrimitiveSort.Void),
