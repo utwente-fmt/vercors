@@ -13,6 +13,7 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.util.ASTFactory;
 import vct.util.ClassName;

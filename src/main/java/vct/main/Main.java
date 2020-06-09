@@ -298,7 +298,7 @@ public class Main
         }
         passes.add("standardize");
         passes.add("check");
-        passes.add("voidcalls"); // all methods in Boogie are void, so use an out parameter instead of 'return..'
+        passes.add("create-return-parameter"); // all methods in Boogie are void, so use an out parameter instead of 'return..'
         passes.add("standardize");
         passes.add("check");
         passes.add("flatten");
@@ -314,7 +314,7 @@ public class Main
         passes.add("java_resolve");
         passes.add("standardize");
         passes.add("check");
-        passes.add("voidcalls");
+        passes.add("create-return-parameter");
         passes.add("standardize");
         passes.add("check");
         //passes.add("flatten");
@@ -520,7 +520,7 @@ public class Main
         if (has_type_adt){
           passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
         } else {
-          passes.add("voidcalls");
+          passes.add("create-return-parameter");
         }
         passes.add("standardize");
         passes.add("check");
@@ -1061,7 +1061,7 @@ public class Main
         return new StripConstructors(arg).rewriteAll();
       }
     });
-    branching_pass(defined_passes,"voidcalls","Replace return value by out parameter.",VoidCalls.class);
+    branching_pass(defined_passes,"create-return-parameter","Replace return value by out parameter.",CreateReturnParameter.class);
     defined_passes.put("voidcallsthrown",new CompilerPass("Replace return value and thrown exceptions by out parameters."){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new VoidCallsThrown(arg).rewriteAll();
@@ -1116,6 +1116,46 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("specify-implicit-labels", new CompilerPass("Insert explicit labels for break statements in while loops.") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new SpecifyImplicitLabels(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("break-return-to-goto", new CompilerPass("Rewrite break, return into jumps") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new BreakReturnToGoto(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("break-return-to-exceptions", new CompilerPass("Rewrite break, continue into exceptions") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new BreakReturnToExceptions(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("unfold-switch", new CompilerPass("Unfold switch to chain of if-statements that jump to sections.") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new UnfoldSwitch(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("continue-to-break", new CompilerPass("Convert continues into breaks") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new ContinueToBreak(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("unfold-synchronized", new CompilerPass("Convert synchronized to try-finally") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new UnfoldSynchronized(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("intro-exc-var", new CompilerPass("Introduces the auxiliary sys__exc variable for use by excetional control flow") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new IntroExcVar(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("encode-try-throw-signals", new CompilerPass("Encodes exceptional control flow into gotos and exceptional contracts into regular contracts") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new EncodeTryThrowSignals(arg).rewriteAll();
+      }
+    });
   }
 
 

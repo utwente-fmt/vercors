@@ -13,6 +13,7 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.ASTFactory;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 

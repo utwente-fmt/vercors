@@ -7,6 +7,7 @@ import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ASTReserved;
+import vct.col.ast.util.AbstractRewriter;
 
 import java.util.ArrayList;
 import java.util.HashSet;

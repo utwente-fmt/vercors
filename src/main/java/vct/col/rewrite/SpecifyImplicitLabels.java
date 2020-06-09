@@ -6,6 +6,7 @@ import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.composite.Switch;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 import java.util.ArrayList;
 import java.util.List;

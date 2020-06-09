@@ -6,6 +6,7 @@ import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 
 public class UnfoldSynchronized extends AbstractRewriter {
     int counter = 0;
@@ -30,7 +31,7 @@ public class UnfoldSynchronized extends AbstractRewriter {
         return create.block(exprDeclaration, lockStatement, tryCatchBlock);
     }
 
-    public void visit(SynchronizedBlock synchronizedBlock) {
+    public void visit(Synchronized synchronizedBlock) {
         result = synchronizedToTryFinally(
                 synchronizedBlock.expr().getType(),
                 rewrite(synchronizedBlock.expr()),
