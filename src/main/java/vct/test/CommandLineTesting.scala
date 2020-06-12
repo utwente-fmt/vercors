@@ -1,6 +1,6 @@
 package vct.test
 
-import java.nio.file.{FileVisitOption, Files, Paths}
+import java.nio.file.{FileSystems, FileVisitOption, Files, Path, Paths}
 import java.util.concurrent.{Executors, Future}
 
 import hre.config.{BooleanSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
@@ -79,7 +79,7 @@ object CommandLineTesting {
   private lazy val dafny = Configuration.getDafny
   private lazy val carbon = Configuration.getCarbon
   private lazy val silicon = Configuration.getSilicon
-  private lazy val vercors = Configuration.getThisVerCors
+  private lazy val vercors = Configuration.getThisVerCors(null)
 
   private def selfTest(name: String): String =
     Configuration.getSelfTestPath(name).getAbsolutePath
@@ -186,7 +186,11 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          result += ("case-" + tool + "-" + name -> Task(vercors.withArgs(args:_*), conditions))
+          val jacocoArg = Array(s"-javaagent:/home/bobe/UNSAFE/Tools/JaCoCo/lib/jacocoagent.jar=destfile=jacoco_case_${tool}_${name}.exec")
+          val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args:_*);
+          vercorsProcess.setWorkingDirectory(FileSystems.getDefault.getPath("jacoco_output"));
+
+          result += ("case-" + tool + "-" + name -> Task(vercorsProcess, conditions))
         }
       }
     }

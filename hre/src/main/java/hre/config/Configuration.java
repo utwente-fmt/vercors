@@ -254,7 +254,7 @@ public class Configuration {
         }
     }
 
-    public static MessageProcessEnvironment getThisVerCors() throws IOException {
+    public static MessageProcessEnvironment getThisVerCors(String[] javaArgs) throws IOException {
         MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
         env.setTemporaryWorkingDirectory();
         // We need the current path, as vercors e.g. needs clang on the path.
@@ -264,6 +264,13 @@ public class Configuration {
         }
         env.addArg("-Xss128M");
         env.addArg("-cp", System.getProperty("java.class.path"));
+
+        if (javaArgs != null) {
+            for (String javaArg : javaArgs) {
+                env.addArg(javaArg);
+            }
+        }
+
         env.addArg("vct.main.Main");
         return env;
     }
