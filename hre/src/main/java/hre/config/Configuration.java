@@ -207,10 +207,17 @@ public class Configuration {
         }
     }
 
+    /**
+     * Computes the path of the jacoco agent included with VerCors. The agent is used for instrumenting an actual java process.
+     */
     public static File getJacocoAgentPath() {
         return getFileOrAbort("/deps/jacoco/jacocoagent.jar");
     }
 
+    /**
+     * Create a process for the Jacoco CLI client included with VerCors. The CLI client can produce html reports and xml
+     * files from .exec traces, as produced by the jacoco agent.
+     */
     public static MessageProcessEnvironment getJacocoCli() throws IOException {
         MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
         File jacocoCliPath = getFileOrAbort("/deps/jacoco/jacococli.jar");

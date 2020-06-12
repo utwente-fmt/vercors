@@ -9,7 +9,6 @@ import hre.util.TestReport.Verdict
 import hre.lang.System.Warning
 import hre.lang.System.Progress
 import hre.lang.System.Output
-import hre.lang.System.Abort
 import hre.lang.System.Debug
 
 import scala.collection.JavaConverters._
@@ -69,6 +68,15 @@ object CommandLineTesting {
 
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
+
+  private val enableCoverage = new BooleanSetting(false)
+  private val enableCoverageOption = enableCoverage.getEnable("Enable coverage instrumenting on the test workers")
+
+  private val tempCoverageReportPath = new StringSetting("temp_jacoco_output")
+  private val tempCoverageReportPathOption = tempCoverageReportPath.getAssign("Indicate folder where coverage reports of test workers are stored")
+
+  private val coverageReportFile = new StringSetting("jacoco.xml")
+  private val coverageReportFileOption = coverageReportFile.getAssign("Name of coverage report output file")
 
   private val travisTestOutput = new BooleanSetting(false)
   private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
@@ -137,6 +145,9 @@ object CommandLineTesting {
     parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
     parser.add(travisTestOutputOption, "travis-test-output")
+    parser.add(enableCoverageOption, "enable-test-coverage")
+    parser.add(tempCoverageReportPathOption, "coverage-temp-dir")
+    parser.add(coverageReportFileOption, "coverage-output-file")
   }
 
   def getCases: Map[String, Case] = {
@@ -167,13 +178,8 @@ object CommandLineTesting {
       result ++= builtinTests
     }
 
-    // Ensure jacoco output dir exists
-    // TODO: Weird place for this
-    val jacocoOutputDir = Paths.get("jacoco_output").toFile
-    if (jacocoOutputDir.exists()) {
-      Abort("jacoco_output dir already exists")
-    }
-    jacocoOutputDir.mkdir
+    // Only load this if it's actually needed, don't want to crash on constructing a faulty path if the path is not used
+    lazy val jacocoOutputDir = Paths.get(tempCoverageReportPath.get()).toFile
 
     for ((name, kees) <- getCases) {
       for (tool <- kees.tools.asScala) {
@@ -196,9 +202,14 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_${name}.exec"
-          val jacocoArg = Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=destfile=$jacocoOutputFilePath")
-          val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args:_*)
+          val jacocoArg = if (enableCoverage.get()) {
+            val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_${name}.exec"
+            Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=destfile=$jacocoOutputFilePath")
+          } else {
+            null
+          }
+
+          val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args: _*)
 
           result += ("case-" + tool + "-" + name -> Task(vercorsProcess, conditions))
         }
@@ -213,7 +224,7 @@ object CommandLineTesting {
     jacocoCli.addArg("report")
 
     // Add all coverage files
-    val jacocoOutputDir = Paths.get("jacoco_output")
+    val jacocoOutputDir = Paths.get(tempCoverageReportPath.get())
     Files.list(jacocoOutputDir).forEach((execFilePath) => {
       if (!execFilePath.endsWith(".exec"))
         jacocoCli.addArg(execFilePath.toAbsolutePath().toString)
@@ -222,20 +233,31 @@ object CommandLineTesting {
 
     // Indicate class path
     System.getProperty("java.class.path").split(':').foreach((cp: String) => {
-      // TODO: This breaks if you put vercors in directory not called vercors? Or if classfiles are stored in a weird place? I just want the classpath of vercors and its subprojects (col, hre, parser)
-      // TODO: Would rather put the entire classpath here. But one of our classes is called "ImplicitConversions", which clases with a Scala class. This is problematic for jacoco.
-      if (cp.contains("vercors")) {
+      // Jacoco can't handle duplicate classes, and somehow there are a few duplicate classes in our transitive dependencies.
+      // To work around this we prevent inclusion of any .jar files in the classpath, as those are often transitive dependencies
+      // (And therefore this will break as soon as vercors code ends up in a jar file)
+      if (!cp.endsWith(".jar")) {
         jacocoCli.addArg("--classfiles", cp)
+        Debug("Used for jacoco class path: %s", cp)
       }
     })
 
-    jacocoCli.addArg("--xml", Paths.get("jacoco.xml").toFile.getAbsolutePath)
+    jacocoCli.addArg("--xml", Paths.get(coverageReportFile.get()).toFile.getAbsolutePath)
 
     Output("Aggegrating coverages...")
     val task = Task(jacocoCli, Seq())
     task.call
+    Debug("Jacoco tool output")
+    for (msg <- task.log) {
+      Debug(msg.getFormat, msg.getArgs:_*)
+    }
 
+    removeTempJacocoDir
+  }
+
+  def removeTempJacocoDir(): Unit = {
     // Clean up coverage files
+    val jacocoOutputDir = Paths.get(tempCoverageReportPath.get())
     Files.list(jacocoOutputDir).forEach((execFilePath) => {
       execFilePath.toFile.delete
     })
@@ -243,6 +265,15 @@ object CommandLineTesting {
   }
 
   def runTests(): Unit = {
+    if (enableCoverage.get) {
+      // Ensure jacoco output dir exists and remove old reports
+      val jacocoOutputDir = Paths.get(tempCoverageReportPath.get()).toFile
+      if (jacocoOutputDir.exists) {
+        removeTempJacocoDir
+      }
+      jacocoOutputDir.mkdir
+    }
+
     val tasks = getTasks
     val sortedTaskKeys = tasks.keys.toSeq.sorted
 
@@ -330,7 +361,9 @@ object CommandLineTesting {
       })
     }
 
-    generateJacocoXML
+    if (enableCoverage.get) {
+      generateJacocoXML
+    }
 
     if (fails > 0) {
       hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails), Int.box(futures.length))
