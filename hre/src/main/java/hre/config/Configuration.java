@@ -207,8 +207,15 @@ public class Configuration {
         }
     }
 
-    public static File getJacocoPath() {
+    public static File getJacocoAgentPath() {
         return getFileOrAbort("/deps/jacoco/jacocoagent.jar");
+    }
+
+    public static MessageProcessEnvironment getJacocoCli() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
+        File jacocoCliPath = getFileOrAbort("/deps/jacoco/jacococli.jar");
+        env.addArg("-jar", jacocoCliPath.getAbsolutePath());
+        return env;
     }
 
     public static MessageProcessEnvironment getZ3() throws IOException {

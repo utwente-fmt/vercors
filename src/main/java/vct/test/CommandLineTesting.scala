@@ -9,6 +9,8 @@ import hre.util.TestReport.Verdict
 import hre.lang.System.Warning
 import hre.lang.System.Progress
 import hre.lang.System.Output
+import hre.lang.System.Abort
+import hre.lang.System.Debug
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -165,6 +167,14 @@ object CommandLineTesting {
       result ++= builtinTests
     }
 
+    // Ensure jacoco output dir exists
+    // TODO: Weird place for this
+    val jacocoOutputDir = Paths.get("jacoco_output").toFile
+    if (jacocoOutputDir.exists()) {
+      Abort("jacoco_output dir already exists")
+    }
+    jacocoOutputDir.mkdir
+
     for ((name, kees) <- getCases) {
       for (tool <- kees.tools.asScala) {
         if (!backendFilterOption.used() || backendFilter.contains(tool)) {
@@ -186,10 +196,9 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          val jacocoArg = Array(s"-javaagent:${Configuration.getJacocoPath()}=destfile=jacoco_output/jacoco_case_${tool}_${name}.exec")
+          val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_${name}.exec"
+          val jacocoArg = Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=destfile=$jacocoOutputFilePath")
           val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args:_*)
-          FileSystems.getDefault.getPath("jacoco_output").toFile.mkdir
-          vercorsProcess.setWorkingDirectory(FileSystems.getDefault.getPath(".")) // Path.of does not compile
 
           result += ("case-" + tool + "-" + name -> Task(vercorsProcess, conditions))
         }
@@ -197,6 +206,40 @@ object CommandLineTesting {
     }
 
     result.toMap
+  }
+
+  def generateJacocoXML(): Unit = {
+    val jacocoCli = Configuration.getJacocoCli
+    jacocoCli.addArg("report")
+
+    // Add all coverage files
+    val jacocoOutputDir = Paths.get("jacoco_output")
+    Files.list(jacocoOutputDir).forEach((execFilePath) => {
+      if (!execFilePath.endsWith(".exec"))
+        jacocoCli.addArg(execFilePath.toAbsolutePath().toString)
+      Debug("Adding: %s", execFilePath.toAbsolutePath().toString)
+    })
+
+    // Indicate class path
+    System.getProperty("java.class.path").split(':').foreach((cp: String) => {
+      // TODO: This breaks if you put vercors in directory not called vercors? Or if classfiles are stored in a weird place? I just want the classpath of vercors and its subprojects (col, hre, parser)
+      // TODO: Would rather put the entire classpath here. But one of our classes is called "ImplicitConversions", which clases with a Scala class. This is problematic for jacoco.
+      if (cp.contains("vercors")) {
+        jacocoCli.addArg("--classfiles", cp)
+      }
+    })
+
+    jacocoCli.addArg("--xml", Paths.get("jacoco").toFile.getAbsolutePath)
+
+    Output("Aggegrating coverages...")
+    val task = Task(jacocoCli, Seq())
+    task.call
+
+    // Clean up coverage files
+    Files.list(jacocoOutputDir).forEach((execFilePath) => {
+      execFilePath.toFile.delete
+    })
+    jacocoOutputDir.toFile.delete
   }
 
   def runTests(): Unit = {
@@ -286,6 +329,8 @@ object CommandLineTesting {
         case Some(ms) => String.format("%dms", Int.box(ms))
       })
     }
+
+    generateJacocoXML
 
     if (fails > 0) {
       hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails), Int.box(futures.length))
