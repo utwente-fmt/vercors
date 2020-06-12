@@ -186,9 +186,10 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          val jacocoArg = Array(s"-javaagent:/home/bobe/UNSAFE/Tools/JaCoCo/lib/jacocoagent.jar=destfile=jacoco_case_${tool}_${name}.exec")
-          val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args:_*);
-          vercorsProcess.setWorkingDirectory(FileSystems.getDefault.getPath("jacoco_output"));
+          val jacocoArg = Array(s"-javaagent:${Configuration.getJacocoPath()}=destfile=jacoco_output/jacoco_case_${tool}_${name}.exec")
+          val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args:_*)
+          FileSystems.getDefault.getPath("jacoco_output").toFile.mkdir
+          vercorsProcess.setWorkingDirectory(FileSystems.getDefault.getPath(".")) // Path.of does not compile
 
           result += ("case-" + tool + "-" + name -> Task(vercorsProcess, conditions))
         }

@@ -207,6 +207,10 @@ public class Configuration {
         }
     }
 
+    public static File getJacocoPath() {
+        return getFileOrAbort("/deps/jacoco/jacocoagent.jar");
+    }
+
     public static MessageProcessEnvironment getZ3() throws IOException {
         MessageProcessEnvironment env = new MessageProcessEnvironment("z3");
         env.setTemporaryWorkingDirectory();
