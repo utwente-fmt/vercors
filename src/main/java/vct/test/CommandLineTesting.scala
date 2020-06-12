@@ -229,7 +229,7 @@ object CommandLineTesting {
       }
     })
 
-    jacocoCli.addArg("--xml", Paths.get("jacoco").toFile.getAbsolutePath)
+    jacocoCli.addArg("--xml", Paths.get("jacoco.xml").toFile.getAbsolutePath)
 
     Output("Aggegrating coverages...")
     val task = Task(jacocoCli, Seq())

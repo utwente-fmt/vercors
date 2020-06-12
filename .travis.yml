@@ -35,14 +35,19 @@ matrix:
   include:
     - script:
       - SPLIT=0/5 ./.travis/build.sh
+      - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
     - script:
       - SPLIT=1/5 ./.travis/build.sh
+      - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
     - script:
       - SPLIT=2/5 ./.travis/build.sh
+      - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
     - script:
       - SPLIT=3/5 ./.travis/build.sh
+      - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
     - script:
       - SPLIT=4/5 ./.travis/build.sh
+      - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
     - script:
       - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
       - echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";
