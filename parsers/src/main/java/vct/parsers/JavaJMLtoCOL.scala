@@ -661,11 +661,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Expression19(left, "!=", right) =>
       create expression(NEQ, expr(left), expr(right))
     case Expression20(left, "&", right) =>
-      create expression(BitAnd, expr(left), expr(right))
+      create expression(AmbiguousAnd, expr(left), expr(right))
     case Expression21(left, "^", right) =>
-      create expression(BitXor, expr(left), expr(right))
+      create expression(AmbiguousXor, expr(left), expr(right))
     case Expression22(left, "|", right) =>
-      create expression(BitOr, expr(left), expr(right))
+      create expression(AmbiguousOr, expr(left), expr(right))
     case Expression23(left, AndOp0("&&"), right) =>
       create expression(And, expr(left), expr(right))
     case Expression23(left, AndOp1(valOp), right) =>
