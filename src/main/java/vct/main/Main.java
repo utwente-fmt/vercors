@@ -323,15 +323,38 @@ public class Main
         passes.add("dafny"); // run backend
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
+
+        boolean usesBreakContinue = features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue);
+
+        if (usesBreakContinue) {
+          passes.add("specify-implicit-labels");
+        }
+
+        if (features.usesSpecial(ASTSpecial.Kind.Continue)) {
+          passes.add("continue-to-break");
+        }
+
+        if (features.usesSwitch()) {
+          passes.add("unfold-switch");
+        }
+
+        if ((features.usesFinallyClause() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
+          passes.add("break-return-to-exceptions");
+        } else if (usesBreakContinue || features.usesReturn()) {
+          passes.add("break-return-to-goto");
+        }
+
         passes.add("java_resolve");
 
         if (silver.used() &&
-           (features.usesSpecial(ASTSpecial.Kind.Lock)
-          ||features.usesSpecial(ASTSpecial.Kind.Unlock)
-          ||features.usesSpecial(ASTSpecial.Kind.Fork)
-          ||features.usesSpecial(ASTSpecial.Kind.Join)
-          ||features.usesOperator(StandardOperator.PVLidleToken)
-          ||features.usesOperator(StandardOperator.PVLjoinToken)
+           ( features.usesSpecial(ASTSpecial.Kind.Lock)
+          || features.usesSpecial(ASTSpecial.Kind.Unlock)
+          || features.usesSpecial(ASTSpecial.Kind.Fork)
+          || features.usesSpecial(ASTSpecial.Kind.Join)
+          || features.usesOperator(StandardOperator.PVLidleToken)
+          || features.usesOperator(StandardOperator.PVLjoinToken)
+          || features.usesSynchronizeddStatement()
+          || features.usesSynchronizedModifier()
         )){
           passes.add("pvl-encode"); // translate built-in statements into methods and fake method calls.
         }
@@ -484,6 +507,10 @@ public class Main
         passes.add("rewrite_sequence_functions");
         passes.add("check");
         passes.add("flatten");
+        passes.add("intro-exc-var");
+        passes.add("check");
+        passes.add("encode-try-throw-signals");
+        passes.add("check");
         passes.add("assign");
         passes.add("reorder");
         passes.add("standardize");
