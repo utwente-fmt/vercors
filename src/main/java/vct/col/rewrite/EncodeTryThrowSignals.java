@@ -13,6 +13,7 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
+import vct.col.ast.util.AbstractRewriter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -62,7 +63,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      */
     public void generateLabels(TryCatchBlock tryCatchBlock) {
         for (CatchClause catchClause : tryCatchBlock.catches()) {
-            String label = generateLabel("catch", catchClause.decl().getType().toString());
+            String label = generateLabel("catch");
             entryLabels.put(catchClause, label);
         }
 
@@ -71,7 +72,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             entryLabels.put(tryCatchBlock.after(), label);
         }
 
-        String label = generateLabel("try", "end");
+        String label = generateLabel("try_end");
         postLabels.put(tryCatchBlock, label);
     }
 
@@ -125,7 +126,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         visitFinally(tryCatchBlock);
 
-        currentBlock.add(create.label_decl(postLabels.get(tryCatchBlock)));
+        currentBlock.add(create.labelDecl(postLabels.get(tryCatchBlock)));
 
         result = null;
     }
@@ -133,14 +134,25 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     public void visitTryBody(TryCatchBlock tryCatchBlock) {
         BlockStatement newMain = rewrite(tryCatchBlock.main());
         if (tryCatchBlock.after() != null) {
-            newMain.add(create.jump(entryLabels.get(tryCatchBlock.after())));
+            newMain.add(create.gotoStatement(entryLabels.get(tryCatchBlock.after())));
         } else {
-            newMain.add(create.jump(postLabels.get(tryCatchBlock)));
+            newMain.add(create.gotoStatement(postLabels.get(tryCatchBlock)));
         }
         currentBlock.add(newMain);
     }
 
     public void visitCatch(TryCatchBlock tryCatchBlock, CatchClause catchClause) {
+        /* TODO: The type of a catch var of a multi catch is effectively the least upper bound of all the types
+                So that's the type that should also be used on the right of the instanceof below
+                As well as during typechecking!
+                https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20 */
+        tryCatchBlock.catchClauses().foreach(cc -> {
+            if (cc.catchTypes().length() > 1) {
+                Abort("Multi-catch not supported");
+            }
+            return null;
+        });
+
         // Since the declaration statement identifier cannot leak to the outside scope,
         // we do a pre_visit here, so a post_visit at the end will remove the name
         // from the scope
@@ -169,7 +181,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             Abort("Nearesthandlerlabel was null, even though there should have been a handler!");
         }
 
-        currentBlock.add(create.label_decl(entryLabels.get(catchClause)));
+        currentBlock.add(create.labelDecl(entryLabels.get(catchClause)));
 
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.Not,
@@ -178,7 +190,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                             create.invokation(create.class_type(type_adt),null,"class_" + catchClause.decl().type())
                             )
                     ),
-                create.jump(fallbackHandler)
+                create.gotoStatement(fallbackHandler)
                 ));
 
         DeclarationStatement argument = rewrite(catchClause.decl());
@@ -192,7 +204,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         } else {
             targetLabel = postLabels.get(tryCatchBlock);
         }
-        currentBlock.add(create.jump(targetLabel));
+        currentBlock.add(create.gotoStatement(targetLabel));
 
         totalBlock.add(currentBlock);
         currentBlock = totalBlock;
@@ -208,7 +220,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         BlockStatement totalBlock = currentBlock;
         currentBlock = create.block();
 
-        currentBlock.add(create.label_decl(entryLabels.get(tryCatchBlock.after())));
+        currentBlock.add(create.labelDecl(entryLabels.get(tryCatchBlock.after())));
         currentBlock.append(rewrite(tryCatchBlock.after()));
 
         currentBlock.add(create.ifthenelse(
@@ -216,10 +228,10 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                         create.local_name(excVar),
                         create.reserved_name(ASTReserved.Null)
                 ),
-                create.jump(nearestHandlerLabel)
+                create.gotoStatement(nearestHandlerLabel)
         ));
 
-        currentBlock.add(create.jump(postLabels.get(tryCatchBlock)));
+        currentBlock.add(create.gotoStatement(postLabels.get(tryCatchBlock)));
 
         totalBlock.add(currentBlock);
         currentBlock = totalBlock;
@@ -232,7 +244,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         }
 
         currentBlock.add(create.assignment(create.local_name(excVar), rewrite(special.args[0])));
-        currentBlock.add(create.jump(nearestHandlerLabel));
+        currentBlock.add(create.gotoStatement(nearestHandlerLabel));
         result = null;
     }
 
@@ -260,7 +272,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
             Method resultMethod = (Method) result;
             BlockStatement methodBody = (BlockStatement) resultMethod.getBody();
-            methodBody.add(create.label_decl(unhandledExceptionHandler));
+            methodBody.add(create.labelDecl(unhandledExceptionHandler));
         }
 
         // Encode signals & adjust ensures
@@ -407,7 +419,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                             create.local_name(excVar),
                             create.reserved_name(ASTReserved.Null)
                     ),
-                    create.jump(handlerLabel)
+                    create.gotoStatement(handlerLabel)
             );
     }
 }
