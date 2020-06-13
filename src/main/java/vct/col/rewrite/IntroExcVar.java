@@ -1,17 +1,12 @@
 package vct.col.rewrite;
 
-import scala.collection.immutable.Stream;
 import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
-import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
-import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.ClassType;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.util.FeatureScanner;
-import vct.util.ClassName;
 
 import java.util.ArrayList;
 import java.util.Arrays;

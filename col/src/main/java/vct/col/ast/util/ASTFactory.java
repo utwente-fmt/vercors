@@ -455,6 +455,8 @@ public class ASTFactory<E> implements FrameControl {
        case And:
        case Star:
          return constant(true);
+       case Or:
+         return constant(false);
        default:
          Abort("cannot fold empty list, because neutral element of %s is not implemented",op);
        }
@@ -1479,6 +1481,22 @@ public Axiom axiom(String name, ASTNode exp){
     Synchronized sync = new Synchronized(expr, statement);
     sync.setOrigin(origin);
     return sync;
+  }
+
+  public ASTSpecial gotoStatement(NameExpression label) {
+    return special(ASTSpecial.Kind.Goto, label);
+  }
+
+  public ASTSpecial gotoStatement(String targetLabel) {
+    return special(ASTSpecial.Kind.Goto, label(targetLabel));
+  }
+
+  public ASTSpecial labelDecl(String labelName) {
+    return labelDecl(label(labelName));
+  }
+
+  public ASTSpecial labelDecl(NameExpression label) {
+    return special(Kind.Label, label);
   }
 }
 

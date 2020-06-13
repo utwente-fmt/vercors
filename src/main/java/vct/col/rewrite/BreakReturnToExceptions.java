@@ -1,31 +1,19 @@
 package vct.col.rewrite;
 
-import org.antlr.v4.codegen.model.Loop;
-import scala.reflect.internal.Trees;
-import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.*;
-import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.util.ASTFactory;
-import vct.util.ClassName;
-import viper.silver.ast.Declaration;
 
-import javax.naming.Name;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Turns a program with break and return into a program using exceptions for control flow.

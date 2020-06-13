@@ -3,14 +3,8 @@ package vct.col.rewrite;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.AbstractRewriter;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
 
 public class UnfoldSwitch extends AbstractRewriter {
     int counter = 0;
@@ -49,7 +43,7 @@ public class UnfoldSwitch extends AbstractRewriter {
                 ASTNode comparison;
                 if (caseExpr == null) {
                     encounteredDefault = true;
-                    caseStatementsBlock.add(create.label_decl(generateCaseIDLabel(switchID, "default")));
+                    caseStatementsBlock.add(create.labelDecl(generateCaseIDLabel(switchID, "default")));
                     continue;
                 } else {
                     comparison = eq(name(exprName), caseExpr);
@@ -68,7 +62,7 @@ public class UnfoldSwitch extends AbstractRewriter {
             // If there was only a default case there is no if guard, so we add no if.
             // The if for default will be added at the end, after all the other are added
             if (ifGuard != null) {
-                IfStatement nextIf = create.ifthenelse(ifGuard, create.jump(caseIDLabel));
+                IfStatement nextIf = create.ifthenelse(ifGuard, create.gotoStatement(caseIDLabel));
                 if (ifChain == null) {
                     ifChain = nextIf;
                     mainBlock.add(ifChain);
@@ -78,14 +72,16 @@ public class UnfoldSwitch extends AbstractRewriter {
                 }
             }
 
-            caseStatementsBlock.add(create.label_decl(caseIDLabel));
+            // TODO: This breaks for nested switches, since we do not call rewrite on the case statements
+            // TODO: Refactor cases to be their own respective AST nodes? instead of doing them manually like this
+            caseStatementsBlock.add(create.labelDecl(caseIDLabel));
             for (ASTNode caseStatement : switchCase.stats) {
                 caseStatementsBlock.add(caseStatement);
             }
         }
 
         if (encounteredDefault) {
-            ASTNode defaultJump = create.jump(generateCaseIDLabel(switchID, "default"));
+            ASTNode defaultJump = create.gotoStatement(generateCaseIDLabel(switchID, "default"));
             if (ifChain == null) {
                 // No other cases, just the default case
                 mainBlock.add(defaultJump);

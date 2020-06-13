@@ -1,17 +1,15 @@
 package vct.col.rewrite;
 
-import org.antlr.v4.codegen.model.Loop;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.LoopStatement;
-import vct.col.ast.stmt.composite.Switch;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class ContinueToBreak extends AbstractRewriter {
