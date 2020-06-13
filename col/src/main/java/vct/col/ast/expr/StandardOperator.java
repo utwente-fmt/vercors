@@ -31,7 +31,7 @@ public enum StandardOperator {
   /** Bitwise eXclusive OR. */
   BitXor(2),
   /** Bitwise negation or complement. */
-  BitNot(2), //TODO change arity to 1
+  BitNot(1),
   /** And for languages where boolean and bitwise and have the same operator name **/
   AmbiguousAnd(2),
   /** Or for languages where boolean and bitwise and have the same operator name **/
