@@ -123,6 +123,9 @@ public class Main
       StringListSetting stop_after=new StringListSetting();
       clops.add(stop_after.getAppendOption("Stop after given passes"),"stop-after");
 
+      BooleanSetting abruptTerminationViaExceptions = new BooleanSetting(false);
+      clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions");
+
 
       BooleanSetting explicit_encoding=new BooleanSetting(false);
       clops.add(explicit_encoding.getEnable("explicit encoding"),"explicit");
@@ -338,7 +341,7 @@ public class Main
           passes.add("unfold-switch");
         }
 
-        if ((features.usesFinallyClause() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
+        if ((features.usesFinally() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
           passes.add("break-return-to-exceptions");
         } else if (usesBreakContinue || features.usesReturn()) {
           passes.add("break-return-to-goto");
@@ -353,7 +356,7 @@ public class Main
           || features.usesSpecial(ASTSpecial.Kind.Join)
           || features.usesOperator(StandardOperator.PVLidleToken)
           || features.usesOperator(StandardOperator.PVLjoinToken)
-          || features.usesSynchronizeddStatement()
+          || features.usesSynchronizedStatement()
           || features.usesSynchronizedModifier()
         )){
           passes.add("pvl-encode"); // translate built-in statements into methods and fake method calls.
@@ -542,7 +545,6 @@ public class Main
           passes.add("standardize");
           passes.add("check");
         }
-
 
         if (has_type_adt){
           passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument

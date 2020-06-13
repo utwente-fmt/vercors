@@ -7,6 +7,7 @@ import scala.collection.Iterable;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
+import vct.col.ast.generic.ASTList;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -297,6 +298,25 @@ public class Method extends ASTDeclaration {
   public boolean isOverloaded() {
     ASTClass cl=(ASTClass)getParent();
     return cl.isOverloaded(name());
+  }
+
+  /**
+   * Method is synchronized if one of the annotations is the Synchronized keyword.
+   */
+  public boolean isSynchronized() {
+    ASTList annotations = annotations();
+
+    for (int i = 0; i < annotations.size(); i++) {
+      ASTNode annotation = annotations.get(i);
+      if (annotation instanceof NameExpression) {
+        NameExpression modifier = (NameExpression) annotation;
+        if (modifier.isReserved(ASTReserved.Synchronized)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 }
 
