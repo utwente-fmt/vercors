@@ -7,6 +7,7 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
+import viper.silver.cfg.Block;
 
 public class UnfoldSynchronized extends AbstractRewriter {
     int counter = 0;
@@ -32,10 +33,14 @@ public class UnfoldSynchronized extends AbstractRewriter {
     }
 
     public void visit(Synchronized synchronizedBlock) {
+        if (!(synchronizedBlock.statement() instanceof BlockStatement)) {
+            Abort("Synchronized statement can only have block as statement");
+        }
+
         result = synchronizedToTryFinally(
                 synchronizedBlock.expr().getType(),
                 rewrite(synchronizedBlock.expr()),
-                rewrite(synchronizedBlock.body())
+                rewrite((BlockStatement) synchronizedBlock.statement())
         );
     }
 

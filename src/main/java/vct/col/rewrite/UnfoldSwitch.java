@@ -6,6 +6,7 @@ import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 import java.util.ArrayList;
 import java.util.HashSet;
