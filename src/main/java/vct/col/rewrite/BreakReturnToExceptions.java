@@ -9,11 +9,13 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ClassName;
 import vct.col.ast.util.ContractBuilder;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Turns a program with break and return into a program using exceptions for control flow.
@@ -43,7 +45,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
      */
     private String getUniqueCatchVarName() {
         // ucv == unique catch var
-        return "__ucv_" + uniqueCatchVarCounter++;
+        return "ucv_" + uniqueCatchVarCounter++;
     }
 
     public String getExceptionClassName(String prefix, String id) {
@@ -57,6 +59,9 @@ public class BreakReturnToExceptions extends AbstractRewriter {
                 name,
                 null,
                 // Uncomment to turn on inheritance of exceptions
+                /* TODO: We do not want users to be able to catch these.
+                    Therefore, we need some type here outside the java type system,
+                    for example the supertype of java.lang.Object. */
                 // create.class_type(new String[]{"java", "lang", "Exception"})
                 null
         );
@@ -125,7 +130,10 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             // There were breaks involved! Add catch clauses
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(result), null);
             for (NameExpression label : usedLabels) {
-                tryCatchBlock.addCatchClause(create.field_decl(getUniqueCatchVarName(), getExceptionType("break", label.getName())), create.block());
+                tryCatchBlock.addCatchClauseArray(
+                        getUniqueCatchVarName(),
+                        new Type[] { getExceptionType("break", label.getName()) },
+                        create.block());
             }
 
             if (result instanceof LoopStatement) {
@@ -146,11 +154,10 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
 
             ClassType exceptionType = getExceptionType("return", method.getName());
-            ClassName exceptionClassName = new ClassName(exceptionType.getNameFull());
             String catchVarName = getUniqueCatchVarName();
             ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), "value");
             ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
-            tryCatchBlock.addCatchClause(create.field_decl(catchVarName, exceptionType), create.block(returnStatement));
+            tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { exceptionType }, create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
 
             encounteredReturn = false;
