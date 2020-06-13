@@ -1,3 +1,6 @@
+//:: cases AmbiguousBooleanOperators
+//:: tools silicon
+//:: verdict Pass
 class BooleanOperators {
     boolean xor() {
         return true ^ false;
