@@ -54,7 +54,7 @@ public class BreakReturnToGoto extends AbstractRewriter {
 
             for (NameExpression label : node.getLabels()) {
                 NameExpression breakLabel = generateBreakLabel(label);
-                ASTNode breakTarget = create.label_decl(breakLabel);
+                ASTNode breakTarget = create.labelDecl(breakLabel);
 
                 // Only create break target if code actually breaks to label
                 // While loops are labeled properly in their own visit
@@ -97,12 +97,14 @@ public class BreakReturnToGoto extends AbstractRewriter {
 
         if (encounteredReturn) {
             NameExpression returnLabel = generateReturnLabel(method.getName());
-            ASTSpecial labelStatement = create.label_decl(returnLabel);
+            ASTSpecial labelStatement = create.labelDecl(returnLabel);
             Method resultMethod = (Method) result;
             BlockStatement body = (BlockStatement) resultMethod.getBody();
 
             // Always at least add a return label
-            // TODO (Bob): Account for overloading in the label name, since if this pass is called early overloading isn't encoded yet
+            /* TODO (Bob): Account for overloading in the label name, since if this pass is called early overloading isn't encoded yet
+                           Or run this pass after overloading (probably better).
+             */
             body.append(labelStatement);
 
             if (!method.getReturnType().isVoid()) {
@@ -128,7 +130,7 @@ public class BreakReturnToGoto extends AbstractRewriter {
             // location as the label itself, hence we need separate target labels.
 
             NameExpression continueLabel = generateContinueLabel(label);
-            ASTNode continueTarget = create.label_decl(continueLabel);
+            ASTNode continueTarget = create.labelDecl(continueLabel);
             // Only create continue target if code actually continues to label
             if (continueLabels.contains(continueLabel)) {
                 BlockStatement blockStatement = (BlockStatement) ((LoopStatement) result).getBody();
@@ -137,7 +139,7 @@ public class BreakReturnToGoto extends AbstractRewriter {
             }
 
             NameExpression breakLabel = generateBreakLabel(label);
-            ASTNode breakTarget = create.label_decl(breakLabel);
+            ASTNode breakTarget = create.labelDecl(breakLabel);
             // Only create break target if code actually breaks to label
             if (breakLabels.contains(breakLabel)) {
                 breakTargets.add(breakTarget);
@@ -180,7 +182,7 @@ public class BreakReturnToGoto extends AbstractRewriter {
     public void visitBreak(ASTSpecial breakStatement) {
         NameExpression label = (NameExpression) breakStatement.args[0];
         NameExpression newLabel = generateBreakLabel(label);
-        result = create.jump(newLabel);
+        result = create.gotoStatement(newLabel);
         breakLabels.add(newLabel);
     }
 
@@ -215,7 +217,7 @@ public class BreakReturnToGoto extends AbstractRewriter {
             replaceResultVar = false;
         }
 
-        res.add(create.jump(generateReturnLabel(current_method().getName())));
+        res.add(create.gotoStatement(generateReturnLabel(current_method().getName())));
 
         result = res;
 
