@@ -39,6 +39,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private boolean has_switch = false;
   private boolean has_synchronized_modifier;
   private boolean has_synchronized_statement = false;
+  private boolean has_catch = false;
   private boolean uses_csl=false;
   private EnumSet<StandardOperator> ops_used=EnumSet.noneOf(StandardOperator.class);
   private EnumSet<ASTSpecial.Kind> specials_used=EnumSet.noneOf(ASTSpecial.Kind.class);
@@ -119,6 +120,10 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
 
   public boolean usesSynchronizedModifier() {
     return has_synchronized_modifier;
+  }
+
+  public boolean usesCatch() {
+    return has_catch;
   }
 
   public void pre_visit(ASTNode node){
@@ -217,7 +222,8 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   public void visit(TryCatchBlock tryCatchBlock) {
     super.visit(tryCatchBlock);
 
-    has_finally |= tryCatchBlock != null;
+    has_finally |= tryCatchBlock.after() != null;
+    has_catch |= tryCatchBlock.catchClauses().length() > 0;
   }
 
   public void visit(ReturnStatement returnStatement) {

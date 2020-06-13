@@ -3,6 +3,8 @@ package vct.col.ast.stmt.decl;
 
 import java.util.*;
 
+import hre.ast.Origin;
+import scala.Option;
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
@@ -53,7 +55,7 @@ public class Method extends ASTDeclaration {
   };
  
   private final Type return_type;
-  private final DeclarationStatement[] args;
+  private DeclarationStatement[] args;
   private final boolean var_args;
   private Hashtable<String, Contract> spec=new Hashtable<String,Contract>();
   private ASTNode body;
@@ -317,6 +319,18 @@ public class Method extends ASTDeclaration {
     }
 
     return false;
+  }
+
+  public void prependArg(Origin o, String name, Type type, boolean outArg) {
+    DeclarationStatement newArg = new DeclarationStatement(name, type, Option.empty());
+    newArg.setOrigin(o);
+    if (outArg) {
+      newArg.setFlag(ASTFlags.OUT_ARG, true);
+    }
+
+    ArrayList<DeclarationStatement> argList = new ArrayList<>(Arrays.asList(args));
+    argList.add(0, newArg);
+    args = argList.toArray(new DeclarationStatement[argList.size()]);
   }
 }
 

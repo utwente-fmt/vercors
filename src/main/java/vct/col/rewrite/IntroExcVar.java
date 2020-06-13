@@ -48,16 +48,12 @@ public class IntroExcVar extends AbstractRewriter {
 
         if (canThrow(resultMethod)) {
             // Add out parameter
-            ArrayList<DeclarationStatement> args = new ArrayList<>(Arrays.asList(resultMethod.getArgs()));
-            DeclarationStatement exceptionOutArgument = create.field_decl(excVar, create.class_type(objectClass));
-            exceptionOutArgument.setFlag(ASTFlags.OUT_ARG, true);
-            args.add(0, exceptionOutArgument);
-            resultMethod.setArgs(args.toArray(new DeclarationStatement[args.size()]));
+            resultMethod.prependArg(result.getOrigin(), excVar, create.class_type(objectClass), true);
 
             // Set initial value to null
             BlockStatement body = (BlockStatement) resultMethod.getBody();
             body.prepend(create.assignment(create.local_name(excVar), create.reserved_name(ASTReserved.Null)));
-        } else if (scanner.usesFinallyClause() || scanner.usesCatchClause()) {
+        } else if (scanner.usesFinally() || scanner.usesCatch()) {
             // Add local variable and init as null
             BlockStatement body = (BlockStatement) resultMethod.getBody();
             body.prepend(create.field_decl(excVar, create.class_type(objectClass), create.reserved_name(ASTReserved.Null)));
@@ -74,16 +70,16 @@ public class IntroExcVar extends AbstractRewriter {
 
             // Set the exc variable to null, since the exception is now being handled by the local catch clause
             catchClause.block().prepend(create.assignment(
-                    create.local_name("sys__exc"),
+                    create.local_name(excVar),
                     create.reserved_name(ASTReserved.Null)
             ));
 
             // TODO (Bob): Once we have subtyping turn this into regular assignment, since this is a hack
-            // Suprised it even works w.r.t. typechecking
+            // Suprised it even works w.r.t. typechecking (could this indicate a bug in the type checker?)
             // Assign the global exc variable to the local formal parameter of the catch block
             // This way of any assertions or permissions on the exc variable were given earlier, they can also be used here
             catchClause.block().prepend(create.special(ASTSpecial.Kind.Assume,
-                    create.expression(StandardOperator.EQ, create.local_name(catchClause.decl().name()), create.local_name("sys__exc"))));
+                    create.expression(StandardOperator.EQ, create.local_name(catchClause.name()), create.local_name(excVar))));
         }
     }
 
@@ -99,7 +95,7 @@ public class IntroExcVar extends AbstractRewriter {
         if (canThrow(methodInvokation)) {
             // Add exception parameter
             MethodInvokation resultInvokation = (MethodInvokation) result;
-            resultInvokation.addArg(0, create.local_name(excVar));
+            resultInvokation.prependArg(create.local_name(excVar));
         }
     }
 }

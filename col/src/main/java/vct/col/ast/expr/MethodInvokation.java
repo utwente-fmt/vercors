@@ -4,6 +4,7 @@ package vct.col.ast.expr;
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.ExpressionNode;
+import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -128,5 +129,10 @@ public class MethodInvokation extends ExpressionNode {
     return definition.kind==Method.Kind.Constructor;
   }
 
+  public void prependArg(ASTNode e) {
+    ArrayList<ASTNode> argList = new ArrayList<>(Arrays.asList(args));
+    argList.add(0, e);
+    args = argList.toArray(new ASTNode[argList.size()]);
+  }
 }
 
