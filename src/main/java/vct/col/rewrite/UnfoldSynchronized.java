@@ -7,7 +7,6 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
-import viper.silver.cfg.Block;
 
 public class UnfoldSynchronized extends AbstractRewriter {
     int counter = 0;

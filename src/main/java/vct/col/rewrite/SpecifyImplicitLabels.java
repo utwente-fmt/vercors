@@ -10,9 +10,6 @@ import vct.col.ast.util.AbstractRewriter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-
-import static hre.lang.System.Output;
 
 // TODO (Bob): Possibly remove labels if they're not referred to by breaks, continues...? Then VerCors can (possibly) assume a statement does not need a try-catch if there's no label
 

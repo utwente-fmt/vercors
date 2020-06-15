@@ -9,13 +9,11 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.AbstractRewriter;
-import vct.col.ast.util.ClassName;
 import vct.col.ast.util.ContractBuilder;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Stream;
 
 /**
  * Turns a program with break and return into a program using exceptions for control flow.

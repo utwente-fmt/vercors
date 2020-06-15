@@ -3,8 +3,6 @@ package vct.col.ast.expr;
 
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
-import vct.col.ast.expr.ExpressionNode;
-import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;

@@ -8,9 +8,6 @@ import vct.col.ast.type.ASTReserved;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.util.FeatureScanner;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
 /**
  * Introduces the exc variable into each method. Assuming flattened code.
  * TODO: Only introduce if it throws or if throwing happens in the method.
