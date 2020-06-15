@@ -5,8 +5,8 @@ import java.util.Set;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.util.ASTFrame;
 import vct.col.ast.stmt.decl.Method;
+import vct.col.ast.util.ClassName;
 import vct.col.ast.util.RecursiveVisitor;
-import vct.util.ClassName;
 
 /**
  * Scan abstract syntax trees for predicate definitions.

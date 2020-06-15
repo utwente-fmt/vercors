@@ -7,16 +7,18 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import vct.antlr4.parser.Parsers;
+import vct.main.Parsers;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.stmt.decl.Method.Kind;
-import vct.col.util.ASTMapping;
-import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.util.*;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.*;
+import hre.config.Configuration;
+
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.UndefinedMapping;
 import vct.col.util.ASTUtils;

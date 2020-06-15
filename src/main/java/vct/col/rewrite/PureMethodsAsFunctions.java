@@ -4,11 +4,12 @@ import hre.lang.HREError;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.IfStatement;
-import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.stmt.decl.*;
 
 /**
  * Transform function definitions written in statement syntax (pure methods)

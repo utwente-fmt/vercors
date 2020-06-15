@@ -66,10 +66,10 @@ final class Queue {
   }
 
 
-  //@ Node begin;
+  //@ ghost Node begin;
   AtomicNode head;
   AtomicNode tail;
-  //@ Node last;
+  //@ ghost Node last;
 
   /*@
     // n is a final link in the history list.

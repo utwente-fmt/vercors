@@ -22,8 +22,9 @@ import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.util.SequenceUtils;
+import vct.col.ast.util.SequenceUtils;
 
 import static vct.col.rewrite.VectorEncode.Op.*;
 

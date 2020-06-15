@@ -27,7 +27,7 @@ void example(int a[],int b[],int c[],int len){
     {
     a[i]=b[i]+1;
     /*@
-      S1:if (i>0) {
+      ghost S1:if (i>0) {
         recv a!=NULL ** Perm(a[i],1\2) from S2,1;
       }
     @*/

@@ -22,7 +22,7 @@ final class List {
   public List next;
   
   /*@
-    public resource list(seq<int> c)=Perm(val,1)**Perm(next,1)**
+    public final resource list(seq<int> c)=Perm(val,1)**Perm(next,1)**
       ((next==null)?(c==seq<int>{val}):(|c| > 0 ** head(c)==val ** next.list(tail(c))));
   @*/
 
@@ -74,8 +74,8 @@ final class List {
   @*/
   public void append_iter(List l){
     List cursor=this;
-    //@ seq<int> prefix=seq<int>{};
-    //@ seq<int> suffix=L1;
+    //@ ghost seq<int> prefix=seq<int>{};
+    //@ ghost seq<int> suffix=L1;
 
     //@ create { qed this.list(L1+L2) -* this.list(L1+L2); }
 
@@ -86,11 +86,11 @@ final class List {
     //@ loop_invariant cursor.list(suffix+L2) -* this.list(L1+L2);
     while(cursor.get_next()/*@ with { L = suffix; } */ !=null)
     {
-        //@ List tmp=cursor;
-        //@ seq<int> tmp_suffix=suffix;
+        //@ ghost List tmp=cursor;
+        //@ ghost seq<int> tmp_suffix=suffix;
         //@ unfold cursor.list(suffix);
-        //@ prefix=prefix+seq<int>{cursor.val};
-        //@ suffix=tail(suffix);
+        //@ ghost prefix=prefix+seq<int>{cursor.val};
+        //@ ghost suffix=tail(suffix);
         cursor=cursor.next;
         /*@
             create {

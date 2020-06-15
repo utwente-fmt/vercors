@@ -5,6 +5,7 @@ import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
+import vct.col.ast.util.AbstractRewriter;
 
 public class AccessIntroduce extends AbstractRewriter {
 

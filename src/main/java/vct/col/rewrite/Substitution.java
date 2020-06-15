@@ -5,6 +5,7 @@ import java.util.Map;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 public class Substitution extends AbstractRewriter {
   Map<NameExpression,ASTNode> map;

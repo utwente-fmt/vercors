@@ -3,9 +3,7 @@ package vct.antlr4.parser;
 import hre.lang.HREError;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Objects;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -428,28 +426,6 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       return create.expression(StandardOperator.SeqUpdate, convert(ctx, 0), convert(ctx,2), convert(ctx,4));
     }
 
-    // Initializing a map
-    if(match(ctx, "map", "<", null, ",", null, ">",null)) {
-      Type t1 = checkType(convert(ctx,2));
-      Type t2 = checkType(convert(ctx,4));
-      ASTNode[] pairs = convert_pairs(ctx.getChild(6), "{",",","->","}");
-      if (pairs.length %2 != 0 || Arrays.stream(pairs).anyMatch(Objects::isNull)) {
-        Fail("Values of map are not pairs");
-      }
-      return create.struct_value(create.primitive_type(PrimitiveSort.Map, t1, t2), null, pairs);
-    }
-    if (match(ctx, null, "++", "(", null,",", null, ")")) {
-      return create.expression(StandardOperator.MapBuild, convert(ctx, 0), convert(ctx,3), convert(ctx,5));
-    }
-    if(match(ctx, "tuple", "<", null, ",", null, ">",null)) {
-      Type t1 = checkType(convert(ctx,2));
-      Type t2 = checkType(convert(ctx,4));
-      ASTNode args[]=convert_list((ParserRuleContext)ctx.getChild(6),"{",",","}");
-      if (args.length != 2) {
-        Fail("Tuple constructor requires two values");
-      }
-      return create.struct_value(create.primitive_type(PrimitiveSort.Tuple, t1, t2), null, args);
-    }
     return visit(ctx);
   }
 
@@ -566,16 +542,6 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
     if (match(ctx,"bag","<",null,">")){
       Type t=checkType(convert(ctx,2));
       return create.primitive_type(PrimitiveSort.Bag,t);
-    }
-    if (match(ctx,"map","<",null,",", null, ">")){
-      Type t1=checkType(convert(ctx,2));
-      Type t2=checkType(convert(ctx,4));
-      return create.primitive_type(PrimitiveSort.Map,t1, t2);
-    }
-    if (match(ctx,"tuple","<",null,",", null, ">")){
-      Type t1=checkType(convert(ctx,2));
-      Type t2=checkType(convert(ctx,4));
-      return create.primitive_type(PrimitiveSort.Tuple,t1, t2);
     }
     if (match(ctx,null,"<",null,">")) {
       String name=getIdentifier(ctx,0);
@@ -1073,11 +1039,6 @@ public class PVLtoCOL extends ANTLRtoCOL implements PVFullVisitor<ASTNode> {
       Type t=create.primitive_type(PrimitiveSort.Set,create.primitive_type(PrimitiveSort.Location));
       return create.struct_value(t,null,args); 
     }
-    return null;
-  }
-
-  @Override
-  public ASTNode visitMapValues(MapValuesContext ctx) {
     return null;
   }
 
