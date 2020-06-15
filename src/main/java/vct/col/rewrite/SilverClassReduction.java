@@ -21,8 +21,6 @@ import hre.config.Configuration;
 
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.UndefinedMapping;
-import vct.col.util.ASTUtils;
-import vct.util.Configuration;
 
 /**
  * This rewriter converts a program with classes into

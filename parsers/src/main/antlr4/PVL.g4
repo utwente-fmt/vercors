@@ -48,6 +48,10 @@ exprList
     : expr
     | expr ',' exprList
     ;
+mapPairs
+    : expr '->' expr
+    | expr '->' expr ',' mapPairs
+    ;
 
 expr
  : identifier ':' expr
@@ -116,6 +120,7 @@ powExpr
 seqAddExpr
  : unaryExpr '::' seqAddExpr
  | seqAddExpr '++' unaryExpr
+ | seqAddExpr '++' '(' unaryExpr ',' unaryExpr ')'
  | unaryExpr
  ;
 
@@ -159,6 +164,8 @@ nonTargetUnit
  | 'current_thread'
  | '\\result'
  | collectionConstructors
+ | 'map' '<' type ',' type '>'
+ | 'tuple' '<' type ',' type '>' values
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
@@ -190,6 +197,8 @@ builtinMethod
  ;
 
 values : '{' exprList? '}';
+
+mapValues : '{' mapPairs? '}';
 
 tuple : '(' exprList? ')';
 
@@ -267,6 +276,7 @@ invariant: 'loop_invariant' expr ';';
 nonArrayType
  : container '<' type '>'
  | 'option' '<' type '>'
+ | ('map' | 'tuple') '<' type ',' type '>'
  | ('string' | 'process' | 'int' | 'boolean' | 'zfrac' | 'frac' | 'resource' | 'void')
  | classType
  ;
