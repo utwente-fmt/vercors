@@ -19,6 +19,9 @@ addons:
     organization: utwente-fmt
     token:
       secure: "rN1xKIRlcnyPz0wtlmzF5AW04f57sPVmhDe3TjXWho84YWE5eu6avdV36NeS6PHrocKpcLY3PLLqtNs6FPMmlN2fBvLQs8Z0iEkhfrJv3moq9GuE8la6D4845iR7Kw+gtqbDS7cVDh9zZ33zVvgK+faLz6yy+NopXcyO4cxYPUhKypyvCGnPNxCLUuW8bq+0pV1xbuqhd+r18Zd+UQCiX5RE/1Zio5LuXLkPfO+fy1D7/OKwzA5sjWS2oNsIR9w5jRA7IVK4gbfm/wgkwkRhMDlezXpsSWTXQq0Ib8HgER3GkFjCF0rqtsEYKSvDuo80paVrbZEnT/lEu7+5UV5BbhN/pTaKW4or8b1dFbUOJTlxJXVXhO8VgdHO88OrKWlvq4KJjq48ZPchHx30lKHAeCVOW9m2lfFXM9I/8vnFQgQ7HEC+TvYwyWLqDv+ZNAJ9qQSYYJby5ZWaTRr306eERj1xFPrljbw/g9SpKMMM66C8PfbCgn06X/PeaycqrcgZLd1mYyKNB7+vGt9x4IN3wJAdV+H2Y0EYZuIF+GEX1D6+zYjFF7bZhl/xHW/oQC8PxxmE9D7QBU1SHhwOybCeujvbYk/7XrHVK2vic2KbScKyeTthJeqVUE616xImTyhJcVJti1AMchLdUmppsfTVRHkOG6HniLmIJIQpV+Ajz2k="
+  apt:
+    packages:
+      - checkstyle
 
 cache:
   directories:
@@ -45,6 +48,7 @@ matrix:
       - SPLIT=4/5 ./.travis/build.sh
     - script:
       - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
+      - ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
       - echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";
       - >
         if [ "${TRAVIS_SECURE_ENV_VARS}" == "false" ]; then
