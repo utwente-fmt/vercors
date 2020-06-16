@@ -146,11 +146,11 @@ public class JavaSyntax extends Syntax {
     syntax.addInfix(EQ,"==",80);
     syntax.addInfix(NEQ,"!=",80);
     //  7 bitwise AND   &
-    syntax.addInfix(BitAnd,"&",70);
+    syntax.addInfix(AmbiguousAnd,"&",70);
     //  6 bitwise exclusive OR  ^
-    syntax.addInfix(BitXor,"^",60);
+    syntax.addInfix(AmbiguousXor,"^",60);
     //  5 bitwise inclusive OR  |
-    syntax.addInfix(BitOr,"|",50);
+    syntax.addInfix(AmbiguousOr,"|",50);
     //  4 logical AND   &&
     syntax.addLeftFix(And,"&&",40);
     //  3 logical OR  ||
