@@ -164,7 +164,7 @@ nonTargetUnit
  | 'current_thread'
  | '\\result'
  | collectionConstructors
- | 'map' '<' type ',' type '>'
+ | 'map' '<' type ',' type '>' mapValues
  | 'tuple' '<' type ',' type '>' values
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'

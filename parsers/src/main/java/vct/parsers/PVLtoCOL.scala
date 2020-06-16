@@ -472,7 +472,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create.primitive_type(PrimitiveSort.Option, convertType(t))
     case NonArrayType2("map", "<", t1, ",", t2, ">") =>
       create.primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2))
-    case NonArrayType2("option", "<", t1, ",", t2, ">") =>
+    case NonArrayType2("tuple", "<", t1, ",", t2, ">") =>
       create.primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2))
     case NonArrayType3(primitive) =>
       create.primitive_type(primitive match {
