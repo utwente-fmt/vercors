@@ -1,5 +1,5 @@
 lexer grammar LangCLexer;
-import SpecLexer, LangOMPLexer;
+import SpecLexer, LangOMPLexer, LangGPGPULexer;
 
 @lexer::members {
     private static boolean inBlockSpec = false;
@@ -363,7 +363,7 @@ BlockCommentStart: '/*' -> mode(COMMENT), skip;
 LineCommentStart: '//' -> mode(LINE_COMMENT), skip;
 
 EndSpec
-    : {inBlockSpec}? '*/' {inBlockSpec = false;}
+    : {inBlockSpec}? '@'? '*/' {inBlockSpec = false;}
     | {inLineSpec}? ('\n'|'\r\n') {inLineSpec = false;}
     ;
 
