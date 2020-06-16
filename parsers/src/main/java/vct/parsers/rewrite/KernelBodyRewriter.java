@@ -19,14 +19,14 @@ import vct.col.ast.util.ASTUtils;
 
 class KernelBodyRewriter extends AbstractRewriter {
 
-    public KernelBodyRewriter(ProgramUnit source) {
-        super(source);
-    }
+  public KernelBodyRewriter(ProgramUnit source) {
+    super(source);
+  }
 
     @Override
     public void visit(MethodInvokation e) {
         ASTNode arg;
-        switch (e.method) {
+        switch (e.method()) {
             case "get_global_id":
                 arg = e.getArg(0);
                 if (arg.isConstant(0)) {

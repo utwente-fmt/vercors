@@ -6,10 +6,9 @@ import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{NameExpression, StandardOperator}
+import vct.col.ast.expr.{NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.langspecific.c.{CFunctionType, ParamSpec}
-import vct.col.ast.langspecific._
+import vct.col.ast.langspecific.c._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
@@ -1009,7 +1008,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
       create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()).map {
-        case name: NameExpression if name.getKind == NameExpression.Kind.Unresolved =>
+        case name: NameExpression if name.getKind == NameExpressionKind.Unresolved =>
           create label name.getName
         case other => other
       }:_*)

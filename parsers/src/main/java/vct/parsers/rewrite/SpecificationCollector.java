@@ -291,7 +291,7 @@ public class SpecificationCollector extends AbstractRewriter {
   
   @Override
   public void visit(MethodInvokation m){
-    StandardOperator op=syntax.parseFunction(m.method);
+    StandardOperator op=syntax.parseFunction(m.method());
     if (op!=null && op.arity()==m.getArity()){
       result=create.expression(op,rewrite(m.getArgs()));
     } else {

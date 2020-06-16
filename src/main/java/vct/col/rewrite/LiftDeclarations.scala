@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{MethodInvokation, NameExpression, StandardOperator}
+import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, SequenceUtils}
@@ -79,7 +79,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
   }
 
   override def visit(name: NameExpression): Unit = {
-    if(name.getKind == NameExpression.Kind.Argument) {
+    if(name.getKind == NameExpressionKind.Argument) {
       if(renameArguments) {
         // Within contracts
         result = create.argument_name("__arg_" + name.getName)
@@ -87,7 +87,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
         // Otherwise, re-resolve the name to the masking argument
         result = SequenceUtils.access(create, create.unresolved_name(name.getName), create.constant(0))
       }
-    } else if(name.getKind != NameExpression.Kind.Reserved) {
+    } else if(name.getKind != NameExpressionKind.Reserved) {
       result = SequenceUtils.access(create, name, create.constant(0))
     } else {
       super.visit(name)

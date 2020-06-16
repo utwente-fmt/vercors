@@ -15,8 +15,7 @@ import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.expr.constant.StructValue;
-import vct.col.ast.langspecific.*;
-import vct.col.ast.langspecific.c.CFunctionType;
+import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.generic.ASTNode;
@@ -284,7 +283,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(MethodInvokation e) {
     Method m=e.getDefinition();
     Origin o=e.getOrigin();
-    String name=e.method;
+    String name=e.method();
     ArrayList<E> args=new ArrayList<E>();
     for(ASTNode n:e.getArgs()){
       args.add(n.apply(this));
@@ -306,7 +305,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         }
         AxiomaticDataType adt=(AxiomaticDataType)m.getParent();
         HashMap<String, T> dpars=new HashMap<String, T>();
-        type.domain_type(dpars,(ClassType)e.object);
+        type.domain_type(dpars,(ClassType)e.object());
         return create.domain_call(o, name, args, dpars, rt, adt.name());
       } else {
 
@@ -368,27 +367,27 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   @Override
   public E map(BindingExpression e) {
     Origin o = e.getOrigin();
-    switch (e.binder) {
+    switch (e.binder()) {
     case Star:
-      if ((e.main instanceof BindingExpression)||e.getDeclarations().length>1){
+      if ((e.main() instanceof BindingExpression)||e.getDeclarations().length>1){
         hre.lang.System.Warning("Simplification failure: %s",e);
         failure=true;
       } else {
         boolean good=false;
-        if (e.main.getType().isBoolean()){
+        if (e.main().getType().isBoolean()){
           good=true;
-        } else if (e.main.isa(StandardOperator.Perm)||e.main.isa(StandardOperator.Value)){
-          ASTNode loc=((OperatorExpression)e.main).arg(0);
+        } else if (e.main().isa(StandardOperator.Perm)||e.main().isa(StandardOperator.Value)){
+          ASTNode loc=((OperatorExpression)e.main()).arg(0);
           while (loc instanceof Dereference){
             loc=((Dereference)loc).obj();
           }
           if (loc instanceof MethodInvokation
-                  && ((MethodInvokation) loc).object instanceof ClassType
-                  && ((ClassType) ((MethodInvokation) loc).object).getName().equals("VCTArray")
-                  && ((MethodInvokation) loc).method.startsWith("loc")) {
+                  && ((MethodInvokation) loc).object() instanceof ClassType
+                  && ((ClassType) ((MethodInvokation) loc).object()).getName().equals("VCTArray")
+                  && ((MethodInvokation) loc).method().startsWith("loc")) {
             loc = ((MethodInvokation) loc).getArg(0);
           }
-          if(loc instanceof MethodInvokation && ((MethodInvokation) loc).method.startsWith("getVCTOption")) {
+          if(loc instanceof MethodInvokation && ((MethodInvokation) loc).method().startsWith("getVCTOption")) {
             loc = ((MethodInvokation) loc).getArg(0);
           }
           good=loc instanceof NameExpression;
@@ -399,14 +398,14 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       }
     case Forall:
       E expr;
-      if (e.select.isConstant(true)){
-        expr=e.main.apply(this);
+      if (e.select().isConstant(true)){
+        expr=e.main().apply(this);
       } else {
-        expr=create.implies(o, e.select.apply(this), e.main.apply(this));
+        expr=create.implies(o, e.select().apply(this), e.main().apply(this));
       }
       List<List<E>> triggers=new ArrayList<List<E>>();
-      if (e.triggers!=null){
-        for (ASTNode trigger[]:e.triggers){
+      if (e.triggers()!=null){
+        for (ASTNode trigger[]:e.javaTriggers()){
           List<E> tmp=new ArrayList<E>();
           for (ASTNode node:trigger){
             tmp.add(node.apply(this));
@@ -416,10 +415,10 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       }
       return create.forall(o, convert(e.getDeclarations()),triggers ,expr);
     case Exists:
-      return create.exists(o, convert(e.getDeclarations()),create.and(o, e.select.apply(this), e.main.apply(this)));
+      return create.exists(o, convert(e.getDeclarations()),create.and(o, e.select().apply(this), e.main().apply(this)));
     case Let:{
       DeclarationStatement decls[]=e.getDeclarations();
-      E res=e.main.apply(this);
+      E res=e.main().apply(this);
       for(int i=decls.length-1;i>=0;i--){
         res=create.let(
             o,
@@ -432,7 +431,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       return res;
     }
     default:
-      Abort("binder %s not supported",e.binder);
+      Abort("binder %s not supported",e.binder());
     }
     return null;
   }

@@ -7,7 +7,7 @@ import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, StandardOperator}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, TryCatchBlock, TryWithResources}
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
@@ -849,7 +849,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
       create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()).map {
-        case name: NameExpression if name.getKind == NameExpression.Kind.Unresolved =>
+        case name: NameExpression if name.getKind == NameExpressionKind.Unresolved =>
           create label name.getName
         case other => other
       }:_*)
