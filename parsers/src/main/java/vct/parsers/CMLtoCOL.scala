@@ -17,6 +17,8 @@ import vct.col.ast.util.SequenceUtils
 import scala.collection.immutable.{Bag, HashedBagConfiguration}
 import scala.collection.mutable
 
+import java.util
+
 object CMLtoCOL {
   def convert(tree: CompilationUnitContext, fileName: String, tokens: CommonTokenStream, parser: CParser): ProgramUnit = {
     new CMLtoCOL(fileName, tokens, parser).convertProgram(tree)
@@ -75,13 +77,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val body = convertStat(statement)
       val contract = getContract(convertValContract(maybeContract))
       val decls = t.params.map(param => getOrFail(decl, param.asDecl, "Parameter type or name missing"))
-      Seq(create method_decl(t.returnType, contract, name, decls.toArray, body))
+      val res = create method_decl(t.returnType, contract, name, decls.toArray, body)
+      specs.valModifiers.foreach(res.attach(_))
+      Seq(res)
   })
-
-  def failIfDefined[T <: ParserRuleContext](node: Option[T], format: String, args: Object*): Unit = node match {
-    case Some(node) => fail(node, format, args)
-    case None => // do nothing
-  }
 
   def convertPointer(ptr: Option[PointerContext]): (Type => Type) = ptr match {
     case None => x => x
@@ -214,7 +213,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
             val ret = funcT.returnType
             val params = funcT.params.map(param => getOrFail(decl, param.asDecl,
               "Parameter name and types are both required, even in empty forward declarations."))
-            create method_decl(ret, contract, name, params.toArray, null)
+            val res = create method_decl(ret, contract, name, params.toArray, null)
+            specs.valModifiers.foreach(res.attach(_))
+            res
           case _ =>
             failIfDefined(maybeContract, "Contract not allowed in this place.")
             create field_decl(null, name, t, initVal.map(convertInitializer(_, t)).orNull)
@@ -343,6 +344,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     private val _typeQual: mutable.Set[TypeQual] = mutable.Set()
     private val _funcSpec: mutable.Set[FuncSpec] = mutable.Set()
     private var _storageClass: Option[StorageClass] = None
+    var valModifiers: mutable.Seq[NameExpression] = mutable.Seq()
+    var isKernel: Boolean = false
 
     def typeSpec: Bag[TypeSpec] = Bag(_typeSpec.toSeq:_*)
     def typeQual: Set[TypeQual] = _typeQual.toSet
@@ -360,6 +363,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       case DeclarationSpecifier2(typeQualifier) => add(typeQualifier)
       case DeclarationSpecifier3(functionSpecifier) => add(functionSpecifier)
       case DeclarationSpecifier4(alignmentSpecifier) => ??(alignmentSpecifier)
+      case DeclarationSpecifier5(_) => isKernel = true
+      case DeclarationSpecifier6(valModifiersNode) =>
+        valModifiers ++= convertValModifiers(valModifiersNode)
     }
 
     def getStorageClass(tree: StorageClassSpecifierContext): StorageClass = tree match {
@@ -439,12 +445,18 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
           create primitive_type t
       }
 
-      storageClass match {
-        case None => Right(primitive)
-        case Some(Static) => Right(create.__static(primitive))
-        case Some(ExternSC) => Right(create.__extern(primitive))
-        case Some(sc) => Left(s"Storage class ${sc.getClass.getSimpleName} not supported")
+      val sc = storageClass match {
+        case None => primitive
+        case Some(Static) => create.__static(primitive)
+        case Some(ExternSC) => create.__extern(primitive)
+        case Some(sc) => return Left(s"Storage class ${sc.getClass.getSimpleName} not supported")
       }
+
+      Right(if(isKernel) {
+        create.__kernel(sc)
+      } else {
+        sc
+      })
     }
   }
 
@@ -489,7 +501,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case BlockItemList1(xs, x) => convertStatList(xs) ++ convertStat(x)
   }
 
-  def convertStat(statement: BlockItemContext): Seq[ASTNode] = statement match {
+  def convertStat(statement: BlockItemContext): Seq[ASTNode] = origin(statement, statement match {
     case BlockItem0(decl) =>
       convertDecl(decl)
     case BlockItem1(stat) =>
@@ -498,7 +510,11 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       convertValStat(valStat)
     case BlockItem3(valStat) =>
       Seq(convertValStat(valStat))
-  }
+    case BlockItem4(GpgpuLocalBarrier0(maybeContract, _, _, _, _)) =>
+      Seq(create.barrier("group_block", getContract(convertValContract(maybeContract)), new util.ArrayList[String](), null))
+    case BlockItem5(GpgpuGlobalBarrier0(maybeContract, _, _, _, _)) =>
+      Seq(create.barrier("kernel_block", getContract(convertValContract(maybeContract)), new util.ArrayList[String](), null))
+  })
 
   def convertStat(statement: StatementContext): ASTNode = origin(statement, statement match {
     case Statement0(labeled) => convertStat(labeled)

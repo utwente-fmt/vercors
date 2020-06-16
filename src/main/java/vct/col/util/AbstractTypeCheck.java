@@ -1243,6 +1243,21 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
         break;
       }
+      case AmbiguousOr:
+      case AmbiguousAnd:
+      case AmbiguousXor: {
+        // bitwise case
+        if (tt[0].equalSize(tt[1])) {
+          e.setType(tt[0]);
+        }
+        // boolean case
+        else if (tt[0].isBoolean() && tt[1].isBoolean()) {
+          e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+          break;
+        } else {
+          Fail("Types of left and right-hand side argument are different (%s/%s).", tt[0], tt[1]);
+        }
+      }
       case RightShift:
       case LeftShift:
       case UnsignedRightShift: {
