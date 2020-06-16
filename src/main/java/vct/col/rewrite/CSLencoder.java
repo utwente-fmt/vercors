@@ -11,6 +11,7 @@ import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.logging.ErrorMapping;
 

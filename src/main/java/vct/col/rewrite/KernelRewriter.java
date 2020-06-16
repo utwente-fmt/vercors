@@ -1,6 +1,5 @@
 package vct.col.rewrite;
 
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,28 +8,26 @@ import java.util.Hashtable;
 import java.util.Set;
 import java.util.Stack;
 
+import hre.config.Configuration;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.util.ASTVisitor;
+import vct.col.ast.util.*;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
-import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.composite.ParallelBarrier;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.util.RecursiveVisitor;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
 import vct.col.util.ControlFlowAnalyzer;
-import vct.util.Configuration;
 
 public class KernelRewriter extends AbstractRewriter {
   
@@ -589,7 +586,7 @@ public class KernelRewriter extends AbstractRewriter {
                 }
                 PrintWriter outputWriter = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
                 outputWriter.print("skipping:");
-                vct.util.Configuration.getDiagSyntax().print(outputWriter, claim);
+                vct.col.ast.util.Configuration.getDiagSyntax().print(outputWriter, claim);
                 outputWriter.print("%n");
                 outputWriter.close();
 

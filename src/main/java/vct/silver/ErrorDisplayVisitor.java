@@ -11,7 +11,6 @@ import vct.logging.TaskEnd;
 import vct.logging.TaskPhase;
 import vct.logging.VerCorsError;
 import vct.logging.VerificationResult;
-import vct.util.Configuration;
 
 public class ErrorDisplayVisitor implements MessageVisitor {
 

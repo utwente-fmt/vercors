@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -8,13 +9,31 @@ import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.type.ASTReserved;
+import vct.col.ast.util.AbstractRewriter;
+
+import java.util.HashMap;
 
 public class InlinePredicatesRewriter extends AbstractRewriter {
  
   public InlinePredicatesRewriter(ProgramUnit source) {
     super(source);
   }
-  
+
+  public ASTNode inline_call(MethodInvokation e, Method def) {
+    int N=def.getArity();
+    HashMap<NameExpression,ASTNode> map=new HashMap<NameExpression, ASTNode>();
+    Substitution sigma=new Substitution(source(),map);
+    map.put(create.reserved_name(ASTReserved.This), rewrite(e.object));
+    for(int i=0;i<N;i++){
+      map.put(create.unresolved_name(def.getArgument(i)),rewrite(e.getArg(i)));
+    }
+    ASTNode body=rewrite(def.getBody());
+    InlineMarking marker=new InlineMarking(source(),e.getOrigin());
+    body.accept(marker);
+    return sigma.rewrite(body);
+  }
+
   @Override
   public void visit(MethodInvokation e){
     Method def=e.getDefinition();

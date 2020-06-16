@@ -8,6 +8,7 @@ import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.Dereference;

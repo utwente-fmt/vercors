@@ -12,6 +12,7 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 
 public class AddTypeADT extends AbstractRewriter {
@@ -63,7 +64,7 @@ public class AddTypeADT extends AbstractRewriter {
     //    ));
     //}
     super.visit(m);
-    if (m.getKind()==Method.Kind.Constructor){
+    if (m.getKind()== Method.Kind.Constructor){
       Method c=(Method)result;
       if (c!=null && c.getBody()!=null){
         ASTClass cls=(ASTClass)m.getParent();

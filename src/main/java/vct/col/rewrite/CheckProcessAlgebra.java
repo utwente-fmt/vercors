@@ -13,9 +13,11 @@ import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.Configuration;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.util.ASTUtils;
-import vct.util.Configuration;
+import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.Configuration;
 
 /**
  * This class checks if a specified process algebra is correct.
