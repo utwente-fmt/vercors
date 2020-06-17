@@ -49,6 +49,7 @@ matrix:
     - script:
       - SPLIT=4/5 ./.travis/build.sh
     - script:
+      - git -c core.sshCommand="ssh -i vercors_buildbot" clone git@git.snt.utwente.nl:rubbensrb/vercors-ci-scratch.git
       - ls
       - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
       - ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
