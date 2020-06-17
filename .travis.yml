@@ -34,7 +34,10 @@ before_cache:
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.sbt        -name "*.lock"               -print -delete
 
-before_install: openssl aes-256-cbc -K $encrypted_d2cc1ee25cc3_key -iv $encrypted_d2cc1ee25cc3_iv -in vercors_buildbot.enc -out ./vercors_buildbot -d
+before_install:
+  - openssl aes-256-cbc -K $encrypted_d2cc1ee25cc3_key -iv $encrypted_d2cc1ee25cc3_iv -in vercors_buildbot.enc -out ./vercors_buildbot -d
+  # Set appropriate permissions for use as ssh identity file
+  - chmod 600 vercors_buildbot
 
 matrix:
   include:
