@@ -8,8 +8,8 @@ import vct.test.Jacoco
 
 object CoverageAggregator {
   def main(args: Array[String]): Unit = {
-    hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Debug)
-    hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Debug)
+    hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.All)
+    hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.All)
 
     val clops = new OptionParser
     clops.add(clops.getHelpOption, "help")
@@ -18,6 +18,7 @@ object CoverageAggregator {
     clops.add(mergeReports.getAppendOption("Indicates reports to be merged (comma separated)"), "merge")
 
     val input: Array[String] = clops.parse(args)
+
     if (input.length != 0) {
       Abort("Unmatched command line args: %s", input.toSeq.mkString(" "))
     }

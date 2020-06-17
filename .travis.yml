@@ -49,8 +49,8 @@ matrix:
     - script:
       - SPLIT=4/5 ./.travis/build.sh
     - script:
-      - ./.travis/travis_fold.sh "Acquiring coverage files" "sbt "
       - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
+      - ./.travis/travis_fold.sh acquire_coverage "Acquiring coverage files" "./bin/run-class vct.travis.CoverageAggregator --help"
       - ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
       - echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";
       - >
