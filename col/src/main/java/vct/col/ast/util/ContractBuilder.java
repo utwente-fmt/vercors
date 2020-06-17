@@ -203,8 +203,12 @@ public class ContractBuilder {
   }
 
   public void signals(String name, Type type, ASTNode condition) {
+      signals(new SignalsClause(name, type, condition));
+  }
+
+  public void signals(SignalsClause signalsClause) {
     empty = false;
-    signals.add(new SignalsClause(name, type, condition));
+    signals.add(signalsClause);
   }
 
   public void requires(Iterable<ASTNode> collection) {

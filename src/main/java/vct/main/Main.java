@@ -743,8 +743,8 @@ public class Main
       }
     });
     defined_passes.put("check",new CompilerPass("run a basic type check"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        new SimpleTypeCheck(arg).check();
+      public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
+        new SimpleTypeCheck(report, arg).check();
         return arg;
       }
     });
@@ -771,8 +771,8 @@ public class Main
       }
     });
     defined_passes.put("java-check",new CompilerPass("run a Java aware type check"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        new JavaTypeCheck(arg).check();
+      public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
+        new JavaTypeCheck(report, arg).check();
         return arg;
       }
     });

@@ -1,6 +1,7 @@
 package vct.col.util;
 
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.logging.PassReport;
 
 /**
  * This class implements type checking of object oriented programs
@@ -11,8 +12,8 @@ import vct.col.ast.stmt.decl.ProgramUnit;
  */
 public class JavaTypeCheck extends AbstractTypeCheck {
 
-  public JavaTypeCheck(ProgramUnit arg) {
-    super(arg);
+  public JavaTypeCheck(PassReport report, ProgramUnit arg) {
+    super(report, arg);
   }
 
 }

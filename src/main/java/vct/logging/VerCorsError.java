@@ -34,7 +34,8 @@ public class VerCorsError extends AbstractMessage {
     CallPreCondition,
     AssignmentFailed,
     MethodPreConditionUnsound,
-    UnspecifiedError
+    UnspecifiedError,
+    TypeError
   }
   
   /**
@@ -48,6 +49,7 @@ public class VerCorsError extends AbstractMessage {
     DivisionByZero,
     InsufficientPermission,
     MethodPreConditionFalse,
+    ClassTypeExpected,
     UnspecifiedCause
   }
   

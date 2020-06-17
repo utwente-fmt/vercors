@@ -205,7 +205,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     in_ensures=false;
     if (c.signals!=null) {
       for(SignalsClause sc : c.signals){
-        cb.signals(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
+        cb.signals(rewrite(sc));
       }
     }
   }
@@ -798,26 +798,16 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void visit(TryCatchBlock tcb){
     TryCatchBlock res = create.try_catch(rewrite(tcb.main()), rewrite(tcb.after()));
     for (CatchClause cc : tcb.catches()) {
-      pre_visit(cc.block());
-      BlockStatement tmp=currentBlock;
-      currentBlock=new BlockStatement();
-      currentBlock.setOrigin(cc.block().getOrigin());
-      Type[] newCatchTypes = new Type[cc.catchTypes().size()];
-      Type[] oldCatchTypes = cc.javaCatchTypes();
-      for(int i = 0; i < newCatchTypes.length; i++) {
-        newCatchTypes[i] = rewrite(oldCatchTypes[i]);
-      }
-      for(ASTNode S:cc.block()){
-        currentBlock.add(rewrite(S));
-      }
-      BlockStatement block=currentBlock;
-      currentBlock=tmp;
-      post_visit(cc.block());
-      res.addCatchClauseArray(cc.name(), newCatchTypes, block);
+      res.addCatchClause(rewrite(cc));
     }
     result=res;
   }
-  
+
+  public void visit(CatchClause cc) {
+    result = new CatchClause(cc.name(), rewrite(cc.javaCatchTypes()), rewrite(cc.block()));
+    result.setOrigin(cc.getOrigin());
+  }
+
   @Override
   public void visit(TypeExpression te){
 	Type[] types = rewrite(te.typesJava()).toArray(new Type[0]);
@@ -912,5 +902,10 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void visit(OMPForSimd loop) {
     result = new OMPForSimd(rewrite(loop.loop()), loop.options());
     result.setOrigin(loop.getOrigin());
+  }
+
+  @Override
+  public void visit(SignalsClause sc) {
+    result = create.signalsClause(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
   }
 }

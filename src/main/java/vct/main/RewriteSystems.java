@@ -23,7 +23,7 @@ public class RewriteSystems {
       unit=systems.get(f);
       if (unit==null){
         unit=Parsers.getParser("jspec").parse(f);
-        new AbstractTypeCheck(unit).check();
+        new AbstractTypeCheck(null, unit).check();
         systems.put(f, unit);
       }
     }

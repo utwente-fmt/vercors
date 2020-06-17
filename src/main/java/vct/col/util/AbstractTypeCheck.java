@@ -3,6 +3,7 @@ package vct.col.util;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import hre.ast.Origin;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
@@ -15,6 +16,10 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.*;
+import vct.logging.MessageFactory;
+import vct.logging.PassAddVisitor;
+import vct.logging.PassReport;
+import vct.logging.VerCorsError;
 import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
 import viper.api.SilverTypeMap;
@@ -31,6 +36,7 @@ import static hre.lang.System.Output;
  */
 @SuppressWarnings("incomplete-switch")
 public class AbstractTypeCheck extends RecursiveVisitor<Type> {
+  PassReport report;
 
   public void check(){
     for(ASTDeclaration entry:source().get()){
@@ -46,8 +52,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     }
   }
 
-  public AbstractTypeCheck(ProgramUnit arg){
+  public AbstractTypeCheck(PassReport report, ProgramUnit arg){
     super(arg,true);
+    this.report = report;
   }
 
   public void visit(ConstantExpression e){
@@ -1959,12 +1966,38 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     c.block().apply(this);
   }
 
+  public void reportError(VerCorsError e) {
+    if (report != null) {
+      MessageFactory log=new MessageFactory(new PassAddVisitor(report));
+      log.error(e);
+    }
+  }
+
   public void visit(SignalsClause sc) {
     if (!(sc.getType() instanceof ClassType)) {
+      ArrayList<Origin> auxOrigin = new ArrayList<>();
+      auxOrigin.add(sc.getOrigin());
+      reportError(new VerCorsError(
+              VerCorsError.ErrorCode.TypeError,
+              VerCorsError.SubCode.ClassTypeExpected,
+              sc.getType().getOrigin(),
+              auxOrigin
+      ));
       Abort("Only class type is allowed in signals");
     }
-    // TODO: Set origins properly in catchclause en signalsclause
-    // TODO: nice printing of error with passreport
-    // TODO: Typechecking for catchclause as well
+    // TODO: Check for supertype must be exception (this should probably go in the java type checker)
+
+    super.visit(sc);
+  }
+
+  public void visit(CatchClause cc) {
+    // TODO: need to check also if type is not an interface
+    // TODO: And supertype of exception
+    // TODO: And that, if checked exception, exception appears in try body! (this should probably go in the java type checker)
+    // TODO: Multi-catch
+
+    if (!(cc.javaCatchTypes()[0] instanceof ClassType)) {
+      Abort("Must catch type inheriting from Throwable");
+    }
   }
 }

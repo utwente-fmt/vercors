@@ -10,7 +10,7 @@ import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, TryCatchBlock, TryWithResources}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit, SignalsClause}
 import vct.col.ast.util.ContractBuilder
 
 import scala.collection.JavaConverters._
@@ -403,10 +403,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     catchClauses.foreach {
       case CatchClause0(_, _, Seq(mod, _*), _, _, _, _) =>
         ??(mod)
-      case CatchClause0("catch", _, Seq(), types, name, _, block) =>
+      case ccCtx@CatchClause0("catch", _, Seq(), types, name, _, block) =>
         val cc = CatchClause(convertID(name), convertTypeList(types), convertBlock(block))
-        cc setOrigin(create.getOrigin)
-        tryBlock addCatchClause(cc)
+        tryBlock.addCatchClause(origin(ccCtx, cc))
     }
   }
 
@@ -767,7 +766,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
     case ValContractClause9(_signals, _, signalsType, name, _, condition, _) =>
-      builder.signals(convertID(name), convertType(signalsType), expr(condition))
+      builder.signals(origin(clause, new SignalsClause(convertID(name), convertType(signalsType), expr(condition))))
   }
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {
