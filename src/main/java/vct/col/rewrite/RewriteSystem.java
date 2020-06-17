@@ -430,6 +430,16 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
     return null;
   }
 
+  @Override
+  public Boolean map(CatchClause cc, ASTNode arg) {
+    return null;
+  }
+
+  @Override
+  public Boolean map(SignalsClause sc, ASTNode arg) {
+    return null;
+  }
+
 }
 
 class MatchSubstitution extends AbstractRewriter {
