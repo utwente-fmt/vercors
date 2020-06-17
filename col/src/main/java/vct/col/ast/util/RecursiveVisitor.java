@@ -325,6 +325,12 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(c.pre_condition);
     dispatch(c.yields);
     dispatch(c.post_condition);
+    for (SignalsClause sc : c.signals) {
+      enter(c); // TODO: Ugly, why can't we enter sc?
+      dispatch(sc.type());
+      dispatch(sc.condition());
+      leave(c);
+    }
   }
 
   public void visit(ASTSpecial s){

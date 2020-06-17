@@ -37,6 +37,7 @@ valContractClause
  | 'context_everywhere' langExpr ';'
  | 'context' langExpr ';'
  | 'loop_invariant' langExpr ';'
+ | 'signals' '(' langType langId ')' langExpr ';'
  ;
 
 valBlock

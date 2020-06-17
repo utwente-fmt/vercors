@@ -13,6 +13,7 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
+import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 
 import java.util.ArrayList;
@@ -94,6 +95,16 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     }
 
     public void visit(TryCatchBlock tryCatchBlock) {
+        /* TODO: The type of a catch var of a multi catch is effectively the least upper bound of all the types
+                So that's the type that should also be used on the right of the instanceof below
+                As well as during typechecking!
+                https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20 */
+        tryCatchBlock.catches().forEach(cc -> {
+            if (cc.catchTypes().length() > 1) {
+                Abort("Multi-catch not supported");
+            }
+        });
+
         generateLabels(tryCatchBlock);
 
         ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catches());
@@ -142,17 +153,6 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     }
 
     public void visitCatch(TryCatchBlock tryCatchBlock, CatchClause catchClause) {
-        /* TODO: The type of a catch var of a multi catch is effectively the least upper bound of all the types
-                So that's the type that should also be used on the right of the instanceof below
-                As well as during typechecking!
-                https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20 */
-        tryCatchBlock.catchClauses().foreach(cc -> {
-            if (cc.catchTypes().length() > 1) {
-                Abort("Multi-catch not supported");
-            }
-            return null;
-        });
-
         // Since the declaration statement identifier cannot leak to the outside scope,
         // we do a pre_visit here, so a post_visit at the end will remove the name
         // from the scope
@@ -183,17 +183,20 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         currentBlock.add(create.labelDecl(entryLabels.get(catchClause)));
 
+        // Just assume the first type is used for now
+        Type catchType = catchClause.javaCatchTypes()[0];
+
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.Not,
                     create.invokation(create.class_type(type_adt), null,"instanceof",
                             create.expression(StandardOperator.TypeOf,create.local_name(excVar)),
-                            create.invokation(create.class_type(type_adt),null,"class_" + catchClause.decl().type())
+                            create.invokation(create.class_type(type_adt),null,"class_" + catchType.toString())
                             )
                     ),
                 create.gotoStatement(fallbackHandler)
                 ));
 
-        DeclarationStatement argument = rewrite(catchClause.decl());
+        DeclarationStatement argument = create.field_decl(catchClause.name(), rewrite(catchType));
         currentBlock.add(argument);
 
         currentBlock.append(rewrite(catchClause.block()));

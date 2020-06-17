@@ -2,7 +2,9 @@ package vct.col.util;
 
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.function.Consumer;
 
+import scala.util.control.Exception;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
@@ -223,7 +225,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
     super.visit(tryCatchBlock);
 
     has_finally |= tryCatchBlock.after() != null;
-    has_catch |= tryCatchBlock.catchClauses().length() > 0;
+    has_catch |= tryCatchBlock.numCatches() > 0;
   }
 
   public void visit(ReturnStatement returnStatement) {

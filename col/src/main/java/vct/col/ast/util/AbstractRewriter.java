@@ -205,8 +205,10 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       cb.ensures(rewrite(clause));
     }
     in_ensures=false;
-    if (c.signals!=null) for(DeclarationStatement decl:c.signals){
-      cb.signals((ClassType)rewrite(decl.getType()), decl.name(), rewrite(decl.initJava()));
+    if (c.signals!=null) {
+      for(SignalsClause sc : c.signals){
+        cb.signals(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
+      }
     }
   }
   public Contract rewrite(Contract c){

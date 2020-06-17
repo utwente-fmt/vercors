@@ -10,7 +10,6 @@ import java.util.HashSet;
 
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
-import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -40,7 +39,7 @@ public class Contract extends ASTNode {
   public final ASTNode post_condition;
   public final DeclarationStatement given[];
   public final DeclarationStatement yields[];
-  public final DeclarationStatement signals[];
+  public final SignalsClause signals[];
   public final ASTNode modifies[];
   public final ASTNode accesses[];
   
@@ -100,7 +99,7 @@ public class Contract extends ASTNode {
       ASTNode inv,
       ASTNode pre_condition,
       ASTNode post_condition,
-      DeclarationStatement[]signals){
+      SignalsClause[] signals){
     this.invariant=inv;
     this. pre_condition= pre_condition;
     this.post_condition=post_condition;

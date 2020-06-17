@@ -746,6 +746,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       builder.context(expr(exp))
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
+    case ValContractClause9(_signals, _, signalsType, name, _, condition, _) =>
+      builder.signals(convertID(name), convertType(signalsType), expr(condition))
   }
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {
