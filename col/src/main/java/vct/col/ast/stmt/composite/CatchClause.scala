@@ -1,9 +1,12 @@
 package vct.col.ast.stmt.composite
 
+import scala.collection.JavaConverters._
+
 import vct.col.ast.`type`.Type
 import vct.col.ast.generic.{ASTNode, DebugNode}
 import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
+
 
 /**
  * Represents a catch-clause for use in a try-catch-finally block, for example:
@@ -12,6 +15,8 @@ import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
  * @param block The body statement block of the catch clause (e.g. the handler body "`S`").
  */
 case class CatchClause(name: String, catchTypes: Seq[Type], block: BlockStatement) extends ASTNode with VisitorHelper {
+  def this(name: String, catchTypes: Array[Type], block: BlockStatement) = this(name, catchTypes.toSeq, block)
+
   def javaCatchTypes: Array[Type] = catchTypes.toArray
 
   override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)

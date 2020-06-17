@@ -13,4 +13,10 @@ case class SignalsClause(val name: String, val `type`: Type, val condition: ASTN
 
   override def debugTreeChildrenFields(): Iterable[String] = Seq("type", "condition")
   override def debugTreePropertyFields(): Iterable[String] = Seq("name")
+
+  /**
+    * Turns the signals clause into a separate decl statement. Useful for use with ASTFrame, where a DeclarationStatement
+    * is needed even for names with types that are themselves not DeclarationStatements.
+    */
+  def asDeclarationStatement: DeclarationStatement = DeclarationStatement(name, `type`, Option.empty)
 }

@@ -9,7 +9,7 @@ import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.stmt.composite.{BlockStatement, TryCatchBlock, TryWithResources}
+import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, TryCatchBlock, TryWithResources}
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
 import vct.col.ast.util.ContractBuilder
 
@@ -404,7 +404,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       case CatchClause0(_, _, Seq(mod, _*), _, _, _, _) =>
         ??(mod)
       case CatchClause0("catch", _, Seq(), types, name, _, block) =>
-        tryBlock.addCatchClause(convertID(name), convertTypeList(types), convertBlock(block))
+        val cc = CatchClause(convertID(name), convertTypeList(types), convertBlock(block))
+        cc setOrigin(create.getOrigin)
+        tryBlock addCatchClause(cc)
     }
   }
 

@@ -19,6 +19,8 @@ import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
 import viper.api.SilverTypeMap;
 
+import static hre.lang.System.Output;
+
 /**
  * This class implements type checking of simple object oriented programs.
  *
@@ -1955,5 +1957,14 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     c.block().apply(this);
+  }
+
+  public void visit(SignalsClause sc) {
+    if (!(sc.getType() instanceof ClassType)) {
+      Abort("Only class type is allowed in signals");
+    }
+    // TODO: Set origins properly in catchclause en signalsclause
+    // TODO: nice printing of error with passreport
+    // TODO: Typechecking for catchclause as well
   }
 }

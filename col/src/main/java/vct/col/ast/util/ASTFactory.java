@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -1449,6 +1450,26 @@ public Axiom axiom(String name, ASTNode exp){
 
   public ASTSpecial labelDecl(NameExpression label) {
     return special(Kind.Label, label);
+  }
+
+  public CatchClause catchClause(String name, Type[] types, BlockStatement block) {
+    return catchClause(origin_stack.get(), name, types, block);
+  }
+
+  public CatchClause catchClause(Origin origin, String name, Type[] types, BlockStatement block) {
+    CatchClause cc = new CatchClause(name, types, block);
+    cc.setOrigin(origin);
+    return cc;
+  }
+
+  public SignalsClause signalsClause(String name, Type type, ASTNode condition) {
+    return signalsClause(origin_stack.get(), name, type, condition);
+  }
+
+  public SignalsClause signalsClause(Origin origin, String name, Type type, ASTNode condition) {
+    SignalsClause sc = new SignalsClause(name, type, condition);
+    sc.setOrigin(origin);
+    return sc;
   }
 }
 

@@ -9,10 +9,10 @@ final class Ok {
     void m1();
 }
 
-final class NotOk1 {
-    //@ signals (RuntimeException e) e > 3;
-    void m2();
-}
+//final class NotOk1 {
+//    // signals (RuntimeException e) e > 3;
+//    void m2();
+//}
 
 final class NotOk2 {
     //@ signals (int e) e > 0;
