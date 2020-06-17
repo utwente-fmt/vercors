@@ -34,10 +34,7 @@ before_cache:
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.sbt        -name "*.lock"               -print -delete
 
-before_install:
-  - openssl aes-256-cbc -K $encrypted_d2cc1ee25cc3_key -iv $encrypted_d2cc1ee25cc3_iv -in vercors_buildbot.enc -out ./vercors_buildbot -d
-  # Set appropriate permissions for use as ssh identity file
-  - chmod 600 vercors_buildbot
+before_install: ./.travis/decrypt-vercors-scratch-ci-key.sh
 
 matrix:
   include:
@@ -52,8 +49,7 @@ matrix:
     - script:
       - SPLIT=4/5 ./.travis/build.sh
     - script:
-      - git -c core.sshCommand="ssh -i vercors_buildbot -o StrictHostKeyChecking=no" clone git@git.snt.utwente.nl:rubbensrb/vercors-ci-scratch.git
-      - ls
+      - ./.travis/travis_fold.sh "Acquiring coverage files" "sbt "
       - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
       - ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
       - echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";

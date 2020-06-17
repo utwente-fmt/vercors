@@ -219,6 +219,9 @@ object CommandLineTesting {
     result.toMap
   }
 
+  /**
+    * Aggregates several jacoco ".exec" files into one xml report.
+    */
   def generateJacocoXML(): Unit = {
     val jacocoCli = Configuration.getJacocoCli
     jacocoCli.addArg("report")
