@@ -120,7 +120,7 @@ public class CSLencoder extends AbstractRewriter {
         subjects.add(create.reserved_name(ASTReserved.This));
       }
       InlineMethod inline=new InlineMethod(source());
-      inline.inline(block,result_name,return_label,m,e.object,e.getArgs(),e.getOrigin());    
+      inline.inline(block,result_name,return_label,m,e.object(),e.getArgs(),e.getOrigin());
       block.add(create.special(ASTSpecial.Kind.Label,create.label(return_label)));
       Hashtable<NameExpression, ASTNode> map=new Hashtable<NameExpression, ASTNode>();
       Substitution sigma=new Substitution(source(),map);

@@ -45,10 +45,10 @@ public class WandEncoder extends AbstractRewriter {
       for(ASTNode n:ASTUtils.conjuncts(e.arg(0),StandardOperator.Star)){
         if (n instanceof MethodInvokation){
           MethodInvokation m=(MethodInvokation)n;
-          type_name+="_"+m.method;
+          type_name+="_"+m.method();
           Method def=m.getDefinition();
           if(!def.isStatic()){
-            args.add(m.object);
+            args.add(m.object());
             Type t=create.class_type(((ASTClass)def.getParent()).getFullName());
             decls.add(create.field_decl("x_"+decls.size(),t));
           }
@@ -66,10 +66,10 @@ public class WandEncoder extends AbstractRewriter {
       for(ASTNode n:ASTUtils.conjuncts(e.arg(1),StandardOperator.Star)){
         if (n instanceof MethodInvokation){
           MethodInvokation m=(MethodInvokation)n;
-          type_name+="_"+m.method;
+          type_name+="_"+m.method();
           Method def=m.getDefinition();
           if(!def.isStatic()){
-            args.add(m.object);
+            args.add(m.object());
             Type t=create.class_type(((ASTClass)def.getParent()).getFullName());
             decls.add(create.field_decl("x_"+decls.size(),t));
           }

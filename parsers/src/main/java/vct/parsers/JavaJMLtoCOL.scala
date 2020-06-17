@@ -7,7 +7,7 @@ import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, StandardOperator}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, TryCatchBlock, TryWithResources}
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
@@ -606,20 +606,28 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
             res.set_after(create block(convertValWithThen(block):_*))
       }
       res
-    case Expression9("new", Creator0(typeArgs, _, _)) =>
+    case Expression9("new", Creator0(typeArgs, _, _), _) =>
       ??(typeArgs) // generics are unsupported
-    case Expression9("new", Creator1(name, creator)) => (name, creator) match {
+    case Expression9("new", Creator1(name, creator), maybeWithThen) => (name, creator) match {
       case (CreatedName1(primitiveType), CreatorRest1(_classCreator)) =>
         fail(primitiveType, "This is invalid syntax; it parsed as a constructor call on a primitive type.")
       case (t, CreatorRest0(ArrayCreatorRest0(Dims0(dims), initializer))) =>
+        failIfDefined(maybeWithThen, "with/then arguments cannot be applied to an array constructor")
         val baseType = convertType(t)
         getArrayInitializer(initializer, dims.size, baseType)
       case (t, CreatorRest0(ArrayCreatorRest1(specDims, maybeAnonDims))) =>
+        failIfDefined(maybeWithThen, "with/then arguments cannot be applied to an array constructor")
         val anonDims = maybeAnonDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
         val knownDims = exprList(specDims)
         create expression(NewArray, convertType(t, knownDims.size + anonDims), knownDims.toArray)
       case (t, CreatorRest1(ClassCreatorRest0(arguments, maybeBody))) =>
-        create new_object(convertType(t).asInstanceOf[ClassType], exprList(arguments):_*)
+        val res = create new_object(convertType(t).asInstanceOf[ClassType], exprList(arguments):_*)
+        maybeWithThen match {
+          case None =>
+          case Some(block) =>
+            res.set_after(create block(convertValWithThen(block):_*))
+        }
+        res
     }
 
     case Expression10("(", t, ")", exp) => create expression(Cast, convertType(t), expr(exp))
@@ -661,11 +669,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Expression19(left, "!=", right) =>
       create expression(NEQ, expr(left), expr(right))
     case Expression20(left, "&", right) =>
-      create expression(BitAnd, expr(left), expr(right))
+      create expression(AmbiguousAnd, expr(left), expr(right))
     case Expression21(left, "^", right) =>
-      create expression(BitXor, expr(left), expr(right))
+      create expression(AmbiguousXor, expr(left), expr(right))
     case Expression22(left, "|", right) =>
-      create expression(BitOr, expr(left), expr(right))
+      create expression(AmbiguousOr, expr(left), expr(right))
     case Expression23(left, AndOp0("&&"), right) =>
       create expression(And, expr(left), expr(right))
     case Expression23(left, AndOp1(valOp), right) =>
@@ -677,10 +685,20 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Expression26(cond, "?", t, ":", f) =>
       create expression(ITE, expr(cond), expr(t), expr(f))
     case assignment: Expression27Context => assignment.children.asScala.toSeq match {
-      case Seq(left: ExpressionContext, op, right: ExpressionContext) =>
-        create assignment(expr(left), expr(right))
-      case _ =>
-        ??(assignment)
+      case Seq(left: ExpressionContext, op, right: ExpressionContext) => op.getText match {
+        case "=" => create assignment(expr(left), expr(right))
+        case "+=" => create expression(AddAssign, expr(left), expr(right))
+        case "-=" => create expression(SubAssign, expr(left), expr(right))
+        case "*=" => create expression(MulAssign, expr(left), expr(right))
+        case "/=" => create expression(DivAssign, expr(left), expr(right))
+        case "&=" => create expression(AndAssign, expr(left), expr(right))
+        case "|=" => create expression(OrAssign, expr(left), expr(right))
+        case "^=" => create expression(XorAssign, expr(left), expr(right))
+        case ">>=" => create expression(ShrAssign, expr(left), expr(right))
+        case ">>>=" => create expression(SShrAssign, expr(left), expr(right))
+        case "<<=" => create expression(ShlAssign, expr(left), expr(right))
+        case "%=" => create expression(RemAssign, expr(left), expr(right))
+      }
     }
 
     case Primary0("(", exp, ")") => expr(exp)
@@ -833,7 +851,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
       create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()).map {
-        case name: NameExpression if name.getKind == NameExpression.Kind.Unresolved =>
+        case name: NameExpression if name.getKind == NameExpressionKind.Unresolved =>
           create label name.getName
         case other => other
       }:_*)

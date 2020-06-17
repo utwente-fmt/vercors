@@ -47,6 +47,9 @@ public class ArrayNullValues extends AbstractRewriter {
             case BitOr:
             case BitXor:
             case BitNot:
+            case AmbiguousAnd:
+            case AmbiguousOr:
+            case AmbiguousXor:
             case And:
             case Or:
             case Not:

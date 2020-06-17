@@ -153,7 +153,7 @@ public class RecognizeMultiDim extends AbstractRewriter {
   
   public void visit(BindingExpression e){
     boolean rw_needed;
-    switch(e.binder){
+    switch(e.binder()){
     case Star:
     case Sum:
       rw_needed=true;

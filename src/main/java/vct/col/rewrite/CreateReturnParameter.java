@@ -80,7 +80,7 @@ public class CreateReturnParameter extends AbstractRewriter {
       if (expr instanceof MethodInvokation) {
         MethodInvokation method_invokation = (MethodInvokation) expr;
         Method m = method_invokation.getDefinition();
-        if (m == null) Abort("cannot process invokation of %s without definition",method_invokation.method);
+        if (m == null) Abort("cannot process invokation of %s without definition",method_invokation.method());
         if (m.kind == Method.Kind.Plain) {
           res.add(invokation_into_variable(method_invokation, create.local_name("sys__result")));
         }
@@ -112,7 +112,7 @@ public class CreateReturnParameter extends AbstractRewriter {
       break;
     }
     if (!m.getReturnType().isVoid()){
-      Fail("unexpected invokation of non-void method %s at %s",e.method,e.getOrigin());
+      Fail("unexpected invokation of non-void method %s at %s",e.method(),e.getOrigin());
     }
     super.visit(e);
   }
@@ -121,7 +121,7 @@ public class CreateReturnParameter extends AbstractRewriter {
     if (s.expression() instanceof MethodInvokation){
         MethodInvokation method_invokation = (MethodInvokation) s.expression();
         Method m = method_invokation.getDefinition();
-        if (m == null) Abort("cannot process invokation of %s without definition",method_invokation.method);
+        if (m == null) Abort("cannot process invokation of %s without definition",method_invokation.method());
         if (m.kind == Method.Kind.Plain) {
           result = invokation_into_variable(method_invokation, s.location());
           return;
@@ -136,7 +136,7 @@ public class CreateReturnParameter extends AbstractRewriter {
    */
   private MethodInvokation invokation_into_variable(MethodInvokation method_invokation, ASTNode location) {
     Method method=method_invokation.getDefinition();
-    if (method == null) Abort("cannot process invokation of %s without definition",method_invokation.method);
+    if (method == null) Abort("cannot process invokation of %s without definition",method_invokation.method());
     if (method.kind != Method.Kind.Plain) {
       Abort("MethodInvokation is not plain");
     }
@@ -147,7 +147,7 @@ public class CreateReturnParameter extends AbstractRewriter {
       args[i+1]=rewrite(method_invokation.getArg(i));
     }
     args[0]=rewrite(location);
-    MethodInvokation res=create.invokation(rewrite(method_invokation.object), rewrite(method_invokation.dispatch) , method_invokation.method , args );
+    MethodInvokation res=create.invokation(rewrite(method_invokation.object()), rewrite(method_invokation.dispatch()) , method_invokation.method() , args );
     for(NameExpression lbl:method_invokation.getLabels()){
       Debug("VOIDCALLS: copying label %s",lbl);
       res.addLabel(rewrite(lbl));

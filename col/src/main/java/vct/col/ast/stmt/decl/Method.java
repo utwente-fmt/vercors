@@ -271,7 +271,7 @@ public class Method extends ASTDeclaration {
     if (node instanceof MethodInvokation){
       MethodInvokation s=(MethodInvokation)node;
       if (s.getDefinition()==target) return true;
-      if (find(target,scanned,s.object)) return true;
+      if (find(target,scanned,s.object())) return true;
       for(ASTNode child:s.getArgs()){
         if (find(target,scanned,child)) return true;
       }
@@ -283,8 +283,8 @@ public class Method extends ASTDeclaration {
     }
     if (node instanceof BindingExpression){
       BindingExpression abs=(BindingExpression)node;
-      if (find(target,scanned,abs.main)) return true;
-      return find(target,scanned,abs.select);
+      if (find(target,scanned,abs.main())) return true;
+      return find(target,scanned,abs.select());
     }
     if (node instanceof PrimitiveType){
       return false;
