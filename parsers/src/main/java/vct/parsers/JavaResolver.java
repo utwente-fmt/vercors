@@ -12,6 +12,7 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.stmt.decl.NameSpace.Import;
@@ -328,7 +329,7 @@ public class JavaResolver extends AbstractRewriter {
   }
   @Override
   public void visit(NameExpression e){
-    if (e.getKind()==NameExpression.Kind.Unresolved){
+    if (e.getKind()== NameExpressionKind.Unresolved){
       String name=e.getName();
       VariableInfo info=variables.lookup(name);
       if (info!=null) {

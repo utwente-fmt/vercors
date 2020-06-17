@@ -68,7 +68,7 @@ lazy val vercors = (project in file("."))
   .settings(
     name := "Vercors",
     organization := "University of Twente",
-    version := "1.3.0",
+    version := "1.3.0-SNAPSHOT",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -92,9 +92,10 @@ lazy val vercors = (project in file("."))
     scalacOptions in ThisBuild += "-unchecked",
     scalacOptions in ThisBuild ++= Seq("-Ypatmat-exhaust-depth", "off"),
 
-    javacOptions in ThisBuild += "-Xlint:deprecation",
-    javacOptions in ThisBuild += "-Xlint:unchecked",
-    javacOptions in ThisBuild += "-deprecation",
+    javacOptions in Compile += "-Xlint:deprecation",
+    javacOptions in Compile += "-Xlint:unchecked",
+    javacOptions in Compile += "-deprecation",
+    javacOptions in doc := Seq(),
 
     javaOptions in (Compile, run) += "-J-Xss128M",
     /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are

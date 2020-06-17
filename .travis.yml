@@ -1,61 +1,75 @@
 dist: bionic
-
 language: scala
 scala: 2.13.1
-
+branches:
+  except:
+    - dev-prerelease
 env:
-  - PATH=$TRAVIS_BUILD_DIR/unix/bin:$PATH
-
-# A few notes on caching:
-# SBT is very picky when it comes to recompilation. It boils down to the modify time and path of the source and class
-# files. If the modify time of the JVM changes, the full project is recompiled. This is why the openjdk version is left
-# default; that version is already installed. Dynamic installation causes the modify time to be different for each
-# travis run. Furthermore, travis uses tar for caching, which by default has insufficient accuracy in the modify time
-# for SBT. That is why the executable is replaced with a script that flags tar to store the archive in posix format,
-# which does offer sufficient resolution.
-
+  matrix:
+    - PATH=$TRAVIS_BUILD_DIR/unix/bin:$PATH
+  global:
+    # GH_TOKEN=abcde: authorized to push
+    secure: eqD1V2aWz4ggaSMT4oZK5VcOd8Wu7zYfuPPX91jW3iupRuFMVPTc3lozhzMbS0c6HBwhu1RvQGYqJxtQ41BnR/Wg9F92+pXfxd0X5OngI9GR2CJ3JM3sEqUZfxIhUGUW1U1GOzm32Z9W8gFie9gsTfl3KEkzT30dUENFjOkNJIf17DqSsrR+Mg3rj1ILR7d6NgGsy0reV8y3k17ajZmnNrbMbAx1PQDyGU8yjfsymjZoZY5A0lhG1uYhEKDFuLH8ep1VPbNqA3n4M8pbrtgDnZZRfsKohRl9nOP4lpZUam2yOKZ78YNMe7X5tHytdYC5HorsibJrcS00Vp6R4j30PXeQeNq6G9livmevVfifSJ1I4PKHc33RXUOqNoWZ5D4ft07MfZZsAUVrvmpR1oj2x9iXBr6k3yNUH2Bu+rpmG6Ewk0aFAm04uhFlReSWRLuNdi8Mfp5zdDrzPKTWG3pOYyL7j6MLwS6YZ0WO1I3BiR6ii6kidR4Bbpu/11ik5/Hbe9+vZ9pESg5RDQf4gQjTWc8L0WH/y767Fo4wbwITGuGkNLdAlGMbb+h2wPK/W5EuCNpnzLCDNpn7xz37c1uTiK9JXI18qx8/VgBGY12qk7avgQvbkI5zXPqo1fdZgpK6fXdKxJdF47ZhmZbuQCjp8EpCPNlVwhzVHQKfG+S3egU=
 addons:
   sonarcloud:
     organization: utwente-fmt
     token:
-      secure: "rN1xKIRlcnyPz0wtlmzF5AW04f57sPVmhDe3TjXWho84YWE5eu6avdV36NeS6PHrocKpcLY3PLLqtNs6FPMmlN2fBvLQs8Z0iEkhfrJv3moq9GuE8la6D4845iR7Kw+gtqbDS7cVDh9zZ33zVvgK+faLz6yy+NopXcyO4cxYPUhKypyvCGnPNxCLUuW8bq+0pV1xbuqhd+r18Zd+UQCiX5RE/1Zio5LuXLkPfO+fy1D7/OKwzA5sjWS2oNsIR9w5jRA7IVK4gbfm/wgkwkRhMDlezXpsSWTXQq0Ib8HgER3GkFjCF0rqtsEYKSvDuo80paVrbZEnT/lEu7+5UV5BbhN/pTaKW4or8b1dFbUOJTlxJXVXhO8VgdHO88OrKWlvq4KJjq48ZPchHx30lKHAeCVOW9m2lfFXM9I/8vnFQgQ7HEC+TvYwyWLqDv+ZNAJ9qQSYYJby5ZWaTRr306eERj1xFPrljbw/g9SpKMMM66C8PfbCgn06X/PeaycqrcgZLd1mYyKNB7+vGt9x4IN3wJAdV+H2Y0EYZuIF+GEX1D6+zYjFF7bZhl/xHW/oQC8PxxmE9D7QBU1SHhwOybCeujvbYk/7XrHVK2vic2KbScKyeTthJeqVUE616xImTyhJcVJti1AMchLdUmppsfTVRHkOG6HniLmIJIQpV+Ajz2k="
+      secure: rN1xKIRlcnyPz0wtlmzF5AW04f57sPVmhDe3TjXWho84YWE5eu6avdV36NeS6PHrocKpcLY3PLLqtNs6FPMmlN2fBvLQs8Z0iEkhfrJv3moq9GuE8la6D4845iR7Kw+gtqbDS7cVDh9zZ33zVvgK+faLz6yy+NopXcyO4cxYPUhKypyvCGnPNxCLUuW8bq+0pV1xbuqhd+r18Zd+UQCiX5RE/1Zio5LuXLkPfO+fy1D7/OKwzA5sjWS2oNsIR9w5jRA7IVK4gbfm/wgkwkRhMDlezXpsSWTXQq0Ib8HgER3GkFjCF0rqtsEYKSvDuo80paVrbZEnT/lEu7+5UV5BbhN/pTaKW4or8b1dFbUOJTlxJXVXhO8VgdHO88OrKWlvq4KJjq48ZPchHx30lKHAeCVOW9m2lfFXM9I/8vnFQgQ7HEC+TvYwyWLqDv+ZNAJ9qQSYYJby5ZWaTRr306eERj1xFPrljbw/g9SpKMMM66C8PfbCgn06X/PeaycqrcgZLd1mYyKNB7+vGt9x4IN3wJAdV+H2Y0EYZuIF+GEX1D6+zYjFF7bZhl/xHW/oQC8PxxmE9D7QBU1SHhwOybCeujvbYk/7XrHVK2vic2KbScKyeTthJeqVUE616xImTyhJcVJti1AMchLdUmppsfTVRHkOG6HniLmIJIQpV+Ajz2k=
   apt:
     packages:
       - checkstyle
-
 cache:
   directories:
-   - ~/.cache/coursier
-   - ~/.ivy2/cache
-   - ~/.sbt
-
+    - "~/.cache/coursier"
+    - "~/.ivy2/cache"
+    - "~/.sbt"
 before_cache:
   - rm -fv $HOME/.ivy2/.sbt.ivy.lock
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.sbt        -name "*.lock"               -print -delete
-
 before_install: ./.travis/decrypt-vercors-scratch-ci-key.sh
-
 matrix:
   include:
+    - script: SPLIT=0/5 ./.travis/build.sh
+    - script: SPLIT=1/5 ./.travis/build.sh
+    - script: SPLIT=2/5 ./.travis/build.sh
+    - script: SPLIT=3/5 ./.travis/build.sh
+    - script: SPLIT=4/5 ./.travis/build.sh
     - script:
-      - SPLIT=0/5 ./.travis/build.sh
-    - script:
-      - SPLIT=1/5 ./.travis/build.sh
-    - script:
-      - SPLIT=2/5 ./.travis/build.sh
-    - script:
-      - SPLIT=3/5 ./.travis/build.sh
-    - script:
-      - SPLIT=4/5 ./.travis/build.sh
-    - script:
-      - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
-      - ./.travis/travis_fold.sh acquire_coverage "Acquiring coverage files" "./bin/run-class vct.travis.CoverageAggregator --help"
-      - ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
-      - echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";
-      - >
-        if [ "${TRAVIS_SECURE_ENV_VARS}" == "false" ]; then
-        echo;
-        echo "The check is running for a pull request for an external repo. At the moment Travis does not support running Sonar for external repositories. The build will fail.";
-        fi;
-      - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
+        - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
+        - ./.travis/travis_fold.sh acquire_coverage "Acquiring coverage files" "./bin/run-class vct.travis.CoverageAggregator --help"
+        - ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
+        - echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";
+        - >
+          if [ "${TRAVIS_SECURE_ENV_VARS}" == "false" ]; then
+          echo;
+          echo "The check is running for a pull request for an external repo. At the moment Travis does not support running Sonar for external repositories. The build will fail.";
+          fi;
+        - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
+    - if: branch = dev AND type = push
+      addons:
+        apt:
+          packages:
+            - fakeroot
+      script:
+        - ./.travis/travis_fold.sh build "Build Vercors" "sbt debian:packageBin universal:packageXzTarball"
+      before_deploy:
+        - git config --local user.name "Vercors Team"
+        - git config --local user.email "vercors@lists.utwente.nl"
+        - git tag --force dev-prerelease
+        - git remote set-url origin https://${GH_TOKEN}@github.com/utwente-fmt/vercors.git
+        - git push --force --tags
+      deploy:
+        skip_cleanup: true
+        on:
+          branch: dev
+        provider: releases
+        api_key:
+          secure: b4iofzSKeLe72qAJRwRkcPIFYKlnwOdT8Jk0o6Z2ml3QWghwg0XjinNkBvukT9mAfwF4fU/e0cqonXwLMti8azZ0Us59SWi8+GdYKnO9U5hWEEHY/3v42jspHS29khABkeJ7gULNIXpEWOGUDg/Muc/PbmUQqMctyRYPMDSmFsvF27ESvfOqPM21cS7wByovtvvkFR7FS6TNne/noiroC++zOkFGISf+y8UrVggCRyHsqi7a5Xep5wfVFSaZP/PYov2ewkLHl0eRmz0dJGtQNqVPfMx5hzd/xM73X+FwNzMHEJv4n1JeRKY5t3UizYL0hlJX1K5gMRmvmMEnr6hs8EpQftTw+ciLEVKJuVvec3cruSQueZmXrsLMmquaXyUdNoVnC7H+MoVT+u8IN40EbvWhUvolE8DvtxfMC53HbMEWStM5mHVncTW5f8ralC49hwjX/sWjCBDfcTbXHtHMQ649o20+fky+kKvHXa9/YrZDPAk6byY7u39kkM5GxJ940qO2nxUCr6hnpL8WOR4MhhwHAhOpERtbnVc07+vMH9bUbnkOuAtJbXTpjFNYQ1ep41ulqBihwSHX53gT/tfdXVcRxpY+kJRlUSAgkk1tn5IZPvZHuT6NG2A1m7NJ3rOC33759ufdlwW9/nhgdaAnW5sF9RxfCk5hNxK7kPfhyeI=
+        prerelease: true
+        name: Vercors Dev Build
+        overwrite: true
+        file_glob: true
+        file:
+          - "$TRAVIS_BUILD_DIR/target/*.deb"
+          - "$TRAVIS_BUILD_DIR/target/universal/*.txz"

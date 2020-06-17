@@ -154,7 +154,7 @@ public class ASTFactory<E> implements FrameControl {
    */
   public NameExpression argument_name(String name) {
     NameExpression res=new NameExpression(name);
-    res.setKind(NameExpression.Kind.Argument);
+    res.setKind(NameExpressionKind.Argument);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
@@ -402,7 +402,7 @@ public class ASTFactory<E> implements FrameControl {
    */
   public NameExpression field_name(String name) {
     NameExpression res=new NameExpression(name);
-    res.setKind(NameExpression.Kind.Field);
+    res.setKind(NameExpressionKind.Field);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
@@ -559,7 +559,7 @@ public class ASTFactory<E> implements FrameControl {
    */
   public NameExpression identifier(String name){
     NameExpression res=new NameExpression(name);
-    res.setKind(NameExpression.Kind.Unresolved);
+    res.setKind(NameExpressionKind.Unresolved);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
@@ -610,7 +610,7 @@ public class ASTFactory<E> implements FrameControl {
    */
   public NameExpression label(String name) {
     NameExpression res=new NameExpression(name);
-    res.setKind(NameExpression.Kind.Label);
+    res.setKind(NameExpressionKind.Label);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
@@ -633,7 +633,7 @@ public class ASTFactory<E> implements FrameControl {
    */
   public NameExpression local_name(Origin origin, String name) {
     NameExpression res=new NameExpression(name);
-    res.setKind(NameExpression.Kind.Local);
+    res.setKind(NameExpressionKind.Local);
     res.setOrigin(origin);
     res.accept_if(post);
     return res;
@@ -677,7 +677,7 @@ public class ASTFactory<E> implements FrameControl {
    */
   public NameExpression method_name(Origin origin,String name){
     NameExpression res=new NameExpression(name);
-    res.setKind(NameExpression.Kind.Method);
+    res.setKind(NameExpressionKind.Method);
     res.setOrigin(origin);
     res.accept_if(post);
     return res;
@@ -689,7 +689,7 @@ public class ASTFactory<E> implements FrameControl {
   /**
    * Create a name expression that refers to a specific kind.
    */
-  public NameExpression name(NameExpression.Kind kind,ASTReserved word,String name) {
+  public NameExpression name(NameExpressionKind kind, ASTReserved word, String name) {
     NameExpression res=new NameExpression(kind,word,name);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
@@ -1040,7 +1040,7 @@ public ASTNode this_expression(ClassType t) {
  */
 public NameExpression unresolved_name(String name) {
   NameExpression res=new NameExpression(name);
-  res.setKind(NameExpression.Kind.Unresolved);
+  res.setKind(NameExpressionKind.Unresolved);
   res.setOrigin(origin_stack.get());
   res.accept_if(post);
   return res;

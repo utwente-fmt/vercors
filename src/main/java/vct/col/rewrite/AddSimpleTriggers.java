@@ -22,13 +22,13 @@ public class AddSimpleTriggers extends AbstractRewriter {
   
   @Override
   public void visit(BindingExpression e) {
-    switch (e.binder) {
+    switch (e.binder()) {
     case Forall:
     case Star:
-      if (e.triggers == null || e.triggers.length == 0) {
-        ASTNode main = rewrite(e.main);
-        ASTNode triggers[][] = getTriggers(e.getDeclarations(), and(e.select, main));
-        result = create.binder(e.binder, e.result_type, e.getDeclarations(), triggers, e.select, main);
+      if (e.javaTriggers() == null || e.javaTriggers().length == 0) {
+        ASTNode main = rewrite(e.main());
+        ASTNode triggers[][] = getTriggers(e.getDeclarations(), and(e.select(), main));
+        result = create.binder(e.binder(), e.result_type(), e.getDeclarations(), triggers, e.select(), main);
       } else {
         super.visit(e);
       }
