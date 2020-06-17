@@ -1,4 +1,4 @@
-package vct.col.util;
+package vct.col.ast.util;
 
 import vct.col.ast.expr.Dereference;
 import vct.col.ast.expr.FieldAccess;

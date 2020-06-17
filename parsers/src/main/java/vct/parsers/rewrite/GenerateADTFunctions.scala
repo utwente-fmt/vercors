@@ -9,8 +9,7 @@ import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.{Binder, BindingExpression, NameExpression, OperatorExpression, SetComprehension, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
-import vct.col.ast.util.ContractBuilder
-import vct.col.util.FieldAccessCollector
+import vct.col.ast.util.{AbstractRewriter, ContractBuilder, FieldAccessCollector}
 
 import collection.JavaConverters
 import scala.collection.mutable

@@ -8,7 +8,7 @@ import vct.antlr4.generated.PVLParser
 import vct.antlr4.generated.PVLParser._
 import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.ast.`type`.ASTReserved._
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
+import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
@@ -415,9 +415,53 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create struct_value(create primitive_type(
         PrimitiveSort.Bag, convertType(t)),
         null)
+    case CollectionConstructors7(container, _, elemType, _, _, main, _, selectors, _, guard, _) => {
+      //TODO check if container can be replaced by the string "set"
+      create setComp(
+        create primitive_type (PrimitiveSort.Set, convertType(elemType)), // Type
+        expr(guard), // The guard expression
+        expr(main), // The main/resulting expression
+        getVarBounds(selectors).asJava, // Selector
+        getVariableDecls(selectors).toArray  // Declaration of variables
+      )
 
+    }
 
   })
+
+  def getVariableDecls(ctx: SetCompSelectorsContext): Seq[DeclarationStatement] = ctx match {
+    case SetCompSelectors0(t, id) => Seq(create field_decl(convertID( id), convertType(t)))
+    case SetCompSelectors1(t, id, "<-", collectionId) => Seq(create field_decl(convertID( id), convertType(t)))
+    case SetCompSelectors2(t, id, "<-", collection) => Seq(create field_decl(convertID( id), convertType(t)))
+    case SetCompSelectors3(t, id, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
+    case SetCompSelectors4(t, id, "<-", collectionId, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
+    case SetCompSelectors5(t, id, "<-", collection, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
+  }
+
+  def getVarBounds(ctx: SetCompSelectorsContext): Map[NameExpression, ASTNode] = ctx match {
+      //TODO check if non-quantified ids are not classtypes.
+    case SetCompSelectors0(t, id) => {
+      if (convertType(t).isInstanceOf[ClassType]) {
+        Fail("%s is not bound. All variables with type class must have bounds", id)
+      }
+      Map.empty
+    }
+    case SetCompSelectors1(t, id, "<-", collectionId) => Map(convertIDName(id) -> convertIDName(collectionId))
+    case SetCompSelectors2(t, id, "<-", collection) => Map(convertIDName(id) -> expr(collection))
+    case SetCompSelectors3(t, id, ",", selectors) => {
+      if (convertType(t).isInstanceOf[ClassType]) {
+        Fail("%s is not bound. All variables with type class must have bounds", id)
+      }
+      getVarBounds(selectors)
+    }
+    case SetCompSelectors4(t, id, "<-", collectionId, ",", selectors) => Map(convertIDName(id) -> convertIDName(collectionId)) ++ getVarBounds(selectors)
+    case SetCompSelectors5(t, id, "<-", collection, ",", selectors) => Map(convertIDName(id) -> expr(collection)) ++ getVarBounds(selectors)
+  }
+
+  /**
+
+   */
+
 
   def addDims(t: Type, dimCount: Int): Type = {
     if (dimCount == 0) {

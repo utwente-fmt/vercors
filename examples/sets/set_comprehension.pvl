@@ -1,0 +1,53 @@
+class Test {
+
+    void main() {
+        set<int> c = set<int> {x+y | int x <- {1, 2, 3, 4, 5}, int y <- {1, 2, 3, 4, 5}; x == y};
+        set<int> d = set<int> {x | int x; x > 0 && x % 2 == 0};
+        Edge e1 = new Edge(3, 2);
+        Edge e2 = new Edge(1, 2);
+        set<Edge> a = set<Edge> { e | Edge e <- set<Edge> {e1, e2}; e.s > 2 };
+    }
+
+	void test() {
+		int a = 1;
+		int b = 2;
+		int c = 3;
+
+		seq<int> xs = [a, b, c];
+		seq<int> xs1 = [t:int];
+
+		set<int> ys = {a, b, c};
+		set<int> ys1 = {t:int};
+
+		bag<int> zs = b{a, b, c};
+		bag<int> zs1 = b{t:int};
+
+		assert isEmpty(xs1) && isEmpty(ys1) && isEmpty(zs1);
+
+		assert xs == seq<int> {a, b, c};
+		assert ys == set<int> {a, b, c};
+		assert zs == bag<int> {a, b, c};
+
+		Edge e1 = new Edge(0, 1);
+		Edge e2 = new Edge(1, 0);
+		assert {e1} == {e1, e1};
+		assert b{e1, e2} == b{e2, e1};
+		assert funca(0, 1) == [0, 1];
+		assert funcc([t:int], 1) == [1];
+	}
+
+
+	pure static seq<int> funca(int e, int f) = [e, f];
+	pure static seq<int> funcc(seq<int> g, int b) = b::g;
+}
+
+
+class Edge {
+	int s;
+	int t;
+	
+	Edge(int source, int target) {
+		s = source;
+		t = target;
+	}
+}
