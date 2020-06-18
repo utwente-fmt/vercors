@@ -2,4 +2,4 @@
 set -e
 
 BIN=$(dirname $0)
-$BIN/run-class viper.silicon.SiliconRunner $@
+$BIN/run-class viper.silicon.SiliconRunner "$@"
