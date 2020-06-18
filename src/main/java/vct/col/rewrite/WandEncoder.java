@@ -13,6 +13,7 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.composite.Lemma;
@@ -23,7 +24,7 @@ import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
 
@@ -44,10 +45,10 @@ public class WandEncoder extends AbstractRewriter {
       for(ASTNode n:ASTUtils.conjuncts(e.arg(0),StandardOperator.Star)){
         if (n instanceof MethodInvokation){
           MethodInvokation m=(MethodInvokation)n;
-          type_name+="_"+m.method;
+          type_name+="_"+m.method();
           Method def=m.getDefinition();
           if(!def.isStatic()){
-            args.add(m.object);
+            args.add(m.object());
             Type t=create.class_type(((ASTClass)def.getParent()).getFullName());
             decls.add(create.field_decl("x_"+decls.size(),t));
           }
@@ -65,10 +66,10 @@ public class WandEncoder extends AbstractRewriter {
       for(ASTNode n:ASTUtils.conjuncts(e.arg(1),StandardOperator.Star)){
         if (n instanceof MethodInvokation){
           MethodInvokation m=(MethodInvokation)n;
-          type_name+="_"+m.method;
+          type_name+="_"+m.method();
           Method def=m.getDefinition();
           if(!def.isStatic()){
-            args.add(m.object);
+            args.add(m.object());
             Type t=create.class_type(((ASTClass)def.getParent()).getFullName());
             decls.add(create.field_decl("x_"+decls.size(),t));
           }

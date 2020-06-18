@@ -15,7 +15,8 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.col.util.LambdaHelper;
+import vct.col.ast.util.AbstractRewriter;
+import hre.util.LambdaHelper;
 
 public class Flatten extends AbstractRewriter {
 
@@ -80,8 +81,8 @@ public class Flatten extends AbstractRewriter {
   }
 
   public void visit(MethodInvokation e) {
-    Debug("call to %s",e.method);
-    ASTNode object=rewrite(e.object);
+    Debug("call to %s",e.method());
+    ASTNode object=rewrite(e.object());
     int N=e.getArity();
     ASTNode args[]=new ASTNode[N];
     for(int i=0;i<N;i++){
@@ -92,7 +93,7 @@ public class Flatten extends AbstractRewriter {
       Abort("result type of call unknown at %s",e.getOrigin());
     }
     if (e.getType().isVoid()||e.getType().isNull()||declaration_block==null || isInTopLevel()){
-      result=create.invokation(object,rewrite(e.dispatch),e.method,args);
+      result=create.invokation(object,rewrite(e.dispatch()),e.method(),args);
       ((MethodInvokation)result).set_before(copy_rw.rewrite(e.get_before()));
       ((MethodInvokation)result).set_after(copy_rw.rewrite(e.get_after()));
     } else {
@@ -101,7 +102,7 @@ public class Flatten extends AbstractRewriter {
       Debug("inserting in %s",declaration_block);
       declaration_block.addStatement(n);
       Debug("assigning result of call");
-      MethodInvokation call=create.invokation(object,rewrite(e.dispatch),e.method,args);
+      MethodInvokation call=create.invokation(object,rewrite(e.dispatch()),e.method(),args);
       call.set_before(copy_pure.rewrite(e.get_before()));
       call.set_after(copy_pure.rewrite(e.get_after()));
       for(NameExpression lbl:e.getLabels()){

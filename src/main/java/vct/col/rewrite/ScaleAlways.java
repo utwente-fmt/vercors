@@ -6,6 +6,7 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ASTReserved;
+import vct.col.ast.util.AbstractRewriter;
 
 public class ScaleAlways extends AbstractRewriter {
 

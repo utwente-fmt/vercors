@@ -1,41 +1,16 @@
 package vct.col.rewrite;
 
-import hre.ast.BranchOrigin;
+import hre.ast.AssertOrigin;
 import hre.ast.Origin;
-import scala.reflect.internal.Trees;
+import hre.ast.RestOfContractOrigin;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.type.PrimitiveType;
-import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.type.Type;
-import vct.col.util.OriginWrapper;
+import vct.col.ast.util.AbstractRewriter;
 
 public class SatCheckRewriter extends AbstractRewriter {
-    public static class AssertOrigin extends BranchOrigin {
-        public RestOfContractOrigin restOfContractOrigin;
-
-        public AssertOrigin(String branch, Origin base, RestOfContractOrigin restOfContractOrigin){
-            super(branch, base);
-            this.restOfContractOrigin = restOfContractOrigin;
-        }
-    }
-
-    /**
-     * Sometimes, there can be an error in the contract. When this error goes off, the error supposed
-     * to be cause by the synthetic "assert false" is not triggered. Therefore, it looks like it is absent because
-     * the backend managed to prove it. But instead, it just didn't come up at all. When that happens, we should
-     * be able to find an error with origin RestOfContractOrigin. If this is the case, we shouldn't expect
-     * an AssertOrigin to show up, since this probably hid it.
-     */
-    public static class RestOfContractOrigin extends BranchOrigin {
-        public RestOfContractOrigin(String branch, Origin base) {
-            super(branch, base);
-        }
-    }
 
     public SatCheckRewriter(ProgramUnit source) {
         super(source);

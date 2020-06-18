@@ -11,8 +11,9 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.RecursiveVisitor;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
 
 public class RewriteComplexUnitSubscripts extends AbstractRewriter {
   
@@ -24,12 +25,12 @@ public class RewriteComplexUnitSubscripts extends AbstractRewriter {
   
   @Override
   public void visit(BindingExpression e) {
-    switch (e.binder) {
+    switch (e.binder()) {
     case Forall:
     case Star:
-      if (e.triggers == null || e.triggers.length == 0) {
-        ASTNode main = rewrite(e.main);
-        ASTNode select = e.select;
+      if (e.triggers() == null || e.javaTriggers().length == 0) {
+        ASTNode main = rewrite(e.main());
+        ASTNode select = e.select();
         HashSet<DeclarationStatement> decls = new HashSet<DeclarationStatement>();
         for (DeclarationStatement decl : e.getDeclarations()) {
           decls.add(decl);
@@ -50,11 +51,11 @@ public class RewriteComplexUnitSubscripts extends AbstractRewriter {
           collectComplexSubscripts(complexSubscripts, and(select, main));
         }
         if (success) {
-          result = create.binder(e.binder, e.result_type, decls.toArray(new DeclarationStatement[0]), e.triggers,
+          result = create.binder(e.binder(), e.result_type(), decls.toArray(new DeclarationStatement[0]), e.javaTriggers(),
               select, main);
           Debug(String.format("Changed unit subscript %s\n to %s", e, result));
         } else {
-          result = create.binder(e.binder, e.result_type, e.getDeclarations(), e.triggers, e.select, rewrite(e.main));
+          result = create.binder(e.binder(), e.result_type(), e.getDeclarations(), e.javaTriggers(), e.select(), rewrite(e.main()));
         }
       } else {
         super.visit(e);

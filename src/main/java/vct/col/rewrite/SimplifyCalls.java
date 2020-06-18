@@ -1,11 +1,13 @@
 package vct.col.rewrite;
 
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.util.ClassName;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ClassName;
 
 public class SimplifyCalls extends AbstractRewriter {
 
@@ -14,10 +16,10 @@ public class SimplifyCalls extends AbstractRewriter {
   }
 
   public void visit(MethodInvokation e) {
-    ASTNode object=rewrite(e.object);
+    ASTNode object=rewrite(e.object());
     if (object instanceof NameExpression){
       NameExpression name=(NameExpression)object;
-      if (name.getKind()==NameExpression.Kind.Reserved && name.getName().equals("this")){
+      if (name.getKind()== NameExpressionKind.Reserved && name.getName().equals("this")){
         object=null;
       }
     } else if (object instanceof ClassType) {
@@ -31,7 +33,7 @@ public class SimplifyCalls extends AbstractRewriter {
     for(int i=0;i<N;i++){
       args[i]=e.getArg(i).apply(this);
     }
-    result=create.invokation(object,rewrite(e.dispatch),e.method,args);
+    result=create.invokation(object,rewrite(e.dispatch()),e.method(),args);
   }
 
 }

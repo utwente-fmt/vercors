@@ -4,12 +4,14 @@ import hre.util.SingleNameSpace;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
+import vct.col.ast.util.MultiSubstitution;
+import vct.col.ast.stmt.decl.*;
 
 public class GenericPass1 extends AbstractRewriter {
 
@@ -46,7 +48,7 @@ public class GenericPass1 extends AbstractRewriter {
   public void visit(MethodInvokation e){
     Type t=e.getType();
     Type rt=e.getDefinition().getReturnType();
-    if(t.equals(rt) || (e.object instanceof Type)){
+    if(t.equals(rt) || (e.object() instanceof Type)){
       super.visit(e);
     } else {
       Warning("invokation: %s != %s",t,rt);
@@ -54,9 +56,9 @@ public class GenericPass1 extends AbstractRewriter {
       ASTNode tmp=result;
       result=create.expression(StandardOperator.Cast,create.class_type(((ClassType)t).getFullName()),tmp);
     }
-    //if (t instanceof ClassType && t.getArgCount()>0 && !(e.object instanceof Type)){
-      //ASTNode tmp=create.expression(StandardOperator.Cast,create.class_type(((ClassType)t).getFullName()),rewrite(e.object));
-      //result=create.invokation(tmp, e.dispatch, e.method, rewrite(e.getArgs()));
+    //if (t instanceof ClassType && t.getArgCount()>0 && !(e.object() instanceof Type)){
+      //ASTNode tmp=create.expression(StandardOperator.Cast,create.class_type(((ClassType)t).getFullName()),rewrite(e.object()));
+      //result=create.invokation(tmp, e.dispatch(), e.method(), rewrite(e.getArgs()));
       
     //} else {
     //  super.visit(e);

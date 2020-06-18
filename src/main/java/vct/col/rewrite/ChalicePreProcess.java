@@ -8,13 +8,14 @@ import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.Dereference;
 import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpression.Kind;
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
@@ -94,8 +95,8 @@ public class ChalicePreProcess extends AbstractRewriter {
   
   @Override
   public void visit(MethodInvokation e){
-    if (e.method.equals("length") && e.object.getType().isPrimitive(PrimitiveSort.Sequence)){
-      result=create.expression(StandardOperator.Size,rewrite(e.object));
+    if (e.method().equals("length") && e.object().getType().isPrimitive(PrimitiveSort.Sequence)){
+      result=create.expression(StandardOperator.Size,rewrite(e.object()));
     } else {
       super.visit(e);
     }
@@ -167,7 +168,7 @@ public class ChalicePreProcess extends AbstractRewriter {
       if (s.getGuard(i).isReserved(ASTReserved.Any)){
         int id=if_any_count.incrementAndGet();
         currentBlock.add(create.field_decl("if_any_bool"+id,create.primitive_type(PrimitiveSort.Boolean)));
-        ASTNode name=create.name(Kind.Local,null,"if_any_bool"+id);
+        ASTNode name=create.name(NameExpressionKind.Local,null,"if_any_bool"+id);
         MethodInvokation rnd=create.invokation(create.reserved_name(ASTReserved.This),null,"if_any_random",name);
         rnd.setDefinition(if_any_method);
         currentBlock.add(rnd);
