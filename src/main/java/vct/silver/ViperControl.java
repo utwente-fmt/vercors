@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import hre.ast.Origin;
 import vct.logging.MessageFactory;
-import vct.util.Configuration;
+import hre.config.Configuration;
 import viper.api.VerificationControl;
 
 import static hre.lang.System.Progress;

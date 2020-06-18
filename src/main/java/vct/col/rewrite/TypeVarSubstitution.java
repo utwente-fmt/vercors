@@ -6,6 +6,7 @@ import vct.col.ast.type.ClassType;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.Type;
 import vct.col.ast.type.TypeVariable;
+import vct.col.ast.util.AbstractRewriter;
 
 public class TypeVarSubstitution extends AbstractRewriter {
   Map<String,Type> map;

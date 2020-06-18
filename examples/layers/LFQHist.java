@@ -8,7 +8,7 @@
  */
 
 final class History {/*@
-    seq<int> q;
+    ghost seq<int> q;
 
     modifies q;
     ensures  q==\old(q)+seq<int>{e};
@@ -84,7 +84,7 @@ final class Queue {
     requires Value(hist) ** PointsTo(hist_active,1\2,true);
     ensures Value(hist)  ** PointsTo(hist_active,1\2,false)
       ** HPerm(hist.q,1);
-  void end_history(){
+  ghost void end_history(){
     atomic ( this ) {
       hist_active=false;
     }
@@ -96,8 +96,8 @@ final class Queue {
      ensures Value(this.hist) ** this.hist == hist
         ** PointsTo(hist_active,1\2,true); @*/
   public Queue(){
-    //@ this.hist=hist;
-    //@ hist_active=true;
+    //@ ghost this.hist=hist;
+    //@ ghost hist_active=true;
     begin=new Node();
     begin.next=new AtomicNode(null);
     head=new AtomicNode(begin);
@@ -109,12 +109,12 @@ final class Queue {
     //@ fold chain(begin,last,hist.q);
   }
 
-  //@ boolean hist_active;
-  //@ History hist;
-  //@ Node begin;
+  //@ ghost boolean hist_active;
+  //@ ghost History hist;
+  //@ ghost Node begin;
   AtomicNode head;
   AtomicNode tail;
-  //@ Node last;
+  //@ ghost Node last;
 
   /*@
     // n is a final link in the history list.

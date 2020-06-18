@@ -11,7 +11,8 @@ import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.constant.StructValue;
-import vct.util.ClassName;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ClassName;
 
 /**
  * Base class for rewriting all static entries as a single Global class.

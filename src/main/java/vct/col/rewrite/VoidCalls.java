@@ -15,6 +15,7 @@ import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.AbstractRewriter;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
 

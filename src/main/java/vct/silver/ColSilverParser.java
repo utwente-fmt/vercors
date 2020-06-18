@@ -10,10 +10,10 @@ import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.error.VerificationError;
+import vct.parsers.Parser;
 import viper.api.ViperAPI;
 
-public class ColSilverParser implements vct.col.util.Parser {
+public class ColSilverParser implements Parser {
 
   @Override
   public ProgramUnit parse(File file) {
@@ -22,12 +22,12 @@ public class ColSilverParser implements vct.col.util.Parser {
   
   public static <T,E,S,Decl,DFunc,DAxiom,Program>
   ProgramUnit run_test(File f) {
-    ViperAPI<Origin, VerificationError, ?, ?, ?, ?, ?, ?> viper =
+    ViperAPI<Origin, ?, ?, ?, ?, ?, ?> viper =
             SilverBackend.getVerifier("parser");
     return run_test(f, viper);
   }
 
-  public static <Program> ProgramUnit run_test(File f, ViperAPI<Origin, VerificationError, ?, ?, ?, ?, ?, Program> viper) {
+  public static <Program> ProgramUnit run_test(File f, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> viper) {
     Program program=viper.prog.parse_program(f.toString());
     if (program==null){
       throw new HREError("parsing %s failed",f);

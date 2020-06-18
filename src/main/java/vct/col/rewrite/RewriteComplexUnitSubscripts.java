@@ -11,8 +11,9 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.RecursiveVisitor;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
 
 public class RewriteComplexUnitSubscripts extends AbstractRewriter {
   

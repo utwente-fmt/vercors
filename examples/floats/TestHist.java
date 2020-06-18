@@ -13,13 +13,13 @@ class Testhist {
     context_everywhere (\forall int i; 0 <= i && i < a.length ; 0 <= a[i] && a[i] < hist.length);
     context_everywhere (\forall int i; 0 <= i && i < a.length ; a[i] == vals[i] );
     ensures   (\forall int i; 0 <= i && i < hist.length ;
-                 hist[i]==\sum([0 .. a.length),\vcmp(vals,\vrep(i))));
+                 hist[i]==\sum({0 .. a.length},\vcmp(vals,\vrep(i))));
   @*/
   public void histogram(int a[],int hist[]){
     int k=0;
     //@ loop_invariant 0 <= k && k <= hist.length;
     /*@ loop_invariant (\forall int i; 0 <= i && i < k ;
-         hist[i]==\sum([0 .. 0),\vcmp(vals,\vrep(i))) );
+         hist[i]==\sum({0 .. 0},\vcmp(vals,\vrep(i))) );
      */
     while(k<hist.length){
       hist[k]=0;
@@ -27,8 +27,8 @@ class Testhist {
     }
     k=0;
     //@ loop_invariant 0 <= k && k <= a.length;
-    //@ loop_invariant (\forall int i; 0 <= i && i < hist.length ;
-    //@                   hist[i]==\sum([0 .. k),\vcmp(vals,\vrep(i)))  );
+    /*@ loop_invariant (\forall int i; 0 <= i && i < hist.length ;
+                          hist[i]==\sum({0 .. k},\vcmp(vals,\vrep(i)))  ); @*/
     while(k<a.length){
       int v=a[k];
       hist[v]++;

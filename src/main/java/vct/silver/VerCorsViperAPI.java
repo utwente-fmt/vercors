@@ -1,5 +1,6 @@
 package vct.silver;
 
+import hre.ast.HREOrigins;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 
@@ -12,14 +13,11 @@ import vct.col.ast.stmt.decl.Axiom;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.Type;
-import vct.col.util.ASTFactory;
-import vct.error.VerificationError;
-import viper.api.VerificationControl;
-import viper.api.ViperAPI;
-import viper.api.ViperError;
+import vct.col.ast.util.ASTFactory;
+import viper.api.*;
 
 public class VerCorsViperAPI extends ViperAPI<
-    Origin, VerificationError, Type, ASTNode, ASTNode,
+    Origin, Type, ASTNode, ASTNode,
     Method, Axiom, ProgramUnit> {
 
   public Hashtable<String,Set<Origin>> refuted=new Hashtable<String,Set<Origin>>();
@@ -31,8 +29,8 @@ public class VerCorsViperAPI extends ViperAPI<
   }
   
   private VerCorsViperAPI(HREOrigins origin, VerCorsTypeFactory type,
-      VerCorsExpressionFactory expr, VerCorsStatementFactory stat,
-      VerCorsProgramFactory prog) {
+                          VerCorsExpressionFactory expr, VerCorsStatementFactory stat,
+                          VerCorsProgramFactory prog) {
     super(origin, type, expr, stat, prog);
     programFactory = prog;
   }

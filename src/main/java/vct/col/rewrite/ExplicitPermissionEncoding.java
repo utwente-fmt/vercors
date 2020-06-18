@@ -12,6 +12,7 @@ import vct.col.ast.type.ClassType;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.Dereference;
@@ -23,7 +24,7 @@ import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.util.Configuration;
+import hre.config.Configuration;
 import static vct.col.ast.type.ASTReserved.*;
 
 /**

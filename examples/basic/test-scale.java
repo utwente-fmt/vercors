@@ -13,7 +13,9 @@ class C {
     
     requires ([read]P()) ** ([1\2]P());
     pure int bad_order();
+  @*/
 
+  /*@
     requires P();
     requires good_order()>0;
     requires bad_order()>0;

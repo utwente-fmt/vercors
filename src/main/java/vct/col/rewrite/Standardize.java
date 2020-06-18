@@ -13,7 +13,8 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.util.ClassName;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ClassName;
 
 /**
  * Standardize the representation of programs.

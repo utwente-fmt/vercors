@@ -2,13 +2,14 @@ package vct.col.rewrite;
 
 import hre.ast.MessageOrigin;
 import vct.col.ast.stmt.composite.IfStatement;
-import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.ast.stmt.decl.*;
+import vct.col.ast.util.AbstractRewriter;
 
 public class RandomizedIf extends AbstractRewriter {
 

@@ -3,13 +3,12 @@ package vct.test
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util.concurrent.{Executors, Future}
 
-import hre.config.{BooleanSetting, IntegerSetting, OptionParser, StringListSetting, StringSetting}
+import hre.config.{BooleanSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
 import hre.util.TestReport.Verdict
 import hre.lang.System.Warning
 import hre.lang.System.Progress
 import hre.lang.System.Output
-import vct.util.Configuration
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -178,6 +177,8 @@ object CommandLineTesting {
           var conditions = mutable.ArrayBuffer[TaskCondition]()
           if (kees.verdict != null) {
             conditions += ExpectVerdict(kees.verdict)
+          } else {
+            conditions += ExpectVerdict(Verdict.Pass)
           }
           if (kees.pass_non_fail) {
             conditions += PassNonFail(kees.fail_methods.asScala.toSeq)

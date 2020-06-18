@@ -1,5 +1,5 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: case case OpenMPSectionReducedFail1
+//:: case OpenMPSectionReducedFail1
 //:: tools silicon
 //:: verdict Fail
 /*

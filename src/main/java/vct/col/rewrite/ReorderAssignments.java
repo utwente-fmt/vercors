@@ -6,6 +6,7 @@ import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 public class ReorderAssignments extends AbstractRewriter {
   private HashSet<String> argumentNames = new HashSet<String>();

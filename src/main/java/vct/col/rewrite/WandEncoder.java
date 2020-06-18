@@ -13,6 +13,7 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.composite.Lemma;
@@ -23,7 +24,7 @@ import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
 

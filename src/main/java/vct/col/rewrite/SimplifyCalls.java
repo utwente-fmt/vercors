@@ -5,7 +5,8 @@ import vct.col.ast.type.ClassType;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.util.ClassName;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ClassName;
 
 public class SimplifyCalls extends AbstractRewriter {
 
