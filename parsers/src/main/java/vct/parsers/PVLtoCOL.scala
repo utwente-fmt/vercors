@@ -436,7 +436,6 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   }
 
   def getVarBounds(ctx: SetCompSelectorsContext): Map[NameExpression, ASTNode] = ctx match {
-      //TODO check if non-quantified ids are not classtypes.
     case SetCompSelectors0(t, id) => {
       if (convertType(t).isInstanceOf[ClassType]) {
         fail(id, "Variable %s in set comprehension is not bound. All variables with type class must have bounds.", convertID(id))

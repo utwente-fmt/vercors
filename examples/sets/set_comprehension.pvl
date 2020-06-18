@@ -1,6 +1,26 @@
-class Test {
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case SetComprehension
+//:: tools silicon
+//:: verdict Pass
 
-    void main() {
+
+class SetComprehension {
+
+    requires 0 <= j && j < 5;
+    void case1(int j) {
+        set<int> a = set<int> {SetComp.plus(x, x) | int x; x >= 0 && x <= 5 };
+        assert plus(1, 1) in a; // Verifies
+        assert plus(j, j) in a; // Verifies
+    }
+
+    void case3() {
+        set<int> b = set<int> {SetComp.plus(x,y) | int x <- {0,1,2,3,4}, int y <- {0,1,2}; x+y%2==0};
+        assert 2 in b;
+        assert 6 in b;
+        assert 0 in b;
+    }
+
+    void case2() {
         set<int> c = set<int> {x+y | int x <- {1, 2, 3, 4, 5}, int y <- {1, 2, 3, 4, 5}; x == y};
         set<int> d = set<int> {x | int x; x > 0 && x % 2 == 0};
         Edge e1 = new Edge(3, 2);
@@ -8,39 +28,8 @@ class Test {
         set<Edge> a = set<Edge> { e | Edge e <- set<Edge> {e1, e2}; e.s > 2 };
     }
 
-	void test() {
-		int a = 1;
-		int b = 2;
-		int c = 3;
-
-		seq<int> xs = [a, b, c];
-		seq<int> xs1 = [t:int];
-
-		set<int> ys = {a, b, c};
-		set<int> ys1 = {t:int};
-
-		bag<int> zs = b{a, b, c};
-		bag<int> zs1 = b{t:int};
-
-		assert isEmpty(xs1) && isEmpty(ys1) && isEmpty(zs1);
-
-		assert xs == seq<int> {a, b, c};
-		assert ys == set<int> {a, b, c};
-		assert zs == bag<int> {a, b, c};
-
-		Edge e1 = new Edge(0, 1);
-		Edge e2 = new Edge(1, 0);
-		assert {e1} == {e1, e1};
-		assert b{e1, e2} == b{e2, e1};
-		assert funca(0, 1) == [0, 1];
-		assert funcc([t:int], 1) == [1];
-	}
-
-
-	pure static seq<int> funca(int e, int f) = [e, f];
-	pure static seq<int> funcc(seq<int> g, int b) = b::g;
+    pure static int plus(int a, int b) = a+b;
 }
-
 
 class Edge {
 	int s;
