@@ -179,7 +179,7 @@ collectionConstructors
  | '{t:' type '}'
  | 'b{' exprList '}'
  | 'b{t:' type '}'
- | container '<' type '>' '{' expr '|' setCompSelectors ';' expr '}'
+ | 'set' '<' type '>' '{' expr '|' setCompSelectors ';' expr '}'
  ;
 
 targetUnit
