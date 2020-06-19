@@ -79,7 +79,7 @@ public class GhostLifter extends AbstractRewriter {
         if (s.location() instanceof NameExpression){
           NameExpression name=(NameExpression)s.location();
           //TODO: make kind checking work
-          //if (name.getKind()==NameExpression.Kind.Label){
+          //if (name.getKind()==NameExpressionKind.Label){
             if (arg_map.containsKey(name.getName())){
               Fail("%s is assigned twice",name.getName());
             }
@@ -96,7 +96,7 @@ public class GhostLifter extends AbstractRewriter {
         if (s.expression() instanceof NameExpression){
           NameExpression name=(NameExpression)s.expression();
           //TODO: make kind checking work
-          //if (name.getKind()==NameExpression.Kind.Label){
+          //if (name.getKind()==NameExpressionKind.Label){
             if (arg_map.containsKey(name.getName())){
               Fail("%s is assigned twice",name.getName());
             }
@@ -133,7 +133,7 @@ public class GhostLifter extends AbstractRewriter {
       }
       //TODO: check for unused arguments.
     }
-    MethodInvokation res=create.invokation(rewrite(m.object), m.dispatch, m.method, args.toArray(new ASTNode[0]));
+    MethodInvokation res=create.invokation(rewrite(m.object()), m.dispatch(), m.method(), args.toArray(new ASTNode[0]));
     if (m.get_before()!=null) res.set_before(before);
     if (m.get_after()!=null) res.set_after(after);
     result=res;

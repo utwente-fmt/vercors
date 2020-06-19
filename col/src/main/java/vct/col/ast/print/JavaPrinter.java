@@ -11,7 +11,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
-import vct.col.ast.langspecific.*;
+import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -497,7 +497,7 @@ public class JavaPrinter extends AbstractPrinter {
 
   public void visit(BindingExpression e){
     String binder=null;
-    switch(e.binder){
+    switch(e.binder()){
       case Forall:
         binder="\\forall";
         break;
@@ -518,7 +518,7 @@ public class JavaPrinter extends AbstractPrinter {
         out.printf("setcomp");
         break;
       default:
-        Abort("binder %s unimplemented",e.binder);
+        Abort("binder %s unimplemented",e.binder());
     }
     setExpr();
     out.printf("(%s ",binder);
@@ -533,8 +533,8 @@ public class JavaPrinter extends AbstractPrinter {
         decl.initJava().accept(this);
       }
     }
-    if (e.triggers!=null){
-      for(ASTNode trigger[]:e.triggers){
+    if (e.triggers()!=null){
+      for(ASTNode trigger[]:e.javaTriggers()){
         out.printf("{");
         trigger[0].accept(this);
         for(int i=1;i<trigger.length;i++){
@@ -545,11 +545,11 @@ public class JavaPrinter extends AbstractPrinter {
       }
     }
     out.printf(";");
-    if (e.select!=null){
-      e.select.accept(this);
+    if (e.select()!=null){
+      e.select().accept(this);
       out.printf(";");
     }
-    e.main.accept(this);
+    e.main().accept(this);
     out.printf(")");
   }
 
@@ -1169,10 +1169,10 @@ public class JavaPrinter extends AbstractPrinter {
   }
   
   public void visit(MethodInvokation s){
-    if (s.method.equals(Method.JavaConstructor)){
+    if (s.method().equals(Method.JavaConstructor)){
       setExpr();
       out.print("new ");
-      s.dispatch.accept(this);
+      s.dispatch().accept(this);
       print_tuple(s.getArgs());
     } else {
       super.visit(s);

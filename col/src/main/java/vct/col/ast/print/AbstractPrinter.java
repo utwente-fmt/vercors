@@ -151,15 +151,15 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
   public void visit(MethodInvokation e){
     //boolean statement=!in_expr;
     setExpr();
-    if (e.object!=null) {
+    if (e.object()!=null) {
       // TODO: manage precedence properly.
-      e.object.accept(this);
+      e.object().accept(this);
       out.printf(".");
     }
-    out.printf("%s",e.method);
-    if (e.dispatch!=null){
+    out.printf("%s",e.method());
+    if (e.dispatch()!=null){
       out.printf("@");
-      e.dispatch.accept(this);
+      e.dispatch().accept(this);
     }
     out.printf("(");
     int N=e.getArity();

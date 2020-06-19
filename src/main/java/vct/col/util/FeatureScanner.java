@@ -129,7 +129,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   }
   @Override
   public void visit(BindingExpression e){
-    binders_used.add(e.binder);
+    binders_used.add(e.binder());
     super.visit(e);
   }
   
