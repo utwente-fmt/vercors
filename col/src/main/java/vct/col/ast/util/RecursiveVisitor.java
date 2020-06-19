@@ -290,7 +290,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     }
     e.main().accept(this);
     if (e instanceof SetComprehension) {
-      dispatch(((SetComprehension) e).variables);
+      dispatch(((SetComprehension) e).variables());
     }
   }
 

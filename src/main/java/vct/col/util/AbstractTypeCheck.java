@@ -1828,14 +1828,14 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case SetComp: {
         //TODO check if expressions are of the same type. Check if exprs are of the correct type.
         // Set the type for the set (I dont know which child that will be)
-        if (!t.equals(e.result_type.firstarg())){
+        if (!t.equals(e.result_type().firstarg())){
           Fail("The type of the set does not match the type of the returned elements.");
         }
-      for (Map.Entry<NameExpression, ASTNode> entry: ((SetComprehension) e).variables.entrySet()) {
+      for (Map.Entry<NameExpression, ASTNode> entry: ((SetComprehension) e).variables().entrySet()) {
         entry.getKey().accept(this);
         entry.getValue().accept(this);
       }
-        e.setType(e.result_type);
+        e.setType(e.result_type());
         break;
      }
     }

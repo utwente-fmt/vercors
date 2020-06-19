@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class SetComprehension extends BindingExpression {
 
-    public Map<NameExpression, ASTNode> variables;
+    private Map<NameExpression, ASTNode> variables;
 
     /**
      *  @param result_type
@@ -21,5 +21,9 @@ public class SetComprehension extends BindingExpression {
     public SetComprehension(Type result_type, DeclarationStatement[] decls, ASTNode selector, ASTNode main, Map<NameExpression, ASTNode> variables) {
         super(Binder.SetComp, result_type, decls, new ASTNode[0][], selector, main);
         this.variables = variables;
+    }
+
+    public Map<NameExpression, ASTNode> variables() {
+        return this.variables;
     }
 }
