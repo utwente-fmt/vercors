@@ -4,7 +4,7 @@
 //:: verdict Pass
 
 
-class SetComprehension {
+class SetComp {
 
     requires 0 <= j && j < 5;
     void case1(int j) {
