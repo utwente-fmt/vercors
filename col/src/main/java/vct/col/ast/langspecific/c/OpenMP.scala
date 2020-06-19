@@ -1,4 +1,4 @@
-package vct.col.ast.langspecific
+package vct.col.ast.langspecific.c
 
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}

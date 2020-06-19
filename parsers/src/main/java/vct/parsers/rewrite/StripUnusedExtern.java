@@ -53,9 +53,9 @@ public class StripUnusedExtern extends AbstractRewriter {
     
     @Override
     public void visit(MethodInvokation s){
-      Method ext=externs.get(s.method);
+      Method ext=externs.get(s.method());
       if (ext!=null) {
-        used_externs.add(s.method);
+        used_externs.add(s.method());
       }
       super.visit(s);
     }

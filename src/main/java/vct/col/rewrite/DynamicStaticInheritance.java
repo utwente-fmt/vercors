@@ -3,6 +3,7 @@ package vct.col.rewrite;
 import java.util.HashSet;
 import java.util.Set;
 
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTDeclaration;
 import vct.col.ast.stmt.decl.ASTFlags;
@@ -52,26 +53,26 @@ public class DynamicStaticInheritance extends AbstractRewriter {
   public static boolean isThis(ASTNode n){
     if (!(n instanceof NameExpression)) return false;
     NameExpression name=(NameExpression)n;
-    if (name.getKind()!=NameExpression.Kind.Reserved) return false; 
+    if (name.getKind()!= NameExpressionKind.Reserved) return false;
     return name.reserved()==ASTReserved.This;
   }
   
   public static boolean isSuper(ASTNode n){
     if (!(n instanceof NameExpression)) return false;
     NameExpression name=(NameExpression)n;
-    if (name.getKind()!=NameExpression.Kind.Reserved) return false; 
+    if (name.getKind()!= NameExpressionKind.Reserved) return false;
     return name.getName().equals("super");
   }
 
   private AbstractRewriter tag_this=new AbstractRewriter(this){
     public void visit(MethodInvokation e){
-//      if (isThis(e.object)&&(e.getDefinition()==null||e.getDefinition().getKind()==Method.Kind.Predicate)){
-      if (isThis(e.object)){
+//      if (isThis(e.object())&&(e.getDefinition()==null||e.getDefinition().getKind()==Method.Kind.Predicate)){
+      if (isThis(e.object())){
         String class_name=this.current_class().getName();
-        result=create.invokation(rewrite(e.object), rewrite(e.dispatch), e.method+AT_STRING+class_name, rewrite(e.getArgs()));
-      } else if (isSuper(e.object)){
+        result=create.invokation(rewrite(e.object()), rewrite(e.dispatch()), e.method()+AT_STRING+class_name, rewrite(e.getArgs()));
+      } else if (isSuper(e.object())){
         String class_name=this.current_class().super_classes[0].getName();
-        result=create.invokation(create.reserved_name(This), rewrite(e.dispatch), e.method+AT_STRING+class_name, rewrite(e.getArgs()));
+        result=create.invokation(create.reserved_name(This), rewrite(e.dispatch()), e.method()+AT_STRING+class_name, rewrite(e.getArgs()));
       } else {
         super.visit(e);
       }
@@ -80,9 +81,9 @@ public class DynamicStaticInheritance extends AbstractRewriter {
   
   private AbstractRewriter fix_super=new AbstractRewriter(this){
     public void visit(MethodInvokation e){
-      if (isSuper(e.object)){
+      if (isSuper(e.object())){
         String class_name=this.current_class().super_classes[0].getName();
-        result=create.invokation(create.reserved_name(This), rewrite(e.dispatch), e.method+AT_STRING+class_name, rewrite(e.getArgs()));
+        result=create.invokation(create.reserved_name(This), rewrite(e.dispatch()), e.method()+AT_STRING+class_name, rewrite(e.getArgs()));
       } else {
         super.visit(e);
       }
@@ -96,9 +97,9 @@ public class DynamicStaticInheritance extends AbstractRewriter {
         case Open:{
           MethodInvokation i=(MethodInvokation)e.getArg(0);
           MethodInvokation res=create.invokation(
-              rewrite(i.object),
+              rewrite(i.object()),
               null,
-              "open_"+i.method+AT_STRING+i.dispatch.getFullName(),
+              "open_"+i.method()+AT_STRING+i.dispatch().getFullName(),
               rewrite(i.getArgs())
             );
           result=res;
@@ -138,11 +139,11 @@ public class DynamicStaticInheritance extends AbstractRewriter {
   
   private AbstractRewriter split_predicates=new AbstractRewriter(this){
     public void visit(MethodInvokation e){
-      if (e.dispatch!=null){
+      if (e.dispatch()!=null){
         result=create.invokation(
-          rewrite(e.object),
+          rewrite(e.object()),
           null,
-          e.method+AT_STRING+e.dispatch.getFullName(),
+          e.method()+AT_STRING+e.dispatch().getFullName(),
           rewrite(e.getArgs())
         );
       } else {
@@ -153,9 +154,9 @@ public class DynamicStaticInheritance extends AbstractRewriter {
   
   private AbstractRewriter fix_super_plus=new AbstractRewriter(this){
     public void visit(MethodInvokation e){
-      if (isSuper(e.object)){
+      if (isSuper(e.object())){
         String class_name=this.current_class().super_classes[0].getName();
-        result=create.invokation(create.reserved_name(This), rewrite(e.dispatch), e.method+AT_STRING+class_name, rewrite(e.getArgs()));
+        result=create.invokation(create.reserved_name(This), rewrite(e.dispatch()), e.method()+AT_STRING+class_name, rewrite(e.getArgs()));
       } else {
         super.visit(e);
       }
@@ -169,9 +170,9 @@ public class DynamicStaticInheritance extends AbstractRewriter {
         case Open:{
           MethodInvokation i=(MethodInvokation)e.getArg(0);
           MethodInvokation res=create.invokation(
-              rewrite(i.object),
+              rewrite(i.object()),
               null,
-              "open_"+i.method+AT_STRING+i.dispatch.getFullName(),
+              "open_"+i.method()+AT_STRING+i.dispatch().getFullName(),
               rewrite(i.getArgs())
             );
           result=res;

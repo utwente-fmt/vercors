@@ -2,4 +2,4 @@
 set -e
 
 BIN=$(dirname $0)
-$BIN/run-class viper.carbon.Carbon $@
+$BIN/run-class viper.carbon.Carbon "$@"

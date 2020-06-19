@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import scala.collection.JavaConverters;
-import vct.col.ast.expr.NameExpression.Kind;
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -40,7 +40,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   public void enter_after(ASTNode node){
     super.enter_after(node);
     if (node.isSpecial(ASTSpecial.Kind.Open)){
-      variables.add("member",new VariableInfo(null,Kind.Label));
+      variables.add("member",new VariableInfo(null, NameExpressionKind.Label));
     }
   }
 
@@ -116,17 +116,17 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
 
   public Method find_method(MethodInvokation e){
-    Method m=source().find_adt(e.method);
+    Method m=source().find_adt(e.method());
     if (m!=null){
       return m;
     }
-    m=source().find_procedure(e.method);
+    m=source().find_procedure(e.method());
     if (m!=null){
       return m;
     }
-    if (e.object==null && e.dispatch!=null){
+    if (e.object()==null && e.dispatch()!=null){
       // This is a constructor invokation.
-      ClassType t=e.dispatch;
+      ClassType t=e.dispatch();
       ASTClass cl=source().find(t.getNameFull());
       if (cl==null){
         Fail("class %s not found",t);
@@ -146,8 +146,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         return m;
       }
     }
-    if (e.object!=null){
-      ClassType object_type=(ClassType)e.object.getType();
+    if (e.object()!=null){
+      ClassType object_type=(ClassType)e.object().getType();
       int N=e.getArity();
       for(int i=0;i<N;i++){
         if (e.getArg(i).labels()>0) {
@@ -165,10 +165,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       ASTClass cl=source().find(object_type.getNameFull());
       if (cl==null) Fail("could not find class %s used in %s",object_type.getFullName(),e);
-      m=cl.find(e.method,object_type,type);
+      m=cl.find(e.method(),object_type,type);
       while(m==null && cl.super_classes.length>0){
         cl=source().find(cl.super_classes[0].getNameFull());
-        m=cl.find(e.method,object_type,type);
+        m=cl.find(e.method(),object_type,type);
       }
       if (m==null) {
         /*
@@ -190,7 +190,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
             tmp=tmp+","+type[i].toString();
           }
         }
-        Fail("could not find method %s(%s) in class %s at %s%n%s",e.method,tmp,object_type.getFullName(),e.getOrigin(),e);
+        Fail("could not find method %s(%s) in class %s at %s%n%s",e.method(),tmp,object_type.getFullName(),e.getOrigin(),e);
       }
       return m;
     }
@@ -201,14 +201,14 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   public void visit(MethodInvokation e){
     super.visit(e);
     ClassType object_type=null;
-    if (e.object!=null){
-      if(e.object.getType()==null){
-        Fail("object has no type at %s",e.object.getOrigin());
+    if (e.object()!=null){
+      if(e.object().getType()==null){
+        Fail("object has no type at %s",e.object().getOrigin());
       }
-      if (!(e.object.getType() instanceof ClassType)){
+      if (!(e.object().getType() instanceof ClassType)){
         Fail("invokation on non-class");
       }
-      object_type=(ClassType)e.object.getType();
+      object_type=(ClassType)e.object().getType();
     }
     int N=e.getArity();
     for(int i=0;i<N;i++){
@@ -242,10 +242,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Type t=m.getReturnType();
       Map<String,Type> map=new HashMap<String, Type>();
       TypeVarSubstitution sigma=new TypeVarSubstitution(source(),map);
-      if (!(e.object instanceof ClassType)){
-        Fail("%s is not an ADT in %s",e.object,e);
+      if (!(e.object() instanceof ClassType)){
+        Fail("%s is not an ADT in %s",e.object(),e);
       }
-      SilverTypeMap.get_adt_subst(sigma.copy_rw,map,(ClassType)e.object);
+      SilverTypeMap.get_adt_subst(sigma.copy_rw,map,(ClassType)e.object());
       e.setType(sigma.rewrite(t));
       return;
     }
@@ -394,10 +394,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         */
     switch(m.kind){
     case Constructor:
-      if (e.dispatch!=null){
-        e.setType(e.dispatch);
+      if (e.dispatch()!=null){
+        e.setType(e.dispatch());
       } else {
-        e.setType((Type)e.object);
+        e.setType((Type)e.object());
       }
       break;
     case Predicate:
@@ -545,7 +545,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   public void visit(NameExpression e){
     super.visit(e);
     Debug("%s name %s",e.getKind(),e.getName());
-    Kind kind = e.getKind();
+    NameExpressionKind kind = e.getKind();
     String name=e.getName();
     switch(kind){
       case Unresolved:{
@@ -571,8 +571,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
         e.setSite(info.reference);
         if (info.kind!=kind){
-          if ((kind==NameExpression.Kind.Local && info.kind==NameExpression.Kind.Argument)
-            ||(kind==NameExpression.Kind.Argument && info.kind==NameExpression.Kind.Local)){
+          if ((kind== NameExpressionKind.Local && info.kind== NameExpressionKind.Argument)
+            ||(kind== NameExpressionKind.Argument && info.kind== NameExpressionKind.Local)){
             Debug("mismatch of kinds %s/%s for name %s",kind,info.kind,name);
           } else {
             Abort("mismatch of kinds %s/%s for name %s",kind,info.kind,name);
@@ -711,7 +711,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       ASTClass cl = source().find((ClassType) t);
       variables.enter();
       for (DeclarationStatement decl : cl.dynamicFields()) {
-        variables.add(decl.name(), new VariableInfo(decl, Kind.Local));
+        variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
       }
       e.arg(1).accept(this);
       t = e.arg(1).getType();
@@ -999,7 +999,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       case SShrAssign: {
         if (e.arg(0) instanceof NameExpression) {
           NameExpression name = (NameExpression) e.arg(0);
-          if (name.getKind() == NameExpression.Kind.Label) break;
+          if (name.getKind() == NameExpressionKind.Label) break;
         }
         if (tt[0].getClass() != tt[1].getClass()) {
           Fail("Types of left and right-hand side arguments in assignment are incomparable at " + e.getOrigin());
@@ -1242,6 +1242,21 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           Fail("Types of left and right-hand side argument are different (%s/%s).", tt[0], tt[1]);
         }
         break;
+      }
+      case AmbiguousOr:
+      case AmbiguousAnd:
+      case AmbiguousXor: {
+        // bitwise case
+        if (tt[0].equalSize(tt[1])) {
+          e.setType(tt[0]);
+        }
+        // boolean case
+        else if (tt[0].isBoolean() && tt[1].isBoolean()) {
+          e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+          break;
+        } else {
+          Fail("Types of left and right-hand side argument are different (%s/%s).", tt[0], tt[1]);
+        }
       }
       case RightShift:
       case LeftShift:
@@ -1604,7 +1619,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     if (!(arg instanceof Dereference)
     && !(arg instanceof FieldAccess)
     && !arg.isa(StandardOperator.Subscript)
-    && !((arg instanceof NameExpression) && (((NameExpression)arg).getKind()==Kind.Field))
+    && !((arg instanceof NameExpression) && (((NameExpression)arg).getKind()== NameExpressionKind.Field))
     && !arg.getType().isPrimitive(PrimitiveSort.Location)
     && !arg.isa(StandardOperator.IndependentOf) // Ignore this check in jspec rules
     ){
@@ -1805,8 +1820,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     super.visit(e);
     //result=create.binder(e.binder, rewrite(e.getDeclarations()), rewrite(e.select), rewrite(e.main));
     Type t;
-    if (e.select!=null){
-      t=e.select.getType();
+    if (e.select()!=null){
+      t=e.select().getType();
       if (t==null){
         Abort("Selection in binding expression without type.");
       }
@@ -1814,18 +1829,18 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         Fail("Selector in binding expression is %s instead of boolean.",t);
       }
     }
-    t=e.main.getType();
+    t=e.main().getType();
     if (t==null){
       Abort("Binding expression without type.");
     }
-    switch(e.binder){
+    switch(e.binder()){
     case Let:
       e.setType(t);
       break;
     case Star:{
       Type res=new PrimitiveType(PrimitiveSort.Resource);
       if (!res.supertypeof(source(), t)){
-        Fail("main argument of %s quantifier must be resource",e.binder);
+        Fail("main argument of %s quantifier must be resource",e.binder());
       }
       e.setType(res);
       break;
@@ -1834,7 +1849,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Forall:{
       Type res=new PrimitiveType(PrimitiveSort.Boolean);
       if (!res.supertypeof(source(), t)) {
-        Fail("main argument of %s quantifier must be boolean",e.binder);
+        Fail("main argument of %s quantifier must be boolean",e.binder());
       }
       e.setType(res);
       break;

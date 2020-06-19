@@ -22,6 +22,7 @@ public class Parsers {
     switch(extension){
     case "cl":
     case "c":
+    case "cu":
       return new ColCParser();
     case "i":return new ColIParser();
     case "java7":return new ColJavaParser(7,true, false);

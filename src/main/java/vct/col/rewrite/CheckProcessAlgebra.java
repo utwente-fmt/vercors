@@ -85,7 +85,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         ArrayList<String> compounds = new ArrayList<String>();
         for(ASTNode p:ASTUtils.conjuncts(body, StandardOperator.Or)){
           if (p instanceof MethodInvokation) {
-          	compounds.add(((MethodInvokation)p).method);
+          	compounds.add(((MethodInvokation)p).method());
           } else {
             Fail("misformed parallel composition");
           }
@@ -149,7 +149,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
     if (m.getReturnType().isPrimitive(PrimitiveSort.Process)){
-      result=create.invokation(null,null, "p_"+e.method,rewrite(e.getArgs()));
+      result=create.invokation(null,null, "p_"+e.method(),rewrite(e.getArgs()));
     } else {
       super.visit(e);
     }
@@ -228,7 +228,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
   private ASTNode expand_unguarded(ASTNode m_body) {
     if (m_body instanceof MethodInvokation){
       MethodInvokation p=(MethodInvokation)m_body;
-      Method def=process_map.get(p.method);
+      Method def=process_map.get(p.method());
       if (def.getBody()==null){
         return m_body;
       } else {
@@ -307,7 +307,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         if (!(other instanceof MethodInvokation)) break;
         MethodInvokation m1=(MethodInvokation)other;
         ArrayList<ASTNode> args=new ArrayList<ASTNode>();
-        String key=":"+m0.method+":"+m1.method+":";
+        String key=":"+m0.method()+":"+m1.method()+":";
         String merged=composite_map.get(key);
         if (merged==null){
           Abort("missing key %s",key);

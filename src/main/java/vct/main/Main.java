@@ -352,6 +352,8 @@ public class Main
         passes.add("java-check");
         passes.add("pointers_to_arrays");
         passes.add("java-check");
+        passes.add("desugar_valid_pointer");
+        passes.add("java-check");
         passes.add("array_null_values"); // rewrite null values for array types into None
         passes.add("java-check");
         if (silver.used()){
@@ -407,6 +409,7 @@ public class Main
           // passes.add("recognize_multidim"); // translate matrices as a flat array (like c does in memory)
           passes.add("check");
           passes.add("simplify_quant"); // reduce nesting of quantifiers
+          passes.add("simplify_quant_relations");
           if (features.usesSummation()||features.usesIterationContracts()) {
             passes.add("check");
             passes.add("simplify_sums"); // set of rewrite rules for removing summations
@@ -720,6 +723,12 @@ public class Main
     defined_passes.put("pointers_to_arrays", new CompilerPass("rewrite pointers to arrays") {
       public ProgramUnit apply(ProgramUnit arg, String... args) {
         return new PointersToArrays(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("desugar_valid_pointer", new CompilerPass("rewrite \\array, \\matrix, \\pointer and \\pointer_index") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new DesugarValidPointer(arg).rewriteAll();
       }
     });
     defined_passes.put("lift_declarations", new CompilerPass("lift declarations to cell of the declared types, to treat locals as heap locations.") {
@@ -1054,6 +1063,11 @@ public class Main
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         RewriteSystem trs=RewriteSystems.getRewriteSystem("summation");
         return trs.normalize(arg);
+      }
+    });
+    defined_passes.put("simplify_quant_relations", new CompilerPass("simplify quantified relational expressions") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new SimplifyQuantifiedRelations(arg).rewriteAll();
       }
     });
     defined_passes.put("standardize",new CompilerPass("Standardize representation"){

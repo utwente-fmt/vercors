@@ -19,18 +19,18 @@ public class NonLinCountVisitor extends TypesCountVisitor {
   @Override
   public void visit(BindingExpression be) {
     super.visit(be);
-    switch (be.binder) {
+    switch (be.binder()) {
     case Forall:
     case Star: {
       boolean nonlinear = false;
       for (DeclarationStatement d : be.getDeclarations()) {
         if (!nonlinear) {
-          nonlinear |= nonLinear(be.select, d.name());
-          nonlinear |= nonLinear(be.main, d.name());
+          nonlinear |= nonLinear(be.select(), d.name());
+          nonlinear |= nonLinear(be.main(), d.name());
         }
       }
       if (nonlinear) {
-        specialCounter.count(be.getClass().getName(), be.binder.toString(), "non-linear");
+        specialCounter.count(be.getClass().getName(), be.binder().toString(), "non-linear");
       }
       break;
     }

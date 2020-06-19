@@ -729,8 +729,8 @@ public class Translator {
 		@Override
 		public void visit(MethodInvokation e) {
 			outputToString.printf("Found MethodeInvocation %s%n",e.toString());
-		    if (e.object!=null) e.object.accept(this);
-		    outputToString.printf("%s",e.method);
+		    if (e.object()!=null) e.object().accept(this);
+		    outputToString.printf("%s",e.method());
 		    int N=e.getArity();
 		    for(int i=0;i<N;i++){
 		    	e.getArg(i).accept(this);
@@ -960,9 +960,9 @@ public class Translator {
 		  
 		public void visit(BindingExpression e){
 			outputToString.printf("Found Binding Expression %s %n",e.toString());
-		    e.select.accept(this);
+		    e.select().accept(this);
 		    if (abort) return;
-		    e.main.accept(this);
+		    e.main().accept(this);
 		}
 		
 
