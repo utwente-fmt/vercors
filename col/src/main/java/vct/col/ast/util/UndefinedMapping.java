@@ -1,7 +1,7 @@
 package vct.col.ast.util;
 
 import hre.lang.HREError;
-import vct.col.ast.langspecific.*;
+import vct.col.ast.langspecific.c.*;
 import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.stmt.decl.VariableDeclaration;
 import vct.col.ast.stmt.composite.VectorBlock;

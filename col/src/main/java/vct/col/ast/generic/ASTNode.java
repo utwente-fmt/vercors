@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.composite.Hole;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -36,7 +37,7 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
   }
   
   public ASTNode labeled(String name){
-    NameExpression label=new NameExpression(NameExpression.Kind.Label,null,name);
+    NameExpression label=new NameExpression(NameExpressionKind.Label,null,name);
     label.setOrigin(this.origin);
     addLabel(label);
     return this;
@@ -300,7 +301,7 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
    * </ul>
    */
   public void addLabel(NameExpression label){
-    if (label.getKind()!=NameExpression.Kind.Label) {
+    if (label.getKind()!= NameExpressionKind.Label) {
       Abort("cannot label with %s of kind %s",label,label.getKind());
     }
     labelset.add(label);

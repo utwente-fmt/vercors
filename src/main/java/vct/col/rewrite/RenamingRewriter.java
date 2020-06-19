@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.util.ASTFrame;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
@@ -30,7 +31,7 @@ public class RenamingRewriter extends AbstractRewriter {
   }
 
   public void visit(NameExpression e){
-    if (e.getKind()==NameExpression.Kind.Reserved){
+    if (e.getKind()== NameExpressionKind.Reserved){
       super.visit(e);
     } else {
       result = create.name(e.getKind(), null, rename_variable(e.getName()));

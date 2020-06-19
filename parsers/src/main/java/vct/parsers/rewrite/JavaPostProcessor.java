@@ -100,15 +100,15 @@ public class JavaPostProcessor extends AbstractRewriter {
   
   @Override
   public void visit(MethodInvokation e){
-    if (e.object==null){
+    if (e.object()==null){
       JavaSyntax syntax=JavaSyntax.getJava(JavaDialect.JavaVerCors);
-      StandardOperator op=syntax.parseFunction(e.method);
+      StandardOperator op=syntax.parseFunction(e.method());
       if (op!=null){
         result=create.expression(op,rewrite(e.getArgs()));
         return;
       }
     }
-    MethodInvokation res = create.invokation(rewrite(e.object), e.dispatch, e.method, rewrite(e.getArgs()));
+    MethodInvokation res = create.invokation(rewrite(e.object()), e.dispatch(), e.method(), rewrite(e.getArgs()));
     res.set_before(rewrite(e.get_before()));
     res.set_after(rewrite(e.get_after()));
     result = res;

@@ -353,7 +353,7 @@ public class SilverClassReduction extends AbstractRewriter {
     String method = node.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
     node = rewrite(node);
 
-    if(node instanceof MethodInvokation && (((MethodInvokation) node).method.equals("new_frac") || ((MethodInvokation) node).method.equals("new_zfrac"))) {
+    if(node instanceof MethodInvokation && (((MethodInvokation) node).method().equals("new_frac") || ((MethodInvokation) node).method().equals("new_zfrac"))) {
       return ((MethodInvokation) node).getArg(0);
     } else {
       return create.invokation(null, null, method, node);
@@ -848,40 +848,40 @@ public class SilverClassReduction extends AbstractRewriter {
     String method;
     ArrayList<ASTNode> args=new ArrayList<ASTNode>();
     Method def=s.getDefinition();
-    ClassType dispatch=s.dispatch;
+    ClassType dispatch=s.dispatch();
     if (def.kind==Kind.Constructor){
       dispatch=null;
     }
     ASTNode object=null;
     if (def.getParent()==null){
-      method=s.method;
-    } else if (s.object instanceof ClassType){
-      if (s.method.equals(Method.JavaConstructor)){
-        method=s.dispatch.getName()+SEP+s.dispatch.getName();
+      method=s.method();
+    } else if (s.object() instanceof ClassType){
+      if (s.method().equals(Method.JavaConstructor)){
+        method=s.dispatch().getName()+SEP+s.dispatch().getName();
         dispatch=null;
       } else if (def.getParent() instanceof AxiomaticDataType){
-        method=s.method;
-        object=copy_rw.rewrite(s.object);
+        method=s.method();
+        object=copy_rw.rewrite(s.object());
       } else {
-        method=s.method;
+        method=s.method();
       }
-    } else if (s.object==null){
-      if (s.method.equals(Method.JavaConstructor)){
-        method=s.dispatch.getName()+SEP+s.dispatch.getName();
+    } else if (s.object()==null){
+      if (s.method().equals(Method.JavaConstructor)){
+        method=s.dispatch().getName()+SEP+s.dispatch().getName();
         dispatch=null;
       } else {
-        method=s.method;
+        method=s.method();
       }
     } else {
-      method=s.method;
+      method=s.method();
       if (method.equals("<<adt>>") || def.getParent() instanceof AxiomaticDataType){
-        method=s.method;
+        method=s.method();
       } else {
         if (!def.isStatic()){
-          args.add(rewrite(s.object));
+          args.add(rewrite(s.object()));
         }
-        if (def.kind==Kind.Predicate && !s.object.isReserved(ASTReserved.This) && (!fold_unfold) ){
-          //extra=create.expression(StandardOperator.NEQ,rewrite(s.object),create.reserved_name(ASTReserved.Null));
+        if (def.kind==Kind.Predicate && !s.object().isReserved(ASTReserved.This) && (!fold_unfold) ){
+          //extra=create.expression(StandardOperator.NEQ,rewrite(s.object()),create.reserved_name(ASTReserved.Null));
         }
       }      
     }
