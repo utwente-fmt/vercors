@@ -9,15 +9,19 @@ import java.util.List
 import java.util.Properties
 import java.util.SortedMap
 
+import vct.z3
+
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
 import java.nio.file.Path
 
 import hre.ast.OriginFactory
+import hre.io.NamedPipe
 import viper.silver.parser.PLocalVarDecl
 
 import scala.collection.mutable.WrappedArray
 import hre.lang.System.Output
+import viper.api.util.Configuration
 
 class SilverImplementation[O](o:OriginFactory[O])
   extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,
@@ -73,6 +77,14 @@ class SilverImplementation[O](o:OriginFactory[O])
     val detail = Reachable.gonogo.detail();
     
     val report = new java.util.ArrayList[viper.api.ViperError[O]]()
+
+    if(Configuration.z3Progress.get) {
+      val logOutput = NamedPipe.create(new z3.LogParser, "vercors-z3-log-", "-01.log")
+      z3Settings.setProperty("proof", "true")
+      z3Settings.setProperty("trace", "true")
+      z3Settings.setProperty("trace-file-name", logOutput.path.replace("-01", ""))
+    }
+
     val verifier=createVerifier(z3Path,z3Settings)
     //println("verifier: "+ verifier);
     //Progress("running verify");

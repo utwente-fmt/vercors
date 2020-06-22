@@ -4,8 +4,10 @@ import java.nio.file.Path
 import java.util.Properties
 
 import hre.ast.OriginFactory
+import viper.api.util.Configuration
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) {
 
@@ -17,19 +19,19 @@ class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) 
       entry => z3_config=z3_config+sep+(entry._1)+"="+(entry._2) ; sep=" "
     }
     z3_config+="\"";
-    //println(z3_config);
-    silicon.parseCommandLine(Seq(
-        "--z3Exe", z3Path.toString(),
-        "--z3ConfigArgs",z3_config,
-        "-"))
-				
-	  /*
-    silicon.config.initialize {
-    	case _ => silicon.config.initialized = true
+
+    val options = ArrayBuffer[String]()
+    options ++= Seq("--z3Exe", z3Path.toString)
+    options ++= Seq("--z3ConfigArgs", z3_config)
+
+    if(Configuration.z3Progress.get) {
+      options ++= Seq("--numberOfParallelVerifiers", "1")
     }
-		*/
-		
-    silicon.start()
+
+    options += "-"
+
+    silicon.parseCommandLine(options)
+	  silicon.start()
     silicon
   }
 
