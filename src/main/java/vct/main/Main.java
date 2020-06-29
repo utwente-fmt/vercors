@@ -517,6 +517,7 @@ public class Main
         passes.add("rewrite_sequence_functions");
         passes.add("check");
         passes.add("flatten");
+        passes.add("check");
         passes.add("intro-exc-var");
         passes.add("check");
         passes.add("encode-try-throw-signals");
