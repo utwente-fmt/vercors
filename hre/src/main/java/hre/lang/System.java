@@ -192,9 +192,8 @@ public class System {
      *
      * @param format The formatting of the message.
      * @param args   The arguments to be formatted.
-     * @throws HREExitException This exception is always thrown.
      */
-    public static void Abort(String format, Object... args) throws HREExitException {
+    public static void Abort(String format, Object... args) {
         log(LogLevel.Abort, errorStreams, format, args);
         throw new HREExitException(1);
     }
@@ -204,10 +203,8 @@ public class System {
      * <p>
      * This function is meant to be used for external error conditions,
      * such as bad input.
-     *
-     * @throws HREExitException This exception is always thrown.
      */
-    public static void Fail(String format, Object... args) throws HREExitException {
+    public static void Fail(String format, Object... args) {
         Verdict(format, args);
         throw new HREExitException(1);
     }
