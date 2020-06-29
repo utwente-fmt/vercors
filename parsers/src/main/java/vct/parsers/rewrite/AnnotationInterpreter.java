@@ -23,6 +23,7 @@ public class AnnotationInterpreter extends AbstractRewriter {
     Method.Kind kind=m.kind;
     ArrayList<ASTNode> ann=new ArrayList<ASTNode>();
     Type returns=rewrite(m.getReturnType());
+    Type[] throwy=rewrite(m.throwy);
     ContractBuilder cb=new ContractBuilder();
     rewrite(m.getContract(),cb);
     Contract contract = cb.getContract();
@@ -45,7 +46,7 @@ public class AnnotationInterpreter extends AbstractRewriter {
         ann.add(rewrite(a));
       }
     }
-    Method res=create.method_kind(kind, returns, contract, name, args, varArgs, body);
+    Method res=create.method_kind(kind, returns, throwy, contract, name, args, varArgs, body);
     if (m.annotated()) {
       res.attach();
       for (ASTNode a : ann){

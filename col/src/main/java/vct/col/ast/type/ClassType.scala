@@ -13,10 +13,15 @@ import scala.collection.JavaConverters._
 object ClassType {
   val nullType = new ClassType("<<null>>")
   val labelType = new ClassType("<<label>>")
-  
+
+  val javaLangThrowableName = "java_DOT_lang_DOT_Throwable"
+
   /** Tests whether `name` holds the class type `java.lang.Object`. */
   def isJavaLangObject(name:List[String]) : Boolean =
     name == List("java","lang","Object") || name == List("java_DOT_lang_DOT_Object")
+
+  def isJavaLangThrowable(name:List[String]) : Boolean =
+    name == List("java","lang","Throwable") || name == List("java_DOT_lang_DOT_Throwable")
   
   /** Tests whether `name` holds a default type name, for example "null" or "label". */
   def isDefaultName(name:List[String]) : Boolean = 
@@ -93,6 +98,9 @@ case class ClassType(val names:List[String], val params:List[ASTNode]) extends T
   override def supertypeof(context:ProgramUnit, otherType:Type) =
     (ClassType.isJavaLangObject(this.names) && otherType.isInstanceOf[ClassType]) ||
       searchForSupertype(context, otherType)
+
+  def hasSupertype(context:ProgramUnit, otherType:ClassType) =
+    otherType.supertypeof(context, this)
   
   override def equals(obj:Any) = obj match {
     case other:ClassType => this.getFullName == other.getFullName
