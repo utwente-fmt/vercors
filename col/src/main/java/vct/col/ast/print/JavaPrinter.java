@@ -1263,6 +1263,9 @@ public class JavaPrinter extends AbstractPrinter {
         out.printf(">");
         break;
       case Option:
+        if (nrofargs!=1){
+          Fail("Option type constructor with %d arguments instead of 1",nrofargs);
+        }
         out.printf("option<");
         t.firstarg().accept(this);
         out.printf(">");

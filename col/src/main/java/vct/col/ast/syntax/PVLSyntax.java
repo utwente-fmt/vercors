@@ -51,16 +51,16 @@ public class PVLSyntax {
       syntax.addFunction(Old,"\\old");
 
       syntax.addFunction(OptionSome, "Some");
-                                                                     // Alternative syntax
-      syntax.addFunction(MapBuild, "buildMap");               // map + (1, true) (DONE)
-      syntax.addFunction(MapEquality, "equalsMap");           // map == map2 (DONE)
-      syntax.addFunction(MapDisjoint, "disjointMap");         //
-      syntax.addFunction(MapKeySet, "keysMap");               //
-      syntax.addFunction(MapCardinality, "cardMap");          // |map| (DONE)
-      syntax.addFunction(MapValueSet, "valuesMap");           //
-      syntax.addFunction(MapGetByKey, "getFromMap");          // map[i] (DONE)
-      syntax.addFunction(MapRemoveKey, "removeFromMap");      //
-      syntax.addFunction(MapItemSet, "itemsMap");      //
+                                                                 
+      syntax.addFunction(MapBuild, "buildMap");           
+      syntax.addFunction(MapEquality, "equalsMap");       
+      syntax.addFunction(MapDisjoint, "disjointMap");     
+      syntax.addFunction(MapKeySet, "keysMap");           
+      syntax.addFunction(MapCardinality, "cardMap");      
+      syntax.addFunction(MapValueSet, "valuesMap");       
+      syntax.addFunction(MapGetByKey, "getFromMap");      
+      syntax.addFunction(MapRemoveKey, "removeFromMap"); 
+      syntax.addFunction(MapItemSet, "itemsMap");
 
 
       syntax.addFunction(TupleFst, "getFst");
