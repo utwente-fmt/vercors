@@ -476,13 +476,17 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     }
     Method.Kind kind=m.kind;
     Type rt=rewrite(m.getReturnType());
+    Type[] throwy = new Type[m.throwy.length];
+    for (int i = 0; i < m.throwy.length; i++) {
+      throwy[i] = rewrite(m.throwy[i]);
+    }
     Contract c=currentContractBuilder.getContract();
     if (mc != null && c.getOrigin() == null) {
       c.setOrigin(mc.getOrigin());
     }
     currentContractBuilder=null;
     ASTNode body=rewrite(m.getBody());
-    result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
+    result=create.method_kind(kind, rt, throwy, c, name, args, m.usesVarArgs(), body);
   }
 
   @Override

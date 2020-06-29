@@ -128,17 +128,22 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case MemberDeclaration7(fwd) => convertDecl(fwd)
     case MemberDeclaration8(fwd) => convertDecl(fwd)
 
-    case MethodDeclaration0(_, _, _, _, Some(throws), _) =>
-      ??(throws) // exceptions are unsupported
-    case MethodDeclaration0(retType, name, paramsNode, maybeDims, None, maybeBody) =>
+    case MethodDeclaration0(retType, name, paramsNode, maybeDims, throws, maybeBody) =>
       val dims = maybeDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
       val returns = convertType(retType, dims)
+      val throwy = throws match {
+        case None => new Array[Type](0)
+        case Some(Throwy0(_, qualifiedNameList)) => {
+          val types = convertTypeList(qualifiedNameList)
+          types.asJava.toArray(new Array[Type](types.length))
+        }
+      }
       val (params, varargs) = convertParams(paramsNode)
       val body = maybeBody match {
         case MethodBodyOrEmpty0(";") => None
         case MethodBodyOrEmpty1(MethodBody0(block)) => Some(convertBlock(block))
       }
-      Seq(create method_decl(returns, null, convertID(name), params.toArray, body.orNull))
+      Seq(create method_decl(returns, throwy, null, convertID(name), params.toArray, body.orNull))
     case GenericMethodDeclaration0(typeParams, methodDecl) =>
       ??(typeParams) //generics are unsupported
     case InterfaceMethodDeclaration0(retType, name, params, maybeDims, None, _) =>
@@ -266,6 +271,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case TypeArgumentList1(x, _, xs) => convertType(x) +: convertTypeList(xs)
     case CatchType0(x) => Seq(convertType(x))
     case CatchType1(x, "|", xs) => convertType(x) +: convertTypeList(xs)
+    case qualifiedNameList : QualifiedNameList0Context => qualifiedNameList.qualifiedName().asScala.map(convertType(_)).toSeq
   }
 
   def tCell(t: Type) = create.primitive_type(PrimitiveSort.Cell, t)

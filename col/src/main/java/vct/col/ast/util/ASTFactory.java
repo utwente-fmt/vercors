@@ -652,6 +652,9 @@ public class ASTFactory<E> implements FrameControl {
   public Method method_decl(Type returns,Contract contract,String name,DeclarationStatement args[],ASTNode body){
     return method_kind(Method.Kind.Plain,returns,contract,name,args,false,body);
   }
+  public Method method_decl(Type returns, Type[] throwy, Contract contract,String name,DeclarationStatement args[],ASTNode body){
+    return method_kind(Method.Kind.Plain,returns,throwy,contract,name,args,false,body);
+  }
   public Method method_decl(Type returns,Contract contract,String name,List<DeclarationStatement> args,ASTNode body){
     return method_kind(Method.Kind.Plain,returns,contract,name,args.toArray(new DeclarationStatement[args.size()]),false,body);
   }
@@ -669,7 +672,10 @@ public class ASTFactory<E> implements FrameControl {
     return method_kind(kind,returns,contract,name,args.toArray(new DeclarationStatement[args.size()]),varArgs,body);
   }
   public Method method_kind(Method.Kind kind,Type returns,Contract contract,String name,DeclarationStatement args[],boolean varArgs,ASTNode body){
-    Method res=new Method(kind,name,returns,new Type[0],contract,args,varArgs,body);
+    return method_kind(kind, returns, new Type[0], contract, name, args, varArgs, body);
+  }
+  public Method method_kind(Method.Kind kind,Type returns, Type[] throwy, Contract contract,String name,DeclarationStatement args[],boolean varArgs,ASTNode body){
+    Method res=new Method(kind,name,returns,throwy,contract,args,varArgs,body);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
