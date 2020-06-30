@@ -484,7 +484,7 @@ public class Main
 
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
         passes.add("check");
-        passes.add("rewrite_sequence_functions");
+        passes.add("generate_adt_functions");
         passes.add("check");
         passes.add("flatten");
         passes.add("assign");
@@ -978,9 +978,9 @@ public class Main
         return new RewriteArrayRef(arg).rewriteAll();
       }
     });
-    defined_passes.put("rewrite_sequence_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
+    defined_passes.put("generate_adt_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new RewriteSequenceFunctions(arg).rewriteAll();
+        return new GenerateADTFunctions(arg).rewriteAll();
       }
     });
     defined_passes.put("infer_adt_types",new CompilerPass("Transform typeless collection constructors by inferring their types."){

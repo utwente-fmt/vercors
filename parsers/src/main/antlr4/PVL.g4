@@ -179,6 +179,7 @@ collectionConstructors
  | '{t:' type '}'
  | 'b{' exprList '}'
  | 'b{t:' type '}'
+ | 'set' '<' type '>' '{' expr '|' setCompSelectors ';' expr '}'
  ;
 
 targetUnit
@@ -194,6 +195,15 @@ values : '{' exprList? '}';
 tuple : '(' exprList? ')';
 
 block : '{' statement* '}' ;
+
+setCompSelectors
+    : type identifier
+    | type identifier '<-' identifier
+    | type identifier '<-' collectionConstructors
+    | type identifier ',' setCompSelectors
+    | type identifier '<-' identifier ',' setCompSelectors
+    | type identifier '<-' collectionConstructors ',' setCompSelectors
+    ;
 
 statement
  : 'return' expr? ';'

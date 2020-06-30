@@ -1,6 +1,8 @@
 package vct.col.ast.util;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -169,6 +171,15 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     }
   }
 
+  public <E extends ASTNode, F extends ASTNode> void dispatch(Map<E,F> map){
+    HashMap<E, F> res=new HashMap<E,F>();
+    for(Map.Entry<E, F> entry:map.entrySet()){
+      if (entry.getKey() != null) dispatch(entry.getKey());
+      if (entry.getValue() != null) dispatch(entry.getValue());
+    }
+  }
+
+
   @Override
   public void visit(BlockStatement s) {
     int N=s.getLength();
@@ -278,6 +289,9 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       }
     }
     e.main().accept(this);
+    if (e instanceof SetComprehension) {
+      dispatch(((SetComprehension) e).variables());
+    }
   }
 
   @Override

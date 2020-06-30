@@ -1006,7 +1006,32 @@ public ASTSpecial special(Origin origin, ASTSpecial.Kind kind, ASTNode ... args)
     }
     return res;
   }
-  
+
+  /**
+   *
+   * @param resultType The type of the element in the resulting set.
+   * @param selector The condition to include an element in the set.
+   * @param main The expression that has to be part of the resulting set.
+   * @param varBounds The conditions specifiying the bounds of the declared variables.
+   * @param decl The declared variables.
+   * @return
+   */
+  public ASTNode setComp(Type resultType, ASTNode selector, ASTNode main, Map<NameExpression, ASTNode> varBounds, DeclarationStatement[] decl) {
+    if (decl.length == 0) {
+      Fail("For set comprehension, at least one declaration is needed.");
+    }
+    SetComprehension res = new SetComprehension(
+            resultType,
+            decl,
+            selector,
+            main,
+            varBounds
+    );
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
   public ASTNode forall(ASTNode triggers[][],ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
     // Single quantifier is needed for correct triggering of axioms. 
     if (decl.length==0){

@@ -513,6 +513,10 @@ public class JavaPrinter extends AbstractPrinter {
       case Sum:
         binder="\\sum";
         break;
+      case SetComp:
+        //TODO Have a correct way of outputting this.
+        out.printf("setcomp");
+        break;
       default:
         Abort("binder %s unimplemented",e.binder());
     }

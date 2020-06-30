@@ -218,6 +218,22 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     return contract;
   }
 
+  public <E extends ASTNode, F extends ASTNode> Map<E, F> rewrite(Map<E,F> map){
+    HashMap<E, F> res=new HashMap<E,F>();
+    for(Map.Entry<E, F> entry:map.entrySet()){
+      E key = null;
+      F value = null;
+      if (entry.getKey() != null) {
+        key = rewrite(entry.getKey());
+      }
+      if (entry.getValue() != null) {
+        value = rewrite(entry.getValue());
+      }
+      res.put(key, value);
+    }
+    return res;
+  }
+
   public <E extends ASTNode> ArrayList<E> rewrite(ArrayList<E> list){
     ArrayList<E> res=new ArrayList<E>();
     for(E item:list){
@@ -601,7 +617,11 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   
   @Override
   public void visit(BindingExpression e){
-    result=create.binder(e.binder(),rewrite(e.result_type()),rewrite(e.getDeclarations()),rewrite(e.javaTriggers()), rewrite(e.select()), rewrite(e.main()));
+    if (e instanceof SetComprehension) {
+      result = create.setComp(rewrite(e.result_type()), rewrite(e.select()), rewrite(e.main()), rewrite(((SetComprehension) e).variables()), e.getDeclarations());
+    } else {
+      result=create.binder(e.binder(),rewrite(e.result_type()),rewrite(e.getDeclarations()),rewrite(e.javaTriggers()), rewrite(e.select()), rewrite(e.main()));
+    }
   }
   
   @Override
