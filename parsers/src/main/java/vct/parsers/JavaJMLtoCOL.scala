@@ -429,6 +429,31 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       convertValStat(valEmbedBlock)
   })
 
+  def convertStatWithContract(stat: StatementContext, maybeContracts: Seq[Option[ValEmbedContractContext]]): ASTNode = origin(stat, stat match {
+    case Statement3(maybeContract2, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract3, body) =>
+      val allContracts = (maybeContracts ++ Seq(maybeContract2, maybeContract3)).map(convertValContract)
+      val contract = getContract(allContracts:_*)
+      val loop = create for_loop(
+        maybeInit.map(convertStat).orNull,
+        maybeCond.map(expr).orNull,
+        maybeUpdate.map(convertStat).orNull,
+        convertStat(body)
+      )
+      loop.setContract(contract)
+      loop
+    case Statement4(maybeContract2, "while", cond, maybeContract3, body) =>
+      val allContracts = (maybeContracts ++ Seq(maybeContract2, maybeContract3)).map(convertValContract)
+      val contract = getContract(allContracts:_*)
+      val loop = create while_loop(expr(cond), convertStat(body))
+      loop.setContract(contract)
+      loop
+    case Statement17(maybeContract2, label, ":", stat) =>
+      val res = convertStatWithContract(stat, maybeContracts ++ Seq(maybeContract2))
+      res.addLabel(create label convertID(label))
+      res
+    case statement => ??(statement)
+  })
+
   def convertStat(stat: StatementContext): ASTNode = origin(stat, stat match {
     case Statement0(block) =>
       convertBlock(block)
@@ -440,21 +465,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         maybeWhenFalse.map(convertStat).orNull)
     case Statement3(maybeContract, "for", "(", ForControl0(forEachControl), ")", maybeContract2, body) =>
       ??(forEachControl) // for(a : b) is unsupported
-    case Statement3(maybeContract, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract2, body) =>
-      val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
-      val loop = create for_loop(
-        maybeInit.map(convertStat).orNull,
-        maybeCond.map(expr).orNull,
-        maybeUpdate.map(convertStat).orNull,
-        convertStat(body)
-      )
-      loop.setContract(contract)
-      loop
-    case Statement4(maybeContract, "while", cond, maybeContract2, body) =>
-      val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
-      val loop = create while_loop(expr(cond), convertStat(body))
-      loop.setContract(contract)
-      loop
+    case s@Statement3(maybeContract2, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract3, body) =>
+      convertStatWithContract(s, Seq())
+    case s@Statement4(maybeContract2, "while", cond, maybeContract3, body) =>
+      convertStatWithContract(s, Seq())
     case Statement5("do", body, "while", cond, _) =>
       ??(stat) // do-while unsupported
     case Statement6("try", block, catchClauses, maybeFinally) =>
@@ -493,10 +507,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create block() //nop
     case Statement16(exp, _) =>
       expr(exp)
-    case Statement17(label, ":", stat) =>
-      val res = convertStat(stat)
-      res.addLabel(create label convertID(label))
-      res
+    case s@Statement17(_, _, _, _) =>
+      convertStatWithContract(s, Seq())
     case Statement18(valStatement) =>
       convertValStat(valStatement)
   })
