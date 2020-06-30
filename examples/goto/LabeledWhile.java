@@ -4,48 +4,55 @@
 //:: verdict Pass
 
 class C {
+    int i;
+
+    //@ requires Perm(i, write);
     void m1() {
-        int i = 0;
-        //@ loop_invariant 0 <= i && i <= 5;
+        i = 0;
+        //@ loop_invariant Perm(i, write) ** 0 <= i ** i <= 5;
         l: while (i < 5) {
             i += 1;
         }
-        assert i == 5;
+        //@ assert i == 5;
+        //@ assert Perm(i, write);
     }
 
+    //@ requires Perm(i, write);
     void m2() {
-        int i = 100;
-        //@ loop_invariant 100 <= i && i <=110;
+        i = 100;
+        //@ loop_invariant Perm(i, write) ** 100 <= i ** i <=110;
         l1: l2: while (i < 110) {
             i += 1;
         }
-        assert i == 110;
+        //@ assert i == 110;
+        //@ assert Perm(i, write);
     }
 
+    //@ requires Perm(i, write);
     void m3() {
-        int i = 200;
-        //@ loop_invariant 200 <= i;
+        i = 200;
+        //@ loop_invariant Perm(i, write);
         l1: l2:
         //@ loop_invariant i <= 230;
         while (i < 230) {
             i += 1;
         }
-        assert i == 230;
+        //@ assert i == 230;
+        //@ assert Perm(i, write);
     }
 
+    //@ requires Perm(i, write);
     void m4() {
-        int i = -7;
-        //@ loop_invariant -7 <= i;
+        i = -7;
+        //@ loop_invariant Perm(i, 1\2);
         l1:
-        //@ loop_invariant i != 0;
+        //@ loop_invariant Perm(i, 1\2);
         l2:
         //@ loop_invariant i <= 7;
         while (i < 7) {
             i += 1;
-            if (i == 0) {
-                i += 1;
-            }
         }
-        assert i == 7;
+        //@ assert i == 7;
+        //@ assert Perm(i, write);
     }
 }
