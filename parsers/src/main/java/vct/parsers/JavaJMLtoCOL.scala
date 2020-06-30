@@ -507,6 +507,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create block() //nop
     case Statement16(exp, _) =>
       expr(exp)
+    case Statement17(None, label, ":", stat) =>
+      val res = convertStat(stat)
+      res.addLabel(create label convertID(label))
+      res
     case s@Statement17(_, _, _, _) =>
       convertStatWithContract(s, Seq())
     case Statement18(valStatement) =>

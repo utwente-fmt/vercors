@@ -1,3 +1,8 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases LabeledWhile
+//:: tools silicon
+//:: verdict Pass
+
 class C {
     void m1() {
         int i = 0;
