@@ -11,12 +11,16 @@ import vct.main.Parsers;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
+import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.util.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.*;
 import hre.config.Configuration;
+
+import vct.col.ast.util.ContractBuilder;
+import vct.col.ast.util.UndefinedMapping;
 
 /**
  * This rewriter converts a program with classes into
@@ -200,7 +204,10 @@ public class SilverClassReduction extends AbstractRewriter {
   private boolean arrays = false;
   private boolean floats = false;
   private boolean fractions = false;
-  
+  private boolean maps = false;
+  private boolean tuple = false;
+
+
   private AtomicInteger option_count=new AtomicInteger();
   private HashMap<String, String> option_get = new HashMap<String, String>();
   private HashMap<String, Type> option_get_type = new HashMap<String, Type>();
@@ -234,6 +241,22 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.class_type("VCTArray", ct);
       break;
     }
+    case Tuple: {
+      tuple = true;
+      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      args.get(0).addLabel(create.label("F"));
+      args.get(1).addLabel(create.label("S"));
+      result=create.class_type("VCTTuple",args);
+      break;
+    }
+    case Map:
+      maps = true;
+      tuple = true;
+      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      args.get(0).addLabel(create.label("K"));
+      args.get(1).addLabel(create.label("V"));
+      result=create.class_type("VCTMap",args);
+      break;
     default:
       super.visit(t);
       break;
@@ -291,6 +314,7 @@ public class SilverClassReduction extends AbstractRewriter {
       result=create.class_type("Ref");
     }
   }
+
   @Override
   public void visit(Dereference e){
     if (e.obj().getType()==null){
@@ -543,6 +567,63 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal, rewrite(e.arg(2)));
       break;
     }
+    case MapBuild:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.getType()), null, "vctmap_build", args);
+      break;
+    }
+    case MapEquality: {
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_equals", args);
+      break;
+    }
+    case MapDisjoint:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_disjoint", args);
+      break;
+    }
+    case MapKeySet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_keys", args);
+      break;
+    }
+    case MapCardinality:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_card", args);
+      break;
+    }
+    case MapValueSet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_values", args);
+      break;
+    }
+    case MapGetByKey:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_get", args);
+      break;
+    }
+    case MapRemoveKey:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_remove", args);
+      break;
+    }
+      case MapItemSet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_items", args);
+      break;
+    }
+      case TupleFst:{
+        ASTNode type = rewrite(e.first().getType().firstarg());
+        List<ASTNode> args = rewrite(e.argsJava());
+        result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_fst", args);
+        break;
+    }
+    case TupleSnd:{
+        ASTNode type = rewrite(e.first().getType().secondarg());
+        List<ASTNode> args = rewrite(e.argsJava());
+        result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_snd", args);
+        break;
+      }
     default:
       super.visit(e);
     }
@@ -568,6 +649,23 @@ public class SilverClassReduction extends AbstractRewriter {
       result = packFracVal(val.getType(), val);
     } else {
       super.visit(val);
+    }
+  }
+
+  @Override
+  public void visit(StructValue v) {
+    if (v.type().isPrimitive(PrimitiveSort.Map)) {
+      Type resultType = rewrite(v.type());
+      ASTNode map = create.invokation(resultType,null,"vctmap_empty");
+      for (int i=0; i < v.valuesArray().length; i+=2) {
+        map = create.invokation(resultType, null, "vctmap_build", map, v.valuesArray()[i], v.valuesArray()[i+1]);
+      }
+      result = map;
+    } else if (v.type().isPrimitive(PrimitiveSort.Tuple)) {
+      Type resultType = rewrite(v.type());
+      result =  create.invokation(resultType,null,"vcttuple_tuple", rewrite(v.valuesArray()));;
+    } else {
+      super.visit(v);
     }
   }
 
@@ -663,7 +761,7 @@ public class SilverClassReduction extends AbstractRewriter {
       String s=silverTypeString(t);
       ref_class.add_dynamic(create.field_decl(s+SEP+"item",t));
     }
-    if (options || floats || arrays || fractions){
+    if (options || floats || arrays || fractions || maps || tuple){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
       File file = Configuration.getConfigFile(preludeFile);
       ProgramUnit prelude=Parsers.getParser("sil").parse(file);
@@ -688,6 +786,12 @@ public class SilverClassReduction extends AbstractRewriter {
           case "zfrac":
             if(fractions) res.add(n);
             break;
+          case "VCTMap":
+            if(maps) res.add(n);
+            break;
+          case "VCTTuple":
+            if (maps || tuple) res.add(n);
+              break;
           }
         } else if(n instanceof Method) {
           Method method = (Method) n;

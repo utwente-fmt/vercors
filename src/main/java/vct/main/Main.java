@@ -347,6 +347,9 @@ public class Main
         passes.add("infer_adt_types");
 
         passes.add("check");
+        passes.add("adt_operator_rewrite");
+
+        passes.add("check");
         passes.add("standardize");
 
         passes.add("java-check");
@@ -986,6 +989,11 @@ public class Main
     defined_passes.put("infer_adt_types",new CompilerPass("Transform typeless collection constructors by inferring their types."){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new InferADTTypes(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("adt_operator_rewrite",new CompilerPass("rewrite PVL-specific ADT operators"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new ADTOperatorRewriter(arg).rewriteAll();
       }
     });
     defined_passes.put("rm_cons",new CompilerPass("???"){
