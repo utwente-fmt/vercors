@@ -48,6 +48,10 @@ exprList
     : expr
     | expr ',' exprList
     ;
+mapPairs
+    : expr '->' expr
+    | expr '->' expr ',' mapPairs
+    ;
 
 expr
  : identifier ':' expr
@@ -116,6 +120,7 @@ powExpr
 seqAddExpr
  : unaryExpr '::' seqAddExpr
  | seqAddExpr '++' unaryExpr
+ | seqAddExpr '++' '(' unaryExpr ',' unaryExpr ')'
  | unaryExpr
  ;
 
@@ -159,6 +164,8 @@ nonTargetUnit
  | 'current_thread'
  | '\\result'
  | collectionConstructors
+ | 'map' '<' type ',' type '>' mapValues
+ | 'tuple' '<' type ',' type '>' values
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
@@ -179,6 +186,7 @@ collectionConstructors
  | '{t:' type '}'
  | 'b{' exprList '}'
  | 'b{t:' type '}'
+ | 'set' '<' type '>' '{' expr '|' setCompSelectors ';' expr '}'
  ;
 
 targetUnit
@@ -191,9 +199,20 @@ builtinMethod
 
 values : '{' exprList? '}';
 
+mapValues : '{' mapPairs? '}';
+
 tuple : '(' exprList? ')';
 
 block : '{' statement* '}' ;
+
+setCompSelectors
+    : type identifier
+    | type identifier '<-' identifier
+    | type identifier '<-' collectionConstructors
+    | type identifier ',' setCompSelectors
+    | type identifier '<-' identifier ',' setCompSelectors
+    | type identifier '<-' collectionConstructors ',' setCompSelectors
+    ;
 
 statement
  : 'return' expr? ';'
@@ -267,6 +286,7 @@ invariant: 'loop_invariant' expr ';';
 nonArrayType
  : container '<' type '>'
  | 'option' '<' type '>'
+ | ('map' | 'tuple') '<' type ',' type '>'
  | ('string' | 'process' | 'int' | 'boolean' | 'zfrac' | 'frac' | 'resource' | 'void')
  | classType
  ;

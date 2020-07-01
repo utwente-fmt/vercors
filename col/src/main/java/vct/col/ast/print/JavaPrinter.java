@@ -513,6 +513,10 @@ public class JavaPrinter extends AbstractPrinter {
       case Sum:
         binder="\\sum";
         break;
+      case SetComp:
+        //TODO Have a correct way of outputting this.
+        out.printf("setcomp");
+        break;
       default:
         Abort("binder %s unimplemented",e.binder());
     }
@@ -1268,6 +1272,26 @@ public class JavaPrinter extends AbstractPrinter {
         }
         out.printf("option<");
         t.firstarg().accept(this);
+        out.printf(">");
+        break;
+      case Map:
+        if (nrofargs!=2){
+          Fail("Map type constructor with %d arguments instead of 2",nrofargs);
+        }
+        out.printf("map<");
+        t.firstarg().accept(this);
+        out.printf(",");
+        t.secondarg().accept(this);
+        out.printf(">");
+        break;
+      case Tuple:
+        if (nrofargs!=2){
+          Fail("Tuple type constructor with %d arguments instead of 2",nrofargs);
+        }
+        out.printf("tuple<");
+        t.firstarg().accept(this);
+        out.printf(",");
+        t.secondarg().accept(this);
         out.printf(">");
         break;
       case Sequence:

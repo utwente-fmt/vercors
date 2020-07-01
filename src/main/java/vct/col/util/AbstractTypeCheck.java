@@ -1368,7 +1368,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (!(tt[0] instanceof PrimitiveType)) Fail("base must be array or sequence type.");
       PrimitiveType t=(PrimitiveType)tt[0];
         if (t.isPrimitive(PrimitiveSort.Option)) {
-          if (!(t.firstarg() instanceof PrimitiveType)) Fail("base must be array or sequence type.");
+          if (!(t.firstarg() instanceof PrimitiveType)) Fail("base must be map, array or sequence type.");
           t = (PrimitiveType) t.firstarg();
         }
 
@@ -1379,8 +1379,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
             tt[0] = (Type) t.firstarg();
             break;
           }
+          case Map: {
+            if (!tt[1].equals(tt[0].firstarg())) {
+              Fail("base must be map, array or sequence type.");
+            }
+            e.setType((Type) tt[0].secondarg());
+            return;
+          }
           default:
-            Fail("base must be array or sequence type.");
+            Fail("base must be map, array or sequence type.");
         }
 
         if (tt[0].isPrimitive(PrimitiveSort.Cell)) {
@@ -1418,8 +1425,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     {
         Type t = e.arg(0).getType();
         if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
-        if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set))) {
-          Fail("argument of size is not a set, sequence, or bag");
+        if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set) || t.isPrimitive(PrimitiveSort.Map))) {
+          Fail("argument of size is not a set, sequence, bag or map");
         }
         e.setType(new PrimitiveType(PrimitiveSort.Integer));
         break;
@@ -1502,6 +1509,54 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
         e.setType(elementType);
         break;
+      case MapBuild:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("First argument is not a map at %s", e.getOrigin());
+        if (!tt[0].firstarg().equals(tt[1])) Fail("Type of key %s to add does not match the key type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
+        if (!tt[0].secondarg().equals(tt[2])) Fail("Type of value %s to add does not match the value type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
+        e.setType(tt[0]);
+        break;
+      case MapDisjoint:
+      case MapEquality:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("First argument is not a map at %s", e.getOrigin());
+        if (!tt[1].isPrimitive(PrimitiveSort.Map)) Fail("Second argument is not a map at %s", e.getOrigin());
+        if (!tt[0].firstarg().equals(tt[1].firstarg()) || !tt[0].secondarg().equals(tt[1].secondarg()))
+          Fail("Cannot compare maps with different types %s and %s at %s", tt[0], tt[1], e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
+      case MapKeySet:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("Argument is not a map at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Set, tt[0].firstarg()));
+        break;
+      case MapCardinality:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("Argument is not a map at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Integer));
+        break;
+      case MapValueSet:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("Argument is not a map at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Set, tt[0].secondarg()));
+        break;
+      case MapGetByKey:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("First argument is not a map at %s", e.getOrigin());
+        if (!tt[0].firstarg().equals(tt[1])) Fail("Type of key %s to add does not match the key type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
+        e.setType((Type) tt[0].secondarg());
+        break;
+      case MapRemoveKey:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("First argument is not a map at %s", e.getOrigin());
+        if (!tt[0].firstarg().equals(tt[1])) Fail("Type of key %s to add does not match the key type of the map %s at %s", tt[1], tt[0].firstarg(), e.getOrigin());
+        e.setType(tt[0]);
+        break;
+      case MapItemSet:
+        if (!tt[0].isPrimitive(PrimitiveSort.Map)) Fail("Argument is not a map at %s", e.getOrigin());
+        e.setType(new PrimitiveType(PrimitiveSort.Set, new PrimitiveType(PrimitiveSort.Tuple, tt[0].firstarg(), tt[0].secondarg())));
+        break;
+      case TupleFst:
+        if (!tt[0].isPrimitive(PrimitiveSort.Tuple)) Fail("The argument is not a tuple at %s", e.getOrigin());
+        e.setType((Type) tt[0].firstarg());
+        break;
+      case TupleSnd:
+        if (!tt[0].isPrimitive(PrimitiveSort.Tuple)) Fail("The argument is not a tuple at %s", e.getOrigin());
+        e.setType((Type) tt[0].secondarg());
+        break;
       default:
         Abort("missing case of operator %s", op);
         break;
@@ -1541,6 +1596,29 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
       for (ASTNode node : JavaConverters.asJavaIterable(v.values())) {
         node.setType(inferredElementType);
+      }
+    }
+
+    if (v.getType().isPrimitive(PrimitiveSort.Map)) {
+      Type keyType = (Type) v.getType().firstarg();
+      Type valueType = (Type) v.getType().secondarg();
+      for (int i=0; i < v.valuesArray().length; i+=2) {
+        if (!keyType.equals(v.valuesArray()[i].getType())) {
+          Fail("Key type %s does not match value type of the map %s at %s", v.valuesArray()[i].getType(), keyType, v.valuesArray()[i].getOrigin());
+        } else if (!valueType.equals(v.valuesArray()[i+1].getType())) {
+            Fail("Key type %s does not match value type of the map %s at %s", v.valuesArray()[i+1].getType(), valueType, v.valuesArray()[i+1].getOrigin());
+          }
+      }
+    }
+    if (v.getType().isPrimitive(PrimitiveSort.Tuple)) {
+      Type keyType = (Type) v.getType().firstarg();
+      Type valueType = (Type) v.getType().secondarg();
+      if (v.valuesArray().length == 2) {
+        if (!v.value(0).getType().equals(keyType)) {
+          Fail("The first type %s does not match type of the first value %s at %s", keyType, v.value(0).getType(), v.value(0).getOrigin());
+        } else if (!v.value(1).getType().equals(valueType)) {
+          Fail("The second type %s does not match type of the second value %s at %s", valueType, v.value(1).getType(), v.value(1).getOrigin());
+        }
       }
     }
 
@@ -1830,9 +1908,23 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(res);
       break;
     }
-    case Sum:
+    case Sum: {
       e.setType(t);
       break;
+    }
+    case SetComp: {
+        //TODO check if expressions are of the same type. Check if exprs are of the correct type.
+        // Set the type for the set (I dont know which child that will be)
+        if (!t.equals(e.result_type().firstarg())){
+          Fail("The type of the set does not match the type of the returned elements.");
+        }
+      for (Map.Entry<NameExpression, ASTNode> entry: ((SetComprehension) e).variables().entrySet()) {
+        entry.getKey().accept(this);
+        entry.getValue().accept(this);
+      }
+        e.setType(e.result_type());
+        break;
+     }
     }
   }
 

@@ -8,7 +8,7 @@ import vct.antlr4.generated.PVLParser
 import vct.antlr4.generated.PVLParser._
 import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.ast.`type`.ASTReserved._
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
+import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
@@ -212,6 +212,20 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Tuple0("(", maybeExprList, ")") => convertExpList(maybeExprList)
   }
 
+  def convertMapValues(args: MapValuesContext): Seq[ASTNode] = args match {
+    case MapValues0("{", maybeMapPairs,"}") => convertMapPairs(maybeMapPairs)
+  }
+
+  def convertMapPairs(args: Option[MapPairsContext]): Seq[ASTNode] = args match {
+    case Some(args) => convertMapPairs(args)
+    case None => Seq()
+  }
+  def convertMapPairs(args: MapPairsContext): Seq[ASTNode] = args match {
+    case MapPairs0(key, "->", value) => Seq(expr(key), expr(value))
+    case MapPairs1(key, "->", value, ",", pairList) =>
+      Seq(expr(key), expr(value)) ++ convertMapPairs(pairList)
+  }
+
   def convertExpList(args: Option[ExprListContext]): Seq[ASTNode] = args match {
     case Some(args) => convertExpList(args)
     case None => Seq()
@@ -288,7 +302,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case PowExpr1(seqAddExp) => expr(seqAddExp)
     case SeqAddExpr0(x, "::", xs) => create expression(PrependSingle, expr(x), expr(xs))
     case SeqAddExpr1(xs, "++", ys) => create expression(AppendSingle, expr(xs), expr(ys))
-    case SeqAddExpr2(unaryExp) => expr(unaryExp)
+    case SeqAddExpr2(xs, "++", "(", a, ",", b, ")") => create expression(MapBuild, expr(xs), expr(a), expr(b))
+    case SeqAddExpr3(unaryExp) => expr(unaryExp)
     case UnaryExpr0("!", exp) => create expression(Not, expr(exp))
     case UnaryExpr1("-", exp) => create expression(UMinus, expr(exp))
     case UnaryExpr2(newExp) => expr(newExp)
@@ -351,7 +366,11 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case NonTargetUnit4("current_thread") => create reserved_name CurrentThread
     case NonTargetUnit5("\\result") => create reserved_name Result
     case NonTargetUnit6(collection) => expr(collection)
-    case NonTargetUnit7(method, argsTuple) =>
+    case NonTargetUnit7("map", "<", t1, ",", t2, ">", mapValues) =>
+      create struct_value(create primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2)), null, convertMapValues(mapValues):_*)
+    case NonTargetUnit8("tuple", "<", t1, ",", t2, ">", values) =>
+      create struct_value(create primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2)), null, convertExpList(values):_*)
+    case NonTargetUnit9(method, argsTuple) =>
       val args = convertExpList(argsTuple)
       val methodName = method match { case BuiltinMethod0(name) => name }
       methodName match {
@@ -369,16 +388,15 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case "held" => create expression(Held, args:_*)
         case "Some" => create expression(OptionSome, args:_*)
       }
-    case NonTargetUnit8(_owner, "(", a, ",", b, ",", c, ")") =>
+    case NonTargetUnit10(_owner, "(", a, ",", b, ",", c, ")") =>
       create expression(IterationOwner, expr(a), expr(b), expr(c))
-    case NonTargetUnit9("id", "(", exp, ")") => expr(exp)
-    case NonTargetUnit10("|", seq, "|") => create expression(Size, expr(seq))
-    case NonTargetUnit11("?", id) => create expression(BindOutput, convertIDName(id))
-    case NonTargetUnit12(num) => create constant Integer.parseInt(num)
-    case NonTargetUnit13(seq) => ??(tree)
-    case NonTargetUnit14("(", exp, ")") => expr(exp)
-    case NonTargetUnit15(id) => convertIDName(id)
-    case NonTargetUnit16(valPrimary) => valExpr(valPrimary)
+    case NonTargetUnit11("id", "(", exp, ")") => expr(exp)
+    case NonTargetUnit12("|", seq, "|") => create expression(Size, expr(seq))
+    case NonTargetUnit13("?", id) => create expression(BindOutput, convertIDName(id))
+    case NonTargetUnit14(num) => create constant Integer.parseInt(num)
+    case NonTargetUnit15(seq) => ??(tree)    case NonTargetUnit16("(", exp, ")") => expr(exp)
+    case NonTargetUnit17(id) => convertIDName(id)
+    case NonTargetUnit18(valPrimary) => valExpr(valPrimary)
     case DeclInit0("=", exp) => expr(exp)
 
     case CollectionConstructors0(container, _, elemType, _, values) =>
@@ -415,9 +433,45 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create struct_value(create primitive_type(
         PrimitiveSort.Bag, convertType(t)),
         null)
-
-
+    case CollectionConstructors7("set", _, elemType, _, _, main, _, selectors, _, guard, _) => {
+      create setComp(
+        create primitive_type (PrimitiveSort.Set, convertType(elemType)), // Type
+        expr(guard), // The guard expression
+        expr(main), // The main/resulting expression
+        getVarBounds(selectors).asJava, // Selector
+        getVariableDecls(selectors).toArray  // Declaration of variables
+      )
+    }
   })
+
+  def getVariableDecls(ctx: SetCompSelectorsContext): Seq[DeclarationStatement] = ctx match {
+    case SetCompSelectors0(t, id) => Seq(create field_decl(convertID( id), convertType(t)))
+    case SetCompSelectors1(t, id, "<-", _) => Seq(create field_decl(convertID( id), convertType(t)))
+    case SetCompSelectors2(t, id, "<-", _) => Seq(create field_decl(convertID( id), convertType(t)))
+    case SetCompSelectors3(t, id, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
+    case SetCompSelectors4(t, id, "<-", _, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
+    case SetCompSelectors5(t, id, "<-", _, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
+  }
+
+  def getVarBounds(ctx: SetCompSelectorsContext): Map[NameExpression, ASTNode] = ctx match {
+    case SetCompSelectors0(t, id) => {
+      if (convertType(t).isInstanceOf[ClassType]) {
+        fail(id, "Variable %s in set comprehension is not bound. All variables with type class must have bounds.", convertID(id))
+      }
+      Map.empty
+    }
+    case SetCompSelectors1(t, id, "<-", collectionId) => Map(convertIDName(id) -> convertIDName(collectionId))
+    case SetCompSelectors2(t, id, "<-", collection) => Map(convertIDName(id) -> expr(collection))
+    case SetCompSelectors3(t, id, ",", selectors) => {
+      if (convertType(t).isInstanceOf[ClassType]) {
+        fail(id, "Variable %s in set comprehension is not bound. All variables with type class must have bounds.", convertID(id))
+      }
+      getVarBounds(selectors)
+    }
+    case SetCompSelectors4(t, id, "<-", collectionId, ",", selectors) => Map(convertIDName(id) -> convertIDName(collectionId)) ++ getVarBounds(selectors)
+    case SetCompSelectors5(t, id, "<-", collection, ",", selectors) => Map(convertIDName(id) -> expr(collection)) ++ getVarBounds(selectors)
+  }
+
 
   def addDims(t: Type, dimCount: Int): Type = {
     if (dimCount == 0) {
@@ -451,7 +505,11 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create.primitive_type(kind, convertType(innerType))
     case NonArrayType1("option", "<", t, ">") =>
       create.primitive_type(PrimitiveSort.Option, convertType(t))
-    case NonArrayType2(primitive) =>
+    case NonArrayType2("map", "<", t1, ",", t2, ">") =>
+      create.primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2))
+    case NonArrayType2("tuple", "<", t1, ",", t2, ">") =>
+      create.primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2))
+    case NonArrayType3(primitive) =>
       create.primitive_type(primitive match {
         case "string" => PrimitiveSort.String
         case "process" => PrimitiveSort.Process
@@ -462,7 +520,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case "resource" => PrimitiveSort.Resource
         case "void" => PrimitiveSort.Void
       })
-    case NonArrayType3(ClassType0(name, maybeTypeArgs)) =>
+    case NonArrayType4(ClassType0(name, maybeTypeArgs)) =>
       create class_type(convertID(name), (maybeTypeArgs match {
         case None => Seq()
         case Some(TypeArgs0(_, args, _)) =>

@@ -377,6 +377,9 @@ public class Main
         passes.add("infer_adt_types");
 
         passes.add("check");
+        passes.add("adt_operator_rewrite");
+
+        passes.add("check");
         passes.add("standardize");
 
         passes.add("java-check");
@@ -514,7 +517,7 @@ public class Main
 
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
         passes.add("check");
-        passes.add("rewrite_sequence_functions");
+        passes.add("generate_adt_functions");
         passes.add("check");
         passes.add("flatten");
         passes.add("check");
@@ -1012,14 +1015,19 @@ public class Main
         return new RewriteArrayRef(arg).rewriteAll();
       }
     });
-    defined_passes.put("rewrite_sequence_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
+    defined_passes.put("generate_adt_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new RewriteSequenceFunctions(arg).rewriteAll();
+        return new GenerateADTFunctions(arg).rewriteAll();
       }
     });
     defined_passes.put("infer_adt_types",new CompilerPass("Transform typeless collection constructors by inferring their types."){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new InferADTTypes(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("adt_operator_rewrite",new CompilerPass("rewrite PVL-specific ADT operators"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new ADTOperatorRewriter(arg).rewriteAll();
       }
     });
     defined_passes.put("rm_cons",new CompilerPass("???"){
