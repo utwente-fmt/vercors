@@ -1,7 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Goto3
 //:: tools silicon
-//:: verdict Success
+//:: verdict Pass
 
 class C {
    int m() {
