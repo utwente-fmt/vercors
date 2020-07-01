@@ -341,10 +341,6 @@ public class Main
           passes.add("unfold-switch");
         }
 
-        if (features.usesSynchronizedModifier() || features.usesSynchronizedStatement()) {
-          passes.add("unfold-synchronized");
-        }
-
         if ((features.usesFinally() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
           passes.add("break-return-to-exceptions");
         } else if (usesBreakContinue || features.usesReturn()) {
@@ -352,6 +348,12 @@ public class Main
         }
 
         passes.add("java_resolve");
+        passes.add("standardize");
+        passes.add("java-check");
+
+        if (features.usesSynchronizedModifier() || features.usesSynchronizedStatement()) {
+          passes.add("unfold-synchronized");
+        }
 
         if (silver.used() &&
            ( features.usesSpecial(ASTSpecial.Kind.Lock)
