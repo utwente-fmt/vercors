@@ -9,7 +9,7 @@ import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, TryCatchBlock, TryWithResources}
+import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, Switch, TryCatchBlock, TryWithResources}
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit, SignalsClause}
 import vct.col.ast.util.ContractBuilder
 
@@ -489,8 +489,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       convertResourceList(res).foreach(tryBlock.addResource)
       addCatchClauses(tryBlock, catchClauses)
       tryBlock
-    case Statement9("switch", obj, "{", caseStatMappings, extraCases, "}") =>
-      ??(stat) // switch unsupported
+    case Statement9("switch", cond, "{", caseStatMappings, extraCases, "}") =>
+      val cases = caseStatMappings.map(convertCase)
+      create switchStatement(
+        expr(cond),
+        (cases ++ Seq(convertCaseStat(extraCases))).asJava
+      )
     case Statement10("synchronized", obj, body) =>
       create syncBlock(expr(obj), convertBlock(body))
     case Statement11("return", maybeValue, _) =>
@@ -540,6 +544,27 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ForUpdate0(exps) =>
       flattenIfSingleStatement(exprList(exps))
   })
+
+  def convertSwitchLabel(switchLabel: SwitchLabelContext): ASTNode = switchLabel match {
+    case SwitchLabel0("case", constantExpr, ":") => expr(constantExpr)
+    case SwitchLabel1("case", enumConstantName, ":") => ??(switchLabel)
+    case SwitchLabel2("default", ":") => null
+  }
+
+  def convertCase(caseStat: SwitchBlockStatementGroupContext): Switch.Case = caseStat match {
+    case SwitchBlockStatementGroup0(labelExprs, stats) =>
+      val cases = new Switch.Case()
+      cases.cases.addAll(labelExprs.map(convertSwitchLabel).asJavaCollection)
+      cases.stats.addAll(stats.flatMap(convertStat).asJavaCollection)
+      cases
+    case _ => ??(caseStat)
+  }
+
+  def convertCaseStat(switchLabels: Seq[SwitchLabelContext]): Switch.Case = {
+    val cases = new Switch.Case()
+    cases.cases.addAll(switchLabels.map(convertSwitchLabel).asJavaCollection)
+    cases
+  }
 
   def exprList(tree: ParserRuleContext): Seq[ASTNode] = tree match {
     case Arguments0(_, None, _) => Seq()

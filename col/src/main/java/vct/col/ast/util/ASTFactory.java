@@ -1412,8 +1412,12 @@ public Axiom axiom(String name, ASTNode exp){
     return special(kind,names.toArray(new ASTNode[names.size()]));
   }
 
-  public ASTNode switch_statement(ASTNode expr, ArrayList<Case> case_list) {
-    Switch res=new Switch(expr,case_list.toArray(new Case[case_list.size()]));
+  public ASTNode switchStatement(ASTNode expr, List<Case> cases) {
+    return switchStatement(expr, cases.toArray(new Case[cases.size()]));
+  }
+
+  public ASTNode switchStatement(ASTNode expr, Case[] cases) {
+    Switch res=new Switch(expr, cases);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);    
     return res;
