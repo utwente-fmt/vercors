@@ -2091,5 +2091,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     if (!(cc.javaCatchTypes()[0] instanceof ClassType)) {
       Abort("Must catch type inheriting from Throwable");
     }
+
+    super.visit(cc);
   }
 }
