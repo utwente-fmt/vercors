@@ -932,4 +932,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void visit(SignalsClause sc) {
     result = create.signalsClause(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
   }
+
+  @Override
+  public void visit(Synchronized sync) {
+    result = create.syncBlock(rewrite(sync.expr()), rewrite(sync.statement()));
+  }
 }

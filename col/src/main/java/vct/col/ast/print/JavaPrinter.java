@@ -1582,4 +1582,13 @@ public class JavaPrinter extends AbstractPrinter {
     out.newline();
     loop.loop().accept(this);
   }
+
+  @Override
+  public void visit(Synchronized sync) {
+    out.print("synchronized (");
+    nextExpr();
+    sync.expr().accept(this);
+    out.lnprintf(")");
+    sync.statement().accept(this);
+  }
 }
