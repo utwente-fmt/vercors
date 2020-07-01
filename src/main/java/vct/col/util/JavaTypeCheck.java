@@ -31,7 +31,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       }
 
       ClassType ct = (ClassType) t;
-      if (!ct.supertypeof(source(), throwableType)) {
+      if (!throwableType.supertypeof(source(), ct)) {
         Fail("Throws type must extend throwable");
       }
     }
