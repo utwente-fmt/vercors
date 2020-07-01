@@ -73,7 +73,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
                     ),
                     create.expression(StandardOperator.EQ,
                             create.dereference(create.reserved_name(ASTReserved.This), "value"),
-                            create.argument_name("result")
+                            create.argument_name("returnValue")
                     )
             ));
 
@@ -83,7 +83,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
                     cb.getContract(),
                     name,
                     new DeclarationStatement[] {
-                            create.field_decl("result", arg)
+                            create.field_decl("returnValue", arg)
                     },
                     null
             );
