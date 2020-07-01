@@ -671,6 +671,9 @@ public class ASTFactory<E> implements FrameControl {
   public Method method_kind(Method.Kind kind,Type returns,Contract contract,String name,List<DeclarationStatement> args,boolean varArgs,ASTNode body){    
     return method_kind(kind,returns,contract,name,args.toArray(new DeclarationStatement[args.size()]),varArgs,body);
   }
+  public Method method_kind(Method.Kind kind,Type returns, Type[] throwy, Contract contract,String name,List<DeclarationStatement> args,boolean varArgs,ASTNode body){
+    return method_kind(kind,returns, throwy, contract,name,args.toArray(new DeclarationStatement[args.size()]),varArgs,body);
+  }
   public Method method_kind(Method.Kind kind,Type returns,Contract contract,String name,DeclarationStatement args[],boolean varArgs,ASTNode body){
     return method_kind(kind, returns, new Type[0], contract, name, args, varArgs, body);
   }

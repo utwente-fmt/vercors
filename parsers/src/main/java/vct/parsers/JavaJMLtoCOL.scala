@@ -128,16 +128,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case MemberDeclaration7(fwd) => convertDecl(fwd)
     case MemberDeclaration8(fwd) => convertDecl(fwd)
 
-    case MethodDeclaration0(retType, name, paramsNode, maybeDims, throws, maybeBody) =>
+    case MethodDeclaration0(retType, name, paramsNode, maybeDims, maybeThrows, maybeBody) =>
       val dims = maybeDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
       val returns = convertType(retType, dims)
-      val throwy = throws match {
-        case None => new Array[Type](0)
-        case Some(Throwy0(_, qualifiedNameList)) => {
-          val types = convertTypeList(qualifiedNameList)
-          types.asJava.toArray(new Array[Type](types.length))
-        }
-      }
+      val throwy = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
       val body = maybeBody match {
         case MethodBodyOrEmpty0(";") => None
@@ -152,11 +146,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(typeParams) // generics are unsupported
     case ConstructorDeclaration0(clsName, paramsNode, maybeThrows, bodyNode) =>
       val returns = create primitive_type PrimitiveSort.Void
+      val throwy = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
       val body = bodyNode match {
         case ConstructorBody0(block) => convertBlock(block)
       }
-      Seq(create method_kind(Method.Kind.Constructor, returns, null, convertID(clsName), params.toArray, varargs, body))
+      Seq(create method_kind(Method.Kind.Constructor, returns, throwy, null, convertID(clsName), params.toArray, varargs, body))
     case GenericConstructorDeclaration0(typeParams, constructorDecl) =>
       ??(typeParams) // generics are unsupported
 
@@ -174,6 +169,14 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         res
       }
   })
+
+  def convertThrows(maybeThrows: Option[ThrowyContext]): Array[Type] = maybeThrows match {
+    case None => new Array[Type](0)
+    case Some(Throwy0(_, qualifiedNameList)) => {
+      val types = convertTypeList(qualifiedNameList)
+      types.asJava.toArray(new Array[Type](types.length))
+    }
+  }
 
   def convertResource(res: ResourceContext): DeclarationStatement = origin(res, res match {
     case Resource0(mods, t, name, "=", init) =>

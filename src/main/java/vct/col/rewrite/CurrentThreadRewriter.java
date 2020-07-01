@@ -87,7 +87,8 @@ public class CurrentThreadRewriter extends AbstractRewriter {
         }
         rewrite(m.getContract(),cb);
         ASTNode body=rewrite(m.getBody());
-        result=create.method_kind(m.kind,returns, cb.getContract(), m.name(), args.toArray(new DeclarationStatement[0]), body);
+        Type[] throwy = rewrite(m.throwy);
+        result=create.method_kind(m.kind, returns, throwy, cb.getContract(), m.name(), args, m.usesVarArgs(), body);
     } else {
         super.visit(m);
     }

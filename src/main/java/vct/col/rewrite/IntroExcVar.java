@@ -23,7 +23,7 @@ public class IntroExcVar extends AbstractRewriter {
     public static boolean canThrow(Method method) {
         // TODO (Bob): When the new parsers are merged (and the AST is updated correspondingly) extend this by checking the throws as well
         // TODO (Bob): Move to method class!
-        return method.getContract().signals.length > 0; // || method.hasAttribute(THROWS); // ???
+        return method.getContract().signals.length > 0 || method.throwy.length > 0;
     }
 
     public static boolean canThrow(MethodInvokation methodInvokation) {
