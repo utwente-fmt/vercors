@@ -17,15 +17,15 @@ final class MyClass {
 
     //@ context Perm(i, 1);
     void foo() {
-        //@ int old_i = i;
+        //@ ghost int old_i = i;
         int SLASH = 900;
         int DOT = 100;
         int x = read_char();
         //@ assert old_i + 1 == i;
-        //@ boolean saw_slash = false;
+        //@ ghost boolean saw_slash = false;
         char_processed: {
             if (x == SLASH) {
-                //@ saw_slash = true;
+                //@ ghost saw_slash = true;
                 x = read_char();
                 if (x == SLASH) {
                     return_the_carriage();
