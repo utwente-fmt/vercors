@@ -618,6 +618,7 @@ public class ASTFactory<E> implements FrameControl {
     res.accept_if(post);
     return res;
   }
+
   /**
    * Leave the current stack frame of the origin stack.
    */

@@ -23,13 +23,30 @@ public class InlineMethod extends Substitution {
   private String return_name;
   private String return_label;
   private String prefix;
-  
+
+  /* TODO: This is a dangerous pattern for reproducibility, should be refactored to be lexically dependent or
+           top-down unique by passing identifiers, or by having lexically (block) scoped labels and decls. */
+  private static AtomicInteger count=new AtomicInteger();
+
   public InlineMethod(ProgramUnit source) {
     super(source, new Hashtable<NameExpression, ASTNode>());
   }
 
-  private static AtomicInteger count=new AtomicInteger();
-  
+  public void newPrefix() {
+    prefix = "inline_" + count.incrementAndGet() + "_";
+  }
+
+  public String makeUnique(String name) {
+    Debug("Renamed inlined name from \"%s\" to \"%s\"", name, prefix + name);
+    return prefix + name;
+  }
+
+  public NameExpression makeUnique(NameExpression name) {
+    NameExpression newName = new NameExpression(makeUnique(name.name()), null, name.kind());
+    newName.setOrigin(name);
+    return newName;
+  }
+
   public void inline(BlockStatement block, String return_name, String return_label, Method m, ASTNode object, ASTNode[] args, Origin source) {
     create.enter();
     BranchOrigin branch=new BranchOrigin("inlined code at "+source,source);
@@ -40,16 +57,16 @@ public class InlineMethod extends Substitution {
     if (n==null) Debug("1");
     if (object==null) Debug("2");
     map.put(n,object);
-    prefix="inline_"+count.incrementAndGet()+"_";
+    newPrefix();
     DeclarationStatement decls[]=m.getArgs();
     for(int i=0;i<decls.length;i++){
-      tmp=create.field_decl(prefix+decls[i].name(), copy_rw.rewrite(decls[i].getType()));
+      tmp=create.field_decl(makeUnique(decls[i].name()), copy_rw.rewrite(decls[i].getType()));
       OriginWrapper.wrap(null, tmp,branch);
       block.add(tmp);
-      tmp=create.assignment(create.local_name(prefix+decls[i].name()), copy_rw.rewrite(args[i]));
+      tmp=create.assignment(create.local_name(makeUnique(decls[i].name())), copy_rw.rewrite(args[i]));
       OriginWrapper.wrap(null, tmp,branch);
       block.add(tmp);      
-      map.put(create.local_name(decls[i].name()),create.local_name(prefix+decls[i].name()));
+      map.put(create.local_name(decls[i].name()),create.local_name(makeUnique(decls[i].name())));
     }
     this.return_name=return_name;
     this.return_label=return_label;
@@ -62,14 +79,22 @@ public class InlineMethod extends Substitution {
     }
     create.leave();
   }
+
+  public void visit(ASTSpecial special) {
+    super.visit(special);
+
+    if (special.isSpecial(Kind.Label)) {
+      result = create.labelDecl(makeUnique((NameExpression) special.getArg(0)));
+    } else if (special.isSpecial(Kind.Goto)) {
+      result = create.gotoStatement(makeUnique((NameExpression) special.getArg(0)));
+    }
+  }
   
   @Override
   public void visit(DeclarationStatement decl){
     //TODO: handle scoping properly!
-    String name = decl.name();
-    String new_name = prefix + name;
-    NameExpression n = create.local_name(decl.name());
-    map.put(n, create.local_name(new_name));
+    String new_name = makeUnique(decl.name());
+    map.put(create.local_name(decl.name()), create.local_name(new_name));
     result = create.field_decl(new_name, rewrite(decl.getType()), rewrite(decl.initJava()));
   }
 
