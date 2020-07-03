@@ -3,9 +3,9 @@
 //:: tools silicon
 //:: verdict Pass
 
-final class MyException { }
+final class MyException extends Exception { }
 
-final class FooException { }
+final class FooException extends Exception { }
 
 final class MyClass {
     int x;
