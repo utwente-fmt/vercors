@@ -4,6 +4,7 @@ import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.logging.PassReport;
@@ -44,6 +45,16 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       ClassType ct = (ClassType) t;
       if (!throwableType.supertypeof(source(), ct)) {
         Fail("Throws type must extend throwable");
+      }
+    }
+
+    // Signals must extend Throwable
+    if (m.getContract() != null) {
+      for (SignalsClause sc : m.getContract().signals) {
+        if (!throwableType.supertypeof(source(), sc.type())) {
+          enter(sc);
+          Fail("Signals clause type must extend Throwable");
+        }
       }
     }
   }
