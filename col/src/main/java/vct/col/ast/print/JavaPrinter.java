@@ -74,18 +74,7 @@ public class JavaPrinter extends AbstractPrinter {
     out.print("try");
     tcb.main().accept(this);
     for (CatchClause cb : tcb.catches()) {
-      out.print("catch (");
-      nextExpr();
-      boolean first = true;
-      for(Type t : cb.javaCatchTypes()) {
-        if(!first) out.print(" | ");
-        t.accept(this);
-        first = false;
-      }
-      out.print(" ");
-      out.print(cb.name());
-      out.print(")");
-      cb.block().accept(this);
+      cb.accept(this);
     }
     if (tcb.after() != null){
       out.print(" finally ");
@@ -1590,5 +1579,21 @@ public class JavaPrinter extends AbstractPrinter {
     sync.expr().accept(this);
     out.lnprintf(")");
     sync.statement().accept(this);
+  }
+
+  @Override
+  public void visit(CatchClause cc) {
+    out.print("catch (");
+    nextExpr();
+    boolean first = true;
+    for(Type t : cc.javaCatchTypes()) {
+      if(!first) out.print(" | ");
+      t.accept(this);
+      first = false;
+    }
+    out.print(" ");
+    out.print(cc.name());
+    out.print(")");
+    cc.block().accept(this);
   }
 }
