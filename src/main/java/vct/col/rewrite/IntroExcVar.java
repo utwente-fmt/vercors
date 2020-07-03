@@ -27,7 +27,7 @@ public class IntroExcVar extends AbstractRewriter {
     }
 
     public static boolean canThrow(MethodInvokation methodInvokation) {
-        return methodInvokation.getDefinition().getContract().signals.length > 0;
+        return methodInvokation.getDefinition().getContract().signals.length > 0 || methodInvokation.getDefinition().throwy.length > 0;
     }
 
     public void visit(Method method) {
@@ -47,9 +47,11 @@ public class IntroExcVar extends AbstractRewriter {
             // Add out parameter
             resultMethod.prependArg(result.getOrigin(), excVar, create.class_type(objectClass), true);
 
-            // Set initial value to null
-            BlockStatement body = (BlockStatement) resultMethod.getBody();
-            body.prepend(create.assignment(create.local_name(excVar), create.reserved_name(ASTReserved.Null)));
+            // Set initial value to null if method has a body
+            if (resultMethod.getBody() != null) {
+                BlockStatement body = (BlockStatement) resultMethod.getBody();
+                body.prepend(create.assignment(create.local_name(excVar), create.reserved_name(ASTReserved.Null)));
+            }
         } else if (scanner.usesFinally() || scanner.usesCatch()) {
             // Add local variable and init as null
             BlockStatement body = (BlockStatement) resultMethod.getBody();
