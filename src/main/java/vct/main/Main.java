@@ -341,15 +341,15 @@ public class Main
           passes.add("unfold-switch");
         }
 
+        passes.add("java_resolve");
+        passes.add("standardize");
+        passes.add("java-check");
+
         if ((features.usesFinally() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
           passes.add("break-return-to-exceptions");
         } else if (usesBreakContinue || features.usesReturn()) {
           passes.add("break-return-to-goto");
         }
-
-        passes.add("java_resolve");
-        passes.add("standardize");
-        passes.add("java-check");
 
         if (features.usesSynchronizedModifier() || features.usesSynchronizedStatement()) {
           passes.add("unfold-synchronized");
@@ -369,7 +369,7 @@ public class Main
         }
 
         passes.add("standardize");
-        passes.add("java-check"); // marking function: stub
+        passes.add("check"); // marking function: stub
 
         if(features.usesOperator(StandardOperator.AddrOf)) {
           passes.add("lift_declarations");
@@ -384,13 +384,13 @@ public class Main
         passes.add("check");
         passes.add("standardize");
 
-        passes.add("java-check");
+        passes.add("check");
         passes.add("pointers_to_arrays");
-        passes.add("java-check");
+        passes.add("check");
         passes.add("desugar_valid_pointer");
-        passes.add("java-check");
+        passes.add("check");
         passes.add("array_null_values"); // rewrite null values for array types into None
-        passes.add("java-check");
+        passes.add("check");
         if (silver.used()){
           // The new encoding does not apply to Chalice yet.
           // Maybe it never will.

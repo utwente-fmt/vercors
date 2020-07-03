@@ -56,11 +56,6 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         ASTClass exceptionClass = create.new_class(
                 name,
                 null,
-                // Uncomment to turn on inheritance of exceptions
-                /* TODO: We do not want users to be able to catch these.
-                    Therefore, we need some type here outside the java type system,
-                    for example the supertype of java.lang.Object. */
-                // create.class_type(new String[]{"java", "lang", "Exception"})
                 null
         );
 

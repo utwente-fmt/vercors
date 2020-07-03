@@ -2,7 +2,6 @@ package vct.col.util;
 
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
-import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ClassType;
@@ -10,8 +9,6 @@ import vct.col.ast.type.Type;
 import vct.logging.PassReport;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * This class implements type checking of object oriented programs
