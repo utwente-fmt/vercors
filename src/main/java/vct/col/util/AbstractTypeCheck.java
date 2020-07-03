@@ -2057,41 +2057,4 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     }
     c.block().apply(this);
   }
-
-  public void reportError(VerCorsError e) {
-    if (report != null) {
-      MessageFactory log=new MessageFactory(new PassAddVisitor(report));
-      log.error(e);
-    }
-  }
-
-  public void visit(SignalsClause sc) {
-    if (!(sc.getType() instanceof ClassType)) {
-      ArrayList<Origin> auxOrigin = new ArrayList<>();
-      auxOrigin.add(sc.getOrigin());
-      reportError(new VerCorsError(
-              VerCorsError.ErrorCode.TypeError,
-              VerCorsError.SubCode.ClassTypeExpected,
-              sc.getType().getOrigin(),
-              auxOrigin
-      ));
-      Abort("Only class type is allowed in signals");
-    }
-    // TODO: Check for supertype must be exception (this should probably go in the java type checker)
-
-    super.visit(sc);
-  }
-
-  public void visit(CatchClause cc) {
-    // TODO: need to check also if type is not an interface
-    // TODO: And supertype of exception
-    // TODO: And that, if checked exception, exception appears in try body! (this should probably go in the java type checker)
-    // TODO: Multi-catch
-
-    if (!(cc.javaCatchTypes()[0] instanceof ClassType)) {
-      Abort("Must catch type inheriting from Throwable");
-    }
-
-    super.visit(cc);
-  }
 }

@@ -1,5 +1,7 @@
 package vct.col.util;
 
+import hre.ast.Origin;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.Method;
@@ -7,9 +9,15 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
+import vct.logging.MessageFactory;
+import vct.logging.PassAddVisitor;
 import vct.logging.PassReport;
+import vct.logging.VerCorsError;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * This class implements type checking of object oriented programs
@@ -47,19 +55,42 @@ public class JavaTypeCheck extends AbstractTypeCheck {
         Fail("Throws type must extend throwable");
       }
     }
+  }
 
-    // Signals must extend Throwable
-    if (m.getContract() != null) {
-      for (SignalsClause sc : m.getContract().signals) {
-        if (!throwableType.supertypeof(source(), sc.type())) {
-          enter(sc);
-          Fail("Signals clause type must extend Throwable");
-        }
-      }
+  public void visit(SignalsClause sc) {
+    super.visit(sc);
+
+    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
+    if (!throwableType.supertypeof(source(), sc.type())) {
+      reportFail("Signals type must extend Throwable",
+              VerCorsError.ErrorCode.TypeError, VerCorsError.SubCode.ExtendsThrowable,
+              sc.getType(), sc);
     }
   }
 
+  public void reportFail(VerCorsError e) {
+    if (report != null) {
+      MessageFactory log=new MessageFactory(new PassAddVisitor(report));
+      log.error(e);
+    } else {
+      Abort("Report was null: %s", e);
+    }
+  }
+
+  public void reportFail(String message, VerCorsError.ErrorCode ec, VerCorsError.SubCode sc, ASTNode primaryOrigin, ASTNode... secondaryOrigins) {
+    List<Origin> auxOrigin = Arrays.stream(secondaryOrigins).map(n -> n.getOrigin()).collect(Collectors.toList());
+    reportFail(new VerCorsError(
+            VerCorsError.ErrorCode.TypeError,
+            VerCorsError.SubCode.ExtendsThrowable,
+            primaryOrigin.getOrigin(),
+            auxOrigin
+    ));
+    Fail(message);
+  }
+
   public void visit(TryCatchBlock tcb) {
+    // TODO: And that, if checked exception, exception appears in try body! (this should probably go in the java type checker)
+    // TODO: Multi-catch
     super.visit(tcb);
 
     ArrayList<ClassType> encounteredCatchTypes = new ArrayList<>();
