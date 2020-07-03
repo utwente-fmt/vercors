@@ -23,6 +23,14 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   public void visit(Method m) {
     super.visit(m);
 
+    // Pure methods cannot throw exceptions
+    if (m.getKind() == Method.Kind.Pure) {
+      if (m.getContract().signals.length > 0 || m.throwy.length > 0) {
+        Fail("Pure methods cannot throw exceptions");
+      }
+    }
+
+    // Throwable must be typed properly
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
 
     for (Type t : m.throwy) {
