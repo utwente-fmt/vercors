@@ -1,9 +1,11 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases TypecheckCatch
+//:: cases TypecheckTryCatch
 //:: tools silicon
-//:: verdict Error
+//:: verdict Pass
 
-final class Ok {
+import java.io.*;
+
+class C1 {
     void m1() {
         try {
 
@@ -13,12 +15,24 @@ final class Ok {
     }
 }
 
-final class NotOk {
-    void m2() {
+class C2 {
+    void m1() {
         try {
-
-        } catch (Exception e) {
+            throw new IOException();
+        } catch (IOException e) {
 
         }
     }
+}
+
+class C2 {
+    void m1() {
+        try {
+            m2();
+        } catch (IOException e) {
+
+        }
+    }
+
+    void m2() throws IOException;
 }

@@ -5,7 +5,7 @@
 
 final class MyException extends Exception { }
 
-final class FooException extends Exception { }
+final class FooException extends RuntimeException { }
 
 final class MyClass {
     int x;
