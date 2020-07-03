@@ -32,6 +32,8 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   }
 
   public void visit(Method m) {
+    liveExceptionTypes = new HashSet<>();
+
     super.visit(m);
 
     // Pure methods cannot throw exceptions
@@ -52,6 +54,17 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       ClassType ct = (ClassType) t;
       if (!throwableType.supertypeof(source(), ct)) {
         Fail("Throws type must extend throwable");
+      }
+
+      // Remove throws type from the live exception types.
+      // Any types leftover have to be unchecked!
+      liveExceptionTypes.remove(t);
+    }
+
+    for (Type t : liveExceptionTypes) {
+      if (isCheckedException(source(), t)) {
+        reportFail(String.format("Cannot throw checked exception of type %s without adding it to the throws list", t),
+                VerCorsError.ErrorCode.TypeError, VerCorsError.SubCode.UnlistedExceptionType, m);
       }
     }
   }
@@ -79,8 +92,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   public void reportFail(String message, VerCorsError.ErrorCode ec, VerCorsError.SubCode sc, ASTNode primaryOrigin, ASTNode... secondaryOrigins) {
     List<Origin> auxOrigin = Arrays.stream(secondaryOrigins).map(n -> n.getOrigin()).collect(Collectors.toList());
     reportFail(new VerCorsError(
-            VerCorsError.ErrorCode.TypeError,
-            VerCorsError.SubCode.ExtendsThrowable,
+            ec, sc,
             primaryOrigin.getOrigin(),
             auxOrigin
     ));

@@ -53,7 +53,9 @@ public class VerCorsError extends AbstractMessage {
     MethodPreConditionFalse,
     ExtendsThrowable,
     UnspecifiedCause,
-    UnusedCatch;
+    UnusedCatch,
+    UnlistedExceptionType
+    ;
   }
   
   
