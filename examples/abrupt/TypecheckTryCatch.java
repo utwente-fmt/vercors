@@ -1,8 +1,7 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases TypecheckCatch
 //:: tools silicon
-//:: verdict Pass Ok.m1
-//:: verdict Fail NotOk.m2
+//:: verdict Error
 
 final class Ok {
     void m1() {
