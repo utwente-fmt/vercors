@@ -15,6 +15,8 @@ object ClassType {
   val labelType = new ClassType("<<label>>")
 
   val javaLangThrowableName = "java_DOT_lang_DOT_Throwable"
+  val javaLangExceptionName = "java_DOT_lang_DOT_Exception"
+  val javaLangRuntimeExceptionName = "java_DOT_lang_DOT_RuntimeException"
 
   /** Tests whether `name` holds the class type `java.lang.Object`. */
   def isJavaLangObject(name:List[String]) : Boolean =

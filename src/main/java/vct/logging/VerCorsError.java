@@ -52,7 +52,8 @@ public class VerCorsError extends AbstractMessage {
     InsufficientPermission,
     MethodPreConditionFalse,
     ExtendsThrowable,
-    UnspecifiedCause
+    UnspecifiedCause,
+    UnusedCatch;
   }
   
   
