@@ -1,11 +1,17 @@
 package vct.col.util;
 
+import vct.col.ast.stmt.composite.CatchClause;
+import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.logging.PassReport;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This class implements type checking of object oriented programs
@@ -30,7 +36,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       }
     }
 
-    // Throwable must be typed properly
+    // Throws types must inherit from Throwable
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
 
     for (Type t : m.throwy) {
@@ -42,6 +48,46 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       if (!throwableType.supertypeof(source(), ct)) {
         Fail("Throws type must extend throwable");
       }
+    }
+  }
+
+  public void visit(TryCatchBlock tcb) {
+    super.visit(tcb);
+
+    ArrayList<ClassType> encounteredCatchTypes = new ArrayList<>();
+    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
+
+    for (CatchClause cc : tcb.catches()) {
+      enter(cc);
+      ArrayList<ClassType> encounteredMultiCatchTypes = new ArrayList<>();
+
+      for (Type catchType : cc.javaCatchTypes()) {
+        if (!(catchType instanceof ClassType)) {
+          Fail("Catch clause types must be class types");
+        }
+
+        ClassType ct = (ClassType) catchType;
+
+        if (!throwableType.supertypeof(source(), ct)) {
+          Fail("Catch clause types must inherit from Throwable");
+        }
+
+        for (ClassType t : encounteredMultiCatchTypes) {
+          if (t.supertypeof(source(), ct)) {
+            Fail("Types within a multi-catch cannot be subtypes");
+          }
+        }
+        encounteredMultiCatchTypes.add(ct);
+
+        for (Type t : encounteredCatchTypes) {
+          if (t.supertypeof(source(), ct)) {
+            Fail("Catch type %s is already caught by earlier catch clause", ct);
+          }
+        }
+        encounteredCatchTypes.add(ct);
+      }
+
+      leave(cc);
     }
   }
 

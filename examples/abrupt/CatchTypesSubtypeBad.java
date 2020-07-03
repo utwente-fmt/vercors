@@ -1,7 +1,9 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases CatchTypesOverlap
+//:: cases CatchTypesSubtypeBad
 //:: tools silicon
 //:: verdict Error
+
+import java.io.*;
 
 class MyClass {
     void foo() {
@@ -9,7 +11,7 @@ class MyClass {
             throw new Exception();
         } catch (Exception e) {
 
-        } catch (Exception f) {
+        } catch (IOException f) {
 
         }
     }
