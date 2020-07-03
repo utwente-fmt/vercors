@@ -145,6 +145,12 @@ public class BreakReturnToExceptions extends AbstractRewriter {
     }
 
     public void visit(Method method) {
+        // Pure methods and predicates are not touched at all
+        if (!(method.getKind() == Method.Kind.Constructor || method.getKind() == Method.Kind.Plain)) {
+            result = copy_rw.rewrite(method);
+            return;
+        }
+
         super.visit(method);
         Method resultMethod = (Method) result;
 

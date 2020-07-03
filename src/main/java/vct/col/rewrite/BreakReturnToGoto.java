@@ -85,10 +85,14 @@ public class BreakReturnToGoto extends AbstractRewriter {
     }
 
     public void visit(Method method) {
+        // Pure methods and predicates are not touched at all
+        if (!(method.getKind() == Method.Kind.Constructor || method.getKind() == Method.Kind.Plain)) {
+            result = copy_rw.rewrite(method);
+            return;
+        }
+
         currentMethod = method.getName();
-
         super.visit(method);
-
         currentMethod = null;
 
         if (breakLabels.size() + continueLabels.size() != 0) {
