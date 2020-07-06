@@ -1,7 +1,7 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases SignalsMustPropagate
 //:: tools silicon
-//:: verdict Error
+//:: verdict Fail
 
 class C {
     void m1() {

@@ -25,7 +25,7 @@ class C2 {
     }
 }
 
-class C2 {
+class C3 {
     void m1() {
         try {
             m2();
