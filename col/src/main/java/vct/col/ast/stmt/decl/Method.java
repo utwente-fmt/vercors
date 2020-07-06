@@ -332,6 +332,26 @@ public class Method extends ASTDeclaration {
     argList.add(0, newArg);
     args = argList.toArray(new DeclarationStatement[argList.size()]);
   }
+
+  /**
+   * True if the method "can throw" as defined in the Java spec, which means it must have exceptions
+   * in the throws attribute.
+   * See: https://docs.oracle.com/javase/specs/jls/se7/html/jls-11.html#jls-11.2
+   */
+  public boolean canThrow() {
+    return throwy.length > 0;
+  }
+
+  /**
+   * True if the method is specified to throw, i.e. has signals clauses, or can throw according
+   * to the java spec.
+   *
+   * Note that a signals clause does not guarantee an exception is thrown.
+   * Example: "signals (Exception e) false;" guarantees an "Exception" will never be thrown.
+   */
+  public boolean canThrowSpec() {
+    return getContract().signals.length > 0 || canThrow();
+  }
 }
 
 
