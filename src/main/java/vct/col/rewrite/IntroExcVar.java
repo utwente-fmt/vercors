@@ -2,9 +2,11 @@ package vct.col.rewrite;
 
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
+import vct.col.ast.type.ClassType;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.util.FeatureScanner;
 
@@ -38,22 +40,19 @@ public class IntroExcVar extends AbstractRewriter {
             return;
         }
 
-        FeatureScanner scanner = new FeatureScanner();
-        resultMethod.accept(scanner);
-
-        if (canThrow(resultMethod)) {
+        if (method.canThrowSpec()) {
             // Add out parameter
-            resultMethod.prependArg(result.getOrigin(), excVar, create.class_type(objectClass), true);
+            resultMethod.prependArg(result.getOrigin(), excVar, create.class_type(ClassType.javaLangObjectName()), true);
 
             // Set initial value to null if method has a body
             if (resultMethod.getBody() != null) {
                 BlockStatement body = (BlockStatement) resultMethod.getBody();
                 body.prepend(create.assignment(create.local_name(excVar), create.reserved_name(ASTReserved.Null)));
             }
-        } else if (scanner.usesFinally() || scanner.usesCatch()) {
+        } else if (usesExceptionalControlFlow(method)) {
             // Add local variable and init as null
             BlockStatement body = (BlockStatement) resultMethod.getBody();
-            body.prepend(create.field_decl(excVar, create.class_type(objectClass), create.reserved_name(ASTReserved.Null)));
+            body.prepend(create.field_decl(excVar, create.class_type(ClassType.javaLangObjectName()), create.reserved_name(ASTReserved.Null)));
         }
     }
 
@@ -83,7 +82,7 @@ public class IntroExcVar extends AbstractRewriter {
                     create.reserved_name(ASTReserved.Null)
             ));
 
-            // TODO (Bob): Once we have subtyping turn this into regular assignment, since this is a hack
+            // TODO: Once we have subtyping turn this into regular assignment, since this is a hack
             // Suprised it even works w.r.t. typechecking (could this indicate a bug in the type checker?)
             // Assign the global exc variable to the local formal parameter of the catch block
             // This way of any assertions or permissions on the exc variable were given earlier, they can also be used here
@@ -101,7 +100,7 @@ public class IntroExcVar extends AbstractRewriter {
             return;
         }
 
-        if (canThrow(methodInvokation)) {
+        if (methodInvokation.canThrowSpec()) {
             // Add exception parameter
             MethodInvokation resultInvokation = (MethodInvokation) result;
             resultInvokation.prependArg(create.local_name(excVar));
