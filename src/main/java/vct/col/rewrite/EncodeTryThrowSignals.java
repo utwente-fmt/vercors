@@ -282,17 +282,17 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         Method resultMethod = (Method) result;
         Contract contract = resultMethod.getContract();
 
-        if (contract.signals.length > 0) {
+        if (resultMethod.canThrowSpec()) {
             ASTNode newPostCondition = create.expression(StandardOperator.Implies,
                     create.expression(StandardOperator.EQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
                     contract.post_condition
                     );
 
-            ASTNode flattenedSignals = flattenSignals(contract.signals);
+            ASTNode flattenedSignals = flattenSignals(generateSignals(method.throwy, contract.signals));
 
             ASTNode excVarTypeConstrain = create.expression(StandardOperator.Implies,
                     create.expression(StandardOperator.NEQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
-                    constrainExcPostcondition(contract.signals)
+                    constrainExcPostcondition(method.throwy, contract.signals)
                     );
 
             resultMethod.setContract(new Contract(
@@ -315,17 +315,21 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      * I.e. excVar instanceof signalsType0 || excVar instanceof signalsType1 || .. || excVar instanceof signalsTypeN-1
      * It uses the instanceof encoding in AddTypeADT
      */
-    private ASTNode constrainExcPostcondition(SignalsClause[] signals) {
-        if (signals.length == 0) {
+    private ASTNode constrainExcPostcondition(Type[] throwy, SignalsClause[] signals) {
+        Type[] types = Stream.concat(
+                Arrays.stream(throwy),
+                Arrays.stream(signals).map(sc -> sc.type())).toArray(n -> new Type[n]);
+
+        if (types.length == 0) {
             return create.constant(true);
         }
 
-        ASTNode constraint = AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) signals[0].type());
+        ASTNode constraint = AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) types[0]);
 
         for (int i = 1; i < signals.length; i++) {
             constraint = create.expression(StandardOperator.Or,
                     constraint,
-                    AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) signals[0].type()));
+                    AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) types[i]));
         }
 
         return constraint;
@@ -337,6 +341,30 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         } else {
             super.visit(e);
         }
+    }
+
+    /**
+     * Generates default exceptional postconditions for throws types that do not have
+     * a signals clause.
+     */
+    private SignalsClause[] generateSignals(Type[] throwy, SignalsClause[] signals) {
+        Set<Type> throwsTypes = Arrays.stream(throwy).collect(Collectors.toSet());
+        Set<Type> signalsTypes = Arrays.stream(signals)
+                .map(sc -> sc.type())
+                .collect(Collectors.toSet());
+
+        // If eachs throws type already has a signals clause, no default postconditions have to be added
+        if (signalsTypes.containsAll(throwsTypes)) {
+            return signals;
+        }
+
+        throwsTypes.removeAll(signalsTypes);
+
+        return Stream.concat(
+                throwsTypes.stream()
+                    .map(t -> new SignalsClause("e", copy_rw.rewrite(t), create.constant(true))),
+                Arrays.stream(signals)
+        ).toArray(n -> new SignalsClause[n]);
     }
 
     private ASTNode flattenSignals(SignalsClause[] signals) {
@@ -378,11 +406,8 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             Abort("Non-void method invokation can only be used as expression of assignment");
         }
 
-        // If there's no contract we do not need to account for exceptions being thrown
-        /* TODO (Bob): Signals is leading, throws needs to be compiled away in the java phase! Also below!
-         */
-        SignalsClause[] signals = invokation.getDefinition().getContract().signals;
-        if (signals == null || signals.length == 0) {
+        // If the invokation does not throw nothing needs to be done
+        if (!invokation.canThrowSpec()) {
             return;
         }
 
