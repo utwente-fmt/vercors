@@ -16,8 +16,9 @@ import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static vct.col.rewrite.AddTypeADT.type_adt;
 import static vct.col.rewrite.IntroExcVar.excVar;
@@ -28,16 +29,16 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         super(source);
     }
 
-    // Object here because CatchClause is not an ASTNode. But if this ever changes
-    // it should probably be an ASTNode.
-    HashMap<Object, String> entryLabels = new HashMap<>();
-    HashMap<Object, String> postLabels = new HashMap<>();
+    HashMap<ASTNode, String> entryLabels = new HashMap<>();
+    HashMap<ASTNode, String> postLabels = new HashMap<>();
+    HashMap<ASTNode, String> oldExcVarName = new HashMap<>();
 
     int counter;
 
     /**
      * Holds the most recently encountered label. Since we traverse in a post-order, this variable
      * always holds the label of the next finally or catch clause that a throw should jump to.
+     * TODO (Bob): Want to turn this into a stack, not implicit stack on the... stack.
      */
     String nearestHandlerLabel = null;
 
@@ -60,7 +61,6 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      * Generates post labels (i.e. labels supposed to be located directly after a statement) for tryCatchBlock.
      * Labels are saved in entryLabels and postLabels and keyed to the input AST elements.
      * They are saved in a hashmap because the counter needed to keep the labels unique is stateful.
-     * @param tryCatchBlock
      */
     public void generateLabels(TryCatchBlock tryCatchBlock) {
         for (CatchClause catchClause : tryCatchBlock.catches()) {
@@ -75,6 +75,8 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         String label = generateLabel("try_end");
         postLabels.put(tryCatchBlock, label);
+
+        oldExcVarName.put(tryCatchBlock, "old__sys_exc_" + counter++);
     }
 
     /**
@@ -106,6 +108,15 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         });
 
         generateLabels(tryCatchBlock);
+
+        // Store the old exception value, so we can restore it later if we throw exceptions internally but catch them all
+        // Split up into two because otherwise the reorder phase moves the decl before the sys__exc = null; assignment
+        currentBlock.append(create.field_decl(
+                oldExcVarName.get(tryCatchBlock),
+                create.class_type(ClassType.javaLangObjectName())));
+        currentBlock.append(create.assignment(
+                create.local_name(oldExcVarName.get(tryCatchBlock)),
+                create.local_name(excVar)));
 
         ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catches());
 
@@ -201,6 +212,19 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         currentBlock.append(rewrite(catchClause.block()));
 
+        // excVar is set to null at the start of a catch block
+        // Therefore, if the generated code is not buggy, at the end of a catch block it should still be null
+        currentBlock.append(create.special(ASTSpecial.Kind.Assert, create.expression(StandardOperator.EQ,
+                create.local_name(excVar),
+                create.reserved_name(ASTReserved.Null)
+                )));
+        // Then set excVar to the exception value as on entry of the try catch block.
+        // This enables nesting of try-catch-finallies, as they overwrite exceptions otherwise
+        currentBlock.append(create.assignment(
+                create.local_name(excVar),
+                create.local_name(oldExcVarName.get(tryCatchBlock))
+                ));
+
         String targetLabel;
         if (tryCatchBlock.after() != null) {
             targetLabel = entryLabels.get(tryCatchBlock.after());
@@ -229,7 +253,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.NEQ,
                         create.local_name(excVar),
-                        create.reserved_name(ASTReserved.Null)
+                        create.local_name(oldExcVarName.get(tryCatchBlock))
                 ),
                 create.gotoStatement(nearestHandlerLabel)
         ));
@@ -304,9 +328,19 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                     contract.pre_condition,
                     create.expression(StandardOperator.Star,
                             newPostCondition,
-                            create.expression(StandardOperator.Star, flattenedSignals, excVarTypeConstrain)
-                    )
-            ));
+                            create.expression(StandardOperator.Star,
+                                    flattenedSignals,
+                                    excVarTypeConstrain))));
+
+        } else if (IntroExcVar.usesExceptionalControlFlow(method)) {
+            // Ensure that at the end of a method no exception has escaped
+            BlockStatement methodBody = (BlockStatement) resultMethod.getBody();
+            methodBody.append(create.special(ASTSpecial.Kind.Assert,
+                    create.expression(StandardOperator.EQ,
+                            create.local_name(excVar),
+                            create.reserved_name(ASTReserved.Null)
+                            )
+                    ));
         }
     }
 
