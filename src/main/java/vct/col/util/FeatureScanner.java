@@ -5,20 +5,17 @@ import java.util.HashSet;
 import java.util.function.Consumer;
 
 import scala.util.control.Exception;
+import vct.col.ast.expr.*;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
-import vct.col.ast.expr.Binder;
-import vct.col.ast.expr.BindingExpression;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.RecursiveVisitor;
-import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
 
 public class FeatureScanner extends RecursiveVisitor<Object> {
@@ -42,6 +39,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private boolean has_synchronized_modifier;
   private boolean has_synchronized_statement = false;
   private boolean has_catch = false;
+  private boolean has_throwing_method_calls = false;
   private boolean uses_csl=false;
   private EnumSet<StandardOperator> ops_used=EnumSet.noneOf(StandardOperator.class);
   private EnumSet<ASTSpecial.Kind> specials_used=EnumSet.noneOf(ASTSpecial.Kind.class);
@@ -126,6 +124,10 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
 
   public boolean usesCatch() {
     return has_catch;
+  }
+
+  public boolean usesThrowingMethodCalls() {
+    return has_throwing_method_calls;
   }
 
   public void pre_visit(ASTNode node){
@@ -244,5 +246,13 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
     super.visit(synchronizedStatement);
 
     has_synchronized_statement = true;
+  }
+
+  public void visit(MethodInvokation mi) {
+    super.visit(mi);
+
+    if (mi.getDefinition() != null && mi.getDefinition().getContract() != null) {
+      has_throwing_method_calls |= mi.getDefinition().canThrowSpec();
+    }
   }
 }

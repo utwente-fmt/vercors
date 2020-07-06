@@ -14,6 +14,7 @@ object ClassType {
   val nullType = new ClassType("<<null>>")
   val labelType = new ClassType("<<label>>")
 
+  val javaLangObjectName = "java_DOT_lang_DOT_Object"
   val javaLangThrowableName = "java_DOT_lang_DOT_Throwable"
   val javaLangExceptionName = "java_DOT_lang_DOT_Exception"
   val javaLangRuntimeExceptionName = "java_DOT_lang_DOT_RuntimeException"
