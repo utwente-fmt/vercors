@@ -131,7 +131,6 @@ public class VoidCallsThrown extends AbstractRewriter {
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
     Objects.requireNonNull(m, "Method definition required");
-//    if (m==null) Abort("unexpected null method definition at %s",e.getOrigin());
     switch(m.kind){
     case Predicate:
     case Pure:
