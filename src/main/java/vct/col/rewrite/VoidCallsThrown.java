@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.stmt.composite.IfStatement;
@@ -129,7 +130,8 @@ public class VoidCallsThrown extends AbstractRewriter {
   
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
-    if (m==null) Abort("unexpected null method definition at %s",e.getOrigin());
+    Objects.requireNonNull(m, "Method definition required");
+//    if (m==null) Abort("unexpected null method definition at %s",e.getOrigin());
     switch(m.kind){
     case Predicate:
     case Pure:
