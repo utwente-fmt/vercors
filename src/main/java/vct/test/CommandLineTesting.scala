@@ -78,6 +78,9 @@ object CommandLineTesting {
   private val coverageReportFile = new StringSetting("jacoco.xml")
   private val coverageReportFileOption = coverageReportFile.getAssign("Name of coverage report output file")
 
+  private val coverageHtmlReportFile = new StringSetting(null)
+  private val coverageHtmlReportFileOption = coverageHtmlReportFile.getAssign("Creates a new directory containing coverage report in html")
+
   private val travisTestOutput = new BooleanSetting(false)
   private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
 
@@ -148,6 +151,7 @@ object CommandLineTesting {
     parser.add(enableCoverageOption, "enable-test-coverage")
     parser.add(tempCoverageReportPathOption, "coverage-temp-dir")
     parser.add(coverageReportFileOption, "coverage-output-file")
+    parser.add(coverageHtmlReportFileOption, "coverage-html-dir")
   }
 
   def getCases: Map[String, Case] = {
@@ -202,6 +206,7 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
+          // Tests are instrumented at runtime by the jacoco java vm agent
           val jacocoArg = if (enableCoverage.get()) {
             val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_${name}.exec"
             Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=destfile=$jacocoOutputFilePath")
@@ -246,6 +251,9 @@ object CommandLineTesting {
     })
 
     jacocoCli.addArg("--xml", Paths.get(coverageReportFile.get()).toFile.getAbsolutePath)
+    if (coverageHtmlReportFile.used && coverageHtmlReportFile.get() != null) {
+      jacocoCli.addArg("--html", Paths.get(coverageHtmlReportFile.get()).toFile.getAbsolutePath)
+    }
 
     Output("Aggegrating coverages...")
     val task = Task(jacocoCli, Seq())
