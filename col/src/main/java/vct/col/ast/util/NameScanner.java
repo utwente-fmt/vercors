@@ -2,6 +2,7 @@ package vct.col.ast.util;
 
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.Objects;
 
 import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
@@ -39,9 +40,7 @@ public class NameScanner extends RecursiveVisitor<Object> {
             Fail("type mismatch %s != %s",t,vars.get(name));
           }
         } else {
-          if (t==null){
-            Abort("type of %s is null",name);
-          }
+          Objects.requireNonNull(t, String.format("type of %s is null", name));
           vars.put(name,t);
           t.accept(this);
         }

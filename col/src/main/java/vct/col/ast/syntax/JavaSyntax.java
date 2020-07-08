@@ -216,6 +216,9 @@ public class JavaSyntax extends Syntax {
     syntax.addReserved(Default,"default");
     syntax.add_annotation(ASTSpecial.Kind.Continue,"continue");
     syntax.add_annotation(ASTSpecial.Kind.Break,"break");
+
+    syntax.addInfix(Drop, "drop", 85);
+    syntax.addInfix(Take, "take", 85);
   }
 
   @Override

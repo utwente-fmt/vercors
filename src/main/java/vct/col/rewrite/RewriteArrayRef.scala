@@ -113,7 +113,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
         val array = operator.arg(0)
         result = create.invokation(null, null, RewriteArrayRef.getArrayValues(array.getType), rewrite(operator.args.toArray):_*)
       case StandardOperator.Drop =>
-        val seqInfo = SequenceUtils.getInfoOrFail(operator.arg(0), "Expected a sequence type at %s, but got %s")
+        val seqInfo = SequenceUtils.getInfoOrFail(operator.arg(0), "Expected a sequence type but got %s")
         if(seqInfo.getSequenceSort == PrimitiveSort.Array) {
           val array = rewrite(operator.arg(0))
           array.setType(seqInfo.getCompleteType)
@@ -291,7 +291,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     val contract = new ContractBuilder
     val from: ASTNode = name("from")
     val to: ASTNode = name("to")
-    val seqInfo = SequenceUtils.expectArrayType(t, "Expected array at %s but got %s")
+    val seqInfo = SequenceUtils.expectArrayType(t, "Expected array but got %s")
     val i: ASTNode = name("i")
     val iDecl: Array[DeclarationStatement] = Array(create.field_decl("i", create.primitive_type(PrimitiveSort.Integer)))
 
@@ -356,7 +356,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
   def validMatrixFor(input: ASTNode, t: Type, size0: ASTNode, size1: ASTNode): ASTNode = {
     val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
     val seqInfo0 = SequenceUtils.expectArrayType(t, "Expected a matrix type here, but got %s")
-    val seqInfo1 = SequenceUtils.expectArrayType(seqInfo0.getElementType, "The subscripts of a matrix should be of array type, but got %")
+    val seqInfo1 = SequenceUtils.expectArrayType(seqInfo0.getElementType, "The subscripts of a matrix should be of array type, but got %s")
 
     var matrix = input
 

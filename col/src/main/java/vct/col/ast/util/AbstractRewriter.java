@@ -19,7 +19,9 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import hre.util.LambdaHelper;
 
+import java.lang.reflect.Array;
 import java.util.*;
+import java.util.stream.Stream;
 
 /**
  * This abstract rewriter copies the AST it is applied to.
@@ -260,22 +262,14 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     }
     return result;
   }
-  
-  @SafeVarargs
-  private final <E extends ASTNode> E[] glue(E... args){
-    return Arrays.copyOf(args,args.length);
-  }
-  
+
   public <E extends ASTNode> E[] rewrite(E head,E[] tail){
-    E[] res;
-    if (tail==null) {
-      res=glue(head);
-    } else {
-      res=Arrays.copyOf(tail, tail.length+1);
-    }
-    res[0]=rewrite(head);
-    for(int i=0;i<tail.length;i++){
-      res[i+1]=rewrite(tail[i]);
+    Objects.requireNonNull(head, "Can only rewrite head-tail with non-null arguments");
+    Objects.requireNonNull(tail, "Can only rewrite head-tail with non-null arguments");
+    E[] res = Arrays.copyOf(tail, tail.length + 1);
+    res[0] = rewrite(head);
+    for(int i = 0; i < tail.length; i++){
+      res[i + 1] = rewrite(tail[i]);
     }
     return res;
   }
