@@ -11,8 +11,8 @@ import vct.parsers.ColIParser;
 import vct.parsers.ColJavaParser;
 import vct.parsers.ColPVLParser;
 import vct.silver.ColSilverParser;
-import static hre.lang.System.Fail;
-import static hre.lang.System.Progress;
+
+import static hre.lang.System.*;
 
 public class Parsers {
   
@@ -44,9 +44,15 @@ public class Parsers {
     }
     String lang=name.substring(dot+1);
     Progress("Parsing %s file %s",lang,name);
-    ProgramUnit unit=Parsers.getParser(lang).parse(new File(name));
-    Progress("Read %s succesfully",name);
-    return unit;
+    Parser parser = Parsers.getParser(lang);
+    if (parser == null) {
+      Abort("Cannot detect language for extension \".%s\"", lang);
+      return null;
+    } else {
+      ProgramUnit unit=Parsers.getParser(lang).parse(new File(name));
+      Progress("Read %s succesfully",name);
+      return unit;
+    }
   }
 
 }
