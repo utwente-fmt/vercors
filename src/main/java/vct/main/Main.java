@@ -149,6 +149,7 @@ public class Main
       clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn");
       
       Configuration.add_options(clops);
+      viper.api.util.Configuration.addOptions(clops);
 
       String input[]=clops.parse(args);
 
