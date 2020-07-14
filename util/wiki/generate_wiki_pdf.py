@@ -1,9 +1,9 @@
 import re
-from urllib.parse import unquote
+import subprocess
 import tempfile
+from urllib.parse import unquote
 import pypandoc
 import json
-import pprint
 import os
 import base64
 import optparse
@@ -143,6 +143,7 @@ def collect_testcases(chapter, cases):
     Walks through the blocks of a chapter and collects test cases as described in SnippetTestcase and TemplateTestcase
     """
     breadcrumbs = []
+    testcase_number = 1
     code_block_label = None
 
     for block in chapter['blocks']:
@@ -162,6 +163,7 @@ def collect_testcases(chapter, cases):
             breadcrumbs = breadcrumbs[:block['c'][0]]
             breadcrumbs += ['?'] * (block['c'][0] - len(breadcrumbs))
             breadcrumbs[block['c'][0] - 1] = block['c'][1][0]
+            testcase_number = 1
 
         # Raw blocks that are comments starting with something we recognize are processed
         if block['t'] == 'RawBlock' and block['c'][0] == 'html':
@@ -172,7 +174,8 @@ def collect_testcases(chapter, cases):
 
                 # Template label
                 if kind in {'testBlock', 'testMethod', 'testClass'}:
-                    code_block_label = '-'.join(breadcrumbs)
+                    code_block_label = '-'.join(breadcrumbs) + '-' + str(testcase_number)
+                    testcase_number += 1
                     cases[code_block_label] = TemplateTestcase(kind, args[0] if args else 'Pass')
 
                 # Snippet
@@ -260,10 +263,14 @@ if __name__ == "__main__":
 
     options, args = parser.parse_args()
 
-    if not options.source_path:
-        parser.error('An input path is required')
+    if options.source_path:
+        source_path = options.source_path
+    else:
+        path = tempfile.mkdtemp()
+        subprocess.run(["git", "clone", "https://github.com/utwente-fmt/vercors.wiki.git"], cwd=path)
+        source_path = os.path.join(path, "vercors.wiki")
 
-    chapters = collect_chapters(options.input_path)
+    chapters = collect_chapters(source_path)
     pandoc_version = chapters[0]['pandoc-api-version']
     cases = {}
 
@@ -277,4 +284,4 @@ if __name__ == "__main__":
         output_php(options.php_path, blocks, cases, pandoc_version)
 
     if options.pdf_path:
-        output_pdf(pdf_path, blocks, pandoc_version)
+        output_pdf(options.pdf_path, blocks, pandoc_version)
