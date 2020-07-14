@@ -34,6 +34,9 @@ before_cache:
 before_install: ./.travis/decrypt-vercors-scratch-ci-key.sh
 matrix:
   include:
+    - stage: Build
+      script: printf "Hello World\n"
+    - stage: Tests
     - script:
         - ./.travis/sync.sh
         - SPLIT=0/5 ./.travis/build.sh
@@ -49,6 +52,7 @@ matrix:
     - script:
         - ./.travis/sync.sh
         - SPLIT=4/5 ./.travis/build.sh
+    - stage: Analysis
     - script:
         - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
         - ./.travis/travis_fold.sh acquire_coverage "Acquiring coverage files" "./bin/run-class vct.travis.CoverageAggregator --help"

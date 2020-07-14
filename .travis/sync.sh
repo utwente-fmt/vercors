@@ -1,8 +1,12 @@
 #!/bin/bash
 
+VERCORS_FILE_SERVER_IP="130.89.1.130"
+VERCORS_FILE_SERVER_PORT="30303"
+VERCORS_FILE_SERVER_ADDR="${VERCORS_FILE_SERVER_IP}:${VERCORS_FILE_SERVER_PORT}"
+
 mkdir -p sync/$TRAVIS_BUILD_NUMBER
-touch sync/$TRAVIS_BUILD_NUMBER/${TRAVIS_BUILD_ID}.txt
+touch sync/$TRAVIS_BUILD_NUMBER/${TRAVIS_JOB_NUMBER}.txt
 ls
 ls sync
-RSYNC_PASSWORD="${VERCORS_RSYNC_PASSWORD}" rsync -avP --no-perms --no-owner --no-group ./sync/* rsync://travis@130.89.1.130:30303/volume
+RSYNC_PASSWORD="${VERCORS_RSYNC_PASSWORD}" rsync -avP --no-perms --no-owner --no-group ./sync/* rsync://travis@${VERCORS_FILE_SERVER_ADDR}/volume
 ls sync
