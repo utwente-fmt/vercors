@@ -10,6 +10,9 @@ env:
   global:
     # GH_TOKEN=abcde: authorized to push
     secure: eqD1V2aWz4ggaSMT4oZK5VcOd8Wu7zYfuPPX91jW3iupRuFMVPTc3lozhzMbS0c6HBwhu1RvQGYqJxtQ41BnR/Wg9F92+pXfxd0X5OngI9GR2CJ3JM3sEqUZfxIhUGUW1U1GOzm32Z9W8gFie9gsTfl3KEkzT30dUENFjOkNJIf17DqSsrR+Mg3rj1ILR7d6NgGsy0reV8y3k17ajZmnNrbMbAx1PQDyGU8yjfsymjZoZY5A0lhG1uYhEKDFuLH8ep1VPbNqA3n4M8pbrtgDnZZRfsKohRl9nOP4lpZUam2yOKZ78YNMe7X5tHytdYC5HorsibJrcS00Vp6R4j30PXeQeNq6G9livmevVfifSJ1I4PKHc33RXUOqNoWZ5D4ft07MfZZsAUVrvmpR1oj2x9iXBr6k3yNUH2Bu+rpmG6Ewk0aFAm04uhFlReSWRLuNdi8Mfp5zdDrzPKTWG3pOYyL7j6MLwS6YZ0WO1I3BiR6ii6kidR4Bbpu/11ik5/Hbe9+vZ9pESg5RDQf4gQjTWc8L0WH/y767Fo4wbwITGuGkNLdAlGMbb+h2wPK/W5EuCNpnzLCDNpn7xz37c1uTiK9JXI18qx8/VgBGY12qk7avgQvbkI5zXPqo1fdZgpK6fXdKxJdF47ZhmZbuQCjp8EpCPNlVwhzVHQKfG+S3egU=
+
+    # VERCORS_RSYNC_PASSWORD
+    secure: "BmCRtuUyZexNVbuu9QjRZ1P+4nAyDK1vLbFbhsxOT4HuOJx7arsKjYMGtpn+mGiUzw0Qid11DZ5VoE91ip7KxfNIPOViRLVs9EC+r4NcsC0fgik9/3iElZhg0AoHP9Gzblt8nYpzdRXhK6rFxn0FzHK305+tJw1soMzmIrRT8xBeAW4cStABPaOvtUENY1BYYWk5WIXD98ZM+bdMaR/lDdFM32XF8A+w3EbXiD8W3gxUvy4PbZKXM+XgjPg4mJnuY1Xshixbl+OjqNPGDw2J6sk2NyrArQ8mHV6xTWv3SLQOCGJWO80OYaBogzwZlyrItpT2nNVolFNMf7QURiQQRa3iO6hbgXLH1mYC4zvOmTAw1IOKwUwKrp2ALU50ecmi1JXS/xz8xoull8KnM4FSr5dv403j+5LOcL3XyhMGg4kYCiPtueEcFvgRVMV1WSc2uGM8YpFLTsDwYBGPdW1xu9QfegR1Je/N0TNM2DxWQQ5mHpfNISyU4mrdjh9PhEMn3bUbn52PP5F6NGzdttnddU4oeVz23bt0AeyyUuax1vOa9HayoN1qHXBu5ZVTm0776UoHhlWfzZ7U8gjJMuOUhl3t3suQgN2Fi2rtpeF3NCe8enXcMckrAKpygie22ZtBLY/vHWx1/60HXq7UWwMVGP6UIn14nVlY+6nIhwWwUyA="
 addons:
   sonarcloud:
     organization: utwente-fmt
@@ -18,6 +21,7 @@ addons:
   apt:
     packages:
       - checkstyle
+      - rsync
 cache:
   directories:
     - "~/.cache/coursier"
@@ -30,11 +34,21 @@ before_cache:
 before_install: ./.travis/decrypt-vercors-scratch-ci-key.sh
 matrix:
   include:
-    - script: SPLIT=0/5 ./.travis/build.sh
-    - script: SPLIT=1/5 ./.travis/build.sh
-    - script: SPLIT=2/5 ./.travis/build.sh
-    - script: SPLIT=3/5 ./.travis/build.sh
-    - script: SPLIT=4/5 ./.travis/build.sh
+    - script:
+        - ./.travis/sync.sh
+        - SPLIT=0/5 ./.travis/build.sh
+    - script:
+        - ./.travis/sync.sh
+        - SPLIT=1/5 ./.travis/build.sh
+    - script:
+        - ./.travis/sync.sh
+        - SPLIT=2/5 ./.travis/build.sh
+    - script:
+        - ./.travis/sync.sh
+        - SPLIT=3/5 ./.travis/build.sh
+    - script:
+        - ./.travis/sync.sh
+        - SPLIT=4/5 ./.travis/build.sh
     - script:
         - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
         - ./.travis/travis_fold.sh acquire_coverage "Acquiring coverage files" "./bin/run-class vct.travis.CoverageAggregator --help"
