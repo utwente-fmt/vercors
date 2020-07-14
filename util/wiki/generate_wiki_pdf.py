@@ -263,6 +263,9 @@ if __name__ == "__main__":
 
     options, args = parser.parse_args()
 
+    if not any([options.php_path, options.pdf_path]):
+        parser.error("No output type: please set one or more of the output paths. (try --help)")
+
     if options.source_path:
         source_path = options.source_path
     else:
