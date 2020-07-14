@@ -1,12 +1,22 @@
 package vct.z3
 
-import java.io.PrintWriter
+import java.io.{BufferedWriter, File, PrintWriter}
 
-import hre.io.NamedPipeListener
+import hre.io.{NamedPipe, NamedPipeListener}
 import hre.lang.System._
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+
+object LogParser {
+  def main(args: Array[String]): Unit = {
+    val parser = new LogParser
+    val pipe = NamedPipe.create(parser, "vercors-z3-log-", "-01.log")
+    println(s"Waiting for z3 to open ${pipe.path}")
+    hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info)
+    hre.lang.System.setErrorStream(System.out, hre.lang.System.LogLevel.Info)
+  }
+}
 
 class LogParser extends NamedPipeListener {
   val log = new Z3Log
@@ -20,13 +30,90 @@ class LogParser extends NamedPipeListener {
 }
 
 class Z3Log {
-  sealed trait Expr {
+  sealed trait InstantiationCause
+
+  sealed abstract class Expr extends InstantiationCause {
     def precedence: Int
     def asUnicode: String = asUnicodeImpl(Seq())
     def asUnicodeImpl(scope: Binder.VarInfo): String
     def asUnicodeParen(scope: Binder.VarInfo, maxPrecedence: Int, assoc: Boolean): String =
       if(precedence < maxPrecedence || (precedence == maxPrecedence && assoc))
         asUnicodeImpl(scope) else "(" + asUnicodeImpl(scope) + ")"
+
+    override def toString: String = asUnicode
+
+    var origin: Option[Origin] = None
+    var descendants: ArrayBuffer[Expr] = ArrayBuffer()
+
+    def children: Seq[Expr] = {
+      this match {
+        case App(_, args) => args
+        case QuantVar(_) => Seq()
+        case Quantifier(_, triggers, body) => triggers :+ body
+        case Lambda(_, body) => Seq(body)
+      }
+    }
+
+    def inheritFrom(other: Expr): Unit = {
+      if(other == this) {
+        return
+      }
+
+      other.origin match {
+        case None =>
+          val value = DelayedInherit(other)
+          origin match {
+            case None =>
+              origin = Some(value)
+              other.descendants += this
+            case Some(oldOrigin) if oldOrigin.precedence < value.precedence =>
+              origin = Some(value)
+              other.descendants += this
+            case _ =>
+          }
+        case Some(o) =>
+          this match {
+            case App(f, _) if f.contains("!") && f.contains("@") && o.isInstanceOf[Assertion] =>
+              Warning("%s", this)
+            case _ =>
+          }
+
+          origin match {
+            case None =>
+              origin = Some(o)
+            case Some(oldOrigin) if oldOrigin.precedence < o.precedence =>
+              origin = Some(o)
+            case _ =>
+          }
+      }
+
+      children.foreach(_.inheritFrom(other))
+    }
+
+    def setOrigin(newOrigin: Origin): Unit = {
+      this match {
+        case App(f, _) if f.contains("!") && f.contains("@") && newOrigin.isInstanceOf[Assertion] =>
+          Warning("%s", this)
+        case _ =>
+      }
+
+      origin match {
+        case None =>
+          origin = Some(newOrigin)
+        case Some(oldOrigin) if oldOrigin.precedence < newOrigin.precedence =>
+          origin = Some(newOrigin)
+        case _ =>
+      }
+
+      val desc = descendants
+      descendants = ArrayBuffer()
+      desc.foreach(e => e.origin match {
+        case Some(inh@DelayedInherit(_)) if inh.expr == this => e.setOrigin(origin.get)
+        case _ =>
+      })
+
+      children.foreach(_.setOrigin(newOrigin))
+    }
   }
 
   object App {
@@ -65,16 +152,23 @@ class Z3Log {
       "pi" -> ConstOp("π"),
       "euler" -> ConstOp("e"),
       "Set_empty" -> ConstOp("∅"),
+      "pattern" -> CustomOp(0, (args, scope) => {
+        "{" + args.map(_.asUnicodeImpl(scope)).mkString(", ") + "}"
+      })
     )
 
     val SUBSCRIPTS: Map[Char, Char] = "0123456789".zip("₀₁₂₃₄₅₆₇₈₉").toMap
 
     def niceName(x: String): String = {
-      val parts = x.split("@")
-      if(parts.length == 3) {
-        parts(0) + Integer.parseInt(parts(1)).toString.map(App.SUBSCRIPTS)
-      } else {
-        x
+      "^([^@!]+)@([0-9]+)@[0-9]+(![0-9]+)?$".r.findFirstMatchIn(x) match {
+        case Some(m) =>
+          var result = m.group(1)
+          if(m.group(3) != null) {
+            result += m.group(3)
+          }
+          result += m.group(2).map(SUBSCRIPTS)
+          result
+        case None => x
       }
     }
   }
@@ -98,7 +192,7 @@ class Z3Log {
   case class QuantVar(index: Int) extends Expr {
     override def precedence: Int = 0
     override def asUnicodeImpl(scope: Binder.VarInfo): String = {
-      val (name, _) = scope(index)
+      val (name, _) = if(index < scope.size) scope(index) else (None, None)
       App.niceName(name.getOrElse(s"?$index?"))
     }
   }
@@ -108,9 +202,9 @@ class Z3Log {
   }
 
   abstract sealed class Binder extends Expr {
+    var var_desc: Binder.VarInfo = (0 until var_count).map(_ => (None, None))
     def var_count: Int
     def body: Expr
-    var var_desc: Binder.VarInfo = (0 until var_count).map(_ => (None, None))
 
     def bindingsAsUnicode: String = {
       var_desc.zipWithIndex.map {
@@ -177,14 +271,31 @@ class Z3Log {
 
   case class Proof(prereqs: Seq[Proof], rule: String, result: Expr)
 
+  case class Substitution(from: Expr, to: Expr) extends InstantiationCause {
+    override def toString: String = s"Substitution($from = $to)"
+  }
+
+  sealed trait Instantiation
+  case class MatchInstantiation(quantifier: Quantifier, bindings: Seq[Expr])(val trigger: Expr, val causes: Seq[InstantiationCause], val triggerId: String) extends Instantiation
+  case class TheoryInstantiation(theory: String, quantifier: Option[Quantifier], bindings: Seq[Expr])(val causes: Seq[InstantiationCause]) extends Instantiation
+
+  sealed abstract class Origin(val precedence: Int)
+  case class Assertion(proof: Proof) extends Origin(100)
+  case class Enode(inst: Instantiation) extends Origin(70)
+  case class ProofOrigin(proof: Proof) extends Origin(70)
+  case class DelayedInherit(expr: Expr) extends Origin(50)
+
   var toolVersion: Option[String] = None
 
   var defs: mutable.Map[String, Expr] = mutable.Map()
   var proofs: mutable.Map[String, Proof] = mutable.Map()
-  var instantiations: mutable.Map[String, Int] = mutable.Map()
+  var discoveredInstantiations: mutable.Map[String, Instantiation] = mutable.Map()
+  var instantiations: mutable.Map[String, ArrayBuffer[Instantiation]] = mutable.Map()
+  var instanceStack: mutable.ArrayStack[Instantiation] = mutable.ArrayStack()
+  var explainedSubstitution: mutable.Map[Expr, Expr] = mutable.Map()
 
   def readLine(text: String): Seq[String] = {
-    var sb = new StringBuilder()
+    val sb = new StringBuilder()
     val elements = new ArrayBuffer[String]()
     var stack = 0
 
@@ -206,7 +317,8 @@ class Z3Log {
   }
 
   def makeApp(args: Seq[String]): Unit = {
-    defs += args(0) -> App(args(1), args.drop(2).map(defs(_)))
+    val appArgs = args.drop(2).map(defs(_))
+    defs += args(0) -> App(args(1), appArgs)
   }
 
   def makeVar(args: Seq[String]): Unit = {
@@ -214,22 +326,73 @@ class Z3Log {
   }
 
   def makeQuant(args: Seq[String]): Unit = {
-    val quantifier = Quantifier(
-      var_count=Integer.parseInt(args(2)),
-      triggers=args.drop(3).init.map(defs(_)),
-      body=defs(args.last))(name=args(1))
+    val triggers = args.drop(3).init.map(defs(_))
+    val body = defs(args.last)
+    val quantifier = Quantifier(var_count=Integer.parseInt(args(2)), triggers, body)(name=args(1))
     defs += args(0) -> quantifier
   }
 
+  val ALLOW_OPS: Map[String, Set[String]] = Map(
+    "refl" -> Set("=", "~"),
+    "nnf-pos" -> Set("~"),
+    "nnf-neg" -> Set("~"),
+    "sk" -> Set("~"),
+    "rewrite" -> Set("="),
+    "elim-unused" -> Set("="),
+    "quant-intro" -> Set("="),
+    "monotonicity" -> Set("=", "~"),
+    "commutativity" -> Set("="),
+    "trans" -> Set("="),
+    "trans*" -> Set("="),
+    "iff-true" -> Set("="),
+    "iff-false" -> Set("="),
+  )
+
   def makeProof(args: Seq[String]): Unit = {
     // The proof ID in an expression refers to the result
-    defs += args(0) -> defs(args.last)
-    proofs += args(0) -> Proof(args.drop(2).init.map(proofs(_)), args(1), defs(args.last))
+    val result = defs(args.last)
+    defs += args(0) -> result
+    val rule = args(1)
+    val proof = Proof(args.drop(2).init.map(proofs(_)), rule, result)
+    proofs += args(0) -> proof
+
+    /*
+      Nieuw plan:
+      - eeh equality is al dan niet een simplifying equality
+      - een rewrite bouwt altijd een sipmlifying equality
+      - monotonicity bouwt een simplifying equality als de prereqs simplifying zijn
+      - combining rules (trans, trans*, mp) bouwen een simplifying equality als de prereqs simplifying zijn
+      - combining rules zorgen voor inheritance in simplifying proof-bomen als 1 proof-boom niet simplifying is
+     */
+
+    rule match {
+      case "asserted" =>
+        result.setOrigin(Assertion(proof))
+      case "refl" | "rewrite" | "elim-unused" | "quant-intro" | "commutativity" | "iff-true" | "iff-false" | "nnf-pos" | "nnf-neg" =>
+        assert(result.isInstanceOf[App])
+        val app = result.asInstanceOf[App]
+        assert(ALLOW_OPS(rule).contains(app.func))
+        assert(app.args.size == 2)
+        result.inheritFrom(app.args(0))
+      case "proof-bind" =>
+        assert(result.isInstanceOf[Lambda])
+        val lambda = result.asInstanceOf[Lambda]
+        result.inheritFrom(lambda.body)
+      case "symm" | "and-elim" | "not-or-elim" =>
+        assert(proof.prereqs.size == 1)
+        result.inheritFrom(proof.prereqs(0).result)
+      case "mp" | "mp~" | "quant-inst" | "hypothesis" | "th-lemma" | "lemma" | "unit-resolution" | "sk" =>
+      case "true-axiom" | "def-axiom" | "monotonicity" | "trans*" | "trans" =>
+        result.setOrigin(ProofOrigin(proof))
+      case _ =>
+        result.setOrigin(ProofOrigin(proof))
+    }
   }
 
   def makeLambda(args: Seq[String]): Unit = {
     // args(1) is always "null", not sure why. Maybe an unused name?
-    defs += args(0) -> Lambda(Integer.parseInt(args(2)), defs(args(3)))
+    val body = defs(args(3))
+    defs += args(0) -> Lambda(Integer.parseInt(args(2)), body)
   }
 
   def parseVarDescPart(part: String): Option[String] = {
@@ -260,47 +423,262 @@ class Z3Log {
     quantifier.var_desc = args.tail.map(parseVarDesc)
   }
 
-  def newMatch(args: Seq[String]): Unit = {
-    val id = args(0)
-    val quant = defs(args(1))
-    val trigger = defs(args(2))
-    val sepIndex = args.indexOf(";")
-    val bindings = args.slice(3, sepIndex).map(defs(_))
-    instantiations(args(1)) = instantiations.getOrElse(args(1), 0) + 1
-    if(instantiations(args(1)) % 10000 == 0) {
-      Output("%d instantiations: %s", Int.box(instantiations(args(1))), quant.asUnicode)
+  def getPair(arg: String): (Expr, Expr) = {
+    val args = arg.init.tail.split(" ")
+    (defs(args(0)), defs(args(1)))
+  }
+
+  def getInstantiationCause(arg: String): InstantiationCause = {
+    arg.charAt(0) match {
+      case '#' => defs(arg)
+      case '(' =>
+        val pair = getPair(arg)
+        Substitution(pair._1, pair._2)
     }
   }
 
-  def addLine(line: String): Unit = {
-    this.synchronized {
-      val vals = readLine(line)
-      vals.head match {
-        case "[tool-version]" => toolVersion match {
-          case None => toolVersion = Some(vals(2))
-          case Some(other) => assert(false)
+  def newMatch(args: Seq[String]): Unit = {
+    val id = args(0)
+    val quant = defs(args(1)).asInstanceOf[Quantifier]
+    val trigger = defs(args(2))
+    val sepIndex = args.indexOf(";")
+    val bindings = args.slice(3, sepIndex).map(defs(_))
+    val causes = args.drop(sepIndex+1).map(getInstantiationCause)
+    val instId = (args(1), args(2))
+    discoveredInstantiations += id -> MatchInstantiation(quant, bindings)(trigger, causes, args(2))
+  }
+
+  def newInst(args: Seq[String]): Unit = {
+    val theory = args(0)
+    val id = args(1)
+    val sepIndex = args.indexOf(";")
+    val bindings = args.slice(3, sepIndex).map(defs(_))
+    val causes = args.drop(sepIndex+1).map(getInstantiationCause)
+
+    if(bindings.nonEmpty) {
+      val quant = defs(args(2)).asInstanceOf[Quantifier]
+      discoveredInstantiations += id -> TheoryInstantiation(theory, Some(quant), bindings)(causes)
+    } else {
+      discoveredInstantiations += id -> TheoryInstantiation(theory, None, bindings)(causes)
+    }
+  }
+
+  def printDetailedInstantiation(inst: MatchInstantiation): Unit = {
+    Progress("%d instantiations: %s", Int.box(instantiations(inst.triggerId).size), inst.quantifier.name)
+    Progress("with trigger: %s", inst.trigger.asUnicodeImpl(inst.quantifier.var_desc))
+    Progress("∀%s :: ", inst.quantifier.bindingsAsUnicode)
+    Progress("%s", inst.quantifier.body.asUnicodeImpl(inst.quantifier.var_desc))
+    Progress("The last bindings were:")
+    for((binding, i) <- inst.bindings.zipWithIndex) {
+      Progress("%s := %s", QuantVar(i).asUnicodeImpl(inst.quantifier.var_desc), binding.asUnicode)
+    }
+    Progress("The expressions that caused the instantiation were:")
+    for(cause <- inst.causes) {
+      Progress("%s", cause)
+    }
+    Progress("")
+  }
+
+//  def collectPathsTo(goal: Quantifier, cause: Expr, maxDepth: Int): Seq[Seq[(InstantiationCause, Instantiation)]] = {
+//    cause.origins.flatMap {
+//      case Enode(inst@MatchInstantiation(_, _)) =>
+//        findPathsTo(goal, inst, maxDepth - 1).map((cause, inst) +: _)
+//      case _ => Seq()
+//    } ++ (if(explainedSubstitution.contains(cause) && explainedSubstitution(cause) != cause) {
+//      collectPathsTo(goal, explainedSubstitution(cause), maxDepth)
+//    } else Seq())
+//  }
+//
+//  def findPathsTo(goal: Quantifier, blame: MatchInstantiation, maxDepth: Int): Seq[Seq[(InstantiationCause, Instantiation)]] = {
+//    if(maxDepth == 0) {
+//      return if(goal == blame.quantifier) Seq(Seq()) else Seq()
+//    }
+//
+//    blame.causes.flatMap {
+//      case e: Expr => collectPathsTo(goal, e, maxDepth)
+//      case Substitution(from, to) =>
+//        collectPathsTo(goal, from, maxDepth) ++ collectPathsTo(goal, to, maxDepth)
+//    } ++ (if(goal == blame.quantifier) Seq(Seq()) else Seq())
+//  }
+//
+//  def tryFindCycles(instantiation: MatchInstantiation): Unit = {
+//    val paths = findPathsTo(instantiation.quantifier, instantiation, 2)
+//
+//    if(paths.size > 1) {
+//      Output("%s", paths)
+//    }
+//  }
+
+  var lastInstanceDebug: Instantiation = _
+
+  def startInstance(args: Seq[String]): Unit = {
+    val id = args(0)
+    val term = defs(args(1))
+    val genericInst = discoveredInstantiations(id)
+    instanceStack.push(genericInst)
+    lastInstanceDebug = genericInst
+
+    if(id == "0") return
+    val inst = genericInst.asInstanceOf[MatchInstantiation]
+
+    instantiations.getOrElseUpdate(inst.triggerId, ArrayBuffer()) += inst
+
+    term match {
+      case App("or", Seq(
+        App("not", Seq(Quantifier(_, _, _))),
+        body)) =>
+        body.setOrigin(Enode(instanceStack.top))
+      case App("=", Seq(
+        body,
+        App("true", Seq()))) =>
+        body.setOrigin(Enode(instanceStack.top))
+    }
+
+    if(instantiations(inst.triggerId).size % 30000 == 0) {
+      Output("looking for cycles in %s", inst.quantifier)
+
+      val instArrows: mutable.Map[(Quantifier, Quantifier), ArrayBuffer[(MatchInstantiation, MatchInstantiation)]] = mutable.Map()
+      val assertArrows: mutable.Map[Quantifier, Int] = mutable.Map()
+
+      for(inst <- instantiations.values.flatten.filter(_.isInstanceOf[MatchInstantiation]).map(_.asInstanceOf[MatchInstantiation])) {
+        inst.causes.foreach {
+          case e: Expr => e.origin match {
+            case Some(Enode(causingInst: MatchInstantiation)) =>
+              instArrows.getOrElseUpdate((causingInst.quantifier, inst.quantifier), ArrayBuffer()).+=((causingInst, inst))
+            case Some(Assertion(_)) =>
+              assertArrows(inst.quantifier) = assertArrows.getOrElse(inst.quantifier, 0) + 1
+            case _ =>
+              Warning("Don't understand origin :(")
+          }
+          case _ =>
         }
-        case "[push]" | "[pop]" => // push/pop doesn't match defs, but probably the input push/pop
-        case "[assign]" | "" => // assign is followed by lines starting with a space
-
-        case "[mk-app]" => makeApp(vals.tail)
-        case "[mk-var]" => makeVar(vals.tail)
-        case "[mk-quant]" => makeQuant(vals.tail)
-        case "[mk-proof]" => makeProof(vals.tail)
-        case "[mk-lambda]" => makeLambda(vals.tail)
-
-        case "[new-match]" =>
-          newMatch(vals.tail)
-
-        case "[attach-meaning]" =>
-          defs(vals(1)).asInstanceOf[App].func = vals(3)
-
-        case "[attach-var-names]" =>
-          attachVarNames(vals.tail)
-
-        case other =>
-//           Output("Kind %s: %s", other, vals.tail)
       }
+
+      val graphQuantifiers = instArrows.keys.flatMap(k => Seq(k._1, k._2)).toSeq ++ assertArrows.keys
+      val graphKeys = graphQuantifiers.distinct.zipWithIndex.toMap
+
+      val writer = new PrintWriter(new File("/home/pieter/z3.dot"))
+      writer.write("digraph G {\n")
+
+      writer.write("assertion;\n")
+
+      for((quant, key) <- graphKeys) {
+        Output("%s: %s", Int.box(key), quant)
+        writer.write(s"n$key;\n")
+      }
+
+      for((quant, count) <- assertArrows) {
+        val style = if(count < 50) { "dotted"
+        } else if(count < 100) { "dashed"
+        } else if(count < 500) { "solid" } else { "bold" }
+        writer.write(s"assertion -> n${graphKeys(quant)} [label=$count,style=$style];\n")
+      }
+
+      for((cause, result) <- instArrows.keys) {
+        val label = instArrows((cause, result)).size
+        val style = if(label < 50) { "dotted"
+          } else if(label < 100) { "dashed"
+          } else if(label < 500) { "solid" } else { "bold" }
+        writer.write(s"n${graphKeys(cause)} -> n${graphKeys(result)} [label=$label,style=$style];\n")
+      }
+
+      writer.write("}\n")
+      writer.close()
+      Output("End of legend")
+    }
+  }
+
+  def endInstance(args: Seq[String]): Unit = {
+    instanceStack.pop()
+  }
+
+  def attachEnode(args: Seq[String]): Unit = {
+    val term = defs(args(0))
+    if(instanceStack.isEmpty) {
+    } else {
+      term.setOrigin(Enode(instanceStack.top))
+    }
+  }
+
+  def explainSubtitutionEquality(args: Seq[String]): Unit = {
+    val explainedTerm = defs(args(0))
+    val reason = args(1)
+
+    if(args.size > 2) {
+      val otherTerm = defs(args.last)
+//      explainedSubstitution += explainedTerm -> otherTerm
+    } else {
+//      explainedSubstitution += explainedTerm -> explainedTerm
+    }
+
+//    Output("Explaining subtitution of %s", explainedTerm)
+//
+//    reason match {
+//      case "root" =>
+//        Output("It is the root of its equivalence class")
+//      case "lit" =>
+//        val equality = defs(args(2))
+//        assert(args(3) == ";")
+//        val other = defs(args(4))
+//        Output("Due to this equality:")
+//        Output("%s", equality)
+//        Output("The term is equal to %s", other)
+//      case "cg" =>
+//        val equalities = args.drop(2).dropRight(2).map(getPair).map((eq) => App("=", Seq(eq._1, eq._2)))
+//        val other = defs(args.last)
+//        Output("We have:")
+//        for(equality <- equalities) {
+//          Output("%s", equality)
+//        }
+//        Output("By monotonicity, the term is equal to %s", other)
+//    }
+//
+//    Output("")
+  }
+
+  def addLine(line: String): Unit = {
+    val vals = readLine(line)
+    vals.head match {
+      case "[tool-version]" => toolVersion match {
+        case None => toolVersion = Some(vals(2))
+        case Some(other) => assert(false)
+      }
+      case "[push]" | "[pop]" => // push/pop doesn't match defs, but probably the input push/pop
+      case "[assign]" | "" => // assign is followed by lines starting with a space
+
+      case "[mk-app]" => makeApp(vals.tail)
+      case "[mk-var]" => makeVar(vals.tail)
+      case "[mk-quant]" => makeQuant(vals.tail)
+      case "[mk-proof]" => makeProof(vals.tail)
+      case "[mk-lambda]" => makeLambda(vals.tail)
+
+      case "[new-match]" =>
+        newMatch(vals.tail)
+
+      case "[inst-discovered]" =>
+        newInst(vals.tail)
+
+      case "[instance]" => startInstance(vals.tail)
+      case "[end-of-instance]" => endInstance(vals.tail)
+
+      case "[attach-enode]" => attachEnode(vals.tail)
+
+      case "[attach-meaning]" =>
+        defs(vals(1)).asInstanceOf[App].func = vals(3)
+
+      case "[attach-var-names]" =>
+        attachVarNames(vals.tail)
+
+      case "[eq-expl]" =>
+        explainSubtitutionEquality(vals.tail)
+
+      case "[begin-check]" =>
+        Output("new check! (cleared out %d instantiations)", Int.box(instantiations.size))
+        discoveredInstantiations.clear
+        instantiations.clear
+
+      case other =>
+//        Warning("Kind %s: %s", other, vals.tail)
     }
   }
 }

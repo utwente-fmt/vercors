@@ -1,0 +1,20 @@
+function sorted(s: Seq[Int]): Bool
+{
+  (forall i: Int, j: Int ::{s[i], s[j]} 0 <= i && i < |s| && i < j && j < |s| ==> s[i] <= s[j])
+}
+
+function smaller(s1: Seq[Int], s2: Seq[Int]): Bool
+{
+  (forall i: Int, j: Int ::{s1[i], s2[j]} 0 <= i && i < |s1| && 0 <= j && j < |s2| ==> s1[i] <= s2[j])
+}
+
+
+method sortedLemma(s: Seq[Int], s1: Seq[Int], s2: Seq[Int], larger: Seq[Int])
+  requires sorted(s)
+  requires smaller(s,larger)
+  requires s == s1++s2
+  ensures sorted(s2)
+  ensures smaller(s2,larger)
+  {
+    assert forall i: Int :: {s2[i]} 0<=i && i<|s2| ==> s[i+|s1|] == s2[i]
+  }

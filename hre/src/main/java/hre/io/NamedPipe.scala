@@ -20,7 +20,6 @@ object NamedPipe {
   }
 }
 
-
 /** A named pipe is a special type of file that has no representation on disk. Both a writing and a reading side must
   * open it before the "open" call completes. Data written to the "file" by the writer can be read from the "file" by
   * the reader. The "end of file" is reached when the writer closes the file.
@@ -37,7 +36,7 @@ trait NamedPipe {
 class UnixNamedPipe(val listener: NamedPipeListener, prefix: String, suffix: String) extends NamedPipe {
   val path: String = {
     val file = File.createTempFile(prefix, suffix)
-    val path = file.getPath
+    val path = "/tmp/vercors-01.log" // file.getPath
     file.delete()
     new ProcessBuilder("mkfifo", path).start().waitFor()
     path

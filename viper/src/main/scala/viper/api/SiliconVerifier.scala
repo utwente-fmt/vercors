@@ -13,16 +13,11 @@ class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) 
 
   override def createVerifier(z3Path: Path, z3Settings: Properties):viper.silver.verifier.Verifier = {
     val silicon = new viper.silicon.Silicon(HREViperReporter(), Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
-    var z3_config="\"";
-    var sep="";
-    z3Settings.asScala.foreach {
-      entry => z3_config=z3_config+sep+(entry._1)+"="+(entry._2) ; sep=" "
-    }
-    z3_config+="\"";
+    val z3Config = "\"" + z3Settings.asScala.map{case (key, vl) => s"$key=$vl"}.mkString(" ") + "\""
 
     val options = ArrayBuffer[String]()
     options ++= Seq("--z3Exe", z3Path.toString)
-    options ++= Seq("--z3ConfigArgs", z3_config)
+    options ++= Seq("--z3ConfigArgs", z3Config)
 
     if(Configuration.z3Progress.get) {
       options ++= Seq("--numberOfParallelVerifiers", "1")
