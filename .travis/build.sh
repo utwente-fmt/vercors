@@ -1,4 +1,9 @@
 #!/bin/bash
+set -euxo pipefail
+
+source .traivs/fileServer.sh
+.travis/travis_fold.sh downloadBuildData "Downloading Vercors .deb file" downloadBuildData
+tree sync
 
 ./.travis/travis_fold.sh build "Building VerCors" "./.travis/20-build.sh"
 ./.travis/travis_fold.sh fibonacci "Checking manual example" "./bin/vct --silicon $TRAVIS_BUILD_DIR/examples/manual/fibonacci.pvl"

@@ -22,6 +22,8 @@ addons:
     packages:
       - checkstyle
       - rsync
+      - tree # For debug printing downloaded files. Can be removed if I forget to
+      - fakeroot # debian:packageBin needs this
 cache:
   directories:
     - "~/.cache/coursier"
@@ -35,25 +37,20 @@ before_install: ./.travis/decrypt-vercors-scratch-ci-key.sh
 matrix:
   include:
     - stage: Build
-      script: printf "Hello World\n"
+      script: .travis/buildDeb.sh
     - stage: Tests
-    - script:
-        - ./.travis/sync.sh
+      script:
         - SPLIT=0/5 ./.travis/build.sh
     - script:
-        - ./.travis/sync.sh
         - SPLIT=1/5 ./.travis/build.sh
     - script:
-        - ./.travis/sync.sh
         - SPLIT=2/5 ./.travis/build.sh
     - script:
-        - ./.travis/sync.sh
         - SPLIT=3/5 ./.travis/build.sh
     - script:
-        - ./.travis/sync.sh
         - SPLIT=4/5 ./.travis/build.sh
     - stage: Analysis
-    - script:
+      script:
         - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
         - ./.travis/travis_fold.sh acquire_coverage "Acquiring coverage files" "./bin/run-class vct.travis.CoverageAggregator --help"
         - ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
