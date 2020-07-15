@@ -7,10 +7,11 @@ export VERCORS_FILE_SERVER_ADDR="${VERCORS_FILE_SERVER_IP}:${VERCORS_FILE_SERVER
 uploadBuildData() {
   RSYNC_PASSWORD="${VERCORS_RSYNC_PASSWORD}" rsync -avP --no-perms --no-owner --no-group \
     ./sync/${TRAVIS_BUILD_NUMBER}/* \
-    rsync://travis@${VERCORS_FILE_SERVER_ADDR}/volume
+    rsync://travis@${VERCORS_FILE_SERVER_ADDR}/volume/${TRAVIS_BUILD_NUMBER}
 }
 
 downloadBuildData() {
+  mkdir -p sync/${TRAVIS_BUILD_NUMBER}
   RSYNC_PASSWORD="${VERCORS_RSYNC_PASSWORD}" rsync -avP --no-perms --no-owner --no-group \
     rsync://travis@${VERCORS_FILE_SERVER_ADDR}/volume/${TRAVIS_BUILD_NUMBER}/*
     sync/${TRAVIS_BUILD_NUMBER}
@@ -22,7 +23,7 @@ clearBuildData() {
   mkdir -p sync/${TRAVIS_BUILD_NUMBER}
   RSYNC_PASSWORD="${VERCORS_RSYNC_PASSWORD}" rsync -avP --no-perms --no-owner --no-group --delete \
     ./sync/${TRAVIS_BUILD_NUMBER}/* \
-    rsync://travis@${VERCORS_FILE_SERVER_ADDR}/volume
+    rsync://travis@${VERCORS_FILE_SERVER_ADDR}/volume/${TRAVIS_BUILD_NUMBER}
 }
 
 export -f uploadBuildData
