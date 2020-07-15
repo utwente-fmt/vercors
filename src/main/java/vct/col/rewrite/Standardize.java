@@ -16,6 +16,8 @@ import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ClassName;
 
+import java.util.Objects;
+
 /**
  * Standardize the representation of programs.
  *
@@ -69,9 +71,7 @@ public class Standardize extends AbstractRewriter {
     switch(e.getKind()){
       case Field:{
         Method m=current_method();
-        if (m==null) {
-          Fail("cannot support expressions outside of method definitions yet.");
-        }
+        Objects.requireNonNull(m, "cannot support expressions outside of method definitions yet.");
         if (m.isStatic()){
           result=create.dereference(create.class_type(current_class().getFullName()),e.getName());
         } else {

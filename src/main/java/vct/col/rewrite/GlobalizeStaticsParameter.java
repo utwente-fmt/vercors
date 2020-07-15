@@ -10,6 +10,8 @@ import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 
+import java.util.Objects;
+
 /**
  * Use a parameter global to refer to static entries.
  * 
@@ -62,7 +64,7 @@ public class GlobalizeStaticsParameter extends GlobalizeStatics {
    */
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
-    if (m==null) Abort("cannot globalize method invokaiton without method definition");
+    Objects.requireNonNull(m, "cannot globalize method invokaiton without method definition");
     if (m.isStatic() && !e.isInstantiation()){
       super.visit(e);
     } else {

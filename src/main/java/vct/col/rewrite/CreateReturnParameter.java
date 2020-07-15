@@ -3,6 +3,7 @@ package vct.col.rewrite;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Objects;
 
 import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.generic.ASTNode;
@@ -80,7 +81,7 @@ public class CreateReturnParameter extends AbstractRewriter {
       if (expr instanceof MethodInvokation) {
         MethodInvokation method_invokation = (MethodInvokation) expr;
         Method m = method_invokation.getDefinition();
-        if (m == null) Abort("cannot process invokation of %s without definition",method_invokation.method());
+        Objects.requireNonNull(m, () -> String.format("cannot process invokation of %s without definition", method_invokation.method()));
         if (m.kind == Method.Kind.Plain) {
           res.add(invokation_into_variable(method_invokation, create.local_name("sys__result")));
         }
@@ -102,7 +103,7 @@ public class CreateReturnParameter extends AbstractRewriter {
   
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
-    if (m==null) Abort("unexpected null method definition at %s",e.getOrigin());
+    Objects.requireNonNull(m, () -> String.format("unexpected null method definition at %s", e.getOrigin()));
     switch(m.kind){
     case Predicate:
     case Pure:
@@ -121,7 +122,7 @@ public class CreateReturnParameter extends AbstractRewriter {
     if (s.expression() instanceof MethodInvokation){
         MethodInvokation method_invokation = (MethodInvokation) s.expression();
         Method m = method_invokation.getDefinition();
-        if (m == null) Abort("cannot process invokation of %s without definition",method_invokation.method());
+        Objects.requireNonNull(m, () -> String.format("cannot process invokation of %s without definition", method_invokation.method()));
         if (m.kind == Method.Kind.Plain) {
           result = invokation_into_variable(method_invokation, s.location());
           return;
@@ -136,7 +137,7 @@ public class CreateReturnParameter extends AbstractRewriter {
    */
   private MethodInvokation invokation_into_variable(MethodInvokation method_invokation, ASTNode location) {
     Method method=method_invokation.getDefinition();
-    if (method == null) Abort("cannot process invokation of %s without definition",method_invokation.method());
+    Objects.requireNonNull(method, () -> String.format("cannot process invokation of %s without definition", method_invokation.method()));
     if (method.kind != Method.Kind.Plain) {
       Abort("MethodInvokation is not plain");
     }

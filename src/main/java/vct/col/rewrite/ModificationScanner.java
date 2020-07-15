@@ -12,6 +12,8 @@ import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.util.RecursiveVisitor;
 
+import java.util.Objects;
+
 public class ModificationScanner extends RecursiveVisitor<Object> {
 
   private ContractBuilder builder;
@@ -39,7 +41,7 @@ public class ModificationScanner extends RecursiveVisitor<Object> {
   
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
-    if (m==null) Abort("definition is null at %s",e.getOrigin());
+    Objects.requireNonNull(m, String.format("definition is null at %s", e.getOrigin()));
     Contract c=m.getContract();
     if (c!=null && c.modifies!=null) {
       for (ASTNode loc : c.modifies) {

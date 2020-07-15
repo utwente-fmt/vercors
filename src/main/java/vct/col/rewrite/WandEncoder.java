@@ -206,18 +206,17 @@ public class WandEncoder extends AbstractRewriter {
 	  	
 	public void visit(Lemma lemma) {
 	  int N = lemma.block().size();
-	  WandUtil wand=null;
 	  if (lemma.block().get(N-1).isSpecial(Kind.QED)) {
 	    ASTNode tmp=((ASTSpecial)lemma.block().get(N-1)).getArg(0);
 	    if (tmp.isa(StandardOperator.Wand)){
-	      wand=new WandUtil((OperatorExpression)tmp);
+	      WandUtil wand = new WandUtil((OperatorExpression)tmp);
+          result = wand.generate_lemma(lemma.block());
 	    } else {
 	      Fail("argument of qed is not a magic wand %s",tmp);
 	    }
 	  } else {
 	    Fail("lemma does not end in qed.");
 	  }
-	  result=wand.generate_lemma(lemma.block());
 	}
 	
 	private ASTClass wand_class;

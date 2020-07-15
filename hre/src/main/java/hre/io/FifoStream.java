@@ -46,7 +46,10 @@ public class FifoStream {
       if (buffer==null){
         try {
           buffer=queue.take();
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return -1;
+        }
         len=buffer.length;
         if (len==0){
           eof=true;

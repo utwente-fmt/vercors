@@ -2,7 +2,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 module SplitVerify.Splitter (chunk) where
 import qualified RIO.Text as T
-import qualified RIO.Text.Partial as T (splitOn)
+import qualified RIO.Text.Partial as T (splitOn, breakOn)
 import qualified RIO.List as L
 import RIO
 import Text.Boomerang.String (parseString, unparseString, StringError)
@@ -89,13 +89,61 @@ instance Silence ClassItem where
     = case defn of
         Sequential t -> Method contr hdr (AssumeFalse (countNewlines t))
         _ -> o
-    | otherwise = NoItem . fromString . take (countNewlines o) $ L.repeat '\n'
+    | otherwise = NoItem (fromString (take (countNewlines o) (L.repeat '\n')) <> getCommentTags o)
   silence _ (NoItem x) = NoItem x
 instance Silence ClassDescription where
   silence s (ClassDescription t c) = ClassDescription t (silence s c)
 instance Silence b => Silence (SepBy TextWithComments b) where
   silence _ o@(Sepd _ Nothing) = o
   silence s (Sepd a (Just (b, rs))) = Sepd a (Just (silence s b, silence s rs))
+
+class GetCommentTags a where
+  getCommentTags :: a -> T.Text
+instance GetCommentTags ClassItem where
+  getCommentTags (Declaration x) = getCommentTags x -- empty text
+  getCommentTags (Method c h d) = getCommentTags c <> getCommentTags h <> getCommentTags d
+  getCommentTags (NoItem c) = getCommentTags c
+instance GetCommentTags DefinitionExpr where
+  getCommentTags NoDefinition = mempty
+  getCommentTags (Sequential b) = getCommentTags b
+  getCommentTags (Mathematical b) = getCommentTags b
+  getCommentTags (AssumeFalse _) = mempty
+instance GetCommentTags Contract where
+  getCommentTags (Contract lst) = getCommentTags lst
+  -- contract is a list of conditions (see JavaStructures.hs for its definition)
+  -- so let's do lists and conditions (separately)
+  -- first conditions:
+instance GetCommentTags Condition where
+  -- the keyword doesn't have comment-tags, so I don't use the first argument of 'Condition'
+  getCommentTags (Condition _ b spWc)
+   = getCommentTags b -- list of balanced brackets
+     <> getCommentTags spWc -- space or whitespace at the end of each condition
+instance GetCommentTags a => GetCommentTags [a] where
+  -- this instance for lists requires that the thing of which it is a list is already an instance
+  getCommentTags xs = foldMap getCommentTags xs -- foldMap does the concatenation of text for us
+instance GetCommentTags MethodHeader where
+  getCommentTags (MethodHeader t1 t2 spWc)
+   = getCommentTags t1 <> getCommentTags t2 <> getCommentTags spWc
+instance GetCommentTags BalancedPart where
+  getCommentTags (NoBrackets txt) = getCommentTags txt
+  getCommentTags (BracketedRound bps) = getCommentTags bps
+  getCommentTags (BracketedStach bps) = getCommentTags bps
+instance GetCommentTags TextOrComment where
+  getCommentTags (TextCommentLine _ _) = mempty -- assuming that // /*@ is not an opening tag and similar for // @*/
+  getCommentTags (TextCommentInLine _) = mempty -- assuming that /* /*@ is not an opening tag as above
+  getCommentTags (TextNoComment x) = getCommentTags x
+instance GetCommentTags Text where
+  getCommentTags t
+        = case (T.breakOn open t, T.breakOn close t) of
+            ((s1,s2),(r1,r2)) | T.length s1 <= T.length r1
+              -> let (pfx,r3) = T.splitAt 3 s2 in
+                if pfx==open then open <> getCommentTags r3 else mempty
+              | otherwise
+              -> let (pfx,r3) = T.splitAt 3 r2 in
+                if pfx == close then close <> getCommentTags r3 else mempty
+        where open = T.pack "@*/"
+              close = T.pack "/*@"
+
 
 class Dependencies a where getDependencies :: a -> Map.Map Text (Set.Set Text)
 class Ids a where getIds :: a -> Set.Set Text

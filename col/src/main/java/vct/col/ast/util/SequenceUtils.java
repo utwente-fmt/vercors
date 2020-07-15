@@ -8,6 +8,7 @@ import vct.col.ast.type.PrimitiveType;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTFactory;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static hre.lang.System.Fail;
@@ -124,9 +125,7 @@ public class SequenceUtils {
     public static SequenceInfo getTypeInfoOrFail(Type type, String message) {
         SequenceInfo result = getTypeInfo(type);
 
-        if(result == null) {
-            Fail(message, type);
-        }
+        Objects.requireNonNull(result, String.format(message, type));
 
         return result;
     }
@@ -138,9 +137,7 @@ public class SequenceUtils {
     public static SequenceInfo getInfoOrFail(ASTNode node, String message) {
         SequenceInfo result = getInfo(node);
 
-        if(result == null) {
-            Fail(message, node, node.getType());
-        }
+        Objects.requireNonNull(result, String.format(message, node, node.getType()));
 
         return result;
     }
@@ -232,9 +229,7 @@ public class SequenceUtils {
 
     public static void validSequenceUsingType(ASTFactory<?> create, Consumer<ASTNode> cb, Type type, ASTNode seq) {
         SequenceInfo info = getTypeInfo(type);
-        if(info == null) {
-            Fail("Expected %s to be of a sequence type", seq);
-        }
+        Objects.requireNonNull(info, String.format("Expected %s to be of a sequence type", seq));
 
         if(info.isOpt()) {
             cb.accept(create.expression(StandardOperator.NEQ, seq, create.reserved_name(ASTReserved.OptionNone)));
