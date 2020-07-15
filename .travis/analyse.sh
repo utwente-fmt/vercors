@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 
 source .travis/fileServer.sh
 .travis/travis_fold.sh downloadBuildData "Downloading Vercors .deb file and coverage files" downloadBuildData

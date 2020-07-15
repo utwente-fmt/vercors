@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 
 .travis/travis_fold.sh buildDeb "Building VerCors .deb archive" "sbt debian:packageBin"
 
