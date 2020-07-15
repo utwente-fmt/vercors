@@ -16,10 +16,8 @@ env:
 addons:
   apt:
     packages:
-      - checkstyle
       - rsync
       - tree # For debug printing downloaded files. Can be removed if I forget to
-      - fakeroot # debian:packageBin needs this
 cache:
   directories:
     - "~/.cache/coursier"
@@ -29,11 +27,14 @@ before_cache:
   - rm -fv $HOME/.ivy2/.sbt.ivy.lock
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.sbt        -name "*.lock"               -print -delete
-before_install: ./.travis/decrypt-vercors-scratch-ci-key.sh
 matrix:
   include:
     - stage: Build
       script: .travis/buildDeb.sh
+      addons:
+        apt:
+          packages:
+            - fakeroot
     - stage: Tests
       script:
         - SPLIT=0/5 ./.travis/build.sh
@@ -51,6 +52,9 @@ matrix:
           organization: utwente-fmt
           token:
             secure: rN1xKIRlcnyPz0wtlmzF5AW04f57sPVmhDe3TjXWho84YWE5eu6avdV36NeS6PHrocKpcLY3PLLqtNs6FPMmlN2fBvLQs8Z0iEkhfrJv3moq9GuE8la6D4845iR7Kw+gtqbDS7cVDh9zZ33zVvgK+faLz6yy+NopXcyO4cxYPUhKypyvCGnPNxCLUuW8bq+0pV1xbuqhd+r18Zd+UQCiX5RE/1Zio5LuXLkPfO+fy1D7/OKwzA5sjWS2oNsIR9w5jRA7IVK4gbfm/wgkwkRhMDlezXpsSWTXQq0Ib8HgER3GkFjCF0rqtsEYKSvDuo80paVrbZEnT/lEu7+5UV5BbhN/pTaKW4or8b1dFbUOJTlxJXVXhO8VgdHO88OrKWlvq4KJjq48ZPchHx30lKHAeCVOW9m2lfFXM9I/8vnFQgQ7HEC+TvYwyWLqDv+ZNAJ9qQSYYJby5ZWaTRr306eERj1xFPrljbw/g9SpKMMM66C8PfbCgn06X/PeaycqrcgZLd1mYyKNB7+vGt9x4IN3wJAdV+H2Y0EYZuIF+GEX1D6+zYjFF7bZhl/xHW/oQC8PxxmE9D7QBU1SHhwOybCeujvbYk/7XrHVK2vic2KbScKyeTthJeqVUE616xImTyhJcVJti1AMchLdUmppsfTVRHkOG6HniLmIJIQpV+Ajz2k=
+        apt:
+          packages:
+            - checkstyle
       script:
         - .travis/analyse.sh
     - if: branch = dev AND type = push
