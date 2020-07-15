@@ -16,7 +16,6 @@ env:
 addons:
   apt:
     packages:
-      - rsync
       - tree # For debug printing downloaded files. Can be removed if I forget to
 cache:
   directories:
@@ -35,6 +34,7 @@ matrix:
         apt:
           packages:
             - fakeroot
+            - tree
     - stage: Tests
       script:
         - SPLIT=0/5 ./.travis/build.sh
@@ -55,6 +55,7 @@ matrix:
         apt:
           packages:
             - checkstyle
+            - tree
       script:
         - .travis/analyse.sh
     - if: branch = dev AND type = push
