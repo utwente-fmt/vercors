@@ -14,10 +14,6 @@ env:
     # VERCORS_RSYNC_PASSWORD
     secure: "BmCRtuUyZexNVbuu9QjRZ1P+4nAyDK1vLbFbhsxOT4HuOJx7arsKjYMGtpn+mGiUzw0Qid11DZ5VoE91ip7KxfNIPOViRLVs9EC+r4NcsC0fgik9/3iElZhg0AoHP9Gzblt8nYpzdRXhK6rFxn0FzHK305+tJw1soMzmIrRT8xBeAW4cStABPaOvtUENY1BYYWk5WIXD98ZM+bdMaR/lDdFM32XF8A+w3EbXiD8W3gxUvy4PbZKXM+XgjPg4mJnuY1Xshixbl+OjqNPGDw2J6sk2NyrArQ8mHV6xTWv3SLQOCGJWO80OYaBogzwZlyrItpT2nNVolFNMf7QURiQQRa3iO6hbgXLH1mYC4zvOmTAw1IOKwUwKrp2ALU50ecmi1JXS/xz8xoull8KnM4FSr5dv403j+5LOcL3XyhMGg4kYCiPtueEcFvgRVMV1WSc2uGM8YpFLTsDwYBGPdW1xu9QfegR1Je/N0TNM2DxWQQ5mHpfNISyU4mrdjh9PhEMn3bUbn52PP5F6NGzdttnddU4oeVz23bt0AeyyUuax1vOa9HayoN1qHXBu5ZVTm0776UoHhlWfzZ7U8gjJMuOUhl3t3suQgN2Fi2rtpeF3NCe8enXcMckrAKpygie22ZtBLY/vHWx1/60HXq7UWwMVGP6UIn14nVlY+6nIhwWwUyA="
 addons:
-  sonarcloud:
-    organization: utwente-fmt
-    token:
-      secure: rN1xKIRlcnyPz0wtlmzF5AW04f57sPVmhDe3TjXWho84YWE5eu6avdV36NeS6PHrocKpcLY3PLLqtNs6FPMmlN2fBvLQs8Z0iEkhfrJv3moq9GuE8la6D4845iR7Kw+gtqbDS7cVDh9zZ33zVvgK+faLz6yy+NopXcyO4cxYPUhKypyvCGnPNxCLUuW8bq+0pV1xbuqhd+r18Zd+UQCiX5RE/1Zio5LuXLkPfO+fy1D7/OKwzA5sjWS2oNsIR9w5jRA7IVK4gbfm/wgkwkRhMDlezXpsSWTXQq0Ib8HgER3GkFjCF0rqtsEYKSvDuo80paVrbZEnT/lEu7+5UV5BbhN/pTaKW4or8b1dFbUOJTlxJXVXhO8VgdHO88OrKWlvq4KJjq48ZPchHx30lKHAeCVOW9m2lfFXM9I/8vnFQgQ7HEC+TvYwyWLqDv+ZNAJ9qQSYYJby5ZWaTRr306eERj1xFPrljbw/g9SpKMMM66C8PfbCgn06X/PeaycqrcgZLd1mYyKNB7+vGt9x4IN3wJAdV+H2Y0EYZuIF+GEX1D6+zYjFF7bZhl/xHW/oQC8PxxmE9D7QBU1SHhwOybCeujvbYk/7XrHVK2vic2KbScKyeTthJeqVUE616xImTyhJcVJti1AMchLdUmppsfTVRHkOG6HniLmIJIQpV+Ajz2k=
   apt:
     packages:
       - checkstyle
@@ -50,16 +46,12 @@ matrix:
     - script:
         - SPLIT=4/5 ./.travis/build.sh
     - stage: Analysis
+      addons:
+        sonarcloud:
+          organization: utwente-fmt
+          token:
+            secure: rN1xKIRlcnyPz0wtlmzF5AW04f57sPVmhDe3TjXWho84YWE5eu6avdV36NeS6PHrocKpcLY3PLLqtNs6FPMmlN2fBvLQs8Z0iEkhfrJv3moq9GuE8la6D4845iR7Kw+gtqbDS7cVDh9zZ33zVvgK+faLz6yy+NopXcyO4cxYPUhKypyvCGnPNxCLUuW8bq+0pV1xbuqhd+r18Zd+UQCiX5RE/1Zio5LuXLkPfO+fy1D7/OKwzA5sjWS2oNsIR9w5jRA7IVK4gbfm/wgkwkRhMDlezXpsSWTXQq0Ib8HgER3GkFjCF0rqtsEYKSvDuo80paVrbZEnT/lEu7+5UV5BbhN/pTaKW4or8b1dFbUOJTlxJXVXhO8VgdHO88OrKWlvq4KJjq48ZPchHx30lKHAeCVOW9m2lfFXM9I/8vnFQgQ7HEC+TvYwyWLqDv+ZNAJ9qQSYYJby5ZWaTRr306eERj1xFPrljbw/g9SpKMMM66C8PfbCgn06X/PeaycqrcgZLd1mYyKNB7+vGt9x4IN3wJAdV+H2Y0EYZuIF+GEX1D6+zYjFF7bZhl/xHW/oQC8PxxmE9D7QBU1SHhwOybCeujvbYk/7XrHVK2vic2KbScKyeTthJeqVUE616xImTyhJcVJti1AMchLdUmppsfTVRHkOG6HniLmIJIQpV+Ajz2k=
       script:
-        - ./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
-        - ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
-        - echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";
-        - >
-          if [ "${TRAVIS_SECURE_ENV_VARS}" == "false" ]; then
-          echo;
-          echo "The check is running for a pull request for an external repo. At the moment Travis does not support running Sonar for external repositories. The build will fail.";
-          fi;
-        - ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
         - .travis/analyse.sh
     - if: branch = dev AND type = push
       addons:
