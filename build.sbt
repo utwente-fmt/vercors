@@ -128,6 +128,8 @@ lazy val vercors = (project in file("."))
 
     // Disable documentation generation
     sources in (Compile, doc) := Seq(),
+    publishArtifact in (Compile, packageDoc) := false,
+    publishArtifact in packageDoc := false,
 
     mappings in Universal += file("README.md") -> "README.md",
     mappings in Universal ++= directory("examples"),
