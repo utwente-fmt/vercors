@@ -14,5 +14,4 @@ echo "The check is running for a pull request for an external repo. At the momen
 fi;
 ./.travis/travis_fold.sh sonar "Sonar" "sonar-scanner"
 
-.travis/travis_fold.sh clearBuildData "Clearing build data on server" clearBuildData
-tree sync
+./.travis/clearBuildData.sh

@@ -35,17 +35,22 @@ matrix:
           packages:
             - fakeroot
             - tree
+      after_failure: .travis/clearBuildData.sh
     - stage: Tests
       script:
         - SPLIT=0/5 ./.travis/build.sh
+      after_failure: .travis/clearBuildData.sh
     - script:
         - SPLIT=1/5 ./.travis/build.sh
     - script:
         - SPLIT=2/5 ./.travis/build.sh
+      after_failure: .travis/clearBuildData.sh
     - script:
         - SPLIT=3/5 ./.travis/build.sh
+      after_failure: .travis/clearBuildData.sh
     - script:
         - SPLIT=4/5 ./.travis/build.sh
+      after_failure: .travis/clearBuildData.sh
     - stage: Analysis
       addons:
         sonarcloud:
@@ -58,6 +63,7 @@ matrix:
             - tree
       script:
         - .travis/analyse.sh
+      after_failure: .travis/clearBuildData.sh
     - if: branch = dev AND type = push
       addons:
         apt:
