@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-source .traivs/fileServer.sh
+source .travis/fileServer.sh
 .travis/travis_fold.sh downloadBuildData "Downloading Vercors .deb file" downloadBuildData
 tree sync
 

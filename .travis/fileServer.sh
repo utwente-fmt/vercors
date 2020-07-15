@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export VERCORS_FILE_SERVER_IP="130.89.1.130"
-export VERCORS_FILE_SERVER_PORT="30303"
+export VERCORS_FILE_SERVER_IP="130.89.1.124"
+export VERCORS_FILE_SERVER_PORT="4444"
 export VERCORS_FILE_SERVER_ADDR="${VERCORS_FILE_SERVER_IP}:${VERCORS_FILE_SERVER_PORT}"
 
 uploadBuildData() {
@@ -17,6 +17,7 @@ downloadBuildData() {
 }
 
 clearBuildData() {
+  # Ensure build data dir is empty
   rm -r sync/${TRAVIS_BUILD_NUMBER}
   mkdir -p sync/${TRAVIS_BUILD_NUMBER}
   RSYNC_PASSWORD="${VERCORS_RSYNC_PASSWORD}" rsync -avP --no-perms --no-owner --no-group --delete \
