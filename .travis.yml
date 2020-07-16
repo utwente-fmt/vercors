@@ -16,7 +16,7 @@ env:
 addons:
   apt:
     packages:
-      - tree # For debug printing downloaded files. Can be removed if I forget to
+      - tree # For debug printing sync folder
 cache:
   directories:
     - "~/.cache/coursier"
@@ -29,7 +29,7 @@ before_cache:
 matrix:
   include:
     - stage: Build
-      script: .travis/buildDeb.sh
+      script: .travis/buildArchives.sh
       addons:
         apt:
           packages:
@@ -64,13 +64,15 @@ matrix:
       script:
         - .travis/analyse.sh
       after_failure: .travis/clearBuildData.sh
-    - if: branch = dev AND type = push
+    - stage: Deploy
+      if: branch = dev AND type = push
       addons:
         apt:
           packages:
             - fakeroot
+            - tree
       script:
-        - ./.travis/travis_fold.sh build "Build Vercors" "sbt debian:packageBin universal:packageXzTarball"
+        - ./.travis/downloadBuildData.sh
       before_deploy:
         - git config --local user.name "Vercors Team"
         - git config --local user.email "vercors@lists.utwente.nl"
@@ -89,5 +91,5 @@ matrix:
         overwrite: true
         file_glob: true
         file:
-          - "$TRAVIS_BUILD_DIR/target/*.deb"
-          - "$TRAVIS_BUILD_DIR/target/universal/*.txz"
+          - "$TRAVIS_BUILD_DIR/sync/$TRAVIS_BUILD_NUMBER/*.deb"
+          - "$TRAVIS_BUILD_DIR/sync/$TRAVIS_BUILD_NUMBER/*.txz"
