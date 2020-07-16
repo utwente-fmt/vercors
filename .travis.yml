@@ -38,19 +38,19 @@ matrix:
         - find $HOME/.sbt        -name "*.lock"               -print -delete
     - stage: Tests
       script:
-        - SPLIT=0/5 ./.travis/build.sh
+        - SPLIT=0/5 ./.travis/runTests.sh
       after_failure: .travis/clearBuildData.sh
     - script:
-        - SPLIT=1/5 ./.travis/build.sh
+        - SPLIT=1/5 ./.travis/runTests.sh
       after_failure: .travis/clearBuildData.sh
     - script:
-        - SPLIT=2/5 ./.travis/build.sh
+        - SPLIT=2/5 ./.travis/runTests.sh
       after_failure: .travis/clearBuildData.sh
     - script:
-        - SPLIT=3/5 ./.travis/build.sh
+        - SPLIT=3/5 ./.travis/runTests.sh
       after_failure: .travis/clearBuildData.sh
     - script:
-        - SPLIT=4/5 ./.travis/build.sh
+        - SPLIT=4/5 ./.travis/runTests.sh
       after_failure: .travis/clearBuildData.sh
     - stage: Analysis
       addons:
