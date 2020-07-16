@@ -42,6 +42,7 @@ matrix:
       after_failure: .travis/clearBuildData.sh
     - script:
         - SPLIT=1/5 ./.travis/build.sh
+      after_failure: .travis/clearBuildData.sh
     - script:
         - SPLIT=2/5 ./.travis/build.sh
       after_failure: .travis/clearBuildData.sh
