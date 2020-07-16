@@ -5,7 +5,7 @@ set -euo pipefail
 
 mkdir -p sync/${TRAVIS_BUILD_NUMBER}
 cp target/*.deb sync/${TRAVIS_BUILD_NUMBER}/
-cp target/*.txz sync/${TRAVIS_BUILD_NUMBER}/
+cp target/universal/*.txz sync/${TRAVIS_BUILD_NUMBER}/
 
 source .travis/fileServer.sh
 .travis/travis_fold.sh uploadBuildData "Uploading VerCors archives" uploadBuildData

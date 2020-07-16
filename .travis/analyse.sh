@@ -6,7 +6,7 @@ source .travis/fileServer.sh
 tree sync
 
 mkdir deb
-dpkg-deb --extract sync/Vercors*.deb deb
+dpkg-deb --extract sync/${TRAVIS_BUILD_NUMBER}/Vercors*.deb deb
 tree -d deb
 
 ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
