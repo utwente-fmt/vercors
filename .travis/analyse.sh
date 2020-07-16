@@ -5,7 +5,10 @@ source .travis/fileServer.sh
 .travis/travis_fold.sh downloadBuildData "Downloading Vercors .deb file and coverage files" downloadBuildData
 tree sync
 
-./.travis/travis_fold.sh build "Build Vercors" "sbt compile"
+mkdir deb
+dpkg-deb --extract sync/Vercors*.deb deb
+tree -d deb
+
 ./.travis/travis_fold.sh checkstyle "Checkstyle" "checkstyle -c /google_checks.xml src hre col parsers -f xml > checkstyle.xml"
 echo "TRAVIS_SECURE_ENV_VARS=${TRAVIS_SECURE_ENV_VARS}";
 if [ "${TRAVIS_SECURE_ENV_VARS}" == "false" ]; then
