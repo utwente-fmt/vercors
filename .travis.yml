@@ -17,15 +17,6 @@ addons:
   apt:
     packages:
       - tree # For debug printing sync folder
-cache:
-  directories:
-    - "~/.cache/coursier"
-    - "~/.ivy2/cache"
-    - "~/.sbt"
-before_cache:
-  - rm -fv $HOME/.ivy2/.sbt.ivy.lock
-  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
-  - find $HOME/.sbt        -name "*.lock"               -print -delete
 matrix:
   include:
     - stage: Build
@@ -36,6 +27,15 @@ matrix:
             - fakeroot
             - tree
       after_failure: .travis/clearBuildData.sh
+      cache:
+        directories:
+          - "~/.cache/coursier"
+          - "~/.ivy2/cache"
+          - "~/.sbt"
+      before_cache:
+        - rm -fv $HOME/.ivy2/.sbt.ivy.lock
+        - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+        - find $HOME/.sbt        -name "*.lock"               -print -delete
     - stage: Tests
       script:
         - SPLIT=0/5 ./.travis/build.sh
