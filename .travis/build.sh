@@ -5,7 +5,7 @@ source .travis/fileServer.sh
 .travis/travis_fold.sh downloadBuildData "Downloading Vercors .deb file" downloadBuildData
 tree sync
 
-# Try making swap file
+# Make swap file to decrease the change that the build fails because of OOM
 sudo dd if=/dev/zero of=/swapfile_4G.img bs=1024 count=4M
 sudo mkswap /swapfile_4G.img
 sudo swapon -p 20 /swapfile_4G.img
