@@ -559,12 +559,9 @@ public class Main
           passes.add("check");
         }
 
-//        if (has_type_adt){
         passes.add("create-return-parameter");
         passes.add("check");
-        passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
-//        } else {
-//        }
+
         passes.add("standardize");
         passes.add("check");
 
@@ -1121,11 +1118,6 @@ public class Main
       }
     });
     branching_pass(defined_passes,"create-return-parameter","Replace return value by out parameter.",CreateReturnParameter.class);
-    defined_passes.put("voidcallsthrown",new CompilerPass("Replace return value and thrown exceptions by out parameters."){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new VoidCallsThrown(arg).rewriteAll();
-      }
-    });
     compiler_pass(defined_passes,"vector-encode","Encode vector blocks using the vector library",VectorEncode.class);
     defined_passes.put("chalice-preprocess",new CompilerPass("Pre processing for chalice"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
