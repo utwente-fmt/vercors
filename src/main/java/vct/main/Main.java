@@ -559,11 +559,12 @@ public class Main
           passes.add("check");
         }
 
-        if (has_type_adt){
-          passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
-        } else {
-          passes.add("create-return-parameter");
-        }
+//        if (has_type_adt){
+        passes.add("create-return-parameter");
+        passes.add("check");
+        passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
+//        } else {
+//        }
         passes.add("standardize");
         passes.add("check");
 

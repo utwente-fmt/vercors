@@ -25,7 +25,7 @@ import vct.logging.VerCorsError.ErrorCode;
 public class CreateReturnParameter extends AbstractRewriter {
 
   private static final String RETURN_BRANCH = "return branch";
-  private static final String RETURN_VAR = "sys__result";
+  public static final String RETURN_VAR = "sys__result";
 
   public CreateReturnParameter(ProgramUnit source, ErrorMapping map) {
     super(source);
