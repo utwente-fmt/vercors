@@ -11,40 +11,45 @@ import vct.col.ast.util.AbstractRewriter;
 import java.util.ArrayList;
 import java.util.List;
 
-// TODO (Bob): Possibly remove labels if they're not referred to by breaks, continues...? Then VerCors can (possibly) assume a statement does not need a try-catch if there's no label
-
 public class SpecifyImplicitLabels extends AbstractRewriter {
     int counter = 0;
 
-    List<NameExpression> labelStack = new ArrayList<>();
+    List<String> labelStack = new ArrayList<>();
 
     public SpecifyImplicitLabels(ProgramUnit source) {
         super(source);
     }
 
     String generateLabel(String prefix) {
-        return "__" + prefix + "_" + (counter++);
+        return prefix + "_" + (counter++);
+    }
+
+    NameExpression currentLabel() {
+        return create.label(labelStack.get(labelStack.size() - 1));
     }
 
     public void enterLabelScope(String prefix, ASTNode statement) {
         // Reuse an existing label or create a new one
-        NameExpression currentLabel;
+        String currentLabel;
         if (statement.labels() > 0) {
-            currentLabel = statement.getLabel(0);
+            currentLabel = statement.getLabel(0).getName();
+            if (currentLabel == null) {
+                Abort("Null label is not allowed");
+            }
         } else {
-            currentLabel = create.label(generateLabel(prefix));
+            currentLabel = generateLabel(prefix);
         }
 
         labelStack.add(currentLabel);
     }
 
     public void exitLabelScope(ASTNode node) {
-        NameExpression currentLabel = labelStack.remove(labelStack.size() - 1);
+        String previousCurrentLabel = labelStack.remove(labelStack.size() - 1);
 
         // Add currentlabel if the original node has no labels yet
         // Since they will be copied over in the post visit step
         if (node.labels() == 0) {
-            result.addLabel(currentLabel);
+            result.addLabel(create.label(previousCurrentLabel));
         }
     }
 
@@ -68,14 +73,14 @@ public class SpecifyImplicitLabels extends AbstractRewriter {
             return;
         }
 
-        // If there is no break target
-        if (special.args.length == 0 && labelStack.size() > 0) {
-            NameExpression currentLabel = labelStack.get(labelStack.size() - 1);
-            if (currentLabel == null) Abort("Null label is not allowed");
-            result = create.special(special.kind, new ASTNode[]{currentLabel});
-        } else if (special.args.length == 0 && labelStack.size() == 0) {
-            // If there is no break target but also no switch/while in scope, that's an error
-            Abort("Break without target is only allowed within while or switch statements");
+        if (special.args.length == 0) {
+            if (labelStack.size() > 0) {
+                // If there is no break target but there is a label in scope, add it to the break/continue
+                result = create.special(special.kind, currentLabel());
+            } else {
+                // If there is no break target but also no switch/while in scope, that's an error
+                Abort("Break without target is only allowed within while or switch statements");
+            }
         } else {
             // There already is a break target, so we can just skip it
             super.visit(special);
