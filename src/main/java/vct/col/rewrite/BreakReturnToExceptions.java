@@ -34,7 +34,9 @@ public class BreakReturnToExceptions extends AbstractRewriter {
     /**
      * At this point method overloading is not yet resolved. Therefore, to be safe, we append
      * uniqueMethodIdCounter to any name that must be derived from the current method. As it is
-     * incremented upon entry of a new method, this results in unique names.
+     * incremented upon entry of a new method, this results in unique names. This is needed because
+     * for methods that use return, a ReturnException type is derived. Hence, for overloaded methods,
+     * a unique counter is needed.
      */
     private int uniqueMethodIdCounter = 0;
 
@@ -224,9 +226,8 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             currentBlock.add(create.assignment(create.local_name(intermediateVarName), exceptionObject));
 
             // Account for use of \result, replace it with intermediateVarName
-            HashMap<NameExpression, ASTNode> substMap = new HashMap<>();
-            substMap.put(create.reserved_name(ASTReserved.Result), create.local_name(intermediateVarName));
-            Substitution subst = new Substitution(source(), substMap);
+            Substitution subst = new Substitution(source())
+                    .subst(create.reserved_name(ASTReserved.Result), create.local_name(intermediateVarName));
 
             for (ASTNode statement : returnStatement.get_after()) {
                 currentBlock.add(subst.rewrite(statement));
