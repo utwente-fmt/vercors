@@ -49,7 +49,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
 
   public static FeatureScanner scan(ASTNode node) {
     FeatureScanner fs = new FeatureScanner();
-    fs.visit(node);
+    node.accept(fs);
     return fs;
   }
   

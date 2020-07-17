@@ -11,6 +11,7 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
+import vct.col.util.FeatureScanner;
 
 import java.util.ArrayList;
 import java.util.HashMap;
