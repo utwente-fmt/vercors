@@ -46,6 +46,12 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private EnumSet<Binder> binders_used=EnumSet.noneOf(Binder.class);
   
   private HashSet<Class<? extends ASTNode>> nodes=new HashSet<Class<? extends ASTNode>>();
+
+  public static FeatureScanner scan(ASTNode node) {
+    FeatureScanner fs = new FeatureScanner();
+    fs.visit(node);
+    return fs;
+  }
   
   public boolean hasVectorBlocks(){
     return nodes.contains(VectorBlock.class);

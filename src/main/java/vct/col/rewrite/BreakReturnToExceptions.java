@@ -27,7 +27,6 @@ import java.util.Set;
  */
 public class BreakReturnToExceptions extends AbstractRewriter {
     private Set<String> breakLabels = new HashSet<>();
-    private boolean encounteredReturn = false;
     private Set<String> exceptionTypes = new HashSet<>();
     private int uniqueCounter = 0;
 
@@ -162,7 +161,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         super.visit(method);
         Method resultMethod = (Method) result;
 
-        if (encounteredReturn) {
+        if (FeatureScanner.scan(method).usesReturn()) {
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
 
             ClassType exceptionType = getReturnExceptionType(method);
@@ -171,8 +170,6 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
             tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { exceptionType }, create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
-
-            encounteredReturn = false;
         }
 
         if (breakLabels.size() != 0) {
@@ -205,8 +202,6 @@ public class BreakReturnToExceptions extends AbstractRewriter {
 
     @Override
     public void visit(ReturnStatement returnStatement) {
-        encounteredReturn = true;
-
         ASTNode expr = returnStatement.getExpression();
 
         ClassType exceptionType = getReturnExceptionType(current_method());
