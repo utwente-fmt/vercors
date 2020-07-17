@@ -1,4 +1,4 @@
-package vct.col.rewrite;
+package vct.parsers;
 
 import java.io.File;
 import java.lang.reflect.Modifier;
@@ -22,8 +22,6 @@ import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ClassName;
-import vct.parsers.ColJavaParser;
-import vct.parsers.Parser;
 import vct.parsers.rewrite.RemoveBodies;
 
 public class JavaResolver extends AbstractRewriter {
@@ -61,9 +59,19 @@ public class JavaResolver extends AbstractRewriter {
       Debug("loading %s",cl_name);
       create.enter();
       create.setOrigin(new MessageOrigin("library class %s",cl_name));
-      ASTClass res=create.new_class(ClassName.toString(name,FQN_SEP),null,null);
+      ClassType superClass = null;
+      if (!cln.toString().equals("java.lang.Object")) {
+        superClass = (ClassType) convert_type(cl.getSuperclass());
+      }
+      ASTClass res=create.new_class(
+              ClassName.toString(name,FQN_SEP),
+              null,
+              superClass
+      );
       // Temporarily switch off including methods
-      // TODO (Bob): We want these methods around if they are used in the rest of the program! So figure out a way to include them but also prune the added imports
+      /* TODO: Temporarily switch off including methods
+           We want these methods around if they are used in the rest of the program!
+           Once the type system understands inheritance, the unused methods can be pruned. */
       // We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass.
 //      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
 //        // Only public methods are allowed since protected is only accesible from the same package (and we're not std) and private is not accesible altogether
