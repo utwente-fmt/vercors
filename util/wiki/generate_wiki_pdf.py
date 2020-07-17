@@ -116,37 +116,31 @@ def collect_chapters(wiki_location):
     chapters = [chapter for chapter in chapter_re.findall(contents) if chapter[0] != "Home"]
 
     # Get all chapter texts
-    chapter_texts = []
+    md_shifted_headers = []
     for name, file_name in chapters:
         with open(os.path.join(wiki_location, file_name + ".md"), "r") as f:
-            heading = f'# {name}\n\n'
-            chapter_texts.append(heading + f.read())
+            md_shifted_headers.append(pypandoc.convert_text(
+                f.read(), "gfm", "gfm", extra_args=["--base-header-level=2"]
+            ))
 
-    # Convert to json as common format
-    chapter_json = [json.loads(pypandoc.convert_text(
-        chapter, "json", format="gfm", extra_args=["--base-header-level=2"]
-    )) for chapter in chapter_texts]
+    total_md = ""
+    for (name, _), md in zip(chapters, md_shifted_headers):
+        total_md += f"# {name}\n"
+        total_md += md
+        total_md += "\n"
 
-    return chapter_json
+    return json.loads(pypandoc.convert_text(total_md, "json", "gfm"))
 
 
-def dedent_first_header(chapter):
+def collect_testcases(document, cases):
     """
-    The name of the markdown file is prepended as a header earlier, so we have to increase its size
-    """
-    assert chapter['blocks'][0]['t'] == 'Header'
-    chapter['blocks'][0]['c'][0] -= 1
-
-
-def collect_testcases(chapter, cases):
-    """
-    Walks through the blocks of a chapter and collects test cases as described in SnippetTestcase and TemplateTestcase
+    Walks through the blocks of the document and collects test cases as described in SnippetTestcase and TemplateTestcase
     """
     breadcrumbs = []
     testcase_number = 1
     code_block_label = None
 
-    for block in chapter['blocks']:
+    for block in document['blocks']:
         # Code blocks preceded by a label are added to the labeled testcase
         if block['t'] == 'CodeBlock' and code_block_label is not None:
             cases[code_block_label].add_content(block['c'][1].strip())
@@ -173,7 +167,7 @@ def collect_testcases(chapter, cases):
                 kind, *args = lines[0].split(' ')
 
                 # Template label
-                if kind in {'testBlock', 'testMethod', 'testClass'}:
+                if kind in {'testBlock', 'testMethod', 'test'}:
                     code_block_label = '-'.join(breadcrumbs) + '-' + str(testcase_number)
                     testcase_number += 1
                     cases[code_block_label] = TemplateTestcase(kind, args[0] if args else 'Pass')
@@ -195,24 +189,18 @@ def collect_testcases(chapter, cases):
                         cases[code_block_label] = SnippetTestcase()
 
 
-def collect_blocks(chapters):
-    blocks = []
-    for chapter in chapters:
-        blocks += chapter['blocks']
-    return blocks
-
-
 def convert_block_php(block, cases):
     """
     If a code block has been collected into a test case, it is instead emitted as a runnable example on the website.
     """
     if block['t'] == 'CodeBlock' and '_case_label' in block:
+        code_here_data = base64.b64encode(block['c'][1].encode('utf-8')).decode('utf-8')
         case = cases[block['_case_label']]
         data = base64.b64encode(case.render().encode('utf-8')).decode('utf-8')
         return {
             't': 'RawBlock',
             'c': ['html',
-                  f"<?= VerificationWidget::widget(['initialLanguage' => '{case.language}', 'initialCode' => base64_decode('{data}')]) ?>"],
+                  f"<?= VerificationWidget::widget(['initialLanguage' => '{case.language}', 'initialCode' => base64_decode('{data}'), 'hide' => true, 'initialCodeOnHide' => base64_decode('{code_here_data}') ]) ?>"],
         }
     else:
         return block
@@ -237,6 +225,48 @@ def output_php(path, blocks, cases, version):
         outputfile=path)
 
 
+def get_html(elements):
+    result = ""
+
+    for element in elements:
+        if element['t'] == 'Str':
+            result += element['c']
+        elif element['t'] == 'Space':
+            result += ' '
+        else:
+            assert False, element['t']
+
+    return result
+
+
+def output_menu(path, blocks, version):
+    l1_target = []
+    l2_target = None
+
+    for block in blocks:
+        if block['t'] == 'Header':
+            level = block['c'][0]
+            if level == 1:
+                l2_target = []
+                l1_target.append((get_html(block['c'][2]), block['c'][1][0], l2_target))
+            elif level == 2:
+                l2_target.append((get_html(block['c'][2]), block['c'][1][0]))
+
+    with open(path, "w") as f:
+        f.write("<ul>\n")
+        for header, name, subheaders in l1_target:
+            f.write("<li>\n")
+            f.write(f'<a href="#{name}">')
+            f.write(header + "</a>\n")
+            if subheaders:
+                f.write("<ul>\n")
+                for subheader, name in subheaders:
+                    f.write(f'<li><a href="#{name}">')
+                    f.write(subheader + "</a></li>\n")
+                f.write("</ul>\n")
+            f.write("</li>\n")
+        f.write("</ul>\n")
+
 def output_pdf(path, blocks, version, generate_toc=True):
     wiki_text = json.dumps({
         'blocks': blocks,
@@ -259,11 +289,12 @@ if __name__ == "__main__":
     parser = optparse.OptionParser()
     parser.add_option('-i', '--input', dest='source_path', help='directory where the wiki is stored', metavar='FILE')
     parser.add_option('-w', '--php', dest='php_path', help='write wiki to php file for the website', metavar='FILE')
+    parser.add_option('-m', '--menu', dest='menu_path', help='extract a menu for the website', metavar='FILE')
     parser.add_option('-p', '--pdf', dest='pdf_path', help='write wiki to a latex-typeset pdf', metavar='FILE')
 
     options, args = parser.parse_args()
 
-    if not any([options.php_path, options.pdf_path]):
+    if not any([options.php_path, options.menu_path, options.pdf_path]):
         parser.error("No output type: please set one or more of the output paths. (try --help)")
 
     if options.source_path:
@@ -273,18 +304,19 @@ if __name__ == "__main__":
         subprocess.run(["git", "clone", "https://github.com/utwente-fmt/vercors.wiki.git"], cwd=path)
         source_path = os.path.join(path, "vercors.wiki")
 
-    chapters = collect_chapters(source_path)
-    pandoc_version = chapters[0]['pandoc-api-version']
+    document = collect_chapters(source_path)
+    pandoc_version = document['pandoc-api-version']
     cases = {}
 
-    for chapter in chapters:
-        dedent_first_header(chapter)
-        collect_testcases(chapter, cases)
+    collect_testcases(document, cases)
 
-    blocks = collect_blocks(chapters)
+    blocks = document['blocks']
 
     if options.php_path:
         output_php(options.php_path, blocks, cases, pandoc_version)
+
+    if options.menu_path:
+        output_menu(options.menu_path, blocks, pandoc_version)
 
     if options.pdf_path:
         output_pdf(options.pdf_path, blocks, pandoc_version)
