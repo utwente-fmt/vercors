@@ -208,8 +208,8 @@ object CommandLineTesting {
 
           // Tests are instrumented at runtime by the jacoco java vm agent
           val jacocoArg = if (enableCoverage.get()) {
-            val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_${name}.exec"
-            Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=destfile=$jacocoOutputFilePath")
+            val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_$name.exec"
+            Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=destfile=$jacocoOutputFilePath,includes=vct.*")
           } else {
             null
           }
