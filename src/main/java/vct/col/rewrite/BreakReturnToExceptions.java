@@ -29,6 +29,13 @@ public class BreakReturnToExceptions extends AbstractRewriter {
     private Set<String> exceptionTypes = new HashSet<>();
     private int uniqueCatchVarCounter = 0;
 
+    /**
+     * At this point method overloading is not yet resolved. Therefore, to be safe, we append
+     * uniqueMethodIdCounter to any name that must be derived from the current method. As it is
+     * incremented upon entry of a new method, this results in unique names.
+     */
+    private int uniqueMethodIdCounter = 0;
+
     public BreakReturnToExceptions(ProgramUnit source) {
         super(source);
     }
@@ -108,6 +115,10 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         return create.class_type(name);
     }
 
+    public ClassType getReturnExceptionType(Method method) {
+        return getExceptionType("return", method.getName() + "_" + uniqueMethodIdCounter, method.getReturnType());
+    }
+
     public void post_visit(ASTNode node) {
         // Wrap statement in try-catch if one of the labels is broken to
         // Collect all used break labels within statement
@@ -152,7 +163,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         if (encounteredReturn) {
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
 
-            ClassType exceptionType = getExceptionType("return", method.getName());
+            ClassType exceptionType = getReturnExceptionType(method);
             String catchVarName = getUniqueCatchVarName();
             ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), "value");
             ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
@@ -164,7 +175,10 @@ public class BreakReturnToExceptions extends AbstractRewriter {
 
         if (breakLabels.size() != 0) {
             Warning("Some break labels were not deleted, even though they should be. This indicates a logic error.");
+            breakLabels.clear();
         }
+
+        uniqueMethodIdCounter += 1;
     }
 
     public void visit(ASTSpecial special) {
@@ -194,13 +208,12 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         ASTNode expr = returnStatement.getExpression();
 
         // TODO (Bob): If we know we didn't pass any finally's we can do a jump to the end and check the postcondition...?
-        // TODO (Bob): Account for overloading?
         ASTSpecial returnThrow = null;
         if (expr != null){
-            ClassType exceptionType = getExceptionType("return", current_method().getName(), current_method().getReturnType());
+            ClassType exceptionType = getReturnExceptionType(current_method());
             returnThrow = create.special(ASTSpecial.Kind.Throw, create.new_object(exceptionType, rewrite(expr)));
         } else {
-            ClassType exceptionType = getExceptionType("return", current_method().getName());
+            ClassType exceptionType = getReturnExceptionType(current_method());
             returnThrow = create.special(ASTSpecial.Kind.Throw, create.new_object(exceptionType));
         }
        result = returnThrow;
