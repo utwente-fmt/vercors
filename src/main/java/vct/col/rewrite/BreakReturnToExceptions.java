@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
@@ -12,6 +13,7 @@ import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -27,7 +29,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
     private Set<String> breakLabels = new HashSet<>();
     private boolean encounteredReturn = false;
     private Set<String> exceptionTypes = new HashSet<>();
-    private int uniqueCatchVarCounter = 0;
+    private int uniqueCounter = 0;
 
     /**
      * At this point method overloading is not yet resolved. Therefore, to be safe, we append
@@ -48,9 +50,9 @@ public class BreakReturnToExceptions extends AbstractRewriter {
      * Generates a unique catch var name. Vercors doesn't scope variables properly so each variable name needs to be unique.
      * If this is ever fixed or offloaded to some separate phase this method can be replaced with just the constant "e".
      */
-    private String getUniqueCatchVarName() {
+    private String getUniqueName(String prefix) {
         // ucv == unique catch var
-        return "ucv_" + uniqueCatchVarCounter++;
+        return prefix + "_" + uniqueCounter++;
     }
 
     public String getExceptionClassName(String prefix, String id) {
@@ -135,7 +137,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(result), null);
             for (NameExpression label : usedLabels) {
                 tryCatchBlock.addCatchClauseArray(
-                        getUniqueCatchVarName(),
+                        getUniqueName("ucv"),
                         new Type[] { getExceptionType("break", label.getName()) },
                         create.block());
             }
@@ -164,7 +166,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
 
             ClassType exceptionType = getReturnExceptionType(method);
-            String catchVarName = getUniqueCatchVarName();
+            String catchVarName = getUniqueName("ucv");
             ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), "value");
             ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
             tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { exceptionType }, create.block(returnStatement));
@@ -207,20 +209,38 @@ public class BreakReturnToExceptions extends AbstractRewriter {
 
         ASTNode expr = returnStatement.getExpression();
 
-        // TODO (Bob): If we know we didn't pass any finally's we can do a jump to the end and check the postcondition...?
-        ASTSpecial returnThrow = null;
-        if (expr != null){
-            ClassType exceptionType = getReturnExceptionType(current_method());
-            returnThrow = create.special(ASTSpecial.Kind.Throw, create.new_object(exceptionType, rewrite(expr)));
-        } else {
-            ClassType exceptionType = getReturnExceptionType(current_method());
-            returnThrow = create.special(ASTSpecial.Kind.Throw, create.new_object(exceptionType));
-        }
-       result = returnThrow;
+        ClassType exceptionType = getReturnExceptionType(current_method());
 
-        // TODO (Bob): Add this in the catch clause?
-        // for(ASTNode n : returnStatement.get_after()){
-        //     block.add(rewrite(n));
-        // }
+        MethodInvokation exceptionObject;
+        if (expr != null){
+            exceptionObject = create.new_object(exceptionType, rewrite(expr));
+        } else {
+            exceptionObject = create.new_object(exceptionType);
+        }
+
+        if (returnStatement.hasBefore() || returnStatement.hasAfter()) {
+            for (ASTNode statement : returnStatement.get_before()) {
+                currentBlock.add(rewrite(statement));
+            }
+
+            String intermediateVarName = getUniqueName("ret");
+            currentBlock.add(create.field_decl(intermediateVarName, exceptionType));
+            currentBlock.add(create.assignment(create.local_name(intermediateVarName), exceptionObject));
+
+            // Account for use of \result, replace it with intermediateVarName
+            HashMap<NameExpression, ASTNode> substMap = new HashMap<>();
+            substMap.put(create.reserved_name(ASTReserved.Result), create.local_name(intermediateVarName));
+            Substitution subst = new Substitution(source(), substMap);
+
+            for (ASTNode statement : returnStatement.get_after()) {
+                currentBlock.add(subst.rewrite(statement));
+            }
+
+            currentBlock.add(create.special(ASTSpecial.Kind.Throw, create.local_name(intermediateVarName)));
+
+            result = null;
+        } else {
+            result = create.special(ASTSpecial.Kind.Throw, exceptionObject);
+        }
     }
 }
