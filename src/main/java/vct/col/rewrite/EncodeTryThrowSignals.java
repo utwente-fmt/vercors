@@ -474,8 +474,9 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
             result = create.assignment(resultLocation, resultInvokation);
 
-            // Then, if exceptions are involved, insert a check that possibly jumps to a handler
-            if (invokation.getDefinition().canThrowSpec()) {
+            // Then, if exceptions are involved, and "regular" methods are concerned, insert a check that possibly jumps to a handler
+            Method.Kind methodKind = invokation.getDefinition().getKind();
+            if ((methodKind == Method.Kind.Plain || methodKind == Method.Kind.Constructor) && invokation.getDefinition().canThrowSpec()) {
                 currentBlock.add(result);
                 result = null;
                 currentBlock.add(createExceptionCheck(currentNearestHandler()));
