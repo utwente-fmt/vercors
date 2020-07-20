@@ -1,10 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.col.ast.util;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 import scala.collection.JavaConverters;
@@ -416,7 +413,7 @@ public class ASTFactory<E> implements FrameControl {
    * @param list Non-empty list of terms.
    * @return folded list.
    */
-   public ASTNode fold(StandardOperator op, ArrayList<ASTNode> list) {
+   public ASTNode fold(StandardOperator op, List<ASTNode> list) {
      if (list.size()==0){
        switch(op){
        case And:

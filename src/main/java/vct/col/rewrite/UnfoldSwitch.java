@@ -1,10 +1,14 @@
 package vct.col.rewrite;
 
 import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.AbstractRewriter;
+
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class UnfoldSwitch extends AbstractRewriter {
     int counter = 0;
@@ -26,10 +30,10 @@ public class UnfoldSwitch extends AbstractRewriter {
 
         BlockStatement mainBlock = create.block();
         BlockStatement caseStatementsBlock = create.block();
-        String switchID = switchStatement.getLabel(0).getName();
+        String switchID = Objects.requireNonNull(switchStatement.getLabel(0).getName());
 
         // Put the case expr in a var s.t. it can be referenced in the if chain
-        String exprName = switchID + "_v_" + counter++;
+        String exprName = switchID + "_" + counter++;
         mainBlock.add(create.field_decl(exprName, switchStatement.expr.getType(), switchStatement.expr));
 
         // Create if chain jumping to all the numbered arms
@@ -37,25 +41,19 @@ public class UnfoldSwitch extends AbstractRewriter {
         boolean encounteredDefault = false;
         for (int caseID = 0; caseID < switchStatement.cases.length; caseID++) {
             Switch.Case switchCase = switchStatement.cases[caseID];
-            ASTNode ifGuard = null;
-            // Aggregate all the case exprs into one big or expression
-            for (ASTNode caseExpr : switchCase.cases) {
-                ASTNode comparison;
-                if (caseExpr == null) {
-                    encounteredDefault = true;
-                    caseStatementsBlock.add(create.labelDecl(generateCaseIDLabel(switchID, "default")));
-                    continue;
-                } else {
-                    comparison = eq(name(exprName), caseExpr);
-                }
 
-                if (ifGuard == null) {
-                    ifGuard = comparison;
-                } else {
-                    ifGuard = or(ifGuard, comparison);
-                }
+            if (switchCase.cases.contains(null)) {
+                // Switch case contains default label
+                encounteredDefault = true;
+                caseStatementsBlock.add(create.labelDecl(generateCaseIDLabel(switchID, "default")));
             }
-            // TODO (Bob): Use create.fold here instead of manually building the if guard
+
+            // Fold all "switchValue == labelValue" expressions with "||", skipping default case labels (null)
+            ASTNode ifGuard = create.fold(StandardOperator.Or,
+                    switchCase.cases.stream()
+                        .filter(Objects::nonNull)
+                        .map(caseExpr -> eq(name(exprName), caseExpr))
+                        .collect(Collectors.toList()));
 
             // Add if to the chain that jumps to the case statements
             NameExpression caseIDLabel = generateCaseIDLabel(switchID, caseID);

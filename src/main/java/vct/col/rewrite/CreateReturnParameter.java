@@ -29,8 +29,9 @@ public class CreateReturnParameter extends AbstractRewriter {
 
   public CreateReturnParameter(ProgramUnit source, ErrorMapping map) {
     super(source);
-    /* TODO (Bob): In the case of abrupt control flow this is not that useful, since
-          there is only one return at the end now. Ideally if no finally is present, the contracts
+    /* TODO: In the case of abrupt control flow this is not that useful, since
+          there will be only one return at the end. Which means the error will be signalled
+          at the end of the method syntactically. Ideally if no finally is present, the contracts
           should be checked at the actual return sites, and not just the synthetic return site at the end.
      */
     map.add(RETURN_BRANCH,ErrorCode.AssertFailed,ErrorCode.PostConditionFailed);
