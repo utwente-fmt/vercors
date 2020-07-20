@@ -38,15 +38,33 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     /**
      * Holds the most recently encountered label. Since we traverse in a post-order, this variable
      * always holds the label of the next finally or catch clause that a throw should jump to.
-     * TODO (Bob): Want to turn this into a stack, not implicit stack on the... stack.
      */
-    String nearestHandlerLabel = null;
+    ArrayList<String> handlerLabelStack = new ArrayList<>();
 
     /**
      * Holds the name of the variable in the current signals clause. If not in a signals clause, should be null.
      * Used to replace the variable when it is encountered with the excVar variable.
      */
     String currentExceptionVarName = null;
+
+    public void pushNearestHandler(String nearestHandlerLabel) {
+        handlerLabelStack.add(nearestHandlerLabel);
+    }
+
+    public String popNearestHandler() {
+        return handlerLabelStack.remove(handlerLabelStack.size() - 1);
+    }
+
+    public String currentNearestHandler() {
+        if (handlerLabelStack.isEmpty()) {
+            Abort("Label stack is unexpectedly empty");
+        }
+        return handlerLabelStack.get(handlerLabelStack.size() - 1);
+    }
+
+    public boolean nearestHandlerPresent() {
+        return !handlerLabelStack.isEmpty();
+    }
 
     public String generateLabel(String prefix, String id) {
         return prefix + "_" + id + "_" + counter++;
@@ -120,31 +138,31 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catches());
 
-        String oldNearestHandlerLabel = null;
-        oldNearestHandlerLabel = nearestHandlerLabel;
         if (catchClauses.size() > 0) {
-            nearestHandlerLabel = entryLabels.get(catchClauses.get(0));
+            pushNearestHandler(entryLabels.get(catchClauses.get(0)));
         } else {
             // By definition if there are no catches there should be a finally clause. (disregarding try-with-resources)
-            nearestHandlerLabel = entryLabels.get(tryCatchBlock.after());
+            pushNearestHandler(entryLabels.get(tryCatchBlock.after()));
         }
 
         visitTryBody(tryCatchBlock);
+
+        popNearestHandler();
 
         // If there is an after block, the next handler for each catch clause is the finally block.
         // (The finally block will just forward control flow to the next handler anyway)
         // Otherwise, the next handler is the actual next handler after this try block.
         if (tryCatchBlock.after() != null) {
-            nearestHandlerLabel = entryLabels.get(tryCatchBlock.after());
-        } else {
-            nearestHandlerLabel = oldNearestHandlerLabel;
+            pushNearestHandler(entryLabels.get(tryCatchBlock.after()));
         }
 
         for (CatchClause cc : catchClauses) {
             visitCatch(tryCatchBlock, cc);
         }
 
-        nearestHandlerLabel = oldNearestHandlerLabel;
+        if (tryCatchBlock.after() != null) {
+            popNearestHandler();
+        }
 
         visitFinally(tryCatchBlock);
 
@@ -185,11 +203,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         } else if (tryCatchBlock.after() != null) {
             fallbackHandler = entryLabels.get(tryCatchBlock.after());
         } else {
-            fallbackHandler = nearestHandlerLabel;
-        }
-        if (nearestHandlerLabel == null) {
-            // TODO: What about a top-level handler? or just set it at method entry?
-            Abort("Nearesthandlerlabel was null, even though there should have been a handler!");
+            fallbackHandler = currentNearestHandler();
         }
 
         currentBlock.add(create.labelDecl(entryLabels.get(catchClause)));
@@ -255,7 +269,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                         create.local_name(excVar),
                         create.local_name(oldExcVarName.get(tryCatchBlock))
                 ),
-                create.gotoStatement(nearestHandlerLabel)
+                create.gotoStatement(currentNearestHandler())
         ));
 
         currentBlock.add(create.gotoStatement(postLabels.get(tryCatchBlock)));
@@ -271,7 +285,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         }
 
         currentBlock.add(create.assignment(create.local_name(excVar), rewrite(special.args[0])));
-        currentBlock.add(create.gotoStatement(nearestHandlerLabel));
+        currentBlock.add(create.gotoStatement(currentNearestHandler()));
         result = null;
     }
 
@@ -284,17 +298,16 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         if (method.getBody() == null) {
             super.visit(method);
         } else {
-            if (nearestHandlerLabel != null) {
-                // This might not be true once we can nest methods (or classes). If that's the case adapt it or delete it
-                Abort("Nearesthandlerlabel was not null, even though we are entering a fresh method!");
+            if (nearestHandlerPresent()) {
+                Abort("A nearest handler was present, even though we are entering a fresh method!");
             }
 
             String unhandledExceptionHandler = generateLabel("method_end", method.getName());
-            nearestHandlerLabel = unhandledExceptionHandler;
+            pushNearestHandler(unhandledExceptionHandler);
 
             super.visit(method);
 
-            nearestHandlerLabel = null;
+            popNearestHandler();
 
             Method resultMethod = (Method) result;
             BlockStatement methodBody = (BlockStatement) resultMethod.getBody();
@@ -447,7 +460,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         // Non-void method invokation that is a statement: just add the invokation and append an if statement
         currentBlock.add(result);
         result = null;
-        currentBlock.add(createExceptionCheck(nearestHandlerLabel));
+        currentBlock.add(createExceptionCheck(currentNearestHandler()));
     }
 
     public void visit(AssignmentStatement assignment) {
@@ -465,7 +478,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             if (invokation.getDefinition().canThrowSpec()) {
                 currentBlock.add(result);
                 result = null;
-                currentBlock.add(createExceptionCheck(nearestHandlerLabel));
+                currentBlock.add(createExceptionCheck(currentNearestHandler()));
             }
         } else {
             super.visit(assignment);
