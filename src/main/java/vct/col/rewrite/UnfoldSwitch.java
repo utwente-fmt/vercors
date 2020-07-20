@@ -27,8 +27,6 @@ public class UnfoldSwitch extends AbstractRewriter {
     }
 
     public void visit(Switch switchStatement) {
-        super.visit(switchStatement);
-
         BlockStatement mainBlock = create.block();
         BlockStatement caseStatementsBlock = create.block();
         String switchID = Objects.requireNonNull(switchStatement.getLabel(0).getName());
@@ -41,13 +39,10 @@ public class UnfoldSwitch extends AbstractRewriter {
 
         // Create if chain jumping to all the numbered arms
         ArrayList<IfStatement> ifChain = new ArrayList<>();
-        boolean encounteredDefault = false;
         for (int caseID = 0; caseID < switchStatement.cases.length; caseID++) {
             Switch.Case switchCase = switchStatement.cases[caseID];
 
             if (switchCase.cases.contains(null)) {
-                // Switch case contains default label
-                encounteredDefault = true;
                 caseStatementsBlock.add(create.labelDecl(defaultCaseLabel));
             }
 
@@ -58,19 +53,19 @@ public class UnfoldSwitch extends AbstractRewriter {
                         .map(caseExpr -> eq(name(exprName), caseExpr))
                         .collect(Collectors.toList()));
 
-            // Add if to the chain that jumps to the case statements
-            NameExpression caseIDLabel = generateCaseIDLabel(switchID, caseID);
-            // If there was only a default case there is no if guard, so we add no if.
-            // The if for default will be added at the end, after all the other are added
-            if (ifGuard != null) {
+            // If there was only a default case there is no if guard, and hence it will be the default value "false"
+            // (Because of folding or, "||"), and no if will be added then.
+            if (!ifGuard.equals(false)) {
+                // Add if to the chain that jumps to the case statements
+                NameExpression caseIDLabel = generateCaseIDLabel(switchID, caseID);
                 IfStatement nextIf = create.ifthenelse(ifGuard, create.gotoStatement(caseIDLabel));
                 ifChain.add(nextIf);
+                caseStatementsBlock.add(create.labelDecl(caseIDLabel));
             }
 
             // TODO (Bob): This breaks for nested switches, since we do not call rewrite on the case statements
             // Possible improvement: refactor cases to be their own respective AST nodes? instead of doing them manually like this
             //      But it seems to work for now.
-            caseStatementsBlock.add(create.labelDecl(caseIDLabel));
             for (ASTNode caseStatement : switchCase.stats) {
                 caseStatementsBlock.add(caseStatement);
             }
@@ -86,8 +81,8 @@ public class UnfoldSwitch extends AbstractRewriter {
             totalIfChain = defaultJump;
         }
 
-        if (!encounteredDefault) {
-            // If we have not seen a default case, the default label was not added anywhere in the caseStatementsBlock.
+        if (!switchStatement.hasDefaultCaseLabel()) {
+            // If the switch does not have a default label, the default label was not added anywhere in the caseStatementsBlock.
             // Instead we place it at the end, so the default case does not go to any cases.
             caseStatementsBlock.add(create.labelDecl(defaultCaseLabel));
         }
