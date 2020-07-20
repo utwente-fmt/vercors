@@ -289,7 +289,6 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                 Abort("Nearesthandlerlabel was not null, even though we are entering a fresh method!");
             }
 
-            // TODO (Bob): What about overloading? This should be handled in another phase, but currently I am not sure...
             String unhandledExceptionHandler = generateLabel("method_end", method.getName());
             nearestHandlerLabel = unhandledExceptionHandler;
 
@@ -463,9 +462,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             result = create.assignment(resultLocation, resultInvokation);
 
             // Then, if exceptions are involved, insert a check that possibly jumps to a handler
-            // TODO (Bob): Use can throw here or smth
-            Contract contract = invokation.getDefinition().getContract();
-            if (contract != null && contract.signals.length > 0) {
+            if (invokation.getDefinition().canThrowSpec()) {
                 currentBlock.add(result);
                 result = null;
                 currentBlock.add(createExceptionCheck(nearestHandlerLabel));
