@@ -9,6 +9,7 @@ import vct.col.ast.util.AbstractRewriter;
 import viper.silver.cfg.Block;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -50,19 +51,17 @@ public class UnfoldSwitch extends AbstractRewriter {
                 currentBlock.add(create.labelDecl(defaultCaseLabel));
             }
 
-            // Fold all "switchValue == labelValue" expressions with "||", skipping default case labels (null)
-            ASTNode ifGuard = create.fold(StandardOperator.Or,
-                    switchCase.cases.stream()
+            // Collect all labels into equality expressions
+            List<ASTNode> ifGuards = switchCase.cases.stream()
                         .filter(Objects::nonNull)
                         .map(caseExpr -> eq(name(exprName), caseExpr))
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList());
 
-            // If there was only a default case there is no if guard, and hence it will be the default value "false"
-            // (Because of folding or, "||"), and no if will be added then.
-            if (!ifGuard.equals(false)) {
-                // Add if to the chain that jumps to the case statements
+            // If there were other labels besides default
+            // add if to the chain that jumps to the case statements
+            if (ifGuards.size() > 0) {
                 NameExpression caseIDLabel = generateCaseIDLabel(switchID, caseID);
-                IfStatement nextIf = create.ifthenelse(ifGuard, create.gotoStatement(caseIDLabel));
+                IfStatement nextIf = create.ifthenelse(create.fold(StandardOperator.Or, ifGuards), create.gotoStatement(caseIDLabel));
                 ifChain.add(nextIf);
                 currentBlock.add(create.labelDecl(caseIDLabel));
             }
