@@ -432,6 +432,27 @@ public class ASTFactory<E> implements FrameControl {
      }
      return res;
    }
+
+   public IfStatement fold(List<IfStatement> list) {
+     if (list.size() == 0) {
+       Abort("cannot fold empty list of ifs");
+     }
+
+     IfStatement currentIf = list.get(0);
+     for (int i = 1; i < list.size(); i++) {
+       IfStatement nextIf = list.get(i);
+
+       // Only the last if can have an else statement
+       if (i != list.size() - 1 && nextIf.hasElse()) {
+         Abort("Only last if in the list is allowed to have an else");
+       }
+
+       currentIf.addClause(IfStatement.elseGuard(), nextIf);
+       currentIf = nextIf;
+     }
+
+     return list.get(0);
+   }
    
    /**
     * Fold left of a non-empty list. 

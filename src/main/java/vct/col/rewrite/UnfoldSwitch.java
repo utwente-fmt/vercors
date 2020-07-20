@@ -7,6 +7,7 @@ import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.AbstractRewriter;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -36,8 +37,10 @@ public class UnfoldSwitch extends AbstractRewriter {
         String exprName = switchID + "_" + counter++;
         mainBlock.add(create.field_decl(exprName, switchStatement.expr.getType(), switchStatement.expr));
 
+        String defaultCaseLabel = generateCaseIDLabel(switchID, "default").getName();
+
         // Create if chain jumping to all the numbered arms
-        IfStatement ifChain = null;
+        ArrayList<IfStatement> ifChain = new ArrayList<>();
         boolean encounteredDefault = false;
         for (int caseID = 0; caseID < switchStatement.cases.length; caseID++) {
             Switch.Case switchCase = switchStatement.cases[caseID];
@@ -45,7 +48,7 @@ public class UnfoldSwitch extends AbstractRewriter {
             if (switchCase.cases.contains(null)) {
                 // Switch case contains default label
                 encounteredDefault = true;
-                caseStatementsBlock.add(create.labelDecl(generateCaseIDLabel(switchID, "default")));
+                caseStatementsBlock.add(create.labelDecl(defaultCaseLabel));
             }
 
             // Fold all "switchValue == labelValue" expressions with "||", skipping default case labels (null)
@@ -61,35 +64,36 @@ public class UnfoldSwitch extends AbstractRewriter {
             // The if for default will be added at the end, after all the other are added
             if (ifGuard != null) {
                 IfStatement nextIf = create.ifthenelse(ifGuard, create.gotoStatement(caseIDLabel));
-                if (ifChain == null) {
-                    ifChain = nextIf;
-                    mainBlock.add(ifChain);
-                } else {
-                    ifChain.addClause(IfStatement.elseGuard(), nextIf);
-                    ifChain = nextIf;
-                }
+                ifChain.add(nextIf);
             }
 
-            // TODO: This breaks for nested switches, since we do not call rewrite on the case statements
-            // TODO: Refactor cases to be their own respective AST nodes? instead of doing them manually like this
+            // TODO (Bob): This breaks for nested switches, since we do not call rewrite on the case statements
+            // Possible improvement: refactor cases to be their own respective AST nodes? instead of doing them manually like this
+            //      But it seems to work for now.
             caseStatementsBlock.add(create.labelDecl(caseIDLabel));
             for (ASTNode caseStatement : switchCase.stats) {
                 caseStatementsBlock.add(caseStatement);
             }
         }
 
-        if (encounteredDefault) {
-            ASTNode defaultJump = create.gotoStatement(generateCaseIDLabel(switchID, "default"));
-            if (ifChain == null) {
-                // No other cases, just the default case
-                mainBlock.add(defaultJump);
-            } else {
-                // Other cases, add the default case as a last case
-                ifChain.addClause(IfStatement.elseGuard(), defaultJump);
-            }
+        // Jump to default is always the last action, or the only one if there are no value labels
+        ASTNode totalIfChain;
+        ASTNode defaultJump = create.gotoStatement(defaultCaseLabel);
+        if (!ifChain.isEmpty())  {
+            ifChain.get(ifChain.size() - 1).addClause(IfStatement.elseGuard(), defaultJump);
+            totalIfChain = create.fold(ifChain);
+        } else {
+            totalIfChain = defaultJump;
         }
 
-        // Add all the statements for the cases at the end, when it's sure that the if-chain is added
+        if (!encounteredDefault) {
+            // If we have not seen a default case, the default label was not added anywhere in the caseStatementsBlock.
+            // Instead we place it at the end, so the default case does not go to any cases.
+            caseStatementsBlock.add(create.labelDecl(defaultCaseLabel));
+        }
+
+        // Add all the ifs, and then all the case statements the ifs jump to
+        mainBlock.add(totalIfChain);
         mainBlock.add(caseStatementsBlock);
 
         result = mainBlock;
