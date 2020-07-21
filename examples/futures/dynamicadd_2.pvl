@@ -1,0 +1,90 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case ConcurrentDynamicCounting
+//:: suite problem-fail
+//:: verdict Fail
+//:: tool silicon
+//:: option --check-history
+
+class Future {
+  int step;
+  int counter;
+
+  // Models a single atomic "decrease" operation.
+  modifies counter;
+  accessible step;
+  requires step > 0;
+  ensures counter == (\old(counter) - step < 0 ? 0 : \old(counter) - step);
+  process decrCounter();
+
+  modifies counter;
+  accessible step;
+  requires step > 0;
+  requires counter >= 0;
+  ensures counter == 0;
+  process decrCounterToZero() = counter > 0 ? decrCounter() * decrCounterToZero() : empty;
+
+  modifies step;
+  ensures step == \old(step) + 1;
+  process incrStep();
+
+  modifies step;
+  accessible counter;
+  ensures counter == 0 ? step == \old(step) : step > \old(step);
+  process stepIncrementer() = counter == 0 ? empty : incrStep() * stepIncrementer();
+
+  // Models a concurrent system with two "decrease" actions.
+//   modifies counter;
+//   accessible step;
+//   requires step > 0;
+//   ensures counter == \old(counter) - step - step;
+//   process pardecr() = decr() || decr();
+
+  accessible step;
+  modifies counter;
+  requires step > 0;
+  requires counter >= 0;
+  ensures counter == 0;
+  process decrThread() = decrCounterToZero() || decrCounterToZero();
+
+  modifies counter;
+  modifies step;
+  requires step > 0;
+  ensures counter == 0;
+  process parDecr() = decrThread() || stepIncrementer();
+}
+
+// class Program {
+//
+//   ensures \result == count - 2;
+//   int decrease(int count) {
+//
+//     Future f = new Future();
+//     f.counter = count;
+//     create f, f.pardecr();
+//     split f, 1\2, f.decr(), 1\2, f.decr();
+//
+//     invariant lockinv(HPerm(f.counter, write)) {
+//       par T0()
+//         requires Future(f, 1\2, f.decr());
+//         ensures Future(f, 1\2, empty);
+//       {
+//         atomic(lockinv) {
+//           action(f, 1\2, empty, f.decr()) { f.counter = f.counter - 1; }
+//         }
+//       }
+//       and T1()
+//         requires Future(f, 1\2, f.decr());
+//         ensures Future(f, 1\2, empty);
+//       {
+//         atomic(lockinv) {
+//           action(f, 1\2, empty, f.decr()) { f.counter = f.counter - 1; }
+//         }
+//       }
+//     }
+//
+//     merge f, 1\2, empty, 1\2, empty;
+//     destroy f;
+//
+//     return f.counter;
+//   }
+// }

@@ -49,6 +49,7 @@ case class MethodInvokation(`object`: ASTNode, dispatch: ClassType, method: Stri
   }
 
   def prependArg(e: ASTNode) = args = Seq(e) ++ args
+  def addArg(e: ASTNode) = args = args ++ Seq(e)
 
   /**
     * @see [[vct.col.ast.stmt.decl.Method.canThrow]]

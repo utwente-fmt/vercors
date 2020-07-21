@@ -154,6 +154,24 @@ public class CheckProcessAlgebra extends AbstractRewriter {
       super.visit(e);
     }
   }
+
+  private String toId(ASTNode n) {
+    if (n instanceof Dereference) {
+      return toId((Dereference) n);
+    } else if (n instanceof  NameExpression) {
+      return toId((NameExpression) n);
+    }
+    Abort("Not supported");
+    return null;
+  }
+
+  private String toId(Dereference deref) {
+    return toId(deref.obj()) + "_" + deref.field();
+  }
+
+  private String toId(NameExpression ne) {
+    return ne.getName();
+  }
   
   @Override
   public void visit(Method m){
@@ -170,9 +188,35 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         cb.ensures(create.expression(StandardOperator.Perm,rewrite(v),create.reserved_name(ASTReserved.FullPerm)));
         create.leave();
       }
+
+      ArrayList<DeclarationStatement> accessArgs = new ArrayList<>();
+      if (c.accesses != null) {
+        for (ASTNode v : c.accesses) {
+          create.enter(v);
+
+          String argV = "f_" + toId(v);
+          cb.requires(create.fold(StandardOperator.Star,
+                  create.expression(StandardOperator.LT,  create.constant(0), create.local_name(argV)),
+                  create.expression(StandardOperator.LT,  create.local_name(argV), create.constant(1)),
+                  create.expression(StandardOperator.Perm, rewrite(v), create.local_name(argV))
+                  ));
+          cb.ensures(create.expression(StandardOperator.Perm,rewrite(v),create.local_name(argV)));
+
+          accessArgs.add(create.field_decl(argV, create.primitive_type(PrimitiveSort.Fraction)));
+
+          create.leave();
+        }
+      }
+
       if (c.pre_condition!=null) cb.requires(rewrite(c.pre_condition));
       if (c.post_condition!=null) cb.ensures(rewrite(c.post_condition));
+
       DeclarationStatement args[]=rewrite(m.getArgs());
+      for (DeclarationStatement arg : args) {
+        accessArgs.add(0, arg);
+      }
+      args = accessArgs.toArray(DeclarationStatement[]::new);
+
       BlockStatement body=null;
       ASTNode m_body=m.getBody();
       if (m_body!=null){
@@ -333,6 +377,8 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     return null;   
   }
 
+  int counter = 0;
+
   protected void create_body(BlockStatement body, ASTNode m_body) {
     create.enter();
     create.setOrigin(m_body.getOrigin());
@@ -367,7 +413,17 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         Abort("skipping unknown process operator %s", e.operator());
       }
     } else if (m_body instanceof MethodInvokation) {
-      body.add(copy_rw.rewrite(m_body));
+      MethodInvokation mi = copy_rw.rewrite((MethodInvokation) m_body);
+      Method def = process_map.get(mi.method());
+      if (def.getContract().accesses != null) {
+        for (ASTNode v : def.getContract().accesses) {
+          // TODO (Bob): Add assert to check for positive permission and then inhale permission smaller than that
+          body.add(create.field_decl("f_" + toId(v) + ("_" + counter), create.primitive_type(PrimitiveSort.Fraction)));
+          mi.addArg(create.local_name("f_" + toId(v) + ("_" + counter)));
+        }
+      }
+      counter++;
+      body.add(mi);
     } else if (m_body.isReserved(ASTReserved.EmptyProcess)){
       body.add(create.comment("// empty process"));
     } else {
