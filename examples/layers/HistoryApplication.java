@@ -8,12 +8,14 @@
 
   vct --silver=silicon --check-history HistoryApplication.java
   
-  We skip this example during Travis builds because it is unstable:
+  OLD: We skip this example during Travis builds because it is unstable:
   often is passes, soemtimes it fails.
+
+  CURRENT: Can be parsed but not verified due to missing support for resource@object
  */
  
 public class History {/*@
-    seq<int> q;
+    ghost seq<int> q;
     
     modifies q;
     ensures  q==\old(q)+seq<int>{e};
@@ -25,7 +27,7 @@ public class History {/*@
       |es| == 0?empty:(put(head(es))*put_all(tail(es)));
 
     ensures put_all(es)*put(e)==put_all(es+seq<int>{e});
-    void put_lemma(seq<int> es,int e){
+    ghost void put_lemma(seq<int> es,int e){
       if (|es|>0){
         put_lemma(tail(es),e);
         assert tail(es+seq<int>{e}) == tail(es)+seq<int>{e};
@@ -43,7 +45,7 @@ public class History {/*@
       |es| == 0?empty:(get(head(es))*get_all(tail(es)));
 
     ensures get_all(es)*get(e)==get_all(es+seq<int>{e});
-    void get_lemma(seq<int> es,int e){ if (|es|>0){
+    ghost void get_lemma(seq<int> es,int e){ if (|es|>0){
       get_lemma(tail(es),e);
       assert |es|>0 ;
       assume tail(es+seq<int>{e}) == tail(es)+seq<int>{e};
@@ -97,7 +99,7 @@ class Sender extends Thread {
 
   AbstractQueue queue;
   int input[];
-  //@ seq<int> vals;
+  //@ ghost seq<int> vals;
   
   /*@
     resource preFork(frac p)=p==write
@@ -136,7 +138,7 @@ class Sender extends Thread {
   public Sender(AbstractQueue queue,int[] input){
     this.queue=queue;
     this.input=input;
-    //@ this.vals=vals;
+    //@ ghost this.vals=vals;
     //@ fold this.preFork@Thread(1);
     //@ fold this.preFork@Sender(1);
   }
@@ -161,10 +163,8 @@ class Sender extends Thread {
       ** Hist(queue.hist,1\2,queue.hist.put_all(take(vals,i)));
     @*/
     while(i<N){
-      queue.put(input[i])
-      /*@ with { p=1\2 ; P = queue.hist.put_all(take(vals,i));} @*/;
-      //@ assert Hist(queue.hist,1\2,
-      //@    queue.hist.put_all(take(vals,i)+seq<int>{vals[i]}));
+      queue.put(input[i]) /*@ with { p=1\2 ; P = queue.hist.put_all(take(vals,i));} @*/;
+      //@ assert Hist(queue.hist,1\2,queue.hist.put_all(take(vals,i)+seq<int>{vals[i]}));
       //@ assert take(vals,i)+seq<int>{vals[i]}==take(vals,i+1);
       i=i+1;
       //@ assert Hist(queue.hist,1\2,queue.hist.put_all(take(vals,i)));
@@ -184,7 +184,7 @@ class Receiver extends Thread {
 
   AbstractQueue queue;
   int output[];
-  //@ seq<int> vals;
+  //@ ghost seq<int> vals;
   
   /*@
     resource preFork(frac p)=p==write
@@ -226,7 +226,7 @@ class Receiver extends Thread {
     //@ unfold preFork@Receiver(1); // skip(receiver)
     int N=output.length;
     int i=0;
-    //@ vals=seq<int>{};
+    //@ ghost vals=seq<int>{};
     /*@ loop_invariant Value(queue) ** Value(queue.hist)
     ** Value(output) ** output != null ** Perm(vals,1) ** 0 <= i <= N
     ** i==|vals| ** N==output.length
@@ -235,9 +235,8 @@ class Receiver extends Thread {
     ** (\forall int k; 0 <= k < i ; output[k]==vals[k])
     ** Hist(queue.hist,1\2,queue.hist.get_all(vals)); @*/
     while(i<N){
-      output[i]=queue.get()/*@ with {
-          p=1\2 ; P = queue.hist.get_all(vals);} @*/;
-      //@ vals=vals+seq<int>{output[i]};
+      output[i]=queue.get()/*@ with {p=1\2 ; P = queue.hist.get_all(vals);} @*/;
+      //@ ghost vals=vals+seq<int>{output[i]};
       i=i+1;
     }
     //@ fold this.postJoin@Thread(1); // skip(receiver)
@@ -247,8 +246,8 @@ class Receiver extends Thread {
 
 public class AbstractQueue {
 
-//@ History hist;
-//@ boolean hist_active;
+//@ ghost History hist;
+//@ ghost boolean hist_active;
 
   /*@ given History hist;
    requires HPerm(hist.q,1) ** hist.q==seq<int>{};
@@ -279,7 +278,7 @@ public class AbstractQueue {
 /*@
   requires Value(hist) ** PointsTo(hist_active,1\2,true);
   ensures Value(hist)  ** PointsTo(hist_active,1\2,false)** HPerm(hist.q,1);
-  void end_history();
+  ghost void end_history();
 @*/
   
 }
@@ -298,10 +297,9 @@ public class Main {
   @*/
   public static void main(int[] input,int[] output){
     History hist=new History();
-    //@ hist.q = seq<int>{};
+    //@ ghost hist.q = seq<int>{};
     //@ create hist;
-    AbstractQueue q=new AbstractQueue()
-    /*@ with { hist=hist; } @*/;
+    AbstractQueue q=new AbstractQueue() /*@ with { hist=hist; } @*/;
     //@ split q.hist, 1\2, empty, 1\2, empty;
 
     
@@ -321,7 +319,7 @@ public class Main {
     //@ assert Hist(hist,1\2,hist.put_all(s.vals));
     //@ assert Hist(hist,1\2,hist.get_all(r.vals));
     //@ merge hist, 1\2, hist.put_all(s.vals), 1\2, hist.get_all(r.vals);
-    //@ q.end_history();
+    //@ ghost q.end_history();
     //@ destroy hist, hist.feed(s.vals,r.vals);
 
     // Derive some intermediate results.
