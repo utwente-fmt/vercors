@@ -429,6 +429,31 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       convertValStat(valEmbedBlock)
   })
 
+  def convertStatWithContract(stat: StatementContext, maybeContracts: Seq[Option[ValEmbedContractContext]]): ASTNode = origin(stat, stat match {
+    case Statement3(maybeContract2, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract3, body) =>
+      val allContracts = (maybeContracts ++ Seq(maybeContract2, maybeContract3)).map(convertValContract)
+      val contract = getContract(allContracts:_*)
+      val loop = create for_loop(
+        maybeInit.map(convertStat).orNull,
+        maybeCond.map(expr).orNull,
+        maybeUpdate.map(convertStat).orNull,
+        convertStat(body)
+      )
+      loop.setContract(contract)
+      loop
+    case Statement4(maybeContract2, "while", cond, maybeContract3, body) =>
+      val allContracts = (maybeContracts ++ Seq(maybeContract2, maybeContract3)).map(convertValContract)
+      val contract = getContract(allContracts:_*)
+      val loop = create while_loop(expr(cond), convertStat(body))
+      loop.setContract(contract)
+      loop
+    case Statement17(maybeContract2, label, ":", stat) =>
+      val res = convertStatWithContract(stat, maybeContracts ++ Seq(maybeContract2))
+      res.addLabel(create label convertID(label))
+      res
+    case statement => ??(statement)
+  })
+
   def convertStat(stat: StatementContext): ASTNode = origin(stat, stat match {
     case Statement0(block) =>
       convertBlock(block)
@@ -440,21 +465,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         maybeWhenFalse.map(convertStat).orNull)
     case Statement3(maybeContract, "for", "(", ForControl0(forEachControl), ")", maybeContract2, body) =>
       ??(forEachControl) // for(a : b) is unsupported
-    case Statement3(maybeContract, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract2, body) =>
-      val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
-      val loop = create for_loop(
-        maybeInit.map(convertStat).orNull,
-        maybeCond.map(expr).orNull,
-        maybeUpdate.map(convertStat).orNull,
-        convertStat(body)
-      )
-      loop.setContract(contract)
-      loop
-    case Statement4(maybeContract, "while", cond, maybeContract2, body) =>
-      val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
-      val loop = create while_loop(expr(cond), convertStat(body))
-      loop.setContract(contract)
-      loop
+    case s@Statement3(maybeContract2, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract3, body) =>
+      convertStatWithContract(s, Seq())
+    case s@Statement4(maybeContract2, "while", cond, maybeContract3, body) =>
+      convertStatWithContract(s, Seq())
     case Statement5("do", body, "while", cond, _) =>
       ??(stat) // do-while unsupported
     case Statement6("try", block, catchClauses, maybeFinally) =>
@@ -493,10 +507,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create block() //nop
     case Statement16(exp, _) =>
       expr(exp)
-    case Statement17(label, ":", stat) =>
+    case Statement17(None, label, ":", stat) =>
       val res = convertStat(stat)
       res.addLabel(create label convertID(label))
       res
+    case s@Statement17(_, _, _, _) =>
+      convertStatWithContract(s, Seq())
     case Statement18(valStatement) =>
       convertValStat(valStatement)
   })
@@ -606,20 +622,28 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
             res.set_after(create block(convertValWithThen(block):_*))
       }
       res
-    case Expression9("new", Creator0(typeArgs, _, _)) =>
+    case Expression9("new", Creator0(typeArgs, _, _), _) =>
       ??(typeArgs) // generics are unsupported
-    case Expression9("new", Creator1(name, creator)) => (name, creator) match {
+    case Expression9("new", Creator1(name, creator), maybeWithThen) => (name, creator) match {
       case (CreatedName1(primitiveType), CreatorRest1(_classCreator)) =>
         fail(primitiveType, "This is invalid syntax; it parsed as a constructor call on a primitive type.")
       case (t, CreatorRest0(ArrayCreatorRest0(Dims0(dims), initializer))) =>
+        failIfDefined(maybeWithThen, "with/then arguments cannot be applied to an array constructor")
         val baseType = convertType(t)
         getArrayInitializer(initializer, dims.size, baseType)
       case (t, CreatorRest0(ArrayCreatorRest1(specDims, maybeAnonDims))) =>
+        failIfDefined(maybeWithThen, "with/then arguments cannot be applied to an array constructor")
         val anonDims = maybeAnonDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
         val knownDims = exprList(specDims)
         create expression(NewArray, convertType(t, knownDims.size + anonDims), knownDims.toArray)
       case (t, CreatorRest1(ClassCreatorRest0(arguments, maybeBody))) =>
-        create new_object(convertType(t).asInstanceOf[ClassType], exprList(arguments):_*)
+        val res = create new_object(convertType(t).asInstanceOf[ClassType], exprList(arguments):_*)
+        maybeWithThen match {
+          case None =>
+          case Some(block) =>
+            res.set_after(create block(convertValWithThen(block):_*))
+        }
+        res
     }
 
     case Expression10("(", t, ")", exp) => create expression(Cast, convertType(t), expr(exp))
@@ -661,11 +685,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Expression19(left, "!=", right) =>
       create expression(NEQ, expr(left), expr(right))
     case Expression20(left, "&", right) =>
-      create expression(BitAnd, expr(left), expr(right))
+      create expression(AmbiguousAnd, expr(left), expr(right))
     case Expression21(left, "^", right) =>
-      create expression(BitXor, expr(left), expr(right))
+      create expression(AmbiguousXor, expr(left), expr(right))
     case Expression22(left, "|", right) =>
-      create expression(BitOr, expr(left), expr(right))
+      create expression(AmbiguousOr, expr(left), expr(right))
     case Expression23(left, AndOp0("&&"), right) =>
       create expression(And, expr(left), expr(right))
     case Expression23(left, AndOp1(valOp), right) =>
@@ -677,10 +701,20 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Expression26(cond, "?", t, ":", f) =>
       create expression(ITE, expr(cond), expr(t), expr(f))
     case assignment: Expression27Context => assignment.children.asScala.toSeq match {
-      case Seq(left: ExpressionContext, op, right: ExpressionContext) =>
-        create assignment(expr(left), expr(right))
-      case _ =>
-        ??(assignment)
+      case Seq(left: ExpressionContext, op, right: ExpressionContext) => op.getText match {
+        case "=" => create assignment(expr(left), expr(right))
+        case "+=" => create expression(AddAssign, expr(left), expr(right))
+        case "-=" => create expression(SubAssign, expr(left), expr(right))
+        case "*=" => create expression(MulAssign, expr(left), expr(right))
+        case "/=" => create expression(DivAssign, expr(left), expr(right))
+        case "&=" => create expression(AndAssign, expr(left), expr(right))
+        case "|=" => create expression(OrAssign, expr(left), expr(right))
+        case "^=" => create expression(XorAssign, expr(left), expr(right))
+        case ">>=" => create expression(ShrAssign, expr(left), expr(right))
+        case ">>>=" => create expression(SShrAssign, expr(left), expr(right))
+        case "<<=" => create expression(ShlAssign, expr(left), expr(right))
+        case "%=" => create expression(RemAssign, expr(left), expr(right))
+      }
     }
 
     case Primary0("(", exp, ")") => expr(exp)

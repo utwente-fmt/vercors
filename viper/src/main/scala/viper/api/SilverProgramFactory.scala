@@ -333,6 +333,9 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
            x:Trigger => map_expr(v,x.exps)
          }).asJava
          ve.forall(o,map_decls(v,vars),trigs,map_expr(v,e))
+       case Exists(vars,triggers,e) =>
+         // The triggers are ignored
+         ve.exists(o,map_decls(v,vars),map_expr(v,e))
        case EmptyMultiset(t) =>
          ve.explicit_bag(o,map_type(v,t),Seq().asJava)
        case EmptySeq(t) =>

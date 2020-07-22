@@ -51,6 +51,21 @@ public class PVLSyntax {
       syntax.addFunction(Old,"\\old");
 
       syntax.addFunction(OptionSome, "Some");
+                                                                 
+      syntax.addFunction(MapBuild, "buildMap");           
+      syntax.addFunction(MapEquality, "equalsMap");       
+      syntax.addFunction(MapDisjoint, "disjointMap");     
+      syntax.addFunction(MapKeySet, "keysMap");           
+      syntax.addFunction(MapCardinality, "cardMap");      
+      syntax.addFunction(MapValueSet, "valuesMap");       
+      syntax.addFunction(MapGetByKey, "getFromMap");      
+      syntax.addFunction(MapRemoveKey, "removeFromMap"); 
+      syntax.addFunction(MapItemSet, "itemsMap");
+
+
+      syntax.addFunction(TupleFst, "getFst");
+      syntax.addFunction(TupleSnd, "getSnd");
+
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
@@ -134,6 +149,7 @@ public class PVLSyntax {
       syntax.addPrimitiveType(PrimitiveSort.Boolean,"boolean");
       syntax.addPrimitiveType(PrimitiveSort.Process,"process");
       syntax.addPrimitiveType(PrimitiveSort.String,"string");
+      syntax.addPrimitiveType(PrimitiveSort.Map,"map");
       
       /*
       syntax.addPrimitiveType(Class,"classtype");

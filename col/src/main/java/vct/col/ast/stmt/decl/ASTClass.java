@@ -226,8 +226,8 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
   /** Create a new class without putting it in a hierarchy. */
   public ASTClass(String name,ClassKind kind,DeclarationStatement parameters[],ClassType bases[],ClassType supports[]){
     super(name);
-    if (bases==null) Abort("super class array may not be null");
-    if (supports==null) Abort("implemented array may not be null");
+    Objects.requireNonNull(bases, "super class array may not be null");
+    Objects.requireNonNull(supports, "implemented array may not be null");
     this.kind=kind;
     super_classes=Arrays.copyOf(bases,bases.length);
     implemented_classes=Arrays.copyOf(supports,supports.length);
@@ -339,9 +339,7 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     if (recursive){
       for(ClassType parent:this.super_classes){
         ASTClass rp = root().find(parent);
-        if (rp==null){
-          hre.lang.System.Fail("could not find %s",parent);
-        }
+        Objects.requireNonNull(rp, String.format("could not find %s", parent));
         m = rp.find(name,object_type,type);
         if (m != null) return m;
       }

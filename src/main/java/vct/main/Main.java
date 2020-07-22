@@ -348,10 +348,15 @@ public class Main
         passes.add("infer_adt_types");
 
         passes.add("check");
+        passes.add("adt_operator_rewrite");
+
+        passes.add("check");
         passes.add("standardize");
 
         passes.add("java-check");
         passes.add("pointers_to_arrays");
+        passes.add("java-check");
+        passes.add("desugar_valid_pointer");
         passes.add("java-check");
         passes.add("array_null_values"); // rewrite null values for array types into None
         passes.add("java-check");
@@ -408,6 +413,7 @@ public class Main
           // passes.add("recognize_multidim"); // translate matrices as a flat array (like c does in memory)
           passes.add("check");
           passes.add("simplify_quant"); // reduce nesting of quantifiers
+          passes.add("simplify_quant_relations");
           if (features.usesSummation()||features.usesIterationContracts()) {
             passes.add("check");
             passes.add("simplify_sums"); // set of rewrite rules for removing summations
@@ -482,7 +488,7 @@ public class Main
 
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
         passes.add("check");
-        passes.add("rewrite_sequence_functions");
+        passes.add("generate_adt_functions");
         passes.add("check");
         passes.add("flatten");
         passes.add("assign");
@@ -723,6 +729,12 @@ public class Main
     defined_passes.put("pointers_to_arrays", new CompilerPass("rewrite pointers to arrays") {
       public ProgramUnit apply(ProgramUnit arg, String... args) {
         return new PointersToArrays(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("desugar_valid_pointer", new CompilerPass("rewrite \\array, \\matrix, \\pointer and \\pointer_index") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new DesugarValidPointer(arg).rewriteAll();
       }
     });
     defined_passes.put("lift_declarations", new CompilerPass("lift declarations to cell of the declared types, to treat locals as heap locations.") {
@@ -972,14 +984,19 @@ public class Main
         return new RewriteArrayRef(arg).rewriteAll();
       }
     });
-    defined_passes.put("rewrite_sequence_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
+    defined_passes.put("generate_adt_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new RewriteSequenceFunctions(arg).rewriteAll();
+        return new GenerateADTFunctions(arg).rewriteAll();
       }
     });
     defined_passes.put("infer_adt_types",new CompilerPass("Transform typeless collection constructors by inferring their types."){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new InferADTTypes(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("adt_operator_rewrite",new CompilerPass("rewrite PVL-specific ADT operators"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new ADTOperatorRewriter(arg).rewriteAll();
       }
     });
     defined_passes.put("rm_cons",new CompilerPass("???"){
@@ -1052,6 +1069,11 @@ public class Main
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         RewriteSystem trs=RewriteSystems.getRewriteSystem("summation");
         return trs.normalize(arg);
+      }
+    });
+    defined_passes.put("simplify_quant_relations", new CompilerPass("simplify quantified relational expressions") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new SimplifyQuantifiedRelations(arg).rewriteAll();
       }
     });
     defined_passes.put("standardize",new CompilerPass("Standardize representation"){

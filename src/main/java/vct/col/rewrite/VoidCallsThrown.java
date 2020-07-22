@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.stmt.composite.IfStatement;
@@ -129,7 +130,7 @@ public class VoidCallsThrown extends AbstractRewriter {
   
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
-    if (m==null) Abort("unexpected null method definition at %s",e.getOrigin());
+    Objects.requireNonNull(m, "Method definition required");
     switch(m.kind){
     case Predicate:
     case Pure:
@@ -161,7 +162,7 @@ public class VoidCallsThrown extends AbstractRewriter {
     if (s.expression() instanceof MethodInvokation){
       MethodInvokation e=(MethodInvokation)s.expression();
       Method m=e.getDefinition();
-      if (m==null) Abort("cannot process invokation of %s without definition",e.method());
+      Objects.requireNonNull(m, () -> String.format("cannot process invokation of %s without definition", e.method()));
       if (m.kind==Method.Kind.Plain){
         int N=e.getArity();
         ASTNode args[]=new ASTNode[N+2];

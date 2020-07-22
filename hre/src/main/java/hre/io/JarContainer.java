@@ -3,6 +3,7 @@ package hre.io;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -37,9 +38,7 @@ public class JarContainer implements Container {
   @Override
   public long size(String name) {
     JarEntry entry = jar.getJarEntry(name);
-    if (entry==null){
-      Fail("cannot get size: jar file %s does not contain %s",jar.getName(),name);
-    }
+    Objects.requireNonNull(entry, String.format("cannot get size: jar file %s does not contain %s",jar.getName(),name));
     return entry.getSize();
   }
 

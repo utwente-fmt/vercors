@@ -50,12 +50,6 @@ public class ASTFactory<E> implements FrameControl {
   private final FrameReference<Origin> origin_stack=new FrameReference<Origin>();
 
   /**
-   * Factory class that can extract origins.
-   * This variable may be null;
-   */
-  private final OriginFactory<E> origin_source=null;
-  
-  /**
    * Visitor to be called immediately after construction of a new node.
    * This variable may be null;
    */
@@ -229,13 +223,6 @@ public class ASTFactory<E> implements FrameControl {
     return res;
   }
 
-
-  public ClassType class_type(E origin,String name[],ASTNode ... args){
-    return class_type(origin_source.create(origin),name,args);
-  }
-  public ClassType class_type(E origin,String name,ASTNode ... args){
-    return class_type(origin_source.create(origin),name,args);
-  }
   /**
    * Create a new class type node.
    */
@@ -283,23 +270,6 @@ public class ASTFactory<E> implements FrameControl {
   }
   public ConstantExpression constant(double i) {
     return constant(origin_stack.get(),i);
-  }
-  public ConstantExpression constant(E origin,boolean b) {
-    return constant(origin_source.create(origin),b);
-  }
-  
-  public ConstantExpression constant(E origin,double i) {
-    return constant(origin_source.create(origin),i);
-  }
-  public ConstantExpression constant(E origin,int i) {
-    return constant(origin_source.create(origin),i);
-  }
-  public ConstantExpression constant(E origin,long i) {
-    return constant(origin_source.create(origin),i);
-  }
-  
-  public ConstantExpression constant(E origin,String s) {
-    return constant(origin_source.create(origin),s);
   }
   public ConstantExpression constant(int i) {
     return constant(origin_stack.get(),i);
@@ -375,10 +345,6 @@ public class ASTFactory<E> implements FrameControl {
   public void enter(ASTNode n){
     origin_stack.enter();
     setOrigin(n.getOrigin());
-  }
-  
-  public OperatorExpression expression(E origin,StandardOperator op, ASTNode ... args){
-    return expression(origin_source.create(origin),op,args);
   }
   
   /**
@@ -705,10 +671,7 @@ public class ASTFactory<E> implements FrameControl {
     res.accept_if(post);
     return res;
   }
-  public NameExpression method_name(E origin,String name){
-    return method_name(origin_source.create(origin),name);
-  }
-  
+
   /**
    * Create a name expression referring to a method name.
    */
@@ -777,10 +740,6 @@ public class ASTFactory<E> implements FrameControl {
 
  public ParallelAtomic parallel_atomic(BlockStatement block,String ... strings){
     return parallel_atomic(origin_stack.get(),block,strings);
-  }
-
- public ParallelAtomic parallel_atomic(E origin,BlockStatement blockStatement,String ... strings){
-    return parallel_atomic(origin_source.create(origin),blockStatement,strings);
   }
 
  /**
@@ -879,11 +838,7 @@ public class ASTFactory<E> implements FrameControl {
   public Method predicate(String name, ASTNode body,List<DeclarationStatement> args) {
     return method_kind(Method.Kind.Predicate,primitive_type(PrimitiveSort.Resource),null,name,args,false,body);
   } 
-  
-  public PrimitiveType primitive_type(E origin,PrimitiveSort sort,ASTNode ... args){
-    return primitive_type(origin_source.create(origin),sort,args);
-  }
-  
+
   /**
    * Create a new primitive type.
    */
@@ -1051,7 +1006,32 @@ public ASTSpecial special(Origin origin, ASTSpecial.Kind kind, ASTNode ... args)
     }
     return res;
   }
-  
+
+  /**
+   *
+   * @param resultType The type of the element in the resulting set.
+   * @param selector The condition to include an element in the set.
+   * @param main The expression that has to be part of the resulting set.
+   * @param varBounds The conditions specifiying the bounds of the declared variables.
+   * @param decl The declared variables.
+   * @return
+   */
+  public ASTNode setComp(Type resultType, ASTNode selector, ASTNode main, Map<NameExpression, ASTNode> varBounds, DeclarationStatement[] decl) {
+    if (decl.length == 0) {
+      Fail("For set comprehension, at least one declaration is needed.");
+    }
+    SetComprehension res = new SetComprehension(
+            resultType,
+            decl,
+            selector,
+            main,
+            varBounds
+    );
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
   public ASTNode forall(ASTNode triggers[][],ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
     // Single quantifier is needed for correct triggering of axioms. 
     if (decl.length==0){
@@ -1239,9 +1219,6 @@ public Axiom axiom(String name, ASTNode exp){
     return res;
   }
   
-  public NameSpace namespace(E origin,String ... name){
-    return namespace(origin_source.create(origin),name);
-  }
   public NameSpace namespace(String ... name){
     return namespace(origin_stack.get(),name);
   }

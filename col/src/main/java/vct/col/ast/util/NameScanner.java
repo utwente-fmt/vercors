@@ -2,15 +2,14 @@ package vct.col.ast.util;
 
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.Objects;
 
-import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.expr.BindingExpression;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.composite.ForEachLoop;
 import vct.col.ast.stmt.composite.LoopStatement;
-import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.composite.ParallelBlock;
 import vct.col.ast.type.Type;
 import vct.col.ast.stmt.composite.VectorBlock;
@@ -41,13 +40,25 @@ public class NameScanner extends RecursiveVisitor<Object> {
             Fail("type mismatch %s != %s",t,vars.get(name));
           }
         } else {
-          if (t==null){
-            Abort("type of %s is null",name);
-          }
+          Objects.requireNonNull(t, String.format("type of %s is null", name));
           vars.put(name,t);
           t.accept(this);
         }
         return;
+      case Unresolved:
+        switch (e.getName()) {
+          case "tcount":
+          case "gsize":
+          case "tid":
+          case "gid":
+          case "lid":
+          case "threadIdx":
+          case "blockIdx":
+          case "blockDim":
+            vars.put(e.getName(), e.getType());
+            return;
+        }
+        break;
       default:
         Abort("missing case %s %s in name scanner",e.getKind(),e.getName());
     }
@@ -176,6 +187,16 @@ public class NameScanner extends RecursiveVisitor<Object> {
       if(old!=null){
         vars.put(name,old);
       }
+    }
+  }
+
+  @Override
+  public void visit(OperatorExpression e) {
+    if(e.operator() == StandardOperator.StructDeref || e.operator() == StandardOperator.StructSelect) {
+      e.first().accept(this);
+      // TODO: implement struct field checking; skipping dereferenced field here
+    } else {
+      super.visit(e);
     }
   }
 

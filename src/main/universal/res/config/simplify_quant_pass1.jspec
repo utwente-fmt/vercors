@@ -127,6 +127,12 @@ class simplify_quant_pass1 {
     e1 < e2 ==> b1
   }
 
+  axiom A1_chain {
+    (\forall int i; (i \memberof {e1 .. e2}) && (b2!i) ; (b1!i))
+      ==
+    (e1 < e2 && b2) ==> b1
+  }
+
 /*
 // SJ: the more generic version of the above, as shown below, can make it harder to solve things
   axiom A1 {
@@ -182,6 +188,13 @@ class simplify_quant_pass1 {
    axiom constant { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( (e3!i) , (e4!i) ) )
                  ==
                    e1 < e2 ==> Perm(e3,e4*(e2-e1)) }
+
+   axiom constant_2 {
+      (\forall* int i; (i \memberof {e1 .. e2});
+          (\forall* int j; (j \memberof {(e3!i) .. (e4!i)}); Perm((e5!i), (p1!i))))
+      ==
+      (e1 < e2) ==> (\forall* int j; (j \memberof {e3 .. e4}); Perm(e5, (e2 - e1) * p1))
+   }
 
    axiom right_plus { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( ar [ i+(e3!i) ] , (p1!i) ) )
                  ==

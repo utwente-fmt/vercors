@@ -2,11 +2,7 @@ package vct.col.rewrite;
 
 import hre.ast.BranchOrigin;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Stack;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.expr.*;
@@ -181,6 +177,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       check_cb.ensures(tmp);
       guard_decls.add(create.field_decl(decl.name(), decl.getType()));
       check_vars.remove(decl.name());
+      check_vars.putAll(free_vars(decl.initJava()));
     }
     
     ASTNode iters_guard=create.fold(StandardOperator.And,guard_list);
@@ -957,7 +954,8 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ASTSpecial recv=(ASTSpecial)recv_entry.stat;
         String S=((NameExpression)recv.getArg(1)).getName();
         SendRecvInfo send_entry=send_recv_map.get(S);
-        if (send_entry==null || !send_entry.stat.isSpecial(Kind.Send)){
+        Objects.requireNonNull(send_entry, "unmatched recv");
+        if (!send_entry.stat.isSpecial(Kind.Send)){
           Fail("unmatched recv");
         }
         ASTSpecial send=(ASTSpecial)send_entry.stat;

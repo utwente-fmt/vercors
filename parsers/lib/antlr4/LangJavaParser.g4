@@ -472,7 +472,7 @@ statement
     |   'continue' javaIdentifier? ';'
     |   ';'
     |   statementExpression ';'
-    |   javaIdentifier ':' statement
+    |   valEmbedContract? javaIdentifier ':' statement
     |   {specLevel>0}? valStatement
     ;
 
@@ -565,7 +565,7 @@ expression
     |   expression '[' expression ']'
     |   expression '->' javaIdentifier arguments
     |   expression predicateEntryType? arguments valEmbedWithThen?
-    |   'new' creator
+    |   'new' creator valEmbedWithThen?
     |   '(' type ')' expression
     |   expression ('++' | '--')
     |   ('+'|'-'|'++'|'--') expression

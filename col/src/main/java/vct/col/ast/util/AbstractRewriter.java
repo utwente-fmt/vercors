@@ -19,7 +19,9 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import hre.util.LambdaHelper;
 
+import java.lang.reflect.Array;
 import java.util.*;
+import java.util.stream.Stream;
 
 /**
  * This abstract rewriter copies the AST it is applied to.
@@ -218,6 +220,22 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     return contract;
   }
 
+  public <E extends ASTNode, F extends ASTNode> Map<E, F> rewrite(Map<E,F> map){
+    HashMap<E, F> res=new HashMap<E,F>();
+    for(Map.Entry<E, F> entry:map.entrySet()){
+      E key = null;
+      F value = null;
+      if (entry.getKey() != null) {
+        key = rewrite(entry.getKey());
+      }
+      if (entry.getValue() != null) {
+        value = rewrite(entry.getValue());
+      }
+      res.put(key, value);
+    }
+    return res;
+  }
+
   public <E extends ASTNode> ArrayList<E> rewrite(ArrayList<E> list){
     ArrayList<E> res=new ArrayList<E>();
     for(E item:list){
@@ -244,22 +262,14 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     }
     return result;
   }
-  
-  @SafeVarargs
-  private final <E extends ASTNode> E[] glue(E... args){
-    return Arrays.copyOf(args,args.length);
-  }
-  
+
   public <E extends ASTNode> E[] rewrite(E head,E[] tail){
-    E[] res;
-    if (tail==null) {
-      res=glue(head);
-    } else {
-      res=Arrays.copyOf(tail, tail.length+1);
-    }
-    res[0]=rewrite(head);
-    for(int i=0;i<tail.length;i++){
-      res[i+1]=rewrite(tail[i]);
+    Objects.requireNonNull(head, "Can only rewrite head-tail with non-null arguments");
+    Objects.requireNonNull(tail, "Can only rewrite head-tail with non-null arguments");
+    E[] res = Arrays.copyOf(tail, tail.length + 1);
+    res[0] = rewrite(head);
+    for(int i = 0; i < tail.length; i++){
+      res[i + 1] = rewrite(tail[i]);
     }
     return res;
   }
@@ -601,7 +611,11 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   
   @Override
   public void visit(BindingExpression e){
-    result=create.binder(e.binder(),rewrite(e.result_type()),rewrite(e.getDeclarations()),rewrite(e.javaTriggers()), rewrite(e.select()), rewrite(e.main()));
+    if (e instanceof SetComprehension) {
+      result = create.setComp(rewrite(e.result_type()), rewrite(e.select()), rewrite(e.main()), rewrite(((SetComprehension) e).variables()), e.getDeclarations());
+    } else {
+      result=create.binder(e.binder(),rewrite(e.result_type()),rewrite(e.getDeclarations()),rewrite(e.javaTriggers()), rewrite(e.select()), rewrite(e.main()));
+    }
   }
   
   @Override
