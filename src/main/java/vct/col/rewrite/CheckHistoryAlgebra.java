@@ -765,6 +765,8 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       names.add(create.local_name(name));
       args.add(create.local_name(name));
       res.add(create.field_decl(name, create.primitive_type(PrimitiveSort.ZFraction)));
+      CheckProcessAlgebra.ensureHavocZfracPresent(source(), target(), create);
+      body.add(create.assignment(create.local_name(name), create.invokation(null, null, "havocZfrac")));
 
       body.add(create.special(Kind.Assert, create.expression(LT,
               create.constant(0),
