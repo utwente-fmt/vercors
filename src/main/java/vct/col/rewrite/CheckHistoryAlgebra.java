@@ -16,13 +16,13 @@ import vct.col.ast.type.*;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.Configuration;
 import vct.col.ast.util.ContractBuilder;
+import vct.col.util.AstToId;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
-import static vct.col.ast.expr.StandardOperator.Perm;
-import static vct.col.ast.expr.StandardOperator.PointsTo;
-import static vct.col.ast.expr.StandardOperator.EQ;
-import static vct.col.ast.expr.StandardOperator.Old;
+
+import static vct.col.ast.expr.StandardOperator.*;
 import static vct.col.ast.type.ASTReserved.FullPerm;
+import static vct.col.ast.type.ASTReserved.This;
 
 public class CheckHistoryAlgebra extends AbstractRewriter {
   
@@ -733,6 +733,8 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   }
 
   protected boolean in_action=false;
+
+  int counter = 0;
   
   @Override
   public void visit(ActionBlock ab){
@@ -754,24 +756,40 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     for(ASTNode n:act.getArgs()){
       args.add(rewrite(n));
     }
+    BlockStatement body=create.block();
     if (ac.accesses!=null) for(ASTNode n:ac.accesses){
-      String name="f_"+((FieldAccess)n).name();
+      create.enter(n);
+
+      String name = "f_" + AstToId.toId(n) + counter++;
+      String fieldName = ((FieldAccess) n).name();
       names.add(create.local_name(name));
       args.add(create.local_name(name));
-      res.add(create.field_decl(name, create.primitive_type(PrimitiveSort.Fraction)));
-      res.add(create.special(Kind.Fresh,create.local_name(name)));
+      res.add(create.field_decl(name, create.primitive_type(PrimitiveSort.ZFraction)));
+
+      body.add(create.special(Kind.Assert, create.expression(LT,
+              create.constant(0),
+              create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_hist")
+              ))));
+
+      body.add(create.special(Kind.Assert, create.expression(LT,
+              create.constant(0),
+              create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_value")
+              ))));
+
+      body.add(create.special(Kind.Inhale, create.fold(Star,
+              create.expression(LT, create.constant(0), create.local_name(name)),
+              create.expression(LT, create.local_name(name), create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_hist"))),
+              create.expression(LT, create.local_name(name), create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_value")))
+              )));
+
+      create.leave();
     }
-    BlockStatement body=create.block();
     body.add(create.invokation(hist, null, act.method()+"_begin", args.toArray(new ASTNode[0])));
     for(ASTNode n:(BlockStatement)ab.block()){
       body.add(rewrite(n));
     }
     body.add(create.invokation(hist, null, act.method()+"_commit", args.toArray(new ASTNode[0])));
-    if(names.isEmpty()) {
-      res.add(body);
-    } else {
-      res.add(create.constraining(body, names));
-    }
+    res.add(body);
     result=res;
     in_action=false;
   }

@@ -1,6 +1,7 @@
 package vct.col.util;
 
 import vct.col.ast.expr.Dereference;
+import vct.col.ast.expr.FieldAccess;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ProgramUnit;
@@ -17,12 +18,22 @@ public class AstToId extends RecursiveVisitor<String> {
     }
 
     public void visit(Dereference e) {
-        super.visit(e);
+        e.obj().accept(this);
         result = getResult() + "_" + e.field();
     }
 
     public void visit(NameExpression n) {
-        super.visit(n);
         result = n.getName();
+    }
+
+    public void visit(FieldAccess f) {
+        f.object().accept(this);
+        result = getResult() + "_" + f.name();
+
+        if (f.value() != null) {
+            String localResult = result;
+            f.value().apply(this);
+            result = localResult + getResult();
+        }
     }
 }
