@@ -6,15 +6,19 @@
 //:: option --check-history
 
 class Future {
+    int step;
 	int counter;
 
 	// Models a single atomic "decrease" operation.
+	accessible step;
 	modifies counter;
-	ensures counter == \old(counter) - 1;
+	ensures counter == \old(counter) - step;
 	process decr();
 
 	// Models a concurrent system with two "decrease" actions.
-	ensures counter == \old(counter) - 2;
+	accessible step;
+	modifies counter;
+	ensures counter == \old(counter) - 2 * step;
 	process pardecr() = decr() || decr();
 }
 

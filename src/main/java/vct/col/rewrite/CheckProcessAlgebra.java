@@ -13,11 +13,11 @@ import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
-import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.*;
 import vct.col.ast.util.Configuration;
-import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.util.ASTUtils;
-import vct.col.ast.util.Configuration;
+import vct.col.util.AstToId;
+
+import static hre.lang.System.Output;
 
 /**
  * This class checks if a specified process algebra is correct.
@@ -33,6 +33,8 @@ public class CheckProcessAlgebra extends AbstractRewriter {
 
   private Hashtable<String,String> composite_map;
   private Hashtable<String, Method> process_map;
+
+  int counter = 0;
 
   private static ArrayList<ArrayList<String>> permutations(ArrayList<String> list) {
     if (list.size() == 0) {
@@ -61,6 +63,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     process_map=new Hashtable<String,Method>();
     HashSet<NameExpression> hist_set=new HashSet<NameExpression>();
     for(Method m:cl.dynamicMethods()){
+      Output("%s", m.name());
       if (!m.getReturnType().isPrimitive(PrimitiveSort.Process)) continue;
       ASTNode body=m.getBody();
       process_map.put(m.name(), m);
@@ -194,7 +197,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         for (ASTNode v : c.accesses) {
           create.enter(v);
 
-          String argV = "f_" + toId(v);
+          String argV = "f_" + AstToId.toId(v);
           cb.requires(create.fold(StandardOperator.Star,
                   create.expression(StandardOperator.LT,  create.constant(0), create.local_name(argV)),
                   create.expression(StandardOperator.LT,  create.local_name(argV), create.constant(1)),
@@ -202,7 +205,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
                   ));
           cb.ensures(create.expression(StandardOperator.Perm,rewrite(v),create.local_name(argV)));
 
-          accessArgs.add(create.field_decl(argV, create.primitive_type(PrimitiveSort.Fraction)));
+          accessArgs.add(create.field_decl(argV, create.primitive_type(PrimitiveSort.ZFraction)));
 
           create.leave();
         }
@@ -270,6 +273,11 @@ public class CheckProcessAlgebra extends AbstractRewriter {
 
   @SuppressWarnings("incomplete-switch")
   private ASTNode expand_unguarded(ASTNode m_body) {
+    PrintWriter out = hre.lang.System.getLogLevelErrorWriter(hre.lang.System.LogLevel.Debug);
+    out.print("expanding: ");
+    Configuration.getDiagSyntax().print(out,m_body);
+    out.println();
+
     if (m_body instanceof MethodInvokation){
       MethodInvokation p=(MethodInvokation)m_body;
       Method def=process_map.get(p.method());
@@ -377,8 +385,6 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     return null;   
   }
 
-  int counter = 0;
-
   protected void create_body(BlockStatement body, ASTNode m_body) {
     create.enter();
     create.setOrigin(m_body.getOrigin());
@@ -415,12 +421,9 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     } else if (m_body instanceof MethodInvokation) {
       MethodInvokation mi = copy_rw.rewrite((MethodInvokation) m_body);
       Method def = process_map.get(mi.method());
-      if (def.getContract().accesses != null) {
-        for (ASTNode v : def.getContract().accesses) {
-          // TODO (Bob): Add assert to check for positive permission and then inhale permission smaller than that
-          body.add(create.field_decl("f_" + toId(v) + ("_" + counter), create.primitive_type(PrimitiveSort.Fraction)));
-          mi.addArg(create.local_name("f_" + toId(v) + ("_" + counter)));
-        }
+      if (def.getContract().accesses != null && def.getContract().accesses.length > 0) {
+        ensureHavocZfracPresent(source(), target(), create);
+        addAccessibleArgs(mi, body);
       }
       counter++;
       body.add(mi);
@@ -432,10 +435,56 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     create.leave();
   }
 
+  public static void ensureHavocZfracPresent(ProgramUnit source, ProgramUnit target, ASTFactory<?> create) {
+    if (source.find_procedure("havocZfrac") != null || target.find_procedure("havocZfrac") != null) {
+      // Already present in source or target
+      return;
+    }
+
+    Method m = create.method_decl(
+            create.primitive_type(PrimitiveSort.ZFraction),
+            null,
+            "havocZfrac",
+            new DeclarationStatement[0],
+            null
+    );
+
+    m.setFlag(ASTFlags.STATIC, true);
+
+    target.add(m);
+  }
+
+  private void addAccessibleArgs(MethodInvokation mi, BlockStatement body) {
+    for (ASTNode v : process_map.get(mi.method()).getContract().accesses) {
+      String vId = "f_" + AstToId.toId(v) + ("_" + counter++);
+
+      body.add(create.field_decl(vId, create.primitive_type(PrimitiveSort.ZFraction)));
+      body.add(create.assignment(create.local_name(vId), create.invokation(null, null, "havocZfrac")));
+
+      body.add(create.special(ASTSpecial.Kind.Assert, create.expression(StandardOperator.LT,
+              create.constant(0),
+              create.expression(StandardOperator.CurrentPerm, copy_rw.rewrite(v))
+      )));
+
+      body.add(create.special(ASTSpecial.Kind.Inhale, create.fold(StandardOperator.Star,
+              create.expression(StandardOperator.LT,
+                      create.constant(0),
+                      create.local_name(vId)
+              ),
+              create.expression(StandardOperator.LT,
+                      create.local_name(vId),
+                      create.expression(StandardOperator.CurrentPerm, copy_rw.rewrite(v))
+              )
+      )));
+
+      mi.addArg(create.local_name(vId));
+    }
+  }
+
   @Override
   public void visit(OperatorExpression e){
     switch(e.operator()){
-    case Or:
+      case Or:
       if(e.getType().isPrimitive(PrimitiveSort.Process)){
         result=create.invokation(null, null, "p_merge", rewrite(e.argsJava()));
         return;
