@@ -27,16 +27,12 @@ import vct.logging.VerCorsError.ErrorCode;
 public class ParallelBlockEncoder extends AbstractRewriter {
 
   public static final String ENTER_INVARIANT="enter_inv";
-  public static final String LEAVE_ATOMIC="leave_atomic";
-  
+
   public ParallelBlockEncoder(ProgramUnit source, ErrorMapping map) {
     super(source);
     map.add(ENTER_INVARIANT,
         ErrorCode.ExhaleFailed,
         ErrorCode.InvariantNotEstablished);
-    map.add(LEAVE_ATOMIC,
-        ErrorCode.ExhaleFailed,
-        ErrorCode.InvariantBroken);
   }
 
   private int count=0;
@@ -487,58 +483,6 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         )
     ));
     
-  }
-
-  @Override
-  public void visit(ParallelAtomic pa){
-    ASTNode atomicStat = rewrite(pa.block());
-    BlockStatement block;
-
-    if(atomicStat instanceof BlockStatement) {
-      block = (BlockStatement) atomicStat;
-    } else {
-      block = create.block(atomicStat);
-    }
-    
-    for (ASTNode node : pa.synclistJava()) {
-      if (node instanceof NameExpression){
-        NameExpression name=(NameExpression)node;
-        if (name.getKind()== NameExpressionKind.Label){
-          boolean found=false;
-          for(ASTNode ib:inv_blocks){
-            if (ib instanceof ParallelInvariant){
-              ParallelInvariant inv=(ParallelInvariant)ib;
-              if (inv.label().equals(name.toString())) {
-                block.prepend(create.special(ASTSpecial.Kind.Inhale, inv.inv()));
-                block.append(create.special(ASTSpecial.Kind.Exhale, inv.inv()).set_branch(LEAVE_ATOMIC));
-                found = true;
-              }
-            }
-          }
-          if (found){
-            continue;
-          }
-          Fail("Could not find an invariant labeled %s",name);
-        }
-      }
-      ClassType ct=(ClassType)node.getType();
-      ASTClass cl=source().find(ct);
-      String name="csl_invariant";
-      ArrayList<ASTNode> args=new ArrayList<ASTNode>();
-      for(Method m:cl.dynamicMethods()){
-        if (m.name().endsWith("csl_invariant")){
-          name=m.name();
-          for(DeclarationStatement d:m.getArgs()){
-            args.add(create.local_name(d.name()));
-          }
-        }
-      }
-      block.prepend(create.special(ASTSpecial.Kind.Unfold,create.invokation(rewrite(node),null,name,args)));
-      block.prepend(create.special(ASTSpecial.Kind.Inhale,create.invokation(rewrite(node),null,name,args)));
-      block.append(create.special(ASTSpecial.Kind.Fold,create.invokation(rewrite(node),null,name,args)));
-      block.append(create.special(ASTSpecial.Kind.Exhale,create.invokation(rewrite(node),null,name,args)));
-    }
-    result=block;
   }
 
   /********************* From Iteration Contract Encoder *******************/

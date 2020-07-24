@@ -439,6 +439,8 @@ public class Main
 
         if (silver.used()) {
           if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
+            passes.add("inline-atomic");
+            passes.add("check");
             passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
             passes.add("standardize");
           }
@@ -959,6 +961,17 @@ public class Main
     defined_passes.put("openmp2pvl",new CompilerPass("Compile OpenMP pragmas to PVL"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new OpenMPToPVL(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("inline-atomic",new CompilerPass("Inlines atomic blocks into inhales/exhales"){
+      @Override
+      public PassReport apply_pass(PassReport arg,String ... args){
+        ProgramUnit input = arg.getOutput();
+        PassReport res = new PassReport(input);
+        ErrorMapping map = new ErrorMapping(arg);
+        res.add(map);
+        res.setOutput(new InlineAtomic(input,map).rewriteAll());
+        return res;
       }
     });
     defined_passes.put("parallel_blocks",new CompilerPass("Encoded the proof obligations for parallel blocks"){
