@@ -1,0 +1,38 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases InvariantParallelAtomic
+//:: tools silicon
+//:: verdict Pass
+
+class InvariantUse {
+    void test() {
+        boolean b;
+        b = true;
+        invariant inv(b) {
+            par(int tid = 0..2) {
+                atomic(inv){}
+            }
+        }
+    }
+}
+
+class Foo {
+  context xs != null;
+  requires (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1\2));
+  ensures \result;
+  pure boolean f(int[] xs);
+
+  requires xs != null;
+  requires (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1));
+  void bar(int[] xs) {
+    invariant inv(xs != null ** (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1\2)) ** f(xs))
+    {
+      // context_everywhere is currently the only way to state facts about xs.length in de par argument
+      context_everywhere xs != null;
+      par (int tid = 0 .. xs.length)
+      {
+        atomic(inv) { }
+      }
+    }
+  }
+}
+
