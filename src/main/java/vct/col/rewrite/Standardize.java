@@ -156,7 +156,7 @@ public class Standardize extends AbstractRewriter {
           ASTNode seq = e.arg(1).apply(this);
 
           StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-          result = create.expression(StandardOperator.Append, newSeq, seq);
+          result = create.expression(StandardOperator.Concat, newSeq, seq);
         } else {
           super.visit(e);
         }
@@ -170,7 +170,7 @@ public class Standardize extends AbstractRewriter {
           ASTNode seq = e.arg(0).apply(this);
 
           StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-          result = create.expression(StandardOperator.Append, seq, newSeq);
+          result = create.expression(StandardOperator.Concat, seq, newSeq);
 
         } else {
           super.visit(e);

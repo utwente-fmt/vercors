@@ -144,7 +144,7 @@ public class ChalicePreProcess extends AbstractRewriter {
       }
       case Plus:{
         if (e.getType().isPrimitive(PrimitiveSort.Sequence)){
-          result = create.expression(StandardOperator.Append, rewrite(e.argsJava()));
+          result = create.expression(StandardOperator.Concat, rewrite(e.argsJava()));
         } else {
           super.visit(e);
         }
