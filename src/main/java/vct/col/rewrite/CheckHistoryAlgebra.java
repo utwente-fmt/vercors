@@ -109,12 +109,12 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
                 ,create.field_decl("p2", adt_type)},
               null,
               create.constant(true),
-              create.domain_call("Process", "p_is_choice",
+              create.pattern(create.domain_call("Process", "p_is_choice",
                   create.domain_call("Process", "p_choice",
                       create.local_name("p1"),create.local_name("p2")
                   ),
                   create.local_name("p1")
-              )
+              ))
           )
       ));
       adt.add_axiom(create.axiom("choice_R",
@@ -126,12 +126,12 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
                 ,create.field_decl("p2", adt_type)},
               null,
               create.constant(true),
-              create.domain_call("Process", "p_is_choice",
+              create.pattern(create.domain_call("Process", "p_is_choice",
                   create.domain_call("Process", "p_choice",
                       create.local_name("p1"),create.local_name("p2")
                   ),
                   create.local_name("p2")
-              )
+              ))
           )
       ));
       adt.add_axiom(create.axiom("choice_dist",

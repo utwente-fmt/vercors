@@ -922,4 +922,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     result = new OMPForSimd(rewrite(loop.loop()), loop.options());
     result.setOrigin(loop.getOrigin());
   }
+
+  public void visit(InlineQuantifierPattern pattern) {
+    result = new InlineQuantifierPattern(rewrite(pattern.inner()));
+    result.setOrigin(pattern.getOrigin());
+  }
 }

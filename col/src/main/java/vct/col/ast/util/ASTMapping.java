@@ -115,4 +115,6 @@ public interface ASTMapping<R> {
   public R map(OMPFor loop);
   public R map(OMPParallelFor loop);
   public R map(OMPForSimd loop);
+
+  public R map(InlineQuantifierPattern pattern);
 }

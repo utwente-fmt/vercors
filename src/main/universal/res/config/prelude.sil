@@ -142,10 +142,10 @@ domain VectorExpression[T] {
     (forall xs: VectorExpression[Int], i: Int :: { vsum(vrange(i, i), xs) } vsum(vrange(i, i), xs) == 0)
   }
   axiom vsize_axiom {
-      forall xs: Seq[T] :: vsize(vseq(xs)) == |xs|
+      forall xs: Seq[T] :: {vsize(vseq(xs))} vsize(vseq(xs)) == |xs|
   }
   axiom vsize_axiom_2 {
-      forall t: T :: vsize(vrep(t)) == 1
+      forall t: T :: {vsize(vrep(t))} vsize(vrep(t)) == 1
   }
   axiom extend_vsum_r {
     forall xs: VectorExpression[T], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= 0 && j > i) ==> vsum(vrange(i, j), xs) == vadd(vsum(vrange(i, j-1), xs), vget(xs, j-1))
@@ -180,11 +180,11 @@ domain VCTTuple[F,S] {
   function vcttuple_snd(t:VCTTuple[F,S]): S
 
   axiom vctTupleFstAx {
-    forall f1:F, s1:S :: vcttuple_fst(vcttuple_tuple(f1,s1)) == f1
+    forall f1:F, s1:S :: {vcttuple_fst(vcttuple_tuple(f1,s1))} vcttuple_fst(vcttuple_tuple(f1,s1)) == f1
   }
 
   axiom vctTupleSndAx {
-    forall f1:F, s1:S :: vcttuple_snd(vcttuple_tuple(f1,s1)) == s1
+    forall f1:F, s1:S :: {vcttuple_snd(vcttuple_tuple(f1,s1))} vcttuple_snd(vcttuple_tuple(f1,s1)) == s1
   }
 }
 
@@ -249,7 +249,11 @@ domain VCTMap[K,V] {
 
   function vctmap_equals(m1: VCTMap[K,V], m2: VCTMap[K,V]): Bool
   axiom vctMapEqualsAx1 {
-    forall m1: VCTMap[K,V], m2: VCTMap[K,V] :: {vctmap_equals(m1, m2)} vctmap_equals(m1, m2) <==> (vctmap_keys(m1) == vctmap_keys(m2) && forall k: K :: k in vctmap_keys(m1) ==> vctmap_get(m1, k) == vctmap_get(m2, k))
+    forall m1: VCTMap[K,V], m2: VCTMap[K,V] :: {vctmap_equals(m1, m2)}
+      vctmap_equals(m1, m2) <==> (
+        vctmap_keys(m1) == vctmap_keys(m2) &&
+        forall k: K :: {vctmap_get(m1, k), vctmap_get(m2, k)} k in vctmap_keys(m1) ==> vctmap_get(m1, k) == vctmap_get(m2, k)
+      )
   }
   axiom vctMapEqualsAx2 {
     forall m1: VCTMap[K,V], m2: VCTMap[K,V] :: {vctmap_equals(m1, m2)} vctmap_equals(m1, m2) <==> (m1 == m2)

@@ -1457,5 +1457,15 @@ public Axiom axiom(String name, ASTNode exp){
     sync.setOrigin(origin);
     return sync;
   }
+
+  public InlineQuantifierPattern pattern(ASTNode inner) {
+    return pattern(origin_stack.get(), inner);
+  }
+
+  public InlineQuantifierPattern pattern(Origin origin, ASTNode inner) {
+    InlineQuantifierPattern pattern = new InlineQuantifierPattern(inner);
+    pattern.setOrigin(origin);
+    return pattern;
+  }
 }
 

@@ -1362,7 +1362,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (!(tt[0] instanceof PrimitiveType)) Fail("base must be array or sequence type.");
       PrimitiveType t=(PrimitiveType)tt[0];
         if (t.isPrimitive(PrimitiveSort.Option)) {
-          if (!(t.firstarg() instanceof PrimitiveType)) Fail("base must be map, array or sequence type.");
+          if (!(t.firstarg() instanceof PrimitiveType))
+            Fail("base must be map, array or sequence type.");
           t = (PrimitiveType) t.firstarg();
         }
 
@@ -1879,7 +1880,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     t=e.main().getType();
-    Objects.requireNonNull(t, "Bingind expression without type");
+    Objects.requireNonNull(t, "Binding expression without type");
     switch(e.binder()){
     case Let:
       e.setType(t);
@@ -2045,5 +2046,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     c.block().apply(this);
+  }
+
+  @Override
+  public void visit(InlineQuantifierPattern pattern) {
+    pattern.inner().apply(this);
+    pattern.setType(pattern.inner().getType());
   }
 }

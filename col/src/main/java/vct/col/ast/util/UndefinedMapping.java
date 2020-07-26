@@ -300,4 +300,9 @@ public class UndefinedMapping<T> implements ASTMapping<T> {
     return null;
   }
 
+  @Override
+  public T map(InlineQuantifierPattern pattern) {
+    return null;
+  }
+
 }

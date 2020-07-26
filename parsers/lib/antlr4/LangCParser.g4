@@ -444,9 +444,9 @@ typedefName
     ;
 
 initializer
-    :   assignmentExpression
-    |   '{' initializerList '}'
+    :   '{' initializerList '}'
     |   '{' initializerList ',' '}'
+    |   assignmentExpression
     ;
 
 initializerList

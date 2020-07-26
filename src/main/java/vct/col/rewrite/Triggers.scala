@@ -114,7 +114,7 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
 
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {
-      case Binder.Forall | Binder.Star if expr.triggers == null =>
+      case Binder.Forall | Binder.Star if expr.triggers == null || expr.triggers.isEmpty =>
         val select = rewrite(expr.select)
         val main = rewrite(expr.main)
         tryComputeTrigger(expr.getDeclarations, select, main) match {
