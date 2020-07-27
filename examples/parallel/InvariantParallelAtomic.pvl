@@ -15,6 +15,56 @@ class InvariantUse {
     }
 }
 
+class InvariantSpatialUse {
+    void test() {
+        boolean b;
+        b = true;
+        par {
+            b = false;
+        } and
+        requires b;
+        {
+            invariant inv(b) {
+                atomic(inv){
+                    assert b;
+                }
+            }
+        }
+    }
+}
+
+class C {
+    void m() {
+        int x;
+        par
+        ensures x == 1;
+        {
+            x = 1;
+        } and
+        ensures x == 2;
+        {
+            x = 2;
+        }
+        assert false;
+    }
+
+    void m2() {
+        int x = 0;
+        par
+            requires x == 0;
+            ensures x == 1;
+        {
+            x = 1;
+        } and
+            requires x == 0;
+        {
+            assert x == 0;
+        }
+        assert x == 1;
+        assert false;
+    }
+}
+
 class Foo {
   context xs != null;
   requires (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1\2));

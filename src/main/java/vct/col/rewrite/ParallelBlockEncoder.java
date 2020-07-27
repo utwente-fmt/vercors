@@ -40,13 +40,13 @@ public class ParallelBlockEncoder extends AbstractRewriter {
 
   @Override
   public void visit(ParallelInvariant inv){
-    Set<String> usedLocalNames = NameScanner.collectNames(inv.inv(), NameExpressionKind.Local);
+//    Set<String> usedLocalNames = NameScanner.collectNames(inv.inv(), NameExpressionKind.Local);
 
     /**
      * This is currently broken, as it does not account for shadowing. This should probably
      * be implemented as a side-effect of NameScanner.
      */
-    Set<String> assignedToInBlock = NameScanner.fixIt(inv.block);
+//    Set<String> assignedToInBlock = NameScanner.fixIt(inv.block);
 
     inv_blocks.push(inv);
     BlockStatement block = rewrite(inv.block());
