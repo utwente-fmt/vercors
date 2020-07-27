@@ -12,20 +12,34 @@ import vct.col.ast.stmt.composite.LoopStatement
 import vct.col.ast.stmt.composite.ParallelBlock
 import vct.col.ast.`type`.Type
 import NameExpressionKind._
+import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.VectorBlock
 import vct.col.ast.stmt.terminal.AssignmentStatement
 
+import scala.annotation.varargs
 import scala.collection.mutable
 
-// TODO (Bob): Refactor usage in ParallelBlockEncoder
-// TODO (Bob): Refactor stuff from AbstractRewriter
+object NameScanner {
+  def freeVars[R <: ASTNode](nodes: util.List[R]): util.Map[String, Type] = {
+    val scanner = new NameScanner
+    for (n <- nodes.asScala) {
+      n.accept(scanner)
+    }
+    scanner.freeNamesJava
+  }
+
+  @varargs
+  def freeVars(theNodes: ASTNode*): util.Map[String, Type] = freeVars(theNodes.asJava)
+}
 
 class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
   case class Entry(name: String, typ: Type, var writtenTo: Boolean)
 
   val frameStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
-  val freeNames: mutable.Map[String, Entry] = mutable.Map()
+
+  // I suspect there is some external code that depends on insertion order... Therefore use LinkedHashMap
+  val freeNames: mutable.Map[String, Entry] = mutable.LinkedHashMap()
 
   // Ensure there is at least one frame at the start
   push()
@@ -57,8 +71,13 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
   private def pop(): Unit = frameStack.pop()
 
+  /**
+    * Returns free names as a java map with insertion order retained
+    */
   def freeNamesJava: util.Map[String, Type] = {
-    freeNames.mapValues(entry => entry.typ).asJava
+    val map = new util.LinkedHashMap[String, Type]()
+    freeNames.foreach(mapEntry => map.put(mapEntry._1, mapEntry._2.typ))
+    map
   }
 
   def accesses: Set[String] = freeNames.keySet.toSet

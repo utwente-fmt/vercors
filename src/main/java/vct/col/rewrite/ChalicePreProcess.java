@@ -21,8 +21,10 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
 import hre.ast.MessageOrigin;
+import vct.col.ast.util.NameScanner;
 
 import java.util.Hashtable;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -53,7 +55,7 @@ public class ChalicePreProcess extends AbstractRewriter {
         name="inhale_"+count;
         cb.ensures(rewrite(s.args[0]));
       }
-      Hashtable<String,Type> vars=free_vars(s.args[0]);
+      Map<String,Type> vars = NameScanner.freeVars(s.args[0]);
       currentTargetClass.add(create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
           cb.getContract(),

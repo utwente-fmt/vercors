@@ -154,8 +154,8 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     BlockStatement res = rewrite(pb.body());
     ContractBuilder main_cb=new ContractBuilder();
     ContractBuilder check_cb=new ContractBuilder();
-    Hashtable<String, Type> main_vars=free_vars(pb);
-    Hashtable<String,Type> check_vars=new Hashtable<String, Type>(main_vars);
+    Map<String, Type> main_vars = NameScanner.freeVars(pb);
+    Map<String,Type> check_vars = new LinkedHashMap<>(main_vars);
     ParallelBlock blk=null;
     for(ParallelBlock b:blocks){
       if (b.label().equals(pb.label())) {
@@ -177,7 +177,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       check_cb.ensures(tmp);
       guard_decls.add(create.field_decl(decl.name(), decl.getType()));
       check_vars.remove(decl.name());
-      check_vars.putAll(free_vars(decl.initJava()));
+      check_vars.putAll(NameScanner.freeVars(decl.initJava()));
     }
     
     ASTNode iters_guard=create.fold(StandardOperator.And,guard_list);
@@ -234,7 +234,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     count++;
     String main_name = "parrallel_region_main_" + count;
     ContractBuilder main_cb=new ContractBuilder();
-    Hashtable<String,Type> main_vars=free_vars(region.blocksJava());
+    Map<String,Type> main_vars = NameScanner.freeVars(region.blocksJava());
     BlockStatement body;
     if (region.contract() == null || region.contract().isEmpty()) {
       for (ParallelBlock pb : region.blocksJava()) {
@@ -254,7 +254,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       body=create.block();
       for (ParallelBlock pb : region.blocksJava()) {
         String block_name="block_check_"+(++count);
-        Hashtable<String,Type> block_vars=free_vars(pb);
+        Map<String,Type> block_vars = NameScanner.freeVars(pb);
         
         Contract c=(Contract)rewrite((ASTNode)pb);     
         currentTargetClass.add(create.method_decl(
@@ -424,7 +424,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       cb.requires(region.contract().invariant);
     }
     cb.requires(pre_condition);
-    Hashtable<String,Type> main_vars=free_vars(pre_condition);
+    Map<String,Type> main_vars = NameScanner.freeVars(pre_condition);
     ArrayList<ASTNode> list=new ArrayList<ASTNode>();
     int N=0;
     
@@ -739,7 +739,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     Contract c=s.getContract();
     loop_invariant=c.invariant;
     ASTNode res=null;
-    Hashtable<String,Type> body_vars=free_vars(s.body,c,s.guard);
+    Map<String,Type> body_vars = NameScanner.freeVars(s.body,c,s.guard);
     //Hashtable<String,Type> iters=new Hashtable<String,Type>();
     Hashtable<String,Type> main_vars=new Hashtable<String, Type>(body_vars);
     for(DeclarationStatement decl:s.decls){
@@ -754,7 +754,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     ContractBuilder body_cb=new ContractBuilder();
 
     for(ASTNode clause:ASTUtils.conjuncts(c.invariant, StandardOperator.Star)){
-      Hashtable<String,Type> clause_vars=free_vars(clause);
+      Map<String,Type> clause_vars = NameScanner.freeVars(clause);
       for(DeclarationStatement decl:s.decls){
         if (clause_vars.get(decl.name()) != null) {
           Fail("illegal iteration invariant at %s",clause.getOrigin());
