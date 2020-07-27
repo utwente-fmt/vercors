@@ -13,8 +13,10 @@ import vct.col.ast.stmt.composite.LoopStatement
 import vct.col.ast.stmt.composite.ParallelBlock
 import vct.col.ast.`type`.Type
 import NameExpressionKind._
-
 import vct.col.ast.stmt.composite.VectorBlock
+import vct.col.ast.stmt.terminal.AssignmentStatement
+
+import scala.collection.mutable
 
 object NameScanner {
   def occurCheck(invariant: ASTNode, var_name: String): Boolean = {
@@ -27,12 +29,72 @@ object NameScanner {
 class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisitor[AnyRef](null, null) {
   private val safe_decls = new util.HashSet[DeclarationStatement]
 
+  case class Entry(val name: String, val typ: Type, var writtenTo: Boolean)
+
+  val frameStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
+  val freeNames: mutable.Map[String, Entry] = mutable.Map()
+
+  // Ensure there is at least one frame at the start
+  push()
+
+  // Import pre-defined args from argument
+  vars.forEach((name, typ) => {
+    put(name, typ)
+  })
+
+  private def hasDecl(name: String): Boolean = frameStack.exists(frame => frame.exists(p => p.name == name))
+  private def isFree(name: String): Boolean = freeNames.contains(name)
+
+  private def put(name: String, typ: Type) : Unit = {
+    if (hasDecl(name)) {
+      Abort("Cannot put a free var when it has a decl")
+    }
+
+    Objects.requireNonNull(typ);
+
+    freeNames.get(name) match {
+      case Some(_) =>
+        Abort("Name %s is already marked as free", name);
+      case None =>
+        freeNames.put(name, Entry(name, typ, writtenTo = false));
+    }
+  }
+
+  private def setWrite(name: String): Unit =
+    freeNames.get(name) match {
+      case Some(value) => value.writtenTo = true
+      case None => Abort("Cannot set write for non-existent variable %s", name)
+    }
+
+  private def push(): Unit = frameStack.push(mutable.Set())
+
+  private def pop(): Unit = frameStack.pop()
+
+  def freeNamesToVars(): util.Hashtable[String, Type] = {
+    val ht = new util.Hashtable[String, Type]()
+    for (entry <- freeNames.mapValues(entry => entry.typ)) {
+      ht.put(entry._1, entry._2)
+    }
+    ht
+  }
+
   override def visit(e: NameExpression): Unit = e.getKind match {
     case Reserved =>
     case Label =>
     case Field | Local | Argument =>
       val name = e.getName
       val t = e.getType
+
+      freeNames.get(name) match {
+        case Some(value) =>
+          if (t != null && !(value.typ == t)) {
+            Fail("type mismatch %s != %s", t, value.typ);
+          }
+        case None if !hasDecl(name) =>
+          put(name, t)
+        case _ =>
+      }
+
       if (vars.containsKey(name)) {
         if (t != null && !(t == vars.get(name))) {
           Fail("type mismatch %s != %s", t, vars.get(name))
@@ -58,16 +120,33 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
       Abort("missing case %s %s in name scanner", e.getKind, e.getName)
   }
 
+  override def visit(assignment: AssignmentStatement): Unit = {
+    super.visit(assignment)
+
+    assignment.location match {
+      case name: NameExpression => setWrite(name.name)
+      case _ =>
+    }
+  }
+
   override def visit(d: DeclarationStatement): Unit = {
     if (!safe_decls.contains(d)) Abort("missing case in free variable detection")
+
+    frameStack.top.add(d)
+
     super.visit(d)
   }
 
   override def visit(s: LoopStatement): Unit = {
+    push()
+
     var init = s.getInitBlock
     init match {
       case block: BlockStatement =>
         if (block.getLength == 1) init = block.get(0)
+      case _ =>
+    }
+    init match {
       case decl: DeclarationStatement =>
         val old = vars.get(decl.name)
         safe_decls.add(decl)
@@ -76,19 +155,27 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
         if (old != null) vars.put(decl.name, old)
       case _ => super.visit(s)
     }
+
+    pop()
   }
 
   override def visit(e: BindingExpression): Unit = if (e.getDeclCount == 1) {
+    push()
+
     val decl = e.getDeclaration(0)
     val old = vars.get(decl.name)
     safe_decls.add(decl)
     super.visit(e)
     vars.remove(decl.name)
     if (old != null) vars.put(decl.name, old)
+
+    pop()
   }
   else Abort("missing case in free variable detection")
 
   override def visit(s: ForEachLoop): Unit = {
+    push()
+
     val old = new Array[Type](s.decls.length)
     for (i <- s.decls.indices) {
       old(i) = vars.get(s.decls(i).name)
@@ -102,9 +189,13 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
       vars.remove(s.decls(i).name)
       if (old(i) != null) vars.put(s.decls(i).name, old(i))
     }
+
+    pop()
   }
 
   override def visit(pb: ParallelBlock): Unit = {
+    push()
+
     val oldi = new Array[Type](pb.iterslength)
     var i = 0
     for (decl <- pb.iters) {
@@ -120,17 +211,25 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
       if (oldi(i) != null) vars.put(decl.name, oldi(i))
       i += 1
     }
+
+    pop()
   }
 
   override def visit(pb: VectorBlock): Unit = {
+    push()
+
     val old = vars.get(pb.iter.name)
     safe_decls.add(pb.iter)
     super.visit(pb)
     vars.remove(pb.iter.name)
     if (old != null) vars.put(pb.iter.name, old)
+
+    pop()
   }
 
   override def visit(b: BlockStatement): Unit = {
+    push()
+
     val N = b.size
     val saved_vars = new util.Hashtable[String, Type]
     val saved_names = new util.HashSet[String]
@@ -151,6 +250,8 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
       val old = saved_vars.get(name)
       if (old != null) vars.put(name, old)
     }
+
+    pop()
   }
 
   override def visit(e: OperatorExpression): Unit = if ((e.operator eq StandardOperator.StructDeref) || (e.operator eq StandardOperator.StructSelect)) {

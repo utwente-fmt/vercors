@@ -37,7 +37,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     for (R n : nodes) {
       n.accept(scanner);
     }
-    return vars;
+    return scanner.freeNamesToVars();
   }
   
   public static Hashtable<String,Type> free_vars(ASTNode ... nodes) {
