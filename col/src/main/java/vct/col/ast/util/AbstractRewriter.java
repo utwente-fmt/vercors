@@ -19,9 +19,7 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import hre.util.LambdaHelper;
 
-import java.lang.reflect.Array;
 import java.util.*;
-import java.util.stream.Stream;
 
 /**
  * This abstract rewriter copies the AST it is applied to.
@@ -32,12 +30,11 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   private static ThreadLocal<AbstractRewriter> tl=new ThreadLocal<AbstractRewriter>();
 
   public static <R extends ASTNode> Hashtable<String, Type> free_vars(List<R> nodes) {
-    Hashtable<String,Type> vars = new Hashtable<String,Type>();
-    NameScanner scanner = new NameScanner(vars);
+    NameScanner scanner = new NameScanner();
     for (R n : nodes) {
       n.accept(scanner);
     }
-    return scanner.freeNamesToVars();
+    return scanner.freeNamesJava();
   }
   
   public static Hashtable<String,Type> free_vars(ASTNode ... nodes) {

@@ -3,9 +3,7 @@ package vct.col.ast.util
 import java.util
 import java.util.Objects
 
-import scala.collection.JavaConverters._
 import vct.col.ast.expr._
-import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.stmt.composite.ForEachLoop
@@ -18,10 +16,10 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 
 import scala.collection.mutable
 
-// TODO (Bob): Refactor to be more idiomatic
+// TODO (Bob): Refactor usage in ParallelBlockEncoder
+// TODO (Bob): Refactor stuff from AbstractRewriter
 
-class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisitor[AnyRef](null, null) {
-  private val safe_decls = new util.HashSet[DeclarationStatement]
+class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
   case class Entry(name: String, typ: Type, var writtenTo: Boolean)
 
@@ -31,14 +29,9 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   // Ensure there is at least one frame at the start
   push()
 
-  // Import pre-defined args from argument
-  vars.forEach((name, typ) => {
-    put(name, typ)
-  })
-
   private def hasDecl(name: String): Boolean = frameStack.exists(frame => frame.exists(p => p.name == name))
 
-  private def put(name: String, typ: Type) : Unit = {
+  private def put(name: String, typ: Type): Unit = {
     if (hasDecl(name)) {
       Abort("Cannot put a free var when it has a decl")
     }
@@ -63,13 +56,19 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
 
   private def pop(): Unit = frameStack.pop()
 
-  def freeNamesToVars: util.Hashtable[String, Type] = {
+  def freeNamesJava: util.Hashtable[String, Type] = {
     val ht = new util.Hashtable[String, Type]()
     for (entry <- freeNames.mapValues(entry => entry.typ)) {
       ht.put(entry._1, entry._2)
     }
     ht
   }
+
+  def accesses: Set[String] = freeNames.keySet.toSet
+
+  def writes: Set[String] = freeNames.filter(p => p._2.writtenTo).keySet.toSet
+
+  def reads: Set[String] = freeNames.filter(p => !p._2.writtenTo).keySet.toSet
 
   override def visit(e: NameExpression): Unit = e.getKind match {
     case Reserved =>
@@ -107,7 +106,7 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
     super.visit(assignment)
 
     assignment.location match {
-      case name: NameExpression => setWrite(name.name)
+      case name: NameExpression if !hasDecl(name.name) => setWrite(name.name)
       case _ =>
     }
   }

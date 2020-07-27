@@ -620,12 +620,11 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ArrayList<DeclarationStatement> send_decl=new ArrayList<DeclarationStatement>();// declaration of parameters for send_check
         ArrayList<ASTNode> send_args=new ArrayList<ASTNode>();// the arguments to the host_check method
         
-        vars=new Hashtable<String,Type>();
         {
-        NameScanner scanner=new NameScanner(vars);
+        NameScanner scanner=new NameScanner();
         e.accept(scanner);
         loop_invariant.accept(scanner);
-        vars = scanner.freeNamesToVars();
+        vars = scanner.freeNamesJava();
         }
         
         for(String var:vars.keySet())  
@@ -680,12 +679,11 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ArrayList<DeclarationStatement> recv_decl=new ArrayList<DeclarationStatement>();// declaration of parameters for send_check
         ArrayList<ASTNode> recv_args=new ArrayList<ASTNode>();// the arguments to the host_check method
         
-        vars=new Hashtable<String,Type>();
         {
-        NameScanner scanner=new NameScanner(vars);
+        NameScanner scanner=new NameScanner();
         e.accept(scanner);
         loop_invariant.accept(scanner);
-        vars = scanner.freeNamesToVars();
+        vars = scanner.freeNamesJava();
         }
         
         for(String var:vars.keySet())  

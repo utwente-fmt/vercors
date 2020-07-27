@@ -20,11 +20,9 @@ import scala.collection.mutable
   */
 class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(source) {
   def getNames(node: ASTNode): Set[String] = {
-    var table = new util.Hashtable[String, Type]
-    val scanner = new NameScanner(table)
+    val scanner = new NameScanner()
     node.accept(scanner)
-    table = scanner.freeNamesToVars
-    table.keys().asScala.toSet
+    scanner.accesses
   }
 
   /**
