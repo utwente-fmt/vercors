@@ -1433,7 +1433,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(new PrimitiveType(PrimitiveSort.Integer));
         break;
       }
-      case Append: {
+      case Concat: {
         if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
         if (!tt[1].isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
         if (!tt[0].firstarg().equals(tt[1].firstarg())) {

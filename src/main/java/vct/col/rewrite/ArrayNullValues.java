@@ -159,7 +159,7 @@ public class ArrayNullValues extends AbstractRewriter {
             case Cons:
             case Drop:
             case Take:
-            case Append:
+            case Concat:
             case Head:
             case Tail:
                 break;

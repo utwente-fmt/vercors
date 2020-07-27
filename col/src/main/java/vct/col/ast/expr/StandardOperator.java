@@ -179,8 +179,8 @@ public enum StandardOperator {
   Slice(3),
   /** Updating a single element in a sequence (for example `xs[1 -> 12]`). */
   SeqUpdate(3),
-  /** append two lists */
-  Append(2),
+  /** concatenates two lists */
+  Concat(2),
   /** Prepend a single value to list */
   PrependSingle(2),
   /** Append a single value to list (to the end)*/
