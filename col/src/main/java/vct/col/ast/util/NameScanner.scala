@@ -18,13 +18,12 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 
 import scala.collection.mutable
 
-// TODO (Bob): Remove internal old code
 // TODO (Bob): Refactor to be more idiomatic
 
 class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisitor[AnyRef](null, null) {
   private val safe_decls = new util.HashSet[DeclarationStatement]
 
-  case class Entry(val name: String, val typ: Type, var writtenTo: Boolean)
+  case class Entry(name: String, typ: Type, var writtenTo: Boolean)
 
   val frameStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
   val freeNames: mutable.Map[String, Entry] = mutable.Map()
@@ -38,14 +37,13 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   })
 
   private def hasDecl(name: String): Boolean = frameStack.exists(frame => frame.exists(p => p.name == name))
-  private def isFree(name: String): Boolean = freeNames.contains(name)
 
   private def put(name: String, typ: Type) : Unit = {
     if (hasDecl(name)) {
       Abort("Cannot put a free var when it has a decl")
     }
 
-    Objects.requireNonNull(typ);
+    Objects.requireNonNull(typ)
 
     freeNames.get(name) match {
       case Some(_) =>
@@ -89,16 +87,6 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
           put(name, t)
         case _ =>
       }
-
-      if (vars.containsKey(name)) {
-        if (t != null && !(t == vars.get(name))) {
-          Fail("type mismatch %s != %s", t, vars.get(name))
-        }
-      } else {
-        Objects.requireNonNull(t, String.format("type of %s is null", name))
-        vars.put(name, t)
-        t.accept(this)
-      }
     case Unresolved =>
       e.getName match {
         case "tcount" =>
@@ -109,7 +97,7 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
         case "threadIdx" =>
         case "blockIdx" =>
         case "blockDim" =>
-          vars.put(e.getName, e.getType)
+          put(e.getName, e.getType)
       }
     case _ =>
       Abort("missing case %s %s in name scanner", e.getKind, e.getName)
@@ -125,8 +113,6 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   }
 
   override def visit(d: DeclarationStatement): Unit = {
-    if (!safe_decls.contains(d)) Abort("missing case in free variable detection")
-
     frameStack.top.add(d)
 
     super.visit(d)
@@ -135,21 +121,7 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   override def visit(s: LoopStatement): Unit = {
     push()
 
-    var init = s.getInitBlock
-    init match {
-      case block: BlockStatement =>
-        if (block.getLength == 1) init = block.get(0)
-      case _ =>
-    }
-    init match {
-      case decl: DeclarationStatement =>
-        val old = vars.get(decl.name)
-        safe_decls.add(decl)
-        super.visit(s)
-        vars.remove(decl.name)
-        if (old != null) vars.put(decl.name, old)
-      case _ => super.visit(s)
-    }
+    super.visit(s)
 
     pop()
   }
@@ -157,12 +129,7 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   override def visit(e: BindingExpression): Unit = if (e.getDeclCount == 1) {
     push()
 
-    val decl = e.getDeclaration(0)
-    val old = vars.get(decl.name)
-    safe_decls.add(decl)
     super.visit(e)
-    vars.remove(decl.name)
-    if (old != null) vars.put(decl.name, old)
 
     pop()
   }
@@ -171,19 +138,11 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   override def visit(s: ForEachLoop): Unit = {
     push()
 
-    val old = new Array[Type](s.decls.length)
-    for (i <- s.decls.indices) {
-      old(i) = vars.get(s.decls(i).name)
-      safe_decls.add(s.decls(i))
-    }
     super.visit(s)
     if (s.get_before != null) s.get_before.accept(this)
     if (s.get_after != null) s.get_after.accept(this)
+    // Ensure before/after are not scanned after pop()
     auto_before_after = false
-    for (i <- s.decls.indices) {
-      vars.remove(s.decls(i).name)
-      if (old(i) != null) vars.put(s.decls(i).name, old(i))
-    }
 
     pop()
   }
@@ -191,21 +150,9 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   override def visit(pb: ParallelBlock): Unit = {
     push()
 
-    val oldi = new Array[Type](pb.iterslength)
-    var i = 0
-    for (decl <- pb.iters) {
-      oldi(i) = vars.get(decl.name)
-      safe_decls.add(decl)
-      i += 1
-    }
     super.visit(pb)
+    // Ensure before/after are not scanned after pop()
     auto_before_after = false
-    i = 0
-    for (decl <- pb.iters) {
-      vars.remove(decl.name)
-      if (oldi(i) != null) vars.put(decl.name, oldi(i))
-      i += 1
-    }
 
     pop()
   }
@@ -213,11 +160,7 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   override def visit(pb: VectorBlock): Unit = {
     push()
 
-    val old = vars.get(pb.iter.name)
-    safe_decls.add(pb.iter)
     super.visit(pb)
-    vars.remove(pb.iter.name)
-    if (old != null) vars.put(pb.iter.name, old)
 
     pop()
   }
@@ -225,26 +168,7 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
   override def visit(b: BlockStatement): Unit = {
     push()
 
-    val N = b.size
-    val saved_vars = new util.Hashtable[String, Type]
-    val saved_names = new util.HashSet[String]
-    for (i <- 0 until N) {
-      val s = b.get(i)
-      s match {
-        case decl: DeclarationStatement =>
-          val old = vars.get(decl.name)
-          saved_names.add(decl.name)
-          if (old != null) saved_vars.put(decl.name, old)
-          safe_decls.add(decl)
-        case _ =>
-      }
-      s.accept(this)
-    }
-    for (name <- saved_names.iterator().asScala) {
-      vars.remove(name)
-      val old = saved_vars.get(name)
-      if (old != null) vars.put(name, old)
-    }
+    super.visit(b)
 
     pop()
   }
