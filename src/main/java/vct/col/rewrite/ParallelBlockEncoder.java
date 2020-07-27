@@ -599,7 +599,6 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     
     int N=counter.incrementAndGet();    
     ContractBuilder cb = new ContractBuilder();   
-    Hashtable<String,Type> vars=new Hashtable<String,Type>();
     BranchOrigin branch;
     
     switch(e.kind)
@@ -619,19 +618,18 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       
         ArrayList<DeclarationStatement> send_decl=new ArrayList<DeclarationStatement>();// declaration of parameters for send_check
         ArrayList<ASTNode> send_args=new ArrayList<ASTNode>();// the arguments to the host_check method
-        
-        {
-        NameScanner scanner=new NameScanner();
+
+      {
+        NameScanner scanner = new NameScanner();
         e.accept(scanner);
         loop_invariant.accept(scanner);
-        vars = scanner.freeNamesJava();
+        Map<String, Type> vars = scanner.freeNamesJava();
+
+        for (String var : vars.keySet()) {
+          send_decl.add(create.field_decl(var, copy_rw.rewrite(vars.get(var))));
+          send_args.add(create.unresolved_name(var));
         }
-        
-        for(String var:vars.keySet())  
-        {
-            send_decl.add(create.field_decl(var,copy_rw.rewrite(vars.get(var))));
-            send_args.add(create.unresolved_name(var));
-        }
+      }
       
         cb = new ContractBuilder();
         cb.requires(copy_rw.rewrite(loop_invariant));
@@ -680,18 +678,17 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ArrayList<ASTNode> recv_args=new ArrayList<ASTNode>();// the arguments to the host_check method
         
         {
-        NameScanner scanner=new NameScanner();
-        e.accept(scanner);
-        loop_invariant.accept(scanner);
-        vars = scanner.freeNamesJava();
+          NameScanner scanner = new NameScanner();
+          e.accept(scanner);
+          loop_invariant.accept(scanner);
+          Map<String, Type> vars = scanner.freeNamesJava();
+
+          for(String var : vars.keySet())  {
+              recv_decl.add(create.field_decl(var,copy_rw.rewrite(vars.get(var))));
+              recv_args.add(create.unresolved_name(var));
+          }
         }
-        
-        for(String var:vars.keySet())  
-        {
-            recv_decl.add(create.field_decl(var,copy_rw.rewrite(vars.get(var))));
-            recv_args.add(create.unresolved_name(var));
-        }
-      
+
         cb = new ContractBuilder();
         cb.requires(copy_rw.rewrite(loop_invariant));
         cb.ensures(copy_rw.rewrite(loop_invariant));

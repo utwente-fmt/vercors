@@ -3,6 +3,7 @@ package vct.col.ast.util
 import java.util
 import java.util.Objects
 
+import scala.collection.JavaConverters._
 import vct.col.ast.expr._
 import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.stmt.decl.DeclarationStatement
@@ -56,12 +57,8 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
   private def pop(): Unit = frameStack.pop()
 
-  def freeNamesJava: util.Hashtable[String, Type] = {
-    val ht = new util.Hashtable[String, Type]()
-    for (entry <- freeNames.mapValues(entry => entry.typ)) {
-      ht.put(entry._1, entry._2)
-    }
-    ht
+  def freeNamesJava: util.Map[String, Type] = {
+    freeNames.mapValues(entry => entry.typ).asJava
   }
 
   def accesses: Set[String] = freeNames.keySet.toSet
