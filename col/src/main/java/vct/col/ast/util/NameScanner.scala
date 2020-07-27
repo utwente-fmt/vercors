@@ -2,7 +2,8 @@ package vct.col.ast.util
 
 import java.util
 import java.util.Objects
-
+import scala.annotation.varargs
+import scala.collection.mutable
 import scala.collection.JavaConverters._
 import vct.col.ast.expr._
 import vct.col.ast.stmt.composite.BlockStatement
@@ -15,9 +16,6 @@ import NameExpressionKind._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.VectorBlock
 import vct.col.ast.stmt.terminal.AssignmentStatement
-
-import scala.annotation.varargs
-import scala.collection.mutable
 
 object NameScanner {
   def freeVars[R <: ASTNode](nodes: util.List[R]): util.Map[String, Type] = {
@@ -55,6 +53,7 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
     freeNames.get(name) match {
       case Some(_) =>
+        // Disallow putting the same free var again, to prevent the writtenTo flag to be accidentally reset
         Abort("Name %s is already marked as free", name);
       case None =>
         freeNames.put(name, Entry(name, typ, writtenTo = false));
@@ -80,6 +79,10 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     map
   }
 
+  /**
+    * All variable names that are read from or written to
+    * @return
+    */
   def accesses: Set[String] = freeNames.keySet.toSet
 
   def writes: Set[String] = freeNames.filter(p => p._2.writtenTo).keySet.toSet
@@ -95,12 +98,15 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
       freeNames.get(name) match {
         case Some(value) =>
+          // If the name is already a free variable, the types must match
           if (t != null && !(value.typ == t)) {
             Fail("type mismatch %s != %s", t, value.typ);
           }
         case None if !hasDecl(name) =>
+          // If it is new and there is no decl, declare a new free variable
           put(name, t)
         case _ =>
+          // Otherwise ignore it
       }
     case Unresolved =>
       e.getName match {
@@ -128,6 +134,7 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   }
 
   override def visit(d: DeclarationStatement): Unit = {
+    // Discovered a new declaration
     frameStack.top.add(d)
 
     super.visit(d)
@@ -197,7 +204,7 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(invokation: MethodInvokation): Unit = {
     super.visit(invokation)
     // The before/after annotations of methods contain the given/yields mappings, so don't include them as though they
-    // are free names.
+    // are free names. I.e. this ensures before/after are not scanned after pop()
     auto_before_after = false
   }
 }
