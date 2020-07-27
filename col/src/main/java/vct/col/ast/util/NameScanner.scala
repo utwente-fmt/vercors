@@ -18,13 +18,8 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 
 import scala.collection.mutable
 
-object NameScanner {
-  def occurCheck(invariant: ASTNode, var_name: String): Boolean = {
-    val vars = new util.Hashtable[String, Type]
-    invariant.accept(new NameScanner(vars))
-    vars.containsKey(var_name)
-  }
-}
+// TODO (Bob): Remove internal old code
+// TODO (Bob): Refactor to be more idiomatic
 
 class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisitor[AnyRef](null, null) {
   private val safe_decls = new util.HashSet[DeclarationStatement]
@@ -70,7 +65,7 @@ class NameScanner(var vars: util.Hashtable[String, Type]) extends RecursiveVisit
 
   private def pop(): Unit = frameStack.pop()
 
-  def freeNamesToVars(): util.Hashtable[String, Type] = {
+  def freeNamesToVars: util.Hashtable[String, Type] = {
     val ht = new util.Hashtable[String, Type]()
     for (entry <- freeNames.mapValues(entry => entry.typ)) {
       ht.put(entry._1, entry._2)

@@ -625,6 +625,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         NameScanner scanner=new NameScanner(vars);
         e.accept(scanner);
         loop_invariant.accept(scanner);
+        vars = scanner.freeNamesToVars();
         }
         
         for(String var:vars.keySet())  
@@ -684,6 +685,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         NameScanner scanner=new NameScanner(vars);
         e.accept(scanner);
         loop_invariant.accept(scanner);
+        vars = scanner.freeNamesToVars();
         }
         
         for(String var:vars.keySet())  
