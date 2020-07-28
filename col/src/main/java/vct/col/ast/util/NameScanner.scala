@@ -33,7 +33,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   case class Entry(name: String, typ: Type, var writtenTo: Boolean)
 
   val frameStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
-  val givenYieldsStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
 
   // There might be external code that depends on insertion order. Therefore use LinkedHashMap
   val freeNames: mutable.Map[String, Entry] = mutable.LinkedHashMap()
@@ -49,15 +48,9 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     .collectFirst(Function.unlift(_.find(decl => decl.name == name)))
 
   /**
-    * True if there is a regular declaration (i.e. not a given/yields declaration) in scope with the same name.
+    * True if there is a declaration in scope with the same name.
     */
   private def hasDecl(name: String): Boolean = getDecl(name).isDefined
-
-  /**
-    * True if there is a given/yields declaration of one of the currently active methods
-    * with the same name.
-    */
-  private def hasGivenYieldsDecl(name: String): Boolean = givenYieldsStack.exists(frame => frame.exists(decl => decl.name == name))
 
   private def put(name: String, typ: Type): Unit = {
     if (hasDecl(name)) {
@@ -84,10 +77,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   private def pushFrame(): Unit = frameStack.push(mutable.Set())
 
   private def popFrame(): Unit = frameStack.pop()
-
-  private def pushGivenYields(): Unit = givenYieldsStack.push(mutable.Set())
-
-  private def popGivenYields(): Unit = givenYieldsStack.pop()
 
   /**
     * Returns free names as a java map with insertion order retained
@@ -144,7 +133,7 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
     // If a name has no regular decl, nor a given/yields decl, it is a free variable
     assignment.location match {
-      case name: NameExpression if !hasDecl(name.name) && !hasGivenYieldsDecl(name.name) => setWrite(name.name)
+      case name: NameExpression if !hasDecl(name.name) => setWrite(name.name)
       case _ =>
     }
   }
@@ -217,18 +206,19 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(invokation: MethodInvokation): Unit = {
     super.visit(invokation)
 
-    pushGivenYields()
-
     val contract = invokation.getDefinition.getContract()
-    contract.`given`.foreach(givenYieldsStack.top.add(_))
-    contract.yields.foreach(givenYieldsStack.top.add(_))
 
+    pushFrame()
+    contract.`given`.foreach(frameStack.top.add(_))
     if (invokation.get_before != null) invokation.get_before.accept(this)
+    popFrame()
+
+    pushFrame()
+    contract.yields.foreach(frameStack.top.add(_))
     if (invokation.get_after != null) invokation.get_after.accept(this)
+    popFrame()
 
     // This ensures before/after are not scanned after pop()
     auto_before_after = false
-
-    popGivenYields()
   }
 }
