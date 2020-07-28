@@ -158,24 +158,6 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     }
   }
 
-  private String toId(ASTNode n) {
-    if (n instanceof Dereference) {
-      return toId((Dereference) n);
-    } else if (n instanceof  NameExpression) {
-      return toId((NameExpression) n);
-    }
-    Abort("Not supported");
-    return null;
-  }
-
-  private String toId(Dereference deref) {
-    return toId(deref.obj()) + "_" + deref.field();
-  }
-
-  private String toId(NameExpression ne) {
-    return ne.getName();
-  }
-  
   @Override
   public void visit(Method m){
     if (m.getReturnType().isPrimitive(PrimitiveSort.Process)){

@@ -1,7 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case ConcurrentCounting
-//:: suite problem-fail
-//:: verdict Fail
+//:: verdict Pass
 //:: tool silicon
 //:: option --check-history
 
