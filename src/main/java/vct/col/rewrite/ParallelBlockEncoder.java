@@ -216,17 +216,17 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         create.primitive_type(PrimitiveSort.Void),
         check_cb.getContract(),
         check_name,
-        gen_pars(check_vars),
+        genPars(check_vars),
         res
     ));
     currentTargetClass.add(create.method_decl(
         create.primitive_type(PrimitiveSort.Void),
         main_cb.getContract(),
         main_name,
-        gen_pars(main_vars),
+        genPars(main_vars),
         null
     ));
-    result=gen_call(main_name,main_vars);
+    result= genCall(main_name,main_vars);
   }
 
   @Override
@@ -261,10 +261,10 @@ public class ParallelBlockEncoder extends AbstractRewriter {
             create.primitive_type(PrimitiveSort.Void),
             c,
             block_name,
-            gen_pars(block_vars),
+            genPars(block_vars),
             null
         ));
-        body.add(gen_call(block_name,block_vars));
+        body.add(genCall(block_name,block_vars));
       }
       HashMap<String,ParallelBlock> blocks=new HashMap<String, ParallelBlock>();
       HashMap<String,HashSet<String>> may_deps=new HashMap<String, HashSet<String>>();
@@ -407,10 +407,10 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         create.primitive_type(PrimitiveSort.Void),
         main_cb.getContract(),
         main_name,
-        gen_pars(main_vars),
+        genPars(main_vars),
         body
     ));
-    result=gen_call(main_name,main_vars);
+    result= genCall(main_name,main_vars);
   }
   
   private void gen_consistent(ParallelRegion region, ParallelBlock pb1, ParallelBlock pb2, boolean guard) {
@@ -481,7 +481,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         create.primitive_type(PrimitiveSort.Void),
         cb.getContract(),
         "check_"+pb1.label()+"_"+pb2.label(),
-        gen_pars(main_vars),
+        genPars(main_vars),
         create.block(
           body
         )
@@ -739,9 +739,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     Contract c=s.getContract();
     loop_invariant=c.invariant;
     ASTNode res=null;
-    Map<String,Type> body_vars = NameScanner.freeVars(s.body,c,s.guard);
+    Map<String,Type> bodyVars = NameScanner.freeVars(s.body,c,s.guard);
     //Hashtable<String,Type> iters=new Hashtable<String,Type>();
-    Hashtable<String,Type> main_vars=new Hashtable<String, Type>(body_vars);
+    Hashtable<String,Type> main_vars=new Hashtable<String, Type>(bodyVars);
     for(DeclarationStatement decl:s.decls){
       //iters.put(decl.name,decl.getType());
       main_vars.remove(decl.name());
@@ -754,9 +754,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     ContractBuilder body_cb=new ContractBuilder();
 
     for(ASTNode clause:ASTUtils.conjuncts(c.invariant, StandardOperator.Star)){
-      Map<String,Type> clause_vars = NameScanner.freeVars(clause);
+      Map<String,Type> clauseVars = NameScanner.freeVars(clause);
       for(DeclarationStatement decl:s.decls){
-        if (clause_vars.get(decl.name()) != null) {
+        if (clauseVars.get(decl.name()) != null) {
           Fail("illegal iteration invariant at %s",clause.getOrigin());
         }
       }
@@ -837,7 +837,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     if (contract){
       res=main_cb.getContract();
     } else {
-      DeclarationStatement main_pars[]=gen_pars(main_vars);
+      DeclarationStatement main_pars[]= genPars(main_vars);
       currentTargetClass.add(create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
           main_cb.getContract(),
@@ -912,7 +912,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       }
     }
     
-    DeclarationStatement body_pars[]=gen_pars(body_vars);
+    DeclarationStatement body_pars[]= genPars(bodyVars);
     currentTargetClass.add(create.method_decl(
         create.primitive_type(PrimitiveSort.Void),
         body_cb.getContract(),
@@ -925,7 +925,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       check_send_recv(body_pars, var_name, s.guard);
     }
     if (!contract) {
-      res=gen_call(main_name,main_vars);
+      res= genCall(main_name,main_vars);
     }
     loop_invariant=null;
     return res;

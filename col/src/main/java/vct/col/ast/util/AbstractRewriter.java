@@ -757,7 +757,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     result=hole;
   }
 
-  protected DeclarationStatement[] gen_pars(Map<String, Type> vars) {
+  protected DeclarationStatement[] genPars(Map<String, Type> vars) {
     DeclarationStatement decls[]=new DeclarationStatement[vars.size()];
     int i=0;
     for(String name:vars.keySet()){
@@ -767,7 +767,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     return decls;
   }
 
-  protected MethodInvokation gen_call(String method, Map<String, Type> vars) {
+  protected MethodInvokation genCall(String method, Map<String, Type> vars) {
     ASTNode args[]=new ASTNode[vars.size()];
     int i=0;
     for(String name:vars.keySet()){

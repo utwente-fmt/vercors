@@ -60,10 +60,10 @@ public class ChalicePreProcess extends AbstractRewriter {
           create.primitive_type(PrimitiveSort.Void),
           cb.getContract(),
           name,
-          gen_pars(vars),
+          genPars(vars),
           create.block(create.special(ASTSpecial.Kind.Assume, create.constant(false)))
       ));
-      result=gen_call(name,vars);
+      result= genCall(name,vars);
       break;
     }
     default:

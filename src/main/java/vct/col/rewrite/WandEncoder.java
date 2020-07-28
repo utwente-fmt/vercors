@@ -150,7 +150,7 @@ public class WandEncoder extends AbstractRewriter {
           create.primitive_type(PrimitiveSort.Void),
           cb.getContract(),
           name,
-          gen_pars(vars),
+          genPars(vars),
           body
       ));
       currentBlock=tmp;

@@ -144,10 +144,8 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     case Field | Local | Argument => checkName(e.getName, e.getType, getYieldsDecl)
 
     case Unresolved =>
-      e.getName match {
-        case "tcount" | "gsize" | "tid" | "gid" | "lid" | "threadIdx" | "blockIdx" | "blockDim" =>
-          checkName(e.getName, e.getType, getYieldsDecl)
-        case _ =>
+      if (Seq("tcount", "gsize", "tid", "gid", "lid", "threadIdx", "blockIdx", "blockDim").contains(e.getName)) {
+        checkName(e.getName, e.getType, getYieldsDecl)
       }
     case _ =>
       Abort("missing case %s %s in name scanner", e.getKind, e.getName)
@@ -226,7 +224,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
   override def visit(e: OperatorExpression): Unit = if ((e.operator eq StandardOperator.StructDeref) || (e.operator eq StandardOperator.StructSelect)) {
     e.first.accept(this)
-    // TODO: implement struct field checking; skipping dereferenced field here
   }
   else super.visit(e)
 
