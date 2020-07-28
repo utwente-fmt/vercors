@@ -230,7 +230,7 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(invokation: MethodInvokation): Unit = {
     super.visit(invokation)
 
-    if (invokation.getDefinition != null) {
+    if (invokation.getDefinition != null && invokation.getDefinition.getContract != null) {
       val contract = invokation.getDefinition.getContract
 
       givenStack.push(mutable.Set())
