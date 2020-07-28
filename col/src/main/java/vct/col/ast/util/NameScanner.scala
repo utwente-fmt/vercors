@@ -34,7 +34,16 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
   val frameStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
 
-  // There might be external code that depends on insertion order. Therefore use LinkedHashMap
+  /**
+    * Given/yields must be stacks as well, in case with/then blocks are nested
+    */
+  val givenStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
+
+  val yieldsStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
+
+  /**
+    * There might be external code that depends on insertion order. Therefore use LinkedHashMap
+    */
   val freeNames: mutable.Map[String, Entry] = mutable.LinkedHashMap()
 
   // Ensure there is at least one frame at the start
@@ -47,11 +56,20 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     // Unlift turns a function returning Option into a partial function
     .collectFirst(Function.unlift(_.find(decl => decl.name == name)))
 
+  private def getGivenDecl(name: String): Option[DeclarationStatement] = givenStack
+    .collectFirst(Function.unlift(_.find(decl => decl.name == name)))
+
+  private def getYieldsDecl(name: String): Option[DeclarationStatement] = yieldsStack
+    .collectFirst(Function.unlift(_.find(decl => decl.name == name)))
+
   /**
-    * True if there is a declaration in scope with the same name.
+    * True if there is a declaration in frameStack with the same name.
     */
   private def hasDecl(name: String): Boolean = getDecl(name).isDefined
 
+  /**
+    * Puts a _new_ variable name into the freeNames list
+    */
   private def put(name: String, typ: Type): Unit = {
     if (hasDecl(name)) {
       Abort("Cannot put a free var when it has a decl")
@@ -67,6 +85,30 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
         freeNames.put(name, Entry(name, typ, writtenTo = false));
     }
   }
+
+  /** If the name is in `additionalNames`, or there is a regular declaration with the same name, the types must match
+    * If there is a free variable with the same name, the types must match
+    * If there is no decl nor a free variable, we found a new free variable, which is added to the `freeNames` list
+    *
+    * @param additionalNames can be used to pass in given or yields scopes.
+    * @return true if `name` is the name of a free variable.
+    */
+  private def checkName(name: String, typ: Type, additionalNames: Function1[String, Option[DeclarationStatement]]): Boolean =
+    (additionalNames(name) orElse getDecl(name), freeNames.get(name)) match {
+      case (Some(decl), _) =>
+        if (typ != null && decl.`type` != typ) {
+          Fail("type mismatch %s != %s", typ, decl.`type`)
+        }
+        false
+      case (None, Some(entry)) =>
+        if (typ != null && entry.typ != typ) {
+          Fail("type mismatch %s != %s", typ, entry.typ)
+        }
+        true
+      case _ =>
+        put(name, typ)
+        true
+    }
 
   private def setWrite(name: String): Unit =
     freeNames.get(name) match {
@@ -99,29 +141,12 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(e: NameExpression): Unit = e.getKind match {
     case Reserved =>
     case Label =>
-    case Field | Local | Argument =>
-      val name = e.getName
-      val t = e.getType
-
-      // If there is a declaration with the same name, the types must match
-      // If there is a free variable with the same name, the types must match
-      // If there is no decl nor a free variable, we found a new free variable
-      (getDecl(name), freeNames.get(name)) match {
-        case (Some(decl), _) =>
-          if (t != null && decl.`type` != t) {
-            Fail("type mismatch %s != %s", t, decl.`type`);
-          }
-        case (None, Some(entry)) =>
-          if (t != null && entry.typ != t) {
-            Fail("type mismatch %s != %s", t, entry.typ);
-          }
-        case (None, None) => put(name, t)
-      }
+    case Field | Local | Argument => checkName(e.getName, e.getType, getYieldsDecl)
 
     case Unresolved =>
       e.getName match {
         case "tcount" | "gsize" | "tid" | "gid" | "lid" | "threadIdx" | "blockIdx" | "blockDim" =>
-          put(e.getName, e.getType)
+          checkName(e.getName, e.getType, getYieldsDecl)
         case _ =>
       }
     case _ =>
@@ -129,13 +154,15 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   }
 
   override def visit(assignment: AssignmentStatement): Unit = {
-    super.visit(assignment)
-
-    // If a name has no regular decl, nor a given/yields decl, it is a free variable
     assignment.location match {
-      case name: NameExpression if !hasDecl(name.name) => setWrite(name.name)
+      case name: NameExpression =>
+        if (checkName(name.name, name.getType, getGivenDecl)) {
+          setWrite(name.name)
+        }
       case _ =>
     }
+
+    assignment.expression.accept(this)
   }
 
   override def visit(d: DeclarationStatement): Unit = {
@@ -206,17 +233,28 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(invokation: MethodInvokation): Unit = {
     super.visit(invokation)
 
-    val contract = invokation.getDefinition.getContract()
+    if (invokation.getDefinition != null) {
+      val contract = invokation.getDefinition.getContract
 
-    pushFrame()
-    contract.`given`.foreach(frameStack.top.add(_))
-    if (invokation.get_before != null) invokation.get_before.accept(this)
-    popFrame()
+      givenStack.push(mutable.Set())
+      contract.`given`.foreach(givenStack.top.add(_))
+      if (invokation.get_before != null) invokation.get_before.accept(this)
+      givenStack.pop()
 
-    pushFrame()
-    contract.yields.foreach(frameStack.top.add(_))
-    if (invokation.get_after != null) invokation.get_after.accept(this)
-    popFrame()
+      yieldsStack.push(mutable.Set())
+      contract.yields.foreach(yieldsStack.top.add(_))
+      if (invokation.get_after != null) invokation.get_after.accept(this)
+      yieldsStack.pop()
+    } else {
+      // If the definition is null, there better not be any before/after statements, because those would
+      // influence the computation of free variables.
+      if (invokation.get_before.size + invokation.get_after.size != 0) {
+        // If this happens, we cannot check which variables are free, because this is in part
+        // determined by which given/yields variables are in the contract of the definition.
+        // Therefore, we abort, since this is a bug
+        Abort("Definition is null, but before/after statements are present")
+      }
+    }
 
     // This ensures before/after are not scanned after pop()
     auto_before_after = false
