@@ -13,7 +13,7 @@ domain Option[T] {
   }
   
   axiom get_axiom {
-    forall x: T :: get(Some(x)) == x
+    forall x: T :: {get(Some(x))} get(Some(x)) == x
   }
 }
 

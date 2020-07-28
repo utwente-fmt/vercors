@@ -75,6 +75,12 @@ class simplify_quant_pass1 {
     (\forall int i; b1; b1) == true
   }
 
+  axiom split_forall {
+    (\forall int i; b1; b2 && b3)
+     ==
+    (\forall int i; b1; b2) && (\forall int i; b1; b3)
+  }
+
   axiom A3 {
     (\forall int i; b1 ; (\forall int j; (b2!j) && b3 ; b4 ) )
       ==

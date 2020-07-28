@@ -1,0 +1,609 @@
+[progress] Submitting 197 tasks to thread pool with 12 worker(s)
+[progress] [00%] Pass: case-silicon-OpenMPzero
+[progress] [00%] Pass: case-silicon-DifferentClassesDifferentTypes1
+[progress] [01%] Pass: case-silicon-GeneralisedConcurrentCounting
+[progress] [01%] Pass: case-silicon-SeqItemAccess
+[progress] [02%] Pass: case-silicon-Test-1-c
+[progress] [02%] Pass: case-silicon-OnlyClass
+[progress] [03%] Pass: case-silicon-OpenMPSectionReduced
+[progress] [03%] Pass: case-silicon-BracketIssues
+[progress] [04%] Pass: case-silicon-MapsInPVL
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 183 column 5 until line 183 column 67: 
+[!!] (\forall F f1,S s1;true;VCTTuple.vcttuple_fst(VCTTuple.vcttuple_tuple(f1,s1)) == f1)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 187 column 5 until line 187 column 67: 
+[!!] (\forall F f1,S s1;true;VCTTuple.vcttuple_snd(VCTTuple.vcttuple_tuple(f1,s1)) == s1)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 252 column 138 until line 252 column 216: 
+[!!] (\forall K k;true && (( k \memberof VCTMap.vctmap_keys(m1) ));(( k \memberof VCTMap.vctmap_keys(m1) )) ==> VCTMap.vctmap_get(m1,k) == VCTMap.vctmap_get(m2,k))
+[progress] [04%] Pass: case-silicon-OpenMPadd
+[progress] [05%] Pass: case-silicon-BasicNewArray
+[progress] [05%] Pass: case-silicon-MultiIncrement
+[progress] [06%] Pass: case-silicon-ForPVL
+[progress] [06%] Pass: case-silicon-LFQhistoryImplementation
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/layers/LFQHist.java from line 25 column 13 until line 26 column 46: 
+[!!] (\forall seq<int> q2;true;diz.q_hist_act + q2 == seq<int>{e} + (diz.q_hist_value + q2))
+[progress] [07%] Pass: case-silicon-Parameters1
+[progress] [07%] Pass: case-silicon-demo4
+[progress] [08%] Pass: case-silicon-CastExamplePVL
+[progress] [08%] Pass: case-silicon-simpleExamples
+[progress] [09%] Pass: case-silicon-Permissions
+[progress] [09%] Pass: case-silicon-TestHist
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 145 column 7 until line 145 column 51: 
+[!!] (\forall seq<T> xs;true;VectorExpression.vsize(VectorExpressio n.vseq(xs)) == | xs |)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 148 column 7 until line 148 column 41: 
+[!!] (\forall T t;true;VectorExpression.vsize(VectorExpression.vrep(t)) == 1)
+[progress] [10%] Pass: case-silicon-OwickiGries
+[progress] [10%] Pass: case-silicon-TreeWandSilverE2
+[progress] [11%] Pass: case-silicon-FrameError1
+[progress] [11%] Pass: case-silicon-def
+[progress] [12%] Pass: case-silicon-Refute4
+[progress] [12%] Pass: case-silicon-TypeExample1
+[progress] [13%] Pass: case-silicon-SeqImmutable
+[progress] [13%] Pass: case-silicon-demo1
+[progress] [14%] Pass: case-silicon-BadTypeJava
+[progress] [14%] Pass: case-silicon-TestHistory
+[progress] [15%] Pass: case-silicon-Refute1
+[progress] [15%] Pass: case-silicon-RemoveValues
+[progress] [16%] Pass: case-silicon-TypeError2
+[progress] [16%] Pass: case-silicon-SetComprehension
+[warning] [warning] (class vct.col.rewrite.Triggers): at Set Function: Set Comprehension: 
+[!!] (\forall int x,int y;(( x \memberof setCompArgx )) && (( y \memberof setCompArgy ));(x == y) == (( x + y \memberof \result )))
+[warning] [warning] (class vct.col.rewrite.Triggers): at Set Function: Set Comprehension: 
+[!!] (\forall int x,int y;(( x \memberof setCompArgx )) && (( y \memberof setCompArgy ));(x + y % 2 == 0) == (( method_SetComp_plus__Integer__Integer(x,y) \memberof \result )))
+[warning] [warning] (class vct.col.rewrite.Triggers): at Set Function: Set Comprehension: 
+[!!] (\forall int x;true;(0 <= x && x <= 5) == (( method_SetComp_plus__Integer__Integer(x,x) \memberof \result )))
+[progress] [17%] Pass: case-silicon-BasicAssert
+[progress] [17%] Fail: case-silicon-LeaderElect
+Output from case...
+stdout: [progress] parsing inputs...
+stdout: [progress] Parsing pvl file /home/pieter/vercors/examples/futures/elect.pvl
+stdout: [progress] parsing pass took 4730ms
+stdout: [progress] AST conversion pass took 250ms
+stdout: [progress] Variable pass took 130ms
+stdout: [progress] Shuffling specifications took 90ms
+stdout: [progress] Post processing pass took 80ms
+stdout: [progress] Read /home/pieter/vercors/examples/futures/elect.pvl succesfully
+stdout: [progress] Parsed 1 file(s) in: 5290ms
+stdout: [progress] [01%] java_resolve took 70 ms
+stdout: [progress] [02%] pvl-encode took 60 ms
+stdout: [progress] [03%] standardize took 70 ms
+stdout: [progress] [04%] java-check took 130 ms
+stdout: [progress] [06%] check took 70 ms
+stdout: [progress] [07%] infer_adt_types took 30 ms
+stdout: [progress] [08%] check took 60 ms
+stdout: [progress] [09%] adt_operator_rewrite took 30 ms
+stdout: [progress] [10%] check took 60 ms
+stdout: [progress] [12%] standardize took 30 ms
+stdout: [progress] [13%] java-check took 60 ms
+stdout: [progress] [14%] pointers_to_arrays took 30 ms
+stdout: [progress] [15%] java-check took 40 ms
+stdout: [progress] [17%] desugar_valid_pointer took 20 ms
+stdout: [progress] [18%] java-check took 50 ms
+stdout: [progress] [19%] array_null_values took 20 ms
+stdout: [progress] [20%] java-check took 50 ms
+stdout: [progress] [21%] java-encode took 60 ms
+stdout: [progress] [23%] standardize took 30 ms
+stdout: [progress] [24%] check took 50 ms
+stdout: [progress] [25%] sat_check took 30 ms
+stdout: [progress] [26%] standardize took 30 ms
+stdout: [progress] [28%] check took 60 ms
+stdout: [progress] [29%] propagate-invariants took 30 ms
+stdout: [progress] [30%] standardize took 30 ms
+stdout: [progress] [31%] check took 60 ms
+stdout: [progress] [32%] inline took 40 ms
+stdout: [progress] [34%] standardize took 30 ms
+stdout: [progress] [35%] check took 50 ms
+stdout: [progress] [36%] check took 60 ms
+stdout: [progress] first parsing pass took 550ms
+stdout: [progress] AST conversion took 50ms
+stdout: [progress] Flattening variables took 20ms
+stdout: [progress] Shuffling specifications took 10ms
+stdout: [progress] post processing took 20ms
+stdout: [progress] rewriting with/then blocks took 10ms
+stdout: [progress] interpreting annotations took 10ms
+stdout: [progress] filtering spec_ignore took 10ms
+stdout: [progress] first parsing pass took 110ms
+stdout: [progress] AST conversion took 10ms
+stdout: [progress] Flattening variables took 0ms
+stdout: [progress] Shuffling specifications took 0ms
+stdout: [progress] post processing took 10ms
+stdout: [progress] rewriting with/then blocks took 0ms
+stdout: [progress] interpreting annotations took 10ms
+stdout: [progress] filtering spec_ignore took 0ms
+stdout: [progress] [37%] simplify_quant took 1720 ms
+stdout: [progress] [39%] simplify_quant_relations took 60 ms
+stdout: [progress] [40%] standardize took 30 ms
+stdout: [progress] [41%] check took 70 ms
+stdout: [progress] [42%] access took 30 ms
+stdout: [progress] [43%] standardize took 30 ms
+stdout: [progress] [45%] check took 70 ms
+stderr: [warning] (class vct.col.rewrite.CheckHistoryAlgebra$2): at file /home/pieter/vercors/examples/futures/elect.pvl from line 68 column 10 until line 68 column 16: name channel
+stderr: [warning] (class vct.col.rewrite.CheckHistoryAlgebra$2): at file /home/pieter/vercors/examples/futures/elect.pvl from line 69 column 10 until line 69 column 16: name results
+stderr: [warning] (class vct.col.rewrite.CheckHistoryAlgebra$2): at file /home/pieter/vercors/examples/futures/elect.pvl from line 73 column 40 until line 73 column 46: name results
+stderr: [warning] (class vct.col.rewrite.CheckHistoryAlgebra$2): at file /home/pieter/vercors/examples/futures/elect.pvl from line 73 column 50 until line 73 column 56: name results
+stderr: [warning] (class vct.col.rewrite.CheckHistoryAlgebra$2): at file /home/pieter/vercors/examples/futures/elect.pvl from line 73 column 64 until line 73 column 70: name results
+stdout: [progress] [46%] check-history took 70 ms
+stdout: [progress] [47%] standardize took 30 ms
+stdout: [progress] [48%] check took 90 ms
+stdout: [progress] [50%] current_thread took 40 ms
+stdout: [progress] [51%] standardize took 40 ms
+stdout: [progress] [52%] check took 90 ms
+stdout: [progress] [53%] rewrite_arrays took 50 ms
+stdout: [progress] [54%] check took 80 ms
+stdout: [progress] [56%] generate_adt_functions took 50 ms
+stdout: [progress] [57%] check took 90 ms
+stdout: [progress] [58%] flatten took 50 ms
+stdout: [progress] [59%] assign took 50 ms
+stdout: [progress] [60%] reorder took 40 ms
+stdout: [progress] [62%] standardize took 50 ms
+stdout: [progress] [63%] check took 90 ms
+stdout: [progress] [64%] simplify_quant took 810 ms
+stdout: [progress] [65%] standardize took 40 ms
+stdout: [progress] [67%] check took 80 ms
+stdout: [progress] [68%] silver-class-reduction took 2330 ms
+stdout: [progress] [69%] standardize took 40 ms
+stdout: [progress] [70%] check took 120 ms
+stdout: [progress] [71%] voidcalls took 50 ms
+stdout: [progress] [73%] standardize took 50 ms
+stdout: [progress] [74%] check took 110 ms
+stdout: [progress] [75%] ghost-lift took 70 ms
+stdout: [progress] [76%] standardize took 60 ms
+stdout: [progress] [78%] check took 120 ms
+stdout: [progress] [79%] flatten took 50 ms
+stdout: [progress] [80%] reorder took 60 ms
+stdout: [progress] [81%] flatten_before_after took 60 ms
+stdout: [progress] [82%] silver-reorder took 70 ms
+stdout: [progress] [84%] standardize took 60 ms
+stdout: [progress] [85%] check took 110 ms
+stdout: [progress] [86%] scale-always took 70 ms
+stdout: [progress] [87%] check took 100 ms
+stdout: [progress] first parsing pass took 10ms
+stdout: [progress] AST conversion took 0ms
+stdout: [progress] Flattening variables took 0ms
+stdout: [progress] Shuffling specifications took 0ms
+stdout: [progress] post processing took 0ms
+stdout: [progress] rewriting with/then blocks took 0ms
+stdout: [progress] interpreting annotations took 0ms
+stdout: [progress] filtering spec_ignore took 10ms
+stdout: [progress] [89%] silver-optimize took 90 ms
+stdout: [progress] [90%] check took 100 ms
+stdout: [progress] [91%] quant-optimize took 60 ms
+stdout: [progress] [92%] standardize-functions took 60 ms
+stdout: [progress] [93%] standardize took 50 ms
+stdout: [progress] [95%] check took 110 ms
+stdout: [progress] [96%] inline-pattern-to-trigger took 70 ms
+stdout: [progress] [97%] gen-triggers took 70 ms
+stdout: [progress] [98%] check took 110 ms
+stdout: [progress] Applying silver ...
+stdout: [progress] verifying with builtin silicon backend
+stdout: [progress] conversion took 100ms
+stdout: Errors! (1)
+stdout: === /home/pieter/vercors/examples/futures/elect.pvl ===
+stdout:  237 				
+stdout:  238 				assert Future(f, q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
+stdout:        [--------------------------------------------------------
+stdout:  239 				lemma_sigmaRecv_choice(f, rank, v, maxvalue - 1, res, n) with { q = q2; };
+stdout:         --------------------------------------------------------]
+stdout:  240 				assert Future(f, q2, f.Recv((rank - 1) % size, res) * f.Check(rank, size, v, res, maxvalue, n));
+stdout:  241 				
+stdout: -----------------------------------------
+stdout:   CallPreCondition:InsufficientPermission
+stdout: =========================================
+stdout: === /home/pieter/vercors/examples/futures/elect.pvl ===
+stdout:  153 	context 0 <= rank && rank < size;
+stdout:  154 	requires 0 <= x && x <= w;
+stdout:              [--------------------------------------------------------
+stdout:  155 	requires Future(f, q, f.SigmaRecv(rank, size, v, w, maxvalue, n));
+stdout:               --------------------------------------------------------]
+stdout:  156 	ensures maxvalue == \old(maxvalue);
+stdout:  157 	ensures size == \old(size);
+stdout: -----------------------------------------
+stdout:   caused by
+stdout: =========================================
+stdout: [progress] task Viper verification took 16444 ms
+stdout: [progress]  ... pass took 450 ms
+stdout: The final verdict is Fail
+stdout: [progress] entire run took 44108 ms
+exit 0
+travis_fold:end:case_output
+- Wrong verdict: expected Pass, got Fail
+[progress] [18%] Pass: case-silicon-CExampleImpl
+[progress] [18%] Pass: case-silicon-demo3a
+[progress] [19%] Pass: case-silicon-TypeError1
+[progress] [19%] Pass: case-silicon-Yield
+[progress] [20%] Pass: case-silicon-CPointers
+[progress] [20%] Pass: case-silicon-SequenceUpdating
+[progress] [21%] Pass: case-silicon-SummationKernel
+[progress] [21%] Pass: case-silicon-LocationError2
+[progress] [22%] Pass: case-silicon-HistoryApplication
+[progress] [22%] Pass: case-silicon-TestFuturePerms
+[progress] [23%] Pass: case-silicon-NewRuntimeException
+[progress] [23%] Pass: case-silicon-TestFork
+[progress] [24%] Pass: case-silicon-ListDomain
+[progress] [24%] Pass: case-silicon-IntegerList
+[progress] [25%] Pass: case-silicon-DifferentClassesDifferentTypes2
+[progress] [25%] Pass: case-silicon-SummationKernel1
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/carp/summation-kernel-1.pvl from line 47 column 12 until line 57 column 12: 
+[!!] (\forall int t,int k;0 <= t && t < N && t == 0 && (0 <= k && k < N);VCTArray.loc(getVCTOption1(contrib),k).Integer__item == VCTArray.loc(getVCTOption1(ar),g * N + k).Integer__item)
+[progress] [26%] Pass: case-silicon-ForwardHost
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/carp/forward-host.pvl from line 45 column 6 until line 50 column 6: 
+[!!] (\forall int i;0 <= i && i < N && 0 < i;VCTArray.loc(getVCTOption1(a),i - 1).Integer__item == i)
+[progress] [26%] Pass: case-silicon-RW7
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/known-problems/fixed/rewriterIssue7.pvl from line 17 column 12 until line 20 column 58: 
+[!!] (\forall* int i__1,int j__2,int k__3;0 <= i__1 && i__1 < - 1 && (0 <= j__2 && j__2 < - 1) && (j__2 * - 1 + i__1 <= k__3 && k__3 < - 1 * - 1 + (j__2 * - 1 + i__1) && (k__3 - (j__2 * - 1 + i__1)) % (- 1 * - 1) == 0);Perm( VCTArray.loc(getVCTOption1(ar),k__3).Integer__item , 1 ))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/known-problems/fixed/rewriterIssue7.pvl from line 17 column 12 until line 20 column 58: 
+[!!] (\forall* int i,int j,int k;0 <= i && i < - 1 && (0 <= j && j < - 1) && (j * - 1 + i <= k && k < - 1 * - 1 + (j * - 1 + i) && (k - (j * - 1 + i)) % (- 1 * - 1) == 0);Perm( VCTArray.loc(getVCTOption1(ar),k).Integer__item , 1 ))
+[progress] [27%] Pass: case-silicon-AddAssignJava
+[progress] [27%] Pass: case-silicon-RW5
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/known-problems/fixed/rewriterIssue5.pvl from line 16 column 11 until line 18 column 56: 
+[!!] (\forall int i__1,int j__2;0 <= i__1 && i__1 < 0 && (0 <= j__2 && j__2 < 5);VCTArray.loc(getVCTOption1(ar),i__1 * 4 + j__2).Integer__item == \old( VCTArray.loc(getVCTOption1(ar),i__1 * 4 + j__2).Integer__item ))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/known-problems/fixed/rewriterIssue5.pvl from line 16 column 11 until line 18 column 56: 
+[!!] (\forall int i,int j;0 <= i && i < 0 && (0 <= j && j < 5);VCTArray.loc(getVCTOption1(ar),i * 4 + j).Integer__item == \old( VCTArray.loc(getVCTOption1(ar),i * 4 + j).Integer__item ))
+[progress] [28%] Pass: case-silicon-BubbleSort
+[progress] [28%] Pass: case-silicon-ParallelVectorExample1
+[progress] [29%] Pass: case-silicon-GraphReachability
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/graphs/reach.pvl from line 17 column 63 until line 17 column 115: 
+[!!] (\forall int j;0 <= j && j < | P | - 1;(G [ (P [ j ]) ]) [ (P [ (j + 1) ]) ])
+[progress] [29%] Pass: case-silicon-ArrayItemAccess
+[progress] [30%] Pass: case-silicon-SatCheck_Check
+[progress] [30%] Pass: case-silicon-IncrSilicon
+[progress] [31%] Pass: case-silicon-RefuteUnsat
+[progress] [31%] Pass: case-silicon-ConstructorError1
+[progress] [32%] Pass: case-silicon-ZeroArrayIC
+[progress] [32%] Pass: case-silicon-TestScale
+[progress] [33%] Pass: case-silicon-FractionComparison
+[progress] [34%] Pass: case-silicon-ListAppendASyncDefInline
+[progress] [34%] Pass: case-silicon-BasicAssert-E1
+[progress] [35%] Pass: case-silicon-DuplicateNameJava
+[progress] [35%] Pass: case-silicon-ZeroLoop-C
+[progress] [36%] Pass: case-silicon-demo3a-func
+[progress] [36%] Pass: case-silicon-RW1
+[progress] [37%] Pass: case-silicon-Refute5
+[progress] [37%] Pass: case-silicon-InvokationInGuard
+[progress] [38%] Pass: case-silicon-OptionDomain
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/domains/option.sil from line 16 column 5 until line 16 column 37: 
+[!!] (\forall T x;true;Option.adt_get(Option.adt_Some(x)) == x)
+[progress] [38%] Pass: case-silicon-MultiDimArray
+[progress] [39%] Pass: case-silicon-kernel-example
+[progress] [39%] Pass: case-silicon-MethodCallNegation
+[progress] [40%] Pass: case-silicon-WandDemoSilver
+[progress] [40%] Pass: case-silicon-basic-examples-c
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/arrays/basic-examples.c from line 140 column 2 until line 160 column 2: 
+[!!] (\forall int i;0 <= i && i < len;VCTArray.loc(getVCTOption1(a),i).Integer__item == i + 1 && VCTArray.loc(getVCTOption1(b),i).Integer__item == i && (0 < i ==> VCTArray.loc(getVCTOption1(c),i).Integer__item == i + 2))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/arrays/basic-examples.c from line 200 column 2 until line 226 column 2: 
+[!!] (\forall int i;0 <= i && i < (len - 1 < len ? len - 1 : len);VCTArray.loc(getVCTOption1(a),i + 1).Integer__item == 0)
+[progress] [41%] Pass: case-silicon-LoopPVL
+[progress] [41%] Pass: case-silicon-For
+[progress] [42%] Pass: case-silicon-OpenMPcopy
+[progress] [42%] Pass: case-silicon-BlockParallellism
+[progress] [43%] Pass: case-silicon-InvariantBlockTest
+[progress] [43%] Pass: case-silicon-Counter
+[progress] [44%] Pass: case-silicon-LocationError1
+[progress] [44%] Pass: case-silicon-BasicArray
+[progress] [45%] Pass: case-silicon-ArrayAsObject
+[progress] [45%] Pass: case-silicon-Frac1
+[progress] [46%] Pass: case-silicon-RosterFixed
+[progress] [46%] Pass: case-silicon-TreeRecursiveSilver
+[progress] [47%] Pass: case-silicon-ghi
+[progress] [47%] Pass: case-silicon-zero-array-c-err
+[progress] [48%] Pass: case-silicon-kernel-example-v3
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/arrays/kernel-example-v3.pvl from line 24 column 6 until line 30 column 6: 
+[!!] (\forall int tid;0 <= tid && tid < tcount && 0 < tid;0 < VCTArray.loc(getVCTOption1(b),tid - 1).Integer__item)
+[progress] [48%] Pass: case-silicon-SumSeqOfInts
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 145 column 7 until line 145 column 51: 
+[!!] (\forall seq<T> xs;true;VectorExpression.vsize(VectorExpression.vseq(xs)) == | xs |)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 148 column 7 until line 148 column 41: 
+[!!] (\forall T t;true;VectorExpression.vsize(VectorExpression.vrep(t)) == 1)
+[progress] [49%] Pass: case-silicon-SeqLength
+[progress] [49%] Pass: case-silicon-Maps
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/maps/maps_example_from_dafny.pvl from line 27 column 13 until line 27 column 98: 
+[!!] (\forall int i__10;0 <= i__10 && i__10 < 100;(( i__10 \memberof VCTMap.vctmap_keys(a) )) && (( i__10 \memberof VCTMap.vctmap_keys(b) )) && VCTMap.vctmap_get(a,i__10) != VCTMap.vctmap_get(b,i__10))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/maps/maps_example_from_dafny.pvl from line 27 column 13 until line 27 column 98: 
+[!!] (\forall int i;0 <= i && i < 100;(( i \memberof VCTMap.vctmap_keys(a) )) && (( i \memberof VCTMap.vctmap_keys(b) )) && VCTMap.vctmap_get(a,i) != VCTMap.vctmap_get(b,i))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/maps/maps_example_from_dafny.pvl from line 29 column 15 until line 29 column 63: 
+[!!] (\forall int i__11;0 <= i__11 && i__11 < 100;VCTMap.vctmap_get(a,i__11) || VCTMap.vctmap_get(b,i__11))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/maps/maps_example_from_dafny.pvl from line 32 column 13 until line 32 column 78: 
+[!!] (\forall int i__12;0 <= i__12 && i__12 < 100;(( i__12 \memberof VCTMap.vctmap_keys(a) )) && VCTMap.vctmap_get(a,i__12) == i__12 * i__12)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/maps/maps_example_from_dafny.pvl from line 32 column 13 until line 32 column 78: 
+[!!] (\forall int i;0 <= i && i < 100;(( i \memberof VCTMap.vctmap_keys(a) )) && VCTMap.vctmap_get(a,i) == i * i)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 183 column 5 until line 183 column 67: 
+[!!] (\forall F f1,S s1;true;VCTTuple.vcttuple_fst(VCTTuple.vcttuple_tuple(f1,s1)) == f1)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 187 column 5 until line 187 column 67: 
+[!!] (\forall F f1,S s1;true;VCTTuple.vcttuple_snd(VCTTuple.vcttuple_tuple(f1,s1)) == s1)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 252 column 138 until line 252 column 216: 
+[!!] (\forall K k;true && (( k \memberof VCTMap.vctmap_keys(m1) ));(( k \memberof VCTMap.vctmap_keys(m1) )) ==> VCTMap.vctmap_get(m1,k) == VCTMap.vctmap_get(m2,k))
+[progress] [50%] Pass: case-silicon-JavaOverloading
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 145 column 7 until line 145 column 51: 
+[!!] (\forall seq<T> xs;true;VectorExpression.vsize(VectorExpression.vseq(xs)) == | xs |)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 148 column 7 until line 148 column 41: 
+[!!] (\forall T t;true;VectorExpression.vsize(VectorExpression.vrep(t)) == 1)
+[progress] [50%] Pass: case-silicon-BadTypePVL
+[progress] [51%] Pass: case-silicon-ZeroSubArray-C
+[progress] [51%] Pass: case-silicon-demo3d
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/demo/demo3d.pvl from line 27 column 9 until line 27 column 106: 
+[!!] (\forall* int i;0 <= i && i < | xs |;[ write ] hist_idle(model,new_frac(1 \ | xs |),Process<>.p_seq(Process<>.p_method_Future_incr__Integer(xs [ i ]),Process<>.p_method_Future_done__Integer(xs [ i ]))))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/demo/demo3d.pvl from line 31 column 10 until line 31 column 87: 
+[!!] (\forall* int i;0 <= i && i < | xs |;[ write ] hist_idle(model,new_frac(1 \ | xs |),Process<>.p_method_Future_done__Integer(xs [ i ])))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/demo/demo3d.pvl from line 46 column 7 until line 56 column 3: 
+[!!] (\forall* int tid;0 <= tid && tid < VCTArray.alen(getVCTOption1(A));[ write ] hist_idle(model,new_frac(1 \ | xs |),Process<>.p_seq(Process<>.p_method_Future_incr__Integer(VCTArray.loc(getVCTOption1(A),tid).Integer__item),Process<>.p_method_Future_done__Integer(VCTArray.loc(getVCTOption1(A),tid).Integer__item))))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/demo/demo3d.pvl from line 46 column 7 until line 56 column 3: 
+[!!] (\forall* int tid;0 <= tid && tid < VCTArray.alen(getVCTOption1(A));[ write ] hist_idle(model,new_frac(1 \ | xs |),Process<>.p_method_Future_done__Integer(VCTArray.loc(getVCTOption1(A),tid).Integer__item)))
+[progress] [52%] Pass: case-silicon-LFQatomicsImplementation
+[progress] [52%] Pass: case-silicon-ForwardDep
+[progress] [53%] Pass: case-silicon-CExampleUse
+[progress] [53%] Pass: case-silicon-TrailingGarbage
+[progress] [54%] Pass: case-silicon-demo3b
+[progress] [54%] Pass: case-silicon-JavaArrayExamples
+[progress] [55%] Pass: case-silicon-BoogieExample
+[progress] [55%] Fail: case-silicon-Java6LockImplementation
+Output from case...
+stdout: [progress] parsing inputs...
+stdout: [progress] Parsing java file /home/pieter/vercors/examples/layers/Java6Lock.java
+stdout: [progress] first parsing pass took 770ms
+stdout: [progress] AST conversion took 180ms
+stdout: [progress] Flattening variables took 80ms
+stdout: [progress] Shuffling specifications took 50ms
+stdout: [progress] post processing took 10ms
+stdout: [progress] rewriting with/then blocks took 40ms
+stdout: [progress] interpreting annotations took 20ms
+stdout: [progress] filtering spec_ignore took 10ms
+stdout: [progress] Read /home/pieter/vercors/examples/layers/Java6Lock.java succesfully
+stdout: [progress] Parsed 1 file(s) in: 1160ms
+stderr: [warning] (class vct.col.util.FeatureScanner): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 10 column 6 until line 33 column 0: detected inheritance
+stderr: [warning] (class vct.col.util.FeatureScanner): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 35 column 6 until line 41 column 0: detected inheritance
+stderr: [warning] (class vct.col.util.FeatureScanner): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 44 column 6 until line 111 column 0: detected inheritance
+stderr: [warning] (class vct.col.util.FeatureScanner): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 115 column 6 until line 238 column 0: detected inheritance
+stdout: [progress] [01%] java_resolve took 10 ms
+stdout: [progress] [02%] standardize took 20 ms
+stdout: [progress] [03%] java-check took 50 ms
+stdout: [progress] [04%] check took 30 ms
+stdout: [progress] [06%] infer_adt_types took 10 ms
+stdout: [progress] [07%] check took 20 ms
+stdout: [progress] [08%] adt_operator_rewrite took 10 ms
+stdout: [progress] [09%] check took 20 ms
+stdout: [progress] [10%] standardize took 10 ms
+stdout: [progress] [12%] java-check took 20 ms
+stdout: [progress] [13%] pointers_to_arrays took 10 ms
+stdout: [progress] [14%] java-check took 20 ms
+stdout: [progress] [15%] desugar_valid_pointer took 10 ms
+stdout: [progress] [16%] java-check took 10 ms
+stdout: [progress] [18%] array_null_values took 20 ms
+stdout: [progress] [19%] java-check took 20 ms
+stdout: [progress] [20%] java-encode took 20 ms
+stdout: [progress] [21%] standardize took 10 ms
+stdout: [progress] [22%] check took 20 ms
+stdout: [progress] [24%] sat_check took 10 ms
+stdout: [progress] [25%] standardize took 10 ms
+stdout: [progress] [26%] check took 20 ms
+stdout: [progress] [27%] propagate-invariants took 10 ms
+stdout: [progress] [28%] standardize took 10 ms
+stdout: [progress] [30%] check took 10 ms
+stdout: [progress] [31%] inline took 30 ms
+stdout: [progress] [32%] standardize took 10 ms
+stdout: [progress] [33%] check took 20 ms
+stdout: [progress] [34%] csl-encode took 10 ms
+stdout: [progress] [36%] standardize took 10 ms
+stdout: [progress] [37%] check took 20 ms
+stdout: [progress] [38%] parallel_blocks took 30 ms
+stdout: [progress] [39%] standardize took 10 ms
+stdout: [progress] [40%] check took 20 ms
+stdout: [progress] first parsing pass took 410ms
+stdout: [progress] AST conversion took 20ms
+stdout: [progress] Flattening variables took 10ms
+stdout: [progress] Shuffling specifications took 10ms
+stdout: [progress] post processing took 10ms
+stdout: [progress] rewriting with/then blocks took 10ms
+stdout: [progress] interpreting annotations took 10ms
+stdout: [progress] filtering spec_ignore took 10ms
+stdout: [progress] first parsing pass took 110ms
+stdout: [progress] AST conversion took 0ms
+stdout: [progress] Flattening variables took 10ms
+stdout: [progress] Shuffling specifications took 0ms
+stdout: [progress] post processing took 10ms
+stdout: [progress] rewriting with/then blocks took 0ms
+stdout: [progress] interpreting annotations took 0ms
+stdout: [progress] filtering spec_ignore took 10ms
+stdout: [progress] [42%] simplify_quant took 1890 ms
+stdout: [progress] [43%] simplify_quant_relations took 20 ms
+stdout: [progress] [44%] standardize took 20 ms
+stdout: [progress] [45%] check took 20 ms
+stdout: [progress] [46%] add-type-adt took 20 ms
+stdout: [progress] [48%] standardize took 10 ms
+stdout: [progress] [49%] check took 30 ms
+stdout: [progress] [50%] current_thread took 10 ms
+stdout: [progress] [51%] standardize took 10 ms
+stdout: [progress] [53%] check took 30 ms
+stdout: [progress] [54%] rewrite_arrays took 30 ms
+stdout: [progress] [55%] check took 30 ms
+stdout: [progress] [56%] generate_adt_functions took 30 ms
+stdout: [progress] [57%] check took 30 ms
+stdout: [progress] [59%] flatten took 20 ms
+stdout: [progress] [60%] assign took 10 ms
+stdout: [progress] [61%] reorder took 20 ms
+stdout: [progress] [62%] standardize took 20 ms
+stdout: [progress] [63%] check took 30 ms
+stdout: [progress] [65%] simplify_quant took 670 ms
+stdout: [progress] [66%] standardize took 10 ms
+stdout: [progress] [67%] check took 30 ms
+stdout: [progress] [68%] silver-class-reduction took 2280 ms
+stdout: [progress] [69%] standardize took 30 ms
+stdout: [progress] [71%] check took 40 ms
+stdout: [progress] [72%] voidcallsthrown took 30 ms
+stdout: [progress] [73%] standardize took 30 ms
+stdout: [progress] [74%] check took 50 ms
+stdout: [progress] [75%] ghost-lift took 30 ms
+stdout: [progress] [77%] standardize took 30 ms
+stdout: [progress] [78%] check took 50 ms
+stdout: [progress] [79%] flatten took 30 ms
+stdout: [progress] [80%] reorder took 30 ms
+stdout: [progress] [81%] flatten_before_after took 30 ms
+stdout: [progress] [83%] silver-reorder took 40 ms
+stdout: [progress] [84%] standardize took 30 ms
+stdout: [progress] [85%] check took 50 ms
+stdout: [progress] [86%] scale-always took 30 ms
+stdout: [progress] [87%] check took 40 ms
+stdout: [progress] first parsing pass took 10ms
+stdout: [progress] AST conversion took 0ms
+stdout: [progress] Flattening variables took 0ms
+stdout: [progress] Shuffling specifications took 0ms
+stdout: [progress] post processing took 0ms
+stdout: [progress] rewriting with/then blocks took 10ms
+stdout: [progress] interpreting annotations took 0ms
+stdout: [progress] filtering spec_ignore took 0ms
+stdout: [progress] [89%] silver-optimize took 50 ms
+stdout: [progress] [90%] check took 50 ms
+stdout: [progress] [91%] quant-optimize took 30 ms
+stdout: [progress] [92%] standardize-functions took 40 ms
+stdout: [progress] [93%] standardize took 30 ms
+stdout: [progress] [95%] check took 40 ms
+stdout: [progress] [96%] inline-pattern-to-trigger took 40 ms
+stderr: [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 74 column 2 until line 81 column 2: Could not find a trigger for this expression:
+stderr: [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 74 column 2 until line 81 column 2: 
+[!!] (\forall* int l;0 <= l && l < diz.field_Thread_L;Perm( VCTArray.loc(getVCTOption1(VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_held),current_thread_id).Integer__item , 1 \ 2 ))
+stderr: [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 74 column 2 until line 81 column 2: Could not find a trigger for this expression:
+stderr: [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 74 column 2 until line 81 column 2: 
+[!!] (\forall int l;0 <= l && l < diz.field_Thread_L;VCTArray.loc(getVCTOption1(VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_held),current_thread_id).Integer__item == (( l \memberof S )))
+stderr: [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 153 column 3 until line 156 column 3: Could not find a trigger for this expression:
+stderr: [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/layers/Java6Lock.java from line 153 column 3 until line 156 column 3: 
+[!!] (\forall int i;0 <= i && i < diz.field_Lock_T && VCTArray.loc(getVCTOption1(diz.field_Lock_held),i).Integer__item == 0;diz.field_Lock_owner.field_AtomicInteger_val != i)
+stdout: [progress] [97%] gen-triggers took 50 ms
+stdout: [progress] [98%] check took 50 ms
+stdout: [progress] Applying silver ...
+stdout: [progress] verifying with builtin silicon backend
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_owner.field_AtomicInteger_dummy ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_owner ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_count.field_AtomicInteger_dummy ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_count ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L && 0 < VCTArray.loc(getVCTOption1(VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_held),current_thread_id).Integer__item;Perm( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_owner.field_AtomicInteger_val , 1 \ 2 ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L && 0 < VCTArray.loc(getVCTOption1(VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_held),current_thread_id).Integer__item;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_owner ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L && 0 < VCTArray.loc(getVCTOption1(VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_held),current_thread_id).Integer__item;Perm( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_count.field_AtomicInteger_val , 1 \ 2 ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L && 0 < VCTArray.loc(getVCTOption1(VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_held),current_thread_id).Integer__item;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_count ))
+stderr: [warning] Possible simplification failure: (\forall* int l;0 <= l && l < diz.field_Thread_L;Perm( VCTArray.loc(getVCTOption1(VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_held),current_thread_id).Integer__item , 1 \ 2 ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_held ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_T ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_subject ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item ))
+stderr: [warning] Possible simplification failure: (\forall* int l__10{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__10)};0 <= l__10 && l__10 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__10).Ref__item.field_Lock_T ))
+stderr: [warning] Possible simplification failure: (\forall* int l__9{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__9)};0 <= l__9 && l__9 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__9).Ref__item.field_Lock_subject ))
+stderr: [warning] Possible simplification failure: (\forall* int l__8{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__8)};0 <= l__8 && l__8 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__8).Ref__item.field_Lock_owner ))
+stderr: [warning] Possible simplification failure: (\forall* int l__7{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__7)};0 <= l__7 && l__7 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__7).Ref__item.field_Lock_count ))
+stderr: [warning] Possible simplification failure: (\forall* int l__6{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__6)};0 <= l__6 && l__6 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__6).Ref__item ))
+stderr: [warning] Possible simplification failure: (\forall* int l__19{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__19)};0 <= l__19 && l__19 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__19).Ref__item.field_Lock_T ))
+stderr: [warning] Possible simplification failure: (\forall* int l__18{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__18)};0 <= l__18 && l__18 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__18).Ref__item.field_Lock_subject ))
+stderr: [warning] Possible simplification failure: (\forall* int l__17{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__17)};0 <= l__17 && l__17 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__17).Ref__item.field_Lock_owner ))
+stderr: [warning] Possible simplification failure: (\forall* int l__16{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__16)};0 <= l__16 && l__16 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__16).Ref__item.field_Lock_count ))
+stderr: [warning] Possible simplification failure: (\forall* int l__15{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__15)};0 <= l__15 && l__15 < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l__15).Ref__item ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_count ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_owner ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_subject ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_T ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_count ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_owner ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_subject ))
+stderr: [warning] Possible simplification failure: (\forall* int l{VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l)};0 <= l && l < diz.field_Thread_L;Value( VCTArray.loc(getVCTOption1(diz.field_Thread_locks),l).Ref__item.field_Lock_T ))
+stderr: [warning] Possible simplification failure: (\forall* int i{VCTArray.loc(getVCTOption1(diz.field_Lock_held),i)};0 <= i && i < diz.field_Lock_T;Perm( VCTArray.loc(getVCTOption1(diz.field_Lock_held),i).Integer__item , 1 \ 2 ))
+stdout: [progress] conversion took 100ms
+killed
+travis_fold:end:case_output
+- Test process was forcibly terminated because it timed out
+[progress] [56%] Pass: case-silicon-Parameters2
+[progress] [56%] Pass: case-silicon-WaitNotify
+[progress] [57%] Pass: case-silicon-ZeroMultiple
+[progress] [57%] Pass: case-silicon-SwapInteger
+[progress] [58%] Pass: case-silicon-ZeroSubMatrix-C
+[progress] [58%] Pass: case-silicon-NewClassGhost
+[progress] [59%] Pass: case-silicon-demo3c
+[progress] [59%] Pass: case-silicon-LoopInvBoogie
+[progress] [60%] Pass: case-silicon-vector-add
+[progress] [60%] Pass: case-silicon-NewException
+[progress] [61%] Pass: case-silicon-FibonacciPVL
+[progress] [61%] Pass: case-silicon-NoSendAfterRead
+[progress] [62%] Pass: case-silicon-SimpleLockingProtocol
+[progress] [62%] Pass: case-silicon-CollectionTest
+[progress] [63%] Pass: case-silicon-BadLabeledContract
+[progress] [63%] Pass: case-silicon-ConstructorName
+[progress] [64%] Pass: case-silicon-DuplicateName
+[progress] [64%] Pass: case-silicon-LabeledWhile
+[progress] [65%] Pass: case-silicon-Increment
+[progress] [65%] Pass: case-silicon-ArrayValues
+[progress] [66%] Pass: case-silicon-ParallelPVLExample1
+[progress] [67%] Pass: case-silicon-forward-dep-noauto
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/arrays/forward-dep-noauto.pvl from line 30 column 6 until line 36 column 6: 
+[!!] (\forall int tid;0 <= tid && tid < tcount && 0 < tid;VCTArray.loc(getVCTOption1(a),tid - 1).Integer__item == tid)
+[progress] [67%] Pass: case-silicon-PrecedingGarbage
+[progress] [68%] Pass: case-silicon-TreeRecursive
+[progress] [68%] Pass: case-silicon-HistoryLoop
+[progress] [69%] Pass: case-silicon-RW3
+[progress] [69%] Pass: case-silicon-AmbiguousBooleanOperators
+[progress] [70%] Pass: case-silicon-ListsPVL
+[progress] [70%] Pass: case-silicon-kernel-example-v2
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/arrays/kernel-example-v2.pvl from line 24 column 6 until line 35 column 6: 
+[!!] (\forall int tid;0 <= tid && tid < tcount && 0 < tid;0 < VCTArray.loc(getVCTOption1(b),tid - 1).Integer__item)
+[progress] [71%] Pass: case-silicon-Goto1
+[progress] [71%] Pass: case-silicon-TestValue2
+[progress] [72%] Pass: case-silicon-SeparateMain
+[progress] [72%] Pass: case-silicon-demo2
+[progress] [73%] Pass: case-silicon-BarrierWithAtomic
+[progress] [73%] Pass: case-silicon-TransposeCopy
+[progress] [74%] Pass: case-silicon-ZeroKernel
+[progress] [74%] Pass: case-silicon-Pure
+[progress] [75%] Pass: case-silicon-backward-dep-err1
+[progress] [75%] Pass: case-silicon-MainPVL
+[progress] [76%] Pass: case-silicon-ReturnNull
+[progress] [76%] Pass: case-silicon-InductionSolution
+[progress] [77%] Pass: case-silicon-IncrementError
+[progress] [77%] Pass: case-silicon-PostfixIncrement
+[progress] [78%] Pass: case-silicon-forward-dep
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/arrays/forward-dep.pvl from line 28 column 6 until line 40 column 6: 
+[!!] (\forall int tid;0 <= tid && tid < tcount && 0 < tid;VCTArray.loc(getVCTOption1(a),tid - 1).Integer__item == tid)
+[progress] [78%] Pass: case-silicon-OpenMPSectionReducedFail1
+[progress] [79%] Pass: case-silicon-AccessSubMatrix
+[progress] [79%] Pass: case-silicon-ForkPVL
+[progress] [80%] Pass: case-silicon-Frac2
+[progress] [80%] Pass: case-silicon-Boxing
+[progress] [81%] Pass: case-silicon-MaxSort
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/sequences/max-sort.pvl from line 19 column 23 until line 19 column 81: 
+[!!] (\forall int l__7;0 <= l__7 && l__7 < | result__2 |;( result__2 [ l__7 ] \memberof input ))
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/examples/sequences/max-sort.pvl from line 20 column 23 until line 20 column 85: 
+[!!] (\forall int l__8;0 <= l__8 && l__8 < | unsorted__1 |;( unsorted__1 [ l__8 ] \memberof input ))
+[progress] [81%] Pass: case-silicon-ArrayGetList
+[progress] [82%] Pass: case-silicon-ZeroArrayLoopPVL
+[progress] [82%] Pass: case-silicon-UnequalCounting
+[progress] [83%] Pass: case-silicon-BadLoop2
+[progress] [83%] Pass: case-silicon-BadLoop1
+[progress] [84%] Pass: case-silicon-DoubleDeclare
+[progress] [84%] Pass: case-silicon-TestCount
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 145 column 7 until line 145 column 51: 
+[!!] (\forall seq<T> xs;true;VectorExpression.vsize(VectorExpression.vseq(xs)) == | xs |)
+[warning] [warning] (class vct.col.rewrite.Triggers): at file /home/pieter/vercors/src/main/universal/res/config/prelude.sil from line 148 column 7 until line 148 column 41: 
+[!!] (\forall T t;true;VectorExpression.vsize(VectorExpression.vrep(t)) == 1)
+[progress] [85%] Pass: case-silicon-OnlyNew
+[progress] [85%] Pass: case-silicon-InductionProblem
+[progress] [86%] Pass: case-silicon-ListAppendASyncDef
+[progress] [86%] Pass: case-silicon-HistogramSubMatrix
+[progress] [87%] Pass: case-silicon-GivenInPar
+[progress] [87%] Pass: case-silicon-relaxed_prefix
+[progress] [88%] Pass: case-silicon-BoogieTest
+[progress] [88%] Pass: case-silicon-CastExample
+[progress] [89%] Pass: case-silicon-RefuteSat
+[progress] [89%] Pass: case-silicon-Refute3
+[progress] [90%] Pass: case-silicon-OnlyExtends
+[progress] [90%] Pass: case-silicon-ParallelVectorAdd1
+[progress] [91%] Pass: case-silicon-FunctionsPVL
+[progress] [91%] Pass: case-silicon-TreeWandSilverE1
+[progress] [92%] Pass: case-silicon-SeqSeqLength
+[progress] [92%] Pass: case-silicon-RW2
+[progress] [93%] Pass: case-silicon-abc
+[progress] [93%] Pass: case-silicon-SimpleCollectionConstructors
+[progress] [94%] Pass: case-silicon-Goto2
+[progress] [94%] Pass: case-silicon-forward-dep-err1
+[progress] [95%] Pass: case-silicon-TestFuture
+[progress] [95%] Pass: case-silicon-ListAppend
+[progress] [96%] Pass: case-silicon-demo3a-funcW
+[progress] [96%] Pass: case-silicon-OptionTypeManual
+[progress] [97%] Pass: case-silicon-AppendPrepend
+[progress] [97%] Pass: case-silicon-LabeledIf
+[progress] [98%] Pass: case-silicon-TestValue1
+[progress] [98%] Pass: case-silicon-SeparateUtil
+[progress] [99%] Pass: case-silicon-SequenceSlicing
