@@ -155,14 +155,13 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     pop()
   }
 
-  override def visit(e: BindingExpression): Unit = if (e.getDeclCount == 1) {
+  override def visit(e: BindingExpression): Unit = {
     push()
 
     super.visit(e)
 
     pop()
   }
-  else Abort("missing case in free variable detection")
 
   override def visit(s: ForEachLoop): Unit = {
     push()
