@@ -20,9 +20,7 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 object NameScanner {
   def freeVars[R <: ASTNode](nodes: util.List[R]): util.Map[String, Type] = {
     val scanner = new NameScanner
-    for (n <- nodes.asScala) {
-      n.accept(scanner)
-    }
+    nodes.asScala.foreach(_.accept(scanner))
     scanner.freeNamesJava
   }
 
@@ -42,7 +40,14 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   // Ensure there is at least one frame at the start
   push()
 
-  private def hasDecl(name: String): Boolean = frameStack.exists(frame => frame.exists(p => p.name == name))
+  /**
+    * Finds the first declaration in the framestack that has name `name`
+    */
+  private def getDecl(name: String): Option[DeclarationStatement] = frameStack
+    // Unlift turns function returning Option into a partial function
+    .collectFirst(Function.unlift(_.find(decl => decl.name == name)))
+
+  private def hasDecl(name: String): Boolean = getDecl(name).isDefined
 
   private def put(name: String, typ: Type): Unit = {
     if (hasDecl(name)) {
@@ -81,7 +86,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
   /**
     * All variable names that are read from or written to
-    * @return
     */
   def accesses: Set[String] = freeNames.keySet.toSet
 
@@ -96,18 +100,21 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
       val name = e.getName
       val t = e.getType
 
-      freeNames.get(name) match {
-        case Some(value) =>
-          // If the name is already a free variable, the types must match
-          if (t != null && !(value.typ == t)) {
-            Fail("type mismatch %s != %s", t, value.typ);
+      // If there is a declaration with the same name, the types must match
+      // If there is a free variable with the same name, the types must match
+      // If there is no decl nor a free variable, we found a new free variable
+      (getDecl(name), freeNames.get(name)) match {
+        case (Some(decl), _) =>
+          if (t != null && decl.`type` != t) {
+            Fail("type mismatch %s != %s", t, decl.`type`);
           }
-        case None if !hasDecl(name) =>
-          // If it is new and there is no decl, declare a new free variable
-          put(name, t)
-        case _ =>
-          // Otherwise ignore it
+        case (None, Some(entry)) =>
+          if (t != null && !(entry.typ == t)) {
+            Fail("type mismatch %s != %s", t, entry.typ);
+          }
+        case (None, None) => put(name, t)
       }
+
     case Unresolved =>
       e.getName match {
         case "tcount" =>
