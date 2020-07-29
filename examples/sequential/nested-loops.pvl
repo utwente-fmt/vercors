@@ -3,18 +3,19 @@
 //:: tools boogie
 //:: verdict Pass
 
+class NestedLoops {
   requires n>=0;
   ensures \result == n * n * n;
-  int cubed(int n){
+  int cubed(int n) {
     int i; int j; int res; int tmp;
     i = 0;
     res = 0;
-    loop_invariant i<=n && res == i * i * i;
-    while(i<n){
+    loop_invariant 0 <= i && i<=n && res == i * i * i;
+    while(i<n) {
       j = 0;
       tmp = 0;
-      loop_invariant j <= i && tmp == j * j;
-      while(j<i){
+      loop_invariant 0 <= j && j <= i && tmp == j * j;
+      while(j<i) {
         tmp = tmp + j;
         j = j+1;
         tmp = tmp + j;
@@ -24,5 +25,5 @@
     }
     return res;
   }
-
+}
 
