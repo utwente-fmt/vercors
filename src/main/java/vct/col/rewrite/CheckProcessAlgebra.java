@@ -417,7 +417,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
       MethodInvokation mi = copy_rw.rewrite((MethodInvokation) m_body);
       Method def = process_map.get(mi.method());
       if (def.getContract().accesses != null && def.getContract().accesses.length > 0) {
-        ensureHavocZfracPresent(source(), target(), create);
+        ensureFreshZfracPresent(source(), target(), create);
         addAccessibleArgs(mi, body);
       }
       counter++;
@@ -430,7 +430,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     create.leave();
   }
 
-  public static void ensureHavocZfracPresent(ProgramUnit source, ProgramUnit target, ASTFactory<?> create) {
+  public static void ensureFreshZfracPresent(ProgramUnit source, ProgramUnit target, ASTFactory<?> create) {
     if (source.find_procedure(FRESH_ZFRAC_NAME) != null || target.find_procedure(FRESH_ZFRAC_NAME) != null) {
       // Already present in source or target
       return;
