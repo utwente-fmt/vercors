@@ -249,7 +249,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_act",m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_write",m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_free",m.getType()));
-          hist_class.add_dynamic(create.field_decl(histName(m.name()),m.getType()));
+          hist_class.add_dynamic(create.field_decl(histName(m.name()), m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_action",m.getType()));
           add_setters_and_getter(hist_class, m.name(), m.getType());
         }
@@ -748,7 +748,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   private ASTNode hist_perm(ASTNode obj, String name, ASTNode frac) {
     return create.fold(StandardOperator.Star
         ,create.expression(Perm,create.dereference(obj,name+"_hist_value"),frac)
-        ,create.expression(Perm,create.dereference(obj,histName(name)),frac)
+        ,create.expression(Perm, create.dereference(obj, histName(name)), frac)
     );
   }
   private ASTNode action_perm(ASTNode obj, String name, ASTNode frac) {
@@ -783,7 +783,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     for(ASTNode n:act.getArgs()){
       args.add(rewrite(n));
     }
-    BlockStatement body=create.block();
+    BlockStatement body = create.block();
     if (ac.accesses!=null) for(ASTNode n:ac.accesses){
       create.enter(n);
 

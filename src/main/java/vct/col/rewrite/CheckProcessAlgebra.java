@@ -265,7 +265,6 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     }
   }
 
-  @SuppressWarnings("incomplete-switch")
   private ASTNode expand_unguarded(ASTNode m_body) {
     PrintWriter out = hre.lang.System.getLogLevelErrorWriter(hre.lang.System.LogLevel.Debug);
     out.print("expanding: ");
@@ -323,6 +322,8 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         ASTNode g1=expand_unguarded(p1);
         return create.expression(StandardOperator.ITE,b,g0,g1);
       }
+      default:
+        // No problem
       }
     }
     Fail("illegal process expression");
