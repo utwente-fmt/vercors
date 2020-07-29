@@ -1,12 +1,15 @@
 package vct.col.util
 
+import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{ParallelBlock, ParallelInvariant, ParallelRegion}
 import vct.col.ast.stmt.decl.ProgramUnit
-import vct.col.ast.util.RecursiveVisitor
+import vct.col.ast.util.{NameScanner, RecursiveVisitor}
+
+import scala.collection.mutable
 
 object LocalVariableChecker {
   def check(pu: ProgramUnit): Unit = {
-    pu.accept(new LocalVariableChecker(pu));
+    pu.accept(new LocalVariableChecker(pu))
   }
 }
 
@@ -16,26 +19,25 @@ object LocalVariableChecker {
   * - Vars used in invariants must be effectively final
   */
 class LocalVariableChecker(arg: ProgramUnit) extends RecursiveVisitor[Unit](arg) {
-  private def getAccessSet(arg: Any): Set[String] = ???
-  private def getWriteSet(arg: Any): Set[String] = ???
-  private def getFreeNames(arg: Any): Set[String] = ???
-
   override def visit(region: ParallelRegion): Unit = {
     // Check that: all may read, or one may write
 
-    val accessSets = region.blocks.map(parallelBlock => (parallelBlock, getAccessSet(parallelBlock))).toMap
-    val writeSets = region.blocks.map(parallelBlock => (parallelBlock, getWriteSet(parallelBlock))).toMap
+    val accessSets = mutable.Map[ASTNode, Set[String]]()
+    val writeSets = mutable.Map[ASTNode, Set[String]]()
+
+    for (block <- region.blocks) {
+      val ns = new NameScanner
+      block.accept(ns)
+      accessSets.put(block, ns.accesses)
+      writeSets.put(block, ns.writes)
+    }
 
     for (parallelBlockA <- region.blocks) {
       for (parallelBlockB <- region.blocks) {
         if (parallelBlockA ne parallelBlockB) {
           val intersection = writeSets(parallelBlockA).intersect(accessSets(parallelBlockB))
           if (intersection.nonEmpty) {
-            Abort("Parallelblock on line %s writes to the following variables that are accessed by parallel block on line %s: %s",
-              parallelBlockA.getOrigin,
-              parallelBlockB.getOrigin,
-              intersection
-            )
+            Abort("Parallelblock writes to the following shared variables: %s", intersection.mkString(", "))
           }
         }
       }
@@ -43,8 +45,8 @@ class LocalVariableChecker(arg: ProgramUnit) extends RecursiveVisitor[Unit](arg)
   }
 
   override def visit(invariant: ParallelInvariant): Unit = {
-    val readOnlyNames = getFreeNames(invariant.inv)
-    val writeSet = getWriteSet(invariant.block)
+    val readOnlyNames = NameScanner.accesses(invariant.inv)
+    val writeSet = NameScanner.writes(invariant.block)
 
     val badWrites = readOnlyNames.intersect(writeSet)
 
