@@ -69,7 +69,7 @@ class Foo {
   context xs != null;
   requires (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1\2));
   ensures \result;
-  pure boolean f(int[] xs);
+pure boolean f(int[] xs);
 
   requires xs != null;
   requires (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1));

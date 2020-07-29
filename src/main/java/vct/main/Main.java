@@ -13,6 +13,7 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
+import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.rewrite.DeriveModifies;
@@ -436,6 +437,8 @@ public class Main
           passes.add("standardize");
           passes.add("check");
         }
+
+        passes.add("local-variable-check");
 
         if (silver.used()) {
           if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
@@ -985,6 +988,12 @@ public class Main
           return res;
         }
 
+    });
+    defined_passes.put("local-variable-check", new CompilerPass("Checks if local variables are not written to when shared between parallel blocks or used in invariants") {
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        LocalVariableChecker.check(arg);
+        return arg;
+      }
     });
     defined_passes.put("pvl-compile",new CompilerPass("Compile PVL classes to Java classes"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
