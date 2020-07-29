@@ -53,14 +53,16 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     * Finds the first declaration in the framestack that has name `name`
     */
   private def getDecl(name: String): Option[DeclarationStatement] = frameStack
-    // Unlift turns a function returning Option into a partial function
-    .collectFirst(Function.unlift(_.find(decl => decl.name == name)))
+    .map(_.find(_.name == name))
+    .collectFirst { case Some(decl) => decl }
 
   private def getGivenDecl(name: String): Option[DeclarationStatement] = givenStack
-    .collectFirst(Function.unlift(_.find(decl => decl.name == name)))
+    .map(_.find(_.name == name))
+    .collectFirst { case Some(decl) => decl }
 
   private def getYieldsDecl(name: String): Option[DeclarationStatement] = yieldsStack
-    .collectFirst(Function.unlift(_.find(decl => decl.name == name)))
+    .map(_.find(_.name == name))
+    .collectFirst { case Some(decl) => decl }
 
   /**
     * True if there is a declaration in frameStack with the same name.
@@ -93,7 +95,7 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     * @param additionalNames can be used to pass in given or yields scopes.
     * @return true if `name` is the name of a free variable.
     */
-  private def checkName(name: String, typ: Type, additionalNames: Function1[String, Option[DeclarationStatement]]): Boolean =
+  private def checkName(name: String, typ: Type, additionalNames: String => Option[DeclarationStatement]): Boolean =
     (additionalNames(name) orElse getDecl(name), freeNames.get(name)) match {
       case (Some(decl), _) =>
         if (typ != null && decl.`type` != typ) {
