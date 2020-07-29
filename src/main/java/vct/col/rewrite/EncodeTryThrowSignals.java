@@ -9,14 +9,22 @@ import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.IfStatement;
 import vct.col.ast.stmt.composite.TryCatchBlock;
-import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.stmt.decl.DeclarationStatement;
+import vct.col.ast.stmt.decl.Method;
+import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -115,10 +123,11 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     }
 
     public void visit(TryCatchBlock tryCatchBlock) {
-        /* TODO: The type of a catch var of a multi catch is effectively the least upper bound of all the types
-                So that's the type that should also be used on the right of the instanceof below
-                As well as during typechecking!
-                https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20 */
+        /* The type of a catch var of a multi catch is effectively the least upper bound of all the types
+            So that's the type that should also be used on the right of the instanceof below
+            As well as during typechecking!
+            https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20 */
+
         tryCatchBlock.catches().forEach(cc -> {
             if (cc.catchTypes().length() > 1) {
                 Abort("Multi-catch not supported");
@@ -191,10 +200,9 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         currentBlock = create.block();
 
         /* Generate the following code at the beginning of the clause:
-            if (!(sys__exc instanceof type_of_catch_clause)) {
-                jump next_catch_clause  // (or finally_clause if there are no more catch clauses to try)
-                                        // (or nearestHandlerLabel if there is also no finally)
-            }
+            if !(sys__exc instanceof type_of_catch_clause):
+                jump to next_catch_clause  // (or finally_clause if there are no more catch clauses to try)
+                                           // (or nearestHandlerLabel if there is also no finally)
          */
         String fallbackHandler;
         CatchClause nextCatchClause = nextCatch(tryCatchBlock, catchClause);
@@ -370,12 +378,12 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             return create.constant(true);
         }
 
-        ASTNode constraint = AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) types[0]);
+        ASTNode constraint = AddTypeADT.exprInstanceof(create, copy_rw, create.local_name(excVar), (ClassType) types[0]);
 
         for (int i = 1; i < signals.length; i++) {
             constraint = create.expression(StandardOperator.Or,
                     constraint,
-                    AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) types[i]));
+                    AddTypeADT.exprInstanceof(create, copy_rw, create.local_name(excVar), (ClassType) types[i]));
         }
 
         return constraint;
@@ -435,7 +443,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         currentExceptionVarName = null;
 
         return create.expression(StandardOperator.Implies,
-                AddTypeADT.expr_instanceof(create, copy_rw, create.local_name(excVar), (ClassType) signals.type()),
+                AddTypeADT.exprInstanceof(create, copy_rw, create.local_name(excVar), (ClassType) signals.type()),
                 condition
                 );
     }

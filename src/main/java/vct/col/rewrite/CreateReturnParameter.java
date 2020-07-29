@@ -29,11 +29,6 @@ public class CreateReturnParameter extends AbstractRewriter {
 
   public CreateReturnParameter(ProgramUnit source, ErrorMapping map) {
     super(source);
-    /* TODO: In the case of abrupt control flow this is not that useful, since
-          there will be only one return at the end. Which means the error will be signalled
-          at the end of the method syntactically. Ideally if no finally is present, the contracts
-          should be checked at the actual return sites, and not just the synthetic return site at the end.
-     */
     map.add(RETURN_BRANCH,ErrorCode.AssertFailed,ErrorCode.PostConditionFailed);
   }
   
@@ -74,20 +69,24 @@ public class CreateReturnParameter extends AbstractRewriter {
           rewrite(m.getBody()));
     }
   }
+
+  private String requireDefinitionError(MethodInvokation methodInvokation) {
+    return String.format("cannot process invokation of %s without definition", methodInvokation.method());
+  }
   
   public void visit(ReturnStatement s){
     ASTNode expr=s.getExpression();
     BlockStatement res=create.block();
     if (expr!=null){
       if (expr instanceof MethodInvokation) {
-        MethodInvokation method_invokation = (MethodInvokation) expr;
-        Method m = method_invokation.getDefinition();
-        Objects.requireNonNull(m, () -> String.format("cannot process invokation of %s without definition", method_invokation.method()));
+        MethodInvokation methodInvokation = (MethodInvokation) expr;
+        Method m = methodInvokation.getDefinition();
+        Objects.requireNonNull(m, () -> requireDefinitionError(methodInvokation));
         if (m.kind == Method.Kind.Plain) {
-          res.add(invokation_into_variable(method_invokation, create.local_name("sys__result")));
+          res.add(invokationIntoVariable(methodInvokation, create.local_name(RETURN_VAR)));
         }
       } else {
-        res.add(create.assignment(create.local_name("sys__result"),rewrite(expr)));
+        res.add(create.assignment(create.local_name(RETURN_VAR),rewrite(expr)));
       }
     }
     for(ASTNode n : s.get_after()){
@@ -121,11 +120,11 @@ public class CreateReturnParameter extends AbstractRewriter {
   
   public void visit(AssignmentStatement s){
     if (s.expression() instanceof MethodInvokation){
-        MethodInvokation method_invokation = (MethodInvokation) s.expression();
-        Method m = method_invokation.getDefinition();
-        Objects.requireNonNull(m, () -> String.format("cannot process invokation of %s without definition", method_invokation.method()));
+        MethodInvokation methodInvokation = (MethodInvokation) s.expression();
+        Method m = methodInvokation.getDefinition();
+        Objects.requireNonNull(m, () -> requireDefinitionError(methodInvokation));
         if (m.kind == Method.Kind.Plain) {
-          result = invokation_into_variable(method_invokation, s.location());
+          result = invokationIntoVariable(methodInvokation, s.location());
           return;
         }
     }
@@ -136,29 +135,29 @@ public class CreateReturnParameter extends AbstractRewriter {
    * Turns a method invokation with a location into a method invokation that assigns the result to the first parameter.
    * Only works for plain methods, throws otherwise. Applies rewrite to both the method invokation and its constituents, and the location.
    */
-  private MethodInvokation invokation_into_variable(MethodInvokation method_invokation, ASTNode location) {
-    Method method=method_invokation.getDefinition();
-    Objects.requireNonNull(method, () -> String.format("cannot process invokation of %s without definition", method_invokation.method()));
+  private MethodInvokation invokationIntoVariable(MethodInvokation methodInvokation, ASTNode location) {
+    Method method=methodInvokation.getDefinition();
+    Objects.requireNonNull(method, () -> requireDefinitionError(methodInvokation));
     if (method.kind != Method.Kind.Plain) {
       Abort("MethodInvokation is not plain");
     }
-    int N=method_invokation.getArity();
-    ASTNode args[]=new ASTNode[N+1];
+    int numArgs = methodInvokation.getArity();
+    ASTNode[] args = new ASTNode[numArgs+1];
     args[0]=rewrite(location);
-    for(int i=0;i<N;i++){
-      args[i+1]=rewrite(method_invokation.getArg(i));
+    for(int i=0;i<numArgs;i++){
+      args[i+1]=rewrite(methodInvokation.getArg(i));
     }
     args[0]=rewrite(location);
-    MethodInvokation res=create.invokation(rewrite(method_invokation.object()), rewrite(method_invokation.dispatch()) , method_invokation.method() , args );
-    for(NameExpression lbl:method_invokation.getLabels()){
-      Debug("VOIDCALLS: copying label %s",lbl);
+    MethodInvokation res=create.invokation(rewrite(methodInvokation.object()), rewrite(methodInvokation.dispatch()) , methodInvokation.method() , args );
+    for(NameExpression lbl:methodInvokation.getLabels()){
+      Debug("CreateReturnParameter: copying label %s",lbl);
       res.addLabel(rewrite(lbl));
     }
-    res.set_before(rewrite(method_invokation.get_before()));
+    res.set_before(rewrite(methodInvokation.get_before()));
     HashMap<NameExpression,ASTNode> map=new HashMap<NameExpression,ASTNode>();
     map.put(create.reserved_name(ASTReserved.Result),rewrite(location));
     Substitution subst=new Substitution(source(),map);
-    res.set_after(subst.rewrite(method_invokation.get_after()));
+    res.set_after(subst.rewrite(methodInvokation.get_after()));
     return res;
   }
 }

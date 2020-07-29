@@ -6,15 +6,22 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.composite.TryCatchBlock;
-import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.decl.ASTClass;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.DeclarationStatement;
+import vct.col.ast.stmt.decl.Method;
+import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.terminal.ReturnStatement;
-import vct.col.ast.type.*;
+import vct.col.ast.type.ASTReserved;
+import vct.col.ast.type.ClassType;
+import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.util.FeatureScanner;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -30,6 +37,8 @@ public class BreakReturnToExceptions extends AbstractRewriter {
     private Set<String> breakLabels = new HashSet<>();
     private Set<String> exceptionTypes = new HashSet<>();
     private int uniqueCounter = 0;
+
+    private static String FIELD_VALUE = "value";
 
     /**
      * At this point method overloading is not yet resolved. Therefore, to be safe, we append
@@ -74,11 +83,11 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             ContractBuilder cb = new ContractBuilder();
             cb.ensures(create.expression(StandardOperator.Star,
                     create.expression(StandardOperator.Perm,
-                            create.dereference(create.reserved_name(ASTReserved.This), "value"),
+                            create.dereference(create.reserved_name(ASTReserved.This), FIELD_VALUE),
                             create.reserved_name(ASTReserved.FullPerm)
                     ),
                     create.expression(StandardOperator.EQ,
-                            create.dereference(create.reserved_name(ASTReserved.This), "value"),
+                            create.dereference(create.reserved_name(ASTReserved.This), FIELD_VALUE),
                             create.argument_name("returnValue")
                     )
             ));
@@ -94,7 +103,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
                     null
             );
             exceptionClass.add(exceptionConstructor);
-            exceptionClass.add(create.field_decl("value", arg));
+            exceptionClass.add(create.field_decl(FIELD_VALUE, arg));
         } else {
             create.addZeroConstructor(exceptionClass);
         }
@@ -123,6 +132,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         return getExceptionType("return", method.getName() + "_" + uniqueMethodIdCounter, method.getReturnType());
     }
 
+    @Override
     public void post_visit(ASTNode node) {
         // Wrap statement in try-catch if one of the labels is broken to
         // Collect all used break labels within statement
@@ -169,13 +179,13 @@ public class BreakReturnToExceptions extends AbstractRewriter {
 
             ClassType exceptionType = getReturnExceptionType(method);
             String catchVarName = getUniqueName("ucv");
-            ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), "value");
+            ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), FIELD_VALUE);
             ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
             tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { exceptionType }, create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
         }
 
-        if (breakLabels.size() != 0) {
+        if (!breakLabels.isEmpty()) {
             Warning("Some break labels were not deleted, even though they should be. This indicates a logic error.");
             breakLabels.clear();
         }
@@ -185,14 +195,14 @@ public class BreakReturnToExceptions extends AbstractRewriter {
 
     public void visit(ASTSpecial special) {
         switch (special.kind) {
-            default:
-                super.visit(special);
-                break;
             case Break:
                 visitBreak(special);
                 break;
             case Continue:
-                Abort("Not supported");
+                Abort("Not supported, should have been handled by encoding continue to break");
+                break;
+            default:
+                super.visit(special);
                 break;
         }
     }

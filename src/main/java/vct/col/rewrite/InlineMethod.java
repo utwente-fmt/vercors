@@ -24,16 +24,14 @@ public class InlineMethod extends Substitution {
   private String return_label;
   private String prefix;
 
-  /* TODO: This is a dangerous pattern for reproducibility, should be refactored to be lexically dependent or
-           top-down unique by passing identifiers, or by having lexically (block) scoped labels and decls. */
-  private static AtomicInteger count=new AtomicInteger();
+  private static int count = 0;
 
   public InlineMethod(ProgramUnit source) {
     super(source, new Hashtable<NameExpression, ASTNode>());
   }
 
   public void newPrefix() {
-    prefix = "inline_" + count.incrementAndGet() + "_";
+    prefix = "inline_" + count++ + "_";
   }
 
   public String makeUnique(String name) {

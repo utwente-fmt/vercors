@@ -2,7 +2,6 @@
 package vct.col.ast.util;
 
 import hre.ast.CompositeOrigin;
-import hre.ast.FileOrigin;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;

@@ -20,13 +20,12 @@ import vct.col.ast.util.ContractBuilder;
 public class AddTypeADT extends AbstractRewriter {
 
   public static final String type_adt="TYPE";
+  // TODO (Bob): Refactor this to classname
   public static final String javaObjectName = "java_DOT_lang_DOT_Object";
 
+  private static final String DIRECT_SUPERCLASS = "directSuperclass";
+
   private AxiomaticDataType adt;
-  
-  private HashSet<String> rootclasses=new HashSet<String>();
-  @SuppressWarnings("unused")
-  private HashMap<String,Set<String>> subclasses=new HashMap<String, Set<String>>();
   
   public AddTypeADT(ProgramUnit source) {
     super(source);
@@ -46,7 +45,7 @@ public class AddTypeADT extends AbstractRewriter {
     adt.add_map(create.function_decl(
             create.class_type(type_adt),
             null,
-            "direct_superclass",
+            DIRECT_SUPERCLASS,
             new DeclarationStatement[] {
                     create.field_decl("t", create.class_type(type_adt))
             },
@@ -65,7 +64,7 @@ public class AddTypeADT extends AbstractRewriter {
                     create.expression(StandardOperator.Or,
                             create.expression(StandardOperator.EQ, create.local_name("t"), create.local_name("u")),
                             create.expression(StandardOperator.EQ,
-                                    create.domain_call(type_adt, "direct_superclass", create.local_name("t")),
+                                    create.domain_call(type_adt, DIRECT_SUPERCLASS, create.local_name("t")),
                                     create.local_name("u")
                                     )
                             )
@@ -139,9 +138,9 @@ public class AddTypeADT extends AbstractRewriter {
   private void addDirectSuperclassAxiom(ClassType child, ClassType parent) {
     String child_adt_constructor = "class_" + child.getName();
     String parent_adt_constructor = "class_" + parent.getName();
-    adt.add_axiom(create.axiom(child.getName() + "_direct_superclass",
+    adt.add_axiom(create.axiom(child.getName() + "_" + DIRECT_SUPERCLASS,
             create.expression(StandardOperator.EQ,
-              create.domain_call(type_adt, "direct_superclass", create.domain_call(type_adt, child_adt_constructor)),
+              create.domain_call(type_adt, DIRECT_SUPERCLASS, create.domain_call(type_adt, child_adt_constructor)),
               create.domain_call(type_adt, parent_adt_constructor)
             )));
   }
@@ -184,17 +183,17 @@ public class AddTypeADT extends AbstractRewriter {
    * checks need to be added later on.
    * @param create ASTFactory used at the call site
    * @param expr The expression the typeof operator will be applied to. Will be copied into the resulting expression
-   * @param type Currently assumed to be a class type. TODO: but if extended to pvl this could be any type? Need to consider nullness...
+   * @param type Currently assumed to be a class type.
    * @return Condition that is true if expr instanceof type holds
    */
-  public static ASTNode expr_instanceof(ASTFactory<?> create, AbstractRewriter copy_rw, ASTNode expr, ClassType type) {
+  public static ASTNode exprInstanceof(ASTFactory<?> create, AbstractRewriter copyRw, ASTNode expr, ClassType type) {
     return create.expression(StandardOperator.And,
             create.expression(StandardOperator.NEQ,
-              copy_rw.rewrite(expr),
+              copyRw.rewrite(expr),
               create.reserved_name(ASTReserved.Null)
               ),
             create.invokation(create.class_type(type_adt), null,"instanceof",
-              create.expression(StandardOperator.TypeOf, copy_rw.rewrite(expr)),
+              create.expression(StandardOperator.TypeOf, copyRw.rewrite(expr)),
               create.invokation(create.class_type(type_adt),null,"class_" + type
               )
             ));

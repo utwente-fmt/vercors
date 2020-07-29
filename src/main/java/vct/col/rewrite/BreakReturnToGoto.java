@@ -4,7 +4,10 @@ import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.LoopStatement;
-import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.DeclarationStatement;
+import vct.col.ast.stmt.decl.Method;
+import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.util.AbstractRewriter;
@@ -157,20 +160,16 @@ public class BreakReturnToGoto extends AbstractRewriter {
 
     public void visit(ASTSpecial special) {
         switch (special.kind) {
-            default:
-                super.visit(special);
-                break;
             case Break:
                 visitBreak(special);
                 break;
             case Continue:
-                visitContinue(special);
+                Abort("Continue not supported; should've been translated into break");
+                break;
+            default:
+                super.visit(special);
                 break;
         }
-    }
-
-    private void visitContinue(ASTSpecial continueStatement) {
-        Abort("Continue not supported; should've been translated into break");
     }
 
     public void visitBreak(ASTSpecial breakStatement) {
