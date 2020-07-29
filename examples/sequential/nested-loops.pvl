@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases NestedLoops
-//:: tools boogie
+//:: tools silicon
 //:: verdict Pass
 
 class NestedLoops {
