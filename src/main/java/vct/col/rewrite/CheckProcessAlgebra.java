@@ -5,19 +5,30 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Hashtable;
 
-import vct.col.ast.expr.*;
-import vct.col.ast.stmt.decl.*;
+import vct.col.ast.expr.Dereference;
+import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.OperatorExpression;
+import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.stmt.decl.ASTClass;
+import vct.col.ast.stmt.decl.ASTFlags;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.stmt.decl.DeclarationStatement;
+import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
-import vct.col.ast.util.*;
+import vct.col.ast.util.ASTFactory;
+import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.Configuration;
+import vct.col.ast.util.ContractBuilder;
 import vct.col.util.AstToId;
-
-import static hre.lang.System.Output;
 
 /**
  * This class checks if a specified process algebra is correct.
@@ -33,6 +44,8 @@ public class CheckProcessAlgebra extends AbstractRewriter {
 
   private Hashtable<String,String> composite_map;
   private Hashtable<String, Method> process_map;
+
+  public static final String FRESH_ZFRAC_NAME = "freshZfrac";
 
   int counter = 0;
 
@@ -63,7 +76,6 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     process_map=new Hashtable<String,Method>();
     HashSet<NameExpression> hist_set=new HashSet<NameExpression>();
     for(Method m:cl.dynamicMethods()){
-      Output("%s", m.name());
       if (!m.getReturnType().isPrimitive(PrimitiveSort.Process)) continue;
       ASTNode body=m.getBody();
       process_map.put(m.name(), m);
@@ -418,7 +430,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
   }
 
   public static void ensureHavocZfracPresent(ProgramUnit source, ProgramUnit target, ASTFactory<?> create) {
-    if (source.find_procedure("havocZfrac") != null || target.find_procedure("havocZfrac") != null) {
+    if (source.find_procedure(FRESH_ZFRAC_NAME) != null || target.find_procedure(FRESH_ZFRAC_NAME) != null) {
       // Already present in source or target
       return;
     }
@@ -426,7 +438,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     Method m = create.method_decl(
             create.primitive_type(PrimitiveSort.ZFraction),
             null,
-            "havocZfrac",
+            FRESH_ZFRAC_NAME,
             new DeclarationStatement[0],
             null
     );
@@ -441,7 +453,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
       String vId = "f_" + AstToId.toId(v) + ("_" + counter++);
 
       body.add(create.field_decl(vId, create.primitive_type(PrimitiveSort.ZFraction)));
-      body.add(create.assignment(create.local_name(vId), create.invokation(null, null, "havocZfrac")));
+      body.add(create.assignment(create.local_name(vId), create.invokation(null, null, FRESH_ZFRAC_NAME)));
 
       body.add(create.special(ASTSpecial.Kind.Assert, create.expression(StandardOperator.LT,
               create.constant(0),

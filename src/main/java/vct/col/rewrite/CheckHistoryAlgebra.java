@@ -6,13 +6,31 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import vct.col.ast.expr.*;
+import vct.col.ast.expr.Binder;
+import vct.col.ast.expr.Dereference;
+import vct.col.ast.expr.FieldAccess;
+import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.NameExpressionKind;
+import vct.col.ast.expr.OperatorExpression;
+import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.decl.ASTClass;
+import vct.col.ast.stmt.decl.ASTDeclaration;
+import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.ActionBlock;
-import vct.col.ast.stmt.decl.*;
-import vct.col.ast.type.*;
+import vct.col.ast.stmt.decl.AxiomaticDataType;
+import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.stmt.decl.DeclarationStatement;
+import vct.col.ast.stmt.decl.Method;
+import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.type.ASTReserved;
+import vct.col.ast.type.ClassType;
+import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.Configuration;
 import vct.col.ast.util.ContractBuilder;
@@ -20,9 +38,14 @@ import vct.col.util.AstToId;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
 
-import static vct.col.ast.expr.StandardOperator.*;
+import static vct.col.ast.expr.StandardOperator.CurrentPerm;
+import static vct.col.ast.expr.StandardOperator.EQ;
+import static vct.col.ast.expr.StandardOperator.LT;
+import static vct.col.ast.expr.StandardOperator.Old;
+import static vct.col.ast.expr.StandardOperator.Perm;
+import static vct.col.ast.expr.StandardOperator.PointsTo;
+import static vct.col.ast.expr.StandardOperator.Star;
 import static vct.col.ast.type.ASTReserved.FullPerm;
-import static vct.col.ast.type.ASTReserved.This;
 
 public class CheckHistoryAlgebra extends AbstractRewriter {
   
@@ -44,6 +67,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   private Type adt_type;
   private AxiomaticDataType adt;
   private ASTClass hist_class;
+
+  private String histName(String name) {
+    return name + "_hist_hist";
+  }
   
   @Override
   public void visit(ASTClass cl){
@@ -222,7 +249,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_act",m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_write",m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_free",m.getType()));
-          hist_class.add_dynamic(create.field_decl(m.name() + "_hist_hist",m.getType()));
+          hist_class.add_dynamic(create.field_decl(histName(m.name()),m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_action",m.getType()));
           add_setters_and_getter(hist_class, m.name(), m.getType());
         }
@@ -721,7 +748,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   private ASTNode hist_perm(ASTNode obj, String name, ASTNode frac) {
     return create.fold(StandardOperator.Star
         ,create.expression(Perm,create.dereference(obj,name+"_hist_value"),frac)
-        ,create.expression(Perm,create.dereference(obj,name+"_hist_hist"),frac)
+        ,create.expression(Perm,create.dereference(obj,histName(name)),frac)
     );
   }
   private ASTNode action_perm(ASTNode obj, String name, ASTNode frac) {
@@ -770,17 +797,17 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
 
       body.add(create.special(Kind.Assert, create.expression(LT,
               create.constant(0),
-              create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_hist")
+              create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), histName(fieldName))
               ))));
 
       body.add(create.special(Kind.Assert, create.expression(LT,
               create.constant(0),
-              create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_value")
+              create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), histName(fieldName))
               ))));
 
       body.add(create.special(Kind.Inhale, create.fold(Star,
               create.expression(LT, create.constant(0), create.local_name(name)),
-              create.expression(LT, create.local_name(name), create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_hist"))),
+              create.expression(LT, create.local_name(name), create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), histName(fieldName)))),
               create.expression(LT, create.local_name(name), create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_value")))
               )));
 
