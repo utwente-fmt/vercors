@@ -4,7 +4,7 @@ import hre.ast.MessageOrigin;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Hashtable;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.stmt.decl.ASTClass;
@@ -25,6 +25,7 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.NameScanner;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
 
@@ -144,12 +145,12 @@ public class WandEncoder extends AbstractRewriter {
       intro.add(create.special(Kind.Inhale,wand(true)));
       cb.requires(pre());
       cb.ensures(post());
-      Hashtable<String,Type> vars=free_vars(block);
+      Map<String,Type> vars = NameScanner.freeVars(block);
       currentTargetClass.add(create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
           cb.getContract(),
           name,
-          gen_pars(vars),
+          genPars(vars),
           body
       ));
       currentBlock=tmp;
