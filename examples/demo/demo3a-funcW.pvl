@@ -140,10 +140,10 @@ class ArraySum {
             // Does our array axiomatisation miss a lemma?
             assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
             lemma_sum_update_after(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
-            // This needs to be after, not before... Strange
-            assert arrayToSeqHelper(ys, b + 1) == tail(arrayToSeqHelper(ys, b));
             // Shady, but please give me the lemma's postcondition
             assume sumSeq(arrayToSeqHelper(ys, b + 1)) == oldTotal - xs[b];
+            // This needs to be after, not before... Strange
+            assert arrayToSeqHelper(ys, b + 1) == tail(arrayToSeqHelper(ys, b));
         } else {
             // Not necessary, but:
             assert oldTotal == 0;
