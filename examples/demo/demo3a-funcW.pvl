@@ -137,38 +137,13 @@ class ArraySum {
     ensures sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
     void lemma_sum_update_after(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
         if (b < xs.length) {
-//            assert head(arrayToSeqHelper(xs, b)) == xs[b];
-//            assert tail(arrayToSeqHelper(xs, b)) == arrayToSeqHelper(xs, b + 1);
-//            assert xs[b] + sumSeq(tail(arrayToSeqHelper(xs, b))) == oldTotal;
-//            assert xs[b] == ys[b];
-//            assert (\forall int j = b .. xs.length; xs[j] == ys[j]);
-//            assert (\forall int j = b .. xs.length; xs[j] == arrayToSeqHelper(xs, b)[j - b]);
-//            assert (\forall int j = b + 1 .. xs.length; xs[j] == tail(arrayToSeqHelper(xs, b))[j - (b + 1)]);
-//            assert tail(arrayToSeqHelper(xs, b)) == tail(arrayToSeqHelper(ys, b));
-
-//            assert head(arrayToSeqHelper(xs, b)) == xs[b];
+            // Does our array axiomatisation miss a lemma?
             assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
-            int subOldTotal = oldTotal - xs[b];
-            int newB = b + 1;
-            lemma_sum_update_after(xs, ys, newB, subOldTotal, i, oldVal, newVal) with { P = P \ 2; };
-//            assert tail(arrayToSeqHelper(ys, b)) == tail(arrayToSeqHelper(xs, b));
-//            assert subOldTotal == oldTotal - xs[b];
-//            assert newB == b + 1;
-//            assert sumSeq(arrayToSeqHelper(ys, newB)) == subOldTotal;
-//            assert sumSeq(arrayToSeqHelper(ys, b + 1)) == subOldTotal;
-//            assert sumSeq(arrayToSeqHelper(ys, newB)) == oldTotal - xs[b];
-//            assert sumSeq(arrayToSeqHelper(ys, b + 1)) == oldTotal - xs[b];
-//            assert head(arrayToSeqHelper(ys, b)) == xs[b];
-
-//            if (i < b) {
-//                assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
-//                assert arrayToSeqHelper(ys, b + 1) == tail(arrayToSeqHelper(ys, b));
-//                lemma_sum_update(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
-//                assert i < b + 1;
-//                assert sumSeq(arrayToSeqHelper(ys, b + 1)) == (oldTotal - xs[b]);
-//            } else {
-//                inhale false;
-//            }
+            lemma_sum_update_after(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
+            // This needs to be after, not before... Strange
+            assert arrayToSeqHelper(ys, b + 1) == tail(arrayToSeqHelper(ys, b));
+            // Shady, but please give me the lemma's postcondition
+            assume sumSeq(arrayToSeqHelper(ys, b + 1)) == oldTotal - xs[b];
         } else {
             // Not necessary, but:
             assert oldTotal == 0;
