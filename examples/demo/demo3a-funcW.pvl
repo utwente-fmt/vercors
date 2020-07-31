@@ -10,7 +10,7 @@ class ArraySum {
     requires (\forall* int j = 0 .. xs.length; Perm(xs[j], read));
     ensures |\result| == (xs.length - i);
     ensures (\forall int j = i .. xs.length; \result[j - i] == xs[j]);
-    seq<int> arrayToSeqHelper(int[] xs, int i) =
+    pure seq<int> arrayToSeqHelper(int[] xs, int i) =
         i < xs.length
             ? seq<int>{ xs[i] } + arrayToSeqHelper(xs, i + 1)
             : seq<int>{};
@@ -19,7 +19,7 @@ class ArraySum {
     requires (\forall* int i = 0..xs.length; Perm(xs[i], read));
     ensures |\result| == xs.length;
     ensures (\forall int i = 0..xs.length; \result[i] == xs[i]);
-    seq<int> arrayToSeq(int[] xs) = arrayToSeqHelper(xs, 0);
+    pure seq<int> arrayToSeq(int[] xs) = arrayToSeqHelper(xs, 0);
 
     pure int sumSeq(seq<int> xs) = 0 < |xs| ? head(xs) + sumSeq(tail(xs)) : 0;
 
@@ -28,7 +28,6 @@ class ArraySum {
     requires 0 <= i && i <= xs.length;
     ensures sumSeq(arrayToSeqHelper(xs, i)) == 0;
     void lemma_sum_init(int[] xs, int i) {
-        inhale false;
         if (i < xs.length) {
             assert head(arrayToSeqHelper(xs, i)) == 0;
             lemma_sum_init(xs, i + 1);
@@ -43,8 +42,6 @@ class ArraySum {
     ensures \result != null ** Perm(\result[*], write) ** \result.length == xs.length;
     ensures (\forall int i = 0 .. \result.length; \result[i] == xs[i]);
     int[] copy(int[] xs) {
-        inhale false;
-
         int[] res = new int[xs.length];
 
         loop_invariant 0 <= i && i <= xs.length;
@@ -99,10 +96,16 @@ class ArraySum {
     context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
     context xs[i] == oldVal;
     context ys[i] == newVal;
-    requires b <= i;
     requires sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
     ensures sumSeq(arrayToSeqHelper(ys, b)) == (oldTotal - oldVal + newVal);
     void lemma_sum_update_before(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
+        if (b < i) {
+//            assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
+            lemma_incr_eq_tail(xs, b) with { P = P; };
+            lemma_sum_update_before(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P; };
+        } else {
+            // TODO
+        }
 //        if (b < xs.length) {
 //            if (i < b) {
 //                assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
@@ -119,8 +122,15 @@ class ArraySum {
 //            assert sumSeq(arrayToSeqHelper(ys, b)) == 0;
 //            // Therefore, postcondition holds
 //        }
-        inhale false;
+//        inhale false;
     }
+
+    given frac P;
+    context P != none;
+    context xs != null ** Perm(xs[*], P);
+    context 0 <= b && b < xs.length;
+    ensures arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
+    void lemma_incr_eq_tail(int[] xs, int b) { }
 
     given frac P;
     context P != none;
@@ -138,23 +148,24 @@ class ArraySum {
     void lemma_sum_update_after(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
         if (b < xs.length) {
             // Does our array axiomatisation miss a lemma?
-            assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
+            lemma_incr_eq_tail(xs, b) with { P = P \ 2; };
             lemma_sum_update_after(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
             // Shady, but please give me the lemma's postcondition
             assume sumSeq(arrayToSeqHelper(ys, b + 1)) == oldTotal - xs[b];
             // This needs to be after, not before... Strange
-            assert arrayToSeqHelper(ys, b + 1) == tail(arrayToSeqHelper(ys, b));
+            lemma_incr_eq_tail(ys, b) with { P = P \ 2; };
+            assert sumSeq(arrayToSeqHelper(ys, b)) == oldTotal; // 48s
         } else {
             // Not necessary, but:
             assert oldTotal == 0;
             assert sumSeq(arrayToSeqHelper(ys, b)) == 0;
             // Therefore, postcondition holds
         }
+        assert sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
     }
 
     requires n >= 5;
     void foo(int n) {
-        inhale false;
         int[] xs = new int[n];
         lemma_sum_init(xs, 0);
         assert sumSeq(arrayToSeq(xs)) == 0;
