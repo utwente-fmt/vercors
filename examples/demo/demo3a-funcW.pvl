@@ -2,6 +2,7 @@
 //:: cases demo3a-funcW
 //:: tools silicon
 //:: verdict Pass
+//:: option --disable-par-var-check
 
 class ArraySum {
 	int sum;

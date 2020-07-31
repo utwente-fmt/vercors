@@ -1,7 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases demo3a-func
 //:: tools silicon
-//:: verdict Error
+//:: verdict Fail
 
 class ArraySum {
 	int sum;
@@ -22,7 +22,7 @@ class ArraySum {
 	requires (\forall* int i; 0 <= i && i < A.length; contrib[i] == 0);
 	void sum(int[] A) {
 		invariant inv(Perm(this.sum, write) **
-		              (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1/2)) **
+		              (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2)) **
 			      this.sum == sum_contrib(contrib, 0)){ 
 			par (int tid = 0 .. A.length)
 				requires Perm(A[tid], 1\2);
