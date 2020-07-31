@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import scala.collection.JavaConverters._
 import vct.col.ast.`type`.ClassType
-import vct.col.ast.expr.{NameExpression, NameExpressionKind}
+import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, ParallelAtomic, ParallelInvariant}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
@@ -19,6 +19,29 @@ class InlineAtomic(arg: ProgramUnit, map: ErrorMapping) extends AbstractRewriter
 
   // Stack is not deprecated anymore in 2.13
   val invBlocks: mutable.Stack[ParallelInvariant] = mutable.Stack()
+
+  def getInvBlock(name: String): ParallelInvariant = {
+    invBlocks.find(_.label == name) match {
+      case Some(invBlock) => invBlock
+      case None =>
+        Fail("Could not find an invariant labeled %s", name)
+        ???
+    }
+  }
+
+  def getCslInvariant(node: ASTNode): MethodInvokation = {
+    val ct: ClassType = node.getType.asInstanceOf[ClassType]
+    val cl: ASTClass = source.find(ct)
+
+    cl.dynamicMethods()
+      .asScala
+      .find(m => m.name.endsWith("csl_invariant")) match {
+        case Some(m) =>
+          val args = m.getArgs.toSeq.map(a => create.local_name(a.name))
+          create.invokation(rewrite(node), null, m.name, args:_*)
+        case None => create.invokation(rewrite(node), null, "csl_invariant")
+    }
+  }
 
   /**
     * atomic(a, b, c) {S}
@@ -41,28 +64,17 @@ class InlineAtomic(arg: ProgramUnit, map: ErrorMapping) extends AbstractRewriter
     for (node <- pa.synclist) {
       node match {
         case name: NameExpression if name.getKind == NameExpressionKind.Label =>
-          invBlocks.find(_.label == name.getName) match {
-            case Some(invBlock) =>
-              block.prepend(create.special(ASTSpecial.Kind.Inhale, invBlock.inv))
-              block.append(create.special(ASTSpecial.Kind.Exhale, invBlock.inv).set_branch(LEAVE_ATOMIC))
-            case None =>
-              Fail("Could not find an invariant labeled %s", name)
-          }
+          val invBlock = getInvBlock(name.name)
+          block.prepend(create.special(ASTSpecial.Kind.Inhale, invBlock.inv))
+          block.append(create.special(ASTSpecial.Kind.Exhale, invBlock.inv).set_branch(LEAVE_ATOMIC))
+
         case _ =>
-          val ct: ClassType = node.getType.asInstanceOf[ClassType]
-          val cl: ASTClass = source.find(ct)
+          val cslInvariant = getCslInvariant(node)
 
-          val (name, args: Seq[ASTNode]) = cl.dynamicMethods()
-            .asScala
-            .find(m => m.name.endsWith("csl_invariant")) match {
-              case Some(m) => (m.name, m.getArgs.toSeq.map(a => create.local_name(a.name)))
-              case None => ("csl_invariant", Seq())
-            }
-
-          block.prepend(create.special(ASTSpecial.Kind.Unfold, create.invokation(rewrite(node), null, name, args:_*)))
-          block.prepend(create.special(ASTSpecial.Kind.Inhale, create.invokation(rewrite(node), null, name, args:_*)))
-          block.append(create.special(ASTSpecial.Kind.Fold, create.invokation(rewrite(node), null, name, args:_*)))
-          block.append(create.special(ASTSpecial.Kind.Exhale, create.invokation(rewrite(node), null, name, args:_*)))
+          block.prepend(create.special(ASTSpecial.Kind.Unfold, copy_rw.rewrite(cslInvariant)))
+          block.prepend(create.special(ASTSpecial.Kind.Inhale, copy_rw.rewrite(cslInvariant)))
+          block.append(create.special(ASTSpecial.Kind.Fold, copy_rw.rewrite(cslInvariant)))
+          block.append(create.special(ASTSpecial.Kind.Exhale, copy_rw.rewrite(cslInvariant)))
       }
     }
 
