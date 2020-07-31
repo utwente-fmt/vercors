@@ -2,9 +2,14 @@ package vct.col.rewrite;
 
 import hre.ast.BranchOrigin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -12,13 +17,14 @@ import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.col.ast.util.*;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ContractBuilder;
+import vct.col.ast.util.NameScanner;
 import vct.col.util.OriginWrapper;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
@@ -40,14 +46,6 @@ public class ParallelBlockEncoder extends AbstractRewriter {
 
   @Override
   public void visit(ParallelInvariant inv){
-//    Set<String> usedLocalNames = NameScanner.collectNames(inv.inv(), NameExpressionKind.Local);
-
-    /**
-     * This is currently broken, as it does not account for shadowing. This should probably
-     * be implemented as a side-effect of NameScanner.
-     */
-//    Set<String> assignedToInBlock = NameScanner.fixIt(inv.block);
-
     inv_blocks.push(inv);
     BlockStatement block = rewrite(inv.block());
     ASTNode exhale = create.special(ASTSpecial.Kind.Exhale, rewrite(inv.inv()));
