@@ -333,10 +333,20 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   public void visit(Contract c){
+    dispatch(c.given);
+    dispatch(c.yields);
+    if (c.modifies != null) {
+      dispatch(c.modifies);
+    }
+    if (c.accesses != null) {
+      dispatch(c.accesses);
+    }
     dispatch(c.invariant);
     dispatch(c.pre_condition);
-    dispatch(c.yields);
     dispatch(c.post_condition);
+    if (c.signals != null) {
+      dispatch(c.signals);
+    }
   }
 
   public void visit(ASTSpecial s){
