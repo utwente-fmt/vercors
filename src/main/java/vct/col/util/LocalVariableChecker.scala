@@ -33,12 +33,22 @@ class LocalVariableChecker(arg: ProgramUnit) extends RecursiveVisitor[Unit](arg)
     }
 
     for (parallelBlockA <- region.blocks) {
-      for (parallelBlockB <- region.blocks) {
-        if (parallelBlockA ne parallelBlockB) {
+      if (parallelBlockA.iters.isEmpty) {
+        // If a parallel block models 1 thread, it may write to stack variables, provided other threads
+        // do not access (read/write) it
+        for (parallelBlockB <- region.blocks.filter(_ ne parallelBlockA)) {
           val intersection = writeSets(parallelBlockA).intersect(accessSets(parallelBlockB))
           if (intersection.nonEmpty) {
             Abort("Parallelblock writes to the following shared variables: %s", intersection.mkString(", "))
           }
+        }
+      } else {
+        // If a parallel block models 1 or more threads, it may not write to stack variables, as this
+        // could potentially cause data races between threads
+        if (writeSets(parallelBlockA).nonEmpty) {
+          val msg = "Parallel block modelling multiple threads cannot write to shared stack variables"
+          parallelBlockA.getOrigin.report("error", msg)
+          Abort("")
         }
       }
     }
@@ -51,7 +61,7 @@ class LocalVariableChecker(arg: ProgramUnit) extends RecursiveVisitor[Unit](arg)
     val badWrites = readOnlyNames.intersect(writeSet)
 
     if (badWrites.nonEmpty) {
-      invariant.getOrigin.report("error", "The following vars appear in the invariant but are also writting to in the invariant body: %s", badWrites);
+      invariant.getOrigin.report("error", "The following vars appear in the invariant but are also writting to in the invariant body: %s", badWrites.mkString(", "))
       Abort("Invariant writes to local variables that appear in invariant")
     }
   }
