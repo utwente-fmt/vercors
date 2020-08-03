@@ -38,7 +38,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
     private Set<String> exceptionTypes = new HashSet<>();
     private int uniqueCounter = 0;
 
-    private static String FIELD_VALUE = "value";
+    private static final String FIELD_VALUE = "value";
 
     /**
      * At this point method overloading is not yet resolved. Therefore, to be safe, we append

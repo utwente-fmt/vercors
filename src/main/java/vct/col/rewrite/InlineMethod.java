@@ -4,7 +4,6 @@ import hre.ast.BranchOrigin;
 import hre.ast.Origin;
 
 import java.util.Hashtable;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.composite.BlockStatement;
@@ -30,8 +29,8 @@ public class InlineMethod extends Substitution {
     super(source, new Hashtable<NameExpression, ASTNode>());
   }
 
-  public void newPrefix() {
-    prefix = "inline_" + count++ + "_";
+  public static String newPrefix() {
+    return "inline_" + count++ + "_";
   }
 
   public String makeUnique(String name) {
@@ -55,7 +54,7 @@ public class InlineMethod extends Substitution {
     if (n==null) Debug("1");
     if (object==null) Debug("2");
     map.put(n,object);
-    newPrefix();
+    prefix = newPrefix();
     DeclarationStatement decls[]=m.getArgs();
     for(int i=0;i<decls.length;i++){
       tmp=create.field_decl(makeUnique(decls[i].name()), copy_rw.rewrite(decls[i].getType()));
@@ -91,9 +90,9 @@ public class InlineMethod extends Substitution {
   @Override
   public void visit(DeclarationStatement decl){
     //TODO: handle scoping properly!
-    String new_name = makeUnique(decl.name());
-    map.put(create.local_name(decl.name()), create.local_name(new_name));
-    result = create.field_decl(new_name, rewrite(decl.getType()), rewrite(decl.initJava()));
+    String newName = makeUnique(decl.name());
+    map.put(create.local_name(decl.name()), create.local_name(newName));
+    result = create.field_decl(newName, rewrite(decl.getType()), rewrite(decl.initJava()));
   }
 
   @Override

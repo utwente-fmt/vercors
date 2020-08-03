@@ -13,7 +13,6 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
-import vct.parsers.JavaResolver;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.rewrite.DeriveModifies;

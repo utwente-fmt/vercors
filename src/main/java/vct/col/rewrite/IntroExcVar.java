@@ -3,8 +3,14 @@ package vct.col.rewrite;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.composite.*;
-import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.composite.CatchClause;
+import vct.col.ast.stmt.composite.LoopStatement;
+import vct.col.ast.stmt.composite.TryCatchBlock;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.stmt.decl.Method;
+import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.util.AbstractRewriter;
@@ -12,7 +18,6 @@ import vct.col.util.FeatureScanner;
 
 /**
  * Introduces the exc variable into each method. Assuming flattened code.
- * TODO: Only introduce if it throws or if throwing happens in the method.
  */
 public class IntroExcVar extends AbstractRewriter {
     public static final String excVar = "sys__exc";
@@ -82,7 +87,7 @@ public class IntroExcVar extends AbstractRewriter {
                     create.reserved_name(ASTReserved.Null)
             ));
 
-            // TODO: Once we have subtyping turn this into regular assignment, since this is a hack
+            // Once we have subtyping turn this into regular assignment, since this is a hack
             // Suprised it even works w.r.t. typechecking (could this indicate a bug in the type checker?)
             // Assign the global exc variable to the local formal parameter of the catch block
             // This way of any assertions or permissions on the exc variable were given earlier, they can also be used here

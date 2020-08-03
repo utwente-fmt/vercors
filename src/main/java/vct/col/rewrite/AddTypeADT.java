@@ -1,9 +1,5 @@
 package vct.col.rewrite;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-
 import hre.ast.MessageOrigin;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
@@ -20,8 +16,6 @@ import vct.col.ast.util.ContractBuilder;
 public class AddTypeADT extends AbstractRewriter {
 
   public static final String type_adt="TYPE";
-  // TODO (Bob): Refactor this to classname
-  public static final String javaObjectName = "java_DOT_lang_DOT_Object";
 
   private static final String DIRECT_SUPERCLASS = "directSuperclass";
 
@@ -114,7 +108,7 @@ public class AddTypeADT extends AbstractRewriter {
     addTypeConstructor(cl);
     // Assume classes extend Object by default
     if (cl.super_classes.length==0) {
-      addDirectSuperclassAxiom(new ClassType(cl.getName()), new ClassType(javaObjectName));
+      addDirectSuperclassAxiom(new ClassType(cl.getName()), new ClassType(ClassType.javaLangObjectName()));
     } else if (cl.super_classes.length == 1) {
       // And otherwise a class can only extend one class
       addDirectSuperclassAxiom(new ClassType(cl.getName()), cl.super_classes[0]);

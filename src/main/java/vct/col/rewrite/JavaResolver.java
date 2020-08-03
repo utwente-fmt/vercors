@@ -1,4 +1,4 @@
-package vct.parsers;
+package vct.col.rewrite;
 
 import java.io.File;
 import java.lang.reflect.Modifier;
@@ -22,6 +22,8 @@ import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ClassName;
+import vct.parsers.ColJavaParser;
+import vct.parsers.Parser;
 import vct.parsers.rewrite.RemoveBodies;
 
 public class JavaResolver extends AbstractRewriter {
@@ -69,8 +71,7 @@ public class JavaResolver extends AbstractRewriter {
               superClass
       );
       // Temporarily switch off including methods
-      /* TODO: Temporarily switch off including methods
-           We want these methods around if they are used in the rest of the program!
+      /* But: we want these methods around if they are used in the rest of the program!
            Once the type system understands inheritance, the unused methods can be pruned. */
       // We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass.
 //      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
