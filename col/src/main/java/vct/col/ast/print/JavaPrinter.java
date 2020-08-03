@@ -661,13 +661,8 @@ public class JavaPrinter extends AbstractPrinter {
         out.lnprintf(";");
       }
       for (SignalsClause sc : contract.signals){
-        out.printf("signals (");
-        sc.type().accept(this);
-        out.printf(" %s) ",sc.name());
-        nextExpr();
-        sc.condition().accept(this);
-        out.lnprintf(";");
-      }      
+        sc.accept(this);
+      }
       if (contract.modifies!=null){
         out.printf("modifies ");
         if (contract.modifies.length==0){
@@ -701,6 +696,15 @@ public class JavaPrinter extends AbstractPrinter {
       out.decrIndent();
       out.lnprintf("@*/");
     }
+  }
+
+  public void visit(SignalsClause sc) {
+    out.printf("signals (");
+    sc.type().accept(this);
+    out.printf(" %s) ",sc.name());
+    nextExpr();
+    sc.condition().accept(this);
+    out.lnprintf(";");
   }
 
   public void visit(DeclarationStatement s){
