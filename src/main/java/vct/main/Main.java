@@ -460,7 +460,6 @@ public class Main
           passes.add("check");
         }
 
-        boolean has_type_adt=false;
         if (silver.used()) {
           if (  features.usesOperator(StandardOperator.Instance)
             || features.usesInheritance()
@@ -469,7 +468,6 @@ public class Main
             passes.add("add-type-adt"); // add java's types of the programs as silicon's axiomatic datatypes
             passes.add("standardize");
             passes.add("check");
-            has_type_adt=true;
           }
         }
 
@@ -746,6 +744,7 @@ public class Main
       }
     });
     defined_passes.put("check",new CompilerPass("run a basic type check"){
+      @Override
       public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
         new SimpleTypeCheck(report, arg).check();
         return arg;
@@ -774,6 +773,7 @@ public class Main
       }
     });
     defined_passes.put("java-check",new CompilerPass("run a Java aware type check"){
+      @Override
       public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
         new JavaTypeCheck(report, arg).check();
         return arg;
@@ -1167,41 +1167,49 @@ public class Main
         }
       });
     defined_passes.put("specify-implicit-labels", new CompilerPass("Insert explicit labels for break statements in while loops.") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new SpecifyImplicitLabels(arg).rewriteAll();
       }
     });
     defined_passes.put("break-return-to-goto", new CompilerPass("Rewrite break, return into jumps") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new BreakReturnToGoto(arg).rewriteAll();
       }
     });
     defined_passes.put("break-return-to-exceptions", new CompilerPass("Rewrite break, continue into exceptions") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new BreakReturnToExceptions(arg).rewriteAll();
       }
     });
     defined_passes.put("unfold-switch", new CompilerPass("Unfold switch to chain of if-statements that jump to sections.") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new UnfoldSwitch(arg).rewriteAll();
       }
     });
     defined_passes.put("continue-to-break", new CompilerPass("Convert continues into breaks") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new ContinueToBreak(arg).rewriteAll();
       }
     });
     defined_passes.put("unfold-synchronized", new CompilerPass("Convert synchronized to try-finally") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new UnfoldSynchronized(arg).rewriteAll();
       }
     });
     defined_passes.put("intro-exc-var", new CompilerPass("Introduces the auxiliary sys__exc variable for use by excetional control flow") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args) {
         return new IntroExcVar(arg).rewriteAll();
       }
     });
     defined_passes.put("encode-try-throw-signals", new CompilerPass("Encodes exceptional control flow into gotos and exceptional contracts into regular contracts") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args) {
         return new EncodeTryThrowSignals(arg).rewriteAll();
       }

@@ -3,7 +3,6 @@ package vct.col.util;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import hre.ast.Origin;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
@@ -16,10 +15,7 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.*;
-import vct.logging.MessageFactory;
-import vct.logging.PassAddVisitor;
 import vct.logging.PassReport;
-import vct.logging.VerCorsError;
 import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
 import viper.api.SilverTypeMap;

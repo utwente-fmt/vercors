@@ -3,10 +3,11 @@ package vct.col.rewrite;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.composite.*;
+import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.composite.IfStatement;
+import vct.col.ast.stmt.composite.Switch;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.AbstractRewriter;
-import viper.silver.cfg.Block;
 
 import java.util.ArrayList;
 import java.util.List;

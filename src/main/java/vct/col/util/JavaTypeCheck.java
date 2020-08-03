@@ -5,7 +5,10 @@ import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
-import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.Method;
+import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.logging.MessageFactory;
@@ -13,7 +16,11 @@ import vct.logging.PassAddVisitor;
 import vct.logging.PassReport;
 import vct.logging.VerCorsError;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -36,11 +43,8 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     super.visit(m);
 
-    // Pure methods cannot throw exceptions
-    if (m.getKind() == Method.Kind.Pure) {
-      if (m.getContract().signals.length > 0 || m.throwy.length > 0) {
-        Fail("Pure methods cannot throw exceptions");
-      }
+    if (m.getKind() == Method.Kind.Pure && m.canThrowSpec()) {
+      Fail("Pure methods cannot throw exceptions");
     }
 
     // Throws types must inherit from Throwable
@@ -100,8 +104,6 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   }
 
   public void visit(TryCatchBlock tcb) {
-    // TODO: And that, if checked exception, exception appears in try body! (this should probably go in the java type checker)
-    // TODO: Multi-catch
     super.visit(tcb);
 
     // Types of catch clauses cannot overlap

@@ -2,11 +2,20 @@ package vct.col.util;
 
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.function.Consumer;
 
-import scala.util.control.Exception;
-import vct.col.ast.expr.*;
-import vct.col.ast.stmt.composite.*;
+import vct.col.ast.expr.Binder;
+import vct.col.ast.expr.BindingExpression;
+import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.OperatorExpression;
+import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.stmt.composite.ForEachLoop;
+import vct.col.ast.stmt.composite.LoopStatement;
+import vct.col.ast.stmt.composite.ParallelBlock;
+import vct.col.ast.stmt.composite.ParallelInvariant;
+import vct.col.ast.stmt.composite.Switch;
+import vct.col.ast.stmt.composite.Synchronized;
+import vct.col.ast.stmt.composite.TryCatchBlock;
+import vct.col.ast.stmt.composite.VectorBlock;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;

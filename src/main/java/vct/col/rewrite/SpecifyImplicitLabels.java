@@ -74,7 +74,7 @@ public class SpecifyImplicitLabels extends AbstractRewriter {
         }
 
         if (special.args.length == 0) {
-            if (labelStack.size() > 0) {
+            if (!labelStack.isEmpty()) {
                 // If there is no break target but there is a label in scope, add it to the break/continue
                 result = create.special(special.kind, currentLabel());
             } else {
