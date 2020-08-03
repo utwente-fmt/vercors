@@ -995,6 +995,7 @@ public class Main
 
     });
     defined_passes.put("local-variable-check", new CompilerPass("Checks if local variables are not written to when shared between parallel blocks or used in invariants") {
+      @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         LocalVariableChecker.check(arg);
         return arg;
