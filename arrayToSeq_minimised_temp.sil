@@ -9,63 +9,33 @@ domain VCTArray[CT] {
   }
 }
 
-domain VCTOption[T] {
-  
-  function VCTNone(): VCTOption[T]
-  
-  function VCTSome(t: T): VCTOption[T]
-  
-  function getVCTOption(o: VCTOption[T]): T
-  
-  axiom not_equal_vct {
-    (forall x: T :: VCTNone() != VCTSome(x))
-  }
-  
-  axiom get_axiom_vct {
-    (forall x: T :: getVCTOption(VCTSome(x)) == x)
-  }
-  
-  axiom get_axiom_vct_2 {
-    (forall x: VCTOption[T] :: VCTSome(getVCTOption(x)) == x)
-  }
-}
-
-function getVCTOption1(x: VCTOption[VCTArray[Ref]]): VCTArray[Ref]
-  requires x != VCTNone()
-{
-  getVCTOption(x)
-}
-
 //  a field 
 field item: Int
 
-function arrayToSeqHelper(xs: VCTOption[VCTArray[Ref]], i: Int): Seq[Int]
-  requires xs != VCTNone()
-  requires 0 <= i && i <= alen(getVCTOption1(xs))
-  requires (forall j: Int :: 0 <= j && j < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), j).item, wildcard))
+function arrayToSeqHelper(xs: VCTArray[Ref], i: Int): Seq[Int]
+  requires 0 <= i && i <= alen(xs)
+  requires (forall j: Int :: 0 <= j && j < alen(xs) ==> acc(loc(xs, j).item, wildcard))
 
-  ensures |result| == alen(getVCTOption1(xs)) - i
-  ensures (forall j: Int :: i <= j && j < alen(getVCTOption1(xs)) ==> result[j - i] == loc(getVCTOption1(xs), j).item)
+  ensures |result| == alen(xs) - i
+  ensures (forall j: Int :: i <= j && j < alen(xs) ==> result[j - i] == loc(xs, j).item)
 {
-  (i < alen(getVCTOption1(xs)) ? Seq(loc(getVCTOption1(xs), i).item) ++ arrayToSeqHelper(xs, i + 1) : Seq[Int]())
+  (i < alen(xs) ? Seq(loc(xs, i).item) ++ arrayToSeqHelper(xs, i + 1) : Seq[Int]())
 }
 
-method method_arrayToSeqHelper(xs: VCTOption[VCTArray[Ref]], i: Int) returns (res: Seq[Int])
-  requires xs != VCTNone()
-  requires 0 <= i && i <= alen(getVCTOption1(xs))
-  requires (forall j: Int :: 0 <= j && j < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), j).item, wildcard))
+method method_arrayToSeqHelper(xs: VCTArray[Ref], i: Int) returns (res: Seq[Int])
+  requires 0 <= i && i <= alen(xs)
+  requires (forall j: Int :: 0 <= j && j < alen(xs) ==> acc(loc(xs, j).item, wildcard))
 
-  ensures xs != VCTNone()
-  ensures 0 <= i && i <= alen(getVCTOption1(xs))
-  ensures (forall j: Int :: 0 <= j && j < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), j).item, wildcard))
+  ensures 0 <= i && i <= alen(xs)
+  ensures (forall j: Int :: 0 <= j && j < alen(xs) ==> acc(loc(xs, j).item, wildcard))
 
-  ensures |res| == alen(getVCTOption1(xs)) - i
-  ensures (forall j: Int :: i <= j && j < alen(getVCTOption1(xs)) ==> res[j - i] == loc(getVCTOption1(xs), j).item)
+  ensures |res| == alen(xs) - i
+  ensures (forall j: Int :: i <= j && j < alen(xs) ==> res[j - i] == loc(xs, j).item)
 {
-  if (i < alen(getVCTOption1(xs))) {
+  if (i < alen(xs)) {
     var tail: Seq[Int]
     tail := method_arrayToSeqHelper(xs, i + 1)
-    res := Seq(loc(getVCTOption1(xs), i).item) ++ tail
+    res := Seq(loc(xs, i).item) ++ tail
   } else {
     res := Seq()
   }
