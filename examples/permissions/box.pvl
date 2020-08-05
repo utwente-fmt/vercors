@@ -1,17 +1,13 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Box
-//:: tools chalice
-
-/*
- * This example can be verified with Chalice:
- * vct --chalice box.pvl
- */
+//:: tools silicon
+//:: verdict Pass
 
 class Box {
   int cnts;
 
-  requires Perm(this.cnts,100);
-  ensures  PointsTo(this.cnts,100,o);
+  requires Perm(this.cnts,1);
+  ensures  PointsTo(this.cnts,1,o);
   void put(int o){
     this.cnts = o;
   }
