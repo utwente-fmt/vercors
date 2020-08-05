@@ -23,70 +23,52 @@ class ArraySum {
 
     pure int sumSeq(seq<int> xs) = 0 < |xs| ? head(xs) + sumSeq(tail(xs)) : 0;
 
-    context xs != null ** Perm(xs[*], write);
-    context (\forall int j = 0 .. xs.length; xs[j] == 0);
-    requires 0 <= i && i <= xs.length;
-    ensures sumSeq(arrayToSeqHelper(xs, i)) == 0;
-    void lemma_sum_init(int[] xs, int i) {
-        inhale false;
-        if (i < xs.length) {
-            assert head(arrayToSeqHelper(xs, i)) == 0;
-            lemma_sum_init(xs, i + 1);
-            assert arrayToSeqHelper(xs, i + 1) == tail(arrayToSeqHelper(xs, i));
-        } else {
-            assert sumSeq(arrayToSeqHelper(xs, i)) == 0;
-        }
-    }
-
-    context_everywhere xs != null;
-    context_everywhere Perm(xs[*], 1\4);
-    ensures \result != null ** Perm(\result[*], write) ** \result.length == xs.length;
-    ensures (\forall int i = 0 .. \result.length; \result[i] == xs[i]);
-    int[] copy(int[] xs) {
-        inhale false;
-        int[] res = new int[xs.length];
-
-        loop_invariant 0 <= i && i <= xs.length;
-        loop_invariant Perm(res[*], write) ** res.length == xs.length;
-        loop_invariant (\forall int j = 0 .. i; res[j] == xs[j]);
-        for (int i = 0; i < xs.length; i++) {
-            res[i] = xs[i];
-        }
-
-        return res;
-    }
-
-//    given frac P;
-//    context P != none;
-//    context xs != null ** Perm(xs[*], P);
-//    context ys != null ** Perm(ys[*], P);
-//    context xs.length == ys.length;
-//    context 0 <= b && b <= xs.length;
-//    context 0 <= i && i < xs.length;
-//    context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
-//    context xs[i] == oldVal;
-//    context ys[i] == newVal;
-//    requires sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
-//    ensures i < b ==> sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
-//    ensures b <= i ==> sumSeq(arrayToSeqHelper(ys, b)) == (oldTotal - oldVal + newVal);
-//    void lemma_sum_update(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
-//        if (b < xs.length) {
-//            if (i < b) {
-//                assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
-//                assert arrayToSeqHelper(ys, b + 1) == tail(arrayToSeqHelper(ys, b));
-//                lemma_sum_update(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
-//                assert i < b + 1;
-//                assert sumSeq(arrayToSeqHelper(ys, b + 1)) == (oldTotal - xs[b]);
-//            } else {
-//                inhale false;
-//            }
+//    context xs != null ** Perm(xs[*], write);
+//    context (\forall int j = 0 .. xs.length; xs[j] == 0);
+//    requires 0 <= i && i <= xs.length;
+//    ensures sumSeq(arrayToSeqHelper(xs, i)) == 0;
+//    void lemma_sum_init(int[] xs, int i) {
+//        inhale false;
+//        if (i < xs.length) {
+//            assert head(arrayToSeqHelper(xs, i)) == 0;
+//            lemma_sum_init(xs, i + 1);
+//            assert arrayToSeqHelper(xs, i + 1) == tail(arrayToSeqHelper(xs, i));
 //        } else {
-//            // Not necessary, but:
-//            assert oldTotal == 0;
-//            assert sumSeq(arrayToSeqHelper(ys, b)) == 0;
-//            // Therefore, postcondition holds
+//            assert sumSeq(arrayToSeqHelper(xs, i)) == 0;
 //        }
 //    }
+
+//    context_everywhere xs != null;
+//    context_everywhere Perm(xs[*], 1\4);
+//    ensures \result != null ** Perm(\result[*], write) ** \result.length == xs.length;
+//    ensures (\forall int i = 0 .. \result.length; \result[i] == xs[i]);
+//    int[] copy(int[] xs) {
+//        inhale false;
+//        int[] res = new int[xs.length];
+//
+//        loop_invariant 0 <= i && i <= xs.length;
+//        loop_invariant Perm(res[*], write) ** res.length == xs.length;
+//        loop_invariant (\forall int j = 0 .. i; res[j] == xs[j]);
+//        for (int i = 0; i < xs.length; i++) {
+//            res[i] = xs[i];
+//        }
+//
+//        return res;
+//    }
+
+    given frac P;
+    context 0 < P && P < write;
+    context xs != null ** Perm(xs[*], P);
+    context ys != null ** Perm(ys[*], P);
+    context xs.length == ys.length;
+    context 0 <= i && i < xs.length;
+    context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
+    requires sumSeq(arrayToSeq(xs)) == oldTotal;
+    ensures sumSeq(arrayToSeq(ys)) == (oldTotal - xs[i] + ys[i]);
+    void lemma_sum_update(int[] xs, int[] ys, int oldTotal, int i) {
+        lemma_sum_update_before(xs, ys, 0, oldTotal, i, xs[i], ys[i]) with { P = P \ 2; };
+        assert sumSeq(arrayToSeqHelper(ys, 0)) == (oldTotal - xs[i] + ys[i]);
+    }
 
     given frac P;
     context 0 < P && P < write;
@@ -101,12 +83,14 @@ class ArraySum {
     context ys[i] == newVal;
     requires sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
     ensures sumSeq(arrayToSeqHelper(ys, b)) == (oldTotal - oldVal + newVal);
-    void lemma_sum_update_before(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
+    void lemma_sum_update_before(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal);
+    /*{
         inhale false; // Have not proven this yet. But maybe I should first investigate if these lemmas are sufficient for proving the program
         assert sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
         if (b < i) {
             lemma_incr_eq_tail(xs, b) with { P = P \ 2; };
             lemma_sum_update_before(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
+            // Not sure if this is needed
             lemma_incr_eq_tail(ys, b) with { P = P \ 2; };
             assert sumSeq(arrayToSeqHelper(ys, b + 1)) == (oldTotal - xs[b] - oldVal + newVal);
             assert sumSeq(arrayToSeqHelper(ys, b)) == (oldTotal - oldVal + newVal);
@@ -131,60 +115,60 @@ class ArraySum {
 //            // Therefore, postcondition holds
 //        }
 //        inhale false;
-    }
+    }*/
 
     given frac P;
-    context none <= P && P < write;
+    context none < P && P < write;
     context xs != null ** Perm(xs[*], P);
     context 0 <= b && b < xs.length;
     ensures arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
     void lemma_incr_eq_tail(int[] xs, int b) { }
 
-    given frac P;
-    context P != none;
-    context xs != null ** Perm(xs[*], P);
-    context ys != null ** Perm(ys[*], P);
-    context xs.length == ys.length;
-    context 0 <= b && b <= xs.length;
-    context 0 <= i && i < xs.length;
-    context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
-    context xs[i] == oldVal;
-    context ys[i] == newVal;
-    requires i < b;
-    requires sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
-    ensures sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
-    void lemma_sum_update_after(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
-        inhale false; // Succeeded in 150s at 2020-08-05 9:14
-        if (b < xs.length) {
-            // Does our array axiomatisation miss a lemma?
-            lemma_incr_eq_tail(xs, b) with { P = P \ 2; };
-            lemma_sum_update_after(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
-            // This needs to be after, not before... Strange
-            lemma_incr_eq_tail(ys, b) with { P = P \ 2; };
-            assert sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
-        } else {
-            // Not necessary, but:
-            assert oldTotal == 0;
-            assert sumSeq(arrayToSeqHelper(ys, b)) == 0;
-            // Therefore, postcondition holds
-        }
-        assert sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
-    }
+//    given frac P;
+//    context P != none;
+//    context xs != null ** Perm(xs[*], P);
+//    context ys != null ** Perm(ys[*], P);
+//    context xs.length == ys.length;
+//    context 0 <= b && b <= xs.length;
+//    context 0 <= i && i < xs.length;
+//    context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
+//    context xs[i] == oldVal;
+//    context ys[i] == newVal;
+//    requires i < b;
+//    requires sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
+//    ensures sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
+//    void lemma_sum_update_after(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal); /* {
+//        inhale false; // Succeeded in 150s at 2020-08-05 9:14
+//        if (b < xs.length) {
+//            // Does our array axiomatisation miss a lemma?
+//            lemma_incr_eq_tail(xs, b) with { P = P \ 2; };
+//            lemma_sum_update_after(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
+//            // This needs to be after, not before... Strange
+//            lemma_incr_eq_tail(ys, b) with { P = P \ 2; };
+//            assert sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
+//        } else {
+//            // Not necessary, but:
+//            assert oldTotal == 0;
+//            assert sumSeq(arrayToSeqHelper(ys, b)) == 0;
+//            // Therefore, postcondition holds
+//        }
+//        assert sumSeq(arrayToSeqHelper(ys, b)) == oldTotal;
+//    }*/
 
-    requires n >= 5;
-    void foo(int n) {
-        inhale false;
-        int[] xs = new int[n];
-        lemma_sum_init(xs, 0);
-        assert sumSeq(arrayToSeq(xs)) == 0;
-
-        xs[1] = 1;
-        assert sumSeq(arrayToSeq(xs)) == 1;
-
-        xs[3] = 3;
-
-        assert sumSeq(arrayToSeq(xs)) == 4;
-    }
+//    requires n >= 5;
+//    void foo(int n); /* {
+//        inhale false;
+//        int[] xs = new int[n];
+//        lemma_sum_init(xs, 0);
+//        assert sumSeq(arrayToSeq(xs)) == 0;
+//
+//        xs[1] = 1;
+//        assert sumSeq(arrayToSeq(xs)) == 1;
+//
+//        xs[3] = 3;
+//
+//        assert sumSeq(arrayToSeq(xs)) == 4;
+//    } */
 //    int sum;
 //    seq<int> contrib;
 //
