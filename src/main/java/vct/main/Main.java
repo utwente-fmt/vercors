@@ -5,6 +5,10 @@ package vct.main;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -672,7 +676,8 @@ public class Main
           } else {
             ValidationPass check=defined_checks.get(pass);
             if (check!=null){
-              Progress("Applying %s ...", pass);
+              DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+              Progress("Applying %s at %s ...", pass, ZonedDateTime.now().format(formatter));
               tk.show();
               report=check.apply_pass(report,pass_args);
               fatal_errs=report.getFatal();
