@@ -23,6 +23,8 @@ class LocalVariableChecker(arg: ProgramUnit) extends RecursiveVisitor[Unit](arg)
   val writeSets: mutable.Map[ASTNode, Set[String]] = mutable.Map[ASTNode, Set[String]]()
 
   override def visit(region: ParallelRegion): Unit = {
+    super.visit(region)
+
     // Pre-calculate access and write sets
     for (block <- region.blocks) {
       val ns = new NameScanner
@@ -49,7 +51,8 @@ class LocalVariableChecker(arg: ProgramUnit) extends RecursiveVisitor[Unit](arg)
       // If a parallel block models 1 or more threads, it may not write to stack variables, as this
       // could potentially cause data races between threads.
       if (writeSets(parallelBlock).nonEmpty) {
-        val msg = "Parallel block modelling multiple threads cannot write to shared stack variables"
+        val vars = writeSets(parallelBlock).mkString(", ")
+        val msg = s"Parallel block modelling multiple threads cannot write to shared stack variables: $vars"
         parallelBlock.getOrigin.report("error", msg)
         Abort("")
       }
@@ -57,6 +60,8 @@ class LocalVariableChecker(arg: ProgramUnit) extends RecursiveVisitor[Unit](arg)
   }
 
   override def visit(invariant: ParallelInvariant): Unit = {
+    super.visit(invariant)
+
     val readOnlyNames = NameScanner.accesses(invariant.inv)
     val writeSet = NameScanner.writes(invariant.block)
 
