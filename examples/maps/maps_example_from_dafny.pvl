@@ -26,7 +26,7 @@ class Maps {
 
     requires (\forall int i; 0 <= i && i < 100; i in keysMap(a) && i in keysMap(b) && a[i] != b[i]);
     void m2(map<int, boolean> a, map<int, boolean> b) {
-        assert (\forall int i; 0 <= i  && i < 100; a[i] || b[i]);
+        assert (\forall int i; 0 <= i  && i < 100; {:a[i]:} || {:b[i]:});
     }
 
     requires (\forall int i; 0 <= i && i < 100; i in keysMap(a) && a[i] == i*i);

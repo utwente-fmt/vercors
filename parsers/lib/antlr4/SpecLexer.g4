@@ -117,3 +117,5 @@ SEP_CONJ: '**';
 IMPLIES: '==>';
 WAND: '-*';
 RANGE_TO: '..';
+TRIGGER_OPEN: '{:';
+TRIGGER_CLOSE: ':}';

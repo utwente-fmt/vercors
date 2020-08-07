@@ -12,13 +12,14 @@ class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(sourc
   var patternStack: mutable.ArrayStack[ArrayBuffer[ASTNode]] = mutable.ArrayStack()
 
   override def visit(pattern: InlineQuantifierPattern): Unit = {
+    result = rewrite(pattern.inner)
+
     if(patternStack.isEmpty) {
       pattern.getOrigin.report("fatal", "Pattern in invalid place")
-      Fail("")
+//      Fail("")
+    } else {
+      patternStack.top += result
     }
-
-    result = rewrite(pattern.inner)
-    patternStack.top += result
   }
 
   override def visit(quantifier: BindingExpression): Unit = {

@@ -1665,6 +1665,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
 
   private void check_location(ASTNode arg,String what) {
+    if(arg instanceof InlineQuantifierPattern) {
+      check_location(((InlineQuantifierPattern) arg).inner(), what);
+      return;
+    }
+
     if (!(arg instanceof Dereference)
     && !(arg instanceof FieldAccess)
     && !arg.isa(StandardOperator.Subscript)

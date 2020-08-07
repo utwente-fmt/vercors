@@ -121,7 +121,7 @@ valPrimary
     | '\\mrep' '(' langExpr ')'
     | 'Reducible' '(' langExpr ',' valReducibleOperator ')'
     | langId ':' langExpr
-    | '{' langExpr '}'
+    | '{:' langExpr ':}'
     ;
 
 valReducibleOperator

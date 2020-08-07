@@ -72,7 +72,7 @@ thread_local resource lockset(bag<int> S)=
   Value(T) ** 0 <= \current_thread < T **
   Value(L) ** L > 0 ** Value(locks) ** locks != null **
   (\forall* int l ; 0 <= l < L ;
-     Value(locks[l]) ** Value(locks[l].subject) **
+     Value({:locks[l]:}) ** Value(locks[l].subject) **
      Value(locks[l].T) ** locks[l].T==T **
      Value(locks[l].held) ** locks[l].lockset_part() **
      Value(locks[l].count) ** Value(locks[l].count.dummy) ** // skip(lockset) silicon incompleteness
@@ -151,7 +151,7 @@ resource csl_invariant()= Value(T) ** T > 0 **
    Perm(holder,1) ** -1 <= holder < T **
    (holder == -1) == (count.val == 0) **
    (\forall* int i; 0 <= i < T ;
-     Perm(held[i],1\2) ** (i!=holder ==> held[i]==0)
+     Perm({:held[i]:},1\2) ** (i!=holder ==> held[i]==0)
      ** held[i] >= 0 ** (held[i]==0 ==> owner.val!=i)
    );
 // end(context_everywhere)
