@@ -125,30 +125,11 @@ class ArraySum {
 
                     int oldSum = sum;
                     sum = sum + A[tid];
-//                    assert sum == (oldSum + A[tid]);
 
                     contrib[tid] = A[tid];
 
-//                    assert sum == (oldSum + A[tid]);
-
                     lemmaSumUpdate(oldContrib, contrib, oldSum, tid) with { P = 1\4; };
 
-//                    assert sumContrib(contrib, 0, 1\4) == (oldSum - oldContrib[tid] + contrib[tid]);
-//
-//                    assert oldContrib[tid] == 0;
-//                    assert (oldSum - oldContrib[tid] + contrib[tid]) == (oldSum + contrib[tid]);
-//
-//                    assert contrib[tid] == A[tid];
-//                    assert (oldSum + contrib[tid]) == (oldSum + A[tid]);
-//
-//                    assert (oldSum - oldContrib[tid] + contrib[tid]) == (oldSum + A[tid]);
-//
-//                    assert sumContrib(contrib, 0, 1\4) == (oldSum + A[tid]);
-//
-//                    assert sum == (oldSum + A[tid]);
-//
-//                    assert sumContrib(contrib, 0, 1\4) == sum;
-//
                     lemmaSumContribIndependentP(contrib, 0, 1\4, sum, 1\2);
                 }
             }
