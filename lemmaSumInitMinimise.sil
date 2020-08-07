@@ -76,15 +76,13 @@ function getVCTOption1(x: VCTOption[VCTArray[Ref]]): VCTArray[Ref]
   getVCTOption(x)
 }
 
-method lemmaSumInit(xs: VCTOption[VCTArray[Ref]], i: Int, P: frac)
-  requires frac_val(P) < write
+method lemmaSumInit(xs: VCTOption[VCTArray[Ref]], i: Int)
   requires xs != VCTNone()
-  requires (forall i_fresh_rw_0: Int :: 0 <= i_fresh_rw_0 && i_fresh_rw_0 < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), i_fresh_rw_0).Integer__item, frac_val(P)))
+  requires (forall i_fresh_rw_0: Int :: 0 <= i_fresh_rw_0 && i_fresh_rw_0 < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), i_fresh_rw_0).Integer__item, wildcard)))
   requires (forall j: Int :: 0 <= j && j < alen(getVCTOption1(xs)) ==> loc(getVCTOption1(xs), j).Integer__item == 0)
   requires 0 <= i && i <= alen(getVCTOption1(xs))
-  ensures frac_val(P) < write
   ensures xs != VCTNone()
-  ensures (forall i_fresh_rw_0: Int :: 0 <= i_fresh_rw_0 && i_fresh_rw_0 < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), i_fresh_rw_0).Integer__item, frac_val(P)))
+  ensures (forall i_fresh_rw_0: Int :: 0 <= i_fresh_rw_0 && i_fresh_rw_0 < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), i_fresh_rw_0).Integer__item, wildcard))
   ensures (forall j: Int :: 0 <= j && j < alen(getVCTOption1(xs)) ==> loc(getVCTOption1(xs), j).Integer__item == 0)
   ensures sumContrib(xs, i) == 0
 {
@@ -95,9 +93,7 @@ method lemmaSumInit(xs: VCTOption[VCTArray[Ref]], i: Int, P: frac)
   __flatten_18__1 := getVCTOption1(xs)
   __flatten_19__2 := alen(__flatten_18__1)
   if (i < __flatten_19__2) {
-    __flatten_20__3 := frac_val(P)
-    __flatten_21__4 := new_frac(__flatten_20__3 / 2)
-    lemmaSumInit(xs, i + 1, __flatten_21__4)
+    lemmaSumInit(xs, i + 1)
     // assert
     assert sumContrib(xs, i + 1) == 0
     // assert
