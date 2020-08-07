@@ -1,0 +1,141 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases demo3a-funcB
+//:: tools silicon
+//:: verdict Fail
+
+class ArraySum {
+    int sum;
+
+    requires A != null;
+    requires 0 <= i && i <= A.length;
+    requires P < write;
+    requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], P));
+    pure int sumContrib(int[] A, int i, frac P) =
+      (i == A.length) ? 0 : A[i] + sumContrib(A, i + 1, P);
+
+    context xs != null;
+    context 0 <= i && i <= xs.length;
+    context P < write && Q < write;
+    context (\forall* int j; 0 <= j && j < xs.length; Perm(xs[j], P > Q ? P : Q));
+    context sumContrib(xs, i, P) == total;
+    ensures (\forall* int j = 0 .. xs.length; xs[j] == \old(xs[j]));
+    ensures sumContrib(xs, i, Q) == total;
+    void lemmaSumContribIndependentP(int[] xs, int i, frac P, int total, frac Q) {
+        if (i < xs.length) {
+            lemmaSumContribIndependentP(xs, i + 1, P, total - xs[i], Q);
+        } else {
+            // Vacuously true
+        }
+    }
+
+    given frac P;
+    context P < write;
+    context xs != null ** Perm(xs[*], P);
+    context (\forall int j = 0 .. xs.length; xs[j] == 0);
+    requires 0 <= i && i <= xs.length;
+    ensures sumContrib(xs, i, P) == 0;
+    void lemmaSumInit(int[] xs, int i) {
+        if (i < xs.length) {
+            lemmaSumInit(xs, i + 1) with { P = P \ 2; };
+            assert sumContrib(xs, i + 1, P \ 2) == 0;
+            assert xs[i] == 0;
+            assert sumContrib(xs, i, P \ 2) == (i == xs.length ? 0 : xs[i] + sumContrib(xs, i + 1, P \ 2));
+            assert sumContrib(xs, i, P \ 2) == 0;
+            lemmaSumContribIndependentP(xs, i, P \ 2, 0, P);
+        } else {
+            assert sumContrib(xs, i, P \ 2) == 0;
+        }
+    }
+
+    given frac P;
+    context_everywhere P < write;
+    context_everywhere xs != null;
+    context_everywhere Perm(xs[*], P);
+    ensures \result != null ** Perm(\result[*], write) ** \result.length == xs.length;
+    ensures (\forall int i = 0 .. \result.length; \result[i] == xs[i]);
+    int[] copy(int[] xs) {
+        int[] res = new int[xs.length];
+
+        loop_invariant 0 <= i && i <= xs.length;
+        loop_invariant Perm(res[*], write) ** res.length == xs.length;
+        loop_invariant (\forall int j = 0 .. i; res[j] == xs[j]);
+        for (int i = 0; i < xs.length; i++) {
+            res[i] = xs[i];
+        }
+
+        return res;
+    }
+
+    given frac P;
+    context P < write;
+    context xs != null ** Perm(xs[*], P);
+    context ys != null ** Perm(ys[*], P);
+    context xs.length == ys.length;
+    context (\forall int j = 0 .. xs.length; xs[j] == ys[j]);
+    requires 0 <= i && i <= xs.length;
+    requires sumContrib(xs, i, P) == total;
+    ensures sumContrib(ys, i, P) == total;
+    void lemmaSumCopy(int[] xs, int[] ys, int total, int i) {
+        if (i == xs.length) {
+            assert total == 0;
+        } else {
+            lemmaSumContribIndependentP(xs, i + 1, P, total - xs[i], P \ 2);
+            lemmaSumCopy(xs, ys, total - xs[i], i + 1) with { P = P\2; };
+            lemmaSumContribIndependentP(ys, i + 1, P \ 2, total - ys[i], P);
+        }
+    }
+
+    given frac P;
+    context P < write;
+    context xs != null ** Perm(xs[*], P);
+    context ys != null ** Perm(ys[*], P);
+    context xs.length == ys.length;
+    context 0 <= i && i < xs.length;
+    context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
+    requires sumContrib(xs, 0, P) == oldTotal;
+    ensures sumContrib(ys, 0, P) == (oldTotal - xs[i] + ys[i]);
+    void lemmaSumUpdate(int[] xs, int[] ys, int oldTotal, int i);
+
+    given int[A.length] contrib;
+    context_everywhere A != null;
+    context_everywhere contrib != null;
+    context_everywhere contrib.length == A.length;
+    context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
+    context (\forall* int i; 0 <= i && i < A.length; Perm(contrib[i], 1));
+    context Perm(this.sum, write);
+    requires (\forall* int i; 0 <= i && i < A.length; contrib[i] == 0);
+    void sum(int[] A) {
+        lemmaSumInit(contrib, 0) with { P = 1\2; };
+        sum = 0;
+        assert sum == sumContrib(contrib, 0, 1\2);
+
+        invariant inv(Perm(this.sum, write)
+            ** (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2))
+            ** sum == sumContrib(contrib, 0, 1\2)
+        ) {
+            par (int tid = 0 .. A.length)
+            context Perm(A[tid], 1\2) ** Perm(contrib[tid], 1\2);
+            requires contrib[tid] == 0;
+            ensures contrib[tid] == A[tid];
+            {
+                atomic(inv) {
+                    int[] oldContrib = copy(contrib) with { P = 1\4; };
+                    lemmaSumContribIndependentP(contrib, 0, 1\2, sum, 1\4);
+                    lemmaSumCopy(contrib, oldContrib, sum, 0) with { P = 1\4; };
+
+                    int oldSum = sum;
+                    sum = sum + A[tid];
+
+                    contrib[tid] = A[tid];
+
+                    lemmaSumUpdate(oldContrib, contrib, oldSum, tid) with { P = 1\4; };
+
+                    lemmaSumContribIndependentP(contrib, 0, 1\4, sum, 1\2);
+                }
+            }
+        }
+
+        assert (\forall int tid = 0 .. A.length; contrib[tid] == A[tid]);
+        assert sum == sumContrib(contrib, 0, 1\2);
+    }
+}
