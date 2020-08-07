@@ -1,16 +1,7 @@
 domain VCTArray[CT] {
-  
   function loc(a: VCTArray[CT], i: Int): CT
   
   function alen(a: VCTArray[CT]): Int
-  
-  function first(r: CT): VCTArray[CT]
-  
-  function second(r: CT): Int
-  
-  axiom all_diff {
-    (forall a: VCTArray[CT], i: Int :: { loc(a, i) } first(loc(a, i)) == a && second(loc(a, i)) == i)
-  }
   
   axiom len_nonneg {
     (forall a: VCTArray[CT] :: { alen(a) } alen(a) >= 0)
@@ -20,17 +11,19 @@ domain VCTArray[CT] {
 //  a field 
 field item: Int
 
-function sumContrib(A: VCTArray[Ref], i: Int): Int
+function sumContrib(A: VCTArray[Ref], i: Int, P: Rational): Int
+  requires 0/1 < P && P < 1/1;
   requires 0 <= i && i <= alen(A)
   requires (forall j: Int :: 0 <= j && j < alen(A) ==> acc(loc(A, j).item, wildcard))
 {
-  (i == alen(A) ? 0 : loc(A, i).item + sumContrib(A, i + 1))
+  (i == alen(A) ? 0 : loc(A, i).item + sumContrib(A, i + 1, P))
 }
 
-method lemmaSumInit(xs: VCTArray[Ref], i: Int)
+method lemmaSumInit(xs: VCTArray[Ref], i: Int, P: Rational)
+  requires 0/1 < P && P < 1/1;
   requires (forall i_fresh_rw_0: Int :: 0 <= i_fresh_rw_0 && i_fresh_rw_0 < alen(xs) ==> acc(loc(xs, i_fresh_rw_0).item, wildcard))
   requires (forall j: Int :: 0 <= j && j < alen(xs) ==> loc(xs, j).item == 0)
   requires 0 <= i && i <= alen(xs)
 {
-    assert sumContrib(xs, i) == (i == alen(xs) ? 0 : loc(xs, i).item + sumContrib(xs, i + 1))
+    assert sumContrib(xs, i, P) == (i == alen(xs) ? 0 : loc(xs, i).item + sumContrib(xs, i + 1, P))
 }

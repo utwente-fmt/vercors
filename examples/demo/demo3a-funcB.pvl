@@ -8,25 +8,42 @@ class ArraySum {
 
     requires A != null;
     requires 0 <= i && i <= A.length;
-    requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], read));
-    pure int sumContrib(int[] A, int i) =
-      (i == A.length) ? 0 : A[i] + sumContrib(A, i + 1);
+    requires P < write;
+    requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], P));
+    pure int sumContrib(int[] A, int i, frac P) =
+      (i == A.length) ? 0 : A[i] + sumContrib(A, i + 1, P);
+
+    context xs != null;
+    context 0 <= i && i <= xs.length;
+    context P < write && Q < write;
+    context (\forall* int j; 0 <= j && j < xs.length; Perm(xs[j], P > Q ? P : Q));
+    context sumContrib(xs, i, P) == total;
+    ensures (\forall* int j = 0 .. xs.length; xs[j] == \old(xs[j]));
+    ensures sumContrib(xs, i, Q) == total;
+    void lemmaSumContribIndependentP(int[] xs, int i, frac P, int total, frac Q) {
+        if (i < xs.length) {
+            lemmaSumContribIndependentP(xs, i + 1, P, total - xs[i], Q);
+        } else {
+            // Vacuously true
+        }
+    }
 
     given frac P;
     context P < write;
     context xs != null ** Perm(xs[*], P);
     context (\forall int j = 0 .. xs.length; xs[j] == 0);
     requires 0 <= i && i <= xs.length;
-    ensures sumContrib(xs, i) == 0;
+    ensures sumContrib(xs, i, P) == 0;
     void lemmaSumInit(int[] xs, int i) {
         if (i < xs.length) {
-            lemmaSumInit(xs, i + 1) with { P = P\2; };
-            assert sumContrib(xs, i + 1) == 0;
+            lemmaSumInit(xs, i + 1) with { P = P \ 2; };
+            assert sumContrib(xs, i + 1, P \ 2) == 0;
             assert xs[i] == 0;
-            assert sumContrib(xs, i) == (i == xs.length ? 0 : xs[i] + sumContrib(xs, i + 1));
-            assert sumContrib(xs, i) == 0;
+            assert sumContrib(xs, i, P \ 2) == (i == xs.length ? 0 : xs[i] + sumContrib(xs, i + 1, P \ 2));
+            assert sumContrib(xs, i, P \ 2) == 0;
+            lemmaSumContribIndependentP(xs, i, P \ 2, 0, P);
         } else {
-            assert sumContrib(xs, i) == 0;
+            assert sumContrib(xs, i, P \ 2) == 0;
         }
     }
 
@@ -56,14 +73,15 @@ class ArraySum {
     context xs.length == ys.length;
     context (\forall int j = 0 .. xs.length; xs[j] == ys[j]);
     requires 0 <= i && i <= xs.length;
-    requires sumContrib(xs, i) == total;
-    ensures sumContrib(ys, i) == total;
+    requires sumContrib(xs, i, P) == total;
+    ensures sumContrib(ys, i, P) == total;
     void lemmaSumCopy(int[] xs, int[] ys, int total, int i) {
         if (i == xs.length) {
             assert total == 0;
         } else {
+            lemmaSumContribIndependentP(xs, i + 1, P, total - xs[i], P \ 2);
             lemmaSumCopy(xs, ys, total - xs[i], i + 1) with { P = P\2; };
-//            assert sumContrib(ys, i + 1) == total - xs[i];
+            lemmaSumContribIndependentP(ys, i + 1, P \ 2, total - ys[i], P);
         }
     }
 
@@ -74,8 +92,8 @@ class ArraySum {
     context xs.length == ys.length;
     context 0 <= i && i < xs.length;
     context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
-    requires sumContrib(xs, 0) == oldTotal;
-    ensures sumContrib(ys, 0) == (oldTotal - xs[i] + ys[i]);
+    requires sumContrib(xs, 0, P) == oldTotal;
+    ensures sumContrib(ys, 0, P) == (oldTotal - xs[i] + ys[i]);
     void lemmaSumUpdate(int[] xs, int[] ys, int oldTotal, int i);
 
     given int[A.length] contrib;
@@ -89,11 +107,11 @@ class ArraySum {
     void sum(int[] A) {
         lemmaSumInit(contrib, 0) with { P = 1\2; };
         sum = 0;
-        assert sum == sumContrib(contrib, 0);
+        assert sum == sumContrib(contrib, 0, 1\2);
 
         invariant inv(Perm(this.sum, write)
             ** (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2))
-            ** sum == sumContrib(contrib, 0)
+            ** sum == sumContrib(contrib, 0, 1\2)
         ) {
             par (int tid = 0 .. A.length)
             context Perm(A[tid], 1\2) ** Perm(contrib[tid], 1\2);
@@ -102,39 +120,41 @@ class ArraySum {
             {
                 atomic(inv) {
                     int[] oldContrib = copy(contrib) with { P = 1\4; };
+                    lemmaSumContribIndependentP(contrib, 0, 1\2, sum, 1\4);
                     lemmaSumCopy(contrib, oldContrib, sum, 0) with { P = 1\4; };
-                    assert sum == sumContrib(contrib, 0);
-                    assert sum == sumContrib(oldContrib, 0);
 
                     int oldSum = sum;
                     sum = sum + A[tid];
-                    assert sum == (oldSum + A[tid]);
+//                    assert sum == (oldSum + A[tid]);
 
                     contrib[tid] = A[tid];
 
-                    assert false;
-
-                    assume sum == (oldSum + A[tid]);
-//
-//                    int sumBefore = sum;
-//                    assert sumBefore == (oldSum + A[tid]);
-//                    int oldSumBefore = oldSum;
-                    lemmaSumUpdate(oldContrib, contrib, oldSum, tid) with { P = 1\4; };
-//                    assert oldSum == oldSumBefore;
-//                    assert sum == oldSumBefore;
-//                    int sumAfter = sum;
-//                    assert sumAfter == sumBefore;
-//                    assert sumBefore == (oldSum + A[tid]);
-//                    assert sum == sumAfter;
-//                    assert contrib[tid] == A[tid];
 //                    assert sum == (oldSum + A[tid]);
-//                    assert sum == (oldSum + contrib[tid]);
-//                    assert sumContrib(contrib, 0) == (oldSum + contrib[tid]);
+
+                    lemmaSumUpdate(oldContrib, contrib, oldSum, tid) with { P = 1\4; };
+
+//                    assert sumContrib(contrib, 0, 1\4) == (oldSum - oldContrib[tid] + contrib[tid]);
+//
 //                    assert oldContrib[tid] == 0;
-//                    assert oldSum == sumContrib(oldContrib, 0);
-//                    assert (oldSum - oldContrib[tid] + contrib[tid]) == sum;
+//                    assert (oldSum - oldContrib[tid] + contrib[tid]) == (oldSum + contrib[tid]);
+//
+//                    assert contrib[tid] == A[tid];
+//                    assert (oldSum + contrib[tid]) == (oldSum + A[tid]);
+//
+//                    assert (oldSum - oldContrib[tid] + contrib[tid]) == (oldSum + A[tid]);
+//
+//                    assert sumContrib(contrib, 0, 1\4) == (oldSum + A[tid]);
+//
+//                    assert sum == (oldSum + A[tid]);
+//
+//                    assert sumContrib(contrib, 0, 1\4) == sum;
+//
+                    lemmaSumContribIndependentP(contrib, 0, 1\4, sum, 1\2);
                 }
             }
         }
+
+        assert (\forall int tid = 0 .. A.length; contrib[tid] == A[tid]);
+        assert sum == sumContrib(contrib, 0, 1\2);
     }
 }
