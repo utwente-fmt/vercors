@@ -1,0 +1,111 @@
+domain frac {
+  
+  function frac_val(a: frac): Perm
+  
+  axiom frac_eq {
+    (forall a: frac, b: frac :: { frac_val(a),frac_val(b) } (frac_val(a) == frac_val(b)) == (a == b))
+  }
+  
+  axiom frac_bound {
+    (forall a: frac :: 0 / 1 < frac_val(a) && frac_val(a) <= 1 / 1)
+  }
+}
+
+domain VCTArray[CT] {
+  
+  function loc(a: VCTArray[CT], i: Int): CT
+  
+  function alen(a: VCTArray[CT]): Int
+  
+  function first(r: CT): VCTArray[CT]
+  
+  function second(r: CT): Int
+  
+  axiom all_diff {
+    (forall a: VCTArray[CT], i: Int :: { loc(a, i) } first(loc(a, i)) == a && second(loc(a, i)) == i)
+  }
+  
+  axiom len_nonneg {
+    (forall a: VCTArray[CT] :: { alen(a) } alen(a) >= 0)
+  }
+}
+
+domain VCTOption[T] {
+  
+  function VCTNone(): VCTOption[T]
+  
+  function VCTSome(t: T): VCTOption[T]
+  
+  function getVCTOption(o: VCTOption[T]): T
+  
+  axiom not_equal_vct {
+    (forall x: T :: VCTNone() != VCTSome(x))
+  }
+  
+  axiom get_axiom_vct {
+    (forall x: T :: getVCTOption(VCTSome(x)) == x)
+  }
+  
+  axiom get_axiom_vct_2 {
+    (forall x: VCTOption[T] :: VCTSome(getVCTOption(x)) == x)
+  }
+}
+
+//  a field 
+field field_ArraySum_sum: Int
+
+//  a field 
+field Integer__item: Int
+
+function sumContrib(A: VCTOption[VCTArray[Ref]], i: Int): Int
+  requires A != VCTNone()
+  requires 0 <= i && i <= alen(getVCTOption1(A))
+  requires (forall j: Int :: 0 <= j && j < alen(getVCTOption1(A)) ==> acc(loc(getVCTOption1(A), j).Integer__item, wildcard))
+{
+  (i == alen(getVCTOption1(A)) ? 0 : loc(getVCTOption1(A), i).Integer__item + sumContrib(A, i + 1))
+}
+
+function new_frac(x: Perm): frac
+  requires 0 / 1 < x && x <= 1 / 1
+  ensures frac_val(result) == x
+
+
+function getVCTOption1(x: VCTOption[VCTArray[Ref]]): VCTArray[Ref]
+  requires x != VCTNone()
+{
+  getVCTOption(x)
+}
+
+method lemmaSumInit(xs: VCTOption[VCTArray[Ref]], i: Int, P: frac)
+  requires frac_val(P) < write
+  requires xs != VCTNone()
+  requires (forall i_fresh_rw_0: Int :: 0 <= i_fresh_rw_0 && i_fresh_rw_0 < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), i_fresh_rw_0).Integer__item, frac_val(P)))
+  requires (forall j: Int :: 0 <= j && j < alen(getVCTOption1(xs)) ==> loc(getVCTOption1(xs), j).Integer__item == 0)
+  requires 0 <= i && i <= alen(getVCTOption1(xs))
+  ensures frac_val(P) < write
+  ensures xs != VCTNone()
+  ensures (forall i_fresh_rw_0: Int :: 0 <= i_fresh_rw_0 && i_fresh_rw_0 < alen(getVCTOption1(xs)) ==> acc(loc(getVCTOption1(xs), i_fresh_rw_0).Integer__item, frac_val(P)))
+  ensures (forall j: Int :: 0 <= j && j < alen(getVCTOption1(xs)) ==> loc(getVCTOption1(xs), j).Integer__item == 0)
+  ensures sumContrib(xs, i) == 0
+{
+  var __flatten_18__1: VCTArray[Ref]
+  var __flatten_19__2: Int
+  var __flatten_20__3: Perm
+  var __flatten_21__4: frac
+  __flatten_18__1 := getVCTOption1(xs)
+  __flatten_19__2 := alen(__flatten_18__1)
+  if (i < __flatten_19__2) {
+    __flatten_20__3 := frac_val(P)
+    __flatten_21__4 := new_frac(__flatten_20__3 / 2)
+    lemmaSumInit(xs, i + 1, __flatten_21__4)
+    // assert
+    assert sumContrib(xs, i + 1) == 0
+    // assert
+    assert loc(getVCTOption1(xs), i).Integer__item == 0
+    // assert
+    assert sumContrib(xs, i) == (i == alen(getVCTOption1(xs)) ? 0 : loc(getVCTOption1(xs), i).Integer__item + sumContrib(xs, i + 1))
+  } else {
+    // assert
+    assert sumContrib(xs, i) == 0
+  }
+}
