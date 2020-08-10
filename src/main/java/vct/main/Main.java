@@ -415,7 +415,7 @@ public class Main
         }
 
         if (sat_check.get()) {
-          passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
+          passes.add("sat_check=a\\b\\c"); // sanity check to avoid uncallable methods (where False is required)
           passes.add("standardize");
           passes.add("check");
         }
@@ -654,7 +654,8 @@ public class Main
           if (pass_args.length==1){
             pass_args=new String[0];
           } else {
-            pass_args=pass_args[1].split("\\+");
+            // Arg syntax: pass=arg1\arg2\arg3. Make sure to put plenty of backslashes there!
+            pass_args=pass_args[1].split("\\\\+");
           }
           CompilerPass task=defined_passes.get(pass);
           if(debugBefore.has(pass)) {

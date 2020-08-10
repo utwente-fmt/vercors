@@ -73,6 +73,77 @@ class ArraySum {
     ensures sumContrib(ys, 0) == (oldTotal - xs[i] + ys[i]);
     void lemmaSumUpdate(int[] xs, int[] ys, int oldTotal, int i);
 
+    given frac P;
+    context 0 < P && P < write;
+    context xs != null ** Perm(xs[*], P);
+    context ys != null ** Perm(ys[*], P);
+    context xs.length == ys.length;
+    context 0 <= b && b <= xs.length;
+    context 0 <= i && i < xs.length;
+    context b <= i;
+    context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
+    context xs[i] == oldVal;
+    context ys[i] == newVal;
+    requires sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
+    ensures sumSeq(arrayToSeqHelper(ys, b)) == (oldTotal - oldVal + newVal);
+    void lemma_sum_update_before(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal);
+    {
+        assert sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
+        if (b < i) {
+            lemma_incr_eq_tail(xs, b) with { P = P \ 2; };
+            lemma_sum_update_before(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
+            // Not sure if this is needed
+            lemma_incr_eq_tail(ys, b) with { P = P \ 2; };
+            assert sumSeq(arrayToSeqHelper(ys, b + 1)) == (oldTotal - xs[b] - oldVal + newVal);
+            assert sumSeq(arrayToSeqHelper(ys, b)) == (oldTotal - oldVal + newVal);
+        } else {
+            inhale false;
+            // TODO
+        }
+        if (b < xs.length) {
+            if (i < b) {
+                assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
+                assert arrayToSeqHelper(ys, b + 1) == tail(arrayToSeqHelper(ys, b));
+                lemma_sum_update(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
+                assert i < b + 1;
+                assert sumSeq(arrayToSeqHelper(ys, b + 1)) == (oldTotal - xs[b]);
+            } else {
+                inhale false;
+            }
+        } else {
+            // Not necessary, but:
+            assert oldTotal == 0;
+            assert sumSeq(arrayToSeqHelper(ys, b)) == 0;
+            // Therefore, postcondition holds
+        }
+    }
+
+    given frac P;
+    context P < write;
+    context xs != null ** Perm(xs[*], P);
+    context ys != null ** Perm(ys[*], P);
+    context xs.length == ys.length;
+    context 0 <= b && b <= xs.length;
+    context 0 <= i && i < xs.length;
+    context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
+    context xs[i] == oldVal;
+    context ys[i] == newVal;
+    requires i < b;
+    requires sumContrib(xs, b) == oldTotal;
+    ensures sumContrib(ys, b) == oldTotal;
+    void lemmaSumUpdateAfter(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
+        if (b < xs.length) {
+            lemmaSumUpdateAfter(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
+            assert sumContrib(ys, b) == oldTotal;
+        } else {
+            // Not necessary, but:
+            assert oldTotal == 0;
+            assert sumContrib(ys, b) == 0;
+            // Therefore, postcondition holds
+        }
+        assert sumContrib(ys, b) == oldTotal;
+    }
+
     given int[A.length] contrib;
     context_everywhere A != null;
     context_everywhere contrib != null;
