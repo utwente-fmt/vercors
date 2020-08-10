@@ -1,0 +1,234 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases SessionType
+//:: tools silicon
+//:: verdict Pass
+
+class Grid {
+
+int[][] grid;
+
+	ensures Perm(grid,write);
+	ensures grid != null;
+	ensures  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],write)));
+	Grid() {
+		grid = new int[3][3];
+		
+		loop_invariant Perm(grid, write) ** grid != null;
+		loop_invariant (\forall* int i; 0 <= i && i < 3;
+                    (\forall* int j; 0 <= j && j < 3; 
+                     Perm(grid[i][j],write)));
+		loop_invariant 0 <= i ** i <= 3;
+		for(int i = 0; i < 3; i++) {
+			loop_invariant Perm(grid, write) ** grid != null;
+			loop_invariant (\forall* int i; 0 <= i && i < 3;
+                      (\forall* int j; 0 <= j && j < 3;
+                       Perm(grid[i][j],write)));
+			loop_invariant 0 <= j ** j <= 3;
+			for(int j = 0; j < 3; j++) {
+				grid[i][j] = -1;
+			}
+		}
+	}
+
+	context Perm(grid,write) ** grid != null;
+	context move != null;
+	context Perm(move.i,read) ** Perm(move.j,read) ** Perm(move.isCross,read);
+	context move.i >= 0 && move.i < 3;
+	context move.j >= 0 && move.j < 3;
+	//context Perm(grid[move.i][move.j],write);
+	context  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],write)));
+	ensures \old(grid[move.i][move.j]) == -1 && move.isCross ==> grid[move.i][move.j] == 1;
+	ensures \old(grid[move.i][move.j]) == -1 && !move.isCross ==> grid[move.i][move.j] == 0;
+	ensures \old(grid[move.i][move.j]) != -1 ==> \old(grid[move.i][move.j]) == grid[move.i][move.j];
+	ensures  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               move.i != i || move.j != j ==> \old(grid[i][j]) == grid[i][j]));
+	void updateGrid(Move move) {
+		if(grid[move.i][move.j] == -1) {
+			if(move.isCross) {
+				grid[move.i][move.j] = 1;
+			} else {
+				grid[move.i][move.j] = 0;
+			}
+		}
+	}
+	
+	
+	requires myGrid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(myGrid[i][j],read)));         
+	static pure boolean gameFinished(int[][] myGrid) {
+		return gridFull(myGrid) || gridWin(myGrid);
+	}
+	
+	
+	requires myGrid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(myGrid[i][j],read)));
+	static pure boolean gridFull(int[][] myGrid) = 
+		myGrid[0][0] != -1 && myGrid[0][1] != -1 && myGrid[0][2] != -1 &&
+		myGrid[1][0] != -1 && myGrid[1][1] != -1 && myGrid[1][2] != -1 &&
+		myGrid[2][0] != -1 && myGrid[2][1] != -1 && myGrid[2][2] != -1;
+
+	requires myGrid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(myGrid[i][j],read)));
+    requires 0 <= row && row < 3;
+	static pure boolean gridWinRow(int[][] myGrid, int row) =
+		myGrid[row][0] != -1 && myGrid[row][0] == myGrid[row][1] && myGrid[row][1] == myGrid[row][2]
+		|| myGrid[0][row] != -1 && myGrid[0][row] == myGrid[1][row] && myGrid[1][row] == myGrid[2][row];
+	
+	requires myGrid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(myGrid[i][j],read)));
+	static pure boolean gridWinDiagonal(int[][] myGrid) = 
+		myGrid[0][0] != -1 && myGrid[0][0] == myGrid[1][1] && myGrid[1][1] == myGrid[2][2]
+		|| myGrid[0][2] != -1 && myGrid[0][2] == myGrid[1][1] && myGrid[1][1] == myGrid[2][0];
+	
+	requires myGrid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(myGrid[i][j],read)));
+	static pure boolean gridWin(int[][] myGrid) = 
+		gridWinRow(myGrid,0) || gridWinRow(myGrid,1) || gridWinRow(myGrid,2) || gridWinDiagonal(myGrid);
+
+	
+	ensures \result != null ==> Perm(\result.i,read) ** Perm(\result.j,read) ** Perm(\result.isCross,read);
+	ensures \result != null ==> \result.i >= 0 && \result.i < 3;
+	ensures \result != null ==> \result.j >= 0 && \result.j < 3;
+	context Perm(grid,1\2);
+	context grid != null;
+	context  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));
+    ensures !gridFull(grid) ==> \result != null;
+    ensures \result != null ==> !gridFull(grid);
+	ensures \result != null ==> grid[\result.i][\result.j] == -1;
+	Move nextMove(boolean token) {
+		if(grid[0][0] == -1) {
+			return new Move(0,0,token);
+		} else if(grid[0][1] == -1) {
+			return new Move(0,1,token);
+		} else if(grid[0][2] == -1) {
+			return new Move(0,2,token);
+		} else if(grid[1][0] == -1) {
+			return new Move(1,0,token);
+		} else if(grid[1][1] == -1) {
+			return new Move(1,1,token);
+		} else if(grid[1][2] == -1) {
+			return new Move(1,2,token);
+		} else if(grid[2][0] == -1) {
+			return new Move(2,0,token);
+		} else if(grid[2][1] == -1) {
+			return new Move(2,1,token);
+		} else if(grid[2][2] == -1) {
+			return new Move(2,2,token);
+		} else {
+			return null;
+		}
+	}
+}
+
+class Move {
+	int i,j;
+	boolean isCross;
+	
+	ensures Perm(this.i,read) ** Perm(this.j,read) ** Perm(this.isCross, read);
+	ensures this.i == i && this.j == j && this.isCross == isCross;
+	Move(int i, int j, boolean isCross) {
+		this.i = i;
+		this.j = j;
+		this.isCross = isCross;
+	}
+}
+
+
+class Game {
+	
+	Grid P1, P2;
+	
+	ensures Perm(P1, write) ** P1 != null;
+	ensures Perm(P2, write) ** P2 != null;
+	ensures Perm(P1.grid,write) ** P1.grid != null;
+	ensures Perm(P2.grid,write) ** P2.grid != null;
+	Game() {
+		P1 = new Grid();
+		P2 = new Grid();
+	}
+	
+	requires grid1 != null;
+	requires (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid1[i][j],1\2)));
+	requires grid2 != null;
+	requires (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid2[i][j],1\2)));
+	static pure boolean equalGrids(int[][] grid1, int[][] grid2) =
+		grid1[0][0] == grid2[0][0] &&
+		grid1[0][1] == grid2[0][1] &&
+		grid1[0][2] == grid2[0][2] &&
+		grid1[1][0] == grid2[1][0] &&
+		grid1[1][1] == grid2[1][1] &&
+		grid1[1][2] == grid2[1][2] &&
+		grid1[2][0] == grid2[2][0] &&
+		grid1[2][1] == grid2[2][1] &&
+		grid1[2][2] == grid2[2][2];
+	
+	context_everywhere Perm(P1,write) ** P1 != null;
+	context_everywhere Perm(P2,write) ** P2 != null;
+	context_everywhere Perm(P1.grid,write) ** P1.grid != null;
+	context_everywhere Perm(P2.grid,write) ** P2.grid != null;
+	context_everywhere  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(P1.grid[i][j],write)));
+	context_everywhere  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(P2.grid[i][j],write)));
+    requires equalGrids(P1.grid, P2.grid);
+	void play(boolean isTurnP1) {
+		loop_invariant equalGrids(P1.grid, P2.grid);
+		while(!Grid.gameFinished(P1.grid) && !Grid.gameFinished(P2.grid)) {
+//			assert finishedLemma(P1.grid, P2.grid);
+			assert Grid.gameFinished(P1.grid) == Grid.gameFinished(P2.grid);
+			Move move;
+			assert equalGrids(P1.grid, P2.grid);
+			if(isTurnP1) {
+				move = P1.nextMove(true);
+			} else {
+				move = P2.nextMove(false);
+			}
+			assert equalGrids(P1.grid, P2.grid);
+			P1.updateGrid(move);
+			P2.updateGrid(move);
+			assert equalGrids(P1.grid, P2.grid);
+			isTurnP1 = !isTurnP1;
+			assert Grid.gameFinished(P1.grid) == Grid.gameFinished(P2.grid);
+		}
+	}
+
+/*	
+	requires grid1 != null;
+	requires (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid1[i][j],1\2)));
+	requires grid2 != null;
+	requires (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid2[i][j],1\2)));
+	requires Game.equalGrids(grid1, grid2);
+	ensures Grid.gameFinished(grid1) == Grid.gameFinished(grid2);
+	ensures \result;
+	static pure boolean finishedLemma(int[][] grid1, int[][] grid2) = true;
+*/
+}
+
+
