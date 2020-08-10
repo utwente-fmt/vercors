@@ -122,27 +122,23 @@ class ArraySum {
         assert sumArray(ys, b) == oldTotal;
     }
 
-    given int[A.length] contrib;
     context_everywhere A != null;
-    context_everywhere contrib != null;
-    context_everywhere contrib.length == A.length;
     context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
-    context (\forall* int i; 0 <= i && i < A.length; Perm(contrib[i], 1));
     context Perm(this.sum, write);
-    requires (\forall* int i; 0 <= i && i < A.length; contrib[i] == 0);
     void sum(int[] A) {
-        lemmaSumInit(contrib, 0) with { P = 1\2; };
-
+        int[] contrib = new int[A.length];
         sum = 0;
-
+        lemmaSumInit(contrib, 0) with { P = 1\2; };
         assert sum == sumArray(contrib, 0);
 
         invariant inv(Perm(this.sum, write)
+            ** contrib != null ** contrib.length == A.length
             ** (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2))
             ** sum == sumArray(contrib, 0)
         ) {
             par (int tid = 0 .. A.length)
-            context Perm(A[tid], 1\2) ** Perm(contrib[tid], 1\2);
+            context contrib != null ** contrib.length == A.length;
+            context Perm(A[tid], 1\4) ** Perm(contrib[tid], 1\2);
             requires contrib[tid] == 0;
             ensures contrib[tid] == A[tid];
             {
@@ -154,13 +150,9 @@ class ArraySum {
 
                     int oldSum = sum;
                     sum = sum + A[tid];
-                    assert sum == (oldSum + A[tid]);
-
                     contrib[tid] = A[tid];
-
-                    assert sum == (oldSum + A[tid]);
-
                     lemmaSumUpdate(oldContrib, contrib, oldSum, tid) with { P = 1\4; };
+                    assert sum == sumArray(contrib, 0);
                 }
             }
         }
