@@ -9,20 +9,20 @@ class ArraySum {
     requires A != null;
     requires 0 <= i && i <= A.length;
     requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], read));
-    pure int sumContrib(int[] A, int i) =
-      (i == A.length) ? 0 : A[i] + sumContrib(A, i + 1);
+    pure int sumArray(int[] A, int i) =
+      (i == A.length) ? 0 : A[i] + sumArray(A, i + 1);
 
     given frac P;
     context P < write;
     context xs != null ** Perm(xs[*], P);
     context (\forall int j = 0 .. xs.length; xs[j] == 0);
     requires 0 <= i && i <= xs.length;
-    ensures sumContrib(xs, i) == 0;
+    ensures sumArray(xs, i) == 0;
     void lemmaSumInit(int[] xs, int i) {
         if (i < xs.length) {
             lemmaSumInit(xs, i + 1) with { P = P\2; };
         } else {
-            assert sumContrib(xs, i) == 0;
+            assert sumArray(xs, i) == 0;
         }
     }
 
@@ -52,8 +52,8 @@ class ArraySum {
     context xs.length == ys.length;
     context (\forall int j = 0 .. xs.length; xs[j] == ys[j]);
     requires 0 <= i && i <= xs.length;
-    requires sumContrib(xs, i) == total;
-    ensures sumContrib(ys, i) == total;
+    requires sumArray(xs, i) == total;
+    ensures sumArray(ys, i) == total;
     void lemmaSumCopy(int[] xs, int[] ys, int total, int i) {
         if (i == xs.length) {
             assert total == 0;
@@ -69,12 +69,14 @@ class ArraySum {
     context xs.length == ys.length;
     context 0 <= i && i < xs.length;
     context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
-    requires sumContrib(xs, 0) == oldTotal;
-    ensures sumContrib(ys, 0) == (oldTotal - xs[i] + ys[i]);
-    void lemmaSumUpdate(int[] xs, int[] ys, int oldTotal, int i);
+    requires sumArray(xs, 0) == oldTotal;
+    ensures sumArray(ys, 0) == (oldTotal - xs[i] + ys[i]);
+    void lemmaSumUpdate(int[] xs, int[] ys, int oldTotal, int i) {
+        lemmaSumUpdateBefore(xs, ys, 0, oldTotal, i, xs[i], ys[i]) with { P = P \ 2; };
+    }
 
     given frac P;
-    context 0 < P && P < write;
+    context P < write;
     context xs != null ** Perm(xs[*], P);
     context ys != null ** Perm(ys[*], P);
     context xs.length == ys.length;
@@ -84,37 +86,13 @@ class ArraySum {
     context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
     context xs[i] == oldVal;
     context ys[i] == newVal;
-    requires sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
-    ensures sumSeq(arrayToSeqHelper(ys, b)) == (oldTotal - oldVal + newVal);
-    void lemma_sum_update_before(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal);
-    {
-        assert sumSeq(arrayToSeqHelper(xs, b)) == oldTotal;
+    requires sumArray(xs, b) == oldTotal;
+    ensures sumArray(ys, b) == (oldTotal - oldVal + newVal);
+    void lemmaSumUpdateBefore(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
         if (b < i) {
-            lemma_incr_eq_tail(xs, b) with { P = P \ 2; };
-            lemma_sum_update_before(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
-            // Not sure if this is needed
-            lemma_incr_eq_tail(ys, b) with { P = P \ 2; };
-            assert sumSeq(arrayToSeqHelper(ys, b + 1)) == (oldTotal - xs[b] - oldVal + newVal);
-            assert sumSeq(arrayToSeqHelper(ys, b)) == (oldTotal - oldVal + newVal);
+            lemmaSumUpdateBefore(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
         } else {
-            inhale false;
-            // TODO
-        }
-        if (b < xs.length) {
-            if (i < b) {
-                assert arrayToSeqHelper(xs, b + 1) == tail(arrayToSeqHelper(xs, b));
-                assert arrayToSeqHelper(ys, b + 1) == tail(arrayToSeqHelper(ys, b));
-                lemma_sum_update(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
-                assert i < b + 1;
-                assert sumSeq(arrayToSeqHelper(ys, b + 1)) == (oldTotal - xs[b]);
-            } else {
-                inhale false;
-            }
-        } else {
-            // Not necessary, but:
-            assert oldTotal == 0;
-            assert sumSeq(arrayToSeqHelper(ys, b)) == 0;
-            // Therefore, postcondition holds
+            lemmaSumUpdateAfter(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
         }
     }
 
@@ -129,19 +107,19 @@ class ArraySum {
     context xs[i] == oldVal;
     context ys[i] == newVal;
     requires i < b;
-    requires sumContrib(xs, b) == oldTotal;
-    ensures sumContrib(ys, b) == oldTotal;
+    requires sumArray(xs, b) == oldTotal;
+    ensures sumArray(ys, b) == oldTotal;
     void lemmaSumUpdateAfter(int[] xs, int[] ys, int b, int oldTotal, int i, int oldVal, int newVal) {
         if (b < xs.length) {
             lemmaSumUpdateAfter(xs, ys, b + 1, oldTotal - xs[b], i, oldVal, newVal) with { P = P \ 2; };
-            assert sumContrib(ys, b) == oldTotal;
+            assert sumArray(ys, b) == oldTotal;
         } else {
             // Not necessary, but:
             assert oldTotal == 0;
-            assert sumContrib(ys, b) == 0;
+            assert sumArray(ys, b) == 0;
             // Therefore, postcondition holds
         }
-        assert sumContrib(ys, b) == oldTotal;
+        assert sumArray(ys, b) == oldTotal;
     }
 
     given int[A.length] contrib;
@@ -154,12 +132,14 @@ class ArraySum {
     requires (\forall* int i; 0 <= i && i < A.length; contrib[i] == 0);
     void sum(int[] A) {
         lemmaSumInit(contrib, 0) with { P = 1\2; };
+
         sum = 0;
-        assert sum == sumContrib(contrib, 0);
+
+        assert sum == sumArray(contrib, 0);
 
         invariant inv(Perm(this.sum, write)
             ** (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2))
-            ** sum == sumContrib(contrib, 0)
+            ** sum == sumArray(contrib, 0)
         ) {
             par (int tid = 0 .. A.length)
             context Perm(A[tid], 1\2) ** Perm(contrib[tid], 1\2);
@@ -169,8 +149,8 @@ class ArraySum {
                 atomic(inv) {
                     int[] oldContrib = copy(contrib) with { P = 1\4; };
                     lemmaSumCopy(contrib, oldContrib, sum, 0) with { P = 1\4; };
-                    assert sum == sumContrib(contrib, 0);
-                    assert sum == sumContrib(oldContrib, 0);
+                    assert sum == sumArray(contrib, 0);
+                    assert sum == sumArray(oldContrib, 0);
 
                     int oldSum = sum;
                     sum = sum + A[tid];
@@ -178,30 +158,14 @@ class ArraySum {
 
                     contrib[tid] = A[tid];
 
-                    assume sum == (oldSum + A[tid]);
-//
-//                    int sumBefore = sum;
-//                    assert sumBefore == (oldSum + A[tid]);
-//                    int oldSumBefore = oldSum;
+                    assert sum == (oldSum + A[tid]);
+
                     lemmaSumUpdate(oldContrib, contrib, oldSum, tid) with { P = 1\4; };
-//                    assert oldSum == oldSumBefore;
-//                    assert sum == oldSumBefore;
-//                    int sumAfter = sum;
-//                    assert sumAfter == sumBefore;
-//                    assert sumBefore == (oldSum + A[tid]);
-//                    assert sum == sumAfter;
-//                    assert contrib[tid] == A[tid];
-//                    assert sum == (oldSum + A[tid]);
-//                    assert sum == (oldSum + contrib[tid]);
-//                    assert sumContrib(contrib, 0) == (oldSum + contrib[tid]);
-//                    assert oldContrib[tid] == 0;
-//                    assert oldSum == sumContrib(oldContrib, 0);
-//                    assert (oldSum - oldContrib[tid] + contrib[tid]) == sum;
                 }
             }
         }
 
         assert (\forall int tid = 0 .. A.length; contrib[tid] == A[tid]);
-        assert sum == sumContrib(contrib, 0);
+        assert sum == sumArray(contrib, 0);
     }
 }
