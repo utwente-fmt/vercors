@@ -6,11 +6,27 @@
 class ArraySum {
     int sum;
 
-    requires A != null;
-    requires 0 <= i && i <= A.length;
-    requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], read));
-    pure int sumArray(int[] A, int i) =
-      (i == A.length) ? 0 : A[i] + sumArray(A, i + 1);
+    requires xs != null;
+    requires 0 <= i && i <= xs.length;
+    requires (\forall* int j; 0 <= j && j < xs.length; Perm(xs[j], read));
+    pure int sumArray(int[] xs, int i) =
+      (i == xs.length) ? 0 : xs[i] + sumArray(xs, i + 1);
+
+    given frac P;
+    context P < write;
+    context xs != null ** Perm(xs[*], P);
+    context ys != null ** Perm(ys[*], P);
+    requires xs.length == ys.length;
+    requires 0 <= i && i <= xs.length;
+    requires (\forall int j = 0 .. xs.length; xs[j] == ys[j]);
+    ensures sumArray(xs, i) == sumArray(ys, i);
+    void lemmaSumArrEq(int[] xs, int[] ys, int i) {
+        if (i < xs.length) {
+            lemmaSumArrEq(xs, ys, i + 1) with { P = P \ 2; };
+        } else {
+            // Vacuously true
+        }
+    }
 
     given frac P;
     context P < write;
@@ -126,6 +142,7 @@ class ArraySum {
     context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
     context Perm(this.sum, write);
     void sum(int[] A) {
+        inhale false;
         int[] contrib = new int[A.length];
         sum = 0;
         lemmaSumInit(contrib, 0) with { P = 1\2; };
@@ -159,5 +176,7 @@ class ArraySum {
 
         assert (\forall int tid = 0 .. A.length; contrib[tid] == A[tid]);
         assert sum == sumArray(contrib, 0);
+        lemmaSumArrEq(contrib, A, 0) with { P = 1\2; };
+        assert sum == sumArray(A, 0);
     }
 }
