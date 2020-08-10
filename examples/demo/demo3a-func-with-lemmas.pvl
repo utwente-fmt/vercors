@@ -94,24 +94,25 @@ class ArraySum {
     context 0 <= i && i < xs.length;
     context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
     requires 0 <= b && b <= i;
-    requires sumArray(xs, b) == oldTotal;
-    ensures sumArray(ys, b) == (oldTotal - xs[i] + ys[i]);
-    void lemmaSumUpdate(int[] xs, int[] ys, int oldTotal, int i, int b) {
+    ensures sumArray(ys, b) == (sumArray(xs, b) - xs[i] + ys[i]);
+    void lemmaSumUpdate(int[] xs, int[] ys, int i, int b) {
         if (b < i) {
-            lemmaSumUpdate(xs, ys, oldTotal - xs[b], i, b + 1) with { P = P \ 2; };
+            lemmaSumUpdate(xs, ys, i, b + 1) with { P = P \ 2; };
             // Not necessary, implicit proof steps made explicit:
+            assert sumArray(ys, b + 1) == sumArray(xs, b + 1) - xs[i] + ys[i]; // Guaranteed by lemmaSumUpdate
+            assert sumArray(ys, b + 1) == sumArray(xs, b) - xs[b] - xs[i] + ys[i];
             assert xs[b] == ys[b];
-            assert sumArray(ys, b + 1) == oldTotal - xs[b] - xs[i] + ys[i]; // Guaranteed by lemmaSumUpdate
-            assert ys[b] + sumArray(ys, b + 1) == oldTotal - xs[i] + ys[i];
-            assert sumArray(ys, b) == oldTotal - xs[i] + ys[i];
+            assert ys[b] + sumArray(ys, b + 1) == sumArray(xs, b) - xs[i] + ys[i];
+            assert sumArray(ys, b) == sumArray(xs, b) - xs[i] + ys[i];
         } else {
             lemmaSumArrEq(xs, ys, b + 1) with { P = P \ 2; };
             // Not necessary, implicit proof steps made explicit:
-            assert sumArray(ys, b + 1) == sumArray(xs, i + 1); // Guaranteed by lemmaSumArrEq
-            assert sumArray(ys, b + 1) == oldTotal - xs[i];
+            assert sumArray(ys, b + 1) == sumArray(xs, b + 1); // Guaranteed by lemmaSumArrEq
+            assert sumArray(ys, b + 1) == sumArray(xs, b) - xs[b];
             assert b == i;
-            assert ys[b] + sumArray(ys, b + 1) == oldTotal - xs[i] + ys[i];
-            assert sumArray(ys, b) == oldTotal - xs[i] + ys[i];
+            assert sumArray(ys, b + 1) == sumArray(xs, b) - xs[i];
+            assert ys[b] + sumArray(ys, b + 1) == sumArray(xs, b) - xs[i] + ys[i];
+            assert sumArray(ys, b) == sumArray(xs, b) - xs[i] + ys[i];
         }
     }
 
@@ -149,7 +150,7 @@ class ArraySum {
                     int oldSum = sum.v;
                     sum.v = sum.v + A[tid];
                     contrib[tid] = A[tid];
-                    lemmaSumUpdate(oldContrib, contrib, oldSum, tid, 0) with { P = 1\4; };
+                    lemmaSumUpdate(oldContrib, contrib, tid, 0) with { P = 1\4; };
                     assert oldSum + A[tid] == sumArray(contrib, 0);
                     assert oldSum + A[tid] == sum.v;
                     assert sum.v == sumArray(contrib, 0);
