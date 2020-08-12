@@ -23,7 +23,7 @@ class MapsInPVL {
 		assert tuple<int,boolean>{1, true} in items;
 		
 		
-		map<int, boolean> m2 = map<int,boolean>{};nk
+		map<int, boolean> m2 = map<int,boolean>{};
 		m2 = buildMap(m2, 1, true);
 		assert equalsMap(map<int,boolean> {1 -> true}, m2);
 		
