@@ -1574,8 +1574,8 @@ public class JavaPrinter extends AbstractPrinter {
 
   @Override
   public void visit(InlineQuantifierPattern pattern) {
-    out.print("{");
+    out.print("{:");
     pattern.inner().apply(this);
-    out.print("}");
+    out.print(":}");
   }
 }
