@@ -1,5 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases SessionType
+//:: cases TicTacToeInt
 //:: tools silicon
 //:: verdict Pass
 
@@ -181,8 +181,8 @@ class Game {
 	    loop_invariant Perm(P2.movei,1) ** Perm(P2.movej,1) ** Perm(P2.moveToken, 1) ** Perm(P2.token, 1\2);
 	    loop_invariant equalGrids(P1.c00, P1.c01, P1.c02, P1.c10, P1.c11, P1.c12, P1.c20, P1.c21, P1.c22,
 						  P2.c00, P2.c01, P2.c02, P2.c10, P2.c11, P2.c12, P2.c20, P2.c21, P2.c22);
-		loop_invariant Grid.gameFinished(P1.c00, P1.c01, P1.c02, P1.c10, P1.c11, P1.c12, P1.c20, P1.c21, P1.c22) 
-				== Grid.gameFinished(P2.c00, P2.c01, P2.c02, P2.c10, P2.c11, P2.c12, P2.c20, P2.c21, P2.c22);
+//		loop_invariant Grid.gameFinished(P1.c00, P1.c01, P1.c02, P1.c10, P1.c11, P1.c12, P1.c20, P1.c21, P1.c22) 
+//				== Grid.gameFinished(P2.c00, P2.c01, P2.c02, P2.c10, P2.c11, P2.c12, P2.c20, P2.c21, P2.c22);
 		loop_invariant P1.token == 0;
 		loop_invariant P2.token == 1;
 		while(!Grid.gameFinished(P1.c00, P1.c01, P1.c02, P1.c10, P1.c11, P1.c12, P1.c20, P1.c21, P1.c22) 
