@@ -2,6 +2,7 @@
 //:: cases TicTacToeMatrix
 //:: tools silicon
 //:: verdict Pass
+//:: suite slow
 
 class Grid {
 
