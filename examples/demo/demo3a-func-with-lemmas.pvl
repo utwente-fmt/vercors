@@ -2,6 +2,7 @@
 //:: cases Demo3AFuncWithLemmas
 //:: tools silicon
 //:: verdict Fail
+//:: suite slow
 
 // This file is marked as fail because:
 // This example fails with the Viper VerCors uses in v1.2.0. It probably also fails in Viper 20.01 and 20.07. The
