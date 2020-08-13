@@ -7,16 +7,8 @@
 // This example fails with the Viper VerCors uses in v1.2.0. It probably also fails in Viper 20.01 and 20.07. The
 // version after 20.07 (probably 21.01?) contains commit e8354ada454ee4cd993d8e558574c8c1d771f529 which fixes an issue
 // where function postcondition cannot be used or checked. This fix is needed for this program to verify. Once Viper
-// is updated one year into the future this file should start passing.
-
-class Cell {
-    int v;
-
-    ensures Perm(v, write) ** v == initialValue;
-    Cell(int initialValue) {
-        v = initialValue;
-    }
-}
+// is updated one year into the future or so this file should start passing.
+// Alternatively, to test this file the viper version in build.sbt can be bumped temporarily, I guess.
 
 class ArraySum {
 
@@ -126,20 +118,23 @@ class ArraySum {
     // Sum method //
     ////////////////
 
+    int sum;
+
     context_everywhere A != null;
+    context Perm(sum, write);
     context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
-    ensures \result == sumArray(A, 0);
-    int sumArray(int[] A) {
+    ensures sum == sumArray(A, 0);
+    void sumArray(int[] A) {
         int[] contrib = new int[A.length];
-        Cell sum = new Cell(0);
+        sum = 0;
 
         lemmaSumInit(contrib, 0) with { P = 1\2; };
-        assert sum.v == sumArray(contrib, 0);
+        assert sum == sumArray(contrib, 0);
 
-        invariant inv(Perm(sum.v, write)
+        invariant inv(Perm(sum, write)
             ** contrib != null ** contrib.length == A.length
             ** (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2))
-            ** sum.v == sumArray(contrib, 0)
+            ** sum == sumArray(contrib, 0)
         ) {
             par (int tid = 0 .. A.length)
             context contrib != null ** contrib.length == A.length;
@@ -150,24 +145,22 @@ class ArraySum {
                 atomic(inv) {
                     int[] oldContrib = copy(contrib) with { P = 1\4; };
                     lemmaSumArrEq(contrib, oldContrib, 0) with { P = 1\4; };
-                    assert sum.v == sumArray(contrib, 0);
-                    assert sum.v == sumArray(oldContrib, 0);
+                    assert sum == sumArray(contrib, 0);
+                    assert sum == sumArray(oldContrib, 0);
 
-                    int oldSum = sum.v;
-                    sum.v = sum.v + A[tid];
+                    int oldSum = sum;
+                    sum = sum + A[tid];
                     contrib[tid] = A[tid];
                     lemmaSumUpdate(oldContrib, contrib, tid, 0) with { P = 1\4; };
                     assert oldSum + A[tid] == sumArray(contrib, 0);
-                    assert oldSum + A[tid] == sum.v;
-                    assert sum.v == sumArray(contrib, 0);
+                    assert oldSum + A[tid] == sum;
+                    assert sum == sumArray(contrib, 0);
                 }
             }
         }
 
-        assert sum.v == sumArray(contrib, 0);
+        assert sum == sumArray(contrib, 0);
         lemmaSumArrEq(contrib, A, 0) with { P = 1\2; };
-        assert sum.v == sumArray(A, 0);
-
-        return sum.v;
+        assert sum == sumArray(A, 0);
     }
 }
