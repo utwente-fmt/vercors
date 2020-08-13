@@ -155,9 +155,6 @@ public class Main
       BooleanSetting sat_check=new BooleanSetting(true);
       clops.add(sat_check.getDisable("Disable checking if method pre-conditions are satisfiable"), "disable-sat");
 
-      BooleanSetting disableParVarCheck = new BooleanSetting(false);
-      clops.add(disableParVarCheck.getEnable("Disable checking safe usage of local variables in parallel blocks and invariants. Use only for verifying examples/demo/demo3a-funcW.pvl. (expert option)"), "disable-par-var-check");
-
       IntegerSetting trigger_generation = new IntegerSetting(0);
       clops.add(trigger_generation.getOptionalAssign("Try to simplify universal quantifiers and generate triggers for them."), "triggers");
       
@@ -415,7 +412,7 @@ public class Main
         }
 
         if (sat_check.get()) {
-          passes.add("sat_check=a\\b\\c"); // sanity check to avoid uncallable methods (where False is required)
+          passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
           passes.add("standardize");
           passes.add("check");
         }
@@ -451,9 +448,7 @@ public class Main
           passes.add("check");
         }
 
-        if (!disableParVarCheck.get()) {
-          passes.add("local-variable-check");
-        }
+        passes.add("local-variable-check");
 
         if (silver.used()) {
           if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
