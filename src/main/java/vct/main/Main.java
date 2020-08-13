@@ -723,10 +723,6 @@ public class Main
       throw e;
     } finally {
       Progress("entire run took %d ms",System.currentTimeMillis()-wallStart);
-
-      Runtime rt = Runtime.getRuntime();
-      Process pr = rt.exec(new String[]{"notify-send", "Vercors finished"});
-
       System.exit(exit);
     }
   }
