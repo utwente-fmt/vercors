@@ -92,6 +92,7 @@ case class ClassType(val names:List[String], val params:List[ASTNode]) extends T
    */
   override def supertypeof(context:ProgramUnit, otherType:Type) =
     (ClassType.isJavaLangObject(this.names) && otherType.isInstanceOf[ClassType]) ||
+      getName == "_AnyTypeForSimplificationRules" ||
       searchForSupertype(context, otherType)
   
   override def equals(obj:Any) = obj match {

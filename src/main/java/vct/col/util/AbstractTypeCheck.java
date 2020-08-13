@@ -68,6 +68,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
   public void visit(ClassType t){
     super.visit(t);
+
+    if(t.getName().equals("_AnyTypeForSimplificationRules")) {
+      return;
+    }
+
     Debug("class type %s",t);
     String name[]=t.getNameFull();
     if (name.length==1){
