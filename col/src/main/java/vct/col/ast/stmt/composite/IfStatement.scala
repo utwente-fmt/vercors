@@ -36,7 +36,7 @@ class IfStatement extends ASTNode with VisitorHelper {
     cases += new IfStatementCase(guard, body)
   }
 
-  def hasElse: Boolean = cases.toStream.exists(ifCase => ifCase.guard == IfStatement.elseGuard)
+  def hasElse: Boolean = cases.exists(ifCase => ifCase.guard == IfStatement.elseGuard)
 
   override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
