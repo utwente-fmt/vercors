@@ -336,12 +336,14 @@ public class Main
           passes.add("continue-to-break");
         }
 
+        passes.add("java_resolve");
+        passes.add("standardize");
+        passes.add("java-check");
+
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
         }
 
-        passes.add("java_resolve");
-        passes.add("standardize");
         passes.add("java-check");
 
         if ((features.usesFinally() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {

@@ -8,16 +8,16 @@
 // It has been adapted and extended to use the vercors syntax for specifications.
 
 public class ReturnFinally {
-	int i;
+    int i;
 
-	//@ requires Perm(i, write);
+    //@ requires Perm(i, write);
     //@ ensures Perm(i, write) ** \result == 0 ** i == 1;
     public int m() {
-		i = 0;
-		try {
-			return i;
-		} finally {
-			i = 1;
-		}
+        i = 0;
+        try {
+            return i;
+        } finally {
+            i = 1;
+        }
     }
 }
