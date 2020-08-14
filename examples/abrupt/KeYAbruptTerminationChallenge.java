@@ -12,7 +12,7 @@ class AbruptTermination {
 
     //@ context_everywhere Perm(ia, read) ** ia != null;
     //@ context_everywhere (\forall* int i; 0 <= i && i < ia.length; Perm(ia[i], write));
-    //@ ensures ia == \old(ia); // Extra contract needed for VerCors
+    // ensures ia.length == \old(ia.length); // Extra contract needed for VerCors
     // ensure i is the first position with negative value
     /*@ ensures (\forall int i; 0 <= i && i < ia.length;
                     (\old(ia[i]) < 0 && (\forall int j; 0 <= j && j < i; \old(ia[j]) >= 0))
@@ -28,10 +28,12 @@ class AbruptTermination {
             loop_invariant (\forall int j; i<=j && j<ia.length; ia[j] == \old(ia[j])); // Extra invariant needed
          */
         for (int i = 0 ; i < ia.length; i++) {
+            //@ assert ia == \old(ia);
             if (ia[i] < 0) {
                 ia[i] = -ia[i] ;
                 break ;
             }
         }
+        //@ assert ia == \old(ia);
     }
 }

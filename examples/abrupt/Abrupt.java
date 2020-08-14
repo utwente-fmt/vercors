@@ -42,9 +42,9 @@ final class MyClass {
                 //@ assert x == 40;
             }
 
-			if (x == 41) {
-				return 30;
-   			} 
+            if (x == 41) {
+                return 30;
+            }
 
             //@ assert x == 40 || x == 5;
 
@@ -55,6 +55,6 @@ final class MyClass {
 
         //@ assert x == 500 || x == 1 || x == 0;
 
-		return 31;
+        return 31;
     }
 }

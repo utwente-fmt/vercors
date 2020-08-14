@@ -30,7 +30,7 @@ public class ContractBuilder {
   private ArrayList<SignalsClause> signals = new ArrayList<>();
   
   public boolean isEmpty() {
-    return  invariant.isConstant(default_true)
+    return invariant.isConstant(default_true)
         && pre_condition.isConstant(default_true)
         && post_condition.isConstant(default_true)
         && given.size()==0 && yields.size()==0

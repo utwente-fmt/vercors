@@ -504,6 +504,7 @@ public abstract class ASTFrame<T> {
           variables.enter();
           if (cc.javaCatchTypes().length != 1) {
             // To support this, the least upper bound of all the types must be used here
+            // See: https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20
             Abort("Multi-catch not yet supported");
           }
           DeclarationStatement ccDeclarationStatement = new DeclarationStatement(cc.name(), cc.javaCatchTypes()[0], Option.empty());

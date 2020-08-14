@@ -308,8 +308,7 @@ public class Method extends ASTDeclaration {
   public boolean isSynchronized() {
     ASTList annotations = annotations();
 
-    for (int i = 0; i < annotations.size(); i++) {
-      ASTNode annotation = annotations.get(i);
+    for (ASTNode annotation : annotations) {
       if (annotation instanceof NameExpression) {
         NameExpression modifier = (NameExpression) annotation;
         if (modifier.isReserved(ASTReserved.Synchronized)) {
@@ -328,9 +327,9 @@ public class Method extends ASTDeclaration {
       newArg.setFlag(ASTFlags.OUT_ARG, true);
     }
 
-    ArrayList<DeclarationStatement> argList = new ArrayList<>(Arrays.asList(args));
+    LinkedList<DeclarationStatement> argList = new LinkedList<>(Arrays.asList(args));
     argList.add(0, newArg);
-    args = argList.toArray(new DeclarationStatement[argList.size()]);
+    args = argList.toArray(new DeclarationStatement[0]);
   }
 
   /**
