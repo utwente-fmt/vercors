@@ -332,11 +332,11 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                     contract.post_condition
                     );
 
-            ASTNode flattenedSignals = flattenSignals(generateSignals(method.throwy, contract.signals));
+            ASTNode flattenedSignals = flattenSignals(generateSignals(method.signals, contract.signals));
 
             ASTNode excVarTypeConstrain = create.expression(StandardOperator.Implies,
                     create.expression(StandardOperator.NEQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
-                    constrainExcPostcondition(method.throwy, contract.signals)
+                    constrainExcPostcondition(method.signals, contract.signals)
                     );
 
             resultMethod.setContract(new Contract(
@@ -369,10 +369,10 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      * I.e. excVar instanceof signalsType0 || excVar instanceof signalsType1 || .. || excVar instanceof signalsTypeN-1
      * It uses the instanceof encoding in AddTypeADT
      */
-    private ASTNode constrainExcPostcondition(Type[] throwy, SignalsClause[] signals) {
+    private ASTNode constrainExcPostcondition(Type[] methodSignals, SignalsClause[] contractSignals) {
         Type[] types = Stream.concat(
-                Arrays.stream(throwy),
-                Arrays.stream(signals).map(sc -> sc.type())).toArray(n -> new Type[n]);
+                Arrays.stream(methodSignals),
+                Arrays.stream(contractSignals).map(sc -> sc.type())).toArray(n -> new Type[n]);
 
         if (types.length == 0) {
             return create.constant(true);
@@ -380,7 +380,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         ASTNode constraint = AddTypeADT.exprInstanceof(create, copy_rw, create.local_name(excVar), (ClassType) types[0]);
 
-        for (int i = 1; i < signals.length; i++) {
+        for (int i = 1; i < contractSignals.length; i++) {
             constraint = create.expression(StandardOperator.Or,
                     constraint,
                     AddTypeADT.exprInstanceof(create, copy_rw, create.local_name(excVar), (ClassType) types[i]));
@@ -401,15 +401,15 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      * Generates default exceptional postconditions for throws types that do not have
      * a signals clause.
      */
-    private SignalsClause[] generateSignals(Type[] throwy, SignalsClause[] signals) {
-        Set<Type> throwsTypes = Arrays.stream(throwy).collect(Collectors.toSet());
-        Set<Type> signalsTypes = Arrays.stream(signals)
+    private SignalsClause[] generateSignals(Type[] methodSignals, SignalsClause[] contractSignals) {
+        Set<Type> throwsTypes = Arrays.stream(methodSignals).collect(Collectors.toSet());
+        Set<Type> signalsTypes = Arrays.stream(contractSignals)
                 .map(sc -> sc.type())
                 .collect(Collectors.toSet());
 
         // If eachs throws type already has a signals clause, no default postconditions have to be added
         if (signalsTypes.containsAll(throwsTypes)) {
-            return signals;
+            return contractSignals;
         }
 
         throwsTypes.removeAll(signalsTypes);
@@ -417,7 +417,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         return Stream.concat(
                 throwsTypes.stream()
                     .map(t -> new SignalsClause("e", copy_rw.rewrite(t), create.constant(true))),
-                Arrays.stream(signals)
+                Arrays.stream(contractSignals)
         ).toArray(n -> new SignalsClause[n]);
     }
 

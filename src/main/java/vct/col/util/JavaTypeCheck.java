@@ -50,7 +50,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     // Throws types must inherit from Throwable
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
 
-    for (Type t : m.throwy) {
+    for (Type t : m.signals) {
       if (!(t instanceof ClassType)) {
         Fail("Throws type can only be class");
       }
@@ -204,7 +204,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     if (mi.definition().getKind() == Method.Kind.Constructor || mi.definition().getKind() == Method.Kind.Plain) {
       // Any types that the method has declared, can become live when calling this method
-      for (Type t : mi.definition().throwy) {
+      for (Type t : mi.definition().signals) {
         liveExceptionTypes.add(t);
       }
     }

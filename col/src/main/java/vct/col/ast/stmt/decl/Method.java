@@ -29,7 +29,7 @@ import static hre.lang.System.Debug;
 public class Method extends ASTDeclaration {
 
   public static final String JavaConstructor = "<<constructor>>";
-  public final Type[] throwy;
+  public final Type[] signals;
 
   @Override
   public <R,A> R accept_simple(ASTMapping1<R,A> map, A arg){
@@ -65,14 +65,14 @@ public class Method extends ASTDeclaration {
     return var_args;
   }
   
-  public Method(String name,Type return_type,Type[] throwy,Contract contract,DeclarationStatement args[],boolean varArgs,ASTNode body){
-    this(Kind.Plain,name,return_type,throwy,contract,args,varArgs,body);
+  public Method(String name, Type return_type, Type[] signals, Contract contract, DeclarationStatement args[], boolean varArgs, ASTNode body){
+    this(Kind.Plain,name,return_type, signals,contract,args,varArgs,body);
   }
   
   public Method(Kind kind,
                 String name,
                 Type return_type,
-                Type[] throwy,
+                Type[] signals,
                 Contract contract,
                 DeclarationStatement[] args,
                 boolean varArgs,
@@ -80,7 +80,7 @@ public class Method extends ASTDeclaration {
   {
     super(name);
     this.return_type=return_type;
-    this.throwy = throwy;
+    this.signals = signals;
     this.args=Arrays.copyOf(args,args.length);
     this.var_args=varArgs;
     for(int i=0;i<args.length;i++){
@@ -339,7 +339,7 @@ public class Method extends ASTDeclaration {
    * See: https://docs.oracle.com/javase/specs/jls/se7/html/jls-11.html#jls-11.2
    */
   public boolean canThrow() {
-    return throwy.length > 0;
+    return signals.length > 0;
   }
 
   /**

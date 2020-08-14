@@ -131,13 +131,13 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case MethodDeclaration0(retType, name, paramsNode, maybeDims, maybeThrows, maybeBody) =>
       val dims = maybeDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
       val returns = convertType(retType, dims)
-      val throwy = convertThrows(maybeThrows)
+      val signals = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
       val body = maybeBody match {
         case MethodBodyOrEmpty0(";") => None
         case MethodBodyOrEmpty1(MethodBody0(block)) => Some(convertBlock(block))
       }
-      Seq(create method_decl(returns, throwy, null, convertID(name), params.toArray, body.orNull))
+      Seq(create method_decl(returns, signals, null, convertID(name), params.toArray, body.orNull))
     case GenericMethodDeclaration0(typeParams, methodDecl) =>
       ??(typeParams) //generics are unsupported
     case InterfaceMethodDeclaration0(retType, name, params, maybeDims, None, _) =>
@@ -146,12 +146,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(typeParams) // generics are unsupported
     case ConstructorDeclaration0(clsName, paramsNode, maybeThrows, bodyNode) =>
       val returns = create primitive_type PrimitiveSort.Void
-      val throwy = convertThrows(maybeThrows)
+      val signals = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
       val body = bodyNode match {
         case ConstructorBody0(block) => convertBlock(block)
       }
-      Seq(create method_kind(Method.Kind.Constructor, returns, throwy, null, convertID(clsName), params.toArray, varargs, body))
+      Seq(create method_kind(Method.Kind.Constructor, returns, signals, null, convertID(clsName), params.toArray, varargs, body))
     case GenericConstructorDeclaration0(typeParams, constructorDecl) =>
       ??(typeParams) // generics are unsupported
 

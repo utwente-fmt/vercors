@@ -19,9 +19,7 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import hre.util.LambdaHelper;
 
-import java.lang.reflect.Array;
 import java.util.*;
-import java.util.stream.Stream;
 
 /**
  * This abstract rewriter copies the AST it is applied to.
@@ -486,14 +484,14 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     }
     Method.Kind kind=m.kind;
     Type rt=rewrite(m.getReturnType());
-    Type[] throwy = rewrite(m.throwy);
+    Type[] signals = rewrite(m.signals);
     Contract c=currentContractBuilder.getContract();
     if (mc != null && c.getOrigin() == null) {
       c.setOrigin(mc.getOrigin());
     }
     currentContractBuilder=null;
     ASTNode body=rewrite(m.getBody());
-    result=create.method_kind(kind, rt, throwy, c, name, args, m.usesVarArgs(), body);
+    result=create.method_kind(kind, rt, signals, c, name, args, m.usesVarArgs(), body);
   }
 
   @Override

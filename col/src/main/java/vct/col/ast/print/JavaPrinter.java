@@ -808,12 +808,12 @@ public class JavaPrinter extends AbstractPrinter {
     if (contract!=null && dialect==JavaDialect.JavaVeriFast && !predicate){
       visitVeriFast(contract);
     }
-    if (m.throwy.length > 0) {
+    if (m.signals.length > 0) {
       out.printf(" throws ");
-      m.throwy[0].accept(this);
-      if (m.throwy.length > 1) {
-        for (int i = 1; i < m.throwy.length; i++) {
-          Type t = m.throwy[i];
+      m.signals[0].accept(this);
+      if (m.signals.length > 1) {
+        for (int i = 1; i < m.signals.length; i++) {
+          Type t = m.signals[i];
           out.printf(", ");
           t.accept(this);
         }
