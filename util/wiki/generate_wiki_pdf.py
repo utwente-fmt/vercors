@@ -110,7 +110,7 @@ def collect_chapters(wiki_location):
     contents = unquote(contents)
 
     # Matches sidebar entries
-    chapter_re = re.compile("\[([A-Za-z /\?]+)\]\(https.*/([A-Za-z\-\?]+)\)")
+    chapter_re = re.compile("\[([A-Za-z /\?\&]+)\]\(https.*/([A-Za-z\-\?\&]+)\)")
     # Extract titles and last parts of links to chapters
     # Ignore "wiki" chapter, which is just a link to the wiki
     chapters = [chapter for chapter in chapter_re.findall(contents) if chapter[0] != "Home"]
