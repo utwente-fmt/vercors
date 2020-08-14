@@ -5,21 +5,16 @@ package vct.main;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
-import hre.io.MessageProcessEnvironment;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
-import scala.collection.JavaConverters;
-import scala.concurrent.JavaConversions;
 import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
@@ -50,9 +45,6 @@ import vct.silver.ErrorDisplayVisitor;
 import vct.test.CommandLineTesting;
 import vct.col.ast.util.ClassName;
 import hre.config.Configuration;
-import vct.test.FailReason;
-import vct.test.Task;
-import vct.test.TaskCondition;
 
 import static hre.lang.System.*;
 
