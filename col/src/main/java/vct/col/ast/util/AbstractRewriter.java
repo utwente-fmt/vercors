@@ -29,19 +29,6 @@ import java.util.*;
 public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   private static ThreadLocal<AbstractRewriter> tl=new ThreadLocal<AbstractRewriter>();
 
-  public static <R extends ASTNode> Hashtable<String, Type> free_vars(List<R> nodes) {
-    Hashtable<String,Type> vars = new Hashtable<String,Type>();
-    NameScanner scanner = new NameScanner(vars);
-    for (R n : nodes) {
-      n.accept(scanner);
-    }
-    return vars;
-  }
-  
-  public static Hashtable<String,Type> free_vars(ASTNode ... nodes) {
-	return free_vars(Arrays.asList(nodes));
-  }
-
   public final AbstractRewriter copy_rw;
   
   private AbstractRewriter(Thread t){
@@ -776,7 +763,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     result=hole;
   }
 
-  protected DeclarationStatement[] gen_pars(Hashtable<String, Type> vars) {
+  protected DeclarationStatement[] genPars(Map<String, Type> vars) {
     DeclarationStatement decls[]=new DeclarationStatement[vars.size()];
     int i=0;
     for(String name:vars.keySet()){
@@ -786,7 +773,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     return decls;
   }
 
-  protected MethodInvokation gen_call(String method, Hashtable<String, Type> vars) {
+  protected MethodInvokation genCall(String method, Map<String, Type> vars) {
     ASTNode args[]=new ASTNode[vars.size()];
     int i=0;
     for(String name:vars.keySet()){
