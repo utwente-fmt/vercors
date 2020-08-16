@@ -195,7 +195,12 @@ public class Main {
             throw new HREExitException(0);
         }
 
-        if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
+        if (!(CommandLineTesting.enabled() ||
+                boogie.get() ||
+                chalice.get() ||
+                silver.used() ||
+                dafny.get() ||
+                pass_list.iterator().hasNext())) {
             Fail("no back-end or passes specified");
         }
 
