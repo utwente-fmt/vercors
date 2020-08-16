@@ -34,30 +34,34 @@ public class Main {
     public static Map<String, SpecialCountVisitor> counters = new HashMap<String, SpecialCountVisitor>();
 
     private long wallStart;
-    private ProgramUnit program = new ProgramUnit();
     private PassReport report;
     private TimeKeeper tk;
 
     private final BooleanSetting version = new BooleanSetting(false);
+    private final BooleanSetting help_passes = new BooleanSetting(false);
+
     private final ChoiceSetting logLevel = new ChoiceSetting(new String[]{"silent", "abort", "result", "warning", "info", "progress", "debug", "all"}, "info");
     private final CollectSetting debugFilters = new CollectSetting();
+    private final StringListSetting show_before = new StringListSetting();
+    private final StringListSetting show_after = new StringListSetting();
+    private final CollectSetting debugBefore = new CollectSetting();
+    private final CollectSetting debugAfter = new CollectSetting();
+    private final StringSetting show_file = new StringSetting(null);
+
+    private final StringListSetting pass_list = new StringListSetting();
+    private final Option pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes");
     private final BooleanSetting boogie = new BooleanSetting(false);
     private final BooleanSetting chalice = new BooleanSetting(false);
     private final StringSetting silver = new StringSetting("silver");
     private final BooleanSetting dafny = new BooleanSetting(false);
+
+    private final StringListSetting stop_after = new StringListSetting();
+
     private final BooleanSetting check_defined = new BooleanSetting(false);
     private final BooleanSetting check_axioms = new BooleanSetting(false);
     private final BooleanSetting check_history = new BooleanSetting(false);
     private final BooleanSetting separate_checks = new BooleanSetting(false);
-    private final BooleanSetting help_passes = new BooleanSetting(false);
     private final BooleanSetting sequential_spec = new BooleanSetting(false);
-    private final StringListSetting pass_list = new StringListSetting();
-    private final StringListSetting show_before = new StringListSetting();
-    private final StringListSetting show_after = new StringListSetting();
-    private final StringSetting show_file = new StringSetting(null);
-    private final CollectSetting debugBefore = new CollectSetting();
-    private final CollectSetting debugAfter = new CollectSetting();
-    private final StringListSetting stop_after = new StringListSetting();
     private final BooleanSetting explicit_encoding = new BooleanSetting(false);
     private final BooleanSetting global_with_field = new BooleanSetting(false);
     private final BooleanSetting infer_modifies = new BooleanSetting(false);
@@ -66,7 +70,6 @@ public class Main {
     private final BooleanSetting sat_check = new BooleanSetting(true);
     private final IntegerSetting trigger_generation = new IntegerSetting(0);
     private final BooleanSetting learn = new BooleanSetting(false);
-    private final Option pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes");
 
     private String[] parseOptions(String[] args) {
         OptionParser clops = new OptionParser();
@@ -221,8 +224,8 @@ public class Main {
 
     private void parseInputs(String[] inputPaths) {
         Progress("parsing inputs...");
-        report = new PassReport(program);
-        report.setOutput(program);
+        report = new PassReport(new ProgramUnit());
+        report.setOutput(report.getInput());
         report.add(new ErrorDisplayVisitor());
         tk.show();
         for (String name : inputPaths) {
@@ -230,12 +233,12 @@ public class Main {
             if (!no_context.get()) {
                 FileOrigin.add(name, gui_context.get());
             }
-            program.add(Parsers.parseFile(f.getPath()));
+            report.getOutput().add(Parsers.parseFile(f.getPath()));
         }
         Progress("Parsed %d file(s) in: %dms", inputPaths.length, tk.show());
 
         if (boogie.get() || sequential_spec.get()) {
-            program.setSpecificationFormat(SpecificationFormat.Sequential);
+            report.getOutput().setSpecificationFormat(SpecificationFormat.Sequential);
         }
     }
 
@@ -538,7 +541,7 @@ public class Main {
 
     private Deque<String> getPasses() {
         FeatureScanner features = new FeatureScanner();
-        program.accept(features);
+        report.getOutput().accept(features);
 
         Deque<String> passes = new LinkedBlockingDeque<>();
         if (pass_list_option.used()) {
@@ -571,54 +574,51 @@ public class Main {
             } else {
                 pass_args = pass_args[1].split("\\+");
             }
-            CompilerPass task = Passes.defined_passes.get(pass);
+
             if (debugBefore.has(pass)) {
-                program.dump();
+                report.getOutput().dump();
             }
             if (show_before.contains(pass)) {
                 String name = show_file.get();
                 if (name != null) {
                     String file = String.format(name, pass);
                     PrintWriter out = new PrintWriter(new FileOutputStream(file));
-                    vct.col.ast.util.Configuration.getDiagSyntax().print(out, program);
+                    vct.col.ast.util.Configuration.getDiagSyntax().print(out, report.getOutput());
                     out.close();
                 } else {
                     PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-                    vct.col.ast.util.Configuration.getDiagSyntax().print(out, program);
+                    vct.col.ast.util.Configuration.getDiagSyntax().print(out, report.getOutput());
                     out.close();
                 }
             }
-            if (task != null) {
-                tk.show();
-                report = task.apply_pass(report, pass_args);
-                fatal_errs = report.getFatal();
-                program = report.getOutput();
-                Progress("[%02d%%] %s took %d ms", 100 * (passCount - passes.size()) / passCount, pass, tk.show());
-            } else {
-                ValidationPass check = Passes.defined_checks.get(pass);
-                if (check != null) {
-                    Progress("Applying %s ...", pass);
-                    tk.show();
-                    report = check.apply_pass(report, pass_args);
-                    fatal_errs = report.getFatal();
-                    Progress(" ... pass took %d ms", tk.show());
-                } else {
-                    Fail("unknown pass %s", pass);
-                }
+
+            Pass task = Passes.defined_passes.get(pass);
+            if(task == null) {
+                task = Passes.defined_checks.get(pass);
             }
+
+            if(task == null) {
+                Fail("unknown pass %s", pass);
+            }
+
+            tk.show();
+            report = task.apply_pass(report, pass_args);
+            fatal_errs = report.getFatal();
+            Progress("[%02d%%] %s took %d ms", 100 * (passCount - passes.size()) / passCount, pass, tk.show());
+
             if (debugAfter.has(pass)) {
-                program.dump();
+                report.getOutput().dump();
             }
             if (show_after.contains(pass)) {
                 String name = show_file.get();
                 if (name != null) {
                     String file = String.format(name, pass);
                     PrintWriter out = new PrintWriter(new FileOutputStream(file));
-                    vct.col.ast.util.Configuration.getDiagSyntax().print(out, program);
+                    vct.col.ast.util.Configuration.getDiagSyntax().print(out, report.getOutput());
                     out.close();
                 } else {
                     PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-                    vct.col.ast.util.Configuration.getDiagSyntax().print(out, program);
+                    vct.col.ast.util.Configuration.getDiagSyntax().print(out, report.getOutput());
                     out.close();
                 }
             }
