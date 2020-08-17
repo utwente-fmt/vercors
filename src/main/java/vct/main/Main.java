@@ -189,10 +189,7 @@ public class Main {
 
         if (help_passes.get()) {
             Output("The following passes are available:");
-            for (Entry<String, CompilerPass> entry : Passes.defined_passes.entrySet()) {
-                Output(" %-12s : %s", entry.getKey(), entry.getValue().getDescripion());
-            }
-            for (Entry<String, ValidationPass> entry : Passes.defined_checks.entrySet()) {
+            for (Entry<String, Pass> entry : Passes.defined_passes.entrySet()) {
                 Output(" %-12s : %s", entry.getKey(), entry.getValue().getDescripion());
             }
             throw new HREExitException(0);
@@ -593,9 +590,6 @@ public class Main {
             }
 
             Pass task = Passes.defined_passes.get(pass);
-            if(task == null) {
-                task = Passes.defined_checks.get(pass);
-            }
 
             if(task == null) {
                 Fail("unknown pass %s", pass);

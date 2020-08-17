@@ -35,8 +35,7 @@ import java.util.Map;
 import static hre.lang.System.Abort;
 
 public class Passes {
-    public static Hashtable<String,CompilerPass> defined_passes = new Hashtable<>();
-    public static Hashtable<String,ValidationPass> defined_checks = new Hashtable<>();
+    public static Hashtable<String, Pass> defined_passes = new Hashtable<>();
 
     static {
         defined_passes.put("java", new CompilerPass("print AST in java syntax") {
@@ -66,7 +65,7 @@ public class Passes {
                 return new AssignmentRewriter(arg).rewriteAll();
             }
         });
-        defined_checks.put("silver", new ValidationPass("verify input with Silver") {
+        defined_passes.put("silver", new ValidationPass("verify input with Silver") {
             @Override
             public PassReport apply_pass(PassReport arg, String... args) {
                 return vct.silver.SilverBackend.TestSilicon(arg, args[0]);
@@ -368,11 +367,6 @@ public class Passes {
                 return new SatCheckRewriter(arg).rewriteAll();
             }
         });
-        defined_passes.put("setget", new CompilerPass("insert set and get operators") {
-            public ProgramUnit apply(ProgramUnit arg, String... args) {
-                return new SetGetIntroduce(arg).rewriteAll();
-            }
-        });
         defined_passes.put("silver-class-reduction", new CompilerPass("reduce classes to single Ref class") {
             public ProgramUnit apply(ProgramUnit arg, String... args) {
                 return new SilverClassReduction(arg).rewriteAll();
@@ -502,7 +496,7 @@ public class Passes {
         });
     }
 
-    private static void branching_pass(Hashtable<String, CompilerPass> defined_passes,
+    private static void branching_pass(Hashtable<String, Pass> defined_passes,
                                        String key, String description, final Class<? extends AbstractRewriter> class1) {
         try {
             defined_passes.put(key, new CompilerPass(description) {
@@ -530,7 +524,7 @@ public class Passes {
         }
     }
 
-    private static void compiler_pass(Hashtable<String, CompilerPass> defined_passes,
+    private static void compiler_pass(Hashtable<String, Pass> defined_passes,
                                       String key, String description, final Class<? extends AbstractRewriter> class1) {
         try {
             defined_passes.put(key, new CompilerPass(description) {

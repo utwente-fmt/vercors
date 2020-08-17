@@ -987,7 +987,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         // TODO: check arguments
         e.setType(new PrimitiveType(PrimitiveSort.Resource));
         break;
-      case Set:
       case Assign:
       case AddAssign:
       case SubAssign:
@@ -1477,11 +1476,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
             e.setType(new TupleType(types));
             break;
         }
-        break;
-      }
-      case Get: {
-        if (tt[0] == null) Fail("type of argument is unknown at %s", e.getOrigin());
-        e.setType(tt[0]);
         break;
       }
       case AddrOf:

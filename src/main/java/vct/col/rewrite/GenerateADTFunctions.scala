@@ -1,19 +1,14 @@
 package vct.col.rewrite
 
-import java.util
-import java.util.stream.{Collectors, StreamSupport}
-
-import hre.ast.{MessageOrigin, Origin}
-import vct.col.ast.`type`
+import hre.ast.MessageOrigin
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
-import vct.col.ast.expr.{Binder, BindingExpression, NameExpression, OperatorExpression, SetComprehension, StandardOperator}
+import vct.col.ast.expr._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder, FieldAccessCollector}
 
-import collection.JavaConverters
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.{JavaConverters, mutable}
 
 object GenerateADTFunctions {
   val getRemoveFromSeqName: mutable.Map[Type, String] = mutable.Map()

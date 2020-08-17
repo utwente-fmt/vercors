@@ -32,9 +32,6 @@ public class ArrayNullValues extends AbstractRewriter {
     @Override
     public void visit(OperatorExpression exp) {
         switch(exp.operator()) {
-            case Get:
-                break;
-
             case UPlus:
             case UMinus:
             case Exp:
@@ -91,7 +88,6 @@ public class ArrayNullValues extends AbstractRewriter {
                 break;
 
             case Assign:
-            case Set:
                 if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
                     exp.arg(1).setType(exp.getType());
                 }

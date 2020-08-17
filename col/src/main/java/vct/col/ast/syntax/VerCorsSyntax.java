@@ -34,8 +34,6 @@ public class VerCorsSyntax {
     syntax.addFunction(AddsTo,"AddsTo");
     syntax.addFunction(Old,"\\old");
     syntax.addFunction(Length,"\\length");
-    syntax.addFunction(Get,"get?");
-    syntax.addFunction(Set,"set!");
     syntax.addOperator(Size,999,"|","|");
     syntax.addOperator(RangeSeq,-1,"{","..","}");
     syntax.addLeftFix(Concat,"+++",5);
