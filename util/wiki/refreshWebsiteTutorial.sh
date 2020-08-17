@@ -15,7 +15,7 @@ cd vercors-web.git
 git commit -am "Update website tutorial from github wiki"
 git push
 cd ..
-rm -fr vercors-web
+rm -rf vercors-web
 
 echo "vercors-web updated, don't forget to also deploy it!"
 
