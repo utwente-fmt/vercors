@@ -25,7 +25,8 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
         (Set(), true)
       case ASTReserved.FullPerm | ASTReserved.NoPerm | ASTReserved.ReadPerm | ASTReserved.Null =>
         (Set(), false)
-      case _ => ???
+      case _ =>
+        throw UnrecognizedExpression(node)
     }
     case NameExpression(name, _, _) =>
       (Set(), true)
