@@ -50,7 +50,7 @@ class Program {
 				ensures Future(model, 1\|xs|, model.done({:A[tid]:}));
 			{
 				atomic(inv) {
-					action(model, 1\|xs|, model.done({:A[tid]:}), model.incr(A[tid])) {
+					action(model, 1\|xs|, model.done(A[tid]), model.incr(A[tid])) {
 						model.sum = model.sum + A[tid];
 					}
 				}

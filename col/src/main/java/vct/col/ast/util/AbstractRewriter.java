@@ -924,7 +924,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
 
   public void visit(InlineQuantifierPattern pattern) {
-    result = new InlineQuantifierPattern(rewrite(pattern.inner()));
-    result.setOrigin(pattern.getOrigin());
+    result = create.pattern(pattern.getOrigin(), rewrite(pattern.inner()));
   }
 }
