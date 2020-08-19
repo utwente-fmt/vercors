@@ -10,7 +10,15 @@ import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 
 case class UnrecognizedExpression(node: ASTNode) extends Exception
 
+/**
+  * Tries to add triggers to binding expressions that have none using some heuristics.
+  */
 case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
+  /**
+    * Collect potentially admissible patterns from an expression
+    * @param node the expression to collect
+    * @return A set of viable patterns, and whether the node itself may be contained in a pattern
+    */
   def collectPatterns(node: ASTNode): (Set[ASTNode], Boolean) = node match {
     case NameExpression(_, reserved, NameExpressionKind.Reserved) => reserved match {
       case ASTReserved.Result =>

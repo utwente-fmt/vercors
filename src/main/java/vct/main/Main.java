@@ -29,7 +29,6 @@ import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.JavaSyntax;
 import vct.col.ast.syntax.Syntax;
 import vct.col.util.FeatureScanner;
-import vct.col.util.FindBinders;
 import vct.col.util.JavaTypeCheck;
 import vct.col.util.SimpleTypeCheck;
 import vct.experiments.learn.SpecialCountVisitor;
