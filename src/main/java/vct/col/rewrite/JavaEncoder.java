@@ -569,6 +569,7 @@ public class JavaEncoder extends AbstractRewriter {
   
   @Override
   public ProgramUnit rewriteAll(){
+    // FIXME EncodedGlobalVariables is duplicate with GlobalStatics?
     globals=create.ast_class("EncodedGlobalVariables",ClassKind.Plain,null,null,null);
     globals.setOrigin(new MessageOrigin("Generated code: Encoded global variables"));
     ProgramUnit res=super.rewriteOrdered();

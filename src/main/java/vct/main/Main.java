@@ -249,7 +249,6 @@ public class Main {
         passes.add("assign");  // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
         passes.add("finalize_args"); // declare new variables to never have to change the arguments (which isn't allowed in silver)
         passes.add("reorder"); // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
-        passes.add("simplify_calls"); // getting rid of some class names?
         if (infer_modifies.get()) {
             passes.add("standardize");
             passes.add("check");
@@ -367,7 +366,6 @@ public class Main {
                 passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
                 passes.add("standardize");
             }
-            // passes.add("recognize_multidim"); // translate matrices as a flat array (like c does in memory)
             passes.add("check");
             passes.add("simplify_quant"); // reduce nesting of quantifiers
             passes.add("simplify_quant_relations");
@@ -494,7 +492,6 @@ public class Main {
         passes.add("flatten_before_after"); // method calls can have 'before/after' blocks of ghost-code attached. Put it around all method calls.
         if (silver.used()) {
             passes.add("silver-reorder"); // no declarations in branches (only in loops)
-            // passes.add("silver-identity"); // identity functions are used to not optimize expressions. Add it to silver.
         }
         passes.add("standardize");
         passes.add("check");

@@ -206,12 +206,6 @@ public class Passes {
                 return arg;
             }
         });
-        defined_passes.put("erase", new CompilerPass("Erase generic types") {
-            public ProgramUnit apply(ProgramUnit arg, String... args) {
-                arg = new GenericPass1(arg).rewriteAll();
-                return arg;
-            }
-        });
         defined_passes.put("explicit_encoding", new CompilerPass("encode required and ensured permission as ghost arguments") {
             public ProgramUnit apply(ProgramUnit arg, String... args) {
                 return new ExplicitPermissionEncoding(arg).rewriteAll();
@@ -301,11 +295,6 @@ public class Passes {
                 return new PVLCompiler(arg).rewriteAll();
             }
         });
-        defined_passes.put("recognize_multidim", new CompilerPass("Recognize multi-dimensional arrays") {
-            public ProgramUnit apply(ProgramUnit arg, String... args) {
-                return new RecognizeMultiDim(arg).rewriteAll();
-            }
-        });
         defined_passes.put("reorder", new CompilerPass("reorder statements (e.g. all declarations at the start of a bock") {
             public ProgramUnit apply(ProgramUnit arg, String... args) {
                 return new ReorderAssignments(arg).rewriteAll();
@@ -382,11 +371,6 @@ public class Passes {
                 return new ScaleAlways(arg).rewriteAll();
             }
         });
-        defined_passes.put("silver-identity", new CompilerPass("Implement identity operator for Silver") {
-            public ProgramUnit apply(ProgramUnit arg, String... args) {
-                return new SilverImplementIdentity(arg).rewriteAll();
-            }
-        });
         defined_passes.put("silver-optimize", new CompilerPass("Optimize expressions for Silver") {
             public ProgramUnit apply(ProgramUnit arg, String... args) {
                 RewriteSystem trs = RewriteSystems.getRewriteSystem("silver_optimize");
@@ -397,11 +381,6 @@ public class Passes {
             public ProgramUnit apply(ProgramUnit arg, String... args) {
                 RewriteSystem trs = RewriteSystems.getRewriteSystem("chalice_optimize");
                 return trs.normalize(arg);
-            }
-        });
-        defined_passes.put("simplify_calls", new CompilerPass("???") {
-            public ProgramUnit apply(ProgramUnit arg, String... args) {
-                return new SimplifyCalls(arg).rewriteAll();
             }
         });
         defined_passes.put("simplify_expr", new CompilerPass("Simplify expressions") {

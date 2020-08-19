@@ -155,6 +155,7 @@ public class JavaPostProcessor extends AbstractRewriter {
         }
         break;
       }
+      // FIXME I don't think python-like comparison chaining (a < b < c < d) is an actual java feature (?)
       case LT:
       case LTE:
       {

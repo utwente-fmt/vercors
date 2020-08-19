@@ -26,8 +26,8 @@ import vct.col.util.FeatureScanner;
  */
 public class PVLEncoder extends AbstractRewriter {
 
-  private static String INV="lock_invariant";
-  private static String HELD="lock_held";
+  public static final String INV="lock_invariant";
+  public static final String HELD="lock_held";
 
   public PVLEncoder(ProgramUnit source) {
     super(source);

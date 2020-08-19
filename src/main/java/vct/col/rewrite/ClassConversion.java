@@ -138,12 +138,6 @@ public class ClassConversion extends AbstractRewriter {
   public void visit(StructValue v) {
     if (v.type() instanceof ClassType) {
       Abort("struct value used for constructor call");
-      // If this is actually a constructor call.
-      String method = v.type() + SEP + v.type();
-      MethodInvokation res=create.invokation(null, null, method, rewrite(v.valuesArray()));
-      res.set_before(rewrite(v.get_before()));
-      res.set_after(rewrite(v.get_after()));
-      result=res;
     } else {
       super.visit(v);
     }
@@ -183,9 +177,6 @@ public class ClassConversion extends AbstractRewriter {
         method+=SEP+s.method();
         if (!def.isStatic()){
           args.add(rewrite(s.object()));
-        }
-        if (def.kind==Kind.Predicate && !s.object().isReserved(ASTReserved.This) && (!fold_unfold) ){
-          //extra=create.expression(StandardOperator.NEQ,rewrite(s.object()),create.reserved_name(ASTReserved.Null));
         }
       }      
     }

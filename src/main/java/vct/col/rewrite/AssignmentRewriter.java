@@ -17,6 +17,7 @@ public class AssignmentRewriter extends AbstractRewriter {
     super(source);
   }
 
+  // FIXME this is duplicate with JavaPostProcessor
   @Override
   public void visit(ASTSpecial s){
     switch(s.kind){
