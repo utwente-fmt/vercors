@@ -47,7 +47,9 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
     case StructValue(_, _, xs) =>
       (xs.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
     case BindingExpression(_, _, _, _, select, main) =>
-      (collectPatterns(select)._1 ++ collectPatterns(main)._1, false)
+      (Option(select).map(collectPatterns).getOrElse(Set())
+        ++ collectPatterns(main)._1,
+        false)
     case _ =>
       throw UnrecognizedExpression(node)
   }
