@@ -8,6 +8,8 @@ import vct.col.ast.util.AbstractRewriter
 import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, Implies, LT, LTE, Member, NEQ, Scale, Size, Subscript}
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 
+case class UnrecognizedExpression(node: ASTNode) extends Exception
+
 case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
   def collectPatterns(node: ASTNode): (Set[ASTNode], Boolean) = node match {
     case NameExpression(_, reserved, NameExpressionKind.Reserved) => reserved match {
@@ -44,9 +46,10 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
       }
     case StructValue(_, _, xs) =>
       (xs.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
+    case BindingExpression(_, _, _, _, select, main) =>
+      (collectPatterns(select)._1 ++ collectPatterns(main)._1, false)
     case _ =>
-      Abort("%s", node)
-      ???
+      throw UnrecognizedExpression(node)
   }
 
   def mentions(node: ASTNode): Set[String] = node match {
@@ -92,23 +95,29 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
   def tryComputeTrigger(decls: Array[DeclarationStatement], cond: ASTNode, body: ASTNode): Option[Set[Set[ASTNode]]] = {
     val names = decls.map(_.name).toSet
 
-    computeTriggers(names, body) match {
-      case Seq() => None
-      case Seq(set) => Some(Set(set))
-      case triggers => body match {
-        case op@OperatorExpression(EQ | NEQ | LT | GT | LTE | GTE, List(left, right)) =>
-          val leftTriggers = triggers.filter(_.forall(contains(left, _)))
-          val rightTriggers = triggers.filter(_.forall(contains(right, _)))
-          if(leftTriggers.size == 1 && rightTriggers.size == 1) {
-            // Allow relational operators at the top if both sides generate exactly one trigger
-            Some((leftTriggers ++ rightTriggers).toSet)
-          } else if(leftTriggers.size == 1 && op.operator == EQ) {
-            Some(leftTriggers.toSet)
-          } else {
-            None
-          }
-        case _ => None
+    try {
+      computeTriggers(names, body) match {
+        case Seq() => None
+        case Seq(set) => Some(Set(set))
+        case triggers => body match {
+          case op@OperatorExpression(EQ | NEQ | LT | GT | LTE | GTE, List(left, right)) =>
+            val leftTriggers = triggers.filter(_.forall(contains(left, _)))
+            val rightTriggers = triggers.filter(_.forall(contains(right, _)))
+            if (leftTriggers.size == 1 && rightTriggers.size == 1) {
+              // Allow relational operators at the top if both sides generate exactly one trigger
+              Some((leftTriggers ++ rightTriggers).toSet)
+            } else if (leftTriggers.size == 1 && op.operator == EQ) {
+              Some(leftTriggers.toSet)
+            } else {
+              None
+            }
+          case _ => None
+        }
       }
+    } catch {
+      case unrecognized: UnrecognizedExpression =>
+        Warning("Cannot determine whether this expression may or may not occur in a trigger: %s", unrecognized.node)
+        None
     }
   }
 
