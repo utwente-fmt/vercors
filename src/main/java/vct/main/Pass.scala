@@ -6,19 +6,21 @@ import vct.logging.{PassAddVisitor, PassReport}
 import scala.annotation.varargs
 
 abstract class Pass(val description: String) {
-  def getDescripion = description
-
-  @varargs def apply_pass(reportIn: PassReport, args: String*): PassReport = {
+  def apply_pass(reportIn: PassReport, args: Array[String]): PassReport = {
     val arg = reportIn.getOutput
     val reportOut = new PassReport(arg)
     reportOut.add(new PassAddVisitor(reportIn))
-    reportOut.setOutput(apply(arg, args:_*))
+    reportOut.setOutput(apply(arg, args))
     reportOut
   }
 
-  @varargs protected def apply(report: PassReport, arg: ProgramUnit, args: String*): ProgramUnit =
-    apply(arg, args:_*)
+  protected def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit =
+    apply(arg, args)
 
-  @varargs protected def apply(arg: ProgramUnit, args: String*): ProgramUnit =
+  protected def apply(arg: ProgramUnit, args: Array[String]): ProgramUnit =
     ???
+}
+
+case class SimplePass(override val description: String, applyImpl: (ProgramUnit, Array[String]) => ProgramUnit) extends Pass(description) {
+  override def apply(arg: ProgramUnit, args: Array[String]): ProgramUnit = applyImpl(arg, args)
 }

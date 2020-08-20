@@ -190,7 +190,7 @@ public class Main {
         if (help_passes.get()) {
             Output("The following passes are available:");
             for (Entry<String, Pass> entry : Passes.defined_passes().entrySet()) {
-                Output(" %-12s : %s", entry.getKey(), entry.getValue().getDescripion());
+                Output(" %-12s : %s", entry.getKey(), entry.getValue().description());
             }
             throw new HREExitException(0);
         }
