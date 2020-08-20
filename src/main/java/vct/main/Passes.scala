@@ -162,13 +162,14 @@ object Passes {
     "kernel-split" -> SimplePass("Split kernels into main, thread and barrier.", new KernelRewriter(_).rewriteAll),
     "pvl-encode" -> SimplePass("Encode PVL builtins for verification.", new PVLEncoder(_).rewriteAll),
     "magicwand" -> new AbstractPass("Encode magic wand proofs with abstract predicates") {
-      override protected def apply(reportIn: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
+      override def apply_pass(reportIn: PassReport, args: Array[String]): PassReport = {
         val arg = reportIn.getOutput
         val reportOut = new PassReport(arg)
         val map = new ErrorMapping(reportIn)
         try {
           val result = new WandEncoder(arg, map).rewriteAll
           reportOut.setOutput(result)
+          reportOut
         } catch {
           case e: Exception =>
             throw new HREError("unexpected exception %s", e)
@@ -235,13 +236,14 @@ object Passes {
     "standardize" -> SimplePass("Standardize representation", new Standardize(_).rewriteAll),
     "strip_constructors" -> SimplePass("Strip constructors from classes", new StripConstructors(_).rewriteAll),
     "voidcalls" -> new AbstractPass("Replace return value by out parameter.") {
-      override protected def apply(reportIn: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
+      override def apply_pass(reportIn: PassReport, args: Array[String]): PassReport = {
         val arg = reportIn.getOutput
         val reportOut = new PassReport(arg)
         val map = new ErrorMapping(reportIn)
         try {
           val result = new VoidCalls(arg, map).rewriteAll
           reportOut.setOutput(result)
+          reportOut
         } catch {
           case e: Exception =>
             throw new HREError("unexpected exception %s", e)
