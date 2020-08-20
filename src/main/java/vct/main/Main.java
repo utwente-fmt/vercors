@@ -12,10 +12,13 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREExitException;
 import hre.tools.TimeKeeper;
+import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.decl.ASTDeclaration;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.decl.SpecificationFormat;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.features.RainbowVisitor;
 import vct.col.util.FeatureScanner;
 import vct.experiments.learn.SpecialCountVisitor;
 import vct.logging.PassReport;
@@ -295,6 +298,7 @@ public class Main {
 
         passes.add("standardize");
         passes.add("java-check"); // marking function: stub
+        passes.add("rainbow");
 
         if (features.usesOperator(StandardOperator.AddrOf)) {
             passes.add("lift_declarations");
