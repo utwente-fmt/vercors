@@ -189,7 +189,7 @@ public class Main {
 
         if (help_passes.get()) {
             Output("The following passes are available:");
-            for (Entry<String, Pass> entry : Passes.defined_passes().entrySet()) {
+            for (Entry<String, AbstractPass> entry : Passes.BY_KEY_JAVA().entrySet()) {
                 Output(" %-12s : %s", entry.getKey(), entry.getValue().description());
             }
             throw new HREExitException(0);
@@ -586,7 +586,7 @@ public class Main {
                 }
             }
 
-            Pass task = Passes.defined_passes().get(pass);
+            AbstractPass task = Passes.BY_KEY_JAVA().get(pass);
 
             if(task == null) {
                 Fail("unknown pass %s", pass);
