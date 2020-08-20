@@ -1,6 +1,7 @@
 package vct.col.features
 
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, TypeVariable}
+import vct.col.ast.stmt
 import vct.col.ast.stmt.composite.{BlockStatement, ForEachLoop, IfStatement, LoopStatement, ParallelAtomic, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
@@ -57,6 +58,10 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += InlinePredicate
     if(m.kind == Method.Kind.Pure && m.getBody.isInstanceOf[BlockStatement])
       features += PureImperativeMethods
+    if(m.kind == Method.Kind.Constructor)
+      features += Constructors
+    if(!m.getReturnType.isPrimitive(PrimitiveSort.Void))
+      features += NonVoidMethods
   }
 
   override def visit(special: ASTSpecial): Unit = special.kind match {
@@ -190,6 +195,9 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     if(block.getStatements.lastIndexWhere(_.isInstanceOf[DeclarationStatement])
         > block.getStatements.indexWhere(!_.isInstanceOf[DeclarationStatement]))
       features += ScatteredDeclarations
+
+  override def visit(block: stmt.composite.VectorBlock): Unit =
+    features += VectorBlock
 }
 
 sealed trait Feature
@@ -232,3 +240,6 @@ case object Arrays extends Feature
 case object ComplexSubscript extends Feature
 case object UnscaledPredicateApplication extends Feature
 case object NotStandardized extends Feature
+case object Constructors extends Feature
+case object VectorBlock extends Feature
+case object NonVoidMethods extends Feature
