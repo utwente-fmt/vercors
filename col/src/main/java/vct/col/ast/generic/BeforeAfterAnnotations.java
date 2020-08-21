@@ -12,4 +12,11 @@ public interface BeforeAfterAnnotations {
   
   public BlockStatement get_after();
 
+  default boolean hasBefore() {
+    return get_before().size() > 0;
+  }
+
+  default boolean hasAfter() {
+    return get_after().size() > 0;
+  }
 }

@@ -13,7 +13,6 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
-import vct.parsers.JavaResolver;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.rewrite.DeriveModifies;
@@ -122,6 +121,9 @@ public class Main
       clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after");
       StringListSetting stop_after=new StringListSetting();
       clops.add(stop_after.getAppendOption("Stop after given passes"),"stop-after");
+
+      BooleanSetting abruptTerminationViaExceptions = new BooleanSetting(false);
+      clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions");
 
 
       BooleanSetting explicit_encoding=new BooleanSetting(false);
@@ -298,7 +300,7 @@ public class Main
         }
         passes.add("standardize");
         passes.add("check");
-        passes.add("voidcalls"); // all methods in Boogie are void, so use an out parameter instead of 'return..'
+        passes.add("create-return-parameter"); // all methods in Boogie are void, so use an out parameter instead of 'return..'
         passes.add("standardize");
         passes.add("check");
         passes.add("flatten");
@@ -314,7 +316,7 @@ public class Main
         passes.add("java_resolve");
         passes.add("standardize");
         passes.add("check");
-        passes.add("voidcalls");
+        passes.add("create-return-parameter");
         passes.add("standardize");
         passes.add("check");
         //passes.add("flatten");
@@ -323,21 +325,52 @@ public class Main
         passes.add("dafny"); // run backend
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
+
+        boolean usesBreakContinue = features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue);
+
+        if (usesBreakContinue) {
+          passes.add("specify-implicit-labels");
+        }
+
+        if (features.usesSpecial(ASTSpecial.Kind.Continue)) {
+          passes.add("continue-to-break");
+        }
+
         passes.add("java_resolve");
+        passes.add("standardize");
+        passes.add("java-check");
+
+        if (features.usesSwitch()) {
+          passes.add("unfold-switch");
+        }
+
+        passes.add("java-check");
+
+        if ((features.usesFinally() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
+          passes.add("break-return-to-exceptions");
+        } else if (usesBreakContinue || features.usesReturn()) {
+          passes.add("break-return-to-goto");
+        }
+
+        if (features.usesSynchronizedModifier() || features.usesSynchronizedStatement()) {
+          passes.add("unfold-synchronized");
+        }
 
         if (silver.used() &&
-           (features.usesSpecial(ASTSpecial.Kind.Lock)
-          ||features.usesSpecial(ASTSpecial.Kind.Unlock)
-          ||features.usesSpecial(ASTSpecial.Kind.Fork)
-          ||features.usesSpecial(ASTSpecial.Kind.Join)
-          ||features.usesOperator(StandardOperator.PVLidleToken)
-          ||features.usesOperator(StandardOperator.PVLjoinToken)
+           ( features.usesSpecial(ASTSpecial.Kind.Lock)
+          || features.usesSpecial(ASTSpecial.Kind.Unlock)
+          || features.usesSpecial(ASTSpecial.Kind.Fork)
+          || features.usesSpecial(ASTSpecial.Kind.Join)
+          || features.usesOperator(StandardOperator.PVLidleToken)
+          || features.usesOperator(StandardOperator.PVLjoinToken)
+          || features.usesSynchronizedStatement()
+          || features.usesSynchronizedModifier()
         )){
           passes.add("pvl-encode"); // translate built-in statements into methods and fake method calls.
         }
 
         passes.add("standardize");
-        passes.add("java-check"); // marking function: stub
+        passes.add("check"); // marking function: stub
 
         if(features.usesOperator(StandardOperator.AddrOf)) {
           passes.add("lift_declarations");
@@ -352,13 +385,13 @@ public class Main
         passes.add("check");
         passes.add("standardize");
 
-        passes.add("java-check");
+        passes.add("check");
         passes.add("pointers_to_arrays");
-        passes.add("java-check");
+        passes.add("check");
         passes.add("desugar_valid_pointer");
-        passes.add("java-check");
+        passes.add("check");
         passes.add("array_null_values"); // rewrite null values for array types into None
-        passes.add("java-check");
+        passes.add("check");
         if (silver.used()){
           // The new encoding does not apply to Chalice yet.
           // Maybe it never will.
@@ -429,7 +462,6 @@ public class Main
           passes.add("check");
         }
 
-        boolean has_type_adt=false;
         if (silver.used()) {
           if (  features.usesOperator(StandardOperator.Instance)
             || features.usesInheritance()
@@ -438,7 +470,6 @@ public class Main
             passes.add("add-type-adt"); // add java's types of the programs as silicon's axiomatic datatypes
             passes.add("standardize");
             passes.add("check");
-            has_type_adt=true;
           }
         }
 
@@ -490,6 +521,11 @@ public class Main
         passes.add("generate_adt_functions");
         passes.add("check");
         passes.add("flatten");
+        passes.add("check");
+        passes.add("intro-exc-var");
+        passes.add("check");
+        passes.add("encode-try-throw-signals");
+        passes.add("check");
         passes.add("assign");
         passes.add("reorder");
         passes.add("standardize");
@@ -522,12 +558,9 @@ public class Main
           passes.add("check");
         }
 
+        passes.add("create-return-parameter");
+        passes.add("check");
 
-        if (has_type_adt){
-          passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
-        } else {
-          passes.add("voidcalls");
-        }
         passes.add("standardize");
         passes.add("check");
 
@@ -713,8 +746,9 @@ public class Main
       }
     });
     defined_passes.put("check",new CompilerPass("run a basic type check"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        new SimpleTypeCheck(arg).check();
+      @Override
+      public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
+        new SimpleTypeCheck(report, arg).check();
         return arg;
       }
     });
@@ -741,8 +775,9 @@ public class Main
       }
     });
     defined_passes.put("java-check",new CompilerPass("run a Java aware type check"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        new JavaTypeCheck(arg).check();
+      @Override
+      public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
+        new JavaTypeCheck(report, arg).check();
         return arg;
       }
     });
@@ -1083,12 +1118,7 @@ public class Main
         return new StripConstructors(arg).rewriteAll();
       }
     });
-    branching_pass(defined_passes,"voidcalls","Replace return value by out parameter.",VoidCalls.class);
-    defined_passes.put("voidcallsthrown",new CompilerPass("Replace return value and thrown exceptions by out parameters."){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new VoidCallsThrown(arg).rewriteAll();
-      }
-    });
+    branching_pass(defined_passes,"create-return-parameter","Replace return value by out parameter.",CreateReturnParameter.class);
     compiler_pass(defined_passes,"vector-encode","Encode vector blocks using the vector library",VectorEncode.class);
     defined_passes.put("chalice-preprocess",new CompilerPass("Pre processing for chalice"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
@@ -1138,6 +1168,54 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("specify-implicit-labels", new CompilerPass("Insert explicit labels for break statements in while loops.") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new SpecifyImplicitLabels(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("break-return-to-goto", new CompilerPass("Rewrite break, return into jumps") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new BreakReturnToGoto(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("break-return-to-exceptions", new CompilerPass("Rewrite break, continue into exceptions") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new BreakReturnToExceptions(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("unfold-switch", new CompilerPass("Unfold switch to chain of if-statements that jump to sections.") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new UnfoldSwitch(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("continue-to-break", new CompilerPass("Convert continues into breaks") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new ContinueToBreak(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("unfold-synchronized", new CompilerPass("Convert synchronized to try-finally") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new UnfoldSynchronized(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("intro-exc-var", new CompilerPass("Introduces the auxiliary sys__exc variable for use by excetional control flow") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new IntroExcVar(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("encode-try-throw-signals", new CompilerPass("Encodes exceptional control flow into gotos and exceptional contracts into regular contracts") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new EncodeTryThrowSignals(arg).rewriteAll();
+      }
+    });
   }
 
 

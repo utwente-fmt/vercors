@@ -316,7 +316,8 @@ typeArgument
     ;
 
 qualifiedNameList
-    :   qualifiedName (',' qualifiedName)*
+    :   qualifiedName
+    |   qualifiedName ',' qualifiedNameList
     ;
 
 formalParameters

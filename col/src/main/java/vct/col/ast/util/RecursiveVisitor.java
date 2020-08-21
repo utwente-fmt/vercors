@@ -241,7 +241,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(c.pre_condition);
       dispatch(c.invariant);
       // Yielded variables are not known before method starts.
-      dispatch(c.yields); 
+      dispatch(c.yields);
+      dispatch(c.signals);
     }
     dispatch(m.getArgs());
     dispatch(m.getBody());
@@ -344,9 +345,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(c.invariant);
     dispatch(c.pre_condition);
     dispatch(c.post_condition);
-    if (c.signals != null) {
-      dispatch(c.signals);
-    }
+    dispatch(c.signals);
   }
 
   public void visit(ASTSpecial s){
@@ -390,13 +389,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override
   public void visit(TryCatchBlock tcb) {
     dispatch(tcb.main());
-    for (CatchClause c : tcb.catches()) {
-      enter(c.block());
-      dispatch(c.javaCatchTypes());
-      for(ASTNode S:c.block()){
-        dispatch(S);
-      }
-      leave(c.block());
+    for (CatchClause cc : tcb.catches()) {
+        dispatch(cc);
     }
     dispatch(tcb.after());
   }
@@ -501,5 +495,17 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       for(ASTNode n:c.cases) dispatch(n);
       for(ASTNode n:c.stats) dispatch(n);
     }
+  }
+
+  @Override
+  public void visit(CatchClause cc) {
+    dispatch(cc.javaCatchTypes());
+    dispatch(cc.block());
+  }
+
+  @Override
+  public void visit(SignalsClause sc) {
+    dispatch(sc.type());
+    dispatch(sc.condition());
   }
 }
