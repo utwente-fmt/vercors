@@ -27,16 +27,6 @@ public class AddTypeADT extends AbstractRewriter {
     create.setOrigin(new MessageOrigin("Generated type system ADT"));
     adt=create.adt(type_adt);
     adt.add_map(create.function_decl(
-        create.primitive_type(PrimitiveSort.Boolean),
-        null,
-        "instanceof",
-        new DeclarationStatement[]{
-          create.field_decl("t1",create.class_type(type_adt)),
-          create.field_decl("t2",create.class_type(type_adt))
-        },
-        null
-    ));
-    adt.add_map(create.function_decl(
             create.class_type(type_adt),
             null,
             DIRECT_SUPERCLASS,
@@ -45,27 +35,34 @@ public class AddTypeADT extends AbstractRewriter {
             },
             null
     ));
-    addInstanceOfAxiom();
+
+    ContractBuilder cb = new ContractBuilder();
+    cb.ensures(create.expression(StandardOperator.EQ,
+            create.reserved_name(ASTReserved.Result),
+            create.expression(StandardOperator.Or,
+                    create.expression(StandardOperator.EQ, create.local_name("t"), create.local_name("u")),
+                    create.expression(StandardOperator.EQ,
+                            create.domain_call(type_adt, DIRECT_SUPERCLASS, create.local_name("t")),
+                            create.local_name("u")
+                    )
+            )
+    ));
+
+    Method instanceofMethod = create.function_decl(
+            create.primitive_type(PrimitiveSort.Boolean),
+            cb.getContract(),
+            "instanceof",
+            new DeclarationStatement[]{
+                    create.field_decl("t", create.class_type(type_adt)),
+                    create.field_decl("u", create.class_type(type_adt))
+            },
+            null
+    );
+    instanceofMethod.setFlag(ASTFlags.STATIC, true);
+
     create.leave();
     target().add(adt);
-  }
-
-  public void addInstanceOfAxiom() {
-    adt.add_axiom(create.axiom("instanceof_superclass", create.forall(
-            create.constant(true),
-            create.expression(StandardOperator.EQ,
-                    create.domain_call(type_adt, "instanceof", create.local_name("t"), create.local_name("u")),
-                    create.expression(StandardOperator.Or,
-                            create.expression(StandardOperator.EQ, create.local_name("t"), create.local_name("u")),
-                            create.expression(StandardOperator.EQ,
-                                    create.domain_call(type_adt, DIRECT_SUPERCLASS, create.local_name("t")),
-                                    create.local_name("u")
-                                    )
-                            )
-                    ),
-            create.field_decl("t", create.class_type(type_adt)),
-            create.field_decl("u", create.class_type(type_adt))
-    )));
+    target().add(instanceofMethod);
   }
 
   @Override
@@ -155,16 +152,7 @@ public class AddTypeADT extends AbstractRewriter {
       }
       break;
     case Instance:
-      result=create.expression(StandardOperator.And,
-          create.expression(StandardOperator.NEQ,
-              rewrite(e.arg(0)),
-              create.reserved_name(ASTReserved.Null)
-          ),
-          create.invokation(create.class_type(type_adt), null,"instanceof",
-            create.expression(StandardOperator.TypeOf,rewrite(e.arg(0))),
-            create.invokation(create.class_type(type_adt),null,"class_"+e.arg(1))
-          )
-      );
+        result = exprInstanceof(create, copy_rw, rewrite(e.arg(0)), rewrite((ClassType) e.arg(1)));
       break;
     default:
       super.visit(e);
@@ -186,7 +174,7 @@ public class AddTypeADT extends AbstractRewriter {
               copyRw.rewrite(expr),
               create.reserved_name(ASTReserved.Null)
               ),
-            create.invokation(create.class_type(type_adt), null,"instanceof",
+            create.invokation(null, null,"instanceof",
               create.expression(StandardOperator.TypeOf, copyRw.rewrite(expr)),
               create.invokation(create.class_type(type_adt),null,"class_" + type
               )
