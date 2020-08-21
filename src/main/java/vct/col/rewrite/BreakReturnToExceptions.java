@@ -49,6 +49,12 @@ public class BreakReturnToExceptions extends AbstractRewriter {
      */
     private int uniqueMethodIdCounter = 0;
 
+    /**
+     * Type of the exception thrown if the method returns.
+     * Generated fresh for each method.
+     */
+    private ClassType returnExceptionType = null;
+
     public BreakReturnToExceptions(ProgramUnit source) {
         super(source);
     }
@@ -128,10 +134,6 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         return create.class_type(name);
     }
 
-    public ClassType getReturnExceptionType(Method method) {
-        return getExceptionType("return", method.getName() + "_" + uniqueMethodIdCounter, method.getReturnType());
-    }
-
     @Override
     public void post_visit(ASTNode node) {
         // Wrap statement in try-catch if one of the labels is broken to
@@ -171,17 +173,24 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             return;
         }
 
+        FeatureScanner scan = FeatureScanner.scan(method);
+
+        if (scan.usesReturn()) {
+            returnExceptionType = getExceptionType("return", method.getName() + "_" + uniqueMethodIdCounter++, method.getReturnType());
+        } else {
+            returnExceptionType = null;
+        }
+
         super.visit(method);
         Method resultMethod = (Method) result;
 
-        if (FeatureScanner.scan(method).usesReturn()) {
+        if (scan.usesReturn()) {
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
 
-            ClassType exceptionType = getReturnExceptionType(method);
             String catchVarName = getUniqueName("ucv");
             ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), FIELD_VALUE);
             ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
-            tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { exceptionType }, create.block(returnStatement));
+            tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { returnExceptionType }, create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
         }
 
@@ -189,8 +198,6 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             Warning("Some break labels were not deleted, even though they should be. This indicates a logic error.");
             breakLabels.clear();
         }
-
-        uniqueMethodIdCounter += 1;
     }
 
     public void visit(ASTSpecial special) {
@@ -217,13 +224,11 @@ public class BreakReturnToExceptions extends AbstractRewriter {
     public void visit(ReturnStatement returnStatement) {
         ASTNode expr = returnStatement.getExpression();
 
-        ClassType exceptionType = getReturnExceptionType(current_method());
-
         MethodInvokation exceptionObject;
         if (expr != null){
-            exceptionObject = create.new_object(exceptionType, rewrite(expr));
+            exceptionObject = create.new_object(returnExceptionType, rewrite(expr));
         } else {
-            exceptionObject = create.new_object(exceptionType);
+            exceptionObject = create.new_object(returnExceptionType);
         }
 
         if (returnStatement.hasBefore() || returnStatement.hasAfter()) {
@@ -232,7 +237,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             }
 
             String intermediateVarName = getUniqueName("ret");
-            currentBlock.add(create.field_decl(intermediateVarName, exceptionType));
+            currentBlock.add(create.field_decl(intermediateVarName, returnExceptionType));
             currentBlock.add(create.assignment(create.local_name(intermediateVarName), exceptionObject));
 
             // Account for use of \result, replace it with intermediateVarName
