@@ -271,7 +271,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case TypeArgumentList1(x, _, xs) => convertType(x) +: convertTypeList(xs)
     case CatchType0(x) => Seq(convertType(x))
     case CatchType1(x, "|", xs) => convertType(x) +: convertTypeList(xs)
-    case QualifiedNameList(names) => names.map(convertType(_))
+    case QualifiedNameList0(qualifiedName) => Seq(convertType(qualifiedName))
+    case QualifiedNameList1(qualifiedName, ",", qualifiedNames) => Seq(convertType(qualifiedName)) ++ convertTypeList(qualifiedNames)
   }
 
   def tCell(t: Type) = create.primitive_type(PrimitiveSort.Cell, t)
@@ -1158,9 +1159,4 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValEmbedWithThen0(blocks) => blocks.flatMap(convertValWithThen)
   }
   /* === End of duplicated code block === */
-}
-
-object QualifiedNameList {
-  def unapply(qualifiedNameList: JavaParser.QualifiedNameList0Context): Option[Seq[QualifiedNameContext]] =
-    Some(qualifiedNameList.qualifiedName().asScala)
 }
