@@ -195,8 +195,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         }
 
         if (!breakLabels.isEmpty()) {
-            Warning("Some break labels were not deleted, even though they should be. This indicates a logic error.");
-            breakLabels.clear();
+            Abort("Some break labels were not deleted, even though they should be. This indicates a logic error.");
         }
     }
 

@@ -94,7 +94,7 @@ public class BreakReturnToGoto extends AbstractRewriter {
         super.visit(method);
 
         if (breakLabels.size() + continueLabels.size() != 0) {
-            Warning("Some break or continue labels were not deleted, even though they should be. This indicates a logic error.");
+            Abort("Some break or continue labels were not deleted, even though they should be. This indicates a logic error.");
         }
 
         if (FeatureScanner.scan(method).usesReturn()) {
