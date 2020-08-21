@@ -18,19 +18,25 @@ cd ..
 
 echo "vercors-web updated, don't forget to also deploy it!"
 
-# get certificate manually
-echo | openssl s_client -connect 130.89.1.50:443 | openssl x509 -out ./curlftpcert.pem
-
-# mount
+## get certificate manually
+#echo | openssl s_client -connect 130.89.1.50:443 | openssl x509 -out ./curlftpcert.pem
+#
+## mount
 mkdir ftpmnt
-curlftpfs -o ssl,cacert=./curlftpcert.pem,no_verify_peer,user=u869582 webservice.utwente.nl ./ftpmnt/
+#curlftpfs -o ssl,cacert=./curlftpcert.pem,no_verify_peer,user=u869582 webservice.utwente.nl ./ftpmnt/
 
 changedFiles=$(cd vercors-web; git diff --name-only)
 
 printf "$changedFiles\n"
 
+for f in $changedFiles
+do
+  printf "uploading file: $f\n"
+  cp vercors-web/$f ftpmnt/site/$f --verbose
+done
+
 #umount ftpmnt
 #rm curlftpcert.pem
 #rm -r ftpmnt
-#rm vercors-web -rf
+rm vercors-web -rf
 
