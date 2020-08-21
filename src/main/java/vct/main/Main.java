@@ -36,7 +36,6 @@ import static hre.lang.System.*;
 public class Main {
     public static Map<String, SpecialCountVisitor> counters = new HashMap<String, SpecialCountVisitor>();
 
-    private long wallStart;
     private PassReport report;
     private TimeKeeper tk;
 
@@ -300,241 +299,241 @@ public class Main {
         passes.add("java-check"); // marking function: stub
         passes.add("rainbow");
 
-        if (features.usesOperator(StandardOperator.AddrOf)) {
-            passes.add("lift_declarations");
-        }
-
-        passes.add("check");
-        passes.add("infer_adt_types");
-
-        passes.add("check");
-        passes.add("adt_operator_rewrite");
-
-        passes.add("check");
-        passes.add("standardize");
-
-        passes.add("java-check");
-        passes.add("pointers_to_arrays");
-        passes.add("java-check");
-        passes.add("desugar_valid_pointer");
-        passes.add("java-check");
-        passes.add("array_null_values"); // rewrite null values for array types into None
-        passes.add("java-check");
-        if (silver.used()) {
-            // The new encoding does not apply to Chalice yet.
-            // Maybe it never will.
-            passes.add("java-encode"); // disambiguate overloaded stuff, copy inherited functions and specifications
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        if (sat_check.get()) {
-            passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        if (features.usesIterationContracts() || features.usesPragma("omp")) {
-            passes.add("openmp2pvl"); // Converts *all* parallel loops! (And their compositions) Into ordered set of parallel blocks in pvl.
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        passes.add("propagate-invariants"); // desugar \invariant (see \invariant documentation)
-        passes.add("standardize");
-        passes.add("check");
-        if (features.usesOperator(StandardOperator.Wand)) {
-            passes.add("magicwand"); // translate magicwand uses (proof oblications) into method calls
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        passes.add("inline"); // inline predicates that are marked as inline (so 'fold/unfold' needn't be done)
-        passes.add("standardize");
-        passes.add("check");
-
-        if (features.usesCSL()) {
-            passes.add("csl-encode"); //
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        if (features.hasVectorBlocks() || features.usesPragma("omp")) {
-            passes.add("vector-encode"); // vector operations for supporting Saeed's paper
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        if (silver.used()) {
-            if (features.usesIterationContracts() || features.usesParallelBlocks() || features.usesCSL() || features.usesPragma("omp")) {
-                passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
-                passes.add("standardize");
-            }
-            passes.add("check");
-            passes.add("simplify_quant"); // reduce nesting of quantifiers
-            passes.add("simplify_quant_relations");
-            if (features.usesSummation() || features.usesIterationContracts()) {
-                passes.add("check");
-                passes.add("simplify_sums"); // set of rewrite rules for removing summations
-            }
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        if (features.usesKernels()) {// 8 feb 2018: is this now dead code (to be)? (SB)
-            passes.add("kernel-split");
-            passes.add("check");
-            passes.add("simplify_quant");
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        boolean has_type_adt = false;
-        if (silver.used()) {
-            if (features.usesOperator(StandardOperator.Instance)
-                    || features.usesInheritance()
-                    || features.usesOperator(StandardOperator.TypeOf)
-            ) {
-                passes.add("add-type-adt"); // add java's types of the programs as silicon's axiomatic datatypes
-                passes.add("standardize");
-                passes.add("check");
-                has_type_adt = true;
-            }
-        }
-
-        if (!silver.used() && features.usesInheritance()) { // 8 feb 2018: SB nominates this block for removal
-            // reason: chalice's types and inheritance mechanism isn't the same as Java's, so why not translate everything the same way and ignore chalice's mechanism
-            passes.add("standardize");
-            passes.add("check");
-            passes.add("ds_inherit"); // Use the old inheritance encoding for Chalice.
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        // histories and futures
-        // three verification runs:
-        // 3) verify program: promises wrt process algebra need to be met
-        // 2) verify the process algebra axioms: check whether paralel compositions are 'correct'
-        // 1) auxiliarry definitions in the process algebra should match their contracts.
-        if (check_defined.get()) {
-            passes.add("check-defined"); // add checks
-            passes.add("standardize");
-            passes.add("check");
-        } else if (check_axioms.get()) {
-            passes.add("check-axioms");
-            passes.add("standardize");
-            passes.add("check");
-        } else if (features.usesProcesses() || check_history.get()) {
-            passes.add("access"); // pre-process for check-history?
-            passes.add("standardize");
-            passes.add("check");
-            passes.add("check-history");
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        if (explicit_encoding.get()) {
-            passes.add("explicit_encoding"); // magic wand paper: for passing around predicates witnesses. In chalice predicates do not have arguments, except 'this'. So we're making data-types to pass around witnesses. Not necessary for silicon.
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        if (silver.used()) {
-            passes.add("current_thread"); // add argument 'current thread' to all methods
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        passes.add("rewrite_arrays"); // array generation and various array-related rewrites
-        passes.add("check");
-        passes.add("generate_adt_functions");
-        passes.add("check");
-        passes.add("flatten");
-        passes.add("assign");
-        passes.add("reorder");
-        passes.add("standardize");
-
-        passes.add("check");
-        passes.add("simplify_quant");
-        passes.add("standardize");
-        passes.add("check");
-
-        if (silver.used()) {
-            if (trigger_generation.get() > 0) {
-                passes.add("simple_triggers=" + trigger_generation.get());
-                passes.add("check");
-            }
-            passes.add("silver-class-reduction"); // remove the class (since all names are now unique), only one class remains
-            passes.add("standardize");
-            passes.add("check");
-        } else {
-            passes.add("globalize"); // create a separate class to contain all statics (class probably called 'Global', needs to be given as argument to the other methods)
-            passes.add("standardize");
-            passes.add("check");
-            passes.add("rm_cons"); // replace constructors by init-methods
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-
-        if (has_type_adt) {
-            passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
-        } else {
-            passes.add("voidcalls");
-        }
-        passes.add("standardize");
-        passes.add("check");
-
-        if (silver.used()) {
-            passes.add("ghost-lift"); // change ghost code into real code so it can is used in the check
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        passes.add("flatten");
-        passes.add("reorder"); // leaves declarations at the top of blocks (within loops and branches)
-        passes.add("flatten_before_after"); // method calls can have 'before/after' blocks of ghost-code attached. Put it around all method calls.
-        if (silver.used()) {
-            passes.add("silver-reorder"); // no declarations in branches (only in loops)
-        }
-        passes.add("standardize");
-        passes.add("check");
-
-        if (!silver.used()) {
-            passes.add("finalize_args");
-            passes.add("reorder");
-            passes.add("standardize");
-            passes.add("check");
-        }
-
-        if (silver.used()) {
-            passes.add("scale-always"); // syntax: in silicon [p]predicate() is mandatory, so change pred() to [1]pred()
-            passes.add("check"); // the rewrite system needs a type check
-            passes.add("silver-optimize"); // rewrite to things that silver likes better
-            passes.add("check"); // the rewrite system needs a type check
-            passes.add("quant-optimize"); // some illegal-quantifier constructions need to be written differently (plus optimize)
-            passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
-            passes.add("standardize");
-            passes.add("check");
-
-            passes.add("silver=" + silver.get());
-        } else { //CHALICE
-            passes.add("check"); // rewrite system needs a type check
-            passes.add("chalice-optimize");
-            passes.add("standardize-functions");
-            passes.add("standardize");
-            passes.add("check");
-
-            passes.add("chalice-preprocess");
-            passes.add("standardize");
-            passes.add("check");
-            passes.add("chalice");
-        }
-
-        if (learn.get()) {
-            passes.addFirst("count=" + silver.get() + "_before_rewrite");
-            passes.add("learn=" + wallStart);
-        }
+//        if (features.usesOperator(StandardOperator.AddrOf)) {
+//            passes.add("lift_declarations");
+//        }
+//
+//        passes.add("check");
+//        passes.add("infer_adt_types");
+//
+//        passes.add("check");
+//        passes.add("adt_operator_rewrite");
+//
+//        passes.add("check");
+//        passes.add("standardize");
+//
+//        passes.add("java-check");
+//        passes.add("pointers_to_arrays");
+//        passes.add("java-check");
+//        passes.add("desugar_valid_pointer");
+//        passes.add("java-check");
+//        passes.add("array_null_values"); // rewrite null values for array types into None
+//        passes.add("java-check");
+//        if (silver.used()) {
+//            // The new encoding does not apply to Chalice yet.
+//            // Maybe it never will.
+//            passes.add("java-encode"); // disambiguate overloaded stuff, copy inherited functions and specifications
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        if (sat_check.get()) {
+//            passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        if (features.usesIterationContracts() || features.usesPragma("omp")) {
+//            passes.add("openmp2pvl"); // Converts *all* parallel loops! (And their compositions) Into ordered set of parallel blocks in pvl.
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        passes.add("propagate-invariants"); // desugar \invariant (see \invariant documentation)
+//        passes.add("standardize");
+//        passes.add("check");
+//        if (features.usesOperator(StandardOperator.Wand)) {
+//            passes.add("magicwand"); // translate magicwand uses (proof oblications) into method calls
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        passes.add("inline"); // inline predicates that are marked as inline (so 'fold/unfold' needn't be done)
+//        passes.add("standardize");
+//        passes.add("check");
+//
+//        if (features.usesCSL()) {
+//            passes.add("csl-encode"); //
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        if (features.hasVectorBlocks() || features.usesPragma("omp")) {
+//            passes.add("vector-encode"); // vector operations for supporting Saeed's paper
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        if (silver.used()) {
+//            if (features.usesIterationContracts() || features.usesParallelBlocks() || features.usesCSL() || features.usesPragma("omp")) {
+//                passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
+//                passes.add("standardize");
+//            }
+//            passes.add("check");
+//            passes.add("simplify_quant"); // reduce nesting of quantifiers
+//            passes.add("simplify_quant_relations");
+//            if (features.usesSummation() || features.usesIterationContracts()) {
+//                passes.add("check");
+//                passes.add("simplify_sums"); // set of rewrite rules for removing summations
+//            }
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        if (features.usesKernels()) {// 8 feb 2018: is this now dead code (to be)? (SB)
+//            passes.add("kernel-split");
+//            passes.add("check");
+//            passes.add("simplify_quant");
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        boolean has_type_adt = false;
+//        if (silver.used()) {
+//            if (features.usesOperator(StandardOperator.Instance)
+//                    || features.usesInheritance()
+//                    || features.usesOperator(StandardOperator.TypeOf)
+//            ) {
+//                passes.add("add-type-adt"); // add java's types of the programs as silicon's axiomatic datatypes
+//                passes.add("standardize");
+//                passes.add("check");
+//                has_type_adt = true;
+//            }
+//        }
+//
+//        if (!silver.used() && features.usesInheritance()) { // 8 feb 2018: SB nominates this block for removal
+//            // reason: chalice's types and inheritance mechanism isn't the same as Java's, so why not translate everything the same way and ignore chalice's mechanism
+//            passes.add("standardize");
+//            passes.add("check");
+//            passes.add("ds_inherit"); // Use the old inheritance encoding for Chalice.
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        // histories and futures
+//        // three verification runs:
+//        // 3) verify program: promises wrt process algebra need to be met
+//        // 2) verify the process algebra axioms: check whether paralel compositions are 'correct'
+//        // 1) auxiliarry definitions in the process algebra should match their contracts.
+//        if (check_defined.get()) {
+//            passes.add("check-defined"); // add checks
+//            passes.add("standardize");
+//            passes.add("check");
+//        } else if (check_axioms.get()) {
+//            passes.add("check-axioms");
+//            passes.add("standardize");
+//            passes.add("check");
+//        } else if (features.usesProcesses() || check_history.get()) {
+//            passes.add("access"); // pre-process for check-history?
+//            passes.add("standardize");
+//            passes.add("check");
+//            passes.add("check-history");
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        if (explicit_encoding.get()) {
+//            passes.add("explicit_encoding"); // magic wand paper: for passing around predicates witnesses. In chalice predicates do not have arguments, except 'this'. So we're making data-types to pass around witnesses. Not necessary for silicon.
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        if (silver.used()) {
+//            passes.add("current_thread"); // add argument 'current thread' to all methods
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        passes.add("rewrite_arrays"); // array generation and various array-related rewrites
+//        passes.add("check");
+//        passes.add("generate_adt_functions");
+//        passes.add("check");
+//        passes.add("flatten");
+//        passes.add("assign");
+//        passes.add("reorder");
+//        passes.add("standardize");
+//
+//        passes.add("check");
+//        passes.add("simplify_quant");
+//        passes.add("standardize");
+//        passes.add("check");
+//
+//        if (silver.used()) {
+//            if (trigger_generation.get() > 0) {
+//                passes.add("simple_triggers=" + trigger_generation.get());
+//                passes.add("check");
+//            }
+//            passes.add("silver-class-reduction"); // remove the class (since all names are now unique), only one class remains
+//            passes.add("standardize");
+//            passes.add("check");
+//        } else {
+//            passes.add("globalize"); // create a separate class to contain all statics (class probably called 'Global', needs to be given as argument to the other methods)
+//            passes.add("standardize");
+//            passes.add("check");
+//            passes.add("rm_cons"); // replace constructors by init-methods
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//
+//        if (has_type_adt) {
+//            passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
+//        } else {
+//            passes.add("voidcalls");
+//        }
+//        passes.add("standardize");
+//        passes.add("check");
+//
+//        if (silver.used()) {
+//            passes.add("ghost-lift"); // change ghost code into real code so it can is used in the check
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        passes.add("flatten");
+//        passes.add("reorder"); // leaves declarations at the top of blocks (within loops and branches)
+//        passes.add("flatten_before_after"); // method calls can have 'before/after' blocks of ghost-code attached. Put it around all method calls.
+//        if (silver.used()) {
+//            passes.add("silver-reorder"); // no declarations in branches (only in loops)
+//        }
+//        passes.add("standardize");
+//        passes.add("check");
+//
+//        if (!silver.used()) {
+//            passes.add("finalize_args");
+//            passes.add("reorder");
+//            passes.add("standardize");
+//            passes.add("check");
+//        }
+//
+//        if (silver.used()) {
+//            passes.add("scale-always"); // syntax: in silicon [p]predicate() is mandatory, so change pred() to [1]pred()
+//            passes.add("check"); // the rewrite system needs a type check
+//            passes.add("silver-optimize"); // rewrite to things that silver likes better
+//            passes.add("check"); // the rewrite system needs a type check
+//            passes.add("quant-optimize"); // some illegal-quantifier constructions need to be written differently (plus optimize)
+//            passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
+//            passes.add("standardize");
+//            passes.add("check");
+//
+//            passes.add("silver=" + silver.get());
+//        } else { //CHALICE
+//            passes.add("check"); // rewrite system needs a type check
+//            passes.add("chalice-optimize");
+//            passes.add("standardize-functions");
+//            passes.add("standardize");
+//            passes.add("check");
+//
+//            passes.add("chalice-preprocess");
+//            passes.add("standardize");
+//            passes.add("check");
+//            passes.add("chalice");
+//        }
+//
+//        if (learn.get()) {
+//            passes.addFirst("count=" + silver.get() + "_before_rewrite");
+//            passes.add("learn=" + wallStart);
+//        }
     }
 
     private Deque<String> getPasses() {
@@ -601,6 +600,10 @@ public class Main {
             fatal_errs = report.getFatal();
             Progress("[%02d%%] %s took %d ms", 100 * (passCount - passes.size()) / passCount, pass, tk.show());
 
+            if(pass.equals("rainbow")) {
+                passes.addAll(Passes.rainbowResult());
+            }
+
             if (debugAfter.has(pass)) {
                 report.getOutput().dump();
             }
@@ -626,7 +629,7 @@ public class Main {
 
     private void run(String[] args) throws FileNotFoundException {
         int exit = 0;
-        wallStart = System.currentTimeMillis();
+        long wallStart = System.currentTimeMillis();
         tk = new TimeKeeper();
 
         try {

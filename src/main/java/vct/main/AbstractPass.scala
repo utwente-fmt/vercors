@@ -15,7 +15,7 @@ abstract class AbstractPass(val description: String) {
     val arg = reportIn.getOutput
     val reportOut = new PassReport(arg)
     reportOut.add(new PassAddVisitor(reportIn))
-    reportOut.setOutput(apply(arg, args))
+    reportOut.setOutput(apply(reportOut, arg, args))
     reportOut
   }
 
@@ -50,9 +50,12 @@ case class ErrorMapPass(override val description: String,
                         introduces: Set[Feature] = Feature.DEFAULT_INTRODUCE,
                         permits: Set[Feature] = Feature.DEFAULT_PERMIT)
   extends AbstractPass(description) {
-  override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
-    val map = new ErrorMapping(report)
-    report.add(map)
-    applyImpl(arg, map)
+  override def apply_pass(reportIn: PassReport, args: Array[String]): PassReport = {
+    val arg = reportIn.getOutput
+    val reportOut = new PassReport(arg)
+    val map = new ErrorMapping(reportIn)
+    reportOut.add(map)
+    reportOut.setOutput(applyImpl(arg, map))
+    reportOut
   }
 }

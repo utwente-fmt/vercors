@@ -277,6 +277,7 @@ object Feature {
     Constructors,
     VectorBlock,
     NonVoidMethods,
+    NotFlattened,
   )
   val DEFAULT_INTRODUCE: Set[Feature] = Set(
     // node annotations are mostly used by the parser and resolved early on
@@ -402,6 +403,9 @@ object Feature {
 
     // Nice to have, should be done somewhere at the end.
     NonVoidMethods,
+
+    // Passes should be able to introduce complex expressions
+    NotFlattened,
   )
   val DEFAULT_PERMIT: Set[Feature] = Set(
     // transfered by post_visit in AbstractRewriter automatically
@@ -527,49 +531,56 @@ object Feature {
 
     // Nice to have, should be done somewhere at the end.
     NonVoidMethods,
+
+    // Complex expressions should be no problem.
+    NotFlattened,
   )
 }
 
 sealed trait Feature
+sealed trait ScannableFeature extends Feature
+sealed trait GateFeature extends Feature
 
-case object MethodAnnotations extends Feature
-case object TypeExpressions extends Feature
-case object TopLevelDeclarations extends Feature
-case object SpecIgnore extends Feature
-case object MultiDecls extends Feature
-case object UnresolvedTypeInference extends Feature
-case object ExpressionStatement extends Feature
-case object ActionHeader extends Feature
-case object ImproperlySortedBeforeAfter extends Feature
-case object ContractStatement extends Feature
-case object SubscriptRange extends Feature
-case object Dereference extends Feature
-case object Inheritance extends Feature
-case object Null extends Feature
-case object This extends Feature
-case object JavaAtomic extends Feature
-case object CurrentThread extends Feature
-case object ValidPointer extends Feature
-case object ArgumentAssignment extends Feature
-case object BeforeAfter extends Feature
-case object ADTOperators extends Feature
-case object GivenYields extends Feature
-case object StaticFields extends Feature
-case object InlinePredicate extends Feature
-case object KernelClass extends Feature
-case object AddrOf extends Feature
-case object OpenMP extends Feature
-case object ParallelBlocks extends Feature
-case object Pointers extends Feature
-case object ContextEverywhere extends Feature
-case object PureImperativeMethods extends Feature
-case object PVLSugar extends Feature
-case object NondetCondition extends Feature
-case object ScatteredDeclarations extends Feature
-case object Arrays extends Feature
-case object ComplexSubscript extends Feature
-case object UnscaledPredicateApplication extends Feature
-case object NotStandardized extends Feature
-case object Constructors extends Feature
-case object VectorBlock extends Feature
-case object NonVoidMethods extends Feature
+case object MethodAnnotations extends ScannableFeature // no pass
+case object TypeExpressions extends ScannableFeature // no pass
+case object TopLevelDeclarations extends ScannableFeature // no pass
+case object SpecIgnore extends ScannableFeature // no pass
+case object MultiDecls extends ScannableFeature
+case object UnresolvedTypeInference extends ScannableFeature
+case object ExpressionStatement extends ScannableFeature // no pass
+case object ActionHeader extends ScannableFeature // no pass
+case object ImproperlySortedBeforeAfter extends ScannableFeature // no pass
+case object ContractStatement extends ScannableFeature // no pass
+case object SubscriptRange extends ScannableFeature // no pass
+case object Dereference extends ScannableFeature
+case object Inheritance extends ScannableFeature
+case object Null extends ScannableFeature // no pass yet
+case object This extends ScannableFeature
+case object JavaAtomic extends ScannableFeature
+case object CurrentThread extends ScannableFeature
+case object ValidPointer extends ScannableFeature
+case object ArgumentAssignment extends ScannableFeature
+case object BeforeAfter extends ScannableFeature
+case object ADTOperators extends ScannableFeature
+case object GivenYields extends ScannableFeature
+case object StaticFields extends ScannableFeature
+case object InlinePredicate extends ScannableFeature
+case object KernelClass extends ScannableFeature
+case object AddrOf extends ScannableFeature
+case object OpenMP extends ScannableFeature
+case object ParallelBlocks extends ScannableFeature
+case object Pointers extends ScannableFeature
+case object ContextEverywhere extends ScannableFeature
+case object PureImperativeMethods extends ScannableFeature
+case object PVLSugar extends ScannableFeature
+case object NondetCondition extends ScannableFeature // no pass
+case object ScatteredDeclarations extends ScannableFeature
+case object Arrays extends ScannableFeature
+case object ComplexSubscript extends ScannableFeature // no pass
+case object UnscaledPredicateApplication extends ScannableFeature
+case object NotStandardized extends ScannableFeature
+case object Constructors extends ScannableFeature
+case object VectorBlock extends ScannableFeature
+case object NonVoidMethods extends ScannableFeature
+
+case object NotFlattened extends GateFeature
