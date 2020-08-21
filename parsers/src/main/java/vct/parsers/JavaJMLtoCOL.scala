@@ -492,7 +492,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       tryBlock
     case Statement9("switch", cond, "{", caseStatMappings, extraCases, "}") =>
       val cases = caseStatMappings.map(convertCase)
-      create switchStatement(
+      create switch_statement(
         expr(cond),
         (cases ++ Seq(convertCaseStat(extraCases))).asJava
       )
@@ -548,7 +548,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertSwitchLabel(switchLabel: SwitchLabelContext): ASTNode = switchLabel match {
     case SwitchLabel0("case", constantExpr, ":") => expr(constantExpr)
-    case SwitchLabel1("case", enumConstantName, ":") => ??(switchLabel)
+    case SwitchLabel1("case", enumConstantName, ":") => ??(enumConstantName)
     case SwitchLabel2("default", ":") => null
   }
 

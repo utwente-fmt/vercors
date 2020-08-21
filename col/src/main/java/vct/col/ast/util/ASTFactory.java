@@ -1433,11 +1433,11 @@ public Axiom axiom(String name, ASTNode exp){
     return special(kind,names.toArray(new ASTNode[names.size()]));
   }
 
-  public ASTNode switchStatement(ASTNode expr, List<Case> cases) {
-    return switchStatement(expr, cases.toArray(new Case[cases.size()]));
+  public ASTNode switch_statement(ASTNode expr, List<Case> cases) {
+    return switch_statement(expr, cases.toArray(new Case[cases.size()]));
   }
 
-  public ASTNode switchStatement(ASTNode expr, Case[] cases) {
+  public ASTNode switch_statement(ASTNode expr, Case[] cases) {
     Switch res=new Switch(expr, cases);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);    

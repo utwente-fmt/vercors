@@ -849,7 +849,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       for(ASTNode n:c.stats) rwc.stats.add(rewrite(n));
       case_list.add(rwc);
     }
-    result = create.switchStatement(expr, case_list);
+    result = create.switch_statement(expr, case_list);
   }
 
   @Override
