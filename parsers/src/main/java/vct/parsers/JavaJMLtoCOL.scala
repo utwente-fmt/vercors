@@ -137,7 +137,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case MethodBodyOrEmpty0(";") => None
         case MethodBodyOrEmpty1(MethodBody0(block)) => Some(convertBlock(block))
       }
-      Seq(create method_decl(returns, signals, null, convertID(name), params.toArray, body.orNull))
+      Seq(create method_decl(returns, signals.toArray, null, convertID(name), params.toArray, body.orNull))
     case GenericMethodDeclaration0(typeParams, methodDecl) =>
       ??(typeParams) //generics are unsupported
     case InterfaceMethodDeclaration0(retType, name, params, maybeDims, None, _) =>
@@ -151,7 +151,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       val body = bodyNode match {
         case ConstructorBody0(block) => convertBlock(block)
       }
-      Seq(create method_kind(Method.Kind.Constructor, returns, signals, null, convertID(clsName), params.toArray, varargs, body))
+      Seq(create method_kind(Method.Kind.Constructor, returns, signals.toArray, null, convertID(clsName), params.toArray, varargs, body))
     case GenericConstructorDeclaration0(typeParams, constructorDecl) =>
       ??(typeParams) // generics are unsupported
 
@@ -170,12 +170,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       }
   })
 
-  def convertThrows(maybeThrows: Option[ThrowyContext]): Array[Type] = maybeThrows match {
-    case None => new Array[Type](0)
-    case Some(Throwy0(_, qualifiedNameList)) => {
-      val types = convertTypeList(qualifiedNameList)
-      types.asJava.toArray(new Array[Type](types.length))
-    }
+  def convertThrows(maybeThrows: Option[ThrowyContext]): Seq[Type] = maybeThrows match {
+    case None => Array[Type]()
+    case Some(Throwy0(_, qualifiedNameList)) => convertTypeList(qualifiedNameList)
   }
 
   def convertResource(res: ResourceContext): DeclarationStatement = origin(res, res match {
@@ -274,7 +271,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case TypeArgumentList1(x, _, xs) => convertType(x) +: convertTypeList(xs)
     case CatchType0(x) => Seq(convertType(x))
     case CatchType1(x, "|", xs) => convertType(x) +: convertTypeList(xs)
-    case qualifiedNameList : QualifiedNameList0Context => qualifiedNameList.qualifiedName().asScala.map(convertType(_)).toSeq
+    case QualifiedNameList(names) => names.map(convertType(_))
   }
 
   def tCell(t: Type) = create.primitive_type(PrimitiveSort.Cell, t)
@@ -1161,4 +1158,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValEmbedWithThen0(blocks) => blocks.flatMap(convertValWithThen)
   }
   /* === End of duplicated code block === */
+}
+
+object QualifiedNameList {
+  def unapply(qualifiedNameList: JavaParser.QualifiedNameList0Context): Option[Seq[QualifiedNameContext]] =
+    Some(qualifiedNameList.qualifiedName().asScala)
 }

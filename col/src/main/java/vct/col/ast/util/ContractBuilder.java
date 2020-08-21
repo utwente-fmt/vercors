@@ -19,7 +19,7 @@ import static vct.col.ast.stmt.decl.Contract.default_true;
 public class ContractBuilder {
 
   private boolean empty=true;
-  
+
   private ASTNode pre_condition = default_true;
   private ASTNode post_condition = default_true;
   private ASTNode invariant = default_true;
@@ -36,6 +36,7 @@ public class ContractBuilder {
         && given.size()==0 && yields.size()==0
         && signals.size()==0
         && modifiable == null
+        && accessible == null
         ;
   }
 
@@ -67,7 +68,7 @@ public class ContractBuilder {
    */
   public void yields(BlockStatement decls){
     empty=false;
-    scan_to(yields,decls);    
+    scan_to(yields,decls);
   }
   /**
    * Add the given declarations to the list of given variables.
