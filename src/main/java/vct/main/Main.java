@@ -442,7 +442,6 @@ public class Main
             passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
             passes.add("standardize");
           }
-          // passes.add("recognize_multidim"); // translate matrices as a flat array (like c does in memory)
           passes.add("check");
           passes.add("simplify_quant"); // reduce nesting of quantifiers
           passes.add("simplify_quant_relations");
@@ -973,11 +972,6 @@ public class Main
     defined_passes.put("pvl-compile",new CompilerPass("Compile PVL classes to Java classes"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new PVLCompiler(arg).rewriteAll();
-      }
-    });
-    defined_passes.put("recognize_multidim",new CompilerPass("Recognize multi-dimensional arrays"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new RecognizeMultiDim(arg).rewriteAll();
       }
     });
     defined_passes.put("reorder",new CompilerPass("reorder statements (e.g. all declarations at the start of a bock"){

@@ -1061,8 +1061,6 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create expression(Length, expr(exp))
     case ValPrimary14("\\old", "(", exp, ")") =>
       create expression(Old, expr(exp))
-    case ValPrimary15("\\id", "(", exp, ")") =>
-      create expression(Identity, expr(exp))
     case ValPrimary16("\\typeof", "(", exp, ")") =>
       create expression(TypeOf, expr(exp))
     case ValPrimary17("\\matrix", "(", m, _, size0, _, size1, ")") =>
