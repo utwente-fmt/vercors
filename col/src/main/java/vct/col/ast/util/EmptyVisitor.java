@@ -344,7 +344,11 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
   }
 
   @Override
-  public void visit(InlineQuantifierPattern pattern) {
+  public void visit(InlineQuantifierPattern pattern) { }
 
-  }
+  @Override
+  public void visit(CatchClause cc) { }
+
+  @Override
+  public void visit(SignalsClause sc) { }
 }

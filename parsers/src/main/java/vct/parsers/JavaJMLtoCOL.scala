@@ -9,8 +9,8 @@ import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.stmt.composite.{BlockStatement, TryCatchBlock, TryWithResources}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
+import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, Switch, TryCatchBlock, TryWithResources}
+import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit, SignalsClause}
 import vct.col.ast.util.ContractBuilder
 
 import scala.collection.JavaConverters._
@@ -128,17 +128,16 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case MemberDeclaration7(fwd) => convertDecl(fwd)
     case MemberDeclaration8(fwd) => convertDecl(fwd)
 
-    case MethodDeclaration0(_, _, _, _, Some(throws), _) =>
-      ??(throws) // exceptions are unsupported
-    case MethodDeclaration0(retType, name, paramsNode, maybeDims, None, maybeBody) =>
+    case MethodDeclaration0(retType, name, paramsNode, maybeDims, maybeThrows, maybeBody) =>
       val dims = maybeDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
       val returns = convertType(retType, dims)
+      val signals = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
       val body = maybeBody match {
         case MethodBodyOrEmpty0(";") => None
         case MethodBodyOrEmpty1(MethodBody0(block)) => Some(convertBlock(block))
       }
-      Seq(create method_decl(returns, null, convertID(name), params.toArray, body.orNull))
+      Seq(create method_decl(returns, signals.toArray, null, convertID(name), params.toArray, body.orNull))
     case GenericMethodDeclaration0(typeParams, methodDecl) =>
       ??(typeParams) //generics are unsupported
     case InterfaceMethodDeclaration0(retType, name, params, maybeDims, None, _) =>
@@ -147,11 +146,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(typeParams) // generics are unsupported
     case ConstructorDeclaration0(clsName, paramsNode, maybeThrows, bodyNode) =>
       val returns = create primitive_type PrimitiveSort.Void
+      val signals = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
       val body = bodyNode match {
         case ConstructorBody0(block) => convertBlock(block)
       }
-      Seq(create method_kind(Method.Kind.Constructor, returns, null, convertID(clsName), params.toArray, varargs, body))
+      Seq(create method_kind(Method.Kind.Constructor, returns, signals.toArray, null, convertID(clsName), params.toArray, varargs, body))
     case GenericConstructorDeclaration0(typeParams, constructorDecl) =>
       ??(typeParams) // generics are unsupported
 
@@ -169,6 +169,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         res
       }
   })
+
+  def convertThrows(maybeThrows: Option[ThrowyContext]): Seq[Type] = maybeThrows match {
+    case None => Array[Type]()
+    case Some(Throwy0(_, qualifiedNameList)) => convertTypeList(qualifiedNameList)
+  }
 
   def convertResource(res: ResourceContext): DeclarationStatement = origin(res, res match {
     case Resource0(mods, t, name, "=", init) =>
@@ -266,6 +271,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case TypeArgumentList1(x, _, xs) => convertType(x) +: convertTypeList(xs)
     case CatchType0(x) => Seq(convertType(x))
     case CatchType1(x, "|", xs) => convertType(x) +: convertTypeList(xs)
+    case QualifiedNameList0(qualifiedName) => Seq(convertType(qualifiedName))
+    case QualifiedNameList1(qualifiedName, ",", qualifiedNames) => Seq(convertType(qualifiedName)) ++ convertTypeList(qualifiedNames)
   }
 
   def tCell(t: Type) = create.primitive_type(PrimitiveSort.Cell, t)
@@ -403,8 +410,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     catchClauses.foreach {
       case CatchClause0(_, _, Seq(mod, _*), _, _, _, _) =>
         ??(mod)
-      case CatchClause0("catch", _, Seq(), types, name, _, block) =>
-        tryBlock.addCatchClause(convertID(name), convertTypeList(types), convertBlock(block))
+      case ccCtx@CatchClause0("catch", _, Seq(), types, name, _, block) =>
+        val cc = CatchClause(convertID(name), convertTypeList(types), convertBlock(block))
+        tryBlock.addCatchClause(origin(ccCtx, cc))
     }
   }
 
@@ -482,8 +490,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       convertResourceList(res).foreach(tryBlock.addResource)
       addCatchClauses(tryBlock, catchClauses)
       tryBlock
-    case Statement9("switch", obj, "{", caseStatMappings, extraCases, "}") =>
-      ??(stat) // switch unsupported
+    case Statement9("switch", cond, "{", caseStatMappings, extraCases, "}") =>
+      val cases = caseStatMappings.map(convertCase)
+      create switch_statement(
+        expr(cond),
+        (cases ++ Seq(convertCaseStat(extraCases))).asJava
+      )
     case Statement10("synchronized", obj, body) =>
       create syncBlock(expr(obj), convertBlock(body))
     case Statement11("return", maybeValue, _) =>
@@ -533,6 +545,27 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ForUpdate0(exps) =>
       flattenIfSingleStatement(exprList(exps))
   })
+
+  def convertSwitchLabel(switchLabel: SwitchLabelContext): ASTNode = switchLabel match {
+    case SwitchLabel0("case", constantExpr, ":") => expr(constantExpr)
+    case SwitchLabel1("case", enumConstantName, ":") => ??(enumConstantName)
+    case SwitchLabel2("default", ":") => null
+  }
+
+  def convertCase(caseStat: SwitchBlockStatementGroupContext): Switch.Case = caseStat match {
+    case SwitchBlockStatementGroup0(labelExprs, stats) =>
+      val cases = new Switch.Case()
+      cases.cases.addAll(labelExprs.map(convertSwitchLabel).asJavaCollection)
+      cases.stats.addAll(stats.flatMap(convertStat).asJavaCollection)
+      cases
+    case _ => ??(caseStat)
+  }
+
+  def convertCaseStat(switchLabels: Seq[SwitchLabelContext]): Switch.Case = {
+    val cases = new Switch.Case()
+    cases.cases.addAll(switchLabels.map(convertSwitchLabel).asJavaCollection)
+    cases
+  }
 
   def exprList(tree: ParserRuleContext): Seq[ASTNode] = tree match {
     case Arguments0(_, None, _) => Seq()
@@ -780,6 +813,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       builder.context(expr(exp))
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
+    case ValContractClause9(_signals, _, signalsType, name, _, condition, _) =>
+      builder.signals(origin(clause, new SignalsClause(convertID(name), convertType(signalsType), expr(condition))))
   }
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {

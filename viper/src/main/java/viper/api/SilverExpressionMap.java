@@ -1,7 +1,6 @@
 package viper.api;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -226,7 +225,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       case Scale: {
         return create.scale_access(o, e2, e1);
       }
-      case Append:
+      case Concat:
         return create.append(o, e1, e2);
       default:
         throw new HREError("cannot map operator %s", e.operator());
@@ -320,7 +319,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       return create.predicate_call(o, name, args);
     }
     default:
-      throw new HREError("calling a %d method is not a Silver expression");
+      throw new HREError("calling a %s method is not a Silver expression", m.kind);
     }
   }
 
@@ -634,4 +633,13 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     return null;
   }
 
+  @Override
+  public E map(CatchClause cc) {
+    return null;
+  }
+
+  @Override
+  public E map(SignalsClause sc) {
+    return null;
+  }
 }

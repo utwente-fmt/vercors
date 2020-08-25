@@ -19,9 +19,7 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import hre.util.LambdaHelper;
 
-import java.lang.reflect.Array;
 import java.util.*;
-import java.util.stream.Stream;
 
 /**
  * This abstract rewriter copies the AST it is applied to.
@@ -30,19 +28,6 @@ import java.util.stream.Stream;
  */ 
 public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   private static ThreadLocal<AbstractRewriter> tl=new ThreadLocal<AbstractRewriter>();
-
-  public static <R extends ASTNode> Hashtable<String, Type> free_vars(List<R> nodes) {
-    Hashtable<String,Type> vars = new Hashtable<String,Type>();
-    NameScanner scanner = new NameScanner(vars);
-    for (R n : nodes) {
-      n.accept(scanner);
-    }
-    return vars;
-  }
-  
-  public static Hashtable<String,Type> free_vars(ASTNode ... nodes) {
-	return free_vars(Arrays.asList(nodes));
-  }
 
   public final AbstractRewriter copy_rw;
   
@@ -205,8 +190,10 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       cb.ensures(rewrite(clause));
     }
     in_ensures=false;
-    if (c.signals!=null) for(DeclarationStatement decl:c.signals){
-      cb.signals((ClassType)rewrite(decl.getType()), decl.name(), rewrite(decl.initJava()));
+    if (c.signals!=null) {
+      for(SignalsClause sc : c.signals){
+        cb.signals(rewrite(sc));
+      }
     }
   }
   public Contract rewrite(Contract c){
@@ -484,13 +471,14 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     }
     Method.Kind kind=m.kind;
     Type rt=rewrite(m.getReturnType());
+    Type[] signals = rewrite(m.signals);
     Contract c=currentContractBuilder.getContract();
     if (mc != null && c.getOrigin() == null) {
       c.setOrigin(mc.getOrigin());
     }
     currentContractBuilder=null;
     ASTNode body=rewrite(m.getBody());
-    result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
+    result=create.method_kind(kind, rt, signals, c, name, args, m.usesVarArgs(), body);
   }
 
   @Override
@@ -736,6 +724,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode eq(ASTNode e1,ASTNode e2){
     return create.expression(StandardOperator.EQ,e1,e2);
   }
+  public ASTNode or(ASTNode e1, ASTNode e2) {
+    return create.expression(StandardOperator.Or, e1, e2);
+  }
   public ASTNode size(ASTNode e1) {
     return create.expression(StandardOperator.Size, e1);
   }
@@ -772,7 +763,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     result=hole;
   }
 
-  protected DeclarationStatement[] gen_pars(Hashtable<String, Type> vars) {
+  protected DeclarationStatement[] genPars(Map<String, Type> vars) {
     DeclarationStatement decls[]=new DeclarationStatement[vars.size()];
     int i=0;
     for(String name:vars.keySet()){
@@ -782,7 +773,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     return decls;
   }
 
-  protected MethodInvokation gen_call(String method, Hashtable<String, Type> vars) {
+  protected MethodInvokation genCall(String method, Map<String, Type> vars) {
     ASTNode args[]=new ASTNode[vars.size()];
     int i=0;
     for(String name:vars.keySet()){
@@ -807,26 +798,16 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void visit(TryCatchBlock tcb){
     TryCatchBlock res = create.try_catch(rewrite(tcb.main()), rewrite(tcb.after()));
     for (CatchClause cc : tcb.catches()) {
-      pre_visit(cc.block());
-      BlockStatement tmp=currentBlock;
-      currentBlock=new BlockStatement();
-      currentBlock.setOrigin(cc.block().getOrigin());
-      Type[] newCatchTypes = new Type[cc.catchTypes().size()];
-      Type[] oldCatchTypes = cc.javaCatchTypes();
-      for(int i = 0; i < newCatchTypes.length; i++) {
-        newCatchTypes[i] = rewrite(oldCatchTypes[i]);
-      }
-      for(ASTNode S:cc.block()){
-        currentBlock.add(rewrite(S));
-      }
-      BlockStatement block=currentBlock;
-      currentBlock=tmp;
-      post_visit(cc.block());
-      res.addCatchClauseArray(cc.name(), newCatchTypes, block);
+      res.addCatchClause(rewrite(cc));
     }
     result=res;
   }
-  
+
+  public void visit(CatchClause cc) {
+    result = new CatchClause(cc.name(), rewrite(cc.javaCatchTypes()), rewrite(cc.block()));
+    result.setOrigin(cc.getOrigin());
+  }
+
   @Override
   public void visit(TypeExpression te){
 	Type[] types = rewrite(te.typesJava()).toArray(new Type[0]);
@@ -923,7 +904,18 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     result.setOrigin(loop.getOrigin());
   }
 
+  @Override
   public void visit(InlineQuantifierPattern pattern) {
     result = create.pattern(pattern.getOrigin(), rewrite(pattern.inner()));
+  }
+
+  @Override
+  public void visit(SignalsClause sc) {
+    result = create.signalsClause(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
+  }
+
+  @Override
+  public void visit(Synchronized sync) {
+    result = create.syncBlock(rewrite(sync.expr()), rewrite(sync.statement()));
   }
 }

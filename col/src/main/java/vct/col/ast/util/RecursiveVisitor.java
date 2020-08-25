@@ -241,7 +241,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(c.pre_condition);
       dispatch(c.invariant);
       // Yielded variables are not known before method starts.
-      dispatch(c.yields); 
+      dispatch(c.yields);
+      dispatch(c.signals);
     }
     dispatch(m.getArgs());
     dispatch(m.getBody());
@@ -322,8 +323,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   public void visit(ParallelBlock pb){
-    dispatch(pb.contract());
     dispatch(pb.itersJava());
+    dispatch(pb.contract());
     dispatch(pb.block());
   }
   
@@ -333,10 +334,18 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   public void visit(Contract c){
+    dispatch(c.given);
+    dispatch(c.yields);
+    if (c.modifies != null) {
+      dispatch(c.modifies);
+    }
+    if (c.accesses != null) {
+      dispatch(c.accesses);
+    }
     dispatch(c.invariant);
     dispatch(c.pre_condition);
-    dispatch(c.yields);
     dispatch(c.post_condition);
+    dispatch(c.signals);
   }
 
   public void visit(ASTSpecial s){
@@ -380,13 +389,8 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override
   public void visit(TryCatchBlock tcb) {
     dispatch(tcb.main());
-    for (CatchClause c : tcb.catches()) {
-      enter(c.block());
-      dispatch(c.javaCatchTypes());
-      for(ASTNode S:c.block()){
-        dispatch(S);
-      }
-      leave(c.block());
+    for (CatchClause cc : tcb.catches()) {
+        dispatch(cc);
     }
     dispatch(tcb.after());
   }
@@ -496,5 +500,17 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       for(ASTNode n:c.cases) dispatch(n);
       for(ASTNode n:c.stats) dispatch(n);
     }
+  }
+
+  @Override
+  public void visit(CatchClause cc) {
+    dispatch(cc.javaCatchTypes());
+    dispatch(cc.block());
+  }
+
+  @Override
+  public void visit(SignalsClause sc) {
+    dispatch(sc.type());
+    dispatch(sc.condition());
   }
 }

@@ -120,6 +120,8 @@ public interface ASTVisitor<T> {
   public void visit(OMPForSimd loop);
 
   public void visit(InlineQuantifierPattern pattern);
+  public void visit(CatchClause cc);
+  public void visit(SignalsClause sc);
 }
 
 

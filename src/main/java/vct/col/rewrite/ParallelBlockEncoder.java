@@ -154,8 +154,8 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     BlockStatement res = rewrite(pb.body());
     ContractBuilder main_cb=new ContractBuilder();
     ContractBuilder check_cb=new ContractBuilder();
-    Hashtable<String, Type> main_vars=free_vars(pb);
-    Hashtable<String,Type> check_vars=new Hashtable<String, Type>(main_vars);
+    Map<String, Type> main_vars = NameScanner.freeVars(pb);
+    Map<String,Type> check_vars = new LinkedHashMap<>(main_vars);
     ParallelBlock blk=null;
     for(ParallelBlock b:blocks){
       if (b.label().equals(pb.label())) {
@@ -177,7 +177,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       check_cb.ensures(tmp);
       guard_decls.add(create.field_decl(decl.name(), decl.getType()));
       check_vars.remove(decl.name());
-      check_vars.putAll(free_vars(decl.initJava()));
+      check_vars.putAll(NameScanner.freeVars(decl.initJava()));
     }
     
     ASTNode iters_guard=create.fold(StandardOperator.And,guard_list);
@@ -216,17 +216,17 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         create.primitive_type(PrimitiveSort.Void),
         check_cb.getContract(),
         check_name,
-        gen_pars(check_vars),
+        genPars(check_vars),
         res
     ));
     currentTargetClass.add(create.method_decl(
         create.primitive_type(PrimitiveSort.Void),
         main_cb.getContract(),
         main_name,
-        gen_pars(main_vars),
+        genPars(main_vars),
         null
     ));
-    result=gen_call(main_name,main_vars);
+    result= genCall(main_name,main_vars);
   }
 
   @Override
@@ -234,7 +234,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     count++;
     String main_name = "parrallel_region_main_" + count;
     ContractBuilder main_cb=new ContractBuilder();
-    Hashtable<String,Type> main_vars=free_vars(region.blocksJava());
+    Map<String,Type> main_vars = NameScanner.freeVars(region.blocksJava());
     BlockStatement body;
     if (region.contract() == null || region.contract().isEmpty()) {
       for (ParallelBlock pb : region.blocksJava()) {
@@ -254,17 +254,17 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       body=create.block();
       for (ParallelBlock pb : region.blocksJava()) {
         String block_name="block_check_"+(++count);
-        Hashtable<String,Type> block_vars=free_vars(pb);
+        Map<String,Type> block_vars = NameScanner.freeVars(pb);
         
         Contract c=(Contract)rewrite((ASTNode)pb);     
         currentTargetClass.add(create.method_decl(
             create.primitive_type(PrimitiveSort.Void),
             c,
             block_name,
-            gen_pars(block_vars),
+            genPars(block_vars),
             null
         ));
-        body.add(gen_call(block_name,block_vars));
+        body.add(genCall(block_name,block_vars));
       }
       HashMap<String,ParallelBlock> blocks=new HashMap<String, ParallelBlock>();
       HashMap<String,HashSet<String>> may_deps=new HashMap<String, HashSet<String>>();
@@ -407,10 +407,10 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         create.primitive_type(PrimitiveSort.Void),
         main_cb.getContract(),
         main_name,
-        gen_pars(main_vars),
+        genPars(main_vars),
         body
     ));
-    result=gen_call(main_name,main_vars);
+    result= genCall(main_name,main_vars);
   }
   
   private void gen_consistent(ParallelRegion region, ParallelBlock pb1, ParallelBlock pb2, boolean guard) {
@@ -424,7 +424,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       cb.requires(region.contract().invariant);
     }
     cb.requires(pre_condition);
-    Hashtable<String,Type> main_vars=free_vars(pre_condition);
+    Map<String,Type> main_vars = NameScanner.freeVars(pre_condition);
     ArrayList<ASTNode> list=new ArrayList<ASTNode>();
     int N=0;
     
@@ -481,7 +481,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         create.primitive_type(PrimitiveSort.Void),
         cb.getContract(),
         "check_"+pb1.label()+"_"+pb2.label(),
-        gen_pars(main_vars),
+        genPars(main_vars),
         create.block(
           body
         )
@@ -599,7 +599,6 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     
     int N=counter.incrementAndGet();    
     ContractBuilder cb = new ContractBuilder();   
-    Hashtable<String,Type> vars=new Hashtable<String,Type>();
     BranchOrigin branch;
     
     switch(e.kind)
@@ -619,19 +618,18 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       
         ArrayList<DeclarationStatement> send_decl=new ArrayList<DeclarationStatement>();// declaration of parameters for send_check
         ArrayList<ASTNode> send_args=new ArrayList<ASTNode>();// the arguments to the host_check method
-        
-        vars=new Hashtable<String,Type>();
-        {
-        NameScanner scanner=new NameScanner(vars);
+
+      {
+        NameScanner scanner = new NameScanner();
         e.accept(scanner);
         loop_invariant.accept(scanner);
+        Map<String, Type> vars = scanner.freeNamesJava();
+
+        for (String var : vars.keySet()) {
+          send_decl.add(create.field_decl(var, copy_rw.rewrite(vars.get(var))));
+          send_args.add(create.unresolved_name(var));
         }
-        
-        for(String var:vars.keySet())  
-        {
-            send_decl.add(create.field_decl(var,copy_rw.rewrite(vars.get(var))));
-            send_args.add(create.unresolved_name(var));
-        }
+      }
       
         cb = new ContractBuilder();
         cb.requires(copy_rw.rewrite(loop_invariant));
@@ -679,19 +677,18 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         ArrayList<DeclarationStatement> recv_decl=new ArrayList<DeclarationStatement>();// declaration of parameters for send_check
         ArrayList<ASTNode> recv_args=new ArrayList<ASTNode>();// the arguments to the host_check method
         
-        vars=new Hashtable<String,Type>();
         {
-        NameScanner scanner=new NameScanner(vars);
-        e.accept(scanner);
-        loop_invariant.accept(scanner);
+          NameScanner scanner = new NameScanner();
+          e.accept(scanner);
+          loop_invariant.accept(scanner);
+          Map<String, Type> vars = scanner.freeNamesJava();
+
+          for(String var : vars.keySet())  {
+              recv_decl.add(create.field_decl(var,copy_rw.rewrite(vars.get(var))));
+              recv_args.add(create.unresolved_name(var));
+          }
         }
-        
-        for(String var:vars.keySet())  
-        {
-            recv_decl.add(create.field_decl(var,copy_rw.rewrite(vars.get(var))));
-            recv_args.add(create.unresolved_name(var));
-        }
-      
+
         cb = new ContractBuilder();
         cb.requires(copy_rw.rewrite(loop_invariant));
         cb.ensures(copy_rw.rewrite(loop_invariant));
@@ -742,12 +739,12 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     Contract c=s.getContract();
     loop_invariant=c.invariant;
     ASTNode res=null;
-    Hashtable<String,Type> body_vars=free_vars(s.body,c,s.guard);
+    Map<String, Type> bodyVars = NameScanner.freeVars(s.body,c,s.guard);
     //Hashtable<String,Type> iters=new Hashtable<String,Type>();
-    Hashtable<String,Type> main_vars=new Hashtable<String, Type>(body_vars);
+    Map<String, Type> mainVars = new HashMap<>(bodyVars);
     for(DeclarationStatement decl:s.decls){
       //iters.put(decl.name,decl.getType());
-      main_vars.remove(decl.name());
+      mainVars.remove(decl.name());
     }
 
     int N=counter.incrementAndGet();
@@ -757,9 +754,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     ContractBuilder body_cb=new ContractBuilder();
 
     for(ASTNode clause:ASTUtils.conjuncts(c.invariant, StandardOperator.Star)){
-      Hashtable<String,Type> clause_vars=free_vars(clause);
+      Map<String,Type> clauseVars = NameScanner.freeVars(clause);
       for(DeclarationStatement decl:s.decls){
-        if (clause_vars.get(decl.name()) != null) {
+        if (clauseVars.get(decl.name()) != null) {
           Fail("illegal iteration invariant at %s",clause.getOrigin());
         }
       }
@@ -840,12 +837,12 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     if (contract){
       res=main_cb.getContract();
     } else {
-      DeclarationStatement main_pars[]=gen_pars(main_vars);
+      DeclarationStatement[] mainPars= genPars(mainVars);
       currentTargetClass.add(create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
           main_cb.getContract(),
           main_name,
-          main_pars,
+          mainPars,
           null
       ));
     }
@@ -915,20 +912,20 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       }
     }
     
-    DeclarationStatement body_pars[]=gen_pars(body_vars);
+    DeclarationStatement[] bodyPars = genPars(bodyVars);
     currentTargetClass.add(create.method_decl(
         create.primitive_type(PrimitiveSort.Void),
         body_cb.getContract(),
         body_name,
-        body_pars,
+        bodyPars,
         rewrite(s.body)
     ));
     if (s.decls.length>0){
       String var_name = s.decls[s.decls.length-1].name();
-      check_send_recv(body_pars, var_name, s.guard);
+      check_send_recv(bodyPars, var_name, s.guard);
     }
     if (!contract) {
-      res=gen_call(main_name,main_vars);
+      res = genCall(main_name,mainVars);
     }
     loop_invariant=null;
     return res;

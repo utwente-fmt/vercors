@@ -15,9 +15,12 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.*;
+import vct.logging.PassReport;
 import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
 import viper.api.SilverTypeMap;
+
+import static hre.lang.System.Output;
 
 /**
  * This class implements type checking of simple object oriented programs.
@@ -29,6 +32,7 @@ import viper.api.SilverTypeMap;
  */
 @SuppressWarnings("incomplete-switch")
 public class AbstractTypeCheck extends RecursiveVisitor<Type> {
+  PassReport report;
 
   public void check(){
     for(ASTDeclaration entry:source().get()){
@@ -44,8 +48,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     }
   }
 
-  public AbstractTypeCheck(ProgramUnit arg){
+  public AbstractTypeCheck(PassReport report, ProgramUnit arg){
     super(arg,true);
+    this.report = report;
   }
 
   public void visit(ConstantExpression e){
@@ -1439,7 +1444,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(new PrimitiveType(PrimitiveSort.Integer));
         break;
       }
-      case Append: {
+      case Concat: {
         if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
         if (!tt[1].isPrimitive(PrimitiveSort.Sequence)) Fail("argument of size is not a sequence");
         if (!tt[0].firstarg().equals(tt[1].firstarg())) {

@@ -17,7 +17,7 @@ import scala.collection.JavaConverters
   * @author sccblom
   *
   */
-case class MethodInvokation(`object`: ASTNode, dispatch: ClassType, method: String, args: Seq[ASTNode]) extends ExpressionNode with VisitorHelper {
+case class MethodInvokation(`object`: ASTNode, dispatch: ClassType, method: String, var args: Seq[ASTNode]) extends ExpressionNode with VisitorHelper {
   var definition: Method = null
 
   override def debugTreeChildrenFields = Seq("object", "args")
@@ -47,4 +47,16 @@ case class MethodInvokation(`object`: ASTNode, dispatch: ClassType, method: Stri
     if (definition == null) Abort("invokation of unknown method")
     definition.kind == Method.Kind.Constructor
   }
+
+  def prependArg(e: ASTNode) = args = Seq(e) ++ args
+
+  /**
+    * @see [[vct.col.ast.stmt.decl.Method.canThrow]]
+    */
+  def canThrow = getDefinition.canThrow
+
+  /**
+    * @see [[vct.col.ast.stmt.decl.Method.canThrowSpec]]
+    */
+  def canThrowSpec = getDefinition.canThrowSpec
 }

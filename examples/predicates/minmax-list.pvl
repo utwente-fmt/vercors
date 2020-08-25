@@ -1,26 +1,20 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases MinMaxList
-//:: tools chalice
-
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: tools silicon
+//:: verdict Pass
 
 /*
- * This example can be verified with Chalice:
- * vct --chalice minmax-list.pvl
+ * This example can be verified with Silicon:
+ * vct --silicon minmax-list.pvl
  */
 
 class List {
-  /* Predicates with arguments, such as
-  pred state(frac p)=perm(this.val,p)*perm(this.next,p)*(this.next!=null -> this.next.state(p));
-     require proof management syntax, which is not defined for PVL.
-     So, for now, we are limited to what is possible in Chalice.
-  */
-  resource state()=Perm(this.val,100)**Perm(this.next,100)**(this.next!=null ==> this.next.state());
+  resource state()=Perm(this.val,1)**Perm(this.next,1)**(this.next!=null ==> this.next.state());
 
   /* Pure functions are defined like predicates.
    */
   requires this.state();
-  boolean minmax(int min,int max)=min <= this.val && this.val <= max && (this.next!=null ==> this.next.minmax(min,max));
+  pure boolean minmax(int min,int max)=\unfolding this.state() \in min <= this.val && this.val <= max && (this.next!=null ==> this.next.minmax(min,max));
 
   int val;
   List next;

@@ -469,4 +469,14 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   public S map(InlineQuantifierPattern pattern) {
     return null;
   }
+
+  @Override
+  public S map(CatchClause cc) {
+    return null;
+  }
+
+  @Override
+  public S map(SignalsClause cc) {
+    return null;
+  }
 }
