@@ -905,6 +905,11 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
 
   @Override
+  public void visit(InlineQuantifierPattern pattern) {
+    result = create.pattern(pattern.getOrigin(), rewrite(pattern.inner()));
+  }
+
+  @Override
   public void visit(SignalsClause sc) {
     result = create.signalsClause(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
   }

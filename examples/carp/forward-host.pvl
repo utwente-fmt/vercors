@@ -31,7 +31,7 @@ class Ref {
 
       requires b[i]==i;
 
-      ensures  Perm(a[i],1\2);      
+      ensures  Perm(a[i],1\2);
       ensures  Perm(b[i],1\2);      
       ensures  Perm(c[i],write);          
       

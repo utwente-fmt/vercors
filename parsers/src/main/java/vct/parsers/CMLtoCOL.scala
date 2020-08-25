@@ -629,11 +629,11 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   def convertInitializer(init: InitializerContext, t: Type): ASTNode = origin(init, init match {
-    case Initializer0(exp) => expr(exp)
-    case Initializer1("{", xs, "}") =>
+    case Initializer0("{", xs, "}") =>
       convertInitializerList(xs, t)
-    case Initializer2("{", xs, _, "}") =>
+    case Initializer1("{", xs, _, "}") =>
       convertInitializerList(xs, t)
+    case Initializer2(exp) => expr(exp)
   })
 
   def convertInitializerList(xs: InitializerListContext, t: Type): ASTNode = {
@@ -660,9 +660,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   def expr(exp: InitializerContext): ASTNode = exp match {
-    case Initializer0(exp) => expr(exp)
-    case Initializer1("{", _, "}") => ??(exp)
-    case Initializer2("{", _, _, "}") => ??(exp)
+    case Initializer0("{", _, "}") => ??(exp)
+    case Initializer1("{", _, _, "}") => ??(exp)
+    case Initializer2(exp) => expr(exp)
   }
 
   def expr(exp: ExpressionContext): ASTNode = exp match {
@@ -1101,6 +1101,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val res = expr(exp)
       res.addLabel(create label(convertID(label)))
       res
+    case ValPrimary30("{:", pattern, ":}") =>
+      create pattern expr(pattern)
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {

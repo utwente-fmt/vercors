@@ -224,8 +224,6 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
            null,
            null
        )
-       case Fresh(ps) => api.stat.fresh(o,map_expr(api,ps))
-       case Constraining(ps,body) => api.stat.constraining(o,map_expr(api,ps),map_stat(api,body))
        case Exhale(e) => api.stat.exhale(o,map_expr(api,e))
        case Goto(e) => api.stat.goto_(o,e)
        case If(c, s1, s2) => api.stat.if_then_else(o,
@@ -412,7 +410,7 @@ object Parser extends viper.silver.frontend.SilFrontend {
     semanticAnalysis()
     translation()
     _program match {
-      case Some(Program(domains,fields,functions,predicates,methods)) => 
+      case Some(Program(domains,fields,functions,predicates,methods,_)) =>
         val prog=new Prog();
           prog.domains.addAll(domains.asJava)
           prog.fields.addAll(fields.asJava)

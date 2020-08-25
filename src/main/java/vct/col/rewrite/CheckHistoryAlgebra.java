@@ -109,12 +109,12 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
                 ,create.field_decl("p2", adt_type)},
               null,
               create.constant(true),
-              create.domain_call("Process", "p_is_choice",
+              create.pattern(create.domain_call("Process", "p_is_choice",
                   create.domain_call("Process", "p_choice",
                       create.local_name("p1"),create.local_name("p2")
                   ),
                   create.local_name("p1")
-              )
+              ))
           )
       ));
       adt.add_axiom(create.axiom("choice_R",
@@ -126,12 +126,12 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
                 ,create.field_decl("p2", adt_type)},
               null,
               create.constant(true),
-              create.domain_call("Process", "p_is_choice",
+              create.pattern(create.domain_call("Process", "p_is_choice",
                   create.domain_call("Process", "p_choice",
                       create.local_name("p1"),create.local_name("p2")
                   ),
                   create.local_name("p2")
-              )
+              ))
           )
       ));
       adt.add_axiom(create.axiom("choice_dist",
@@ -767,7 +767,11 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       body.add(rewrite(n));
     }
     body.add(create.invokation(hist, null, act.method()+"_commit", args.toArray(new ASTNode[0])));
-    res.add(create.constraining(body, names));
+    if(names.isEmpty()) {
+      res.add(body);
+    } else {
+      res.add(create.constraining(body, names));
+    }
     result=res;
     in_action=false;
   }

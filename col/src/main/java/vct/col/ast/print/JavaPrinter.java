@@ -1577,6 +1577,12 @@ public class JavaPrinter extends AbstractPrinter {
   }
 
   @Override
+  public void visit(InlineQuantifierPattern pattern) {
+    out.print("{:");
+    pattern.inner().apply(this);
+    out.print(":}");
+  }
+
   public void visit(Synchronized sync) {
     out.print("synchronized (");
     nextExpr();

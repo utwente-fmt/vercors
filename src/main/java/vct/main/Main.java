@@ -597,6 +597,9 @@ public class Main
           passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
           passes.add("standardize");
           passes.add("check");
+          passes.add("inline-pattern-to-trigger");
+          passes.add("gen-triggers");
+          passes.add("check");
 
           passes.add("silver");
         } else { //CHALICE
@@ -1168,6 +1171,16 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("gen-triggers", new CompilerPass("") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new Triggers(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("inline-pattern-to-trigger", new CompilerPass("Explicit inline patterns to normal trigger syntax") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new InlinePatternToTrigger(arg).rewriteAll();
+      }
+    });
     defined_passes.put("specify-implicit-labels", new CompilerPass("Insert explicit labels for break statements in while loops.") {
       @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){

@@ -58,10 +58,4 @@ public interface StatementFactory<O, T, E, S> {
   /** Create an if-the-else. */
   public S if_then_else(O o,E c,S s1,S s2);
 
-  /** Create a constraining block. */
-  public S constraining(O o,List<E> names,S body);
-  
-  /** Create a fresh statement. */
-  public S fresh(O o,List<E> names);
-
 }
