@@ -14,10 +14,9 @@ class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(sourc
   override def visit(pattern: InlineQuantifierPattern): Unit = {
     result = rewrite(pattern.inner)
 
-    if(patternStack.isEmpty) {
-      pattern.getOrigin.report("fatal", "Pattern in invalid place")
-//      Fail("")
-    } else {
+    /* Parallel block contracts are propagated in quantified and un-quantified form, hence the check and no
+        error condition. */
+    if(patternStack.nonEmpty) {
       patternStack.top += result
     }
   }

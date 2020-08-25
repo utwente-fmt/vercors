@@ -57,7 +57,8 @@ public class MessageProcess {
                     process.destroyForcibly();
                 }
             } catch (InterruptedException e) {
-                // Unreachable
+                // Re-set the flag; thread ends here.
+                Thread.currentThread().interrupt();
             }
         }).start();
     }

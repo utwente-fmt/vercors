@@ -1,22 +1,18 @@
 package viper.api;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import hre.util.Triple;
-import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTSpecial.Kind;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.composite.Constraining;
-import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTFactory;
-import viper.api.StatementFactory;
+
+import java.util.ArrayList;
 
 public class VerCorsStatementFactory implements
     StatementFactory<Origin, Type, ASTNode, ASTNode > {
