@@ -123,7 +123,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
           result.setFlag(ASTFlags.INLINE, true);
         } else if(mod.isReserved(ASTReserved.ThreadLocal)) {
           result.setFlag(ASTFlags.THREAD_LOCAL, true)
-        } else {
+        } else if(!mod.isReserved(ASTReserved.Pure)) { // already covered by scan above
           result.attach(mod)
         }
       })

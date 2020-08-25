@@ -42,7 +42,13 @@ public class AddTypeADT extends AbstractRewriter {
         null
     ));
     create.leave();
-    target().add(adt);
+  }
+
+  @Override
+  public ProgramUnit rewriteAll() {
+    ProgramUnit result = super.rewriteAll();
+    result.add(adt);
+    return result;
   }
 
   @Override

@@ -1060,6 +1060,13 @@ public ASTNode this_expression(ClassType t) {
   return res;
 }
 
+public ASTNode diz() {
+  NameExpression result = new NameExpression(ASTReserved.This);
+  result.setOrigin(origin_stack.get());
+  result.accept_if(post);
+  return result;
+}
+
 /**
  * Create a name expression that refers to an unresolved name.
  */

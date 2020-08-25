@@ -27,10 +27,18 @@ object Passes {
     val visitor = new RainbowVisitor(program)
     program.asScala.foreach(_.accept(visitor))
 
-    var features = visitor.features.toSet ++ Set(vct.col.features.NotFlattened)
-    val toRemove = features -- BY_KEY(goal).permits
-    var unorderedPasses: mutable.Set[(String, AbstractPass)] = mutable.Set() ++ toRemove.map(findPassToRemove)
+    var features = visitor.features.toSet ++ Set(
+      vct.col.features.NotFlattened,
+      vct.col.features.BeforeSilverDomains,
+      vct.col.features.NullAsOptionValue
+    )
+    var unorderedPasses: mutable.Set[(String, AbstractPass)] = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
     var passes: mutable.ArrayBuffer[(String, AbstractPass)] = mutable.ArrayBuffer()
+
+    while((unorderedPasses.map(_._2.introduces).reduce(_ ++ _) -- features).nonEmpty) {
+      features ++= unorderedPasses.map(_._2.introduces).reduce(_ ++ _)
+      unorderedPasses = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
+    }
 
     while(unorderedPasses.nonEmpty) {
       // Assume no passes are idempotent, which makes ordering much easier.
@@ -49,7 +57,7 @@ object Passes {
   }
 
   def computeGoalJava(program: ProgramUnit, goal: String): util.List[String] =
-    (computeGoal(program, goal).map(_._1) :+ "silver=silicon").asJava
+    (computeGoal(program, goal).map(_._1) ++ Seq("simplify_quant", "check", "silver=silicon")).asJava
 
   def BY_KEY_JAVA: util.Map[String, AbstractPass] = BY_KEY.asJava
 
@@ -73,7 +81,10 @@ object Passes {
     "add-type-adt" -> SimplePass(
       "Add an ADT that describes the types and use it to implement instanceof",
       new AddTypeADT(_).rewriteAll,
-      removes=Set(features.Inheritance)),
+      removes=Set(features.Inheritance),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.Inheritance
+      )),
     "access" -> SimplePass(
       "convert access expressions for histories/futures",
       new AccessIntroduce(_).rewriteAll,
@@ -83,13 +94,20 @@ object Passes {
       override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, args(0))
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
-      override def permits: Set[Feature] = Set(features.Dereference, features.Null)
+      override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript)
     },
     "check" -> SimplePass("run a basic type check", arg => {
       new SimpleTypeCheck(arg).check()
       arg
     }, introduces=Set(), permits=Feature.ALL),
-    "array_null_values" -> SimplePass("rewrite null values for arrays to None", new ArrayNullValues(_).rewriteAll),
+    "array_null_values" -> SimplePass(
+      "rewrite null values for arrays to None",
+      new ArrayNullValues(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT ++ Set(
+        features.NullAsOptionValue,
+        features.ArgumentAssignment,
+      ),
+      removes=Set(features.NullAsOptionValue)),
     "pointers_to_arrays" -> SimplePass(
       "rewrite pointers to arrays",
       new PointersToArrays(_).rewriteAll,
@@ -127,6 +145,8 @@ object Passes {
         features.ContextEverywhere,
         features.Constructors,
         features.UnscaledPredicateApplication,
+        features.StaticFields,
+        features.NestedQuantifiers,
       )),
     "codegen" -> new AbstractPass("Generate code") {
       override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
@@ -198,6 +218,8 @@ object Passes {
         features.StaticFields,
         features.This,
         features.Arrays,
+        features.BeforeSilverDomains,
+        features.NestedQuantifiers,
       )),
     "ghost-lift" -> SimplePass(
       "Lift ghost code to real code",
@@ -206,7 +228,14 @@ object Passes {
     "globalize" -> SimplePass(
       "split classes into static and dynamic parts",
       new GlobalizeStaticsParameter(_).rewriteAll,
-      removes=Set(features.StaticFields)),
+      removes=Set(features.StaticFields),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.StaticFields,
+        features.Inheritance,
+        features.Constructors,
+        features.NestedQuantifiers,
+        features.ContextEverywhere,
+      )),
     "ds_inherit" -> SimplePass("rewrite contracts to reflect inheritance, predicate chaining", arg => new DynamicStaticInheritance(arg).rewriteOrdered),
     "flatten_before_after" -> SimplePass(
       "move before/after instructions",
@@ -229,7 +258,7 @@ object Passes {
       "Encode PVL builtins for verification.",
       new PVLEncoder(_).rewriteAll,
       removes=Set(features.PVLSugar)),
-    "magicwand" -> new ErrorMapPass("Encode magic wand proofs with abstract predicates", new WandEncoder(_, _).rewriteAll),
+    "magicwand" -> ErrorMapPass("Encode magic wand proofs with abstract predicates", new WandEncoder(_, _).rewriteAll),
     "modifies" -> SimplePass("Derive modifies clauses for all contracts", arg => {
       new DeriveModifies().annotate(arg)
       arg
@@ -242,7 +271,9 @@ object Passes {
     "parallel_blocks" -> ErrorMapPass(
       "Encoded the proof obligations for parallel blocks",
       new ParallelBlockEncoder(_, _).rewriteAll,
-      removes=Set(features.ParallelBlocks)),
+      permits=Feature.DEFAULT_PERMIT - features.ContextEverywhere,
+      removes=Set(features.ParallelBlocks),
+      introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere),
     "pvl-compile" -> SimplePass("Compile PVL classes to Java classes", new PVLCompiler(_).rewriteAll),
     "reorder" -> SimplePass(
       "reorder statements (e.g. all declarations at the start of a bock",
@@ -259,6 +290,8 @@ object Passes {
         features.UnscaledPredicateApplication,
         features.ScatteredDeclarations,
         features.NotFlattened,
+        features.BeforeSilverDomains,
+        features.NestedQuantifiers,
       )),
     "standardize-functions" -> SimplePass(
       "translate pure methods to function syntax.",
@@ -268,8 +301,34 @@ object Passes {
     "propagate-invariants" -> SimplePass(
       "propagate invariants",
       new PropagateInvariants(_).rewriteAll,
-      removes=Set(features.ContextEverywhere)),
-    "quant-optimize" -> SimplePass("insert satisfyability checks for all methods", new OptimizeQuantifiers(_).rewriteAll),
+      removes=Set(features.ContextEverywhere),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.ContextEverywhere,
+        features.Inheritance,
+        features.Constructors,
+        features.StaticFields,
+        features.NestedQuantifiers,
+      )),
+    "quant-optimize" -> SimplePass(
+      "Removes nesting of quantifiers in chains of forall/starall and implies",
+      new OptimizeQuantifiers(_).rewriteAll,
+      removes=Set(features.NestedQuantifiers),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.NestedQuantifiers,
+        features.This,
+        features.Arrays,
+        features.Dereference,
+        features.NonVoidMethods,
+        features.ContextEverywhere,
+        features.StaticFields,
+        features.Constructors,
+        features.Null,
+        features.UnscaledPredicateApplication,
+        features.NotFlattened,
+        features.BeforeSilverDomains,
+        features.ScatteredDeclarations,
+      )
+    ),
     "rewrite" -> Pass("Apply a term rewrite system", (arg, args) => {
       val trs = RewriteSystems.getRewriteSystem(args(0))
       trs.normalize(arg)
@@ -298,7 +357,19 @@ object Passes {
     "adt_operator_rewrite" -> SimplePass("rewrite PVL-specific ADT operators", new ADTOperatorRewriter(_).rewriteAll),
     "rm_cons" -> SimplePass("???", new ConstructorRewriter(_).rewriteAll),
     "sat_check" -> SimplePass("insert satisfyability checks for all methods", new SatCheckRewriter(_).rewriteAll),
-    "silver-class-reduction" -> SimplePass("reduce classes to single Ref class", new SilverClassReduction(_).rewriteAll),
+    "silver-class-reduction" -> SimplePass(
+      "reduce classes to single Ref class",
+      new SilverClassReduction(_).rewriteAll,
+      removes=Set(features.BeforeSilverDomains),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.This,
+        features.Arrays,
+        features.Inheritance,
+        features.ContextEverywhere,
+        features.Constructors,
+        features.BeforeSilverDomains,
+        features.StaticFields,
+      )),
     "silver-reorder" -> SimplePass("move declarations from inside if-then-else blocks to top", new SilverReorder(_).rewriteAll),
     "scale-always" -> SimplePass(
       "scale every predicate invokation",
@@ -352,6 +423,8 @@ object Passes {
         features.StaticFields,
         features.Constructors,
         features.UnscaledPredicateApplication,
+        features.BeforeSilverDomains,
+        features.NestedQuantifiers,
       )),
     "voidcallsthrown" -> SimplePass("Replace return value and thrown exceptions by out parameters.", new VoidCallsThrown(_).rewriteAll),
     "vector-encode" -> SimplePass(

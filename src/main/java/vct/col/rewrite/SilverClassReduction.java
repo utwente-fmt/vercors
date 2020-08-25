@@ -257,6 +257,12 @@ public class SilverClassReduction extends AbstractRewriter {
       args.get(1).addLabel(create.label("V"));
       result=create.class_type("VCTMap",args);
       break;
+    case Fraction:
+      result = create.class_type("frac");
+      break;
+    case ZFraction:
+      result = create.class_type("zfrac");
+      break;
     default:
       super.visit(t);
       break;
@@ -350,13 +356,14 @@ public class SilverClassReduction extends AbstractRewriter {
 
   private ASTNode getFracVal(ASTNode node) {
     fractions = true;
-    String method = node.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
+    Type t = node.getType();
+    String method = t.isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
     node = rewrite(node);
 
     if(node instanceof MethodInvokation && (((MethodInvokation) node).method().equals("new_frac") || ((MethodInvokation) node).method().equals("new_zfrac"))) {
       return ((MethodInvokation) node).getArg(0);
     } else {
-      return create.invokation(null, null, method, node);
+      return create.invokation(rewrite(t), null, method, node);
     }
   }
 

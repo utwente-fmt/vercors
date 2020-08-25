@@ -124,6 +124,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     visitBeforeAfter(op)
     op.operator match {
       case StandardOperator.Subscript =>
+        features += Arrays
         if(op.first.isa(StandardOperator.RangeSeq)) {
           features += SubscriptRange
         }
@@ -140,7 +141,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       case StandardOperator.Held | StandardOperator.PVLidleToken | StandardOperator.PVLjoinToken =>
         features += PVLSugar
       case StandardOperator.ValidArray | StandardOperator.ValidMatrix | StandardOperator.NewArray |
-           StandardOperator.Subscript | StandardOperator.Values | StandardOperator.Drop =>
+           StandardOperator.Values | StandardOperator.Drop =>
         features += Arrays
       case StandardOperator.PostIncr | StandardOperator.PostDecr | StandardOperator.PreIncr | StandardOperator.PreDecr |
            StandardOperator.Assign | StandardOperator.PrependSingle | StandardOperator.AppendSingle | StandardOperator.Empty =>
@@ -149,10 +150,17 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     }
   }
 
+  var bindingExpressionDepth = 0
+
   override def visit(binding: BindingExpression): Unit = {
+    bindingExpressionDepth += 1
+    if(bindingExpressionDepth >= 2) {
+      features += NestedQuantifiers
+    }
     super.visit(binding)
     if(binding.binder == Binder.SetComp)
       features += ADTOperators
+    bindingExpressionDepth -= 1
   }
 
   override def visit(assign: AssignmentStatement): Unit = {
@@ -277,7 +285,11 @@ object Feature {
     Constructors,
     VectorBlock,
     NonVoidMethods,
+    NestedQuantifiers,
+
     NotFlattened,
+    BeforeSilverDomains,
+    NullAsOptionValue,
   )
   val DEFAULT_INTRODUCE: Set[Feature] = Set(
     // node annotations are mostly used by the parser and resolved early on
@@ -317,7 +329,7 @@ object Feature {
     Dereference,
 
     // TODO
-    Inheritance,
+    // Inheritance,
 
     // Hmm, this is here to indicate null-array-values. TODO
     Null,
@@ -406,6 +418,12 @@ object Feature {
 
     // Passes should be able to introduce complex expressions
     NotFlattened,
+
+    // Whole bunch of primitive types
+    BeforeSilverDomains,
+
+    // Sometimes stuff gets quantified, so you'd have to know the shape of parent expressions
+    NestedQuantifiers,
   )
   val DEFAULT_PERMIT: Set[Feature] = Set(
     // transfered by post_visit in AbstractRewriter automatically
@@ -534,6 +552,12 @@ object Feature {
 
     // Complex expressions should be no problem.
     NotFlattened,
+
+    // Reasoning over the simple tyeps is much easier than the converted types
+    BeforeSilverDomains,
+
+    // Easy to reason about
+    NestedQuantifiers,
   )
 }
 
@@ -582,5 +606,8 @@ case object NotStandardized extends ScannableFeature
 case object Constructors extends ScannableFeature
 case object VectorBlock extends ScannableFeature
 case object NonVoidMethods extends ScannableFeature
+case object NestedQuantifiers extends ScannableFeature
 
 case object NotFlattened extends GateFeature
+case object BeforeSilverDomains extends GateFeature
+case object NullAsOptionValue extends GateFeature

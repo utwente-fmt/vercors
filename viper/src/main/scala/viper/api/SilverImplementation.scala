@@ -65,6 +65,8 @@ class SilverImplementation[O](o:OriginFactory[O])
               prog.functions.asScala.toList,
               prog.predicates.asScala.toList,
               prog.methods.asScala.toList)()
+
+    Output("%s", program.check)
               
     //println("=============\n" + program + "\n=============\n")
     

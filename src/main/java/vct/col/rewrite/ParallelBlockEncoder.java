@@ -292,7 +292,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
             for(int j=0;j<args.length;j++){
               args[j]=create.reserved_name(ASTReserved.Any);
             }
-            pb.dependency(i, create.invokation(null,null,dep, args));
+            pb.dependency(i, create.invokation(create.diz(),null,dep, args));
           } else if (d instanceof MethodInvokation){
             MethodInvokation e=(MethodInvokation)d;
             String dep=e.method();
@@ -380,7 +380,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
                     }
                   }
                   
-                  ASTNode cond = create.invokation(null,null,"before_" + pb2.label() + "_" + pb1.label(), args);
+                  ASTNode cond = create.invokation(create.diz(),null,"before_" + pb2.label() + "_" + pb1.label(), args);
                   if (exists.size()>0){
                     cond=create.exists(create.constant(true),cond,exists.toArray(new DeclarationStatement[0]));
                   }
@@ -471,7 +471,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     ASTNode body=create.special(ASTSpecial.Kind.Assert,create.fold(StandardOperator.Star, list));
     if (guard) {
       body=create.ifthenelse(create.expression(StandardOperator.Not,
-              create.invokation(null, null, "before_"+pb1.label()+"_"+pb2.label(), args)),
+              create.invokation(create.diz(), null, "before_"+pb1.label()+"_"+pb2.label(), args)),
             create.block(
               body
             )
@@ -660,7 +660,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       
         currentTargetClass.add_dynamic(send_body);
         
-        result=create.invokation(null,null,send_name,send_args.toArray(new ASTNode[0]));        
+        result=create.invokation(create.diz(),null,send_name,send_args.toArray(new ASTNode[0]));
       break;
     case Recv:
       // create method contract
@@ -717,7 +717,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       }
       ///Check for side conditions        
         currentTargetClass.add_dynamic(recv_body);        
-        result=create.invokation(null,null,recv_name,recv_args.toArray(new ASTNode[0]));
+        result=create.invokation(create.diz(),null,recv_name,recv_args.toArray(new ASTNode[0]));
               
       break;
     default:

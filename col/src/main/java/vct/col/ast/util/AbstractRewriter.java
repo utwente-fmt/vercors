@@ -774,7 +774,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       args[i]=create.unresolved_name(name);
       i++;
     }
-    return create.invokation(null,null, method, args);
+    return create.invokation(create.diz(),null, method, args);
   }
 
   @Override

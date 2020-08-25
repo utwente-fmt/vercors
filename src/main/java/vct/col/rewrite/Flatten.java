@@ -126,10 +126,11 @@ public class Flatten extends AbstractRewriter {
       
       ASTNode val=e.arg(1);
       ASTNode val_res=val.apply(this);
-      
-      //current_block.add_statement(create.assignment(loc_res,create.expression(StandardOperator.Plus,loc_res,val_res)));
-      //result=null;
-      result=create.expression(StandardOperator.Assign,loc_res,create.expression(StandardOperator.Plus,loc_res,val_res));
+
+      current_block.addStatement(
+              create.assignment(loc_res, create.expression(StandardOperator.Plus, loc_res, val_res))
+      );
+      result = copy_rw.rewrite(loc_res);
       return;
     }
     case PreIncr:
