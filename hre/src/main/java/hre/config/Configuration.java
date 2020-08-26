@@ -179,9 +179,9 @@ public class Configuration {
         String os = System.getProperty("os.name");
 
         if(os.startsWith("Windows")) {
-            return join(base, "windows", "bin");
+            return join(base, "windows", "bin", "boogie");
         } else {
-            return join(base, "unix", "bin");
+            return join(base, "unix", "bin", "boogie");
         }
     }
 
