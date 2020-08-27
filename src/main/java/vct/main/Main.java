@@ -627,7 +627,7 @@ public class Main {
         Verdict("The final verdict is %s", fatal_errs == 0 ? "Pass" : "Fail");
     }
 
-    private void run(String[] args) throws FileNotFoundException {
+    private int run(String[] args) {
         int exit = 0;
         long wallStart = System.currentTimeMillis();
         tk = new TimeKeeper();
@@ -655,14 +655,14 @@ public class Main {
                     "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. " +
                     "You can see the full exception by adding '--debug vct.main.Main' to the flags.");
             Verdict("The final verdict is Error");
-            throw e;
         } finally {
             Progress("entire run took %d ms", System.currentTimeMillis() - wallStart);
-            System.exit(exit);
         }
+
+        return exit;
     }
 
-    public static void main(String[] args) throws Throwable {
-        new Main().run(args);
+    public static void main(String[] args) {
+        System.exit(new Main().run(args));
     }
 }

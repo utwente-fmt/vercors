@@ -146,6 +146,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       case StandardOperator.PostIncr | StandardOperator.PostDecr | StandardOperator.PreIncr | StandardOperator.PreDecr |
            StandardOperator.Assign | StandardOperator.PrependSingle | StandardOperator.AppendSingle | StandardOperator.Empty =>
         features += NotStandardized
+      case StandardOperator.ValidPointer | StandardOperator.ValidPointerIndex =>
+        features += ValidPointer
       case _ =>
     }
   }

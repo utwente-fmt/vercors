@@ -277,18 +277,4 @@ public class System {
         log(LogLevel.Result, outputStreams, format, args);
         return new Failure(String.format(format, args));
     }
-
-//    static {
-//        final UncaughtExceptionHandler parent = Thread.getDefaultUncaughtExceptionHandler();
-//        UncaughtExceptionHandler eh = new UncaughtExceptionHandler() {
-//            @Override
-//            public void uncaughtException(Thread t, Throwable e) {
-//                if (e instanceof HREExitException) {
-//                    java.lang.System.exit(((HREExitException) e).exit);
-//                }
-//                parent.uncaughtException(t, e);
-//            }
-//        };
-//        Thread.setDefaultUncaughtExceptionHandler(eh);
-//    }
 }

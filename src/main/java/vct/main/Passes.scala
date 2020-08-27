@@ -111,6 +111,7 @@ object Passes {
     "pointers_to_arrays" -> SimplePass(
       "rewrite pointers to arrays",
       new PointersToArrays(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT - features.AddrOf,
       removes=Set(features.Pointers)),
     "desugar_valid_pointer" -> SimplePass(
       "rewrite \\array, \\matrix, \\pointer and \\pointer_index",
@@ -218,8 +219,9 @@ object Passes {
         features.StaticFields,
         features.This,
         features.Arrays,
-        features.BeforeSilverDomains,
+        // struct value flattening to arrays: features.BeforeSilverDomains,
         features.NestedQuantifiers,
+        features.NonVoidMethods,
       )),
     "ghost-lift" -> SimplePass(
       "Lift ghost code to real code",
@@ -369,6 +371,8 @@ object Passes {
         features.Constructors,
         features.BeforeSilverDomains,
         features.StaticFields,
+        features.NonVoidMethods,
+        features.NotFlattened,
       )),
     "silver-reorder" -> SimplePass("move declarations from inside if-then-else blocks to top", new SilverReorder(_).rewriteAll),
     "scale-always" -> SimplePass(

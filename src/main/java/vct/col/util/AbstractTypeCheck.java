@@ -1059,7 +1059,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         force_frac(e.arg(2));
 
         if (!tt[0].isPrimitive(PrimitiveSort.Pointer)) {
-          SequenceUtils.expectArray(e.arg(0), "The first argument to \\pointer_index (%s) should be a pointer, but was of type %s");
+          SequenceUtils.getInfoOrFail(e.arg(0), "The first argument to \\pointer_index (%s) should be a pointer, but was of type %s");
         }
 
         e.setType(new PrimitiveType(PrimitiveSort.Resource));

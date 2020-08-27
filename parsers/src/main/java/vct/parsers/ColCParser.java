@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import hre.config.Configuration;
+import hre.lang.HREExitException;
 import vct.col.ast.stmt.decl.ProgramUnit;
 
 /**
@@ -51,7 +52,7 @@ public class ColCParser extends ColIParser {
               err_found=true;
             }
             if (err_found){
-              System.exit(1);
+              throw new HREExitException(1);
             }
           }
         };
