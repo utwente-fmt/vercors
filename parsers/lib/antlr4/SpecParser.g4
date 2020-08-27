@@ -145,6 +145,8 @@ valReserved
  | 'read' // Any read permission
  | 'None' // The empty value of the option langType
  | 'empty' // The empty process in the context of Models
+ | '\\ltid'
+ | '\\gtid'
  ;
 
 valType

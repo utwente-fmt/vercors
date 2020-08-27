@@ -921,6 +921,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create reserved_name ASTReserved.OptionNone
     case ValReserved7("empty") =>
       create reserved_name ASTReserved.EmptyProcess
+    case ValReserved8("\\ltid") =>
+      create reserved_name ASTReserved.LocalThreadId
+    case ValReserved9("\\gtid") =>
+      create reserved_name ASTReserved.GlobalThreadId
   })
 
   /**
@@ -938,6 +942,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValReserved5(s) => s
     case ValReserved6(s) => s
     case ValReserved7(s) => s
+    case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =

@@ -106,6 +106,8 @@ MSUM: '\\msum';
 MCMP: '\\mcmp';
 MREP: '\\mrep';
 RESULT: '\\result';
+LTID: '\\ltid';
+GTID: '\\gtid';
 
 NONE: 'none';
 OPTION_NONE: 'None';
