@@ -23,6 +23,7 @@ class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(sourc
 
   override def visit(quantifier: BindingExpression): Unit = {
     patternStack.push(ArrayBuffer())
+    val select = rewrite(quantifier.select)
     val main = rewrite(quantifier.main)
 
     val triggers = (Option(quantifier.triggers) match {
@@ -38,7 +39,7 @@ class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(sourc
       case comprehension: SetComprehension =>
         result = create setComp(
           rewrite(quantifier.result_type),
-          rewrite(quantifier.select),
+          select,
           main,
           rewrite(comprehension.variables),
           quantifier.getDeclarations)
@@ -48,7 +49,7 @@ class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(sourc
           rewrite(quantifier.result_type),
           rewrite(quantifier.getDeclarations),
           triggers,
-          rewrite(quantifier.select),
+          select,
           main)
     }
 
