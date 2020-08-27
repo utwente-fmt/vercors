@@ -17,6 +17,7 @@ import vct.parsers.rewrite.{FlattenVariableDeclarations, InferADTTypes}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object Passes {
   var rainbowResult: util.List[String] = null
@@ -32,13 +33,15 @@ object Passes {
       vct.col.features.BeforeSilverDomains,
       vct.col.features.NullAsOptionValue
     )
-    var unorderedPasses: mutable.Set[(String, AbstractPass)] = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
+    var unorderedPassesSet: mutable.Set[(String, AbstractPass)] = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
     var passes: mutable.ArrayBuffer[(String, AbstractPass)] = mutable.ArrayBuffer()
 
-    while((unorderedPasses.map(_._2.introduces).reduce(_ ++ _) -- features).nonEmpty) {
-      features ++= unorderedPasses.map(_._2.introduces).reduce(_ ++ _)
-      unorderedPasses = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
+    while((unorderedPassesSet.map(_._2.introduces).reduce(_ ++ _) -- features).nonEmpty) {
+      features ++= unorderedPassesSet.map(_._2.introduces).reduce(_ ++ _)
+      unorderedPassesSet = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
     }
+
+    val unorderedPasses: ArrayBuffer[(String, AbstractPass)] = ArrayBuffer() ++ unorderedPassesSet.toSeq.sortBy(_._1)
 
     while(unorderedPasses.nonEmpty) {
       // Assume no passes are idempotent, which makes ordering much easier.
