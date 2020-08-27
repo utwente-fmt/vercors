@@ -545,6 +545,7 @@ translationUnit
 externalDeclaration
     :   functionDefinition
     |   declaration
+    |   valEmbedDeclarationBlock
     |   ';' // stray ;
     ;
 

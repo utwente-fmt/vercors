@@ -55,7 +55,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   def convertDecl(tree: ExternalDeclarationContext): Seq[ASTDeclaration] = tree match {
     case ExternalDeclaration0(funcDecl) => convertDecl(funcDecl)
     case ExternalDeclaration1(decl) => convertDecl(decl)
-    case ExternalDeclaration2(";") => Seq()
+    case ExternalDeclaration2(valDecls) => convertValDecl(valDecls)
+    case ExternalDeclaration3(";") => Seq()
   }
 
   def convertDecl(tree: FunctionDefinitionContext): Seq[ASTDeclaration] = origin(tree, tree match {
