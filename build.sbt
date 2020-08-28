@@ -79,7 +79,6 @@ lazy val vercors = (project in file("."))
         |(concurrent) programs written in Java, C, OpenCL, OpenMP, and its own Prototypal Verification Language
         |PVL. """.stripMargin.replaceAll("\n", ""),
 
-    libraryDependencies += "commons-io" % "commons-io" % "2.4",
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
