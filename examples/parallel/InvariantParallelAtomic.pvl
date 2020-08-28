@@ -1,0 +1,41 @@
+//:: cases InvariantParallelAtomic
+//:: tools silicon
+//:: verdict Pass
+
+// This test checks if the two test cases presented in issue 217 (https://github.com/utwente-fmt/vercors/issues/217)
+// do not cause VerCors to crash. It does not test any functional properties.
+
+class InvariantUse {
+    void test() {
+        boolean b;
+        b = true;
+        invariant inv(b) {
+            par(int tid = 0..2) {
+                atomic(inv){}
+            }
+        }
+    }
+}
+
+class Foo {
+  context xs != null;
+  requires (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1\2));
+  ensures \result;
+pure boolean f(int[] xs);
+
+  requires xs != null;
+  requires (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1));
+  void bar(int[] xs) {
+    invariant inv(xs != null ** (\forall* int i; 0 <= i && i < xs.length; Perm(xs[i], 1\2)) ** f(xs))
+    {
+      // context_everywhere is currently the only way to state facts about xs.length in de par argument
+      // See also: https://github.com/utwente-fmt/vercors/issues/521
+      context_everywhere xs != null;
+      par (int tid = 0 .. xs.length)
+      {
+        atomic(inv) { }
+      }
+    }
+  }
+}
+

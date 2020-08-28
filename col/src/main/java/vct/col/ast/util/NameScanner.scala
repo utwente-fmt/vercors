@@ -26,6 +26,24 @@ object NameScanner {
 
   @varargs
   def freeVars(theNodes: ASTNode*): util.Map[String, Type] = freeVars(theNodes.asJava)
+
+  def accesses(arg: ASTNode): Set[String] = {
+    val ns = new NameScanner
+    arg.accept(ns)
+    ns.accesses
+  }
+
+  def writes(arg: ASTNode): Set[String] = {
+    val ns = new NameScanner
+    arg.accept(ns)
+    ns.writes
+  }
+
+  def reads(arg: ASTNode): Set[String] = {
+    val ns = new NameScanner
+    arg.accept(ns)
+    ns.reads
+  }
 }
 
 class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
