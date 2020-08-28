@@ -5,19 +5,30 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Hashtable;
 
-import vct.col.ast.expr.*;
-import vct.col.ast.stmt.decl.*;
+import vct.col.ast.expr.Dereference;
+import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.NameExpression;
+import vct.col.ast.expr.OperatorExpression;
+import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.stmt.decl.ASTClass;
+import vct.col.ast.stmt.decl.ASTFlags;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.stmt.decl.DeclarationStatement;
+import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.util.ASTFactory;
+import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.Configuration;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.util.ASTUtils;
-import vct.col.ast.util.Configuration;
+import vct.col.util.AstToId;
 
 /**
  * This class checks if a specified process algebra is correct.
@@ -33,6 +44,10 @@ public class CheckProcessAlgebra extends AbstractRewriter {
 
   private Hashtable<String,String> composite_map;
   private Hashtable<String, Method> process_map;
+
+  public static final String FRESH_ZFRAC_NAME = "freshZfrac";
+
+  int counter = 0;
 
   private static ArrayList<ArrayList<String>> permutations(ArrayList<String> list) {
     if (list.size() == 0) {
@@ -154,7 +169,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
       super.visit(e);
     }
   }
-  
+
   @Override
   public void visit(Method m){
     if (m.getReturnType().isPrimitive(PrimitiveSort.Process)){
@@ -170,9 +185,35 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         cb.ensures(create.expression(StandardOperator.Perm,rewrite(v),create.reserved_name(ASTReserved.FullPerm)));
         create.leave();
       }
+
+      ArrayList<DeclarationStatement> accessArgs = new ArrayList<>();
+      if (c.accesses != null) {
+        for (ASTNode v : c.accesses) {
+          create.enter(v);
+
+          String argV = "f_" + AstToId.toId(v);
+          cb.requires(create.fold(StandardOperator.Star,
+                  create.expression(StandardOperator.LT,  create.constant(0), create.local_name(argV)),
+                  create.expression(StandardOperator.LT,  create.local_name(argV), create.constant(1)),
+                  create.expression(StandardOperator.Perm, rewrite(v), create.local_name(argV))
+                  ));
+          cb.ensures(create.expression(StandardOperator.Perm,rewrite(v),create.local_name(argV)));
+
+          accessArgs.add(create.field_decl(argV, create.primitive_type(PrimitiveSort.ZFraction)));
+
+          create.leave();
+        }
+      }
+
       if (c.pre_condition!=null) cb.requires(rewrite(c.pre_condition));
       if (c.post_condition!=null) cb.ensures(rewrite(c.post_condition));
+
       DeclarationStatement args[]=rewrite(m.getArgs());
+      for (DeclarationStatement arg : args) {
+        accessArgs.add(0, arg);
+      }
+      args = accessArgs.toArray(DeclarationStatement[]::new);
+
       BlockStatement body=null;
       ASTNode m_body=m.getBody();
       if (m_body!=null){
@@ -224,8 +265,12 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     }
   }
 
-  @SuppressWarnings("incomplete-switch")
   private ASTNode expand_unguarded(ASTNode m_body) {
+    PrintWriter out = hre.lang.System.getLogLevelErrorWriter(hre.lang.System.LogLevel.Debug);
+    out.print("expanding: ");
+    Configuration.getDiagSyntax().print(out,m_body);
+    out.println();
+
     if (m_body instanceof MethodInvokation){
       MethodInvokation p=(MethodInvokation)m_body;
       Method def=process_map.get(p.method());
@@ -277,6 +322,8 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         ASTNode g1=expand_unguarded(p1);
         return create.expression(StandardOperator.ITE,b,g0,g1);
       }
+      default:
+        // No problem
       }
     }
     Fail("illegal process expression");
@@ -367,7 +414,14 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         Abort("skipping unknown process operator %s", e.operator());
       }
     } else if (m_body instanceof MethodInvokation) {
-      body.add(copy_rw.rewrite(m_body));
+      MethodInvokation mi = copy_rw.rewrite((MethodInvokation) m_body);
+      Method def = process_map.get(mi.method());
+      if (def.getContract().accesses != null && def.getContract().accesses.length > 0) {
+        ensureFreshZfracPresent(source(), target(), create);
+        addAccessibleArgs(mi, body);
+      }
+      counter++;
+      body.add(mi);
     } else if (m_body.isReserved(ASTReserved.EmptyProcess)){
       body.add(create.comment("// empty process"));
     } else {
@@ -376,10 +430,56 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     create.leave();
   }
 
+  public static void ensureFreshZfracPresent(ProgramUnit source, ProgramUnit target, ASTFactory<?> create) {
+    if (source.find_procedure(FRESH_ZFRAC_NAME) != null || target.find_procedure(FRESH_ZFRAC_NAME) != null) {
+      // Already present in source or target
+      return;
+    }
+
+    Method m = create.method_decl(
+            create.primitive_type(PrimitiveSort.ZFraction),
+            null,
+            FRESH_ZFRAC_NAME,
+            new DeclarationStatement[0],
+            null
+    );
+
+    m.setFlag(ASTFlags.STATIC, true);
+
+    target.add(m);
+  }
+
+  private void addAccessibleArgs(MethodInvokation mi, BlockStatement body) {
+    for (ASTNode v : process_map.get(mi.method()).getContract().accesses) {
+      String vId = "f_" + AstToId.toId(v) + ("_" + counter++);
+
+      body.add(create.field_decl(vId, create.primitive_type(PrimitiveSort.ZFraction)));
+      body.add(create.assignment(create.local_name(vId), create.invokation(null, null, FRESH_ZFRAC_NAME)));
+
+      body.add(create.special(ASTSpecial.Kind.Assert, create.expression(StandardOperator.LT,
+              create.constant(0),
+              create.expression(StandardOperator.CurrentPerm, copy_rw.rewrite(v))
+      )));
+
+      body.add(create.special(ASTSpecial.Kind.Inhale, create.fold(StandardOperator.Star,
+              create.expression(StandardOperator.LT,
+                      create.constant(0),
+                      create.local_name(vId)
+              ),
+              create.expression(StandardOperator.LT,
+                      create.local_name(vId),
+                      create.expression(StandardOperator.CurrentPerm, copy_rw.rewrite(v))
+              )
+      )));
+
+      mi.addArg(create.local_name(vId));
+    }
+  }
+
   @Override
   public void visit(OperatorExpression e){
     switch(e.operator()){
-    case Or:
+      case Or:
       if(e.getType().isPrimitive(PrimitiveSort.Process)){
         result=create.invokation(null, null, "p_merge", rewrite(e.argsJava()));
         return;

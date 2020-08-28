@@ -928,7 +928,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         check_location(e.arg(0), "argument of CurrentPerm");
         tt[0] = e.arg(0).getType();
         if (tt[0] == null) Fail("type of argument unknown at %s", e.getOrigin());
-        e.setType(new PrimitiveType(PrimitiveSort.Fraction));
+        if (!((e.arg(0) instanceof Dereference) || tt[0].isPrimitive(PrimitiveSort.Resource))) {
+          Fail("CurrentPerm can only be used with dereference or predicate argument");
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
         break;
       }
       case Scale: {

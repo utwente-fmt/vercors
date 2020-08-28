@@ -546,6 +546,10 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal);
       break;
     }
+    case CurrentPerm:
+      super.visit(e);
+      result = create.invokation(null, null, "new_zfrac", result);
+      break;
     case Scale: {
       ASTNode permVal = e.arg(0);
       if (permVal.getType().isFraction()) {
