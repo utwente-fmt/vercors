@@ -119,6 +119,7 @@ object Passes {
     "desugar_valid_pointer" -> SimplePass(
       "rewrite \\array, \\matrix, \\pointer and \\pointer_index",
       new DesugarValidPointer(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT - features.Pointers,
       removes=Set(features.ValidPointer)),
     "lift_declarations" -> SimplePass(
       "lift declarations to cell of the declared types, to treat locals as heap locations.",
@@ -294,6 +295,7 @@ object Passes {
         features.Constructors,
         features.UnscaledPredicateApplication,
         features.ScatteredDeclarations,
+        features.DeclarationsInIf,
         features.NotFlattened,
         features.BeforeSilverDomains,
         features.NestedQuantifiers,
@@ -332,6 +334,7 @@ object Passes {
         features.NotFlattened,
         features.BeforeSilverDomains,
         features.ScatteredDeclarations,
+        features.DeclarationsInIf,
       )
     ),
     "rewrite" -> Pass("Apply a term rewrite system", (arg, args) => {
@@ -350,6 +353,7 @@ object Passes {
         features.Constructors,
         features.UnscaledPredicateApplication,
         features.ScatteredDeclarations,
+        features.DeclarationsInIf,
       )),
     "generate_adt_functions" -> SimplePass(
       "rewrite  standard operators on sequences to function definitions/calls",
@@ -377,7 +381,25 @@ object Passes {
         features.NonVoidMethods,
         features.NotFlattened,
       )),
-    "silver-reorder" -> SimplePass("move declarations from inside if-then-else blocks to top", new SilverReorder(_).rewriteAll),
+    "silver-reorder" -> SimplePass(
+      "move declarations from inside if-then-else blocks to top",
+      new SilverReorder(_).rewriteAll,
+      removes=Set(features.DeclarationsInIf),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.This,
+        features.Arrays,
+        features.NonVoidMethods,
+        features.Inheritance,
+        features.ContextEverywhere,
+        features.StaticFields,
+        features.Constructors,
+        features.UnscaledPredicateApplication,
+        features.DeclarationsInIf,
+        features.NotFlattened,
+        features.BeforeSilverDomains,
+        features.NestedQuantifiers,
+      )
+    ),
     "scale-always" -> SimplePass(
       "scale every predicate invokation",
       new ScaleAlways(_).rewriteAll,

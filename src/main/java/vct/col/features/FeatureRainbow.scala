@@ -225,10 +225,14 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     features += TypeExpressions
   }
 
+  var ifDepth = 0
+
   override def visit(fi: IfStatement): Unit = {
+    ifDepth += 1
     super.visit(fi)
     if(fi.getCount == 2 && fi.getGuard(0).isReserved(ASTReserved.Any))
       features += NondetCondition
+    ifDepth -= 1
   }
 
   override def visit(block: BlockStatement): Unit = {
@@ -236,6 +240,13 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     if(block.getStatements.lastIndexWhere(_.isInstanceOf[DeclarationStatement])
         > block.getStatements.indexWhere(!_.isInstanceOf[DeclarationStatement]))
       features += ScatteredDeclarations
+  }
+
+  override def visit(decl: DeclarationStatement): Unit = {
+    super.visit(decl)
+    if(ifDepth > 0) {
+      features += DeclarationsInIf
+    }
   }
 
   override def visit(block: stmt.composite.VectorBlock): Unit = {
@@ -288,6 +299,7 @@ object Feature {
     VectorBlock,
     NonVoidMethods,
     NestedQuantifiers,
+    DeclarationsInIf,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -426,6 +438,9 @@ object Feature {
 
     // Sometimes stuff gets quantified, so you'd have to know the shape of parent expressions
     NestedQuantifiers,
+
+    // Knowledge about parents etc.
+    DeclarationsInIf,
   )
   val DEFAULT_PERMIT: Set[Feature] = Set(
     // transfered by post_visit in AbstractRewriter automatically
@@ -560,6 +575,9 @@ object Feature {
 
     // Easy to reason about
     NestedQuantifiers,
+
+    // Nothing special
+    DeclarationsInIf,
   )
 }
 
@@ -609,6 +627,7 @@ case object Constructors extends ScannableFeature
 case object VectorBlock extends ScannableFeature
 case object NonVoidMethods extends ScannableFeature
 case object NestedQuantifiers extends ScannableFeature
+case object DeclarationsInIf extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
