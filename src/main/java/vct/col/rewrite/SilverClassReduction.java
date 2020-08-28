@@ -184,10 +184,10 @@ public class SilverClassReduction extends AbstractRewriter {
       }
     } else if(e.isReserved(ASTReserved.FullPerm) || e.isReserved(ASTReserved.ReadPerm)) {
       fractions = true;
-      result = create.invokation(null, null, "new_frac", e);
+      result = create.invokation(rewrite(e.getType()), null, "new_frac", e);
     } else if(e.isReserved(ASTReserved.NoPerm)) {
       fractions = true;
-      result = create.invokation(null, null, "new_zfrac", e);
+      result = create.invokation(rewrite(e.getType()), null, "new_zfrac", e);
     } else {
       super.visit(e);
     }
@@ -370,7 +370,7 @@ public class SilverClassReduction extends AbstractRewriter {
   private ASTNode packFracVal(Type t, ASTNode node) {
     fractions = true;
     String method = t.isPrimitive(PrimitiveSort.ZFraction) ? "new_zfrac" : "new_frac";
-    return create.invokation(null, null, method, node);
+    return create.invokation(rewrite(t.getType()), null, method, node);
   }
   
   @Override
@@ -439,7 +439,7 @@ public class SilverClassReduction extends AbstractRewriter {
       options=true;
       Type t=rewrite(e.arg(0).getType());
       String method=optionGet(t);
-      result=create.invokation(null, null,method,rewrite(e.argsJava()));
+      result=create.invokation(t, null,method,rewrite(e.argsJava()));
       break;
     }
     case New:{
@@ -472,7 +472,7 @@ public class SilverClassReduction extends AbstractRewriter {
         // Type marker, ignore.
         result = rewrite(e.arg(1));
       } else {
-        ASTNode condition=create.invokation(null, null,"instanceof",
+        ASTNode condition=create.domain_call("TYPE","instanceof",
             create.domain_call("TYPE","type_of",object),
             //create.invokation(null,null,"type_of",object));
             create.domain_call("TYPE","class_"+t));
