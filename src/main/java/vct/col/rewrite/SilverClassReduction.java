@@ -258,9 +258,11 @@ public class SilverClassReduction extends AbstractRewriter {
       result=create.class_type("VCTMap",args);
       break;
     case Fraction:
+      fractions = true;
       result = create.class_type("frac");
       break;
     case ZFraction:
+      fractions = true;
       result = create.class_type("zfrac");
       break;
     default:
