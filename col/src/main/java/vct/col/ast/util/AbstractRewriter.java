@@ -467,14 +467,17 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     DeclarationStatement args[]=rewrite(m.getArgs());
 
     Contract mc=m.getContract();
-    if (mc!=null){
-      rewrite(mc,currentContractBuilder);
-    }
+    Contract c;
     // Ensure we maintain the type of emptiness of mc
-    // If mc != null, but it is an empty contract, allow an empty contract in c
-    // If mc == null, make sure c == null if currentContractBuilder has an empty contract
-    // This way, if there was an non-null empty contract before, there is one after
-    Contract c=currentContractBuilder.getContract(mc != null && mc.isEmpty());
+    // If the contract was null previously, the new contract can also be null
+    // If the contract was non-null previously, the new contract cannot be null
+    if (mc!=null) {
+      rewrite(mc,currentContractBuilder);
+      c = currentContractBuilder.getContract(false);
+    } else {
+      c = currentContractBuilder.getContract(true);
+    }
+
     if (mc != null && c != null && c.getOrigin() == null) {
       c.setOrigin(mc.getOrigin());
     }
