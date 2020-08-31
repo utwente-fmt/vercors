@@ -43,7 +43,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     super.visit(m);
 
-    if (m.getKind() == Method.Kind.Pure && m.getContract() != null && m.canThrowSpec()) {
+    if (m.getKind() == Method.Kind.Pure && m.canThrowSpec()) {
       Fail("Pure methods cannot throw exceptions");
     }
 
