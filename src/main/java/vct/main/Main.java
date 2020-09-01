@@ -345,9 +345,8 @@ public class Main
 
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
+          passes.add("java-check");
         }
-
-        passes.add("java-check");
 
         if ((features.usesFinally() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
           passes.add("break-return-to-exceptions");

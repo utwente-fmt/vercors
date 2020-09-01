@@ -200,8 +200,8 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     if (c==null) return null;
     ContractBuilder cb=new ContractBuilder();
     rewrite(c,cb);
-    Contract contract = cb.getContract();
-    if (contract.getOrigin() == null) {
+    Contract contract = cb.getContract(false);
+    if (contract != null && contract.getOrigin() == null) {
       contract.setOrigin(c.getOrigin());
     }
     return contract;
@@ -465,18 +465,27 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     String name=m.getName();
     if (currentContractBuilder==null) currentContractBuilder=new ContractBuilder();
     DeclarationStatement args[]=rewrite(m.getArgs());
+
     Contract mc=m.getContract();
-    if (mc!=null){
+    Contract c;
+    // Ensure we maintain the type of emptiness of mc
+    // If the contract was null previously, the new contract can also be null
+    // If the contract was non-null previously, the new contract cannot be null
+    if (mc!=null) {
       rewrite(mc,currentContractBuilder);
+      c = currentContractBuilder.getContract(false);
+    } else {
+      c = currentContractBuilder.getContract(true);
     }
-    Method.Kind kind=m.kind;
-    Type rt=rewrite(m.getReturnType());
-    Type[] signals = rewrite(m.signals);
-    Contract c=currentContractBuilder.getContract();
-    if (mc != null && c.getOrigin() == null) {
+
+    if (mc != null && c != null && c.getOrigin() == null) {
       c.setOrigin(mc.getOrigin());
     }
     currentContractBuilder=null;
+
+    Method.Kind kind=m.kind;
+    Type rt=rewrite(m.getReturnType());
+    Type[] signals = rewrite(m.signals);
     ASTNode body=rewrite(m.getBody());
     result=create.method_kind(kind, rt, signals, c, name, args, m.usesVarArgs(), body);
   }

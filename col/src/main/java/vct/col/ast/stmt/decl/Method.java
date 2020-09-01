@@ -349,7 +349,7 @@ public class Method extends ASTDeclaration {
    * Example: "signals (Exception e) false;" guarantees an "Exception" will never be thrown.
    */
   public boolean canThrowSpec() {
-    return getContract().signals.length > 0 || canThrow();
+    return (getContract() != null && getContract().signals.length > 0) || canThrow();
   }
 }
 

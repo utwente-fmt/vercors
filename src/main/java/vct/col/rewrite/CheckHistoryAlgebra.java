@@ -969,10 +969,12 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
           , create.expression(Old,create.field_name(d.name() + "_hist_value"))
       ));
     }
-    ASTNode temp=rewrite(def.getContract().pre_condition);
-    Debug("REQ %s", temp);
-    cb.requires(temp);
-    cb.ensures(new_sigma.rewrite(rename_old.rewrite(def.getContract().post_condition)));
+    if (def.getContract() != null) {
+      ASTNode temp = rewrite(def.getContract().pre_condition);
+      Debug("REQ %s", temp);
+      cb.requires(temp);
+      cb.ensures(new_sigma.rewrite(rename_old.rewrite(def.getContract().post_condition)));
+    }
     
     ArrayList<ASTNode> def_names=new ArrayList<ASTNode>();
     for(DeclarationStatement d:def.getArgs()){

@@ -18,8 +18,6 @@ import static vct.col.ast.stmt.decl.Contract.default_true;
 
 public class ContractBuilder {
 
-  private boolean empty=true;
-
   private ASTNode pre_condition = default_true;
   private ASTNode post_condition = default_true;
   private ASTNode invariant = default_true;
@@ -59,7 +57,6 @@ public class ContractBuilder {
    * @param decls A block consisting of declaration statement only.
    */
   public void given(BlockStatement decls){
-    empty=false;
     scan_to(given,decls);
   }
   /**
@@ -67,7 +64,6 @@ public class ContractBuilder {
    * @param decls
    */
   public void yields(BlockStatement decls){
-    empty=false;
     scan_to(yields,decls);
   }
   /**
@@ -75,19 +71,16 @@ public class ContractBuilder {
    * @param decls Any number of declarations.
    */
   public void given(DeclarationStatement ... decls){
-    empty=false;
     for(DeclarationStatement d:decls) given.add(d);
   }
   
   public void given(VariableDeclaration decl){
-	empty=false;
     for(DeclarationStatement d:decl.flatten()){
       given.add(d);
     }
   }
 
   public void yields(VariableDeclaration decl){
-    empty=false;
     for(DeclarationStatement d:decl.flatten()){
       yields.add(d);
     }
@@ -97,14 +90,12 @@ public class ContractBuilder {
    * @param decls Any number of declarations.
    */
   public void yields(DeclarationStatement ... decls){
-    empty=false;
     for(DeclarationStatement d:decls) yields.add(d);
   }
   public void ensures(ASTNode condition){
     ensures(condition,true);
   }
   public void ensures(ASTNode condition,boolean at_end){
-    empty=false;
     if (post_condition==default_true) {
       post_condition=condition;
     } else {
@@ -121,7 +112,6 @@ public class ContractBuilder {
     requires(condition,true);
   }
   public void requires(ASTNode condition,boolean at_end){
-    empty=false;
     if (pre_condition==default_true) {
       pre_condition=condition;
     } else {
@@ -136,7 +126,6 @@ public class ContractBuilder {
   }
 
   public void appendInvariant(ASTNode condition){
-    empty=false;
     if (invariant==default_true) {
       invariant=condition;
     } else {
@@ -147,7 +136,6 @@ public class ContractBuilder {
   }
   
   public void prependInvariant(ASTNode condition){
-    empty=false;
     if (invariant==default_true) {
       invariant=condition;
     } else {
@@ -162,7 +150,7 @@ public class ContractBuilder {
   }
   
   public Contract getContract(boolean null_on_empty){
-    if (empty && null_on_empty) return null;
+    if (isEmpty() && null_on_empty) return null;
     DeclarationStatement[] decls=new DeclarationStatement[0];
     ASTNode[] mods=null;
     if (modifiable!=null){
@@ -184,14 +172,14 @@ public class ContractBuilder {
             );
   }
   public void modifies(ASTNode ... locs) {
-    empty=false;
+    if (locs.length == 0) return;
     if (modifiable==null) modifiable=new HashSet<ASTNode>();
     for (ASTNode loc : locs){
       modifiable.add(loc);
     }
   }
   public void accesses(ASTNode ... locs) {
-    empty=false;
+    if (locs.length == 0) return;
     if (accessible==null) accessible=new HashSet<ASTNode>();
     for (ASTNode loc : locs){
       accessible.add(loc);
@@ -207,7 +195,6 @@ public class ContractBuilder {
   }
 
   public void signals(SignalsClause signalsClause) {
-    empty = false;
     signals.add(signalsClause);
   }
 
