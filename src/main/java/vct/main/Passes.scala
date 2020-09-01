@@ -20,55 +20,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object Passes {
-  var rainbowResult: util.List[String] = null
-
-  def findPassToRemove(feature: Feature): (String, AbstractPass) = BY_KEY.find(_._2.removes.contains(feature)).get
-
-  def computeGoal(program: ProgramUnit, goal: String): Seq[(String, AbstractPass)] = {
-    val visitor = new RainbowVisitor(program)
-    program.asScala.foreach(_.accept(visitor))
-
-    var features = visitor.features.toSet ++ Set(
-      vct.col.features.NotFlattened,
-      vct.col.features.BeforeSilverDomains,
-      vct.col.features.NullAsOptionValue
-    )
-    var unorderedPassesSet: mutable.Set[(String, AbstractPass)] = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
-    var passes: mutable.ArrayBuffer[(String, AbstractPass)] = mutable.ArrayBuffer()
-
-    while((unorderedPassesSet.map(_._2.introduces).reduce(_ ++ _) -- features).nonEmpty) {
-      features ++= unorderedPassesSet.map(_._2.introduces).reduce(_ ++ _)
-      unorderedPassesSet = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
-    }
-
-    val unorderedPasses: ArrayBuffer[(String, AbstractPass)] = ArrayBuffer() ++ unorderedPassesSet.toSeq.sortBy(_._1)
-
-    while(unorderedPasses.nonEmpty) {
-      // Assume no passes are idempotent, which makes ordering much easier.
-      val nextPass =
-        unorderedPasses.find{case (key, pass) =>
-          (features -- pass.permits).isEmpty &&
-          unorderedPasses.forall(_._2.introduces.intersect(pass.removes).isEmpty)}.get
-
-      unorderedPasses -= nextPass
-      passes += nextPass
-      passes += (("check", BY_KEY("check")))
-      features = features -- nextPass._2.removes ++ nextPass._2.introduces
-    }
-
-    passes
-  }
-
-  def computeGoalJava(program: ProgramUnit, goal: String): util.List[String] =
-    (computeGoal(program, goal).map(_._1) ++ Seq("simplify_quant", "check", "silver=silicon")).asJava
-
-  def BY_KEY_JAVA: util.Map[String, AbstractPass] = BY_KEY.asJava
-
   val BY_KEY: Map[String, AbstractPass] = Map(
-    "rainbow" -> SimplePass("", arg => {
-      rainbowResult = computeGoalJava(arg, "silver")
-      arg
-    }),
     "java" -> SimplePass("print AST in java syntax", arg => {
       val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
       JavaSyntax.getJava(JavaDialect.JavaVerCors).print(out, arg)
@@ -94,7 +46,7 @@ object Passes {
       removes=Set(features.Dereference)),
     "assign" -> SimplePass("change inline assignments to statements", new AssignmentRewriter(_).rewriteAll),
     "silver" -> new AbstractPass("verify input with Silver") {
-      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, args(0))
+      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, if(args.isEmpty) "silicon" else args(0))
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
       override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript)
@@ -142,7 +94,7 @@ object Passes {
     "class-conversion" -> SimplePass(
       "Convert classes into records and procedures",
       new ClassConversion(_).rewriteAll,
-      removes=Set(features.This),
+      removes=Set(features.This, features.Constructors),
       introduces=Feature.DEFAULT_INTRODUCE -- Set(
         features.This,
         features.Arrays,
@@ -282,7 +234,7 @@ object Passes {
       introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere),
     "pvl-compile" -> SimplePass("Compile PVL classes to Java classes", new PVLCompiler(_).rewriteAll),
     "reorder" -> SimplePass(
-      "reorder statements (e.g. all declarations at the start of a bock",
+      "reorder statements (e.g. all declarations at the start of a block",
       new ReorderAssignments(_).rewriteAll,
       removes=Set(features.ScatteredDeclarations),
       introduces=Feature.DEFAULT_INTRODUCE -- Set(
@@ -432,11 +384,11 @@ object Passes {
       "Standardize representation",
       new Standardize(_).rewriteAll,
       removes=Set(features.NotStandardized)),
-    "strip_constructors" -> SimplePass(
+    /*"strip_constructors" -> SimplePass(
       "Strip constructors from classes",
       new StripConstructors(_).rewriteAll,
       removes=Set(features.Constructors),
-      introduces=Set(/* does what it says on the tin */)),
+      introduces=Set(/* does what it says on the tin */)),*/
     "voidcalls" -> ErrorMapPass(
       "Replace return value by out parameter.",
       new VoidCalls(_, _).rewriteAll,

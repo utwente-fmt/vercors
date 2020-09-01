@@ -19,9 +19,13 @@ import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
+import vct.col.features.{Feature, RainbowVisitor}
+import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * VerCors Tool main verifier.
@@ -40,7 +44,7 @@ class Main {
 
   private val version = new BooleanSetting(false)
   private val help_passes = new BooleanSetting(false)
-  private val logLevel = new ChoiceSetting(Array[String]("silent", "abort", "result", "warning", "info", "progress", "debug", "all"), "info")
+  private val logLevel = new ChoiceSetting(Array("silent", "abort", "result", "warning", "info", "progress", "debug", "all"), "info")
   private val debugFilters = new CollectSetting
   private val show_before = new StringListSetting
   private val show_after = new StringListSetting
@@ -109,52 +113,56 @@ class Main {
     clops.parse(args)
   }
 
-  private def setupLogging() = {
-    var level = hre.lang.System.LogLevel.Info
-    logLevel.get match {
-      case "silent" =>
-        level = hre.lang.System.LogLevel.Silent
-      case "abort" =>
-        level = hre.lang.System.LogLevel.Abort
-      case "result" =>
-        level = hre.lang.System.LogLevel.Result
-      case "warning" =>
-        level = hre.lang.System.LogLevel.Warning
-      case "info" =>
-        level = hre.lang.System.LogLevel.Info
-      case "progress" =>
-        level = hre.lang.System.LogLevel.Progress
-      case "debug" =>
-        level = hre.lang.System.LogLevel.Debug
-      case "all" =>
-        level = hre.lang.System.LogLevel.All
+  private def setupLogging(): Unit = {
+    import hre.lang.System.LogLevel
+
+    var level = logLevel.get match {
+      case "silent" => LogLevel.Silent
+      case "abort" => LogLevel.Abort
+      case "result" => LogLevel.Result
+      case "warning" => LogLevel.Warning
+      case "info" => LogLevel.Info
+      case "progress" => LogLevel.Progress
+      case "debug" => LogLevel.Debug
+      case "all" => LogLevel.All
     }
-    if (!debugFilters.get.isEmpty && level.getOrder < hre.lang.System.LogLevel.Debug.getOrder) level = hre.lang.System.LogLevel.Debug
+
+    if (!debugFilters.get.isEmpty && level.getOrder < hre.lang.System.LogLevel.Debug.getOrder)
+      level = hre.lang.System.LogLevel.Debug
+
     for (filter <- debugFilters.get.asScala.keys) {
       if (filter.contains(":") /* With line number */ ) hre.lang.System.addDebugFilterByLine(filter)
       else hre.lang.System.addDebugFilterByClassName(filter)
     }
+
     hre.lang.System.setOutputStream(System.out, level)
     hre.lang.System.setErrorStream(System.err, level)
     System.setErr(new ForbiddenPrintStream(System.err))
     System.setOut(new ForbiddenPrintStream(System.out))
   }
 
-  private def checkOptions() = {
+  private def checkOptions(): Unit = {
     if (version.get) {
       Output("%s %s", BuildInfo.name, BuildInfo.version)
       Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion, BuildInfo.scalaVersion, Instant.ofEpochMilli(BuildInfo.builtAtMillis))
-      if (!(BuildInfo.currentBranch == "master")) Output("On branch %s, commit %s, %s", BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
+      if (!(BuildInfo.currentBranch == "master"))
+        Output("On branch %s, commit %s, %s",
+          BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
+
       throw new HREExitException(0)
     }
+
     if (help_passes.get) {
       Output("The following passes are available:")
-      for ((key, pass) <- Passes.BY_KEY) {
-        Output(" %-12s : %s", key, pass.description)
+      Passes.BY_KEY.foreach {
+        case (key, pass) => Output(" %-12s : %s", key, pass.description)
       }
       throw new HREExitException(0)
     }
-    if (!(CommandLineTesting.enabled || boogie.get || chalice.get || silver.used || dafny.get || pass_list.iterator.hasNext)) Fail("no back-end or passes specified")
+
+    if (!(CommandLineTesting.enabled || boogie.get || chalice.get || silver.used || dafny.get || pass_list.iterator.hasNext))
+      Fail("no back-end or passes specified")
+
     if (silver.used) silver.get match {
       case "silicon_qp" =>
         Warning("silicon_qp has been merged into silicon, using silicon instead")
@@ -166,22 +174,26 @@ class Main {
     }
   }
 
-  private def parseInputs(inputPaths: Array[String]) = {
+  private def parseInputs(inputPaths: Array[String]): Unit = {
     Progress("parsing inputs...")
     report = new PassReport(new ProgramUnit)
     report.setOutput(report.getInput)
     report.add(new ErrorDisplayVisitor)
+
     tk.show
     for (name <- inputPaths) {
       val f = new File(name)
       if (!no_context.get) FileOrigin.add(name, gui_context.get)
       report.getOutput.add(Parsers.parseFile(f.getPath))
     }
+
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
-    if (boogie.get || sequential_spec.get) report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
+
+    if (boogie.get || sequential_spec.get)
+      report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
   }
 
-  private def getPassesForBoogie(passes: util.Deque[String]) = {
+  private def collectPassesForBoogie(passes: util.Deque[String]): Unit = {
     passes.add("java_resolve") // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
     passes.add("standardize") // a rewriter s.t. only a subset of col will have to be supported
     passes.add("check") // type check col. Add annotations (the types) to the ast.
@@ -211,7 +223,7 @@ class Main {
     passes.add("boogie") // run backend
   }
 
-  private def getPassesForDafny(passes: util.Deque[String]) = {
+  private def collectPassesForDafny(passes: util.Deque[String]): Unit = {
     passes.add("java_resolve")
     passes.add("standardize")
     passes.add("check")
@@ -221,7 +233,7 @@ class Main {
     passes.add("dafny")
   }
 
-  private def getPassesForSilver(passes: util.Deque[String], features: FeatureScanner) = {
+  private def collectPassesForSilver(passes: util.Deque[String], features: FeatureScanner): Unit = {
     passes.add("java_resolve")
     if (silver.used && (features.usesSpecial(ASTSpecial.Kind.Lock) || features.usesSpecial(ASTSpecial.Kind.Unlock) || features.usesSpecial(ASTSpecial.Kind.Fork) || features.usesSpecial(ASTSpecial.Kind.Join) || features.usesOperator(StandardOperator.PVLidleToken) || features.usesOperator(StandardOperator.PVLjoinToken))) passes.add("pvl-encode") // translate built-in statements into methods and fake method calls.
     passes.add("standardize")
@@ -333,7 +345,7 @@ class Main {
     //            passes.add("learn=" + wallStart);
   }
 
-  private def getPasses = {
+  private def getPasses: LinkedBlockingDeque[String] = {
     val features = new FeatureScanner
     report.getOutput.accept(features)
     val passes = new LinkedBlockingDeque[String]
@@ -342,78 +354,132 @@ class Main {
         passes.add(s)
       }
     }
-    else if (boogie.get) getPassesForBoogie(passes)
-    else if (dafny.get) getPassesForDafny(passes)
-    else if (silver.used || chalice.get) getPassesForSilver(passes, features)
+    else if (boogie.get) collectPassesForBoogie(passes)
+    else if (dafny.get) collectPassesForDafny(passes)
+    else if (silver.used || chalice.get) collectPassesForSilver(passes, features)
     else Abort("no back-end or passes specified")
     passes
   }
 
+  private def show(pass: String): Unit = {
+    val name = show_file.get
+    if (name != null) {
+      val file = String.format(name, pass)
+      val out = new PrintWriter(new FileOutputStream(file))
+      vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
+      out.close()
+    }
+    else {
+      val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+      vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
+      out.close()
+    }
+  }
+
   @throws[FileNotFoundException]
-  private def doPasses(passes: util.Deque[String]) = {
+  private def doPasses(passes: util.Deque[String]): Unit = {
     var fatal_errs = 0
     val passCount = passes.size
-    while ( {
-      !passes.isEmpty && fatal_errs == 0
-    }) {
-      var pass = passes.removeFirst
+    while (!passes.isEmpty && fatal_errs == 0) {
+      var pass = passes.removeFirst()
       var pass_args = pass.split("=")
       pass = pass_args(0)
       if (pass_args.length == 1) pass_args = new Array[String](0)
       else pass_args = pass_args(1).split("\\+")
       if (debugBefore.has(pass)) report.getOutput.dump()
-      if (show_before.contains(pass)) {
-        val name = show_file.get
-        if (name != null) {
-          val file = String.format(name, pass)
-          val out = new PrintWriter(new FileOutputStream(file))
-          vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
-          out.close()
-        }
-        else {
-          val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
-          vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
-          out.close()
-        }
+      if (show_before.contains(pass)) show(pass)
+      Passes.BY_KEY.get(pass) match {
+        case None => Fail("unknown pass %s", pass)
+        case Some(task) =>
+          tk.show
+          report = task.apply_pass(report, pass_args)
+          fatal_errs = report.getFatal
+          Progress("[%02d%%] %s took %d ms", Int.box(100 * (passCount - passes.size) / passCount), pass, Long.box(tk.show))
       }
-      val task = Passes.BY_KEY_JAVA.get(pass)
-      if (task == null) Fail("unknown pass %s", pass)
-      tk.show
-      report = task.apply_pass(report, pass_args)
-      fatal_errs = report.getFatal
-      Progress("[%02d%%] %s took %d ms", Int.box(100 * (passCount - passes.size) / passCount), pass, Long.box(tk.show))
-      if (pass == "rainbow") passes.addAll(Passes.rainbowResult)
       if (debugAfter.has(pass)) report.getOutput.dump()
-      if (show_after.contains(pass)) {
-        val name = show_file.get
-        if (name != null) {
-          val file = String.format(name, pass)
-          val out = new PrintWriter(new FileOutputStream(file))
-          vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
-          out.close()
-        }
-        else {
-          val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
-          vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
-          out.close()
-        }
-      }
+      if (show_after.contains(pass)) show(pass)
       if (stop_after.contains(pass)) Fail("exit after pass %s", pass)
     }
     Verdict("The final verdict is %s", if (fatal_errs == 0) "Pass"
     else "Fail")
   }
 
-  def doPassesByRainbow() = {
+  def findPassToRemove(feature: Feature): AbstractPass = BY_KEY.values.find(_.removes.contains(feature)).get
+
+  def computeGoal(featuresIn: Set[Feature], goal: String): (Seq[AbstractPass], Set[Feature]) = {
+    var features = featuresIn
+    var unorderedPassesSet: mutable.Set[AbstractPass] = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
+    var passes: mutable.ArrayBuffer[AbstractPass] = mutable.ArrayBuffer()
+
+    while((unorderedPassesSet.map(_.introduces).reduce(_ ++ _) -- features).nonEmpty) {
+      features ++= unorderedPassesSet.map(_.introduces).reduce(_ ++ _)
+      unorderedPassesSet = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
+    }
+
+    val unorderedPasses: ArrayBuffer[AbstractPass] = ArrayBuffer() ++ unorderedPassesSet.toSeq.sortBy(_.description)
+
+    while(unorderedPasses.nonEmpty) {
+      // Assume no passes are idempotent, which makes ordering much easier.
+      val nextPass =
+        unorderedPasses.find(pass =>
+          (features -- pass.permits).isEmpty &&
+            unorderedPasses.forall(_.introduces.intersect(pass.removes).isEmpty)).get
+
+      unorderedPasses -= nextPass
+      passes += nextPass
+      passes += BY_KEY("check")
+      features = features -- nextPass.removes ++ nextPass.introduces
+    }
+
+    (passes, features)
+  }
+
+  def doPassesByRainbow(): Unit = {
     val resolve = Passes.BY_KEY.apply("java_resolve")
     val standardize = Passes.BY_KEY.apply("standardize")
     val check = Passes.BY_KEY.apply("check")
-    for (pass <- Array[AbstractPass](resolve, standardize, check)) {
-      report = pass.apply_pass(report, new Array[String](0))
+
+    Seq(resolve, standardize, check).foreach(
+      pass => report = pass.apply_pass(report, Array()))
+
+    var goals = Seq.empty[String]
+
+    if(sat_check.get()) goals :+= "sat_check"
+    if(check_axioms.get()) goals :+= "check-axioms"
+    if(check_defined.get()) goals :+= "check-defined"
+    if(check_history.get()) goals :+= "check-history"
+
+    goals :+= "silver"
+
+    val visitor = new RainbowVisitor(report.getOutput)
+    report.getOutput.asScala.foreach(_.accept(visitor))
+
+    var features = visitor.features.toSet ++ Set(
+      vct.col.features.NotFlattened,
+      vct.col.features.BeforeSilverDomains,
+      vct.col.features.NullAsOptionValue
+    )
+
+    var passes = Seq.empty[AbstractPass]
+
+    for(goal <- goals) {
+      val (newPasses, newFeatures) = computeGoal(features, goal)
+      passes = passes ++ newPasses :+ BY_KEY(goal) :+ BY_KEY("check")
+      features = newFeatures
     }
+
+    passes = passes.init.init ++ Seq("simplify_quant", "check", "silver").map(BY_KEY)
+
+    passes.foreach(pass => {
+      Progress("%s", pass.description)
+      report = pass.apply_pass(report, Array())
+    })
+
+    val verdict = if(report.getFatal == 0) "Pass" else "Fail"
+    Verdict("The final verdict is %s", verdict)
   }
 
-  private def run(args: Array[String]) = {
+  private def run(args: Array[String]): Int = {
     var exit = 0
     val wallStart = System.currentTimeMillis
     tk = new TimeKeeper
@@ -426,7 +492,8 @@ class Main {
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
         parseInputs(inputPaths)
-        doPasses(getPasses)
+        // doPasses(getPasses)
+        doPassesByRainbow()
       }
     } catch {
       case e: HREExitException =>
@@ -434,7 +501,7 @@ class Main {
         Verdict("The final verdict is Error")
       case e: Throwable =>
         DebugException(e)
-        Verdict("An unexpected error occured in VerCors! " + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. " + "You can see the full exception by adding '--debug vct.main.Main' to the flags.")
+        Warning("An unexpected error occured in VerCors! " + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. " + "You can see the full exception by adding '--debug vct.main.Main' to the flags.")
         Verdict("The final verdict is Error")
     } finally Progress("entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
     exit
