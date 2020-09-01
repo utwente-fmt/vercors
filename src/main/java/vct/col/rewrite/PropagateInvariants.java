@@ -83,8 +83,8 @@ public class PropagateInvariants extends AbstractRewriter {
     ParallelBlock res=create.parallel_block(
         pb.label(),
         // Make sure the contract remains null if the original contract is null,
-        // and non-null empty if the original contract is
-        cb.getContract(pb.contract() == null && pb.contract().isEmpty()),
+        // and non-null if the original contract is
+        cb.getContract(pb.contract() == null),
         rewrite(pb.itersJava()),
         rewrite(pb.block()),
         rewrite(pb.deps())
