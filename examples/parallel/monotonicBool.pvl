@@ -2,6 +2,9 @@
 //:: tool silicon
 //:: verdict Pass
 
+// fails due to https://github.com/viperproject/silicon/issues/512
+//:: suite problem-fail
+
 // This file demonstrates how to verify a monotonic bool in vercors/pvl. Note
 // that it is truly a monotonic bool, since if one of
 // the threads write false to b the program does not verify.
