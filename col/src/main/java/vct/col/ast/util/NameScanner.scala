@@ -77,8 +77,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
       Abort("Cannot put a free var when it has a decl")
     }
 
-    Objects.requireNonNull(typ)
-
     freeNames.get(name) match {
       case Some(_) =>
         // Disallow putting the same free var again, to prevent the writtenTo flag to be accidentally reset
