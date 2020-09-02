@@ -1,5 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Java6LockImplementation
+//:: suite problem-fail
 //:: tools silicon
 //:: verdict Pass
 
