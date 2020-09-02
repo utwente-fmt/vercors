@@ -72,7 +72,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
   }
   
   override def daxiom(o:O,name:String,expr:Exp,domain:String)={
-    DomainAxiom(name,expr)(NoPosition,new OriginInfo(o),domain)
+    NamedDomainAxiom(name,expr)(NoPosition,new OriginInfo(o),domain)
   }
   
   override def add_adt(p:Prog,o:O,name:String,funcs:List[DomainFunc],axioms:List[DomainAxiom],pars:List[String])={
@@ -130,7 +130,10 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
           }
         }).asJava
         val axioms:java.util.List[DAxiom2]=d.axioms.map {
-          x => api.prog.daxiom(o,x.name,map_expr(api,x.exp),d.name)
+          case NamedDomainAxiom(name, exp) =>
+            api.prog.daxiom(o, name, map_expr(api, exp), d.name)
+          case AnonymousDomainAxiom(exp) =>
+            api.prog.daxiom(o, name="unnamed", map_expr(api, exp), d.name)
         }.asJava
         val vars=(d.typVars map { x => x.name } ).asJava
         api.prog.add_adt(out_prog,o,name,functions,axioms,vars)
