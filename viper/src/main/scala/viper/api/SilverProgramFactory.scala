@@ -16,6 +16,7 @@ import java.nio.file.Path
 import hre.ast.OriginFactory
 import hre.util.Triple
 import viper.silver.parser.PLocalVarDecl
+import viper.silver.plugin.{PluginAwareReporter, SilverPluginManager}
 
 import scala.collection.mutable.WrappedArray
 
@@ -133,7 +134,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
           case NamedDomainAxiom(name, exp) =>
             api.prog.daxiom(o, name, map_expr(api, exp), d.name)
           case AnonymousDomainAxiom(exp) =>
-            api.prog.daxiom(o, name="unnamed", map_expr(api, exp), d.name)
+            api.prog.daxiom(o, "unnamed", map_expr(api, exp), d.name)
         }.asJava
         val vars=(d.typVars map { x => x.name } ).asJava
         api.prog.add_adt(out_prog,o,name,functions,axioms,vars)
@@ -402,7 +403,10 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
   }
 }
 
-object Parser extends viper.silver.frontend.SilFrontend {
+object Parser extends {
+  // early initializer: reporter must be populated before initialization of superclass SilFrontend
+  override val reporter: PluginAwareReporter = PluginAwareReporter(HREViperReporter())
+} with viper.silver.frontend.SilFrontend {
   private var silicon: viper.silver.verifier.NoVerifier = new viper.silver.verifier.NoVerifier
 
   def parse_sil(name:String) = {
@@ -415,11 +419,11 @@ object Parser extends viper.silver.frontend.SilFrontend {
     _program match {
       case Some(Program(domains,fields,functions,predicates,methods,_)) =>
         val prog=new Prog();
-          prog.domains.addAll(domains.asJava)
-          prog.fields.addAll(fields.asJava)
-          prog.functions.addAll(functions.asJava)
-          prog.predicates.addAll(predicates.asJava)
-          prog.methods.addAll(methods.asJava)
+        prog.domains.addAll(domains.asJava)
+        prog.fields.addAll(fields.asJava)
+        prog.functions.addAll(functions.asJava)
+        prog.predicates.addAll(predicates.asJava)
+        prog.methods.addAll(methods.asJava)
         prog;
       case _ => throw new Error("empty file");
     }
@@ -428,11 +432,10 @@ object Parser extends viper.silver.frontend.SilFrontend {
   def configureVerifier(args: Seq[String]): viper.silver.frontend.SilFrontendConfig = {
     null
   }
-  
+
   def createVerifier(fullCmd: String): viper.silver.verifier.Verifier = {
     new viper.silver.verifier.NoVerifier
   }
-  
 }
 
 
