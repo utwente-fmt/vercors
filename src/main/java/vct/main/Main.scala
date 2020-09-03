@@ -72,6 +72,7 @@ class Main {
   private val no_context = new BooleanSetting(false)
   private val gui_context = new BooleanSetting(false)
   private val sat_check = new BooleanSetting(true)
+  private val abruptTerminationViaExceptions = new BooleanSetting(false)
   private val trigger_generation = new IntegerSetting(0)
   private val learn = new BooleanSetting(false)
 
@@ -109,6 +110,7 @@ class Main {
     clops.add(no_context.getEnable("disable printing the context of errors"), "no-context")
     clops.add(gui_context.getEnable("enable the gui extension of the context"), "gui")
     clops.add(sat_check.getDisable("Disable checking if method pre-conditions are satisfiable"), "disable-sat")
+    clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions")
     clops.add(trigger_generation.getOptionalAssign("Try to simplify universal quantifiers and generate triggers for them."), "triggers")
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
     CommandLineTesting.addOptions(clops)

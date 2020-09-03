@@ -449,6 +449,38 @@ object Passes {
       }
       else Abort("Learn is used without a starting time.")
       arg
-    })
+    }),
+    "specify-implicit-labels" -> SimplePass(
+      "Insert explicit labels for break statements in while loops.",
+      new SpecifyImplicitLabels(_).rewriteAll()
+    ),
+    "break-return-to-goto" -> SimplePass(
+      "Rewrite break, return into jumps",
+      new BreakReturnToGoto(_).rewriteAll()
+    ),
+    "break-return-to-exceptions" -> SimplePass(
+      "Rewrite break, continue into exceptions",
+      new BreakReturnToExceptions(_).rewriteAll()
+    ),
+    "unfold-switch" -> SimplePass(
+      "Unfold switch to chain of if-statements that jump to sections.",
+      new UnfoldSwitch(_).rewriteAll()
+    ),
+    "continue-to-break" -> SimplePass(
+      "Convert continues into breaks",
+      new ContinueToBreak(_).rewriteAll()
+    ),
+    "unfold-synchronized" -> SimplePass(
+      "Convert synchronized to try-finally",
+      new UnfoldSynchronized(_).rewriteAll()
+    ),
+    "intro-exc-var" -> SimplePass(
+      "Introduces the auxiliary sys__exc variable for use by excetional control flow",
+      new IntroExcVar(_).rewriteAll()
+    ),
+    "encode-try-throw-signals" -> SimplePass(
+      "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
+      new EncodeTryThrowSignals(_).rewriteAll()
+    ),
   )
 }
