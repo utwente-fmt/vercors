@@ -55,7 +55,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   def convertDecl(tree: ExternalDeclarationContext): Seq[ASTDeclaration] = tree match {
     case ExternalDeclaration0(funcDecl) => convertDecl(funcDecl)
     case ExternalDeclaration1(decl) => convertDecl(decl)
-    case ExternalDeclaration2(";") => Seq()
+    case ExternalDeclaration2(valDecls) => convertValDecl(valDecls)
+    case ExternalDeclaration3(";") => Seq()
   }
 
   def convertDecl(tree: FunctionDefinitionContext): Seq[ASTDeclaration] = origin(tree, tree match {
@@ -1135,6 +1136,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create reserved_name ASTReserved.OptionNone
     case ValReserved7("empty") =>
       create reserved_name ASTReserved.EmptyProcess
+    case ValReserved8("\\ltid") =>
+      create reserved_name ASTReserved.LocalThreadId
+    case ValReserved9("\\gtid") =>
+      create reserved_name ASTReserved.GlobalThreadId
   })
 
   /**
@@ -1152,6 +1157,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValReserved5(s) => s
     case ValReserved6(s) => s
     case ValReserved7(s) => s
+    case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =

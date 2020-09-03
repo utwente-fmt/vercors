@@ -169,7 +169,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
   }
 
   def rewriteMain(bounds: Map[String, (ASTNode, ASTNode)], main: ASTNode): Option[ASTNode] = {
-    val (left, op, right) = main match {
+    val (left, op, right) = rewrite(main) match {
       case exp: OperatorExpression if Set(LT, LTE, GT, GTE).contains(exp.operator) =>
         (exp.first, exp.operator, exp.second)
       case _ => return None

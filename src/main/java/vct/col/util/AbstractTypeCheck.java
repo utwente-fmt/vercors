@@ -661,8 +661,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           e.setType(new PrimitiveType(PrimitiveSort.Integer));
           break;
         }
+      case LocalThreadId:
+      case GlobalThreadId:
+          e.setType(new PrimitiveType(PrimitiveSort.Integer));
+          break;
         default:
             Abort("missing case for reserved name %s",name);
+
         }
         break;
       case Unresolved:{
