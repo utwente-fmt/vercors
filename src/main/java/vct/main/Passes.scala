@@ -12,7 +12,6 @@ import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.JavaResolver
 import vct.parsers.rewrite.{FlattenVariableDeclarations, InferADTTypes}
 
 import scala.collection.JavaConverters._
@@ -51,10 +50,15 @@ object Passes {
       override def introduces: Set[Feature] = Set()
       override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript)
     },
-    "check" -> SimplePass("run a basic type check", arg => {
-      new SimpleTypeCheck(arg).check()
-      arg
-    }, introduces=Set(), permits=Feature.ALL),
+    "check" -> new AbstractPass("run a basic type check") {
+      val permits: Set[Feature] = Feature.ALL
+      val removes: Set[Feature] = Set.empty
+      val introduces: Set[Feature] = Set.empty
+
+      override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
+        new SimpleTypeCheck(report, arg).check(); arg
+      }
+    },
     "array_null_values" -> SimplePass(
       "rewrite null values for arrays to None",
       new ArrayNullValues(_).rewriteAll,
@@ -77,10 +81,15 @@ object Passes {
       "lift declarations to cell of the declared types, to treat locals as heap locations.",
       new LiftDeclarations(_).rewriteAll,
       removes=Set(features.AddrOf)),
-    "java-check" -> SimplePass("run a Java aware type check", arg => {
-      new JavaTypeCheck(arg).check()
-      arg
-    }),
+    "java-check" -> new AbstractPass("run a Java-aware type check") {
+      val permits: Set[Feature] = Feature.ALL
+      val removes: Set[Feature] = Set.empty
+      val introduces: Set[Feature] = Set.empty
+
+      override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
+        new JavaTypeCheck(report, arg).check(); arg
+      }
+    },
     "check-defined" -> SimplePass("rewrite process algebra class to check if defined process match their contracts", arg => {
       val tmp = new CheckProcessAlgebra(arg).rewriteAll
       new RandomizedIf(tmp).rewriteAll
@@ -389,9 +398,9 @@ object Passes {
       new StripConstructors(_).rewriteAll,
       removes=Set(features.Constructors),
       introduces=Set(/* does what it says on the tin */)),*/
-    "voidcalls" -> ErrorMapPass(
+    "create-return-parameter" -> ErrorMapPass(
       "Replace return value by out parameter.",
-      new VoidCalls(_, _).rewriteAll,
+      new CreateReturnParameter(_, _).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.NotFlattened,
       removes=Set(features.NonVoidMethods),
       introduces=Feature.DEFAULT_INTRODUCE -- Set(
@@ -407,7 +416,6 @@ object Passes {
         features.BeforeSilverDomains,
         features.NestedQuantifiers,
       )),
-    "voidcallsthrown" -> SimplePass("Replace return value and thrown exceptions by out parameters.", new VoidCallsThrown(_).rewriteAll),
     "vector-encode" -> SimplePass(
       "Encode vector blocks using the vector library",
       new VectorEncode(_).rewriteAll,

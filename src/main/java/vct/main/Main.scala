@@ -51,13 +51,16 @@ class Main {
   private val debugBefore = new CollectSetting
   private val debugAfter = new CollectSetting
   private val show_file = new StringSetting(null)
+
   private val pass_list = new StringListSetting
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
+  private val stop_after = new StringListSetting
+
   private val boogie = new BooleanSetting(false)
   private val chalice = new BooleanSetting(false)
   private val silver = new StringSetting("silver")
   private val dafny = new BooleanSetting(false)
-  private val stop_after = new StringListSetting
+
   private val check_defined = new BooleanSetting(false)
   private val check_axioms = new BooleanSetting(false)
   private val check_history = new BooleanSetting(false)

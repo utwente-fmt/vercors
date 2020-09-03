@@ -68,7 +68,7 @@ public class AddTypeADT extends AbstractRewriter {
   public ProgramUnit rewriteAll() {
     ProgramUnit result = super.rewriteAll();
     result.add(adt);
-    result.add(instanceOfMethod);
+    result.add(instanceofMethod);
     return result;
   }
 
