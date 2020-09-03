@@ -190,16 +190,18 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       cb.ensures(rewrite(clause));
     }
     in_ensures=false;
-    if (c.signals!=null) for(DeclarationStatement decl:c.signals){
-      cb.signals((ClassType)rewrite(decl.getType()), decl.name(), rewrite(decl.initJava()));
+    if (c.signals!=null) {
+      for(SignalsClause sc : c.signals){
+        cb.signals(rewrite(sc));
+      }
     }
   }
   public Contract rewrite(Contract c){
     if (c==null) return null;
     ContractBuilder cb=new ContractBuilder();
     rewrite(c,cb);
-    Contract contract = cb.getContract();
-    if (contract.getOrigin() == null) {
+    Contract contract = cb.getContract(false);
+    if (contract != null && contract.getOrigin() == null) {
       contract.setOrigin(c.getOrigin());
     }
     return contract;
@@ -463,19 +465,29 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     String name=m.getName();
     if (currentContractBuilder==null) currentContractBuilder=new ContractBuilder();
     DeclarationStatement args[]=rewrite(m.getArgs());
+
     Contract mc=m.getContract();
-    if (mc!=null){
+    Contract c;
+    // Ensure we maintain the type of emptiness of mc
+    // If the contract was null previously, the new contract can also be null
+    // If the contract was non-null previously, the new contract cannot be null
+    if (mc!=null) {
       rewrite(mc,currentContractBuilder);
+      c = currentContractBuilder.getContract(false);
+    } else {
+      c = currentContractBuilder.getContract(true);
     }
-    Method.Kind kind=m.kind;
-    Type rt=rewrite(m.getReturnType());
-    Contract c=currentContractBuilder.getContract();
-    if (mc != null && c.getOrigin() == null) {
+
+    if (mc != null && c != null && c.getOrigin() == null) {
       c.setOrigin(mc.getOrigin());
     }
     currentContractBuilder=null;
+
+    Method.Kind kind=m.kind;
+    Type rt=rewrite(m.getReturnType());
+    Type[] signals = rewrite(m.signals);
     ASTNode body=rewrite(m.getBody());
-    result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
+    result=create.method_kind(kind, rt, signals, c, name, args, m.usesVarArgs(), body);
   }
 
   @Override
@@ -721,6 +733,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode eq(ASTNode e1,ASTNode e2){
     return create.expression(StandardOperator.EQ,e1,e2);
   }
+  public ASTNode or(ASTNode e1, ASTNode e2) {
+    return create.expression(StandardOperator.Or, e1, e2);
+  }
   public ASTNode size(ASTNode e1) {
     return create.expression(StandardOperator.Size, e1);
   }
@@ -792,26 +807,16 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void visit(TryCatchBlock tcb){
     TryCatchBlock res = create.try_catch(rewrite(tcb.main()), rewrite(tcb.after()));
     for (CatchClause cc : tcb.catches()) {
-      pre_visit(cc.block());
-      BlockStatement tmp=currentBlock;
-      currentBlock=new BlockStatement();
-      currentBlock.setOrigin(cc.block().getOrigin());
-      Type[] newCatchTypes = new Type[cc.catchTypes().size()];
-      Type[] oldCatchTypes = cc.javaCatchTypes();
-      for(int i = 0; i < newCatchTypes.length; i++) {
-        newCatchTypes[i] = rewrite(oldCatchTypes[i]);
-      }
-      for(ASTNode S:cc.block()){
-        currentBlock.add(rewrite(S));
-      }
-      BlockStatement block=currentBlock;
-      currentBlock=tmp;
-      post_visit(cc.block());
-      res.addCatchClauseArray(cc.name(), newCatchTypes, block);
+      res.addCatchClause(rewrite(cc));
     }
     result=res;
   }
-  
+
+  public void visit(CatchClause cc) {
+    result = new CatchClause(cc.name(), rewrite(cc.javaCatchTypes()), rewrite(cc.block()));
+    result.setOrigin(cc.getOrigin());
+  }
+
   @Override
   public void visit(TypeExpression te){
 	Type[] types = rewrite(te.typesJava()).toArray(new Type[0]);
@@ -906,5 +911,20 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void visit(OMPForSimd loop) {
     result = new OMPForSimd(rewrite(loop.loop()), loop.options());
     result.setOrigin(loop.getOrigin());
+  }
+
+  @Override
+  public void visit(InlineQuantifierPattern pattern) {
+    result = create.pattern(pattern.getOrigin(), rewrite(pattern.inner()));
+  }
+
+  @Override
+  public void visit(SignalsClause sc) {
+    result = create.signalsClause(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
+  }
+
+  @Override
+  public void visit(Synchronized sync) {
+    result = create.syncBlock(rewrite(sync.expr()), rewrite(sync.statement()));
   }
 }

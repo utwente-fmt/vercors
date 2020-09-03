@@ -1,6 +1,8 @@
 package vct.logging;
 
 import java.util.ArrayList;
+import java.util.List;
+
 import hre.ast.Origin;
 import viper.api.ViperError;
 import static vct.logging.VerCorsError.ErrorCode.*;
@@ -34,7 +36,8 @@ public class VerCorsError extends AbstractMessage {
     CallPreCondition,
     AssignmentFailed,
     MethodPreConditionUnsound,
-    UnspecifiedError
+    UnspecifiedError,
+    TypeError
   }
   
   /**
@@ -48,7 +51,11 @@ public class VerCorsError extends AbstractMessage {
     DivisionByZero,
     InsufficientPermission,
     MethodPreConditionFalse,
-    UnspecifiedCause
+    ExtendsThrowable,
+    UnspecifiedCause,
+    UnusedCatch,
+    UnlistedExceptionType
+    ;
   }
   
   
@@ -59,7 +66,7 @@ public class VerCorsError extends AbstractMessage {
   
   public final Origin main;
   
-  public final ArrayList<Origin> aux=new ArrayList<Origin>();
+  public final List<Origin> aux=new ArrayList<Origin>();
   
   
   public static VerCorsError viper_error(ViperError<Origin> e){
@@ -132,7 +139,7 @@ public class VerCorsError extends AbstractMessage {
     return new VerCorsError(code,sub,main,aux);
   }
   
-  public VerCorsError(ErrorCode code, SubCode sub,Origin origin, ArrayList<Origin> aux) {
+  public VerCorsError(ErrorCode code, SubCode sub,Origin origin, List<Origin> aux) {
     this.code=code;
     this.sub=sub;
     this.main=origin;

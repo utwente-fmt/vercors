@@ -319,7 +319,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       return create.predicate_call(o, name, args);
     }
     default:
-      throw new HREError("calling a %d method is not a Silver expression");
+      throw new HREError("calling a %s method is not a Silver expression", m.kind);
     }
   }
 
@@ -628,4 +628,18 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     return null;
   }
 
+  @Override
+  public E map(InlineQuantifierPattern pattern) {
+    return null;
+  }
+
+  @Override
+  public E map(CatchClause cc) {
+    return null;
+  }
+
+  @Override
+  public E map(SignalsClause sc) {
+    return null;
+  }
 }

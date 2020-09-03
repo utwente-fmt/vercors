@@ -342,4 +342,13 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
   public void visit(OMPForSimd loop) {
 
   }
+
+  @Override
+  public void visit(InlineQuantifierPattern pattern) { }
+
+  @Override
+  public void visit(CatchClause cc) { }
+
+  @Override
+  public void visit(SignalsClause sc) { }
 }

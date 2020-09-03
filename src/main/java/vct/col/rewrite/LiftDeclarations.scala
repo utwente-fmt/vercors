@@ -87,7 +87,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
         // Otherwise, re-resolve the name to the masking argument
         result = SequenceUtils.access(create, create.unresolved_name(name.getName), create.constant(0))
       }
-    } else if(name.getKind != NameExpressionKind.Reserved) {
+    } else if(name.getKind != NameExpressionKind.Reserved && name.getKind != NameExpressionKind.Label) {
       result = SequenceUtils.access(create, name, create.constant(0))
     } else {
       super.visit(name)

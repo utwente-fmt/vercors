@@ -2,6 +2,7 @@ package vct.col.ast.util;
 
 import hre.lang.Failure;
 import hre.util.SingleNameSpace;
+import scala.Option;
 import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
@@ -496,6 +497,41 @@ public abstract class ASTFrame<T> {
       }
     }
 
+    @Override
+    public void visit(CatchClause cc) {
+      switch(action){
+        case ENTER:
+          variables.enter();
+          if (cc.javaCatchTypes().length != 1) {
+            // To support this, the least upper bound of all the types must be used here
+            // See: https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20
+            Abort("Multi-catch not yet supported");
+          }
+          DeclarationStatement ccDeclarationStatement = new DeclarationStatement(cc.name(), cc.javaCatchTypes()[0], Option.empty());
+          variables.add(cc.name(), new VariableInfo(ccDeclarationStatement, NameExpressionKind.Local));
+          break;
+        case LEAVE:
+          variables.leave();
+          break;
+        default:
+          break;
+      }
+    }
+
+    @Override
+    public void visit(SignalsClause sc) {
+      switch(action){
+        case ENTER:
+          variables.enter();
+          variables.add(sc.name(), new VariableInfo(sc.asDeclarationStatement(), NameExpressionKind.Local));
+          break;
+        case LEAVE:
+          variables.leave();
+          break;
+        default:
+          break;
+      }
+    }
   };
   
   private void recursively_add_class_info(ASTClass cl) {

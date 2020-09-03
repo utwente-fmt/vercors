@@ -351,7 +351,7 @@ public class Flatten extends AbstractRewriter {
       c=copy_pure.rewrite(mc);
     }
     Method.Kind kind=m.kind;
-    Method res=create.method_kind(kind,rewrite(m.getReturnType()) , c, name, args, m.usesVarArgs(),null);
+    Method res=create.method_kind(kind, rewrite(m.getReturnType()), rewrite(m.signals), c, name, args, m.usesVarArgs(),null);
     ASTNode body=m.getBody();
     if (body!=null) {
       if (body instanceof BlockStatement) {

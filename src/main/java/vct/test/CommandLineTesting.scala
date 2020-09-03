@@ -3,12 +3,10 @@ package vct.test
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util.concurrent.{Executors, Future}
 
-import hre.config.{BooleanSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
+import hre.config._
 import hre.lang.HREExitException
+import hre.lang.System.{Output, Progress, Warning}
 import hre.util.TestReport.Verdict
-import hre.lang.System.Warning
-import hre.lang.System.Progress
-import hre.lang.System.Output
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -186,7 +184,7 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          result += ("case-" + tool + "-" + name -> Task(vercors.withArgs(args:_*), conditions))
+          result += (s"case-$tool-$name" -> Task(vercors.withArgs(args:_*), conditions))
         }
       }
     }
@@ -256,10 +254,12 @@ object CommandLineTesting {
             Output("- Received a null message (internal error?)")
           case InternalError(description) =>
             Output("- Internal error: %s", description)
+          case ProcessKilled =>
+            Output("- Test process was forcibly terminated because it timed out")
           case MissingVerdict =>
             Output("- There was no verdict")
           case InconsistentVerdict(older, newer) =>
-            Output("- Inconsistent verdict: earlier verdict was %s, new veridct is %s", older, newer)
+            Output("- Inconsistent verdict: earlier verdict was %s, new verdict is %s", older, newer)
           case WrongVerdict(expect, got) =>
             Output("- Wrong verdict: expected %s, got %s", expect, got)
           case MethodPass(name) =>

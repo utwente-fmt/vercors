@@ -1,0 +1,17 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ParBothWrite
+//:: tools silicon
+//:: verdict Error
+
+class C {
+    void m() {
+        int x;
+        par
+        {
+            x = 1;
+        } and
+        {
+            x = 2;
+        }
+    }
+}

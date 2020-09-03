@@ -1,0 +1,31 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ParBothRead
+//:: tools silicon
+//:: verdict Pass
+
+class C {
+    int a;
+    int b;
+
+    requires Perm(a, write) ** Perm(b, write);
+    void m() {
+        int x = 3;
+        int x_old = x;
+        par
+            context Perm(a, write);
+            ensures a == 2 * x;
+        {
+            a = 2 * x;
+        }
+        and
+            context Perm(b, write);
+            ensures b == 3 * x;
+        {
+            b = 3 * x;
+        }
+
+        assert x == x_old;
+        assert a == 2 * x;
+        assert b == 3 * x;
+    }
+}

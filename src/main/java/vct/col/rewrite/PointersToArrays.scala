@@ -42,7 +42,7 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
       method.kind,
       method.name,
       visitType(method.getReturnType),
-      method.throwy.map(visitType),
+      method.signals.map(visitType),
       rewrite(method.getContract),
       rewrite(method.getArgs),
       method.usesVarArgs,

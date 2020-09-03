@@ -50,6 +50,7 @@ VAL_ENSURES: 'ensures';
 VAL_CONTEXT_EVERYWHERE: 'context_everywhere';
 VAL_CONTEXT: 'context';
 VAL_LOOP_INVARIANT: 'loop_invariant';
+VAL_SIGNALS: 'signals';
 
 VAL_CREATE: 'create';
 VAL_QED: 'qed';
@@ -105,6 +106,8 @@ MSUM: '\\msum';
 MCMP: '\\mcmp';
 MREP: '\\mrep';
 RESULT: '\\result';
+LTID: '\\ltid';
+GTID: '\\gtid';
 
 NONE: 'none';
 OPTION_NONE: 'None';
@@ -117,3 +120,5 @@ SEP_CONJ: '**';
 IMPLIES: '==>';
 WAND: '-*';
 RANGE_TO: '..';
+TRIGGER_OPEN: '{:';
+TRIGGER_CLOSE: ':}';
