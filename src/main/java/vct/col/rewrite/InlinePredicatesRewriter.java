@@ -10,11 +10,16 @@ import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.ASTReserved;
+import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.AbstractRewriter;
 
 import java.util.HashMap;
+import java.util.Stack;
 
 public class InlinePredicatesRewriter extends AbstractRewriter {
+
+  int count = 0;
+  Stack<String> inlinedScalars = new Stack<>();
  
   public InlinePredicatesRewriter(ProgramUnit source) {
     super(source);
@@ -74,15 +79,50 @@ public class InlinePredicatesRewriter extends AbstractRewriter {
     switch(e.operator()){
       case Unfolding:
       {
-        ASTNode arg1=rewrite(e.arg(0));
-        ASTNode arg2=rewrite(e.arg(1));
-        if (arg1 instanceof MethodInvokation || arg1.isa(StandardOperator.Scale)){
-          result=create.expression(StandardOperator.Unfolding,arg1,arg2);
-        } else {
-          result=arg2;
-        }
+        super.visit(e);
+//        ASTNode arg1=rewrite(e.arg(0));
+//        ASTNode arg2=rewrite(e.arg(1));
+//        if (arg1 instanceof MethodInvokation || arg1.isa(StandardOperator.Scale)){
+//          result=create.expression(StandardOperator.Unfolding,arg1,arg2);
+//        } else {
+//          Abort("Throwing away part of unfolding expression at %s because it is not a predicate or scale",
+//                  arg1.getOrigin());
+//          result=arg2;
+//        }
         break;
       }
+      case Scale:
+        MethodInvokation scaledPredicate = (MethodInvokation) e.arg(1);
+        if (inline(scaledPredicate.getDefinition())) {
+          String scaleAmountName = "inlineScalar" + count++;
+
+          inlinedScalars.push(scaleAmountName);
+          super.visit(e);
+          OperatorExpression scaleExpr = (OperatorExpression) result;
+          inlinedScalars.pop();
+
+          result = create.let_expr(
+                  create.field_decl(scaleAmountName, rewrite(e.arg(0).getType()), scaleExpr.arg(0)),
+                  scaleExpr.arg(1)
+          );
+        } else {
+          super.visit(e);
+        }
+        break;
+      case Perm:
+        super.visit(e);
+        OperatorExpression newPerm = (OperatorExpression) result;
+        if (!inlinedScalars.empty()) {
+          ASTNode permissionAmount = e.arg(1);
+          for (String inlinedScalar : inlinedScalars) {
+            permissionAmount = create.expression(
+                    StandardOperator.Mult,
+                    permissionAmount,
+                    create.local_name(inlinedScalar));
+          }
+          result = create.expression(StandardOperator.Perm, newPerm.arg(0), permissionAmount);
+        }
+        break;
       default:
         super.visit(e);
         break;
@@ -90,21 +130,24 @@ public class InlinePredicatesRewriter extends AbstractRewriter {
   }
   @Override
   public void visit(ASTSpecial e){
-    switch(e.kind){
-      case Unfold:
-      case Fold:
-      { 
-        ASTNode arg=rewrite(e.getArg(0));
-        if (arg instanceof MethodInvokation || arg.isa(StandardOperator.Scale)){
-          result=create.special(e.kind,arg);
-        } else {
-          result=null; // returning null for a statement means already inserted or omit.
-        }
-        break;
-      }
-      default:
-        super.visit(e);
-        break;
-    }
+    super.visit(e);
+//    switch(e.kind){
+//      case Unfold:
+//      case Fold:
+//      {
+//        ASTNode arg=rewrite(e.getArg(0));
+////        if (arg instanceof MethodInvokation || arg.isa(StandardOperator.Scale)){
+//          result=create.special(e.kind,arg);
+//        /* } else {
+//          Abort("Throwing away part of fold/unfold expression at %s because it is not a predicate or scale",
+//                  e.getArg(0).getOrigin());
+//          result=null; // returning null for a statement means already inserted or omit.
+//        } */
+//        break;
+//      }
+//      default:
+//        super.visit(e);
+//        break;
+//    }
   }
 }
