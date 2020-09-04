@@ -93,7 +93,6 @@ LET: '\\let';
 SUM: '\\sum';
 LENGTH: '\\length';
 OLD: '\\old';
-ID: '\\id';
 TYPEOF: '\\typeof';
 MATRIX: '\\matrix';
 ARRAY: '\\array';
