@@ -607,6 +607,9 @@ public class Main
           passes.add("gen-triggers");
           passes.add("check");
 
+          passes.add("minimise-silver");
+          passes.add("check");
+
           passes.add("silver");
         } else { //CHALICE
           passes.add("check"); // rewrite system needs a type check
@@ -1253,6 +1256,14 @@ public class Main
       @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args) {
         return new EncodeTryThrowSignals(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("minimise-silver", new CompilerPass("Minimises silver output with regard to indicated methods and functions") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        HashSet<String> methods = new HashSet<>();
+        methods.add("method_Main_spawn__Integer__Program__Sequence$Integer$");
+        return new MinimiseSilver(arg, methods, new HashSet<>()).minimise();
       }
     });
   }
