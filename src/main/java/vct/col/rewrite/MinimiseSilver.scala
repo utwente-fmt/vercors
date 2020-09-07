@@ -23,7 +23,6 @@ object RemoveUnused {
   def minimise(pu: ProgramUnit, rootEntities: Entities): (ProgramUnit, Boolean) = {
     val entities = CollectUsed.collectUsed(pu)
     val keep = rootEntities ++ entities
-    Output(keep.toString)
     val removeMethods = new RemoveUnused(pu, keep)
     val newPu = removeMethods.rewriteAll()
     new SimpleTypeCheck(null, newPu).check()
@@ -52,7 +51,10 @@ class RemoveUnused(source: ProgramUnit, keep: Entities) extends AbstractRewriter
   }
 
   override def visit(d: DeclarationStatement): Unit = {
-    if (currentTargetClass == null || currentTargetClass.getName != "Ref") return
+    if (currentTargetClass == null || currentTargetClass.getName != "Ref") {
+      super.visit(d);
+      return
+    }
     if (!(keep.fields contains d.name)) {
       Output("Removing field: %s", d.name)
       result = null
@@ -68,12 +70,38 @@ object CollectUsed {
 }
 
 class CollectUsed(source: ProgramUnit) extends AbstractRewriter(source) {
+  var total: Entities = Entities(Set(), Set(), Set(), Set())
+
   val methods = mutable.Set[String]()
   val functions = mutable.Set[String]()
   val predicates = mutable.Set[String]()
   val fields = mutable.Set[String]()
 
-  def getEntities: Entities = Entities(methods.toSet, functions.toSet, predicates.toSet, fields.toSet)
+  def getEntities: Entities = total
+
+  def getCurrentEntities: Entities = Entities(methods.toSet, functions.toSet, predicates.toSet, fields.toSet)
+
+  private def clear() = {
+    methods.clear()
+    functions.clear()
+    predicates.clear()
+    fields.clear()
+  }
+
+  override def visit(m: Method): Unit = {
+    total ++= getCurrentEntities
+    clear()
+
+    super.visit(m)
+
+    if (m.getKind == Method.Kind.Plain) {
+      methods -= m.getName
+    } else if (m.getKind == Method.Kind.Pure) {
+      functions -= m.getName
+    } else if (m.getKind == Method.Kind.Predicate) {
+      predicates -= m.getName
+    }
+  }
 
   override def visit(m: MethodInvokation): Unit = {
     if (m.getDefinition.getKind == Method.Kind.Plain) {

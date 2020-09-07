@@ -246,7 +246,7 @@ public class System {
         StringWriter sw = new StringWriter();
         e.printStackTrace(new PrintWriter(sw));
         for (String line : sw.toString().split("\\r?\\n")) {
-            Debug("%s", line);
+            Output("%s", line);
         }
     }
 
