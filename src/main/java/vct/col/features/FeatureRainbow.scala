@@ -2,7 +2,7 @@ package vct.col.features
 
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, TypeExpression, TypeVariable}
 import vct.col.ast.stmt
-import vct.col.ast.stmt.composite.{BlockStatement, ForEachLoop, IfStatement, LoopStatement, ParallelAtomic, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion}
+import vct.col.ast.stmt.composite.{BlockStatement, ForEachLoop, IfStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.expr
@@ -198,19 +198,19 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += NotStandardized
   }
 
-  override def visit(par: OMPParallel): Unit = super.visit(par); features += OpenMP
-  override def visit(par: OMPParallelFor): Unit = super.visit(par); features += OpenMP
-  override def visit(sections: OMPSections): Unit = super.visit(sections); features += OpenMP
-  override def visit(section: OMPSection): Unit = super.visit(section); features += OpenMP
-  override def visit(par: OMPForSimd): Unit = super.visit(par); features += OpenMP
-  override def visit(fr: OMPFor): Unit = super.visit(fr); features += OpenMP
+  override def visit(par: OMPParallel): Unit = { super.visit(par); features += OpenMP }
+  override def visit(par: OMPParallelFor): Unit = { super.visit(par); features += OpenMP }
+  override def visit(sections: OMPSections): Unit = { super.visit(sections); features += OpenMP }
+  override def visit(section: OMPSection): Unit = { super.visit(section); features += OpenMP }
+  override def visit(par: OMPForSimd): Unit = { super.visit(par); features += OpenMP }
+  override def visit(fr: OMPFor): Unit = { super.visit(fr); features += OpenMP }
 
-  override def visit(s: ParallelAtomic): Unit = super.visit(s); features += ParallelBlocks
-  override def visit(s: ParallelBarrier): Unit = super.visit(s); features += ParallelBlocks
-  override def visit(s: ParallelBlock): Unit = super.visit(s); features += ParallelBlocks
-  override def visit(s: ParallelInvariant): Unit = super.visit(s); features += ParallelBlocks
-  override def visit(s: ParallelRegion): Unit = super.visit(s); features += ParallelBlocks
-  override def visit(s: ForEachLoop): Unit = super.visit(s); features += ParallelBlocks
+  override def visit(s: stmt.composite.ParallelAtomic): Unit = { super.visit(s); features += ParallelAtomic }
+  override def visit(s: ParallelBarrier): Unit = { super.visit(s); features += ParallelBlocks }
+  override def visit(s: ParallelBlock): Unit = { super.visit(s); features += ParallelBlocks }
+  override def visit(s: ParallelInvariant): Unit = { super.visit(s); features += ParallelBlocks }
+  override def visit(s: ParallelRegion): Unit = { super.visit(s); features += ParallelBlocks }
+  override def visit(s: ForEachLoop): Unit = { super.visit(s); features += ParallelBlocks }
 
   override def visit(t: PrimitiveType): Unit = {
     super.visit(t)
@@ -253,6 +253,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(block)
     features += VectorBlock
   }
+
+  override def visit(pat: expr.InlineQuantifierPattern): Unit = {
+    super.visit(pat)
+    features += InlineQuantifierPattern
+  }
 }
 
 object Feature {
@@ -285,6 +290,7 @@ object Feature {
     AddrOf,
     OpenMP,
     ParallelBlocks,
+    ParallelAtomic,
     Pointers,
     ContextEverywhere,
     PureImperativeMethods,
@@ -300,6 +306,7 @@ object Feature {
     NonVoidMethods,
     NestedQuantifiers,
     DeclarationsInIf,
+    InlineQuantifierPattern,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -390,6 +397,7 @@ object Feature {
 
     // OpenMP makes new parallel blocks, I think that's about it, so let's keep that explicit.
     // ParallelBlocks,
+    // ParallelAtomic,
 
     // Same as AddrOf
     // Pointers,
@@ -441,6 +449,9 @@ object Feature {
 
     // Knowledge about parents etc.
     DeclarationsInIf,
+
+    // Very useful to not repeat yourself when generating quantifiers
+    InlineQuantifierPattern,
   )
   val DEFAULT_PERMIT: Set[Feature] = Set(
     // transfered by post_visit in AbstractRewriter automatically
@@ -527,6 +538,7 @@ object Feature {
 
     // Big feature, so has to
     ParallelBlocks,
+    ParallelAtomic,
 
     // Shouldn't hurt
     Pointers,
@@ -578,6 +590,8 @@ object Feature {
 
     // Nothing special
     DeclarationsInIf,
+
+    InlineQuantifierPattern,
   )
 }
 
@@ -613,6 +627,7 @@ case object KernelClass extends ScannableFeature
 case object AddrOf extends ScannableFeature
 case object OpenMP extends ScannableFeature
 case object ParallelBlocks extends ScannableFeature
+case object ParallelAtomic extends ScannableFeature
 case object Pointers extends ScannableFeature
 case object ContextEverywhere extends ScannableFeature
 case object PureImperativeMethods extends ScannableFeature
@@ -628,6 +643,7 @@ case object VectorBlock extends ScannableFeature
 case object NonVoidMethods extends ScannableFeature
 case object NestedQuantifiers extends ScannableFeature
 case object DeclarationsInIf extends ScannableFeature
+case object InlineQuantifierPattern extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature

@@ -373,7 +373,7 @@ public class SilverClassReduction extends AbstractRewriter {
   private ASTNode packFracVal(Type t, ASTNode node) {
     fractions = true;
     String method = t.isPrimitive(PrimitiveSort.ZFraction) ? "new_zfrac" : "new_frac";
-    return create.invokation(rewrite(t.getType()), null, method, node);
+    return create.invokation(rewrite(t), null, method, node);
   }
   
   @Override

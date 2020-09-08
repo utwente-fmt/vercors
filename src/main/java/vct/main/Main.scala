@@ -416,7 +416,7 @@ class Main {
     var unorderedPassesSet: mutable.Set[AbstractPass] = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
     var passes: mutable.ArrayBuffer[AbstractPass] = mutable.ArrayBuffer()
 
-    while((unorderedPassesSet.map(_.introduces).reduce(_ ++ _) -- features).nonEmpty) {
+    while((unorderedPassesSet.map(_.introduces).flatten -- features).nonEmpty) {
       features ++= unorderedPassesSet.map(_.introduces).reduce(_ ++ _)
       unorderedPassesSet = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
     }
@@ -425,10 +425,27 @@ class Main {
 
     while(unorderedPasses.nonEmpty) {
       // Assume no passes are idempotent, which makes ordering much easier.
-      val nextPass =
-        unorderedPasses.find(pass =>
-          (features -- pass.permits).isEmpty &&
-            unorderedPasses.forall(_.introduces.intersect(pass.removes).isEmpty)).get
+
+      val nextPassResults = unorderedPasses.map {
+        case pass if (features -- pass.permits).nonEmpty =>
+          Left(s"cannot apply '${pass.description}' since it does not permit these features: ${features--pass.permits}'")
+        case pass if unorderedPasses.exists(_.introduces.intersect(pass.removes).nonEmpty) =>
+          val conflictingPass = unorderedPasses.find(_.introduces.intersect(pass.removes).nonEmpty).get
+          Left(s"cannot apply '${pass.description}' since '${conflictingPass.description}' introduces ${conflictingPass.introduces.intersect(pass.removes)}")
+        case pass => Right(pass)
+      }
+
+      val nextPass = nextPassResults.collectFirst {
+        case Right(pass) => pass
+      } match {
+        case Some(pass) => pass
+        case None =>
+          nextPassResults.foreach {
+            case Left(error) => Warning(error)
+          }
+          Abort("No way to proceed!")
+          ???
+      }
 
       unorderedPasses -= nextPass
       passes += nextPass

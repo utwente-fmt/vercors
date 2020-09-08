@@ -42,7 +42,9 @@ object Passes {
     "access" -> SimplePass(
       "convert access expressions for histories/futures",
       new AccessIntroduce(_).rewriteAll,
-      removes=Set(features.Dereference)),
+      removes=Set(features.Dereference),
+      introduces=Feature.DEFAULT_INTRODUCE - features.Dereference,
+    ),
     "assign" -> SimplePass("change inline assignments to statements", new AssignmentRewriter(_).rewriteAll),
     "silver" -> new AbstractPass("verify input with Silver") {
       override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, if(args.isEmpty) "silicon" else args(0))
@@ -95,7 +97,11 @@ object Passes {
       new RandomizedIf(tmp).rewriteAll
     }),
     "check-axioms" -> ErrorMapPass("rewrite process algebra class to check if history axioms are correct", new CheckHistoryAlgebra(_, CheckHistoryAlgebra.Mode.AxiomVerification, _).rewriteAll),
-    "check-history" -> ErrorMapPass("rewrite process algebra class to check if history axioms are correct", new CheckHistoryAlgebra(_, CheckHistoryAlgebra.Mode.ProgramVerification, _).rewriteAll),
+    "check-history" -> ErrorMapPass(
+      "rewrite process algebra class to check if history axioms are correct",
+      new CheckHistoryAlgebra(_, CheckHistoryAlgebra.Mode.ProgramVerification, _).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT - features.Dereference
+    ),
     "csl-encode" -> new ErrorMapPass(
       "Encode CSL atomic regions with methods",
       new CSLencoder(_, _).rewriteAll,
@@ -113,6 +119,7 @@ object Passes {
         features.UnscaledPredicateApplication,
         features.StaticFields,
         features.NestedQuantifiers,
+        features.InlineQuantifierPattern,
       )),
     "codegen" -> new AbstractPass("Generate code") {
       override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
@@ -187,6 +194,7 @@ object Passes {
         // struct value flattening to arrays: features.BeforeSilverDomains,
         features.NestedQuantifiers,
         features.NonVoidMethods,
+        features.InlineQuantifierPattern,
       )),
     "ghost-lift" -> SimplePass(
       "Lift ghost code to real code",
@@ -202,6 +210,7 @@ object Passes {
         features.Constructors,
         features.NestedQuantifiers,
         features.ContextEverywhere,
+        features.InlineQuantifierPattern,
       )),
     "ds_inherit" -> SimplePass("rewrite contracts to reflect inheritance, predicate chaining", arg => new DynamicStaticInheritance(arg).rewriteOrdered),
     "flatten_before_after" -> SimplePass(
@@ -238,9 +247,14 @@ object Passes {
     "parallel_blocks" -> ErrorMapPass(
       "Encoded the proof obligations for parallel blocks",
       new ParallelBlockEncoder(_, _).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.ContextEverywhere,
+      permits=Feature.DEFAULT_PERMIT - features.ContextEverywhere - features.ParallelAtomic,
       removes=Set(features.ParallelBlocks),
       introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere),
+    "inline-atomic" -> ErrorMapPass(
+      "Inlines atomic blocks into inhales/exhales",
+      new InlineAtomic(_, _).rewriteAll,
+      removes=Set(features.ParallelAtomic),
+    ),
     "pvl-compile" -> SimplePass("Compile PVL classes to Java classes", new PVLCompiler(_).rewriteAll),
     "reorder" -> SimplePass(
       "reorder statements (e.g. all declarations at the start of a block",
@@ -260,6 +274,7 @@ object Passes {
         features.NotFlattened,
         features.BeforeSilverDomains,
         features.NestedQuantifiers,
+        features.InlineQuantifierPattern,
       )),
     "standardize-functions" -> SimplePass(
       "translate pure methods to function syntax.",
@@ -276,6 +291,7 @@ object Passes {
         features.Constructors,
         features.StaticFields,
         features.NestedQuantifiers,
+        features.InlineQuantifierPattern,
       )),
     "quant-optimize" -> SimplePass(
       "Removes nesting of quantifiers in chains of forall/starall and implies",
@@ -296,6 +312,7 @@ object Passes {
         features.BeforeSilverDomains,
         features.ScatteredDeclarations,
         features.DeclarationsInIf,
+        features.InlineQuantifierPattern,
       )
     ),
     "rewrite" -> Pass("Apply a term rewrite system", (arg, args) => {
@@ -341,6 +358,7 @@ object Passes {
         features.StaticFields,
         features.NonVoidMethods,
         features.NotFlattened,
+        features.InlineQuantifierPattern,
       )),
     "silver-reorder" -> SimplePass(
       "move declarations from inside if-then-else blocks to top",
@@ -359,13 +377,14 @@ object Passes {
         features.NotFlattened,
         features.BeforeSilverDomains,
         features.NestedQuantifiers,
+        features.InlineQuantifierPattern,
       )
     ),
     "scale-always" -> SimplePass(
       "scale every predicate invokation",
       new ScaleAlways(_).rewriteAll,
       removes=Set(features.UnscaledPredicateApplication),
-      introduces=Set(/* very simple; only may introduces Scale operator */)),
+      introduces=Set(/* very simple; only may introduce Scale operator */)),
     "silver-optimize" -> SimplePass("Optimize expressions for Silver", arg => {
       val trs = RewriteSystems.getRewriteSystem("silver_optimize")
       trs.normalize(arg)
@@ -415,6 +434,7 @@ object Passes {
         features.UnscaledPredicateApplication,
         features.BeforeSilverDomains,
         features.NestedQuantifiers,
+        features.InlineQuantifierPattern,
       )),
     "vector-encode" -> SimplePass(
       "Encode vector blocks using the vector library",
@@ -482,5 +502,15 @@ object Passes {
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
       new EncodeTryThrowSignals(_).rewriteAll()
     ),
+    "gen-triggers" -> SimplePass("", Triggers(_).rewriteAll),
+    "inline-pattern-to-trigger" -> SimplePass(
+      "Explicit inline patterns to normal trigger syntax",
+      new InlinePatternToTrigger(_).rewriteAll,
+      removes=Set(features.InlineQuantifierPattern),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.Arrays,
+        features.ContextEverywhere,
+      ),
+    )
   )
 }
