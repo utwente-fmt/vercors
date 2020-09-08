@@ -51,6 +51,7 @@ object Passes {
       override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, if(args.isEmpty) "silicon" else args(0))
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
+<<<<<<< HEAD
       override def permits: Set[Feature] = Set(
         features.Dereference,
         features.Null,
@@ -58,6 +59,9 @@ object Passes {
         features.TopLevelDeclarations,
         features.DeclarationsNotLifted,
       )
+=======
+      override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript, features.Goto)
+>>>>>>> f7f840041... SwitchVarious seems to pass
     },
     new AbstractPass("check", "run a basic type check") {
       val permits: Set[Feature] = Feature.ALL
@@ -501,12 +505,15 @@ object Passes {
     SimplePass("specify-implicit-labels",
       "Insert explicit labels for break statements in while loops.",
       new SpecifyImplicitLabels(_).rewriteAll(),
-      permits = Feature.ALL,
+      permits = Feature.ALL, // TODO (Bob): This feels a bit suspicious
       removes = Set(features.ImplicitLabels)
     ),
     SimplePass("break-return-to-goto",
       "Rewrite break, return into jumps",
-      new BreakReturnToGoto(_).rewriteAll()
+      new BreakReturnToGoto(_).rewriteAll(),
+      permits = Feature.ALL ++ Set(features.Break, features.Return), // TODO (Bob): Hmmm, ALL?
+      introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
+      removes = Set(features.Break, features.Return)
     ),
     SimplePass("break-return-to-exceptions",
       "Rewrite break, continue into exceptions",
@@ -515,12 +522,14 @@ object Passes {
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.ALL - features.ImplicitLabels,
+      permits = Feature.ALL - features.ImplicitLabels, // TODO (Bob): Also suspicious
       removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
       "Convert continues into breaks",
-      new ContinueToBreak(_).rewriteAll()
+      new ContinueToBreak(_).rewriteAll(),
+      permits = Feature.DEFAULT_PERMIT + features.Continue,
+      removes = Set(features.Continue)
     ),
     SimplePass("unfold-synchronized",
       "Convert synchronized to try-finally",

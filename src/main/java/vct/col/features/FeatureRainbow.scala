@@ -95,6 +95,9 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         features += PVLSugar
       case ASTSpecial.Kind.Open | ASTSpecial.Kind.Close =>
         features += NotJavaEncoded
+      case ASTSpecial.Kind.Break => features += Break
+      case ASTSpecial.Kind.Continue => features += Continue
+      case ASTSpecial.Kind.Goto => features += Goto
       case _ =>
     }
   }
@@ -303,6 +306,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(switch)
     features += Switch
   }
+
+  override def visit(returnStatement: vct.col.ast.stmt.terminal.ReturnStatement): Unit = {
+    super.visit(returnStatement)
+    features += Return
+  }
 }
 
 object Feature {
@@ -366,6 +374,10 @@ object Feature {
     NotJavaEncoded,
     Switch,
     ImplicitLabels,
+    Break,
+    Continue,
+    Return,
+    Goto,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -695,6 +707,9 @@ object Feature {
     // NotJavaEncoded,
 
     DeclarationsNotLifted,
+
+    // (Bob) I think most passes ignore this anyway?
+    Goto
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
@@ -760,6 +775,10 @@ case object Lemma extends ScannableFeature
 case object NotJavaEncoded extends ScannableFeature
 case object Switch extends ScannableFeature
 case object ImplicitLabels extends ScannableFeature
+case object Break extends ScannableFeature
+case object Continue extends ScannableFeature
+case object Return extends ScannableFeature
+case object Goto extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
