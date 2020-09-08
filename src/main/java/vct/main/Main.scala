@@ -410,7 +410,7 @@ class Main {
     else "Fail")
   }
 
-  // TODO (Bob): None.get exception here is possible
+  // TODO (Bob): None.get exception here is possible if you forget things like me
   def findPassToRemove(feature: Feature): AbstractPass = BY_KEY.values.find(_.removes.contains(feature)).get
 
   def computeGoal(featuresIn: Set[Feature], goal: String): (Seq[AbstractPass], Set[Feature]) = {
