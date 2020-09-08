@@ -98,6 +98,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       case ASTSpecial.Kind.Break => features += Break
       case ASTSpecial.Kind.Continue => features += Continue
       case ASTSpecial.Kind.Goto => features += Goto
+      case ASTSpecial.Kind.Throw => features += Throw
       case _ =>
     }
   }
@@ -311,6 +312,21 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(returnStatement)
     features += Return
   }
+
+  override def visit(tryCatch: vct.col.ast.stmt.composite.TryCatchBlock): Unit = {
+    super.visit(tryCatch)
+    features += Try
+  }
+
+  override def visit(signals: vct.col.ast.stmt.decl.SignalsClause): Unit = {
+    super.visit(signals)
+    features += Signals
+  }
+
+  override def visit(synchronized: vct.col.ast.stmt.composite.Synchronized): Unit = {
+    super.visit(synchronized)
+    features += Synchronized
+  }
 }
 
 object Feature {
@@ -374,10 +390,15 @@ object Feature {
     NotJavaEncoded,
     Switch,
     ImplicitLabels,
-    Break,
-    Continue,
+    Break, // TODO (Bob): Just an idea, but: maybe we also want to be able to put whole ast nodes as features? Would save the next 6 declarations (but might be brittle and fraught with implicit assumptions, so explicit might be better. Dunno)
+    Continue, // TODO (Bob): TBH the above idea gets better once you get language specific ast nodes and col specific ast nodes...
     Return,
     Goto,
+    Try,
+    Throw,
+    Signals,
+    ExcVar,
+    Synchronized,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -709,7 +730,7 @@ object Feature {
     DeclarationsNotLifted,
 
     // (Bob) I think most passes ignore this anyway?
-    Goto
+    Goto, Try, Throw, Signals, Return
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
@@ -779,6 +800,11 @@ case object Break extends ScannableFeature
 case object Continue extends ScannableFeature
 case object Return extends ScannableFeature
 case object Goto extends ScannableFeature
+case object Try extends ScannableFeature // TODO (Bob): The next 3 are defined separate, but could probably be one feature. I defined them separate because they are syntactically separate, but not sure if that's the best way to do it
+case object Throw extends ScannableFeature
+case object Signals extends ScannableFeature
+case object ExcVar extends ScannableFeature // TODO (Bob): Not really scannable, but not sure where to put it? It is introduced by the intro-exc-var pass
+case object Synchronized extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature

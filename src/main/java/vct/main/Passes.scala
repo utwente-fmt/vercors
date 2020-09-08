@@ -511,13 +511,16 @@ object Passes {
     SimplePass("break-return-to-goto",
       "Rewrite break, return into jumps",
       new BreakReturnToGoto(_).rewriteAll(),
-      permits = Feature.ALL ++ Set(features.Break, features.Return), // TODO (Bob): Hmmm, ALL?
+      permits = Feature.ALL
+          -- (Set(features.Try, features.Throw, features.Signals)), // TODO (Bob): Hmmm, ALL?
       introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
       removes = Set(features.Break, features.Return)
     ),
     SimplePass("break-return-to-exceptions",
       "Rewrite break, continue into exceptions",
-      new BreakReturnToExceptions(_).rewriteAll()
+      new BreakReturnToExceptions(_).rewriteAll(),
+      removes = Set(features.Break, features.Return),
+      introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.Try, features.Throw)
     ),
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
@@ -529,19 +532,26 @@ object Passes {
       "Convert continues into breaks",
       new ContinueToBreak(_).rewriteAll(),
       permits = Feature.DEFAULT_PERMIT + features.Continue,
-      removes = Set(features.Continue)
+      removes = Set(features.Continue),
+      introduces = Feature.DEFAULT_INTRODUCE + features.Break
     ),
     SimplePass("unfold-synchronized",
       "Convert synchronized to try-finally",
-      new UnfoldSynchronized(_).rewriteAll()
+      new UnfoldSynchronized(_).rewriteAll(),
+      permits = Feature.DEFAULT_PERMIT + features.Synchronized,
+      removes = Set(features.Synchronized),
+      introduces = Set(features.Throw, features.PVLSugar)
     ),
     SimplePass("intro-exc-var",
-      "Introduces the auxiliary sys__exc variable for use by excetional control flow",
-      new IntroExcVar(_).rewriteAll()
+      "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
+      new IntroExcVar(_).rewriteAll(),
+      introduces = Set(features.ExcVar)
     ),
     SimplePass("encode-try-throw-signals",
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
-      new EncodeTryThrowSignals(_).rewriteAll()
+      new EncodeTryThrowSignals(_).rewriteAll(),
+      removes = Set(features.ExcVar, features.Try, features.Throw, features.Signals),
+      introduces = Feature.DEFAULT_INTRODUCE + features.Goto
     ),
     SimplePass(
       "gen-triggers", "Specify trigger sets for quantifiers using simple heuristics",
