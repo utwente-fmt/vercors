@@ -490,7 +490,8 @@ class Main {
       vct.col.features.DeclarationsNotLifted
     ) ++ Set(
       // These are normal features, but need to run always for some reason
-      vct.col.features.ScatteredDeclarations // this pass finds duplicate names.
+      vct.col.features.ScatteredDeclarations, // this pass finds duplicate names.
+      vct.col.features.ImplicitLabels // Can be detected, lazy, sorry
     )
 
     var passes = Seq.empty[AbstractPass]

@@ -293,9 +293,15 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     features += InlineQuantifierPattern
   }
 
+
   override def visit(lemma: stmt.composite.Lemma): Unit = {
     super.visit(lemma)
     features += Lemma
+  }
+
+  override def visit(switch: vct.col.ast.stmt.composite.Switch): Unit = {
+    super.visit(switch)
+    features += Switch
   }
 }
 
@@ -358,6 +364,8 @@ object Feature {
     Summation,
     Lemma,
     NotJavaEncoded,
+    Switch,
+    ImplicitLabels,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -750,6 +758,8 @@ case object QuantifierWithoutTriggers extends ScannableFeature
 case object Summation extends ScannableFeature
 case object Lemma extends ScannableFeature
 case object NotJavaEncoded extends ScannableFeature
+case object Switch extends ScannableFeature
+case object ImplicitLabels extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
