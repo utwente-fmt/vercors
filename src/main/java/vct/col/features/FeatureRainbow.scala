@@ -84,6 +84,9 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
            ASTSpecial.Kind.Lock | ASTSpecial.Kind.Unlock |
            ASTSpecial.Kind.Wait | ASTSpecial.Kind.Notify =>
         features += PVLSugar
+      case ASTSpecial.Kind.Break => features += Break
+      case ASTSpecial.Kind.Continue => features += Continue
+      case ASTSpecial.Kind.Goto => features += Goto
       case _ =>
     }
   }
@@ -263,6 +266,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(switch)
     features += Switch
   }
+
+  override def visit(returnStatement: vct.col.ast.stmt.terminal.ReturnStatement): Unit = {
+    super.visit(returnStatement)
+    features += Return
+  }
 }
 
 object Feature {
@@ -314,6 +322,10 @@ object Feature {
     InlineQuantifierPattern,
     Switch,
     ImplicitLabels,
+    Break,
+    Continue,
+    Return,
+    Goto,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -599,6 +611,9 @@ object Feature {
     DeclarationsInIf,
 
     InlineQuantifierPattern,
+
+    // (Bob) I think most passes ignore this anyway?
+    Goto
   )
 }
 
@@ -653,6 +668,10 @@ case object DeclarationsInIf extends ScannableFeature
 case object InlineQuantifierPattern extends ScannableFeature
 case object Switch extends ScannableFeature
 case object ImplicitLabels extends ScannableFeature
+case object Break extends ScannableFeature
+case object Continue extends ScannableFeature
+case object Return extends ScannableFeature
+case object Goto extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
