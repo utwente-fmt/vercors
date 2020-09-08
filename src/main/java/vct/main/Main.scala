@@ -428,10 +428,10 @@ class Main {
 
       val nextPassResults = unorderedPasses.map {
         case pass if (features -- pass.permits).nonEmpty =>
-          Left(s"cannot apply '${pass.description}' since it does not permit these features: ${features--pass.permits}'")
+          Left(s"cannot apply ${pass.key} since it does not permit these features: ${features--pass.permits}'")
         case pass if unorderedPasses.exists(_.introduces.intersect(pass.removes).nonEmpty) =>
           val conflictingPass = unorderedPasses.find(_.introduces.intersect(pass.removes).nonEmpty).get
-          Left(s"cannot apply '${pass.description}' since '${conflictingPass.description}' introduces ${conflictingPass.introduces.intersect(pass.removes)}")
+          Left(s"cannot apply ${pass.key} since ${conflictingPass.key} introduces ${conflictingPass.introduces.intersect(pass.removes)}")
         case pass => Right(pass)
       }
 

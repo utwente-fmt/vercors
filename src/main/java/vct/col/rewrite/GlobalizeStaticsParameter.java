@@ -28,7 +28,7 @@ public class GlobalizeStaticsParameter extends GlobalizeStatics {
    * Add the global argument to every non-static method.
    */
   public void visit(Method m){
-    if (prefix!=null){
+    if (prefix!=null || m.isStatic()){
       super.visit(m);
     } else {
       switch(m.getKind()){

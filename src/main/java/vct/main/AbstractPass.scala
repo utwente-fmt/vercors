@@ -6,10 +6,12 @@ import vct.logging.{ErrorMapping, PassAddVisitor, PassReport}
 
 import scala.annotation.varargs
 
-abstract class AbstractPass(val description: String) {
+abstract class AbstractPass(val key: String, val description: String) {
   def removes: Set[Feature]
   def introduces: Set[Feature]
   def permits: Set[Feature]
+
+  def tup: (String, AbstractPass) = (key, this)
 
   def apply_pass(reportIn: PassReport, args: Array[String]): PassReport = {
     val arg = reportIn.getOutput
@@ -26,30 +28,33 @@ abstract class AbstractPass(val description: String) {
     ???
 }
 
-case class Pass(override val description: String,
+case class Pass(override val key: String,
+                override val description: String,
                 applyImpl: (ProgramUnit, Array[String]) => ProgramUnit,
                 removes: Set[Feature] = Set(),
                 introduces: Set[Feature] = Feature.DEFAULT_INTRODUCE,
                 permits: Set[Feature] = Feature.DEFAULT_PERMIT)
-  extends AbstractPass(description) {
+  extends AbstractPass(key, description) {
   override def apply(arg: ProgramUnit, args: Array[String]): ProgramUnit = applyImpl(arg, args)
 }
 
-case class SimplePass(override val description: String,
+case class SimplePass(override val key: String,
+                      override val description: String,
                       applyImpl: ProgramUnit => ProgramUnit,
                       removes: Set[Feature] = Set(),
                       introduces: Set[Feature] = Feature.DEFAULT_INTRODUCE,
                       permits: Set[Feature] = Feature.DEFAULT_PERMIT)
-  extends AbstractPass(description) {
+  extends AbstractPass(key, description) {
   override protected def apply(arg: ProgramUnit, args: Array[String]): ProgramUnit = applyImpl(arg)
 }
 
-case class ErrorMapPass(override val description: String,
+case class ErrorMapPass(override val key: String,
+                        override val description: String,
                         applyImpl: (ProgramUnit, ErrorMapping) => ProgramUnit,
                         removes: Set[Feature] = Set(),
                         introduces: Set[Feature] = Feature.DEFAULT_INTRODUCE,
                         permits: Set[Feature] = Feature.DEFAULT_PERMIT)
-  extends AbstractPass(description) {
+  extends AbstractPass(key, description) {
   override def apply_pass(reportIn: PassReport, args: Array[String]): PassReport = {
     val arg = reportIn.getOutput
     val reportOut = new PassReport(arg)
