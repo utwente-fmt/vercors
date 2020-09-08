@@ -473,7 +473,9 @@ object Passes {
     }),
     SimplePass("specify-implicit-labels",
       "Insert explicit labels for break statements in while loops.",
-      new SpecifyImplicitLabels(_).rewriteAll()
+      new SpecifyImplicitLabels(_).rewriteAll(),
+      permits = Feature.ALL,
+      removes = Set(features.ImplicitLabels)
     ),
     SimplePass("break-return-to-goto",
       "Rewrite break, return into jumps",
@@ -485,7 +487,9 @@ object Passes {
     ),
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
-      new UnfoldSwitch(_).rewriteAll()
+      new UnfoldSwitch(_).rewriteAll(),
+      permits = Feature.ALL - features.ImplicitLabels,
+      removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
       "Convert continues into breaks",

@@ -258,6 +258,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(pat)
     features += InlineQuantifierPattern
   }
+
+  override def visit(switch: vct.col.ast.stmt.composite.Switch): Unit = {
+    super.visit(switch)
+    features += Switch
+  }
 }
 
 object Feature {
@@ -307,6 +312,8 @@ object Feature {
     NestedQuantifiers,
     DeclarationsInIf,
     InlineQuantifierPattern,
+    Switch,
+    ImplicitLabels,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -644,6 +651,8 @@ case object NonVoidMethods extends ScannableFeature
 case object NestedQuantifiers extends ScannableFeature
 case object DeclarationsInIf extends ScannableFeature
 case object InlineQuantifierPattern extends ScannableFeature
+case object Switch extends ScannableFeature
+case object ImplicitLabels extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature

@@ -479,7 +479,8 @@ class Main {
     var features = visitor.features.toSet ++ Set(
       vct.col.features.NotFlattened,
       vct.col.features.BeforeSilverDomains,
-      vct.col.features.NullAsOptionValue
+      vct.col.features.NullAsOptionValue,
+      vct.col.features.ImplicitLabels
     )
 
     var passes = Seq.empty[AbstractPass]
