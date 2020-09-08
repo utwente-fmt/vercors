@@ -347,6 +347,7 @@ object Feature {
     Signals,
     ExcVar,
     Synchronized,
+    TypeADT,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -634,7 +635,7 @@ object Feature {
     InlineQuantifierPattern,
 
     // (Bob) I think most passes ignore this anyway?
-    Goto, Try, Throw, Signals, Return
+    Goto, Try, Throw, Signals, Return, ExcVar, TypeADT
   )
 }
 
@@ -698,6 +699,7 @@ case object Throw extends ScannableFeature
 case object Signals extends ScannableFeature
 case object ExcVar extends ScannableFeature // TODO (Bob): Not really scannable, but not sure where to put it? It is introduced by the intro-exc-var pass
 case object Synchronized extends ScannableFeature
+case object TypeADT extends ScannableFeature // TODO (Bob): Guess this should be a gated actually...? (But technically it is scannable I guess, but not in a useful way)
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature

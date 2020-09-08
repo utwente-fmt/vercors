@@ -36,9 +36,9 @@ object Passes {
       "Add an ADT that describes the types and use it to implement instanceof",
       new AddTypeADT(_).rewriteAll,
       removes=Set(features.Inheritance),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      introduces=(Feature.DEFAULT_INTRODUCE -- Set(
         features.Inheritance
-      )),
+      )) + features.TypeADT),
     SimplePass("access",
       "convert access expressions for histories/futures",
       new AccessIntroduce(_).rewriteAll,
@@ -50,7 +50,7 @@ object Passes {
       override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, if(args.isEmpty) "silicon" else args(0))
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
-      override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript, features.Goto)
+      override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript, features.Goto, features.TypeADT)
     },
     new AbstractPass("check", "run a basic type check") {
       val permits: Set[Feature] = Feature.ALL
@@ -486,7 +486,7 @@ object Passes {
       removes = Set(features.Break, features.Return)
     ),
     SimplePass("break-return-to-exceptions",
-      "Rewrite break, continue into exceptions",
+      "Rewrite break, continue into exceptions", // TODO (Bob): Problem: This needs to run _before_ add-type-adt, not after. Good test case: abrupt/OnlyCatch.java
       new BreakReturnToExceptions(_).rewriteAll(),
       removes = Set(features.Break, features.Return),
       introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.Try, features.Throw)
@@ -514,12 +514,13 @@ object Passes {
     SimplePass("intro-exc-var",
       "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
       new IntroExcVar(_).rewriteAll(),
-      introduces = Set(features.ExcVar)
+      introduces = Set(features.ExcVar),
+      removes = Set(features.Try, features.Throw, features.Signals) // TODO (Bob): This is kind of lying...
     ),
     SimplePass("encode-try-throw-signals",
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
       new EncodeTryThrowSignals(_).rewriteAll(),
-      removes = Set(features.ExcVar, features.Try, features.Throw, features.Signals),
+      removes = Set(features.ExcVar),
       introduces = Feature.DEFAULT_INTRODUCE + features.Goto
     ),
     SimplePass("gen-triggers", "", Triggers(_).rewriteAll),
