@@ -131,12 +131,15 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     op.operator match {
       case StandardOperator.Subscript =>
         features += Arrays
-        if(op.first.isa(StandardOperator.RangeSeq)) {
+        if(op.second.isa(StandardOperator.RangeSeq)) {
           features += SubscriptRange
         }
-        op.first match {
+        op.second match {
           case _: NameExpression | _: ConstantExpression =>
           case _ => features += ComplexSubscript
+        }
+        if(op.second.isReserved(ASTReserved.Any)) {
+          features += AnySubscript
         }
       case StandardOperator.Instance | StandardOperator.TypeOf =>
         features += Inheritance
@@ -307,6 +310,7 @@ object Feature {
     ScatteredDeclarations,
     Arrays,
     ComplexSubscript,
+    AnySubscript,
     UnscaledPredicateApplication,
     NotStandardized,
     Constructors,
@@ -431,6 +435,9 @@ object Feature {
 
     // Anything other than a name or constant as a subscript is "complicated"
     ComplexSubscript,
+
+    // Don't need the sugar
+    // AnySusbcript,
 
     // Supposedly you can't have a predicate application without a scale in front in silicon...
     UnscaledPredicateApplication,
@@ -576,6 +583,8 @@ object Feature {
     // Anything other than a name or constant as a subscript is "complicated"
     ComplexSubscript,
 
+    AnySubscript,
+
     // Supposedly you can't have a predicate application without a scale in front in silicon...
     UnscaledPredicateApplication,
 
@@ -649,6 +658,7 @@ case object NondetCondition extends ScannableFeature // no pass
 case object ScatteredDeclarations extends ScannableFeature
 case object Arrays extends ScannableFeature
 case object ComplexSubscript extends ScannableFeature // no pass
+case object AnySubscript extends ScannableFeature
 case object UnscaledPredicateApplication extends ScannableFeature
 case object NotStandardized extends ScannableFeature
 case object Constructors extends ScannableFeature

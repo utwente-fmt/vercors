@@ -60,7 +60,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(ConstantExpression e) {
     if (e.value() instanceof IntegerValue) {
       int v = ((IntegerValue) e.value()).value();
-      if (e.getType().isPrimitive(PrimitiveSort.Rational)) {
+      if (e.getType().isFraction()) {
         switch (v) {
           case 0:
             return create.no_perm(e.getOrigin());
