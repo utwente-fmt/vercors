@@ -503,14 +503,13 @@ object Passes {
     SimplePass("specify-implicit-labels",
       "Insert explicit labels for break statements in while loops.",
       new SpecifyImplicitLabels(_).rewriteAll(),
-      permits = Feature.ALL, // TODO (Bob): This feels a bit suspicious
+      permits = Feature.DEFAULT_PERMIT + features.ImplicitLabels, // TODO (Bob): This feels a bit suspicious
       removes = Set(features.ImplicitLabels)
     ),
     SimplePass("break-return-to-goto",
       "Rewrite break, return into jumps",
       new BreakReturnToGoto(_).rewriteAll(),
-      permits = Feature.ALL
-          -- (Set(features.Try, features.Throw, features.Signals)), // TODO (Bob): Hmmm, ALL?
+      permits = Feature.DEFAULT_PERMIT -- Set(features.Try, features.Throw, features.Signals),
       introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
       removes = Set(features.Break, features.Return)
     ),

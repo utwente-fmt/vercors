@@ -95,8 +95,16 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         features += PVLSugar
       case ASTSpecial.Kind.Open | ASTSpecial.Kind.Close =>
         features += NotJavaEncoded
-      case ASTSpecial.Kind.Break => features += Break
-      case ASTSpecial.Kind.Continue => features += Continue
+      case ASTSpecial.Kind.Break =>
+        features += Break
+        if (special.args.length == 0) {
+          features += ImplicitLabels
+        }
+      case ASTSpecial.Kind.Continue =>
+        features += Continue
+        if (special.args.length == 0) {
+          features += ImplicitLabels
+        }
       case ASTSpecial.Kind.Goto => features += Goto
       case ASTSpecial.Kind.Throw => features += Throw
       case _ =>
@@ -731,7 +739,7 @@ object Feature {
     DeclarationsNotLifted,
 
     // (Bob) I think most passes ignore this anyway?
-    Goto, Try, Throw, Signals, Return, ExcVar, TypeADT
+    Goto, Try, Throw, Signals, Break, Continue, Switch, Return, ExcVar, TypeADT, ImplicitLabels
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
