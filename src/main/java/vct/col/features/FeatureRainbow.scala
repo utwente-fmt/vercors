@@ -117,6 +117,12 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(loop: LoopStatement): Unit = {
     super.visit(loop)
     visitBeforeAfter(loop)
+
+    if(loop.getContract != null &&
+      (loop.getContract.pre_condition != Contract.default_true ||
+      loop.getContract.post_condition != Contract.default_true)) {
+      features += OpenMP
+    }
   }
 
   override def visit(op: OperatorExpression): Unit = {
@@ -162,6 +168,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(binding)
     if(binding.binder == Binder.SetComp)
       features += ADTOperators
+    if(binding.triggers == null || binding.triggers.isEmpty)
+      features += QuantifierWithoutTriggers
     bindingExpressionDepth -= 1
   }
 
@@ -307,6 +315,7 @@ object Feature {
     NestedQuantifiers,
     DeclarationsInIf,
     InlineQuantifierPattern,
+    QuantifierWithoutTriggers,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -452,6 +461,9 @@ object Feature {
 
     // Very useful to not repeat yourself when generating quantifiers
     InlineQuantifierPattern,
+
+    // Our passes should always specify correct triggers in new quantified statements
+    // QuantifierWithoutTriggers,
   )
   val DEFAULT_PERMIT: Set[Feature] = Set(
     // transfered by post_visit in AbstractRewriter automatically
@@ -592,6 +604,7 @@ object Feature {
     DeclarationsInIf,
 
     InlineQuantifierPattern,
+    QuantifierWithoutTriggers,
   )
 }
 
@@ -644,6 +657,7 @@ case object NonVoidMethods extends ScannableFeature
 case object NestedQuantifiers extends ScannableFeature
 case object DeclarationsInIf extends ScannableFeature
 case object InlineQuantifierPattern extends ScannableFeature
+case object QuantifierWithoutTriggers extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature

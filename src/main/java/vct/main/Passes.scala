@@ -503,7 +503,17 @@ object Passes {
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
       new EncodeTryThrowSignals(_).rewriteAll()
     ),
-    SimplePass("gen-triggers", "", Triggers(_).rewriteAll),
+    SimplePass(
+      "gen-triggers", "Specify trigger sets for quantifiers using simple heuristics",
+      Triggers(_).rewriteAll,
+      removes=Set(features.QuantifierWithoutTriggers),
+      permits=Feature.DEFAULT_PERMIT - features.InlineQuantifierPattern,
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.Arrays,
+        features.ContextEverywhere,
+        features.InlineQuantifierPattern,
+      )
+    ),
     SimplePass("inline-pattern-to-trigger",
       "Explicit inline patterns to normal trigger syntax",
       new InlinePatternToTrigger(_).rewriteAll,
