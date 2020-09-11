@@ -2,6 +2,7 @@
 //:: case OptionDomain
 //:: verdict Fail
 //:: tools silicon
+//:: options --disable-sat
 
 domain Option[T] {
   function None(): Option[T]

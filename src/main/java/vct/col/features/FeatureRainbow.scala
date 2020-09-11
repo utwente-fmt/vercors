@@ -504,6 +504,18 @@ object Feature {
 
     // NotJavaEncoded,
   )
+  val NO_POLY_INTRODUCE: Set[Feature] = DEFAULT_INTRODUCE -- Set(
+    This,
+    StaticFields,
+    Constructors,
+  )
+  val EXPR_ONLY_INTRODUCE: Set[Feature] = NO_POLY_INTRODUCE -- Set(
+    Arrays,
+    NonVoidMethods,
+    ContextEverywhere,
+    DeclarationsInIf,
+    ScatteredDeclarations,
+  )
   val DEFAULT_PERMIT: Set[Feature] = Set(
     // transfered by post_visit in AbstractRewriter automatically
     MethodAnnotations,

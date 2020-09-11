@@ -71,7 +71,9 @@ object Passes {
         features.PureImperativeMethods,
         features.TopLevelDeclarations,
       ),
-      removes=Set(features.NullAsOptionValue)),
+      removes=Set(features.NullAsOptionValue),
+      introduces=Feature.EXPR_ONLY_INTRODUCE,
+    ),
     SimplePass("pointers_to_arrays",
       "rewrite pointers to arrays",
       new PointersToArrays(_).rewriteAll,
@@ -193,13 +195,9 @@ object Passes {
       "remove nesting of expression",
       new Flatten(_).rewriteAll,
       removes=Set(features.NotFlattened),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,
-        features.Inheritance,
-        features.Constructors,
         features.ContextEverywhere,
-        features.StaticFields,
-        features.This,
         features.Arrays,
         // struct value flattening to arrays: features.BeforeSilverDomains,
         features.NestedQuantifiers,
@@ -375,7 +373,7 @@ object Passes {
     SimplePass(
       "sat_check", "insert satisfyability checks for all methods",
       new SatCheckRewriter(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
     ),
     SimplePass("silver-class-reduction",
       "reduce classes to single Ref class",
@@ -439,9 +437,7 @@ object Passes {
         res
       },
       removes=Set(features.NotOptimized, features.AnySubscript),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
-        features.ContextEverywhere,
-      ),
+      introduces=Feature.EXPR_ONLY_INTRODUCE,
     ),
     SimplePass(
       "simplify_sums", "replace summations with provable functions",
@@ -551,15 +547,10 @@ object Passes {
       Triggers(_).rewriteAll,
       removes=Set(features.QuantifierWithoutTriggers),
       permits=Feature.DEFAULT_PERMIT - features.InlineQuantifierPattern - features.BeforeSilverDomains,
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
-        features.Arrays,
-        features.ContextEverywhere,
+      introduces=Feature.EXPR_ONLY_INTRODUCE -- Set(
         features.InlineQuantifierPattern,
-        features.This,
-        features.Constructors,
         features.NestedQuantifiers,
         features.UnscaledPredicateApplication,
-        features.StaticFields,
         features.NotFlattened,
         features.BeforeSilverDomains,
       )
