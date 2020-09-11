@@ -444,6 +444,7 @@ class Main {
       } match {
         case Some(pass) => pass
         case None =>
+          Warning("Leftover features: %s", features)
           nextPassResults.foreach {
             case Left(error) => Warning(error)
             case _ =>
@@ -453,6 +454,7 @@ class Main {
       }
 
       unorderedPasses -= nextPass
+      Output("Planning to do %s", nextPass.key)
       passes += nextPass
       passes += BY_KEY("check")
       features = features -- nextPass.removes ++ nextPass.introduces

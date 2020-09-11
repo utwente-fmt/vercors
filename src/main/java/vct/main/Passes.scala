@@ -37,9 +37,8 @@ object Passes {
       new AddTypeADT(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.Inheritance),
-      introduces=(Feature.DEFAULT_INTRODUCE -- Set(
-        features.Inheritance
-      )) + features.TypeADT),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(features.Inheritance)
+    ),
     SimplePass("access",
       "convert access expressions for histories/futures",
       new AccessIntroduce(_).rewriteAll,
@@ -58,7 +57,6 @@ object Passes {
         features.TopLevelDeclarations,
         features.DeclarationsNotLifted,
         features.Goto,
-        features.TypeADT,
       )
     },
     new AbstractPass("check", "run a basic type check") {
@@ -228,6 +226,8 @@ object Passes {
         features.ContextEverywhere,
         features.InlineQuantifierPattern,
         features.Arrays,
+        features.This,
+        features.NotFlattened,
       )),
     SimplePass("ds_inherit", "rewrite contracts to reflect inheritance, predicate chaining", arg => new DynamicStaticInheritance(arg).rewriteOrdered),
     SimplePass("flatten_before_after",
@@ -317,6 +317,8 @@ object Passes {
         features.ContextEverywhere,
         features.NestedQuantifiers,
         features.InlineQuantifierPattern,
+        features.This,
+        features.NotFlattened,
       )),
     SimplePass("quant-optimize",
       "Removes nesting of quantifiers in chains of forall/starall and implies",
@@ -349,6 +351,8 @@ object Passes {
         features.UnscaledPredicateApplication,
         features.ScatteredDeclarations,
         features.DeclarationsInIf,
+        features.This,
+        features.NotFlattened,
       )),
     SimplePass("generate_adt_functions",
       "rewrite standard operators on sequences to function definitions/calls",
@@ -509,7 +513,7 @@ object Passes {
     SimplePass("break-return-to-goto",
       "Rewrite break, return into jumps",
       new BreakReturnToGoto(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT -- Set(features.Try, features.Throw, features.Signals),
+      permits = Feature.DEFAULT_PERMIT -- Set(features.Exceptions, features.Finally),
       introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
       removes = Set(features.Break, features.Return)
     ),
@@ -517,7 +521,7 @@ object Passes {
       "Rewrite break, continue into exceptions", // TODO (Bob): Problem: This needs to run _before_ add-type-adt, not after. Good test case: abrupt/OnlyCatch.java
       new BreakReturnToExceptions(_).rewriteAll(),
       removes = Set(features.Break, features.Return),
-      introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.Try, features.Throw)
+      introduces = Feature.DEFAULT_INTRODUCE + features.Exceptions + features.Inheritance  //@ TODO (Bob): Because catch is introduced... Should this be derived from exceptions? */
     ),
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
@@ -537,19 +541,27 @@ object Passes {
       new UnfoldSynchronized(_).rewriteAll(),
       permits = Feature.DEFAULT_PERMIT + features.Synchronized,
       removes = Set(features.Synchronized),
-      introduces = Set(features.Throw, features.PVLSugar)
+      introduces = Set(features.Exceptions, features.Finally, features.PVLSugar)
     ),
     SimplePass("intro-exc-var",
       "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
       new IntroExcVar(_).rewriteAll(),
       introduces = Set(features.ExcVar),
-      removes = Set(features.Try, features.Throw, features.Signals) // TODO (Bob): This is kind of lying...
+      permits = Feature.DEFAULT_PERMIT - features.Inheritance - features.NonVoidMethods,
+      removes = Set(features.Exceptions, features.Finally) // TODO (Bob): This is kind of lying...
     ),
     SimplePass("encode-try-throw-signals",
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
       new EncodeTryThrowSignals(_).rewriteAll(),
       removes = Set(features.ExcVar),
-      introduces = Feature.DEFAULT_INTRODUCE + features.Goto
+      permits = Feature.DEFAULT_PERMIT + features.ExcVar,
+      introduces = (Feature.DEFAULT_INTRODUCE + features.Goto)
+        -- Set(
+          features.Constructors,
+          features.This,
+          features.NotFlattened,
+          features.NonVoidMethods,
+        )
     ),
     SimplePass(
       "gen-triggers", "Specify trigger sets for quantifiers using simple heuristics",
@@ -573,6 +585,10 @@ object Passes {
         features.Arrays,
         features.ContextEverywhere,
         features.InlineQuantifierPattern,
+        features.This,
+        features.Constructors,
+        features.NotFlattened,
+        features.NonVoidMethods,
       ),
     ),
   ).map(_.tup).toMap
