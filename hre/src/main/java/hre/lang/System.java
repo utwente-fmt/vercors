@@ -147,6 +147,8 @@ public class System {
         debugfilterByLine.add(classLineCombo);
     }
 
+    private static boolean needLineClear = false;
+
     private static void log(LogLevel level, Map<Appendable, LogLevel> outputs, String format, Object... args) {
         // Only format the string (expensive) when the message is actually outputted
         String message = null;
@@ -158,11 +160,22 @@ public class System {
                         for (LogWriter writer : activeLogWriters) {
                             writer.doFlush();
                         }
+                        message = level.getShorthand() + String.format(format, args);
+                    }
 
-                        message = level.getShorthand() + String.format(format + "%n", args);
+                    if(needLineClear) {
+                        entry.getKey().append("\033[0K");
+                        needLineClear = false;
                     }
 
                     entry.getKey().append(message);
+
+                    if(level == LogLevel.Progress) {
+                        entry.getKey().append("\r");
+                        needLineClear = true;
+                    } else {
+                        entry.getKey().append("\r\n");
+                    }
                 } catch (IOException e) {
                     if (level != LogLevel.Abort) {
                         Abort("IO Error: %s", e);

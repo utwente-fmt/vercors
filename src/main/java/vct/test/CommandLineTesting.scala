@@ -184,7 +184,7 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          result += (s"case-$tool-$name" -> Task(vercors.withArgs(args:_*), conditions))
+          result += (s"$name-$tool" -> Task(vercors.withArgs(args:_*), conditions))
         }
       }
     }
@@ -193,8 +193,8 @@ object CommandLineTesting {
   }
 
   def runTests(): Unit = {
-    val tasks = getTasks
-    val sortedTaskKeys = tasks.keys.toSeq.sorted
+    val allTasks = getTasks
+    val sortedTaskKeys = allTasks.keys.toSeq.sorted
 
     var splitDiv = 1
     var splitMod = 0
@@ -216,33 +216,26 @@ object CommandLineTesting {
     }
 
     val taskKeys = (splitMod to sortedTaskKeys.length by splitDiv).collect(sortedTaskKeys)
-    val pool = Executors.newFixedThreadPool(workers.get())
-    var futures = mutable.ArrayBuffer[(Future[Seq[FailReason]], String)]()
-
+    val tasks = taskKeys.map(allTasks(_))
+    val keyOfTask = allTasks.map{ case (a, b) => (b, a) }.toMap
+    val pool = ThreadPool[Task, Seq[FailReason]](workers.get(), tasks)
     Progress("Submitting %d tasks to thread pool with %d worker(s)", Int.box(taskKeys.length), Int.box(workers.get()))
-
-    for (taskKey <- taskKeys) {
-      val task = tasks(taskKey)
-      val future = pool.submit(task)
-      futures += ((future, taskKey))
-    }
+    pool.start()
 
     var fails = 0
 
-    for (((future, taskKey), i) <- futures.zipWithIndex) {
-      val reasons = future.get()
-      val progress = 100 * i / futures.size
+    for(((task, reasons, newCurrentlyRunning, otherTasksLeft), i) <- pool.results().zipWithIndex) {
+      val taskKey = keyOfTask(task)
+      val progress = 100 * i / tasks.size
 
-      if (reasons.isEmpty) {
-        Progress("[%02d%%] Pass: %s", Int.box(progress), taskKey)
-      } else {
+      if (reasons.nonEmpty) {
         fails += 1
-        Progress("[%02d%%] Fail: %s", Int.box(progress), taskKey)
+        Output("Fail: %s", taskKey)
 
         if(travisTestOutput.get()) {
           Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput from case...");
 
-          for(msg <- tasks(taskKey).log) {
+          for(msg <- allTasks(taskKey).log) {
             Output(msg.getFormat, msg.getArgs:_*)
           }
 
@@ -270,12 +263,14 @@ object CommandLineTesting {
             Output("- Output did not contain '%s'", text)
         }
       }
+
+      Progress("[%02d%%] Running: %s and %d further tasks queued", Int.box(progress), newCurrentlyRunning.map(keyOfTask).mkString(", "), Int.box(otherTasksLeft))
     }
 
     Output("Verification times:")
 
     for (taskKey <- taskKeys) {
-      val time = tasks(taskKey).times.get("entire run")
+      val time = allTasks(taskKey).times.get("entire run")
       Output("%-40s: %s", taskKey, time match {
         case None => "unknown"
         case Some(ms) => String.format("%dms", Int.box(ms))
@@ -283,10 +278,10 @@ object CommandLineTesting {
     }
 
     if (fails > 0) {
-      hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails), Int.box(futures.length))
+      hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails), Int.box(tasks.size))
       System.exit(1)
     } else {
-      hre.lang.System.Verdict("All %d tests passed", Int.box(futures.length))
+      hre.lang.System.Verdict("All %d tests passed", Int.box(tasks.size))
       System.exit(0)
     }
   }
