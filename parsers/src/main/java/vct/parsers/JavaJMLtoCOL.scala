@@ -12,6 +12,7 @@ import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, Switch, TryCatchBlock, TryWithResources}
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit, SignalsClause}
 import vct.col.ast.util.ContractBuilder
+import hre.lang.System.Warning
 
 import scala.collection.JavaConverters._
 
@@ -246,10 +247,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ClassDeclaration0("class", name, None, maybeExtends, maybeImplements, ClassBody0(_, decls, _)) =>
       val ext = maybeExtends match {
         case None => Seq(create class_type Array("java", "lang", "Object"))
-        case Some(Ext0(_, t)) => Seq(convertType(t) match {
-          case t: ClassType => t
-          case resolvedType => fail(t, "Can only extend from a class type, but found %s", resolvedType)
-        })
+        case Some(Ext0(_, t)) =>
+          Warning("detected inheritance. Inheritance support is incomplete.")
+          Seq(convertType(t) match {
+            case t: ClassType => t
+            case resolvedType => fail(t, "Can only extend from a class type, but found %s", resolvedType)
+          })
       }
       val imp = maybeImplements match {
         case None => Seq()
