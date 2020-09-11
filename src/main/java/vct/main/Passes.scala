@@ -173,7 +173,12 @@ object Passes {
       "Encode references to current thread.",
       new CurrentThreadRewriter(_).rewriteAll,
       removes=Set(features.CurrentThread)),
-    SimplePass("java-encode", "Encode Java overloading and inheritance", new JavaEncoder(_).rewriteAll),
+    SimplePass(
+      "java-encode", "Encode Java overloading and inheritance",
+      new JavaEncoder(_).rewriteAll,
+      permits=Feature.ALL,
+      removes=Set(features.NotJavaEncoded),
+    ),
     SimplePass("explicit_encoding", "encode required and ensured permission as ghost arguments", new ExplicitPermissionEncoding(_).rewriteAll),
     SimplePass("finalize_args",
       "Make all method arguments final, i.e. not assigned to",
@@ -235,7 +240,15 @@ object Passes {
     SimplePass("pvl-encode",
       "Encode PVL builtins for verification.",
       new PVLEncoder(_).rewriteAll,
-      removes=Set(features.PVLSugar)),
+      permits=Feature.DEFAULT_PERMIT ++ Set(
+        features.NotJavaEncoded,
+        features.PVLSugar,
+        features.NullAsOptionValue,
+        features.ArgumentAssignment,
+      ),
+      removes=Set(features.PVLSugar),
+      introduces=Set(features.NotJavaEncoded),
+    ),
     ErrorMapPass("magicwand", "Encode magic wand proofs with abstract predicates", new WandEncoder(_, _).rewriteAll),
     SimplePass("modifies", "Derive modifies clauses for all contracts", arg => {
       new DeriveModifies().annotate(arg)
@@ -251,7 +264,7 @@ object Passes {
       new ParallelBlockEncoder(_, _).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.ContextEverywhere - features.ParallelAtomic,
       removes=Set(features.ParallelBlocks),
-      introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere + features.Summation),
+      introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere + features.Summation + features.NotOptimized),
     ErrorMapPass("inline-atomic",
       "Inlines atomic blocks into inhales/exhales",
       new InlineAtomic(_, _).rewriteAll,
@@ -413,6 +426,9 @@ object Passes {
         res
       },
       removes=Set(features.NotOptimized, features.AnySubscript),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.ContextEverywhere,
+      ),
     ),
     SimplePass(
       "simplify_sums", "replace summations with provable functions",

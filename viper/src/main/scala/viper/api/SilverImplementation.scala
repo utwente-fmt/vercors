@@ -67,6 +67,8 @@ class SilverImplementation[O](o:OriginFactory[O])
               prog.methods.asScala.toList, Seq(/* no extension members */))()
               
     //println("=============\n" + program + "\n=============\n")
+
+    Output("%s", program.checkTransitively)
     
     Reachable.gonogo = control.asInstanceOf[VerificationControl[Object]];
     

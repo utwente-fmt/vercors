@@ -479,10 +479,15 @@ class Main {
     report.getOutput.asScala.foreach(_.accept(visitor))
 
     var features = visitor.features.toSet ++ Set(
+      // These are "gated" features: they are (too) hard to detect normally.
       vct.col.features.NotFlattened,
       vct.col.features.BeforeSilverDomains,
       vct.col.features.NullAsOptionValue,
       vct.col.features.NotOptimized,
+      vct.col.features.NotJavaEncoded,
+    ) ++ Set(
+      // These are normal features, but need to run always for some reason
+      vct.col.features.ScatteredDeclarations // this pass finds duplicate names.
     )
 
     var passes = Seq.empty[AbstractPass]

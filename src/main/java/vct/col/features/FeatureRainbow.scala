@@ -338,6 +338,7 @@ object Feature {
     BeforeSilverDomains,
     NullAsOptionValue,
     NotOptimized,
+    NotJavaEncoded,
   )
   val DEFAULT_INTRODUCE: Set[Feature] = Set(
     // node annotations are mostly used by the parser and resolved early on
@@ -491,6 +492,8 @@ object Feature {
 
     // Let's test claiming we don't introduce this.
     // NotOptimized,
+
+    // NotJavaEncoded,
   )
   val DEFAULT_PERMIT: Set[Feature] = Set(
     // transfered by post_visit in AbstractRewriter automatically
@@ -589,7 +592,7 @@ object Feature {
     // PureImperativeMethods,
 
     // Front-end stuff
-    PVLSugar,
+    // PVLSugar,
 
     // if(*): non-deterministic condition. Not used elsewhere
     NondetCondition,
@@ -638,6 +641,8 @@ object Feature {
     Summation,
 
     NotOptimized,
+
+    // NotJavaEncoded,
   )
 }
 
@@ -699,3 +704,4 @@ case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
 case object NullAsOptionValue extends GateFeature
 case object NotOptimized extends GateFeature
+case object NotJavaEncoded extends GateFeature
