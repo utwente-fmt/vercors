@@ -518,19 +518,33 @@ class Main {
         lastPass = pass
       }
 
+      if (show_before.contains(pass.key)) {
+        Progress("show_before")
+        val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+        vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
+        out.close()
+      }
+
       report = pass.apply_pass(report, Array())
+      Progress("%s", pass.description)
 
       if(pass.key == "check") {
         featuresOut = Feature.scan(report.getOutput)
         val notRemoved = featuresOut.intersect(lastPass.removes)
         val extraIntro = featuresOut -- featuresIn -- lastPass.introduces
 
-        if(notRemoved.nonEmpty) {
+        if (notRemoved.nonEmpty) {
           Output("!! Pass %s did not remove %s", lastPass.key, notRemoved)
         }
-        if(extraIntro.nonEmpty) {
+        if (extraIntro.nonEmpty) {
           Output("!! Pass %s introduced %s", lastPass.key, extraIntro)
         }
+      }
+
+      if (show_after.contains(pass.key)) {
+        val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+        vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
+        out.close()
       }
     })
 

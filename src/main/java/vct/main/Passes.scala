@@ -228,6 +228,7 @@ object Passes {
         features.Arrays,
         features.This,
         features.NotFlattened,
+        features.NonVoidMethods,
       )),
     SimplePass("ds_inherit", "rewrite contracts to reflect inheritance, predicate chaining", arg => new DynamicStaticInheritance(arg).rewriteOrdered),
     SimplePass("flatten_before_after",
@@ -319,6 +320,7 @@ object Passes {
         features.InlineQuantifierPattern,
         features.This,
         features.NotFlattened,
+        features.NonVoidMethods,
       )),
     SimplePass("quant-optimize",
       "Removes nesting of quantifiers in chains of forall/starall and implies",
@@ -353,6 +355,7 @@ object Passes {
         features.DeclarationsInIf,
         features.This,
         features.NotFlattened,
+        features.NonVoidMethods,
       )),
     SimplePass("generate_adt_functions",
       "rewrite standard operators on sequences to function definitions/calls",
@@ -510,23 +513,25 @@ object Passes {
       permits = Feature.DEFAULT_PERMIT + features.ImplicitLabels, // TODO (Bob): This feels a bit suspicious
       removes = Set(features.ImplicitLabels)
     ),
-    SimplePass("break-return-to-goto",
-      "Rewrite break, return into jumps",
-      new BreakReturnToGoto(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT -- Set(features.Exceptions, features.Finally),
-      introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
-      removes = Set(features.Break, features.Return)
-    ),
+    // Currently disabled in favour of the exceptions pass below
+//    SimplePass("break-return-to-goto",
+//      "Rewrite break, return into jumps",
+//      new BreakReturnToGoto(_).rewriteAll(),
+//      permits = Feature.DEFAULT_PERMIT -- Set(features.Exceptions, features.Finally),
+//      introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
+//      removes = Set(features.Break, features.Return)
+//    ),
     SimplePass("break-return-to-exceptions",
       "Rewrite break, continue into exceptions", // TODO (Bob): Problem: This needs to run _before_ add-type-adt, not after. Good test case: abrupt/OnlyCatch.java
       new BreakReturnToExceptions(_).rewriteAll(),
+      permits = Feature.DEFAULT_PERMIT - features.Switch,
       removes = Set(features.Break, features.Return),
-      introduces = Feature.DEFAULT_INTRODUCE + features.Exceptions + features.Inheritance  //@ TODO (Bob): Because catch is introduced... Should this be derived from exceptions? */
+      introduces = Feature.DEFAULT_INTRODUCE + features.Exceptions + features.Inheritance + features.NotFlattened  //@ TODO (Bob): Because catch is introduced... Should this be derived from exceptions? */
     ),
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.ALL - features.ImplicitLabels, // TODO (Bob): Also suspicious
+      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels, // TODO (Bob): Also suspicious
       removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
