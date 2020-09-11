@@ -141,10 +141,19 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         if(op.second.isReserved(ASTReserved.Any)) {
           features += AnySubscript
         }
+        if(op.first.getType.isPrimitive(PrimitiveSort.Map)) {
+          features += ADTOperator
+        }
+      case StandardOperator.EQ =>
+        if(op.args.exists(_.getType.isPrimitive(PrimitiveSort.Map))) {
+          features += ADTOperator
+        }
+      case StandardOperator.Size if op.first.getType.isPrimitive(PrimitiveSort.Map) =>
+        features += ADTOperator
       case StandardOperator.Instance | StandardOperator.TypeOf =>
         features += Inheritance
       case StandardOperator.RemoveAt =>
-        features += ADTOperators
+        features += ADTFunctions
       case StandardOperator.AddrOf =>
         features += AddrOf
       case StandardOperator.Held | StandardOperator.PVLidleToken | StandardOperator.PVLjoinToken =>
@@ -170,7 +179,9 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     }
     super.visit(binding)
     if(binding.binder == Binder.SetComp)
-      features += ADTOperators
+      features += ADTFunctions
+    if(binding.binder == Binder.Sum)
+      features += Summation
     if(binding.triggers == null || binding.triggers.isEmpty)
       features += QuantifierWithoutTriggers
     bindingExpressionDepth -= 1
@@ -293,7 +304,8 @@ object Feature {
     ValidPointer,
     ArgumentAssignment,
     BeforeAfter,
-    ADTOperators,
+    ADTFunctions,
+    ADTOperator,
     GivenYields,
     StaticFields,
     InlinePredicate,
@@ -320,10 +332,12 @@ object Feature {
     DeclarationsInIf,
     InlineQuantifierPattern,
     QuantifierWithoutTriggers,
+    Summation,
 
     NotFlattened,
     BeforeSilverDomains,
     NullAsOptionValue,
+    NotOptimized,
   )
   val DEFAULT_INTRODUCE: Set[Feature] = Set(
     // node annotations are mostly used by the parser and resolved early on
@@ -471,6 +485,12 @@ object Feature {
 
     // Our passes should always specify correct triggers in new quantified statements
     // QuantifierWithoutTriggers,
+
+    // Strange to introduce
+    // Summation,
+
+    // Let's test claiming we don't introduce this.
+    // NotOptimized,
   )
   val DEFAULT_PERMIT: Set[Feature] = Set(
     // transfered by post_visit in AbstractRewriter automatically
@@ -535,7 +555,7 @@ object Feature {
     BeforeAfter,
 
     // Shouldn't hurt
-    ADTOperators,
+    ADTFunctions, ADTOperator,
 
     // Pretty much the same argument as BeforeAfter
     GivenYields,
@@ -614,6 +634,10 @@ object Feature {
 
     InlineQuantifierPattern,
     QuantifierWithoutTriggers,
+
+    Summation,
+
+    NotOptimized,
   )
 }
 
@@ -641,7 +665,8 @@ case object CurrentThread extends ScannableFeature
 case object ValidPointer extends ScannableFeature
 case object ArgumentAssignment extends ScannableFeature
 case object BeforeAfter extends ScannableFeature
-case object ADTOperators extends ScannableFeature
+case object ADTFunctions extends ScannableFeature
+case object ADTOperator extends ScannableFeature
 case object GivenYields extends ScannableFeature
 case object StaticFields extends ScannableFeature
 case object InlinePredicate extends ScannableFeature
@@ -668,7 +693,9 @@ case object NestedQuantifiers extends ScannableFeature
 case object DeclarationsInIf extends ScannableFeature
 case object InlineQuantifierPattern extends ScannableFeature
 case object QuantifierWithoutTriggers extends ScannableFeature
+case object Summation extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
 case object NullAsOptionValue extends GateFeature
+case object NotOptimized extends GateFeature

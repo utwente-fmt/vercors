@@ -12,13 +12,14 @@ import hre.config.{Configuration, _}
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.expr.StandardOperator
-import vct.col.ast.stmt.decl.{ASTSpecial, ProgramUnit, SpecificationFormat}
+import vct.col.ast.expr.{Dereference, StandardOperator}
+import vct.col.ast.stmt.decl.{ASTSpecial, Method, ProgramUnit, SpecificationFormat}
 import vct.col.util.FeatureScanner
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
+import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
@@ -460,8 +461,9 @@ class Main {
     val resolve = Passes.BY_KEY.apply("java_resolve")
     val standardize = Passes.BY_KEY.apply("standardize")
     val check = Passes.BY_KEY.apply("check")
+    val localCheck = Passes.BY_KEY("local-variable-check")
 
-    Seq(resolve, standardize, check).foreach(
+    Seq(resolve, standardize, check, localCheck).foreach(
       pass => report = pass.apply_pass(report, Array()))
 
     var goals = Seq.empty[String]
@@ -479,7 +481,8 @@ class Main {
     var features = visitor.features.toSet ++ Set(
       vct.col.features.NotFlattened,
       vct.col.features.BeforeSilverDomains,
-      vct.col.features.NullAsOptionValue
+      vct.col.features.NullAsOptionValue,
+      vct.col.features.NotOptimized,
     )
 
     var passes = Seq.empty[AbstractPass]
@@ -490,7 +493,7 @@ class Main {
       features = newFeatures
     }
 
-    passes = passes.init.init ++ Seq("simplify_quant", "check", "silver").map(BY_KEY)
+    passes = passes.init
 
     passes.foreach(pass => {
       Progress("%s", pass.description)

@@ -9,7 +9,7 @@ import vct.col.ast.syntax.{JavaDialect, JavaSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.util.{JavaTypeCheck, SimpleTypeCheck}
+import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{FlattenVariableDeclarations, InferADTTypes}
@@ -61,6 +61,7 @@ object Passes {
         new SimpleTypeCheck(report, arg).check(); arg
       }
     },
+    SimplePass("local-variable-check", "", arg => { LocalVariableChecker.check(arg); arg }),
     SimplePass("array_null_values",
       "rewrite null values for arrays to None",
       new ArrayNullValues(_).rewriteAll,
@@ -250,7 +251,7 @@ object Passes {
       new ParallelBlockEncoder(_, _).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.ContextEverywhere - features.ParallelAtomic,
       removes=Set(features.ParallelBlocks),
-      introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere),
+      introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere + features.Summation),
     ErrorMapPass("inline-atomic",
       "Inlines atomic blocks into inhales/exhales",
       new InlineAtomic(_, _).rewriteAll,
@@ -323,6 +324,7 @@ object Passes {
     SimplePass("rewrite_arrays",
       "rewrite arrays to sequences of cells",
       new RewriteArrayRef(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT - features.ADTFunctions,
       removes=Set(features.Arrays),
       introduces=Feature.DEFAULT_INTRODUCE -- Set(
         features.Arrays,
@@ -337,12 +339,16 @@ object Passes {
     SimplePass("generate_adt_functions",
       "rewrite standard operators on sequences to function definitions/calls",
       new GenerateADTFunctions(_).rewriteAll,
-      removes=Set(features.ADTOperators)),
+      removes=Set(features.ADTFunctions)),
     SimplePass("infer_adt_types",
       "Transform typeless collection constructors by inferring their types.",
       new InferADTTypes(_).rewriteAll,
       removes=Set(features.UnresolvedTypeInference)),
-    SimplePass("adt_operator_rewrite", "rewrite PVL-specific ADT operators", new ADTOperatorRewriter(_).rewriteAll),
+    SimplePass(
+      "adt_operator_rewrite", "rewrite PVL-specific ADT operators",
+      new ADTOperatorRewriter(_).rewriteAll,
+      removes=Set(features.ADTOperator),
+    ),
     SimplePass("rm_cons", "???", new ConstructorRewriter(_).rewriteAll),
     SimplePass("sat_check", "insert satisfyability checks for all methods", new SatCheckRewriter(_).rewriteAll),
     SimplePass("silver-class-reduction",
@@ -398,16 +404,24 @@ object Passes {
       val trs = RewriteSystems.getRewriteSystem("simplify_expr")
       trs.normalize(arg)
     }),
-    SimplePass("simplify_quant", "Simplify quantifications", arg => {
-      val trs = RewriteSystems.getRewriteSystem("simplify_quant_pass1")
-      var res = trs.normalize(arg)
-      res = RewriteSystems.getRewriteSystem("simplify_quant_pass2").normalize(res)
-      res
-    }),
-    SimplePass("simplify_sums", "replace summations with provable functions", arg => {
-      val trs = RewriteSystems.getRewriteSystem("summation")
-      trs.normalize(arg)
-    }),
+    SimplePass(
+      "simplify_quant", "Simplify quantifications",
+      arg => {
+        val trs = RewriteSystems.getRewriteSystem("simplify_quant_pass1")
+        var res = trs.normalize(arg)
+        res = RewriteSystems.getRewriteSystem("simplify_quant_pass2").normalize(res)
+        res
+      },
+      removes=Set(features.NotOptimized, features.AnySubscript),
+    ),
+    SimplePass(
+      "simplify_sums", "replace summations with provable functions",
+      RewriteSystems.getRewriteSystem("summation").normalize(_),
+      removes=Set(features.Summation),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+        features.ContextEverywhere,
+      ),
+    ),
     SimplePass("simplify_quant_relations", "simplify quantified relational expressions", new SimplifyQuantifiedRelations(_).rewriteAll),
     SimplePass("standardize",
       "Standardize representation",

@@ -103,6 +103,7 @@ public class ClassConversion extends AbstractRewriter {
       }
       body=rewrite(body);
       if (m.kind==Method.Kind.Constructor){
+        name += SEP + "constructor";
         if (body!=null){
           body=create.block(
             create.field_decl(THIS,create.class_type(cl.name())),
@@ -154,17 +155,20 @@ public class ClassConversion extends AbstractRewriter {
       method=s.method();
     } else if (s.object() instanceof ClassType){
       if (s.method().equals(Method.JavaConstructor)){
-        method=s.dispatch().getName()+SEP+s.dispatch().getName();
+        method=s.dispatch().getName()+SEP+s.dispatch().getName()+SEP+"constructor";
         dispatch=null;
       } else if (def.getParent() instanceof AxiomaticDataType){
         method=s.method();
         object=copy_rw.rewrite(s.object());
       } else {
         method=((ClassType)s.object()).getName()+SEP+s.method();
+        if(def.kind == Kind.Constructor) {
+          method += SEP + "constructor";
+        }
       }
     } else if (s.object()==null){
       if (s.method().equals(Method.JavaConstructor)){
-        method=s.dispatch().getName()+SEP+s.dispatch().getName();
+        method=s.dispatch().getName()+SEP+s.dispatch().getName()+SEP+"constructor";
         dispatch=null;
       } else {
         method=s.method();
@@ -175,6 +179,11 @@ public class ClassConversion extends AbstractRewriter {
         method=s.method();
       } else {
         method+=SEP+s.method();
+
+        if(def.kind == Kind.Constructor) {
+          method += SEP + "constructor";
+        }
+
         if (!def.isStatic()){
           args.add(rewrite(s.object()));
         }

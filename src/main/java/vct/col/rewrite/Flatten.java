@@ -297,9 +297,9 @@ public class Flatten extends AbstractRewriter {
       }
     } else {
       ASTNode statement = body.apply(this);
-      if(!(statement instanceof NameExpression)) {
+      if(!(statement instanceof NameExpression || statement instanceof Dereference)) {
         /* invokations of methods that return something are flattened, but we want to ignore this value when the
-         method is instead used as a statement.*/
+         method is instead used as a statement. The same goes for e.g. a += b. */
         current_block.addStatement(statement);
       }
     }
