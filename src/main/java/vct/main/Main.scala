@@ -417,7 +417,7 @@ class Main {
     var unorderedPassesSet: mutable.Set[AbstractPass] = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
     var passes: mutable.ArrayBuffer[AbstractPass] = mutable.ArrayBuffer()
 
-    while((unorderedPassesSet.map(_.introduces).flatten -- features).nonEmpty) {
+    while((unorderedPassesSet.flatMap(_.introduces) -- features).nonEmpty) {
       features ++= unorderedPassesSet.map(_.introduces).reduce(_ ++ _)
       unorderedPassesSet = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
     }

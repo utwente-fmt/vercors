@@ -2,6 +2,10 @@
 //:: cases DoubleDeclare
 //:: tools silicon
 //:: verdict Error
+/* The way this is checked is via the ReorderAssignments pass. If a rename of the variables occurs (e.g. in
+SilverReorder) the check is broken, because the declarations gain unique names. This is much too fragile: the type
+checker should catch this to start with. Marking it as problem-fail for now. */
+//:: suite problem-fail
 
 class DoubleDeclare {
     void test() {

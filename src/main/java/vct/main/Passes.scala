@@ -50,7 +50,7 @@ object Passes {
       override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, if(args.isEmpty) "silicon" else args(0))
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
-      override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript)
+      override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript, features.TopLevelDeclarations)
     },
     new AbstractPass("check", "run a basic type check") {
       val permits: Set[Feature] = Feature.ALL
@@ -68,6 +68,8 @@ object Passes {
       permits=Feature.DEFAULT_PERMIT ++ Set(
         features.NullAsOptionValue,
         features.ArgumentAssignment,
+        features.PureImperativeMethods,
+        features.TopLevelDeclarations,
       ),
       removes=Set(features.NullAsOptionValue)),
     SimplePass("pointers_to_arrays",
@@ -106,7 +108,9 @@ object Passes {
     ErrorMapPass(
       "csl-encode", "Encode CSL atomic regions with methods",
       new CSLencoder(_, _).rewriteAll,
-      removes=Set(features.JavaAtomic)),
+      removes=Set(features.JavaAtomic),
+      introduces=Feature.DEFAULT_INTRODUCE + features.ParallelAtomic,
+    ),
     SimplePass("class-conversion",
       "Convert classes into records and procedures",
       new ClassConversion(_).rewriteAll,
@@ -183,7 +187,7 @@ object Passes {
     SimplePass("finalize_args",
       "Make all method arguments final, i.e. not assigned to",
       new FinalizeArguments(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.ArgumentAssignment,
+      permits=Feature.DEFAULT_PERMIT + features.ArgumentAssignment + features.PureImperativeMethods,
       removes=Set(features.ArgumentAssignment)),
     SimplePass("flatten",
       "remove nesting of expression",
@@ -249,7 +253,11 @@ object Passes {
       removes=Set(features.PVLSugar),
       introduces=Set(features.NotJavaEncoded),
     ),
-    ErrorMapPass("magicwand", "Encode magic wand proofs with abstract predicates", new WandEncoder(_, _).rewriteAll),
+    ErrorMapPass(
+      "magicwand", "Encode magic wand proofs with abstract predicates",
+      new WandEncoder(_, _).rewriteAll,
+      removes=Set(features.Lemma),
+    ),
     SimplePass("modifies", "Derive modifies clauses for all contracts", arg => {
       new DeriveModifies().annotate(arg)
       arg
@@ -294,6 +302,7 @@ object Passes {
     SimplePass("standardize-functions",
       "translate pure methods to function syntax.",
       new PureMethodsAsFunctions(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.PureImperativeMethods,
       removes=Set(features.PureImperativeMethods)),
     SimplePass("java_resolve", "Resolve the library dependencies of a java program", new JavaResolver(_).rewriteAll),
     SimplePass("propagate-invariants",
@@ -363,7 +372,11 @@ object Passes {
       removes=Set(features.ADTOperator),
     ),
     SimplePass("rm_cons", "???", new ConstructorRewriter(_).rewriteAll),
-    SimplePass("sat_check", "insert satisfyability checks for all methods", new SatCheckRewriter(_).rewriteAll),
+    SimplePass(
+      "sat_check", "insert satisfyability checks for all methods",
+      new SatCheckRewriter(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT,
+    ),
     SimplePass("silver-class-reduction",
       "reduce classes to single Ref class",
       new SilverClassReduction(_).rewriteAll,

@@ -277,7 +277,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       ASTNode arg=e.getArg(i);
       if (!ti.supertypeof(source(), arg.getType())){
         if (ti.isPrimitive(PrimitiveSort.Location)
-          && (arg instanceof Dereference)
+          && (arg instanceof Dereference || arg instanceof FieldAccess)
           && ((Type)ti.firstarg()).supertypeof(source(), arg.getType())
         ){
           // OK

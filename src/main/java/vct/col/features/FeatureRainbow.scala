@@ -280,6 +280,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(pat)
     features += InlineQuantifierPattern
   }
+
+  override def visit(lemma: stmt.composite.Lemma): Unit = {
+    super.visit(lemma)
+    features += Lemma
+  }
 }
 
 object Feature {
@@ -333,6 +338,7 @@ object Feature {
     InlineQuantifierPattern,
     QuantifierWithoutTriggers,
     Summation,
+    Lemma,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -490,6 +496,9 @@ object Feature {
     // Strange to introduce
     // Summation,
 
+    // Only from user
+    // Lemma,
+
     // Let's test claiming we don't introduce this.
     // NotOptimized,
 
@@ -638,6 +647,8 @@ object Feature {
     InlineQuantifierPattern,
     QuantifierWithoutTriggers,
 
+    Lemma,
+
     Summation,
 
     NotOptimized,
@@ -699,6 +710,7 @@ case object DeclarationsInIf extends ScannableFeature
 case object InlineQuantifierPattern extends ScannableFeature
 case object QuantifierWithoutTriggers extends ScannableFeature
 case object Summation extends ScannableFeature
+case object Lemma extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
