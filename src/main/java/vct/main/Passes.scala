@@ -35,6 +35,7 @@ object Passes {
     SimplePass("add-type-adt",
       "Add an ADT that describes the types and use it to implement instanceof",
       new AddTypeADT(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.Inheritance),
       introduces=Feature.DEFAULT_INTRODUCE -- Set(
         features.Inheritance
@@ -116,15 +117,12 @@ object Passes {
     SimplePass("class-conversion",
       "Convert classes into records and procedures",
       new ClassConversion(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.This, features.Constructors),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
-        features.This,
+      introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.Arrays,
-        features.Inheritance,
         features.ContextEverywhere,
-        features.Constructors,
         features.UnscaledPredicateApplication,
-        features.StaticFields,
         features.NestedQuantifiers,
         features.InlineQuantifierPattern,
       )),
@@ -194,6 +192,7 @@ object Passes {
     SimplePass("flatten",
       "remove nesting of expression",
       new Flatten(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.NotFlattened),
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,
@@ -211,6 +210,7 @@ object Passes {
     SimplePass("globalize",
       "split classes into static and dynamic parts",
       new GlobalizeStaticsParameter(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.StaticFields),
       introduces=Feature.DEFAULT_INTRODUCE -- Set(
         features.StaticFields,
@@ -280,15 +280,12 @@ object Passes {
     SimplePass("reorder",
       "reorder statements (e.g. all declarations at the start of a block",
       new ReorderAssignments(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.ScatteredDeclarations),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
-        features.This,
+      introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.Arrays,
         features.NonVoidMethods,
-        features.Inheritance,
         features.ContextEverywhere,
-        features.StaticFields,
-        features.Constructors,
         features.UnscaledPredicateApplication,
         features.ScatteredDeclarations,
         features.DeclarationsInIf,
@@ -306,12 +303,10 @@ object Passes {
     SimplePass("propagate-invariants",
       "propagate invariants",
       new PropagateInvariants(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.ContextEverywhere),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.ContextEverywhere,
-        features.Inheritance,
-        features.Constructors,
-        features.StaticFields,
         features.NestedQuantifiers,
         features.InlineQuantifierPattern,
       )),
@@ -319,21 +314,15 @@ object Passes {
       "Removes nesting of quantifiers in chains of forall/starall and implies",
       new OptimizeQuantifiers(_).rewriteAll,
       removes=Set(features.NestedQuantifiers),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      permits=Feature.EXPR_ONLY_PERMIT,
+      introduces=Feature.EXPR_ONLY_INTRODUCE -- Set(
         features.NestedQuantifiers,
-        features.This,
-        features.Arrays,
         features.Dereference,
-        features.NonVoidMethods,
-        features.ContextEverywhere,
-        features.StaticFields,
-        features.Constructors,
         features.Null,
         features.UnscaledPredicateApplication,
         features.NotFlattened,
         features.BeforeSilverDomains,
         features.ScatteredDeclarations,
-        features.DeclarationsInIf,
         features.InlineQuantifierPattern,
       )
     ),
@@ -344,14 +333,11 @@ object Passes {
     SimplePass("rewrite_arrays",
       "rewrite arrays to sequences of cells",
       new RewriteArrayRef(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.ADTFunctions,
+      permits=Feature.DEFAULT_PERMIT - features.ADTFunctions + features.TopLevelDeclarations,
       removes=Set(features.Arrays),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.Arrays,
-        features.Inheritance,
         features.ContextEverywhere,
-        features.StaticFields,
-        features.Constructors,
         features.UnscaledPredicateApplication,
         features.ScatteredDeclarations,
         features.DeclarationsInIf,
@@ -378,8 +364,9 @@ object Passes {
     SimplePass("silver-class-reduction",
       "reduce classes to single Ref class",
       new SilverClassReduction(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.BeforeSilverDomains),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      introduces=Feature.DEFAULT_INTRODUCE /*+ features.TopLevelDeclarations*/ -- Set(
         features.This,
         features.Arrays,
         features.Inheritance,
@@ -394,15 +381,12 @@ object Passes {
     SimplePass("silver-reorder",
       "move declarations from inside if-then-else blocks to top",
       new SilverReorder(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.DeclarationsInIf),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
-        features.This,
+      introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.Arrays,
         features.NonVoidMethods,
-        features.Inheritance,
         features.ContextEverywhere,
-        features.StaticFields,
-        features.Constructors,
         features.UnscaledPredicateApplication,
         features.DeclarationsInIf,
         features.NotFlattened,
@@ -414,6 +398,7 @@ object Passes {
     SimplePass("scale-always",
       "scale every predicate invokation",
       new ScaleAlways(_).rewriteAll,
+      permits=Feature.EXPR_ONLY_PERMIT,
       removes=Set(features.UnscaledPredicateApplication),
       introduces=Set(/* very simple; only may introduce Scale operator */)),
     SimplePass("silver-optimize", "Optimize expressions for Silver", arg => {
@@ -436,6 +421,7 @@ object Passes {
         res = RewriteSystems.getRewriteSystem("simplify_quant_pass2").normalize(res)
         res
       },
+      permits=Feature.EXPR_ONLY_PERMIT,
       removes=Set(features.NotOptimized, features.AnySubscript),
       introduces=Feature.EXPR_ONLY_INTRODUCE,
     ),
@@ -460,17 +446,13 @@ object Passes {
     ErrorMapPass("create-return-parameter",
       "Replace return value by out parameter.",
       new CreateReturnParameter(_, _).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.NotFlattened,
+      permits=Feature.DEFAULT_PERMIT - features.NotFlattened + features.TopLevelDeclarations,
       removes=Set(features.NonVoidMethods),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
-        features.This,
+      introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,
         features.NonVoidMethods,
         features.Arrays,
-        features.Inheritance,
         features.ContextEverywhere,
-        features.StaticFields,
-        features.Constructors,
         features.UnscaledPredicateApplication,
         features.BeforeSilverDomains,
         features.NestedQuantifiers,
@@ -546,7 +528,7 @@ object Passes {
       "gen-triggers", "Specify trigger sets for quantifiers using simple heuristics",
       Triggers(_).rewriteAll,
       removes=Set(features.QuantifierWithoutTriggers),
-      permits=Feature.DEFAULT_PERMIT - features.InlineQuantifierPattern - features.BeforeSilverDomains,
+      permits=Feature.EXPR_ONLY_PERMIT - features.InlineQuantifierPattern - features.BeforeSilverDomains,
       introduces=Feature.EXPR_ONLY_INTRODUCE -- Set(
         features.InlineQuantifierPattern,
         features.NestedQuantifiers,
@@ -559,7 +541,8 @@ object Passes {
       "Explicit inline patterns to normal trigger syntax",
       new InlinePatternToTrigger(_).rewriteAll,
       removes=Set(features.InlineQuantifierPattern),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      permits=Feature.EXPR_ONLY_PERMIT,
+      introduces=Feature.EXPR_ONLY_INTRODUCE -- Set(
         features.Arrays,
         features.ContextEverywhere,
         features.InlineQuantifierPattern,

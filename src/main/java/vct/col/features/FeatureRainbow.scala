@@ -28,8 +28,10 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   override def visit(c: ASTClass): Unit = {
     super.visit(c)
-    if(c.super_classes.nonEmpty || c.implemented_classes.nonEmpty)
+    if(c.super_classes.nonEmpty || c.implemented_classes.nonEmpty) {
       features += Inheritance
+      features += NotJavaEncoded
+    }
     if(c.kind != ClassKind.Record && c.methods().asScala.nonEmpty)
       features += This
     if(c.name.startsWith("Atomic"))
@@ -38,6 +40,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += StaticFields
     if(c.kind == ClassKind.Kernel)
       features += KernelClass
+    if(c.fields().asScala.nonEmpty && c.kind != ClassKind.Record)
+      features += NotJavaEncoded
   }
 
   override def visit(m: Method): Unit = {
@@ -66,6 +70,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += NonVoidMethods
   }
 
+  override def visit(c: Contract): Unit = {
+    if(c.invariant != Contract.default_true)
+      features += ContextEverywhere
+  }
+
   override def visit(special: ASTSpecial): Unit = {
     super.visit(special)
     special.kind match {
@@ -84,6 +93,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
            ASTSpecial.Kind.Lock | ASTSpecial.Kind.Unlock |
            ASTSpecial.Kind.Wait | ASTSpecial.Kind.Notify =>
         features += PVLSugar
+      case ASTSpecial.Kind.Open | ASTSpecial.Kind.Close =>
+        features += NotJavaEncoded
       case _ =>
     }
   }
@@ -214,6 +225,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       case ASTReserved.Null => features += Null
       case ASTReserved.This => features += This
       case ASTReserved.CurrentThread => features += CurrentThread
+      case ASTReserved.Super => features += NotJavaEncoded
       case _ =>
     }
     if(name.kind == NameExpressionKind.Field)
@@ -288,6 +300,12 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 }
 
 object Feature {
+  def scan(source: ProgramUnit): Set[Feature] = {
+    val scanner = new RainbowVisitor(source)
+    source.accept(scanner)
+    scanner.features.toSet
+  }
+
   val ALL: Set[Feature] = Set(
     MethodAnnotations,
     TypeExpressions,
@@ -667,6 +685,11 @@ object Feature {
 
     // NotJavaEncoded,
   )
+  val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
+    TopLevelDeclarations,
+    ContractStatement,
+    PureImperativeMethods,
+  )
 }
 
 sealed trait Feature
@@ -723,9 +746,9 @@ case object InlineQuantifierPattern extends ScannableFeature
 case object QuantifierWithoutTriggers extends ScannableFeature
 case object Summation extends ScannableFeature
 case object Lemma extends ScannableFeature
+case object NotJavaEncoded extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
 case object NullAsOptionValue extends GateFeature
 case object NotOptimized extends GateFeature
-case object NotJavaEncoded extends GateFeature

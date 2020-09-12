@@ -328,7 +328,7 @@ identifierList
 
 identifier : Identifier | valReserved ;
 
-Identifier  : ('a'..'z'|'A'..'Z') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
+Identifier  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
 NUMBER : ('0'..'9')+;
 
 COMMENT : '/*' .*? '*/' -> skip;

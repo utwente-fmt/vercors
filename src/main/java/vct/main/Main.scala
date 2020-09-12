@@ -484,7 +484,6 @@ class Main {
       vct.col.features.BeforeSilverDomains,
       vct.col.features.NullAsOptionValue,
       vct.col.features.NotOptimized,
-      vct.col.features.NotJavaEncoded,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
       vct.col.features.ScatteredDeclarations // this pass finds duplicate names.
@@ -499,10 +498,32 @@ class Main {
     }
 
     passes = passes.init
+    var featuresIn: Set[Feature] = Set.empty
+    var featuresOut: Set[Feature] = Set.empty
+    var lastPass: AbstractPass = null
 
     passes.foreach(pass => {
       Progress("%s", pass.description)
+
+      if(pass.key != "check") {
+        featuresIn = Feature.scan(report.getOutput)
+        lastPass = pass
+      }
+
       report = pass.apply_pass(report, Array())
+
+      if(pass.key == "check") {
+        featuresOut = Feature.scan(report.getOutput)
+        val notRemoved = featuresOut.intersect(lastPass.removes)
+        val extraIntro = featuresOut -- featuresIn -- lastPass.introduces
+
+        if(notRemoved.nonEmpty) {
+          Output("!! Pass %s did not remove %s", lastPass.key, notRemoved)
+        }
+        if(extraIntro.nonEmpty) {
+          Output("!! Pass %s introduced %s", lastPass.key, extraIntro)
+        }
+      }
     })
 
     val verdict = if(report.getFatal == 0) "Pass" else "Fail"
