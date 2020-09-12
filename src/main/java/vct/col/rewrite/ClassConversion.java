@@ -81,6 +81,7 @@ public class ClassConversion extends AbstractRewriter {
         returns=rewrite(m.getReturnType());
         kind=m.kind;
       }
+      Type[] signals = rewrite(m.signals);
       ContractBuilder cb=new ContractBuilder();
       String name = cl.name() + SEP + m.name();
       ArrayList<DeclarationStatement> args=new ArrayList<DeclarationStatement>();
@@ -127,7 +128,7 @@ public class ClassConversion extends AbstractRewriter {
       } else {
         rewrite(m.getContract(),cb);
       }
-      Method p=create.method_kind(kind, returns,cb.getContract(), name, args.toArray(new DeclarationStatement[0]), varArgs, body);
+      Method p=create.method_kind(kind, returns, signals, cb.getContract(), name, args.toArray(new DeclarationStatement[0]), varArgs, body);
       create.leave();
       p.setStatic(true);
       target().add(p);

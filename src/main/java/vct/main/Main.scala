@@ -511,7 +511,7 @@ class Main {
     var lastPass: AbstractPass = null
 
     passes.foreach(pass => {
-      Progress("%s", pass.description)
+//      Progress("%s", pass.description)
 
       if(pass.key != "check") {
         featuresIn = Feature.scan(report.getOutput)
@@ -526,7 +526,8 @@ class Main {
       }
 
       report = pass.apply_pass(report, Array())
-      Progress("%s", pass.description)
+//      Progress("%s", pass.description)
+      Output("%s (%s)", pass.key, pass.description)
 
       if(pass.key == "check") {
         featuresOut = Feature.scan(report.getOutput)

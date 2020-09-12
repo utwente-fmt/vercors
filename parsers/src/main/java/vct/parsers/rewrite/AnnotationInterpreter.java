@@ -53,6 +53,7 @@ public class AnnotationInterpreter extends AbstractRewriter {
         if (a.isReserved(null)){
           switch(((NameExpression)a).reserved()){
           case Synchronized:
+            res.attach(create.reserved_name(ASTReserved.Synchronized));
             break;
           case Final:
             res.setFlag(ASTFlags.FINAL, true);

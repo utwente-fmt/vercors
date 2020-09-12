@@ -510,7 +510,11 @@ object Passes {
     SimplePass("specify-implicit-labels",
       "Insert explicit labels for break statements in while loops.",
       new SpecifyImplicitLabels(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT + features.ImplicitLabels, // TODO (Bob): This feels a bit suspicious
+      permits = Feature.DEFAULT_PERMIT
+        + features.ImplicitLabels
+        + features.NullAsOptionValue
+        + features.NotJavaEncoded
+      , // TODO (Bob): This feels a bit suspicious
       removes = Set(features.ImplicitLabels)
     ),
     // Currently disabled in favour of the exceptions pass below
@@ -524,30 +528,34 @@ object Passes {
     SimplePass("break-return-to-exceptions",
       "Rewrite break, return into exceptions",
       new BreakReturnToExceptions(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT - features.Switch,
+      permits = Feature.DEFAULT_PERMIT
+        - features.Switch
+        + features.NotJavaEncoded
+        + features.NullAsOptionValue, // TODO (Bob): Had to add this one but not sure what the feature does?
       removes = Set(features.Break, features.Return),
       introduces = Feature.DEFAULT_INTRODUCE
         + features.Exceptions
         + features.Inheritance
         + features.NotFlattened
+        + features.NotJavaEncoded
     ),
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels, // TODO (Bob): Also suspicious
+      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded, // TODO (Bob): Also suspicious
       removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
       "Convert continues into breaks",
       new ContinueToBreak(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT + features.Continue - features.ImplicitLabels,
+      permits = Feature.DEFAULT_PERMIT + features.Continue - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue,
       removes = Set(features.Continue),
       introduces = Feature.DEFAULT_INTRODUCE + features.Break
     ),
     SimplePass("unfold-synchronized",
       "Convert synchronized to try-finally",
       new UnfoldSynchronized(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT + features.Synchronized,
+      permits = Feature.DEFAULT_PERMIT + features.Synchronized + features.NotJavaEncoded + features.PVLSugar + features.NullAsOptionValue,
       removes = Set(features.Synchronized),
       introduces = Set(features.Exceptions, features.Finally, features.PVLSugar)
     ),

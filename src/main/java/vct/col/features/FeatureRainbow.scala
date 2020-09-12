@@ -47,7 +47,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(m: Method): Unit = {
     super.visit(m)
     if(m.annotated())
-      features += MethodAnnotations
+      if (m.annotations().size == 1 && m.isSynchronized) {
+        features += Synchronized
+      } else {
+        features += MethodAnnotations
+      }
     if(m.name == "csl_invariant")
       features += JavaAtomic
     if(m.name == PVLEncoder.INV && !getParentNode.asInstanceOf[ASTClass].methods().asScala.exists(_.name == PVLEncoder.HELD))
@@ -168,7 +172,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
           features += ADTOperator
         }
       case StandardOperator.EQ =>
-        if(op.args.exists(_.getType.isPrimitive(PrimitiveSort.Map))) {
+        /* TODO (Bob): Why is a.getType null here for sys__result? ADding null check to work around it
+                (But this is definitely a bug - anywhere I looked sys__result always has a proper type! But in feature
+                rainbow scanner it seems to disappear...? AbstractTypeChecker always adds a type to _every_ NameExpression!
+         */
+        if(op.args.exists(a => a.getType != null && a.getType.isPrimitive(PrimitiveSort.Map))) {
           features += ADTOperator
         }
       case StandardOperator.Size if op.first.getType.isPrimitive(PrimitiveSort.Map) =>
