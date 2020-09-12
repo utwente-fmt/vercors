@@ -741,7 +741,7 @@ object Feature {
     DeclarationsNotLifted,
 
     // (Bob) I think most passes ignore this anyway?
-    Goto, Break, Continue, Switch, Return, ExcVar, ImplicitLabels, Exceptions
+    Goto, Break, Continue, Switch, Return, ExcVar, ImplicitLabels, Exceptions, Finally
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
@@ -811,9 +811,9 @@ case object Break extends ScannableFeature
 case object Continue extends ScannableFeature
 case object Return extends ScannableFeature
 case object Goto extends ScannableFeature
-case object Exceptions extends ScannableFeature // TODO (Bob): The next 3 are defined separate, but could probably be one feature. I defined them separate because they are syntactically separate, but not sure if that's the best way to do it
+case object Exceptions extends ScannableFeature
 case object Finally extends ScannableFeature
-case object ExcVar extends ScannableFeature // TODO (Bob): Not really scannable, but not sure where to put it? It is introduced by the intro-exc-var pass
+case object ExcVar extends ScannableFeature
 case object Synchronized extends ScannableFeature
 
 case object NotFlattened extends GateFeature

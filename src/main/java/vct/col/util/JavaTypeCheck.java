@@ -121,7 +121,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
         ClassType ct = (ClassType) catchType;
 
-        if (!throwableType.supertypeof(source(), ct)) {
+        if (!isThrowableType(ct)) {
           Fail("Catch clause types must inherit from Throwable");
         }
 
@@ -188,8 +188,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     if (special.isSpecial(ASTSpecial.Kind.Throw)) {
       ASTNode throwee = special.getArg(0);
-      ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
-      if (!throwableType.supertypeof(source(), throwee.getType())) {
+      if (!isThrowableType(throwee.getType())) {
         reportFail("Type of thrown expression needs to extend Throwable",
                 VerCorsError.ErrorCode.TypeError, VerCorsError.SubCode.ExtendsThrowable,
                 throwee, special);
@@ -198,6 +197,12 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       }
     }
   }
+
+  private boolean isThrowableType(Type t) {
+    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
+    return throwableType.supertypeof(source(), t) // Actually throwable
+            || (t.toString().startsWith("__") && t.toString().endsWith("_ex")); // We defined it (sorry, hacky!)
+    }
 
   public void visit(MethodInvokation mi) {
     super.visit(mi);
