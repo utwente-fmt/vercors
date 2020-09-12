@@ -414,12 +414,14 @@ class Main {
 
   def computeGoal(featuresIn: Set[Feature], goal: String): (Seq[AbstractPass], Set[Feature]) = {
     var features = featuresIn
-    var unorderedPassesSet: mutable.Set[AbstractPass] = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
+    var permit: Set[Feature] = BY_KEY(goal).permits
+    var unorderedPassesSet: mutable.Set[AbstractPass] = mutable.Set() ++ (features -- permit).map(findPassToRemove)
     var passes: mutable.ArrayBuffer[AbstractPass] = mutable.ArrayBuffer()
 
     while((unorderedPassesSet.flatMap(_.introduces) -- features).nonEmpty) {
       features ++= unorderedPassesSet.map(_.introduces).reduce(_ ++ _)
-      unorderedPassesSet = mutable.Set() ++ (features -- BY_KEY(goal).permits).map(findPassToRemove)
+      permit = unorderedPassesSet.foldLeft(permit)(_ intersect _.permits)
+      unorderedPassesSet = mutable.Set() ++ (features -- permit).map(findPassToRemove)
     }
 
     val unorderedPasses: ArrayBuffer[AbstractPass] = ArrayBuffer() ++ unorderedPassesSet.toSeq.sortBy(_.description)
@@ -443,6 +445,7 @@ class Main {
         case None =>
           nextPassResults.foreach {
             case Left(error) => Warning(error)
+            case _ =>
           }
           Abort("No way to proceed!")
           ???
@@ -484,6 +487,7 @@ class Main {
       vct.col.features.BeforeSilverDomains,
       vct.col.features.NullAsOptionValue,
       vct.col.features.NotOptimized,
+      vct.col.features.DeclarationsNotLifted
     ) ++ Set(
       // These are normal features, but need to run always for some reason
       vct.col.features.ScatteredDeclarations // this pass finds duplicate names.

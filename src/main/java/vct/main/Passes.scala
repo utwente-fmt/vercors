@@ -51,7 +51,13 @@ object Passes {
       override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, if(args.isEmpty) "silicon" else args(0))
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
-      override def permits: Set[Feature] = Set(features.Dereference, features.Null, features.ComplexSubscript, features.TopLevelDeclarations)
+      override def permits: Set[Feature] = Set(
+        features.Dereference,
+        features.Null,
+        features.ComplexSubscript,
+        features.TopLevelDeclarations,
+        features.DeclarationsNotLifted,
+      )
     },
     new AbstractPass("check", "run a basic type check") {
       val permits: Set[Feature] = Feature.ALL
@@ -78,8 +84,8 @@ object Passes {
     SimplePass("pointers_to_arrays",
       "rewrite pointers to arrays",
       new PointersToArrays(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.AddrOf,
-      removes=Set(features.Pointers)),
+      permits=Feature.DEFAULT_PERMIT - features.DeclarationsNotLifted,
+      removes=Set(features.Pointers, features.AddrOf)),
     SimplePass("desugar_valid_pointer",
       "rewrite \\array, \\matrix, \\pointer and \\pointer_index",
       new DesugarValidPointer(_).rewriteAll,
@@ -88,7 +94,7 @@ object Passes {
     SimplePass("lift_declarations",
       "lift declarations to cell of the declared types, to treat locals as heap locations.",
       new LiftDeclarations(_).rewriteAll,
-      removes=Set(features.AddrOf)),
+      removes=Set(features.DeclarationsNotLifted)),
     new AbstractPass("java-check", "run a Java-aware type check") {
       val permits: Set[Feature] = Feature.ALL
       val removes: Set[Feature] = Set.empty

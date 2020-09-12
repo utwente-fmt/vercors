@@ -357,12 +357,13 @@ object Feature {
     QuantifierWithoutTriggers,
     Summation,
     Lemma,
+    NotJavaEncoded,
 
     NotFlattened,
     BeforeSilverDomains,
     NullAsOptionValue,
     NotOptimized,
-    NotJavaEncoded,
+    DeclarationsNotLifted,
   )
   val DEFAULT_INTRODUCE: Set[Feature] = Set(
     // node annotations are mostly used by the parser and resolved early on
@@ -684,6 +685,8 @@ object Feature {
     NotOptimized,
 
     // NotJavaEncoded,
+
+    DeclarationsNotLifted,
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
@@ -752,3 +755,4 @@ case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
 case object NullAsOptionValue extends GateFeature
 case object NotOptimized extends GateFeature
+case object DeclarationsNotLifted extends GateFeature
