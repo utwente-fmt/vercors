@@ -57,7 +57,8 @@ public class IntroExcVar extends AbstractRewriter {
         } else if (usesExceptionalControlFlow(method)) {
             // Add local variable and init as null
             BlockStatement body = (BlockStatement) resultMethod.getBody();
-            body.prepend(create.field_decl(excVar, create.class_type(ClassType.javaLangObjectName()), create.reserved_name(ASTReserved.Null)));
+            body.prepend(create.assignment(create.local_name(excVar), create.reserved_name(ASTReserved.Null)));
+            body.prepend(create.field_decl(excVar, create.class_type(ClassType.javaLangObjectName())));
         }
     }
 

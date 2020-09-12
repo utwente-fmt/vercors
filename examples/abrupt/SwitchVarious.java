@@ -7,26 +7,25 @@ class C {
     void m1() {
         int x = -1;
         switch (1) {
-//            case 1:
-//                switch (3) {
-//                    case 3:
-//                        x = 33;
-//                        break;
-//                    case 4:
-//                        x = 44;
-//                        break;
-//                }
-//                break;
+            case 1:
+                switch (3) {
+                    case 3:
+                        x = 33;
+                        break;
+                    case 4:
+                        x = 44;
+                        break;
+                }
+                break;
             case 2:
                 x = 22;
                 break;
-//            default:
-//                x = 100;
+            default:
+                x = 100;
         }
-        // assert x == 33;
+        //@ assert x == 33;
     }
 
-    /*
     void m2() {
         int x = -1;
         switch (1) {
@@ -126,5 +125,4 @@ class C {
         }
         //@ assert x == 120;
     }
-     */
 }
