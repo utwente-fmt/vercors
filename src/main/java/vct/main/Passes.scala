@@ -37,9 +37,9 @@ object Passes {
       new AddTypeADT(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.Inheritance),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      introduces=(Feature.DEFAULT_INTRODUCE -- Set(
         features.Inheritance
-      )),
+      )) + features.TypeADT),
     SimplePass("access",
       "convert access expressions for histories/futures",
       new AccessIntroduce(_).rewriteAll,
@@ -57,6 +57,8 @@ object Passes {
         features.ComplexSubscript,
         features.TopLevelDeclarations,
         features.DeclarationsNotLifted,
+        features.Goto,
+        features.TypeADT,
       )
     },
     new AbstractPass("check", "run a basic type check") {
@@ -500,35 +502,55 @@ object Passes {
     }),
     SimplePass("specify-implicit-labels",
       "Insert explicit labels for break statements in while loops.",
-      new SpecifyImplicitLabels(_).rewriteAll()
+      new SpecifyImplicitLabels(_).rewriteAll(),
+      permits = Feature.ALL, // TODO (Bob): This feels a bit suspicious
+      removes = Set(features.ImplicitLabels)
     ),
     SimplePass("break-return-to-goto",
       "Rewrite break, return into jumps",
-      new BreakReturnToGoto(_).rewriteAll()
+      new BreakReturnToGoto(_).rewriteAll(),
+      permits = Feature.ALL
+          -- (Set(features.Try, features.Throw, features.Signals)), // TODO (Bob): Hmmm, ALL?
+      introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
+      removes = Set(features.Break, features.Return)
     ),
     SimplePass("break-return-to-exceptions",
-      "Rewrite break, continue into exceptions",
-      new BreakReturnToExceptions(_).rewriteAll()
+      "Rewrite break, continue into exceptions", // TODO (Bob): Problem: This needs to run _before_ add-type-adt, not after. Good test case: abrupt/OnlyCatch.java
+      new BreakReturnToExceptions(_).rewriteAll(),
+      removes = Set(features.Break, features.Return),
+      introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.Try, features.Throw)
     ),
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
-      new UnfoldSwitch(_).rewriteAll()
+      new UnfoldSwitch(_).rewriteAll(),
+      permits = Feature.ALL - features.ImplicitLabels, // TODO (Bob): Also suspicious
+      removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
       "Convert continues into breaks",
-      new ContinueToBreak(_).rewriteAll()
+      new ContinueToBreak(_).rewriteAll(),
+      permits = Feature.DEFAULT_PERMIT + features.Continue,
+      removes = Set(features.Continue),
+      introduces = Feature.DEFAULT_INTRODUCE + features.Break
     ),
     SimplePass("unfold-synchronized",
       "Convert synchronized to try-finally",
-      new UnfoldSynchronized(_).rewriteAll()
+      new UnfoldSynchronized(_).rewriteAll(),
+      permits = Feature.DEFAULT_PERMIT + features.Synchronized,
+      removes = Set(features.Synchronized),
+      introduces = Set(features.Throw, features.PVLSugar)
     ),
     SimplePass("intro-exc-var",
-      "Introduces the auxiliary sys__exc variable for use by excetional control flow",
-      new IntroExcVar(_).rewriteAll()
+      "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
+      new IntroExcVar(_).rewriteAll(),
+      introduces = Set(features.ExcVar),
+      removes = Set(features.Try, features.Throw, features.Signals) // TODO (Bob): This is kind of lying...
     ),
     SimplePass("encode-try-throw-signals",
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
-      new EncodeTryThrowSignals(_).rewriteAll()
+      new EncodeTryThrowSignals(_).rewriteAll(),
+      removes = Set(features.ExcVar),
+      introduces = Feature.DEFAULT_INTRODUCE + features.Goto
     ),
     SimplePass(
       "gen-triggers", "Specify trigger sets for quantifiers using simple heuristics",

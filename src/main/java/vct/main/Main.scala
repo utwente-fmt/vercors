@@ -410,6 +410,7 @@ class Main {
     else "Fail")
   }
 
+  // TODO (Bob): None.get exception here is possible if you forget things like me
   def findPassToRemove(feature: Feature): AbstractPass = BY_KEY.values.find(_.removes.contains(feature)).get
 
   def computeGoal(featuresIn: Set[Feature], goal: String): (Seq[AbstractPass], Set[Feature]) = {
@@ -487,10 +488,11 @@ class Main {
       vct.col.features.BeforeSilverDomains,
       vct.col.features.NullAsOptionValue,
       vct.col.features.NotOptimized,
-      vct.col.features.DeclarationsNotLifted
+      vct.col.features.DeclarationsNotLifted,
+      vct.col.features.ImplicitLabels,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
-      vct.col.features.ScatteredDeclarations // this pass finds duplicate names.
+      vct.col.features.ScatteredDeclarations, // this pass finds duplicate names.
     )
 
     var passes = Seq.empty[AbstractPass]
