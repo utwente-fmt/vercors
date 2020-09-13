@@ -541,6 +541,7 @@ object Passes {
         features.UnscaledPredicateApplication,
         features.NotFlattened,
         features.BeforeSilverDomains,
+        features.QuantifierWithoutTriggers,
       )
     ),
     SimplePass("inline-pattern-to-trigger",

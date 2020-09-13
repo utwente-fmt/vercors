@@ -44,7 +44,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
     conditions += create.starall(
       and(lte(constant(0), name("__i")), less(name("__i"), size)),
       create.expression(StandardOperator.Perm,
-        create.expression(StandardOperator.Subscript, value, name("__i")),
+        create.pattern(create.expression(StandardOperator.Subscript, value, name("__i"))),
         perm),
       List(new DeclarationStatement("__i", create.primitive_type(PrimitiveSort.Integer))):_*
     )

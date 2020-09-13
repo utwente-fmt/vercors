@@ -510,7 +510,7 @@ object Feature {
     InlineQuantifierPattern,
 
     // Our passes should always specify correct triggers in new quantified statements
-    // QuantifierWithoutTriggers,
+    QuantifierWithoutTriggers,
 
     // Strange to introduce
     // Summation,
