@@ -383,6 +383,8 @@ public class JavaResolver extends AbstractRewriter {
       }
     }
 
+    ensures_loaded("java", "lang", "Object");
+
     target().index_classes();
     return target();
   }

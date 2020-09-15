@@ -3,7 +3,7 @@ package vct.col.rewrite
 import vct.col.ast.`type`.ASTReserved
 import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, SequenceUtils}
 
 import scala.collection.JavaConverters._
@@ -92,5 +92,22 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
     } else {
       super.visit(name)
     }
+  }
+
+  override def visit(cls: ASTClass): Unit = {
+    val res = create.ast_class(
+      cls.name, cls.kind, rewrite(cls.parameters),
+      rewrite(cls.super_classes), rewrite(cls.implemented_classes))
+
+    res.setContract(rewrite(cls.getContract))
+
+    cls.asScala.foreach {
+      case field: DeclarationStatement =>
+        res.add(copy_rw.rewrite(field))
+      case other =>
+        res.add(rewrite(other))
+    }
+
+    result = res
   }
 }
