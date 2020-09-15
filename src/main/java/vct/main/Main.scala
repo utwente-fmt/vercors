@@ -509,6 +509,7 @@ class Main {
     var featuresIn: Set[Feature] = Set.empty
     var featuresOut: Set[Feature] = Set.empty
     var lastPass: AbstractPass = null
+    var done = Seq.empty[AbstractPass]
 
     passes.foreach(pass => {
       Progress("%s", pass.description)
@@ -539,6 +540,8 @@ class Main {
           Output("!! Pass %s introduced %s", lastPass.key, extraIntro)
         }
       }
+
+      done :+= pass
 
       if (show_after.contains(pass.key)) {
         val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)

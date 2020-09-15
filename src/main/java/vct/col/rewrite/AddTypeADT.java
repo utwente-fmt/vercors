@@ -13,6 +13,8 @@ import vct.col.ast.util.ASTFactory;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 
+import java.util.HashSet;
+
 public class AddTypeADT extends AbstractRewriter {
 
   public static final String type_adt="TYPE";
@@ -109,7 +111,7 @@ public class AddTypeADT extends AbstractRewriter {
   public void visit(ASTClass cl){
     super.visit(cl);
     ASTClass res=(ASTClass)result;
-    addTypeConstructor(cl);
+    ensureTypeConstructor(new ClassType(cl.getFullName()));
     // Assume classes extend Object by default
     if (cl.super_classes.length==0) {
       addDirectSuperclassAxiom(new ClassType(cl.getName()), new ClassType(ClassType.javaLangObjectName()));
@@ -123,19 +125,28 @@ public class AddTypeADT extends AbstractRewriter {
     result=res;
   }
 
-  private void addTypeConstructor(ASTClass cl) {
-    adt.add_unique_cons(create.function_decl(
-            create.class_type(type_adt),
-            null,
-            "class_"+cl.name(),
-            new DeclarationStatement[0],
-            null
-            ));
+  private HashSet<ClassType> typeConstructors = new HashSet<>();
+
+  private String ensureTypeConstructor(ClassType cl) {
+    String name = "class_" + cl.getFullName();
+
+    if(!typeConstructors.contains(cl)) {
+      adt.add_unique_cons(create.function_decl(
+              create.class_type(type_adt),
+              null,
+              name,
+              new DeclarationStatement[0],
+              null
+      ));
+      typeConstructors.add(cl);
+    }
+
+    return name;
   }
 
   private void addDirectSuperclassAxiom(ClassType child, ClassType parent) {
-    String child_adt_constructor = "class_" + child.getName();
-    String parent_adt_constructor = "class_" + parent.getName();
+    String child_adt_constructor = ensureTypeConstructor(child);
+    String parent_adt_constructor = ensureTypeConstructor(parent);
     adt.add_axiom(create.axiom(child.getName() + "_" + DIRECT_SUPERCLASS,
             create.expression(StandardOperator.EQ,
               create.domain_call(type_adt, DIRECT_SUPERCLASS, create.domain_call(type_adt, child_adt_constructor)),
