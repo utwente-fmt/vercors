@@ -355,7 +355,6 @@ object Passes {
         features.DeclarationsInIf,
         features.This,
         features.NotFlattened,
-        features.NonVoidMethods,
       )),
     SimplePass("generate_adt_functions",
       "rewrite standard operators on sequences to function definitions/calls",
