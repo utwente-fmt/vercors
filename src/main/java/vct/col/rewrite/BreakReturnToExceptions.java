@@ -188,8 +188,13 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
 
             String catchVarName = getUniqueName("ucv");
-            ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), FIELD_VALUE);
-            ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
+            ReturnStatement returnStatement;
+            if (method.getReturnType().isVoid()) {
+                returnStatement = create.return_statement();
+            } else {
+                ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), FIELD_VALUE);
+                returnStatement = create.return_statement(getReturnValueExpr);
+            }
             tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { returnExceptionType }, create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
         }

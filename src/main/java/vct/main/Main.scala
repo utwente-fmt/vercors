@@ -444,6 +444,7 @@ class Main {
       } match {
         case Some(pass) => pass
         case None =>
+          Warning("Leftover features: %s", features)
           nextPassResults.foreach {
             case Left(error) => Warning(error)
             case _ =>
@@ -453,6 +454,7 @@ class Main {
       }
 
       unorderedPasses -= nextPass
+      Output("Planning to do %s", nextPass.key)
       passes += nextPass
       passes += BY_KEY("check")
       features = features -- nextPass.removes ++ nextPass.introduces
@@ -489,10 +491,10 @@ class Main {
       vct.col.features.NullAsOptionValue,
       vct.col.features.NotOptimized,
       vct.col.features.DeclarationsNotLifted,
-      vct.col.features.ImplicitLabels,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
       vct.col.features.ScatteredDeclarations, // this pass finds duplicate names.
+      vct.col.features.ImplicitLabels, // Can be detected, lazy, sorry
     )
 
     var passes = Seq.empty[AbstractPass]
@@ -516,6 +518,13 @@ class Main {
         lastPass = pass
       }
 
+      if (show_before.contains(pass.key)) {
+        Progress("show_before")
+        val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+        vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
+        out.close()
+      }
+
       report = pass.apply_pass(report, Array())
 
       if(pass.key == "check") {
@@ -523,12 +532,18 @@ class Main {
         val notRemoved = featuresOut.intersect(lastPass.removes)
         val extraIntro = featuresOut -- featuresIn -- lastPass.introduces
 
-        if(notRemoved.nonEmpty) {
+        if (notRemoved.nonEmpty) {
           Output("!! Pass %s did not remove %s", lastPass.key, notRemoved)
         }
-        if(extraIntro.nonEmpty) {
+        if (extraIntro.nonEmpty) {
           Output("!! Pass %s introduced %s", lastPass.key, extraIntro)
         }
+      }
+
+      if (show_after.contains(pass.key)) {
+        val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+        vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
+        out.close()
       }
     })
 

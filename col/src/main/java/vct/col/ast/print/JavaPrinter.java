@@ -1033,10 +1033,14 @@ public class JavaPrinter extends AbstractPrinter {
     out.println("){");
     for(Case c:s.cases){
       for(ASTNode n:c.cases){
-        out.printf("case ");
-        nextExpr();
-        n.accept(this);
-        out.println(":");
+        if (n == null) {
+          out.println("default: ");
+        } else {
+          out.printf("case ");
+          nextExpr();
+          n.accept(this);
+          out.println(":");
+        }
       }
       out.incrIndent();
       for(ASTNode n:c.stats){

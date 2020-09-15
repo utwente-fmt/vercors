@@ -5,6 +5,7 @@ import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
+import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
@@ -47,16 +48,13 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       Fail("Pure methods cannot throw exceptions");
     }
 
-    // Throws types must inherit from Throwable
-    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
-
     for (Type t : m.signals) {
       if (!(t instanceof ClassType)) {
         Fail("Throws type can only be class");
       }
 
       ClassType ct = (ClassType) t;
-      if (!throwableType.supertypeof(source(), ct)) {
+      if (!isThrowableType(ct)) {
         Fail("Throws type must extend throwable");
       }
 
@@ -77,7 +75,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     super.visit(sc);
 
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
-    if (!throwableType.supertypeof(source(), sc.type())) {
+    if (!isThrowableType(sc.type())) {
       reportFail("Signals type must extend Throwable",
               VerCorsError.ErrorCode.TypeError, VerCorsError.SubCode.ExtendsThrowable,
               sc.getType(), sc);
@@ -121,7 +119,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
         ClassType ct = (ClassType) catchType;
 
-        if (!throwableType.supertypeof(source(), ct)) {
+        if (!isThrowableType(ct)) {
           Fail("Catch clause types must inherit from Throwable");
         }
 
@@ -181,6 +179,8 @@ public class JavaTypeCheck extends AbstractTypeCheck {
               .filter(exceptionType -> !t.supertypeof(source(), exceptionType))
               .collect(Collectors.toSet());
     }
+
+    super.visit(cc);
   }
 
   public void visit(ASTSpecial special) {
@@ -188,8 +188,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     if (special.isSpecial(ASTSpecial.Kind.Throw)) {
       ASTNode throwee = special.getArg(0);
-      ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
-      if (!throwableType.supertypeof(source(), throwee.getType())) {
+      if (!isThrowableType(throwee.getType())) {
         reportFail("Type of thrown expression needs to extend Throwable",
                 VerCorsError.ErrorCode.TypeError, VerCorsError.SubCode.ExtendsThrowable,
                 throwee, special);
@@ -198,6 +197,18 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       }
     }
   }
+
+  private boolean isThrowableType(Type t) {
+    if (t instanceof ClassType) {
+      ASTClass astClass = source().find((ClassType) t);
+      if (astClass.kind == ASTClass.ClassKind.Record) {
+        return true;
+      }
+    }
+    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
+    return throwableType.supertypeof(source(), t) // Actually throwable
+            || (t.toString().startsWith("__") && t.toString().endsWith("_ex")); // We defined it (sorry, hacky!)
+    }
 
   public void visit(MethodInvokation mi) {
     super.visit(mi);

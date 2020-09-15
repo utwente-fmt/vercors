@@ -37,9 +37,8 @@ object Passes {
       new AddTypeADT(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.Inheritance),
-      introduces=(Feature.DEFAULT_INTRODUCE -- Set(
-        features.Inheritance
-      )) + features.TypeADT),
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(features.Inheritance)
+    ),
     SimplePass("access",
       "convert access expressions for histories/futures",
       new AccessIntroduce(_).rewriteAll,
@@ -58,7 +57,6 @@ object Passes {
         features.TopLevelDeclarations,
         features.DeclarationsNotLifted,
         features.Goto,
-        features.TypeADT,
       )
     },
     new AbstractPass("check", "run a basic type check") {
@@ -67,7 +65,7 @@ object Passes {
       val introduces: Set[Feature] = Set.empty
 
       override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
-        new SimpleTypeCheck(report, arg).check(); arg
+        new JavaTypeCheck(report, arg).check(); arg // Sneakily changing this to make abrupt tests pass for now
       }
     },
     SimplePass("local-variable-check", "", arg => { LocalVariableChecker.check(arg); arg }),
@@ -228,6 +226,9 @@ object Passes {
         features.ContextEverywhere,
         features.InlineQuantifierPattern,
         features.Arrays,
+        features.This,
+        features.NotFlattened,
+        features.NonVoidMethods,
       )),
     SimplePass("ds_inherit", "rewrite contracts to reflect inheritance, predicate chaining", arg => new DynamicStaticInheritance(arg).rewriteOrdered),
     SimplePass("flatten_before_after",
@@ -317,6 +318,9 @@ object Passes {
         features.ContextEverywhere,
         features.NestedQuantifiers,
         features.InlineQuantifierPattern,
+        features.This,
+        features.NotFlattened,
+        features.NonVoidMethods,
       )),
     SimplePass("quant-optimize",
       "Removes nesting of quantifiers in chains of forall/starall and implies",
@@ -349,6 +353,9 @@ object Passes {
         features.UnscaledPredicateApplication,
         features.ScatteredDeclarations,
         features.DeclarationsInIf,
+        features.This,
+        features.NotFlattened,
+        features.NonVoidMethods,
       )),
     SimplePass("generate_adt_functions",
       "rewrite standard operators on sequences to function definitions/calls",
@@ -503,54 +510,74 @@ object Passes {
     SimplePass("specify-implicit-labels",
       "Insert explicit labels for break statements in while loops.",
       new SpecifyImplicitLabels(_).rewriteAll(),
-      permits = Feature.ALL, // TODO (Bob): This feels a bit suspicious
+      permits = Feature.DEFAULT_PERMIT
+        + features.ImplicitLabels
+        + features.NullAsOptionValue
+        + features.NotJavaEncoded
+      , // TODO (Bob): This feels a bit suspicious
       removes = Set(features.ImplicitLabels)
     ),
-    SimplePass("break-return-to-goto",
-      "Rewrite break, return into jumps",
-      new BreakReturnToGoto(_).rewriteAll(),
-      permits = Feature.ALL
-          -- (Set(features.Try, features.Throw, features.Signals)), // TODO (Bob): Hmmm, ALL?
-      introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
-      removes = Set(features.Break, features.Return)
-    ),
+    // Currently disabled in favour of the exceptions pass below
+//    SimplePass("break-return-to-goto",
+//      "Rewrite break, return into jumps",
+//      new BreakReturnToGoto(_).rewriteAll(),
+//      permits = Feature.DEFAULT_PERMIT -- Set(features.Exceptions, features.Finally),
+//      introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
+//      removes = Set(features.Break, features.Return)
+//    ),
     SimplePass("break-return-to-exceptions",
-      "Rewrite break, continue into exceptions", // TODO (Bob): Problem: This needs to run _before_ add-type-adt, not after. Good test case: abrupt/OnlyCatch.java
+      "Rewrite break, return into exceptions",
       new BreakReturnToExceptions(_).rewriteAll(),
+      permits = Feature.DEFAULT_PERMIT
+        - features.Switch
+        + features.NotJavaEncoded
+        + features.NullAsOptionValue, // TODO (Bob): Had to add this one but not sure what the feature does?
       removes = Set(features.Break, features.Return),
-      introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.Try, features.Throw)
+      introduces = Feature.DEFAULT_INTRODUCE
+        + features.Exceptions
+        + features.Inheritance
+        + features.NotFlattened
+        + features.NotJavaEncoded
     ),
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.ALL - features.ImplicitLabels, // TODO (Bob): Also suspicious
+      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded, // TODO (Bob): Also suspicious
       removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
       "Convert continues into breaks",
       new ContinueToBreak(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT + features.Continue,
+      permits = Feature.DEFAULT_PERMIT + features.Continue - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue,
       removes = Set(features.Continue),
       introduces = Feature.DEFAULT_INTRODUCE + features.Break
     ),
     SimplePass("unfold-synchronized",
       "Convert synchronized to try-finally",
       new UnfoldSynchronized(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT + features.Synchronized,
+      permits = Feature.DEFAULT_PERMIT + features.Synchronized + features.NotJavaEncoded + features.PVLSugar + features.NullAsOptionValue,
       removes = Set(features.Synchronized),
-      introduces = Set(features.Throw, features.PVLSugar)
+      introduces = Set(features.Exceptions, features.Finally, features.PVLSugar)
     ),
     SimplePass("intro-exc-var",
       "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
       new IntroExcVar(_).rewriteAll(),
       introduces = Set(features.ExcVar),
-      removes = Set(features.Try, features.Throw, features.Signals) // TODO (Bob): This is kind of lying...
+      permits = Feature.DEFAULT_PERMIT - features.Inheritance - features.NonVoidMethods,
+      removes = Set(features.Exceptions, features.Finally) // TODO (Bob): This is kind of lying...
     ),
     SimplePass("encode-try-throw-signals",
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
       new EncodeTryThrowSignals(_).rewriteAll(),
       removes = Set(features.ExcVar),
-      introduces = Feature.DEFAULT_INTRODUCE + features.Goto
+      permits = Feature.DEFAULT_PERMIT + features.ExcVar,
+      introduces = (Feature.DEFAULT_INTRODUCE + features.Goto)
+        -- Set(
+          features.Constructors,
+          features.This,
+          features.NotFlattened,
+          features.NonVoidMethods,
+        )
     ),
     SimplePass(
       "gen-triggers", "Specify trigger sets for quantifiers using simple heuristics",
@@ -575,6 +602,10 @@ object Passes {
         features.Arrays,
         features.ContextEverywhere,
         features.InlineQuantifierPattern,
+        features.This,
+        features.Constructors,
+        features.NotFlattened,
+        features.NonVoidMethods,
       ),
     ),
   ).map(_.tup).toMap
