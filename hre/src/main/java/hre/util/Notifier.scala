@@ -1,7 +1,12 @@
 package hre.util
 
+import java.io.File
+
 import sys.process._
 import hre.lang.System.Warning
+
+import scala.collection.JavaConverters._
+import java.nio.file.{Files, Paths}
 
 object Notifier {
   def notify(title: String, message: String): Boolean = {
@@ -11,13 +16,13 @@ object Notifier {
     } else if (os.contains("mac")) {
       notifyMacOS(title, message)
     } else if (os.contains("nix") || os.contains("linux")) {
-      notifyUbuntu(title, message)
+      notifyDebian(title, message)
     } else {
       false
     }
   }
 
-  def notifyUbuntu(title: String, message: String): Boolean = {
+  def notifyDebian(title: String, message: String): Boolean = {
     if (commandExists("notify-send")) {
       val cmd = Seq("notify-send", title, message)
       cmd ! ProcessLogger(_ => Unit, _ => Unit) match {
@@ -30,18 +35,30 @@ object Notifier {
   }
 
   def notifyMacOS(title: String, message: String): Boolean = {
-    // https://howchoo.com/mac/display-macos-notifications-command-line-scripts
-    Warning("Notifying on mac not yet supported")
-    false
+    if (commandExists("osascript")) {
+      val cmd = Seq("osascript", "-e", s"""display notification "$message" with title "$title"""")
+      cmd ! ProcessLogger(_ => Unit, _ => Unit) match {
+        case 0 => true
+        case _ => false
+      }
+    } else {
+      false
+    }
   }
 
   def notifyWindows10(title: String, message: String): Boolean = {
     // https://gist.github.com/altrive/72594b8427b2fff16431
+    // This one seems better: https://gist.github.com/Windos/9aa6a684ac583e0d38a8fa68196bc2dc
     Warning("Notifying on windows 10 not yet supported")
     false
   }
 
   def commandExists(cmd: String): Boolean = {
-    true
+    System.getenv().asScala.getOrElse("PATH", "")
+      .split(File.pathSeparator)
+      .exists(path => {
+        val p = Paths.get(path).resolve(cmd)
+        Files.exists(p) && !Files.isDirectory(p) && Files.isExecutable(p)
+      })
   }
 }
