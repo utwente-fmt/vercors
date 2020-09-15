@@ -321,6 +321,7 @@ object Passes {
         features.This,
         features.NotFlattened,
         features.NonVoidMethods,
+        features.Arrays,
       )),
     SimplePass("quant-optimize",
       "Removes nesting of quantifiers in chains of forall/starall and implies",
@@ -541,7 +542,7 @@ object Passes {
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded, // TODO (Bob): Also suspicious
+      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue, // TODO (Bob): Also suspicious
       removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
@@ -576,6 +577,7 @@ object Passes {
           features.This,
           features.NotFlattened,
           features.NonVoidMethods,
+          features.Arrays,
         )
     ),
     SimplePass(
