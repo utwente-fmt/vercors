@@ -1,4 +1,0 @@
-#!/bin/bash
-
-exec $BOOGIE_Z3_EXE "$@"
-

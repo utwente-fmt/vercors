@@ -175,13 +175,13 @@ public class Configuration {
     }
 
     public static File getBoogiePath() {
-        File base = getFileOrAbort("/deps/boogie/2012-10-22/");
+        File base = getFileOrAbort("/deps/boogie/2.4.1.10503");
         String os = System.getProperty("os.name");
 
         if(os.startsWith("Windows")) {
-            return join(base, "windows", "bin", "boogie");
+            return join(base, "Boogie.exe");
         } else {
-            return join(base, "unix", "bin", "boogie");
+            return join(base, "Boogie");
         }
     }
 
