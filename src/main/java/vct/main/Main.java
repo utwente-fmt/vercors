@@ -13,6 +13,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
+import hre.io.Paths;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
 import vct.col.util.LocalVariableChecker;
@@ -247,7 +248,11 @@ public class Main
           silver.set("silicon");
           break;
         case "silicon":
+          break;
         case "carbon":
+          if (!Paths.commandExists("mono")) {
+            Fail("Unable to detect mono. Please ensure the command \"mono\" is available in the PATH.");
+          }
           break;
         default:
           Fail("unknown silver backend: %s",silver.get());
