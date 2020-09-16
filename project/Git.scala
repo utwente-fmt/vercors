@@ -16,7 +16,7 @@ object Git {
 
   def gitHasChanges =
     if (hasGit) {
-      if (("git diff-index --quiet HEAD --" ! ProcessLogger(a => (), b => ())) == 1) {
+      if ((Seq("git", "diff-index", "--quiet", "HEAD", "--") ! ProcessLogger(a => (), b => ())) == 1) {
         "with changes"
       } else {
         "no changes"
@@ -27,14 +27,14 @@ object Git {
 
   def currentBranch: String =
     if (hasGit) {
-      ("git rev-parse --abbrev-ref HEAD" !!).stripLineEnd
+      (Seq("git", "rev-parse", "--abbrev-ref", "HEAD") !!).stripLineEnd
     } else {
       "unknown branch"
     }
 
   def currentShortCommit: String =
     if (hasGit) {
-      ("git rev-parse --short HEAD" !!).stripLineEnd
+      (Seq("git", "rev-parse", "--short", "HEAD") !!).stripLineEnd
     } else {
       "unknown commit"
     }
