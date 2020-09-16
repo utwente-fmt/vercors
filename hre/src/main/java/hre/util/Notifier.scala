@@ -64,9 +64,6 @@ object Notifier {
       |      <text>%s</text>
       |    </binding>
       |  </visual>
-      |  <actions>
-      |    <action activationType="background" content="Remind me later" arguments="later"/>
-      |  </actions>
       |</toast>
       |"@
       |
@@ -79,14 +76,12 @@ object Notifier {
       |""".stripMargin
 
   def notifyWindows10(title: String, message: String): Boolean = {
-    // https://gist.github.com/altrive/72594b8427b2fff16431
-    // This one seems better: https://gist.github.com/Windos/9aa6a684ac583e0d38a8fa68196bc2dc
-
+    // Script comes from: https://gist.github.com/Windos/9aa6a684ac583e0d38a8fa68196bc2dc
     val script = powershellNotificationScript.format(title, message)
     val is = new ByteArrayInputStream(script.getBytes("UTF-8"))
     val cmd = Seq("powershell", "-Command", "-")
     val p2 = cmd #< is
-    p2.!(ProcessLogger(Warning("%s", _), Warning("%s", _))) == 0
+    p2.!(ProcessLogger(_ => (), _ => ())) == 0
   }
 
   def commandExists(cmd: String): Boolean = {
