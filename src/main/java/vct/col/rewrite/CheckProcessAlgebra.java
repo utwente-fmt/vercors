@@ -212,7 +212,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
       for (DeclarationStatement arg : args) {
         accessArgs.add(0, arg);
       }
-      args = accessArgs.toArray(DeclarationStatement[]::new);
+      args = accessArgs.toArray(new DeclarationStatement[0]);
 
       BlockStatement body=null;
       ASTNode m_body=m.getBody();
