@@ -994,7 +994,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       val res = expr(exp)
       res.addLabel(create label(convertID(label)))
       res
-    case ValPrimary30("{:", pattern, ":}") =>
+    case ValPrimary29("{:", pattern, ":}") =>
       create pattern expr(pattern)
   })
 
