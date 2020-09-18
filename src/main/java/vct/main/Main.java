@@ -1262,7 +1262,7 @@ public class Main
       @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args) {
         HashSet<String> methods = new HashSet<>();
-        methods.add("method_Main_spawn__Integer__Program__Sequence$Integer$");
+        methods.add("method_Main_sendrecv__Integer");
         return new MinimiseSilver(arg, methods, new HashSet<>()).minimise();
       }
     });

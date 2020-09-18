@@ -79,7 +79,7 @@ class CollectUsed(source: ProgramUnit) extends AbstractRewriter(source) {
 
   def getEntities: Entities = total
 
-  def getCurrentEntities: Entities = Entities(methods.toSet, functions.toSet, predicates.toSet, fields.toSet)
+  private def getCurrentEntities: Entities = Entities(methods.toSet, functions.toSet, predicates.toSet, fields.toSet)
 
   private def clear() = {
     methods.clear()
@@ -88,9 +88,19 @@ class CollectUsed(source: ProgramUnit) extends AbstractRewriter(source) {
     fields.clear()
   }
 
-  override def visit(m: Method): Unit = {
+  /**
+   * Flushes the working set of encountered uses to the total set of encountered uses.
+   */
+  private def flush() = {
     total ++= getCurrentEntities
     clear()
+  }
+
+  override def visit(m: Method): Unit = {
+    // Uses of a method by itself needs to be prevented. Therefore we make the collected uses empty now,
+    // and after visiting the method, remove the appearance of the method's own name from the set.
+    // That prevents recursive uses from occurring in the final use set.
+    flush()
 
     super.visit(m)
 
@@ -120,6 +130,9 @@ class CollectUsed(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   rewriteAll()
+  // Ensure that any uses in the final method, adt, class etc. are not discarded
+  // since they need to be merged into total first.
+  flush()
 }
 
 case class Entities(methods: Set[String], functions: Set[String], predicates: Set[String], fields: Set[String]) {
