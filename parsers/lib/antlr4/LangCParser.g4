@@ -444,9 +444,9 @@ typedefName
     ;
 
 initializer
-    :   assignmentExpression
-    |   '{' initializerList '}'
+    :   '{' initializerList '}'
     |   '{' initializerList ',' '}'
+    |   assignmentExpression
     ;
 
 initializerList
@@ -545,6 +545,7 @@ translationUnit
 externalDeclaration
     :   functionDefinition
     |   declaration
+    |   valEmbedDeclarationBlock
     |   ';' // stray ;
     ;
 

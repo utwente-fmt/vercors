@@ -3,6 +3,8 @@
 //:: cases relaxed_prefix
 //:: tools silicon
 //:: verdict Pass
+// fails due to https://github.com/viperproject/silicon/issues/512
+//:: suite problem-fail
 
 
 /*

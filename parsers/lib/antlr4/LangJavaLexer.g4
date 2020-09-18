@@ -413,11 +413,11 @@ ELLIPSIS : '...';
 FileName : '"' ~[\r\n"]* '"' ;
 
 EndSpec
-    : {inBlockSpec}? '@'? '*/' {inBlockSpec = false;}
-    | {inLineSpec}? ('\n'|'\r\n') {inLineSpec = false;}
+    : '@'? '*/' {inBlockSpec}? {inBlockSpec = false;}
+    | ('\n'|'\r\n') {inLineSpec}? {inLineSpec = false;}
     ;
 
-LineCommentStartInSpec: {inLineSpec}? '//' {inLineSpec=false;} -> mode(LINE_COMMENT);
+LineCommentStartInSpec: '//' {inLineSpec}? {inLineSpec=false;} -> mode(LINE_COMMENT);
 
 BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
 BlockCommentStart: '/*' -> mode(COMMENT), skip;
@@ -438,7 +438,7 @@ Identifier
     ;
 
 ExtraAt
-    : {inBlockSpec}? ('\n'|'\r\n') [ \t\u000C]* '@' -> skip
+    :  ('\n'|'\r\n') [ \t\u000C]* '@' {inBlockSpec}? -> skip
     ;
 
 WS  :  [ \t\r\n\u000C] -> skip

@@ -5,6 +5,8 @@ package vct.main;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -13,6 +15,7 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
+import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.rewrite.DeriveModifies;
@@ -342,9 +345,8 @@ public class Main
 
         if (features.usesSwitch()) {
           passes.add("unfold-switch");
+          passes.add("java-check");
         }
-
-        passes.add("java-check");
 
         if ((features.usesFinally() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
           passes.add("break-return-to-exceptions");
@@ -437,8 +439,12 @@ public class Main
           passes.add("check");
         }
 
+        passes.add("local-variable-check");
+
         if (silver.used()) {
           if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
+            passes.add("inline-atomic");
+            passes.add("check");
             passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
             passes.add("standardize");
           }
@@ -596,6 +602,9 @@ public class Main
           passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
           passes.add("standardize");
           passes.add("check");
+          passes.add("inline-pattern-to-trigger");
+          passes.add("gen-triggers");
+          passes.add("check");
 
           passes.add("silver");
         } else { //CHALICE
@@ -630,7 +639,8 @@ public class Main
           if (pass_args.length==1){
             pass_args=new String[0];
           } else {
-            pass_args=pass_args[1].split("\\+");
+            // Arg syntax: pass=arg1\arg2\arg3. Make sure to put plenty of backslashes there!
+            pass_args=pass_args[1].split("\\\\+");
           }
           CompilerPass task=defined_passes.get(pass);
           if(debugBefore.has(pass)) {
@@ -658,7 +668,8 @@ public class Main
           } else {
             ValidationPass check=defined_checks.get(pass);
             if (check!=null){
-              Progress("Applying %s ...", pass);
+              DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+              Progress("Applying %s at %s ...", pass, ZonedDateTime.now().format(formatter));
               tk.show();
               report=check.apply_pass(report,pass_args);
               fatal_errs=report.getFatal();
@@ -957,6 +968,17 @@ public class Main
         return new OpenMPToPVL(arg).rewriteAll();
       }
     });
+    defined_passes.put("inline-atomic",new CompilerPass("Inlines atomic blocks into inhales/exhales"){
+      @Override
+      public PassReport apply_pass(PassReport arg,String ... args){
+        ProgramUnit input = arg.getOutput();
+        PassReport res = new PassReport(input);
+        ErrorMapping map = new ErrorMapping(arg);
+        res.add(map);
+        res.setOutput(new InlineAtomic(input,map).rewriteAll());
+        return res;
+      }
+    });
     defined_passes.put("parallel_blocks",new CompilerPass("Encoded the proof obligations for parallel blocks"){
         @Override
         public PassReport apply_pass(PassReport arg,String ... args){
@@ -968,6 +990,13 @@ public class Main
           return res;
         }
 
+    });
+    defined_passes.put("local-variable-check", new CompilerPass("Checks if local variables are not written to when shared between parallel blocks or used in invariants") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        LocalVariableChecker.check(arg);
+        return arg;
+      }
     });
     defined_passes.put("pvl-compile",new CompilerPass("Compile PVL classes to Java classes"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
@@ -1162,6 +1191,16 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("gen-triggers", new CompilerPass("") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new Triggers(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("inline-pattern-to-trigger", new CompilerPass("Explicit inline patterns to normal trigger syntax") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new InlinePatternToTrigger(arg).rewriteAll();
+      }
+    });
     defined_passes.put("specify-implicit-labels", new CompilerPass("Insert explicit labels for break statements in while loops.") {
       @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args){

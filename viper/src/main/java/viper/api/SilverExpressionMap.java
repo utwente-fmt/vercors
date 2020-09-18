@@ -629,6 +629,11 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   }
 
   @Override
+  public E map(InlineQuantifierPattern pattern) {
+    return null;
+  }
+
+  @Override
   public E map(CatchClause cc) {
     return null;
   }

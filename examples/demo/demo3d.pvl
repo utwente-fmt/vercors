@@ -24,11 +24,11 @@ class Program {
 
 	context_everywhere model != null && 0 < |xs|;
 	requires Future(model, 1, model.P(xs));
-	ensures (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.incr(xs[i]) * model.done(xs[i])));
+	ensures (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.incr({:xs[i]:}) * model.done(xs[i])));
 	void lemma_P_split_all(Future model, seq<int> xs);
 
 	context_everywhere model != null && 0 < |xs|;
-	requires (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.done(xs[i])));
+	requires (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.done({:xs[i]:})));
 	ensures Future(model, 1, empty);
 	void lemma_done_merge_all(Future model, seq<int> xs);
 
@@ -44,9 +44,10 @@ class Program {
 		invariant inv(HPerm(model.sum, 1)) //;
 		{
 			par (int tid = 0 .. A.length)
-				context Perm(A[tid], 1\4) ** A[tid] == xs[tid];
-				requires Future(model, 1\|xs|, model.incr(A[tid]) * model.done(A[tid]));
-				ensures Future(model, 1\|xs|, model.done(A[tid]));
+				context Perm({:A[tid]:}, 1\4);
+				context {:A[tid]:} == {:xs[tid]:};
+				requires Future(model, 1\|xs|, model.incr({:A[tid]:}) * model.done(A[tid]));
+				ensures Future(model, 1\|xs|, model.done({:A[tid]:}));
 			{
 				atomic(inv) {
 					action(model, 1\|xs|, model.done(A[tid]), model.incr(A[tid])) {

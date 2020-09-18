@@ -55,7 +55,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   def convertDecl(tree: ExternalDeclarationContext): Seq[ASTDeclaration] = tree match {
     case ExternalDeclaration0(funcDecl) => convertDecl(funcDecl)
     case ExternalDeclaration1(decl) => convertDecl(decl)
-    case ExternalDeclaration2(";") => Seq()
+    case ExternalDeclaration2(valDecls) => convertValDecl(valDecls)
+    case ExternalDeclaration3(";") => Seq()
   }
 
   def convertDecl(tree: FunctionDefinitionContext): Seq[ASTDeclaration] = origin(tree, tree match {
@@ -629,11 +630,11 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   def convertInitializer(init: InitializerContext, t: Type): ASTNode = origin(init, init match {
-    case Initializer0(exp) => expr(exp)
-    case Initializer1("{", xs, "}") =>
+    case Initializer0("{", xs, "}") =>
       convertInitializerList(xs, t)
-    case Initializer2("{", xs, _, "}") =>
+    case Initializer1("{", xs, _, "}") =>
       convertInitializerList(xs, t)
+    case Initializer2(exp) => expr(exp)
   })
 
   def convertInitializerList(xs: InitializerListContext, t: Type): ASTNode = {
@@ -660,9 +661,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   def expr(exp: InitializerContext): ASTNode = exp match {
-    case Initializer0(exp) => expr(exp)
-    case Initializer1("{", _, "}") => ??(exp)
-    case Initializer2("{", _, _, "}") => ??(exp)
+    case Initializer0("{", _, "}") => ??(exp)
+    case Initializer1("{", _, _, "}") => ??(exp)
+    case Initializer2(exp) => expr(exp)
   }
 
   def expr(exp: ExpressionContext): ASTNode = exp match {
@@ -1099,6 +1100,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val res = expr(exp)
       res.addLabel(create label(convertID(label)))
       res
+    case ValPrimary30("{:", pattern, ":}") =>
+      create pattern expr(pattern)
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {
@@ -1131,6 +1134,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create reserved_name ASTReserved.OptionNone
     case ValReserved7("empty") =>
       create reserved_name ASTReserved.EmptyProcess
+    case ValReserved8("\\ltid") =>
+      create reserved_name ASTReserved.LocalThreadId
+    case ValReserved9("\\gtid") =>
+      create reserved_name ASTReserved.GlobalThreadId
   })
 
   /**
@@ -1148,6 +1155,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValReserved5(s) => s
     case ValReserved6(s) => s
     case ValReserved7(s) => s
+    case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =

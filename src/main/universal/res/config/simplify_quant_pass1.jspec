@@ -1,6 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 
 class simplify_quant_pass1 {
+  _AnyTypeForSimplificationRules g1,g2,g3,g4,g5;
   int e1,e2,e3,e4,e5,e6,e7,e8;
   boolean b1,b2,b3,b4;
   resource r1,r2;
@@ -69,6 +70,16 @@ class simplify_quant_pass1 {
     (\forall* int i; b1; b2)
       ==
     (\forall int i; b1; b2)
+  }
+
+  axiom quant_cond_main_equal {
+    (\forall int i; b1; b1) == true
+  }
+
+  axiom split_forall {
+    (\forall int i; b1; b2 && b3)
+     ==
+    (\forall int i; b1; b2) && (\forall int i; b1; b3)
   }
 
   axiom A3 {
@@ -408,6 +419,12 @@ class simplify_quant_pass1 {
       (\exists int i; true ; e1 ) ==> (\forall* int j ; e2 ; Value(e3))
     }
     */
+
+  axiom resource_independent_quant {
+    (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, p1)!tid))
+    ==
+    (e1<e2) ==> Perm(g1, p1*(e2-e1))
+  }
 
   axiom simplify_distribute_perm_par {
     (\forall* int tid;(tid \memberof {e1 .. e2}); ((\forall* int i; (i \memberof {e3 .. e4}); Perm(e5, p1\p2))!tid))

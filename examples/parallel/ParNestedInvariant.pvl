@@ -1,0 +1,38 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ParNestedInvariant
+//:: tools silicon
+//:: verdict Pass
+
+class C {
+    int a;
+    int b;
+
+    requires Perm(a, write) ** Perm(b, write);
+    void m() {
+        int x = 10;
+        int x_old = x;
+        par
+            context Perm(a, write);
+            requires x > 0;
+            ensures a > 0;
+        {
+            a = x;
+        }
+        and
+            context Perm(b, write);
+            requires x > 3;
+            ensures b > 3;
+        {
+            invariant inv(x > 3) {
+                atomic(inv) {
+                    assert x > 3;
+                    b = x;
+                }
+            }
+        }
+
+        assert x == x_old;
+        assert a > 0;
+        assert b > 3;
+    }
+}

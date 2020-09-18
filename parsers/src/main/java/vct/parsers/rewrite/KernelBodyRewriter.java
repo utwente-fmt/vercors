@@ -2,18 +2,17 @@ package vct.parsers.rewrite;
 
 import java.util.ArrayList;
 
-import vct.col.ast.expr.OperatorExpression;
+import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTUtils;
 
@@ -48,6 +47,26 @@ class KernelBodyRewriter extends AbstractRewriter {
             default:
                 super.visit(e);
         }
+    }
+
+    @Override
+    public void visit(NameExpression n) {
+      if(n.kind() != NameExpressionKind.Reserved) {
+          super.visit(n);
+          return;
+      }
+
+      switch(n.reserved()) {
+          case GlobalThreadId:
+              result = plus(mult(create.local_name("opencl_gid"), create.local_name("opencl_gsize")),
+                                    create.local_name("opencl_lid"));
+              break;
+          case LocalThreadId:
+              result = create.local_name("opencl_lid");
+              break;
+          default:
+              super.visit(n);
+      }
     }
 
     @Override

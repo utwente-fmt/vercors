@@ -1,22 +1,18 @@
 package viper.api;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import hre.util.Triple;
-import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTSpecial.Kind;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.composite.Constraining;
-import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTFactory;
-import viper.api.StatementFactory;
+
+import java.util.ArrayList;
 
 public class VerCorsStatementFactory implements
     StatementFactory<Origin, Type, ASTNode, ASTNode > {
@@ -175,32 +171,12 @@ public class VerCorsStatementFactory implements
     return loop;
   }
 
-  @Override
-  public ASTNode constraining(Origin o, List<ASTNode> nodes, ASTNode body) {
-    enter(o);
-    ArrayList<NameExpression> names=new ArrayList<NameExpression>();
-    for(ASTNode n:nodes){
-      names.add((NameExpression)n);
-    }
-    Constraining res=create.constraining(checkBlock(body), names);
-    leave();
-    return res;
-  }
-
   private BlockStatement checkBlock(ASTNode body) {
     if (body instanceof BlockStatement){
       return (BlockStatement)body;
     } else {
       throw new HREError("not a block statement");
     }
-  }
-
-  @Override
-  public ASTNode fresh(Origin o, List<ASTNode> names) {
-    enter(o);
-    ASTNode res=create.special(ASTSpecial.Kind.Fresh,names);
-    leave();
-    return res;
   }
 
 }

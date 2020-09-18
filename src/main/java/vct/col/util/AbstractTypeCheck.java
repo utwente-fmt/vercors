@@ -73,6 +73,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
   public void visit(ClassType t){
     super.visit(t);
+
+    if(t.getName().equals("_AnyTypeForSimplificationRules")) {
+      return;
+    }
+
     Debug("class type %s",t);
     String name[]=t.getNameFull();
     if (name.length==1){
@@ -656,8 +661,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           e.setType(new PrimitiveType(PrimitiveSort.Integer));
           break;
         }
+      case LocalThreadId:
+      case GlobalThreadId:
+          e.setType(new PrimitiveType(PrimitiveSort.Integer));
+          break;
         default:
             Abort("missing case for reserved name %s",name);
+
         }
         break;
       case Unresolved:{
@@ -923,7 +933,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         check_location(e.arg(0), "argument of CurrentPerm");
         tt[0] = e.arg(0).getType();
         if (tt[0] == null) Fail("type of argument unknown at %s", e.getOrigin());
-        e.setType(new PrimitiveType(PrimitiveSort.Fraction));
+        if (!((e.arg(0) instanceof Dereference) || tt[0].isPrimitive(PrimitiveSort.Resource))) {
+          Fail("CurrentPerm can only be used with dereference or predicate argument");
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
         break;
       }
       case Scale: {
@@ -1362,7 +1375,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (!(tt[0] instanceof PrimitiveType)) Fail("base must be array or sequence type.");
       PrimitiveType t=(PrimitiveType)tt[0];
         if (t.isPrimitive(PrimitiveSort.Option)) {
-          if (!(t.firstarg() instanceof PrimitiveType)) Fail("base must be map, array or sequence type.");
+          if (!(t.firstarg() instanceof PrimitiveType))
+            Fail("base must be map, array or sequence type.");
           t = (PrimitiveType) t.firstarg();
         }
 
@@ -1664,6 +1678,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
 
   private void check_location(ASTNode arg,String what) {
+    if(arg instanceof InlineQuantifierPattern) {
+      check_location(((InlineQuantifierPattern) arg).inner(), what);
+      return;
+    }
+
     if (!(arg instanceof Dereference)
     && !(arg instanceof FieldAccess)
     && !arg.isa(StandardOperator.Subscript)
@@ -1879,7 +1898,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     t=e.main().getType();
-    Objects.requireNonNull(t, "Bingind expression without type");
+    Objects.requireNonNull(t, "Binding expression without type");
     switch(e.binder()){
     case Let:
       e.setType(t);
@@ -2045,5 +2064,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     c.block().apply(this);
+  }
+
+  @Override
+  public void visit(InlineQuantifierPattern pattern) {
+    pattern.inner().apply(this);
+    pattern.setType(pattern.inner().getType());
   }
 }

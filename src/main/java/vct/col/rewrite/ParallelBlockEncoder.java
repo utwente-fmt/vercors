@@ -2,7 +2,13 @@ package vct.col.rewrite;
 
 import hre.ast.BranchOrigin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.expr.*;
@@ -12,14 +18,13 @@ import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.ast.stmt.decl.*;
+import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.NameScanner;
-import vct.col.ast.stmt.decl.*;
 import vct.col.util.OriginWrapper;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
@@ -27,22 +32,18 @@ import vct.logging.VerCorsError.ErrorCode;
 public class ParallelBlockEncoder extends AbstractRewriter {
 
   public static final String ENTER_INVARIANT="enter_inv";
-  public static final String LEAVE_ATOMIC="leave_atomic";
-  
+
   public ParallelBlockEncoder(ProgramUnit source, ErrorMapping map) {
     super(source);
     map.add(ENTER_INVARIANT,
         ErrorCode.ExhaleFailed,
         ErrorCode.InvariantNotEstablished);
-    map.add(LEAVE_ATOMIC,
-        ErrorCode.ExhaleFailed,
-        ErrorCode.InvariantBroken);
   }
 
   private int count=0;
   private Stack<ASTNode> inv_blocks=new Stack<ASTNode>();
   private Stack<ParallelBlock> blocks=new Stack<ParallelBlock>();
-  
+
   @Override
   public void visit(ParallelInvariant inv){
     inv_blocks.push(inv);
@@ -487,58 +488,6 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         )
     ));
     
-  }
-
-  @Override
-  public void visit(ParallelAtomic pa){
-    ASTNode atomicStat = rewrite(pa.block());
-    BlockStatement block;
-
-    if(atomicStat instanceof BlockStatement) {
-      block = (BlockStatement) atomicStat;
-    } else {
-      block = create.block(atomicStat);
-    }
-    
-    for (ASTNode node : pa.synclistJava()) {
-      if (node instanceof NameExpression){
-        NameExpression name=(NameExpression)node;
-        if (name.getKind()== NameExpressionKind.Label){
-          boolean found=false;
-          for(ASTNode ib:inv_blocks){
-            if (ib instanceof ParallelInvariant){
-              ParallelInvariant inv=(ParallelInvariant)ib;
-              if (inv.label().equals(name.toString())) {
-                block.prepend(create.special(ASTSpecial.Kind.Inhale, inv.inv()));
-                block.append(create.special(ASTSpecial.Kind.Exhale, inv.inv()).set_branch(LEAVE_ATOMIC));
-                found = true;
-              }
-            }
-          }
-          if (found){
-            continue;
-          }
-          Fail("Could not find an invariant labeled %s",name);
-        }
-      }
-      ClassType ct=(ClassType)node.getType();
-      ASTClass cl=source().find(ct);
-      String name="csl_invariant";
-      ArrayList<ASTNode> args=new ArrayList<ASTNode>();
-      for(Method m:cl.dynamicMethods()){
-        if (m.name().endsWith("csl_invariant")){
-          name=m.name();
-          for(DeclarationStatement d:m.getArgs()){
-            args.add(create.local_name(d.name()));
-          }
-        }
-      }
-      block.prepend(create.special(ASTSpecial.Kind.Unfold,create.invokation(rewrite(node),null,name,args)));
-      block.prepend(create.special(ASTSpecial.Kind.Inhale,create.invokation(rewrite(node),null,name,args)));
-      block.append(create.special(ASTSpecial.Kind.Fold,create.invokation(rewrite(node),null,name,args)));
-      block.append(create.special(ASTSpecial.Kind.Exhale,create.invokation(rewrite(node),null,name,args)));
-    }
-    result=block;
   }
 
   /********************* From Iteration Contract Encoder *******************/

@@ -116,6 +116,7 @@ public interface ASTMapping1<R,A1> {
   public R map(OMPParallelFor loop, A1 arg);
   public R map(OMPForSimd loop, A1 arg);
 
+  public R map(InlineQuantifierPattern pattern, A1 arg);
   public R map(CatchClause cc, A1 arg);
   public R map(SignalsClause sc, A1 arg);
 }

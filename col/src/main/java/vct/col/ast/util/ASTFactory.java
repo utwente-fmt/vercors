@@ -1492,6 +1492,16 @@ public Axiom axiom(String name, ASTNode exp){
     return sync;
   }
 
+  public InlineQuantifierPattern pattern(ASTNode inner) {
+    return pattern(origin_stack.get(), inner);
+  }
+
+  public InlineQuantifierPattern pattern(Origin origin, ASTNode inner) {
+    InlineQuantifierPattern pattern = new InlineQuantifierPattern(inner);
+    pattern.setOrigin(origin);
+    return pattern;
+  }
+
   public ASTSpecial gotoStatement(NameExpression label) {
     return special(ASTSpecial.Kind.Goto, label);
   }

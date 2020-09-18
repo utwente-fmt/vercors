@@ -301,6 +301,11 @@ public class UndefinedMapping<T> implements ASTMapping<T> {
   }
 
   @Override
+  public T map(InlineQuantifierPattern pattern) {
+    return null;
+  }
+
+  @Override
   public T map(CatchClause cc) {
     return null;
   }

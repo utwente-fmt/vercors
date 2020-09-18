@@ -363,8 +363,8 @@ BlockCommentStart: '/*' -> mode(COMMENT), skip;
 LineCommentStart: '//' -> mode(LINE_COMMENT), skip;
 
 EndSpec
-    : {inBlockSpec}? '@'? '*/' {inBlockSpec = false;}
-    | {inLineSpec}? ('\n'|'\r\n') {inLineSpec = false;}
+    : '@'? '*/' {inBlockSpec}? {inBlockSpec = false;}
+    | ('\n'|'\r\n') {inLineSpec}? {inLineSpec = false;}
     ;
 
 Whitespace
@@ -404,7 +404,7 @@ Identifier
     ;
 
 ExtraAt
-    : {inBlockSpec}? ('\n'|'\r\n') [ \t\u000C]* '@' -> skip
+    :  ('\n'|'\r\n') [ \t\u000C]* '@' {inBlockSpec}? -> skip
     ;
 
 mode COMMENT;

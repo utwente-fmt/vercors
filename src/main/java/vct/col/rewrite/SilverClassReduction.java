@@ -189,7 +189,8 @@ public class SilverClassReduction extends AbstractRewriter {
       fractions = true;
       result = create.invokation(null, null, "new_zfrac", e);
     } else {
-      super.visit(e);
+       String newName = e.getName().replace('<', '$').replace('>', '$');
+      result = create.name(e.getKind(), e.reserved(), newName);
     }
   }
 
@@ -546,6 +547,10 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal);
       break;
     }
+    case CurrentPerm:
+      super.visit(e);
+      result = create.invokation(null, null, "new_zfrac", result);
+      break;
     case Scale: {
       ASTNode permVal = e.arg(0);
       if (permVal.getType().isFraction()) {
@@ -752,6 +757,7 @@ public class SilverClassReduction extends AbstractRewriter {
       }   
     }
     c=cb.getContract();
+    name = name.replace('<', '$').replace('>', '$');
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
 
   }
@@ -890,6 +896,7 @@ public class SilverClassReduction extends AbstractRewriter {
     for(ASTNode arg :s.getArgs()){
       args.add(rewrite(arg));
     }
+    method = method.replace('<', '$').replace('>', '$');
     MethodInvokation res=create.invokation(object, dispatch, method, args.toArray(new ASTNode[0]));
     res.set_before(rewrite(s.get_before()));
     res.set_after(rewrite(s.get_after()));

@@ -431,6 +431,10 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
   }
 
   @Override
+  public Boolean map(InlineQuantifierPattern pattern, ASTNode arg) {
+    return null;
+  }
+
   public Boolean map(CatchClause cc, ASTNode arg) {
     return null;
   }
