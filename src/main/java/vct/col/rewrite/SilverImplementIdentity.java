@@ -41,9 +41,6 @@ public class SilverImplementIdentity extends AbstractRewriter {
   
   public void visit(OperatorExpression e){
     switch(e.operator()){
-    case Identity:
-      result=create.invokation(null, null, "id", rewrite(e.arg(0)));
-      break;
     case Subscript:
       if (e.arg(1) instanceof NameExpression){
         result=copy_rw.rewrite(e);

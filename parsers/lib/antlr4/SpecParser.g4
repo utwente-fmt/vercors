@@ -107,7 +107,6 @@ valPrimary
     | '(' '\\sum' langType langId ';' langExpr ';' langExpr ')'
     | '\\length' '(' langExpr ')'
     | '\\old' '(' langExpr ')'
-    | '\\id' '(' langExpr ')'
     | '\\typeof' '(' langExpr ')'
     | '\\matrix' '(' langExpr ',' langExpr ',' langExpr ')'
     | '\\array'  '(' langExpr ',' langExpr ')'
