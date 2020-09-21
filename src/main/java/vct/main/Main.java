@@ -239,7 +239,6 @@ public class Main
       }
       if (CommandLineTesting.enabled()){
         CommandLineTesting.runTests();
-        throw new HREExitException(0);
       }
       if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
@@ -708,7 +707,9 @@ public class Main
       }
     } catch (HREExitException e) {
       exit=e.exit;
-      Verdict("The final verdict is Error");
+      if (exit != 0) {
+        Verdict("The final verdict is Error");
+      }
     } catch (Throwable e) {
       DebugException(e);
       Verdict("An unexpected error occured in VerCors! " +
@@ -719,7 +720,7 @@ public class Main
     } finally {
       Progress("entire run took %d ms",System.currentTimeMillis()-wallStart);
       if (notify.get()) {
-        Notifier.notify("VerCors", "Verification finished");
+        Notifier.notify("VerCors", "Verification is complete");
       }
       System.exit(exit);
     }
