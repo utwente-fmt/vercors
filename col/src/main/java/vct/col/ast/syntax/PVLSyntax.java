@@ -45,7 +45,6 @@ public class PVLSyntax {
       syntax.addFunction(Value,"Value");
 
       syntax.addFunction(PointsTo,"PointsTo");
-      syntax.addFunction(Identity,"id");
       syntax.addFunction(IterationOwner,"\\owner");
       //syntax.addFunction(ArrayPerm,"ArrayPerm");
       syntax.addFunction(Old,"\\old");

@@ -252,10 +252,6 @@ public enum StandardOperator {
    */
   Held(1),
   /**
-   * The identity operator.
-   */
-  Identity(1),
-  /**
    * The C indirection operator (*).
    */
   Indirection(1),

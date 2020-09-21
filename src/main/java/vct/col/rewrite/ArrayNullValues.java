@@ -203,11 +203,6 @@ public class ArrayNullValues extends AbstractRewriter {
                 break;
             case Held:
                 break;
-            case Identity:
-                if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
-                    exp.arg(0).setType(exp.getType());
-                }
-                break;
             case Indirection:
                 break;
             case IterationOwner:

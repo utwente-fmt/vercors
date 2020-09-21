@@ -1157,11 +1157,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType((Type) ((PrimitiveType) t).firstarg());
         break;
       }
-      case Identity: {
-        Type t = e.arg(0).getType();
-        e.setType(t);
-        break;
-      }
       case PreIncr:
       case PreDecr:
       case PostIncr:
