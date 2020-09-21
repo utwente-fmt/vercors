@@ -169,6 +169,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         mods.foreach(mod => res.attach(mod))
         res
       }
+
+    case ClassDeclaration0("class", name, typeParameters, superClasses, interfaces, body) =>
+      ??(decl)
   })
 
   def convertThrows(maybeThrows: Option[ThrowyContext]): Seq[Type] = maybeThrows match {
