@@ -42,6 +42,7 @@ object Passes {
     SimplePass("access",
       "convert access expressions for histories/futures",
       new AccessIntroduce(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.NeedsDefinedCheck + features.NeedsAxiomCheck + features.NeedsHistoryCheck,
       removes=Set(features.Dereference),
       introduces=Feature.DEFAULT_INTRODUCE - features.Dereference,
     ),
@@ -72,7 +73,7 @@ object Passes {
     SimplePass("array_null_values",
       "rewrite null values for arrays to None",
       new ArrayNullValues(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT ++ Set(
+      permits=Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES ++ Set(
         features.NullAsOptionValue,
         features.ArgumentAssignment,
         features.PureImperativeMethods,
@@ -107,12 +108,19 @@ object Passes {
     SimplePass("check-defined", "rewrite process algebra class to check if defined process match their contracts", arg => {
       val tmp = new CheckProcessAlgebra(arg).rewriteAll
       new RandomizedIf(tmp).rewriteAll
-    }),
-    ErrorMapPass("check-axioms", "rewrite process algebra class to check if history axioms are correct", new CheckHistoryAlgebra(_, CheckHistoryAlgebra.Mode.AxiomVerification, _).rewriteAll),
+    }, removes=Set(features.NeedsDefinedCheck), permits=Feature.DEFAULT_PERMIT + features.NeedsDefinedCheck),
+    ErrorMapPass(
+      "check-axioms", "rewrite process algebra class to check if history axioms are correct",
+      new CheckHistoryAlgebra(_, CheckHistoryAlgebra.Mode.AxiomVerification, _).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.NeedsAxiomCheck,
+      removes=Set(features.NeedsAxiomCheck),
+    ),
     ErrorMapPass("check-history",
       "rewrite process algebra class to check if history axioms are correct",
       new CheckHistoryAlgebra(_, CheckHistoryAlgebra.Mode.ProgramVerification, _).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.Dereference
+      permits=Feature.DEFAULT_PERMIT - features.Dereference + features.NeedsHistoryCheck,
+      introduces=Feature.DEFAULT_INTRODUCE - features.Dereference,
+      removes=Set(features.NeedsHistoryCheck),
     ),
     ErrorMapPass(
       "csl-encode", "Encode CSL atomic regions with methods",
@@ -193,12 +201,12 @@ object Passes {
     SimplePass("finalize_args",
       "Make all method arguments final, i.e. not assigned to",
       new FinalizeArguments(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.ArgumentAssignment + features.PureImperativeMethods,
+      permits=Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES + features.ArgumentAssignment + features.PureImperativeMethods,
       removes=Set(features.ArgumentAssignment)),
     SimplePass("flatten",
       "remove nesting of expression",
       new Flatten(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations - features.Arrays,
       removes=Set(features.NotFlattened),
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,
@@ -243,6 +251,7 @@ object Passes {
     SimplePass("inline",
       "Inline all methods marked as inline",
       new InlinePredicatesRewriter(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT - features.Lemma, // TODO (Pieter): strange that predicates must not be inlined before magicwand stuff (then why are they inline?)
       removes=Set(features.InlinePredicate)),
     SimplePass("kernel-split",
       "Split kernels into main, thread and barrier.",
@@ -251,7 +260,7 @@ object Passes {
     SimplePass("pvl-encode",
       "Encode PVL builtins for verification.",
       new PVLEncoder(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT ++ Set(
+      permits=Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES ++ Set(
         features.NotJavaEncoded,
         features.PVLSugar,
         features.NullAsOptionValue,
@@ -306,7 +315,7 @@ object Passes {
     SimplePass("standardize-functions",
       "translate pure methods to function syntax.",
       new PureMethodsAsFunctions(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.PureImperativeMethods,
+      permits=Feature.DEFAULT_PERMIT + features.PureImperativeMethods ++ Feature.OPTION_GATES,
       removes=Set(features.PureImperativeMethods)),
     SimplePass("java_resolve", "Resolve the library dependencies of a java program", new JavaResolver(_).rewriteAll),
     SimplePass("propagate-invariants",
@@ -374,7 +383,8 @@ object Passes {
     SimplePass(
       "sat_check", "insert satisfyability checks for all methods",
       new SatCheckRewriter(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations ++ Feature.OPTION_GATES,
+      removes=Set(features.NeedsSatCheck),
     ),
     SimplePass("silver-class-reduction",
       "reduce classes to single Ref class",
@@ -510,28 +520,30 @@ object Passes {
     SimplePass("specify-implicit-labels",
       "Insert explicit labels for break statements in while loops.",
       new SpecifyImplicitLabels(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT
+      permits = Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES
+        + features.TopLevelDeclarations
         + features.ImplicitLabels
         + features.NullAsOptionValue
         + features.NotJavaEncoded
       , // TODO (Bob): This feels a bit suspicious
       removes = Set(features.ImplicitLabels)
     ),
-    // Currently disabled in favour of the exceptions pass below
-//    SimplePass("break-return-to-goto",
-//      "Rewrite break, return into jumps",
-//      new BreakReturnToGoto(_).rewriteAll(),
-//      permits = Feature.DEFAULT_PERMIT -- Set(features.Exceptions, features.Finally),
-//      introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
-//      removes = Set(features.Break, features.Return)
-//    ),
+    SimplePass("break-return-to-goto",
+      "Rewrite break, return into jumps",
+      new BreakReturnToGoto(_).rewriteAll(),
+      permits = Feature.DEFAULT_PERMIT -- Set(features.Exceptions, features.Finally, features.ImplicitLabels),
+      introduces = Feature.DEFAULT_INTRODUCE + features.Goto - features.Arrays,
+      removes = Set(features.Break, features.Return)
+    ),
     SimplePass("break-return-to-exceptions",
       "Rewrite break, return into exceptions",
       new BreakReturnToExceptions(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT
+      permits = Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES
         - features.Switch
+        - features.ImplicitLabels
         + features.NotJavaEncoded
-        + features.NullAsOptionValue, // TODO (Bob): Had to add this one but not sure what the feature does?
+        + features.NullAsOptionValue // TODO (Bob): Had to add this one but not sure what the feature does?
+        + features.ArgumentAssignment, // TODO (Pieter): also this one, I don't think this pass particularly needs to be before java-encode
       removes = Set(features.Break, features.Return),
       introduces = Feature.DEFAULT_INTRODUCE
         + features.Exceptions
@@ -542,7 +554,7 @@ object Passes {
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue, // TODO (Bob): Also suspicious
+      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue ++ Feature.OPTION_GATES, // TODO (Bob): Also suspicious
       removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
@@ -555,7 +567,7 @@ object Passes {
     SimplePass("unfold-synchronized",
       "Convert synchronized to try-finally",
       new UnfoldSynchronized(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT + features.Synchronized + features.NotJavaEncoded + features.PVLSugar + features.NullAsOptionValue,
+      permits = Feature.DEFAULT_PERMIT + features.Synchronized + features.NotJavaEncoded + features.PVLSugar + features.NullAsOptionValue ++ Feature.OPTION_GATES,
       removes = Set(features.Synchronized),
       introduces = Set(features.Exceptions, features.Finally, features.PVLSugar)
     ),
@@ -578,6 +590,7 @@ object Passes {
           features.NotFlattened,
           features.NonVoidMethods,
           features.Arrays,
+          features.ContextEverywhere,
         )
     ),
     SimplePass(

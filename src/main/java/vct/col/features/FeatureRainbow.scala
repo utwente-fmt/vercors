@@ -243,7 +243,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(name)
     if(name.kind == NameExpressionKind.Reserved) name.reserved match {
       case ASTReserved.Null => features += Null
-      case ASTReserved.This => features += This
+      case ASTReserved.This =>
+        features += This
       case ASTReserved.CurrentThread => features += CurrentThread
       case ASTReserved.Super => features += NotJavaEncoded
       case _ =>
@@ -423,6 +424,11 @@ object Feature {
     NullAsOptionValue,
     NotOptimized,
     DeclarationsNotLifted,
+
+    NeedsSatCheck,
+    NeedsAxiomCheck,
+    NeedsDefinedCheck,
+    NeedsHistoryCheck,
   )
   val DEFAULT_INTRODUCE: Set[Feature] = Set(
     // node annotations are mostly used by the parser and resolved early on
@@ -755,6 +761,13 @@ object Feature {
     ContractStatement,
     PureImperativeMethods,
   )
+
+  val OPTION_GATES: Set[Feature] = Set(
+    NeedsSatCheck,
+    NeedsAxiomCheck,
+    NeedsDefinedCheck,
+    NeedsHistoryCheck,
+  )
 }
 
 sealed trait Feature
@@ -828,3 +841,8 @@ case object BeforeSilverDomains extends GateFeature
 case object NullAsOptionValue extends GateFeature
 case object NotOptimized extends GateFeature
 case object DeclarationsNotLifted extends GateFeature
+
+case object NeedsSatCheck extends GateFeature
+case object NeedsAxiomCheck extends GateFeature
+case object NeedsDefinedCheck extends GateFeature
+case object NeedsHistoryCheck extends GateFeature

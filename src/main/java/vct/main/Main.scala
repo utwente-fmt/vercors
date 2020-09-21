@@ -8,7 +8,7 @@ import java.util
 import java.util.concurrent.LinkedBlockingDeque
 
 import hre.ast.FileOrigin
-import hre.config.{Configuration, _}
+import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
@@ -410,31 +410,20 @@ class Main {
     else "Fail")
   }
 
-  // TODO (Bob): None.get exception here is possible if you forget things like me
-  def findPassToRemove(feature: Feature): AbstractPass = BY_KEY.values.find(_.removes.contains(feature)).get
-
-  def computeGoal(featuresIn: Set[Feature], goal: String): (Seq[AbstractPass], Set[Feature]) = {
+  /** From a starting set of features: tries to compute a valid ordering of the passes */
+  def computePassChainFromPassSet(featuresIn: Set[Feature], passSet: Set[AbstractPass]): Option[Seq[AbstractPass]] = {
+    Output("== Trying to compute pass chain ==")
+    val passesToDo: ArrayBuffer[AbstractPass] = ArrayBuffer() ++ passSet.toSeq.sortBy(_.key)
     var features = featuresIn
-    var permit: Set[Feature] = BY_KEY(goal).permits
-    var unorderedPassesSet: mutable.Set[AbstractPass] = mutable.Set() ++ (features -- permit).map(findPassToRemove)
-    var passes: mutable.ArrayBuffer[AbstractPass] = mutable.ArrayBuffer()
+    var passes = ArrayBuffer.empty[AbstractPass]
 
-    while((unorderedPassesSet.flatMap(_.introduces) -- features).nonEmpty) {
-      features ++= unorderedPassesSet.map(_.introduces).reduce(_ ++ _)
-      permit = unorderedPassesSet.foldLeft(permit)(_ intersect _.permits)
-      unorderedPassesSet = mutable.Set() ++ (features -- permit).map(findPassToRemove)
-    }
-
-    val unorderedPasses: ArrayBuffer[AbstractPass] = ArrayBuffer() ++ unorderedPassesSet.toSeq.sortBy(_.description)
-
-    while(unorderedPasses.nonEmpty) {
-      // Assume no passes are idempotent, which makes ordering much easier.
-
-      val nextPassResults = unorderedPasses.map {
+    while(passesToDo.nonEmpty) {
+      /* The next pass must permit the current features, and no pass must introduce the features it removes */
+      val nextPassResults = passesToDo.map {
         case pass if (features -- pass.permits).nonEmpty =>
           Left(s"cannot apply ${pass.key} since it does not permit these features: ${features--pass.permits}'")
-        case pass if unorderedPasses.exists(_.introduces.intersect(pass.removes).nonEmpty) =>
-          val conflictingPass = unorderedPasses.find(_.introduces.intersect(pass.removes).nonEmpty).get
+        case pass if passesToDo.exists(_.introduces.intersect(pass.removes).nonEmpty) =>
+          val conflictingPass = passesToDo.find(_.introduces.intersect(pass.removes).nonEmpty).get
           Left(s"cannot apply ${pass.key} since ${conflictingPass.key} introduces ${conflictingPass.introduces.intersect(pass.removes)}")
         case pass => Right(pass)
       }
@@ -444,23 +433,77 @@ class Main {
       } match {
         case Some(pass) => pass
         case None =>
-          Warning("Leftover features: %s", features)
-          nextPassResults.foreach {
-            case Left(error) => Warning(error)
-            case _ =>
+          /* No pass satisfies the above conditions. In this case, we could also execute a pass that removes a feature
+             that is later introduced again. This imposes that all passes that do not permit the feature occur before
+             passes that introduce the feature. */
+          val allowedOrderImposingPasses = passesToDo.filter(pass =>
+            (features -- pass.permits).isEmpty &&
+              passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty).forall(_.introduces.intersect(pass.removes).isEmpty)
+          )
+
+          /* If there is exactly one such pass, there can only be a solution if we do the pass right now. */
+          if(allowedOrderImposingPasses.size == 1) {
+            val pass = allowedOrderImposingPasses.head
+            Output("vvvv Will impose that all of:  %s", passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty).map(_.key))
+            Output("vvvv Must occur before all of: %s", passesToDo.filter(pass2 => (pass.removes -- pass2.permits).isEmpty).map(_.key))
+            pass
+          } else {
+            /* Otherwise, there may or may not be a solution, but this is expensive to compute. */
+            Warning("Leftover features: %s", features)
+            if(allowedOrderImposingPasses.nonEmpty)
+              Warning("Perhaps we could have run one of: %s", allowedOrderImposingPasses)
+            nextPassResults.foreach {
+              case Left(error) => Warning(error)
+              case _ =>
+            }
+            return None
           }
-          Abort("No way to proceed!")
-          ???
       }
 
-      unorderedPasses -= nextPass
+      passesToDo -= nextPass
       Output("Planning to do %s", nextPass.key)
       passes += nextPass
-      passes += BY_KEY("check")
       features = features -- nextPass.removes ++ nextPass.introduces
     }
 
-    (passes, features)
+    Some(passes)
+  }
+
+  /** Collect all passes that remove a feature */
+  def findPassesToRemove(feature: Feature): Set[AbstractPass] =
+    BY_KEY.values.filter(_.removes.contains(feature)).toSet
+
+  /** Yield all sets of passes that are at least able to remove all features that are not permitted in a pass */
+  def removalFixedPoint(featuresIn: Set[Feature], passes: Set[AbstractPass]): Seq[Set[AbstractPass]] = {
+    val allFeatures = passes.foldLeft(featuresIn)(_ ++ _.introduces)
+    val sharedPermit = passes.foldLeft(Feature.ALL)(_ intersect _.permits)
+    val removes = passes.foldLeft(Set.empty[Feature])(_ ++ _.removes)
+    val toRemove = (allFeatures -- sharedPermit) -- removes
+
+    if(toRemove.isEmpty) {
+      Seq(passes)
+    } else {
+      val extraPasses = toRemove.map(findPassesToRemove).map {
+        case passes if passes.isEmpty =>
+          return Seq()
+        case passes if passes.size == 1 =>
+          passes.head
+        case more =>
+          return more.toSeq.flatMap(pass => removalFixedPoint(featuresIn, passes + pass))
+      }
+
+      removalFixedPoint(featuresIn, passes ++ extraPasses)
+    }
+  }
+
+  def computeGoal(featuresIn: Set[Feature], goal: AbstractPass): Option[Seq[AbstractPass]] = {
+    val passChains = removalFixedPoint(featuresIn, Set(goal)).flatMap(computePassChainFromPassSet(featuresIn, _))
+
+    if(passChains.isEmpty) {
+      None
+    } else {
+      Some(passChains.minBy(_.size))
+    }
   }
 
   def doPassesByRainbow(): Unit = {
@@ -471,15 +514,6 @@ class Main {
 
     Seq(resolve, standardize, check, localCheck).foreach(
       pass => report = pass.apply_pass(report, Array()))
-
-    var goals = Seq.empty[String]
-
-    if(sat_check.get()) goals :+= "sat_check"
-    if(check_axioms.get()) goals :+= "check-axioms"
-    if(check_defined.get()) goals :+= "check-defined"
-    if(check_history.get()) goals :+= "check-history"
-
-    goals :+= "silver"
 
     val visitor = new RainbowVisitor(report.getOutput)
     report.getOutput.asScala.foreach(_.accept(visitor))
@@ -497,27 +531,27 @@ class Main {
       vct.col.features.ImplicitLabels, // Can be detected, lazy, sorry
     )
 
-    var passes = Seq.empty[AbstractPass]
+    if(sat_check.get()) features += vct.col.features.NeedsSatCheck
+    if(check_axioms.get()) features += vct.col.features.NeedsAxiomCheck
+    if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
+    if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
-    for(goal <- goals) {
-      val (newPasses, newFeatures) = computeGoal(features, goal)
-      passes = passes ++ newPasses :+ BY_KEY(goal) :+ BY_KEY("check")
-      features = newFeatures
-    }
+    // intersperse type checks
+    val passes = computeGoal(features, BY_KEY("silver")).get.flatMap(Seq(_, BY_KEY("java-check"))).init
 
-    passes = passes.init
-    var featuresIn: Set[Feature] = Set.empty
-    var featuresOut: Set[Feature] = Set.empty
     var lastPass: AbstractPass = null
+    var featuresIn: Set[Feature] = null
+    var featuresOut: Set[Feature] = null
     var done = Seq.empty[AbstractPass]
 
     passes.foreach(pass => {
-      Progress("%s", pass.description)
-
-      if(pass.key != "check") {
+      if(pass.key != "java-check") {
+        Output("> %s", pass.key)
         featuresIn = Feature.scan(report.getOutput)
         lastPass = pass
       }
+
+      Progress("%s", pass.description)
 
       if (show_before.contains(pass.key)) {
         Progress("show_before")
@@ -528,7 +562,7 @@ class Main {
 
       report = pass.apply_pass(report, Array())
 
-      if(pass.key == "check") {
+      if(pass.key == "java-check") {
         featuresOut = Feature.scan(report.getOutput)
         val notRemoved = featuresOut.intersect(lastPass.removes)
         val extraIntro = featuresOut -- featuresIn -- lastPass.introduces
