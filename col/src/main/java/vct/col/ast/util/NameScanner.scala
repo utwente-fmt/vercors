@@ -64,6 +64,12 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     */
   val freeNames: mutable.Map[String, Entry] = mutable.LinkedHashMap()
 
+  /**
+    * Here all initBlocks of LoopStatements are saved. This can be used when visiting BlockStatements to not
+    * pop the frameStack, as declarations within initBlocks need to be visible in the rest of the LoopStatement.
+    */
+  val initBlocks: mutable.Set[BlockStatement] = mutable.Set()
+
   // Ensure there is at least one frame at the start
   pushFrame()
 
@@ -191,6 +197,8 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(s: LoopStatement): Unit = {
     pushFrame()
 
+    initBlocks += s.getInitBlock.asInstanceOf[BlockStatement]
+
     super.visit(s)
 
     popFrame()
@@ -233,11 +241,14 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   }
 
   override def visit(b: BlockStatement): Unit = {
-    pushFrame()
+    // Declarations in initblocks are supposed to leak into other components of LoopStatement.
+    // Therefore a frame is not pushed when an initBlock is encountered.
+    val isInitBlock = initBlocks contains b
+    if (!isInitBlock) pushFrame()
 
     super.visit(b)
 
-    popFrame()
+    if (!isInitBlock) popFrame()
   }
 
   override def visit(e: OperatorExpression): Unit = if ((e.operator eq StandardOperator.StructDeref) || (e.operator eq StandardOperator.StructSelect)) {
