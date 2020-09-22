@@ -13,7 +13,6 @@ case class HREViperReporter(name: String = "hre_reporter", timeInfo: Boolean = t
   private def bulletFmt(num_items: Int): String = s"%${num_items.toString.length}d"
 
   def report(msg: Message): Unit = {
-    Warning("%s", msg)
     msg match {
       case OverallFailureMessage(v, t, res) =>
         val num_errors = res.errors.length

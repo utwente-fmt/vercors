@@ -239,65 +239,6 @@ class Main {
     passes.add("dafny")
   }
 
-  private def getPasses: LinkedBlockingDeque[String] = {
-    val features = new FeatureScanner
-    report.getOutput.accept(features)
-    val passes = new LinkedBlockingDeque[String]
-    if (pass_list_option.used) {
-      for (s <- pass_list.asScala) {
-        passes.add(s)
-      }
-    }
-    else if (boogie.get) collectPassesForBoogie(passes)
-    else if (dafny.get) collectPassesForDafny(passes)
-    else if (silver.used || chalice.get) collectPassesForSilver(passes, features)
-    else Abort("no back-end or passes specified")
-    passes
-  }
-
-  private def show(pass: String): Unit = {
-    val name = show_file.get
-    if (name != null) {
-      val file = String.format(name, pass)
-      val out = new PrintWriter(new FileOutputStream(file))
-      vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
-      out.close()
-    }
-    else {
-      val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
-      vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
-      out.close()
-    }
-  }
-
-  @throws[FileNotFoundException]
-  private def doPasses(passes: util.Deque[String]): Unit = {
-    var fatal_errs = 0
-    val passCount = passes.size
-    while (!passes.isEmpty && fatal_errs == 0) {
-      var pass = passes.removeFirst()
-      var pass_args = pass.split("=")
-      pass = pass_args(0)
-      if (pass_args.length == 1) pass_args = new Array[String](0)
-      else pass_args = pass_args(1).split("\\+")
-      if (debugBefore.has(pass)) report.getOutput.dump()
-      if (show_before.contains(pass)) show(pass)
-      Passes.BY_KEY.get(pass) match {
-        case None => Fail("unknown pass %s", pass)
-        case Some(task) =>
-          tk.show
-          report = task.apply_pass(report, pass_args)
-          fatal_errs = report.getFatal
-          Progress("[%02d%%] %s took %d ms", Int.box(100 * (passCount - passes.size) / passCount), pass, Long.box(tk.show))
-      }
-      if (debugAfter.has(pass)) report.getOutput.dump()
-      if (show_after.contains(pass)) show(pass)
-      if (stop_after.contains(pass)) Fail("exit after pass %s", pass)
-    }
-    Verdict("The final verdict is %s", if (fatal_errs == 0) "Pass"
-    else "Fail")
-  }
-
   /** From a starting set of features: tries to compute a valid ordering of the passes */
   def computePassChainFromPassSet(featuresIn: Set[Feature], passSet: Set[AbstractPass]): Option[Seq[AbstractPass]] = {
     Output("== Trying to compute pass chain ==")
@@ -394,7 +335,7 @@ class Main {
     }
   }
 
-  def doPassesByRainbow(): Unit = {
+  def collectPassesForSilver(javaPasses: util.Deque[String]): Unit = {
     val resolve = Passes.BY_KEY.apply("java_resolve")
     val standardize = Passes.BY_KEY.apply("standardize")
     val check = Passes.BY_KEY.apply("check")
@@ -426,7 +367,9 @@ class Main {
 
     // intersperse type checks
     val passes = computeGoal(features, BY_KEY("silver")).get.flatMap(Seq(_, BY_KEY("java-check"))).init
+    javaPasses.addAll(passes.map(_.key).asJava)
 
+    /*
     var lastPass: AbstractPass = null
     var featuresIn: Set[Feature] = null
     var featuresOut: Set[Feature] = null
@@ -474,6 +417,66 @@ class Main {
 
     val verdict = if(report.getFatal == 0) "Pass" else "Fail"
     Verdict("The final verdict is %s", verdict)
+    */
+  }
+
+  private def getPasses: LinkedBlockingDeque[String] = {
+    val features = new FeatureScanner
+    report.getOutput.accept(features)
+    val passes = new LinkedBlockingDeque[String]
+    if (pass_list_option.used) {
+      for (s <- pass_list.asScala) {
+        passes.add(s)
+      }
+    }
+    else if (boogie.get) collectPassesForBoogie(passes)
+    else if (dafny.get) collectPassesForDafny(passes)
+    else if (silver.used || chalice.get) collectPassesForSilver(passes)
+    else Abort("no back-end or passes specified")
+    passes
+  }
+
+  private def show(pass: String): Unit = {
+    val name = show_file.get
+    if (name != null) {
+      val file = String.format(name, pass)
+      val out = new PrintWriter(new FileOutputStream(file))
+      vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
+      out.close()
+    }
+    else {
+      val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+      vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
+      out.close()
+    }
+  }
+
+  @throws[FileNotFoundException]
+  private def doPasses(passes: util.Deque[String]): Unit = {
+    var fatal_errs = 0
+    val passCount = passes.size
+    while (!passes.isEmpty && fatal_errs == 0) {
+      var pass = passes.removeFirst()
+      var pass_args = pass.split("=")
+      pass = pass_args(0)
+      if (pass_args.length == 1) pass_args = new Array[String](0)
+      else pass_args = pass_args(1).split("\\+")
+      if (debugBefore.has(pass)) report.getOutput.dump()
+      if (show_before.contains(pass)) show(pass)
+      Passes.BY_KEY.get(pass) match {
+        case None => Fail("unknown pass %s", pass)
+        case Some(task) =>
+          tk.show
+          report = task.apply_pass(report, pass_args)
+          fatal_errs = report.getFatal
+          Progress("[%02d%%] %s took %d ms", Int.box(100 * (passCount - passes.size) / passCount), pass, Long.box(tk.show))
+      }
+      if (debugAfter.has(pass)) report.getOutput.dump()
+      if (show_after.contains(pass)) show(pass)
+      if (stop_after.contains(pass)) Fail("exit after pass %s", pass)
+    }
+    Verdict("The final verdict is %s", if (fatal_errs == 0) "Pass"
+    else "Fail")
   }
 
   private def run(args: Array[String]): Int = {
@@ -489,8 +492,7 @@ class Main {
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
         parseInputs(inputPaths)
-        // doPasses(getPasses)
-        doPassesByRainbow()
+        doPasses(getPasses)
       }
     } catch {
       case e: HREExitException =>
