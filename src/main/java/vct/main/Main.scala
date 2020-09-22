@@ -364,10 +364,7 @@ class Main {
     Seq(resolve, standardize, check, localCheck).foreach(
       pass => report = pass.apply_pass(report, Array()))
 
-    val visitor = new RainbowVisitor(report.getOutput)
-    report.getOutput.asScala.foreach(_.accept(visitor))
-
-    var features = visitor.features.toSet ++ Set(
+    var features = Feature.scan(report.getOutput) ++ Set(
       // These are "gated" features: they are (too) hard to detect normally.
       vct.col.features.NotFlattened,
       vct.col.features.BeforeSilverDomains,
@@ -387,56 +384,6 @@ class Main {
 
     // intersperse type checks
     computeGoal(features, BY_KEY("silver")).get.flatMap(Seq(_, BY_KEY("java-check"))).init
-
-    /*
-    var lastPass: AbstractPass = null
-    var featuresIn: Set[Feature] = null
-    var featuresOut: Set[Feature] = null
-    var done = Seq.empty[AbstractPass]
-
-    passes.foreach(pass => {
-      if(pass.key != "java-check") {
-        Output("> %s", pass.key)
-        featuresIn = Feature.scan(report.getOutput)
-        lastPass = pass
-      }
-
-      Progress("%s", pass.description)
-
-      if (show_before.contains(pass.key)) {
-        Progress("show_before")
-        val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
-        vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
-        out.close()
-      }
-
-      report = pass.apply_pass(report, Array())
-
-      if(pass.key == "java-check") {
-        featuresOut = Feature.scan(report.getOutput)
-        val notRemoved = featuresOut.intersect(lastPass.removes)
-        val extraIntro = featuresOut -- featuresIn -- lastPass.introduces
-
-        if (notRemoved.nonEmpty) {
-          Output("!! Pass %s did not remove %s", lastPass.key, notRemoved)
-        }
-        if (extraIntro.nonEmpty) {
-          Output("!! Pass %s introduced %s", lastPass.key, extraIntro)
-        }
-      }
-
-      done :+= pass
-
-      if (show_after.contains(pass.key)) {
-        val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
-        vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
-        out.close()
-      }
-    })
-
-    val verdict = if(report.getFatal == 0) "Pass" else "Fail"
-    Verdict("The final verdict is %s", verdict)
-    */
   }
 
   private def getPasses: Seq[AbstractPass] = {
@@ -472,13 +419,37 @@ class Main {
 
   @throws[FileNotFoundException]
   private def doPasses(passes: Seq[AbstractPass]): Unit = {
+    var lastPass: AbstractPass = null
+    var featuresIn: Set[Feature] = null
+
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
 
       tk.show
       report = pass.apply_pass(report, Array())
-      Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass, Long.box(tk.show))
+      Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
+
+      if(strictInternalConditions.get()) {
+        if (pass.key != "java-check") {
+          // Collect the input features and store which pass they belong to
+          featuresIn = Feature.scan(report.getInput)
+          lastPass = pass
+        } else {
+          // We have the input features and can (with types) now scan output features
+          val featuresOut = Feature.scan(report.getOutput)
+
+          val notRemoved = featuresOut.intersect(pass.removes)
+          val extraIntro = featuresOut -- featuresIn -- pass.introduces
+
+          if (notRemoved.nonEmpty) {
+            Warning("Pass %s did not remove %s", lastPass.key, notRemoved.map(_.toString).mkString(", "))
+          }
+          if (extraIntro.nonEmpty) {
+            Warning("Pass %s introduced %s", lastPass.key, extraIntro.map(_.toString).mkString(", "))
+          }
+        }
+      }
 
       if (debugAfter.has(pass.key)) report.getOutput.dump()
       if (show_after.contains(pass.key)) show(pass)
