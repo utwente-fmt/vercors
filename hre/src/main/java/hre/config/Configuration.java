@@ -84,6 +84,7 @@ public class Configuration {
     public static final StringSetting cpp_command=new StringSetting("clang -C -E");
 
     public static final BooleanSetting debugBackend = new BooleanSetting(false);
+    public static final BooleanSetting ansi = new BooleanSetting(false);
 
     /**
      * Add the VCT library options to the given option parser.
@@ -105,6 +106,7 @@ public class Configuration {
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
+        clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);

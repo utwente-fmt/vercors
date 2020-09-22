@@ -1,6 +1,7 @@
 package hre.lang;
 
 import ch.qos.logback.classic.LoggerContext;
+import hre.config.Configuration;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
@@ -163,14 +164,14 @@ public class System {
                         message = level.getShorthand() + String.format(format, args);
                     }
 
-                    if(needLineClear) {
+                    if(needLineClear /* && Config.ansi true below */) {
                         entry.getKey().append("\033[0K");
                         needLineClear = false;
                     }
 
                     entry.getKey().append(message);
 
-                    if(level == LogLevel.Progress) {
+                    if(level == LogLevel.Progress && Configuration.ansi.get()) {
                         entry.getKey().append("\r");
                         needLineClear = true;
                     } else {
