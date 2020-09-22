@@ -383,7 +383,7 @@ class Main {
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
     // intersperse type checks
-    computeGoal(features, BY_KEY("silver")).get.flatMap(Seq(_, BY_KEY("java-check"))).init
+    computeGoal(features, BY_KEY("silver")).get
   }
 
   private def getPasses: Seq[AbstractPass] = {
@@ -399,7 +399,7 @@ class Main {
     else if (boogie.get) collectPassesForBoogie
     else if (dafny.get) collectPassesForDafny
     else if (silver.used || chalice.get) collectPassesForSilver
-    else { Fail("no back-end or passes specified"); ???}
+    else { Fail("no back-end or passes specified"); ??? }
   }
 
   private def show(pass: AbstractPass): Unit = {
@@ -419,35 +419,30 @@ class Main {
 
   @throws[FileNotFoundException]
   private def doPasses(passes: Seq[AbstractPass]): Unit = {
-    var lastPass: AbstractPass = null
-    var featuresIn: Set[Feature] = null
-
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
 
+      val featuresIn = if(strictInternalConditions.get()) {
+        Feature.scan(report.getInput)
+      } else { Set.empty }
+
       tk.show
       report = pass.apply_pass(report, Array())
+      report = BY_KEY("java-check").apply_pass(report, Array())
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
 
       if(strictInternalConditions.get()) {
-        if (pass.key != "java-check") {
-          // Collect the input features and store which pass they belong to
-          featuresIn = Feature.scan(report.getInput)
-          lastPass = pass
-        } else {
-          // We have the input features and can (with types) now scan output features
-          val featuresOut = Feature.scan(report.getOutput)
+        val featuresOut = Feature.scan(report.getOutput)
 
-          val notRemoved = featuresOut.intersect(pass.removes)
-          val extraIntro = featuresOut -- featuresIn -- pass.introduces
+        val notRemoved = featuresOut.intersect(pass.removes)
+        val extraIntro = (featuresOut -- featuresIn) -- pass.introduces
 
-          if (notRemoved.nonEmpty) {
-            Warning("Pass %s did not remove %s", lastPass.key, notRemoved.map(_.toString).mkString(", "))
-          }
-          if (extraIntro.nonEmpty) {
-            Warning("Pass %s introduced %s", lastPass.key, extraIntro.map(_.toString).mkString(", "))
-          }
+        if (notRemoved.nonEmpty) {
+          Warning("Pass %s did not remove %s", pass.key, notRemoved.map(_.toString).mkString(", "))
+        }
+        if (extraIntro.nonEmpty) {
+          Warning("Pass %s introduced %s", pass.key, extraIntro.map(_.toString).mkString(", "))
         }
       }
 

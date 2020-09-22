@@ -70,7 +70,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += PureImperativeMethods
     if(m.kind == Method.Kind.Constructor)
       features += Constructors
-    if(!m.getReturnType.isPrimitive(PrimitiveSort.Void))
+    if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && Set(Method.Kind.Constructor, Method.Kind.Plain).contains(m.kind))
       features += NonVoidMethods
   }
 

@@ -60,6 +60,7 @@ public class SilverBackend {
     ProgramUnit arg=given.getOutput();
     PassReport report=new PassReport(arg);
     report.add(new PassAddVisitor(given));
+    report.setOutput(given.getOutput());
     MessageFactory log=new MessageFactory(new PassAddVisitor(report));
     TaskBegin verification=log.begin("Viper verification");
 
