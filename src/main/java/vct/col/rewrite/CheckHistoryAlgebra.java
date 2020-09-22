@@ -585,10 +585,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   
   @Override
   public void visit(NameExpression e){
-    // FIXME remove this if it doesn't break anything. Probably related to the rewrite of labeled args in MethodInvokation
-    /*if (e.getKind()== NameExpressionKind.Label){
-      result=create.unresolved_name(e.getName());
-    } else */if (e.isReserved(ASTReserved.EmptyProcess)) {
+    if (e.isReserved(ASTReserved.EmptyProcess)) {
       result=create.domain_call("Process", "p_empty");
     } else {
       super.visit(e);
