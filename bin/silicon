@@ -2,4 +2,11 @@
 set -e
 
 BIN=$(dirname $0)
-$BIN/run-class viper.silicon.SiliconRunner --z3Exe $BIN/../src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3 "$@"
+
+if [["$OSTYPE" == "darwin"]]; then
+  Z3="$BIN/../src/main/universal/res/deps/z3/4.8.6/Darwin/x86_64/bin/z3"
+else
+  Z3="$BIN/../src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3"
+fi
+
+$BIN/run-class viper.silicon.SiliconRunner --z3Exe $Z3 "$@"
