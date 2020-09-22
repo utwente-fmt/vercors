@@ -28,6 +28,7 @@ import vct.col.ast.util.ContractBuilder;
 public class ClassConversion extends AbstractRewriter {
 
   private static final String SEP="__";
+  public static final String CONSTRUCTOR = "constructor";
       
   public ClassConversion(ProgramUnit source) {
     super(source);
@@ -104,7 +105,7 @@ public class ClassConversion extends AbstractRewriter {
       }
       body=rewrite(body);
       if (m.kind==Method.Kind.Constructor){
-        name += SEP + "constructor";
+        name += SEP + CONSTRUCTOR;
         if (body!=null){
           body=create.block(
             create.field_decl(THIS,create.class_type(cl.name())),
@@ -156,7 +157,7 @@ public class ClassConversion extends AbstractRewriter {
       method=s.method();
     } else if (s.object() instanceof ClassType){
       if (s.method().equals(Method.JavaConstructor)){
-        method=s.dispatch().getName()+SEP+s.dispatch().getName()+SEP+"constructor";
+        method=s.dispatch().getName()+SEP+s.dispatch().getName()+SEP+CONSTRUCTOR;
         dispatch=null;
       } else if (def.getParent() instanceof AxiomaticDataType){
         method=s.method();
@@ -164,12 +165,12 @@ public class ClassConversion extends AbstractRewriter {
       } else {
         method=((ClassType)s.object()).getName()+SEP+s.method();
         if(def.kind == Kind.Constructor) {
-          method += SEP + "constructor";
+          method += SEP + CONSTRUCTOR;
         }
       }
     } else if (s.object()==null){
       if (s.method().equals(Method.JavaConstructor)){
-        method=s.dispatch().getName()+SEP+s.dispatch().getName()+SEP+"constructor";
+        method=s.dispatch().getName()+SEP+s.dispatch().getName()+SEP+CONSTRUCTOR;
         dispatch=null;
       } else {
         method=s.method();
@@ -182,7 +183,7 @@ public class ClassConversion extends AbstractRewriter {
         method+=SEP+s.method();
 
         if(def.kind == Kind.Constructor) {
-          method += SEP + "constructor";
+          method += SEP + CONSTRUCTOR;
         }
 
         if (!def.isStatic()){
