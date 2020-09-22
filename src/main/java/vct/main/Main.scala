@@ -56,6 +56,7 @@ class Main {
   private val pass_list = new StringListSetting
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
   private val stop_after = new StringListSetting
+  private val strictInternalConditions = new BooleanSetting(false)
 
   private val boogie = new BooleanSetting(false)
   private val chalice = new BooleanSetting(false)
@@ -104,6 +105,7 @@ class Main {
     clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before")
     clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after")
     clops.add(stop_after.getAppendOption("Stop after given passes"), "stop-after")
+    clops.add(strictInternalConditions.getEnable("Enable strict internal checks for AST conditions (expert option)"), "strict-internal")
     clops.add(explicit_encoding.getEnable("explicit encoding"), "explicit")
     clops.add_removed("the inline option was removed in favor of the inline modifer", "inline")
     clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"), "global-with-field")
@@ -207,45 +209,55 @@ class Main {
       report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
   }
 
-  private def collectPassesForBoogie(passes: util.Deque[String]): Unit = {
-    passes.add("java_resolve") // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
-    passes.add("standardize") // a rewriter s.t. only a subset of col will have to be supported
-    passes.add("check") // type check col. Add annotations (the types) to the ast.
-    passes.add("rewrite_arrays") // array generation and various array-related rewrites
-    passes.add("check")
-    passes.add("flatten") // expressions that contain method calls (possibly having side-effects) are put into separate statements.
-    passes.add("assign") // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
-    passes.add("finalize_args") // declare new variables to never have to change the arguments (which isn't allowed in silver)
-    passes.add("reorder") // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
+  private def collectPassesForBoogie: Seq[AbstractPass] = {
+    var passes = Seq(
+      BY_KEY("java_resolve"), // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
+      BY_KEY("standardize"), // a rewriter s.t. only a subset of col will have to be supported
+      BY_KEY("check"), // type check col. Add annotations (the types) to the ast.
+      BY_KEY("rewrite_arrays"), // array generation and various array-related rewrites
+      BY_KEY("check"),
+      BY_KEY("flatten"), // expressions that contain method calls (possibly having side-effects) are put into separate statements.
+      BY_KEY("assign"), // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
+      BY_KEY("finalize_args"), // declare new variables to never have to change the arguments (which isn't allowed in silver)
+      BY_KEY("reorder"), // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
+    )
+
     if (infer_modifies.get) {
-      passes.add("standardize")
-      passes.add("check")
-      passes.add("modifies") // modifies is mandatory. This is how to automatically add it
+      passes ++= Seq(
+        BY_KEY("standardize"),
+        BY_KEY("check"),
+        BY_KEY("modifies"), // modifies is mandatory. This is how to automatically add it
+      )
     }
-    passes.add("standardize")
-    passes.add("check")
-    passes.add("voidcalls") // all methods in Boogie are void, so use an out parameter instead of 'return..'
-    passes.add("standardize")
-    passes.add("check")
-    passes.add("flatten")
-    passes.add("reorder")
-    passes.add("standardize")
-    passes.add("check")
-    passes.add("strip_constructors") // somewhere in the parser of Java, constructors are added implicitly. They need to be taken out again.
-    passes.add("standardize")
-    passes.add("check")
-    passes.add("boogie") // run backend
+
+    passes ++= Seq(
+      BY_KEY("standardize"),
+      BY_KEY("check"),
+      BY_KEY("voidcalls"), // all methods in Boogie are void, so use an out parameter instead of 'return..'
+      BY_KEY("standardize"),
+      BY_KEY("check"),
+      BY_KEY("flatten"),
+      BY_KEY("reorder"),
+      BY_KEY("standardize"),
+      BY_KEY("check"),
+      BY_KEY("strip_constructors"), // somewhere in the parser of Java, constructors are added implicitly. They need to be taken out again.
+      BY_KEY("standardize"),
+      BY_KEY("check"),
+      BY_KEY("boogie"), // run backend
+    )
+
+    passes
   }
 
-  private def collectPassesForDafny(passes: util.Deque[String]): Unit = {
-    passes.add("java_resolve")
-    passes.add("standardize")
-    passes.add("check")
-    passes.add("voidcalls")
-    passes.add("standardize")
-    passes.add("check")
-    passes.add("dafny")
-  }
+  private def collectPassesForDafny: Seq[AbstractPass] = Seq(
+    BY_KEY("java_resolve"),
+    BY_KEY("standardize"),
+    BY_KEY("check"),
+    BY_KEY("voidcalls"),
+    BY_KEY("standardize"),
+    BY_KEY("check"),
+    BY_KEY("dafny"),
+  )
 
   /** From a starting set of features: tries to compute a valid ordering of the passes */
   def computePassChainFromPassSet(featuresIn: Set[Feature], passSet: Set[AbstractPass]): Option[Seq[AbstractPass]] = {
@@ -343,7 +355,7 @@ class Main {
     }
   }
 
-  def collectPassesForSilver(javaPasses: util.Deque[String]): Unit = {
+  def collectPassesForSilver: Seq[AbstractPass] = {
     val resolve = Passes.BY_KEY.apply("java_resolve")
     val standardize = Passes.BY_KEY.apply("standardize")
     val check = Passes.BY_KEY.apply("check")
@@ -374,8 +386,7 @@ class Main {
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
     // intersperse type checks
-    val passes = computeGoal(features, BY_KEY("silver")).get.flatMap(Seq(_, BY_KEY("java-check"))).init
-    javaPasses.addAll(passes.map(_.key).asJava)
+    computeGoal(features, BY_KEY("silver")).get.flatMap(Seq(_, BY_KEY("java-check"))).init
 
     /*
     var lastPass: AbstractPass = null
@@ -428,26 +439,26 @@ class Main {
     */
   }
 
-  private def getPasses: LinkedBlockingDeque[String] = {
+  private def getPasses: Seq[AbstractPass] = {
     val features = new FeatureScanner
     report.getOutput.accept(features)
-    val passes = new LinkedBlockingDeque[String]
+
     if (pass_list_option.used) {
-      for (s <- pass_list.asScala) {
-        passes.add(s)
-      }
+      pass_list.asScala.map(key => BY_KEY.get(key) match {
+        case None => Fail("Unknown pass: %s", key); ???
+        case Some(pass) => pass
+      }).toSeq
     }
-    else if (boogie.get) collectPassesForBoogie(passes)
-    else if (dafny.get) collectPassesForDafny(passes)
-    else if (silver.used || chalice.get) collectPassesForSilver(passes)
-    else Abort("no back-end or passes specified")
-    passes
+    else if (boogie.get) collectPassesForBoogie
+    else if (dafny.get) collectPassesForDafny
+    else if (silver.used || chalice.get) collectPassesForSilver
+    else { Fail("no back-end or passes specified"); ???}
   }
 
-  private def show(pass: String): Unit = {
+  private def show(pass: AbstractPass): Unit = {
     val name = show_file.get
     if (name != null) {
-      val file = String.format(name, pass)
+      val file = String.format(name, pass.key)
       val out = new PrintWriter(new FileOutputStream(file))
       vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
       out.close()
@@ -460,31 +471,26 @@ class Main {
   }
 
   @throws[FileNotFoundException]
-  private def doPasses(passes: util.Deque[String]): Unit = {
-    var fatal_errs = 0
-    val passCount = passes.size
-    while (!passes.isEmpty && fatal_errs == 0) {
-      var pass = passes.removeFirst()
-      var pass_args = pass.split("=")
-      pass = pass_args(0)
-      if (pass_args.length == 1) pass_args = new Array[String](0)
-      else pass_args = pass_args(1).split("\\+")
-      if (debugBefore.has(pass)) report.getOutput.dump()
-      if (show_before.contains(pass)) show(pass)
-      Passes.BY_KEY.get(pass) match {
-        case None => Fail("unknown pass %s", pass)
-        case Some(task) =>
-          tk.show
-          report = task.apply_pass(report, pass_args)
-          fatal_errs = report.getFatal
-          Progress("[%02d%%] %s took %d ms", Int.box(100 * (passCount - passes.size) / passCount), pass, Long.box(tk.show))
+  private def doPasses(passes: Seq[AbstractPass]): Unit = {
+    for((pass, i) <- passes.zipWithIndex) {
+      if (debugBefore.has(pass.key)) report.getOutput.dump()
+      if (show_before.contains(pass.key)) show(pass)
+
+      tk.show
+      report = pass.apply_pass(report, Array())
+      Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass, Long.box(tk.show))
+
+      if (debugAfter.has(pass.key)) report.getOutput.dump()
+      if (show_after.contains(pass.key)) show(pass)
+      if (stop_after.contains(pass.key)) Fail("exit after pass %s", pass)
+
+      if(report.getFatal > 0) {
+        Verdict("The final verdict is Fail")
+        return
       }
-      if (debugAfter.has(pass)) report.getOutput.dump()
-      if (show_after.contains(pass)) show(pass)
-      if (stop_after.contains(pass)) Fail("exit after pass %s", pass)
     }
-    Verdict("The final verdict is %s", if (fatal_errs == 0) "Pass"
-    else "Fail")
+
+    Verdict("The final verdict is Pass")
   }
 
   private def run(args: Array[String]): Int = {
