@@ -251,7 +251,7 @@ object Passes {
     SimplePass("inline",
       "Inline all methods marked as inline",
       new InlinePredicatesRewriter(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.Lemma, // TODO (Pieter): strange that predicates must not be inlined before magicwand stuff (then why are they inline?)
+      permits=Feature.DEFAULT_PERMIT - features.Lemma,
       removes=Set(features.InlinePredicate)),
     SimplePass("kernel-split",
       "Split kernels into main, thread and barrier.",
@@ -391,7 +391,7 @@ object Passes {
       new SilverClassReduction(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.BeforeSilverDomains),
-      introduces=Feature.DEFAULT_INTRODUCE /*+ features.TopLevelDeclarations*/ -- Set(
+      introduces=Feature.DEFAULT_INTRODUCE -- Set(
         features.This,
         features.Arrays,
         features.Inheritance,

@@ -470,7 +470,6 @@ object Feature {
     // TODO
     // Inheritance,
 
-    // Hmm, this is here to indicate null-array-values. TODO
     Null,
 
     // (sometimes implicit) this value, probably fair to introduce by default (e.g. invokations)
@@ -637,7 +636,6 @@ object Feature {
     // I think we'll need those (histories need them boxed in set_field, get_field)
     Dereference,
 
-    // TODO
     Inheritance,
 
     // Hmm, this is here to indicate null-array-values. TODO

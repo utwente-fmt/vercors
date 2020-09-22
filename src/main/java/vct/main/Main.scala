@@ -151,7 +151,7 @@ class Main {
     if (version.get) {
       Output("%s %s", BuildInfo.name, BuildInfo.version)
       Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion, BuildInfo.scalaVersion, Instant.ofEpochMilli(BuildInfo.builtAtMillis))
-      if (!(BuildInfo.currentBranch == "master"))
+      if (BuildInfo.currentBranch != "master")
         Output("On branch %s, commit %s, %s",
           BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
 
@@ -166,8 +166,16 @@ class Main {
       throw new HREExitException(0)
     }
 
-    if (!(CommandLineTesting.enabled || boogie.get || chalice.get || silver.used || dafny.get || pass_list.iterator.hasNext))
+    if(Seq(
+      CommandLineTesting.enabled,
+      boogie.get,
+      chalice.get,
+      silver.used,
+      dafny.get,
+      pass_list.asScala.nonEmpty
+    ).forall(!_)) {
       Fail("no back-end or passes specified")
+    }
 
     if (silver.used) silver.get match {
       case "silicon_qp" =>
@@ -500,7 +508,9 @@ class Main {
         Verdict("The final verdict is Error")
       case e: Throwable =>
         DebugException(e)
-        Warning("An unexpected error occured in VerCors! " + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. " + "You can see the full exception by adding '--debug vct.main.Main' to the flags.")
+        Warning("An unexpected error occured in VerCors! "
+              + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. "
+              + "You can see the full exception by adding '--debug vct.main.Main' to the flags.")
         Verdict("The final verdict is Error")
     } finally Progress("entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
     exit

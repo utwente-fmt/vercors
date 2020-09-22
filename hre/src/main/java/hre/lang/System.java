@@ -1,11 +1,11 @@
 package hre.lang;
 
-import ch.qos.logback.classic.LoggerContext;
 import hre.config.Configuration;
-import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.lang.Thread.UncaughtExceptionHandler;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;

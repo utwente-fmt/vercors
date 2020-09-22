@@ -659,7 +659,6 @@ public class SilverClassReduction extends AbstractRewriter {
   @Override
   public void visit(ConstantExpression val) {
     if(val.value() instanceof IntegerValue && val.getType().isFraction()) {
-//      val.setType(new PrimitiveType(PrimitiveSort.Rational));
       result = packFracVal(val.getType(), val);
     } else {
       super.visit(val);
