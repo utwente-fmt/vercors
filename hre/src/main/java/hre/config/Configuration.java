@@ -83,6 +83,8 @@ public class Configuration {
      */
     public static final StringSetting cpp_command=new StringSetting("clang -C -E");
 
+    public static final BooleanSetting debugBackend = new BooleanSetting(false);
+
     /**
      * Add the VCT library options to the given option parser.
      * @param clops Option parser.
@@ -102,6 +104,7 @@ public class Configuration {
         clops.add(cpp_defines.getAppendOption("add to the CPP defined variables"),'D');
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
+        clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);
