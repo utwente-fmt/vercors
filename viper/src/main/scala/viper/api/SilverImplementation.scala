@@ -17,7 +17,7 @@ import hre.ast.OriginFactory
 import viper.silver.parser.PLocalVarDecl
 
 import scala.collection.mutable.WrappedArray
-import hre.lang.System.Output
+import hre.lang.System.{Output, Warning}
 
 class SilverImplementation[O](o:OriginFactory[O])
   extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,
@@ -68,7 +68,12 @@ class SilverImplementation[O](o:OriginFactory[O])
               
     //println("=============\n" + program + "\n=============\n")
 
-    Output("%s", program.checkTransitively)
+    val consistencyErrors = program.checkTransitively
+
+    if(consistencyErrors.nonEmpty) {
+      Warning("These errors may indicate a bug in VerCors:")
+      consistencyErrors.foreach(Warning("%s", _))
+    }
     
     Reachable.gonogo = control.asInstanceOf[VerificationControl[Object]];
     

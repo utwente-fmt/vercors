@@ -241,7 +241,7 @@ class Main {
 
   /** From a starting set of features: tries to compute a valid ordering of the passes */
   def computePassChainFromPassSet(featuresIn: Set[Feature], passSet: Set[AbstractPass]): Option[Seq[AbstractPass]] = {
-    Output("== Trying to compute pass chain ==")
+    Debug("== Trying to compute pass chain ==")
     val passesToDo: ArrayBuffer[AbstractPass] = ArrayBuffer() ++ passSet.toSeq.sortBy(_.key)
     var features = featuresIn
     var passes = ArrayBuffer.empty[AbstractPass]
@@ -273,16 +273,16 @@ class Main {
           /* If there is exactly one such pass, there can only be a solution if we do the pass right now. */
           if(allowedOrderImposingPasses.size == 1) {
             val pass = allowedOrderImposingPasses.head
-            Output("vvvv Will impose that all of:  %s", passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty).map(_.key))
-            Output("vvvv Must occur before all of: %s", passesToDo.filter(pass2 => (pass.removes -- pass2.permits).isEmpty).map(_.key))
+            Debug("vvvv Will impose that all of:  %s", passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty).map(_.key))
+            Debug("vvvv Must occur before all of: %s", passesToDo.filter(pass2 => (pass.removes -- pass2.permits).isEmpty).map(_.key))
             pass
           } else {
             /* Otherwise, there may or may not be a solution, but this is expensive to compute. */
-            Warning("Leftover features: %s", features)
+            Debug("Leftover features: %s", features)
             if(allowedOrderImposingPasses.nonEmpty)
-              Warning("Perhaps we could have run one of: %s", allowedOrderImposingPasses)
+              Debug("Perhaps we could have run one of: %s", allowedOrderImposingPasses)
             nextPassResults.foreach {
-              case Left(error) => Warning(error)
+              case Left(error) => Debug(error)
               case _ =>
             }
             return None
@@ -290,7 +290,7 @@ class Main {
       }
 
       passesToDo -= nextPass
-      Output("Planning to do %s", nextPass.key)
+      Debug("Planning to do %s", nextPass.key)
       passes += nextPass
       features = features -- nextPass.removes ++ nextPass.introduces
     }
