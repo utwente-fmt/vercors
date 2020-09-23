@@ -314,14 +314,7 @@ public class VerCorsProgramFactory implements
         api.prog.add_adt(program,adt.getOrigin(), adt.name(), funcs,axioms,pars);
       } else if(entry instanceof ASTSpecial){
         ASTSpecial s=(ASTSpecial)entry;
-        switch(s.kind){
-          case Comment:
-            // comments are not supported in silver.
-            continue;
-          default:
-            throw new HREError("bad special declaration entry: %s",s.kind);
-
-        }
+        throw new HREError("bad special declaration entry: %s",s.kind);
       } else {
         throw new HREError("bad entry: %s",entry.getClass());
       }

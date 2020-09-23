@@ -256,13 +256,11 @@ public class JavaEncoder extends AbstractRewriter {
             boolean varArgs=m.usesVarArgs();
             res.add(create.method_kind(m.kind, returns, external_contract, external_name, parameters, varArgs, null));
             BlockStatement body=create.block();
-            body.add(create.comment("//TODO: unfolds of chained predicates in pre-condition"));
             body.add(create.invokation(
                 create.reserved_name(ASTReserved.Super),
                 null,
                 create_method_name("internal", cl.super_classes[0],m),
                 get_names(parameters)));
-            body.add(create.comment("//TODO: folds of chained predicates in post-condition"));
             res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, body));
             break;
           }

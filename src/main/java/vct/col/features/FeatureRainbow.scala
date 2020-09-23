@@ -88,9 +88,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         features += ExpressionStatement
       case ASTSpecial.Kind.ActionHeader =>
         features += ActionHeader
-      case ASTSpecial.Kind.Given | ASTSpecial.Kind.Yields | ASTSpecial.Kind.Requires | ASTSpecial.Kind.Ensures |
-           ASTSpecial.Kind.RequiresAndEnsures | ASTSpecial.Kind.Invariant | ASTSpecial.Kind.Modifies | ASTSpecial.Kind.Accessible =>
-        features += ContractStatement
       case ASTSpecial.Kind.Send | ASTSpecial.Kind.Recv =>
         features += ParallelBlocks
       case ASTSpecial.Kind.Fork | ASTSpecial.Kind.Join |
@@ -366,7 +363,6 @@ object Feature {
     ExpressionStatement,
     ActionHeader,
     ImproperlySortedBeforeAfter,
-    ContractStatement,
     SubscriptRange,
     Dereference,
     Inheritance,
@@ -458,16 +454,12 @@ object Feature {
     // We'll probably manage to put stuff in the right place
     // ImproperlySortedBeforeAfter,
 
-    // Feature from the old parser, where e.g. loop_invariants are loose statements, later attached to a loop contract
-    // ContractStatement,
-
     // Some syntax sugar we don't use in code
     // SubscriptRange,
 
     // I think we'll need those (histories need them boxed in set_field, get_field)
     Dereference,
 
-    // TODO
     // Inheritance,
 
     Null,
@@ -627,9 +619,6 @@ object Feature {
     // Shouldn't hurt, except for lifting passes
     ImproperlySortedBeforeAfter,
 
-    // Proabbly important that contracts are complete
-    // ContractStatement,
-
     // Shouldn't hurt
     SubscriptRange,
 
@@ -756,7 +745,6 @@ object Feature {
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
-    ContractStatement,
     PureImperativeMethods,
   )
 
@@ -781,7 +769,6 @@ case object UnresolvedTypeInference extends ScannableFeature
 case object ExpressionStatement extends ScannableFeature // no pass
 case object ActionHeader extends ScannableFeature // no pass
 case object ImproperlySortedBeforeAfter extends ScannableFeature // no pass
-case object ContractStatement extends ScannableFeature // no pass
 case object SubscriptRange extends ScannableFeature // no pass
 case object Dereference extends ScannableFeature
 case object Inheritance extends ScannableFeature

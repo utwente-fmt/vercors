@@ -168,8 +168,6 @@ object Passes {
           else if (node.isInstanceOf[ASTSpecial]) {
             val S = node.asInstanceOf[ASTSpecial]
             S.kind match {
-              case ASTSpecial.Kind.Comment =>
-              // TODO keep comments.
               case _ =>
                 report.fatal("cannot deal with special %s yet", S.kind)
                 return arg

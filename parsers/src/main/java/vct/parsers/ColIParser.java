@@ -44,10 +44,6 @@ public class ColIParser implements Parser {
     pu=new FlattenVariableDeclarations(pu).rewriteAll();
     Progress("Flattening variables took %dms",tk.show());
     Debug("after flattening variable decls %s",pu);
-    
-    pu=new SpecificationCollector(CSyntax.getCML(),pu).rewriteAll();
-    Progress("Shuffling specifications took %dms",tk.show());    
-    Debug("after collecting specifications %s",pu);
 
     pu = new RewriteWithThen(pu).rewriteAll();
     Progress("rewriting with/then blocks took %dms", tk.show());

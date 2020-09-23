@@ -266,9 +266,6 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   @Override
   public S map(ASTSpecial special) {
     switch(special.kind){
-    case Comment:
-      valid_null=true;
-      return null;
     case Goto:
       return create.goto_(special.getOrigin(),special.args[0].toString());
     case Label:

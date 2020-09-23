@@ -5,38 +5,29 @@ package vct.main
 import java.io._
 import java.time.Instant
 import java.util
-import java.util.concurrent.LinkedBlockingDeque
 
 import hre.ast.FileOrigin
 import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.expr.{Dereference, StandardOperator}
-import vct.col.ast.stmt.decl.{ASTSpecial, Method, ProgramUnit, SpecificationFormat}
+import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
 import vct.col.util.FeatureScanner
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
-import vct.col.ast.stmt.composite.BlockStatement
-import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.features.Feature
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/**
-  * VerCors Tool main verifier.
-  *
-  * @author Stefan Blom
-  */
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
-  def main(args: Array[String]) = System.exit(new Main().run(args))
+  def main(args: Array[String]): Unit = System.exit(new Main().run(args))
 }
 
 class Main {
@@ -441,7 +432,7 @@ class Main {
         Verdict("The final verdict is Fail")
         return
       }
-      
+
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
 
       if(strictInternalConditions.get()) {

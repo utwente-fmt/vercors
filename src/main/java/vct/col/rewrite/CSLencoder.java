@@ -130,7 +130,7 @@ public class CSLencoder extends AbstractRewriter {
       }
       currentBlock.add(create.csl_atomic(block,subjects.toArray(new ASTNode[0])));
       if (m.getReturnType().isVoid()){
-        result=create.comment("// dummy");
+        result=null;
       } else {
         result=create.local_name(result_name);
       }

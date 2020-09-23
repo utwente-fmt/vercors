@@ -18,7 +18,6 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.parsers.rewrite.FlattenVariableDeclarations;
 import vct.col.ast.syntax.PVLSyntax;
 import vct.parsers.rewrite.PVLPostProcessor;
-import vct.parsers.rewrite.SpecificationCollector;
 
 /**
  * Parse specified code and convert the contents to COL. 
@@ -50,10 +49,6 @@ public class ColPVLParser implements Parser {
         
         pu=new FlattenVariableDeclarations(pu).rewriteAll();
         Progress("Variable pass took %dms",tk.show());
-        
-        pu=new SpecificationCollector(PVLSyntax.get(),pu).rewriteAll();
-        Progress("Shuffling specifications took %dms",tk.show());    
-        Debug("after collecting specifications %s",pu);
         
         pu=new PVLPostProcessor(pu).rewriteAll();
         Progress("Post processing pass took %dms",tk.show());

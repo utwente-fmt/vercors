@@ -288,8 +288,6 @@ public class SilverClassReduction extends AbstractRewriter {
         target().add(rewrite(n));
       } else if (n instanceof DeclarationStatement) {
         Fail("Illegal static field %s",n);
-      } else if(n.isSpecial(ASTSpecial.Kind.Comment)) {
-        target().add(rewrite(n));
       } else {
         Fail("Illegal static member %s",n);
       }
@@ -306,8 +304,6 @@ public class SilverClassReduction extends AbstractRewriter {
         ASTNode res=rewrite(n);
         res.setStatic(true);
         target().add(res);
-      } else if(n.isSpecial(ASTSpecial.Kind.Comment)) {
-        target().add(rewrite(n));
       } else {
         Fail("Illegal dynamic member %s",n);
       }

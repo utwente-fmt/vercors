@@ -258,9 +258,6 @@ public class ASTFactory<E> implements FrameControl {
   public ClassType class_type(String name, List<ASTNode> args){
     return class_type(origin_stack.get(), name, args);
   }
-  public ASTSpecial comment(String text) {
-    return special(ASTSpecial.Kind.Comment,constant(text));
-  }
 
   public ConstantExpression constant(boolean b) {
     return constant(origin_stack.get(),b);

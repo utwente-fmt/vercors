@@ -140,7 +140,7 @@ public class JavaResolver extends AbstractRewriter {
     }
     file=new File(file,name[name.length-1]+".java");
     if (file.exists()){
-      Parser parser=new ColJavaParser(7, true, false);
+      Parser parser=new ColJavaParser(false);
       ProgramUnit pu=parser.parse(file);
       ASTClass cls=pu.find(name);
       if (cls!=null){

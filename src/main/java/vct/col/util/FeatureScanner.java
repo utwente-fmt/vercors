@@ -160,10 +160,6 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   
   @Override
   public void visit(ASTSpecial s){
-    if(s.kind==Kind.Pragma){
-      String pragma=((ASTSpecial)s).args[0].toString().split(" ")[0];
-      pragmas.add(pragma);
-    }
     specials_used.add(s.kind);
     super.visit(s);
   }

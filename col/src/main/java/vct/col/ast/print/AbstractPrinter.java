@@ -213,21 +213,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
   
   public void visit(ASTSpecial s){
     switch(s.kind){
-    case Comment:
-      String lines[]=s.args[0].toString().split("\n");
-      for(int i=0;i<lines.length;i++){
-        out.println(lines[i]);
-      }
-      break;
-    case Pragma:
-      out.printf("@pragma(\"%s\")%n", s.args[0]);
-      break;
-    case Modifies:
-      out.println("modifies ...");
-      break;
-    case Accessible:
-      out.println("accessible ...");
-      break;
     default:
       if (s.args.length==0){
         out.printf("%s;%n",s.kind);
