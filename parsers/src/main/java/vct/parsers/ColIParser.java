@@ -40,10 +40,6 @@ public class ColIParser implements Parser {
     pu.setLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations, false);
     Progress("AST conversion took %dms",tk.show());
     Debug("after conversion %s",pu);
-    
-    pu=new FlattenVariableDeclarations(pu).rewriteAll();
-    Progress("Flattening variables took %dms",tk.show());
-    Debug("after flattening variable decls %s",pu);
 
     pu = new RewriteWithThen(pu).rewriteAll();
     Progress("rewriting with/then blocks took %dms", tk.show());
