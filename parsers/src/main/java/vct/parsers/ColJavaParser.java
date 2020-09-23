@@ -58,6 +58,8 @@ public class ColJavaParser implements Parser {
         pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
         Progress("AST conversion took %dms",tk.show());
         Debug("program after Java parsing:%n%s",pu);
+
+        pu = new SpecificationCollector(JavaSyntax.getJava(JavaDialect.JavaVerCors), pu).rewriteAll();
         
         pu=new JavaPostProcessor(pu).rewriteAll();
         Progress("post processing took %dms",tk.show());        

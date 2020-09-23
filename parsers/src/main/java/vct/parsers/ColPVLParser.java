@@ -15,9 +15,12 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import vct.antlr4.generated.PVLLexer;
 import vct.antlr4.generated.PVLParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.syntax.JavaDialect;
+import vct.col.ast.syntax.JavaSyntax;
 import vct.parsers.rewrite.FlattenVariableDeclarations;
 import vct.col.ast.syntax.PVLSyntax;
 import vct.parsers.rewrite.PVLPostProcessor;
+import vct.parsers.rewrite.SpecificationCollector;
 
 /**
  * Parse specified code and convert the contents to COL. 
@@ -46,6 +49,8 @@ public class ColPVLParser implements Parser {
 
         ProgramUnit pu = PVLtoCOL.convert(tree,file_name,tokens,parser);
         Progress("AST conversion pass took %dms",tk.show());
+
+        pu = new SpecificationCollector(PVLSyntax.get(), pu).rewriteAll();
         
         pu=new PVLPostProcessor(pu).rewriteAll();
         Progress("Post processing pass took %dms",tk.show());

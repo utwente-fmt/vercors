@@ -7,6 +7,8 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import vct.antlr4.generated.LangCLexer;
 import vct.antlr4.generated.CParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.syntax.JavaDialect;
+import vct.col.ast.syntax.JavaSyntax;
 import vct.parsers.rewrite.*;
 import vct.col.ast.syntax.CSyntax;
 
@@ -40,6 +42,8 @@ public class ColIParser implements Parser {
     pu.setLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations, false);
     Progress("AST conversion took %dms",tk.show());
     Debug("after conversion %s",pu);
+
+    pu = new SpecificationCollector(CSyntax.getCML(), pu).rewriteAll();
 
     pu = new RewriteWithThen(pu).rewriteAll();
     Progress("rewriting with/then blocks took %dms", tk.show());
