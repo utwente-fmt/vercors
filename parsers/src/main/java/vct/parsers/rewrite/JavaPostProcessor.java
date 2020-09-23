@@ -113,19 +113,6 @@ public class JavaPostProcessor extends AbstractRewriter {
     res.set_after(rewrite(e.get_after()));
     result = res;
   }
-
-  public void visit(NameExpression n){
-    if (n.getName().equals("?")){
-      wildcard_count++;
-      String name="wildcard_"+wildcard_count;
-      if (currentContractBuilder==null) Abort("no contract builder set");
-      currentContractBuilder.given(create.field_decl(name, create.primitive_type(PrimitiveSort.Class),create.class_type("Object")));
-      result=create.unresolved_name(name);
-      return;
-    } else {
-      super.visit(n);
-    }
-  }
   
   @Override
   public void visit(OperatorExpression e){
