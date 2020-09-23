@@ -429,7 +429,19 @@ class Main {
 
       tk.show
       report = pass.apply_pass(report, Array())
+
+      if(report.getFatal > 0) {
+        Verdict("The final verdict is Fail")
+        return
+      }
+
       report = BY_KEY("java-check").apply_pass(report, Array())
+
+      if(report.getFatal > 0) {
+        Verdict("The final verdict is Fail")
+        return
+      }
+      
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
 
       if(strictInternalConditions.get()) {
@@ -449,11 +461,6 @@ class Main {
       if (debugAfter.has(pass.key)) report.getOutput.dump()
       if (show_after.contains(pass.key)) show(pass)
       if (stop_after.contains(pass.key)) Fail("exit after pass %s", pass)
-
-      if(report.getFatal > 0) {
-        Verdict("The final verdict is Fail")
-        return
-      }
     }
 
     Verdict("The final verdict is Pass")
