@@ -70,14 +70,7 @@ public class ColJavaParser implements Parser {
         Progress("rewriting with/then blocks took %dms", tk.show());
 
         pu=new AnnotationInterpreter(pu).rewriteAll();
-        Progress("interpreting annotations took %dms",tk.show());        
-
-        //cannnot resolve here: other .java files may be needed!
-        //pu=new JavaResolver(pu).rewriteAll();
-        //Progress("resolving library calls took %dms",tk.show());        
-
-        pu=new FilterSpecIgnore(pu).rewriteAll();
-        Progress("filtering spec_ignore took %dms",tk.show()); 
+        Progress("interpreting annotations took %dms",tk.show());
 
         return pu;
       } catch (FileNotFoundException e) {

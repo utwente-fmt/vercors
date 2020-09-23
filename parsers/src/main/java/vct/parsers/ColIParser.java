@@ -64,7 +64,6 @@ public class ColIParser implements Parser {
     Progress("Encoding as class took %dms",tk.show());
     Debug("after encoding as class %s",pu);
     
-    pu=new FilterSpecIgnore(pu).rewriteAll();
     pu=new StripUnusedExtern(pu).rewriteAll();
     Progress("Stripping unused parts took %dms",tk.show());    
     Debug("after stripping unused parts %s",pu);

@@ -12,7 +12,7 @@ import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{FlattenVariableDeclarations, InferADTTypes}
+import vct.parsers.rewrite.{FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -620,5 +620,10 @@ object Passes {
         features.NonVoidMethods,
       ),
     ),
+    SimplePass(
+      "spec-ignore", "Filter specifications and statements ignored with spec_ignore",
+      new FilterSpecIgnore(_).rewriteAll(),
+      removes=Set(features.SpecIgnore),
+    )
   ).map(_.tup).toMap
 }
