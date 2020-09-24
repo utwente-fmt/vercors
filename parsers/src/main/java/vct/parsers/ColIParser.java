@@ -45,10 +45,6 @@ public class ColIParser implements Parser {
 
     pu = new SpecificationCollector(CSyntax.getCML(), pu).rewriteAll();
 
-    pu=new ConvertTypeExpressions(pu).rewriteAll();
-    Progress("converting type expressions took %dms",tk.show());
-    Debug("after converting type expression %s",pu);
-
     // TODO: consider restoring comparision chaining (a<b<c<d) and range perms (Perm(a[{0..n}], write))
     // TODO: encoding as class should not be necessary.
     

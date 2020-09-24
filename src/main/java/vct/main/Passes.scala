@@ -12,7 +12,7 @@ import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{AnnotationInterpreter, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
+import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -696,6 +696,21 @@ object Passes {
         features.NotJavaEncoded,
       ),
       removes=Set(features.TopLevelDeclarations, features.TopLevelFields),
+    ),
+    SimplePass(
+      "type-expressions", "Resolve type expressions",
+      new ConvertTypeExpressions(_).rewriteAll(),
+      permits=Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES ++ Set(
+        features.TypeExpressions,
+        features.NullAsOptionValue,
+        features.TopLevelDeclarations,
+        features.TopLevelFields,
+        features.ArgumentAssignment,
+        features.PureImperativeMethods,
+        features.PVLSugar,
+        features.NotJavaEncoded,
+      ),
+      removes=Set(features.TypeExpressions),
     )
   ).map(_.tup).toMap
 }

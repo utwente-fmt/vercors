@@ -800,20 +800,20 @@ sealed trait Feature
 sealed trait ScannableFeature extends Feature
 sealed trait GateFeature extends Feature
 
-case object MethodAnnotations extends ScannableFeature // no pass
-case object TypeExpressions extends ScannableFeature // no pass
-case object TopLevelDeclarations extends ScannableFeature // no pass
-case object TopLevelFields extends ScannableFeature // no pass
-case object SpecIgnore extends ScannableFeature // no pass
+case object MethodAnnotations extends ScannableFeature
+case object TypeExpressions extends ScannableFeature
+case object TopLevelDeclarations extends ScannableFeature
+case object TopLevelFields extends ScannableFeature
+case object SpecIgnore extends ScannableFeature
 case object MultiDecls extends ScannableFeature
 case object UnresolvedTypeInference extends ScannableFeature
 case object ExpressionStatement extends ScannableFeature // no pass
 case object ActionHeader extends ScannableFeature // no pass
-case object ImproperlySortedBeforeAfter extends ScannableFeature // no pass
+case object ImproperlySortedBeforeAfter extends ScannableFeature
 case object SubscriptRange extends ScannableFeature // no pass
 case object Dereference extends ScannableFeature
 case object Inheritance extends ScannableFeature
-case object Null extends ScannableFeature // no pass yet
+case object Null extends ScannableFeature
 case object This extends ScannableFeature
 case object JavaAtomic extends ScannableFeature
 case object CurrentThread extends ScannableFeature
