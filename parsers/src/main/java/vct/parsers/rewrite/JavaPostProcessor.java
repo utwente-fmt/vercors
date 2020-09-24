@@ -109,69 +109,6 @@ public class JavaPostProcessor extends AbstractRewriter {
   }
   
   @Override
-  public void visit(OperatorExpression e){
-    Type deftype=create.class_type("Object");
-    switch(e.operator()){
-      case StructSelect:
-        ASTNode arg=e.arg(1);
-        if (arg instanceof NameExpression){
-          result=create.dereference(rewrite(e.arg(0)), arg.toString());
-          return;
-        } else {
-          Abort("unexpected StructSelect expression");
-        }
-      case SubType:
-        deftype=(Type)rewrite(e.arg(1));
-      case SuperType:
-      {
-        NameExpression n=(NameExpression)e.arg(0);
-        if (n.getName().equals("?")){
-          wildcard_count++;
-          String name="wildcard_"+wildcard_count;
-          if (currentContractBuilder==null) Abort("no contract builder set");
-          currentContractBuilder.given(create.field_decl(name, create.primitive_type(PrimitiveSort.Class),deftype));
-          currentContractBuilder.requires(create.expression(e.operator(),create.unresolved_name(name),rewrite(e.arg(1))));
-          result=create.unresolved_name(name);
-          return;
-        }
-        break;
-      }
-      // FIXME I don't think python-like comparison chaining (a < b < c < d) is an actual java feature (?)
-      case LT:
-      case LTE:
-      {
-        ASTNode arg0=rewrite(e.arg(0));
-        ASTNode arg1=rewrite(e.arg(1));
-        OperatorExpression res;
-        if (arg0 instanceof OperatorExpression && is_comparison(((OperatorExpression)arg0).operator())){
-          ASTNode tmp=rewrite(((OperatorExpression)e.arg(0)).arg(1));
-          arg1=create.expression(e.operator(),tmp,arg1);
-          res=create.expression(StandardOperator.And,arg0,arg1);
-        } else {
-          res=create.expression(e.operator(),arg0,arg1);
-        }
-        result=res;
-        return;
-      }
-    default:
-      break;
-    }
-    super.visit(e);
-    OperatorExpression res=(OperatorExpression) result;
-    result=res;
-  }
-  
-  private boolean is_comparison(StandardOperator operator) {
-    switch(operator){
-    case LT:
-    case LTE:
-      return true;
-    default:
-      return false;
-    }
-  }
-  
-  @Override
   public void visit(BlockStatement b){
     if (b.size()>0 && b.get(0).isSpecial(Kind.ActionHeader)){
       ASTSpecial decl=(ASTSpecial)b.get(0);
