@@ -139,6 +139,7 @@ object Passes {
     ErrorMapPass(
       "csl-encode", "Encode CSL atomic regions with methods",
       new CSLencoder(_, _).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT - features.ImproperlySortedBeforeAfter,
       removes=Set(features.JavaAtomic),
       introduces=Feature.DEFAULT_INTRODUCE + features.ParallelAtomic,
     ),
@@ -257,7 +258,7 @@ object Passes {
       "move before/after instructions",
       new FlattenBeforeAfter(_).rewriteAll,
       removes=Set(features.BeforeAfter),
-      permits=Feature.DEFAULT_PERMIT - features.GivenYields),
+      permits=Feature.DEFAULT_PERMIT - features.GivenYields - features.ImproperlySortedBeforeAfter),
     SimplePass("flatten_variable_declarations",
       "put the base type in declarations",
       new FlattenVariableDeclarations(_).rewriteAll,

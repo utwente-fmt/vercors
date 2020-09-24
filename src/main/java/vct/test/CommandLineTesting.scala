@@ -1,5 +1,6 @@
 package vct.test
 
+import java.io.{BufferedWriter, File, FileNotFoundException, FileWriter}
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util.concurrent.{Executors, Future}
 
@@ -10,6 +11,7 @@ import hre.util.TestReport.Verdict
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.io.Source
 
 sealed trait CaseFilter {
   def addOptions(parser: OptionParser)
@@ -68,6 +70,9 @@ object CommandLineTesting {
 
   private val travisTestOutput = new BooleanSetting(false)
   private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
+
+  private val testFailFast = new BooleanSetting(false)
+  private val testFailFastOption = testFailFast.getEnable("store test failures at the end of the run, after which failing tests will run first on the next run")
 
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
@@ -133,6 +138,7 @@ object CommandLineTesting {
     parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
     parser.add(travisTestOutputOption, "travis-test-output")
+    parser.add(testFailFastOption, "test-fail-fast")
   }
 
   def getCases: Map[String, Case] = {
@@ -194,7 +200,21 @@ object CommandLineTesting {
 
   def runTests(): Unit = {
     val allTasks = getTasks
-    val sortedTaskKeys = allTasks.keys.toSeq.sorted
+
+    val sortedTaskKeys =
+      if(testFailFast.get())
+        try {
+          val f = Source.fromFile("tmp/failing-tests")
+          val failingTests = f.mkString.split(';').filter(_ != "") // silly java split
+          f.close()
+          allTasks.keys.toSeq.sortBy(key => (!failingTests.contains(key), key))
+        } catch {
+          case _: FileNotFoundException =>
+            allTasks.keys.toSeq.sorted
+        }
+      else {
+        allTasks.keys.toSeq.sorted
+      }
 
     var splitDiv = 1
     var splitMod = 0
@@ -222,14 +242,14 @@ object CommandLineTesting {
     Progress("Submitting %d tasks to thread pool with %d worker(s)", Int.box(taskKeys.length), Int.box(workers.get()))
     pool.start()
 
-    var fails = 0
+    var fails = Set.empty[String]
 
     for(((task, reasons, newCurrentlyRunning, otherTasksLeft), i) <- pool.results().zipWithIndex) {
       val taskKey = keyOfTask(task)
       val progress = 100 * i / tasks.size
 
       if (reasons.nonEmpty) {
-        fails += 1
+        fails += taskKey
         Output("Fail: %s", taskKey)
 
         if(travisTestOutput.get()) {
@@ -277,8 +297,15 @@ object CommandLineTesting {
       })
     }
 
-    if (fails > 0) {
-      hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails), Int.box(tasks.size))
+    if(testFailFast.get()) {
+      val f = new File("tmp/failing-tests")
+      val writer = new BufferedWriter(new FileWriter(f))
+      writer.write(fails.mkString(";"))
+      writer.close()
+    }
+
+    if (fails.nonEmpty) {
+      hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails.size), Int.box(tasks.size))
       System.exit(1)
     } else {
       hre.lang.System.Verdict("All %d tests passed", Int.box(tasks.size))

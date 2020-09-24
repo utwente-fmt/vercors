@@ -117,6 +117,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         }
       case ASTSpecial.Kind.Goto => features += Goto
       case ASTSpecial.Kind.Throw => features += Exceptions
+      case ASTSpecial.Kind.With | ASTSpecial.Kind.Then | ASTSpecial.Kind.Label =>
+        features += ImproperlySortedBeforeAfter
       case _ =>
     }
   }
@@ -133,11 +135,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   }
 
   def visitBeforeAfter(node: BeforeAfterAnnotations): Unit = {
-    if(node.get_after() != null && node.get_after().asScala.exists(
-      after => after.isSpecial(ASTSpecial.Kind.Label) || after.isSpecial(ASTSpecial.Kind.With))) {
-      features += ImproperlySortedBeforeAfter
-    }
-
     if(node.get_after() != null && node.get_after().asScala.nonEmpty) {
       features += BeforeAfter
     }
