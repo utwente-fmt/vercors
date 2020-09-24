@@ -266,7 +266,7 @@ object Passes {
     SimplePass("inline",
       "Inline all methods marked as inline",
       new InlinePredicatesRewriter(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.Lemma,
+      permits=Feature.DEFAULT_PERMIT - features.Lemma - features.MethodAnnotations,
       removes=Set(features.InlinePredicate)),
     SimplePass("kernel-split",
       "Split kernels into main, thread and barrier.",
@@ -673,6 +673,14 @@ object Passes {
     SimplePass(
       "interpret-annotations", "Interpret annotations",
       new AnnotationInterpreter(_).rewriteAll(),
+      permits=Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES ++ Set(
+        features.NullAsOptionValue,
+        features.TopLevelDeclarations,
+        features.ArgumentAssignment,
+        features.PureImperativeMethods,
+        features.PVLSugar,
+        features.NotJavaEncoded,
+      ),
       removes=Set(features.MethodAnnotations),
     )
   ).map(_.tup).toMap

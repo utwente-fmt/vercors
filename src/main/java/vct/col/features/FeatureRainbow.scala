@@ -44,6 +44,14 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += NotJavaEncoded
   }
 
+  private def isPure(m: Method): Boolean =
+    Set(Method.Kind.Predicate, Method.Kind.Pure).contains(m.kind) ||
+      m.annotations().asScala.exists(_.isReserved(ASTReserved.Pure))
+
+  private def isInline(m: Method): Boolean =
+    (m.isValidFlag(ASTFlags.INLINE) && m.getFlag(ASTFlags.INLINE)) ||
+      m.annotations().asScala.exists(_.isReserved(ASTReserved.Inline))
+
   override def visit(m: Method): Unit = {
     var forbidRecursion = false
 
@@ -69,13 +77,13 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         forbidRecursion = true
       }
     }
-    if(Set(Method.Kind.Predicate, Method.Kind.Pure).contains(m.kind) && m.isValidFlag(ASTFlags.INLINE) && m.getFlag(ASTFlags.INLINE))
+    if(isPure(m) && isInline(m))
       features += InlinePredicate
-    if(m.kind == Method.Kind.Pure && m.getBody.isInstanceOf[BlockStatement])
+    if(isPure(m) && m.getBody.isInstanceOf[BlockStatement])
       features += PureImperativeMethods
     if(m.kind == Method.Kind.Constructor)
       features += Constructors
-    if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && Set(Method.Kind.Constructor, Method.Kind.Plain).contains(m.kind))
+    if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && !isPure(m))
       features += NonVoidMethods
 
     if(!forbidRecursion) {
