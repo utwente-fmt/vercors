@@ -45,9 +45,6 @@ public class ColIParser implements Parser {
 
     pu = new SpecificationCollector(CSyntax.getCML(), pu).rewriteAll();
 
-    pu = new AnnotationInterpreter(pu).rewriteAll();
-    Progress("rewriting extra annotations took %dms", tk.show());
-
     pu=new ConvertTypeExpressions(pu).rewriteAll();
     Progress("converting type expressions took %dms",tk.show());
     Debug("after converting type expression %s",pu);

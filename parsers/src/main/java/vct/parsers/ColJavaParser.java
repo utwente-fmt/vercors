@@ -66,9 +66,6 @@ public class ColJavaParser implements Parser {
         pu=new JavaPostProcessor(pu).rewriteAll();
         Progress("post processing took %dms",tk.show());
 
-        pu=new AnnotationInterpreter(pu).rewriteAll();
-        Progress("interpreting annotations took %dms",tk.show());
-
         return pu;
       } catch (FileNotFoundException e) {
         Fail("File %s has not been found",file_name);

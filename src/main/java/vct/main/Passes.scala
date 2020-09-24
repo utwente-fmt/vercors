@@ -12,7 +12,7 @@ import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
+import vct.parsers.rewrite.{AnnotationInterpreter, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -669,6 +669,11 @@ object Passes {
       "sort-before-after", "Put with/then statements in the correct place",
       new RewriteWithThen(_).rewriteAll(),
       removes=Set(features.ImproperlySortedBeforeAfter),
+    ),
+    SimplePass(
+      "interpret-annotations", "Interpret annotations",
+      new AnnotationInterpreter(_).rewriteAll(),
+      removes=Set(features.MethodAnnotations),
     )
   ).map(_.tup).toMap
 }
