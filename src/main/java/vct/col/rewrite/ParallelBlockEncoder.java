@@ -1004,4 +1004,16 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     result=res; return ;
   }
 
+  @Override
+  public void visit(NameExpression name) {
+    // ugly hack to avoid properly substituting free variables in extracted argument for the right kind
+    switch(name.kind()) {
+      case Local:
+        result = create.unresolved_name(name.name());
+        break;
+      default:
+        super.visit(name);
+    }
+  }
+
 }

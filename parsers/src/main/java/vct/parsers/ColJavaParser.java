@@ -59,6 +59,8 @@ public class ColJavaParser implements Parser {
         Progress("AST conversion took %dms",tk.show());
         Debug("program after Java parsing:%n%s",pu);
 
+        // flattenvariabledecls must be before JavaResolver
+        pu = new FlattenVariableDeclarations(pu).rewriteAll();
         pu = new SpecificationCollector(JavaSyntax.getJava(JavaDialect.JavaVerCors), pu).rewriteAll();
         
         pu=new JavaPostProcessor(pu).rewriteAll();

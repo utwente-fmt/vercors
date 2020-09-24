@@ -12,7 +12,7 @@ import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes}
+import vct.parsers.rewrite.{FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, StripUnusedExtern}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -86,16 +86,23 @@ object Passes {
       "rewrite pointers to arrays",
       new PointersToArrays(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.DeclarationsNotLifted,
-      removes=Set(features.Pointers, features.AddrOf)),
+      removes=Set(features.Pointers, features.AddrOf),
+      introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere,
+    ),
     SimplePass("desugar_valid_pointer",
       "rewrite \\array, \\matrix, \\pointer and \\pointer_index",
       new DesugarValidPointer(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.Pointers,
-      removes=Set(features.ValidPointer)),
+      removes=Set(features.ValidPointer),
+      introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere,
+    ),
     SimplePass("lift_declarations",
       "lift declarations to cell of the declared types, to treat locals as heap locations.",
       new LiftDeclarations(_).rewriteAll,
-      removes=Set(features.DeclarationsNotLifted)),
+      permits=Feature.DEFAULT_PERMIT - features.OpenMP - features.ParallelBlocks,
+      removes=Set(features.DeclarationsNotLifted),
+      introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere,
+    ),
     new AbstractPass("java-check", "run a Java-aware type check") {
       val permits: Set[Feature] = Feature.ALL
       val removes: Set[Feature] = Set.empty
@@ -623,7 +630,30 @@ object Passes {
     SimplePass(
       "spec-ignore", "Filter specifications and statements ignored with spec_ignore",
       new FilterSpecIgnore(_).rewriteAll(),
+      // Should occur very early, because in spec_ignore the code may be invalid in various ways
+      permits=Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES ++ Set(
+        features.NullAsOptionValue,
+        features.SpecIgnore,
+        features.TopLevelDeclarations,
+        features.ArgumentAssignment,
+        features.PureImperativeMethods,
+        features.PVLSugar,
+        features.NotJavaEncoded,
+      ),
       removes=Set(features.SpecIgnore),
+    ),
+    SimplePass(
+      "unused-extern", "Remove definitions from our internal C headers that are not used",
+      new StripUnusedExtern(_).rewriteAll(),
+      permits=Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES ++ Set(
+        features.NullAsOptionValue,
+        features.TopLevelDeclarations,
+        features.ArgumentAssignment,
+        features.PureImperativeMethods,
+        features.PVLSugar,
+        features.NotJavaEncoded,
+      ),
+      removes=Set(features.UnusedExtern),
     )
   ).map(_.tup).toMap
 }

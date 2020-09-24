@@ -503,6 +503,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     Contract contract=m.getContract();
 
     if (contract!=null){
+      if(contract.pre_condition.isConstant(false)) {
+        /* This method is ignored for specification purposes, so should not be type-checked
+         * It should be elided by FilterSpecIgnore */
+        return;
+      }
+
       if (m.kind==Method.Kind.Predicate){
         ASTNode tt=new ConstantExpression(true);
         if (!contract.pre_condition.equals(tt)){
@@ -1829,8 +1835,24 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
 
   public void visit(BlockStatement s){
-    super.visit(s);
-    // TODO: consider if type should be type of last statement.
+    int specIgnoreDepth = 0;
+
+    for(int i = 0; i < s.getLength(); i++) {
+      ASTNode statement = s.get(i);
+
+      if(statement.isSpecial(ASTSpecial.Kind.SpecIgnoreStart)) {
+        specIgnoreDepth++;
+      } else if(statement.isSpecial(ASTSpecial.Kind.SpecIgnoreEnd)) {
+        if(specIgnoreDepth == 0) {
+          statement.getOrigin().report("End of specignore without start");
+          Fail("Failing due to error above");
+        }
+
+        specIgnoreDepth--;
+      } else if(specIgnoreDepth == 0) {
+        statement.accept(this);
+      }
+    }
   }
   public void visit(IfStatement s){
     super.visit(s);

@@ -50,6 +50,7 @@ public class ColPVLParser implements Parser {
         ProgramUnit pu = PVLtoCOL.convert(tree,file_name,tokens,parser);
         Progress("AST conversion pass took %dms",tk.show());
 
+        pu = new FlattenVariableDeclarations(pu).rewriteAll();
         pu = new SpecificationCollector(PVLSyntax.get(), pu).rewriteAll();
         
         pu=new PVLPostProcessor(pu).rewriteAll();

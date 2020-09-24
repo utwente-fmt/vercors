@@ -362,6 +362,7 @@ class Main {
       vct.col.features.NullAsOptionValue,
       vct.col.features.NotOptimized,
       vct.col.features.DeclarationsNotLifted,
+      vct.col.features.UnusedExtern,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
       vct.col.features.ScatteredDeclarations, // this pass finds duplicate names.
@@ -426,14 +427,14 @@ class Main {
         return
       }
 
+      Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
+
       report = BY_KEY("java-check").apply_pass(report, Array())
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
         return
       }
-
-      Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
 
       if(strictInternalConditions.get()) {
         val featuresOut = Feature.scan(report.getOutput)

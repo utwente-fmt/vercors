@@ -45,7 +45,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   }
 
   override def visit(m: Method): Unit = {
-    super.visit(m)
+    var forbidRecursion = false
+
     if(m.annotated())
       if (m.annotations().size == 1 && m.isSynchronized) {
         features += Synchronized
@@ -63,6 +64,10 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         features += GivenYields
       if(m.getContract.invariant != Contract.default_true)
         features += ContextEverywhere
+      if(m.getContract.pre_condition.isConstant(false)) {
+        features += SpecIgnore
+        forbidRecursion = true
+      }
     }
     if(Set(Method.Kind.Predicate, Method.Kind.Pure).contains(m.kind) && m.isValidFlag(ASTFlags.INLINE) && m.getFlag(ASTFlags.INLINE))
       features += InlinePredicate
@@ -72,6 +77,10 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += Constructors
     if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && Set(Method.Kind.Constructor, Method.Kind.Plain).contains(m.kind))
       features += NonVoidMethods
+
+    if(!forbidRecursion) {
+      super.visit(m)
+    }
   }
 
   override def visit(c: Contract): Unit = {
@@ -288,11 +297,23 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   }
 
   override def visit(block: BlockStatement): Unit = {
-    super.visit(block)
     if(block.getStatements.lastIndexWhere(_.isInstanceOf[DeclarationStatement])
         > block.getStatements.indexWhere(!_.isInstanceOf[DeclarationStatement]))
       features += ScatteredDeclarations
+
+    var specIgnoreDepth = 0
+    block.asScala.foreach {
+      case s: ASTSpecial if s.kind == ASTSpecial.Kind.SpecIgnoreStart =>
+        specIgnoreDepth += 1
+      case s: ASTSpecial if s.kind == ASTSpecial.Kind.SpecIgnoreEnd =>
+        specIgnoreDepth -= 1
+      case other =>
+        if(specIgnoreDepth == 0) {
+          other.accept(this)
+        }
+    }
   }
+
 
   override def visit(decl: DeclarationStatement): Unit = {
     super.visit(decl)
@@ -420,6 +441,7 @@ object Feature {
     NullAsOptionValue,
     NotOptimized,
     DeclarationsNotLifted,
+    UnusedExtern,
 
     NeedsSatCheck,
     NeedsAxiomCheck,
@@ -740,6 +762,8 @@ object Feature {
 
     DeclarationsNotLifted,
 
+    UnusedExtern,
+
     // (Bob) I think most passes ignore this anyway?
     Goto, Break, Continue, Switch, Return, ExcVar, ImplicitLabels, Exceptions, Finally
   )
@@ -826,6 +850,7 @@ case object BeforeSilverDomains extends GateFeature
 case object NullAsOptionValue extends GateFeature
 case object NotOptimized extends GateFeature
 case object DeclarationsNotLifted extends GateFeature
+case object UnusedExtern extends GateFeature
 
 case object NeedsSatCheck extends GateFeature
 case object NeedsAxiomCheck extends GateFeature

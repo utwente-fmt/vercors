@@ -78,7 +78,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val body = convertStat(statement)
       val contract = getContract(convertValContract(maybeContract))
       val decls = t.params.map(param => getOrFail(decl, param.asDecl, "Parameter type or name missing"))
-      val res = create method_decl(t.returnType, contract, name, decls.toArray, body)
+      val varargs = decls.nonEmpty && decls.last.`type`.isPrimitive(PrimitiveSort.CVarArgs)
+      val res = create method_kind (Method.Kind.Plain, t.returnType, contract, name, decls.toArray, varargs, body)
       specs.valModifiers.foreach(res.attach(_))
       Seq(res)
   })
@@ -214,7 +215,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
             val ret = funcT.returnType
             val params = funcT.params.map(param => getOrFail(decl, param.asDecl,
               "Parameter name and types are both required, even in empty forward declarations."))
-            val res = create method_decl(ret, contract, name, params.toArray, null)
+            val varargs = params.nonEmpty && params.last.`type`.isPrimitive(PrimitiveSort.CVarArgs)
+            val res = create method_kind(Method.Kind.Plain, ret, contract, name, params.toArray, varargs, null)
             specs.valModifiers.foreach(res.attach(_))
             res
           case _ =>
