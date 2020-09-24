@@ -10,23 +10,28 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
-  var renameArguments: Boolean = false
+  var inContract: Boolean = false
 
   override def visit(decl: DeclarationStatement): Unit = {
-    Debug("%s %s", decl.`type`, decl.name)
-    val newType = SequenceUtils.optArrayCell(create, decl.`type`)
-    val newStructType = SequenceUtils.arrayCell(create, decl.`type`)
-    val initVal = decl.init match {
-      case Some(x) => rewrite(x)
-      case None => decl.`type`.zero
-    }
+    if(inContract) {
+      // More accurately we should skip declarations in binding expressions
+      super.visit(decl)
+    } else {
+      Debug("%s %s", decl.`type`, decl.name)
+      val newType = SequenceUtils.optArrayCell(create, decl.`type`)
+      val newStructType = SequenceUtils.arrayCell(create, decl.`type`)
+      val initVal = decl.init match {
+        case Some(x) => rewrite(x)
+        case None => decl.`type`.zero
+      }
 
-    result = DeclarationStatement(
-      decl.name,
-      newType,
-      Some(create.expression(StandardOperator.OptionSome, create.struct_value(newStructType, null, initVal)))
-    )
-    result.setOrigin(decl.getOrigin)
+      result = DeclarationStatement(
+        decl.name,
+        newType,
+        Some(create.expression(StandardOperator.OptionSome, create.struct_value(newStructType, null, initVal)))
+      )
+      result.setOrigin(decl.getOrigin)
+    }
   }
 
   override def visit(invokation: MethodInvokation): Unit = {
@@ -65,9 +70,9 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
       )
     }
 
-    renameArguments = true
+    inContract = true
     val newContract = rewrite(method.getContract)
-    renameArguments = false
+    inContract = false
 
     result = create.method_decl(
       method.getReturnType,
@@ -80,14 +85,14 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
 
   override def visit(name: NameExpression): Unit = {
     if(name.getKind == NameExpressionKind.Argument) {
-      if(renameArguments) {
+      if(inContract) {
         // Within contracts
         result = create.argument_name("__arg_" + name.getName)
       } else {
         // Otherwise, re-resolve the name to the masking argument
         result = SequenceUtils.access(create, create.unresolved_name(name.getName), create.constant(0))
       }
-    } else if(name.getKind != NameExpressionKind.Reserved && name.getKind != NameExpressionKind.Label) {
+    } else if(!inContract && name.getKind != NameExpressionKind.Reserved && name.getKind != NameExpressionKind.Label) {
       result = SequenceUtils.access(create, name, create.constant(0))
     } else {
       super.visit(name)
