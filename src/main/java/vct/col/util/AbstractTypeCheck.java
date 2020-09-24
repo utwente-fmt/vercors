@@ -1638,7 +1638,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         element = (Type) element.firstarg();
       }
 
-      if(element.isPrimitive(PrimitiveSort.Option)) {
+      if(element.isPrimitive(PrimitiveSort.Option) || element.isPrimitive(PrimitiveSort.Pointer)) {
         for (ASTNode node : JavaConverters.asJavaIterable(v.values())) {
           node.setType(element);
         }
@@ -1687,6 +1687,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     && !(arg instanceof FieldAccess)
     && !arg.isa(StandardOperator.Subscript)
     && !((arg instanceof NameExpression) && (((NameExpression)arg).getKind()== NameExpressionKind.Field))
+    && !((arg instanceof NameExpression) && (((NameExpression)arg).site().isStatic()))
     && !arg.getType().isPrimitive(PrimitiveSort.Location)
     && !arg.isa(StandardOperator.IndependentOf) // Ignore this check in jspec rules
     ){

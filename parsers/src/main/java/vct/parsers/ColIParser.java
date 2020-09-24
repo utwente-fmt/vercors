@@ -50,10 +50,7 @@ public class ColIParser implements Parser {
     Debug("after converting type expression %s",pu);
 
     // TODO: consider restoring comparision chaining (a<b<c<d) and range perms (Perm(a[{0..n}], write))
-    // TODO: encoding as class should not be necessary. 
-    pu=new EncodeAsClass(pu).rewriteAll();
-    Progress("Encoding as class took %dms",tk.show());
-    Debug("after encoding as class %s",pu);
+    // TODO: encoding as class should not be necessary.
     
     return pu;
   }

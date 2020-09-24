@@ -33,7 +33,12 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       new ProgramUnit()
     case CompilationUnit0(Some(units), _) =>
       val result = new ProgramUnit()
-      convertTranslationUnits(units).foreach(result.add)
+      convertTranslationUnits(units).map {
+        case field: DeclarationStatement =>
+          field.setStatic(true)
+          field
+        case other => other
+      }.foreach(result.add)
       result
   }
 
@@ -80,6 +85,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val decls = t.params.map(param => getOrFail(decl, param.asDecl, "Parameter type or name missing"))
       val varargs = decls.nonEmpty && decls.last.`type`.isPrimitive(PrimitiveSort.CVarArgs)
       val res = create method_kind (Method.Kind.Plain, t.returnType, contract, name, decls.toArray, varargs, body)
+      res.setStatic(true)
       specs.valModifiers.foreach(res.attach(_))
       Seq(res)
   })
@@ -217,6 +223,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
               "Parameter name and types are both required, even in empty forward declarations."))
             val varargs = params.nonEmpty && params.last.`type`.isPrimitive(PrimitiveSort.CVarArgs)
             val res = create method_kind(Method.Kind.Plain, ret, contract, name, params.toArray, varargs, null)
+            res.setStatic(true)
             specs.valModifiers.foreach(res.attach(_))
             res
           case _ =>

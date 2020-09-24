@@ -87,7 +87,7 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
     } else {
       reserved.reserved match {
         case ASTReserved.Null if reserved.getType.isPrimitive(PrimitiveSort.Pointer) =>
-          create reserved_name(ASTReserved.OptionNone)
+          result = create reserved_name(ASTReserved.OptionNone)
         case _ =>
           super.visit(reserved)
       }

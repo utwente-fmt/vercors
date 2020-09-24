@@ -100,7 +100,12 @@ public class SatCheckRewriter extends AbstractRewriter {
 
             blockStatement.setParent(assert_method);
 
-            currentTargetClass.add(assert_method);
+            if(currentTargetClass == null) {
+                assert_method.setStatic(true);
+                target().add(assert_method);
+            } else {
+                currentTargetClass.add(assert_method);
+            }
         }
     }
 

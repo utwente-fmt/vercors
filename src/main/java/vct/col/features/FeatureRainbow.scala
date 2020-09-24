@@ -6,7 +6,7 @@ import vct.col.ast.stmt.composite.{BlockStatement, ForEachLoop, IfStatement, Loo
 import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.expr
-import vct.col.ast.expr.constant.ConstantExpression
+import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.util.{AbstractVisitor, RecursiveVisitor}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.langspecific.c.{OMPFor, OMPForSimd, OMPParallel, OMPParallelFor, OMPSection, OMPSections}
@@ -23,7 +23,14 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   source.asScala.foreach {
     case _: ASTClass =>
-    case _ => features += TopLevelDeclarations
+    case _: DeclarationStatement =>
+      features += TopLevelFields
+    case _ =>
+      features += TopLevelDeclarations
+  }
+
+  override def visit(v: StructValue): Unit = {
+    super.visit(v)
   }
 
   override def visit(c: ASTClass): Unit = {
@@ -383,6 +390,7 @@ object Feature {
     MethodAnnotations,
     TypeExpressions,
     TopLevelDeclarations,
+    TopLevelFields,
     SpecIgnore,
     MultiDecls,
     UnresolvedTypeInference,
@@ -462,6 +470,7 @@ object Feature {
 
     // currently largely unsupported, so most passes only put stuff in classes
     // TopLevelDeclarations,
+    // TopLevelFields,
 
     // why would we add ignored specifications?
     // SpecIgnore,
@@ -627,6 +636,7 @@ object Feature {
 
     // currently largely unsupported, so most passes only put stuff in classes
     // TopLevelDeclarations,
+    // TopLevelFields,
 
     // this is stateful and hard to deal with
     // SpecIgnore,
@@ -774,6 +784,7 @@ object Feature {
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
+    TopLevelFields,
     PureImperativeMethods,
   )
 
@@ -792,6 +803,7 @@ sealed trait GateFeature extends Feature
 case object MethodAnnotations extends ScannableFeature // no pass
 case object TypeExpressions extends ScannableFeature // no pass
 case object TopLevelDeclarations extends ScannableFeature // no pass
+case object TopLevelFields extends ScannableFeature // no pass
 case object SpecIgnore extends ScannableFeature // no pass
 case object MultiDecls extends ScannableFeature
 case object UnresolvedTypeInference extends ScannableFeature
