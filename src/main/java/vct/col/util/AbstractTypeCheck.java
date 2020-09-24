@@ -1687,7 +1687,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     && !(arg instanceof FieldAccess)
     && !arg.isa(StandardOperator.Subscript)
     && !((arg instanceof NameExpression) && (((NameExpression)arg).getKind()== NameExpressionKind.Field))
-    && !((arg instanceof NameExpression) && (((NameExpression)arg).site().isStatic()))
+    && !((arg instanceof NameExpression) && (((NameExpression)arg).site().isValidFlag(ASTFlags.STATIC))
+                                         && (((NameExpression)arg).site().isStatic()))
     && !arg.getType().isPrimitive(PrimitiveSort.Location)
     && !arg.isa(StandardOperator.IndependentOf) // Ignore this check in jspec rules
     ){
