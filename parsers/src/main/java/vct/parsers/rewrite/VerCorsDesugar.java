@@ -38,6 +38,7 @@ public class VerCorsDesugar extends AbstractRewriter {
       result=res;
       break;
     }
+    // Hahahaha this is a different version of the invalid case in JavaPostProcessor
     case LT:{
       ASTNode left=e.arg(0);
       if(left instanceof OperatorExpression){
