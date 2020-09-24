@@ -12,7 +12,7 @@ import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, StripUnusedExtern}
+import vct.parsers.rewrite.{FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -232,7 +232,9 @@ object Passes {
     SimplePass("ghost-lift",
       "Lift ghost code to real code",
       new GhostLifter(_).rewriteAll,
-      removes=Set(features.GivenYields)),
+      permits=Feature.DEFAULT_PERMIT - features.ImproperlySortedBeforeAfter,
+      removes=Set(features.GivenYields),
+    ),
     SimplePass("globalize",
       "split classes into static and dynamic parts",
       new GlobalizeStaticsParameter(_).rewriteAll,
@@ -661,6 +663,11 @@ object Passes {
         features.NotJavaEncoded,
       ),
       removes=Set(features.UnusedExtern),
+    ),
+    SimplePass(
+      "sort-before-after", "Put with/then statements in the correct place",
+      new RewriteWithThen(_).rewriteAll(),
+      removes=Set(features.ImproperlySortedBeforeAfter),
     )
   ).map(_.tup).toMap
 }

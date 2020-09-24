@@ -1997,6 +1997,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     super.visit(s);
     Debug("special %s",s.kind);
     for(ASTNode n:s.args){
+      if(!(n instanceof ExpressionNode)) continue;
+
       Type t=n.getType();
       if (t==null){
         Abort("untyped argument to %s: %s",s.kind, Configuration.getDiagSyntax().print(n));
