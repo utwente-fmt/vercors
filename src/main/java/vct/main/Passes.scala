@@ -642,6 +642,7 @@ object Passes {
       new FilterSpecIgnore(_).rewriteAll(),
       // Should occur very early, because in spec_ignore the code may be invalid in various ways
       permits=Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES ++ Set(
+        features.TypeExpressions,
         features.NullAsOptionValue,
         features.SpecIgnore,
         features.TopLevelDeclarations,

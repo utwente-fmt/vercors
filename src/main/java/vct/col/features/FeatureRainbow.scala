@@ -631,8 +631,8 @@ object Feature {
     // transfered by post_visit in AbstractRewriter automatically
     MethodAnnotations,
 
-    // type expressions are used for const, long, extern and such
-    TypeExpressions,
+    // Many passes just do .isPrimitive(x)
+    // TypeExpressions,
 
     // currently largely unsupported, so most passes only put stuff in classes
     // TopLevelDeclarations,

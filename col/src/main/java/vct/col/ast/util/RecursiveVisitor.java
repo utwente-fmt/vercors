@@ -244,6 +244,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(c.yields);
       dispatch(c.signals);
     }
+    dispatch(m.getReturnType());
     dispatch(m.getArgs());
     dispatch(m.getBody());
     if (c!=null) {
