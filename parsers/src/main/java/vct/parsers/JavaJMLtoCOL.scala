@@ -1032,6 +1032,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create reserved_name ASTReserved.LocalThreadId
     case ValReserved9("\\gtid") =>
       create reserved_name ASTReserved.GlobalThreadId
+    case ValReserved10("true") =>
+      ??(reserved)
+    case ValReserved11("false") =>
+      ??(reserved)
   })
 
   /**
@@ -1051,6 +1055,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValReserved7(s) => s
     case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
     case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved10(s) => s
+    case ValReserved11(s) => s
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =
@@ -1087,6 +1093,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     }
     case ValType1("seq", _, subType, _) =>
       create primitive_type(PrimitiveSort.Sequence, convertType(subType))
+    case ValType2("set", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Set, convertType(subType))
+    case ValType3("bag", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Bag, convertType(subType))
+    case ValType4("loc", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Location, convertType(subType))
   })
 
   def convertValArg(arg: ValArgContext): DeclarationStatement = origin(arg, arg match {

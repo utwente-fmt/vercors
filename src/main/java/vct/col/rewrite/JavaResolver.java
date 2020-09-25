@@ -63,6 +63,7 @@ public class JavaResolver extends AbstractRewriter {
       create.setOrigin(new MessageOrigin("library class %s",cl_name));
       ClassType superClass = null;
       if (!cln.toString().equals("java.lang.Object")) {
+        // FIXME this is broken in the case of interfaces (which have no superclass)
         superClass = (ClassType) convert_type(cl.getSuperclass());
       }
       ASTClass res=create.new_class(

@@ -205,6 +205,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
         return true;
       }
     }
+
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
     return throwableType.supertypeof(source(), t) // Actually throwable
             || (t.toString().startsWith("__") && t.toString().endsWith("_ex")); // We defined it (sorry, hacky!)
@@ -213,7 +214,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   public void visit(MethodInvokation mi) {
     super.visit(mi);
 
-    if (mi.definition().getKind() == Method.Kind.Constructor || mi.definition().getKind() == Method.Kind.Plain) {
+    if (mi.definition() != null && (mi.definition().getKind() == Method.Kind.Constructor || mi.definition().getKind() == Method.Kind.Plain)) {
       // Any types that the method has declared, can become live when calling this method
       for (Type t : mi.definition().signals) {
         liveExceptionTypes.add(t);

@@ -366,7 +366,7 @@ literal
     |   FloatingPointLiteral
     |   CharacterLiteral
     |   StringLiteral
-    |   BooleanLiteral
+    |   (True|False)
     |   'null'
     ;
 

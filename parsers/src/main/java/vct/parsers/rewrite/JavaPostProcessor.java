@@ -37,9 +37,6 @@ public class JavaPostProcessor extends AbstractRewriter {
     case ActionHeader:
       Fail("cannot create block around action",s.getOrigin());
       break;
-    case Expression:
-      result=rewrite(s.args[0]);
-      break;
     default:
       super.visit(s);
       break;
@@ -48,25 +45,9 @@ public class JavaPostProcessor extends AbstractRewriter {
   
   @Override
   public void visit(ClassType t){
-    String name[]=t.getNameFull();
-    if (name.length==1){
-      switch(name[0]){
-      case "String":
-        result=create.primitive_type(PrimitiveSort.String);
-        return;
-      case "set":
-        result=create.primitive_type(PrimitiveSort.Set,rewrite(t.argsJava()));
-        return;
-      case "loc":
-        result=create.primitive_type(PrimitiveSort.Location,rewrite(t.argsJava()));
-        return;
-      case "bag":
-        result=create.primitive_type(PrimitiveSort.Bag,rewrite(t.argsJava()));
-        return;
-      default:
-        super.visit(t);
-        return;
-      }
+    String[] name = t.getNameFull();
+    if (name.length==1 && name[0].equals("String")) {
+        result = create.primitive_type(PrimitiveSort.String);
     } else {
       super.visit(t);
     }
@@ -81,31 +62,6 @@ public class JavaPostProcessor extends AbstractRewriter {
       if (m.kind==Method.Kind.Constructor) N++;
     }
     if (N==0 && c.kind!=ASTClass.ClassKind.Interface) create.addZeroConstructor(decl);
-  }
-
-  @Override
-  public void visit(Method m){
-    if (m.getReturnType().isPrimitive(PrimitiveSort.Resource)){
-      result=create.predicate(m.getName(), rewrite(m.getBody()), rewrite(m.getArgs()));
-    } else {
-      super.visit(m);
-    }
-  }
-  
-  @Override
-  public void visit(MethodInvokation e){
-    if (e.object()==null){
-      JavaSyntax syntax=JavaSyntax.getJava(JavaDialect.JavaVerCors);
-      StandardOperator op=syntax.parseFunction(e.method());
-      if (op!=null){
-        result=create.expression(op,rewrite(e.getArgs()));
-        return;
-      }
-    }
-    MethodInvokation res = create.invokation(rewrite(e.object()), e.dispatch(), e.method(), rewrite(e.getArgs()));
-    res.set_before(rewrite(e.get_before()));
-    res.set_after(rewrite(e.get_after()));
-    result = res;
   }
   
   @Override

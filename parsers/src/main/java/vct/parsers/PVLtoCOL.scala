@@ -923,6 +923,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create reserved_name ASTReserved.LocalThreadId
     case ValReserved9("\\gtid") =>
       create reserved_name ASTReserved.GlobalThreadId
+    case ValReserved10("true") =>
+      ??(reserved)
+    case ValReserved11("false") =>
+      ??(reserved)
   })
 
   /**
@@ -978,6 +982,12 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     }
     case ValType1("seq", _, subType, _) =>
       create primitive_type(PrimitiveSort.Sequence, convertType(subType))
+    case ValType2("set", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Set, convertType(subType))
+    case ValType3("bag", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Bag, convertType(subType))
+    case ValType4("loc", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Location, convertType(subType))
   })
 
   def convertValArg(arg: ValArgContext): DeclarationStatement = origin(arg, arg match {

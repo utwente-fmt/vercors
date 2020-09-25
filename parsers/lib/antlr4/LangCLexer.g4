@@ -8,6 +8,8 @@ import SpecLexer, LangOMPLexer, LangGPGPULexer;
 
 VAL_INLINE: EOF EOF;
 VAL_ASSERT: 'assert';
+VAL_TRUE: 'true';
+VAL_FALSE: 'false';
 
 Placeholder : EOF EOF ;
 

@@ -474,7 +474,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case LangId0(id) => convertID(id)
   }
 
-  def convertIDName(id: LangIdContext): NameExpression = id match {
+  def convertIDName(id: LangIdContext): ASTNode = id match {
     case LangId0(id) => convertIDName(id)
   }
 
@@ -487,7 +487,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       convertOverlappingValReservedID(reservedOutSpec)
   }
 
-  def convertIDName(tree: ClangIdentifierContext): NameExpression = origin(tree, tree match {
+  def convertIDName(tree: ClangIdentifierContext): ASTNode = origin(tree, tree match {
     case ClangIdentifier0(reservedInSpec) =>
       convertValReserved(reservedInSpec)
     case ClangIdentifier1("NULL") =>
@@ -1126,7 +1126,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValMulOp0("\\") => StandardOperator.Div
   }
 
-  def convertValReserved(reserved: ValReservedContext): NameExpression = origin(reserved, reserved match {
+  def convertValReserved(reserved: ValReservedContext): ASTNode = origin(reserved, reserved match {
     case ValReserved0(_) =>
       fail(reserved, "This identifier is reserved and cannot be declared or used.")
     case ValReserved1("\\result") =>
@@ -1147,6 +1147,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create reserved_name ASTReserved.LocalThreadId
     case ValReserved9("\\gtid") =>
       create reserved_name ASTReserved.GlobalThreadId
+    case ValReserved10("true") =>
+      create constant true
+    case ValReserved11("false") =>
+      create constant false
   })
 
   /**
@@ -1166,6 +1170,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValReserved7(s) => s
     case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
     case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved10(s) => s
+    case ValReserved11(s) => s
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =
@@ -1202,6 +1208,12 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     }
     case ValType1("seq", _, subType, _) =>
       create primitive_type(PrimitiveSort.Sequence, convertType(subType))
+    case ValType2("set", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Set, convertType(subType))
+    case ValType3("bag", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Bag, convertType(subType))
+    case ValType4("loc", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Location, convertType(subType))
   })
 
   def convertValArg(arg: ValArgContext): DeclarationStatement = origin(arg, arg match {

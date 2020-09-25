@@ -266,14 +266,11 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   
   @Override
   public void visit(ASTClass c){
-    int N;
-    N=c.getStaticCount();
-    for(int i=0;i<N;i++){
-      c.getStatic(i).accept(this);
-    }
-    N=c.getDynamicCount();
-    for(int i=0;i<N;i++){
-      c.getDynamic(i).accept(this);
+    dispatch(c.parameters);
+    dispatch(c.implemented_classes);
+    dispatch(c.super_classes);
+    for(ASTNode decl : c) {
+      decl.accept(this);
     }
   }
 

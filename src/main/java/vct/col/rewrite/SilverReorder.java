@@ -40,7 +40,8 @@ public class SilverReorder extends AbstractRewriter {
   @Override
   public void visit(NameExpression n){
     switch(n.getKind()){
-    case Local:{
+    case Local:
+    case Argument:{
       Debug("lookup %s",n.getName());
       Iterator<String> names=locals.lookup(n.getName());
       if (!names.hasNext()){

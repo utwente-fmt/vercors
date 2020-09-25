@@ -310,8 +310,11 @@ class Main {
   }
 
   /** Collect all passes that remove a feature */
-  def findPassesToRemove(feature: Feature): Set[AbstractPass] =
-    BY_KEY.values.filter(_.removes.contains(feature)).toSet
+  def findPassesToRemove(feature: Feature): Set[AbstractPass] = {
+    val res = BY_KEY.values.filter(_.removes.contains(feature)).toSet
+    if(res.isEmpty) Warning("No way to remove %s", feature)
+    res
+  }
 
   /** Yield all sets of passes that are at least able to remove all features that are not permitted in a pass */
   def removalFixedPoint(featuresIn: Set[Feature], passes: Set[AbstractPass]): Seq[Set[AbstractPass]] = {
@@ -347,12 +350,12 @@ class Main {
   }
 
   def collectPassesForSilver: Seq[AbstractPass] = {
-    val resolve = Passes.BY_KEY.apply("java_resolve")
-    val standardize = Passes.BY_KEY.apply("standardize")
+    val resolve = Passes.BY_KEY("java_resolve")
+    val string = Passes.BY_KEY("string-class")
     val check = Passes.BY_KEY.apply("check")
-    val localCheck = Passes.BY_KEY("local-variable-check")
+    val ignore = Passes.BY_KEY.apply("spec-ignore")
 
-    Seq(resolve, standardize, check, localCheck).foreach(
+    Seq(ignore, string, resolve, check).foreach(
       pass => report = pass.apply_pass(report, Array()))
 
     var features = Feature.scan(report.getOutput) ++ Set(
@@ -363,18 +366,20 @@ class Main {
       vct.col.features.NotOptimized,
       vct.col.features.DeclarationsNotLifted,
       vct.col.features.UnusedExtern,
+      vct.col.features.ParallelLocalAssignmentNotChecked,
+      // vct.col.features.NotJavaResolved,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
       vct.col.features.ScatteredDeclarations, // this pass finds duplicate names.
       vct.col.features.ImplicitLabels, // Can be detected, lazy, sorry
     )
 
+    // options are encoded as gated features
     if(sat_check.get()) features += vct.col.features.NeedsSatCheck
     if(check_axioms.get()) features += vct.col.features.NeedsAxiomCheck
     if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
-    // intersperse type checks
     computeGoal(features, BY_KEY("silver")).get
   }
 

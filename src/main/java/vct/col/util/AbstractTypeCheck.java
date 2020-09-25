@@ -15,6 +15,7 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.*;
+import vct.col.rewrite.AddZeroConstructor;
 import vct.logging.PassReport;
 import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
@@ -95,7 +96,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       decl=source().find(t.getNameFull());
     }
     if (decl==null){
-      Fail("type error: defined type "+t.getFullName()+" not found");
+      return;
+      // Fail("type error: defined type "+t.getFullName()+" not found");
     }
     if (decl instanceof AxiomaticDataType){
       t.setType(t);
@@ -149,13 +151,27 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       m=cl.get_constructor(source(),c_args);
       if(m==null){
-        Fail("Could not find constructor");
+        if(e.getArity() == 0 && !AddZeroConstructor.hasConstructor(cl)) {
+          /* Return a dummy method for the zero constructor: type check does not alter the AST, so there's no risk of
+           * it ending up there. */
+          return new Method(Method.Kind.Constructor, cl.getName(), new PrimitiveType(PrimitiveSort.Void), new Type[0], null, new DeclarationStatement[0], false, null);
+        } else {
+          Fail("Could not find constructor");
+        }
       } else {
         return m;
       }
     }
-    if (e.object()!=null){
-      ClassType object_type=(ClassType)e.object().getType();
+
+    ASTNode obj = e.object();
+
+    if(obj == null && current_class() != null) {
+      obj = new NameExpression(null, ASTReserved.This, NameExpressionKind.Reserved);
+      obj.setType(new ClassType(current_class().getFullName()));
+    }
+
+    if (obj!=null){
+      ClassType object_type=(ClassType)obj.getType();
       int N=e.getArity();
       for(int i=0;i<N;i++){
         if (e.getArg(i).labels()>0) {
@@ -276,12 +292,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Type ti=m.getArgType(i);
       ASTNode arg=e.getArg(i);
       if (!ti.supertypeof(source(), arg.getType())){
-        if (ti.isPrimitive(PrimitiveSort.Location)
-          && (arg instanceof Dereference || arg instanceof FieldAccess)
-          && ((Type)ti.firstarg()).supertypeof(source(), arg.getType())
-        ){
-          // OK
-        } else {
+        boolean argAssignable =
+                (arg instanceof Dereference || arg instanceof FieldAccess)
+                && ((Type)ti.firstarg()).supertypeof(source(), arg.getType());
+        argAssignable |= arg instanceof NameExpression && ((NameExpression) arg).kind() == NameExpressionKind.Field;
+
+        if (!(ti.isPrimitive(PrimitiveSort.Location) && argAssignable)) {
           Fail("argument type %d incompatible %s/%s:%s",i,ti,arg,arg.getType());
         }
       }
@@ -561,16 +577,19 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     Debug("%s name %s",e.getKind(),e.getName());
     NameExpressionKind kind = e.getKind();
     String name=e.getName();
-    switch(kind){
-      case Unresolved:{
-        VariableInfo info=variables.lookup(name);
-        if (info!=null) {
-          Debug("unresolved %s name %s found during type check",info.kind,name);
-          e.setKind(info.kind);
-          kind=info.kind;
-        }
+
+    if (kind == NameExpressionKind.Unresolved) {
+      VariableInfo info = variables.lookup(name);
+      if (info != null) {
+        Debug("unresolved %s name %s found during type check", info.kind, name);
+        e.setKind(info.kind);
+        kind = info.kind;
+      } else {
+        e.setType(new ClassType(e.name()));
+        return;
       }
     }
+
     switch(kind){
       case Argument:
       case Local:
@@ -1027,7 +1046,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           NameExpression name = (NameExpression) e.arg(0);
           if (name.getKind() == NameExpressionKind.Label) break;
         }
-        if (tt[0].getClass() != tt[1].getClass()) {
+        if (!tt[0].supertypeof(source(), tt[1])) {
           Fail("Types of left and right-hand side arguments in assignment are incomparable at " + e.getOrigin());
         }
         e.setType(tt[0]);
@@ -1370,7 +1389,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     }
     case Empty: {
       Type t = e.arg(0).getType();
-      if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of empty not a sequence");
+      if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set) || t.isPrimitive(PrimitiveSort.Map))) {
+        Fail("argument of empty not a sequence");
+      }
       e.setType(new PrimitiveType(PrimitiveSort.Boolean));
       break;
 
@@ -2030,7 +2051,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       if (arg instanceof MethodInvokation){
         MethodInvokation prop=(MethodInvokation)arg;
-        if (prop.getDefinition().kind != Method.Kind.Predicate){
+        if (prop.getDefinition().kind != Method.Kind.Predicate &&
+                !(prop.getDefinition().kind == Method.Kind.Pure &&
+                  prop.getDefinition().getReturnType().isPrimitive(PrimitiveSort.Resource))) {
           Fail("At %s: argument of [%s] must be predicate and not %s",arg.getOrigin(),s.kind,prop.getDefinition().kind);
         }
       }

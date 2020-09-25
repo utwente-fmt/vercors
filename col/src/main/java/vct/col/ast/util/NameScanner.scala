@@ -159,7 +159,8 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(e: NameExpression): Unit = e.getKind match {
     case Reserved =>
     case Label =>
-    case Field | Local | Argument => checkName(e.getName, e.getType, getYieldsDecl)
+    case Field | Local | Argument =>
+      checkName(e.getName, e.getType, getYieldsDecl)
 
     case Unresolved =>
       if (Seq("tcount", "gsize", "tid", "gid", "lid", "threadIdx", "blockIdx", "blockDim").contains(e.getName)) {

@@ -24,10 +24,13 @@ public class AnnotationInterpreter extends AbstractRewriter {
     ArrayList<ASTNode> ann=new ArrayList<ASTNode>();
     Type returns=rewrite(m.getReturnType());
     Type[] signals=rewrite(m.signals);
-    ContractBuilder cb=new ContractBuilder();
-    rewrite(m.getContract(),cb);
-    Contract contract = cb.getContract();
-    if (contract != null && contract.getOrigin() == null) {
+    Contract contract;
+    if(m.getContract() == null) {
+      contract = null;
+    } else {
+      ContractBuilder cb=new ContractBuilder();
+      rewrite(m.getContract(),cb);
+      contract = cb.getContract(false);
       contract.setOrigin(m.getContract().getOrigin());
     }
     String name=m.getName();

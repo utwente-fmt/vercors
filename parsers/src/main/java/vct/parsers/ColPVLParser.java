@@ -52,9 +52,6 @@ public class ColPVLParser implements Parser {
 
         pu = new FlattenVariableDeclarations(pu).rewriteAll();
         pu = new SpecificationCollector(PVLSyntax.get(), pu).rewriteAll();
-        
-        pu=new PVLPostProcessor(pu).rewriteAll();
-        Progress("Post processing pass took %dms",tk.show());
         return pu;
       } catch(HREExitException e) {
         throw e;

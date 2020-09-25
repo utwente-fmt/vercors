@@ -1,9 +1,9 @@
 package vct.col.features
 
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, TypeExpression, TypeVariable}
+import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, TypeExpression, TypeVariable}
 import vct.col.ast.stmt
 import vct.col.ast.stmt.composite.{BlockStatement, ForEachLoop, IfStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion}
-import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
+import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTFlags, ASTSpecial, Contract, DeclarationStatement, Method, NameSpace, ProgramUnit, VariableDeclaration}
 import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.expr
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
@@ -21,8 +21,12 @@ import scala.collection.mutable
 class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true) {
   val features: mutable.Set[Feature] = mutable.Set()
 
-  source.asScala.foreach {
+  source.asScala.foreach(visitTopLevelDecl)
+
+  def visitTopLevelDecl(decl: ASTNode): Unit = decl match {
     case _: ASTClass =>
+    case ns: NameSpace =>
+      ns.asScala.foreach(visitTopLevelDecl)
     case _: DeclarationStatement =>
       features += TopLevelFields
     case _ =>
@@ -49,6 +53,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += KernelClass
     if(c.fields().asScala.nonEmpty && c.kind != ClassKind.Record)
       features += NotJavaEncoded
+    if(c.asScala.collectFirst {
+      case method: Method if method.kind == Method.Kind.Constructor => ()
+    }.isEmpty) {
+      features += ClassWithoutConstructor
+    }
   }
 
   private def isPure(m: Method): Boolean =
@@ -86,6 +95,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     }
     if(isPure(m) && isInline(m))
       features += InlinePredicate
+    if(isPure(m) && m.name == "lock_invariant")
+      features += LockInvariant
     if(isPure(m) && m.getBody.isInstanceOf[BlockStatement])
       features += PureImperativeMethods
     if(m.kind == Method.Kind.Constructor)
@@ -96,6 +107,14 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     if(!forbidRecursion) {
       super.visit(m)
     }
+  }
+
+  override def visit(ct: ClassType): Unit = {
+    super.visit(ct)
+//    if(ct.definition == null)
+//      features += NotJavaResolved
+    if(ct.names == Seq("String"))
+      features += StringClass
   }
 
   override def visit(c: Contract): Unit = {
@@ -250,6 +269,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     visitBeforeAfter(invok)
     if(invok.getDefinition.kind == Method.Kind.Predicate && !getParentNode.isa(StandardOperator.Scale))
       features += UnscaledPredicateApplication
+    if(invok.`object` == null && invok.dispatch == null)
+      features += NotStandardized
   }
 
   override def visit(deref: expr.Dereference): Unit = {
@@ -448,6 +469,9 @@ object Feature {
     Finally,
     ExcVar,
     Synchronized,
+    ClassWithoutConstructor,
+    LockInvariant,
+    StringClass,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -455,6 +479,8 @@ object Feature {
     NotOptimized,
     DeclarationsNotLifted,
     UnusedExtern,
+    ParallelLocalAssignmentNotChecked,
+    NotJavaResolved,
 
     NeedsSatCheck,
     NeedsAxiomCheck,
@@ -586,6 +612,10 @@ object Feature {
     // Nice to have, should be done somewhere at the end.
     NonVoidMethods,
 
+    // ClassWithoutConstructor,
+    // LockInvariant,
+    // StringClass,
+
     // Passes should be able to introduce complex expressions
     NotFlattened,
 
@@ -614,6 +644,7 @@ object Feature {
     // NotOptimized,
 
     // NotJavaEncoded,
+    // ParallelLocalAssignmentNotChecked,
   )
   val NO_POLY_INTRODUCE: Set[Feature] = DEFAULT_INTRODUCE -- Set(
     This,
@@ -741,7 +772,7 @@ object Feature {
     UnscaledPredicateApplication,
 
     // Minor rewrites
-    NotStandardized,
+    // NotStandardized,
 
     // Useful for class generation and whatnot
     Constructors,
@@ -771,9 +802,16 @@ object Feature {
 
     Summation,
 
+    ClassWithoutConstructor,
+    LockInvariant,
+    StringClass,
+
     NotOptimized,
 
     // NotJavaEncoded,
+    // NotJavaResolved,
+
+    ParallelLocalAssignmentNotChecked,
 
     DeclarationsNotLifted,
 
@@ -861,6 +899,10 @@ case object Exceptions extends ScannableFeature
 case object Finally extends ScannableFeature
 case object ExcVar extends ScannableFeature
 case object Synchronized extends ScannableFeature
+case object ClassWithoutConstructor extends ScannableFeature
+case object LockInvariant extends ScannableFeature
+case object NotJavaResolved extends ScannableFeature
+case object StringClass extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
@@ -868,6 +910,7 @@ case object NullAsOptionValue extends GateFeature
 case object NotOptimized extends GateFeature
 case object DeclarationsNotLifted extends GateFeature
 case object UnusedExtern extends GateFeature
+case object ParallelLocalAssignmentNotChecked extends GateFeature
 
 case object NeedsSatCheck extends GateFeature
 case object NeedsAxiomCheck extends GateFeature

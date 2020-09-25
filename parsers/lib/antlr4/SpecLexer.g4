@@ -23,6 +23,8 @@ PLUS: '+';
 COLON: ':';
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
+VAL_TRUE: 'true';
+VAL_FALSE: 'false';
 */
 
 VAL_RESOURCE: 'resource';
@@ -32,6 +34,9 @@ VAL_ZFRAC: 'zfrac';
 VAL_BOOL: 'bool';
 VAL_RATIONAL: 'rational';
 VAL_SEQ: 'seq';
+VAL_SET: 'set';
+VAL_BAG: 'bag';
+VAL_LOC: 'loc';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
