@@ -119,9 +119,41 @@ valPrimary
     | '\\msum' '(' langExpr ',' langExpr ')'
     | '\\mcmp' '(' langExpr ',' langExpr ')'
     | '\\mrep' '(' langExpr ')'
-    | 'Reducible' '(' langExpr ',' valReducibleOperator ')'
     | langId ':' langExpr
     | '{:' langExpr ':}'
+    | 'Reducible' '(' langExpr ',' valReducibleOperator ')'
+    | 'AbstractState' '(' langExpr ',' langExpr ')'
+    | 'AddsTo' '(' langExpr ',' langExpr ')'
+    | 'APerm' '(' langExpr ',' langExpr ')'
+    | 'ArrayPerm' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ')'
+    | 'buildMap' '(' langExpr ',' langExpr ',' langExpr ')'
+    | 'cardMap' '(' langExpr ')'
+    | 'Contribution' '(' langExpr ',' langExpr ')'
+    | 'disjointMap' '(' langExpr ',' langExpr ')'
+    | 'equalsMap' '(' langExpr ',' langExpr ')'
+    | 'Future' '(' langExpr  ',' langExpr ',' langExpr ')'
+    | 'getFromMap' '(' langExpr ',' langExpr ')'
+    | 'getFst' '(' langExpr ')'
+    | 'getOption' '(' langExpr ')'
+    | 'getSnd' '(' langExpr ')'
+    | 'head' '(' langExpr ')'
+    | 'held' '(' langExpr ')'
+    | 'Hist' '(' langExpr ',' langExpr ',' langExpr ')'
+    | 'HPerm' '(' langExpr ',' langExpr ')'
+    | 'idle' '(' langExpr ')'
+    | 'isEmpty' '(' langExpr ')'
+    | 'itemsMap' '(' langExpr ')'
+    | 'keysMap' '(' langExpr ')'
+    | 'perm' '(' langExpr ')'
+    | 'Perm' '(' langExpr ',' langExpr ')'
+    | 'PointsTo' '(' langExpr ',' langExpr ',' langExpr ')'
+    | ('remove'|'removeAt') '(' langExpr ',' langExpr ')'
+    | 'removeFromMap' '(' langExpr ',' langExpr ')'
+    | 'running' '(' langExpr ')'
+    | 'Some' '(' langExpr ')'
+    | 'tail' '(' langExpr ')'
+    | 'Value' '(' langExpr ')'
+    | 'valuesMap' '(' langExpr ')'
     ;
 
 valReducibleOperator
@@ -136,7 +168,13 @@ valReserved
     | VAL_CREATE | VAL_QED | VAL_APPLY | VAL_USE | VAL_DESTROY | VAL_SPLIT | VAL_MERGE | VAL_CHOOSE | VAL_FOLD
     | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS
     | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE
-    | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS | VAL_SET | VAL_BAG | VAL_LOC)
+    | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS | VAL_SET | VAL_BAG | VAL_LOC | VAL_ABSTRACT_STATE
+    | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_BUILD_MAP | VAL_CARD_MAP | VAL_CONTRIBUTION
+    | VAL_DISJOINT_MAP | VAL_EQUALS_MAP | VAL_FUTURE | VAL_GET_FROM_MAP | VAL_GET_FST | VAL_GET_OPTION | VAL_GET_SND
+    | VAL_HEAD | VAL_HELD | VAL_HIST | VAL_HPERM | VAL_IDLE | VAL_IS_EMPTY | VAL_ITEMS_MAP | VAL_KEYS_MAP | VAL_PERM_VAL
+    | VAL_PERM | VAL_POINTS_TO | VAL_REMOVE | VAL_REMOVE_AT | VAL_REMOVE_FROM_MAP | VAL_RUNNING | VAL_SOME | VAL_TAIL
+    | VAL_VALUE | VAL_VALUES_MAP)
+ | LANG_ID_ESCAPE
  | '\\result'
  | '\\current_thread'
  | 'none' // No permission

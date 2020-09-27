@@ -1,26 +1,21 @@
 package vct.parsers;
 
-import static hre.lang.System.*;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-
 import hre.lang.HREExitException;
 import hre.tools.TimeKeeper;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-
-import vct.antlr4.generated.PVLLexer;
+import org.antlr.v4.runtime.Token;
+import vct.antlr4.generated.LangPVLLexer;
 import vct.antlr4.generated.PVLParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.syntax.JavaDialect;
-import vct.col.ast.syntax.JavaSyntax;
 import vct.parsers.rewrite.FlattenVariableDeclarations;
-import vct.col.ast.syntax.PVLSyntax;
-import vct.parsers.rewrite.PVLPostProcessor;
-import vct.parsers.rewrite.SpecificationCollector;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+
+import static hre.lang.System.*;
 
 /**
  * Parse specified code and convert the contents to COL. 
@@ -35,7 +30,8 @@ public class ColPVLParser implements Parser {
         ErrorCounter ec=new ErrorCounter(file_name);
 
         CharStream input = CharStreams.fromStream(new FileInputStream(file));
-        PVLLexer lexer = new PVLLexer(input);
+        LangPVLLexer lexer = new LangPVLLexer(input);
+
         lexer.removeErrorListeners();
         lexer.addErrorListener(ec);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -51,7 +47,6 @@ public class ColPVLParser implements Parser {
         Progress("AST conversion pass took %dms",tk.show());
 
         pu = new FlattenVariableDeclarations(pu).rewriteAll();
-        pu = new SpecificationCollector(PVLSyntax.get(), pu).rewriteAll();
         return pu;
       } catch(HREExitException e) {
         throw e;

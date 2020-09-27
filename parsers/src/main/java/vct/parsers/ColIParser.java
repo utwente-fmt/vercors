@@ -43,8 +43,6 @@ public class ColIParser implements Parser {
     Progress("AST conversion took %dms",tk.show());
     Debug("after conversion %s",pu);
 
-    pu = new SpecificationCollector(CSyntax.getCML(), pu).rewriteAll();
-
     // TODO: consider restoring comparision chaining (a<b<c<d) and range perms (Perm(a[{0..n}], write))
     // TODO: encoding as class should not be necessary.
     

@@ -96,8 +96,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       decl=source().find(t.getNameFull());
     }
     if (decl==null){
-      return;
-      // Fail("type error: defined type "+t.getFullName()+" not found");
+      Fail("type error: defined type "+t.getFullName()+" not found");
     }
     if (decl instanceof AxiomaticDataType){
       t.setType(t);

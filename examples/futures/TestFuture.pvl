@@ -5,7 +5,7 @@
 
 
 // begin(future)
-class Future {
+class `Future` {
   int x;
   
   modifies x;
@@ -21,13 +21,13 @@ class Test {
   requires Perm(f.x,1);
   requires t==f.x+1;
   ensures HPerm(f.x,1) ** Future(f,1,f.step()) ** AbstractState(f,x==t);
-  static void start(Future f,int t){
+  static void start(`Future` f,int t){
     create f,f.step();
   }
 
   requires HPerm(f.x,1) ** Future(f,1,f.step());
   ensures  HPerm(f.x,1) ** Future(f,1,empty);
-  static void work(Future f){
+  static void work(`Future` f){
     action(f,1,empty,f.step(),x,write){
       f.x=f.x+1;
     }
@@ -35,13 +35,13 @@ class Test {
 
   requires HPerm(f.x,1) ** Future(f,1,empty) ** AbstractState(f,x==t);
   ensures Perm(f.x,1) ** f.x==t;
-  static void stop(Future f,int t){
+  static void stop(`Future` f,int t){
     destroy f;
   }
 
 // begin(main)
   static void main(){
-    Future f=new Future();
+    Future f=new `Future`();
     f.x=1;
     create f,f.step();
     assert AbstractState(f,x==2);
@@ -55,7 +55,7 @@ class Test {
 // end(main)
 
   static void main2(){
-    Future f=new Future();
+    `Future` f=new `Future`();
     f.x=1;
     start(f,2);
     work(f);

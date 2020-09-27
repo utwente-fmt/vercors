@@ -25,7 +25,11 @@ VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
 VAL_FALSE: 'false';
+VAL_SIZEOF: 'sizeof';
 */
+
+// Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
+LANG_ID_ESCAPE: '`' ~[`]+ '`';
 
 VAL_RESOURCE: 'resource';
 VAL_PROCESS: 'process';
@@ -85,7 +89,41 @@ VAL_CSL_SUBJECT: 'csl_subject';
 VAL_SPEC_IGNORE: 'spec_ignore';
 VAL_ACTION: 'action';
 VAL_ATOMIC: 'atomic';
+
 VAL_REDUCIBLE: 'Reducible';
+VAL_ABSTRACT_STATE: 'AbstractState';
+VAL_ADDS_TO: 'AddsTo';
+VAL_APERM: 'APerm';
+VAL_ARRAYPERM: 'ArrayPerm';
+VAL_BUILD_MAP: 'buildMap';
+VAL_CARD_MAP: 'cardMap';
+VAL_CONTRIBUTION: 'Contribution';
+VAL_DISJOINT_MAP: 'disjointMap';
+VAL_EQUALS_MAP: 'equalsMap';
+VAL_FUTURE: 'Future';
+VAL_GET_FROM_MAP: 'getFromMap';
+VAL_GET_FST: 'getFst';
+VAL_GET_OPTION: 'getOption';
+VAL_GET_SND: 'getSnd';
+VAL_HEAD: 'head';
+VAL_HELD: 'held';
+VAL_HIST: 'Hist';
+VAL_HPERM: 'HPerm';
+VAL_IDLE: 'idle';
+VAL_IS_EMPTY: 'isEmpty';
+VAL_ITEMS_MAP: 'itemsMap';
+VAL_KEYS_MAP: 'keysMap';
+VAL_PERM_VAL: 'perm';
+VAL_PERM: 'Perm';
+VAL_POINTS_TO: 'PointsTo';
+VAL_REMOVE: 'remove';
+VAL_REMOVE_AT: 'removeAt';
+VAL_REMOVE_FROM_MAP: 'removeFromMap';
+VAL_RUNNING: 'running';
+VAL_SOME: 'Some';
+VAL_TAIL: 'tail';
+VAL_VALUE: 'Value';
+VAL_VALUES_MAP: 'valuesMap';
 
 UNFOLDING: '\\unfolding';
 IN: '\\in';

@@ -12,6 +12,7 @@ VAL_INLINE    : 'inline';
 VAL_ASSERT    : EOF EOF;
 VAL_TRUE      : EOF EOF;
 VAL_FALSE     : EOF EOF;
+VAL_SIZEOF    : 'sizeof';
 
 // §3.9 Keywords
 

@@ -61,7 +61,6 @@ public class ColJavaParser implements Parser {
 
         // flattenvariabledecls must be before JavaResolver
         pu = new FlattenVariableDeclarations(pu).rewriteAll();
-        pu = new SpecificationCollector(JavaSyntax.getJava(JavaDialect.JavaVerCors), pu).rewriteAll();
 
         return pu;
       } catch (FileNotFoundException e) {

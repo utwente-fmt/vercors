@@ -10,6 +10,7 @@ VAL_INLINE: EOF EOF;
 VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
 VAL_FALSE: 'false';
+VAL_SIZEOF: EOF EOF;
 
 Placeholder : EOF EOF ;
 
@@ -341,10 +342,6 @@ fragment
 SChar
     :   ~["\\\r\n]
     |   EscapeSequence
-    ;
-
-EmbeddedLatex
-    : '$' ~[$\r\n]* '$' -> skip
     ;
 
 LineDirective

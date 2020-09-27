@@ -35,6 +35,8 @@ public class JavaResolver extends AbstractRewriter {
   }
   
   private boolean ensures_loaded(String ... name){
+    if(name.length == 1 && name[0].equals("_AnyTypeForSimplificationRules")) return true;
+
     {
       ASTDeclaration decl=source().find_decl(name);
       if (decl!=null){

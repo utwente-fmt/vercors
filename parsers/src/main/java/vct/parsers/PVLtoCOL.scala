@@ -52,9 +52,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ProgramDecl3(field) => ??(tree) // This is global state?
     case ProgramDecl4(method_decl) => ??(tree) // Global method?
 
-    case ClazMember0(field) => convertField(field)
-    case ClazMember1(method) => Seq(convertMethod(method))
-    case ClazMember2(constructor) => Seq(convertConstructor(constructor))
+    case ClazMember0(method) => Seq(convertMethod(method))
+    case ClazMember1(constructor) => Seq(convertConstructor(constructor))
+    case ClazMember2(field) => convertField(field)
 
     case KernelMember0(field) => convertKernelField(field)
     case KernelMember1(method) => Seq(convertMethod(method))
@@ -184,6 +184,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertID(identifier: IdentifierContext): String = identifier match {
     case Identifier0(name) => name
+    case Identifier1(ValReserved1(s)) => s.substring(1, s.length-1)
     case Identifier1(reserved) =>
       fail(reserved, "This identifier is reserved and cannot be declared.")
   }
@@ -280,12 +281,12 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case AndOrExpr1(p, "||", q) => create expression(Or, expr(p), expr(q))
     case AndOrExpr2(p, "**", q) => create expression(Star, expr(p), expr(q))
     case AndOrExpr3(eqExp) => expr(eqExp)
-    case EqExpr0(left, "==", right) => create expression(EQ, expr(left), expr(right))
+    case EqExpr0(left, "==", right) => create expression(StandardOperator.EQ, expr(left), expr(right))
     case EqExpr1(left, "!=", right) => create expression(NEQ, expr(left), expr(right))
     case EqExpr2(relExp) => expr(relExp)
     case RelExpr0(left, "<", right) => create expression(LT, expr(left), expr(right))
-    case RelExpr1(left, "<=", right) => create expression(LTE, expr(left), expr(right))
-    case RelExpr2(left, ">=", right) => create expression(GTE, expr(left), expr(right))
+    case RelExpr1(left, "<=", right) => create expression(StandardOperator.LTE, expr(left), expr(right))
+    case RelExpr2(left, ">=", right) => create expression(StandardOperator.GTE, expr(left), expr(right))
     case RelExpr3(left, ">", right) => create expression(GT, expr(left), expr(right))
     case RelExpr4(setExp) => expr(setExp)
     case SetExpr0(elem, "in", set) => create expression(Member, expr(elem), expr(set))
@@ -359,18 +360,19 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         create invokation(obj, null, convertID(method), convertExpList(args):_*))
     case NonTarget7(unit) => expr(unit)
 
-    case NonTargetUnit0("this") => create reserved_name This
-    case NonTargetUnit1("null") => create reserved_name Null
-    case NonTargetUnit2("true") => create constant true
-    case NonTargetUnit3("false") => create constant false
-    case NonTargetUnit4("current_thread") => create reserved_name CurrentThread
-    case NonTargetUnit5("\\result") => create reserved_name Result
-    case NonTargetUnit6(collection) => expr(collection)
-    case NonTargetUnit7("map", "<", t1, ",", t2, ">", mapValues) =>
+    case NonTargetUnit0(valPrimary) => valExpr(valPrimary)
+    case NonTargetUnit1("this") => create reserved_name This
+    case NonTargetUnit2("null") => create reserved_name Null
+    case NonTargetUnit3("true") => create constant true
+    case NonTargetUnit4("false") => create constant false
+    case NonTargetUnit5("current_thread") => create reserved_name CurrentThread
+    case NonTargetUnit6("\\result") => create reserved_name Result
+    case NonTargetUnit7(collection) => expr(collection)
+    case NonTargetUnit8("map", "<", t1, ",", t2, ">", mapValues) =>
       create struct_value(create primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2)), null, convertMapValues(mapValues):_*)
-    case NonTargetUnit8("tuple", "<", t1, ",", t2, ">", values) =>
+    case NonTargetUnit9("tuple", "<", t1, ",", t2, ">", values) =>
       create struct_value(create primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2)), null, convertExpList(values):_*)
-    case NonTargetUnit9(method, argsTuple) =>
+    case NonTargetUnit10(method, argsTuple) =>
       val args = convertExpList(argsTuple)
       val methodName = method match { case BuiltinMethod0(name) => name }
       methodName match {
@@ -388,15 +390,15 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case "held" => create expression(Held, args:_*)
         case "Some" => create expression(OptionSome, args:_*)
       }
-    case NonTargetUnit10(_owner, "(", a, ",", b, ",", c, ")") =>
+    case NonTargetUnit11(_owner, "(", a, ",", b, ",", c, ")") =>
       create expression(IterationOwner, expr(a), expr(b), expr(c))
-    case NonTargetUnit11("id", "(", exp, ")") => expr(exp)
-    case NonTargetUnit12("|", seq, "|") => create expression(Size, expr(seq))
-    case NonTargetUnit13("?", id) => create expression(BindOutput, convertIDName(id))
-    case NonTargetUnit14(num) => create constant Integer.parseInt(num)
-    case NonTargetUnit15(seq) => ??(tree)    case NonTargetUnit16("(", exp, ")") => expr(exp)
-    case NonTargetUnit17(id) => convertIDName(id)
-    case NonTargetUnit18(valPrimary) => valExpr(valPrimary)
+    case NonTargetUnit12("id", "(", exp, ")") => expr(exp)
+    case NonTargetUnit13("|", seq, "|") => create expression(Size, expr(seq))
+    case NonTargetUnit14("?", id) => create expression(BindOutput, convertIDName(id))
+    case NonTargetUnit15(num) => create constant Integer.parseInt(num)
+    case NonTargetUnit16(seq) => ??(tree)
+    case NonTargetUnit17("(", exp, ")") => expr(exp)
+    case NonTargetUnit18(id) => convertIDName(id)
     case DeclInit0("=", exp) => expr(exp)
 
     case CollectionConstructors0(container, _, elemType, _, values) =>
@@ -824,7 +826,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       val name = convertID(id)
       val decl = create field_decl(name, convertType(t))
       val guard = create expression(StandardOperator.And,
-        create expression(LTE, expr(fr), create unresolved_name(name)),
+        create expression(StandardOperator.LTE, expr(fr), create unresolved_name(name)),
         create expression(StandardOperator.LT, create unresolved_name(name), expr(to))
       )
       binderName match {
@@ -871,7 +873,13 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create expression(MatrixCompare, expr(a), expr(b))
     case ValPrimary26("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary27("Reducible", "(", exp, _, opNode, ")") =>
+    case ValPrimary27(label, _, exp) =>
+      val res = expr(exp)
+      res.addLabel(create label(convertID(label)))
+      res
+    case ValPrimary28("{:", pattern, ":}") =>
+      create pattern expr(pattern)
+    case ValPrimary29("Reducible", "(", exp, _, opNode, ")") =>
       val opText = opNode match {
         case ValReducibleOperator0("+") => "+"
         case ValReducibleOperator1(id) => convertID(id)
@@ -881,12 +889,70 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case "min" => ReducibleMin
         case "max" => ReducibleMax
       }, expr(exp))
-    case ValPrimary28(label, _, exp) =>
-      val res = expr(exp)
-      res.addLabel(create label(convertID(label)))
-      res
-    case ValPrimary29("{:", pattern, ":}") =>
-      create pattern expr(pattern)
+    case ValPrimary30("AbstractState", _, arg1, _, arg2, _) =>
+      create expression(StandardOperator.AbstractState, expr(arg1), expr(arg2))
+    case ValPrimary31("AddsTo", _, arg1, _, arg2, _) =>
+      create expression(StandardOperator.AddsTo, expr(arg1), expr(arg2))
+    case ValPrimary32("APerm", _, loc, _, perm, _) =>
+      create expression(StandardOperator.ActionPerm, expr(loc), expr(perm))
+    case ValPrimary33("ArrayPerm", _, ar, _, fst, _, step, _, cnt, _, perm, _) =>
+      create expression(StandardOperator.ArrayPerm, expr(ar), expr(fst), expr(step), expr(cnt), expr(perm))
+    case ValPrimary34("buildMap", _, map, _, k, _, v, _) =>
+      create expression(StandardOperator.MapBuild, expr(map), expr(k), expr(v))
+    case ValPrimary35("cardMap", _, map, _) =>
+      create expression(StandardOperator.MapCardinality, expr(map))
+    case ValPrimary36("Contribution", _, res, _, con, _) =>
+      create expression(StandardOperator.Contribution, expr(res), expr(con))
+    case ValPrimary37("disjointMap", _, map1, _, map2, _) =>
+      create expression(StandardOperator.MapDisjoint, expr(map1), expr(map2))
+    case ValPrimary38("equalsMap", _, map1, _, map2, _) =>
+      create expression(StandardOperator.MapEquality, expr(map1), expr(map2))
+    case ValPrimary39("Future", _, arg1, _, arg2, _, arg3, _) =>
+      create expression(StandardOperator.Future, expr(arg1), expr(arg2), expr(arg3))
+    case ValPrimary40("getFromMap", _, map, _, k, _) =>
+      create expression(StandardOperator.MapGetByKey, expr(map), expr(k))
+    case ValPrimary41("getFst", _, tup, _) =>
+      create expression(StandardOperator.TupleFst, expr(tup))
+    case ValPrimary42("getOption", _, opt, _) =>
+      create expression(StandardOperator.OptionGet, expr(opt))
+    case ValPrimary43("getSnd", _, tup, _) =>
+      create expression(StandardOperator.TupleSnd, expr(tup))
+    case ValPrimary44("head", _, seq, _) =>
+      create expression(StandardOperator.Head, expr(seq))
+    case ValPrimary45("held", _, lock, _) =>
+      create expression(StandardOperator.Held, expr(lock))
+    case ValPrimary46("Hist", _, arg1, _, arg2, _, arg3, _) =>
+      create expression(StandardOperator.History, expr(arg1), expr(arg2), expr(arg3))
+    case ValPrimary47("HPerm", _, loc, _, perm, _) =>
+      create expression(StandardOperator.HistoryPerm, expr(loc), expr(perm))
+    case ValPrimary48("idle", _, arg, _) =>
+      create expression(StandardOperator.PVLidleToken, expr(arg))
+    case ValPrimary49("isEmpty", _, seq, _) =>
+      create expression(StandardOperator.Empty, expr(seq))
+    case ValPrimary50("itemsMap", _, map, _) =>
+      create expression(StandardOperator.MapItemSet, expr(map))
+    case ValPrimary51("keysMap", _, map, _) =>
+      create expression(StandardOperator.MapKeySet, expr(map))
+    case ValPrimary52("perm", _, loc, _) =>
+      create expression(StandardOperator.CurrentPerm, expr(loc))
+    case ValPrimary53("Perm", _, loc, _, perm, _) =>
+      create expression(StandardOperator.Perm, expr(loc), expr(perm))
+    case ValPrimary54("PointsTo", _, loc, _, perm, _, value, _) =>
+      create expression(StandardOperator.PointsTo, expr(loc), expr(perm), expr(value))
+    case ValPrimary55(_removeAt, _, seq, _, i, _) =>
+      create expression(StandardOperator.RemoveAt, expr(seq), expr(i))
+    case ValPrimary56("removeFromMap", _, map, _, arg, _) =>
+      create expression(StandardOperator.MapRemoveKey, expr(map), expr(arg))
+    case ValPrimary57("running", _, arg, _) =>
+      create expression(StandardOperator.PVLjoinToken, expr(arg))
+    case ValPrimary58("Some", _, arg, _) =>
+      create expression(StandardOperator.OptionSome, expr(arg))
+    case ValPrimary59("tail", _, seq, _) =>
+      create expression(StandardOperator.Tail, expr(seq))
+    case ValPrimary60("Value", _, arg, _) =>
+      create expression(StandardOperator.Value, expr(arg))
+    case ValPrimary61("valuesMap", _, map, _) =>
+      create expression(StandardOperator.MapValueSet, expr(map))
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {
@@ -905,27 +971,29 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   def convertValReserved(reserved: ValReservedContext): NameExpression = origin(reserved, reserved match {
     case ValReserved0(_) =>
       fail(reserved, "This identifier is reserved and cannot be declared or used.")
-    case ValReserved1("\\result") =>
+    case ValReserved1(s) =>
+      create unresolved_name(s.substring(1, s.length-1))
+    case ValReserved2("\\result") =>
       create reserved_name ASTReserved.Result
-    case ValReserved2("\\current_thread") =>
+    case ValReserved3("\\current_thread") =>
       create reserved_name ASTReserved.CurrentThread
-    case ValReserved3("none") =>
+    case ValReserved4("none") =>
       create reserved_name ASTReserved.NoPerm
-    case ValReserved4("write") =>
+    case ValReserved5("write") =>
       create reserved_name ASTReserved.FullPerm
-    case ValReserved5("read") =>
+    case ValReserved6("read") =>
       create reserved_name ASTReserved.ReadPerm
-    case ValReserved6("None") =>
+    case ValReserved7("None") =>
       create reserved_name ASTReserved.OptionNone
-    case ValReserved7("empty") =>
+    case ValReserved8("empty") =>
       create reserved_name ASTReserved.EmptyProcess
-    case ValReserved8("\\ltid") =>
+    case ValReserved9("\\ltid") =>
       create reserved_name ASTReserved.LocalThreadId
-    case ValReserved9("\\gtid") =>
+    case ValReserved10("\\gtid") =>
       create reserved_name ASTReserved.GlobalThreadId
-    case ValReserved10("true") =>
+    case ValReserved11("true") =>
       ??(reserved)
-    case ValReserved11("false") =>
+    case ValReserved12("false") =>
       ??(reserved)
   })
 
@@ -937,15 +1005,18 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
    */
   def convertOverlappingValReservedID(reserved: ValReservedContext): String = reserved match {
     case ValReserved0(s) => s
-    case ValReserved1("\\result") => fail(reserved, "This identifier is invalid in the current language")
-    case ValReserved2("\\current_thread") => fail(reserved, "This identifier is invalid in the current language")
-    case ValReserved3(s) => s
+    case ValReserved1(s) => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved2("\\result") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved3("\\current_thread") => fail(reserved, "This identifier is invalid in the current language")
     case ValReserved4(s) => s
     case ValReserved5(s) => s
     case ValReserved6(s) => s
     case ValReserved7(s) => s
-    case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
-    case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved8(s) => s
+    case ValReserved9("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved10("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved11(s) => s
+    case ValReserved12(s) => s
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =
@@ -1032,7 +1103,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       mods.foreach(mod => func.attach(convertValModifier(mod)))
       func
     case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
-      create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
+      create axiom(convertID(name), create expression(StandardOperator.EQ, expr(left), expr(right)))
     case ValDeclaration2(clauses, "ghost", langDecl) =>
       val decl = convertDecl(langDecl)
       if(clauses.nonEmpty) {

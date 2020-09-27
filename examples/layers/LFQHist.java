@@ -91,7 +91,7 @@ final class Queue {
   }
   @*/
 
-  /*@ given History hist;
+  /*@ given `History` hist;
      requires HPerm(hist.q,1) ** hist.q==seq<int>{};
      ensures Value(this.hist) ** this.hist == hist
         ** PointsTo(hist_active,1\2,true); @*/
@@ -103,14 +103,14 @@ final class Queue {
     head=new AtomicNode(begin);
     tail=new AtomicNode(begin);
     last=begin;
-    //@ fold reachable(begin,head.ref);
-    //@ fold reachable(begin,tail.ref);
+    //@ fold reachable(begin,`head`.ref);
+    //@ fold reachable(begin,`tail`.ref);
     //@ fold reachable(begin,last);
     //@ fold chain(begin,last,hist.q);
   }
 
   //@ ghost boolean hist_active;
-  //@ ghost History hist;
+  //@ ghost `History` hist;
   //@ ghost Node begin;
   AtomicNode head;
   AtomicNode tail;
@@ -147,12 +147,12 @@ final class Queue {
        ** chain(n1.next.ref,n2,tail(vals))));
 
   resource csl_invariant() = Value(begin) **
-    RPerm(head) ** ([read]reachable(begin,head.ref)) **
-    RPerm(tail) ** ([read]reachable(begin,tail.ref)) **
+    RPerm(`head`) ** ([read]reachable(begin,`head`.ref)) **
+    RPerm(`tail`) ** ([read]reachable(begin,`tail`.ref)) **
     Perm(last,1) ** ([read]reachable(begin,last)) **
     //begin(context_everywhere)
     Perm(hist_active,1\2) ** Value(hist) ** (hist_active ==>
-    HPerm(hist.q,1) ** chain(head.ref,last,hist.q))
+    HPerm(hist.q,1) ** chain(`head`.ref,last,hist.q))
     //end(context_everywhere)
     ** RPointsTo(last.next,null);
    */
@@ -189,8 +189,8 @@ final class Queue {
     given frac p;
     given process P;
     requires p!=none ** Value(hist) **  Hist(hist,p,P) **
-      Value(head) ** Value(tail) ** PointsTo(hist_active,p\2,true);
-    ensures  Value(head) ** Value(tail)
+      Value(`head`) ** Value(`tail`) ** PointsTo(hist_active,p\2,true);
+    ensures  Value(`head`) ** Value(`tail`)
       ** Value(hist) ** PointsTo(hist_active,p\2,true)
       ** (\result!=null ==> Value(\result.val)
            ** Hist(hist,p,P * hist.get(\result.val)))
@@ -207,7 +207,7 @@ final class Queue {
     if (n2!=null) {
       tmp=head.compareAndSet(n1,n2)/*@
       with {
-        if (head.ref==n1) {
+        if (`head`.ref==n1) {
           unfold chain(n1,last,hist.q);
 //begin(actionblock)
  { action hist, p , P, hist.get(n2.val); hist.q=tail(hist.q); }
@@ -248,10 +248,10 @@ final class Queue {
   /*@
     given frac p;
     given process P;
-    requires p!=none ** Value(head) ** Value(tail) ** Value(hist)
+    requires p!=none ** Value(`head`) ** Value(`tail`) ** Value(hist)
       ** Hist(hist,p,P) ** Perm(nn.val,1)
       ** RPointsTo(nn.next,null) ** PointsTo(hist_active,p\2,true);
-    ensures  Value(head) ** Value(tail) ** Value(hist)
+    ensures  Value(`head`) ** Value(`tail`) ** Value(hist)
       ** PointsTo(hist_active,p\2,true) **
       (\result ? Hist(hist,p,P * hist.put(\old(nn.val))) :
          Hist(hist,p,P) ** Perm(nn.val,1) ** RPointsTo(nn.next,null));
@@ -283,20 +283,20 @@ final class Queue {
     requires Perm(last,1) ** last==n1 ** RPointsTo(last.next,n2);
     requires RPointsTo(n2.next,null) ** Perm(n2.val,1);
     requires Value(hist) ** HPerm(hist.q,1\2);
-    requires Value(head) ** Perm(head.ref,1\2)
-      ** chain(head.ref,last,hist.q) ** Value(begin)
+    requires Value(`head`) ** Perm(`head`.ref,1\2)
+      ** chain(`head`.ref,last,hist.q) ** Value(begin)
       ** ([read]reachable(begin,last))
-      ** ([read]reachable(begin,head.ref));
+      ** ([read]reachable(begin,`head`.ref));
     ensures  Perm(last,1) ** last==n2 ** RPointsTo(last.next,null);
     ensures  Value(begin) ** ([read]reachable(begin,last));
     ensures  Value(hist) ** HPerm(hist.q,1\2);
-    ensures  Value(head) ** Perm(head.ref,1\2)
-      ** chain(head.ref,last,hist.q+seq<int>{\old(n2.val)})
-      ** head.ref==\old(head.ref);
+    ensures  Value(`head`) ** Perm(`head`.ref,1\2)
+      ** chain(`head`.ref,last,hist.q+seq<int>{\old(n2.val)})
+      ** `head`.ref==\old(`head`.ref);
   @*/
   void lemma_shift_last(Node n1,Node n2){
     last=n2;
-    //@ assume head.ref != n2;
+    //@ assume `head`.ref != n2;
     //@ fold reachable(n2,n2);
     //@ fold reachable(n1,n2);
     lemma_reach_transitive(begin,n1,n2);
