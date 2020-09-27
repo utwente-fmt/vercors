@@ -23,16 +23,12 @@ public class ColIParser extends Parser {
   @Override
   public ProgramUnit parse(CharStream input, String file_name) {
     TimeKeeper tk=new TimeKeeper();
-    ErrorCounter ec=new ErrorCounter(file_name);
 
     LangCLexer lexer = new LangCLexer(input);
-    lexer.removeErrorListeners();
-    lexer.addErrorListener(ec);
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     CParser parser = new CParser(tokens);
-    parser.reset();
-    parser.removeErrorListeners();
-    parser.addErrorListener(ec);
+    ErrorCounter ec = errorCounter(parser, lexer, file_name);
+
     CParser.CompilationUnitContext tree = parser.compilationUnit();
     Progress("first parsing pass took %dms",tk.show());
     ec.report();

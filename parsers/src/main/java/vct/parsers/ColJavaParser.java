@@ -36,14 +36,10 @@ public class ColJavaParser extends Parser {
         TimeKeeper tk=new TimeKeeper();
 
         ProgramUnit pu;
-        ErrorCounter ec=new ErrorCounter(file_name);
         Lexer lexer = new LangJavaLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         JavaParser parser = new JavaParser(tokens);
-        parser.removeErrorListeners();
-        parser.addErrorListener(ec);
-        lexer.removeErrorListeners();
-        lexer.addErrorListener(ec);
+        ErrorCounter ec = errorCounter(parser, lexer, file_name);
         if(this.topLevelSpecs) {
           parser.specLevel = 1;
         }

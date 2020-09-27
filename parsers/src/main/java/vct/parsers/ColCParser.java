@@ -7,6 +7,7 @@ import java.io.*;
 import hre.config.Configuration;
 import hre.lang.HREExitException;
 import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import scala.NotImplementedError;
 import vct.col.ast.stmt.decl.ProgramUnit;
 
@@ -47,9 +48,11 @@ public class ColCParser extends ColIParser {
                     int read = stream.read(buf);
 
                     while(read != -1) {
-                        read = stream.read(buf);
                         process.getOutputStream().write(buf, 0, read);
+                        read = stream.read(buf);
                     }
+
+                    process.getOutputStream().close();
                 } catch(IOException e) {
                     DebugException(e);
                     throw new HREExitException(1);
@@ -75,7 +78,7 @@ public class ColCParser extends ColIParser {
             });
             t.setDaemon(true);
             t.start();
-            return super.parse(process.getInputStream(), file_name);
+            return super.parse(CharStreams.fromStream(process.getInputStream()), file_name);
         } catch (Exception e) {
             DebugException(e);
             Abort("Exception %s while parsing %s", e.getClass(), file_name);

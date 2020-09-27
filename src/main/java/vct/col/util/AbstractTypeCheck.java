@@ -521,6 +521,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if(contract.pre_condition.isConstant(false)) {
         /* This method is ignored for specification purposes, so should not be type-checked
          * It should be elided by FilterSpecIgnore */
+        // FIXME this isn't ordered properly, super above dispatches to body anyway
         return;
       }
 

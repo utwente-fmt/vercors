@@ -21,4 +21,13 @@ abstract class Parser {
         throw Failure("Could not find file: %s", name)
     }
   }
+
+  protected def errorCounter(parser: runtime.Parser, lexer: runtime.Lexer, name: String): ErrorCounter = {
+    parser.removeErrorListeners()
+    lexer.removeErrorListeners()
+    val ec = new ErrorCounter(name)
+    parser.addErrorListener(ec)
+    lexer.addErrorListener(ec)
+    ec
+  }
 }
