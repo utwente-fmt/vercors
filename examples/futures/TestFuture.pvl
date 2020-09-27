@@ -41,7 +41,7 @@ class Test {
 
 // begin(main)
   static void main(){
-    Future f=new `Future`();
+    `Future` f=new `Future`();
     f.x=1;
     create f,f.step();
     assert AbstractState(f,x==2);
