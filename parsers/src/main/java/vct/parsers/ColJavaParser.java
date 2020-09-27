@@ -23,7 +23,7 @@ import vct.col.ast.syntax.JavaSyntax;
 /**
  * Parse specified code and convert the contents to COL. 
  */
-public class ColJavaParser implements Parser {
+public class ColJavaParser extends Parser {
   public final boolean topLevelSpecs;
   
   public ColJavaParser(boolean topLevelSpecs){
@@ -31,12 +31,9 @@ public class ColJavaParser implements Parser {
   }
   
   @Override
-  public ProgramUnit parse(File file) {
-    String file_name=file.toString();
+  public ProgramUnit parse(CharStream input, String file_name) {
       try {
         TimeKeeper tk=new TimeKeeper();
-        
-        CharStream input = CharStreams.fromStream(new FileInputStream(file));
 
         ProgramUnit pu;
         ErrorCounter ec=new ErrorCounter(file_name);
@@ -59,12 +56,7 @@ public class ColJavaParser implements Parser {
         Progress("AST conversion took %dms",tk.show());
         Debug("program after Java parsing:%n%s",pu);
 
-        // flattenvariabledecls must be before JavaResolver
-        pu = new FlattenVariableDeclarations(pu).rewriteAll();
-
         return pu;
-      } catch (FileNotFoundException e) {
-        Fail("File %s has not been found",file_name);
       } catch (Exception e) {
         DebugException(e);
         Abort("Exception %s while parsing %s",e.getClass(),file_name);

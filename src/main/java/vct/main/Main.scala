@@ -352,10 +352,11 @@ class Main {
   def collectPassesForSilver: Seq[AbstractPass] = {
     val resolve = Passes.BY_KEY("java_resolve")
     val string = Passes.BY_KEY("string-class")
+    val vardecls = Passes.BY_KEY("flatten_variable_declarations")
     val check = Passes.BY_KEY.apply("check")
     val ignore = Passes.BY_KEY.apply("spec-ignore")
 
-    Seq(ignore, string, resolve, check).foreach(
+    Seq(ignore, vardecls, string, resolve, check).foreach(
       pass => report = pass.apply_pass(report, Array()))
 
     var features = Feature.scan(report.getOutput) ++ Set(

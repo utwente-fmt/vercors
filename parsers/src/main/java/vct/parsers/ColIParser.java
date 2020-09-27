@@ -19,18 +19,18 @@ import static hre.lang.System.*;
 /**
  * Parse specified code and convert the contents to COL. 
  */
-public class ColIParser implements Parser {
-
-  protected ProgramUnit parse(String file_name,InputStream stream) throws IOException{
+public class ColIParser extends Parser {
+  @Override
+  public ProgramUnit parse(CharStream input, String file_name) {
     TimeKeeper tk=new TimeKeeper();
     ErrorCounter ec=new ErrorCounter(file_name);
 
-    CharStream input = CharStreams.fromStream(stream);
     LangCLexer lexer = new LangCLexer(input);
     lexer.removeErrorListeners();
     lexer.addErrorListener(ec);
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     CParser parser = new CParser(tokens);
+    parser.reset();
     parser.removeErrorListeners();
     parser.addErrorListener(ec);
     CParser.CompilationUnitContext tree = parser.compilationUnit();
@@ -44,25 +44,8 @@ public class ColIParser implements Parser {
     Debug("after conversion %s",pu);
 
     // TODO: consider restoring comparision chaining (a<b<c<d) and range perms (Perm(a[{0..n}], write))
-    // TODO: encoding as class should not be necessary.
     
     return pu;
   }
-  
-  @Override
-  public ProgramUnit parse(File file) {
-    String file_name=file.toString();
-    try {
-      InputStream stream =new FileInputStream(file);
-      return parse(file_name,stream);
-    } catch (FileNotFoundException e) {
-      Fail("File %s has not been found",file_name);
-    } catch (Exception e) {
-      DebugException(e);
-      Abort("Exception %s while parsing %s",e.getClass(),file_name);
-    }
-    return null;
-  }
-
 }
 
