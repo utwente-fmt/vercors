@@ -421,6 +421,21 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
     return annotations!=null && annotations.size()>0; 
   }
 
+  public boolean hasAnnotation(ASTReserved reservedName) {
+    if (annotations == null) return false;
+
+    for (ASTNode annotation : annotations) {
+      if (annotation instanceof NameExpression) {
+        NameExpression modifier = (NameExpression) annotation;
+        if (modifier.isReserved(reservedName)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   public boolean isReserved(ASTReserved any) {
     return false;
   }

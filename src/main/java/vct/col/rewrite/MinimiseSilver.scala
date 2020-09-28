@@ -2,12 +2,22 @@ package vct.col.rewrite
 
 import scala.collection.JavaConverters._
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
-import vct.col.ast.util.{AbstractRewriter, AbstractVisitor}
+import vct.col.ast.util.{AbstractRewriter, AbstractVisitor, RecursiveVisitor}
 import vct.col.ast.expr.{Dereference, MethodInvokation}
-import hre.lang.System.Output
+import hre.lang.System.{Output, Warning}
+import vct.col.ast.`type`.ASTReserved
 import vct.col.util.{AbstractTypeCheck, SimpleTypeCheck}
 
 import scala.collection.mutable
+
+// Still needed:
+// - Axiom minimisation
+//  - If functions are not used outside of adt this is trivial
+//  - If some are used outside, but some not, and the unused ones do not occur in axioms of
+//    the used ones, those can also be remove
+// - VCTOption elision (if null is used nowhere, or only appears in != null clauses)
+//  - Might have to make this one opt-in since I'm not sure we can syntactically detect if this is feasible...
+// - VCTArray -> Seq would be nice, but that seems to complicated... maybe opt-in or in very specific cases?
 
 class AbstractMethods(source: ProgramUnit, keepMethods: Set[String]) extends AbstractRewriter(source) {
   override def visit(m: Method): Unit = {
@@ -135,6 +145,65 @@ class CollectUsed(source: ProgramUnit) extends AbstractRewriter(source) {
   flush()
 }
 
+object CollectRetainEntities {
+  def collect(source: ProgramUnit, names: Set[String]): (Entities, Set[String]) = {
+    val cre = new CollectRetainEntities(source, names)
+    source.accept(cre)
+    (cre.getEntities, cre.leftoverNames.to[Set])
+  }
+}
+
+/**
+  * Collects all names in `names` that fit any of the supported categories into the Entities type.
+  * @param source
+  * @param names
+  */
+class CollectRetainEntities(source: ProgramUnit, names: Set[String]) extends RecursiveVisitor(source) {
+  val leftoverNames: mutable.Set[String] = names.to[mutable.Set]
+
+  val methods = mutable.Set[String]()
+  val functions = mutable.Set[String]()
+  val predicates = mutable.Set[String]()
+  val fields = mutable.Set[String]()
+
+  var inRef = false
+
+  private def getEntities: Entities = Entities(methods.toSet, functions.toSet, predicates.toSet, fields.toSet)
+
+  override def visit(m: Method): Unit = {
+    if ((leftoverNames contains m.name) || m.hasAnnotation(ASTReserved.MinimiseTarget)) {
+      m.kind match {
+        case Method.Kind.Pure =>
+          functions.add(m.getName)
+        case Method.Kind.Predicate =>
+          predicates.add(m.getName)
+        case Method.Kind.Plain =>
+          methods.add(m.getName)
+        case _ =>
+          Warning("Unexpected kind for name %s, ignoring", m.name)
+      }
+      leftoverNames.remove(m.name)
+    }
+  }
+
+  override def visit(c: ASTClass): Unit = {
+    if (c.name == "Ref") {
+      inRef = true
+      super.visit(c)
+      inRef = false
+    } else {
+      super.visit(c)
+    }
+  }
+
+  override def visit(d: DeclarationStatement): Unit = {
+    if (inRef && (leftoverNames contains d.name)) {
+      fields.add(d.name)
+      leftoverNames.remove(d.name)
+    }
+  }
+}
+
 case class Entities(methods: Set[String], functions: Set[String], predicates: Set[String], fields: Set[String]) {
   def ++(other: Entities): Entities = {
     Entities(methods ++ other.methods,
@@ -147,17 +216,19 @@ case class Entities(methods: Set[String], functions: Set[String], predicates: Se
 object MinimiseSilver {
 }
 
-class MinimiseSilver(source: ProgramUnit, retainMethods: Set[String], retainFunctions: Set[String]) {
-  def this(source: ProgramUnit, retainMethods: java.util.Set[String], retainFunctions: java.util.Set[String]) =
-    this(source, retainMethods.asScala.toSet, retainFunctions.asScala.toSet)
-
+class MinimiseSilver(source: ProgramUnit, retainNames: Set[String]) {
+  def this(source: ProgramUnit, retainMethods: java.util.List[String]) =
+    this(source, retainMethods.asScala.toSet)
 
   def minimise(): ProgramUnit = {
-
-    val rootEntities = Entities(retainMethods, retainFunctions, Set(), Set())
+    val silverRetainNames = retainNames.filter(!_.contains("#"))
+    val (rootEntities, leftoverNames) = CollectRetainEntities.collect(source, silverRetainNames)
     Output("Must retain: %s", rootEntities)
+    if (leftoverNames.size > 0) {
+      Warning("The following names were not found in the Silver AST: %s", leftoverNames.mkString(", "))
+    }
 
-    new AbstractMethods(source, retainMethods).rewriteAll()
+    new AbstractMethods(source, rootEntities.methods).rewriteAll()
 
     var madeChange = true
     var program = source

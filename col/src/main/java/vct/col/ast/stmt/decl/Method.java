@@ -306,18 +306,7 @@ public class Method extends ASTDeclaration {
    * Method is synchronized if one of the annotations is the Synchronized keyword.
    */
   public boolean isSynchronized() {
-    ASTList annotations = annotations();
-
-    for (ASTNode annotation : annotations) {
-      if (annotation instanceof NameExpression) {
-        NameExpression modifier = (NameExpression) annotation;
-        if (modifier.isReserved(ASTReserved.Synchronized)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    return hasAnnotation(ASTReserved.Synchronized);
   }
 
   public void prependArg(Origin o, String name, Type type, boolean outArg) {

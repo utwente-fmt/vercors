@@ -112,5 +112,9 @@ public enum ASTReserved {
    * Local thread ID, equivalent to get_local_id(0) in OpenCL.
    */
   LocalThreadId,
+  /**
+   * Target for minimisation before submitting the AST to the backend
+   */
+  MinimiseTarget
 }
 

@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.stream.Collectors;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
@@ -60,6 +61,8 @@ public class Main
   private static List<ClassName> classes;
   
   private static Map<String, SpecialCountVisitor> counters = new HashMap<String, SpecialCountVisitor>();
+
+  private static List<String> minimiseTargets = null;
 
   public static void main(String[] args) throws Throwable
   {
@@ -152,10 +155,15 @@ public class Main
       
       BooleanSetting learn = new BooleanSetting(false);
       clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn");
+
+      StringListSetting minimiseTargetsOption = new StringListSetting();
+      clops.add(minimiseTargetsOption.getAppendOption("One or more targets for minimisation. Syntaxes: 1) com.example.MyClass#myMethod 2) mySilverMethod"), "minimise");
       
       Configuration.add_options(clops);
 
       String input[]=clops.parse(args);
+
+      minimiseTargets = minimiseTargetsOption.stream().collect(Collectors.toList());
 
       hre.lang.System.LogLevel level = hre.lang.System.LogLevel.Info;
 
@@ -328,6 +336,10 @@ public class Main
         passes.add("dafny"); // run backend
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
+
+        if (minimiseTargets.size() > 0) {
+          passes.add("mark-minimise-targets");
+        }
 
         boolean usesBreakContinue = features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue);
 
@@ -1261,9 +1273,13 @@ public class Main
     defined_passes.put("minimise-silver", new CompilerPass("Minimises silver output with regard to indicated methods and functions") {
       @Override
       public ProgramUnit apply(ProgramUnit arg,String ... args) {
-        HashSet<String> methods = new HashSet<>();
-        methods.add("method_Main_sendrecv__Integer");
-        return new MinimiseSilver(arg, methods, new HashSet<>()).minimise();
+        return new MinimiseSilver(arg, minimiseTargets).minimise();
+      }
+    });
+    defined_passes.put("mark-minimise-targets", new CompilerPass("Minimises silver output with regard to indicated methods and functions") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new MinimiseMarker(arg, minimiseTargets).rewriteAll();
       }
     });
   }
