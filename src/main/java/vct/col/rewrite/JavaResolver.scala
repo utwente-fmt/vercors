@@ -51,7 +51,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
     }
 
   override def visit(m: Method): Unit =
-    if ((m.kind eq Method.Kind.Constructor) && !(m.getName == current_class().getName)) {
+    if ((m.kind eq Method.Kind.Constructor) && !(m.getName == current_class().getName.split('.').last)) {
       m.getOrigin.report("error",
         String.format("Constructor has a different name (%s) than the class in which it is defined (%s). Did you mean to add a return type to turn it into a method?",
           m.getName, current_class().getName))
@@ -104,7 +104,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
     }
   }
 
-  var predef: Set[Seq[String]] = Set()
+  var predef: Set[Seq[String]] = Set(Seq("_AnyTypeForSimplificationRules"))
   var scanned: Set[ASTClass] = Set()
   var toScan: Set[ASTClass] = Set()
 
