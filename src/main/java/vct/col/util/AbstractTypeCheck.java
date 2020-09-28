@@ -517,16 +517,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     ASTNode body=m.getBody();
     Contract contract=m.getContract();
 
-    if(m.kind == Method.Kind.Constructor && !m.getName().equals(current_class().getName())) {
-      m.getOrigin().report(
-              "error", String.format(
-              "Constructor has a different name (%s) than the class in which it is defined (%s). Did you mean to add a return type to turn it into a method?",
-              m.getName(),
-              current_class().getName()
-              ));
-      Fail("");
-    }
-
     if (contract!=null){
       if(contract.pre_condition.isConstant(false)) {
         /* This method is ignored for specification purposes, so should not be type-checked

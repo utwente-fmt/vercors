@@ -3,7 +3,7 @@ package vct.col.rewrite
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.expr.{NameExpression, NameExpressionKind}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, AxiomaticDataType, NameSpace, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, AxiomaticDataType, Method, NameSpace, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, RecursiveVisitor}
 import vct.java.ASTClassLoader
 
@@ -48,6 +48,14 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
       result = res
     } else {
       super.visit(cls)
+    }
+
+  override def visit(m: Method): Unit =
+    if ((m.kind eq Method.Kind.Constructor) && !(m.getName == current_class().getName)) {
+      m.getOrigin.report("error",
+        String.format("Constructor has a different name (%s) than the class in which it is defined (%s). Did you mean to add a return type to turn it into a method?",
+          m.getName, current_class().getName))
+      Fail("")
     }
 
   override def visit(t: ClassType): Unit = {
