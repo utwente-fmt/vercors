@@ -41,7 +41,7 @@ public class InlinePredicatesRewriter extends AbstractRewriter {
   @Override
   public void visit(MethodInvokation e){
     if (inline(e)){
-      result= inlineCall(e, e.getDefinition());
+      result = inlineCall(e, e.getDefinition());
     } else if (!inlinedScalars.empty() && e.getDefinition().getKind().equals(Method.Kind.Predicate)) {
       // Because the previous if branch was false, we know this is a predicate that is not inline
       // Hence, we have to add a scale that scales the predicate according to any earlier encountered scales
@@ -163,18 +163,9 @@ public class InlinePredicatesRewriter extends AbstractRewriter {
 
   @Override
   public void visit(ASTSpecial e) {
-      switch (e.kind) {
-        case Fold:
-        case Unfold:
-          if (inline(e.getArg(0))) {
-            result = create.special(ASTSpecial.Kind.Assert, rewrite(e.getArg(0)));
-          } else {
-            super.visit(e);
-          }
-          break;
-        default:
-          super.visit(e);
-          break;
-      }
+    if (e.kind == ASTSpecial.Kind.Fold || e.kind == ASTSpecial.Kind.Unfold) {
+      Warning("Folding/unfolding an inline predicate is allowed but not encouraged. See https://github.com/utwente-fmt/vercors/wiki/Resources-and-Predicates#inline-predicates for more info.");
+    }
+    super.visit(e);
   }
 }
