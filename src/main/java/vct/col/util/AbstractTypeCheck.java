@@ -519,11 +519,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
     if(m.kind == Method.Kind.Constructor && !m.getName().equals(current_class().getName())) {
       m.getOrigin().report(
-              "error",
+              "error", String.format(
               "Constructor has a different name (%s) than the class in which it is defined (%s). Did you mean to add a return type to turn it into a method?",
               m.getName(),
               current_class().getName()
-      );
+              ));
+      Fail("");
     }
 
     if (contract!=null){
