@@ -3,6 +3,8 @@ package vct.parsers;
 import static hre.lang.System.*;
 
 import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import hre.config.Configuration;
 import hre.lang.HREExitException;
@@ -30,6 +32,14 @@ public class ColCParser extends ColIParser {
 
             StringBuilder command = new StringBuilder(Configuration.cpp_command.get());
             command.append(" -nostdinc -nocudainc -nocudalib -isystem ").append(Configuration.getCIncludePath().getAbsolutePath());
+
+            Path filePath = Paths.get(file_name).toAbsolutePath().getParent();
+
+            if(filePath != null) {
+                // Not quite correct, because this allows <> includes to see local files as well as "" includes.
+                command.append(" -I").append(filePath.toString());
+            }
+
             for (String p : Configuration.cpp_include_path) {
                 command.append(" -I").append(p);
             }
@@ -55,25 +65,18 @@ public class ColCParser extends ColIParser {
                     process.getOutputStream().close();
                 } catch(IOException e) {
                     DebugException(e);
-                    throw new HREExitException(1);
                 }
             }).start();
 
             Thread t = new Thread(() -> {
                 BufferedReader err = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-                boolean err_found = false;
                 String s;
                 try {
                     while ((s = err.readLine()) != null) {
                         Output("%s", s);
-                        if (s.matches(".*error.*")) err_found = true;
                     }
                 } catch (IOException e) {
                     DebugException(e);
-                    err_found = true;
-                }
-                if (err_found) {
-                    throw new HREExitException(1);
                 }
             });
             t.setDaemon(true);

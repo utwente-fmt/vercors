@@ -5,8 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.type.ClassType;
-import vct.col.rewrite.JavaResolver;
+import vct.col.rewrite.Henk;
 import vct.col.rewrite.RewriteSystem;
 import vct.col.util.AbstractTypeCheck;
 import hre.config.Configuration;
@@ -25,7 +24,7 @@ public class RewriteSystems {
       unit=systems.get(f);
       if (unit==null){
         unit=Parsers.getParser("jspec").parse(f);
-        unit=new JavaResolver(unit).rewriteAll();
+        unit=new Henk(unit).rewriteAll();
         new AbstractTypeCheck(null, unit).check();
         systems.put(f, unit);
       }
