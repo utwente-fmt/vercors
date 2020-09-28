@@ -50,13 +50,15 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
       super.visit(cls)
     }
 
-  override def visit(m: Method): Unit =
+  override def visit(m: Method): Unit = {
     if ((m.kind eq Method.Kind.Constructor) && !(m.getName == current_class().getName.split('.').last)) {
       m.getOrigin.report("error",
         String.format("Constructor has a different name (%s) than the class in which it is defined (%s). Did you mean to add a return type to turn it into a method?",
           m.getName, current_class().getName))
       Fail("")
     }
+    super.visit(m)
+  }
 
   override def visit(t: ClassType): Unit = {
     val names = require(t.names)
