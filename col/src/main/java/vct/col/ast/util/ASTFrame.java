@@ -282,6 +282,19 @@ public abstract class ASTFrame<T> {
         break;
       }
     }
+
+    @Override
+    public void visit(VariableDeclaration decl) {
+      for(DeclarationStatement stat : decl.flatten()) {
+        switch(action) {
+          case ENTER:
+            variables.add(stat.name(), new VariableInfo(stat, NameExpressionKind.Local));
+            break;
+          case LEAVE:
+            break;
+        }
+      }
+    }
    
     @Override
     public void visit(DeclarationStatement node){
@@ -419,7 +432,11 @@ public abstract class ASTFrame<T> {
             if (block.getStatement(i) instanceof DeclarationStatement){
               DeclarationStatement decl=(DeclarationStatement)block.getStatement(i);
               variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
-            }         
+            } else if(block.getStatement(i) instanceof VariableDeclaration) {
+              for(DeclarationStatement child : ((VariableDeclaration) block.getStatement(i)).flatten()) {
+                variables.add(child.name(), new VariableInfo(child, NameExpressionKind.Local));
+              }
+            }
           }
         }
         break;

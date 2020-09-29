@@ -136,6 +136,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(MethodInvokation e) {
     // TODO: fix dispatch(e.get_before());
     dispatch(e.object());
+    dispatch(e.dispatch());
     for(ASTNode arg:e.getArgs()){
       arg.accept(this);
     }
@@ -235,6 +236,9 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
 //      dispatch(c.pre_condition);
 //      dispatch(c.post_condition);
 //    }
+    dispatch(m.getReturnType());
+    dispatch(m.getArgs());
+    dispatch(m.signals);
     Contract c=m.getContract();
     if (c!=null){
       dispatch(c.given);
@@ -244,8 +248,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(c.yields);
       dispatch(c.signals);
     }
-    dispatch(m.getReturnType());
-    dispatch(m.getArgs());
     dispatch(m.getBody());
     if (c!=null) {
       // TODO: this is where \result should be declared.

@@ -901,7 +901,7 @@ public class SilverClassReduction extends AbstractRewriter {
       args.add(rewrite(arg));
     }
     method = method.replace('<', '$').replace('>', '$');
-    MethodInvokation res=create.invokation(object, dispatch, method, args.toArray(new ASTNode[0]));
+    MethodInvokation res=create.invokation(object, null, method, args.toArray(new ASTNode[0]));
     res.set_before(rewrite(s.get_before()));
     res.set_after(rewrite(s.get_after()));
     result=res;

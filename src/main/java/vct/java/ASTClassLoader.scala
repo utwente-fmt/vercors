@@ -137,4 +137,7 @@ object ASTClassLoader {
     loadByFile(name, ns)
       .orElse(loadByReflection(name, ns))
   }
+
+  def load(name: Array[String], ns: NameSpace): ASTClass =
+    load(name.toSeq, Option(ns)).orNull
 }

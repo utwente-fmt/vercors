@@ -356,7 +356,7 @@ class Main {
     val check = Passes.BY_KEY.apply("check")
     val ignore = Passes.BY_KEY.apply("spec-ignore")
 
-    Seq(ignore, vardecls, string, resolve, check).foreach(
+    Seq(check).foreach(
       pass => report = pass.apply_pass(report, Array()))
 
     var features = Feature.scan(report.getOutput) ++ Set(
@@ -368,7 +368,7 @@ class Main {
       vct.col.features.DeclarationsNotLifted,
       vct.col.features.UnusedExtern,
       vct.col.features.ParallelLocalAssignmentNotChecked,
-      // vct.col.features.NotJavaResolved,
+      vct.col.features.NotJavaResolved,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
       vct.col.features.ScatteredDeclarations, // this pass finds duplicate names.
@@ -385,9 +385,6 @@ class Main {
   }
 
   private def getPasses: Seq[AbstractPass] = {
-    val features = new FeatureScanner
-    report.getOutput.accept(features)
-
     if (pass_list_option.used) {
       pass_list.asScala.map(key => BY_KEY.get(key) match {
         case None => Fail("Unknown pass: %s", key); ???

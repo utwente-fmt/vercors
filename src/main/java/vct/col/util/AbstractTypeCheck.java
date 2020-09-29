@@ -16,10 +16,12 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.*;
 import vct.col.rewrite.AddZeroConstructor;
+import vct.java.ASTClassLoader;
 import vct.logging.PassReport;
 import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
 import viper.api.SilverTypeMap;
+import viper.carbon.boogie.Decl;
 
 import static hre.lang.System.Output;
 
@@ -54,6 +56,19 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     this.report = report;
   }
 
+  private NameSpace currentNamespace = null;
+
+  public void visit(NameSpace ns) {
+    if(currentNamespace != null) {
+      ns.getOrigin().report("error", "Nested namespaces are not supported");
+      Fail("");
+    }
+
+    currentNamespace = ns;
+    super.visit(ns);
+    currentNamespace = null;
+  }
+
   public void visit(ConstantExpression e){
     Debug("constant %s",e);
     super.visit(e);
@@ -85,17 +100,30 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       VariableInfo info=variables.lookup(name[0]);
       if (info!=null){
         Debug("kind is %s",info.kind);
+        t.setDefinition((ASTDeclaration)info.reference);
         t.setType(t);
         return;
       } else {
         Debug("not a variable");
       }
     }
+
+    // This is duplicate only because of typing wrt ADT?
     ASTDeclaration decl=source().find_decl(t.getNameFull());
+    ASTClass cl=source().find(t.getNameFull());
+
     if (decl==null){
       decl=source().find(t.getNameFull());
     }
-    if (decl==null){
+    if (decl == null) {
+      cl = ASTClassLoader.load(t.getNameFull(), currentNamespace);
+      decl = cl;
+
+      if (cl != null) {
+        cl.accept(this);
+      }
+    }
+    if (decl == null) {
       Fail("type error: defined type "+t.getFullName()+" not found");
     }
     if (decl instanceof AxiomaticDataType){
@@ -104,7 +132,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       return;
     }
 
-    ASTClass cl=source().find(t.getNameFull());
     if (cl==null) {
       Method m=null;
       // find external/dynamic dispatch predicates used for witnesses.
@@ -123,6 +150,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         Fail("type error: class (or predicate) "+t.getFullName()+" not found");
       }
     }
+    t.setDefinition(cl);
     t.setType(t);
   }
 
@@ -137,8 +165,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     }
     if (e.object()==null && e.dispatch()!=null){
       // This is a constructor invokation.
-      ClassType t=e.dispatch();
-      ASTClass cl=source().find(t.getNameFull());
+      ClassType t = e.dispatch();
+      visit(t);
+      ASTClass cl = (ASTClass) t.definition();
       Objects.requireNonNull(cl, () -> String.format("class %s not found", t));
       ASTNode args[]=e.getArgs();
       Type c_args[]=new Type[args.length];
@@ -166,7 +195,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
     if(obj == null && current_class() != null) {
       obj = new NameExpression(null, ASTReserved.This, NameExpressionKind.Reserved);
-      obj.setType(new ClassType(current_class().getFullName()));
+      ClassType t = new ClassType(current_class().getFullName());
+      t.setDefinition(current_class());
+      obj.setType(t);
     }
 
     if (obj!=null){
@@ -186,11 +217,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         type[i]=e.getArg(i).getType();
         if (type[i]==null) Abort("argument %d has no type.",i);
       }
-      ASTClass cl=source().find(object_type.getNameFull());
+      ASTClass cl = (ASTClass) object_type.definition();
       Objects.requireNonNull(cl, () -> String.format("could not find class %s used in %s", object_type.getFullName(), e));
       m=cl.find(e.method(),object_type,type);
       while(m==null && cl.super_classes.length>0){
-        cl=source().find(cl.super_classes[0].getNameFull());
+        cl = (ASTClass) cl.super_classes[0].definition();
         m=cl.find(e.method(),object_type,type);
       }
       if (m==null) {
@@ -270,6 +301,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       SilverTypeMap.get_adt_subst(sigma.copy_rw,map,(ClassType)e.object());
       e.setType(sigma.rewrite(t));
+      e.getType().accept(this);
       return;
     }
 
@@ -435,6 +467,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       {
         MultiSubstitution sigma=m.getSubstitution(object_type);
         e.setType(sigma.rewrite(m.getReturnType()));
+        e.getType().accept(this);
         break;
       }
     }
@@ -500,6 +533,23 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     check_loc_val(s.location().getType(),s.expression());
+  }
+
+  public void visit(VariableDeclaration decl) {
+    HashMap<String, Type> map = new HashMap<>();
+    MultiSubstitution sub = new MultiSubstitution(source(), map);
+    map.put(VariableDeclaration.COMMON_NAME, decl.basetype);
+
+    for(ASTDeclaration genericChild : decl.get()) {
+      DeclarationStatement child = (DeclarationStatement) genericChild;
+      Type type = sub.rewrite(child.type());
+      ASTNode init = child.initJava();
+      if(init != null) {
+        type.accept(this);
+        init.accept(this);
+        check_loc_val(type, init);
+      }
+    }
   }
 
   public void visit(DeclarationStatement s){
@@ -586,6 +636,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         kind = info.kind;
       } else {
         e.setType(new ClassType(e.name()));
+        e.getType().accept(this);
         return;
       }
     }
@@ -613,6 +664,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           }
           DeclarationStatement decl = (DeclarationStatement) info.reference;
           e.setType(decl.getType());
+          e.getType().accept(this);
         }
         break;
       }
@@ -632,7 +684,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           if (cl == null) {
             Fail("use of keyword this outside of class context");
           } else {
-            e.setType(new ClassType(cl.getFullName()));
+            ClassType t = new ClassType(cl.getFullName());
+            t.setDefinition(cl);
+            e.setType(t);
           }
           break;
         }
@@ -751,7 +805,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (!(t instanceof ClassType)) {
         Fail("Data type must be a class type.");
       }
-      ASTClass cl = source().find((ClassType) t);
+      ASTClass cl = (ASTClass) ((ClassType) t).definition();
       variables.enter();
       for (DeclarationStatement decl : cl.dynamicFields()) {
         variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
@@ -1833,7 +1887,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(object_type);
     } else {
       Debug("resolving class "+((ClassType)object_type).getFullName()+" "+((ClassType)object_type).getNameFull().length);
-      ASTClass cl=source().find(((ClassType)object_type).getNameFull());
+      ASTClass cl = (ASTClass) ((ClassType) object_type).definition();
       if (cl==null) {
         Fail("could not find class %s",((ClassType)object_type).getFullName());
       } else {
@@ -1841,6 +1895,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         DeclarationStatement decl = cl.find_field(e.field(), true);
         if (decl != null) {
           e.setType(decl.getType());
+          e.getType().accept(this);
         } else {
           Method m = cl.find_predicate(e.field());
           if (m != null && !m.isStatic()) {

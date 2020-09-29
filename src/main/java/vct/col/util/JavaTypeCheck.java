@@ -200,14 +200,18 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
   private boolean isThrowableType(Type t) {
     if (t instanceof ClassType) {
-      ASTClass astClass = source().find((ClassType) t);
+      ASTClass astClass = (ASTClass)((ClassType) t).definition();
       if (astClass.kind == ASTClass.ClassKind.Record) {
         return true;
       }
     }
 
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
+    ClassType unflatThrowableType = new ClassType(new String[]{"java", "lang", "Throwable"});
+    visit(unflatThrowableType); // collect definition
+
     return throwableType.supertypeof(source(), t) // Actually throwable
+            || unflatThrowableType.supertypeof(source(), t)
             || (t.toString().startsWith("__") && t.toString().endsWith("_ex")); // We defined it (sorry, hacky!)
     }
 

@@ -78,7 +78,12 @@ case class ClassType(val names:List[String], val params:List[ASTNode]) extends T
   private def searchForSupertype(unit:Option[ProgramUnit], ct:ClassType) : Boolean = {
     Debug(s"checking if $this is a supertype of $ct.")
     if (ct.names == this.names) true else unit match {
-      case Some(context:ProgramUnit) => searchContextForSupertype(context, Option(context.find(ct)))
+      case Some(context:ProgramUnit) =>
+        searchContextForSupertype(context,
+          Option(context.find(ct)).orElse(Option(ct.definition).flatMap {
+            case cls: ASTClass => Some(cls)
+            case _ /* adts and such */ => None
+          }))
       case None => Debug("missing program context."); false
     }
   }

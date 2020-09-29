@@ -267,7 +267,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(invok: MethodInvokation): Unit = {
     super.visit(invok)
     visitBeforeAfter(invok)
-    if(invok.getDefinition.kind == Method.Kind.Predicate && !getParentNode.isa(StandardOperator.Scale))
+    if(invok.getDefinition != null && invok.getDefinition.kind == Method.Kind.Predicate && !getParentNode.isa(StandardOperator.Scale))
       features += UnscaledPredicateApplication
     if(invok.`object` == null && invok.dispatch == null)
       features += NotStandardized
