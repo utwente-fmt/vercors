@@ -15,12 +15,12 @@ import vct.col.ast.util.AbstractRewriter;
 import java.util.HashMap;
 import java.util.Stack;
 
-public class InlinePredicatesRewriter extends AbstractRewriter {
+public class InlinePredicatesFunctions extends AbstractRewriter {
 
   int count = 0;
   Stack<String> inlinedScalars = new Stack<>();
  
-  public InlinePredicatesRewriter(ProgramUnit source) {
+  public InlinePredicatesFunctions(ProgramUnit source) {
     super(source);
   }
 

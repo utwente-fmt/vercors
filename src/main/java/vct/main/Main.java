@@ -939,7 +939,7 @@ public class Main
     });
     defined_passes.put("inline",new CompilerPass("Inline all methods marked as inline"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new InlinePredicatesRewriter(arg).rewriteAll();
+        return new InlinePredicatesFunctions(arg).rewriteAll();
       }
     });
     defined_passes.put("kernel-split",new CompilerPass("Split kernels into main, thread and barrier."){
