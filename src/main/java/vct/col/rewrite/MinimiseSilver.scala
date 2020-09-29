@@ -4,7 +4,7 @@ import scala.collection.JavaConverters._
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, AbstractVisitor, RecursiveVisitor}
 import vct.col.ast.expr.{Dereference, MethodInvokation}
-import hre.lang.System.{Output, Warning}
+import hre.lang.System.{Output, Warning, Debug}
 import vct.col.ast.`type`.ASTReserved
 import vct.col.util.{AbstractTypeCheck, SimpleTypeCheck}
 
@@ -22,7 +22,7 @@ import scala.collection.mutable
 class AbstractMethods(source: ProgramUnit, keepMethods: Set[String]) extends AbstractRewriter(source) {
   override def visit(m: Method): Unit = {
     if (m.getKind == Method.Kind.Plain && !keepMethods.contains(m.getName)) {
-      Output("Abstracting method: %s", m.getName)
+      Debug("Abstracting method: %s", m.getName)
       m.setBody(null)
     }
     super.visit(m)
@@ -44,15 +44,15 @@ class RemoveUnused(source: ProgramUnit, keep: Entities) extends AbstractRewriter
 
   override def visit(m: Method): Unit = {
     if (m.getKind == Method.Kind.Plain && !keep.methods.contains(m.getName)) {
-      Output("Removing method: %s", m.getName)
+      Debug("Removing method: %s", m.getName)
       result = null
       madeChange = true
     } else if (m.getKind == Method.Kind.Pure && !keep.functions.contains(m.getName)) {
-      Output("Removing function: %s", m.getName)
+      Debug("Removing function: %s", m.getName)
       result = null
       madeChange = true
     } else if (m.getKind == Method.Kind.Predicate && !keep.predicates.contains(m.getName)) {
-      Output("Removing predicate: %s", m.getName)
+      Debug("Removing predicate: %s", m.getName)
       result = null
       madeChange = true
     } else {
@@ -66,7 +66,7 @@ class RemoveUnused(source: ProgramUnit, keep: Entities) extends AbstractRewriter
       return
     }
     if (!(keep.fields contains d.name)) {
-      Output("Removing field: %s", d.name)
+      Debug("Removing field: %s", d.name)
       result = null
       madeChange = true
     } else {
@@ -155,8 +155,7 @@ object CollectRetainEntities {
 
 /**
   * Collects all names in `names` that fit any of the supported categories into the Entities type.
-  * @param source
-  * @param names
+  * Assumes all values in `names` are unique in the AST.
   */
 class CollectRetainEntities(source: ProgramUnit, names: Set[String]) extends RecursiveVisitor(source) {
   val leftoverNames: mutable.Set[String] = names.to[mutable.Set]
@@ -179,8 +178,8 @@ class CollectRetainEntities(source: ProgramUnit, names: Set[String]) extends Rec
           predicates.add(m.getName)
         case Method.Kind.Plain =>
           methods.add(m.getName)
-        case _ =>
-          Warning("Unexpected kind for name %s, ignoring", m.name)
+        case k =>
+          Warning("Unexpected kind %s for name %s, ignoring", k, m.name)
       }
       leftoverNames.remove(m.name)
     }
@@ -211,9 +210,8 @@ case class Entities(methods: Set[String], functions: Set[String], predicates: Se
       predicates ++ other.predicates,
       fields ++ other.fields)
   }
-}
 
-object MinimiseSilver {
+  def size: Int = methods.size + functions.size + predicates.size + fields.size
 }
 
 class MinimiseSilver(source: ProgramUnit, retainNames: Set[String]) {
@@ -223,8 +221,15 @@ class MinimiseSilver(source: ProgramUnit, retainNames: Set[String]) {
   def minimise(): ProgramUnit = {
     val silverRetainNames = retainNames.filter(!_.contains("#"))
     val (rootEntities, leftoverNames) = CollectRetainEntities.collect(source, silverRetainNames)
-    Output("Must retain: %s", rootEntities)
-    if (leftoverNames.size > 0) {
+    if (rootEntities.size < retainNames.size) {
+      Warning("Number of entities selected for retention (%s) is smaller than number of entities indicated for retention (%s)." +
+        " This means the output will be oversimplified, which is a bug. Please report an issue.",
+        rootEntities,
+        retainNames.mkString(", ")
+      )
+    }
+    Debug("Must retain: %s", rootEntities)
+    if (leftoverNames.nonEmpty) {
       Warning("The following names were not found in the Silver AST: %s", leftoverNames.mkString(", "))
     }
 
@@ -234,7 +239,7 @@ class MinimiseSilver(source: ProgramUnit, retainNames: Set[String]) {
     var program = source
 
     while (madeChange) {
-      Output("-- Iter --")
+      Debug("-- MinimiseSilver: Iter --")
       val (program1, madeChangeRemoveMethods) = RemoveUnused.minimise(program, rootEntities)
 
       program = program1

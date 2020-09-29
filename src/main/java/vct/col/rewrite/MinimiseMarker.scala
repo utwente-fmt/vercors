@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
-import hre.lang.System.Abort
+import hre.lang.System.{Abort, Debug}
 import vct.col.ast.`type`.ASTReserved
 import scala.collection.JavaConverters._
 
@@ -34,7 +34,7 @@ class MinimiseMarker(arg: ProgramUnit, minimiseTargets: java.util.List[String]) 
 
     val currentTarget = Target(current_class.toString, m.getName)
     if (targets contains currentTarget) {
-      hre.lang.System.Output("marking: %s", currentTarget)
+      Debug("marking: %s", currentTarget)
       result.attach(create.reserved_name(ASTReserved.MinimiseTarget))
     }
   }

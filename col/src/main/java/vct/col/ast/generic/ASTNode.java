@@ -21,6 +21,7 @@ import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.Configuration;
 
 import static hre.lang.System.Abort;
@@ -71,6 +72,21 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
     int missing_flags=node.valid_flags & (~valid_flags);
     valid_flags=valid_flags|missing_flags;
     flags=flags|(node.flags&missing_flags);
+  }
+
+  /**
+   * Copies all annotations from this to node.
+   *
+   * If you want to process the annotatoins further, pass in a specific (or, the current) abstractrewriter.
+   * To just copy, pass in copy_rw.
+   */
+  public void copyAnnotations(ASTNode node, AbstractRewriter ar) {
+    if (node.annotations == null) {
+      return;
+    }
+    for (ASTNode annotation : node.annotations) {
+      attach(ar.rewrite(annotation));
+    }
   }
 
   public boolean getFlag(int flag){
