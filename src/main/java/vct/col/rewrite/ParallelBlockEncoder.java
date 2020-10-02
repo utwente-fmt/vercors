@@ -404,13 +404,14 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         blocks.put(pb.label(),pb);
       }
     }
-    currentTargetClass.add(create.method_decl(
-        create.primitive_type(PrimitiveSort.Void),
-        main_cb.getContract(),
-        main_name,
-        genPars(main_vars),
-        body
-    ));
+    Method parRegionMethod = create.method_decl(
+            create.primitive_type(PrimitiveSort.Void),
+            main_cb.getContract(),
+            main_name,
+            genPars(main_vars),
+            body);
+    parRegionMethod.setStatic(current_method().isStatic());
+    currentTargetClass.add(parRegionMethod);
     result= genCall(main_name,main_vars);
   }
   
@@ -862,13 +863,15 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     }
     
     DeclarationStatement[] bodyPars = genPars(bodyVars);
-    currentTargetClass.add(create.method_decl(
+    Method doMethod = create.method_decl(
         create.primitive_type(PrimitiveSort.Void),
         body_cb.getContract(),
         body_name,
         bodyPars,
         rewrite(s.body)
-    ));
+    );
+    doMethod.setStatic(current_method().isStatic());
+    currentTargetClass.add(doMethod);
     if (s.decls.length>0){
       String var_name = s.decls[s.decls.length-1].name();
       check_send_recv(bodyPars, var_name, s.guard);
