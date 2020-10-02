@@ -2,8 +2,8 @@ package vct.col.ast.`type`
 
 import hre.lang.System.Abort
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.ProgramUnit
-import vct.col.ast.util.TypeMapping
+import vct.col.ast.stmt.decl.{NameSpace, ProgramUnit}
+import vct.col.ast.util.{ExternalClassLoader, TypeMapping}
 
 import scala.collection.JavaConverters._
 
@@ -80,5 +80,9 @@ abstract class Type(val args:List[ASTNode]) extends ASTNode {
   }
   
   def supertypeof(unit:ProgramUnit, t:Type) : Boolean
+
+  def supertypeof(other: Type, source: Option[ProgramUnit], loader: Option[ExternalClassLoader], ns: Option[NameSpace]): Boolean =
+    supertypeof(source.orNull, other)
+
   protected def accept_simple[T](map:TypeMapping[T]) : T
 }

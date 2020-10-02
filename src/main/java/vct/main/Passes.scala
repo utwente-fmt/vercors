@@ -148,18 +148,19 @@ object Passes {
       removes=Set(features.JavaAtomic),
       introduces=Feature.DEFAULT_INTRODUCE + features.ParallelAtomic,
     ),
-    SimplePass("class-conversion",
-      "Convert classes into records and procedures",
-      new ClassConversion(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
-      removes=Set(features.This, features.Constructors),
-      introduces=Feature.NO_POLY_INTRODUCE -- Set(
-        features.Arrays,
-        features.ContextEverywhere,
-        features.UnscaledPredicateApplication,
-        features.NestedQuantifiers,
-        features.InlineQuantifierPattern,
-      )),
+// PB: obsolete?
+//    SimplePass("class-conversion",
+//      "Convert classes into records and procedures",
+//      new ClassConversion(_).rewriteAll,
+//      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
+//      removes=Set(features.This, features.Constructors),
+//      introduces=Feature.NO_POLY_INTRODUCE -- Set(
+//        features.Arrays,
+//        features.ContextEverywhere,
+//        features.UnscaledPredicateApplication,
+//        features.NestedQuantifiers,
+//        features.InlineQuantifierPattern,
+//      )),
     new AbstractPass("codegen", "Generate code") {
       override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
         val dir = new File(args(0))
@@ -213,7 +214,7 @@ object Passes {
       "java-encode", "Encode Java overloading and inheritance",
       new JavaEncoder(_).rewriteAll,
       permits=Feature.ALL - features.ClassWithoutConstructor - features.NotStandardized - features.NotJavaResolved,
-      removes=Set(features.NotJavaEncoded),
+      removes=Set(features.NotJavaEncoded, features.StaticFields),
     ),
     SimplePass("explicit_encoding", "encode required and ensured permission as ghost arguments", new ExplicitPermissionEncoding(_).rewriteAll),
     SimplePass("finalize_args",
@@ -449,7 +450,7 @@ object Passes {
       "reduce classes to single Ref class",
       new SilverClassReduction(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
-      removes=Set(features.BeforeSilverDomains),
+      removes=Set(features.BeforeSilverDomains, features.This, features.Constructors),
       introduces=Feature.DEFAULT_INTRODUCE -- Set(
         features.This,
         features.Arrays,
@@ -544,7 +545,7 @@ object Passes {
     ErrorMapPass("create-return-parameter",
       "Replace return value by out parameter.",
       new CreateReturnParameter(_, _).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.NotFlattened + features.TopLevelDeclarations,
+      permits=Feature.DEFAULT_PERMIT - features.NotFlattened + features.TopLevelDeclarations - features.Constructors,
       removes=Set(features.NonVoidMethods),
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,
@@ -647,15 +648,24 @@ object Passes {
     SimplePass("intro-exc-var",
       "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
       new IntroExcVar(_).rewriteAll(),
-      introduces = Set(features.ExcVar),
-      permits = Feature.DEFAULT_PERMIT - features.Inheritance - features.NonVoidMethods,
+      introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.ExcVar) -- Set(
+        features.Arrays,
+        features.NotFlattened,
+        features.StaticFields,
+        features.ContextEverywhere,
+        features.InlineQuantifierPattern,
+        features.Constructors,
+        features.This,
+        features.NonVoidMethods,
+      ),
+      permits = Feature.DEFAULT_PERMIT - features.Inheritance,
       removes = Set(features.Exceptions, features.Finally) // TODO (Bob): This is kind of lying...
     ),
     SimplePass("encode-try-throw-signals",
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
       new EncodeTryThrowSignals(_).rewriteAll(),
       removes = Set(features.ExcVar),
-      permits = Feature.DEFAULT_PERMIT + features.ExcVar,
+      permits = Feature.DEFAULT_PERMIT + features.ExcVar - features.NotFlattened,
       introduces = (Feature.DEFAULT_INTRODUCE + features.Goto)
         -- Set(
           features.Constructors,
@@ -664,6 +674,9 @@ object Passes {
           features.NonVoidMethods,
           features.Arrays,
           features.ContextEverywhere,
+          features.BeforeSilverDomains,
+          features.StaticFields,
+          features.InlineQuantifierPattern,
         )
     ),
     SimplePass(

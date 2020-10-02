@@ -45,6 +45,7 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
     }
 
     m.setFlag(ASTFlags.UNIQUE, true);
+    m.setFlag(ASTFlags.STATIC, true);
     m.setParent(this)
     constructors += m
   }

@@ -350,14 +350,7 @@ class Main {
   }
 
   def collectPassesForSilver: Seq[AbstractPass] = {
-    val resolve = Passes.BY_KEY("java_resolve")
-    val string = Passes.BY_KEY("string-class")
-    val vardecls = Passes.BY_KEY("flatten_variable_declarations")
-    val check = Passes.BY_KEY.apply("check")
-    val ignore = Passes.BY_KEY.apply("spec-ignore")
-
-    Seq(check).foreach(
-      pass => report = pass.apply_pass(report, Array()))
+    report = Passes.BY_KEY("java-check").apply_pass(report, Array())
 
     var features = Feature.scan(report.getOutput) ++ Set(
       // These are "gated" features: they are (too) hard to detect normally.
@@ -371,7 +364,7 @@ class Main {
       vct.col.features.NotJavaResolved,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
-      vct.col.features.ScatteredDeclarations, // this pass finds duplicate names.
+      vct.col.features.ScatteredDeclarations, // this pass finds duplicate names (even if they're not scattered)
       vct.col.features.ImplicitLabels, // Can be detected, lazy, sorry
     )
 

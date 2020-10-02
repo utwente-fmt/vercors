@@ -6,14 +6,17 @@ import java.nio.file.{Path, Paths}
 import hre.ast.{FileOrigin, MessageOrigin}
 import vct.col.ast.`type`.{PrimitiveSort, Type}
 import vct.col.ast.stmt.decl.{ASTClass, Method, NameSpace}
-import vct.col.ast.util.{ASTFactory, ClassName, SequenceUtils}
+import vct.col.ast.util.{ASTFactory, ClassName, ExternalClassLoader, SequenceUtils}
 import vct.parsers.ColJavaParser
 import vct.parsers.rewrite.RemoveBodies
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-object ASTClassLoader {
+object ASTClassLoader extends ExternalClassLoader {
+  // PB: dumb java hack (is there no better way?)
+  val INSTANCE: ExternalClassLoader = this
+
   private val REFLECTION_CACHE = mutable.Map[Seq[String], Option[ASTClass]]()
   private val FILE_CACHE = mutable.Map[(Path, Seq[String]), Option[ASTClass]]()
 
@@ -137,7 +140,4 @@ object ASTClassLoader {
     loadByFile(name, ns)
       .orElse(loadByReflection(name, ns))
   }
-
-  def load(name: Array[String], ns: NameSpace): ASTClass =
-    load(name.toSeq, Option(ns)).orNull
 }

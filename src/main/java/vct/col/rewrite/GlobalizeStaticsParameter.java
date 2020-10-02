@@ -47,9 +47,11 @@ public class GlobalizeStaticsParameter extends GlobalizeStatics {
         result=create.method_kind(
             m.getKind(),
             rewrite(m.getReturnType()),
+            rewrite(m.signals),
             cb.getContract(),
             m.getName(),
             args,
+            m.usesVarArgs(),
             rewrite(m.getBody()));
         break;
       }

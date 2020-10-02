@@ -82,7 +82,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         ASTClass exceptionClass = create.new_class(
                 name,
                 null,
-                null
+                new ClassType(ClassType.javaLangObjectName())
         );
 
         if (arg != null && !arg.isVoid()) {

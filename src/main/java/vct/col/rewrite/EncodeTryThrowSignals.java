@@ -299,12 +299,30 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
     public void visit(Method method) {
         if (!(method.getKind() == Method.Kind.Constructor || method.getKind() == Method.Kind.Plain)) {
-            super.visit(method);
+            result = create.method_kind(
+                    method.getKind(),
+                    rewrite(method.getReturnType()),
+                    new ClassType[0],
+                    rewrite(method.getContract()),
+                    method.name(),
+                    rewrite(method.getArgs()),
+                    method.usesVarArgs(),
+                    rewrite(method.getBody())
+            );
             return;
         }
 
         if (method.getBody() == null) {
-            super.visit(method);
+            result = create.method_kind(
+                    method.getKind(),
+                    rewrite(method.getReturnType()),
+                    new ClassType[0],
+                    rewrite(method.getContract()),
+                    method.name(),
+                    rewrite(method.getArgs()),
+                    method.usesVarArgs(),
+                    rewrite(method.getBody())
+            );
         } else {
             if (nearestHandlerPresent()) {
                 Abort("A nearest handler was present, even though we are entering a fresh method!");
@@ -313,7 +331,16 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             String unhandledExceptionHandler = generateLabel("method_end", method.getName());
             pushNearestHandler(unhandledExceptionHandler);
 
-            super.visit(method);
+            result = create.method_kind(
+                    method.getKind(),
+                    rewrite(method.getReturnType()),
+                    new ClassType[0],
+                    rewrite(method.getContract()),
+                    method.name(),
+                    rewrite(method.getArgs()),
+                    method.usesVarArgs(),
+                    rewrite(method.getBody())
+            );
 
             popNearestHandler();
 
@@ -326,7 +353,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         Method resultMethod = (Method) result;
         Contract contract = resultMethod.getContract();
 
-        if (resultMethod.canThrowSpec()) {
+        if (method.canThrowSpec()) {
             ASTNode newPostCondition = create.expression(StandardOperator.Implies,
                     create.expression(StandardOperator.EQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
                     contract.post_condition

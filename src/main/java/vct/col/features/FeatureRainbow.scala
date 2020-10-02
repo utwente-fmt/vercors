@@ -552,7 +552,7 @@ object Feature {
     // GivenYields,
 
     // I think introducing global state is fine
-    StaticFields,
+    // StaticFields,
 
     // Introducing a definition that is meant to be inlined is strange
     // InlinePredicate,
