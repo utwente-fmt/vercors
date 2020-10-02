@@ -245,6 +245,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
 
     }
+    if (current_method() != null && current_method().isStatic() && !e.definition().isStatic()) {
+      Fail("non-static method called from static context", e.object().getOrigin());
+    }
+
 
     if (m.getParent() instanceof AxiomaticDataType){
       Type t=m.getReturnType();
