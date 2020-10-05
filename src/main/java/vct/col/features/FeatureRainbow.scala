@@ -234,14 +234,18 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         features += NotStandardized
       case StandardOperator.ValidPointer | StandardOperator.ValidPointerIndex =>
         features += ValidPointer
+      case StandardOperator.Member =>
+        features += MemberOf
       case _ =>
     }
   }
 
-  var bindingExpressionDepth = 0
+  private var bindingExpressionDepth = 0
+  private var havePattern: Seq[Boolean] = Seq(false)
 
   override def visit(binding: BindingExpression): Unit = {
     bindingExpressionDepth += 1
+    havePattern :+= false
     if(bindingExpressionDepth >= 2) {
       features += NestedQuantifiers
     }
@@ -250,9 +254,10 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += ADTFunctions
     if(binding.binder == Binder.Sum)
       features += Summation
-    if(binding.triggers == null || binding.triggers.isEmpty)
+    if((binding.triggers == null || binding.triggers.isEmpty) && !havePattern.last)
       features += QuantifierWithoutTriggers
     bindingExpressionDepth -= 1
+    havePattern = havePattern.init
   }
 
   override def visit(assign: AssignmentStatement): Unit = {
@@ -363,6 +368,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(pat: expr.InlineQuantifierPattern): Unit = {
     super.visit(pat)
     features += InlineQuantifierPattern
+    havePattern = havePattern.init :+ true
   }
 
   override def visit(lemma: stmt.composite.Lemma): Unit = {
@@ -472,6 +478,7 @@ object Feature {
     ClassWithoutConstructor,
     LockInvariant,
     StringClass,
+    MemberOf,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -488,344 +495,129 @@ object Feature {
     NeedsHistoryCheck,
   )
   val DEFAULT_INTRODUCE: Set[Feature] = Set(
-    // node annotations are mostly used by the parser and resolved early on
-    // MethodAnnotations,
-
-    // type expressions are used for const, long, extern and such
-    // TypeExpressions,
-
-    // currently largely unsupported, so most passes only put stuff in classes
-    // TopLevelDeclarations,
-    // TopLevelFields,
-
-    // why would we add ignored specifications?
-    // SpecIgnore,
-
-    // A multi-decl like "int a,b;" is equivalent to "int a; int b" so introducing one is unlikely
-    // MultiDecls,
-
-    // Nice to have in the frontend for anonymous sequences and such, but programatically we specify the type
-    // UnresolvedTypeInference,
-
-    // Archaic; though maybe nice to support again when we have a more strongly typed AST
-    // ExpressionStatement,
-
-    // Archaic (?)
-    // ActionHeader,
-
-    // We'll probably manage to put stuff in the right place
-    // ImproperlySortedBeforeAfter,
-
-    // Some syntax sugar we don't use in code
-    // SubscriptRange,
-
     // I think we'll need those (histories need them boxed in set_field, get_field)
     Dereference,
-
-    // Inheritance,
-
     Null,
-
     // (sometimes implicit) this value, probably fair to introduce by default (e.g. invokations)
     This,
-
-    // If you use a specific name in the frontend, rewrite some stuff.
-    // JavaAtomic,
-
-    // Currently only used in the frontend, so let's say we promise not to introduce it for now.
-    // CurrentThread,
-
-    // Syntactic sugar we don't use explicitly.
-    // ValidPointer,
-
-    // This is OK in our frontends, but silver does not accept it, so it's probably best to disallow it in COL by
-    // default
-    // ArgumentAssignment,
-
-    // There is no point in introducing ghost state if we can just add regular arguments.
-    // BeforeAfter,
-
-    // I think unused programatically for now, but that may very well change.
-    // ADTOperators,
-
-    // Pretty much the same argument as BeforeAfter
-    // GivenYields,
-
-    // I think introducing global state is fine
-    // StaticFields,
-
-    // Introducing a definition that is meant to be inlined is strange
-    // InlinePredicate,
-
-    // Front-end feature
-    // KernelClass,
-
-    // Pointers are reduced to arrays easily and we don't really use pointer features internally
-    // AddrOf,
-
-    // Front-end feature, mostly reduced to ParBlock
-    // OpenMP,
-
-    // OpenMP makes new parallel blocks, I think that's about it, so let's keep that explicit.
-    // ParallelBlocks,
-    // ParallelAtomic,
-
-    // Same as AddrOf
-    // Pointers,
-
-    // Supported by our silver translation
-    ContextEverywhere,
-
-    // Front-end feature
-    // PureImperativeMethods,
-
-    // Front-end stuff
-    // PVLSugar,
-
-    // if(*): non-deterministic condition. Not used elsewhere
-    // NondetCondition,
-
     // Declarations that are not at the top of a block; we probably introduce those.
     ScatteredDeclarations,
-
     // For RewriteArrayRef; kinda ugly that we rewrite Susbcript -> OptGet Subscript Deref -> OptGet loc Deref
     Arrays,
-
     // Anything other than a name or constant as a subscript is "complicated"
     ComplexSubscript,
-
-    // Don't need the sugar
-    // AnySusbcript,
-
     // Supposedly you can't have a predicate application without a scale in front in silicon...
     UnscaledPredicateApplication,
-
-    // Minor rewrites
-    // NotStandardized,
-
-    // Useful for class generation and whatnot
-    Constructors,
-
-    // Simple reduction
-    // VectorBlock,
-
     // Nice to have, should be done somewhere at the end.
     NonVoidMethods,
-
-    // ClassWithoutConstructor,
-    // LockInvariant,
-    // StringClass,
-
     // Passes should be able to introduce complex expressions
     NotFlattened,
-
     // Whole bunch of primitive types
     BeforeSilverDomains,
-
     // Sometimes stuff gets quantified, so you'd have to know the shape of parent expressions
     NestedQuantifiers,
-
     // Knowledge about parents etc.
     DeclarationsInIf,
-
     // Very useful to not repeat yourself when generating quantifiers
     InlineQuantifierPattern,
-
-    // Our passes should always specify correct triggers in new quantified statements
-    QuantifierWithoutTriggers,
-
-    // Strange to introduce
-    // Summation,
-
-    // Only from user
-    // Lemma,
-
-    // Let's test claiming we don't introduce this.
-    // NotOptimized,
-
-    // NotJavaEncoded,
-    // ParallelLocalAssignmentNotChecked,
   )
   val NO_POLY_INTRODUCE: Set[Feature] = DEFAULT_INTRODUCE -- Set(
     This,
-    StaticFields,
-    Constructors,
   )
   val EXPR_ONLY_INTRODUCE: Set[Feature] = NO_POLY_INTRODUCE -- Set(
     Arrays,
     NonVoidMethods,
-    ContextEverywhere,
     DeclarationsInIf,
     ScatteredDeclarations,
   )
   val DEFAULT_PERMIT: Set[Feature] = Set(
-    // transfered by post_visit in AbstractRewriter automatically
     MethodAnnotations,
-
     // Many passes just do .isPrimitive(x)
     // TypeExpressions,
-
-    // currently largely unsupported, so most passes only put stuff in classes
+    // currently largely unsupported (but we should), so most passes only put stuff in classes
     // TopLevelDeclarations,
     // TopLevelFields,
-
     // this is stateful and hard to deal with
     // SpecIgnore,
-
-    // Scoping is dealt with generally, so should be fine.
     MultiDecls,
-
-    // Weird types are generally fine
     UnresolvedTypeInference,
-
-    // Shouldn't hurt
     ExpressionStatement,
-
-    // Shouldn't hurt
     ActionHeader,
-
-    // Shouldn't hurt, except for lifting passes
     ImproperlySortedBeforeAfter,
-
-    // Shouldn't hurt
     SubscriptRange,
-
-    // I think we'll need those (histories need them boxed in set_field, get_field)
     Dereference,
-
     Inheritance,
-
-    // Hmm, this is here to indicate null-array-values. TODO
     Null,
-
-    // (sometimes implicit) this value, probably fair to introduce by default (e.g. invokations)
     This,
-
-    // If you use a specific name in the frontend, rewrite some stuff.
     JavaAtomic,
-
-    // Shouldn't hurt
     CurrentThread,
-
-    // Shouldn't hurt
     ValidPointer,
-
     // This is OK in our frontends, but silver does not accept it, so it's probably best to disallow it in COL by
     // default
     // ArgumentAssignment,
-
-    // Shouldn't hurt
     BeforeAfter,
-
-    // Shouldn't hurt
     ADTFunctions, ADTOperator,
-
-    // Pretty much the same argument as BeforeAfter
     GivenYields,
-
-    // I think introducing global state is fine
     StaticFields,
-
-    // Inlined and un-inlined predicates should be fine
     InlinePredicate,
-
-    // Most passes check that they're dealing with a Plain class, for example
     KernelClass,
-
-    // Shouldn't hurt
     AddrOf,
-
-    // Big feature, so has to
     OpenMP,
-
-    // Big feature, so has to
     ParallelBlocks,
     ParallelAtomic,
-
-    // Shouldn't hurt
     Pointers,
-
-    // Supported by our silver translation
     ContextEverywhere,
-
-    // I think some transformations would make it invalid
-    // PureImperativeMethods,
-
+    PureImperativeMethods,
     // Front-end stuff
     // PVLSugar,
-
-    // if(*): non-deterministic condition. Not used elsewhere
     NondetCondition,
-
-    // Declarations that are not at the top of a block; we probably introduce those.
     ScatteredDeclarations,
-
-    // For RewriteArrayRef; kinda ugly that we rewrite Susbcript -> OptGet Subscript Deref -> OptGet loc Deref
     Arrays,
-
-    // Anything other than a name or constant as a subscript is "complicated"
     ComplexSubscript,
-
     AnySubscript,
-
-    // Supposedly you can't have a predicate application without a scale in front in silicon...
     UnscaledPredicateApplication,
-
-    // Minor rewrites
+    // Incorrect method invokations are corrected here
     // NotStandardized,
-
-    // Useful for class generation and whatnot
     Constructors,
-
-    // Simple reduction
     VectorBlock,
-
-    // Nice to have, should be done somewhere at the end.
     NonVoidMethods,
-
-    // Complex expressions should be no problem.
     NotFlattened,
-
-    // Reasoning over the simple tyeps is much easier than the converted types
     BeforeSilverDomains,
-
-    // Easy to reason about
     NestedQuantifiers,
-
-    // Nothing special
     DeclarationsInIf,
-
     InlineQuantifierPattern,
     QuantifierWithoutTriggers,
-
     Lemma,
-
     Summation,
-
     ClassWithoutConstructor,
     LockInvariant,
     StringClass,
-
     NotOptimized,
-
     // NotJavaEncoded,
     // NotJavaResolved,
-
     ParallelLocalAssignmentNotChecked,
-
     DeclarationsNotLifted,
-
     UnusedExtern,
+    // Incomplete typing etc.
+    // NullAsOptionValue,
 
     // (Bob) I think most passes ignore this anyway?
-    Goto, Break, Continue, Switch, Return, ExcVar, ImplicitLabels, Exceptions, Finally
+    Goto,
+    Break,
+    Continue,
+    Switch,
+    Return,
+    ExcVar,
+    ImplicitLabels,
+    Exceptions,
+    Finally,
+    Synchronized,
+    MemberOf,
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
     TopLevelFields,
-    PureImperativeMethods,
   )
-
   val OPTION_GATES: Set[Feature] = Set(
     NeedsSatCheck,
     NeedsAxiomCheck,
@@ -903,6 +695,7 @@ case object ClassWithoutConstructor extends ScannableFeature
 case object LockInvariant extends ScannableFeature
 case object NotJavaResolved extends ScannableFeature
 case object StringClass extends ScannableFeature
+case object MemberOf extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature

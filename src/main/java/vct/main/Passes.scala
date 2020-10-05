@@ -377,6 +377,7 @@ object Passes {
         features.Synchronized,
       ),
       removes=Set(features.NotJavaResolved),
+      introduces=Feature.DEFAULT_INTRODUCE + features.Constructors,
     ),
     SimplePass("propagate-invariants",
       "propagate invariants",
@@ -486,10 +487,13 @@ object Passes {
       permits=Feature.EXPR_ONLY_PERMIT,
       removes=Set(features.UnscaledPredicateApplication),
       introduces=Set(/* very simple; only may introduce Scale operator */)),
-    SimplePass("silver-optimize", "Optimize expressions for Silver", arg => {
-      val trs = RewriteSystems.getRewriteSystem("silver_optimize")
-      trs.normalize(arg)
-    }),
+    SimplePass(
+      "silver-optimize", "Optimize expressions for Silver",
+      RewriteSystems.getRewriteSystem("silver_optimize").normalize(_),
+      permits=Feature.EXPR_ONLY_PERMIT,
+      removes=Set(features.MemberOf),
+      introduces=Feature.EXPR_ONLY_INTRODUCE,
+    ),
     SimplePass("chalice-optimize", "Optimize expressions for Chalice", arg => {
       val trs = RewriteSystems.getRewriteSystem("chalice_optimize")
       trs.normalize(arg)
@@ -508,15 +512,14 @@ object Passes {
       },
       permits=Feature.EXPR_ONLY_PERMIT,
       removes=Set(features.NotOptimized, features.AnySubscript),
-      introduces=Feature.EXPR_ONLY_INTRODUCE,
+      introduces=Feature.EXPR_ONLY_INTRODUCE + features.MemberOf + features.Arrays,
     ),
     SimplePass(
       "simplify_sums", "replace summations with provable functions",
       RewriteSystems.getRewriteSystem("summation").normalize(_),
+      permits=Feature.EXPR_ONLY_PERMIT,
       removes=Set(features.Summation),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
-        features.ContextEverywhere,
-      ),
+      introduces=Feature.EXPR_ONLY_INTRODUCE + features.MemberOf,
     ),
     SimplePass("simplify_quant_relations", "simplify quantified relational expressions", new SimplifyQuantifiedRelations(_).rewriteAll),
     SimplePass("standardize",
@@ -648,7 +651,7 @@ object Passes {
     SimplePass("intro-exc-var",
       "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
       new IntroExcVar(_).rewriteAll(),
-      introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.ExcVar) -- Set(
+      introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.ExcVar, features.ContextEverywhere) -- Set(
         features.Arrays,
         features.NotFlattened,
         features.StaticFields,
@@ -683,7 +686,11 @@ object Passes {
       "gen-triggers", "Specify trigger sets for quantifiers using simple heuristics",
       Triggers(_).rewriteAll,
       removes=Set(features.QuantifierWithoutTriggers),
-      permits=Feature.EXPR_ONLY_PERMIT - features.InlineQuantifierPattern - features.BeforeSilverDomains,
+      permits=Feature.EXPR_ONLY_PERMIT -- Set(
+        features.InlineQuantifierPattern,
+        features.BeforeSilverDomains,
+        features.NestedQuantifiers, // quantifiers are not un-nested when they have triggers
+      ),
       introduces=Feature.EXPR_ONLY_INTRODUCE -- Set(
         features.InlineQuantifierPattern,
         features.NestedQuantifiers,
@@ -803,6 +810,7 @@ object Passes {
         features.NotJavaEncoded,
       ),
       removes=Set(features.ClassWithoutConstructor),
+      introduces=Feature.DEFAULT_INTRODUCE + features.Constructors,
     ),
     SimplePass(
       "lock-invariant-proof", "Add the proof of the lock invariant to the end of every constructor",

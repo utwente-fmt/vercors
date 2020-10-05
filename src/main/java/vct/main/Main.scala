@@ -405,7 +405,6 @@ class Main {
     }
   }
 
-  @throws[FileNotFoundException]
   private def doPasses(passes: Seq[AbstractPass]): Unit = {
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
@@ -437,6 +436,8 @@ class Main {
 
         val notRemoved = featuresOut.intersect(pass.removes)
         val extraIntro = (featuresOut -- featuresIn) -- pass.introduces
+
+        Output("!intro %s %s", pass.key, (featuresOut--featuresIn).map(_.toString).mkString(","))
 
         if (notRemoved.nonEmpty) {
           Warning("Pass %s did not remove %s", pass.key, notRemoved.map(_.toString).mkString(", "))
