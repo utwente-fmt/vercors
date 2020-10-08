@@ -9,9 +9,10 @@ import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.stmt.composite.{BlockStatement, TryCatchBlock, TryWithResources}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
+import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, Switch, TryCatchBlock, TryWithResources}
+import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit, SignalsClause}
 import vct.col.ast.util.ContractBuilder
+import hre.lang.System.Warning
 
 import scala.collection.JavaConverters._
 
@@ -128,17 +129,16 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case MemberDeclaration7(fwd) => convertDecl(fwd)
     case MemberDeclaration8(fwd) => convertDecl(fwd)
 
-    case MethodDeclaration0(_, _, _, _, Some(throws), _) =>
-      ??(throws) // exceptions are unsupported
-    case MethodDeclaration0(retType, name, paramsNode, maybeDims, None, maybeBody) =>
+    case MethodDeclaration0(retType, name, paramsNode, maybeDims, maybeThrows, maybeBody) =>
       val dims = maybeDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
       val returns = convertType(retType, dims)
+      val signals = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
       val body = maybeBody match {
         case MethodBodyOrEmpty0(";") => None
         case MethodBodyOrEmpty1(MethodBody0(block)) => Some(convertBlock(block))
       }
-      Seq(create method_decl(returns, null, convertID(name), params.toArray, body.orNull))
+      Seq(create method_decl(returns, signals.toArray, null, convertID(name), params.toArray, body.orNull))
     case GenericMethodDeclaration0(typeParams, methodDecl) =>
       ??(typeParams) //generics are unsupported
     case InterfaceMethodDeclaration0(retType, name, params, maybeDims, None, _) =>
@@ -147,11 +147,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(typeParams) // generics are unsupported
     case ConstructorDeclaration0(clsName, paramsNode, maybeThrows, bodyNode) =>
       val returns = create primitive_type PrimitiveSort.Void
+      val signals = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
       val body = bodyNode match {
         case ConstructorBody0(block) => convertBlock(block)
       }
-      Seq(create method_kind(Method.Kind.Constructor, returns, null, convertID(clsName), params.toArray, varargs, body))
+      Seq(create method_kind(Method.Kind.Constructor, returns, signals.toArray, null, convertID(clsName), params.toArray, varargs, body))
     case GenericConstructorDeclaration0(typeParams, constructorDecl) =>
       ??(typeParams) // generics are unsupported
 
@@ -168,7 +169,15 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         mods.foreach(mod => res.attach(mod))
         res
       }
+
+    case ClassDeclaration0("class", name, typeParameters, superClasses, interfaces, body) =>
+      ??(decl)
   })
+
+  def convertThrows(maybeThrows: Option[ThrowyContext]): Seq[Type] = maybeThrows match {
+    case None => Array[Type]()
+    case Some(Throwy0(_, qualifiedNameList)) => convertTypeList(qualifiedNameList)
+  }
 
   def convertResource(res: ResourceContext): DeclarationStatement = origin(res, res match {
     case Resource0(mods, t, name, "=", init) =>
@@ -241,10 +250,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ClassDeclaration0("class", name, None, maybeExtends, maybeImplements, ClassBody0(_, decls, _)) =>
       val ext = maybeExtends match {
         case None => Seq(create class_type Array("java", "lang", "Object"))
-        case Some(Ext0(_, t)) => Seq(convertType(t) match {
-          case t: ClassType => t
-          case resolvedType => fail(t, "Can only extend from a class type, but found %s", resolvedType)
-        })
+        case Some(Ext0(_, t)) =>
+          Warning("detected inheritance. Inheritance support is incomplete.")
+          Seq(convertType(t) match {
+            case t: ClassType => t
+            case resolvedType => fail(t, "Can only extend from a class type, but found %s", resolvedType)
+          })
       }
       val imp = maybeImplements match {
         case None => Seq()
@@ -266,6 +277,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case TypeArgumentList1(x, _, xs) => convertType(x) +: convertTypeList(xs)
     case CatchType0(x) => Seq(convertType(x))
     case CatchType1(x, "|", xs) => convertType(x) +: convertTypeList(xs)
+    case QualifiedNameList0(qualifiedName) => Seq(convertType(qualifiedName))
+    case QualifiedNameList1(qualifiedName, ",", qualifiedNames) => Seq(convertType(qualifiedName)) ++ convertTypeList(qualifiedNames)
   }
 
   def tCell(t: Type) = create.primitive_type(PrimitiveSort.Cell, t)
@@ -403,8 +416,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     catchClauses.foreach {
       case CatchClause0(_, _, Seq(mod, _*), _, _, _, _) =>
         ??(mod)
-      case CatchClause0("catch", _, Seq(), types, name, _, block) =>
-        tryBlock.addCatchClause(convertID(name), convertTypeList(types), convertBlock(block))
+      case ccCtx@CatchClause0("catch", _, Seq(), types, name, _, block) =>
+        val cc = CatchClause(convertID(name), convertTypeList(types), convertBlock(block))
+        tryBlock.addCatchClause(origin(ccCtx, cc))
     }
   }
 
@@ -429,6 +443,31 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       convertValStat(valEmbedBlock)
   })
 
+  def convertStatWithContract(stat: StatementContext, maybeContracts: Seq[Option[ValEmbedContractContext]]): ASTNode = origin(stat, stat match {
+    case Statement3(maybeContract2, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract3, body) =>
+      val allContracts = (maybeContracts ++ Seq(maybeContract2, maybeContract3)).map(convertValContract)
+      val contract = getContract(allContracts:_*)
+      val loop = create for_loop(
+        maybeInit.map(convertStat).orNull,
+        maybeCond.map(expr).orNull,
+        maybeUpdate.map(convertStat).orNull,
+        convertStat(body)
+      )
+      loop.setContract(contract)
+      loop
+    case Statement4(maybeContract2, "while", cond, maybeContract3, body) =>
+      val allContracts = (maybeContracts ++ Seq(maybeContract2, maybeContract3)).map(convertValContract)
+      val contract = getContract(allContracts:_*)
+      val loop = create while_loop(expr(cond), convertStat(body))
+      loop.setContract(contract)
+      loop
+    case Statement17(maybeContract2, label, ":", stat) =>
+      val res = convertStatWithContract(stat, maybeContracts ++ Seq(maybeContract2))
+      res.addLabel(create label convertID(label))
+      res
+    case statement => ??(statement)
+  })
+
   def convertStat(stat: StatementContext): ASTNode = origin(stat, stat match {
     case Statement0(block) =>
       convertBlock(block)
@@ -440,21 +479,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         maybeWhenFalse.map(convertStat).orNull)
     case Statement3(maybeContract, "for", "(", ForControl0(forEachControl), ")", maybeContract2, body) =>
       ??(forEachControl) // for(a : b) is unsupported
-    case Statement3(maybeContract, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract2, body) =>
-      val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
-      val loop = create for_loop(
-        maybeInit.map(convertStat).orNull,
-        maybeCond.map(expr).orNull,
-        maybeUpdate.map(convertStat).orNull,
-        convertStat(body)
-      )
-      loop.setContract(contract)
-      loop
-    case Statement4(maybeContract, "while", cond, maybeContract2, body) =>
-      val contract = getContract(convertValContract(maybeContract), convertValContract(maybeContract2))
-      val loop = create while_loop(expr(cond), convertStat(body))
-      loop.setContract(contract)
-      loop
+    case s@Statement3(maybeContract2, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract3, body) =>
+      convertStatWithContract(s, Seq())
+    case s@Statement4(maybeContract2, "while", cond, maybeContract3, body) =>
+      convertStatWithContract(s, Seq())
     case Statement5("do", body, "while", cond, _) =>
       ??(stat) // do-while unsupported
     case Statement6("try", block, catchClauses, maybeFinally) =>
@@ -468,8 +496,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       convertResourceList(res).foreach(tryBlock.addResource)
       addCatchClauses(tryBlock, catchClauses)
       tryBlock
-    case Statement9("switch", obj, "{", caseStatMappings, extraCases, "}") =>
-      ??(stat) // switch unsupported
+    case Statement9("switch", cond, "{", caseStatMappings, extraCases, "}") =>
+      val cases = caseStatMappings.map(convertCase)
+      create switch_statement(
+        expr(cond),
+        (cases ++ Seq(convertCaseStat(extraCases))).asJava
+      )
     case Statement10("synchronized", obj, body) =>
       create syncBlock(expr(obj), convertBlock(body))
     case Statement11("return", maybeValue, _) =>
@@ -493,10 +525,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create block() //nop
     case Statement16(exp, _) =>
       expr(exp)
-    case Statement17(label, ":", stat) =>
+    case Statement17(None, label, ":", stat) =>
       val res = convertStat(stat)
       res.addLabel(create label convertID(label))
       res
+    case s@Statement17(_, _, _, _) =>
+      convertStatWithContract(s, Seq())
     case Statement18(valStatement) =>
       convertValStat(valStatement)
   })
@@ -517,6 +551,27 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ForUpdate0(exps) =>
       flattenIfSingleStatement(exprList(exps))
   })
+
+  def convertSwitchLabel(switchLabel: SwitchLabelContext): ASTNode = switchLabel match {
+    case SwitchLabel0("case", constantExpr, ":") => expr(constantExpr)
+    case SwitchLabel1("case", enumConstantName, ":") => ??(enumConstantName)
+    case SwitchLabel2("default", ":") => null
+  }
+
+  def convertCase(caseStat: SwitchBlockStatementGroupContext): Switch.Case = caseStat match {
+    case SwitchBlockStatementGroup0(labelExprs, stats) =>
+      val cases = new Switch.Case()
+      cases.cases.addAll(labelExprs.map(convertSwitchLabel).asJavaCollection)
+      cases.stats.addAll(stats.flatMap(convertStat).asJavaCollection)
+      cases
+    case _ => ??(caseStat)
+  }
+
+  def convertCaseStat(switchLabels: Seq[SwitchLabelContext]): Switch.Case = {
+    val cases = new Switch.Case()
+    cases.cases.addAll(switchLabels.map(convertSwitchLabel).asJavaCollection)
+    cases
+  }
 
   def exprList(tree: ParserRuleContext): Seq[ASTNode] = tree match {
     case Arguments0(_, None, _) => Seq()
@@ -764,6 +819,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       builder.context(expr(exp))
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
+    case ValContractClause9(_signals, _, signalsType, name, _, condition, _) =>
+      builder.signals(origin(clause, new SignalsClause(convertID(name), convertType(signalsType), expr(condition))))
   }
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {
@@ -902,33 +959,31 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create expression(Length, expr(exp))
     case ValPrimary14("\\old", "(", exp, ")") =>
       create expression(Old, expr(exp))
-    case ValPrimary15("\\id", "(", exp, ")") =>
-      create expression(Identity, expr(exp))
-    case ValPrimary16("\\typeof", "(", exp, ")") =>
+    case ValPrimary15("\\typeof", "(", exp, ")") =>
       create expression(TypeOf, expr(exp))
-    case ValPrimary17("\\matrix", "(", m, _, size0, _, size1, ")") =>
+    case ValPrimary16("\\matrix", "(", m, _, size0, _, size1, ")") =>
       create expression(ValidMatrix, expr(m), expr(size0), expr(size1))
-    case ValPrimary18("\\array", "(", a, _, size0, ")") =>
+    case ValPrimary17("\\array", "(", a, _, size0, ")") =>
       create expression(ValidArray, expr(a), expr(size0))
-    case ValPrimary19("\\pointer", "(", p, _, size0, _, perm, ")") =>
+    case ValPrimary18("\\pointer", "(", p, _, size0, _, perm, ")") =>
       create expression(ValidPointer, expr(p), expr(size0), expr(perm))
-    case ValPrimary20("\\pointer_index", "(", p, _, idx, _, perm, ")") =>
+    case ValPrimary19("\\pointer_index", "(", p, _, idx, _, perm, ")") =>
       create expression(ValidPointerIndex, expr(p), expr(idx), expr(perm))
-    case ValPrimary21("\\values", "(", a, _, fr, _, to, ")") =>
+    case ValPrimary20("\\values", "(", a, _, fr, _, to, ")") =>
       create expression(Values, expr(a), expr(fr), expr(to))
-    case ValPrimary22("\\sum", "(", a, _, b, ")") =>
+    case ValPrimary21("\\sum", "(", a, _, b, ")") =>
       create expression(FoldPlus, expr(a), expr(b))
-    case ValPrimary23("\\vcmp", "(", a, _, b, ")") =>
+    case ValPrimary22("\\vcmp", "(", a, _, b, ")") =>
       create expression(VectorCompare, expr(a), expr(b))
-    case ValPrimary24("\\vrep", "(", v, ")") =>
+    case ValPrimary23("\\vrep", "(", v, ")") =>
       create expression(VectorRepeat, expr(v))
-    case ValPrimary25("\\msum", "(", a, _, b, ")") =>
+    case ValPrimary24("\\msum", "(", a, _, b, ")") =>
       create expression(MatrixSum, expr(a), expr(b))
-    case ValPrimary26("\\mcmp", "(", a, _, b, ")") =>
+    case ValPrimary25("\\mcmp", "(", a, _, b, ")") =>
       create expression(MatrixCompare, expr(a), expr(b))
-    case ValPrimary27("\\mrep", "(", m, ")") =>
+    case ValPrimary26("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary28("Reducible", "(", exp, _, opNode, ")") =>
+    case ValPrimary27("Reducible", "(", exp, _, opNode, ")") =>
       val opText = opNode match {
         case ValReducibleOperator0("+") => "+"
         case ValReducibleOperator1(id) => convertID(id)
@@ -938,10 +993,12 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case "min" => ReducibleMin
         case "max" => ReducibleMax
       }, expr(exp))
-    case ValPrimary29(label, _, exp) =>
+    case ValPrimary28(label, _, exp) =>
       val res = expr(exp)
       res.addLabel(create label(convertID(label)))
       res
+    case ValPrimary29("{:", pattern, ":}") =>
+      create pattern expr(pattern)
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {
@@ -974,6 +1031,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create reserved_name ASTReserved.OptionNone
     case ValReserved7("empty") =>
       create reserved_name ASTReserved.EmptyProcess
+    case ValReserved8("\\ltid") =>
+      create reserved_name ASTReserved.LocalThreadId
+    case ValReserved9("\\gtid") =>
+      create reserved_name ASTReserved.GlobalThreadId
   })
 
   /**
@@ -991,6 +1052,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValReserved5(s) => s
     case ValReserved6(s) => s
     case ValReserved7(s) => s
+    case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =

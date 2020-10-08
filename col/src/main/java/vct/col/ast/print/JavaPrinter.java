@@ -74,18 +74,7 @@ public class JavaPrinter extends AbstractPrinter {
     out.print("try");
     tcb.main().accept(this);
     for (CatchClause cb : tcb.catches()) {
-      out.print("catch (");
-      nextExpr();
-      boolean first = true;
-      for(Type t : cb.javaCatchTypes()) {
-        if(!first) out.print(" | ");
-        t.accept(this);
-        first = false;
-      }
-      out.print(" ");
-      out.print(cb.name());
-      out.print(")");
-      cb.block().accept(this);
+      cb.accept(this);
     }
     if (tcb.after() != null){
       out.print(" finally ");
@@ -513,6 +502,10 @@ public class JavaPrinter extends AbstractPrinter {
       case Sum:
         binder="\\sum";
         break;
+      case SetComp:
+        //TODO Have a correct way of outputting this.
+        out.printf("setcomp");
+        break;
       default:
         Abort("binder %s unimplemented",e.binder());
     }
@@ -667,14 +660,9 @@ public class JavaPrinter extends AbstractPrinter {
         e.accept(this);
         out.lnprintf(";");
       }
-      for (DeclarationStatement d:contract.signals){
-        out.printf("signals (");
-        d.getType().accept(this);
-        out.printf(" %s) ",d.name());
-        nextExpr();
-        d.initJava().accept(this);
-        out.lnprintf(";");
-      }      
+      for (SignalsClause sc : contract.signals){
+        sc.accept(this);
+      }
       if (contract.modifies!=null){
         out.printf("modifies ");
         if (contract.modifies.length==0){
@@ -708,6 +696,15 @@ public class JavaPrinter extends AbstractPrinter {
       out.decrIndent();
       out.lnprintf("@*/");
     }
+  }
+
+  public void visit(SignalsClause sc) {
+    out.printf("signals (");
+    sc.type().accept(this);
+    out.printf(" %s) ",sc.name());
+    nextExpr();
+    sc.condition().accept(this);
+    out.lnprintf(";");
   }
 
   public void visit(DeclarationStatement s){
@@ -810,6 +807,17 @@ public class JavaPrinter extends AbstractPrinter {
     out.printf(")");
     if (contract!=null && dialect==JavaDialect.JavaVeriFast && !predicate){
       visitVeriFast(contract);
+    }
+    if (m.signals.length > 0) {
+      out.printf(" throws ");
+      m.signals[0].accept(this);
+      if (m.signals.length > 1) {
+        for (int i = 1; i < m.signals.length; i++) {
+          Type t = m.signals[i];
+          out.printf(", ");
+          t.accept(this);
+        }
+      }
     }
     ASTNode body=m.getBody();
     if (body==null) {
@@ -1270,6 +1278,26 @@ public class JavaPrinter extends AbstractPrinter {
         t.firstarg().accept(this);
         out.printf(">");
         break;
+      case Map:
+        if (nrofargs!=2){
+          Fail("Map type constructor with %d arguments instead of 2",nrofargs);
+        }
+        out.printf("map<");
+        t.firstarg().accept(this);
+        out.printf(",");
+        t.secondarg().accept(this);
+        out.printf(">");
+        break;
+      case Tuple:
+        if (nrofargs!=2){
+          Fail("Tuple type constructor with %d arguments instead of 2",nrofargs);
+        }
+        out.printf("tuple<");
+        t.firstarg().accept(this);
+        out.printf(",");
+        t.secondarg().accept(this);
+        out.printf(">");
+        break;
       case Sequence:
         if (nrofargs!=1){
           Fail("Sequence type constructor with %d arguments instead of 1",nrofargs);
@@ -1546,5 +1574,36 @@ public class JavaPrinter extends AbstractPrinter {
     visitOmpOptions(loop.options());
     out.newline();
     loop.loop().accept(this);
+  }
+
+  @Override
+  public void visit(InlineQuantifierPattern pattern) {
+    out.print("{:");
+    pattern.inner().apply(this);
+    out.print(":}");
+  }
+
+  public void visit(Synchronized sync) {
+    out.print("synchronized (");
+    nextExpr();
+    sync.expr().accept(this);
+    out.lnprintf(")");
+    sync.statement().accept(this);
+  }
+
+  @Override
+  public void visit(CatchClause cc) {
+    out.print("catch (");
+    nextExpr();
+    boolean first = true;
+    for(Type t : cc.javaCatchTypes()) {
+      if(!first) out.print(" | ");
+      t.accept(this);
+      first = false;
+    }
+    out.print(" ");
+    out.print(cc.name());
+    out.print(")");
+    cc.block().accept(this);
   }
 }

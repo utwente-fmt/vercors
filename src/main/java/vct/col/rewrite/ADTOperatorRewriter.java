@@ -2,6 +2,12 @@ package vct.col.rewrite;
 
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
+
+import static vct.col.ast.type.PrimitiveSort.Map;
+
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
@@ -29,7 +35,7 @@ public class ADTOperatorRewriter extends AbstractRewriter {
                 ASTNode seq = e.arg(1).apply(this);
 
                 StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-                result = create.expression(StandardOperator.Append, newSeq, seq);
+                result = create.expression(StandardOperator.Concat, newSeq, seq);
 
                 break;
             }
@@ -39,7 +45,7 @@ public class ADTOperatorRewriter extends AbstractRewriter {
                 ASTNode seq = e.arg(0).apply(this);
 
                 StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-                result = create.expression(StandardOperator.Append, seq, newSeq);
+                result = create.expression(StandardOperator.Concat, seq, newSeq);
                 break;
             }
             case Empty: {

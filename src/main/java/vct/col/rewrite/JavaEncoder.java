@@ -393,6 +393,7 @@ public class JavaEncoder extends AbstractRewriter {
       arg_type[i]=pars[i].getType();
     }
     boolean varArgs=m.usesVarArgs();
+    Type[] signals = rewrite(m.signals);
     if (m.getParent() instanceof ASTClass){
       ASTClass cls=(ASTClass)m.getParent();
       boolean direct=is_direct_definition(m);
@@ -432,19 +433,22 @@ public class JavaEncoder extends AbstractRewriter {
       case Plain:
         if (direct){
           ASTNode body=rewrite(m.getBody());
-          Method res=create.method_kind(kind, returns, external_contract, name, args, varArgs, body);
+          Method res=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
           res.copyMissingFlags(m);
           currentTargetClass.add(res);         
         } else {
-          currentTargetClass.add(create.method_kind(kind, returns, initial_contract, name, args, varArgs, null));
+          currentTargetClass.add(create.method_kind(kind, returns, signals, initial_contract, name, args, varArgs, null));
           args=copy_rw.rewrite(args);
           internal_mode=true;
           ASTNode body=rewrite(m.getBody());
           internal_mode=false;
-          currentTargetClass.add(create.method_kind(kind, returns, internal_contract, internal_name, args, varArgs, body));
+          currentTargetClass.add(create.method_kind(kind, returns, signals, internal_contract, internal_name, args, varArgs, body));
         }
         break;
       case Predicate:
+        if (signals.length != 0) {
+          Abort("Predicate with throws types detected");
+        }
         if (direct){
           ASTNode body=rewrite(m.getBody());
           Method res=create.method_kind(kind, returns, null, name, args, varArgs, body);
@@ -472,11 +476,11 @@ public class JavaEncoder extends AbstractRewriter {
         break;
       default:{
         ASTNode body=rewrite(m.getBody());
-        result=create.method_kind(kind, returns, external_contract, name, args, varArgs, body);
+        result=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
       }}
     } else {
       ASTNode body=rewrite(m.getBody());
-      result=create.method_kind(kind, returns, external_contract, name, args, varArgs, body);
+      result=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
     }
   }
   

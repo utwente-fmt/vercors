@@ -6,8 +6,8 @@ import RIO hiding ((.), id)
 import qualified RIO.Char as C
 import Control.Category ((.), id)
 import Text.Boomerang (Boomerang(..),(:-),Parser(..),ErrorMsg(..)
-                      ,rCons,rNil,duck1,xmaph,mkParserError,incMajor,incMinor,val
-                      ,(<?>),rNothing,rJust,rPair,push)
+                      ,rCons,rNil,duck1,xmaph,mkParserError,incMajor,incMinor,val,xpure
+                      ,(<?>),rNothing,rJust,rPair,push,(:-)(..))
 import Text.Boomerang.String hiding (lit)
 import SplitVerify.JavaStructures
 
@@ -52,7 +52,7 @@ definitionExpr :: StringBoomerang r (DefinitionExpr :- r)
 definitionExpr = ";" . rNoDefinition
                <.> "=" . (balanced (\x -> x /= ';') . ";" >>> rMathematical)
                <.> (bracketedSt >>> rSequential)
-               <.> "{assume false;" . rAssumeFalse . countNewlines . "}"
+               <.> "{/*@ assume false;" . rAssumeFalse . countNewlines . "@*/}"
                <?> "Method body or definition (or semi-colon)"
 
 countNewlines :: StringBoomerang r (Int :- r)
@@ -107,15 +107,27 @@ textOrComment r
     newlines = rText1 (satisfy' (\x -> x == '\n' || x == '\r') "Newlines at end of comment")
     commentInline,textNoComment :: StringBoomerang r ([Char] :- r)
     commentInline
-     = lookN (\x -> take 2 x /= "*/") . (rCons . satisfy (const True) . commentInline <.> rNil)
+     = lookN (\x -> take 2 x /= "*/") . rCons . satisfy (const True) . (commentInline <.> rNil)
     textNoComment
-      = lookN (\v -> let v2 = take 2 v in v2 /= "*/" && v2 /="//" && v2 /="/*" && take 3 v /="@*/")
-      . (satisfy' (\x -> r x) "something part of not-a-comment" >>> rCons) . (textNoComment <.> rNil)
-      <.> "/*@" . push "/*@"
-      <.> "@*/" . push "@*/"
-      <.> "//@" . push "//@"
+      = (     prefix "/*@"
+          <.> prefix "@*/"
+          <.> prefix "//@"
+          <.> lookN (\v -> let v2 = take 2 v
+                           in v2 /= "*/" && v2 /="//" && v2 /="/*")
+              . (satisfy' (\x -> r x) "something part of not-a-comment" >>> rCons)
+        ) . (textNoComment <.> rNil)
 
 -- helper functions
+
+-- | prefix acts like fromString, but additionally pushes the parsed string onto the stack
+prefix :: [Char]
+       -> Boomerang StringError String ([Char] :- r1) ([Char] :- r1)
+prefix str
+ = fromString str .
+   xpure (\(lst :- r) -> (str++lst) :- r)
+         (\(lst :- r) -> if take (length str) lst == str
+                         then Just (drop (length str) lst :- r)
+                         else Nothing)
 
 -- | Converts a router for a value @a@ to a router for a sepby-list of @a@, with a separator.
 rListSepBy, rListSepBy1 :: (Show e,Show tok)

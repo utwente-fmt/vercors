@@ -150,7 +150,12 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
   @Override
   public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
           throws IOException {
-    return FileVisitResult.CONTINUE;
+    // If the last path element is exactly "private", disregard the directory.
+    if(dir.endsWith("private")) {
+      return FileVisitResult.SKIP_SUBTREE;
+    } else {
+      return FileVisitResult.CONTINUE;
+    }
   }
 
   @Override

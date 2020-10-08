@@ -1,0 +1,21 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ParNestedInvariantWrite
+//:: tools silicon
+//:: verdict Error
+
+class C {
+    void m() {
+        boolean b = true;
+        par
+        {
+            b = false;
+        }
+        and
+            requires b;
+        {
+            invariant inv(b) {
+                atomic(inv) { }
+            }
+        }
+    }
+}

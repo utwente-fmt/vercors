@@ -16,6 +16,8 @@ import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ClassName;
 
+import java.util.Objects;
+
 /**
  * Standardize the representation of programs.
  *
@@ -69,9 +71,7 @@ public class Standardize extends AbstractRewriter {
     switch(e.getKind()){
       case Field:{
         Method m=current_method();
-        if (m==null) {
-          Fail("cannot support expressions outside of method definitions yet.");
-        }
+        Objects.requireNonNull(m, "cannot support expressions outside of method definitions yet.");
         if (m.isStatic()){
           result=create.dereference(create.class_type(current_class().getFullName()),e.getName());
         } else {
@@ -92,12 +92,12 @@ public class Standardize extends AbstractRewriter {
           e.setKind(info.kind);
         } else {
           switch (name){
-          case "false":
-            result=create.constant(false);
-            return;
-          case "true":
-            result=create.constant(true);
-            return;
+            case "false":
+              result=create.constant(false);
+              return;
+            case "true":
+              result=create.constant(true);
+              return;
           }
         }
         super.visit(e);
@@ -114,40 +114,37 @@ public class Standardize extends AbstractRewriter {
   public void visit(OperatorExpression e){
     if (e.getParent() instanceof BlockStatement){
       switch(e.operator()){
-      case Assign:
-      {
-        ASTNode var=e.arg(0).apply(this);
-        ASTNode val=e.arg(1).apply(this);
-        result=create.assignment(var,val);
-        break;
-      }
-      case PostIncr:
-      case PreIncr:
-      {
-        ASTNode arg=e.arg(0);
-        if (arg instanceof NameExpression){
-          ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Plus,rewrite(arg),create.constant(e.getOrigin(),1));
-          result=create.assignment(rewrite(arg),incr);
-        } else {
-          super.visit(e);
+        case Assign:
+        {
+          ASTNode var=e.arg(0).apply(this);
+          ASTNode val=e.arg(1).apply(this);
+          result=create.assignment(var,val);
+          break;
         }
-        break;
-      }
-      case PostDecr:
-      case PreDecr:
-      {
-        ASTNode arg=e.arg(0);
-        if (arg instanceof NameExpression){
-          ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Minus,rewrite(arg),create.constant(e.getOrigin(),1));
-          result=create.assignment(rewrite(arg),incr);
-        } else {
-          super.visit(e);
+        case PostIncr:
+        case PreIncr:
+        {
+          ASTNode arg=e.arg(0);
+          if (arg instanceof NameExpression){
+            ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Plus,rewrite(arg),create.constant(e.getOrigin(),1));
+            result=create.assignment(rewrite(arg),incr);
+          } else {
+            super.visit(e);
+          }
+          break;
         }
-        break;
-      }
-      default:
-        super.visit(e);
-        break;
+        case PostDecr:
+        case PreDecr:
+        {
+          ASTNode arg=e.arg(0);
+          if (arg instanceof NameExpression){
+            ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Minus,rewrite(arg),create.constant(e.getOrigin(),1));
+            result=create.assignment(rewrite(arg),incr);
+          } else {
+            super.visit(e);
+          }
+          break;
+        }
       }
     } else {
       super.visit(e);

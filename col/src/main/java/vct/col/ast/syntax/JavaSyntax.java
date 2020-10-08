@@ -60,7 +60,6 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(AbstractState,"AbstractState");
         syntax.addFunction(Contribution,"Contribution");
         syntax.addFunction(Held,"held");
-        syntax.addFunction(Identity,"\\id");
         syntax.addFunction(SizeOf,"\\sizeof");
         syntax.addFunction(AddrOf,"\\addrof");
         syntax.addFunction(Indirection,"\\indirect");
@@ -87,7 +86,17 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(ValidMatrix,"\\matrix");
         syntax.addFunction(ValidPointer,"\\pointer");
         syntax.addFunction(ValidPointerIndex, "\\pointer_index");
-        
+
+        syntax.addFunction(MapBuild, "buildMap");
+        syntax.addFunction(MapEquality, "equalsMap");
+        syntax.addFunction(MapDisjoint, "disjointMap");
+        syntax.addFunction(MapKeySet, "keysMap");
+        syntax.addFunction(MapCardinality, "cardMap");
+        syntax.addFunction(MapValueSet, "valuesMap");
+        syntax.addFunction(MapGetByKey, "getFromMap");
+        syntax.addFunction(MapRemoveKey, "removeFromMap");
+        syntax.addFunction(MapItemSet, "itemsMap");
+
         JavaVerCorsSyntax=syntax;
         
       }
@@ -206,6 +215,9 @@ public class JavaSyntax extends Syntax {
     syntax.addReserved(Default,"default");
     syntax.add_annotation(ASTSpecial.Kind.Continue,"continue");
     syntax.add_annotation(ASTSpecial.Kind.Break,"break");
+
+    syntax.addInfix(Drop, "drop", 85);
+    syntax.addInfix(Take, "take", 85);
   }
 
   @Override

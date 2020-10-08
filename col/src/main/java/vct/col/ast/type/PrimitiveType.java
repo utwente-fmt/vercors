@@ -2,6 +2,8 @@ package vct.col.ast.type;
 
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
+import vct.col.ast.expr.OperatorExpression;
+import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -11,12 +13,15 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.TypeMapping;
+import scala.collection.JavaConverters.*;
 
 import static hre.lang.System.Abort;
 import static hre.lang.System.Debug;
 import static hre.lang.System.Fail;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 public final class PrimitiveType extends Type {
@@ -42,6 +47,10 @@ public final class PrimitiveType extends Type {
         break;
       case Array:
         if (N<1 || N>2) Abort("illegal argument count");
+        break;
+      case Map:
+      case Tuple:
+        if (N != 2) Abort("illegal argument count");
         break;
       default:
         if (N!=0) Abort("illegal argument count");
@@ -181,12 +190,14 @@ public final class PrimitiveType extends Type {
     if (t instanceof PrimitiveType){
       PrimitiveType pt=(PrimitiveType)t;
       //Warning("testing (%s/%s)",this.sort,pt.sort);
-      if (equals(t)) return true;
+      if (equals(pt)) return true;
       switch(this.sort){
       case Void:
       case Set:
       case Bag:
       case Sequence:
+      case Map:
+      case Tuple:
       case Array:
         return false;
       case Rational:
@@ -319,6 +330,7 @@ public final class PrimitiveType extends Type {
     case Sequence:
     case Set:
     case Bag:
+    case Map:
       return new StructValue(this);
     case Option:
       return new NameExpression(ASTReserved.OptionNone);

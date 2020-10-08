@@ -1,5 +1,6 @@
 package hre.io;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -73,7 +74,7 @@ public class MessageProcessEnvironment {
   }
 
   public MessageProcess startProcess() {
-    String path = String.join(":", this.path);
+    String path = String.join(File.pathSeparator, this.path);
 
     environment.put("PATH", path);
 

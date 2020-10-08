@@ -48,7 +48,6 @@ When building VerCors, you additionally need these dependencies:
 
 - A Java _Development_ Kit, version 8 or greater, either OpenJDK or Oracle.
 - Git (on Windows you need Git Bash, see <https://git-scm.com/downloads>)
-- Mercurial (See <https://www.mercurial-scm.org/downloads>)
 - Scala SBT, version 1.3.0 or greater (see <http://www.scala-sbt.org> for instructions)
 
 1. Clone the VerCors repository using `git clone https://github.com/utwente-fmt/vercors.git` and move into the cloned directory, `cd vercors`.

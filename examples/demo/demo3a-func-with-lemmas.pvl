@@ -1,0 +1,167 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases Demo3AFuncWithLemmas
+//:: tools silicon
+//:: verdict Fail
+//:: suite slow
+
+// This file is marked as fail because:
+// This example fails with the Viper VerCors uses in v1.2.0. It probably also fails in Viper 20.01 and 20.07. The
+// version after 20.07 (probably 21.01?) contains commit e8354ada454ee4cd993d8e558574c8c1d771f529 which fixes an issue
+// where function postcondition cannot be used or checked. This fix is needed for this program to verify. Once Viper
+// is updated one year into the future or so this file should start passing.
+// Alternatively, to test this file the viper version in build.sbt can be bumped temporarily, I guess.
+
+class ArraySum {
+
+    ///////////////////////
+    // Utility functions //
+    ///////////////////////
+
+    requires A != null;
+    requires 0 <= i && i <= A.length;
+    requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], read));
+    pure int sumArray(int[] A, int i) =
+      (i == A.length) ? 0 : A[i] + sumArray(A, i + 1);
+
+    given frac P;
+    context_everywhere P < write;
+    context_everywhere xs != null;
+    context_everywhere Perm(xs[*], P);
+    ensures \result != null ** Perm(\result[*], write) ** \result.length == xs.length;
+    ensures (\forall int i = 0 .. \result.length; \result[i] == xs[i]);
+    int[] copy(int[] xs) {
+        int[] res = new int[xs.length];
+
+        loop_invariant 0 <= i && i <= xs.length;
+        loop_invariant Perm(res[*], write) ** res.length == xs.length;
+        loop_invariant (\forall int j = 0 .. i; res[j] == xs[j]);
+        for (int i = 0; i < xs.length; i++) {
+            res[i] = xs[i];
+        }
+
+        return res;
+    }
+
+    ////////////
+    // Lemmas //
+    ////////////
+
+    given frac P;
+    context P < write;
+    context xs != null ** Perm(xs[*], P);
+    context ys != null ** Perm(ys[*], P);
+    requires xs.length == ys.length;
+    requires 0 <= i && i <= xs.length;
+    requires (\forall int j = i .. xs.length; xs[j] == ys[j]);
+    ensures sumArray(xs, i) == sumArray(ys, i);
+    void lemmaSumArrEq(int[] xs, int[] ys, int i) {
+        if (i < xs.length) {
+            lemmaSumArrEq(xs, ys, i + 1) with { P = P \ 2; };
+            // Not necessary, implicit proof steps made explicit:
+            assert sumArray(xs, i + 1) == sumArray(ys, i + 1); // Guaranteed by lemmaSumArrEq
+            assert xs[i] == ys[i];
+            assert xs[i] + sumArray(xs, i + 1) == ys[i] + sumArray(ys, i + 1);
+            assert sumArray(xs, i) == sumArray(ys, i);
+        } else {
+            // Vacuously true
+        }
+    }
+
+    given frac P;
+    context P < write;
+    context xs != null ** Perm(xs[*], P);
+    context (\forall int j = 0 .. xs.length; xs[j] == 0);
+    requires 0 <= i && i <= xs.length;
+    ensures sumArray(xs, i) == 0;
+    void lemmaSumInit(int[] xs, int i) {
+        if (i < xs.length) {
+            lemmaSumInit(xs, i + 1) with { P = P\2; };
+            // Not necessary, implicit proof steps made explicit:
+            assert sumArray(xs, i + 1) == 0; // Guaranteed by lemmaSumInit
+            assert 0 + sumArray(xs, i + 1) == 0;
+            assert sumArray(xs, i) == 0;
+        } else {
+            // Vacuously true
+        }
+    }
+
+    given frac P;
+    context P < write;
+    context xs != null ** Perm(xs[*], P);
+    context ys != null ** Perm(ys[*], P);
+    context xs.length == ys.length;
+    context 0 <= i && i < xs.length;
+    context (\forall int j = 0 .. xs.length; j != i ==> xs[j] == ys[j]);
+    requires 0 <= b && b <= i;
+    ensures sumArray(ys, b) == (sumArray(xs, b) - xs[i] + ys[i]);
+    void lemmaSumUpdate(int[] xs, int[] ys, int i, int b) {
+        if (b < i) {
+            lemmaSumUpdate(xs, ys, i, b + 1) with { P = P \ 2; };
+            // Not necessary, implicit proof steps made explicit:
+            assert sumArray(ys, b + 1) == sumArray(xs, b + 1) - xs[i] + ys[i]; // Guaranteed by lemmaSumUpdate
+            assert sumArray(ys, b + 1) == sumArray(xs, b) - xs[b] - xs[i] + ys[i];
+            assert xs[b] == ys[b];
+            assert ys[b] + sumArray(ys, b + 1) == sumArray(xs, b) - xs[i] + ys[i];
+            assert sumArray(ys, b) == sumArray(xs, b) - xs[i] + ys[i];
+        } else {
+            lemmaSumArrEq(xs, ys, b + 1) with { P = P \ 2; };
+            // Not necessary, implicit proof steps made explicit:
+            assert sumArray(ys, b + 1) == sumArray(xs, b + 1); // Guaranteed by lemmaSumArrEq
+            assert sumArray(ys, b + 1) == sumArray(xs, b) - xs[b];
+            assert b == i;
+            assert sumArray(ys, b + 1) == sumArray(xs, b) - xs[i];
+            assert ys[b] + sumArray(ys, b + 1) == sumArray(xs, b) - xs[i] + ys[i];
+            assert sumArray(ys, b) == sumArray(xs, b) - xs[i] + ys[i];
+        }
+    }
+
+    ////////////////
+    // Sum method //
+    ////////////////
+
+    int sum;
+
+    context_everywhere A != null;
+    context Perm(sum, write);
+    context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
+    ensures sum == sumArray(A, 0);
+    void sumArray(int[] A) {
+        int[] contrib = new int[A.length];
+        sum = 0;
+
+        lemmaSumInit(contrib, 0) with { P = 1\2; };
+        assert sum == sumArray(contrib, 0);
+
+        invariant inv(Perm(sum, write)
+            ** contrib != null ** contrib.length == A.length
+            ** (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2))
+            ** sum == sumArray(contrib, 0)
+        ) {
+            par (int tid = 0 .. A.length)
+            context contrib != null ** contrib.length == A.length;
+            context Perm(A[tid], 1\4) ** Perm(contrib[tid], 1\2);
+            requires contrib[tid] == 0;
+            ensures contrib[tid] == A[tid];
+            {
+                atomic(inv) {
+                    int[] oldContrib = copy(contrib) with { P = 1\4; };
+                    lemmaSumArrEq(contrib, oldContrib, 0) with { P = 1\4; };
+                    assert sum == sumArray(contrib, 0);
+                    assert sum == sumArray(oldContrib, 0);
+
+                    int oldSum = sum;
+                    sum = sum + A[tid];
+                    contrib[tid] = A[tid];
+                    lemmaSumUpdate(oldContrib, contrib, tid, 0) with { P = 1\4; };
+                    assert oldSum + A[tid] == sumArray(contrib, 0);
+                    assert oldSum + A[tid] == sum;
+                    assert sum == sumArray(contrib, 0);
+                }
+            }
+        }
+
+        assert sum == sumArray(contrib, 0);
+        lemmaSumArrEq(contrib, A, 0) with { P = 1\2; };
+        assert sum == sumArray(A, 0);
+    }
+}

@@ -62,11 +62,11 @@ domain VCTOption[T] {
   }
 
   axiom get_axiom_vct {
-    forall x: T :: getVCTOption(VCTSome(x)) == x
+    forall x: T :: {getVCTOption(VCTSome(x))} getVCTOption(VCTSome(x)) == x
   }
 
   axiom get_axiom_vct_2 {
-    (forall x: VCTOption[T] :: VCTSome(getVCTOption(x)) == x)
+    (forall x: VCTOption[T] :: {VCTSome(getVCTOption(x))} VCTSome(getVCTOption(x)) == x)
   }
 }
 
@@ -142,10 +142,10 @@ domain VectorExpression[T] {
     (forall xs: VectorExpression[Int], i: Int :: { vsum(vrange(i, i), xs) } vsum(vrange(i, i), xs) == 0)
   }
   axiom vsize_axiom {
-      forall xs: Seq[T] :: vsize(vseq(xs)) == |xs|
+      forall xs: Seq[T] :: {vsize(vseq(xs))} vsize(vseq(xs)) == |xs|
   }
   axiom vsize_axiom_2 {
-      forall t: T :: vsize(vrep(t)) == 1
+      forall t: T :: {vsize(vrep(t))} vsize(vrep(t)) == 1
   }
   axiom extend_vsum_r {
     forall xs: VectorExpression[T], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= 0 && j > i) ==> vsum(vrange(i, j), xs) == vadd(vsum(vrange(i, j-1), xs), vget(xs, j-1))
@@ -172,4 +172,115 @@ domain VCTFloat {
     forall f1 : VCTFloat :: fadd(f1,zero()) == f1
   }
 
+}
+
+domain VCTTuple[F,S] {
+  function vcttuple_tuple(f:F, s:S): VCTTuple[F,S]
+  function vcttuple_fst(t:VCTTuple[F,S]): F
+  function vcttuple_snd(t:VCTTuple[F,S]): S
+
+  axiom vctTupleFstAx {
+    forall f1:F, s1:S :: {vcttuple_fst(vcttuple_tuple(f1,s1))} vcttuple_fst(vcttuple_tuple(f1,s1)) == f1
+  }
+
+  axiom vctTupleSndAx {
+    forall f1:F, s1:S :: {vcttuple_snd(vcttuple_tuple(f1,s1))} vcttuple_snd(vcttuple_tuple(f1,s1)) == s1
+  }
+}
+
+
+domain VCTMap[K,V] {
+  function vctmap_keys(m:VCTMap[K,V]): Set[K]
+  function vctmap_card(m:VCTMap[K,V]): Int
+  axiom vctMapCardAx1 {
+    forall m1: VCTMap[K,V] :: {vctmap_card(m1)} vctmap_card(m1) >= 0
+  }
+  axiom vctMapCardAx2 {
+    forall m1: VCTMap[K,V] :: {vctmap_card(m1)} {|vctmap_keys(m1)|} vctmap_card(m1) == |vctmap_keys(m1)|
+  }
+
+  function vctmap_values(m: VCTMap[K,V]): Set[V]
+  axiom vctMapValuesAx {
+    forall v1: V, m1: VCTMap[K,V] :: {v1 in vctmap_values(m1)} v1 in vctmap_values(m1) == (exists k1: K :: k1 in vctmap_keys(m1) && vctmap_get(m1, k1) == v1)
+  }
+
+  function vctmap_get(m:VCTMap[K,V], k: K): V
+
+  function vctmap_items(m: VCTMap[K,V]): Set[VCTTuple[K,V]]
+  axiom vctMapItemsSizeAx {
+    forall m1: VCTMap[K,V] :: {vctmap_card(m1)} {|vctmap_items(m1)|} |vctmap_items(m1)| == vctmap_card(m1)
+  }
+
+  axiom vctMapItemsKeysAx {
+    forall t1: VCTTuple[K,V], m1: VCTMap[K,V] :: {vctmap_get(m1, vcttuple_fst(t1))} {t1 in vctmap_items(m1)} (t1 in vctmap_items(m1)) <==> (vcttuple_fst(t1) in vctmap_keys(m1) && vctmap_get(m1, vcttuple_fst(t1)) == vcttuple_snd(t1))
+  }
+
+  function vctmap_empty(): VCTMap[K,V]
+  axiom vctMapEmptyKeyAx{
+    forall k1: K :: {k1 in vctmap_keys(vctmap_empty())} !(k1 in vctmap_keys(vctmap_empty())) && |vctmap_keys(vctmap_empty())| == 0
+  }
+  axiom vctMapEmptyValueAx{
+    forall v1: V :: {v1 in vctmap_values(vctmap_empty())} !(v1 in vctmap_values(vctmap_empty())) && |vctmap_values(vctmap_empty())| == 0
+  }
+  axiom vctMapEmptyCardAx1 {
+    forall m1: VCTMap[K,V] :: {vctmap_card(m1)} vctmap_card(m1) == 0 <==> m1 == vctmap_empty()
+  }
+  axiom vctMapEmptyCardAx2 {
+    forall m1: VCTMap[K,V] :: {vctmap_card(m1)} vctmap_card(m1) != 0 ==> (exists k1: K :: k1 in  vctmap_keys(m1))
+  }
+
+  function vctmap_build(m: VCTMap[K,V], k: K, v: V): VCTMap[K,V]
+  axiom vctMapBuildAx0 {
+    forall k1: K, v1: V, m1: VCTMap[K,V] :: {vctmap_build(m1, k1, v1)}
+      k1 in vctmap_keys(vctmap_build(m1, k1, v1)) && vctmap_get(vctmap_build(m1, k1, v1), k1) == v1
+  }
+  axiom vctMapBuildAx1 {
+    forall k1: K, k2: K, v1: V, m1: VCTMap[K,V] :: {k2 in vctmap_keys(vctmap_build(m1, k1, v1))} {vctmap_get(vctmap_build(m1, k1, v1), k2)} (k1 == k2 ==> (k2 in vctmap_keys(vctmap_build(m1, k1, v1)) && vctmap_get(vctmap_build(m1, k1, v1), k2) == v1))
+  }
+  axiom vctMapBuild1Dot5Ax {
+  forall k1: K, k2: K, v1: V, m1: VCTMap[K,V] :: {k2 in vctmap_keys(vctmap_build(m1, k1, v1))} {vctmap_get(vctmap_build(m1, k1, v1), k1), vctmap_get(m1, k2)} (k1 != k2 ==> ((k2 in vctmap_keys(vctmap_build(m1, k1, v1))) == (k2 in vctmap_keys(m1)) && vctmap_get(vctmap_build(m1, k1, v1), k2) == vctmap_get(m1, k2)))
+  }
+  axiom vctMapBuildAx2 {
+    forall k1: K, v1: V, m1: VCTMap[K,V] :: {vctmap_card(vctmap_build(m1, k1, v1))} (k1 in vctmap_keys(m1)) ==> (vctmap_card(vctmap_build(m1, k1, v1)) == vctmap_card(m1))
+  }
+  axiom vctMapBuildAx3 {
+    forall k1: K, v1: V, m1: VCTMap[K,V] :: {vctmap_card(vctmap_build(m1, k1, v1))} !(k1 in vctmap_keys(m1)) ==> (vctmap_card(vctmap_build(m1, k1, v1)) == vctmap_card(m1)+1)
+  }
+
+  function vctmap_equals(m1: VCTMap[K,V], m2: VCTMap[K,V]): Bool
+  axiom vctMapEqualsAx1 {
+    forall m1: VCTMap[K,V], m2: VCTMap[K,V] :: {vctmap_equals(m1, m2)}
+      vctmap_equals(m1, m2) <==> (
+        vctmap_keys(m1) == vctmap_keys(m2) &&
+        forall k: K :: {vctmap_get(m1, k), vctmap_get(m2, k)} k in vctmap_keys(m1) ==> vctmap_get(m1, k) == vctmap_get(m2, k)
+      )
+  }
+  axiom vctMapEqualsAx2 {
+    forall m1: VCTMap[K,V], m2: VCTMap[K,V] :: {vctmap_equals(m1, m2)} vctmap_equals(m1, m2) <==> (m1 == m2)
+  }
+
+  function vctmap_disjoint(m1: VCTMap[K,V], m2: VCTMap[K,V]): Bool
+  axiom vctMapDisjointAx1 {
+    forall m1: VCTMap[K,V], m2: VCTMap[K,V] :: {vctmap_disjoint(m1, m2)} vctmap_disjoint(m1, m2) <==> (forall k: K :: {k in vctmap_keys(m1)} {k in vctmap_keys(m2)} !(k in vctmap_keys(m1)) || !(k in vctmap_keys(m2)))
+  }
+
+  function vctmap_remove(m: VCTMap[K,V], k: K): VCTMap[K,V]
+  axiom vctMapRemoveAx1 {
+    forall m: VCTMap[K,V], k: K :: { vctmap_remove(m, k) } !(k in vctmap_keys(vctmap_remove(m, k)))
+  }
+  axiom vctMapRemoveAx2 {
+    forall m: VCTMap[K, V], k: K :: { vctmap_remove(m, k) } (k in vctmap_keys(m)) ==> vctmap_get(vctmap_remove(m, k), k) != vctmap_get(m, k)
+  }
+  axiom vctMapRemoveAx3 {
+    (forall m: VCTMap[K, V], k1: K, k2: K :: { k2 in vctmap_keys(vctmap_remove(m, k1)) } {vctmap_get(vctmap_remove(m, k1), k2)} k1 != k2 ==> (k2 in vctmap_keys(vctmap_remove(m, k1)) == k2 in vctmap_keys(m) && vctmap_get(vctmap_remove(m, k1), k2) == vctmap_get(m, k2)))
+  }
+  axiom vctMapRemoveAx4 {
+    forall m: VCTMap[K,V], k: K :: { vctmap_remove(m, k) } (k in vctmap_keys(m)) ==> vctmap_card(m)-1 == vctmap_card(vctmap_remove(m, k))
+  }
+  axiom vctMapRemoveAx5 {
+    forall m: VCTMap[K,V], k: K :: {vctmap_remove(m, k)} !(k in vctmap_keys(m)) ==> vctmap_card(m) == vctmap_card(vctmap_remove(m, k))
+  }
+  axiom vctMapRemoveAx6 {
+      (forall m: VCTMap[K, V], k: K :: { vctmap_remove(m, k) } !((k in vctmap_keys(m))) ==> vctmap_equals(m, vctmap_remove(m, k)))
+  }
 }

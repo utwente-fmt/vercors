@@ -1,5 +1,7 @@
 //:: case QuickSelect
 //:: tools silicon
+//:: verdict Pass
+//:: suite slow
 package quickselect;
 
 import static quickselect.RandomBetween.random_between;

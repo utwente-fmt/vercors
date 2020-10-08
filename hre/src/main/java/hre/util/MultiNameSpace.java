@@ -3,6 +3,7 @@ package hre.util;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /**
  * A name space with frame control and multiple definitions per name.
@@ -43,6 +44,9 @@ public class MultiNameSpace <Key,Data> implements FrameControl {
       }
     }
     public Data next(){
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
       Data res=list.item;
       list=list.next;
       return res;

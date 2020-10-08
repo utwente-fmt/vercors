@@ -81,4 +81,9 @@ public class Switch extends ASTNode {
     this.cases=Arrays.copyOf(cases,cases.length);
   }
 
+  public boolean hasDefaultCaseLabel() {
+    return Arrays.stream(this.cases)
+            .anyMatch(switchCase -> switchCase.cases.contains(null));
+  }
+
 }

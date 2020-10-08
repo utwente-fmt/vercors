@@ -55,7 +55,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   def convertDecl(tree: ExternalDeclarationContext): Seq[ASTDeclaration] = tree match {
     case ExternalDeclaration0(funcDecl) => convertDecl(funcDecl)
     case ExternalDeclaration1(decl) => convertDecl(decl)
-    case ExternalDeclaration2(";") => Seq()
+    case ExternalDeclaration2(valDecls) => convertValDecl(valDecls)
+    case ExternalDeclaration3(";") => Seq()
   }
 
   def convertDecl(tree: FunctionDefinitionContext): Seq[ASTDeclaration] = origin(tree, tree match {
@@ -629,11 +630,11 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   def convertInitializer(init: InitializerContext, t: Type): ASTNode = origin(init, init match {
-    case Initializer0(exp) => expr(exp)
-    case Initializer1("{", xs, "}") =>
+    case Initializer0("{", xs, "}") =>
       convertInitializerList(xs, t)
-    case Initializer2("{", xs, _, "}") =>
+    case Initializer1("{", xs, _, "}") =>
       convertInitializerList(xs, t)
+    case Initializer2(exp) => expr(exp)
   })
 
   def convertInitializerList(xs: InitializerListContext, t: Type): ASTNode = {
@@ -660,9 +661,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   def expr(exp: InitializerContext): ASTNode = exp match {
-    case Initializer0(exp) => expr(exp)
-    case Initializer1("{", _, "}") => ??(exp)
-    case Initializer2("{", _, _, "}") => ??(exp)
+    case Initializer0("{", _, "}") => ??(exp)
+    case Initializer1("{", _, _, "}") => ??(exp)
+    case Initializer2(exp) => expr(exp)
   }
 
   def expr(exp: ExpressionContext): ASTNode = exp match {
@@ -1061,33 +1062,31 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create expression(Length, expr(exp))
     case ValPrimary14("\\old", "(", exp, ")") =>
       create expression(Old, expr(exp))
-    case ValPrimary15("\\id", "(", exp, ")") =>
-      create expression(Identity, expr(exp))
-    case ValPrimary16("\\typeof", "(", exp, ")") =>
+    case ValPrimary15("\\typeof", "(", exp, ")") =>
       create expression(TypeOf, expr(exp))
-    case ValPrimary17("\\matrix", "(", m, _, size0, _, size1, ")") =>
+    case ValPrimary16("\\matrix", "(", m, _, size0, _, size1, ")") =>
       create expression(ValidMatrix, expr(m), expr(size0), expr(size1))
-    case ValPrimary18("\\array", "(", a, _, size0, ")") =>
+    case ValPrimary17("\\array", "(", a, _, size0, ")") =>
       create expression(ValidArray, expr(a), expr(size0))
-    case ValPrimary19("\\pointer", "(", p, _, size0, _, perm, ")") =>
+    case ValPrimary18("\\pointer", "(", p, _, size0, _, perm, ")") =>
       create expression(ValidPointer, expr(p), expr(size0), expr(perm))
-    case ValPrimary20("\\pointer_index", "(", p, _, idx, _, perm, ")") =>
+    case ValPrimary19("\\pointer_index", "(", p, _, idx, _, perm, ")") =>
       create expression(ValidPointerIndex, expr(p), expr(idx), expr(perm))
-    case ValPrimary21("\\values", "(", a, _, fr, _, to, ")") =>
+    case ValPrimary20("\\values", "(", a, _, fr, _, to, ")") =>
       create expression(Values, expr(a), expr(fr), expr(to))
-    case ValPrimary22("\\sum", "(", a, _, b, ")") =>
+    case ValPrimary21("\\sum", "(", a, _, b, ")") =>
       create expression(FoldPlus, expr(a), expr(b))
-    case ValPrimary23("\\vcmp", "(", a, _, b, ")") =>
+    case ValPrimary22("\\vcmp", "(", a, _, b, ")") =>
       create expression(VectorCompare, expr(a), expr(b))
-    case ValPrimary24("\\vrep", "(", v, ")") =>
+    case ValPrimary23("\\vrep", "(", v, ")") =>
       create expression(VectorRepeat, expr(v))
-    case ValPrimary25("\\msum", "(", a, _, b, ")") =>
+    case ValPrimary24("\\msum", "(", a, _, b, ")") =>
       create expression(MatrixSum, expr(a), expr(b))
-    case ValPrimary26("\\mcmp", "(", a, _, b, ")") =>
+    case ValPrimary25("\\mcmp", "(", a, _, b, ")") =>
       create expression(MatrixCompare, expr(a), expr(b))
-    case ValPrimary27("\\mrep", "(", m, ")") =>
+    case ValPrimary26("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary28("Reducible", "(", exp, _, opNode, ")") =>
+    case ValPrimary27("Reducible", "(", exp, _, opNode, ")") =>
       val opText = opNode match {
         case ValReducibleOperator0("+") => "+"
         case ValReducibleOperator1(id) => convertID(id)
@@ -1097,10 +1096,12 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
         case "min" => ReducibleMin
         case "max" => ReducibleMax
       }, expr(exp))
-    case ValPrimary29(label, _, exp) =>
+    case ValPrimary28(label, _, exp) =>
       val res = expr(exp)
       res.addLabel(create label(convertID(label)))
       res
+    case ValPrimary29("{:", pattern, ":}") =>
+      create pattern expr(pattern)
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {
@@ -1133,6 +1134,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create reserved_name ASTReserved.OptionNone
     case ValReserved7("empty") =>
       create reserved_name ASTReserved.EmptyProcess
+    case ValReserved8("\\ltid") =>
+      create reserved_name ASTReserved.LocalThreadId
+    case ValReserved9("\\gtid") =>
+      create reserved_name ASTReserved.GlobalThreadId
   })
 
   /**
@@ -1150,6 +1155,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValReserved5(s) => s
     case ValReserved6(s) => s
     case ValReserved7(s) => s
+    case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =

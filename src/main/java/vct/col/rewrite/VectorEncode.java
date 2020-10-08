@@ -5,6 +5,7 @@ import hre.ast.MessageOrigin;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Objects;
 
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
@@ -220,9 +221,8 @@ public class VectorEncode extends AbstractRewriter {
       }
     }
 
-    if (result==null) {
-      Fail("unsupported LHS: %s",expr);
-    }
+    Objects.requireNonNull(result, () -> String.format("unsupported LHS: %s", expr));
+
     return result;
   }
 
@@ -231,7 +231,7 @@ public class VectorEncode extends AbstractRewriter {
       return (PrimitiveType) type;
     } else {
       Fail("Type %s is not allowed as an array element type in a vector block", type);
-      return null;
+      throw new IllegalArgumentException();
     }
   }
 }

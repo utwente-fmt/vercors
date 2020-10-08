@@ -1,6 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case LeaderElect
 //:: tool silicon
+//:: suite problem-fail
 //:: option --check-history
 
 class Future {

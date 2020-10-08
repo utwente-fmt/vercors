@@ -1,7 +1,7 @@
 package viper.api;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import hre.ast.Origin;
@@ -217,7 +217,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     case Scale:{
       return create.scale_access(o,e2, e1);
     }
-    case Append:
+    case Concat:
       return create.append(o, e1,e2);
     default:
         throw new HREError("cannot map operator %s", e.operator());
@@ -295,7 +295,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
           pars.add(new Triple<Origin, String, T>(decl.getOrigin(),decl.name(),t2));
         }
         AxiomaticDataType adt=(AxiomaticDataType)m.getParent();
-        HashMap<String, T> dpars=new HashMap<String, T>();
+        LinkedHashMap<String, T> dpars=new LinkedHashMap<String, T>();
         type.domain_type(dpars,(ClassType)e.object());
         return create.domain_call(o, name, args, dpars, rt, adt.name());
       } else {
@@ -311,7 +311,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       return create.predicate_call(o, name, args);
     }
     default:
-      throw new HREError("calling a %d method is not a Silver expression");
+      throw new HREError("calling a %s method is not a Silver expression", m.kind);
     }
   }
 
@@ -620,4 +620,18 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     return null;
   }
 
+  @Override
+  public E map(InlineQuantifierPattern pattern) {
+    return null;
+  }
+
+  @Override
+  public E map(CatchClause cc) {
+    return null;
+  }
+
+  @Override
+  public E map(SignalsClause sc) {
+    return null;
+  }
 }

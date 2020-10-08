@@ -316,7 +316,8 @@ typeArgument
     ;
 
 qualifiedNameList
-    :   qualifiedName (',' qualifiedName)*
+    :   qualifiedName
+    |   qualifiedName ',' qualifiedNameList
     ;
 
 formalParameters
@@ -472,7 +473,7 @@ statement
     |   'continue' javaIdentifier? ';'
     |   ';'
     |   statementExpression ';'
-    |   javaIdentifier ':' statement
+    |   valEmbedContract? javaIdentifier ':' statement
     |   {specLevel>0}? valStatement
     ;
 

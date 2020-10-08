@@ -117,7 +117,7 @@ public class SatCheckRewriter extends AbstractRewriter {
                 Contract.default_true,
                 Contract.default_true,
                 Contract.default_true, // The postcondition itself
-                new DeclarationStatement[0]        // And the signals clauses, since they encode to postconditions as well
+                new SignalsClause[0]        // And the signals clauses, since they encode to postconditions as well
         );
     }
 

@@ -1,0 +1,42 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case SetComprehension
+//:: tools silicon
+//:: verdict Pass
+
+
+class SetComp {
+
+    requires 0 <= j && j < 5;
+    void case1(int j) {
+        set<int> a = set<int> {SetComp.plus(x, x) | int x; x >= 0 && x <= 5 };
+        assert plus(1, 1) in a; // Verifies
+        assert plus(j, j) in a; // Verifies
+    }
+
+    void case3() {
+        set<int> b = set<int> {SetComp.plus(x,y) | int x <- {0,1,2,3,4}, int y <- {0,1,2}; x+y%2==0};
+        assert 2 in b;
+        assert 6 in b;
+        assert 0 in b;
+    }
+
+    void case2() {
+        set<int> c = set<int> {x+y | int x <- {1, 2, 3, 4, 5}, int y <- {1, 2, 3, 4, 5}; x == y};
+        set<int> d = set<int> {x | int x; x > 0 && x % 2 == 0};
+        Edge e1 = new Edge(3, 2);
+        Edge e2 = new Edge(1, 2);
+        set<Edge> a = set<Edge> { e | Edge e <- set<Edge> {e1, e2}; e.s > 2 };
+    }
+
+    pure static int plus(int a, int b) = a+b;
+}
+
+class Edge {
+	int s;
+	int t;
+	
+	Edge(int source, int target) {
+		s = source;
+		t = target;
+	}
+}

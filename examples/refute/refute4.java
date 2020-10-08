@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Refute4
-//:: tools chalice silicon
+//:: tools silicon
 //:: verdict Pass
 
 /*
@@ -10,10 +10,10 @@ public class Refute {
 
   int x;
 
-/*@
-  requires Perm(x,write) ** x==2;
-  ensures  Perm(x,write) ** x==3;
-@*/
+  /*@
+    requires Perm(x,write) ** x==2;
+    ensures  Perm(x,write) ** x==3;
+  @*/
   public void good2(){
     //@ refute x==3;
     x = 3;

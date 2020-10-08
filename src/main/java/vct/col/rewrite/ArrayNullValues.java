@@ -159,7 +159,7 @@ public class ArrayNullValues extends AbstractRewriter {
             case Cons:
             case Drop:
             case Take:
-            case Append:
+            case Concat:
             case Head:
             case Tail:
                 break;
@@ -206,11 +206,6 @@ public class ArrayNullValues extends AbstractRewriter {
             case ReducibleMin:
                 break;
             case Held:
-                break;
-            case Identity:
-                if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
-                    exp.arg(0).setType(exp.getType());
-                }
                 break;
             case Indirection:
                 break;

@@ -37,6 +37,8 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
           if (exitCode.get != 0) {
             verdict = Verdict.Error
           }
+        case "killed" =>
+          return Seq(ProcessKilled)
         case "exec error %s" =>
           return Seq(InternalError(msg.getArg(0).asInstanceOf[String]))
         case "stdout: %s" | "stderr: %s" =>
@@ -137,6 +139,7 @@ case class PassNonFail(fail_methods: Seq[String]) extends TaskCondition {
 
 sealed trait FailReason
 object NullMessage extends FailReason
+object ProcessKilled extends FailReason
 case class InternalError(description: String) extends FailReason
 object MissingVerdict extends FailReason
 case class InconsistentVerdict(olderVerdict: Verdict, newerVerdict: Verdict) extends FailReason
