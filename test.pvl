@@ -1,0 +1,8 @@
+class Test {
+    int x;
+
+    resource p() = Perm(this.x, 1\2);
+
+    requires p();
+    method test();
+}

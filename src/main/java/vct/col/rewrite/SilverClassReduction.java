@@ -21,6 +21,7 @@ import hre.config.Configuration;
 
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.UndefinedMapping;
+import viper.carbon.boogie.Decl;
 
 /**
  * This rewriter converts a program with classes into
@@ -294,7 +295,12 @@ public class SilverClassReduction extends AbstractRewriter {
     }
     for(ASTNode n:cl.dynamicMembers()){
       if (n instanceof DeclarationStatement){
-        ref_class.add(rewrite(n));
+        DeclarationStatement field = (DeclarationStatement) n;
+        ref_class.add(create.field_decl(
+                cl.getName() + "_" + field.name(),
+                rewrite(field.type()),
+                rewrite(field.initJava())
+        ));
       } else if (n instanceof Method){
         Method m=(Method)n;
         if (m.name().equals("multidim_index_2")){
@@ -324,6 +330,7 @@ public class SilverClassReduction extends AbstractRewriter {
   public void visit(Dereference e){
     if (e.obj().getType()==null){
       Fail("untyped object %s at %s", e.obj(), e.obj().getOrigin());
+      // PB: unreachable?
       result=create.dereference(rewrite(e.obj()), e.field());
       return;
     }
@@ -334,6 +341,8 @@ public class SilverClassReduction extends AbstractRewriter {
       String name=silverTypeString(type);
       ref_items.add(type);
       result=create.dereference(rewrite(e.obj()), name+SEP+e.field());
+    } else if(t instanceof ClassType) {
+      result = create.dereference(rewrite(e.obj()), ((ClassType) t).definitionJava(source(), null, null).name() + "_" + e.field());
     } else {
       result=create.dereference(rewrite(e.obj()), e.field());
     }
@@ -448,7 +457,7 @@ public class SilverClassReduction extends AbstractRewriter {
       //NameExpression f=create.field_name("A__x");
       //f.setSite(ref_class);
       for(DeclarationStatement field:cl.dynamicFields()){
-        args.add(create.dereference(create.class_type("Ref"),field.name()));
+        args.add(create.dereference(create.class_type("Ref"), cl.name() + "_" + field.name()));
       }
       result=create.expression(StandardOperator.NewSilver,args.toArray(new ASTNode[0]));
       break;
@@ -680,7 +689,6 @@ public class SilverClassReduction extends AbstractRewriter {
 
   @Override
   public void visit(Method m){
-    String name=m.getName();
     ContractBuilder cb=new ContractBuilder();
     ArrayList<DeclarationStatement> args=new ArrayList<DeclarationStatement>();
     ASTNode body=m.getBody();
@@ -735,15 +743,7 @@ public class SilverClassReduction extends AbstractRewriter {
       }
       constructor_this.pop();
     }
-    Method.Kind kind;
-    Type rt;
-    if(m.kind==Kind.Constructor){
-      kind=Kind.Plain;
-      rt=ref_type;
-    } else {
-      kind=m.kind;
-      rt=rewrite(m.getReturnType());
-    }
+
     currentContractBuilder=null;
     body=rewrite(body);
     if (m.kind==Method.Kind.Constructor){
@@ -761,6 +761,18 @@ public class SilverClassReduction extends AbstractRewriter {
       }   
     }
     c=cb.getContract();
+
+    Method.Kind kind;
+    Type rt;
+    if(m.kind==Kind.Constructor){
+      kind=Kind.Plain;
+      rt=ref_type;
+    } else {
+      kind=m.kind;
+      rt=rewrite(m.getReturnType());
+    }
+
+    String name=m.getName();
     name = name.replace('<', '$').replace('>', '$');
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
 
@@ -857,49 +869,31 @@ public class SilverClassReduction extends AbstractRewriter {
   
   @Override
   public void visit(MethodInvokation s){
-    String method;
+    String method = s.method();
     ArrayList<ASTNode> args=new ArrayList<ASTNode>();
     Method def=s.getDefinition();
-    ClassType dispatch=s.dispatch();
-    if (def.kind==Kind.Constructor){
-      dispatch=null;
-    }
     ASTNode object=null;
-    if (def.getParent()==null){
-      method=s.method();
-    } else if (s.object() instanceof ClassType){
-      if (s.method().equals(Method.JavaConstructor)){
-        method=s.dispatch().getName()+SEP+s.dispatch().getName();
-        dispatch=null;
-      } else if (def.getParent() instanceof AxiomaticDataType){
-        method=s.method();
-        object=copy_rw.rewrite(s.object());
-      } else {
-        method=s.method();
-      }
-    } else if (s.object()==null){
-      if (s.method().equals(Method.JavaConstructor)){
-        method=s.dispatch().getName()+SEP+s.dispatch().getName();
-        dispatch=null;
-      } else {
-        method=s.method();
-      }
-    } else {
-      method=s.method();
-      if (method.equals("<<adt>>") || def.getParent() instanceof AxiomaticDataType){
-        method=s.method();
-      } else {
-        if (!def.isStatic()){
-          args.add(rewrite(s.object()));
+
+    if (def.getParent() != null) {
+      if (s.object() instanceof ClassType){
+        if (s.method().equals(Method.JavaConstructor)){
+          method=s.definition().name();
+        } else if (def.getParent() instanceof AxiomaticDataType){
+          object=copy_rw.rewrite(s.object());
         }
-        if (def.kind==Kind.Predicate && !s.object().isReserved(ASTReserved.This) && (!fold_unfold) ){
-          //extra=create.expression(StandardOperator.NEQ,rewrite(s.object()),create.reserved_name(ASTReserved.Null));
+      } else if (s.object()==null){
+        if (s.method().equals(Method.JavaConstructor)){
+          method=s.definition().name();
         }
-      }      
+      } else if (!method.equals("<<adt>>") && !(def.getParent() instanceof AxiomaticDataType) && !def.isStatic()) {
+        args.add(rewrite(s.object()));
+      }
     }
+
     for(ASTNode arg :s.getArgs()){
       args.add(rewrite(arg));
     }
+
     method = method.replace('<', '$').replace('>', '$');
     MethodInvokation res=create.invokation(object, null, method, args.toArray(new ASTNode[0]));
     res.set_before(rewrite(s.get_before()));

@@ -136,7 +136,7 @@ public abstract class ASTFrame<T> {
   
   /** */
   protected ASTNode getParentNode(){
-    return node_stack.get(node_stack.size()-2);
+    return node_stack.size() > 2 ? node_stack.get(node_stack.size()-2) : null;
   }
 
   /**

@@ -55,14 +55,14 @@ public class CSLencoder extends AbstractRewriter {
       Method.Kind kind=Method.Kind.Constructor;
       ContractBuilder cb=new ContractBuilder();
       rewrite(m.getContract(),cb);
-      cb.ensures(create.invokation(null,null,"csl_invariant"));
+      cb.ensures(create.invokation(create.diz(),null,"csl_invariant"));
       String name = m.name();
       DeclarationStatement args[]=rewrite(m.getArgs());
       BlockStatement body;
       if (m.getBody()!=null){
         body=(BlockStatement)rewrite(m.getBody());
         body.addStatement(create.special(ASTSpecial.Kind.Fold,
-            create.invokation(null,null,"csl_invariant")
+            create.invokation(create.diz(),null,"csl_invariant")
         ));   
       } else {
         body=null;

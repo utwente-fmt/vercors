@@ -278,10 +278,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     Method m=find_method(e);
     e.setDefinition(m);
 
-    if(m.isValidFlag(ASTFlags.STATIC) && m.isStatic() && e.object() != null && e.object().isReserved(ASTReserved.This)) {
-      Fail("wat");
-    }
-
     if(current_method() != null && current_method().getKind() == Method.Kind.Pure && (m.getKind() != Method.Kind.Pure && m.getKind() != Method.Kind.Predicate)) {
       // We're in the body of a pure method, but neither is the invoked method pure, nor are we applying a predicate
       if(!current_method().getReturnType().isPrimitive(PrimitiveSort.Process)) {

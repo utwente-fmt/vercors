@@ -41,7 +41,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(c)
     if(c.super_classes.nonEmpty || c.implemented_classes.nonEmpty) {
       features += Inheritance
-      features += NotJavaEncoded
     }
     if(c.kind != ClassKind.Record && c.methods().asScala.nonEmpty)
       features += This
@@ -51,8 +50,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += StaticFields
     if(c.kind == ClassKind.Kernel)
       features += KernelClass
-    if(c.fields().asScala.nonEmpty && c.kind != ClassKind.Record)
-      features += NotJavaEncoded
     if(c.asScala.collectFirst {
       case method: Method if method.kind == Method.Kind.Constructor => ()
     }.isEmpty) {
@@ -64,9 +61,13 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     Set(Method.Kind.Predicate, Method.Kind.Pure).contains(m.kind) ||
       m.annotations().asScala.exists(_.isReserved(ASTReserved.Pure))
 
-  private def isInline(m: Method): Boolean =
-    (m.isValidFlag(ASTFlags.INLINE) && m.getFlag(ASTFlags.INLINE)) ||
-      m.annotations().asScala.exists(_.isReserved(ASTReserved.Inline))
+  private def isInline(node: ASTNode): Boolean =
+    (node.isValidFlag(ASTFlags.INLINE) && node.getFlag(ASTFlags.INLINE)) ||
+      node.annotations().asScala.exists(_.isReserved(ASTReserved.Inline))
+
+  private def isFinal(node: ASTNode): Boolean =
+    isInline(node) ||
+      (node.isValidFlag(ASTFlags.FINAL) && node.getFlag(ASTFlags.FINAL))
 
   override def visit(m: Method): Unit = {
     var forbidRecursion = false
@@ -79,7 +80,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       }
     if(m.name == "csl_invariant")
       features += JavaAtomic
-    if(m.name == PVLEncoder.INV && !getParentNode.asInstanceOf[ASTClass].methods().asScala.exists(_.name == PVLEncoder.HELD))
+    if(m.name == PVLEncoder.INV && getParentNode != null && !getParentNode.asInstanceOf[ASTClass].methods().asScala.exists(_.name == PVLEncoder.HELD))
       features += PVLSugar
     if(m.name == "run")
       features += PVLSugar
@@ -103,6 +104,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += Constructors
     if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && !isPure(m))
       features += NonVoidMethods
+    if(m.getParent.isInstanceOf[ASTClass] && !isFinal(m) && !isFinal(m.getParent))
+      features += NotJavaEncoded
 
     if(!forbidRecursion) {
       super.visit(m)
@@ -355,9 +358,10 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   override def visit(decl: DeclarationStatement): Unit = {
     super.visit(decl)
-    if(ifDepth > 0) {
+    if(decl.isValidFlag(ASTFlags.STATIC) && decl.isStatic)
+      features += NotJavaEncoded
+    if(ifDepth > 0)
       features += DeclarationsInIf
-    }
   }
 
   override def visit(block: stmt.composite.VectorBlock): Unit = {
@@ -495,17 +499,12 @@ object Feature {
     NeedsHistoryCheck,
   )
   val DEFAULT_INTRODUCE: Set[Feature] = Set(
-    // I think we'll need those (histories need them boxed in set_field, get_field)
-    Dereference,
-    Null,
     // (sometimes implicit) this value, probably fair to introduce by default (e.g. invokations)
     This,
     // Declarations that are not at the top of a block; we probably introduce those.
     ScatteredDeclarations,
     // For RewriteArrayRef; kinda ugly that we rewrite Susbcript -> OptGet Subscript Deref -> OptGet loc Deref
     Arrays,
-    // Anything other than a name or constant as a subscript is "complicated"
-    ComplexSubscript,
     // Supposedly you can't have a predicate application without a scale in front in silicon...
     UnscaledPredicateApplication,
     // Nice to have, should be done somewhere at the end.
@@ -520,6 +519,12 @@ object Feature {
     DeclarationsInIf,
     // Very useful to not repeat yourself when generating quantifiers
     InlineQuantifierPattern,
+
+    // Anything other than a name or constant as a subscript is "complicated"
+    ComplexSubscript,
+    // I think we'll need those (histories need them boxed in set_field, get_field)
+    Dereference,
+    Null,
   )
   val NO_POLY_INTRODUCE: Set[Feature] = DEFAULT_INTRODUCE -- Set(
     This,
