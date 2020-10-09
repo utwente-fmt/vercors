@@ -145,7 +145,14 @@ public class Standardize extends AbstractRewriter {
           }
           break;
         }
+        default: {
+          super.visit(e);
+        }
       }
+    } else if (e.operator() == StandardOperator.Empty) {
+      ASTNode seq = e.arg(0).apply(this);
+      result = eq(constant(0), size(seq));
+      return;
     } else {
       super.visit(e);
     }

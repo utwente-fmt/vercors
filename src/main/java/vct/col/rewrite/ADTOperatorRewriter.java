@@ -48,12 +48,6 @@ public class ADTOperatorRewriter extends AbstractRewriter {
                 result = create.expression(StandardOperator.Concat, seq, newSeq);
                 break;
             }
-            case Empty: {
-                Type seqElementType = e.arg(0).getType();
-                ASTNode seq = e.arg(0).apply(this);
-                result = eq(constant(0), size(seq));
-                break;
-            }
             case LTE:
             case LT:
                 if (e.arg(0).getType().isPrimitive(PrimitiveSort.Set) || e.arg(0).getType().isPrimitive(PrimitiveSort.Bag)) {
@@ -83,6 +77,32 @@ public class ADTOperatorRewriter extends AbstractRewriter {
                         )
                 );
                 break;
+
+            case EQ: {
+                if (e.arg(0).getType().isPrimitive(Map) && e.arg(1).getType().isPrimitive(Map)) {
+                    result = create.expression(StandardOperator.MapEquality, e.arg(0).apply(this), e.arg(1).apply(this));
+                } else {
+                    super.visit(e);
+                }
+                break;
+            }
+            case Subscript: {
+                if (e.arg(0).getType().isPrimitive(Map)) {
+                    result = create.expression(StandardOperator.MapGetByKey, e.arg(0).apply(this), e.arg(1).apply(this));
+                } else {
+                    super.visit(e);
+                }
+                break;
+            }
+            case Size: {
+                if (e.arg(0).getType().isPrimitive(Map)) {
+                    ASTNode e1 = rewrite(e.arg(0));
+                    result = create.expression(StandardOperator.MapCardinality, e1);
+                } else {
+                    super.visit(e);
+                }
+                break;
+            }
             default:
                 super.visit(e);
         }

@@ -1398,10 +1398,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     case Empty: {
       Type t = e.arg(0).getType();
-      if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of empty not a sequence");
+      if (!t.isPrimitive(PrimitiveSort.Sequence) &&
+              !t.isPrimitive(PrimitiveSort.Set) &&
+              !t.isPrimitive(PrimitiveSort.Bag) &&
+              !t.isPrimitive(PrimitiveSort.Map)) Fail("argument of empty not a sequence, set, bag or map");
       e.setType(new PrimitiveType(PrimitiveSort.Boolean));
       break;
-
     }
     case Subscript:
     {
