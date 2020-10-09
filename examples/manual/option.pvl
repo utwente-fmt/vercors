@@ -11,18 +11,20 @@
 
 class optiontest {
   void test(){
+
     option<int> x=None;
     option<int> y=Some(37);
     
     option<optiontest> z=None;
     
     assert x != y;
-    
     assert x == None;
-    
     assert y != None;
-    
     assert z == None;
+
+    assert oget(y) == 37;
+    assert ogetOrElse(x, 21387) == 21387;
+
   }
 }
 
