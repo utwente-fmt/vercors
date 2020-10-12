@@ -22,8 +22,8 @@ class optiontest {
     assert y != None;
     assert z == None;
 
-    assert oget(y) == 37;
-    assert ogetOrElse(x, 21387) == 21387;
+    assert optionGet(y) == 37;
+    assert optionGetOrElse(x, 21387) == 21387;
 
   }
 }
