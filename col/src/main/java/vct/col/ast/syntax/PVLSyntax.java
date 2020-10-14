@@ -50,8 +50,8 @@ public class PVLSyntax {
       syntax.addFunction(Old,"\\old");
 
       syntax.addFunction(OptionSome, "Some");
-      syntax.addFunction(OptionGet, "optionGet");
-      syntax.addFunction(OptionGetOrElse, "optionGetOrElse");
+      syntax.addFunction(OptionGet, "getOption");
+      syntax.addFunction(OptionGetOrElse, "getOrElseOption");
 
       syntax.addFunction(MapBuild, "buildMap");
       syntax.addFunction(MapEquality, "equalsMap");
