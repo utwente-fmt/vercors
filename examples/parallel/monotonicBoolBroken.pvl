@@ -1,14 +1,15 @@
-//:: case MonotonicBool
+//:: case MonotonicBoolBroken
 //:: tool silicon
 //:: verdict Pass
 
 // fails due to https://github.com/viperproject/silicon/issues/512
 //:: suite problem-fail
 
-// This file contains an attempt at constructing and verifying a monotonic bool.
-// It would seem that it is truly a monotonic bool, since if one of
-// the threads write false to b the program does not verify.
-// However, approach is unfortunately not correct; see monotonicBoolBroken.pvl in the same folder for details.
+// This file demonstrates that monotonicBool.pvl is _not_ truly a monotonic bool, and shows
+// how to break it. Notice that this is possible because in PVL there is no such thing as ghost state.
+// In C/Java, this approach is only possible of contrib is not a ghost array. Still, this implies
+// if the runtime checking for monotonicity is implemented with an invariant like this, it could be
+// circumvented!!
 
 // This test uses its own toSeq function, but use of the built-in \values(xs, 0, n) is desired.
 // Unfortunately, on viper 20.01 \values doesn't work properly because \values uses read permissions.
@@ -20,8 +21,8 @@ class C {
   boolean b;
   boolean[] contrib;
 
-  // Method that might return true or false. Useful for setting the bool "sometimes"
-  boolean p(int tid);
+  // Useful for random choice
+  int p();
 
   requires xs != null;
   requires i >= 0;
@@ -58,7 +59,7 @@ class C {
     assert Perm(contrib, read);
     assert (\forall* int i = 0..N; Perm(contrib, read));
 
-    invariant inv(Perm(contrib, read) 
+    invariant inv(Perm(contrib, read)
         ** contrib.length == N
         ** (\forall* int i = 0..N; Perm(contrib[i], 1\2))
         ** Perm(b, write)
@@ -69,14 +70,41 @@ class C {
         context Perm(contrib, read) ** contrib != null;
         context Perm(contrib[tid], 1\2);
       {
-        if (p(tid)) {
+        // First, we set the bool with a 50% chance
+        // Then, if nobody else set it in the meantime, we undo our set with a very small chance!!
+
+        if (p() % 2 == 0) {
           // Models: atomic_set(b);
           atomic(inv) {
             b = true;
             contrib[tid] = true;
-            // Fails:
-            // b = false;
-            // contrib[tid] = false;
+          }
+        }
+
+        if (p() == 666) {
+          // The stars have aligned!
+          // Try evil unset also!
+          atomic(inv) {
+            boolean evilCondition = true;
+
+            // Check if we are the only one that set it since last time
+            loop_invariant 0 <= k && k <= N;
+            loop_invariant Perm(contrib, read) ** contrib != null ** contrib.length == N;
+            loop_invariant (\forall* int i = 0..N; Perm(contrib[i], 1\100));
+            loop_invariant evilCondition == (\forall int j = 0 .. k; j == tid ? contrib[j] : !contrib[j]);
+            for (int k = 0; k < N; k++) {
+              if (k == tid) {
+                evilCondition = evilCondition && contrib[k];
+              } else {
+                evilCondition = evilCondition && !contrib[k];
+              }
+            }
+
+            // If so, we hide our action!!!!!
+            if (evilCondition) {
+              b = false;
+              contrib[tid] = false;
+            }
           }
         }
       }
