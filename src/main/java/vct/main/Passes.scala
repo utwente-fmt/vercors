@@ -35,7 +35,7 @@ object Passes {
     SimplePass("add-type-adt",
       "Add an ADT that describes the types and use it to implement instanceof",
       new AddTypeADT(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations - features.ClassWithoutConstructor,
       removes=Set(features.Inheritance),
       introduces=Feature.DEFAULT_INTRODUCE -- Set(features.Inheritance)
     ),

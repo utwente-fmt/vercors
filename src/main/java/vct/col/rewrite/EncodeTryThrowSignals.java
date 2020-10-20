@@ -221,7 +221,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.Not,
-                    create.invokation(create.class_type(type_adt), null,"instanceof",
+                    create.invokation(null, null,"instanceof",
                             create.expression(StandardOperator.TypeOf,create.local_name(excVar)),
                             create.invokation(create.class_type(type_adt),null,"class_" + catchType.toString())
                             )

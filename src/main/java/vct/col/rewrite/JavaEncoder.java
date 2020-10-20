@@ -29,7 +29,7 @@ public class JavaEncoder extends AbstractRewriter {
 
   public static final String GLOBALS = "globals";
   public static final String ARRAY_SUFFIX="ARRAY";
-  public static final String INTERNAL = "internal";
+  public static final String INTERNAL = "internal_";
   
   
   public JavaEncoder(ProgramUnit source) {
@@ -251,27 +251,27 @@ public class JavaEncoder extends AbstractRewriter {
             Contract internal_contract=rewrite(m.getContract());
             internal_mode=false;
             Type returns=rewrite(m.getReturnType());
-            String external_name=create_method_name("method", cl_type ,m);
-            String internal_name=create_method_name(INTERNAL, cl_type ,m);
+            String external_name = m.name();
+            String internal_name = INTERNAL + m.name();
             boolean varArgs=m.usesVarArgs();
             res.add(create.method_kind(m.kind, returns, external_contract, external_name, parameters, varArgs, null));
             BlockStatement body=create.block();
             body.add(create.invokation(
                 create.reserved_name(ASTReserved.Super),
                 null,
-                create_method_name("internal", cl.super_classes[0],m),
+                INTERNAL + m.name(),
                 get_names(parameters)));
             res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, body));
             break;
           }
           case Predicate:{
-            String name=create_method_name("predicate", cl_type ,m);
+            String name = m.name();
             res.add(create.predicate(name, null, parameters));
-            name=create_method_name(INTERNAL, cl_type ,m);
+            name = INTERNAL + m.name();
             ASTNode body=create.invokation(
-                create.reserved_name(ASTReserved.This),
+                create.reserved_name(ASTReserved.Super),
                 null,
-                create_method_name("predicate", cl.super_classes[0],m),
+                m.name(),
                 get_names(parameters));
             res.add(create.predicate(name, body, parameters));
             break;
@@ -398,7 +398,7 @@ public class JavaEncoder extends AbstractRewriter {
     if (m.getParent() instanceof ASTClass){
       ASTClass cls=(ASTClass)m.getParent();
       boolean direct=is_direct_definition(m);
-      String internal_name=create_method_name(INTERNAL,new ClassType(cls.getFullName()), m);
+      String internal_name = INTERNAL + m.name();
       boolean isFinal=m.isStatic()||cls.getFlag(ASTFlags.FINAL)||m.getFlag(ASTFlags.FINAL);
       if (isFinal){
         Debug("  method %s is final",m.name());
@@ -478,8 +478,7 @@ public class JavaEncoder extends AbstractRewriter {
               args_names[i]=create.local_name(args.get(i).name());
             }
             ASTNode override=create.invokation(
-                create.reserved_name(ASTReserved.This),
-                null,create_method_name(INTERNAL,cls.super_classes[0],m), args_names);
+                create.reserved_name(ASTReserved.Super), null, INTERNAL + m.name(), args_names);
             
             body=create.expression(StandardOperator.Star,override,body);
           }
@@ -526,23 +525,9 @@ public class JavaEncoder extends AbstractRewriter {
     }
     if (s.object()!=null && s.object().isReserved(ASTReserved.Super)
         && get_initial_definition(m)==get_initial_definition(current_method())){
-      method=create_method_name("internal",(ClassType)ot,m);
+      method = INTERNAL + m.name();
     } else if (dispatch!=null) {
-      // Static dispatch call...
-      String prefix="unknown";
-      switch(m.kind){
-      case Predicate:
-        if (is_direct_definition(m)||!internal_mode){
-          prefix="predicate";
-        } else {
-          prefix=INTERNAL;
-        }
-        break;
-      case Constructor: prefix="constructor"; break;
-      default:
-        break;
-      }
-      method=create_method_name(prefix,dispatch,m);
+      method = m.name();
     } else {
       // Dynamic dispatch or other call.
       if (m.getParent() instanceof ASTClass){

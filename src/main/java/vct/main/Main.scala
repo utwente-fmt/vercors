@@ -11,7 +11,7 @@ import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration,
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
+import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, SpecificationFormat}
 import vct.col.util.FeatureScanner
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
@@ -425,6 +425,15 @@ class Main {
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
 
       report = BY_KEY("java-check").apply_pass(report, Array())
+
+      val classes = report.getOutput.asScala.collect { case cls: ASTClass => cls }
+      for(cls <- classes) {
+        val methods = cls.methods().asScala
+        val names = methods.filter(_.kind != Method.Kind.Constructor).map(_.name).toSeq
+        if(names.size != names.distinct.size) {
+          Warning("Duplicate class methods")
+        }
+      }
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")

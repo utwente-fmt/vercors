@@ -480,7 +480,7 @@ public class SilverClassReduction extends AbstractRewriter {
         // Type marker, ignore.
         result = rewrite(e.arg(1));
       } else {
-        ASTNode condition=create.domain_call("TYPE","instanceof",
+        ASTNode condition=create.invokation(null, null, "instanceof_TYPE_TYPE",
             create.domain_call("TYPE","type_of",object),
             //create.invokation(null,null,"type_of",object));
             create.domain_call("TYPE","class_"+t));
@@ -773,6 +773,12 @@ public class SilverClassReduction extends AbstractRewriter {
     }
 
     String name=m.getName();
+    if(m.getParent() instanceof ASTClass) {
+      name = ((ASTClass) m.getParent()).getName() + "_" + name;
+    }
+    for(DeclarationStatement arg : m.getArgs()) {
+      name += "_" + arg.getType().toString();
+    }
     name = name.replace('<', '$').replace('>', '$');
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
 
@@ -892,6 +898,14 @@ public class SilverClassReduction extends AbstractRewriter {
 
     for(ASTNode arg :s.getArgs()){
       args.add(rewrite(arg));
+    }
+
+    if(s.definition().getParent() instanceof ASTClass) {
+      method = ((ASTClass) s.definition().getParent()).getName() + "_" + method;
+    }
+
+    for(DeclarationStatement arg : s.definition().getArgs()) {
+      method += "_" + arg.getType().toString();
     }
 
     method = method.replace('<', '$').replace('>', '$');

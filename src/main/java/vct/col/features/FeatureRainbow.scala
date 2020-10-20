@@ -50,7 +50,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += StaticFields
     if(c.kind == ClassKind.Kernel)
       features += KernelClass
-    if(c.asScala.collectFirst {
+    if(c.kind != ClassKind.Record && c.asScala.collectFirst {
       case method: Method if method.kind == Method.Kind.Constructor => ()
     }.isEmpty) {
       features += ClassWithoutConstructor
@@ -275,7 +275,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(invok: MethodInvokation): Unit = {
     super.visit(invok)
     visitBeforeAfter(invok)
-    if(invok.getDefinition != null && invok.getDefinition.kind == Method.Kind.Predicate && !getParentNode.isa(StandardOperator.Scale))
+    if(invok.getDefinition != null && invok.getDefinition.kind == Method.Kind.Predicate &&
+      (getParentNode == null || !getParentNode.isa(StandardOperator.Scale)))
       features += UnscaledPredicateApplication
     if(invok.`object` == null && invok.dispatch == null)
       features += NotStandardized
