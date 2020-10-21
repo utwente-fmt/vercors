@@ -1,24 +1,14 @@
 package viper.api
 
-import viper.silver.ast._
-
-import scala.collection.JavaConverters._
-import scala.collection.JavaConverters._
-import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
-import java.util.Properties
-import java.util.SortedMap
-
-import scala.math.BigInt.int2bigInt
-import viper.silver.ast.SeqAppend
-import java.nio.file.Path
 
 import hre.ast.OriginFactory
+import hre.lang.System.Warning
 import hre.util.Triple
-import viper.silver.parser.PLocalVarDecl
-import viper.silver.plugin.{PluginAwareReporter, SilverPluginManager}
+import viper.silver.ast.{SeqAppend, _}
+import viper.silver.plugin.PluginAwareReporter
 
-import scala.collection.mutable.WrappedArray
+import scala.collection.JavaConverters._
 
 class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
     DomainFunc,DomainAxiom,Prog] with FactoryUtils[O]{
@@ -115,6 +105,14 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
     case decl : LocalVarDecl => decl
   }
 
+  def discardUnnamedLocalVars(vars: Seq[AnyLocalVarDecl]): Seq[LocalVarDecl] = vars flatMap {
+    case localVar: LocalVarDecl => Some(localVar)
+    case _: UnnamedLocalVarDecl =>
+      // Unnamed local vars are currently not supported in COL
+      Warning("Unnamed local variable declaration detected, discarding")
+      None
+  }
+
   override def convert [T2, E2, S2, DFunc2, DAxiom2, P2](
       api:ViperAPI[O,T2,E2,S2,DFunc2,DAxiom2,P2], in_prog: viper.api.Prog): P2 = {
     val out_prog = api.prog.program()
@@ -125,7 +123,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
         val functions:java.util.List[DFunc2]=(d.functions map {
           x => {
             val o=get_info(x.info,x.pos,api.origin)
-            val pars=map_decls(api, x.formalArgs)
+            val pars=map_decls(api, discardUnnamedLocalVars(x.formalArgs))
             val res=map_type(api,x.typ)
             api.prog.dfunc(o,x.name,pars,res,d.name, x.unique)
           }
