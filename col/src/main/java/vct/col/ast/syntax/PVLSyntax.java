@@ -66,8 +66,6 @@ public class PVLSyntax {
       syntax.addFunction(TupleFst, "getFst");
       syntax.addFunction(TupleSnd, "getSnd");
 
-
-
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
       syntax.addOperator(Slice, 10, "[","","..","","]");

@@ -1164,7 +1164,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         } else if (!tt[1].comparableWith(source(), (Type) tt[0].firstarg())) {
           Fail("type of the second argument %s does not match the value type of the option %s", tt[1], tt[0].firstarg());
         }
-        e.setType(tt[1]);
+        e.setType((Type) tt[0].firstarg());
         break;
       }
       case PreIncr:
