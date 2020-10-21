@@ -262,15 +262,9 @@ public class JavaEncoder extends AbstractRewriter {
             res.add(create.method_kind(m.kind, returns, external_contract, external_name, parameters, varArgs, null));
             // We leave body empty, as the method is guaranteed to have no contract
             // Therefore no extra proof steps (unfolding predicates, checking pre/post conditions for implications)
-            // are not necessary and we can leave the method abstract
-//            BlockStatement body=create.block();
-//            body.add(create.comment("//TODO: unfolds of chained predicates in pre-condition"));
-//            body.add(create.invokation(
-//                create.reserved_name(ASTReserved.Super),
-//                null,
-//                create_method_name("internal", cl.super_classes[0],m),
-//                get_names(parameters)));
-//            body.add(create.comment("//TODO: folds of chained predicates in post-condition"));
+            // are not necessary and we can leave the method abstract. However, when the empty contract check is
+            // removed, a call to super or something similar should be added, such that the static/dynamic contract
+            // implication is checked.
             res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, null));
             break;
           }
@@ -519,7 +513,7 @@ public class JavaEncoder extends AbstractRewriter {
     }
     if (s.object()!=null && s.object().isReserved(ASTReserved.Super)
         && get_initial_definition(m)==get_initial_definition(current_method())){
-      method=create_method_name("internal",(ClassType)ot,m);
+      method=create_method_name(INTERNAL,(ClassType)ot,m);
     } else if (dispatch!=null) {
       // Static dispatch call...
       String prefix="unknown";
