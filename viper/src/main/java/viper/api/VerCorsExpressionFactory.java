@@ -79,8 +79,6 @@ public class VerCorsExpressionFactory implements
   @Override
   public ASTNode any_set_subset(Origin o, ASTNode e1, ASTNode e2) {
       enter(o);
-      //TODO check what to put here.
-      // Basically, the LTE operator is used in PVL, but this does not have to hold for any other language.
       ASTNode res= create.expression(StandardOperator.SubSet, e1, e2);
       leave();
     return res;
