@@ -4,8 +4,10 @@ import java.io.File;
 import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Set;
 
 import hre.ast.FileOrigin;
 import hre.ast.MessageOrigin;
@@ -29,9 +31,30 @@ import vct.parsers.rewrite.RemoveBodies;
 public class JavaResolver extends AbstractRewriter {
 
   private ClassLoader path=this.getClass().getClassLoader();
+
+  private Set<String> beingAdded = new HashSet<>();
   
   public JavaResolver(ProgramUnit source) {
     super(source);
+  }
+
+  final Set<String> allowedMethods = Set.of(
+          "printStackTrace",
+          "getMessage"
+  );
+
+  private boolean isThrowable(Class<?> clazz) {
+    // If an interface type is given
+    if (clazz == null) return false;
+
+    String canonicalName = clazz.getCanonicalName();
+    if (canonicalName.equals("java.lang.Object")) {
+      return false;
+    } else if (canonicalName.equals("java.lang.Throwable")) {
+      return true;
+    } else {
+      return isThrowable(clazz.getSuperclass());
+    }
   }
   
   private boolean ensures_loaded(String ... name){
@@ -48,6 +71,10 @@ public class JavaResolver extends AbstractRewriter {
     if (target().find(ClassName.toString(name,FQN_SEP))!=null){
       return true;
     }
+    if (beingAdded.contains(ClassName.toString(name, FQN_SEP))) {
+      // It is in the process of being added but not yet exists in the target AST
+      return true;
+    }
     if(base_path!=null && tryFileBase(base_path.toFile(),name)){
       return true;
     }
@@ -59,6 +86,7 @@ public class JavaResolver extends AbstractRewriter {
       String cl_name=cln.toString();
       Class<?> cl=path.loadClass(cl_name);
       Debug("loading %s",cl_name);
+      beingAdded.add(ClassName.toString(name, FQN_SEP));
       create.enter();
       create.setOrigin(new MessageOrigin("library class %s",cl_name));
       ClassType superClass = null;
@@ -74,49 +102,61 @@ public class JavaResolver extends AbstractRewriter {
       /* But: we want these methods around if they are used in the rest of the program!
            Once the type system understands inheritance, the unused methods can be pruned. */
       // We use getDeclaredMethods to exclude inherited methods. Inherited methods should be added by a proper inheritance pass.
-//      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
-//        // Only public methods are allowed since protected is only accesible from the same package (and we're not std) and private is not accesible altogether
-//        if (!Modifier.isPublic(m.getModifiers())) {
-//          continue;
-//        }
-//        // We skip bridge methods (i.e. methods generated to bridge the gap between a method returning float[] and a method returning Object).
-//        // https://stackoverflow.com/questions/1961350/problem-in-the-getdeclaredmethods-java
-//        if (m.isBridge()) {
-//          continue;
-//        }
-//        Class<?> c=m.getReturnType();
-//        Type returns = convert_type(c);
-//        Class<?> pars[]=m.getParameterTypes();
-//        DeclarationStatement args[]=new DeclarationStatement[pars.length];
-//        for(int i=0;i<pars.length;i++){
-//          args[i]=create.field_decl("x"+i, convert_type(pars[i]));
-//        }
-//        if (m.isVarArgs()){
-//          DeclarationStatement old=args[pars.length-1];
-//          args[pars.length-1] = create.field_decl(old.name(), (Type)old.getType().firstarg());
-//        }
-//        Method ast=create.method_kind(Method.Kind.Plain , returns, null, m.getName(),args, m.isVarArgs() , null);
-//        ast.setFlag(ASTFlags.STATIC,Modifier.isStatic(m.getModifiers()));
-//        res.add(ast);
-//      }
+      for(java.lang.reflect.Method m:cl.getDeclaredMethods()){
+        // Only allow a select few methods to prevent blowup
+        if (!allowedMethods.contains(m.getName())) {
+          continue;
+        }
+        // Only allow parameterless methods because otherwise many types get imported transitively
+        if (m.getParameterTypes().length != 0) {
+          continue;
+        }
+        // Only public methods are allowed since protected is only accesible from the same package (and we're not std) and private is not accesible altogether
+        if (!Modifier.isPublic(m.getModifiers())) {
+          continue;
+        }
+        // We skip bridge methods (i.e. methods generated to bridge the gap between a method returning float[] and a method returning Object).
+        // https://stackoverflow.com/questions/1961350/problem-in-the-getdeclaredmethods-java
+        if (m.isBridge()) {
+          continue;
+        }
+        Class<?> c=m.getReturnType();
+        Type returns = convert_type(c);
+        Class<?> pars[]=m.getParameterTypes();
+        DeclarationStatement args[]=new DeclarationStatement[pars.length];
+        for(int i=0;i<pars.length;i++){
+          args[i]=create.field_decl("x"+i, convert_type(pars[i]));
+        }
+        if (m.isVarArgs()){
+          DeclarationStatement old=args[pars.length-1];
+          args[pars.length-1] = create.field_decl(old.name(), (Type)old.getType().firstarg());
+        }
+        Method ast=create.method_kind(Method.Kind.Plain , returns, null, m.getName(),args, m.isVarArgs() , null);
+        ast.setFlag(ASTFlags.STATIC,Modifier.isStatic(m.getModifiers()));
+        res.add(ast);
+      }
       for (java.lang.reflect.Constructor<?> m : cl.getConstructors()) {
-    	  Class<?> pars[]=m.getParameterTypes();
-    	  // We only allow imported constructors without formal parameters. This is to make sure
-          // not too many types are imported.
-          // (since each parameter type causes another import of a new type with new constructors)
-          // Once we figure out how to prune the imported classes
-          // (either at import time or as a distinct pass) we can re-enable this again.
-    	  if (pars.length != 0) {
-    	    continue;
+        Class<?> pars[]=m.getParameterTypes();
+        // We only allow imported constructors without formal parameters. This is to make sure
+        // not too many types are imported.
+        // (since each parameter type causes another import of a new type with new constructors)
+        // Once we figure out how to prune the imported classes
+        // (either at import time or as a distinct pass) we can re-enable this again.
+        // As an exception, we allow constructors with one parameter that is a throwable type.
+        // THis is to allow wrapping exception constructors.
+        if (pars.length != 0) {
+          if (!(pars.length == 1 && isThrowable(pars[0]))) {
+            continue;
           }
-    	  DeclarationStatement args[]=new DeclarationStatement[pars.length];
-    	  for(int i=0;i<pars.length;i++){
-    		  args[i]=create.field_decl("x"+i, convert_type(pars[i]));
-    	  }
-    	  // Use class name here to uphold convention that constructor name == class name.
-          // Constructors return void, since an out parameter is added later.
-    	  Method ast = create.method_kind(Kind.Constructor, create.primitive_type(PrimitiveSort.Void), null, res.getName(), args, null);
-    	  res.add(ast);
+        }
+        DeclarationStatement args[]=new DeclarationStatement[pars.length];
+        for(int i=0;i<pars.length;i++){
+          args[i]=create.field_decl("x"+i, convert_type(pars[i]));
+        }
+        // Use class name here to uphold convention that constructor name == class name.
+        // Constructors return void, since an out parameter is added later.
+        Method ast = create.method_kind(Kind.Constructor, create.primitive_type(PrimitiveSort.Void), null, res.getName(), args, null);
+        res.add(ast);
       }
       for(java.lang.reflect.Field field:cl.getFields()){
         Class<?> type=field.getType();

@@ -181,6 +181,8 @@ public class JavaTypeCheck extends AbstractTypeCheck {
               .filter(exceptionType -> !t.supertypeof(source(), exceptionType))
               .collect(Collectors.toSet());
     }
+
+    super.visit(cc);
   }
 
   public void visit(ASTSpecial special) {
