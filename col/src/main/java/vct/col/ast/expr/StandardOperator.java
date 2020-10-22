@@ -281,6 +281,10 @@ public enum StandardOperator {
    */
   OptionGet(1),
   /**
+   * The getOrElse operator for the options type
+   */
+  OptionGetOrElse(2),
+  /**
    * Declares the first argument to be a valid array of the given size.
    */
   ValidArray(2),

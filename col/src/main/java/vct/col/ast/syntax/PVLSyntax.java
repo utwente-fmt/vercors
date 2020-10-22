@@ -50,21 +50,21 @@ public class PVLSyntax {
       syntax.addFunction(Old,"\\old");
 
       syntax.addFunction(OptionSome, "Some");
-                                                                 
-      syntax.addFunction(MapBuild, "buildMap");           
-      syntax.addFunction(MapEquality, "equalsMap");       
-      syntax.addFunction(MapDisjoint, "disjointMap");     
-      syntax.addFunction(MapKeySet, "keysMap");           
-      syntax.addFunction(MapCardinality, "cardMap");      
-      syntax.addFunction(MapValueSet, "valuesMap");       
-      syntax.addFunction(MapGetByKey, "getFromMap");      
-      syntax.addFunction(MapRemoveKey, "removeFromMap"); 
-      syntax.addFunction(MapItemSet, "itemsMap");
+      syntax.addFunction(OptionGet, "getOption");
+      syntax.addFunction(OptionGetOrElse, "getOrElseOption");
 
+      syntax.addFunction(MapBuild, "buildMap");
+      syntax.addFunction(MapEquality, "equalsMap");
+      syntax.addFunction(MapDisjoint, "disjointMap");
+      syntax.addFunction(MapKeySet, "keysMap");
+      syntax.addFunction(MapCardinality, "cardMap");
+      syntax.addFunction(MapValueSet, "valuesMap");
+      syntax.addFunction(MapGetByKey, "getFromMap");
+      syntax.addFunction(MapRemoveKey, "removeFromMap");
+      syntax.addFunction(MapItemSet, "itemsMap");
 
       syntax.addFunction(TupleFst, "getFst");
       syntax.addFunction(TupleSnd, "getSnd");
-
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");

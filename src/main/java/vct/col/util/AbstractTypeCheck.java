@@ -1158,6 +1158,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType((Type) ((PrimitiveType) t).firstarg());
         break;
       }
+      case OptionGetOrElse: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Option)) {
+          Fail("first argument is %s rather then an option ", tt[0]);
+        } else if (!tt[1].comparableWith(source(), (Type) tt[0].firstarg())) {
+          Fail("type of the second argument %s does not match the value type of the option %s", tt[1], tt[0].firstarg());
+        }
+        e.setType((Type) tt[0].firstarg());
+        break;
+      }
       case PreIncr:
       case PreDecr:
       case PostIncr:
