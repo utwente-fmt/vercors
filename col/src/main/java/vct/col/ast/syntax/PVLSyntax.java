@@ -40,6 +40,7 @@ public class PVLSyntax {
       syntax.addFunction(Tail,"tail");
       syntax.addFunction(Empty,"isEmpty");
       syntax.addFunction(RemoveAt, "removeAt");
+      syntax.addFunction(SeqPermutation, "permutationOf");
       //syntax.addFunction(Head,"head");
       //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
