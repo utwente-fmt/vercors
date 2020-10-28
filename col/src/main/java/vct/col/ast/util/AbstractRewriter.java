@@ -144,7 +144,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
         result=tmp;
       }
       result.copyMissingFlags(n);
-      if (n.annotated() && !result.annotated()){
+      if (n.annotated() && n.annotations().size() > 0 && !result.annotated()){
         ASTNode tmp=result;
         for(ASTNode ann:n.annotations()){
           tmp.attach(rewrite(ann));

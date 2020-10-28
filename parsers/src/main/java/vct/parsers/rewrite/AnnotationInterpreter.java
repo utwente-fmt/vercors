@@ -20,24 +20,10 @@ public class AnnotationInterpreter extends AbstractRewriter {
 
   @Override
   public void visit(Method m){
-    Method.Kind kind=m.kind;
-    ArrayList<ASTNode> ann=new ArrayList<ASTNode>();
-    Type returns=rewrite(m.getReturnType());
-    Type[] signals=rewrite(m.signals);
-    Contract contract;
-    if(m.getContract() == null) {
-      contract = null;
-    } else {
-      ContractBuilder cb=new ContractBuilder();
-      rewrite(m.getContract(),cb);
-      contract = cb.getContract(false);
-      contract.setOrigin(m.getContract().getOrigin());
-    }
-    String name=m.getName();
-    DeclarationStatement args[]=rewrite(m.getArgs());
+    Method.Kind kind = m.kind;
+    ArrayList<ASTNode> ann = new ArrayList<>();
     ASTNode body=rewrite(m.getBody());
-    boolean varArgs=m.usesVarArgs();
-    if (m.annotated()) for(ASTNode a:m.annotations()){
+    if (m.annotated()) for(ASTNode a:m.annotations()) {
       if (a==null){
         Debug("ignoring null annotation");
         continue;
@@ -49,7 +35,16 @@ public class AnnotationInterpreter extends AbstractRewriter {
         ann.add(rewrite(a));
       }
     }
-    Method res=create.method_kind(kind, returns, signals, contract, name, args, varArgs, body);
+    Method res=create.method_kind(
+            kind,
+            rewrite(m.getReturnType()),
+            rewrite(m.signals),
+            rewrite(m.getContract()),
+            m.getName(),
+            rewrite(m.getArgs()),
+            m.usesVarArgs(),
+            body
+    );
     if (m.annotated()) {
       res.attach();
       for (ASTNode a : ann){

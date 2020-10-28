@@ -100,6 +100,7 @@ public class SatCheckRewriter extends AbstractRewriter {
                     blockStatement
             );
 
+            assert_method.copyMissingFlags(m);
             blockStatement.setParent(assert_method);
 
             if(currentTargetClass == null) {

@@ -151,22 +151,6 @@ public class SilverClassReduction extends AbstractRewriter {
     target().add(ref_class);
     ref_type=create.class_type("Ref");
   }
-
-  @Override
-  public void visit(AxiomaticDataType adt){
-    super.visit(adt);
-    if (adt.name().equals("TYPE")){
-      AxiomaticDataType res=(AxiomaticDataType)result;
-      res.add_cons(create.function_decl(
-          create.class_type("TYPE"),
-          null,
-          "type_of",
-          new DeclarationStatement[]{create.field_decl("val",create.class_type("Ref"))},
-          null
-      ));
-      ref_class.add(create.field_decl(ILLEGAL_CAST,create.class_type("Ref")));
-    }
-  }
   
   @Override
   public void visit(NameExpression e){
@@ -460,10 +444,6 @@ public class SilverClassReduction extends AbstractRewriter {
         args.add(create.dereference(create.class_type("Ref"), cl.name() + "_" + field.name()));
       }
       result=create.expression(StandardOperator.NewSilver,args.toArray(new ASTNode[0]));
-      break;
-    }
-    case TypeOf:{
-      result=create.domain_call("TYPE","type_of",rewrite(e.arg(0)));
       break;
     }
     case Cast:{

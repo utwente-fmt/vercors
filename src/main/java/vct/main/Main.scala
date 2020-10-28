@@ -277,8 +277,17 @@ class Main {
              that is later introduced again. This imposes that all passes that do not permit the feature occur before
              passes that introduce the feature. */
           val allowedOrderImposingPasses = passesToDo.filter(pass =>
-            (features -- pass.permits).isEmpty &&
-              passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty).forall(_.introduces.intersect(pass.removes).isEmpty)
+            (features -- pass.permits).isEmpty && {
+              val firstHalf = passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty && pass2 != pass) // no permit something in pass.removes
+              val secondHalf = passesToDo.filter(pass2 => (pass.removes -- pass2.permits).isEmpty && pass2 != pass) // permit everything in pass.removes
+              val firstRemove = firstHalf.map(_.removes).foldLeft(Set.empty[Feature])(_ ++ _)
+              val midFeatures = features -- pass.removes -- firstRemove // features at midpoint
+              val secondPermitUnion = secondHalf.map(_.permits).foldLeft(Set.empty[Feature])(_ ++ _)
+              val secondIntroUnion = secondHalf.map(_.introduces).foldLeft(Set.empty[Feature])(_ ++ _)
+              firstHalf.forall(_.introduces.intersect(pass.removes).isEmpty) &&
+                (midFeatures -- secondPermitUnion).isEmpty &&
+                (secondIntroUnion -- midFeatures).isEmpty
+            }
           )
 
           /* If there is exactly one such pass, there can only be a solution if we do the pass right now. */
@@ -291,7 +300,7 @@ class Main {
             /* Otherwise, there may or may not be a solution, but this is expensive to compute. */
             Debug("Leftover features: %s", features)
             if(allowedOrderImposingPasses.nonEmpty)
-              Debug("Perhaps we could have run one of: %s", allowedOrderImposingPasses)
+              Debug("Perhaps we could have run one of: %s", allowedOrderImposingPasses.map(_.key).mkString(", "))
             nextPassResults.foreach {
               case Left(error) => Debug(error)
               case _ =>
@@ -406,6 +415,7 @@ class Main {
   }
 
   private def doPasses(passes: Seq[AbstractPass]): Unit = {
+    Output("%s", passes.map(_.key).mkString(", "))
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
@@ -426,15 +436,6 @@ class Main {
 
       report = BY_KEY("java-check").apply_pass(report, Array())
 
-      val classes = report.getOutput.asScala.collect { case cls: ASTClass => cls }
-      for(cls <- classes) {
-        val methods = cls.methods().asScala
-        val names = methods.filter(_.kind != Method.Kind.Constructor).map(_.name).toSeq
-        if(names.size != names.distinct.size) {
-          Warning("Duplicate class methods")
-        }
-      }
-
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
         return
@@ -443,16 +444,16 @@ class Main {
       if(strictInternalConditions.get()) {
         val featuresOut = Feature.scan(report.getOutput)
 
-        val notRemoved = featuresOut.intersect(pass.removes)
+        val notRemoved = featuresOut.intersect(pass.removes) -- Set(vct.col.features.QuantifierWithoutTriggers)
         val extraIntro = (featuresOut -- featuresIn) -- pass.introduces
 
         Output("!intro %s %s", pass.key, (featuresOut--featuresIn).map(_.toString).mkString(","))
 
         if (notRemoved.nonEmpty) {
-          Warning("Pass %s did not remove %s", pass.key, notRemoved.map(_.toString).mkString(", "))
+          Abort("Pass %s did not remove %s", pass.key, notRemoved.map(_.toString).mkString(", "))
         }
         if (extraIntro.nonEmpty) {
-          Warning("Pass %s introduced %s", pass.key, extraIntro.map(_.toString).mkString(", "))
+          Abort("Pass %s introduced %s", pass.key, extraIntro.map(_.toString).mkString(", "))
         }
       }
 

@@ -118,42 +118,6 @@ public class Standardize extends AbstractRewriter {
 
   @Override
   public void visit(OperatorExpression e){
-    if (e.getParent() instanceof BlockStatement){
-      switch(e.operator()){
-        case Assign:
-        {
-          ASTNode var=e.arg(0).apply(this);
-          ASTNode val=e.arg(1).apply(this);
-          result=create.assignment(var,val);
-          break;
-        }
-        case PostIncr:
-        case PreIncr:
-        {
-          ASTNode arg=e.arg(0);
-          if (arg instanceof NameExpression){
-            ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Plus,rewrite(arg),create.constant(e.getOrigin(),1));
-            result=create.assignment(rewrite(arg),incr);
-          } else {
-            super.visit(e);
-          }
-          break;
-        }
-        case PostDecr:
-        case PreDecr:
-        {
-          ASTNode arg=e.arg(0);
-          if (arg instanceof NameExpression){
-            ASTNode incr=create.expression(e.getOrigin(),StandardOperator.Minus,rewrite(arg),create.constant(e.getOrigin(),1));
-            result=create.assignment(rewrite(arg),incr);
-          } else {
-            super.visit(e);
-          }
-          break;
-        }
-      }
-    }
-
     switch (e.operator()) {
       case PrependSingle: {
         Type seqElementType = e.arg(0).getType();

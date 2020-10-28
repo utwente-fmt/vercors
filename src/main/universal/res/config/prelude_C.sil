@@ -3,8 +3,12 @@
 domain frac {
     function frac_val(a: frac): Perm
 
+    axiom frac_eq {
+        (forall a: frac, b: frac :: {frac_val(a), frac_val(b)} frac_val(a) == frac_val(b) <==> a == b)
+    }
+
     axiom frac_bound {
-        forall a: frac :: 0/1 < frac_val(a) && frac_val(a) <= 1/1
+        forall a: frac :: {frac_val(a)} 0/1 < frac_val(a) && frac_val(a) <= 1/1
     }
 }
 
@@ -16,8 +20,12 @@ ensures frac_val(result) == x
 domain zfrac {
     function zfrac_val(a: zfrac): Perm
 
+    axiom zfrac_eq {
+        (forall a: zfrac, b: zfrac :: {zfrac_val(a), zfrac_val(b)} zfrac_val(a) == zfrac_val(b) <==> a == b)
+    }
+
     axiom zfrac_bound {
-        forall a: zfrac :: 0/1 <= zfrac_val(a) && zfrac_val(a) <= 1/1
+        forall a: zfrac :: {zfrac_val(a)} 0/1 <= zfrac_val(a) && zfrac_val(a) <= 1/1
     }
 }
 

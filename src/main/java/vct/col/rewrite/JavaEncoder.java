@@ -5,7 +5,6 @@ import java.util.Hashtable;
 import java.util.List;
 
 import hre.ast.MessageOrigin;
-import hre.lang.HREError;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.ASTFlags;
@@ -28,56 +27,24 @@ import vct.col.ast.util.AbstractRewriter;
 public class JavaEncoder extends AbstractRewriter {
 
   public static final String GLOBALS = "globals";
-  public static final String ARRAY_SUFFIX="ARRAY";
   public static final String INTERNAL = "internal_";
   
   
   public JavaEncoder(ProgramUnit source) {
     super(source);
   }
-  
-  private String create_type_name(Type t){
-    if (t.isPrimitive(PrimitiveSort.Array)) {
-      return create_type_name((Type)t.firstarg())+ARRAY_SUFFIX;
-    } else if (t instanceof PrimitiveType){
-      PrimitiveType pt=(PrimitiveType)t;
-      switch(pt.sort){
-      case Sequence:
-        return "Sequence$"+create_type_name((Type)t.firstarg())+"$";
-      case Set:
-        return "Set$"+create_type_name((Type)t.firstarg())+"$";
-      case Bag:
-        return "Bag$"+create_type_name((Type)t.firstarg())+"$";
-        case Array:
-          return create_type_name((Type)t.firstarg())+ARRAY_SUFFIX;
-        default:
-          return t.toString();
-      }
-    } else if(t instanceof ClassType){
-      ClassType ct=(ClassType)t;
-      return ct.getFullName("_");
-    }
-    throw new HREError("cannot create encoding of%s",t);
-  }
 
-  private String create_method_name(String prefix,ClassType ct,Method m){
-    return m.name();
-//    String res=prefix;
-//    for(String part:ct.getNameFull()){
-//      res+="_"+part;
-//    }
-//    res+="_"+m.name();
-//    for(DeclarationStatement decl:m.getArgs()){
-//      res=res+"__"+create_type_name(decl.getType());
-//    }
-//    if (m.usesVarArgs()){
-//      res+=ARRAY_SUFFIX;
-//    }
-//    return res;
-  }
-
-  private String create_method_name(Method m){
-    return m.name();
+  @Override
+  public void visit(ASTSpecial s){
+    switch(s.kind){
+    case Open:{
+      MethodInvokation m=(MethodInvokation)s.args[0];
+      ASTNode object=rewrite(m.object());
+      currentBlock.add(create.special(ASTSpecial.Kind.Assert,
+        create.expression(StandardOperator.EQ,
+          create.expression(StandardOperator.TypeOf, object),
+          rewrite(m.dispatch())
+      )));
 
 //    ASTNode parent=m.getParent();
 //    // ADT names are supposed to be globally unique.
@@ -107,20 +74,7 @@ public class JavaEncoder extends AbstractRewriter {
 //      res+=ARRAY_SUFFIX;
 //    }
 //    return prefix+res;
-  }
-
-  @Override
-  public void visit(ASTSpecial s){
-    switch(s.kind){
-    case Open:{
-      MethodInvokation m=(MethodInvokation)s.args[0];
-      ASTNode object=rewrite(m.object());
-      currentBlock.add(create.special(ASTSpecial.Kind.Assert,
-        create.expression(StandardOperator.EQ,
-          create.expression(StandardOperator.TypeOf, object),
-          rewrite(m.dispatch())
-      )));
-      String method=create_method_name(get_initial_definition(m.getDefinition()));
+      String method= get_initial_definition(m.getDefinition()).name();
       ArrayList<ASTNode> args=new ArrayList<ASTNode>();
       args.add(create.local_name("globals"));
       for(ASTNode n:m.getArgs()){
@@ -139,7 +93,36 @@ public class JavaEncoder extends AbstractRewriter {
           create.expression(StandardOperator.TypeOf, object),
           rewrite(m.dispatch())
       )));
-      String method=create_method_name(get_initial_definition(m.getDefinition()));
+
+//    ASTNode parent=m.getParent();
+//    // ADT names are supposed to be globally unique.
+//    if (parent instanceof AxiomaticDataType){
+//      return "adt_"+m.name();
+//    }
+//    ASTClass cls=(ASTClass)parent;
+//    String prefix;
+//    if (cls==null){
+//      prefix="procedure_";
+//    } else {
+//      String name[]=cls.getFullName();
+//      if (m.name().equals(cls.name()) || m.getKind() == Kind.Constructor){
+//        prefix="constructor_";
+//      } else {
+//        prefix="method_";
+//      }
+//      for(String part:name){
+//        prefix+=part+"_";
+//      }
+//    }
+//    String res=m.name();
+//    for(DeclarationStatement decl:m.getArgs()){
+//      res=res+"__"+create_type_name(decl.getType());
+//    }
+//    if (m.usesVarArgs()){
+//      res+=ARRAY_SUFFIX;
+//    }
+//    return prefix+res;
+      String method= get_initial_definition(m.getDefinition()).name();
       ArrayList<ASTNode> args=new ArrayList<ASTNode>();
       args.add(create.local_name("globals"));
       for(ASTNode n:m.getArgs()){
@@ -159,16 +142,6 @@ public class JavaEncoder extends AbstractRewriter {
   @Override
   public void visit(DeclarationStatement decl){
     if(decl.getParent() instanceof ASTClass){
-      ASTClass cls=(ASTClass)decl.getParent();
-      /*if (cls.name().equals("History") || cls.name().equals("Future")){
-        return name;
-      }
-      String res="field_";
-      for(String part:cls.getFullName()){
-        res+=part+"_";
-      }
-      res+=name;
-      return res;*/
       String field= decl.name();
       DeclarationStatement res=create.field_decl(field,
           rewrite(decl.getType()),
@@ -385,7 +358,36 @@ public class JavaEncoder extends AbstractRewriter {
     Contract internal_contract=rewrite(m.getContract());
     internal_mode=false;
     Contract external_contract=rewrite(m.getContract());
-    String name=create_method_name(m);
+
+//    ASTNode parent=m.getParent();
+//    // ADT names are supposed to be globally unique.
+//    if (parent instanceof AxiomaticDataType){
+//      return "adt_"+m.name();
+//    }
+//    ASTClass cls=(ASTClass)parent;
+//    String prefix;
+//    if (cls==null){
+//      prefix="procedure_";
+//    } else {
+//      String name[]=cls.getFullName();
+//      if (m.name().equals(cls.name()) || m.getKind() == Kind.Constructor){
+//        prefix="constructor_";
+//      } else {
+//        prefix="method_";
+//      }
+//      for(String part:name){
+//        prefix+=part+"_";
+//      }
+//    }
+//    String res=m.name();
+//    for(DeclarationStatement decl:m.getArgs()){
+//      res=res+"__"+create_type_name(decl.getType());
+//    }
+//    if (m.usesVarArgs()){
+//      res+=ARRAY_SUFFIX;
+//    }
+//    return prefix+res;
+    String name= m.name();
     ArrayList<DeclarationStatement> args=gen_pars(m);
     int N=m.getArity();
     Type arg_type[]=new Type[N];
@@ -533,7 +535,8 @@ public class JavaEncoder extends AbstractRewriter {
       if (m.getParent() instanceof ASTClass){
         m=get_initial_definition(m);
       }
-      method=create_method_name(m);
+
+      method= m.name();
     }
     ArrayList<ASTNode> args=new ArrayList<ASTNode>();
     if (needs_globals(m)){

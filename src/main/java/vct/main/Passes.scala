@@ -35,9 +35,9 @@ object Passes {
     SimplePass("add-type-adt",
       "Add an ADT that describes the types and use it to implement instanceof",
       new AddTypeADT(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations - features.ClassWithoutConstructor,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations - features.ImplicitConstructorInvokation,
       removes=Set(features.Inheritance),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(features.Inheritance)
+      introduces=Feature.DEFAULT_INTRODUCE - features.Inheritance + features.TopLevelDeclarations
     ),
     SimplePass("access",
       "convert access expressions for histories/futures",
@@ -104,7 +104,7 @@ object Passes {
     SimplePass("desugar_valid_pointer",
       "rewrite \\array, \\matrix, \\pointer and \\pointer_index",
       new DesugarValidPointer(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.Pointers,
+      permits=Feature.DEFAULT_PERMIT - features.Pointers + features.TopLevelDeclarations,
       removes=Set(features.ValidPointer),
       introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere,
     ),
@@ -213,7 +213,7 @@ object Passes {
     SimplePass(
       "java-encode", "Encode Java overloading and inheritance",
       new JavaEncoder(_).rewriteAll,
-      permits=Feature.ALL - features.ClassWithoutConstructor - features.NotStandardized - features.NotJavaResolved,
+      permits=Feature.ALL - features.ImplicitConstructorInvokation - features.NotStandardized - features.NotJavaResolved,
       removes=Set(features.NotJavaEncoded, features.StaticFields),
     ),
     SimplePass("explicit_encoding", "encode required and ensured permission as ghost arguments", new ExplicitPermissionEncoding(_).rewriteAll),
@@ -225,12 +225,12 @@ object Passes {
     SimplePass("flatten",
       "remove nesting of expression",
       new Flatten(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations - features.Arrays,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations - features.ArrayOps,
       removes=Set(features.NotFlattened),
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,
         features.ContextEverywhere,
-        features.Arrays,
+        features.ArrayOps,
         // struct value flattening to arrays: features.BeforeSilverDomains,
         features.NestedQuantifiers,
         features.NonVoidMethods,
@@ -239,7 +239,7 @@ object Passes {
     SimplePass("ghost-lift",
       "Lift ghost code to real code",
       new GhostLifter(_).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.ImproperlySortedBeforeAfter,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations - features.ImproperlySortedBeforeAfter,
       removes=Set(features.GivenYields),
     ),
     SimplePass("globalize",
@@ -254,7 +254,7 @@ object Passes {
         features.NestedQuantifiers,
         features.ContextEverywhere,
         features.InlineQuantifierPattern,
-        features.Arrays,
+        features.ArrayOps,
         features.This,
         features.NotFlattened,
         features.NonVoidMethods,
@@ -315,12 +315,16 @@ object Passes {
     SimplePass("openmp2pvl",
       "Compile OpenMP pragmas to PVL",
       new OpenMPToPVL(_).rewriteAll,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.OpenMP),
       introduces=Feature.DEFAULT_INTRODUCE + features.ParallelBlocks),
     ErrorMapPass("parallel_blocks",
       "Encoded the proof obligations for parallel blocks",
       new ParallelBlockEncoder(_, _).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.ContextEverywhere - features.ParallelAtomic - features.ParallelLocalAssignmentNotChecked,
+      permits=Feature.DEFAULT_PERMIT
+        - features.ContextEverywhere
+        - features.ParallelAtomic
+        - features.ParallelLocalAssignmentNotChecked,
       removes=Set(features.ParallelBlocks),
       introduces=Feature.DEFAULT_INTRODUCE - features.ContextEverywhere + features.Summation + features.NotOptimized),
     ErrorMapPass("inline-atomic",
@@ -335,7 +339,7 @@ object Passes {
       permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.ScatteredDeclarations),
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
-        features.Arrays,
+        features.ArrayOps,
         features.NonVoidMethods,
         features.ContextEverywhere,
         features.UnscaledPredicateApplication,
@@ -355,7 +359,7 @@ object Passes {
       "java_resolve", "Resolve the library dependencies of a java program",
       new JavaResolver(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.StringClass ++ Feature.OPTION_GATES ++ Set(
-        features.Arrays,
+        features.ArrayOps,
         features.NonVoidMethods,
         features.ContextEverywhere,
         features.UnscaledPredicateApplication,
@@ -377,7 +381,7 @@ object Passes {
         features.Synchronized,
       ),
       removes=Set(features.NotJavaResolved),
-      introduces=Feature.DEFAULT_INTRODUCE + features.Constructors,
+      introduces=Feature.DEFAULT_INTRODUCE + features.Constructors + features.NotJavaEncoded,
     ),
     SimplePass("propagate-invariants",
       "propagate invariants",
@@ -391,7 +395,7 @@ object Passes {
         features.This,
         features.NotFlattened,
         features.NonVoidMethods,
-        features.Arrays,
+        features.ArrayOps,
       )),
     SimplePass("quant-optimize",
       "Removes nesting of quantifiers in chains of forall/starall and implies",
@@ -417,9 +421,9 @@ object Passes {
       "rewrite arrays to sequences of cells",
       new RewriteArrayRef(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.ADTFunctions + features.TopLevelDeclarations,
-      removes=Set(features.Arrays),
-      introduces=Feature.NO_POLY_INTRODUCE -- Set(
-        features.Arrays,
+      removes=Set(features.ArrayOps),
+      introduces=Feature.NO_POLY_INTRODUCE /*+ features.TopLevelDeclarations*/ -- Set(
+        features.ArrayOps,
         features.ContextEverywhere,
         features.UnscaledPredicateApplication,
         features.ScatteredDeclarations,
@@ -430,11 +434,16 @@ object Passes {
     SimplePass("generate_adt_functions",
       "rewrite standard operators on sequences to function definitions/calls",
       new GenerateADTFunctions(_).rewriteAll,
-      removes=Set(features.ADTFunctions)),
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
+      removes=Set(features.ADTFunctions),
+      introduces=Feature.DEFAULT_INTRODUCE + features.TopLevelDeclarations,
+    ),
     SimplePass("infer_adt_types",
       "Transform typeless collection constructors by inferring their types.",
       new InferADTTypes(_).rewriteAll,
-      removes=Set(features.UnresolvedTypeInference)),
+      removes=Set(features.UnresolvedTypeInference),
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
+    ),
     SimplePass(
       "adt_operator_rewrite", "rewrite PVL-specific ADT operators",
       new ADTOperatorRewriter(_).rewriteAll,
@@ -452,15 +461,14 @@ object Passes {
       new SilverClassReduction(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.BeforeSilverDomains, features.This, features.Constructors),
-      introduces=Feature.DEFAULT_INTRODUCE -- Set(
+      introduces=Feature.DEFAULT_INTRODUCE + features.TopLevelDeclarations -- Set(
         features.This,
-        features.Arrays,
+        features.ArrayOps,
         features.Inheritance,
         features.ContextEverywhere,
         features.Constructors,
         features.BeforeSilverDomains,
         features.StaticFields,
-        features.NonVoidMethods,
         features.NotFlattened,
         features.InlineQuantifierPattern,
       )),
@@ -470,7 +478,7 @@ object Passes {
       permits=Feature.DEFAULT_PERMIT + features.TopLevelDeclarations,
       removes=Set(features.DeclarationsInIf),
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
-        features.Arrays,
+        features.ArrayOps,
         features.NonVoidMethods,
         features.ContextEverywhere,
         features.UnscaledPredicateApplication,
@@ -491,7 +499,7 @@ object Passes {
       "silver-optimize", "Optimize expressions for Silver",
       RewriteSystems.getRewriteSystem("silver_optimize").normalize(_),
       permits=Feature.EXPR_ONLY_PERMIT,
-      removes=Set(features.MemberOf),
+      removes=Set(features.MemberOfRange),
       introduces=Feature.EXPR_ONLY_INTRODUCE,
     ),
     SimplePass("chalice-optimize", "Optimize expressions for Chalice", arg => {
@@ -512,14 +520,14 @@ object Passes {
       },
       permits=Feature.EXPR_ONLY_PERMIT,
       removes=Set(features.NotOptimized, features.AnySubscript),
-      introduces=Feature.EXPR_ONLY_INTRODUCE + features.MemberOf + features.Arrays,
+      introduces=Feature.EXPR_ONLY_INTRODUCE + features.MemberOfRange + features.ArrayOps,
     ),
     SimplePass(
       "simplify_sums", "replace summations with provable functions",
       RewriteSystems.getRewriteSystem("summation").normalize(_),
       permits=Feature.EXPR_ONLY_PERMIT,
       removes=Set(features.Summation),
-      introduces=Feature.EXPR_ONLY_INTRODUCE + features.MemberOf,
+      introduces=Feature.EXPR_ONLY_INTRODUCE + features.MemberOfRange,
     ),
     SimplePass("simplify_quant_relations", "simplify quantified relational expressions", new SimplifyQuantifiedRelations(_).rewriteAll),
     SimplePass("standardize",
@@ -553,7 +561,7 @@ object Passes {
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,
         features.NonVoidMethods,
-        features.Arrays,
+        features.ArrayOps,
         features.ContextEverywhere,
         features.UnscaledPredicateApplication,
         features.BeforeSilverDomains,
@@ -608,9 +616,9 @@ object Passes {
     SimplePass("break-return-to-goto",
       "Rewrite break, return into jumps",
       new BreakReturnToGoto(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT -- Set(features.Exceptions, features.Finally, features.ImplicitLabels),
-      introduces = Feature.DEFAULT_INTRODUCE + features.Goto - features.Arrays,
-      removes = Set(features.Break, features.Return)
+      permits = Feature.DEFAULT_PERMIT -- Set(features.Exceptions, features.Finally, features.ImplicitLabels) + features.TopLevelDeclarations,
+      introduces = Feature.DEFAULT_INTRODUCE + features.Goto - features.ArrayOps,
+      removes = Set(features.Break, features.ExceptionalReturn)
     ),
     SimplePass("break-return-to-exceptions",
       "Rewrite break, return into exceptions",
@@ -618,10 +626,11 @@ object Passes {
       permits = Feature.DEFAULT_PERMIT ++ Feature.OPTION_GATES
         - features.Switch
         - features.ImplicitLabels
+        + features.TopLevelDeclarations
         + features.NotJavaEncoded
         + features.NullAsOptionValue // TODO (Bob): Had to add this one but not sure what the feature does?
         + features.ArgumentAssignment, // TODO (Pieter): also this one, I don't think this pass particularly needs to be before java-encode
-      removes = Set(features.Break, features.Return),
+      removes = Set(features.Break, features.ExceptionalReturn),
       introduces = Feature.DEFAULT_INTRODUCE
         + features.Exceptions
         + features.Inheritance
@@ -631,7 +640,7 @@ object Passes {
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue ++ Feature.OPTION_GATES, // TODO (Bob): Also suspicious
+      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue + features.TopLevelDeclarations ++ Feature.OPTION_GATES, // TODO (Bob): Also suspicious
       removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
@@ -652,7 +661,7 @@ object Passes {
       "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
       new IntroExcVar(_).rewriteAll(),
       introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.ExcVar, features.ContextEverywhere) -- Set(
-        features.Arrays,
+        features.ArrayOps,
         features.NotFlattened,
         features.StaticFields,
         features.ContextEverywhere,
@@ -661,21 +670,21 @@ object Passes {
         features.This,
         features.NonVoidMethods,
       ),
-      permits = Feature.DEFAULT_PERMIT - features.Inheritance,
+      permits = Feature.DEFAULT_PERMIT - features.Inheritance + features.TopLevelDeclarations,
       removes = Set(features.Exceptions, features.Finally) // TODO (Bob): This is kind of lying...
     ),
     SimplePass("encode-try-throw-signals",
       "Encodes exceptional control flow into gotos and exceptional contracts into regular contracts",
       new EncodeTryThrowSignals(_).rewriteAll(),
       removes = Set(features.ExcVar),
-      permits = Feature.DEFAULT_PERMIT + features.ExcVar - features.NotFlattened,
+      permits = Feature.DEFAULT_PERMIT + features.ExcVar - features.NotFlattened + features.TopLevelDeclarations,
       introduces = (Feature.DEFAULT_INTRODUCE + features.Goto)
         -- Set(
           features.Constructors,
           features.This,
           features.NotFlattened,
           features.NonVoidMethods,
-          features.Arrays,
+          features.ArrayOps,
           features.ContextEverywhere,
           features.BeforeSilverDomains,
           features.StaticFields,
@@ -706,7 +715,7 @@ object Passes {
       removes=Set(features.InlineQuantifierPattern),
       permits=Feature.EXPR_ONLY_PERMIT,
       introduces=Feature.EXPR_ONLY_INTRODUCE -- Set(
-        features.Arrays,
+        features.ArrayOps,
         features.ContextEverywhere,
         features.InlineQuantifierPattern,
         features.This,
@@ -806,10 +815,10 @@ object Passes {
         features.ArgumentAssignment,
         features.PureImperativeMethods,
         features.PVLSugar,
-        features.ClassWithoutConstructor,
+        features.ImplicitConstructorInvokation,
         features.NotJavaEncoded,
       ),
-      removes=Set(features.ClassWithoutConstructor),
+      removes=Set(features.ImplicitConstructorInvokation),
       introduces=Feature.DEFAULT_INTRODUCE + features.Constructors,
     ),
     SimplePass(
