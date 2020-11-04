@@ -278,15 +278,23 @@ class Main {
              passes that introduce the feature. */
           val allowedOrderImposingPasses = passesToDo.filter(pass =>
             (features -- pass.permits).isEmpty && {
+              val startFeatures = features -- pass.removes ++ pass.introduces
               val firstHalf = passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty && pass2 != pass) // no permit something in pass.removes
               val secondHalf = passesToDo.filter(pass2 => (pass.removes -- pass2.permits).isEmpty && pass2 != pass) // permit everything in pass.removes
               val firstRemove = firstHalf.map(_.removes).foldLeft(Set.empty[Feature])(_ ++ _)
-              val midFeatures = features -- pass.removes -- firstRemove // features at midpoint
+              val midFeatures = startFeatures -- firstRemove // features at midpoint
               val secondPermitUnion = secondHalf.map(_.permits).foldLeft(Set.empty[Feature])(_ ++ _)
               val secondIntroUnion = secondHalf.map(_.introduces).foldLeft(Set.empty[Feature])(_ ++ _)
-              firstHalf.forall(_.introduces.intersect(pass.removes).isEmpty) &&
+              val condition = firstHalf.forall(_.introduces.intersect(pass.removes).isEmpty) &&
                 (midFeatures -- secondPermitUnion).isEmpty &&
-                (secondIntroUnion -- midFeatures).isEmpty
+                firstRemove.intersect(secondIntroUnion).isEmpty &&
+                (firstHalf.isEmpty || firstHalf.exists(pass2 => (startFeatures -- pass2.permits).isEmpty))
+              if(condition) {
+                Debug("Try: %s", pass.key)
+                Debug("First half: %s", firstHalf.map(_.key))
+                Debug("Second half: %s", secondHalf.map(_.key))
+              }
+              condition
             }
           )
 

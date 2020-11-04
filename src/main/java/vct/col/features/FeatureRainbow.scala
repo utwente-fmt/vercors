@@ -64,6 +64,9 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     isInline(node) ||
       (node.isValidFlag(ASTFlags.FINAL) && node.getFlag(ASTFlags.FINAL))
 
+  private def isStatic(node: ASTNode): Boolean =
+    node.isValidFlag(ASTFlags.STATIC) && node.getFlag(ASTFlags.STATIC)
+
   var lastMethodStatement = false
 
   override def visit(m: Method): Unit = {
@@ -79,7 +82,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += JavaAtomic
     if(m.name == PVLEncoder.INV && getParentNode != null && !getParentNode.asInstanceOf[ASTClass].methods().asScala.exists(_.name == PVLEncoder.HELD))
       features += PVLSugar
-    if(m.name == "run")
+    if(m.name == "run" && getParentNode != null && !getParentNode.asInstanceOf[ASTClass].methods().asScala.exists(_.name == "forkOperator"))
       features += PVLSugar
     if(m.getContract != null) {
       if(m.getContract.yields.nonEmpty || m.getContract.`given`.nonEmpty)
@@ -101,7 +104,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       features += Constructors
     if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && !isPure(m))
       features += NonVoidMethods
-    if(m.getParent.isInstanceOf[ASTClass] && !isFinal(m) && !isFinal(m.getParent))
+    if(m.getParent.isInstanceOf[ASTClass] && !isFinal(m) && !isFinal(m.getParent) && !isStatic(m))
       features += NotJavaEncoded
 
     if(!forbidRecursion) {
@@ -113,18 +116,22 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         val (init, last) = splitLastStatement(m.getBody)
         init.foreach(_.accept(this))
         lastMethodStatement = true
-        last.accept(this)
+        last.foreach(_.accept(this))
         lastMethodStatement = false
       }
     }
   }
 
-  def splitLastStatement(statement: ASTNode): (Seq[ASTNode], ASTNode) = statement match {
+  def splitLastStatement(statement: ASTNode): (Seq[ASTNode], Option[ASTNode]) = statement match {
     case block: BlockStatement =>
-      val (init, last) = splitLastStatement(block.asScala.last)
-      (block.asScala.toSeq.init ++ init, last)
+      block.asScala.lastOption.map(splitLastStatement) match {
+        case None =>
+          (Seq(), None)
+        case Some((init, last)) =>
+          (block.asScala.toSeq.init ++ init, last)
+      }
     case other =>
-      (Seq(), other)
+      (Seq(), Some(other))
   }
 
   override def visit(ct: ClassType): Unit = {
@@ -393,7 +400,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   override def visit(decl: DeclarationStatement): Unit = {
     super.visit(decl)
-    if(decl.isValidFlag(ASTFlags.STATIC) && decl.isStatic)
+    if(decl.isValidFlag(ASTFlags.STATIC) && decl.isStatic && getParentNode != null && getParentNode.isInstanceOf[ASTClass])
       features += NotJavaEncoded
     if(ifDepth > 0)
       features += DeclarationsInIf

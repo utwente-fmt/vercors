@@ -33,6 +33,12 @@ public class EncodeAsClass extends AbstractRewriter {
     return target();
   }
 
+  public void visit(ASTClass cls) {
+    super.visit(cls);
+    target().add(result);
+    result = null;
+  }
+
   public void visit(NameExpression name) {
     if(name.kind() == NameExpressionKind.Local && name.site().isValidFlag(ASTFlags.STATIC) && name.site().isStatic()) {
       result = create.dereference(create.diz(), name.name());
