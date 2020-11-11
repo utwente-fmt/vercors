@@ -40,6 +40,7 @@ public class PVLSyntax {
       syntax.addFunction(Tail,"tail");
       syntax.addFunction(Empty,"isEmpty");
       syntax.addFunction(RemoveAt, "removeAt");
+      syntax.addFunction(SeqPermutation, "permutationOf");
       //syntax.addFunction(Head,"head");
       //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
@@ -50,21 +51,21 @@ public class PVLSyntax {
       syntax.addFunction(Old,"\\old");
 
       syntax.addFunction(OptionSome, "Some");
-                                                                 
-      syntax.addFunction(MapBuild, "buildMap");           
-      syntax.addFunction(MapEquality, "equalsMap");       
-      syntax.addFunction(MapDisjoint, "disjointMap");     
-      syntax.addFunction(MapKeySet, "keysMap");           
-      syntax.addFunction(MapCardinality, "cardMap");      
-      syntax.addFunction(MapValueSet, "valuesMap");       
-      syntax.addFunction(MapGetByKey, "getFromMap");      
-      syntax.addFunction(MapRemoveKey, "removeFromMap"); 
-      syntax.addFunction(MapItemSet, "itemsMap");
+      syntax.addFunction(OptionGet, "getOption");
+      syntax.addFunction(OptionGetOrElse, "getOrElseOption");
 
+      syntax.addFunction(MapBuild, "buildMap");
+      syntax.addFunction(MapEquality, "equalsMap");
+      syntax.addFunction(MapDisjoint, "disjointMap");
+      syntax.addFunction(MapKeySet, "keysMap");
+      syntax.addFunction(MapCardinality, "cardMap");
+      syntax.addFunction(MapValueSet, "valuesMap");
+      syntax.addFunction(MapGetByKey, "getFromMap");
+      syntax.addFunction(MapRemoveKey, "removeFromMap");
+      syntax.addFunction(MapItemSet, "itemsMap");
 
       syntax.addFunction(TupleFst, "getFst");
       syntax.addFunction(TupleSnd, "getSnd");
-
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
