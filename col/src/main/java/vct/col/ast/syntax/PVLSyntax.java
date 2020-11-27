@@ -1,8 +1,15 @@
 package vct.col.ast.syntax;
 
 
+import hre.ast.TrackingOutput;
+import vct.col.ast.generic.ASTNode;
+import vct.col.ast.print.JavaPrinter;
+import vct.col.ast.print.PVLPrinter;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.Parenthesize;
+
+import java.io.PrintWriter;
 
 import static vct.col.ast.expr.StandardOperator.*;
 import static vct.col.ast.type.ASTReserved.FullPerm;
@@ -18,13 +25,17 @@ import static vct.col.ast.type.ASTReserved.CurrentThread;
  * @see Syntax
  * 
  */
-public class PVLSyntax {
+public class PVLSyntax extends Syntax {
 
-  private static Syntax syntax;
-  
-  public static Syntax get(){
+  private static PVLSyntax syntax;
+
+  public PVLSyntax(String language) {
+    super(language);
+  }
+
+  public static PVLSyntax get(){
     if(syntax==null){
-      syntax=new Syntax("PVL");
+      syntax=new PVLSyntax("PVL");
 
       VerCorsSyntax.add(syntax);
       
@@ -180,4 +191,13 @@ public class PVLSyntax {
     return syntax;
   }
 
+  @Override
+  public PVLPrinter print(TrackingOutput out, ASTNode n) {
+    PVLPrinter p=new PVLPrinter(out);
+    if (n!=null) {
+      ASTNode nn=new Parenthesize(this).rewrite(n);
+      nn.accept(p);
+    }
+    return p;
+  }
 }

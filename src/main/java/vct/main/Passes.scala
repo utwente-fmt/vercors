@@ -1,18 +1,21 @@
 package vct.main
 
-import java.io.{File, FileNotFoundException, FileOutputStream, PrintWriter}
+import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
 import java.util
 
+import hre.config.Configuration
 import hre.lang.System.Abort
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
-import vct.col.ast.syntax.{JavaDialect, JavaSyntax}
+import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
+import vct.col.rewrite.gpgpuoptimizations.LoopUnroll
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
+import viper.silver.verifier.NullPartialVerificationError.f
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -41,6 +44,20 @@ object Passes {
         new JavaTypeCheck(report, arg).check(); arg // Sneakily changing this to make abrupt tests pass for now
       }
     },
+    SimplePass("pvl", "print AST in PVL syntax", arg => {
+      try {
+        if (Configuration.session_file.get() != null) {
+          val f: File = new File(Configuration.session_file.get());
+          f.createNewFile();
+          val out: PrintWriter = new PrintWriter(new FileOutputStream(f));
+          PVLSyntax.get().print(out, arg);
+          out.close();
+        }
+      } catch {
+        case e: IOException => System.err.println(e.getMessage());
+      }
+      arg
+    }, introduces=Set(), permits=Feature.ALL),
     SimplePass("local-variable-check",
       "Ascertain that parallel regions do not have multiple threads assigning to the same local",
       arg => { LocalVariableChecker.check(arg); arg },
@@ -179,6 +196,15 @@ object Passes {
       ),
       removes=Set(features.ImplicitConstructorInvokation),
       introduces=Feature.DEFAULT_INTRODUCE + features.Constructors,
+    ),
+  )
+
+  val GPUOPTIMIZATIONS: Seq[AbstractPass] = Seq(
+    SimplePass("unroll_loops",
+      "Unroll specified loops",
+      new LoopUnroll(_).rewriteAll,
+      permits=Feature.ALL,
+      removes=Set(),
     ),
   )
 
@@ -895,6 +921,7 @@ object Passes {
     ONE_SHOT_FEATURE ++
     BACKEND_COMPAT ++
     SIMPLIFYING ++
+    GPUOPTIMIZATIONS ++
     BACKENDS ++
     OLD_OR_UNUSED).map(_.tup).toMap
 }

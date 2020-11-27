@@ -1,0 +1,23 @@
+class LoopUnrollExample {
+
+	// Original program
+	context_everywhere ar != null;
+	context_everywhere N == 5;
+	context ar.length == N;
+	context (\forall* int i; 0 <= i && i < N; Perm(ar[i], write));
+	ensures (\forall int i;  0 <= i && i < N; ar[i] == 0);
+	void zero(int N, int[] ar) {
+		int i = 0;
+
+        gpuopt loop_unroll i 2;
+    	loop_invariant N == 5;
+		loop_invariant 0 <= i && i <= N;
+		loop_invariant (\forall* int j; 0 <= j && j < N; Perm(ar[j], write));
+		loop_invariant (\forall int j; 0 <= j && j < i; ar[j] == 0);
+		while(i < N) {
+			ar[i] = 0;
+			i = i + 1;
+		}
+	}
+
+}

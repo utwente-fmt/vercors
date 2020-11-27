@@ -69,6 +69,11 @@ public class Configuration {
     public static final BooleanSetting enable_post_check=new BooleanSetting(true);
 
     /**
+     * Enable post check during kernel verification.
+     */
+    public static final BooleanSetting enable_gpu_optimizations=new BooleanSetting(false);
+
+    /**
      * The include path passed to the C pre processor.
      */
     public static final StringListSetting cpp_include_path=new StringListSetting();
@@ -82,6 +87,11 @@ public class Configuration {
      * The command that invokes the C pre processor.
      */
     public static final StringSetting cpp_command=new StringSetting("clang -C -E");
+
+    /**
+     * The option for session type generation
+     */
+    public static final StringSetting session_file=new StringSetting(null);
 
     public static final BooleanSetting debugBackend = new BooleanSetting(false);
     public static final BooleanSetting ansi = new BooleanSetting(false);
@@ -105,6 +115,8 @@ public class Configuration {
         clops.add(cpp_defines.getAppendOption("add to the CPP defined variables"),'D');
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
+        clops.add(session_file.getAssign("generate threads from session type"),"session");
+        clops.add(enable_gpu_optimizations.getEnable("perform gpu optimizations"),"gpuopt");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
         clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
     }

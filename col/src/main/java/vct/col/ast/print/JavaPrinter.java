@@ -624,7 +624,8 @@ public class JavaPrinter extends AbstractPrinter {
       out.println("");
     }
     out.decrIndent();
-    out.lnprintf("}");    
+    out.lnprintf("}");
+    out.println("");
   }
 
   @Override
@@ -638,7 +639,7 @@ public class JavaPrinter extends AbstractPrinter {
         out.lnprintf("");
       }
       for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
-        out.printf("invariant ");
+        out.printf("loop_invariant ");
         nextExpr();
         e.accept(this);
         out.lnprintf(";");
@@ -713,7 +714,7 @@ public class JavaPrinter extends AbstractPrinter {
     s.getType().accept(this);
     out.printf(" %s", s.name());
     if (expr!=null){
-      out.printf("=");
+      out.printf(" = ");
       nextExpr();
       expr.accept(this);
     }
@@ -721,6 +722,11 @@ public class JavaPrinter extends AbstractPrinter {
   }
 
   public void visit(Method m){
+    if (m.kind == Method.Kind.Constructor && m.getBody() instanceof BlockStatement) { //empty constructors don't need to be printed
+      if (((BlockStatement) m.getBody()).isEmpty()) {
+        return;
+      }
+    }
     int N=m.getArity();
     Type result_type=m.getReturnType();
     String name=m.getName();
@@ -914,13 +920,14 @@ public class JavaPrinter extends AbstractPrinter {
         || (s instanceof IfStatement)
         || (s instanceof LoopStatement)
         || (s instanceof ASTSpecial)
-        || (s instanceof DeclarationStatement); 
+        || (s instanceof DeclarationStatement)
+        || (s instanceof ParallelRegion);
   }
 
   public void visit(AssignmentStatement s){
     setExpr();
     s.location().accept(this);
-    out.printf("=");
+    out.printf(" = ");
     s.expression().accept(this);
   }
 
@@ -933,7 +940,7 @@ public class JavaPrinter extends AbstractPrinter {
       setExpr();
       expr.accept(this);
     }
-    if (s.get_after()!=null){
+    if (s.get_after()!=null && s.get_after().size() > 0){
       out.printf("/*@ ");
       out.printf("then ");
       s.get_after().accept(this);
@@ -1133,25 +1140,25 @@ public class JavaPrinter extends AbstractPrinter {
     } else {
       out.printf("do");
     }
-    if (s.get_before()!=null || s.get_after()!=null){
+    if (s.get_before()!=null && s.get_before().size()>0 || s.get_after()!=null  && s.get_after().size()>0){
       out.println("");
       out.println("/*@");
       out.incrIndent();
     }
-    if (s.get_before()!=null){
+    if (s.get_before()!=null && s.get_before().size()>0){
       out.printf("with ");
       s.get_before().accept(this);
       out.println("");
     }
-    if (s.get_after()!=null){
+    if (s.get_after()!=null  && s.get_after().size()>0){
       out.printf("then ");
       s.get_after().accept(this);
       out.println("");
     }
-    if (s.get_before()!=null || s.get_after()!=null){
+    if (s.get_before()!=null && s.get_before().size()>0 || s.get_after()!=null  && s.get_after().size()>0){
       out.decrIndent();
       out.println("@*/");
-    }    
+    }
     tmp=s.getBody();
     if (!(tmp instanceof BlockStatement)) { out.printf(" "); }
     tmp.accept(this);
