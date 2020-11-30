@@ -329,7 +329,7 @@ public class Main
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
 
-        if(Configuration.session_file != null) {
+        if(Configuration.session_file.get() != null) {
           passes.add("pvl");
         }
 
@@ -738,12 +738,15 @@ public class Main
       public ProgramUnit apply(ProgramUnit arg,String ... args) {
         try {
           File f = new File(Configuration.session_file.get());
-          f.createNewFile();
+          boolean b = f.createNewFile();
+          if(!b) {
+            Debug("File " + Configuration.session_file.get() + " already exists and is now overwritten");
+          }
           PrintWriter out = new PrintWriter(new FileOutputStream(f));
           PVLSyntax.get().print(out,arg);
           out.close();
         } catch (IOException e) {
-          System.err.println(e.getMessage());
+          Debug(e.getMessage());
         }
         return arg;
       }
