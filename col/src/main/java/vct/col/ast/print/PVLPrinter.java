@@ -30,7 +30,7 @@ import java.io.PrintWriter;
 import static hre.lang.System.DebugException;
 
 /*
-Only supports session type restriction of PVL
+Allows printing PVL programs from ASTNode
  */
 public class PVLPrinter extends AbstractPrinter{
 
@@ -675,11 +675,6 @@ public class PVLPrinter extends AbstractPrinter{
     }
 
     public void visit(Method m){
-        if (m.kind == Method.Kind.Constructor && m.getBody() instanceof BlockStatement) { //empty constructors don't need to be printed
-            if (((BlockStatement) m.getBody()).isEmpty()) {
-                return;
-            }
-        }
         int N=m.getArity();
         Type result_type=m.getReturnType();
         String name=m.getName();
@@ -792,37 +787,6 @@ public class PVLPrinter extends AbstractPrinter{
     }
 
     public void visit(IfStatement s){
-    /* CaseSet conflicts with send/recv in ghost mode!
-    if (s.isValidFlag(ASTNode.GHOST) && s.getFlag(ASTNode.GHOST)){
-      int N=s.getCount();
-      out.printf ("CaseSet[");
-      for(int i=0;i<N;i++){
-        if (i>0) out.printf ("  @         ");
-        out.printf("(");
-        nextExpr();
-        s.getGuard(i).accept(this);
-        out.printf(",");
-        ASTNode n=s.getStatement(i);
-        if (n instanceof BlockStatement){
-          BlockStatement block=(BlockStatement)n;
-          int M=block.getLength();
-          for(int j=0;j<M;j++){
-            if(j>0) out.printf(";");
-            nextExpr();
-            block.getStatement(j).accept(this);
-          }
-        } else {
-          Abort("statement in caseset is not a block at %s",n.getOrigin());
-        }
-        out.printf(")");
-        if(i==N-1){
-          out.lnprintf("];");
-        } else {
-          out.lnprintf(",");
-        }
-      }
-      out.lnprintf("  @ * /");
-    } else {*/
         int N=s.getCount();
         out.printf("if (");
         nextExpr();
@@ -1111,14 +1075,6 @@ public class PVLPrinter extends AbstractPrinter{
         } else {
             super.visit(s);
         }
-        //if (s.get_before()!=null){
-        //  out.printf("with ");
-        //  s.get_before().accept(this);
-        //}
-        //if (s.get_after()!=null){
-        //  out.printf("then ");
-        //  s.get_after().accept(this);
-        //}
     }
 
 
@@ -1339,7 +1295,6 @@ public class PVLPrinter extends AbstractPrinter{
     }
 
     public void visit(ConstantExpression ce){
-        //if (!in_expr) Abort("constant %s outside of expression for %s",ce,ce.getOrigin());
         if (ce.value() instanceof StringValue){
             out.print("\""+ StringEscapeUtils.escapeJava(ce.toString())+"\"");
         } else {

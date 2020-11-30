@@ -722,11 +722,6 @@ public class JavaPrinter extends AbstractPrinter {
   }
 
   public void visit(Method m){
-    if (m.kind == Method.Kind.Constructor && m.getBody() instanceof BlockStatement) { //empty constructors don't need to be printed
-      if (((BlockStatement) m.getBody()).isEmpty()) {
-        return;
-      }
-    }
     int N=m.getArity();
     Type result_type=m.getReturnType();
     String name=m.getName();
