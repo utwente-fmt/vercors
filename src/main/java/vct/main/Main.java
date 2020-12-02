@@ -15,6 +15,7 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
+import vct.col.ast.syntax.PVLSyntax;
 import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
@@ -152,7 +153,6 @@ public class Main
       
       BooleanSetting learn = new BooleanSetting(false);
       clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn");
-      
       Configuration.add_options(clops);
 
       String input[]=clops.parse(args);
@@ -328,6 +328,10 @@ public class Main
         passes.add("dafny"); // run backend
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
+
+        if(Configuration.session_file.get() != null) {
+          passes.add("pvl");
+        }
 
         boolean usesBreakContinue = features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue);
 
@@ -730,6 +734,23 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("pvl",new CompilerPass("print AST in PVL syntax"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        try {
+          File f = new File(Configuration.session_file.get());
+          boolean b = f.createNewFile();
+          if(!b) {
+            Debug("File " + Configuration.session_file.get() + " already exists and is now overwritten");
+          }
+          PrintWriter out = new PrintWriter(new FileOutputStream(f));
+          PVLSyntax.get().print(out,arg);
+          out.close();
+        } catch (IOException e) {
+          Debug(e.getMessage());
+        }
+        return arg;
+      }
+    });
     defined_passes.put("c",new CompilerPass("print AST in C syntax"){
         public ProgramUnit apply(ProgramUnit arg,String ... args){
           PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
