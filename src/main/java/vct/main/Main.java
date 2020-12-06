@@ -250,9 +250,7 @@ public class Main
         case "silicon":
           break;
         case "carbon":
-          if (!Paths.commandExists("mono")) {
-            Fail("Unable to detect mono. Please ensure the command \"mono\" is available in the PATH.");
-          }
+          Configuration.checkCarbonRequirements();
           break;
         default:
           Fail("unknown silver backend: %s",silver.get());

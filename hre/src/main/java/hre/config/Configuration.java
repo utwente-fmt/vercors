@@ -1,13 +1,19 @@
 package hre.config;
 
+import hre.io.Message;
+import hre.io.MessageProcess;
 import hre.io.MessageProcessEnvironment;
+import hre.io.Paths;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import static hre.lang.System.Debug;
-import static hre.lang.System.Failure;
+import static hre.lang.System.*;
 
 /**
  * This class contains the configuration options of the VerCors library.
@@ -284,5 +290,51 @@ public class Configuration {
         env.addArg("-cp", System.getProperty("java.class.path"));
         env.addArg("viper.api.SiliconVerifier");
         return env;
+    }
+
+    public static String getMonoVersion() {
+        MessageProcessEnvironment env = new MessageProcessEnvironment("mono");
+        env.addArg("--version");
+        MessageProcess mp = env.startProcess();
+        while (!mp.isFinished()) {
+            // Wait for termination or timeout
+        }
+        List<Message> messages = mp.recvAll();
+        Pattern pattern = Pattern.compile("version (\\d+(\\.\\d+)*)", Pattern.CASE_INSENSITIVE);
+        for (Message m : messages) {
+            Matcher matcher = pattern.matcher(m.getFormattedMessage());
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        }
+
+        return null;
+    }
+
+    public static void checkCarbonRequirements() {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("mac") || os.contains("nix") || os.contains("linux")) {
+            // Mono must exist for boogie to run
+            if (!Paths.commandExists("mono")) {
+                Fail("Unable to detect mono. Please ensure the command \"mono\" is available in the PATH.");
+            }
+
+            // Prefer mono 5.x or mono 6.0
+            String monoVersion = Configuration.getMonoVersion();
+            if (monoVersion == null) {
+                Warning("Could not detect mono version. Only mono 5 and mono 6.0 is known to work.");
+            } else if (!(monoVersion.startsWith("5.") || monoVersion.startsWith("6.0"))) {
+                Warning("Mono version %s detected, which has not been tested. Mono 5 and mono 6.0 are known to work." +
+                        "Mono 4 and any version beyond and including mono 6.1 are untested.");
+            }
+        }
+
+        /*
+            Document:
+                The following error on linux:
+                  System.MissingFieldException: Field not found: Microsoft.Boogie.OutputPrinter Microsoft.Boogie.ExecutionEngine.printer Due to: Could not find field in class
+                was be resolved by installing the development libraries for mono. So on debian that is "mono-devel", probably
+                similarly named on ubuntu too.
+        */
     }
 }

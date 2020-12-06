@@ -1,6 +1,6 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases KeYAbruptTerminationChallenge
-//:: tools silicon
+//:: cases KeYAbruptTerminationChallengeCarbon
+//:: tools carbon
 //:: verdict Pass
 
 // This is an adaptation of a file from the examples directory of key.
@@ -23,7 +23,6 @@ class AbruptTermination {
     void negatefirst() {
         /*@
             loop_invariant 0 <= i && i <= ia.length;
-            loop_invariant ia == \old(ia); // Extra invariant needed. See: https://github.com/utwente-fmt/vercors/issues/511
             loop_invariant (\forall int j; 0<=j && j<i; ia[j] >= 0 && ia[j] == \old(ia[j]));
             loop_invariant (\forall int j; i<=j && j<ia.length; ia[j] == \old(ia[j])); // Extra invariant needed
          */
