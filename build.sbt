@@ -13,8 +13,8 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#dbe952377125c1cc38a4334f88667b2f1ecde4a9")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#237c4579f9aa2169aceca417bfc6a6750bca9865")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#d000b35b96c1ffca3e33dd959943bec4f252a42f")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#7de153565be97fde2b85419ec65d2b9aac8d7f7f")
 val silicon_url = uri("git:https://github.com/viperproject/silicon.git#f52b14f8e17311f0b01d0fb6591c2540a378b8fe")
 
 /*
