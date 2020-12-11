@@ -9,20 +9,14 @@ import java.util.*;
 
 import scala.collection.JavaConverters;
 import vct.col.ast.stmt.decl.Method.Kind;
-import vct.col.ast.util.ASTMapping;
-import vct.col.ast.util.ASTMapping1;
+import vct.col.ast.util.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.col.ast.util.ASTVisitor;
-import vct.col.ast.util.MultiSubstitution;
-import vct.col.ast.util.DeclarationFilter;
-import vct.col.ast.util.MethodFilter;
-import vct.col.ast.util.ClassName;
-import static hre.lang.System.Abort;
+
 import static hre.lang.System.Debug;
 
 /** This class is the main container for declarations.
@@ -102,6 +96,33 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     super_classes=new ClassType[0];
     implemented_classes=new ClassType[0];
     parameters=new DeclarationStatement[0];
+  }
+
+  /*
+  Copy-constructor that:
+   * creates an ASTClass with name name,
+   * copies all the other fields from toCopy (by using rewriter), and
+   * removes the (first) constructor.
+   */
+  public ASTClass(String name, ASTClass toCopy, AbstractRewriter rewriter) {
+    super(name);
+    this.copyMissingFlags(toCopy);
+    this.kind = toCopy.kind;
+    this.parameters = rewriter.copy_rw.rewrite(toCopy.parameters);
+    this.super_classes = rewriter.copy_rw.rewrite(toCopy.super_classes);
+    this.implemented_classes = rewriter.copy_rw.rewrite(toCopy.implemented_classes);
+    this.entries = rewriter.copy_rw.rewrite(toCopy.entries);
+    Iterator it = this.entries.iterator();
+    while(it.hasNext()){
+      Object entry = it.next();
+      if(entry instanceof Method) {
+        Method m = (Method)entry;
+        if (m.kind == Kind.Constructor) {
+          it.remove();
+          break;
+        }
+      }
+    }
   }
 
   /** Create a nested class. */
