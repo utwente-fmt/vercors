@@ -16,7 +16,7 @@ import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
 import vct.col.ast.syntax.PVLSyntax;
-import vct.col.util.LocalVariableChecker;
+import vct.col.util.*;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.rewrite.DeriveModifies;
@@ -31,9 +31,6 @@ import vct.col.rewrite.CheckHistoryAlgebra.Mode;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.JavaSyntax;
 import vct.col.ast.syntax.Syntax;
-import vct.col.util.FeatureScanner;
-import vct.col.util.JavaTypeCheck;
-import vct.col.util.SimpleTypeCheck;
 import vct.experiments.learn.SpecialCountVisitor;
 import vct.experiments.learn.NonLinCountVisitor;
 import vct.experiments.learn.Oracle;
@@ -329,7 +326,8 @@ public class Main
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
 
-        if(Configuration.session_file.get() != null) {
+        if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
+          passes.add("session-generate");
           passes.add("pvl");
         }
 
@@ -810,6 +808,14 @@ public class Main
       public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
         new JavaTypeCheck(report, arg).check();
         return arg;
+      }
+    });
+    defined_passes.put("session-generate", new CompilerPass("check if program has session syntax") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        SessionRolesAndMain session = new SessionRolesAndMain(arg);
+        return new SessionGeneration(arg,session).getThreadsProgram();
+        //new SessionCheck(arg,session).check();
       }
     });
     defined_passes.put("check-defined",new CompilerPass("rewrite process algebra class to check if defined process match their contracts"){
