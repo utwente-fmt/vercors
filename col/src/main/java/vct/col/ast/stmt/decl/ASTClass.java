@@ -102,7 +102,7 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
   Copy-constructor that:
    * creates an ASTClass with name name,
    * copies all the other fields from toCopy (by using rewriter), and
-   * removes the (first) constructor.
+   * changes name of the constructors to (new) name of class.
    */
   public ASTClass(String name, ASTClass toCopy, AbstractRewriter rewriter) {
     super(name);
@@ -112,6 +112,7 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     this.super_classes = rewriter.copy_rw.rewrite(toCopy.super_classes);
     this.implemented_classes = rewriter.copy_rw.rewrite(toCopy.implemented_classes);
     this.entries = rewriter.copy_rw.rewrite(toCopy.entries);
+    List<Method> constrs = new ArrayList<>();
     Iterator it = this.entries.iterator();
     while(it.hasNext()){
       Object entry = it.next();
@@ -119,10 +120,13 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
         Method m = (Method)entry;
         if (m.kind == Kind.Constructor) {
           it.remove();
-          break;
+          Method newConstr = new Method(m.getKind(), name, m.getReturnType(), m.signals, m.getContract(), m.getArgs(), m.usesVarArgs(), m.getBody());
+          newConstr.setStatic(false);
+          constrs.add(newConstr);
         }
       }
     }
+    entries.addAll(constrs);
   }
 
   /** Create a nested class. */
