@@ -20,12 +20,12 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.PVLSyntax;
-import vct.col.ast.syntax.Syntax;
 import vct.col.ast.type.*;
 import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 
 import java.io.PrintWriter;
+import java.util.Iterator;
 
 import static hre.lang.System.DebugException;
 
@@ -1286,9 +1286,12 @@ public class PVLPrinter extends AbstractPrinter{
         } else {
             out.println("par");
         }
-        for (ParallelBlock pb : region.blocksJava()) {
+        for (Iterator<ParallelBlock> it = region.blocksJava().iterator(); it.hasNext();) {
             out.incrIndent();
-            pb.accept(this);
+            it.next().accept(this);
+            if(it.hasNext()) {
+                out.print(" and");
+            }
             out.println("");
             out.decrIndent();
         }
