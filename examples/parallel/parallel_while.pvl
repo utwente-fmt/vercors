@@ -20,7 +20,7 @@ class Role {
 class Main {
 	
 
-	void main() {
+	void run() {
 		Role a = new Role(0);
 		Role b = new Role(8);
 		Role c = new Role(4);
