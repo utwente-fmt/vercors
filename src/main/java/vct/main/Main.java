@@ -153,6 +153,10 @@ public class Main
       Configuration.add_options(clops);
 
       String input[]=clops.parse(args);
+      if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
+        input = Arrays.copyOf(input, input.length+1);
+        input[input.length-1] = "examples/parallel/channel.pvl";
+      }
 
       hre.lang.System.LogLevel level = hre.lang.System.LogLevel.Info;
 
@@ -814,7 +818,8 @@ public class Main
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
         SessionRolesAndMain session = new SessionRolesAndMain(arg);
-        return new SessionGeneration(arg,session).getThreadsProgram();
+        ProgramUnit prog = new SessionGeneration(arg,session).getThreadsProgram();
+        return new SessionRoleConstructors(prog).getConstructors();
         //new SessionCheck(arg,session).check();
       }
     });
