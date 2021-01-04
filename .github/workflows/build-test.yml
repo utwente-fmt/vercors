@@ -25,6 +25,12 @@ jobs:
           retention-days: 1
           path: |
             target/*.deb
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      
   test:
     needs: build
     runs-on: ubuntu-latest
