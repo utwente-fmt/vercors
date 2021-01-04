@@ -1,0 +1,13 @@
+name: Vercors wiki pdf workflow
+# Only run when the wiki is updated
+on:
+  gollum
+jobs:
+  make_pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: technote-space/auto-cancel-redundant-workflow@v1
+      - uses: actions/checkout@v2
+        with:
+          repository: https://github.com/utwente-fmt/vercors.wiki.git
+      - run: ls
