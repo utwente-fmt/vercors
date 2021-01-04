@@ -44,6 +44,47 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # SONAR_TOKEN is set in the secrets section of the github repo
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    
+      # If this is the dev branch we also want to build the .txz binary for the release
+      - name: Build mac binary
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        run: sbt universal:packageXzTarball
+      # If this is the dev branch we update the pre-release tag in the github repo
+      # We also package the release zip
+      - name: Set pre-release tag in github repo
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        run: |
+          git config --local user.name "Vercors Team"
+          git config --local user.email "vercors@lists.utwente.nl"
+          git tag --force dev-prerelease
+          git remote set-url origin https://${GH_TOKEN}@github.com/utwente-fmt/vercors.git
+          git push --force --tags
+
+          zip dev-prerelease target/*.deb target/universal/*.txz
+      # If this is the dev branch we create a pre-release in github releases
+      - name: Create pre-release
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: dev-prerelease
+          release_name: Vercors Dev Build
+          prerelease: true
+          body: This is an alpha build of the vercors development branch. It is updated automatically after each merge. Refer to the commit on the left for the last update.
+      # Finally, we also upload the release zip if applicable
+      - name: Upload Release Asset
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dev-prerelease.zip
+          asset_name: dev-prerelease.zip
+          asset_content_type: application/zip
       
   test:
     needs: build
