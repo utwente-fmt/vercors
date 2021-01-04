@@ -2,12 +2,8 @@ name: build-test
 # Only run the workflow when pushed to master, dev, or on pull requests.
 on: 
   push:
-    branches: 
-      - master
-      - dev
-  pull_request:
-    branches:
-      - '**'
+    tags-ignore: 
+      - dev-prerelease
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -48,19 +44,21 @@ jobs:
       # If this is the dev branch we also want to build the .txz binary for the release
       - name: Build mac binary
         if: ${{ github.ref == 'refs/heads/dev' }}
-        run: sbt universal:packageXzTarball
+        run: sbt universal:packageZipTarball
       # If this is the dev branch we update the pre-release tag in the github repo
       # We also package the release zip
       - name: Set pre-release tag in github repo
         if: ${{ github.ref == 'refs/heads/dev' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --local user.name "Vercors Team"
           git config --local user.email "vercors@lists.utwente.nl"
           git tag --force dev-prerelease
-          git remote set-url origin https://${GH_TOKEN}@github.com/utwente-fmt/vercors.git
+          git remote set-url origin https://${GITHUB_TOKEN}@github.com/utwente-fmt/vercors.git
           git push --force --tags
 
-          zip dev-prerelease target/*.deb target/universal/*.txz
+          zip dev-prerelease target/*.deb target/universal/*.tgz
       # If this is the dev branch we create a pre-release in github releases
       - name: Create pre-release
         if: ${{ github.ref == 'refs/heads/dev' }}
