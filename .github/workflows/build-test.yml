@@ -3,6 +3,7 @@ on: push
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: Default
     steps:
       - uses: actions/checkout@v2
       - name: Cache SBT dependencies modules
