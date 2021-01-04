@@ -9,5 +9,5 @@ jobs:
       - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
         with:
-          repository: https://github.com/utwente-fmt/vercors.wiki.git
+          repository: utwente-fmt/vercors.wiki
       - run: ls
