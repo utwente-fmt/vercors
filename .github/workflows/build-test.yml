@@ -1,5 +1,13 @@
 name: build-test
-on: push
+# Only run the workflow when pushed to master, dev, or on pull requests.
+on: 
+  push:
+    branches: 
+      - master
+      - dev
+  pull-request:
+    branches:
+      - '**'
 jobs:
   build:
     runs-on: ubuntu-latest
