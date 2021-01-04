@@ -4,6 +4,9 @@ on:
   push:
     tags-ignore: 
       - dev-prerelease
+  pull_request:
+    branches:
+      - '**'
 jobs:
   build:
     runs-on: ubuntu-latest
