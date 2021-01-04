@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: Default
     steps:
+      # This should automatically cancel any previous workflows that are still
+      # running when for example new commits are pushed.
+      - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
       - name: Cache SBT dependencies modules
         uses: actions/cache@v2
