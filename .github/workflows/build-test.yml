@@ -1,7 +1,9 @@
-name: build-test
+name: Vercors build and test workflow
 # Only run the workflow when pushed to master, dev, or on pull requests.
 on: 
   push:
+    branches:
+      - '**'
     tags-ignore: 
       - dev-prerelease
   pull_request:
