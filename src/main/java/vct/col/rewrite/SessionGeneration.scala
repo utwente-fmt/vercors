@@ -1,16 +1,12 @@
 package vct.col.rewrite
 
-import hre.lang.System.Output
-import vct.col.ast.`type`.ASTReserved
 import vct.col.ast.expr.{Dereference, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.AbstractRewriter
 import vct.col.util.SessionRolesAndMain
-import vct.col.util.SessionRolesAndMain.{getChanName, getThreadClassName}
-
-import java.util
+import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanName, getThreadClassName}
 
 class SessionGeneration(override val source: ProgramUnit, val session : SessionRolesAndMain) extends AbstractRewriter(null, true) {
 
@@ -36,7 +32,7 @@ class SessionGeneration(override val source: ProgramUnit, val session : SessionR
     }
   }
 
-  def getChanVar(role : NameExpression, isWrite : Boolean) =  create.name(NameExpressionKind.Unresolved, null, SessionRolesAndMain.getChanName(if(isWrite) (roleName + role.name) else (role.name + roleName)))
+  def getChanVar(role : NameExpression, isWrite : Boolean) =  create.name(NameExpressionKind.Unresolved, null, getChanName(if(isWrite) (roleName + role.name) else (role.name + roleName)))
 
   override def visit(a : AssignmentStatement) = {
     getDerefNameValid(false)(a.location) match {
@@ -44,7 +40,7 @@ class SessionGeneration(override val source: ProgramUnit, val session : SessionR
         if(expressionValid(true)(a.expression).nonEmpty) { //write a-exp to chan
           val chan = getChanVar(otherRole,true)
           chans += ((roleName,chan.name))
-          result = create.invokation(chan, null, SessionRolesAndMain.chanWrite, a.expression)
+          result = create.invokation(chan, null, chanWrite, a.expression)
         } else {
           // remove a
         }
@@ -54,7 +50,7 @@ class SessionGeneration(override val source: ProgramUnit, val session : SessionR
           case Some(n) => {
             val chan = getChanVar(n,false)
             chans += ((roleName,chan.name))
-            result = create.invokation(chan,null, SessionRolesAndMain.chanRead)
+            result = create.invokation(chan,null, chanRead)
           }
           case None => super.visit(a)
         }

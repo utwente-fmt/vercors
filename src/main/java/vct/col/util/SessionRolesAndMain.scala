@@ -1,37 +1,16 @@
 package vct.col.util
 
-import hre.lang.System.{Fail, Output}
+import hre.lang.System.Fail
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.MethodInvokation
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.stmt.decl.Method.Kind
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, DeclarationStatement, Method, ProgramUnit}
-import vct.col.ast.util.AbstractRewriter
-import vct.col.rewrite.SessionGeneration
-import vct.col.util.SessionRolesAndMain.{getThreadClassName, mainClassName, runMethodName, threadName}
+import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
+import vct.col.util.SessionUtil.{getThreadClassName, mainClassName, runMethodName}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
-
-
-object SessionRolesAndMain {
-  val mainClassName : String = "Main"
-  val runMethodName : String = "run"
-  private val threadName : String = "Thread"
-  private val chanName : String = "Chan"
-  private val chanType : String = "Channel"
-  val chanWrite : String = "writeValue"
-  val chanRead : String = "readValue"
-
-  def getThreadClassName(roleName : String) : String = roleName.toUpperCase() + threadName
-
-  def isThreadClassName(className : String) = className.endsWith(threadName)
-
-  def getChanName(roleName : String) = roleName + chanName
-
-  def getChanClass() = new ClassType(chanType)
-}
 
 class SessionRolesAndMain(val source: ProgramUnit) {
   val roleClasses : Iterable[ASTClass] = getRolesClasses(source)

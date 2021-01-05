@@ -5,7 +5,7 @@ import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression,
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
 import vct.col.ast.util.RecursiveVisitor
-import vct.col.util.SessionRolesAndMain.mainClassName
+import vct.col.util.SessionUtil.mainClassName
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -27,7 +27,7 @@ class SessionCheck(override val source: ProgramUnit, val session: SessionRolesAn
   private def methodsUseMainTypeArgs(c : ASTClass) = {
     for(m <- c.methods()) {
       for(arg <- m.getArgs()) {
-        if(arg.getType.toString.startsWith(SessionRolesAndMain.mainClassName))
+        if(arg.getType.toString.startsWith(mainClassName))
           Fail("Use of Main type not allowed")
       }
     }
