@@ -538,17 +538,11 @@ public class PVLPrinter extends AbstractPrinter{
         int N=block.getLength();
         for(int i=0;i<N;i++){
             ASTNode statement=block.getStatement(i);
-            if (statement.isValidFlag(ASTFlags.GHOST) && statement.isGhost()){
-                out.enterGhost();
-            }
             statement.accept(this);
             if (self_terminating(statement)){
                 out.clearline();
             } else {
                 out.lnprintf(";");
-            }
-            if (statement.isValidFlag(ASTFlags.GHOST) && statement.isGhost()){
-                out.leaveGhost();
             }
         }
         out.decrIndent();
@@ -583,6 +577,20 @@ public class PVLPrinter extends AbstractPrinter{
         out.println("");
     }
 
+    private void printRequires(ASTNode expr) {
+        out.printf("requires ");
+        nextExpr();
+        expr.accept(this);
+        out.lnprintf(";");
+    }
+
+    private void printEnsures(ASTNode expr) {
+        out.printf("ensures ");
+        nextExpr();
+        expr.accept(this);
+        out.lnprintf(";");
+    }
+
     @Override
     public void visit(Contract contract) {
         if (contract!=null){
@@ -598,22 +606,32 @@ public class PVLPrinter extends AbstractPrinter{
                 e.accept(this);
                 out.lnprintf(";");
             }
-            for(ASTNode e:ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star)){
-                out.printf("requires ");
-                nextExpr();
-                e.accept(this);
-                out.lnprintf(";");
+            Iterator<ASTNode> preIt = ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star).iterator();
+            Iterator<ASTNode> postIt = ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star).iterator();
+            while(preIt.hasNext() && postIt.hasNext()) {
+                ASTNode pre = preIt.next();
+                ASTNode post = postIt.next();
+                if(pre.equals(post)) {
+                    out.printf("context ");
+                    nextExpr();
+                    pre.accept(this);
+                    out.lnprintf(";");
+                } else { //cannot undo next(), so need to print pre and post
+                    printRequires(pre);
+                    printEnsures(post);
+                    break;
+                }
+            }
+            while(preIt.hasNext()){
+                printRequires(preIt.next());
             }
             for (DeclarationStatement d:contract.yields){
                 out.printf("yields ");
                 d.accept(this);
                 out.lnprintf("");
             }
-            for(ASTNode e:ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star)){
-                out.printf("ensures ");
-                nextExpr();
-                e.accept(this);
-                out.lnprintf(";");
+            while(postIt.hasNext()){
+                printEnsures(postIt.next());
             }
             for (SignalsClause sc : contract.signals){
                 sc.accept(this);
@@ -682,11 +700,8 @@ public class PVLPrinter extends AbstractPrinter{
         boolean predicate=m.getKind()==Method.Kind.Predicate;
         if (predicate){
             if (contract!=null) {
-                out.lnprintf("//ignoring contract of predicate");
                 Debug("ignoring contract of predicate");
             }
-            out.incrIndent();
-            out.print("predicate ");
         }
         if (contract!=null && !predicate){
             visit(contract);
