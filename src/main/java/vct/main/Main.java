@@ -68,12 +68,12 @@ public class Main
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info);
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info);
 
-      OptionParser clops=new OptionParser();
-      clops.add(clops.getHelpOption(),'h',"help");
+      OptionParser clops = new OptionParser();
+      clops.add(clops.getHelpOption(), 'h', "help");
       BooleanSetting version = new BooleanSetting(false);
       clops.add(version.getEnable("Output the current version and exit"), "version");
 
-      ChoiceSetting logLevel = new ChoiceSetting(new String[] {"silent", "abort", "result", "warning", "info", "progress", "debug", "all"}, "info");
+      ChoiceSetting logLevel = new ChoiceSetting(new String[]{"silent", "abort", "result", "warning", "info", "progress", "debug", "all"}, "info");
       clops.add(logLevel.getSetOption("Set the logging level"), "verbosity");
       clops.add(logLevel.getExplicitOption("progress", "Show progress through the passes"), "progress", 'v');
       clops.add(logLevel.getExplicitOption("silent", "Never output anything"), "silent", 'q');
@@ -81,86 +81,86 @@ public class Main
       CollectSetting debugFilters = new CollectSetting();
       clops.add(debugFilters.getAddOption("Add a class to debug, or specify a line with Class:lineno"), "debug");
 
-      BooleanSetting boogie=new BooleanSetting(false);
-      clops.add(boogie.getEnable("select Boogie backend"),"boogie");
-      BooleanSetting chalice=new BooleanSetting(false);
-      clops.add(chalice.getEnable("select Chalice backend"),"chalice");
-      final StringSetting silver=new StringSetting("silver");
-      clops.add(silver.getAssign("select Silver backend (silicon/carbon)"),"silver");
-      clops.add(silver.getAssign("select Silicon backend","silicon"),"silicon");
-      clops.add(silver.getAssign("select Carbon backend","carbon"),"carbon");
-      BooleanSetting dafny=new BooleanSetting(false);
-      clops.add(dafny.getEnable("select Dafny backend"),"dafny");
+      BooleanSetting boogie = new BooleanSetting(false);
+      clops.add(boogie.getEnable("select Boogie backend"), "boogie");
+      BooleanSetting chalice = new BooleanSetting(false);
+      clops.add(chalice.getEnable("select Chalice backend"), "chalice");
+      final StringSetting silver = new StringSetting("silver");
+      clops.add(silver.getAssign("select Silver backend (silicon/carbon)"), "silver");
+      clops.add(silver.getAssign("select Silicon backend", "silicon"), "silicon");
+      clops.add(silver.getAssign("select Carbon backend", "carbon"), "carbon");
+      BooleanSetting dafny = new BooleanSetting(false);
+      clops.add(dafny.getEnable("select Dafny backend"), "dafny");
 
       CommandLineTesting.addOptions(clops);
 
-      final BooleanSetting check_defined=new BooleanSetting(false);
-      clops.add(check_defined.getEnable("check if defined processes satisfy their contracts."),"check-defined");
-      final BooleanSetting check_axioms=new BooleanSetting(false);
-      clops.add(check_axioms.getEnable("check if defined processes satisfy their contracts."),"check-axioms");
-      final BooleanSetting check_history=new BooleanSetting(false);
-      clops.add(check_history.getEnable("check if defined processes satisfy their contracts."),"check-history");
+      final BooleanSetting check_defined = new BooleanSetting(false);
+      clops.add(check_defined.getEnable("check if defined processes satisfy their contracts."), "check-defined");
+      final BooleanSetting check_axioms = new BooleanSetting(false);
+      clops.add(check_axioms.getEnable("check if defined processes satisfy their contracts."), "check-axioms");
+      final BooleanSetting check_history = new BooleanSetting(false);
+      clops.add(check_history.getEnable("check if defined processes satisfy their contracts."), "check-history");
 
-      final BooleanSetting separate_checks=new BooleanSetting(false);
-      clops.add(separate_checks.getEnable("validate classes separately"),"separate");
-      BooleanSetting help_passes=new BooleanSetting(false);
-      clops.add(help_passes.getEnable("print help on available passes"),"help-passes");
-      BooleanSetting sequential_spec=new BooleanSetting(false);
-      clops.add(sequential_spec.getEnable("sequential specification instead of concurrent"),"sequential");
-      StringListSetting pass_list=new StringListSetting();
-      Option pass_list_option=pass_list.getAppendOption("add to the custom list of compilation passes");
-      clops.add(pass_list_option,"passes");
-      StringListSetting show_before=new StringListSetting();
-      clops.add(show_before.getAppendOption("Show source code before given passes"),"show-before");
-      StringListSetting show_after=new StringListSetting();
-      clops.add(show_after.getAppendOption("Show source code after given passes"),"show-after");
-      StringSetting show_file=new StringSetting(null);
-      clops.add(show_file.getAssign("redirect show output to files instead of stdout"),"save-show");
+      final BooleanSetting separate_checks = new BooleanSetting(false);
+      clops.add(separate_checks.getEnable("validate classes separately"), "separate");
+      BooleanSetting help_passes = new BooleanSetting(false);
+      clops.add(help_passes.getEnable("print help on available passes"), "help-passes");
+      BooleanSetting sequential_spec = new BooleanSetting(false);
+      clops.add(sequential_spec.getEnable("sequential specification instead of concurrent"), "sequential");
+      StringListSetting pass_list = new StringListSetting();
+      Option pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes");
+      clops.add(pass_list_option, "passes");
+      StringListSetting show_before = new StringListSetting();
+      clops.add(show_before.getAppendOption("Show source code before given passes"), "show-before");
+      StringListSetting show_after = new StringListSetting();
+      clops.add(show_after.getAppendOption("Show source code after given passes"), "show-after");
+      StringSetting show_file = new StringSetting(null);
+      clops.add(show_file.getAssign("redirect show output to files instead of stdout"), "save-show");
       CollectSetting debugBefore = new CollectSetting();
       CollectSetting debugAfter = new CollectSetting();
       clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before");
       clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after");
-      StringListSetting stop_after=new StringListSetting();
-      clops.add(stop_after.getAppendOption("Stop after given passes"),"stop-after");
+      StringListSetting stop_after = new StringListSetting();
+      clops.add(stop_after.getAppendOption("Stop after given passes"), "stop-after");
 
       BooleanSetting abruptTerminationViaExceptions = new BooleanSetting(false);
       clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions");
 
 
-      BooleanSetting explicit_encoding=new BooleanSetting(false);
-      clops.add(explicit_encoding.getEnable("explicit encoding"),"explicit");
+      BooleanSetting explicit_encoding = new BooleanSetting(false);
+      clops.add(explicit_encoding.getEnable("explicit encoding"), "explicit");
 
-      clops.add_removed("the inline option was removed in favor of the inline modifer","inline");
+      clops.add_removed("the inline option was removed in favor of the inline modifer", "inline");
 
-      BooleanSetting global_with_field=new BooleanSetting(false);
-      clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"),"global-with-field");
+      BooleanSetting global_with_field = new BooleanSetting(false);
+      clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"), "global-with-field");
 
-      BooleanSetting infer_modifies=new BooleanSetting(false);
-      clops.add(infer_modifies.getEnable("infer modifies clauses"),"infer-modifies");
-      BooleanSetting no_context=new BooleanSetting(false);
-      clops.add(no_context.getEnable("disable printing the context of errors"),"no-context");
-      BooleanSetting gui_context=new BooleanSetting(false);
-      clops.add(gui_context.getEnable("enable the gui extension of the context"),"gui");
+      BooleanSetting infer_modifies = new BooleanSetting(false);
+      clops.add(infer_modifies.getEnable("infer modifies clauses"), "infer-modifies");
+      BooleanSetting no_context = new BooleanSetting(false);
+      clops.add(no_context.getEnable("disable printing the context of errors"), "no-context");
+      BooleanSetting gui_context = new BooleanSetting(false);
+      clops.add(gui_context.getEnable("enable the gui extension of the context"), "gui");
 
-      BooleanSetting sat_check=new BooleanSetting(true);
+      BooleanSetting sat_check = new BooleanSetting(true);
       clops.add(sat_check.getDisable("Disable checking if method pre-conditions are satisfiable"), "disable-sat");
 
       IntegerSetting trigger_generation = new IntegerSetting(0);
       clops.add(trigger_generation.getOptionalAssign("Try to simplify universal quantifiers and generate triggers for them."), "triggers");
-      
+
       BooleanSetting learn = new BooleanSetting(false);
       clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn");
       Configuration.add_options(clops);
 
-      String input[]=clops.parse(args);
-      if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
-        input = Arrays.copyOf(input, input.length+1);
-        input[input.length-1] = "examples/parallel/channel.pvl";
+      String input[] = clops.parse(args);
+      if (Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
+        input = Arrays.copyOf(input, input.length + 1);
+        input[input.length - 1] = "examples/parallel/channel.pvl";
       }
 
       hre.lang.System.LogLevel level = hre.lang.System.LogLevel.Info;
 
-      switch(logLevel.get()) {
+      switch (logLevel.get()) {
         case "silent":
           level = hre.lang.System.LogLevel.Silent;
           break;
@@ -187,12 +187,12 @@ public class Main
           break;
       }
 
-      if(!debugFilters.get().isEmpty() && level.getOrder() < hre.lang.System.LogLevel.Debug.getOrder()) {
+      if (!debugFilters.get().isEmpty() && level.getOrder() < hre.lang.System.LogLevel.Debug.getOrder()) {
         level = hre.lang.System.LogLevel.Debug;
       }
 
-      for(String filter : debugFilters.get().keySet()) {
-        if(filter.contains(":") /* With line number */) {
+      for (String filter : debugFilters.get().keySet()) {
+        if (filter.contains(":") /* With line number */) {
           hre.lang.System.addDebugFilterByLine(filter);
         } else {
           hre.lang.System.addDebugFilterByClassName(filter);
@@ -205,7 +205,7 @@ public class Main
       System.setErr(new hre.io.ForbiddenPrintStream(System.err));
       System.setOut(new hre.io.ForbiddenPrintStream(System.out));
 
-      if(version.get()) {
+      if (version.get()) {
         Output("%s %s", BuildInfo.name(), BuildInfo.version());
         Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion(), BuildInfo.scalaVersion(), Instant.ofEpochMilli(BuildInfo.builtAtMillis()));
         if (!BuildInfo.currentBranch().equals("master")) {
@@ -219,75 +219,75 @@ public class Main
         return;
       }
 
-      Hashtable<String,CompilerPass> defined_passes=new Hashtable<String,CompilerPass>();
-      Hashtable<String,ValidationPass> defined_checks=new Hashtable<String,ValidationPass>();
+      Hashtable<String, CompilerPass> defined_passes = new Hashtable<String, CompilerPass>();
+      Hashtable<String, ValidationPass> defined_checks = new Hashtable<String, ValidationPass>();
 
       define_passes(silver, separate_checks, defined_passes, defined_checks);
 
       if (help_passes.get()) {
         Output("The following passes are available:");
-        for (Entry<String, CompilerPass> entry:defined_passes.entrySet()){
-          Output(" %-12s : %s",entry.getKey(),entry.getValue().getDescripion());
+        for (Entry<String, CompilerPass> entry : defined_passes.entrySet()) {
+          Output(" %-12s : %s", entry.getKey(), entry.getValue().getDescripion());
         }
-        for (Entry<String, ValidationPass> entry:defined_checks.entrySet()){
-          Output(" %-12s : %s",entry.getKey(),entry.getValue().getDescripion());
+        for (Entry<String, ValidationPass> entry : defined_checks.entrySet()) {
+          Output(" %-12s : %s", entry.getKey(), entry.getValue().getDescripion());
         }
         throw new HREExitException(0);
       }
-      if (CommandLineTesting.enabled()){
+      if (CommandLineTesting.enabled()) {
         CommandLineTesting.runTests();
         throw new HREExitException(0);
       }
       if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
       }
-      if (silver.used()){
-        switch(silver.get()){
-        case "silicon_qp":
-          Warning("silicon_qp has been merged into silicon, using silicon instead");
-          silver.set("silicon");
-          break;
-        case "silicon":
-        case "carbon":
-          break;
-        default:
-          Fail("unknown silver backend: %s",silver.get());
+      if (silver.used()) {
+        switch (silver.get()) {
+          case "silicon_qp":
+            Warning("silicon_qp has been merged into silicon, using silicon instead");
+            silver.set("silicon");
+            break;
+          case "silicon":
+          case "carbon":
+            break;
+          default:
+            Fail("unknown silver backend: %s", silver.get());
         }
       }
       Progress("parsing inputs...");
-      PassReport report=new PassReport(program);
+      PassReport report = new PassReport(program);
       report.setOutput(program);
       report.add(new ErrorDisplayVisitor());
       int cnt = 0;
       tk.show();
-      for(String name : input){
-        File f=new File(name);
-        if (!no_context.get()){
-          FileOrigin.add(name,gui_context.get());
+      for (String name : input) {
+        File f = new File(name);
+        if (!no_context.get()) {
+          FileOrigin.add(name, gui_context.get());
         }
         program.add(Parsers.parseFile(f.getPath()));
         cnt++;
       }
-      Progress("Parsed %d file(s) in: %dms",cnt, tk.show());
+      Progress("Parsed %d file(s) in: %dms", cnt, tk.show());
 
       if (boogie.get() || sequential_spec.get()) {
         program.setSpecificationFormat(SpecificationFormat.Sequential);
       }
-      FeatureScanner features=new FeatureScanner();
+      FeatureScanner features = new FeatureScanner();
       program.accept(features);
-      classes=new ArrayList<ClassName>();
-      for (ClassName name:program.classNames()){
+      classes = new ArrayList<ClassName>();
+      for (ClassName name : program.classNames()) {
         classes.add(name);
       }
-      Deque<String> passes=null;
-      if (pass_list_option.used()){
-        passes=new LinkedBlockingDeque<String>();
-        for(String s:pass_list){
+      Deque<String> passes = null;
+      if (pass_list_option.used()) {
+        passes = new LinkedBlockingDeque<String>();
+        for (String s : pass_list) {
           passes.add(s);
         }
       } else if (boogie.get()) {
-      	passes=new LinkedBlockingDeque<String>();
-      	passes.add("java_resolve"); // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
+        passes = new LinkedBlockingDeque<String>();
+        passes.add("java_resolve"); // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
         passes.add("standardize"); // a rewriter s.t. only a subset of col will have to be supported
         passes.add("check"); // type check col. Add annotations (the types) to the ast.
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
@@ -314,9 +314,9 @@ public class Main
         passes.add("strip_constructors"); // somewhere in the parser of Java, constructors are added implicitly. They need to be taken out again.
         passes.add("standardize");
         passes.add("check");
-      	passes.add("boogie"); // run backend
+        passes.add("boogie"); // run backend
       } else if (dafny.get()) {
-        passes=new LinkedBlockingDeque<String>();
+        passes = new LinkedBlockingDeque<String>();
         passes.add("java_resolve");
         passes.add("standardize");
         passes.add("check");
@@ -327,13 +327,21 @@ public class Main
         //passes.add("reorder");
         //passes.add("check");
         passes.add("dafny"); // run backend
+      } else if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
+        passes = new LinkedBlockingDeque<String>();
+        passes.add("session-generate");
+        passes.add("simplify_expr");
+        //   passes.add("simplify_quant");
+        //   passes.add("simplify_sums");
+        //   passes.add("simplify_quant_relations");
+        passes.add("channel-repair");
+        passes.add("remove-empty-blocks");
+        passes.add("session-add-channel-perms");
+        passes.add("pvl");
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
 
-        if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
-          passes.add("session-generate");
-          passes.add("pvl");
-        }
+
 
         boolean usesBreakContinue = features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue);
 
@@ -814,13 +822,31 @@ public class Main
         return arg;
       }
     });
-    defined_passes.put("session-generate", new CompilerPass("check if program has session syntax") {
+    defined_passes.put("session-generate", new CompilerPass("generate from session program") {
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
         SessionRolesAndMain session = new SessionRolesAndMain(arg);
         ProgramUnit prog = new SessionGeneration(arg,session).getThreadsProgram();
         return new SessionRoleConstructors(prog).getConstructors();
         //new SessionCheck(arg,session).check();
+      }
+    });
+    defined_passes.put("channel-repair", new CompilerPass("remove fold and exhale from Channel constructor") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new SessionChannelConstructorRepair(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("session-add-channel-perms", new CompilerPass("add channel permissions in contracts") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new SessionChannelCommuncationPermissions(arg).rewriteAll();
+      }
+      });
+    defined_passes.put("remove-empty-blocks", new CompilerPass("remove empty blocks of parallel regions") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new RemoveEmptyBlocks(arg).rewriteAll();
       }
     });
     defined_passes.put("check-defined",new CompilerPass("rewrite process algebra class to check if defined process match their contracts"){
