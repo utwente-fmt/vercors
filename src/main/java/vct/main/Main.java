@@ -334,9 +334,11 @@ public class Main
         //   passes.add("simplify_quant");
         //   passes.add("simplify_sums");
         //   passes.add("simplify_quant_relations");
-        passes.add("channel-repair");
+        passes.add("session-thread-constr");
+        passes.add("session-channel-repair");
         passes.add("remove-empty-blocks");
         passes.add("session-add-channel-perms");
+        passes.add("session-add-start-threads");
         passes.add("pvl");
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
@@ -822,16 +824,23 @@ public class Main
         return arg;
       }
     });
-    defined_passes.put("session-generate", new CompilerPass("generate from session program") {
+    defined_passes.put("session-generate", new CompilerPass("generate thread classes from session program") {
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
-        SessionRolesAndMain session = new SessionRolesAndMain(arg);
-        ProgramUnit prog = new SessionGeneration(arg,session).getThreadsProgram();
-        return new SessionRoleConstructors(prog).getConstructors();
-        //new SessionCheck(arg,session).check();
+        SessionGeneration sesGen = new SessionGeneration(arg);
+        sesGen.addThreadClasses();
+        return sesGen.target();
       }
     });
-    defined_passes.put("channel-repair", new CompilerPass("remove fold and exhale from Channel constructor") {
+    defined_passes.put("session-thread-constr", new CompilerPass("add constructors to the thread classes") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        SessionThreadConstructors sesThreadConstr = new SessionThreadConstructors(arg);
+        sesThreadConstr.getConstructors();
+        return sesThreadConstr.rewriteAll();
+      }
+    });
+    defined_passes.put("session-channel-repair", new CompilerPass("remove fold and exhale from Channel constructor") {
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
         return new SessionChannelConstructorRepair(arg).rewriteAll();
@@ -843,6 +852,14 @@ public class Main
         return new SessionChannelCommuncationPermissions(arg).rewriteAll();
       }
       });
+    defined_passes.put("session-add-start-threads", new CompilerPass("add Main class to start all thread classes") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        SessionStartThreadsClass start = new SessionStartThreadsClass(arg);
+        start.addStartThreadClass();
+        return start.rewriteAll();
+      }
+    });
     defined_passes.put("remove-empty-blocks", new CompilerPass("remove empty blocks of parallel regions") {
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
