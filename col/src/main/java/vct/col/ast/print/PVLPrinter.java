@@ -282,6 +282,7 @@ public class PVLPrinter extends AbstractPrinter{
                 setExpr();
                 ASTNode prop=s.args[0];
                 prop.accept(this);
+                out.println(";");
                 break;
             }
             case Join:{
@@ -290,6 +291,7 @@ public class PVLPrinter extends AbstractPrinter{
                 setExpr();
                 ASTNode prop=s.args[0];
                 prop.accept(this);
+                out.println(";");
                 break;
             }
             case Goto:
