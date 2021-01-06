@@ -5,6 +5,8 @@ import vct.col.ast.expr.{NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.ASTFactory
 
+import scala.sys.error
+
 object SessionUtil {
 
   val mainClassName : String = "Main"
@@ -18,6 +20,14 @@ object SessionUtil {
   def getThreadClassName(roleName : String) : String = roleName.toUpperCase() + threadName
 
   def isThreadClassName(className : String) = className.endsWith(threadName)
+
+  def getRoleName(name : String) : String = {
+    if(isThreadClassName(name)) {
+      name.substring(0,name.length - threadName.length).toLowerCase()
+    } else {
+      error("Session Fail: Cannot get role from non-Thread-name")
+    }
+  }
 
   def isChanName(chan : String) = chan.endsWith(chanName)
 

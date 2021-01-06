@@ -8,20 +8,19 @@ import vct.col.ast.util.AbstractRewriter
 import vct.col.util.SessionRolesAndMain
 import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanName, getThreadClassName}
 
-class SessionGeneration(override val source: ProgramUnit, val session : SessionRolesAndMain) extends AbstractRewriter(null, true) {
+class SessionGeneration(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
+  private val session : SessionRolesAndMain = new SessionRolesAndMain(source);
   private var roleName : String = null
-  var chans : Set[(String,String)] = Set()
+  private var chans : Set[(String,String)] = Set()
 
-  def getThreadsProgram() : ProgramUnit = {
+  def addThreadClasses() = {
     session.roleClasses.foreach(target().add(_))
     session.roleObjects.foreach(role => { //need to make create.new_class replacing this
       roleName = role.name
-      val thread = new ASTClass(getThreadClassName(roleName), session.mainClass, this)
-      thread.accept(this)
-      target().add(thread.apply(this))
+      val thread = new ASTClass(getThreadClassName(roleName), session.mainClass, this) //add new method in ASTFactory calling this ASTClass constructor?
+      target().add(rewrite(thread))
     })
-    target()
   }
 
   override def visit(d : DeclarationStatement) = {

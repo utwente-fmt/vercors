@@ -64,7 +64,7 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
   }
 
   def getChans(b : BlockStatement): Set[SessionChannel] = {
-    val chans = b.getStatements.map {
+    b.getStatements.flatMap {
       case m: MethodInvokation => {
         m.`object` match {
           case n: NameExpression => if (isChanName(n.name)) Set(new SessionChannel(n.name, m.method == chanWrite)) else Set()
@@ -75,10 +75,9 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
         case b: BlockStatement => getChans(b)
         case _ => Fail("Session Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin); Set() : Set[SessionChannel]
       }
-      case p: ParallelRegion => p.blocks.map(pb => getChans(pb.block)).reduce((s1, s2) => s1.union(s2)) : Set[SessionChannel]
+      case p: ParallelRegion => p.blocks.flatMap(pb => getChans(pb.block)).toSet : Set[SessionChannel]
       case _ => Set() : Set[SessionChannel]
-    } : Array[Set[SessionChannel]]
-    chans.reduce((s1,s2) => s1.union(s2))
+    }.toSet
   }
 
   def getChanPerms(c : SessionChannel, isLoop : Boolean, contract : ContractBuilder) : ContractBuilder = {

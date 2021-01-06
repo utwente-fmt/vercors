@@ -13,7 +13,7 @@ import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanClass, isThreadClas
 
 import scala.collection.JavaConversions._
 
-class SessionRoleConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+class SessionThreadConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
   var chanMap : Map[String,Set[SessionChannel]] = Map() // A Map threadName -> {(chanName,isWriteValueCall)}
 
@@ -30,7 +30,6 @@ class SessionRoleConstructors(override val source: ProgramUnit)  extends Abstrac
         }
       }
     }
-    this.rewriteAll()
   }
 
   private def getChansFromRunMethod(c : ASTClass) : Set[SessionChannel] = {
