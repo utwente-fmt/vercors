@@ -334,9 +334,9 @@ public class Main
         //   passes.add("simplify_quant");
         //   passes.add("simplify_sums");
         //   passes.add("simplify_quant_relations");
+        passes.add("remove-empty-blocks");
         passes.add("session-thread-constr");
         passes.add("session-channel-repair");
-        passes.add("remove-empty-blocks");
         passes.add("session-add-channel-perms");
         passes.add("session-add-start-threads");
         passes.add("pvl");

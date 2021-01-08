@@ -6,7 +6,7 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock,
 import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionChannel
-import vct.col.util.SessionUtil.{chanWrite, isChanName, isThreadClassName}
+import vct.col.util.SessionUtil.{chanWrite, getChansFromBlockStateMent, isChanName, isThreadClassName}
 
 class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  extends AbstractRewriter(null, true) {
 
@@ -63,24 +63,14 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
     cb.getContract()
   }
 
-  def getChans(b : BlockStatement): Set[SessionChannel] = {
-    b.getStatements.flatMap {
-      case m: MethodInvokation => {
-        m.`object` match {
-          case n: NameExpression => if (isChanName(n.name)) Set(new SessionChannel(n.name, m.method == chanWrite)) else Set()
-          case _ => Set() : Set[SessionChannel]
-        }
-      } : Set[SessionChannel]
-      case l: LoopStatement => l.getBody match {
-        case b: BlockStatement => getChans(b)
-        case _ => Fail("Session Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin); Set() : Set[SessionChannel]
-      }
-      case p: ParallelRegion => p.blocks.flatMap(pb => getChans(pb.block)).toSet : Set[SessionChannel]
+  private def getChans(b : BlockStatement): Set[SessionChannel] = {
+    getChansFromBlockStateMent(b).flatMap(m => m.`object` match {
+      case n: NameExpression => if (isChanName(n.name)) Set(new SessionChannel(n.name, m.method == chanWrite)) else Set()  : Set[SessionChannel]
       case _ => Set() : Set[SessionChannel]
-    }.toSet
+    })
   }
 
-  def getChanPerms(c : SessionChannel, isLoop : Boolean, contract : ContractBuilder) : ContractBuilder = {
+  private def getChanPerms(c : SessionChannel, isLoop : Boolean, contract : ContractBuilder) : ContractBuilder = {
     val chanNotNull =
       create.expression(StandardOperator.NEQ,
         create.name(NameExpressionKind.Unresolved,null,c.channel),

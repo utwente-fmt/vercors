@@ -1,8 +1,10 @@
 package vct.col.util
 
 import vct.col.ast.`type`.ClassType
-import vct.col.ast.expr.{NameExpressionKind, StandardOperator}
+import vct.col.ast.expr.{MethodInvokation, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelRegion}
+import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTFactory
 
 import scala.sys.error
@@ -35,6 +37,36 @@ object SessionUtil {
 
   def getChanClass() = new ClassType(channelClassName)
 
+  def getChansFromBlockStateMent(block : ASTNode) : Set[MethodInvokation] = {
+    block match {
+      case b : BlockStatement =>
+        val stats = b.getStatements.toSet : Set[ASTNode]
+        stats.flatMap(s => s match {
+          case l: LoopStatement => getChansFromBlockStateMent(l.getBody)
+          case p: ParallelRegion => {
+            val blocks = p.blocks.map(_.block).toSet: Set[BlockStatement]
+            blocks.flatMap(getChansFromBlockStateMent): Set[MethodInvokation]
+          }
+          case a: AssignmentStatement => getChanFromMethodInvokation(a.expression)
+          case o: ASTNode => getChanFromMethodInvokation(o)
+        })
+      case _ => error("Session Fail: expected BlockStatement"); Set()
+    }
+  }
+
+  private def getChanFromMethodInvokation(o : ASTNode) : Set[MethodInvokation] = {
+    o match {
+      case m: MethodInvokation => {
+        if (m.method == chanRead || m.method == chanWrite) {
+          Set(m)
+        } else {
+          Set() : Set[MethodInvokation]
+        }
+      }
+      case _ => Set() : Set[MethodInvokation]
+    }
+  }
+
   }
 
   class SessionChannel(val channel: String, val isWrite : Boolean) {
@@ -43,6 +75,8 @@ object SessionUtil {
       case other : SessionChannel => channel == other.channel && isWrite == other.isWrite
       case _ => false
     }
+
+    override def toString: String = channel + " " + (if(isWrite) "Write" else "Read")
 
     def getArgChanName() : String = channel + "Arg"
 

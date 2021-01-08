@@ -28,7 +28,7 @@ class SessionCheck(override val source: ProgramUnit, val session: SessionRolesAn
     for(m <- c.methods()) {
       for(arg <- m.getArgs()) {
         if(arg.getType.toString.startsWith(mainClassName))
-          Fail("Use of Main type not allowed")
+          Fail("Session Fail: Use of Main type not allowed")
       }
     }
   }
@@ -37,7 +37,7 @@ class SessionCheck(override val source: ProgramUnit, val session: SessionRolesAn
     for(m <- c.methods()) {
       val wrongWrites = getWriteVars(m).filter(!isClassField(_,c))
       if(wrongWrites.nonEmpty)
-        Fail("Role methods can only access own fields!" + wrongWrites.toString())
+        Fail("Session Fail: Thread methods can only access own fields!" + wrongWrites.toString())
     }
   }
 

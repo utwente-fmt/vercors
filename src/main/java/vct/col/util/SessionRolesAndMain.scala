@@ -27,7 +27,7 @@ class SessionRolesAndMain(val source: ProgramUnit) {
       case _ => false
     }.map(_.asInstanceOf[ASTClass])
     if (roles.isEmpty)
-      Fail("A session type needs to have at least one class representing a role")
+      Fail("Session Fail: A session program needs to have at least one class representing a role")
     roles
   }
 
@@ -68,9 +68,11 @@ class SessionRolesAndMain(val source: ProgramUnit) {
   }
 
   private def getRoleObjects() : List[DeclarationStatement] = {
-    val arrayRoles = if(mainMethod.getArgs.length > 0) getRolesFromMainArguments() else getRolesFromMainBody()
+    val arrayRoles =
+    //  if(mainMethod.getArgs.length > 0) getRolesFromMainArguments() else
+        getRolesFromMainBody()
     if(arrayRoles.isEmpty)
-      Fail("Method 'main' does not declare roles in its arguments or its first statements.")
+      Fail("Method 'main' does not declare roles in its first statements.")
     arrayRoles.toList.asInstanceOf[List[DeclarationStatement]]
   }
 

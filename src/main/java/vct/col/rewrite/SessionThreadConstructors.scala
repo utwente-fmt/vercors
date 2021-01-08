@@ -7,9 +7,10 @@ import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, S
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionChannel
-import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanClass, isThreadClassName, runMethodName}
+import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanClass, getChansFromBlockStateMent, isThreadClassName, runMethodName}
 
 import scala.collection.JavaConversions._
 
@@ -45,26 +46,6 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
       }
       case None => Fail("Session Fail: Thread has no 'run' method"); Set()
     }
-  }
-
-  private def getChansFromBlockStateMent(block : ASTNode) : Set[MethodInvokation] = {
-    var methods : Set[MethodInvokation] = Set()
-    block match {
-      case b : BlockStatement =>
-        for(stat <- b.getStatements) {
-          stat match{
-            case l: LoopStatement => methods = methods ++ getChansFromBlockStateMent(l.getBody)
-            case p: ParallelRegion => p.blocks.map(b => methods = methods ++ getChansFromBlockStateMent(b.block))
-            case m: MethodInvokation =>
-              if (m.method == chanRead || m.method == chanWrite) {
-                methods = methods ++ List(m)
-              }
-            case _ => //nothing
-        }
-      }
-      case _ => Fail("Session Fail: expected BlockStatement");
-    }
-    methods
   }
 
   override def visit(m : Method) = {

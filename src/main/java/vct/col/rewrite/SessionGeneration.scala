@@ -49,7 +49,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
           case Some(n) => {
             val chan = getChanVar(n,false)
             chans += ((roleName,chan.name))
-            result = create.invokation(chan,null, chanRead)
+            result = create.assignment(a.location,create.invokation(chan,null, chanRead))
           }
           case None => super.visit(a)
         }
