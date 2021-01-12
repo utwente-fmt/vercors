@@ -13,9 +13,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#d000b35b96c1ffca3e33dd959943bec4f252a42f")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#7de153565be97fde2b85419ec65d2b9aac8d7f7f")
-val silicon_url = uri("git:https://github.com/viperproject/silicon.git#f52b14f8e17311f0b01d0fb6591c2540a378b8fe")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#8a7d18d1c9a418ea4fd644f9bed4410572f321dd")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#ebaa5ac94f13243c0cff41f1ac2d2ace208e0c6e")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#cdc2e04aff04deca468ecd641f076d057de83753")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
