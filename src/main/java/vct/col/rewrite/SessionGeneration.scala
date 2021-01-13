@@ -1,42 +1,105 @@
 package vct.col.rewrite
 
-import vct.col.ast.expr.{Dereference, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
+import hre.ast.MessageOrigin
+import hre.lang.System.Output
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.Method.Kind
+import vct.col.ast.stmt.decl.{ASTClass, Contract, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
-import vct.col.ast.util.AbstractRewriter
-import vct.col.util.SessionRolesAndMain
-import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanName, getThreadClassName}
+import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
+import vct.col.util.SessionStructureCheck
+import vct.col.util.SessionStructureCheck
+import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName}
+
+import java.util
+import java.util.Iterator
+import scala.collection.JavaConversions.`deprecated asScalaIterator`
 
 class SessionGeneration(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
-  private val session : SessionRolesAndMain = new SessionRolesAndMain(source);
+  private val roleObjects : Array[AssignmentStatement] = SessionStructureCheck.getRoleObjects(source)
+  private val mainClass = SessionStructureCheck.getMainClass(source)
+  private val roleClasses : Iterable[ASTClass] = SessionStructureCheck.getRoleClasses(source)
   private var roleName : String = null
+  private var rolePerms : Contract = null
   private var chans : Set[(String,String)] = Set()
 
   def addThreadClasses() = {
-    session.roleClasses.foreach(target().add(_))
-    session.roleObjects.foreach(role => { //need to make create.new_class replacing this
-      roleName = role.name
-      val thread = new ASTClass(getThreadClassName(roleName), session.mainClass, this) //add new method in ASTFactory calling this ASTClass constructor?
-      target().add(rewrite(thread))
+    SessionStructureCheck.getNonMainClasses(source).foreach(target().add(_))
+    roleObjects.foreach(role => {
+      target().add(rewrite(createThreadClass(role)))
     })
   }
 
+  private def createThreadClass(role : AssignmentStatement) = {
+    create.enter()
+    roleName = role.location.asInstanceOf[NameExpression].name
+    create.setOrigin(new MessageOrigin("Generated thread class " + roleName))
+    rolePerms = getRolePermissions(role)
+    val threadName = getThreadClassName(roleName)
+    val thread = create.new_class(threadName,null,null)
+    mainClass.methods().forEach(m => thread.add_dynamic(rewrite(m)))
+    mainClass.fields().forEach(f => if(f.name == roleName) thread.add_dynamic(rewrite(f)))
+    create.leave()
+    thread
+  }
+
+  private def getRolePermissions(role : AssignmentStatement) = {
+    val contr = new ContractBuilder()
+    val readPerm =
+      create.expression(StandardOperator.Perm,
+        create.field_name(roleName),
+        create.reserved_name(ASTReserved.ReadPerm))
+    contr.ensures(readPerm)
+    val roleType = role.expression.asInstanceOf[MethodInvokation].dispatch.getName
+    roleClasses.find(_.name == roleType) match {
+      case None => Fail("Session Fail : cannot find class %s", roleType)
+      case Some(c) => {
+        c.methods().iterator().find(_.kind == Method.Kind.Constructor) match {
+          case None => Fail("Session Fail: cannot find constructor of class %s", roleType)
+          case Some(constr) => {
+            val postIt = ASTUtils.conjuncts(constr.getContract.post_condition, StandardOperator.Star).iterator
+            postIt.foreach {
+              case op: OperatorExpression => {
+                if(op.operator == StandardOperator.Perm) {
+                  val permName = op.arg(0) match {
+                    case n : NameExpression => n.name
+                    case _ => Fail("Session Fail: did not find a name expression as first argument of %s", op.toString); ""
+                  }
+                  val rolePerm = create.expression(StandardOperator.Perm,create.dereference(create.field_name(roleName),permName),rewrite(op.arg(1)))
+                  contr.ensures(rolePerm)
+                }
+              }
+              }
+            }
+        }
+      }
+    }
+    contr.getContract
+  }
+
+  override def visit(m : Method) = {
+    if(m.kind == Method.Kind.Constructor) {
+      result = create.method_kind(m.kind,m.getReturnType,rewrite(m.getContract),getThreadClassName(roleName),m.getArgs,rewrite(m.getBody))
+    } else {
+      super.visit(m)
+    }
+  }
+
   override def visit(d : DeclarationStatement) = {
-    if(session.roleObjects.contains(d) && d.name != roleName) {
+    if(roleObjects.contains(d)) { // && d.name != roleName
       // remove d
     } else {
       super.visit(d);
     }
   }
 
-  def getChanVar(role : NameExpression, isWrite : Boolean) =  create.name(NameExpressionKind.Unresolved, null, getChanName(if(isWrite) (roleName + role.name) else (role.name + roleName)))
-
   override def visit(a : AssignmentStatement) = {
-    getDerefNameValid(false)(a.location) match {
+    getValidNameFromNode(false, a.location) match {
       case Some(otherRole) => {
-        if(expressionValid(true)(a.expression).nonEmpty) { //write a-exp to chan
+        if(getValidNameFromExpression(true, a.expression).nonEmpty) { //write a-exp to chan
           val chan = getChanVar(otherRole,true)
           chans += ((roleName,chan.name))
           result = create.invokation(chan, null, chanWrite, a.expression)
@@ -45,7 +108,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
         }
       }
       case None =>
-        expressionValid(false)(a.expression) match { //receive a-exp at chan
+        getValidNameFromExpression(false, a.expression) match { //receive a-exp at chan
           case Some(n) => {
             val chan = getChanVar(n,false)
             chans += ((roleName,chan.name))
@@ -59,13 +122,13 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(e : OperatorExpression) ={
     e.operator match {
       case StandardOperator.Perm =>
-        if(getDerefNameValid(false)(e.first).nonEmpty) {
+        if(getValidNameFromNode(false, e.first).nonEmpty) {
           result = create.constant(true)
         } else {
           super.visit(e)
         }
       case _ =>
-        if(e.args.exists(getDerefNameValid(false)(_).nonEmpty)) {
+        if(e.args.exists(getValidNameFromNode(false, _).nonEmpty)) {
           result = create.constant(true)
         } else {
           super.visit(e)
@@ -73,27 +136,12 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     }
   }
 
-  def isSameOrOtherRole(isSame : Boolean)(n : NameExpression) = if(isSame) (n.name == roleName) else n.name != roleName
-  def isDerefNameOtherRole(n : ASTNode) = getDerefNameValid(false)(n).nonEmpty
+  private def getChanVar(role : NameExpression, isWrite : Boolean) =  create.name(NameExpressionKind.Unresolved, null, getChanName(if(isWrite) (roleName + role.name) else (role.name + roleName)))
 
-  def getDerefNameValid(isRole : Boolean)(n : ASTNode) : Option[NameExpression] = {
-    n match {
-      case d : Dereference => d.obj match {
-        case n : NameExpression => Some(n).filter(isSameOrOtherRole(isRole))
-        case _ => None
-      }
-      case _ => None
-    }
-  }
+  def getValidNameFromNode(isRole : Boolean, n : ASTNode) : Option[NameExpression] =
+    getNameFromNode(n).filter(n => if(isRole) (n.name == roleName) else n.name != roleName)
 
-  def expressionValid(isRole : Boolean)(e : ASTNode) : Option[NameExpression] = {
-    getDerefNameValid(isRole)(e) match {
-      case Some(n) => Some(n)
-      case None =>  e match {
-        case o : OperatorExpression => o.args.map(expressionValid(isRole)).find(_.nonEmpty).flatten
-        case _ => None
-      }
-    }
-  }
+  private def getValidNameFromExpression(isRole : Boolean, e : ASTNode) : Option[NameExpression] =
+    getNamesFromExpression(e).find(n => if(isRole) (n.name == roleName) else n.name != roleName)
 
 }

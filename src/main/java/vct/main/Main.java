@@ -329,11 +329,10 @@ public class Main
         passes.add("dafny"); // run backend
       } else if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
         passes = new LinkedBlockingDeque<String>();
+        passes.add("session-struct-check");
+        passes.add("session-assign-check");
         passes.add("session-generate");
         passes.add("simplify_expr");
-        //   passes.add("simplify_quant");
-        //   passes.add("simplify_sums");
-        //   passes.add("simplify_quant_relations");
         passes.add("remove-empty-blocks");
         passes.add("session-thread-constr");
         passes.add("session-channel-repair");
@@ -821,6 +820,20 @@ public class Main
       @Override
       public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
         new JavaTypeCheck(report, arg).check();
+        return arg;
+      }
+    });
+    defined_passes.put("session-struct-check", new CompilerPass("check that provided program conforms to session syntax restriction") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        SessionStructureCheck.check(arg);
+        return arg;
+      }
+    });
+    defined_passes.put("session-assign-check", new CompilerPass("check that the run method of the main class only has assignments conforming the session restriction") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        new SessionCommunicationCheck(arg).checkMainMethodsAssignments();
         return arg;
       }
     });

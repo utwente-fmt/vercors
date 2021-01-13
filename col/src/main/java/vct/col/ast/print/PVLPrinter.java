@@ -610,19 +610,23 @@ public class PVLPrinter extends AbstractPrinter{
             }
             Iterator<ASTNode> preIt = ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star).iterator();
             Iterator<ASTNode> postIt = ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star).iterator();
+            ASTNode pre = null, post = null;
+            boolean printprepost = false;
             while(preIt.hasNext() && postIt.hasNext()) {
-                ASTNode pre = preIt.next();
-                ASTNode post = postIt.next();
+                pre = preIt.next();
+                post = postIt.next();
                 if(pre.equals(post)) {
                     out.printf("context ");
                     nextExpr();
                     pre.accept(this);
                     out.lnprintf(";");
                 } else { //cannot undo next(), so need to print pre and post
-                    printRequires(pre);
-                    printEnsures(post);
+                    printprepost = true;
                     break;
                 }
+            }
+            if(printprepost) {
+                printRequires(pre);
             }
             while(preIt.hasNext()){
                 printRequires(preIt.next());
@@ -631,6 +635,9 @@ public class PVLPrinter extends AbstractPrinter{
                 out.printf("yields ");
                 d.accept(this);
                 out.lnprintf("");
+            }
+            if(printprepost) {
+                printEnsures(post);
             }
             while(postIt.hasNext()){
                 printEnsures(postIt.next());
@@ -797,9 +804,6 @@ public class PVLPrinter extends AbstractPrinter{
             nextExpr();
             body.accept(this);
             out.lnprintf(";");
-        }
-        if (predicate){
-            out.decrIndent();
         }
     }
 

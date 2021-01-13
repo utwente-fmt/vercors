@@ -1,7 +1,7 @@
 package vct.col.util
 
 import vct.col.ast.`type`.ClassType
-import vct.col.ast.expr.{MethodInvokation, NameExpressionKind, StandardOperator}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelRegion}
 import vct.col.ast.stmt.terminal.AssignmentStatement
@@ -67,7 +67,28 @@ object SessionUtil {
     }
   }
 
+  def getNameFromNode(n : ASTNode) : Option[NameExpression] = {
+    n match {
+      case d : Dereference => d.obj match {
+        case n : NameExpression => Some(n)
+        case _ => None
+      }
+      case n : NameExpression => Some(n)
+      case _ => None
+    }
   }
+
+  def getNamesFromExpression(e : ASTNode) : List[NameExpression] = {
+    getNameFromNode(e) match {
+      case Some(n) => List(n)
+      case None =>  e match {
+        case o : OperatorExpression => o.args.flatMap(getNamesFromExpression)
+        case _ => List()
+      }
+    }
+  }
+
+}
 
   class SessionChannel(val channel: String, val isWrite : Boolean) {
 

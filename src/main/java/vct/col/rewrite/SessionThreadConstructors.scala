@@ -10,10 +10,14 @@ import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUni
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionChannel
-import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanClass, getChansFromBlockStateMent, isThreadClassName, runMethodName}
+import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanClass, getChansFromBlockStateMent, getThreadClassName, isThreadClassName, runMethodName}
 
 import scala.collection.JavaConversions._
 
+/**
+  * Adds the channels to Thread constructors
+  * @param source
+  */
 class SessionThreadConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
   var chanMap : Map[String,Set[SessionChannel]] = Map() // A Map threadName -> {(chanName,isWriteValueCall)}
@@ -25,7 +29,8 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
           if(isThreadClassName(c.name)) {
             val chans = getChansFromRunMethod(c)
             chanMap += (c.name -> chans)
-            val chanFields = chans.map(chan => create.field_decl(new MessageOrigin("Generated Channel field " + chan.channel + " of class " + c.name),chan.channel,getChanClass()))
+            val chanFields = chans.map(chan =>
+              create.field_decl(new MessageOrigin("Generated Channel field " + chan.channel + " of class " + c.name),chan.channel,getChanClass()))
             chanFields.foreach(c.add_dynamic(_))
           }
         }
@@ -54,11 +59,23 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
       create.setOrigin(new MessageOrigin("Generated constructor " + m.name))
       val chans = chanMap.get(m.name).get
       val args : Set[DeclarationStatement] = chans.map(chan => create.field_decl(chan.getArgChanName(),getChanClass()))
-      val statements : Set[ASTNode] = chans.map(chan =>
+      val newContract = getRoleConstructorContract(chans)
+      rewrite(m.getContract,newContract)
+      val chanDecls : Array[ASTNode] = chans.map(chan =>
         create.assignment(create.name(NameExpressionKind.Unresolved,null,chan.channel),
-                          create.name(NameExpressionKind.Unresolved,null,chan.getArgChanName())))
-      val body : BlockStatement = create.block(statements.toArray:_*)
-      val myNewMethod = create.method_kind(m.kind,m.getReturnType,getRoleConstructorContract(chans),m.name,args.toArray,body)
+                          create.name(NameExpressionKind.Unresolved,null,chan.getArgChanName()))).toArray
+      val threadDecl : Array[ASTNode] = m.getBody match {
+          case b : BlockStatement => b.getStatements.head match {
+            case a : AssignmentStatement => {
+                  Set(rewrite(a)).toArray
+                }
+            case _ => Fail("Session Fail: expected a role declaration"); Array[ASTNode]()
+          }
+        case _ => Fail("Constructor %s must have a BlockStatement body",m.name); Array[ASTNode]()
+      }
+      val allStats = threadDecl ++ chanDecls
+      val body : BlockStatement = create.block(allStats:_*)
+      val myNewMethod = create.method_kind(m.kind,m.getReturnType,newContract.getContract,m.name,args.toArray,body)
       create.leave()
       result = myNewMethod
     } else {
@@ -87,7 +104,7 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
     ensPerm.foreach(contract.ensures(_))
     ensArgEq.foreach(contract.ensures(_))
     ensSentRecvd.foreach(contract.ensures(_))
-    contract.getContract
+    contract
   }
 
 
