@@ -1,5 +1,6 @@
 package vct.col.ast.util;
 
+import scala.jdk.javaapi.CollectionConverters;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import scala.Option;
@@ -18,6 +19,7 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import hre.util.LambdaHelper;
+
 
 import java.util.*;
 
@@ -874,7 +876,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       }
       paramSpecs.add(new ParamSpec(newType, spec.name()));
     }
-    result = new CFunctionType(JavaConverters.asScalaBuffer(paramSpecs), returnType);
+    result = new CFunctionType(CollectionConverters.asScala(paramSpecs).toSeq(), returnType);
   }
 
   @Override

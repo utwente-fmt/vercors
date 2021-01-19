@@ -6,6 +6,7 @@ import java.util.Comparator
 import sbt.internal._
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
+ThisBuild / scalaVersion := "2.13.4"
 
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
@@ -68,11 +69,9 @@ lazy val vercors = (project in file("."))
         |PVL. """.stripMargin.replaceAll("\n", ""),
 
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
-    libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-    libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
-
-    scalaVersion := "2.12.10",
+    libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.8",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test",
+    // libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
 
     scalacOptions in ThisBuild += "-deprecation",
     scalacOptions in ThisBuild += "-feature",
