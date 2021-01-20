@@ -1,0 +1,21 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case SubSet
+//:: tools silicon
+//:: verdict Pass
+
+class SubSet {
+    void main() {
+        set<int> a = set<int> {1, 5, 7, 8, 6, 1, 4, 8, 6, 3};
+        set<int> b = set<int> {1, 5, 7};
+
+        assert b <= b && b < a && !(a < b);
+
+        bag<int> c = bag<int> {1,5,7,4,9,6,3,2,4,5};
+        bag<int> d = bag<int> {4,6,2,4,5};
+
+        assert d < c;
+        assert (7 in d) == 0 && (7 in c) == 1 && !(c <= d);
+
+        assert !({1,2,3} < {t: int});
+    }
+}
