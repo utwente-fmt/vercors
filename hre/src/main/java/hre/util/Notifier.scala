@@ -16,13 +16,13 @@ object Notifier {
     } else if (os.contains("mac")) {
       notifyMacOS(title, message)
     } else if (os.contains("nix") || os.contains("linux")) {
-      notifyDebian(title, message)
+      notifyLibnotify(title, message)
     } else {
       false
     }
   }
 
-  def notifyDebian(title: String, message: String): Boolean = {
+  def notifyLibnotify(title: String, message: String): Boolean = {
     if (commandExists("notify-send")) {
       val cmd = Seq("notify-send", title, message)
       cmd ! ProcessLogger(_ => Unit, _ => Unit) match {
