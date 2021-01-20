@@ -1,25 +1,21 @@
 package hre.util
 
-import java.io.{ByteArrayInputStream, File}
+import hre.config.Configuration
 
+import java.io.{ByteArrayInputStream, File}
 import sys.process._
 import hre.lang.System.Warning
 
 import scala.collection.JavaConverters._
 import java.nio.file.{Files, Paths}
+import java.util.regex.Pattern
 
 object Notifier {
-  def notify(title: String, message: String): Boolean = {
-    val os = System.getProperty("os.name").toLowerCase()
-    if (os.contains("win")) {
-      notifyWindows10(title, message)
-    } else if (os.contains("mac")) {
-      notifyMacOS(title, message)
-    } else if (os.contains("nix") || os.contains("linux")) {
-      notifyLibnotify(title, message)
-    } else {
-      false
-    }
+  def notify(title: String, message: String): Boolean = Configuration.getOS() match {
+    case Configuration.OS.WINDOWS => notifyWindows10(title, message)
+    case Configuration.OS.MAC => notifyMacOS(title, message)
+    case Configuration.OS.UNIX => notifyLibnotify(title, message)
+    case _ => false
   }
 
   def notifyLibnotify(title: String, message: String): Boolean = {
@@ -76,6 +72,12 @@ object Notifier {
       |""".stripMargin
 
   def notifyWindows10(title: String, message: String): Boolean = {
+    // Only allow safe characters
+    val ok = (x: String) => Pattern.matches("[a-zA-Z ]*", x)
+    if (!ok(title) || !ok(message)) {
+      return false
+    }
+
     // Script comes from: https://gist.github.com/Windos/9aa6a684ac583e0d38a8fa68196bc2dc
     val script = powershellNotificationScript.format(title, message)
     val is = new ByteArrayInputStream(script.getBytes("UTF-8"))
