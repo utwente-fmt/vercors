@@ -68,6 +68,7 @@ postfixExpression
     |   '(' typeName ')' '{' initializerList ',' '}'
     |   '__extension__' '(' typeName ')' '{' initializerList '}'
     |   '__extension__' '(' typeName ')' '{' initializerList ',' '}'
+    |   gpgpuCudaKernelInvocation
     ;
 
 argumentExpressionList

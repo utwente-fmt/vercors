@@ -91,18 +91,20 @@ class KernelBodyRewriter extends AbstractRewriter {
             decls.add(rewrite(d));
         }
         Contract c = m.getContract();
+        if(c == null) {
+            c = new ContractBuilder().getContract(false);
+        }
         rewrite(c, icb);
         gcb.appendInvariant(rewrite(c.invariant));
         kcb.appendInvariant(rewrite(c.invariant));
-        Contract ic = rewrite(m.getContract());
-        for (ASTNode clause : ASTUtils.conjuncts(ic.pre_condition, StandardOperator.Star)) {
+        for (ASTNode clause : ASTUtils.conjuncts(c.pre_condition, StandardOperator.Star)) {
             ASTNode group = create.starall(
                     create.expression(StandardOperator.Member,
                             create.local_name("opencl_lid"),
                             create.expression(StandardOperator.RangeSeq,
                                     create.constant(0), create.local_name("opencl_gsize"))
                     ),
-                    clause,
+                    rewrite(clause),
                     create.field_decl("opencl_lid", create.primitive_type(PrimitiveSort.Integer)));
             gcb.requires(group);
             kcb.requires(create.starall(

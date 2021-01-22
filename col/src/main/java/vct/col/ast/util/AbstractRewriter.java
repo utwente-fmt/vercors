@@ -4,6 +4,7 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import scala.Option;
 import scala.collection.JavaConverters;
+import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -926,5 +927,10 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   @Override
   public void visit(Synchronized sync) {
     result = create.syncBlock(rewrite(sync.expr()), rewrite(sync.statement()));
+  }
+
+  @Override
+  public void visit(KernelInvocation ki) {
+    result = create.kernelInvocation(ki.method(), rewrite(ki.blockCount()), rewrite(ki.threadCount()), rewrite(ki.javaArgs()));
   }
 }

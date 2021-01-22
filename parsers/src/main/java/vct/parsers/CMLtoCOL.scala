@@ -206,7 +206,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
         val (direct, ptr) = innerDecl match {
           case Declarator0(maybePtr, decl, _) => (decl, maybePtr)
         }
-        val t = convertPointer(ptr)(convertDeclaratorType(direct)(baseType))
+        val t = convertDeclaratorType(direct)(convertPointer(ptr)(baseType))
         val name = convertDeclaratorName(direct)
 
         t match {
@@ -846,6 +846,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       ??(exp)
     case PostfixExpression10(_, _, _, _, _, _, _, _) =>
       ??(exp)
+    case PostfixExpression11(GpgpuCudaKernelInvocation0(name, _, blockCount, _, threadCount, _, _, arguments, _)) =>
+      create.kernelInvocation(convertID(name), expr(blockCount), expr(threadCount), exprList(arguments):_*)
   })
 
   def expr(exp: PrimaryExpressionContext): ASTNode = origin(exp, exp match {
