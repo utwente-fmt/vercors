@@ -15,6 +15,7 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
+import hre.util.Notifier;
 import vct.col.ast.syntax.PVLSyntax;
 import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
@@ -67,6 +68,7 @@ public class Main
     int exit=0;
     long wallStart = System.currentTimeMillis();
     TimeKeeper tk = new TimeKeeper();
+    BooleanSetting notify = new BooleanSetting(false);
     try {
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info);
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info);
@@ -153,6 +155,9 @@ public class Main
       
       BooleanSetting learn = new BooleanSetting(false);
       clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn");
+
+      clops.add(notify.getEnable("Send a system notification upon completion"), "notify");
+      
       Configuration.add_options(clops);
 
       String input[]=clops.parse(args);
@@ -235,7 +240,6 @@ public class Main
       }
       if (CommandLineTesting.enabled()){
         CommandLineTesting.runTests();
-        throw new HREExitException(0);
       }
       if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
@@ -707,7 +711,9 @@ public class Main
       }
     } catch (HREExitException e) {
       exit=e.exit;
-      Verdict("The final verdict is Error");
+      if (exit != 0) {
+        Verdict("The final verdict is Error");
+      }
     } catch (Throwable e) {
       DebugException(e);
       Verdict("An unexpected error occured in VerCors! " +
@@ -717,6 +723,9 @@ public class Main
       throw e;
     } finally {
       Progress("entire run took %d ms",System.currentTimeMillis()-wallStart);
+      if (notify.get()) {
+        Notifier.notify("VerCors", "Verification is complete");
+      }
       System.exit(exit);
     }
   }
