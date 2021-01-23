@@ -73,6 +73,10 @@ The license to VerCors is a mozilla open source license as described in LICENSE.
 
 - Nieuwe features:
   - Falende configuratie generatie
+    - Genereer run config als test failed
+  - Falende tests uit vorige runs eerst
+    - Kan op basis van run configs of bestand in /tmp
+    - Als een test eerst failed maar dan succeed, dan moet de run config verwijdert worden
   - Zichtbaar welke test op dit moment runned
   - Stop on first fail
   - Coverage
