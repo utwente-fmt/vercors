@@ -1,4 +1,6 @@
 import NativePackagerHelper._
+import sbt.Keys.unmanagedClasspath
+
 import sys.process._
 import java.nio.file.{Files, Path, Paths}
 import java.net.URL
@@ -69,7 +71,7 @@ lazy val vercors = (project in file("."))
 
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test,it",
     libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
 
     scalaVersion := "2.12.10",
@@ -126,4 +128,12 @@ lazy val vercors = (project in file("."))
     // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
     // allows them to access the Sil test suite.
     publishArtifact in(Test, packageBin) := true,
+
+    // Testing
+    // Needed so Jacoco can load its agent. See: https://github.com/sbt/sbt-jacoco/issues/62
+    // unfortunately prevents parallel test execution. To enable that, comment this line. But then you won't have
+    // coverage.
+    fork in Test := true,
+    // Also include resources in tests
+    unmanagedClasspath in Test += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
   )

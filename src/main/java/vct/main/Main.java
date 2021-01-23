@@ -726,7 +726,7 @@ public class Main
       if (notify.get()) {
         Notifier.notify("VerCors", "Verification is complete");
       }
-      System.exit(exit);
+//      System.exit(exit);
     }
   }
 
