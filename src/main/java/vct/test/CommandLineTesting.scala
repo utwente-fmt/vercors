@@ -135,9 +135,9 @@ object CommandLineTesting {
     parser.add(travisTestOutputOption, "travis-test-output")
   }
 
-  def getCases: Map[String, Case] = {
+  def getCasesInDirs(dirs: String*): Map[String, Case] = {
     val visitor = new RecursiveFileVisitor
-    testDirs.forEach(dir =>
+    dirs.map(dir =>
       Files.walkFileTree(Paths.get(dir), Set(FileVisitOption.FOLLOW_LINKS).asJava, Integer.MAX_VALUE, visitor))
 
     var will_fail = visitor.delayed_fail
@@ -153,7 +153,12 @@ object CommandLineTesting {
       throw new HREExitException(1)
     }
 
-    visitor.testsuite.asScala.filter({case (_, kees) => caseFilters.forall(_.isPossible(kees))}).toMap
+    visitor.testsuite.asScala.toMap
+  }
+
+  def getCases: Map[String, Case] = {
+    val cases = getCasesInDirs(testDirs.asScala.toSeq : _*)
+    cases.filter({case (_, kees) => caseFilters.forall(_.isPossible(kees))})
   }
 
   def getTasks: Map[String, Task] = {

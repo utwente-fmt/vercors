@@ -83,6 +83,7 @@ The license to VerCors is a mozilla open source license as described in LICENSE.
     - testOnly automatisch instrument de code met sbt-jacoco plugin
     - moet alleen de reports gemerged worden, staat op branch "add-coverage"
 - Features van huidige framework:
-  - folder runnen
+  - Iig documenteren hoe parallel runnen aangezet kan worden
+  - Ok: folder runnen
   - Splits
     

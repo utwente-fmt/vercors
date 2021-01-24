@@ -13,7 +13,7 @@ public class TestReport {
   public static enum Verdict { Pass, Fail, Inconclusive, Error };
   
   private Verdict verdict=Verdict.Pass;
-  private Exception e;
+  private Throwable e;
   
   public void setVerdict(Verdict verdict){
     this.verdict=verdict;
@@ -23,12 +23,12 @@ public class TestReport {
     return verdict;
   }
   
-  public void setException(Exception e){
+  public void setException(Throwable e){
     this.verdict=Verdict.Error;
     this.e=e;
   }
 
-  public Exception getException(){
+  public Throwable getException(){
     return e;
   }
   

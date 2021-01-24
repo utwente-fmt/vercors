@@ -16,6 +16,7 @@ import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
 import hre.util.Notifier;
+import hre.util.TestReport;
 import vct.col.ast.syntax.PVLSyntax;
 import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
@@ -63,12 +64,25 @@ public class Main
   
   private static Map<String, SpecialCountVisitor> counters = new HashMap<String, SpecialCountVisitor>();
 
-  public static void main(String[] args) throws Throwable
+  public static void main(String[] args) throws Throwable {
+    runVerification(args);
+  }
+
+  public static TestReport runVerification(String[] args) throws Throwable
   {
+    // Reset the world
+    program = new ProgramUnit();
+    classes = null;
+    counters = new HashMap<String, SpecialCountVisitor>();
+
     int exit=0;
     long wallStart = System.currentTimeMillis();
     TimeKeeper tk = new TimeKeeper();
     BooleanSetting notify = new BooleanSetting(false);
+
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+
     try {
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info);
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info);
@@ -220,7 +234,10 @@ public class Main
                   BuildInfo.gitHasChanges()
           );
         }
-        return;
+
+        TestReport testReport = new TestReport();
+        testReport.setVerdict(TestReport.Verdict.Pass);
+        return testReport;
       }
 
       Hashtable<String,CompilerPass> defined_passes=new Hashtable<String,CompilerPass>();
@@ -706,27 +723,39 @@ public class Main
             Fail("exit after pass %s",pass);
           }
         }
+
         Verdict("The final verdict is %s",fatal_errs==0?"Pass":"Fail");
+        TestReport testReport = new TestReport();
+        testReport.setVerdict(fatal_errs == 0 ? TestReport.Verdict.Pass : TestReport.Verdict.Fail);
+        return testReport;
         //report.listFatals();
       }
     } catch (HREExitException e) {
       exit=e.exit;
+      TestReport testReport = new TestReport();
       if (exit != 0) {
         Verdict("The final verdict is Error");
+        testReport.setException(e);
+      } else {
+        testReport.setVerdict(TestReport.Verdict.Inconclusive);
       }
+      return testReport;
     } catch (Throwable e) {
       DebugException(e);
       Verdict("An unexpected error occured in VerCors! " +
               "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. " +
               "You can see the full exception by adding '--debug vct.main.Main' to the flags.");
       Verdict("The final verdict is Error");
-      throw e;
+      TestReport testReport = new TestReport();
+      testReport.setException(e);
+      return testReport;
     } finally {
       Progress("entire run took %d ms",System.currentTimeMillis()-wallStart);
       if (notify.get()) {
         Notifier.notify("VerCors", "Verification is complete");
       }
-//      System.exit(exit);
+      System.setErr(originalErr);
+      System.setOut(originalOut);
     }
   }
 

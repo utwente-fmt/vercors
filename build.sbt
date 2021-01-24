@@ -134,6 +134,8 @@ lazy val vercors = (project in file("."))
     // unfortunately prevents parallel test execution. To enable that, comment this line. But then you won't have
     // coverage.
     fork in Test := true,
+    // Ensure there is enough stack size for all the tests
+    Test / javaOptions += "-Xss8m",
     // Also include resources in tests
     unmanagedClasspath in Test += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
   )
