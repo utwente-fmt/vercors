@@ -82,6 +82,10 @@ The license to VerCors is a mozilla open source license as described in LICENSE.
   - Coverage
     - testOnly automatisch instrument de code met sbt-jacoco plugin
     - moet alleen de reports gemerged worden, staat op branch "add-coverage"
+  - Mogelijk iets leuks implementeren met origins om pass/fail weer te laten werken?
+- Fixes:
+  - `verdict` lengte checken, dingen na Pass/Fail rejecten
+  - `pass`/`fail` syntax error geven
 - Features van huidige framework:
   - Iig documenteren hoe parallel runnen aangezet kan worden
   - Ok: folder runnen

@@ -66,6 +66,7 @@ public class Main
 
   public static void main(String[] args) throws Throwable {
     runVerification(args);
+    System.exit(0);
   }
 
   public static TestReport runVerification(String[] args) throws Throwable
