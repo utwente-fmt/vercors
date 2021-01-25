@@ -74,6 +74,7 @@ object SessionUtil {
         case _ => None
       }
       case n : NameExpression => Some(n)
+      case m : MethodInvokation => getNameFromNode(m.`object`)
       case _ => None
     }
   }
