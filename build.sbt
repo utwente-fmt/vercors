@@ -71,8 +71,8 @@ lazy val vercors = (project in file("."))
 
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test,it",
-    libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+//    libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
 
     scalaVersion := "2.12.10",
 
