@@ -303,7 +303,6 @@ public class Configuration {
         return env;
     }
 
-<<<<<<< HEAD
     public static String getMonoVersion() {
         MessageProcessEnvironment env = new MessageProcessEnvironment("mono");
         env.addArg("--version");
@@ -348,7 +347,8 @@ public class Configuration {
                 was be resolved by installing the development libraries for mono. So on debian that is "mono-devel", probably
                 similarly named on ubuntu too.
         */
-=======
+    }
+
     public static OS getOS() {
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("win")) {
@@ -360,6 +360,5 @@ public class Configuration {
         } else {
             return OS.UNKNOWN;
         }
->>>>>>> dev
     }
 }
