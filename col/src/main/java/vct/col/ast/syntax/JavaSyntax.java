@@ -60,7 +60,6 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(AbstractState,"AbstractState");
         syntax.addFunction(Contribution,"Contribution");
         syntax.addFunction(Held,"held");
-        syntax.addFunction(Identity,"\\id");
         syntax.addFunction(SizeOf,"\\sizeof");
         syntax.addFunction(AddrOf,"\\addrof");
         syntax.addFunction(Indirection,"\\indirect");

@@ -1,0 +1,15 @@
+//:: cases ForWithinParallel
+//:: tools silicon
+//:: verdict Pass
+
+class C {
+  requires N > 0;
+  void m(int N) {
+    par (int tid = 0 .. N) {
+      // For loop within par should be allowed and not cause name conflicts
+      for (int i = 0; i < N; i++) {
+        i = i + 1;
+      }
+    }
+  }
+}

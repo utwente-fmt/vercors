@@ -1158,9 +1158,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType((Type) ((PrimitiveType) t).firstarg());
         break;
       }
-      case Identity: {
-        Type t = e.arg(0).getType();
-        e.setType(t);
+      case OptionGetOrElse: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Option)) {
+          Fail("first argument is %s rather then an option ", tt[0]);
+        } else if (!tt[1].comparableWith(source(), (Type) tt[0].firstarg())) {
+          Fail("type of the second argument %s does not match the value type of the option %s", tt[1], tt[0].firstarg());
+        }
+        e.setType((Type) tt[0].firstarg());
         break;
       }
       case PreIncr:
@@ -1292,8 +1296,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         break;
       }
       case GTE:
-      case LTE:
-      case LT:
       case GT: {
         if (!tt[0].isNumeric()) {
           Fail("First argument of %s is %s rather than a numeric type", op, tt[0]);
@@ -1302,12 +1304,28 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           Fail("Second argument of %s is %s rather than a numeric type", op, tt[1]);
         }
 
-        if(tt[0].isFraction()) force_frac(e.arg(1));
-        else if(tt[1].isFraction()) force_frac(e.arg(0));
+        if (tt[0].isFraction()) force_frac(e.arg(1));
+        else if (tt[1].isFraction()) force_frac(e.arg(0));
 
         e.setType(new PrimitiveType(PrimitiveSort.Boolean));
         break;
       }
+      case LTE:
+      case LT:
+        if (!tt[0].isNumeric() && !tt[0].isPrimitive(PrimitiveSort.Set) && !tt[0].isPrimitive(PrimitiveSort.Bag)) {
+          Fail("Left argument of %s is %s rather than a numeric type, set or a bag", op, tt[0]);
+        } else if (tt[0].isNumeric() && !tt[1].isNumeric()) {
+          Fail("Right argument of %s is %s rather than a numeric type", op, tt[1]);
+        } else if ((tt[0].isPrimitive(PrimitiveSort.Set) || tt[0].isPrimitive(PrimitiveSort.Bag)) && !tt[0].equals(tt[1])) {
+          Fail("Type of right side does not match the left side");
+        }
+        if (tt[0].isNumeric() && tt[1].isNumeric()) {
+          if (tt[0].isFraction()) force_frac(e.arg(1));
+          else if (tt[1].isFraction()) force_frac(e.arg(0));
+        }
+
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
       case Old: {
         Type t = e.arg(0).getType();
         if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
@@ -1320,60 +1338,81 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType((Type) t);
         break;
       }
-    case Drop:
-    case Take:
-    {
-      SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfoOrFail(tt[0], "Expected this expression to be of a sequence type, but got %s.");
+      case Drop:
+      case Take: {
+        SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfoOrFail(tt[0], "Expected this expression to be of a sequence type, but got %s.");
 
-      if (info.getSequenceSort() != PrimitiveSort.Sequence && info.getSequenceSort() != PrimitiveSort.Array) {
-        Fail("base must be of sequence type");
+        if (info.getSequenceSort() != PrimitiveSort.Sequence && info.getSequenceSort() != PrimitiveSort.Array) {
+          Fail("base must be of sequence type");
+        }
+        if (!tt[1].isInteger()) {
+          Fail("count has type '%s' rather than integer", tt[1]);
+        }
+        e.setType(tt[0]);
+        break;
       }
-      if (!tt[1].isInteger()) {
-        Fail("count has type '%s' rather than integer", tt[1]);
-      }
-      e.setType(tt[0]);
-      break;
-    }
-    case Slice:
-    {
-      if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
-        Fail("base must be of sequence type");
-      }
-      if (!tt[1].isInteger()) {
-        Fail("left count has type '%s' rather than integer", tt[1]);
-      }
-      if (!tt[2].isInteger()) {
-        Fail("right count has type '%s' rather than integer", tt[2]);
-      }
-      e.setType(tt[0]);
-      break;
-    }
-
-    case SeqUpdate: {
-      if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
-        Fail("base must be of sequence type");
+      case Slice: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
+          Fail("base must be of sequence type");
+        }
+        if (!tt[1].isInteger()) {
+          Fail("left count has type '%s' rather than integer", tt[1]);
+        }
+        if (!tt[2].isInteger()) {
+          Fail("right count has type '%s' rather than integer", tt[2]);
+        }
+        e.setType(tt[0]);
+        break;
       }
 
-      // for example, if `tt[0]` is of type `seq<int>`, then `innerType` shall be `int`.
-      Type innerType = (Type)tt[0].firstarg();
+      case SeqUpdate: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
+          Fail("base must be of sequence type");
+        }
 
-      if (!tt[1].isInteger()) {
-        Fail("index has type '%s' rather than integer", tt[1]);
+        // for example, if `tt[0]` is of type `seq<int>`, then `innerType` shall be `int`.
+        Type innerType = (Type) tt[0].firstarg();
+
+        if (!tt[1].isInteger()) {
+          Fail("index has type '%s' rather than integer", tt[1]);
+        }
+
+        if (!tt[2].equals(innerType)) {
+          Fail("the replacing element has type '%s' but should be '%s'", tt[2], innerType);
+        }
+
+        e.setType(tt[0]);
+        break;
       }
-
-      if (!tt[2].equals(innerType)) {
-        Fail("the replacing element has type '%s' but should be '%s'", tt[2], innerType);
+      case SubSet:
+      case SubSetEq:
+      {
+        if (!tt[0].isPrimitive(PrimitiveSort.Set) && !tt[0].isPrimitive(PrimitiveSort.Bag)) {
+          Fail("First argument of %s is %s rather than a set or a bag", op, tt[0]);
+        } else if (!tt[0].equals(tt[1])) {
+          Fail("Type of right side does not match the left side");
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
       }
-
-      e.setType(tt[0]);
-      break;
-    }
+      case SeqPermutation: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
+          Fail("First argument of %s is %s rather than a sequence", op, tt[0]);
+        } else if (!tt[1].isPrimitive(PrimitiveSort.Sequence)) {
+          Fail("First argument of %s is %s rather than a sequence", op, tt[1]);
+        } else if (!tt[0].firstarg().equals(tt[1].firstarg())) {
+          Fail("Types of sequences differ of %s: %s and %s", op, tt[0], tt[1]);
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+      }
     case Empty: {
       Type t = e.arg(0).getType();
-      if (!t.isPrimitive(PrimitiveSort.Sequence)) Fail("argument of empty not a sequence");
+      if (!t.isPrimitive(PrimitiveSort.Sequence) &&
+              !t.isPrimitive(PrimitiveSort.Set) &&
+              !t.isPrimitive(PrimitiveSort.Bag) &&
+              !t.isPrimitive(PrimitiveSort.Map)) Fail("argument of empty not a sequence, set, bag or map");
       e.setType(new PrimitiveType(PrimitiveSort.Boolean));
       break;
-
     }
     case Subscript:
     {

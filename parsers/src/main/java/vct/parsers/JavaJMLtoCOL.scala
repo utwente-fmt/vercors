@@ -169,6 +169,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         mods.foreach(mod => res.attach(mod))
         res
       }
+
+    case ClassDeclaration0("class", name, typeParameters, superClasses, interfaces, body) =>
+      ??(decl)
   })
 
   def convertThrows(maybeThrows: Option[ThrowyContext]): Seq[Type] = maybeThrows match {
@@ -956,33 +959,31 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create expression(Length, expr(exp))
     case ValPrimary14("\\old", "(", exp, ")") =>
       create expression(Old, expr(exp))
-    case ValPrimary15("\\id", "(", exp, ")") =>
-      create expression(Identity, expr(exp))
-    case ValPrimary16("\\typeof", "(", exp, ")") =>
+    case ValPrimary15("\\typeof", "(", exp, ")") =>
       create expression(TypeOf, expr(exp))
-    case ValPrimary17("\\matrix", "(", m, _, size0, _, size1, ")") =>
+    case ValPrimary16("\\matrix", "(", m, _, size0, _, size1, ")") =>
       create expression(ValidMatrix, expr(m), expr(size0), expr(size1))
-    case ValPrimary18("\\array", "(", a, _, size0, ")") =>
+    case ValPrimary17("\\array", "(", a, _, size0, ")") =>
       create expression(ValidArray, expr(a), expr(size0))
-    case ValPrimary19("\\pointer", "(", p, _, size0, _, perm, ")") =>
+    case ValPrimary18("\\pointer", "(", p, _, size0, _, perm, ")") =>
       create expression(ValidPointer, expr(p), expr(size0), expr(perm))
-    case ValPrimary20("\\pointer_index", "(", p, _, idx, _, perm, ")") =>
+    case ValPrimary19("\\pointer_index", "(", p, _, idx, _, perm, ")") =>
       create expression(ValidPointerIndex, expr(p), expr(idx), expr(perm))
-    case ValPrimary21("\\values", "(", a, _, fr, _, to, ")") =>
+    case ValPrimary20("\\values", "(", a, _, fr, _, to, ")") =>
       create expression(Values, expr(a), expr(fr), expr(to))
-    case ValPrimary22("\\sum", "(", a, _, b, ")") =>
+    case ValPrimary21("\\sum", "(", a, _, b, ")") =>
       create expression(FoldPlus, expr(a), expr(b))
-    case ValPrimary23("\\vcmp", "(", a, _, b, ")") =>
+    case ValPrimary22("\\vcmp", "(", a, _, b, ")") =>
       create expression(VectorCompare, expr(a), expr(b))
-    case ValPrimary24("\\vrep", "(", v, ")") =>
+    case ValPrimary23("\\vrep", "(", v, ")") =>
       create expression(VectorRepeat, expr(v))
-    case ValPrimary25("\\msum", "(", a, _, b, ")") =>
+    case ValPrimary24("\\msum", "(", a, _, b, ")") =>
       create expression(MatrixSum, expr(a), expr(b))
-    case ValPrimary26("\\mcmp", "(", a, _, b, ")") =>
+    case ValPrimary25("\\mcmp", "(", a, _, b, ")") =>
       create expression(MatrixCompare, expr(a), expr(b))
-    case ValPrimary27("\\mrep", "(", m, ")") =>
+    case ValPrimary26("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary28("Reducible", "(", exp, _, opNode, ")") =>
+    case ValPrimary27("Reducible", "(", exp, _, opNode, ")") =>
       val opText = opNode match {
         case ValReducibleOperator0("+") => "+"
         case ValReducibleOperator1(id) => convertID(id)
@@ -992,11 +993,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case "min" => ReducibleMin
         case "max" => ReducibleMax
       }, expr(exp))
-    case ValPrimary29(label, _, exp) =>
+    case ValPrimary28(label, _, exp) =>
       val res = expr(exp)
       res.addLabel(create label(convertID(label)))
       res
-    case ValPrimary30("{:", pattern, ":}") =>
+    case ValPrimary29("{:", pattern, ":}") =>
       create pattern expr(pattern)
   })
 

@@ -24,7 +24,7 @@ abstract class Type(val args:List[ASTNode]) extends ASTNode {
   def argsJava = args.asJava
   
   /** Tests whether `args` has any arguments. */
-  def hasArguments = args.isEmpty
+  def hasArguments = args.nonEmpty
   
   /** Tests whether `args` has at least `n` arguments. Beware, `hasArguments` takes linear time in `n`. */
   def hasArguments(n:Int) = args.take(n).length == n

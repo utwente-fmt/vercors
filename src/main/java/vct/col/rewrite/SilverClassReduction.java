@@ -436,6 +436,11 @@ public class SilverClassReduction extends AbstractRewriter {
       result=create.invokation(null, null,method,rewrite(e.argsJava()));
       break;
     }
+    case OptionGetOrElse: {
+      options=true;
+      result=create.invokation(rewrite(e.first().getType()), null,"getVCTOptionOrElse",rewrite(e.argsJava()));
+      break;
+    }
     case New:{
       ClassType t=(ClassType)e.arg(0);
       ASTClass cl=source().find(t);

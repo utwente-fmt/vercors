@@ -22,6 +22,14 @@ import static hre.lang.System.*;
  *
  */
 public class Configuration {
+    // When we move to scala 3 this can maybe be refactored to a scala enum
+    public enum OS {
+        WINDOWS,
+        MAC,
+        UNIX,
+        UNKNOWN
+    }
+
     /**
      * Switch behavior of witness encoding.
      */
@@ -90,6 +98,11 @@ public class Configuration {
     public static final StringSetting cpp_command=new StringSetting("clang -C -E");
 
     /**
+     * The option for session type generation
+     */
+    public static final StringSetting session_file=new StringSetting(null);
+
+    /**
      * Add the VCT library options to the given option parser.
      * @param clops Option parser.
      */
@@ -108,6 +121,7 @@ public class Configuration {
         clops.add(cpp_defines.getAppendOption("add to the CPP defined variables"),'D');
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
+        clops.add(session_file.getAssign("generate threads from session type"),"session");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);
@@ -157,14 +171,14 @@ public class Configuration {
 
     public static File getZ3Path() {
         File base = getFileOrAbort("/deps/z3/4.8.6");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
-            return join(base, "Windows NT", "intel", "bin", "z3.exe");
-        } else if(os.startsWith("Mac")) {
-            return join(base, "Darwin", "x86_64", "bin", "z3");
-        } else {
-            return join(base, "Linux", "x86_64", "bin", "z3");
+        switch (getOS()) {
+            case WINDOWS:
+                return join(base, "Windows NT", "intel", "bin", "z3.exe");
+            case MAC:
+                return join(base, "Darwin", "x86_64", "bin", "z3");
+            default:
+                return join(base, "Linux", "x86_64", "bin", "z3");
         }
     }
 
@@ -182,9 +196,8 @@ public class Configuration {
 
     public static File getBoogiePath() {
         File base = getFileOrAbort("/deps/boogie/2.4.1.10503");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
+        if (getOS() == OS.WINDOWS) {
             return join(base, "Boogie.exe");
         } else {
             return join(base, "Boogie");
@@ -193,9 +206,8 @@ public class Configuration {
 
     public static File getChalicePath() {
         File base = getFileOrAbort("/deps/chalice/2013-12-17/");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
+        if(getOS() == OS.WINDOWS) {
             return join(base, "windows", "bin");
         } else {
             return join(base, "unix", "bin");
@@ -204,9 +216,8 @@ public class Configuration {
 
     public static File getDafnyPath() {
         File base = getFileOrAbort("/deps/dafny/1.9.6/");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
+        if (getOS() == OS.WINDOWS) {
             return join(base, "windows");
         } else {
             return join(base, "unix");
@@ -292,6 +303,7 @@ public class Configuration {
         return env;
     }
 
+<<<<<<< HEAD
     public static String getMonoVersion() {
         MessageProcessEnvironment env = new MessageProcessEnvironment("mono");
         env.addArg("--version");
@@ -336,5 +348,18 @@ public class Configuration {
                 was be resolved by installing the development libraries for mono. So on debian that is "mono-devel", probably
                 similarly named on ubuntu too.
         */
+=======
+    public static OS getOS() {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return OS.WINDOWS;
+        } else if (os.contains("mac")) {
+            return OS.MAC;
+        } else if (os.contains("nix") || os.contains("linux")) {
+            return OS.UNIX;
+        } else {
+            return OS.UNKNOWN;
+        }
+>>>>>>> dev
     }
 }

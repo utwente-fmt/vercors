@@ -77,6 +77,14 @@ public class VerCorsExpressionFactory implements
   }
 
   @Override
+  public ASTNode any_set_subset(Origin o, ASTNode e1, ASTNode e2) {
+      enter(o);
+      ASTNode res= create.expression(StandardOperator.SubSet, e1, e2);
+      leave();
+    return res;
+  }
+
+  @Override
   public ASTNode any_set_union(Origin o, ASTNode e1, ASTNode e2) {
     enter(o);
     ASTNode res=create.expression(StandardOperator.Plus, e1, e2);

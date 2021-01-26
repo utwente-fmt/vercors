@@ -1,8 +1,15 @@
 package vct.col.ast.syntax;
 
 
+import hre.ast.TrackingOutput;
+import vct.col.ast.generic.ASTNode;
+import vct.col.ast.print.JavaPrinter;
+import vct.col.ast.print.PVLPrinter;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.Parenthesize;
+
+import java.io.PrintWriter;
 
 import static vct.col.ast.expr.StandardOperator.*;
 import static vct.col.ast.type.ASTReserved.FullPerm;
@@ -18,13 +25,17 @@ import static vct.col.ast.type.ASTReserved.CurrentThread;
  * @see Syntax
  * 
  */
-public class PVLSyntax {
+public class PVLSyntax extends Syntax {
 
-  private static Syntax syntax;
-  
-  public static Syntax get(){
+  private static PVLSyntax syntax;
+
+  public PVLSyntax(String language) {
+    super(language);
+  }
+
+  public static PVLSyntax get(){
     if(syntax==null){
-      syntax=new Syntax("PVL");
+      syntax=new PVLSyntax("PVL");
 
       VerCorsSyntax.add(syntax);
       
@@ -40,32 +51,32 @@ public class PVLSyntax {
       syntax.addFunction(Tail,"tail");
       syntax.addFunction(Empty,"isEmpty");
       syntax.addFunction(RemoveAt, "removeAt");
+      syntax.addFunction(SeqPermutation, "permutationOf");
       //syntax.addFunction(Head,"head");
       //syntax.addFunction(Tail,"tail");
       syntax.addFunction(Value,"Value");
 
       syntax.addFunction(PointsTo,"PointsTo");
-      syntax.addFunction(Identity,"id");
       syntax.addFunction(IterationOwner,"\\owner");
       //syntax.addFunction(ArrayPerm,"ArrayPerm");
       syntax.addFunction(Old,"\\old");
 
       syntax.addFunction(OptionSome, "Some");
-                                                                 
-      syntax.addFunction(MapBuild, "buildMap");           
-      syntax.addFunction(MapEquality, "equalsMap");       
-      syntax.addFunction(MapDisjoint, "disjointMap");     
-      syntax.addFunction(MapKeySet, "keysMap");           
-      syntax.addFunction(MapCardinality, "cardMap");      
-      syntax.addFunction(MapValueSet, "valuesMap");       
-      syntax.addFunction(MapGetByKey, "getFromMap");      
-      syntax.addFunction(MapRemoveKey, "removeFromMap"); 
-      syntax.addFunction(MapItemSet, "itemsMap");
+      syntax.addFunction(OptionGet, "getOption");
+      syntax.addFunction(OptionGetOrElse, "getOrElseOption");
 
+      syntax.addFunction(MapBuild, "buildMap");
+      syntax.addFunction(MapEquality, "equalsMap");
+      syntax.addFunction(MapDisjoint, "disjointMap");
+      syntax.addFunction(MapKeySet, "keysMap");
+      syntax.addFunction(MapCardinality, "cardMap");
+      syntax.addFunction(MapValueSet, "valuesMap");
+      syntax.addFunction(MapGetByKey, "getFromMap");
+      syntax.addFunction(MapRemoveKey, "removeFromMap");
+      syntax.addFunction(MapItemSet, "itemsMap");
 
       syntax.addFunction(TupleFst, "getFst");
       syntax.addFunction(TupleSnd, "getSnd");
-
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
@@ -181,4 +192,13 @@ public class PVLSyntax {
     return syntax;
   }
 
+  @Override
+  public PVLPrinter print(TrackingOutput out, ASTNode n) {
+    PVLPrinter p=new PVLPrinter(out);
+    if (n!=null) {
+      ASTNode nn=new Parenthesize(this).rewrite(n);
+      nn.accept(p);
+    }
+    return p;
+  }
 }

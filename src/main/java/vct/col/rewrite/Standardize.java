@@ -145,48 +145,15 @@ public class Standardize extends AbstractRewriter {
           }
           break;
         }
-      }
-    }
-
-    switch (e.operator()) {
-      case PrependSingle: {
-        Type seqElementType = e.arg(0).getType();
-        if (seqElementType != null) {
-          ASTNode var = e.arg(0).apply(this);
-          ASTNode seq = e.arg(1).apply(this);
-
-          StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-          result = create.expression(StandardOperator.Concat, newSeq, seq);
-        } else {
+        default: {
           super.visit(e);
         }
-        break;
       }
-      case AppendSingle:
-      {
-        Type seqElementType = e.arg(1).getType();
-        if (seqElementType != null) {
-          ASTNode var = e.arg(1).apply(this);
-          ASTNode seq = e.arg(0).apply(this);
-
-          StructValue newSeq = create.struct_value(create.primitive_type(PrimitiveSort.Sequence, seqElementType), null, var);
-          result = create.expression(StandardOperator.Concat, seq, newSeq);
-
-        } else {
-          super.visit(e);
-        }
-        break;
-      }
-      case Empty: {
-        Type seqElementType = e.arg(0).getType();
-        ASTNode seq = e.arg(0).apply(this);
-        result = eq(constant(0), size(seq));
-        break;
-      }
-    }
-
-    // If none of the cases above match
-    if (result == null) {
+    } else if (e.operator() == StandardOperator.Empty) {
+      ASTNode seq = e.arg(0).apply(this);
+      result = eq(constant(0), size(seq));
+      return;
+    } else {
       super.visit(e);
     }
   }
