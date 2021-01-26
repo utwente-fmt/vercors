@@ -7,12 +7,6 @@ Created by Mohsen Safari.
 #include <math.h>
 #include <cuda.h>
 
-
-//@ context \pointer_index(ar, 0, write);
-//@ ensures *ar == \old(*ar) || *ar == replacement;
-//@ ensures *ar <= \old(*ar) && *ar <= replacement;
-void atomicMin(int *ar, int replacement);
-
 ///////// ///////////////////////////////////////////////////////////////////////
 //Kernel
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,7 +21,7 @@ __global__ void CUDAKernel(int* g_array1, int* g_array2, int N)
 {
   int tid = blockIdx.x * N + threadIdx.x;
   //@ assert tid == \gtid;
-  atomicMin(g_array1 + tid, g_array2[tid]); // it compares values in array1 and array2 and returns the min into array1
+  atomicMin(g_array1 + tid, g_array2[tid]) /*@ then { assert false && false; } */;
 }
 
 //@ ensures \pointer(\result, N, write);

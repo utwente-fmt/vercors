@@ -506,6 +506,7 @@ blockItem
     |   {specLevel>0}? valStatement
     |   gpgpuLocalBarrier
     |   gpgpuGlobalBarrier
+    |   gpgpuAtomicBlock
     ;
 
 expressionStatement

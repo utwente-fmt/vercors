@@ -50,6 +50,7 @@ VAL_ENSURES: 'ensures';
 VAL_CONTEXT_EVERYWHERE: 'context_everywhere';
 VAL_CONTEXT: 'context';
 VAL_LOOP_INVARIANT: 'loop_invariant';
+VAL_KERNEL_INVARIANT: 'kernel_invariant';
 VAL_SIGNALS: 'signals';
 
 VAL_CREATE: 'create';

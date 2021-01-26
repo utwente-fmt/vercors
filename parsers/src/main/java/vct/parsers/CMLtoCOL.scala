@@ -10,13 +10,12 @@ import vct.col.ast.expr.{NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.langspecific.c._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
-import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, SignalsClause}
 import vct.col.ast.util.ContractBuilder
 import vct.col.ast.util.SequenceUtils
 
 import scala.collection.immutable.{Bag, HashedBagConfiguration}
 import scala.collection.mutable
-
 import java.util
 
 object CMLtoCOL {
@@ -515,6 +514,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       Seq(create.barrier("group_block", getContract(convertValContract(maybeContract)), new util.ArrayList[String](), null))
     case BlockItem5(GpgpuGlobalBarrier0(maybeContract, _, _, _, _)) =>
       Seq(create.barrier("kernel_block", getContract(convertValContract(maybeContract)), new util.ArrayList[String](), null))
+    case BlockItem6(GpgpuAtomicBlock0(_, block, maybeWithThen)) =>
+      val atomic = create.parallel_atomic(convertStat(block).asInstanceOf[BlockStatement], "__vercors_kernel_invariant__")
+      maybeWithThen.map(convertValWithThen).foreach(_.foreach(atomic.get_after.addStatement(_)))
+      Seq(atomic)
   })
 
   def convertStat(statement: StatementContext): ASTNode = origin(statement, statement match {
@@ -846,8 +849,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       ??(exp)
     case PostfixExpression10(_, _, _, _, _, _, _, _) =>
       ??(exp)
-    case PostfixExpression11(GpgpuCudaKernelInvocation0(name, _, blockCount, _, threadCount, _, _, arguments, _)) =>
-      create.kernelInvocation(convertID(name), expr(blockCount), expr(threadCount), exprList(arguments):_*)
+    case PostfixExpression11(GpgpuCudaKernelInvocation0(name, _, blockCount, _, threadCount, _, _, arguments, _, maybeWithThen)) =>
+      val invocation = create.kernelInvocation(convertID(name), expr(blockCount), expr(threadCount), exprList(arguments):_*)
+      maybeWithThen.toSeq.flatMap(convertValWithThen).foreach(invocation.get_after.addStatement(_))
+      invocation
   })
 
   def expr(exp: PrimaryExpressionContext): ASTNode = origin(exp, exp match {
@@ -926,6 +931,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       builder.context(expr(exp))
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
+    case ValContractClause9(_kernel_invariant, exp, _) =>
+      builder.appendKernelInvariant(expr(exp))
+    case ValContractClause10(_signals, _, signalsType, name, _, condition, _) =>
+      builder.signals(origin(clause, new SignalsClause(convertID(name), convertType(signalsType), expr(condition))))
   }
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {

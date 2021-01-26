@@ -181,6 +181,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       cb.appendInvariant(rewrite(clause));
     }
     in_invariant=false;
+    for(ASTNode clause : ASTUtils.conjuncts(c.kernelInvariant, StandardOperator.Star)) {
+      cb.appendKernelInvariant(rewrite(clause));
+    }
     in_requires=true;
     for(ASTNode clause:ASTUtils.conjuncts(c.pre_condition,StandardOperator.Star)){
       cb.requires(rewrite(clause));
@@ -628,8 +631,13 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 	for (ASTNode item : pa.synclistJava()) {
 	  synclist.add(rewrite(item));
 	}
-	
-    result = create.csl_atomic(rewrite(pa.block()), synclist.toArray(new ASTNode[0]));
+
+	ParallelAtomic res = create.csl_atomic(rewrite(pa.block()), synclist.toArray(new ASTNode[0]));
+
+	res.set_before(rewrite(pa.get_before()));
+	res.set_after(rewrite(pa.get_after()));
+
+    result = res;
   }
   
   @Override

@@ -709,6 +709,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       builder.context(expr(exp))
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
+    case ValContractClause9(_kernel_invariant, exp, _) =>
+      builder.appendKernelInvariant(expr(exp))
+    case ValContractClause10(_signals, _, signalsType, name, _, condition, _) =>
+      builder.signals(origin(clause, new SignalsClause(convertID(name), convertType(signalsType), expr(condition))))
   }
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {

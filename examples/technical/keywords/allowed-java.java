@@ -56,4 +56,5 @@ class Keywords {
     int atomic;
     int Reducible;
     int signals;
+    int kernel_invariant;
 }
