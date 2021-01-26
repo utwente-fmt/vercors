@@ -336,7 +336,7 @@ public class Configuration {
                 Warning("Could not detect mono version. Only mono 5 and mono 6.0 is known to work.");
             } else if (!(monoVersion.startsWith("5.") || monoVersion.startsWith("6.0"))) {
                 Warning("Mono version %s detected, which has not been tested. Mono 5 and mono 6.0 are known to work." +
-                        "Mono 4 and any version beyond and including mono 6.1 are untested.");
+                        "Mono 4 and any version beyond and including mono 6.1 are untested.", monoVersion);
             }
         }
 
