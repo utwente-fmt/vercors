@@ -197,6 +197,12 @@ public enum StandardOperator {
   Head(1),
   /** tail of a list. */
   Tail(1),
+  /** Proper subset */
+  SubSet(2),
+  /** Subset */
+  SubSetEq(2),
+  /** a sequence is a permutation of another sequence */
+  SeqPermutation(2),
   /** Bind an output argument of a method to this pattern.
    *  E.g. <code>?x</code> and <code>?(x,y)M</code>. 
    */
@@ -256,10 +262,6 @@ public enum StandardOperator {
    */
   Held(1),
   /**
-   * The identity operator.
-   */
-  Identity(1),
-  /**
    * The C indirection operator (*).
    */
   Indirection(1),
@@ -284,6 +286,10 @@ public enum StandardOperator {
    * The get operator for the options type.
    */
   OptionGet(1),
+  /**
+   * The getOrElse operator for the options type
+   */
+  OptionGetOrElse(2),
   /**
    * Declares the first argument to be a valid array of the given size.
    */

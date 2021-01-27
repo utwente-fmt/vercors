@@ -76,10 +76,6 @@ class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=
     wrappingOperator(StandardOperator.Wrap)
   }
 
-  it should "propagate typing in Identity applications" in {
-    wrappingOperator(StandardOperator.Identity)
-  }
-
   it should "rewrite array values within StructValues" in {
     var structValue = (innerValue: ASTNode) => create struct_value(SEQ_ARRAY_ARRAY_TYPE, null,
       innerValue

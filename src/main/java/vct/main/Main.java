@@ -16,6 +16,8 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
+import hre.util.Notifier;
+import vct.col.ast.syntax.PVLSyntax;
 import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
@@ -69,6 +71,7 @@ public class Main
     int exit=0;
     long wallStart = System.currentTimeMillis();
     TimeKeeper tk = new TimeKeeper();
+    BooleanSetting notify = new BooleanSetting(false);
     try {
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info);
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info);
@@ -158,6 +161,8 @@ public class Main
 
       StringListSetting minimiseTargetsOption = new StringListSetting();
       clops.add(minimiseTargetsOption.getAppendOption("One or more targets for minimisation. Syntaxes: 1) com.example.MyClass#myMethod 2) mySilverMethod"), "minimise");
+
+      clops.add(notify.getEnable("Send a system notification upon completion"), "notify");
       
       Configuration.add_options(clops);
 
@@ -243,7 +248,6 @@ public class Main
       }
       if (CommandLineTesting.enabled()){
         CommandLineTesting.runTests();
-        throw new HREExitException(0);
       }
       if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
@@ -337,8 +341,13 @@ public class Main
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
 
+
         if (minimiseTargets.size() > 0) {
           passes.add("mark-minimise-targets");
+        }
+
+        if(Configuration.session_file.get() != null) {
+          passes.add("pvl");
         }
 
         boolean usesBreakContinue = features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue);
@@ -460,7 +469,6 @@ public class Main
             passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
             passes.add("standardize");
           }
-          // passes.add("recognize_multidim"); // translate matrices as a flat array (like c does in memory)
           passes.add("check");
           passes.add("simplify_quant"); // reduce nesting of quantifiers
           passes.add("simplify_quant_relations");
@@ -719,7 +727,9 @@ public class Main
       }
     } catch (HREExitException e) {
       exit=e.exit;
-      Verdict("The final verdict is Error");
+      if (exit != 0) {
+        Verdict("The final verdict is Error");
+      }
     } catch (Throwable e) {
       DebugException(e);
       Verdict("An unexpected error occured in VerCors! " +
@@ -729,6 +739,9 @@ public class Main
       throw e;
     } finally {
       Progress("entire run took %d ms",System.currentTimeMillis()-wallStart);
+      if (notify.get()) {
+        Notifier.notify("VerCors", "Verification is complete");
+      }
       System.exit(exit);
     }
   }
@@ -746,6 +759,23 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("pvl",new CompilerPass("print AST in PVL syntax"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        try {
+          File f = new File(Configuration.session_file.get());
+          boolean b = f.createNewFile();
+          if(!b) {
+            Debug("File " + Configuration.session_file.get() + " already exists and is now overwritten");
+          }
+          PrintWriter out = new PrintWriter(new FileOutputStream(f));
+          PVLSyntax.get().print(out,arg);
+          out.close();
+        } catch (IOException e) {
+          Debug(e.getMessage());
+        }
+        return arg;
+      }
+    });
     defined_passes.put("c",new CompilerPass("print AST in C syntax"){
         public ProgramUnit apply(ProgramUnit arg,String ... args){
           PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
@@ -1017,11 +1047,6 @@ public class Main
     defined_passes.put("pvl-compile",new CompilerPass("Compile PVL classes to Java classes"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new PVLCompiler(arg).rewriteAll();
-      }
-    });
-    defined_passes.put("recognize_multidim",new CompilerPass("Recognize multi-dimensional arrays"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new RecognizeMultiDim(arg).rewriteAll();
       }
     });
     defined_passes.put("reorder",new CompilerPass("reorder statements (e.g. all declarations at the start of a bock"){

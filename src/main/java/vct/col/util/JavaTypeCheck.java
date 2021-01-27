@@ -2,6 +2,7 @@ package vct.col.util;
 
 import hre.ast.Origin;
 import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
@@ -9,6 +10,7 @@ import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.decl.SignalsClause;
+import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.logging.MessageFactory;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 public class JavaTypeCheck extends AbstractTypeCheck {
 
   Set<Type> liveExceptionTypes = new HashSet<>();
+  boolean inSignals = false;
 
   public JavaTypeCheck(PassReport report, ProgramUnit arg) {
     super(report, arg);
@@ -74,7 +77,9 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   }
 
   public void visit(SignalsClause sc) {
+    inSignals = true;
     super.visit(sc);
+    inSignals = false;
 
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
     if (!throwableType.supertypeof(source(), sc.type())) {
@@ -181,6 +186,8 @@ public class JavaTypeCheck extends AbstractTypeCheck {
               .filter(exceptionType -> !t.supertypeof(source(), exceptionType))
               .collect(Collectors.toSet());
     }
+
+    super.visit(cc);
   }
 
   public void visit(ASTSpecial special) {
@@ -204,9 +211,15 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     if (mi.definition().getKind() == Method.Kind.Constructor || mi.definition().getKind() == Method.Kind.Plain) {
       // Any types that the method has declared, can become live when calling this method
-      for (Type t : mi.definition().signals) {
-        liveExceptionTypes.add(t);
-      }
+      liveExceptionTypes.addAll(Arrays.asList(mi.definition().signals));
     }
+  }
+
+  public void visit(NameExpression name) {
+    if (name.isReserved(ASTReserved.Result) && inSignals) {
+      name.getOrigin().report("error", "Using \\result in signals is not allowed");
+      Fail("Using \\result in signals is not allowed");
+    }
+    super.visit(name);
   }
 }

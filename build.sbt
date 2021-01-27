@@ -48,18 +48,6 @@ lazy val col = (project in file("col")).dependsOn(hre)
 lazy val parsers = (project in file("parsers")).dependsOn(hre, col)
 lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, carbon_ref, silicon_ref)
 
-def hasGit = "which git" ! ProcessLogger(a => (), b => ()) == 0 // Right hand side of ! silences it
-def gitHasChanges =
-  if (hasGit) {
-    if (("git diff-index --quiet HEAD --" ! ProcessLogger(a => (), b => ())) == 1) {
-      "with changes"
-    } else {
-      ""
-    }
-  } else {
-    "unknown"
-  }
-
 lazy val vercors = (project in file("."))
   .dependsOn(hre)
   .dependsOn(col)
@@ -103,22 +91,13 @@ lazy val vercors = (project in file("."))
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
-        // If git doesn't exist in path abort
-        if (hasGit) {
-          ("git rev-parse --abbrev-ref HEAD" !!).stripLineEnd
-        } else {
-          "unknown"
-        }
+        Git.currentBranch
       },
       BuildInfoKey.action("currentShortCommit") {
-        if (hasGit) {
-          ("git rev-parse --short HEAD" !!).stripLineEnd
-        } else {
-          "unknown"
-        }
+        Git.currentShortCommit
       },
       BuildInfoKey.action("gitHasChanges") {
-        gitHasChanges
+        Git.gitHasChanges
       }
     ),
     buildInfoOptions += BuildInfoOption.BuildTime,

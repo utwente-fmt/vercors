@@ -187,7 +187,6 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
       return;
     }
     if (c.super_classes.length > 0 || c.implemented_classes.length > 0) {
-      Warning("detected inheritance");
       has_inheritance=true;
     }
     int N=c.getStaticCount();
