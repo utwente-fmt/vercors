@@ -11,8 +11,8 @@ import vct.col.ast.util.{AbstractVisitor, RecursiveVisitor, SequenceUtils}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.langspecific.c.{OMPFor, OMPForSimd, OMPParallel, OMPParallelFor, OMPSection, OMPSections}
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
-import vct.col.ast.stmt.terminal.AssignmentStatement
-import vct.col.rewrite.PVLEncoder
+import vct.col.ast.stmt.terminal.{AssignmentStatement, ReturnStatement}
+import vct.col.rewrite.{IntroExcVar, PVLEncoder}
 import vct.parsers.rewrite.InferADTTypes
 
 import scala.collection.JavaConverters._
@@ -93,7 +93,21 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         features += SpecIgnore
         forbidRecursion = true
       }
+      if(m.canThrowSpec) {
+        m.getArgs.headOption match {
+          case Some(DeclarationStatement(IntroExcVar.excVar, _, _)) =>
+          case _ => features += NoExcVar
+        }
+      }
     }
+    if(IntroExcVar.usesExceptionalControlFlow(m) && m.getBody != null) {
+      if(m.getBody.asInstanceOf[BlockStatement].isEmpty ||
+        !m.getBody.asInstanceOf[BlockStatement].get(0).isInstanceOf[DeclarationStatement] ||
+        m.getBody.asInstanceOf[BlockStatement].get(0).asInstanceOf[DeclarationStatement].name != IntroExcVar.excVar) {
+        features += NoExcVar
+      }
+    }
+
     if(isPure(m) && isInline(m))
       features += InlinePredicate
     if(isPure(m) && m.name == "lock_invariant")
@@ -130,8 +144,10 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         case Some((init, last)) =>
           (block.asScala.toSeq.init ++ init, last)
       }
+    case ret: ReturnStatement =>
+      (Seq(), Some(ret))
     case other =>
-      (Seq(), Some(other))
+      (Seq(other), None)
   }
 
   override def visit(ct: ClassType): Unit = {
@@ -437,7 +453,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(tryCatch: vct.col.ast.stmt.composite.TryCatchBlock): Unit = {
     super.visit(tryCatch)
     features += Exceptions
-    features += Inheritance
     if (tryCatch.after != null) {
       features += Finally
     }
@@ -521,7 +536,7 @@ object Feature {
     Goto,
     Exceptions,
     Finally,
-    ExcVar,
+    NoExcVar,
     Synchronized,
     ImplicitConstructorInvokation,
     LockInvariant,
@@ -657,7 +672,7 @@ object Feature {
     Continue,
     Switch,
     ExceptionalReturn,
-    ExcVar,
+    NoExcVar,
     ImplicitLabels,
     Exceptions,
     Finally,
@@ -739,7 +754,7 @@ case object ExceptionalReturn extends ScannableFeature
 case object Goto extends ScannableFeature
 case object Exceptions extends ScannableFeature
 case object Finally extends ScannableFeature
-case object ExcVar extends ScannableFeature
+case object NoExcVar extends ScannableFeature
 case object Synchronized extends ScannableFeature
 case object ImplicitConstructorInvokation extends ScannableFeature
 case object LockInvariant extends ScannableFeature

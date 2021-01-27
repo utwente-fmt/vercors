@@ -357,7 +357,8 @@ class Main {
   }
 
   def computeGoal(featuresIn: Set[Feature], goal: AbstractPass): Option[Seq[AbstractPass]] = {
-    val passChains = removalFixedPoint(featuresIn, Set(goal)).flatMap(computePassChainFromPassSet(featuresIn, _))
+    val fixPoints = removalFixedPoint(featuresIn, Set(goal))
+    val passChains = fixPoints.flatMap(computePassChainFromPassSet(featuresIn, _))
 
     if(passChains.isEmpty) {
       None

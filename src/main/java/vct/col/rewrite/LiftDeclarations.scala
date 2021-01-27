@@ -3,7 +3,9 @@ package vct.col.rewrite
 import vct.col.ast.`type`.ASTReserved
 import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.terminal.ReturnStatement
 import vct.col.ast.util.{AbstractRewriter, SequenceUtils}
 
 import scala.collection.JavaConverters._
@@ -59,7 +61,17 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
       )
     }
 
-    body += rewrite(method.getBody)
+    /* TODO: ugly hack to stop the feature system from complaining about a return statement in a weird place. Instead
+      the arguments should be exhaled before every return point. */
+
+    val lastReturn = method.getBody.asInstanceOf[BlockStatement].getStatements.lastOption match {
+      case Some(ret: ReturnStatement) =>
+        body ++= method.getBody.asInstanceOf[BlockStatement].getStatements.init.map(rewrite(_))
+        Some(ret)
+      case _ =>
+        body ++= method.getBody.asInstanceOf[BlockStatement].getStatements.map(rewrite(_))
+        None
+    }
 
     for(arg <- method.getArgs) {
       body += create.special(arg.getOrigin, ASTSpecial.Kind.Exhale,
@@ -68,6 +80,10 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
           create.reserved_name(ASTReserved.FullPerm)
         )
       )
+    }
+
+    if(lastReturn.nonEmpty) {
+      body += rewrite(lastReturn.get)
     }
 
     inContract = true
