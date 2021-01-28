@@ -1113,6 +1113,22 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       res
     case ValPrimary29("{:", pattern, ":}") =>
       create pattern expr(pattern)
+    case ValPrimary30("seq", "<", t, ">", "{", elems, ">") =>
+      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems):_*)
+    case ValPrimary31("set", "<", t, ">", "{", elems, ">") =>
+      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems):_*)
+    case ValPrimary32("(", seq, "[", "..", end, "]", ")") =>
+      create expression(Take, expr(seq), expr(end))
+    case ValPrimary33("(", seq, "[", start, "..", None, "]", ")") =>
+      create expression(Drop, expr(seq), expr(start))
+    case ValPrimary33("(", seq, "[", start, "..", Some(end), "]", ")") =>
+      create expression(Slice, expr(seq), expr(start), expr(end))
+    case ValPrimary34("(", seq, "[", idx, "->", replacement, "]", ")") =>
+      create expression(SeqUpdate, expr(seq), expr(idx), expr(replacement))
+    case ValPrimary35("(", x, "::", xs, ")") =>
+      create expression(PrependSingle, expr(x), expr(xs))
+    case ValPrimary36("(", xs, "++", ys, ")") =>
+      create expression(Concat, expr(xs), expr(ys))
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {
@@ -1204,6 +1220,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     }
     case ValType1("seq", _, subType, _) =>
       create primitive_type(PrimitiveSort.Sequence, convertType(subType))
+    case ValType2("set", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Set, convertType(subType))
+    case ValType3("pointer", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Pointer, convertType(subType))
   })
 
   def convertValArg(arg: ValArgContext): DeclarationStatement = origin(arg, arg match {

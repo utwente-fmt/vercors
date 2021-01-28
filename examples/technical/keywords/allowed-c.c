@@ -57,4 +57,6 @@ void test() {
     int Reducible;
     int signals;
     int kernel_invariant;
+    int set;
+    int pointer;
 }

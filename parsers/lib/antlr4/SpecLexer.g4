@@ -32,6 +32,8 @@ VAL_ZFRAC: 'zfrac';
 VAL_BOOL: 'bool';
 VAL_RATIONAL: 'rational';
 VAL_SEQ: 'seq';
+VAL_SET: 'set';
+VAL_POINTER: 'pointer';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
@@ -115,6 +117,7 @@ WRITE: 'write';
 READ: 'read';
 EMPTY: 'empty';
 
+CONS: '::';
 FRAC_DIV: '\\';
 SEP_CONJ: '**';
 IMPLIES: '==>';
