@@ -157,7 +157,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(struct_value: StructValue): Unit = {
-    if (!struct_value.`type`.isPrimitive(PrimitiveSort.Tuple)) {
+    if (!struct_value.`type`.isPrimitive(PrimitiveSort.Tuple) && !struct_value.`type`.isPrimitive(PrimitiveSort.Sequence)) {
       RewriteArrayRef.getArrayConstructor(struct_value.getType, 1)
     }
     super.visit(struct_value)
@@ -181,9 +181,9 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     val pType = t.asInstanceOf[PrimitiveType]
 
     val claim = pType.sort match {
-      case PrimitiveSort.Option => neq(value, create.reserved_name(ASTReserved.OptionNone))
-      case PrimitiveSort.Array => eq(create.expression(StandardOperator.Length, value), name("size" + dimension))
-      case PrimitiveSort.Cell => create.expression(StandardOperator.Perm, create.dereference(value, "item"), create.reserved_name(ASTReserved.FullPerm))
+      case PrimitiveSort.Option => neq(create.pattern(value), create.reserved_name(ASTReserved.OptionNone))
+      case PrimitiveSort.Array => eq(create.expression(StandardOperator.Length, create.pattern(value)), name("size" + dimension))
+      case PrimitiveSort.Cell => create.expression(StandardOperator.Perm, create.pattern(create.dereference(value, "item")), create.reserved_name(ASTReserved.FullPerm))
       case _ =>
         return (t, value)
     }
@@ -213,7 +213,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     val contract = new ContractBuilder
     val result = create.reserved_name(ASTReserved.Result)
     val (elementType, elementValue) = arrayConstructorContract(contract, t, result, 0, definedDimensions)
-    contract.ensures(quantify(definedDimensions, eq(elementValue, elementType.zero)))
+    contract.ensures(quantify(definedDimensions, eq(create.pattern(elementValue), elementType.zero)))
 
     val methodArguments = for(i <- 0 until definedDimensions) yield new DeclarationStatement("size" + i, create.primitive_type(PrimitiveSort.Integer))
 
@@ -265,11 +265,11 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
       arrayType = arrayType.firstarg.asInstanceOf[Type]
     }
 
-    contract.requires(create.starall(quantGuardAdd, create.expression(StandardOperator.Perm, quantArrayItem, create.reserved_name(ASTReserved.ReadPerm)), quantDecls:_*))
+    contract.requires(create.starall(quantGuardAdd, create.expression(StandardOperator.Perm, create.pattern(quantArrayItem), create.reserved_name(ASTReserved.ReadPerm)), quantDecls:_*))
 
     contract.ensures(eq(seqLength, create.expression(StandardOperator.Minus, to, from)))
-    contract.ensures(create.forall(quantGuardAdd, eq(quantArrayItem, quantSeqItemSub), quantDecls:_*))
-    contract.ensures(create.forall(quantGuard, eq(quantArrayItemAdd, quantSeqItem), quantDecls:_*))
+    contract.ensures(create.forall(quantGuardAdd, eq(quantArrayItem, create.pattern(quantSeqItemSub)), quantDecls:_*))
+    contract.ensures(create.forall(quantGuard, eq(quantArrayItemAdd, create.pattern(quantSeqItem)), quantDecls:_*))
 
     val arguments = List(
       new DeclarationStatement("array", t),
@@ -315,7 +315,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
 
     contract.ensures(create.forall(
       and(lte(constant(0), i), less(i, create.expression(StandardOperator.Minus, to, from))),
-      eq(eqLeft, eqRight),
+      eq(eqLeft, create.pattern(eqRight)),
       iDecl:_*
     ))
 
@@ -384,17 +384,17 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
       row = create.dereference(row, "item")
       rowI = create.dereference(rowI, "item")
       rowJ = create.dereference(rowJ, "item")
-      conditions += create.starall(quantGuard, create.expression(StandardOperator.Perm, row, create.reserved_name(ASTReserved.ReadPerm)), quantDecls: _*)
+      conditions += create.starall(quantGuard, create.expression(StandardOperator.Perm, create.pattern(row), create.reserved_name(ASTReserved.ReadPerm)), quantDecls: _*)
     }
 
     if(seqInfo1.isOpt) {
-      conditions += create.forall(quantGuard, neq(row, create.reserved_name(ASTReserved.OptionNone)), quantDecls:_*)
+      conditions += create.forall(quantGuard, neq(create.pattern(row), create.reserved_name(ASTReserved.OptionNone)), quantDecls:_*)
       row = create.expression(StandardOperator.OptionGet, row)
       rowI = create.expression(StandardOperator.OptionGet, rowI)
       rowJ = create.expression(StandardOperator.OptionGet, rowJ)
     }
 
-    conditions += create.forall(quantGuard, eq(create.expression(StandardOperator.Length, row), size1), quantDecls:_*)
+    conditions += create.forall(quantGuard, eq(create.expression(StandardOperator.Length, create.pattern(row)), size1), quantDecls:_*)
 
     // Show injectivitiy: if two cells are equal, their indices are equal.
     if(seqInfo1.isCell) {

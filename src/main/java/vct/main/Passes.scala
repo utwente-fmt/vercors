@@ -250,6 +250,7 @@ object Passes {
         + features.ImplicitLabels
         + features.NullAsOptionValue
         + features.NotJavaEncoded
+        + features.ArgumentAssignment
       , // TODO (Bob): This feels a bit suspicious
       removes = Set(features.ImplicitLabels)
     ),
@@ -268,7 +269,6 @@ object Passes {
         - features.ImplicitLabels
         + features.TopLevelDeclarations
         + features.TopLevelFields
-        + features.NotJavaEncoded
         + features.NullAsOptionValue // TODO (Bob): Had to add this one but not sure what the feature does?
         + features.ArgumentAssignment, // TODO (Pieter): also this one, I don't think this pass particularly needs to be before java-encode
       removes = Set(features.Break, features.ExceptionalReturn),
@@ -276,12 +276,11 @@ object Passes {
         + features.Exceptions
         + features.Inheritance
         + features.NotFlattened
-        + features.NotJavaEncoded
     ),
     SimplePass("unfold-switch",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue + features.TopLevelDeclarations + features.TopLevelFields ++ Feature.OPTION_GATES, // TODO (Bob): Also suspicious
+      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue + features.TopLevelDeclarations + features.TopLevelFields ++ Feature.OPTION_GATES + features.ArgumentAssignment, // TODO (Bob): Also suspicious
       removes = Set(features.Switch)
     ),
     SimplePass("continue-to-break",
@@ -294,7 +293,7 @@ object Passes {
     SimplePass("unfold-synchronized",
       "Convert synchronized to try-finally",
       new UnfoldSynchronized(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT + features.Synchronized + features.NotJavaEncoded + features.PVLSugar + features.NullAsOptionValue ++ Feature.OPTION_GATES,
+      permits = Feature.DEFAULT_PERMIT + features.Synchronized + features.NotJavaEncoded + features.PVLSugar + features.NullAsOptionValue ++ Feature.OPTION_GATES + features.ArgumentAssignment,
       removes = Set(features.Synchronized),
       introduces = Set(features.Exceptions, features.Finally, features.PVLSugar)
     ),
@@ -652,6 +651,11 @@ object Passes {
       ),
       removes=Set(features.StringClass),
     ),
+    SimplePass("assign",
+      "change inline assignments to statements",
+      new AssignmentRewriter(_).rewriteAll,
+      removes=Set(features.ExpressionStatement)
+    ),
   )
 
   val BACKEND_COMPAT: Seq[AbstractPass] = Seq(
@@ -839,10 +843,6 @@ object Passes {
   )
 
   val OLD_OR_UNUSED: Seq[AbstractPass] = Seq(
-    SimplePass("assign",
-      "change inline assignments to statements",
-      new AssignmentRewriter(_).rewriteAll
-    ),
     SimplePass("explicit_encoding", "encode required and ensured permission as ghost arguments", new ExplicitPermissionEncoding(_).rewriteAll),
     SimplePass("ds_inherit", "rewrite contracts to reflect inheritance, predicate chaining", arg => new DynamicStaticInheritance(arg).rewriteOrdered),
     SimplePass("modifies", "Derive modifies clauses for all contracts", arg => {

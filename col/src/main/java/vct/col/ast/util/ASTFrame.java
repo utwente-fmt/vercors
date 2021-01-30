@@ -136,7 +136,11 @@ public abstract class ASTFrame<T> {
   
   /** */
   protected ASTNode getParentNode(){
-    return node_stack.size() > 2 ? node_stack.get(node_stack.size()-2) : null;
+    return node_stack.size() >= 2 ? node_stack.get(node_stack.size()-2) : null;
+  }
+
+  protected ASTNode getAncestor(int stepsBack) {
+    return node_stack.size() >= 2 + stepsBack ? node_stack.get(node_stack.size()-2-stepsBack) : null;
   }
 
   /**
@@ -585,7 +589,7 @@ public abstract class ASTFrame<T> {
     }
     scan_labels(c.pre_condition);
     for(DeclarationStatement decl:c.yields){
-      variables.add(decl.name(),new VariableInfo(decl, NameExpressionKind.Argument));
+      variables.add(decl.name(),new VariableInfo(decl, NameExpressionKind.Local));
     }
     scan_labels(c.post_condition);
   }

@@ -1,5 +1,6 @@
 package vct.col.features
 
+import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, TypeExpression, TypeVariable}
 import vct.col.ast.stmt
 import vct.col.ast.stmt.composite.{BlockStatement, ForEachLoop, IfStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion}
@@ -17,20 +18,50 @@ import vct.parsers.rewrite.InferADTTypes
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true) {
   val features: mutable.Set[Feature] = mutable.Set()
+  val blames: mutable.Map[Feature, ArrayBuffer[ASTNode]] = mutable.Map()
 
   source.asScala.foreach(visitTopLevelDecl)
+
+  def addFeature(feature: Feature, blame: ASTNode): Unit = {
+    features += feature
+    blames.getOrElseUpdate(feature, ArrayBuffer()) += blame
+  }
+
+  private def printBlameNodeExample(node: ASTNode): Unit = {
+    vct.col.ast.util.Configuration.getDiagSyntax.print(getLogLevelOutputWriter(LogLevel.Info), node)
+    node.getOrigin.report("", "Originating here ^")
+    Output("")
+    Output("")
+  }
+
+  def logBlameExamples(feature: Feature): Unit = {
+    val featureBlames = blames(feature).take(3)
+
+    if(featureBlames.isEmpty) {
+      throw new IllegalArgumentException()
+    } else if(featureBlames.size == 1) {
+      Output("Example: %s", featureBlames.head.getClass().getSimpleName)
+      printBlameNodeExample(featureBlames.head)
+    } else {
+      featureBlames.zipWithIndex.foreach { case (node, i) =>
+        Output("== Example %d: %s ==", Int.box(i + 1), node.getClass().getSimpleName)
+        printBlameNodeExample(node)
+      }
+    }
+  }
 
   def visitTopLevelDecl(decl: ASTNode): Unit = decl match {
     case _: ASTClass =>
     case ns: NameSpace =>
       ns.asScala.foreach(visitTopLevelDecl)
     case _: DeclarationStatement =>
-      features += TopLevelFields
+      addFeature(TopLevelFields, decl)
     case _ =>
-      features += TopLevelDeclarations
+      addFeature(TopLevelDeclarations, decl)
   }
 
   override def visit(v: StructValue): Unit = {
@@ -40,16 +71,16 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(c: ASTClass): Unit = {
     super.visit(c)
     if(c.super_classes.nonEmpty || c.implemented_classes.nonEmpty) {
-      features += Inheritance
+      addFeature(Inheritance, c)
     }
     if(c.kind != ClassKind.Record && c.methods().asScala.nonEmpty)
-      features += This
+      addFeature(This, c)
     if(c.name.startsWith("Atomic"))
-      features += JavaAtomic
+      addFeature(JavaAtomic, c)
     if(c.staticFields().asScala.nonEmpty)
-      features += StaticFields
+      addFeature(StaticFields, c)
     if(c.kind == ClassKind.Kernel)
-      features += KernelClass
+      addFeature(KernelClass, c)
   }
 
   private def isPure(m: Method): Boolean =
@@ -74,29 +105,29 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
     if(m.annotated())
       if (m.annotations().size == 1 && m.isSynchronized) {
-        features += Synchronized
+        addFeature(Synchronized, m)
       } else if(m.annotations().size > 0) {
-        features += MethodAnnotations
+        addFeature(MethodAnnotations, m)
       }
     if(m.name == "csl_invariant")
-      features += JavaAtomic
+      addFeature(JavaAtomic, m)
     if(m.name == PVLEncoder.INV && getParentNode != null && !getParentNode.asInstanceOf[ASTClass].methods().asScala.exists(_.name == PVLEncoder.HELD))
-      features += PVLSugar
+      addFeature(PVLSugar, m)
     if(m.name == "run" && getParentNode != null && !getParentNode.asInstanceOf[ASTClass].methods().asScala.exists(_.name == "forkOperator"))
-      features += PVLSugar
+      addFeature(PVLSugar, m)
     if(m.getContract != null) {
       if(m.getContract.yields.nonEmpty || m.getContract.`given`.nonEmpty)
-        features += GivenYields
+        addFeature(GivenYields, m)
       if(m.getContract.invariant != Contract.default_true)
-        features += ContextEverywhere
+        addFeature(ContextEverywhere, m)
       if(m.getContract.pre_condition.isConstant(false)) {
-        features += SpecIgnore
+        addFeature(SpecIgnore, m)
         forbidRecursion = true
       }
       if(m.canThrowSpec) {
         m.getArgs.headOption match {
           case Some(DeclarationStatement(IntroExcVar.excVar, _, _)) =>
-          case _ => features += NoExcVar
+          case _ => addFeature(NoExcVar, m)
         }
       }
     }
@@ -104,22 +135,22 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       if(m.getBody.asInstanceOf[BlockStatement].isEmpty ||
         !m.getBody.asInstanceOf[BlockStatement].get(0).isInstanceOf[DeclarationStatement] ||
         m.getBody.asInstanceOf[BlockStatement].get(0).asInstanceOf[DeclarationStatement].name != IntroExcVar.excVar) {
-        features += NoExcVar
+        addFeature(NoExcVar, m)
       }
     }
 
     if(isPure(m) && isInline(m))
-      features += InlinePredicate
+      addFeature(InlinePredicate, m)
     if(isPure(m) && m.name == "lock_invariant")
-      features += LockInvariant
+      addFeature(LockInvariant, m)
     if(isPure(m) && m.getBody.isInstanceOf[BlockStatement])
-      features += PureImperativeMethods
+      addFeature(PureImperativeMethods, m)
     if(m.kind == Method.Kind.Constructor)
-      features += Constructors
+      addFeature(Constructors, m)
     if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && !isPure(m))
-      features += NonVoidMethods
-    if(m.getParent.isInstanceOf[ASTClass] && !isFinal(m) && !isFinal(m.getParent) && !isStatic(m))
-      features += NotJavaEncoded
+      addFeature(NonVoidMethods, m)
+    if(m.getParent.isInstanceOf[ASTClass] && !isFinal(m) && !isFinal(m.getParent) && !isStatic(m) && !isPure(m /* TODO: should consider #532 */))
+      addFeature(NotJavaEncoded, m)
 
     if(!forbidRecursion) {
       m.getReturnType.accept(this)
@@ -153,71 +184,78 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(ct: ClassType): Unit = {
     super.visit(ct)
 //    if(ct.definition == null)
-//      features += NotJavaResolved
+//      addFeature(NotJavaResolved)
     if(ct.names == Seq("String"))
-      features += StringClass
+      addFeature(StringClass, ct)
   }
 
   override def visit(special: ASTSpecial): Unit = {
     super.visit(special)
     special.kind match {
       case ASTSpecial.Kind.SpecIgnoreStart | ASTSpecial.Kind.SpecIgnoreEnd =>
-        features += SpecIgnore
+        addFeature(SpecIgnore, special)
       case ASTSpecial.Kind.Expression =>
-        features += ExpressionStatement
+        addFeature(ExpressionStatement, special)
       case ASTSpecial.Kind.ActionHeader =>
-        features += ActionHeader
+        addFeature(ActionHeader, special)
       case ASTSpecial.Kind.Send | ASTSpecial.Kind.Recv =>
-        features += ParallelBlocks
+        addFeature(ParallelBlocks, special)
       case ASTSpecial.Kind.Fork | ASTSpecial.Kind.Join |
            ASTSpecial.Kind.Lock | ASTSpecial.Kind.Unlock |
            ASTSpecial.Kind.Wait | ASTSpecial.Kind.Notify =>
-        features += PVLSugar
+        addFeature(PVLSugar, special)
       case ASTSpecial.Kind.Open | ASTSpecial.Kind.Close =>
-        features += NotJavaEncoded
+        addFeature(NotJavaEncoded, special)
       case ASTSpecial.Kind.Break =>
-        features += Break
+        addFeature(Break, special)
         if (special.args.length == 0) {
-          features += ImplicitLabels
+          addFeature(ImplicitLabels, special)
         }
       case ASTSpecial.Kind.Continue =>
-        features += Continue
+        addFeature(Continue, special)
         if (special.args.length == 0) {
-          features += ImplicitLabels
+          addFeature(ImplicitLabels, special)
         }
-      case ASTSpecial.Kind.Goto => features += Goto
-      case ASTSpecial.Kind.Throw => features += Exceptions
+      case ASTSpecial.Kind.Goto => addFeature(Goto, special)
+      case ASTSpecial.Kind.Throw => addFeature(Exceptions, special)
       case _ =>
     }
   }
 
   override def visit(decl: VariableDeclaration): Unit = {
     super.visit(decl)
-    features += MultiDecls
+    addFeature(MultiDecls, decl)
   }
 
   override def visit(t: TypeVariable): Unit = {
     super.visit(t)
     if(t.name == InferADTTypes.typeVariableName)
-      features += UnresolvedTypeInference
+      addFeature(UnresolvedTypeInference, t)
   }
 
-  def visitBeforeAfter(node: BeforeAfterAnnotations): Unit = {
+  def visitBeforeAfter[T <: ASTNode with BeforeAfterAnnotations](node: T): Unit = {
     if(node.get_after() != null && node.get_after().asScala.nonEmpty) {
-      features += BeforeAfter
+      addFeature(BeforeAfter, node)
+      node.get_after().asScala.foreach {
+        case special: ASTSpecial => special.kind match {
+          case ASTSpecial.Kind.With | ASTSpecial.Kind.Then | ASTSpecial.Kind.Label =>
+            addFeature(ImproperlySortedBeforeAfter, node)
+          case _ =>
+        }
+        case _ =>
+      }
     }
 
     if(node.get_before() != null && node.get_before().asScala.nonEmpty) {
-      features += BeforeAfter
-    }
-
-    if(node.get_before() != null) node.get_before().asScala.foreach {
-      case special: ASTSpecial => special.kind match {
-        case ASTSpecial.Kind.With | ASTSpecial.Kind.Then | ASTSpecial.Kind.Label =>
-          features += ImproperlySortedBeforeAfter
+      addFeature(BeforeAfter, node)
+      node.get_before().asScala.foreach {
+        case special: ASTSpecial => special.kind match {
+          case ASTSpecial.Kind.With | ASTSpecial.Kind.Then | ASTSpecial.Kind.Label =>
+            addFeature(ImproperlySortedBeforeAfter, node)
+          case _ =>
+        }
         case _ =>
       }
-      case _ =>
     }
   }
 
@@ -228,7 +266,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     if(loop.getContract != null &&
       (loop.getContract.pre_condition != Contract.default_true ||
       loop.getContract.post_condition != Contract.default_true)) {
-      features += OpenMP
+      addFeature(OpenMP, loop)
     }
   }
 
@@ -238,17 +276,17 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     op.operator match {
       case StandardOperator.Subscript =>
         if(op.second.isa(StandardOperator.RangeSeq)) {
-          features += SubscriptRange
+          addFeature(SubscriptRange, op)
         }
         op.second match {
           case _: NameExpression | _: ConstantExpression =>
-          case _ => features += ComplexSubscript
+          case _ => addFeature(ComplexSubscript, op)
         }
         if(op.second.isReserved(ASTReserved.Any)) {
-          features += AnySubscript
+          addFeature(AnySubscript, op)
         }
         if(op.first.getType.isPrimitive(PrimitiveSort.Map)) {
-          features += ADTOperator
+          addFeature(ADTOperator, op)
         }
       case StandardOperator.EQ =>
         /* TODO (Bob): Why is a.getType null here for sys__result? ADding null check to work around it
@@ -256,33 +294,39 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
                 rainbow scanner it seems to disappear...? AbstractTypeChecker always adds a type to _every_ NameExpression!
          */
         if(op.args.exists(a => a.getType != null && a.getType.isPrimitive(PrimitiveSort.Map))) {
-          features += ADTOperator
+          addFeature(ADTOperator, op)
         }
       case StandardOperator.Size if op.first.getType.isPrimitive(PrimitiveSort.Map) =>
-        features += ADTOperator
+        addFeature(ADTOperator, op)
       case StandardOperator.Instance | StandardOperator.TypeOf =>
-        features += Inheritance
+        addFeature(Inheritance, op)
       case StandardOperator.RemoveAt =>
-        features += ADTFunctions
+        addFeature(ADTFunctions, op)
       case StandardOperator.AddrOf =>
-        features += AddrOf
+        addFeature(AddrOf, op)
       case StandardOperator.Held | StandardOperator.PVLidleToken | StandardOperator.PVLjoinToken =>
-        features += PVLSugar
+        addFeature(PVLSugar, op)
       case StandardOperator.ValidArray | StandardOperator.ValidMatrix | StandardOperator.NewArray |
            StandardOperator.Values =>
-        features += ArrayOps
+        addFeature(ArrayOps, op)
       case StandardOperator.Drop =>
         val tInfo = SequenceUtils.getInfo(op.first)
         if(tInfo != null && tInfo.getSequenceSort == PrimitiveSort.Array) {
-          features += ArrayOps
+          addFeature(ArrayOps, op)
         }
       case StandardOperator.PrependSingle | StandardOperator.AppendSingle | StandardOperator.Empty =>
-        features += NotStandardized
+        addFeature(NotStandardized, op)
       case StandardOperator.ValidPointer | StandardOperator.ValidPointerIndex =>
-        features += ValidPointer
+        addFeature(ValidPointer, op)
       case StandardOperator.Member =>
         if(op.second.isa(StandardOperator.RangeSeq)) {
-          features += MemberOfRange
+          addFeature(MemberOfRange, op)
+        }
+      case StandardOperator.PostDecr | StandardOperator.PostIncr | StandardOperator.PreDecr | StandardOperator.PreIncr =>
+        op.first match {
+          case NameExpression(_, _, NameExpressionKind.Argument) =>
+            addFeature(ArgumentAssignment, op)
+          case _ =>
         }
       case _ =>
     }
@@ -295,15 +339,15 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     bindingExpressionDepth += 1
     havePattern :+= false
     if(bindingExpressionDepth >= 2) {
-      features += NestedQuantifiers
+      addFeature(NestedQuantifiers, binding)
     }
     super.visit(binding)
     if(binding.binder == Binder.SetComp)
-      features += ADTFunctions
+      addFeature(ADTFunctions, binding)
     if(binding.binder == Binder.Sum)
-      features += Summation
+      addFeature(Summation, binding)
     if((binding.triggers == null || binding.triggers.isEmpty) && !havePattern.last)
-      features += QuantifierWithoutTriggers
+      addFeature(QuantifierWithoutTriggers, binding)
     bindingExpressionDepth -= 1
     havePattern = havePattern.init
   }
@@ -312,7 +356,10 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(assign)
     assign.location match {
       case name: NameExpression if name.kind == NameExpressionKind.Argument =>
-        features += ArgumentAssignment
+        val unsortedWithThen = getAncestor(1).isSpecial(ASTSpecial.Kind.With) || getAncestor(1).isSpecial(ASTSpecial.Kind.Then)
+        val sortedWithThen = getAncestor(1).isInstanceOf[MethodInvokation]
+        if(!unsortedWithThen && !sortedWithThen)
+          addFeature(ArgumentAssignment, assign)
       case _ =>
     }
   }
@@ -322,67 +369,67 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     visitBeforeAfter(invok)
     if(invok.getDefinition != null && invok.getDefinition.kind == Method.Kind.Predicate &&
       (getParentNode == null || !getParentNode.isa(StandardOperator.Scale)))
-      features += UnscaledPredicateApplication
+      addFeature(UnscaledPredicateApplication, invok)
     if(invok.`object` == null && invok.dispatch == null) {
       if(!features.contains(TopLevelDeclarations)) {
         // PB: ugly stateful hack: we parse invokation with no object and no dispatch, which must be resolved to a
         // static or instance call. When we allow top level declarations in the chain, no-object no-dispatch invokations
         // instead refer to top level declarations.
-        features += NotStandardized
+        addFeature(NotStandardized, invok)
       }
     }
     if(invok.getDefinition != null && invok.getDefinition.kind == Method.Kind.Constructor && invok.getDefinition.getParent == null) {
-      features += ImplicitConstructorInvokation
+      addFeature(ImplicitConstructorInvokation, invok)
     }
   }
 
   override def visit(deref: expr.Dereference): Unit = {
     super.visit(deref)
-    features += Dereference
+    addFeature(Dereference, deref)
   }
 
   override def visit(name: NameExpression): Unit = {
     super.visit(name)
     if(name.kind == NameExpressionKind.Reserved) name.reserved match {
-      case ASTReserved.Null => features += Null
+      case ASTReserved.Null => addFeature(Null, name)
       case ASTReserved.This =>
-        features += This
-      case ASTReserved.CurrentThread => features += CurrentThread
+        addFeature(This, name)
+      case ASTReserved.CurrentThread => addFeature(CurrentThread, name)
       case ASTReserved.Super =>
         // PB: I put this here because I incorrectly assumed that JavaEncode simplifies away super, but instead it
         // introduces it it seems like... I don't think super is dealt with anywhere yet.
-        features += NotJavaEncoded
+        addFeature(NotJavaEncoded, name)
       case _ =>
     }
     if(name.kind == NameExpressionKind.Field)
-      features += NotStandardized
+      addFeature(NotStandardized, name)
   }
 
-  override def visit(par: OMPParallel): Unit = { super.visit(par); features += OpenMP }
-  override def visit(par: OMPParallelFor): Unit = { super.visit(par); features += OpenMP }
-  override def visit(sections: OMPSections): Unit = { super.visit(sections); features += OpenMP }
-  override def visit(section: OMPSection): Unit = { super.visit(section); features += OpenMP }
-  override def visit(par: OMPForSimd): Unit = { super.visit(par); features += OpenMP }
-  override def visit(fr: OMPFor): Unit = { super.visit(fr); features += OpenMP }
+  override def visit(par: OMPParallel): Unit = { super.visit(par); addFeature(OpenMP, par) }
+  override def visit(par: OMPParallelFor): Unit = { super.visit(par); addFeature(OpenMP, par) }
+  override def visit(sections: OMPSections): Unit = { super.visit(sections); addFeature(OpenMP, sections) }
+  override def visit(section: OMPSection): Unit = { super.visit(section); addFeature(OpenMP, section) }
+  override def visit(par: OMPForSimd): Unit = { super.visit(par); addFeature(OpenMP, par) }
+  override def visit(fr: OMPFor): Unit = { super.visit(fr); addFeature(OpenMP, fr) }
 
-  override def visit(s: stmt.composite.ParallelAtomic): Unit = { super.visit(s); features += ParallelAtomic }
-  override def visit(s: ParallelBarrier): Unit = { super.visit(s); features += ParallelBlocks }
-  override def visit(s: ParallelBlock): Unit = { super.visit(s); features += ParallelBlocks }
-  override def visit(s: ParallelInvariant): Unit = { super.visit(s); features += ParallelBlocks }
-  override def visit(s: ParallelRegion): Unit = { super.visit(s); features += ParallelBlocks }
-  override def visit(s: ForEachLoop): Unit = { super.visit(s); features += ParallelBlocks }
+  override def visit(s: stmt.composite.ParallelAtomic): Unit = { super.visit(s); addFeature(ParallelAtomic, s) }
+  override def visit(s: ParallelBarrier): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
+  override def visit(s: ParallelBlock): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
+  override def visit(s: ParallelInvariant): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
+  override def visit(s: ParallelRegion): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
+  override def visit(s: ForEachLoop): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
 
   override def visit(t: PrimitiveType): Unit = {
     super.visit(t)
     t.sort match {
-      case PrimitiveSort.Pointer => features += Pointers
+      case PrimitiveSort.Pointer => addFeature(Pointers, t)
       case _ =>
     }
   }
 
   override def visit(t: TypeExpression): Unit = {
     super.visit(t)
-    features += TypeExpressions
+    addFeature(TypeExpressions, t)
   }
 
   var ifDepth = 0
@@ -391,14 +438,14 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     ifDepth += 1
     super.visit(fi)
     if(fi.getCount == 2 && fi.getGuard(0).isReserved(ASTReserved.Any))
-      features += NondetCondition
+      addFeature(NondetCondition, fi)
     ifDepth -= 1
   }
 
   override def visit(block: BlockStatement): Unit = {
     if(block.getStatements.lastIndexWhere(_.isInstanceOf[DeclarationStatement])
         > block.getStatements.indexWhere(!_.isInstanceOf[DeclarationStatement]))
-      features += ScatteredDeclarations
+      addFeature(ScatteredDeclarations, block)
 
     var specIgnoreDepth = 0
     block.asScala.foreach {
@@ -417,55 +464,55 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(decl: DeclarationStatement): Unit = {
     super.visit(decl)
     if(decl.isValidFlag(ASTFlags.STATIC) && decl.isStatic && getParentNode != null && getParentNode.isInstanceOf[ASTClass])
-      features += NotJavaEncoded
-    if(ifDepth > 0)
-      features += DeclarationsInIf
+      addFeature(NotJavaEncoded, decl)
+    if(ifDepth > 0 && !getParentNode.isInstanceOf[BindingExpression])
+      addFeature(DeclarationsInIf, getParentNode)
   }
 
   override def visit(block: stmt.composite.VectorBlock): Unit = {
     super.visit(block)
-    features += VectorBlock
+    addFeature(VectorBlock, block)
   }
 
   override def visit(pat: expr.InlineQuantifierPattern): Unit = {
     super.visit(pat)
-    features += InlineQuantifierPattern
+    addFeature(InlineQuantifierPattern, pat)
     havePattern = havePattern.init :+ true
   }
 
   override def visit(lemma: stmt.composite.Lemma): Unit = {
     super.visit(lemma)
-    features += Lemma
+    addFeature(Lemma, lemma)
   }
 
   override def visit(switch: vct.col.ast.stmt.composite.Switch): Unit = {
     super.visit(switch)
-    features += Switch
+    addFeature(Switch, switch)
   }
 
   override def visit(returnStatement: vct.col.ast.stmt.terminal.ReturnStatement): Unit = {
     super.visit(returnStatement)
     if(!lastMethodStatement) {
-      features += ExceptionalReturn
+      addFeature(ExceptionalReturn, returnStatement)
     }
   }
 
   override def visit(tryCatch: vct.col.ast.stmt.composite.TryCatchBlock): Unit = {
     super.visit(tryCatch)
-    features += Exceptions
+    addFeature(Exceptions, tryCatch)
     if (tryCatch.after != null) {
-      features += Finally
+      addFeature(Finally, tryCatch)
     }
   }
 
   override def visit(signals: vct.col.ast.stmt.decl.SignalsClause): Unit = {
     super.visit(signals)
-    features += Exceptions
+    addFeature(Exceptions, signals)
   }
 
   override def visit(synchronized: vct.col.ast.stmt.composite.Synchronized): Unit = {
     super.visit(synchronized)
-    features += Synchronized
+    addFeature(Synchronized, synchronized)
   }
 }
 

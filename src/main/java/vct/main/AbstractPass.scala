@@ -26,6 +26,8 @@ abstract class AbstractPass(val key: String, val description: String) {
 
   protected def apply(arg: ProgramUnit, args: Array[String]): ProgramUnit =
     ???
+
+  override def toString: String = key
 }
 
 case class Pass(override val key: String,

@@ -5,7 +5,6 @@ package vct.main
 import java.io._
 import java.time.Instant
 import java.util
-
 import hre.ast.FileOrigin
 import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
@@ -17,7 +16,7 @@ import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
-import vct.col.features.Feature
+import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
@@ -250,120 +249,154 @@ class Main {
     BY_KEY("dafny"),
   )
 
-  /** From a starting set of features: tries to compute a valid ordering of the passes */
-  def computePassChainFromPassSet(featuresIn: Set[Feature], passSet: Set[AbstractPass]): Option[Seq[AbstractPass]] = {
-    Debug("== Trying to compute pass chain ==")
-    val passesToDo: ArrayBuffer[AbstractPass] = ArrayBuffer() ++ passSet.toSeq.sortBy(_.key)
+  object ChainPart {
+    def inflate(parts: Seq[ChainPart]): Seq[Seq[String]] =
+      parts.headOption match {
+        case None => Seq(Seq())
+        case Some(pass: Do) => inflate(parts.tail).map(pass.key +: _)
+        case Some(Choose(alts@_* /* collect varargs into alts */)) =>
+          val tail = inflate(parts.tail)
+          alts.map(inflate).flatMap(branch => branch.flatMap(choice => tail.map(choice ++ _)))
+      }
+  }
+  sealed trait ChainPart
+  implicit sealed class Do(val key: String) extends ChainPart
+  case class Choose(choices: Seq[ChainPart]*) extends ChainPart
+
+  val silverPassOrder: Seq[ChainPart] = Seq(
+    "spec-ignore",
+    "flatten_variable_declarations",
+    "string-class",
+    "type-expressions",
+    "java_resolve",
+    "standardize",
+    "interpret-annotations",
+    "unused-extern",
+    "top-level-decls",
+    "lock-invariant-proof",
+    "unfold-synchronized",
+    "pvl-encode",
+    "specify-implicit-labels",
+    "unfold-switch",
+    "zero-constructor",
+    "java-encode",
+    "array_null_values",
+    "finalize_args",
+    "action-header",
+    "sat_check",
+    "standardize-functions",
+    Choose(
+      Seq(),
+      Seq("access", "check-history"),
+      Seq("access", "check-axioms"),
+      Seq("access", "check-defined"),
+    ),
+    "adt_operator_rewrite",
+    "assign",
+    "chalice-optimize",
+    "chalice-preprocess",
+    "continue-to-break",
+    Choose(
+      Seq("break-return-to-exceptions"),
+      Seq("break-return-to-goto"),
+    ),
+    "current_thread",
+    "globalize",
+    "infer_adt_types",
+    "kernel-split",
+    "local-variable-check",
+    "magicwand",
+    "inline",
+    "openmp2pvl",
+    "propagate-invariants",
+    "pvl-compile",
+    "simplify_quant_relations",
+    "sort-before-after",
+    "csl-encode",
+    "ghost-lift",
+    "flatten_before_after",
+    "inline-atomic",
+    "parallel_blocks",
+    "lift_declarations",
+    "pointers_to_arrays_lifted",
+    "desugar_valid_pointer",
+    "simplify_quant",
+    "simplify_sums",
+    "silver-optimize",
+    "vector-encode",
+    "add-type-adt",
+    "generate_adt_functions",
+    "intro-exc-var",
+    "rewrite_arrays",
+    "flatten",
+    "encode-try-throw-signals",
+    "inline-pattern-to-trigger",
+    "silver-class-reduction",
+    "create-return-parameter",
+    "quant-optimize",
+    "gen-triggers",
+    "scale-always",
+    "silver-reorder",
+    "reorder",
+    "silver",
+  )
+
+  def validChain(chain: Seq[AbstractPass], featuresIn: Set[Feature]): Boolean = {
     var features = featuresIn
-    var passes = ArrayBuffer.empty[AbstractPass]
 
-    while(passesToDo.nonEmpty) {
-      /* The next pass must permit the current features, and no pass must introduce the features it removes */
-      val nextPassResults = passesToDo.map {
-        case pass if (features -- pass.permits).nonEmpty =>
-          Left(s"cannot apply ${pass.key} since it does not permit these features: ${features--pass.permits}'")
-        case pass if passesToDo.exists(_.introduces.intersect(pass.removes).nonEmpty) =>
-          val conflictingPass = passesToDo.find(_.introduces.intersect(pass.removes).nonEmpty).get
-          Left(s"cannot apply ${pass.key} since ${conflictingPass.key} introduces ${conflictingPass.introduces.intersect(pass.removes)}")
-        case pass => Right(pass)
-      }
+    for(pass <- chain) {
+      if((features -- pass.permits).nonEmpty)
+        return false
 
-      val nextPass = nextPassResults.collectFirst {
-        case Right(pass) => pass
-      } match {
-        case Some(pass) => pass
-        case None =>
-          /* No pass satisfies the above conditions. In this case, we could also execute a pass that removes a feature
-             that is later introduced again. This imposes that all passes that do not permit the feature occur before
-             passes that introduce the feature. */
-          val allowedOrderImposingPasses = passesToDo.filter(pass =>
-            (features -- pass.permits).isEmpty && {
-              val startFeatures = features -- pass.removes ++ pass.introduces
-              val firstHalf = passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty && pass2 != pass) // no permit something in pass.removes
-              val secondHalf = passesToDo.filter(pass2 => (pass.removes -- pass2.permits).isEmpty && pass2 != pass) // permit everything in pass.removes
-              val firstRemove = firstHalf.map(_.removes).foldLeft(Set.empty[Feature])(_ ++ _)
-              val midFeatures = startFeatures -- firstRemove // features at midpoint
-              val secondPermitUnion = secondHalf.map(_.permits).foldLeft(Set.empty[Feature])(_ ++ _)
-              val secondIntroUnion = secondHalf.map(_.introduces).foldLeft(Set.empty[Feature])(_ ++ _)
-              val condition = firstHalf.forall(_.introduces.intersect(pass.removes).isEmpty) &&
-                (midFeatures -- secondPermitUnion).isEmpty &&
-                firstRemove.intersect(secondIntroUnion).isEmpty &&
-                (firstHalf.isEmpty || firstHalf.exists(pass2 => (startFeatures -- pass2.permits).isEmpty))
-              if(condition) {
-                Debug("Try: %s", pass.key)
-                Debug("First half: %s", firstHalf.map(_.key))
-                Debug("Second half: %s", secondHalf.map(_.key))
-              }
-              condition
-            }
-          )
-
-          /* If there is exactly one such pass, there can only be a solution if we do the pass right now. */
-          if(allowedOrderImposingPasses.size == 1) {
-            val pass = allowedOrderImposingPasses.head
-            Debug("vvvv Will impose that all of:  %s", passesToDo.filter(pass2 => (pass.removes -- pass2.permits).nonEmpty).map(_.key))
-            Debug("vvvv Must occur before all of: %s", passesToDo.filter(pass2 => (pass.removes -- pass2.permits).isEmpty).map(_.key))
-            pass
-          } else {
-            /* Otherwise, there may or may not be a solution, but this is expensive to compute. */
-            Debug("Leftover features: %s", features)
-            if(allowedOrderImposingPasses.nonEmpty)
-              Debug("Perhaps we could have run one of: %s", allowedOrderImposingPasses.map(_.key).mkString(", "))
-            nextPassResults.foreach {
-              case Left(error) => Debug(error)
-              case _ =>
-            }
-            return None
-          }
-      }
-
-      passesToDo -= nextPass
-      Debug("Planning to do %s", nextPass.key)
-      passes += nextPass
-      features = features -- nextPass.removes ++ nextPass.introduces
+      features ++= pass.introduces
+      features --= pass.removes
     }
 
-    Some(passes)
+    true
   }
 
-  /** Collect all passes that remove a feature */
-  def findPassesToRemove(feature: Feature): Set[AbstractPass] = {
-    val res = BY_KEY.values.filter(_.removes.contains(feature)).toSet
-    if(res.isEmpty) Warning("No way to remove %s", feature)
-    res
+  def minimize(chain: Seq[AbstractPass], featuresIn: Set[Feature]): Seq[AbstractPass] = {
+    for(toRemove <- 0 until chain.size-1) {
+      val newChain = chain.take(toRemove) ++ chain.drop(toRemove + 1)
+      if(validChain(newChain, featuresIn)) {
+        return minimize(newChain, featuresIn)
+      }
+    }
+    chain
   }
 
-  /** Yield all sets of passes that are at least able to remove all features that are not permitted in a pass */
-  def removalFixedPoint(featuresIn: Set[Feature], passes: Set[AbstractPass]): Seq[Set[AbstractPass]] = {
-    val allFeatures = passes.foldLeft(featuresIn)(_ ++ _.introduces)
-    val sharedPermit = passes.foldLeft(Feature.ALL)(_ intersect _.permits)
-    val removes = passes.foldLeft(Set.empty[Feature])(_ ++ _.removes)
-    val toRemove = (allFeatures -- sharedPermit) -- removes
+  def filterNopPasses(chain: Seq[AbstractPass], featuresIn: Set[Feature]): Seq[AbstractPass] = {
+    var features = featuresIn
 
-    if(toRemove.isEmpty) {
-      Seq(passes)
+    for(toRemove <- 0 until chain.size-1) {
+      if(chain(toRemove).removes.intersect(features).isEmpty) {
+        val newChain = chain.take(toRemove) ++ chain.drop(toRemove + 1)
+        return filterNopPasses(newChain, featuresIn)
+      }
+
+      features ++= chain(toRemove).introduces
+      features --= chain(toRemove).removes
+    }
+
+    chain
+  }
+
+  def computeGoal(featuresIn: Set[Feature]): Option[Seq[AbstractPass]] = {
+    // Expand all choices
+    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)))
+
+    // Filter out passes that don't remove anything (even before the chain is valid)
+    val filteredChains = chains.map(filterNopPasses(_, featuresIn))
+
+    // Filter for valid chains
+    val validChains = filteredChains.filter(validChain(_, featuresIn))
+
+    // Remove any passes that when removed constitute a valid chain
+    val minimalChains = validChains.map(minimize(_, featuresIn))
+    if(minimalChains.nonEmpty) {
+      Some(minimalChains.minBy(_.size))
     } else {
-      val extraPasses = toRemove.map(findPassesToRemove).map {
-        case passes if passes.isEmpty =>
-          return Seq()
-        case passes if passes.size == 1 =>
-          passes.head
-        case more =>
-          return more.toSeq.flatMap(pass => removalFixedPoint(featuresIn, passes + pass))
-      }
-
-      removalFixedPoint(featuresIn, passes ++ extraPasses)
-    }
-  }
-
-  def computeGoal(featuresIn: Set[Feature], goal: AbstractPass): Option[Seq[AbstractPass]] = {
-    val fixPoints = removalFixedPoint(featuresIn, Set(goal))
-    val passChains = fixPoints.flatMap(computePassChainFromPassSet(featuresIn, _))
-
-    if(passChains.isEmpty) {
       None
-    } else {
-      Some(passChains.minBy(_.size))
     }
   }
 
@@ -392,7 +425,7 @@ class Main {
     if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
-    computeGoal(features, BY_KEY("silver")).get
+    computeGoal(features).get
   }
 
   private def getPasses: Seq[AbstractPass] = {
@@ -424,7 +457,8 @@ class Main {
   }
 
   private def doPasses(passes: Seq[AbstractPass]): Unit = {
-    Output("%s", passes.map(_.key).mkString(", "))
+    Output("%s", passes)
+
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
@@ -451,18 +485,29 @@ class Main {
       }
 
       if(strictInternalConditions.get()) {
-        val featuresOut = Feature.scan(report.getOutput)
+        val scanner = new RainbowVisitor(report.getOutput)
+        scanner.source().accept(scanner)
+        val featuresOut = scanner.features
 
         val notRemoved = featuresOut.intersect(pass.removes) -- Set(vct.col.features.QuantifierWithoutTriggers)
         val extraIntro = (featuresOut -- featuresIn) -- pass.introduces
 
-        Output("!intro %s %s", pass.key, (featuresOut--featuresIn).map(_.toString).mkString(","))
-
         if (notRemoved.nonEmpty) {
-          Abort("Pass %s did not remove %s", pass.key, notRemoved.map(_.toString).mkString(", "))
+          notRemoved.foreach(feature => {
+            Output("Pass %s did not remove %s:", pass, feature)
+            scanner.logBlameExamples(feature)
+          })
         }
+
         if (extraIntro.nonEmpty) {
-          Abort("Pass %s introduced %s", pass.key, extraIntro.map(_.toString).mkString(", "))
+          extraIntro.foreach(feature => {
+            Output("Pass %s introduced %s", pass, feature)
+            scanner.logBlameExamples(feature)
+          })
+        }
+
+        if(notRemoved.nonEmpty || extraIntro.nonEmpty) {
+          Abort("Halting, because strict internal conditions are enabled.")
         }
       }
 

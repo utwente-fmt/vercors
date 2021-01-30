@@ -58,7 +58,7 @@ domain VCTOption[T] {
   function getVCTOption(o:VCTOption[T]) : T
 
   axiom not_equal_vct {
-    forall x: T :: VCTNone() != VCTSome(x)
+    forall x: T :: {VCTSome(x)} VCTNone() != VCTSome(x)
   }
 
   axiom get_axiom_vct {
@@ -161,7 +161,7 @@ domain VCTFloat {
   function fadd(f1 : VCTFloat,f2:VCTFloat):VCTFloat
 
   axiom commutative_add {
-    forall f1 : VCTFloat, f2 : VCTFloat :: fadd(f1,f2)==fadd(f2,f1)
+    forall f1 : VCTFloat, f2 : VCTFloat :: {fadd(f1,f2) /* does this cycle? */} fadd(f1,f2)==fadd(f2,f1)
   }
 
   axiom zero_int {
@@ -169,7 +169,7 @@ domain VCTFloat {
   }
 
   axiom zero_add {
-    forall f1 : VCTFloat :: fadd(f1,zero()) == f1
+    forall f1 : VCTFloat :: {fadd(f1,zero())} fadd(f1,zero()) == f1
   }
 
 }

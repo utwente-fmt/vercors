@@ -244,10 +244,10 @@ public class System {
             if (debugFilterByClassName.contains(callSite.getClassName())
                     || debugfilterByLine.contains(callSite.getClassName() + ":" + callSite.getLineNumber())
             ) {
-                log(LogLevel.Debug, errorStreams, "At %s:%d: ", callSite.getFileName(), callSite.getLineNumber());
+//                log(LogLevel.Debug, errorStreams, "At %s:%d: ", callSite.getFileName(), callSite.getLineNumber());
                 log(LogLevel.Debug, errorStreams, format, args);
             } else {
-                log(LogLevel.All, errorStreams, "At %s:%d: ", callSite.getFileName(), callSite.getLineNumber());
+//                log(LogLevel.All, errorStreams, "At %s:%d: ", callSite.getFileName(), callSite.getLineNumber());
                 log(LogLevel.All, errorStreams, format, args);
             }
         }
