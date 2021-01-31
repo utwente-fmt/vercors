@@ -130,6 +130,7 @@ valPrimary
     | '(' langExpr '[' langExpr '->' langExpr ']' ')'
     | '(' langExpr '::' langExpr ')'
     | '(' langExpr '++' langExpr ')'
+    | '(' langExpr '\\in' langExpr ')'
     ;
 
 valReducibleOperator

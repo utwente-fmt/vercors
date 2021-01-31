@@ -9,6 +9,7 @@
 
 #define atomicMin(tgt, val) __vercors_atomic__ { (tgt)[0] = (tgt)[0] < (val) ? (tgt)[0] : (val); }
 #define atomicAdd(tgt, val) __vercors_atomic__ { (tgt)[0] += (val); }
+#define atomicRelax(tgt, w, s) __vercors_atomic__ { (tgt)[0] = (s != -1 && ((tgt)[0] == -1 || s+w <= (tgt)[0])) ? s+w : (tgt)[0]; }
 
 extern /*@ pure @*/ int get_work_dim(); // Number of dimensions in use
 

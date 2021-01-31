@@ -1129,6 +1129,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create expression(PrependSingle, expr(x), expr(xs))
     case ValPrimary36("(", xs, "++", ys, ")") =>
       create expression(Concat, expr(xs), expr(ys))
+    case ValPrimary37("(", x, "\\in", xs, ")") =>
+      create expression(Member, expr(x), expr(xs))
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {
