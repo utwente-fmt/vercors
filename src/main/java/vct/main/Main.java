@@ -450,6 +450,10 @@ public class Main
         passes.add("local-variable-check");
 
         if (silver.used()) {
+          passes.add("ghost-lift"); // change ghost code into real code so it can is used in the check
+          passes.add("standardize");
+          passes.add("check");
+
           if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
             passes.add("inline-atomic");
             passes.add("check");
@@ -576,12 +580,6 @@ public class Main
 
         passes.add("standardize");
         passes.add("check");
-
-        if (silver.used()) {
-          passes.add("ghost-lift"); // change ghost code into real code so it can is used in the check
-          passes.add("standardize");
-          passes.add("check");
-        }
 
         passes.add("flatten");
         passes.add("reorder"); // leaves declarations at the top of blocks (within loops and branches)

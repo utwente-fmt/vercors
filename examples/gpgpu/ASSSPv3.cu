@@ -25,11 +25,8 @@ Created by Mohsen Safari.
   kernel_invariant \pointer(g_end, A, 1\A);
   kernel_invariant \pointer(g_weight, A, 1\A);
   kernel_invariant \pointer(g_cost, A, 1);
-
-  requires \pointer_index(g_start, \gtid, 1\A);
-  requires \pointer_index(g_end, \gtid, 1\A);
-  requires \pointer_index(g_weight, \gtid, 1\A);
-  requires \pointer_index(g_cost, \gtid, write);
+  kernel_invariant (\forall int i=0 .. A; 0 <= g_end[i] && g_end[i] < A);
+  kernel_invariant (\forall int i=0 .. A; 0 <= g_start[i] && g_start[i] < A);
 @*/
 __global__ void CUDAKernel(int* g_start, int* g_end, int* g_weight, int* g_cost, int V, int A, int counter, int source)
 {
