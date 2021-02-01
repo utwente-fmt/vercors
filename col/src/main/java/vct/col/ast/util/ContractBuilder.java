@@ -93,12 +93,6 @@ public class ContractBuilder {
   public void yields(DeclarationStatement ... decls){
     for(DeclarationStatement d:decls) yields.add(d);
   }
-
-  public void clearGivenYields() {
-    given = new ArrayList<>();
-    yields = new ArrayList<>();
-  }
-
   public void ensures(ASTNode condition){
     ensures(condition,true);
   }

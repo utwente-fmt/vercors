@@ -96,12 +96,9 @@ class KernelBodyRewriter extends AbstractRewriter {
         }
         rewrite(c, icb);
         icb.clearKernelInvariant();
-        icb.clearGivenYields();
         gcb.appendInvariant(rewrite(c.invariant));
         kcb.appendInvariant(rewrite(c.invariant));
         kcb.context(rewrite(c.kernelInvariant));
-        kcb.given(rewrite(c.given));
-        kcb.yields(rewrite(c.yields));
         for (ASTNode clause : ASTUtils.conjuncts(c.pre_condition, StandardOperator.Star)) {
             ASTNode group = create.starall(
                     create.expression(StandardOperator.Member,
