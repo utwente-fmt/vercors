@@ -49,6 +49,17 @@ lazy val col = (project in file("col")).dependsOn(hre)
 lazy val parsers = (project in file("parsers")).dependsOn(hre, col)
 lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, carbon_ref, silicon_ref)
 
+// We fix the scalaVersion of all viper components to be silver's scalaVersion, because
+// it seems that in some cases the scalaVersion of the other components is lost.
+// SBT then assumes the version we want for those components is 2.10, and then
+// suddenly it can't find the dependencies anymore! Smart move, sbt.
+// If we ever move to maven for the viper dependency this can probably be removed.
+scalaVersion in carbon_ref := (scalaVersion in silver_ref).value
+scalaVersion in silicon_ref := (scalaVersion in silver_ref).value
+scalaVersion in ProjectRef(silver_url, "common") := (scalaVersion in silver_ref).value
+scalaVersion in ProjectRef(carbon_url, "common") := (scalaVersion in silver_ref).value
+scalaVersion in ProjectRef(silicon_url, "common") := (scalaVersion in silver_ref).value
+
 lazy val vercors = (project in file("."))
   .dependsOn(hre)
   .dependsOn(col)
