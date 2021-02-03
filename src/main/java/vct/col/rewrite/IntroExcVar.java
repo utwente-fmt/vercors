@@ -153,6 +153,7 @@ public class IntroExcVar extends AbstractRewriter {
                         create.expression(StandardOperator.EQ,
                                 create.local_name(oldExcVar),
                                 create.local_name(excVar))),
+                lsc.kernelInvariant,
                 lsc.pre_condition,
                 lsc.post_condition,
                 lsc.signals);

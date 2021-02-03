@@ -35,6 +35,7 @@ public class Contract extends ASTNode {
   }
 
   public final ASTNode invariant;
+  public final ASTNode kernelInvariant;
   public final ASTNode pre_condition;
   public final ASTNode post_condition;
   public final DeclarationStatement given[];
@@ -62,6 +63,7 @@ public class Contract extends ASTNode {
       ASTNode pre_condition,
       ASTNode post_condition){
     this.invariant=inv;
+    this.kernelInvariant = default_true;
     this. pre_condition= pre_condition;
     this.post_condition=post_condition;
     this.given=given;
@@ -81,6 +83,7 @@ public class Contract extends ASTNode {
       ASTNode pre_condition,
       ASTNode post_condition){
     this.invariant=inv;
+    this.kernelInvariant = default_true;
     this. pre_condition= pre_condition;
     this.post_condition=post_condition;
     this.given=given;
@@ -97,10 +100,12 @@ public class Contract extends ASTNode {
       ASTNode modifies[],
       ASTNode accesses[],
       ASTNode inv,
+      ASTNode kernelInvariant,
       ASTNode pre_condition,
       ASTNode post_condition,
       SignalsClause[] signals){
     this.invariant=inv;
+    this.kernelInvariant = kernelInvariant;
     this. pre_condition= pre_condition;
     this.post_condition=post_condition;
     this.given=given;

@@ -68,6 +68,7 @@ postfixExpression
     |   '(' typeName ')' '{' initializerList ',' '}'
     |   '__extension__' '(' typeName ')' '{' initializerList '}'
     |   '__extension__' '(' typeName ')' '{' initializerList ',' '}'
+    |   gpgpuCudaKernelInvocation
     ;
 
 argumentExpressionList
@@ -505,6 +506,7 @@ blockItem
     |   {specLevel>0}? valStatement
     |   gpgpuLocalBarrier
     |   gpgpuGlobalBarrier
+    |   gpgpuAtomicBlock
     ;
 
 expressionStatement

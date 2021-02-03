@@ -479,4 +479,9 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   public S map(SignalsClause cc) {
     return null;
   }
+
+  @Override
+  public S map(KernelInvocation ki) {
+    return null;
+  }
 }
