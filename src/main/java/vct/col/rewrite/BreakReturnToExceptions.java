@@ -6,11 +6,7 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.composite.TryCatchBlock;
-import vct.col.ast.stmt.decl.ASTClass;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
@@ -84,6 +80,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
                 null,
                 new ClassType(ClassType.javaLangObjectName())
         );
+        exceptionClass.setFlag(ASTFlags.FINAL, true);
 
         if (arg != null && !arg.isVoid()) {
             ContractBuilder cb = new ContractBuilder();

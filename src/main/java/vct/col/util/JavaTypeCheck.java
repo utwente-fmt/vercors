@@ -200,6 +200,11 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   }
 
   private boolean isThrowableType(Type t) {
+    /* When AddTypeADT has occurred, EncodeTryThrowSignals is about to encode the typing rules using the TYPE ADT. */
+    if(source().find_decl(new String[]{"TYPE"}) != null) {
+      return true;
+    }
+
     if (t instanceof ClassType) {
       ASTClass astClass = (ASTClass)((ClassType) t).definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
       if (astClass.kind == ASTClass.ClassKind.Record) {

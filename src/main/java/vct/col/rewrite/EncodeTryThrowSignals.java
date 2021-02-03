@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static vct.col.rewrite.AddTypeADT.ADT_NAME;
+import static vct.col.rewrite.AddTypeADT.TYPE_OF;
 import static vct.col.rewrite.IntroExcVar.excVar;
 
 public class EncodeTryThrowSignals extends AbstractRewriter {
@@ -222,7 +223,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.Not,
                     create.invokation(null, null,"instanceof",
-                            create.expression(StandardOperator.TypeOf,create.local_name(excVar)),
+                            create.invokation(create.class_type(ADT_NAME), null, TYPE_OF, create.local_name(excVar)),
                             create.invokation(create.class_type(ADT_NAME),null,"class_" + catchType.toString())
                             )
                     ),

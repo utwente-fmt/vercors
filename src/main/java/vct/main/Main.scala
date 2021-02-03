@@ -271,8 +271,8 @@ class Main {
     "java_resolve",
     "standardize",
     "interpret-annotations",
-    "unused-extern",
     "top-level-decls",
+    "unused-extern",
     "lock-invariant-proof",
     "unfold-synchronized",
     "pvl-encode",
@@ -293,8 +293,6 @@ class Main {
     ),
     "adt_operator_rewrite",
     "assign",
-    "chalice-optimize",
-    "chalice-preprocess",
     "continue-to-break",
     Choose(
       Seq("break-return-to-exceptions"),
@@ -324,16 +322,16 @@ class Main {
     "simplify_sums",
     "silver-optimize",
     "vector-encode",
-    "add-type-adt",
     "generate_adt_functions",
     "intro-exc-var",
     "rewrite_arrays",
     "flatten",
+    "add-type-adt",
     "encode-try-throw-signals",
-    "inline-pattern-to-trigger",
     "silver-class-reduction",
     "create-return-parameter",
     "quant-optimize",
+    "inline-pattern-to-trigger",
     "gen-triggers",
     "scale-always",
     "silver-reorder",
@@ -345,8 +343,10 @@ class Main {
     var features = featuresIn
 
     for(pass <- chain) {
-      if((features -- pass.permits).nonEmpty)
+      if((features -- pass.permits).nonEmpty) {
+        Debug(s"Rejecting because ${pass.key} does not allow ${features -- pass.permits}")
         return false
+      }
 
       features ++= pass.introduces
       features --= pass.removes

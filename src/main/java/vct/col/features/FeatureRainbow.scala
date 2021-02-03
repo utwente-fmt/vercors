@@ -1,10 +1,11 @@
 package vct.col.features
 
+import hre.ast.MessageOrigin
 import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, TypeExpression, TypeVariable}
 import vct.col.ast.stmt
 import vct.col.ast.stmt.composite.{BlockStatement, ForEachLoop, IfStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTFlags, ASTSpecial, Contract, DeclarationStatement, Method, NameSpace, ProgramUnit, VariableDeclaration}
+import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTFlags, ASTSpecial, AxiomaticDataType, Contract, DeclarationStatement, Method, NameSpace, ProgramUnit, VariableDeclaration}
 import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.expr
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
@@ -13,7 +14,7 @@ import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.langspecific.c.{OMPFor, OMPForSimd, OMPParallel, OMPParallelFor, OMPSection, OMPSections}
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
 import vct.col.ast.stmt.terminal.{AssignmentStatement, ReturnStatement}
-import vct.col.rewrite.{IntroExcVar, PVLEncoder}
+import vct.col.rewrite.{AddTypeADT, IntroExcVar, PVLEncoder}
 import vct.parsers.rewrite.InferADTTypes
 
 import scala.collection.JavaConverters._
@@ -25,6 +26,16 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   val blames: mutable.Map[Feature, ArrayBuffer[ASTNode]] = mutable.Map()
 
   source.asScala.foreach(visitTopLevelDecl)
+
+  if(source.asScala.collectFirst {
+    case ax: AxiomaticDataType => ax.name == AddTypeADT.ADT_NAME
+  }.isEmpty) {
+    addFeature(NoTypeADT, {
+      val block = new BlockStatement
+      block.setOrigin(new MessageOrigin("(no origin)"))
+      block
+    })
+  }
 
   def addFeature(feature: Feature, blame: ASTNode): Unit = {
     features += feature
@@ -70,9 +81,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   override def visit(c: ASTClass): Unit = {
     super.visit(c)
-    if(c.super_classes.nonEmpty || c.implemented_classes.nonEmpty) {
-      addFeature(Inheritance, c)
-    }
     if(c.kind != ClassKind.Record && c.methods().asScala.nonEmpty)
       addFeature(This, c)
     if(c.name.startsWith("Atomic"))
@@ -115,6 +123,9 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       addFeature(PVLSugar, m)
     if(m.name == "run" && getParentNode != null && !getParentNode.asInstanceOf[ASTClass].methods().asScala.exists(_.name == "forkOperator"))
       addFeature(PVLSugar, m)
+    if(m.canThrowSpec) {
+      addFeature(Exceptions, m)
+    }
     if(m.getContract != null) {
       if(m.getContract.yields.nonEmpty || m.getContract.`given`.nonEmpty)
         addFeature(GivenYields, m)
@@ -124,18 +135,14 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         addFeature(SpecIgnore, m)
         forbidRecursion = true
       }
-      if(m.canThrowSpec) {
-        m.getArgs.headOption match {
-          case Some(DeclarationStatement(IntroExcVar.excVar, _, _)) =>
-          case _ => addFeature(NoExcVar, m)
-        }
-      }
     }
     if(IntroExcVar.usesExceptionalControlFlow(m) && m.getBody != null) {
       if(m.getBody.asInstanceOf[BlockStatement].isEmpty ||
         !m.getBody.asInstanceOf[BlockStatement].get(0).isInstanceOf[DeclarationStatement] ||
         m.getBody.asInstanceOf[BlockStatement].get(0).asInstanceOf[DeclarationStatement].name != IntroExcVar.excVar) {
-        addFeature(NoExcVar, m)
+        if(m.getArgs.isEmpty || m.getArgument(0) != IntroExcVar.excVar) {
+          addFeature(NoExcVar, m)
+        }
       }
     }
 
@@ -169,11 +176,13 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   def splitLastStatement(statement: ASTNode): (Seq[ASTNode], Option[ASTNode]) = statement match {
     case block: BlockStatement =>
-      block.asScala.lastOption.map(splitLastStatement) match {
+      val discarded = block.asScala.filter(_.isSpecial(ASTSpecial.Kind.Label)).toSeq
+      val list = block.asScala.filterNot(_.isSpecial(ASTSpecial.Kind.Label)).toSeq
+      list.lastOption.map(splitLastStatement) match {
         case None =>
           (Seq(), None)
         case Some((init, last)) =>
-          (block.asScala.toSeq.init ++ init, last)
+          (list.init ++ init ++ discarded, last)
       }
     case ret: ReturnStatement =>
       (Seq(), Some(ret))
@@ -333,11 +342,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   }
 
   private var bindingExpressionDepth = 0
-  private var havePattern: Seq[Boolean] = Seq(false)
+  private var havePattern: Boolean = false
 
   override def visit(binding: BindingExpression): Unit = {
     bindingExpressionDepth += 1
-    havePattern :+= false
+    havePattern = false
     if(bindingExpressionDepth >= 2) {
       addFeature(NestedQuantifiers, binding)
     }
@@ -346,10 +355,9 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       addFeature(ADTFunctions, binding)
     if(binding.binder == Binder.Sum)
       addFeature(Summation, binding)
-    if((binding.triggers == null || binding.triggers.isEmpty) && !havePattern.last)
+    if((binding.triggers == null || binding.triggers.isEmpty) && !havePattern)
       addFeature(QuantifierWithoutTriggers, binding)
     bindingExpressionDepth -= 1
-    havePattern = havePattern.init
   }
 
   override def visit(assign: AssignmentStatement): Unit = {
@@ -477,7 +485,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(pat: expr.InlineQuantifierPattern): Unit = {
     super.visit(pat)
     addFeature(InlineQuantifierPattern, pat)
-    havePattern = havePattern.init :+ true
+    havePattern = true
   }
 
   override def visit(lemma: stmt.composite.Lemma): Unit = {
@@ -589,6 +597,7 @@ object Feature {
     LockInvariant,
     StringClass,
     MemberOfRange,
+    NoTypeADT,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -725,6 +734,7 @@ object Feature {
     Finally,
     Synchronized,
     MemberOfRange,
+    NoTypeADT,
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelDeclarations,
@@ -808,6 +818,7 @@ case object LockInvariant extends ScannableFeature
 case object NotJavaResolved extends ScannableFeature
 case object StringClass extends ScannableFeature
 case object MemberOfRange extends ScannableFeature
+case object NoTypeADT extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature
