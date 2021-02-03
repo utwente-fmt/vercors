@@ -53,7 +53,8 @@ lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, 
 // it seems that in some cases the scalaVersion of the other components is lost.
 // SBT then assumes the version we want for those components is 2.10, and then
 // suddenly it can't find the dependencies anymore! Smart move, sbt.
-// If we ever move to maven for the viper dependency this can probably be removed.
+// If Viper ever moves to maven central or some other proper dependency mechanism,
+// this can probably be removed.
 scalaVersion in carbon_ref := (scalaVersion in silver_ref).value
 scalaVersion in silicon_ref := (scalaVersion in silver_ref).value
 scalaVersion in ProjectRef(silver_url, "common") := (scalaVersion in silver_ref).value
