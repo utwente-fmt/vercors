@@ -894,8 +894,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     return false;
   }
 
-  protected void check_send_recv(DeclarationStatement[] body_decl,
-                                 String var_name) {
+  protected void check_send_recv(DeclarationStatement[] body_decl, String var_name) {
     ContractBuilder cb;
     BranchOrigin branch;
     for(String R:send_recv_map.keySet()){

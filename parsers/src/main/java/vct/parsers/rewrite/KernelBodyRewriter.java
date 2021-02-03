@@ -18,9 +18,9 @@ import vct.col.ast.util.ASTUtils;
 
 class KernelBodyRewriter extends AbstractRewriter {
 
-  public KernelBodyRewriter(ProgramUnit source) {
-    super(source);
-  }
+    public KernelBodyRewriter(ProgramUnit source) {
+        super(source);
+    }
 
     @Override
     public void visit(MethodInvokation e) {
@@ -38,7 +38,7 @@ class KernelBodyRewriter extends AbstractRewriter {
                 break;
             case "get_local_id":
                 arg = e.getArg(0);
-                if(arg.isConstant(0)) {
+                if (arg.isConstant(0)) {
                     result = create.local_name("opencl_lid");
                 } else {
                     Fail("bad dimension: %s", arg);
@@ -51,22 +51,22 @@ class KernelBodyRewriter extends AbstractRewriter {
 
     @Override
     public void visit(NameExpression n) {
-      if(n.kind() != NameExpressionKind.Reserved) {
-          super.visit(n);
-          return;
-      }
+        if (n.kind() != NameExpressionKind.Reserved) {
+            super.visit(n);
+            return;
+        }
 
-      switch(n.reserved()) {
-          case GlobalThreadId:
-              result = plus(mult(create.local_name("opencl_gid"), create.local_name("opencl_gsize")),
-                                    create.local_name("opencl_lid"));
-              break;
-          case LocalThreadId:
-              result = create.local_name("opencl_lid");
-              break;
-          default:
-              super.visit(n);
-      }
+        switch (n.reserved()) {
+            case GlobalThreadId:
+                result = plus(mult(create.local_name("opencl_gid"), create.local_name("opencl_gsize")),
+                        create.local_name("opencl_lid"));
+                break;
+            case LocalThreadId:
+                result = create.local_name("opencl_lid");
+                break;
+            default:
+                super.visit(n);
+        }
     }
 
     @Override
@@ -91,7 +91,7 @@ class KernelBodyRewriter extends AbstractRewriter {
             decls.add(rewrite(d));
         }
         Contract c = m.getContract();
-        if(c == null) {
+        if (c == null) {
             c = new ContractBuilder().getContract(false);
         }
         rewrite(c, icb);
@@ -135,14 +135,14 @@ class KernelBodyRewriter extends AbstractRewriter {
     @Override
 
     public void visit(OperatorExpression e) {
-        switch(e.operator()) {
+        switch (e.operator()) {
             case StructSelect:
-                if(e.arg(1).isName("x")) {
-                    if(e.arg(0).isName("threadIdx")) {
+                if (e.arg(1).isName("x")) {
+                    if (e.arg(0).isName("threadIdx")) {
                         result = name("opencl_lid");
-                    } else if(e.arg(0).isName("blockIdx")) {
+                    } else if (e.arg(0).isName("blockIdx")) {
                         result = name("opencl_gid");
-                    } else if(e.arg(0).isName("blockDim")) {
+                    } else if (e.arg(0).isName("blockDim")) {
                         result = name("opencl_gsize");
                     } else {
                         super.visit(e);
