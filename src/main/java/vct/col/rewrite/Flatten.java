@@ -2,9 +2,7 @@ package vct.col.rewrite;
 
 import hre.ast.MessageOrigin;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -17,7 +15,8 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.col.util.LambdaHelper;
+import vct.col.ast.util.AbstractRewriter;
+import hre.util.LambdaHelper;
 
 public class Flatten extends AbstractRewriter {
 
@@ -34,18 +33,40 @@ public class Flatten extends AbstractRewriter {
   private static long counter=0;
 
   /**
-   * Whenever this is true, the flattener is not inside an expression.
-   * The first expression encountered when this is true is responsible for
-   * setting it to false before traversing deeper into the expression.
+   * Whenever the second value on the stack is true, the flattener is not inside an expression.
    * This allows each rewrite step to detect if they are the toplevel expression
    * or nested within an expression (and hence if they should be rewritten
    * into a variable or not)
    *
-   * It is false by default s.t. everything is moved into a variable by default.
-   * Specific statements (assign, return) can set it to true so the first expression
+   * The top of the LevelStack is false by default s.t. everything is moved into a variable by default.
+   * Specific statements (assign, return) can set it to true so the first expression (with markAsTopLevel)
    * encountered after that point is not moved out, but the second expression after it is.
     */
-  private boolean toplevel = false;
+    private LinkedList<Boolean> levelStack = new LinkedList<>();
+
+  @Override
+  public void pre_visit(ASTNode n) {
+    super.pre_visit(n);
+    levelStack.push(false);
+  }
+
+  @Override
+  public void post_visit(ASTNode n) {
+    levelStack.pop();
+    super.post_visit(n);
+  }
+
+  public void markAsTopLevel() {
+    this.levelStack.pop();
+    this.levelStack.push(true);
+  }
+
+  /**
+   * New level values get pushed in front of the stack, so to get the second to last value we use index 1 on the stack
+   */
+  public boolean isInTopLevel() {
+    return this.levelStack.get(1);
+  }
 
   @Override
   public void visit(ASTSpecial s){
@@ -60,10 +81,8 @@ public class Flatten extends AbstractRewriter {
   }
 
   public void visit(MethodInvokation e) {
-    Debug("call to %s",e.method);
-    boolean old_toplevel = toplevel;
-    toplevel = false;
-    ASTNode object=rewrite(e.object);
+    Debug("call to %s",e.method());
+    ASTNode object=rewrite(e.object());
     int N=e.getArity();
     ASTNode args[]=new ASTNode[N];
     for(int i=0;i<N;i++){
@@ -73,8 +92,8 @@ public class Flatten extends AbstractRewriter {
     if (e.getType()==null){
       Abort("result type of call unknown at %s",e.getOrigin());
     }
-    if (e.getType().isVoid()||e.getType().isNull()||declaration_block==null||old_toplevel){
-      result=create.invokation(object,rewrite(e.dispatch),e.method,args);
+    if (e.getType().isVoid()||e.getType().isNull()||declaration_block==null || isInTopLevel()){
+      result=create.invokation(object,rewrite(e.dispatch()),e.method(),args);
       ((MethodInvokation)result).set_before(copy_rw.rewrite(e.get_before()));
       ((MethodInvokation)result).set_after(copy_rw.rewrite(e.get_after()));
     } else {
@@ -83,7 +102,7 @@ public class Flatten extends AbstractRewriter {
       Debug("inserting in %s",declaration_block);
       declaration_block.addStatement(n);
       Debug("assigning result of call");
-      MethodInvokation call=create.invokation(object,rewrite(e.dispatch),e.method,args);
+      MethodInvokation call=create.invokation(object,rewrite(e.dispatch()),e.method(),args);
       call.set_before(copy_pure.rewrite(e.get_before()));
       call.set_after(copy_pure.rewrite(e.get_after()));
       for(NameExpression lbl:e.getLabels()){
@@ -95,7 +114,6 @@ public class Flatten extends AbstractRewriter {
       result=create.local_name(name);
       auto_labels=false;
     }
-    toplevel = old_toplevel;
   }
  
   public void visit(OperatorExpression e){
@@ -149,6 +167,30 @@ public class Flatten extends AbstractRewriter {
       result=create.local_name(name);
       return;
     }
+      case ITE: {
+        String name = "__flatten_"+(++counter);
+        ASTNode decl = create.field_decl(name, e.arg(1).getType());
+        declaration_block.addStatement(decl);
+
+        IfStatement ifStatement = new IfStatement();
+        ASTNode guard = rewrite(e.arg(0));
+
+        block_stack.push(current_block);
+        current_block = create.block();
+        ASTNode evalTrue = create.assignment(create.local_name(name), rewrite(e.arg(1)));
+        current_block.add(evalTrue);
+        ifStatement.addClause(guard, current_block);
+
+        current_block = create.block();
+        ASTNode evalFalse = create.assignment(create.local_name(name), rewrite(e.arg(2)));
+        current_block.add(evalFalse);
+        ifStatement.addClause(IfStatement.elseGuard(), current_block);
+        current_block = block_stack.pop();
+
+        current_block.addStatement(ifStatement);
+        result = create.local_name(name);
+        return;
+      }
     default:
       super.visit(e);
       return;
@@ -192,6 +234,7 @@ public class Flatten extends AbstractRewriter {
   }
   
   public void visit(DeclarationStatement s){
+    markAsTopLevel();
     Type t=s.getType();
     ASTNode tmp=t.apply(this);
     if (tmp instanceof Type){
@@ -206,9 +249,7 @@ public class Flatten extends AbstractRewriter {
         Abort("internal error: current block is null");
       }
       current_block.addStatement(create.field_decl(name,t,null));
-      toplevel = true;
       init=init.apply(this);
-      toplevel = false;
       result=create.assignment(create.local_name(name),init);
     } else {
       result=create.field_decl(name,t,null);
@@ -217,7 +258,7 @@ public class Flatten extends AbstractRewriter {
   
   @Override
   public void visit(AssignmentStatement s) {
-    toplevel = true;
+    markAsTopLevel();
     ASTNode loc=s.location();
     ASTNode val=s.expression();
     if (loc instanceof Dereference
@@ -227,45 +268,10 @@ public class Flatten extends AbstractRewriter {
       val=add_as_var(val);
     } else {
       loc=rewrite(loc);
-      val=rewrite(val);
+      val.accept(this);
+      val = this.getResult();
     }
     result=create.assignment(loc,val);
-    toplevel = false;
-    //if (//s.getLocation().getType().equals(ClassType.label_type)||
-    //    s.getExpression().getType().equals(ClassType.label_type)){
-    //  ASTNode loc=s.getLocation().apply(this);
-    //  ASTNode val=s.getExpression().apply(this);
-    //  result=create.assignment(loc,val);
-    /*  return;
-    }
-    ASTNode loc=s.getLocation().apply(this);
-    ASTNode val=rewrite(s.getExpression());
-    if (loc instanceof Dereference){
-      Dereference d=(Dereference)loc;
-      if (d.field.equals("item")){
-        Dereference old_d=(Dereference)s.getLocation();
-        if (old_d.object.isa(StandardOperator.Subscript)){
-          OperatorExpression e=(OperatorExpression)old_d.object;
-          ASTNode ref=copy_rw.rewrite(d.object);
-          ASTNode ar=copy_rw.rewrite(e.getArg(0));
-          ASTNode idx=copy_rw.rewrite(e.getArg(1));
-          String var_name="__random_i";
-          DeclarationStatement decl=create.field_decl(var_name, create.primitive_type(Sort.Integer));
-          
-          ASTNode claim=create.expression(StandardOperator.NEQ,ref,
-              create.expression(StandardOperator.Subscript,ar,create.local_name(var_name)));;
-          ASTNode guard1=create.expression(StandardOperator.LTE,create.constant(0),create.local_name(var_name));
-          ASTNode guard2=create.expression(StandardOperator.LT,create.local_name(var_name),
-              create.expression(StandardOperator.Size,ar));
-          ASTNode guard3=create.expression(StandardOperator.NEQ,idx,create.local_name(var_name));
-          ASTNode guard=create.fold(StandardOperator.And,guard1,guard2,guard3);
-          ASTNode clue=create.forall(guard, claim, decl);
-          current_block.add_statement(create.expression(StandardOperator.Assume,clue));
-        }
-      }
-    }
-    result=create.assignment(loc,val);
-    */
   }
 
   private ASTNode add_as_var(ASTNode e){
@@ -295,11 +301,10 @@ public class Flatten extends AbstractRewriter {
   }
 
   public void visit(ReturnStatement s){
+    markAsTopLevel();
     ASTNode e=s.getExpression();
     if (e!=null){
-      toplevel = true;
       e = e.apply(this);
-      toplevel = false;
       result=create.return_statement(e);
     } else {
       result=create.return_statement();
@@ -369,7 +374,7 @@ public class Flatten extends AbstractRewriter {
       c=copy_pure.rewrite(mc);
     }
     Method.Kind kind=m.kind;
-    Method res=create.method_kind(kind,rewrite(m.getReturnType()) , c, name, args, m.usesVarArgs(),null);
+    Method res=create.method_kind(kind, rewrite(m.getReturnType()), rewrite(m.signals), c, name, args, m.usesVarArgs(),null);
     ASTNode body=m.getBody();
     if (body!=null) {
       if (body instanceof BlockStatement) {
@@ -422,7 +427,7 @@ public class Flatten extends AbstractRewriter {
         if(derefItem) target = create.dereference(target, "item");
         current_block.addStatement(create.assignment(target, rewrite(v.value(i))));
       }
-    } else if(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Set) || t.isPrimitive(PrimitiveSort.Bag)) {
+    } else if(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Set) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Map) || t.isPrimitive(PrimitiveSort.Tuple)) {
         // The SilverExpressionMap has separate constructs for explicit seq, set & bag expressions, so we do not rewrite
         // it here.
         current_block.addStatement(create.assignment(

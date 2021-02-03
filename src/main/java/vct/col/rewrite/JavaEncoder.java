@@ -22,7 +22,8 @@ import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.AbstractRewriter;
 
 public class JavaEncoder extends AbstractRewriter {
 
@@ -98,7 +99,7 @@ public class JavaEncoder extends AbstractRewriter {
       prefix="procedure_";
     } else {
       String name[]=cls.getFullName();
-      if (m.name().equals(cls.name())){
+      if (m.name().equals(cls.name()) || m.getKind() == Kind.Constructor){
         prefix="constructor_";
       } else {
         prefix="method_";
@@ -122,11 +123,11 @@ public class JavaEncoder extends AbstractRewriter {
     switch(s.kind){
     case Open:{
       MethodInvokation m=(MethodInvokation)s.args[0];
-      ASTNode object=rewrite(m.object);
+      ASTNode object=rewrite(m.object());
       currentBlock.add(create.special(ASTSpecial.Kind.Assert,
         create.expression(StandardOperator.EQ,
           create.expression(StandardOperator.TypeOf, object),
-          rewrite(m.dispatch)
+          rewrite(m.dispatch())
       )));
       String method=create_method_name(get_initial_definition(m.getDefinition()));
       ArrayList<ASTNode> args=new ArrayList<ASTNode>();
@@ -141,11 +142,11 @@ public class JavaEncoder extends AbstractRewriter {
     }
     case Close:{
       MethodInvokation m=(MethodInvokation)s.args[0];
-      ASTNode object=rewrite(m.object);
+      ASTNode object=rewrite(m.object());
       currentBlock.add(create.special(ASTSpecial.Kind.Assert,
         create.expression(StandardOperator.EQ,
           create.expression(StandardOperator.TypeOf, object),
-          rewrite(m.dispatch)
+          rewrite(m.dispatch())
       )));
       String method=create_method_name(get_initial_definition(m.getDefinition()));
       ArrayList<ASTNode> args=new ArrayList<ASTNode>();
@@ -245,6 +246,11 @@ public class JavaEncoder extends AbstractRewriter {
           ArrayList<DeclarationStatement> parameters=gen_pars(m);
           switch(m.kind){
           case Plain:{
+            if (!(m.getContract() == null || m.getContract().isEmpty())) {
+              m.getOrigin().report("info", "This method cannot be automatically inherited by class %s", cl.name());
+              cl.getOrigin().report("error", "Automatic inheritance of method with non-empty contract is not supported");
+              Fail("Automatic inheritance of method with contract not supported");
+            }
             Contract external_contract=rewrite(m.getContract());
             internal_mode=true;
             Contract internal_contract=rewrite(m.getContract());
@@ -254,15 +260,12 @@ public class JavaEncoder extends AbstractRewriter {
             String internal_name=create_method_name(INTERNAL, cl_type ,m);
             boolean varArgs=m.usesVarArgs();
             res.add(create.method_kind(m.kind, returns, external_contract, external_name, parameters, varArgs, null));
-            BlockStatement body=create.block();
-            body.add(create.comment("//TODO: unfolds of chained predicates in pre-condition"));
-            body.add(create.invokation(
-                create.reserved_name(ASTReserved.Super),
-                null,
-                create_method_name("internal", cl.super_classes[0],m),
-                get_names(parameters)));
-            body.add(create.comment("//TODO: folds of chained predicates in post-condition"));
-            res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, body));
+            // We leave body empty, as the method is guaranteed to have no contract
+            // Therefore no extra proof steps (unfolding predicates, checking pre/post conditions for implications)
+            // are not necessary and we can leave the method abstract. However, when the empty contract check is
+            // removed, a call to super or something similar should be added, such that the static/dynamic contract
+            // implication is checked.
+            res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, null));
             break;
           }
           case Predicate:{
@@ -318,6 +321,7 @@ public class JavaEncoder extends AbstractRewriter {
     if (!m.isValidFlag(ASTFlags.FINAL)){
       m.setFlag(ASTFlags.FINAL, false);
     }
+    ASTClass definingClass = (ASTClass)m.getParent();
     ASTClass cls;
     // anything starting in a class named Atomic.... is inlined by CSL encoding.
     // uncomment the following lines if there is a problem with that....
@@ -337,13 +341,14 @@ public class JavaEncoder extends AbstractRewriter {
         Method tmp=cls.find(m.name(),null,arg_type);
         if (tmp!=null){
           m=tmp;
+          definingClass = cls;
           continue;
         }
       }
       break;
     }
     if (m != orig) return false;
-    return cls.getFlag(ASTFlags.FINAL) || m.getFlag(ASTFlags.FINAL);
+    return definingClass.getFlag(ASTFlags.FINAL) || m.getFlag(ASTFlags.FINAL);
   }
 
   private Hashtable<Method,Contract> contract_table = new Hashtable<Method,Contract>();
@@ -390,6 +395,7 @@ public class JavaEncoder extends AbstractRewriter {
       arg_type[i]=pars[i].getType();
     }
     boolean varArgs=m.usesVarArgs();
+    Type[] signals = rewrite(m.signals);
     if (m.getParent() instanceof ASTClass){
       ASTClass cls=(ASTClass)m.getParent();
       boolean direct=is_direct_definition(m);
@@ -429,19 +435,22 @@ public class JavaEncoder extends AbstractRewriter {
       case Plain:
         if (direct){
           ASTNode body=rewrite(m.getBody());
-          Method res=create.method_kind(kind, returns, external_contract, name, args, varArgs, body);
+          Method res=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
           res.copyMissingFlags(m);
           currentTargetClass.add(res);         
         } else {
-          currentTargetClass.add(create.method_kind(kind, returns, initial_contract, name, args, varArgs, null));
+          currentTargetClass.add(create.method_kind(kind, returns, signals, initial_contract, name, args, varArgs, null));
           args=copy_rw.rewrite(args);
           internal_mode=true;
           ASTNode body=rewrite(m.getBody());
           internal_mode=false;
-          currentTargetClass.add(create.method_kind(kind, returns, internal_contract, internal_name, args, varArgs, body));
+          currentTargetClass.add(create.method_kind(kind, returns, signals, internal_contract, internal_name, args, varArgs, body));
         }
         break;
       case Predicate:
+        if (signals.length != 0) {
+          Abort("Predicate with throws types detected");
+        }
         if (direct){
           ASTNode body=rewrite(m.getBody());
           Method res=create.method_kind(kind, returns, null, name, args, varArgs, body);
@@ -469,11 +478,11 @@ public class JavaEncoder extends AbstractRewriter {
         break;
       default:{
         ASTNode body=rewrite(m.getBody());
-        result=create.method_kind(kind, returns, external_contract, name, args, varArgs, body);
+        result=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
       }}
     } else {
       ASTNode body=rewrite(m.getBody());
-      result=create.method_kind(kind, returns, external_contract, name, args, varArgs, body);
+      result=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
     }
   }
   
@@ -492,19 +501,19 @@ public class JavaEncoder extends AbstractRewriter {
     }
     ASTNode object;
     if (m.kind==Method.Kind.Constructor){
-      object=rewrite(s.dispatch);
+      object=rewrite(s.dispatch());
     } else {
-      object=rewrite(s.object);
+      object=rewrite(s.object());
     }
-    ClassType dispatch=rewrite(s.dispatch);
+    ClassType dispatch=rewrite(s.dispatch());
     String method;
     Type ot=null;
-    if (s.object!=null){
-      ot=s.object.getType();
+    if (s.object()!=null){
+      ot=s.object().getType();
     }
-    if (s.object!=null && s.object.isReserved(ASTReserved.Super)
+    if (s.object()!=null && s.object().isReserved(ASTReserved.Super)
         && get_initial_definition(m)==get_initial_definition(current_method())){
-      method=create_method_name("internal",(ClassType)ot,m);
+      method=create_method_name(INTERNAL,(ClassType)ot,m);
     } else if (dispatch!=null) {
       // Static dispatch call...
       String prefix="unknown";

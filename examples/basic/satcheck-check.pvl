@@ -1,0 +1,60 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases SatCheck_Check
+//:: tools silicon
+//:: verdict Pass
+
+// Test added to ensure that SatCheckRewriter's error is not triggered.
+// Could actually not reproduce the error on Bob's laptop, but Mohsen said he
+// had the error so it's the best we have for now.
+
+class Worker {
+  boolean terminated; // determines whether the worker has terminated
+  int value; // the value that this worker is working on
+}
+
+class Test {
+  seq<int> values;
+  
+  given seq<Worker> workers;
+
+  // Swap comments on the 2 lines below to check for the bug.
+  // If everything's fine, no sat-check error should pop up.
+  // If the bug resurfaced, swapping comments should result in the satcheck error
+  // (Even though viper already reports the contract is not internally consistent -
+  // and hence our error is superfluous)
+  // context_everywhere 0 < N && |workers| == (N - 1);
+  context_everywhere 0 < N && |workers| == N;
+
+  context (\forall int i; 0 <= i && i < N; workers[i] != null);
+  context (\forall* int i; 0 <= i && i < N; Perm(workers[i].terminated, write) ** Perm(workers[i].value, write));
+  context Perm(values, write) ** |values| == N;
+  requires (\forall int i; 0 <= i && i < N; !workers[i].terminated); // initially none of the workers has terminated
+  ensures (\forall int i; 0 <= i && i < N; workers[i].terminated); // when returning from this function all workers have terminated
+  ensures (\forall int i; 0 <= i && i < N; values[i] == 0); // we can now prove this
+  void reset(int N)
+  {
+    invariant inv (
+      0 < N ** |workers| == N **
+      Perm(values, write) ** |values| == N **
+      (\forall int i; 0 <= i && i < N; workers[i] != null) **
+      (\forall* int i; 0 <= i && i < N; Perm(workers[i].terminated, 1\2) ** Perm(workers[i].value, 1\2)) **
+      (\forall int i; 0 <= i && i < N && workers[i].terminated; values[i] == workers[i].value)
+    ) //;
+    {
+      par (int tid = 0 .. N)
+        context 0 < N;
+        context Perm(workers[tid].terminated, 1\2) ** Perm(workers[tid].value, 1\2);
+        requires !workers[tid].terminated;
+        ensures workers[tid].terminated;
+        ensures workers[tid].value == 0;
+      {
+        atomic (inv)
+        {
+          values = values[tid -> 0];
+          workers[tid].value = 0;
+          workers[tid].terminated = true;
+        }
+      }
+    }
+  }
+}

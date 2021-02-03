@@ -9,6 +9,7 @@ import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 
 public class PropagateInvariants extends AbstractRewriter {
@@ -81,7 +82,9 @@ public class PropagateInvariants extends AbstractRewriter {
     rewrite(pb.contract(), cb);
     ParallelBlock res=create.parallel_block(
         pb.label(),
-        cb.getContract(),
+        // Make sure the contract remains null if the original contract is null,
+        // and non-null if the original contract is
+        cb.getContract(pb.contract() == null),
         rewrite(pb.itersJava()),
         rewrite(pb.block()),
         rewrite(pb.deps())

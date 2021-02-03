@@ -1,16 +1,21 @@
 package viper.api
 
 import viper.silver.ast._
+
 import scala.collection.JavaConverters._
 import scala.collection.JavaConverters._
-import viper.silver.verifier.{Failure, Success, AbortedExceptionally, VerificationError}
+import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
+
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
 import java.nio.file.Path
+
+import hre.util
 import viper.silver.parser.PLocalVarDecl
+
 import scala.collection.mutable.WrappedArray
 
 
@@ -23,8 +28,8 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
     If(c, s_true, s_false)(NoPosition, new OriginInfo(o))
   }
   
-  override def method_call(o:O,name:String,in_args:List[Exp],out_args:List[Exp],
-      pars:List[Triple[O,String,Type]],rets:List[Triple[O,String,Type]]) : Stmt = {
+  override def method_call(o:O, name:String, in_args:List[Exp], out_args:List[Exp],
+                           pars:List[util.Triple[O,String,Type]], rets:List[util.Triple[O,String,Type]]) : Stmt = {
     
     val m = add(Method(
       name, // method name
@@ -68,7 +73,7 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
       }
   }
 
-  override def while_loop(o:O,cond:Exp,inv:List[Exp],locals:List[Triple[O,String,Type]],body:Stmt):Stmt = {
+  override def while_loop(o:O, cond:Exp, inv:List[Exp], locals:List[util.Triple[O,String,Type]], body:Stmt):Stmt = {
     val locs=locals.asScala.toArray.map {
       d => LocalVarDecl(d.v2,d.v3)(NoPosition,new OriginInfo(d.v1))
     }
@@ -89,26 +94,5 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
   // TODO not sure if 'scopedDecls' (of the class 'Seqn') is properly handled here
   override def block(o:O, stats:List[Stmt]): Stmt =
     Seqn(stats.asScala, Seq())(NoPosition, new OriginInfo(o))
-  
-  def constraining(o:O, ps:List[Exp], body:Stmt) : Stmt = {
-    val vars = ps.asScala.map {
-      x => x.asInstanceOf[LocalVar]
-    }
-    
-    // TODO not sure if the local variables declarations are still handled properly...
-    val b : Seqn = body match {
-      case null => Seqn(Seq(), Seq())()
-      case s => Seqn(Seq(s), Seq())(s.pos, s.info, s.errT)
-    }
-    
-    Constraining(vars, b)(NoPosition, new OriginInfo(o))
-  }
-  
-  def fresh(o: O,ps: List[Exp]): Stmt = {
-    val vars=ps.asScala.map {
-      x => x.asInstanceOf[LocalVar]
-    }
-    Fresh(vars)(NoPosition,new OriginInfo(o))
-  }
 }
 

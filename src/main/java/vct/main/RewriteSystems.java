@@ -4,11 +4,10 @@ import java.io.File;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import vct.antlr4.parser.Parsers;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.rewrite.RewriteSystem;
 import vct.col.util.AbstractTypeCheck;
-import vct.util.Configuration;
+import hre.config.Configuration;
 
 public class RewriteSystems {
 
@@ -24,7 +23,7 @@ public class RewriteSystems {
       unit=systems.get(f);
       if (unit==null){
         unit=Parsers.getParser("jspec").parse(f);
-        new AbstractTypeCheck(unit).check();
+        new AbstractTypeCheck(null, unit).check();
         systems.put(f, unit);
       }
     }

@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: cases DafnyError
-//:: tools dafny
+//:: cases IncrementError
+//:: tools silicon
 //:: verdict Fail
 class Incr {
 

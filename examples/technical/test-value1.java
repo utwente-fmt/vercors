@@ -1,11 +1,10 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases TestValue1
-//:: tools silicon chalice carbon
+//:: tools silicon
 //:: verdict Fail
 
 class Test {
 
-  
   Test next;
   
   /*@

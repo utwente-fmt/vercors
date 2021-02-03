@@ -6,6 +6,7 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.AbstractRewriter;
 
 /**
  * Rewrite pass that rewrites null values to none where they should be converted. This happens when e.g. null is
@@ -46,6 +47,9 @@ public class ArrayNullValues extends AbstractRewriter {
             case BitOr:
             case BitXor:
             case BitNot:
+            case AmbiguousAnd:
+            case AmbiguousOr:
+            case AmbiguousXor:
             case And:
             case Or:
             case Not:
@@ -155,7 +159,7 @@ public class ArrayNullValues extends AbstractRewriter {
             case Cons:
             case Drop:
             case Take:
-            case Append:
+            case Concat:
             case Head:
             case Tail:
                 break;
@@ -202,11 +206,6 @@ public class ArrayNullValues extends AbstractRewriter {
             case ReducibleMin:
                 break;
             case Held:
-                break;
-            case Identity:
-                if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
-                    exp.arg(0).setType(exp.getType());
-                }
                 break;
             case Indirection:
                 break;

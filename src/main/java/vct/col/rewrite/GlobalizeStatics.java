@@ -11,7 +11,10 @@ import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.constant.StructValue;
-import vct.util.ClassName;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ClassName;
+
+import java.util.Objects;
 
 /**
  * Base class for rewriting all static entries as a single Global class.
@@ -125,7 +128,7 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
   
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
-    if (m==null) Abort("cannot globalize method invokaiton without method definition");
+    Objects.requireNonNull(m, "cannot globalize method invokation without method definition");
     if (m.getParent() instanceof AxiomaticDataType){
       super.visit(e);
       return;
@@ -143,14 +146,14 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
       if (processing_static){
         res=create.invokation(
           create.this_expression(create.class_type("Global")),
-          rewrite(e.dispatch),
-          prefix+"_"+e.method,
+          rewrite(e.dispatch()),
+          prefix+"_"+e.method(),
           rewrite(e.getArgs()));
       } else {
         res=create.invokation(
             create.local_name("global"),
-            rewrite(e.dispatch),
-            prefix+"_"+e.method,
+            rewrite(e.dispatch()),
+            prefix+"_"+e.method(),
             rewrite(e.getArgs()));        
       }
       if (e.get_before().size()>0) {

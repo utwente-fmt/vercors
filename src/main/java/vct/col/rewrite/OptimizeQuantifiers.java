@@ -9,6 +9,7 @@ import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.util.AbstractRewriter;
 
 public class OptimizeQuantifiers extends AbstractRewriter {
 
@@ -22,8 +23,8 @@ public class OptimizeQuantifiers extends AbstractRewriter {
     for(DeclarationStatement d:e.getDeclarations()){
       decls.add(rewrite(d));
     }
-    cond.add(rewrite(e.select));
-    ASTNode main=e.main;
+    cond.add(rewrite(e.select()));
+    ASTNode main=e.main();
     while(main.isa(StandardOperator.Implies)){
       OperatorExpression oe=(OperatorExpression)main;
       cond.add(rewrite(oe.arg(0)));
@@ -31,22 +32,22 @@ public class OptimizeQuantifiers extends AbstractRewriter {
     }
     if(main instanceof BindingExpression){
       BindingExpression tmp=(BindingExpression)main;
-      if(tmp.binder==e.binder && (tmp.triggers==null || tmp.triggers.length==0)){
+      if(tmp.binder()==e.binder() && (tmp.triggers()==null || tmp.javaTriggers().length==0)){
         enter(main);
         ASTNode temp=strip(decls,cond,tmp);
         leave(main);
         return temp;
       }
     }
-    return rewrite(e.main);
+    return rewrite(e.main());
   }
   
   public void visit(BindingExpression e){
-    if ((e.binder==Binder.Star || e.binder==Binder.Forall) && (e.triggers==null || e.triggers.length==0)){
+    if ((e.binder()==Binder.Star || e.binder()==Binder.Forall) && (e.triggers()==null || e.javaTriggers().length==0)){
       ArrayList<DeclarationStatement> decls=new ArrayList<DeclarationStatement>();
       ArrayList<ASTNode> cond=new ArrayList<ASTNode>();
       ASTNode body=strip(decls,cond,e);
-      result=create.binder(e.binder, rewrite(e.result_type),
+      result=create.binder(e.binder(), rewrite(e.result_type()),
           decls.toArray(new DeclarationStatement[0]),null,
           create.fold(StandardOperator.And,cond),body);
     } else {

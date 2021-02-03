@@ -1,58 +1,68 @@
 package vct.col.rewrite;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-
 import hre.ast.MessageOrigin;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.util.ASTFactory;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 
 public class AddTypeADT extends AbstractRewriter {
 
   public static final String type_adt="TYPE";
 
+  private static final String DIRECT_SUPERCLASS = "directSuperclass";
+
   private AxiomaticDataType adt;
-  
-  private HashSet<String> rootclasses=new HashSet<String>();
-  @SuppressWarnings("unused")
-  private HashMap<String,Set<String>> subclasses=new HashMap<String, Set<String>>();
   
   public AddTypeADT(ProgramUnit source) {
     super(source);
     create.enter();
     create.setOrigin(new MessageOrigin("Generated type system ADT"));
     adt=create.adt(type_adt);
-    ClassType adt_type=create.class_type(type_adt);
-    adt.add_cons(create.function_decl(create.class_type(type_adt),null,"class_Object",new DeclarationStatement[0],null));
     adt.add_map(create.function_decl(
-        create.primitive_type(PrimitiveSort.Boolean),
-        null,
-        "instanceof",
-        new DeclarationStatement[]{
-          create.field_decl("t1",create.class_type(type_adt)),
-          create.field_decl("t2",create.class_type(type_adt))
-        },
-        null
+            create.class_type(type_adt),
+            null,
+            DIRECT_SUPERCLASS,
+            new DeclarationStatement[] {
+                    create.field_decl("t", create.class_type(type_adt))
+            },
+            null
     ));
-    adt.add_axiom(create.axiom("object_top",create.forall(
-        create.constant(true),
-        create.invokation(adt_type, null,"instanceof",create.invokation(adt_type,null,"class_Object"),create.local_name("t")),
-        new DeclarationStatement[]{create.field_decl("t",create.class_type(type_adt))}
-    )));
-    adt.add_axiom(create.axiom("object_eq",create.forall(
-        create.constant(true),
-        create.invokation(adt_type, null,"instanceof",create.local_name("t"),create.local_name("t")),
-        new DeclarationStatement[]{create.field_decl("t",create.class_type(type_adt))}
-    )));
+
+    ContractBuilder cb = new ContractBuilder();
+    cb.ensures(create.expression(StandardOperator.EQ,
+            create.reserved_name(ASTReserved.Result),
+            create.expression(StandardOperator.Or,
+                    create.expression(StandardOperator.EQ, create.local_name("t"), create.local_name("u")),
+                    create.expression(StandardOperator.EQ,
+                            create.domain_call(type_adt, DIRECT_SUPERCLASS, create.local_name("t")),
+                            create.local_name("u")
+                    )
+            )
+    ));
+
+    Method instanceofMethod = create.function_decl(
+            create.primitive_type(PrimitiveSort.Boolean),
+            cb.getContract(),
+            "instanceof",
+            new DeclarationStatement[]{
+                    create.field_decl("t", create.class_type(type_adt)),
+                    create.field_decl("u", create.class_type(type_adt))
+            },
+            null
+    );
+    instanceofMethod.setFlag(ASTFlags.STATIC, true);
+
     create.leave();
     target().add(adt);
+    target().add(instanceofMethod);
   }
 
   @Override
@@ -92,29 +102,40 @@ public class AddTypeADT extends AbstractRewriter {
   public void visit(ASTClass cl){
     super.visit(cl);
     ASTClass res=(ASTClass)result;
-    adt.add_cons(create.function_decl(create.class_type(type_adt),null, "class_"+cl.name(), new DeclarationStatement[0],null));
-    if (cl.super_classes.length==0){
-      for(String other:rootclasses){
-        adt.add_axiom(create.axiom("different_"+other+"_" + cl.name(),
-            create.expression(StandardOperator.Not,
-               create.invokation(create.class_type(type_adt), null,"instanceof",
-                   create.invokation(create.class_type(type_adt),null,"class_"+other),
-                   create.invokation(create.class_type(type_adt),null,"class_"+cl.name())))
-        ));
-        adt.add_axiom(create.axiom("different_"+cl.name()+"_"+other,
-            create.expression(StandardOperator.Not,
-               create.invokation(create.class_type(type_adt), null,"instanceof",
-                   create.invokation(create.class_type(type_adt),null,"class_"+cl.name()),
-                   create.invokation(create.class_type(type_adt),null,"class_"+other)))
-        ));
-      }
-      rootclasses.add(cl.name());
+    addTypeConstructor(cl);
+    // Assume classes extend Object by default
+    if (cl.super_classes.length==0) {
+      addDirectSuperclassAxiom(new ClassType(cl.getName()), new ClassType(ClassType.javaLangObjectName()));
+    } else if (cl.super_classes.length == 1) {
+      // And otherwise a class can only extend one class
+      addDirectSuperclassAxiom(new ClassType(cl.getName()), cl.super_classes[0]);
     } else {
       // TODO
+      Abort("Cannot extend more than one class or extend something else than Object");
     }
     result=res;
   }
-  
+
+  private void addTypeConstructor(ASTClass cl) {
+    adt.add_unique_cons(create.function_decl(
+            create.class_type(type_adt),
+            null,
+            "class_"+cl.name(),
+            new DeclarationStatement[0],
+            null
+            ));
+  }
+
+  private void addDirectSuperclassAxiom(ClassType child, ClassType parent) {
+    String child_adt_constructor = "class_" + child.getName();
+    String parent_adt_constructor = "class_" + parent.getName();
+    adt.add_axiom(create.axiom(child.getName() + "_" + DIRECT_SUPERCLASS,
+            create.expression(StandardOperator.EQ,
+              create.domain_call(type_adt, DIRECT_SUPERCLASS, create.domain_call(type_adt, child_adt_constructor)),
+              create.domain_call(type_adt, parent_adt_constructor)
+            )));
+  }
+
   public void visit(OperatorExpression e){
     switch(e.operator()){
     case EQ:
@@ -131,21 +152,32 @@ public class AddTypeADT extends AbstractRewriter {
       }
       break;
     case Instance:
-      result=create.expression(StandardOperator.And,
-          create.expression(StandardOperator.NEQ,
-              rewrite(e.arg(0)),
-              create.reserved_name(ASTReserved.Null)
-          ),
-          create.invokation(create.class_type(type_adt), null,"instanceof",
-            create.expression(StandardOperator.TypeOf,rewrite(e.arg(0))),
-            create.invokation(create.class_type(type_adt),null,"class_"+e.arg(1))
-          )
-      );
+        result = exprInstanceof(create, copy_rw, rewrite(e.arg(0)), rewrite((ClassType) e.arg(1)));
       break;
     default:
       super.visit(e);
       break;
     }
   }
-  
+
+  /**
+   * Encodes an instanceof operation as encoded by the AddTypeADT phase. Intended to be reused if any instanceof
+   * checks need to be added later on.
+   * @param create ASTFactory used at the call site
+   * @param expr The expression the typeof operator will be applied to. Will be copied into the resulting expression
+   * @param type Currently assumed to be a class type.
+   * @return Condition that is true if expr instanceof type holds
+   */
+  public static ASTNode exprInstanceof(ASTFactory<?> create, AbstractRewriter copyRw, ASTNode expr, ClassType type) {
+    return create.expression(StandardOperator.And,
+            create.expression(StandardOperator.NEQ,
+              copyRw.rewrite(expr),
+              create.reserved_name(ASTReserved.Null)
+              ),
+            create.invokation(null, null,"instanceof",
+              create.expression(StandardOperator.TypeOf, copyRw.rewrite(expr)),
+              create.invokation(create.class_type(type_adt),null,"class_" + type
+              )
+            ));
+  }
 }

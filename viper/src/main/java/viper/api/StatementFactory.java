@@ -1,5 +1,7 @@
 package viper.api;
 
+import hre.util.Triple;
+
 import java.util.List;
 
 /**
@@ -48,18 +50,12 @@ public interface StatementFactory<O, T, E, S> {
   public S block(O o,List<S> stats);
   
   /** Create a while loop. */
-  public S while_loop(O o,E cond,List<E> invs,List<Triple<O,String,T>> locals,S body);
+  public S while_loop(O o, E cond, List<E> invs, List<Triple<O,String,T>> locals, S body);
   
   /** Create a method call. */
   public S method_call(O o,String name,List<E> args,List<E> outs,List<Triple<O,String,T>> pars,List<Triple<O,String,T>> rets);
   
   /** Create an if-the-else. */
   public S if_then_else(O o,E c,S s1,S s2);
-
-  /** Create a constraining block. */
-  public S constraining(O o,List<E> names,S body);
-  
-  /** Create a fresh statement. */
-  public S fresh(O o,List<E> names);
 
 }

@@ -2,6 +2,7 @@ package vct.col.rewrite;
 
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.util.AbstractRewriter;
 
 public class ApplyOld extends AbstractRewriter {
 

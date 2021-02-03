@@ -42,8 +42,8 @@ final class Tree {
   //@ ensures  contains(\result,tail(\old(tolist(top))));
   //@ ensures  \old(sorted(top)) ==> sorted(\result);
   public Tree del_min(Tree top){
-    //@ seq<int> orig_contents=tolist(top);
-    //@ seq<int> target_contents=tail(tolist(top));
+    //@ ghost seq<int> orig_contents=tolist(top);
+    //@ ghost seq<int> target_contents=tail(tolist(top));
     //@ unfold top.state();
     if (top.left == null) {
       //@ assert orig_contents == tolist(top.left) + seq<int>{top.data} + tolist(top.right);
@@ -53,9 +53,11 @@ final class Tree {
       Tree cur, left;
       cur = top;
       left = top.left;
-      //@ seq<int> cur_contents=orig_contents;
+      //@ ghost seq<int> cur_contents=orig_contents;
       //@ assert cur_contents == tolist(left) + seq<int>{top.data} + tolist(top.right);
       //@ unfold left.state();
+      //@ create { qed wand:(top.state_contains(target_contents) -* top.state_contains(target_contents)); }#\label{proof 1}#
+
       /*@
       loop_invariant Perm(cur.left,write) ** Perm(cur.data,write) ** Perm(cur.right,write);
       loop_invariant cur.left==left ** cur.right->state() ;
@@ -64,17 +66,16 @@ final class Tree {
       loop_invariant cur_contents == (tolist(left.left) + seq<int>{left.data} + tolist(left.right))
                                       + seq<int>{cur.data} + tolist(cur.right);
       loop_invariant wand:(cur.state_contains(tail(cur_contents)) -* top.state_contains(target_contents)); @*/
-      while (left.left != null) /*@ with {
-        create { qed wand:(top.state_contains(target_contents) -* top.state_contains(target_contents)); }#\label{proof 1}#
-      } @*/
-      { /*@ Tree prev = cur;
-            seq<int> prev_contents = cur_contents; */
+      while (left.left != null)
+      {
+        //@ ghost Tree prev = cur;
+        //@ ghost seq<int> prev_contents = cur_contents;
         cur = left;
         left = cur.left;
         /*@
         unfold left.state();
-        cur_contents = tolist(left.left) + seq<int>{left.data} + tolist(left.right);
-        cur_contents = cur_contents + seq<int>{cur.data} + tolist(cur.right);
+        ghost cur_contents = tolist(left.left) + seq<int>{left.data} + tolist(left.right);
+        ghost cur_contents = cur_contents + seq<int>{cur.data} + tolist(cur.right);
         assert prev_contents.length > 0 ;
         assert cur_contents.length > 0 ;
         assert prev_contents == cur_contents + seq<int>{prev.data} + tolist(prev.right);

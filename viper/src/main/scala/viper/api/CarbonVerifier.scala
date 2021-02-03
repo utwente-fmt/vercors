@@ -3,7 +3,9 @@ package viper.api
 import java.nio.file.Path
 import java.util.Properties
 
-class CarbonVerifier[O,Err](o:OriginFactory[O]) extends SilverImplementation[O,Err](o) {
+import hre.ast.OriginFactory
+
+class CarbonVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) {
   override def createVerifier(tool_home:Path,settings:Properties):viper.silver.verifier.Verifier = {
     def OS=System.getProperty("os.name");
     val z3_exe=if(OS.startsWith("Windows")){
@@ -19,10 +21,6 @@ class CarbonVerifier[O,Err](o:OriginFactory[O]) extends SilverImplementation[O,E
       tool_home.resolve("boogie").resolve("2012-10-22").resolve("unix").resolve("bin").resolve("boogie").toString()
     }
     val carbon = new viper.carbon.CarbonVerifier(Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
-    print(Seq(
-        "--z3Exe",z3_exe,
-        "--boogieExe",boogie_exe,
-        "-"));
     carbon.parseCommandLine(Seq(
         "--z3Exe",z3_exe,
         "--boogieExe",boogie_exe,

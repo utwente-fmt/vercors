@@ -1,32 +1,37 @@
 package viper.api
 
 import viper.silver.ast._
+
 import scala.collection.JavaConverters._
 import scala.collection.JavaConverters._
-import viper.silver.verifier.{Failure, Success, AbortedExceptionally, VerificationError}
+import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
+
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
 import java.nio.file.Path
+
+import hre.ast.OriginFactory
 import viper.silver.parser.PLocalVarDecl
+
 import scala.collection.mutable.WrappedArray
 import hre.lang.System.Output
 
-class SilverImplementation[O,Err](o:OriginFactory[O])
-  extends viper.api.ViperAPI[O,Err,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,
+class SilverImplementation[O](o:OriginFactory[O])
+  extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,
         new SilverTypeFactory,
         new SilverExpressionFactory[O],
         new SilverStatementFactory[O],
-        new SilverProgramFactory[O,Err]) {
+        new SilverProgramFactory[O]) {
   
   override def write_program(pw:java.io.PrintWriter,prog:Prog):Unit={
     val program = Program(prog.domains.asScala.toList,
               prog.fields.asScala.toList,
               prog.functions.asScala.toList,
               prog.predicates.asScala.toList,
-              prog.methods.asScala.toList)()
+              prog.methods.asScala.toList, Seq(/* no extension members */))()
     pw.write(program.toString())
   }
   
@@ -59,7 +64,7 @@ class SilverImplementation[O,Err](o:OriginFactory[O])
               prog.fields.asScala.toList,
               prog.functions.asScala.toList,
               prog.predicates.asScala.toList,
-              prog.methods.asScala.toList)()
+              prog.methods.asScala.toList, Seq(/* no extension members */))()
               
     //println("=============\n" + program + "\n=============\n")
     

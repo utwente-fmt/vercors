@@ -7,21 +7,20 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import vct.antlr4.parser.Parsers;
+import vct.main.Parsers;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
+import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.stmt.decl.Method.Kind;
-import vct.col.util.ASTMapping;
-import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.util.*;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.*;
+import hre.config.Configuration;
+
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.UndefinedMapping;
-import vct.col.util.ASTUtils;
-import vct.util.Configuration;
-
-import static hre.lang.System.Output;
 
 /**
  * This rewriter converts a program with classes into
@@ -190,7 +189,8 @@ public class SilverClassReduction extends AbstractRewriter {
       fractions = true;
       result = create.invokation(null, null, "new_zfrac", e);
     } else {
-      super.visit(e);
+       String newName = e.getName().replace('<', '$').replace('>', '$');
+      result = create.name(e.getKind(), e.reserved(), newName);
     }
   }
 
@@ -205,7 +205,10 @@ public class SilverClassReduction extends AbstractRewriter {
   private boolean arrays = false;
   private boolean floats = false;
   private boolean fractions = false;
-  
+  private boolean maps = false;
+  private boolean tuple = false;
+
+
   private AtomicInteger option_count=new AtomicInteger();
   private HashMap<String, String> option_get = new HashMap<String, String>();
   private HashMap<String, Type> option_get_type = new HashMap<String, Type>();
@@ -239,6 +242,22 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.class_type("VCTArray", ct);
       break;
     }
+    case Tuple: {
+      tuple = true;
+      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      args.get(0).addLabel(create.label("F"));
+      args.get(1).addLabel(create.label("S"));
+      result=create.class_type("VCTTuple",args);
+      break;
+    }
+    case Map:
+      maps = true;
+      tuple = true;
+      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      args.get(0).addLabel(create.label("K"));
+      args.get(1).addLabel(create.label("V"));
+      result=create.class_type("VCTMap",args);
+      break;
     default:
       super.visit(t);
       break;
@@ -296,6 +315,7 @@ public class SilverClassReduction extends AbstractRewriter {
       result=create.class_type("Ref");
     }
   }
+
   @Override
   public void visit(Dereference e){
     if (e.obj().getType()==null){
@@ -334,7 +354,7 @@ public class SilverClassReduction extends AbstractRewriter {
     String method = node.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
     node = rewrite(node);
 
-    if(node instanceof MethodInvokation && (((MethodInvokation) node).method.equals("new_frac") || ((MethodInvokation) node).method.equals("new_zfrac"))) {
+    if(node instanceof MethodInvokation && (((MethodInvokation) node).method().equals("new_frac") || ((MethodInvokation) node).method().equals("new_zfrac"))) {
       return ((MethodInvokation) node).getArg(0);
     } else {
       return create.invokation(null, null, method, node);
@@ -416,6 +436,11 @@ public class SilverClassReduction extends AbstractRewriter {
       result=create.invokation(null, null,method,rewrite(e.argsJava()));
       break;
     }
+    case OptionGetOrElse: {
+      options=true;
+      result=create.invokation(rewrite(e.first().getType()), null,"getVCTOptionOrElse",rewrite(e.argsJava()));
+      break;
+    }
     case New:{
       ClassType t=(ClassType)e.arg(0);
       ASTClass cl=source().find(t);
@@ -481,6 +506,7 @@ public class SilverClassReduction extends AbstractRewriter {
     case Div:
     case Plus:
     case Minus:
+    case Mult:
     case LT:
     case LTE:
     case EQ:
@@ -526,6 +552,10 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal);
       break;
     }
+    case CurrentPerm:
+      super.visit(e);
+      result = create.invokation(null, null, "new_zfrac", result);
+      break;
     case Scale: {
       ASTNode permVal = e.arg(0);
       if (permVal.getType().isFraction()) {
@@ -547,6 +577,63 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal, rewrite(e.arg(2)));
       break;
     }
+    case MapBuild:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.getType()), null, "vctmap_build", args);
+      break;
+    }
+    case MapEquality: {
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_equals", args);
+      break;
+    }
+    case MapDisjoint:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_disjoint", args);
+      break;
+    }
+    case MapKeySet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_keys", args);
+      break;
+    }
+    case MapCardinality:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_card", args);
+      break;
+    }
+    case MapValueSet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_values", args);
+      break;
+    }
+    case MapGetByKey:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_get", args);
+      break;
+    }
+    case MapRemoveKey:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_remove", args);
+      break;
+    }
+      case MapItemSet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_items", args);
+      break;
+    }
+      case TupleFst:{
+        ASTNode type = rewrite(e.first().getType().firstarg());
+        List<ASTNode> args = rewrite(e.argsJava());
+        result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_fst", args);
+        break;
+    }
+    case TupleSnd:{
+        ASTNode type = rewrite(e.first().getType().secondarg());
+        List<ASTNode> args = rewrite(e.argsJava());
+        result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_snd", args);
+        break;
+      }
     default:
       super.visit(e);
     }
@@ -572,6 +659,23 @@ public class SilverClassReduction extends AbstractRewriter {
       result = packFracVal(val.getType(), val);
     } else {
       super.visit(val);
+    }
+  }
+
+  @Override
+  public void visit(StructValue v) {
+    if (v.type().isPrimitive(PrimitiveSort.Map)) {
+      Type resultType = rewrite(v.type());
+      ASTNode map = create.invokation(resultType,null,"vctmap_empty");
+      for (int i=0; i < v.valuesArray().length; i+=2) {
+        map = create.invokation(resultType, null, "vctmap_build", map, v.valuesArray()[i], v.valuesArray()[i+1]);
+      }
+      result = map;
+    } else if (v.type().isPrimitive(PrimitiveSort.Tuple)) {
+      Type resultType = rewrite(v.type());
+      result =  create.invokation(resultType,null,"vcttuple_tuple", rewrite(v.valuesArray()));;
+    } else {
+      super.visit(v);
     }
   }
 
@@ -625,8 +729,10 @@ public class SilverClassReduction extends AbstractRewriter {
         cb.ensures(rewrite(clause));
       }
       in_ensures=false;
-      if (c.signals!=null) for(DeclarationStatement decl:c.signals){
-        cb.signals((ClassType)rewrite(decl.getType()), decl.name(), rewrite(decl.initJava()));      
+      if (c.signals!=null) {
+        for(SignalsClause sc : c.signals){
+          cb.signals(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
+        }
       }
       constructor_this.pop();
     }
@@ -656,6 +762,7 @@ public class SilverClassReduction extends AbstractRewriter {
       }   
     }
     c=cb.getContract();
+    name = name.replace('<', '$').replace('>', '$');
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
 
   }
@@ -667,7 +774,7 @@ public class SilverClassReduction extends AbstractRewriter {
       String s=silverTypeString(t);
       ref_class.add_dynamic(create.field_decl(s+SEP+"item",t));
     }
-    if (options || floats || arrays || fractions){
+    if (options || floats || arrays || fractions || maps || tuple){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
       File file = Configuration.getConfigFile(preludeFile);
       ProgramUnit prelude=Parsers.getParser("sil").parse(file);
@@ -692,6 +799,12 @@ public class SilverClassReduction extends AbstractRewriter {
           case "zfrac":
             if(fractions) res.add(n);
             break;
+          case "VCTMap":
+            if(maps) res.add(n);
+            break;
+          case "VCTTuple":
+            if (maps || tuple) res.add(n);
+              break;
           }
         } else if(n instanceof Method) {
           Method method = (Method) n;
@@ -748,46 +861,47 @@ public class SilverClassReduction extends AbstractRewriter {
     String method;
     ArrayList<ASTNode> args=new ArrayList<ASTNode>();
     Method def=s.getDefinition();
-    ClassType dispatch=s.dispatch;
+    ClassType dispatch=s.dispatch();
     if (def.kind==Kind.Constructor){
       dispatch=null;
     }
     ASTNode object=null;
     if (def.getParent()==null){
-      method=s.method;
-    } else if (s.object instanceof ClassType){
-      if (s.method.equals(Method.JavaConstructor)){
-        method=s.dispatch.getName()+SEP+s.dispatch.getName();
+      method=s.method();
+    } else if (s.object() instanceof ClassType){
+      if (s.method().equals(Method.JavaConstructor)){
+        method=s.dispatch().getName()+SEP+s.dispatch().getName();
         dispatch=null;
       } else if (def.getParent() instanceof AxiomaticDataType){
-        method=s.method;
-        object=copy_rw.rewrite(s.object);
+        method=s.method();
+        object=copy_rw.rewrite(s.object());
       } else {
-        method=s.method;
+        method=s.method();
       }
-    } else if (s.object==null){
-      if (s.method.equals(Method.JavaConstructor)){
-        method=s.dispatch.getName()+SEP+s.dispatch.getName();
+    } else if (s.object()==null){
+      if (s.method().equals(Method.JavaConstructor)){
+        method=s.dispatch().getName()+SEP+s.dispatch().getName();
         dispatch=null;
       } else {
-        method=s.method;
+        method=s.method();
       }
     } else {
-      method=s.method;
+      method=s.method();
       if (method.equals("<<adt>>") || def.getParent() instanceof AxiomaticDataType){
-        method=s.method;
+        method=s.method();
       } else {
         if (!def.isStatic()){
-          args.add(rewrite(s.object));
+          args.add(rewrite(s.object()));
         }
-        if (def.kind==Kind.Predicate && !s.object.isReserved(ASTReserved.This) && (!fold_unfold) ){
-          //extra=create.expression(StandardOperator.NEQ,rewrite(s.object),create.reserved_name(ASTReserved.Null));
+        if (def.kind==Kind.Predicate && !s.object().isReserved(ASTReserved.This) && (!fold_unfold) ){
+          //extra=create.expression(StandardOperator.NEQ,rewrite(s.object()),create.reserved_name(ASTReserved.Null));
         }
       }      
     }
     for(ASTNode arg :s.getArgs()){
       args.add(rewrite(arg));
     }
+    method = method.replace('<', '$').replace('>', '$');
     MethodInvokation res=create.invokation(object, dispatch, method, args.toArray(new ASTNode[0]));
     res.set_before(rewrite(s.get_before()));
     res.set_after(rewrite(s.get_after()));

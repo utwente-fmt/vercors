@@ -9,6 +9,7 @@ import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 import java.util.Iterator;
 

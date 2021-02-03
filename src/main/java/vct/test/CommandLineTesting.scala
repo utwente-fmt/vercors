@@ -3,13 +3,10 @@ package vct.test
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util.concurrent.{Executors, Future}
 
-import hre.config.{BooleanSetting, IntegerSetting, OptionParser, StringListSetting, StringSetting}
+import hre.config._
 import hre.lang.HREExitException
+import hre.lang.System.{Output, Progress, Warning}
 import hre.util.TestReport.Verdict
-import hre.lang.System.Warning
-import hre.lang.System.Progress
-import hre.lang.System.Output
-import vct.util.Configuration
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -68,6 +65,9 @@ object CommandLineTesting {
 
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
+
+  private val travisTestOutput = new BooleanSetting(false)
+  private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
 
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
@@ -132,6 +132,7 @@ object CommandLineTesting {
     parser.add(builtinTestOption, "test-builtin")
     parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
+    parser.add(travisTestOutputOption, "travis-test-output")
   }
 
   def getCases: Map[String, Case] = {
@@ -174,6 +175,8 @@ object CommandLineTesting {
           var conditions = mutable.ArrayBuffer[TaskCondition]()
           if (kees.verdict != null) {
             conditions += ExpectVerdict(kees.verdict)
+          } else {
+            conditions += ExpectVerdict(Verdict.Pass)
           }
           if (kees.pass_non_fail) {
             conditions += PassNonFail(kees.fail_methods.asScala.toSeq)
@@ -181,7 +184,7 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          result += ("case-" + tool + "-" + name -> Task(vercors.withArgs(args:_*), conditions))
+          result += (s"case-$tool-$name" -> Task(vercors.withArgs(args:_*), conditions))
         }
       }
     }
@@ -236,15 +239,27 @@ object CommandLineTesting {
         fails += 1
         Progress("[%02d%%] Fail: %s", Int.box(progress), taskKey)
 
+        if(travisTestOutput.get()) {
+          Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput from case...");
+
+          for(msg <- tasks(taskKey).log) {
+            Output(msg.getFormat, msg.getArgs:_*)
+          }
+
+          Output("travis_fold:end:case_output");
+        }
+
         reasons.foreach {
           case NullMessage =>
             Output("- Received a null message (internal error?)")
           case InternalError(description) =>
             Output("- Internal error: %s", description)
+          case ProcessKilled =>
+            Output("- Test process was forcibly terminated because it timed out")
           case MissingVerdict =>
             Output("- There was no verdict")
           case InconsistentVerdict(older, newer) =>
-            Output("- Inconsistent verdict: earlier verdict was %s, new veridct is %s", older, newer)
+            Output("- Inconsistent verdict: earlier verdict was %s, new verdict is %s", older, newer)
           case WrongVerdict(expect, got) =>
             Output("- Wrong verdict: expected %s, got %s", expect, got)
           case MethodPass(name) =>
@@ -269,10 +284,10 @@ object CommandLineTesting {
 
     if (fails > 0) {
       hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails), Int.box(futures.length))
-      System.exit(1)
+      throw new HREExitException(1)
     } else {
       hre.lang.System.Verdict("All %d tests passed", Int.box(futures.length))
-      System.exit(0)
+      throw new HREExitException(0)
     }
   }
 

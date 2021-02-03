@@ -4,7 +4,7 @@ import hre.ast.MessageOrigin;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Hashtable;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import vct.col.ast.stmt.decl.ASTClass;
@@ -13,6 +13,7 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.composite.Lemma;
@@ -23,7 +24,8 @@ import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.col.util.ASTUtils;
+import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.NameScanner;
 import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
 
@@ -44,10 +46,10 @@ public class WandEncoder extends AbstractRewriter {
       for(ASTNode n:ASTUtils.conjuncts(e.arg(0),StandardOperator.Star)){
         if (n instanceof MethodInvokation){
           MethodInvokation m=(MethodInvokation)n;
-          type_name+="_"+m.method;
+          type_name+="_"+m.method();
           Method def=m.getDefinition();
           if(!def.isStatic()){
-            args.add(m.object);
+            args.add(m.object());
             Type t=create.class_type(((ASTClass)def.getParent()).getFullName());
             decls.add(create.field_decl("x_"+decls.size(),t));
           }
@@ -65,10 +67,10 @@ public class WandEncoder extends AbstractRewriter {
       for(ASTNode n:ASTUtils.conjuncts(e.arg(1),StandardOperator.Star)){
         if (n instanceof MethodInvokation){
           MethodInvokation m=(MethodInvokation)n;
-          type_name+="_"+m.method;
+          type_name+="_"+m.method();
           Method def=m.getDefinition();
           if(!def.isStatic()){
-            args.add(m.object);
+            args.add(m.object());
             Type t=create.class_type(((ASTClass)def.getParent()).getFullName());
             decls.add(create.field_decl("x_"+decls.size(),t));
           }
@@ -143,12 +145,12 @@ public class WandEncoder extends AbstractRewriter {
       intro.add(create.special(Kind.Inhale,wand(true)));
       cb.requires(pre());
       cb.ensures(post());
-      Hashtable<String,Type> vars=free_vars(block);
+      Map<String,Type> vars = NameScanner.freeVars(block);
       currentTargetClass.add(create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
           cb.getContract(),
           name,
-          gen_pars(vars),
+          genPars(vars),
           body
       ));
       currentBlock=tmp;
@@ -205,18 +207,17 @@ public class WandEncoder extends AbstractRewriter {
 	  	
 	public void visit(Lemma lemma) {
 	  int N = lemma.block().size();
-	  WandUtil wand=null;
 	  if (lemma.block().get(N-1).isSpecial(Kind.QED)) {
 	    ASTNode tmp=((ASTSpecial)lemma.block().get(N-1)).getArg(0);
 	    if (tmp.isa(StandardOperator.Wand)){
-	      wand=new WandUtil((OperatorExpression)tmp);
+	      WandUtil wand = new WandUtil((OperatorExpression)tmp);
+          result = wand.generate_lemma(lemma.block());
 	    } else {
 	      Fail("argument of qed is not a magic wand %s",tmp);
 	    }
 	  } else {
 	    Fail("lemma does not end in qed.");
 	  }
-	  result=wand.generate_lemma(lemma.block());
 	}
 	
 	private ASTClass wand_class;

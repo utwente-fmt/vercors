@@ -1,0 +1,75 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases ParallelWhile
+//:: tools silicon
+//:: verdict Pass
+
+class Role {
+	
+	int x;
+	int left;
+	
+	ensures Perm(x, write) ** Perm(left, write);
+	ensures x == v;
+	Role (int v) {
+		x = v;
+	}
+	
+}
+
+
+class Main {
+	
+
+	void main() {
+		Role a = new Role(0);
+		Role b = new Role(8);
+		Role c = new Role(4);
+		par
+		context Perm(a.x, 1\2) ** Perm(b.left, 1);
+		ensures b.left == a.x;
+		{
+				b.left = a.x;
+		} and 
+		context Perm(b.x, 1\2) ** Perm(c.left, 1);
+		ensures c.left == b.x;
+		{
+				c.left = b.x;
+		} and
+		context Perm(c.x, 1\2) ** Perm(a.left, 1);
+		ensures a.left == c.x;
+		{
+				a.left = c.x;
+		}
+		
+		loop_invariant Perm(a.x, 1) ** Perm(b.x, 1) ** Perm(c.x, 1);
+		loop_invariant Perm(a.left, 1) ** Perm(b.left, 1) ** Perm(c.left, 1);
+		loop_invariant b.x - c.x == c.x - a.x;
+		loop_invariant b.left == a.x && c.left == b.x && a.left == c.x;
+		while(a.left != a.x && b.left != b.x && c.left != c.x) {
+			par
+			context Perm(a.x, 1) ** Perm(b.left, 1);
+			ensures a.x == \old(a.x) + 1;
+			ensures b.left == a.x;
+			{
+				a.x = a.x + 1;
+				b.left = a.x;
+			} and
+			context Perm(b.x, 1) ** Perm(c.left, 1);
+			ensures b.x == \old(b.x) - 1;
+			ensures c.left == b.x;
+			{
+				b.x = b.x - 1;
+				c.left = b.x;
+			} and
+			context Perm(c.x, 1\2) ** Perm(a.left, 1);
+			ensures a.left == c.x;
+			{ 
+				a.left = c.x;
+			}
+		}
+		assert a.x == b.x && b.x == c.x; 
+	}
+	
+	
+}
+

@@ -10,6 +10,7 @@ import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
+import vct.col.ast.util.AbstractRewriter;
 
 public class SilverImplementIdentity extends AbstractRewriter {
 
@@ -27,7 +28,7 @@ public class SilverImplementIdentity extends AbstractRewriter {
   private String name=null;
   
   public void visit(BindingExpression e){
-    if (e.binder == Binder.Star) {
+    if (e.binder() == Binder.Star) {
       name = e.getDeclaration(0).name();
       super.visit(e);
       name=null;
@@ -40,9 +41,6 @@ public class SilverImplementIdentity extends AbstractRewriter {
   
   public void visit(OperatorExpression e){
     switch(e.operator()){
-    case Identity:
-      result=create.invokation(null, null, "id", rewrite(e.arg(0)));
-      break;
     case Subscript:
       if (e.arg(1) instanceof NameExpression){
         result=copy_rw.rewrite(e);

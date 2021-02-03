@@ -1,10 +1,12 @@
 package vct.col.rewrite;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.util.AbstractRewriter;
 
 public class Substitution extends AbstractRewriter {
   Map<NameExpression,ASTNode> map;
@@ -14,6 +16,10 @@ public class Substitution extends AbstractRewriter {
   public Substitution(ProgramUnit source,Map<NameExpression,ASTNode> map){
     super(source);
    this.map=map;
+  }
+
+  public Substitution(ProgramUnit source) {
+    this(source, new HashMap<>());
   }
   
   public void visit(NameExpression e) {
@@ -25,5 +31,10 @@ public class Substitution extends AbstractRewriter {
     } else {
       result=res;
     }
+  }
+
+  public Substitution subst(NameExpression name, ASTNode node) {
+    map.put(name, node);
+    return this;
   }
 }

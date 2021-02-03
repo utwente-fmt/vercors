@@ -5,27 +5,22 @@ package vct.main;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
-import hre.debug.HeapDump;
-import hre.io.PrefixPrintWriter;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
-import hre.util.CompositeReport;
-import hre.util.TestReport;
-import vct.antlr4.parser.JavaResolver;
-import vct.antlr4.parser.Parsers;
+import hre.util.Notifier;
+import vct.col.ast.syntax.PVLSyntax;
+import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
-import vct.col.annotate.DeriveModifies;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.rewrite.DeriveModifies;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -34,22 +29,24 @@ import vct.col.ast.stmt.decl.SpecificationFormat;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.rewrite.*;
 import vct.col.rewrite.CheckHistoryAlgebra.Mode;
-import vct.col.syntax.JavaDialect;
-import vct.col.syntax.JavaSyntax;
-import vct.col.syntax.Syntax;
+import vct.col.ast.syntax.JavaDialect;
+import vct.col.ast.syntax.JavaSyntax;
+import vct.col.ast.syntax.Syntax;
 import vct.col.util.FeatureScanner;
 import vct.col.util.JavaTypeCheck;
 import vct.col.util.SimpleTypeCheck;
-import vct.learn.SpecialCountVisitor;
-import vct.learn.NonLinCountVisitor;
-import vct.learn.Oracle;
+import vct.experiments.learn.SpecialCountVisitor;
+import vct.experiments.learn.NonLinCountVisitor;
+import vct.experiments.learn.Oracle;
 import vct.logging.ErrorMapping;
 import vct.logging.ExceptionMessage;
 import vct.logging.PassReport;
+import vct.parsers.rewrite.FlattenVariableDeclarations;
+import vct.parsers.rewrite.InferADTTypes;
 import vct.silver.ErrorDisplayVisitor;
 import vct.test.CommandLineTesting;
-import vct.util.ClassName;
-import vct.util.Configuration;
+import vct.col.ast.util.ClassName;
+import hre.config.Configuration;
 
 import static hre.lang.System.*;
 
@@ -66,34 +63,12 @@ public class Main
   
   private static Map<String, SpecialCountVisitor> counters = new HashMap<String, SpecialCountVisitor>();
 
-  static class ChaliceTask implements Callable<TestReport> {
-    private ClassName class_name;
-    private ProgramUnit program;
-
-    public ChaliceTask(ProgramUnit program,ClassName class_name){
-      this.program=program;
-      this.class_name=class_name;
-    }
-    @Override
-    public TestReport call() {
-      Progress("Validating class %s...",class_name.toString("."));
-      TimeKeeper tk = new TimeKeeper();
-      ProgramUnit task=new FilterClass(program,class_name.name).rewriteAll();
-      task=new Standardize(task).rewriteAll();
-      new SimpleTypeCheck(task).check();
-      TestReport report=vct.boogie.Main.TestChalice(task);
-      Progress("%s: result is %s (%dms)",class_name.toString("."),
-          report.getVerdict(), tk.show());
-      return report;
-    }
-
-  }
-
   public static void main(String[] args) throws Throwable
   {
     int exit=0;
     long wallStart = System.currentTimeMillis();
     TimeKeeper tk = new TimeKeeper();
+    BooleanSetting notify = new BooleanSetting(false);
     try {
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info);
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info);
@@ -153,6 +128,9 @@ public class Main
       StringListSetting stop_after=new StringListSetting();
       clops.add(stop_after.getAppendOption("Stop after given passes"),"stop-after");
 
+      BooleanSetting abruptTerminationViaExceptions = new BooleanSetting(false);
+      clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions");
+
 
       BooleanSetting explicit_encoding=new BooleanSetting(false);
       clops.add(explicit_encoding.getEnable("explicit encoding"),"explicit");
@@ -177,6 +155,8 @@ public class Main
       
       BooleanSetting learn = new BooleanSetting(false);
       clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn");
+
+      clops.add(notify.getEnable("Send a system notification upon completion"), "notify");
       
       Configuration.add_options(clops);
 
@@ -232,6 +212,14 @@ public class Main
       if(version.get()) {
         Output("%s %s", BuildInfo.name(), BuildInfo.version());
         Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion(), BuildInfo.scalaVersion(), Instant.ofEpochMilli(BuildInfo.builtAtMillis()));
+        if (!BuildInfo.currentBranch().equals("master")) {
+          Output(
+                  "On branch %s, commit %s, %s",
+                  BuildInfo.currentBranch(),
+                  BuildInfo.currentShortCommit(),
+                  BuildInfo.gitHasChanges()
+          );
+        }
         return;
       }
 
@@ -252,7 +240,6 @@ public class Main
       }
       if (CommandLineTesting.enabled()){
         CommandLineTesting.runTests();
-        throw new HREExitException(0);
       }
       if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
@@ -320,7 +307,7 @@ public class Main
         }
         passes.add("standardize");
         passes.add("check");
-        passes.add("voidcalls"); // all methods in Boogie are void, so use an out parameter instead of 'return..'
+        passes.add("create-return-parameter"); // all methods in Boogie are void, so use an out parameter instead of 'return..'
         passes.add("standardize");
         passes.add("check");
         passes.add("flatten");
@@ -336,7 +323,7 @@ public class Main
         passes.add("java_resolve");
         passes.add("standardize");
         passes.add("check");
-        passes.add("voidcalls");
+        passes.add("create-return-parameter");
         passes.add("standardize");
         passes.add("check");
         //passes.add("flatten");
@@ -345,38 +332,89 @@ public class Main
         passes.add("dafny"); // run backend
       } else if (silver.used()||chalice.get()) {
         passes=new LinkedBlockingDeque<String>();
+
+        if(Configuration.session_file.get() != null) {
+          passes.add("pvl");
+        }
+
+        boolean usesBreakContinue = features.usesSpecial(ASTSpecial.Kind.Break) || features.usesSpecial(ASTSpecial.Kind.Continue);
+
+        if (usesBreakContinue) {
+          passes.add("specify-implicit-labels");
+        }
+
+        if (features.usesSpecial(ASTSpecial.Kind.Continue)) {
+          passes.add("continue-to-break");
+        }
+
         passes.add("java_resolve");
+        passes.add("standardize");
+        passes.add("java-check");
+
+        if (features.usesSwitch()) {
+          passes.add("unfold-switch");
+          passes.add("java-check");
+        }
+
+        if ((features.usesFinally() || abruptTerminationViaExceptions.get()) && (usesBreakContinue || features.usesReturn())) {
+          passes.add("break-return-to-exceptions");
+        } else if (usesBreakContinue || features.usesReturn()) {
+          passes.add("break-return-to-goto");
+        }
+
+        if (features.usesSynchronizedModifier() || features.usesSynchronizedStatement()) {
+          passes.add("unfold-synchronized");
+        }
 
         if (silver.used() &&
-           (features.usesSpecial(ASTSpecial.Kind.Lock)
-          ||features.usesSpecial(ASTSpecial.Kind.Unlock)
-          ||features.usesSpecial(ASTSpecial.Kind.Fork)
-          ||features.usesSpecial(ASTSpecial.Kind.Join)
-          ||features.usesOperator(StandardOperator.PVLidleToken)
-          ||features.usesOperator(StandardOperator.PVLjoinToken)
+           ( features.usesSpecial(ASTSpecial.Kind.Lock)
+          || features.usesSpecial(ASTSpecial.Kind.Unlock)
+          || features.usesSpecial(ASTSpecial.Kind.Fork)
+          || features.usesSpecial(ASTSpecial.Kind.Join)
+          || features.usesOperator(StandardOperator.PVLidleToken)
+          || features.usesOperator(StandardOperator.PVLjoinToken)
+          || features.usesSynchronizedStatement()
+          || features.usesSynchronizedModifier()
         )){
           passes.add("pvl-encode"); // translate built-in statements into methods and fake method calls.
         }
 
         passes.add("standardize");
-        passes.add("java-check"); // marking function: stub
+        passes.add("check"); // marking function: stub
 
         if(features.usesOperator(StandardOperator.AddrOf)) {
           passes.add("lift_declarations");
         }
 
-        passes.add("java-check");
+        passes.add("check");
+        passes.add("infer_adt_types");
+
+        passes.add("check");
+        passes.add("adt_operator_rewrite");
+
+        passes.add("check");
+        passes.add("standardize");
+
+        passes.add("check");
         passes.add("pointers_to_arrays");
-        passes.add("java-check");
+        passes.add("check");
+        passes.add("desugar_valid_pointer");
+        passes.add("check");
         passes.add("array_null_values"); // rewrite null values for array types into None
-        passes.add("java-check");
+        passes.add("check");
         if (silver.used()){
           // The new encoding does not apply to Chalice yet.
           // Maybe it never will.
           passes.add("java-encode"); // disambiguate overloaded stuff, copy inherited functions and specifications
+          passes.add("standardize");
+          passes.add("check");
         }
 
-        if (sat_check.get()) passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
+        if (sat_check.get()) {
+          passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
+          passes.add("standardize");
+          passes.add("check");
+        }
 
         if (features.usesIterationContracts()||features.usesPragma("omp")){
           passes.add("openmp2pvl"); // Converts *all* parallel loops! (And their compositions) Into ordered set of parallel blocks in pvl.
@@ -409,14 +447,18 @@ public class Main
           passes.add("check");
         }
 
+        passes.add("local-variable-check");
+
         if (silver.used()) {
           if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
+            passes.add("inline-atomic");
+            passes.add("check");
             passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
             passes.add("standardize");
           }
-          // passes.add("recognize_multidim"); // translate matrices as a flat array (like c does in memory)
           passes.add("check");
           passes.add("simplify_quant"); // reduce nesting of quantifiers
+          passes.add("simplify_quant_relations");
           if (features.usesSummation()||features.usesIterationContracts()) {
             passes.add("check");
             passes.add("simplify_sums"); // set of rewrite rules for removing summations
@@ -433,7 +475,6 @@ public class Main
           passes.add("check");
         }
 
-        boolean has_type_adt=false;
         if (silver.used()) {
           if (  features.usesOperator(StandardOperator.Instance)
             || features.usesInheritance()
@@ -442,7 +483,6 @@ public class Main
             passes.add("add-type-adt"); // add java's types of the programs as silicon's axiomatic datatypes
             passes.add("standardize");
             passes.add("check");
-            has_type_adt=true;
           }
         }
 
@@ -491,7 +531,14 @@ public class Main
 
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
         passes.add("check");
+        passes.add("generate_adt_functions");
+        passes.add("check");
         passes.add("flatten");
+        passes.add("check");
+        passes.add("intro-exc-var");
+        passes.add("check");
+        passes.add("encode-try-throw-signals");
+        passes.add("check");
         passes.add("assign");
         passes.add("reorder");
         passes.add("standardize");
@@ -524,12 +571,9 @@ public class Main
           passes.add("check");
         }
 
+        passes.add("create-return-parameter");
+        passes.add("check");
 
-        if (has_type_adt){
-          passes.add("voidcallsthrown"); // like voidcalls, but also exceptions are put into an out-argument
-        } else {
-          passes.add("voidcalls");
-        }
         passes.add("standardize");
         passes.add("check");
 
@@ -566,6 +610,9 @@ public class Main
           passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
           passes.add("standardize");
           passes.add("check");
+          passes.add("inline-pattern-to-trigger");
+          passes.add("gen-triggers");
+          passes.add("check");
 
           passes.add("silver");
         } else { //CHALICE
@@ -600,7 +647,8 @@ public class Main
           if (pass_args.length==1){
             pass_args=new String[0];
           } else {
-            pass_args=pass_args[1].split("\\+");
+            // Arg syntax: pass=arg1\arg2\arg3. Make sure to put plenty of backslashes there!
+            pass_args=pass_args[1].split("\\\\+");
           }
           CompilerPass task=defined_passes.get(pass);
           if(debugBefore.has(pass)) {
@@ -611,11 +659,11 @@ public class Main
             if (name!=null){
               String file=String.format(name, pass);
               PrintWriter out=new PrintWriter(new FileOutputStream(file));
-              vct.util.Configuration.getDiagSyntax().print(out,program);
+              vct.col.ast.util.Configuration.getDiagSyntax().print(out,program);
               out.close();
             } else {
               PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-              vct.util.Configuration.getDiagSyntax().print(out, program);
+              vct.col.ast.util.Configuration.getDiagSyntax().print(out, program);
               out.close();
             }
           }
@@ -628,7 +676,8 @@ public class Main
           } else {
             ValidationPass check=defined_checks.get(pass);
             if (check!=null){
-              Progress("Applying %s ...", pass);
+              DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+              Progress("Applying %s at %s ...", pass, ZonedDateTime.now().format(formatter));
               tk.show();
               report=check.apply_pass(report,pass_args);
               fatal_errs=report.getFatal();
@@ -645,11 +694,11 @@ public class Main
             if (name!=null){
               String file=String.format(name, pass);
               PrintWriter out=new PrintWriter(new FileOutputStream(file));
-              vct.util.Configuration.getDiagSyntax().print(out,program);
+              vct.col.ast.util.Configuration.getDiagSyntax().print(out,program);
               out.close();
             } else {
               PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-              vct.util.Configuration.getDiagSyntax().print(out,program);
+              vct.col.ast.util.Configuration.getDiagSyntax().print(out,program);
               out.close();
             }
           }
@@ -662,7 +711,9 @@ public class Main
       }
     } catch (HREExitException e) {
       exit=e.exit;
-      Verdict("The final verdict is Error");
+      if (exit != 0) {
+        Verdict("The final verdict is Error");
+      }
     } catch (Throwable e) {
       DebugException(e);
       Verdict("An unexpected error occured in VerCors! " +
@@ -672,6 +723,9 @@ public class Main
       throw e;
     } finally {
       Progress("entire run took %d ms",System.currentTimeMillis()-wallStart);
+      if (notify.get()) {
+        Notifier.notify("VerCors", "Verification is complete");
+      }
       System.exit(exit);
     }
   }
@@ -689,22 +743,31 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("pvl",new CompilerPass("print AST in PVL syntax"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        try {
+          File f = new File(Configuration.session_file.get());
+          boolean b = f.createNewFile();
+          if(!b) {
+            Debug("File " + Configuration.session_file.get() + " already exists and is now overwritten");
+          }
+          PrintWriter out = new PrintWriter(new FileOutputStream(f));
+          PVLSyntax.get().print(out,arg);
+          out.close();
+        } catch (IOException e) {
+          Debug(e.getMessage());
+        }
+        return arg;
+      }
+    });
     defined_passes.put("c",new CompilerPass("print AST in C syntax"){
         public ProgramUnit apply(ProgramUnit arg,String ... args){
           PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
-          vct.col.print.CPrinter.dump(out,arg);
+          vct.col.ast.print.CPrinter.dump(out,arg);
           out.close();
           return arg;
         }
       });
-    defined_passes.put("dump",new CompilerPass("dump AST"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        PrefixPrintWriter out=new PrefixPrintWriter(hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info));
-        HeapDump.tree_dump(out,arg,ASTNode.class);
-        out.close();
-        return arg;
-      }
-    });
     defined_passes.put("add-type-adt",new CompilerPass("Add an ADT that describes the types and use it to implement instanceof"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new AddTypeADT(arg).rewriteAll();
@@ -716,58 +779,16 @@ public class Main
         return new AssignmentRewriter(arg).rewriteAll();
       }
     });
-    defined_checks.put("boogie",new ValidationPass("verify with Boogie"){
-      public TestReport apply(ProgramUnit arg,String ... args){
-        return vct.boogie.Main.TestBoogie(arg);
-      }
-    });
-    defined_checks.put("dafny",new ValidationPass("verify with Dafny"){
-      public TestReport apply(ProgramUnit arg,String ... args){
-        return vct.boogie.Main.TestDafny(arg);
-      }
-    });
     defined_checks.put("silver",new ValidationPass("verify input with Silver"){
       @Override
       public PassReport apply_pass(PassReport arg,String ... args){
         return vct.silver.SilverBackend.TestSilicon(arg,silver.get());
       }
     });
-    defined_checks.put("chalice",new ValidationPass("verify with Chalice"){
-      public TestReport apply(ProgramUnit arg,String ... args){
-        TimeKeeper tk = new TimeKeeper();
-        if (separate_checks.get()) {
-          CompositeReport res=new CompositeReport();
-          ExecutorService queue=Executors.newFixedThreadPool(1);
-          ArrayList<Future<TestReport>> list=new ArrayList<Future<TestReport>>();
-          for(ClassName class_name:arg.classNames()){
-              Callable<TestReport> task=new ChaliceTask(arg,class_name);
-              Progress("submitting verification of %s",class_name.toString("."));
-              list.add(queue.submit(task));
-          }
-          queue.shutdown();
-          for(Future<TestReport> future:list){
-            try {
-              res.addReport(future.get());
-            } catch (InterruptedException e) {
-              DebugException(e);
-              Abort("%s",e);
-            } catch (ExecutionException e) {
-              DebugException(e);
-              Abort("%s",e);
-            }
-          }
-          Progress("verification took %dms", tk.show());
-          return res;
-        } else {
-          TestReport report=vct.boogie.Main.TestChalice(arg);
-          Progress("verification took %dms", tk.show());
-          return report;
-        }
-      }
-    });
     defined_passes.put("check",new CompilerPass("run a basic type check"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        new SimpleTypeCheck(arg).check();
+      @Override
+      public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
+        new SimpleTypeCheck(report, arg).check();
         return arg;
       }
     });
@@ -781,6 +802,12 @@ public class Main
         return new PointersToArrays(arg).rewriteAll();
       }
     });
+    defined_passes.put("desugar_valid_pointer", new CompilerPass("rewrite \\array, \\matrix, \\pointer and \\pointer_index") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new DesugarValidPointer(arg).rewriteAll();
+      }
+    });
     defined_passes.put("lift_declarations", new CompilerPass("lift declarations to cell of the declared types, to treat locals as heap locations.") {
       @Override
       public ProgramUnit apply(ProgramUnit arg, String... args) {
@@ -788,8 +815,9 @@ public class Main
       }
     });
     defined_passes.put("java-check",new CompilerPass("run a Java aware type check"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        new JavaTypeCheck(arg).check();
+      @Override
+      public ProgramUnit apply(PassReport report, ProgramUnit arg,String ... args){
+        new JavaTypeCheck(report, arg).check();
         return arg;
       }
     });
@@ -890,6 +918,7 @@ public class Main
     defined_passes.put("java-encode",new CompilerPass("Encode Java overloading and inheritance"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         arg=new JavaEncoder(arg).rewriteAll();
+
         return arg;
       }
     });
@@ -966,7 +995,18 @@ public class Main
     });
     defined_passes.put("openmp2pvl",new CompilerPass("Compile OpenMP pragmas to PVL"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new OpenMPtoPVL(arg).rewriteAll();
+        return new OpenMPToPVL(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("inline-atomic",new CompilerPass("Inlines atomic blocks into inhales/exhales"){
+      @Override
+      public PassReport apply_pass(PassReport arg,String ... args){
+        ProgramUnit input = arg.getOutput();
+        PassReport res = new PassReport(input);
+        ErrorMapping map = new ErrorMapping(arg);
+        res.add(map);
+        res.setOutput(new InlineAtomic(input,map).rewriteAll());
+        return res;
       }
     });
     defined_passes.put("parallel_blocks",new CompilerPass("Encoded the proof obligations for parallel blocks"){
@@ -981,14 +1021,16 @@ public class Main
         }
 
     });
+    defined_passes.put("local-variable-check", new CompilerPass("Checks if local variables are not written to when shared between parallel blocks or used in invariants") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        LocalVariableChecker.check(arg);
+        return arg;
+      }
+    });
     defined_passes.put("pvl-compile",new CompilerPass("Compile PVL classes to Java classes"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new PVLCompiler(arg).rewriteAll();
-      }
-    });
-    defined_passes.put("recognize_multidim",new CompilerPass("Recognize multi-dimensional arrays"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new RecognizeMultiDim(arg).rewriteAll();
       }
     });
     defined_passes.put("reorder",new CompilerPass("reorder statements (e.g. all declarations at the start of a bock"){
@@ -1025,6 +1067,21 @@ public class Main
    defined_passes.put("rewrite_arrays",new CompilerPass("rewrite arrays to sequences of cells"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new RewriteArrayRef(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("generate_adt_functions",new CompilerPass("rewrite  standard operators on sequences to function definitions/calls"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new GenerateADTFunctions(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("infer_adt_types",new CompilerPass("Transform typeless collection constructors by inferring their types."){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new InferADTTypes(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("adt_operator_rewrite",new CompilerPass("rewrite PVL-specific ADT operators"){
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new ADTOperatorRewriter(arg).rewriteAll();
       }
     });
     defined_passes.put("rm_cons",new CompilerPass("???"){
@@ -1099,6 +1156,11 @@ public class Main
         return trs.normalize(arg);
       }
     });
+    defined_passes.put("simplify_quant_relations", new CompilerPass("simplify quantified relational expressions") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new SimplifyQuantifiedRelations(arg).rewriteAll();
+      }
+    });
     defined_passes.put("standardize",new CompilerPass("Standardize representation"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new Standardize(arg).rewriteAll();
@@ -1109,12 +1171,7 @@ public class Main
         return new StripConstructors(arg).rewriteAll();
       }
     });
-    branching_pass(defined_passes,"voidcalls","Replace return value by out parameter.",VoidCalls.class);
-    defined_passes.put("voidcallsthrown",new CompilerPass("Replace return value and thrown exceptions by out parameters."){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new VoidCallsThrown(arg).rewriteAll();
-      }
-    });
+    branching_pass(defined_passes,"create-return-parameter","Replace return value by out parameter.",CreateReturnParameter.class);
     compiler_pass(defined_passes,"vector-encode","Encode vector blocks using the vector library",VectorEncode.class);
     defined_passes.put("chalice-preprocess",new CompilerPass("Pre processing for chalice"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
@@ -1164,6 +1221,64 @@ public class Main
           return arg;
         }
       });
+    defined_passes.put("gen-triggers", new CompilerPass("") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new Triggers(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("inline-pattern-to-trigger", new CompilerPass("Explicit inline patterns to normal trigger syntax") {
+      public ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new InlinePatternToTrigger(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("specify-implicit-labels", new CompilerPass("Insert explicit labels for break statements in while loops.") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new SpecifyImplicitLabels(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("break-return-to-goto", new CompilerPass("Rewrite break, return into jumps") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new BreakReturnToGoto(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("break-return-to-exceptions", new CompilerPass("Rewrite break, continue into exceptions") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new BreakReturnToExceptions(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("unfold-switch", new CompilerPass("Unfold switch to chain of if-statements that jump to sections.") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new UnfoldSwitch(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("continue-to-break", new CompilerPass("Convert continues into breaks") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new ContinueToBreak(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("unfold-synchronized", new CompilerPass("Convert synchronized to try-finally") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args){
+        return new UnfoldSynchronized(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("intro-exc-var", new CompilerPass("Introduces the auxiliary sys__exc variable for use by excetional control flow") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new IntroExcVar(arg).rewriteAll();
+      }
+    });
+    defined_passes.put("encode-try-throw-signals", new CompilerPass("Encodes exceptional control flow into gotos and exceptional contracts into regular contracts") {
+      @Override
+      public ProgramUnit apply(ProgramUnit arg,String ... args) {
+        return new EncodeTryThrowSignals(arg).rewriteAll();
+      }
+    });
   }
 
 
