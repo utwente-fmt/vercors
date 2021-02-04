@@ -276,6 +276,9 @@ public class Configuration {
         env.addArg("-Xss128M");
         env.addArg("-cp", System.getProperty("java.class.path"));
         env.addArg("vct.main.Main");
+        if(System.getenv("TEMP") != null) {
+            env.setEnvironmentVar("TEMP", System.getenv("TEMP"));
+        }
         return env;
     }
 
