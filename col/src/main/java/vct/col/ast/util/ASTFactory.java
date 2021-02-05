@@ -661,6 +661,12 @@ public class ASTFactory<E> implements FrameControl {
     return local_name(origin_stack.get(), name);
   }
 
+  public Method final_method_decl(Type returns, Contract contract, String name, DeclarationStatement[] args, ASTNode body) {
+    Method result = method_decl(returns, contract, name, args, body);
+    result.setFlag(ASTFlags.FINAL, true);
+    return result;
+  }
+
   /**
    * Create a method declaration
    */

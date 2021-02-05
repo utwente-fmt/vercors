@@ -131,7 +131,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         main_cb.ensures(create.starall(copy_rw.rewrite(iters_guard), rewrite(clause) , iter_decls));
       }
     }
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl()(
         create.primitive_type(Sort.Void),
         check_cb.getContract(),
         check_name,
@@ -213,14 +213,14 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         Abort("unexpected kind of invariant: %s",ib.getClass());
       }
     }
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         check_cb.getContract(),
         check_name,
         genPars(check_vars),
         res
     ));
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         main_cb.getContract(),
         main_name,
@@ -258,7 +258,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         Map<String,Type> block_vars = NameScanner.freeVars(pb);
         
         Contract c=(Contract)rewrite((ASTNode)pb);     
-        currentTargetClass.add(create.method_decl(
+        currentTargetClass.add(create.final_method_decl(
             create.primitive_type(PrimitiveSort.Void),
             c,
             block_name,
@@ -404,7 +404,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         blocks.put(pb.label(),pb);
       }
     }
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         main_cb.getContract(),
         main_name,
@@ -478,7 +478,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
             )
           );
     }
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         cb.getContract(),
         "check_"+pb1.label()+"_"+pb2.label(),
@@ -586,7 +586,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
          
       cb.requires(copy_rw.rewrite(e.getArg(0))); //update new contract
   
-      Method send_body=create.method_decl(
+      Method send_body=create.final_method_decl(
               create.primitive_type(PrimitiveSort.Void),
               cb.getContract(), //method contract 
               send_name,
@@ -644,7 +644,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
          
       cb.ensures(copy_rw.rewrite(e.getArg(0))); //update new contract
       
-      Method recv_body=create.method_decl(
+      Method recv_body=create.final_method_decl(
               create.primitive_type(PrimitiveSort.Void),
               cb.getContract(), //method contract 
               recv_name,
@@ -787,7 +787,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       res=main_cb.getContract();
     } else {
       DeclarationStatement[] mainPars= genPars(mainVars);
-      currentTargetClass.add(create.method_decl(
+      currentTargetClass.add(create.final_method_decl(
           create.primitive_type(PrimitiveSort.Void),
           main_cb.getContract(),
           main_name,
@@ -862,7 +862,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     }
     
     DeclarationStatement[] bodyPars = genPars(bodyVars);
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         body_cb.getContract(),
         body_name,
@@ -932,7 +932,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         for(ASTNode g:send_entry.guards){
           cb.ensures(shift.rewrite(g));
         }
-        Method guard_method=create.method_decl(
+        Method guard_method=create.final_method_decl(
             create.primitive_type(PrimitiveSort.Void),
             cb.getContract(),
             String.format("guard_check_%s_%s",S,R),
@@ -963,7 +963,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
           cb.ensures(shift.rewrite(g));
         }
         cb.ensures(copy_rw.rewrite(recv.getArg(0)));
-        Method resource_method=create.method_decl(
+        Method resource_method=create.final_method_decl(
             create.primitive_type(PrimitiveSort.Void),
             cb.getContract(),
             String.format("resource_check_%s_%s",S,R),

@@ -109,7 +109,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     ArrayList<ClassType> encounteredCatchTypes = new ArrayList<>();
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
 
-    for (CatchClause cc : tcb.catches()) {
+    for (CatchClause cc : tcb.catchesJava()) {
       enter(cc);
       ArrayList<ClassType> encounteredMultiCatchTypes = new ArrayList<>();
 

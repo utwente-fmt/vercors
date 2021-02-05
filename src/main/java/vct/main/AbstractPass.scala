@@ -66,3 +66,10 @@ case class ErrorMapPass(override val key: String,
     reportOut
   }
 }
+
+case class DummyPass(remove: Feature, disallow: Feature) extends AbstractPass(s"dummy-$remove", s"Dummy pass to remove $remove") {
+  override def removes: Set[Feature] = Set(remove)
+  override def introduces: Set[Feature] = Set()
+  override def permits: Set[Feature] = Feature.ALL - disallow
+  override def apply(arg: ProgramUnit, args: Array[String]): ProgramUnit = arg
+}

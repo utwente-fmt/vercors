@@ -90,7 +90,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      * They are saved in a hashmap because the counter needed to keep the labels unique is stateful.
      */
     public void generateLabels(TryCatchBlock tryCatchBlock) {
-        for (CatchClause catchClause : tryCatchBlock.catches()) {
+        for (CatchClause catchClause : tryCatchBlock.catchesJava()) {
             String label = generateLabel("catch");
             entryLabels.put(catchClause, label);
         }
@@ -112,7 +112,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     public CatchClause nextCatch(TryCatchBlock tryCatchBlock, CatchClause currentCatchClause) {
         boolean encounteredCurrentClause = false;
 
-        for (CatchClause catchClause : tryCatchBlock.catches()) {
+        for (CatchClause catchClause : tryCatchBlock.catchesJava()) {
             if (encounteredCurrentClause) {
                 return catchClause;
             } else if (catchClause == currentCatchClause) {
@@ -129,7 +129,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             As well as during typechecking!
             https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20 */
 
-        tryCatchBlock.catches().forEach(cc -> {
+        tryCatchBlock.catchesJava().forEach(cc -> {
             if (cc.catchTypes().length() > 1) {
                 Abort("Multi-catch not supported");
             }
@@ -146,7 +146,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                 create.local_name(oldExcVarName.get(tryCatchBlock)),
                 create.local_name(excVar)));
 
-        ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catches());
+        ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catchesJava());
 
         if (catchClauses.size() > 0) {
             pushNearestHandler(entryLabels.get(catchClauses.get(0)));

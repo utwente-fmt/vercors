@@ -806,7 +806,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   @Override
   public void visit(TryCatchBlock tcb){
     TryCatchBlock res = create.try_catch(rewrite(tcb.main()), rewrite(tcb.after()));
-    for (CatchClause cc : tcb.catches()) {
+    for (CatchClause cc : tcb.catchesJava()) {
       res.addCatchClause(rewrite(cc));
     }
     result=res;

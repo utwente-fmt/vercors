@@ -285,6 +285,7 @@ class Main {
     "action-header",
     "sat_check",
     "standardize-functions",
+    "sort-before-after",
     Choose(
       Seq(),
       Seq("access", "check-history"),
@@ -305,18 +306,20 @@ class Main {
     "local-variable-check",
     "magicwand",
     "inline",
+    "csl-encode",
     "openmp2pvl",
     "propagate-invariants",
+    "dummy-InvariantsPropagatedHere",
     "pvl-compile",
     "simplify_quant_relations",
-    "sort-before-after",
-    "csl-encode",
     "ghost-lift",
     "flatten_before_after",
     "inline-atomic",
     "parallel_blocks",
-    "lift_declarations",
-    "pointers_to_arrays_lifted",
+    Choose(
+      Seq("lift_declarations", "pointers_to_arrays_lifted"),
+      Seq("pointers_to_arrays"),
+    ),
     "desugar_valid_pointer",
     "simplify_quant",
     "simplify_sums",
@@ -410,14 +413,19 @@ class Main {
       vct.col.features.NullAsOptionValue,
       vct.col.features.NotOptimized,
       vct.col.features.DeclarationsNotLifted,
-      vct.col.features.UnusedExtern,
       vct.col.features.ParallelLocalAssignmentNotChecked,
       vct.col.features.NotJavaResolved,
+      vct.col.features.InvariantsPropagatedHere,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
       vct.col.features.ScatteredDeclarations, // this pass finds duplicate names (even if they're not scattered)
       vct.col.features.ImplicitLabels, // Can be detected, lazy, sorry
     )
+
+    if(features.contains(vct.col.features.Extern))
+      /* too hard to detect whether an extern decl is used, but it needs top-level-decls and we don't want to run that
+       * for the silver frontend. */
+      features += vct.col.features.UnusedExtern
 
     // options are encoded as gated features
     if(sat_check.get()) features += vct.col.features.NeedsSatCheck
@@ -489,8 +497,15 @@ class Main {
         scanner.source().accept(scanner)
         val featuresOut = scanner.features
 
-        val notRemoved = featuresOut.intersect(pass.removes) -- Set(vct.col.features.QuantifierWithoutTriggers)
+        val notRemoved = featuresOut.intersect(pass.removes)
         val extraIntro = (featuresOut -- featuresIn) -- pass.introduces
+
+        val permissiveFeatures = Set(
+          vct.col.features.QuantifierWithoutTriggers,
+          vct.col.features.NestedQuantifiers,
+          vct.col.features.ExceptionalReturn,
+          vct.col.features.ContextEverywhere,
+        )
 
         if (notRemoved.nonEmpty) {
           notRemoved.foreach(feature => {
@@ -506,7 +521,7 @@ class Main {
           })
         }
 
-        if(notRemoved.nonEmpty || extraIntro.nonEmpty) {
+        if((notRemoved -- permissiveFeatures).nonEmpty || (extraIntro -- permissiveFeatures).nonEmpty) {
           Abort("Halting, because strict internal conditions are enabled.")
         }
       }
