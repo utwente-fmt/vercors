@@ -6,13 +6,13 @@ This repository hosts VerCors, a toolset for the verification of concurrent and 
 A list of verified examples and case studies is maintained online and can be found [here](https://utwente.nl/vercors). This webpage also contains an online interface for VerCors and allows you to try VerCors online.
 
 ## Installation
-VerCors requires a java runtime environment (version 8 or later), as well as clang if you want support for C.
+VerCors requires a java runtime environment (version 11 or later), as well as clang if you want support for C.
 
 ### Linux
 Currently we support debian-based systems; let us know if you need something else! Install the dependencies:
 
 ```shell script
-sudo apt install clang openjdk-8-jre 
+sudo apt install clang openjdk-11-jre
 ```
 
 Obtain the latest deb release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest), and install it by running:
@@ -46,7 +46,7 @@ The VerCors toolset can be used by running `vercors --silicon <filepath>`, with 
 ## Building
 When building VerCors, you additionally need these dependencies:
 
-- A Java _Development_ Kit, version 8 or greater, either OpenJDK or Oracle.
+- A Java _Development_ Kit, version 11 or greater, either OpenJDK or Oracle.
 - Git (on Windows you need Git Bash, see <https://git-scm.com/downloads>)
 - Scala SBT, version 1.3.0 or greater (see <http://www.scala-sbt.org> for instructions)
 

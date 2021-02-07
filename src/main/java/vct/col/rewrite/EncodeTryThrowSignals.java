@@ -20,6 +20,7 @@ import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
+import vct.col.util.AstToId;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -508,14 +509,26 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
             ASTNode resultLocation = assignment.location().apply(this);
 
-            result = create.assignment(resultLocation, resultInvokation);
-
             // Then, if exceptions are involved, and "regular" methods are concerned, insert a check that possibly jumps to a handler
+            // If the check determines the call did not throw an exception, we put the return value in the variable (because if an
+            // exception was thrown, the value wouldn't have been written to the variable)
             Method.Kind methodKind = invokation.getDefinition().getKind();
             if ((methodKind == Method.Kind.Plain || methodKind == Method.Kind.Constructor) && invokation.getDefinition().canThrowSpec()) {
-                currentBlock.add(result);
                 result = null;
-                currentBlock.add(createExceptionCheck(currentNearestHandler()));
+                String tempName = generateLabel("temp", AstToId.toId(resultLocation));
+                // Temp var to store the return variable
+                currentBlock.add(create.field_decl(tempName, invokation.getDefinition().getReturnType()));
+                currentBlock.add(create.assignment(create.local_name(tempName), resultInvokation));
+
+                IfStatement exceptionCheck = createExceptionCheck(currentNearestHandler());
+                if (exceptionCheck.hasElse()) {
+                    Abort("Unexpected else branch");
+                }
+                exceptionCheck.addClause(IfStatement.elseGuard(), create.assignment(resultLocation, create.local_name(tempName)));
+                currentBlock.add(exceptionCheck);
+            } else {
+                // If exceptions are not concerned, just emit the regular assignment
+                result = create.assignment(resultLocation, resultInvokation);
             }
         } else {
             super.visit(assignment);

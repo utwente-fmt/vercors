@@ -16,6 +16,7 @@ import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
+import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
@@ -42,6 +43,7 @@ class Main {
   private val debugBefore = new CollectSetting
   private val debugAfter = new CollectSetting
   private val show_file = new StringSetting(null)
+  private val notifySetting = new BooleanSetting(false)
 
   private val pass_list = new StringListSetting
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
@@ -94,6 +96,7 @@ class Main {
     clops.add(show_file.getAssign("redirect show output to files instead of stdout"), "save-show")
     clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before")
     clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after")
+    clops.add(notifySetting.getEnable("Send a system notification upon completion"), "notify")
     clops.add(stop_after.getAppendOption("Stop after given passes"), "stop-after")
     clops.add(strictInternalConditions.getEnable("Enable strict internal checks for AST conditions (expert option)"), "strict-internal")
     clops.add(explicit_encoding.getEnable("explicit encoding"), "explicit")
@@ -552,14 +555,20 @@ class Main {
     } catch {
       case e: HREExitException =>
         exit = e.exit
-        Verdict("The final verdict is Error")
+        if(exit != 0)
+          Verdict("The final verdict is Error")
       case e: Throwable =>
         DebugException(e)
         Warning("An unexpected error occured in VerCors! "
               + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. "
               + "You can see the full exception by adding '--debug vct.main.Main' to the flags.")
         Verdict("The final verdict is Error")
-    } finally Progress("entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
+    } finally {
+      Progress("entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
+      if(notifySetting.get()) {
+        Notifier.notify("VerCors", "Verification is complete")
+      }
+    }
     exit
   }
 }

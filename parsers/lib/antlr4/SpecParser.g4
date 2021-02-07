@@ -37,6 +37,7 @@ valContractClause
  | 'context_everywhere' langExpr ';'
  | 'context' langExpr ';'
  | 'loop_invariant' langExpr ';'
+ | 'kernel_invariant' langExpr ';'
  | 'signals' '(' langType langId ')' langExpr ';'
  ;
 
@@ -154,6 +155,15 @@ valPrimary
     | 'tail' '(' langExpr ')'
     | 'Value' '(' langExpr ')'
     | 'valuesMap' '(' langExpr ')'
+    | 'seq' '<' langType '>' '{' valExpressionList '}'
+    | 'set' '<' langType '>' '{' valExpressionList '}'
+    | '(' langExpr '[' '..' langExpr ']' ')'
+    | '(' langExpr '[' langExpr '..' langExpr? ']' ')'
+    | '(' langExpr '[' langExpr '->' langExpr ']' ')'
+    | '(' langExpr '::' langExpr ')'
+    | '(' langExpr '++' langExpr ')'
+    | '(' langExpr '\\in' langExpr ')'
+    | 'getOrElseOption' '(' langExpr ',' langExpr ')'
     ;
 
 valReducibleOperator
@@ -173,7 +183,7 @@ valReserved
     | VAL_DISJOINT_MAP | VAL_EQUALS_MAP | VAL_FUTURE | VAL_GET_FROM_MAP | VAL_GET_FST | VAL_GET_OPTION | VAL_GET_SND
     | VAL_HEAD | VAL_HELD | VAL_HIST | VAL_HPERM | VAL_IDLE | VAL_IS_EMPTY | VAL_ITEMS_MAP | VAL_KEYS_MAP | VAL_PERM_VAL
     | VAL_PERM | VAL_POINTS_TO | VAL_REMOVE | VAL_REMOVE_AT | VAL_REMOVE_FROM_MAP | VAL_RUNNING | VAL_SOME | VAL_TAIL
-    | VAL_VALUE | VAL_VALUES_MAP)
+    | VAL_VALUE | VAL_VALUES_MAP | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_GETOPTELSE)
  | LANG_ID_ESCAPE
  | '\\result'
  | '\\current_thread'
@@ -194,6 +204,7 @@ valType
  | 'set' '<' langType '>'
  | 'bag' '<' langType '>'
  | 'loc' '<' langType '>'
+ | 'pointer' '<' langType '>'
  ;
 
 valDeclaration

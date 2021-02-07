@@ -622,6 +622,16 @@ public class ASTFactory<E> implements FrameControl {
     return invokation(object,dispatch,method,args.toArray(new ASTNode[args.size()]));
   }
 
+  public KernelInvocation kernelInvocation(String method, ASTNode blockCount, ASTNode threadCount, ASTNode... args) {
+    return kernelInvocation(origin_stack.get(), method, blockCount, threadCount, args);
+  }
+
+  public KernelInvocation kernelInvocation(Origin o, String method, ASTNode blockCount, ASTNode threadCount, ASTNode... args) {
+    KernelInvocation result = new KernelInvocation(method, blockCount, threadCount, args);
+    result.setOrigin(o);
+    return result;
+  }
+
   /**
    * Create a name expression that refers to a label.
    */

@@ -371,10 +371,10 @@ object CommandLineTesting {
 
     if (fails.nonEmpty) {
       hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails.size), Int.box(tasks.size))
-      System.exit(1)
+      throw new HREExitException(1)
     } else {
       hre.lang.System.Verdict("All %d tests passed", Int.box(tasks.size))
-      System.exit(0)
+      throw new HREExitException(0)
     }
   }
 

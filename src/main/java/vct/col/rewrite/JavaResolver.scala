@@ -44,7 +44,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
         rewrite(cls.implemented_classes),
       )
 
-      cls.asScala.map(rewrite(_)).foreach(res add _)
+      cls.asScala.map(rewrite(_)).foreach(res add)
       result = res
     } else {
       super.visit(cls)

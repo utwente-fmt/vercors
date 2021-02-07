@@ -5,12 +5,13 @@
 // fails due to https://github.com/viperproject/silicon/issues/512
 //:: suite problem-fail
 
-// This file demonstrates how to verify a monotonic bool in vercors/pvl. Note
-// that it is truly a monotonic bool, since if one of
+// This file contains an attempt at constructing and verifying a monotonic bool.
+// It would seem that it is truly a monotonic bool, since if one of
 // the threads write false to b the program does not verify.
+// However, approach is unfortunately not correct; see monotonicBoolBroken.pvl in the same folder for details.
 
-// This test uses its own toSeq function. However, use of the built-in \values(xs, 0, n) is desired.
-// However, on viper 20.01 \values doesn't work properly because \values uses read permissions.
+// This test uses its own toSeq function, but use of the built-in \values(xs, 0, n) is desired.
+// Unfortunately, on viper 20.01 \values doesn't work properly because \values uses read permissions.
 // (When this file is verified with viper master, as of 2020-08-26, it verifies)
 // When viper is upgraded to the version after 20.07, this test can be refactored to use \values.
 // Also: the foldOr should probably also be a builtin or something

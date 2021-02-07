@@ -17,7 +17,6 @@ import vct.col.ast.stmt.decl.ProgramUnit;
  * Parse specified code and convert the contents to COL.
  */
 public class ColCParser extends ColIParser {
-
     @Override
     public ProgramUnit parse(CharStream input, String file_name) {
         throw new NotImplementedError(
@@ -31,7 +30,7 @@ public class ColCParser extends ColIParser {
             Runtime runtime = Runtime.getRuntime();
 
             StringBuilder command = new StringBuilder(Configuration.cpp_command.get());
-            command.append(" -nostdinc -nocudainc -nocudalib -isystem ").append(Configuration.getCIncludePath().getAbsolutePath());
+            command.append(" -nostdinc -nocudainc -nocudalib --cuda-host-only -isystem ").append(Configuration.getCIncludePath().getAbsolutePath());
 
             Path filePath = Paths.get(file_name).toAbsolutePath().getParent();
 

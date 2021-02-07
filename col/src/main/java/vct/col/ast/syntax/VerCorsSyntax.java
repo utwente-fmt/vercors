@@ -5,13 +5,8 @@ import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.PrimitiveSort;
 
-import static vct.col.ast.type.ASTReserved.Any;
-import static vct.col.ast.type.ASTReserved.FullPerm;
-import static vct.col.ast.type.ASTReserved.NoPerm;
-import static vct.col.ast.type.ASTReserved.Pure;
-import static vct.col.ast.type.ASTReserved.ReadPerm;
-import static vct.col.ast.type.ASTReserved.Result;
 import static vct.col.ast.expr.StandardOperator.*;
+import static vct.col.ast.type.ASTReserved.*;
 
 public class VerCorsSyntax {
 
@@ -46,6 +41,8 @@ public class VerCorsSyntax {
     syntax.addPrimitiveType(PrimitiveSort.Location,"loc");
     
     syntax.addReserved(Result,"\\result");
+    syntax.addReserved(GlobalThreadId, "\\gtid");
+    syntax.addReserved(LocalThreadId, "\\ltid");
     syntax.addReserved(Pure,"pure");
     syntax.addReserved(Any,"*");
     syntax.addPrefix(BindOutput,"?",666);

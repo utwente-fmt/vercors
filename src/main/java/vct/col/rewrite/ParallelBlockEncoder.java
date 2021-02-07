@@ -513,7 +513,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
   private String current_label;
   
   private Stack<ASTNode> guard_stack=new Stack<ASTNode>();
-  
+
+  private Stack<ASTNode> parBoundsStack = new Stack<ASTNode>();
+
   private ASTNode loop_invariant;
   
   private class SendRecvInfo {
@@ -687,8 +689,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
   private ASTNode do_block(ForEachLoop s,final boolean contract){
     Contract c=s.getContract();
     loop_invariant=c.invariant;
+    parBoundsStack.push(s.guard);
     ASTNode res=null;
-    Map<String, Type> bodyVars = NameScanner.freeVars(s.body,c,s.guard);
+    Map<String, Type> bodyVars = NameScanner.freeVars(s.body,c,create.fold(StandardOperator.And, parBoundsStack));
     //Hashtable<String,Type> iters=new Hashtable<String,Type>();
     Map<String, Type> mainVars = new HashMap<>(bodyVars);
     for(DeclarationStatement decl:s.decls){
@@ -795,8 +798,8 @@ public class ParallelBlockEncoder extends AbstractRewriter {
           null
       ));
     }
-    body_cb.requires(rewrite(s.guard));
-    body_cb.ensures(rewrite(s.guard));
+    body_cb.requires(create.fold(StandardOperator.And, parBoundsStack));
+    body_cb.ensures(create.fold(StandardOperator.And, parBoundsStack));
 
     for(ASTNode clause:ASTUtils.conjuncts(c.pre_condition, StandardOperator.Star)){
       if(clause.isa(StandardOperator.ReducibleSum)){
@@ -871,12 +874,13 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     ));
     if (s.decls.length>0){
       String var_name = s.decls[s.decls.length-1].name();
-      check_send_recv(bodyPars, var_name, s.guard);
+      check_send_recv(bodyPars, var_name);
     }
     if (!contract) {
       res = genCall(main_name,mainVars);
     }
     loop_invariant=null;
+    parBoundsStack.pop();
     return res;
   }
   
@@ -890,8 +894,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     return false;
   }
 
-  protected void check_send_recv(DeclarationStatement[] body_decl,
-      String var_name, ASTNode guard) {
+  protected void check_send_recv(DeclarationStatement[] body_decl, String var_name) {
     ContractBuilder cb;
     BranchOrigin branch;
     for(String R:send_recv_map.keySet()){
@@ -922,7 +925,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         cb=new ContractBuilder();
         cb.requires(loop_invariant);
         cb.ensures(loop_invariant);
-        cb.requires(guard);
+        cb.requires(create.fold(StandardOperator.And, parBoundsStack));
         for(ASTNode g:recv_entry.guards){
           cb.requires(g);
         }
@@ -947,7 +950,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         cb.requires(loop_invariant);
         cb.ensures(loop_invariant);
 
-        cb.requires(guard);
+        cb.requires(create.fold(StandardOperator.And, parBoundsStack));
         // lower bound is already guaranteed by guard check.
         //cb.requires(create.expression(StandardOperator.LTE,
         //    create.constant(dr),create.argument_name(var_name)

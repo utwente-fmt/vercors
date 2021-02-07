@@ -6,7 +6,7 @@ import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType,
 import vct.col.ast.stmt
 import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, ForEachLoop, IfStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion, TryCatchBlock}
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTFlags, ASTSpecial, AxiomaticDataType, Contract, DeclarationStatement, Method, NameSpace, ProgramUnit, VariableDeclaration}
-import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{Binder, BindingExpression, KernelInvocation, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.expr
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.util.{AbstractVisitor, RecursiveVisitor, SequenceUtils}
@@ -341,7 +341,9 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
         if(tInfo != null && tInfo.getSequenceSort == PrimitiveSort.Array) {
           addFeature(ArrayOps, op)
         }
-      case StandardOperator.PrependSingle | StandardOperator.AppendSingle | StandardOperator.Empty =>
+      case StandardOperator.PrependSingle | StandardOperator.AppendSingle =>
+        addFeature(ADTOperator, op)
+      case StandardOperator.Empty =>
         addFeature(NotStandardized, op)
       case StandardOperator.ValidPointer | StandardOperator.ValidPointerIndex =>
         addFeature(ValidPointer, op)
@@ -358,6 +360,12 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
           case NameExpression(_, _, NameExpressionKind.Argument) =>
             addFeature(ArgumentAssignment, op)
           case _ =>
+        }
+      case StandardOperator.SeqPermutation =>
+        addFeature(ADTOperator, op)
+      case StandardOperator.LT | StandardOperator.LTE =>
+        if(op.first.getType.isPrimitive(PrimitiveSort.Set) || op.first.getType.isPrimitive(PrimitiveSort.Bag)) {
+          addFeature(ADTOperator, op)
         }
       case _ =>
     }
@@ -559,6 +567,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(synchronized)
     addFeature(Synchronized, synchronized)
   }
+
+  override def visit(ki: KernelInvocation): Unit = {
+    super.visit(ki)
+    addFeature(KernelInvocations, ki)
+  }
 }
 
 object Feature {
@@ -637,6 +650,7 @@ object Feature {
     MemberOfRange,
     NoTypeADT,
     Extern,
+    KernelInvocations,
 
     NotFlattened,
     BeforeSilverDomains,
@@ -778,6 +792,7 @@ object Feature {
     NoTypeADT,
     InvariantsPropagatedHere,
     Extern,
+    KernelInvocations,
   )
   val EXPR_ONLY_PERMIT: Set[Feature] = DEFAULT_PERMIT ++ Set(
     TopLevelImplementedMethod,
@@ -864,6 +879,7 @@ case object StringClass extends ScannableFeature
 case object MemberOfRange extends ScannableFeature
 case object NoTypeADT extends ScannableFeature
 case object Extern extends ScannableFeature
+case object KernelInvocations extends ScannableFeature
 
 case object NotFlattened extends GateFeature
 case object BeforeSilverDomains extends GateFeature

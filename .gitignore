@@ -17,6 +17,9 @@ tmp.*
 vct-tool.jar
 *~
 
+# Mac specific OS files
+.DS_Store
+
 # Vim swap file
 *.swp
 

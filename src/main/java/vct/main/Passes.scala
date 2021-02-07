@@ -1,18 +1,19 @@
 package vct.main
 
-import java.io.{File, FileNotFoundException, FileOutputStream, PrintWriter}
-import java.util
+import hre.config.Configuration
 
-import hre.lang.System.Abort
+import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
+import java.util
+import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
-import vct.col.ast.syntax.{JavaDialect, JavaSyntax}
+import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
+import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, KernelInvocationToMethodInvocation, RewriteWithThen, StripUnusedExtern}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -30,6 +31,21 @@ object Passes {
       val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
       vct.col.ast.print.CPrinter.dump(out, arg)
       out.close()
+      arg
+    }, introduces=Set(), permits=Feature.ALL),
+    SimplePass("pvl", "print AST in PVL syntax", arg => {
+      try {
+        val f = new File(Configuration.session_file.get());
+        val b = f.createNewFile();
+        if(!b) {
+          Debug("File %s already exists and is now overwritten", Configuration.session_file.get());
+        }
+        val out = new PrintWriter(new FileOutputStream(f));
+        PVLSyntax.get().print(out,arg);
+        out.close();
+      } catch {
+        case e: IOException => Debug(e.getMessage);
+      }
       arg
     }, introduces=Set(), permits=Feature.ALL),
     new AbstractPass("check", "run a basic type check") {
@@ -433,6 +449,11 @@ object Passes {
       ),
       removes=Set(features.NoLockInvariantProof),
     ),
+    SimplePass(
+      "kernel-invocations", "Translate CUDA kernel invocation to regular method invocations",
+      KernelInvocationToMethodInvocation(_).rewriteAll(),
+      removes=Set(features.KernelInvocations),
+    )
   )
 
   val ONE_SHOT_FEATURE = Seq(

@@ -175,59 +175,51 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
 
       case Subscript:
         return create.index(o, e1, e2);
-
-      case GT:
-        return create.gt(o, e1, e2);
-      case LT:
-        return create.lt(o, e1, e2);
-      case GTE:
-        return create.gte(o, e1, e2);
-      case LTE:
-        return create.lte(o, e1, e2);
-      case EQ:
-        return create.eq(o, e1, e2);
-      case NEQ:
-        return create.neq(o, e1, e2);
-
-      case Mult: {
-        if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)) {
-          return create.any_set_intersection(o, e1, e2);
-        } else {
-          return create.mult(o, e1, e2);
-        }
+    case SubSet: create.and(o, create.any_set_subset(o, e1, e2), create.lt(o, create.size(o, e1), create.size(o, e2)));
+    case SubSetEq: return create.any_set_subset(o, e1, e2);
+    case GT: return create.gt(o,e1,e2);
+    case LT: return create.lt(o,e1,e2);
+    case GTE: return create.gte(o,e1,e2);
+    case LTE: return create.lte(o,e1,e2);
+    case EQ: return create.eq(o,e1,e2);
+    case NEQ: return create.neq(o,e1,e2);
+    case Mult:{
+      if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)){
+        return create.any_set_intersection(o,e1,e2);
+      } else {
+        return create.mult(o,e1,e2);
       }
-      case FloorDiv:
-        return create.floor_div(o, e1, e2);
-      case Div:
-        return create.frac(o, e1, e2);
-      case Mod:
-        return create.mod(o, e1, e2);
-      case Plus: {
-        if (e.getType().isPrimitive(PrimitiveSort.Sequence)) {
-          return create.append(o, e1, e2);
-        } else if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)) {
-          return create.union(o, e1, e2);
-        } else if (e.getType().isPrimitive(PrimitiveSort.Rational)) {
-          return create.perm_add(o, e1, e2);
-        } else {
-          return create.add(o, e1, e2);
-        }
+    }
+    case FloorDiv:
+      return create.floor_div(o, e1, e2);
+    case Div:
+      return create.frac(o, e1, e2);
+    case Mod: return create.mod(o,e1,e2);
+    case Plus:{
+      if (e.getType().isPrimitive(PrimitiveSort.Sequence)){
+        return create.append(o,e1,e2);
+      } else if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)){
+        return create.union(o,e1,e2);
+      } else if(e.getType().isPrimitive(PrimitiveSort.Rational)) {
+        return create.perm_add(o, e1, e2);
+      } else {
+        return create.add(o,e1,e2);
       }
-      case Minus: {
-        if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)) {
-          return create.any_set_minus(o, e1, e2);
-        } else {
-          return create.sub(o, e1, e2);
-        }
+    }
+    case Minus: {
+      if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)){
+        return create.any_set_minus(o,e1,e2);
+      } else {
+        return create.sub(o,e1,e2);
       }
-      case UMinus:
-        return create.neg(o, e1);
-      case Scale: {
-        return create.scale_access(o, e2, e1);
-      }
-      case Concat:
-        return create.append(o, e1, e2);
-      default:
+    }
+    case UMinus: return create.neg(o,e1);
+    case Scale:{
+      return create.scale_access(o,e2, e1);
+    }
+    case Concat:
+      return create.append(o, e1,e2);
+    default:
         throw new HREError("cannot map operator %s", e.operator());
     }
   }
@@ -640,6 +632,11 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
 
   @Override
   public E map(SignalsClause sc) {
+    return null;
+  }
+
+  @Override
+  public E map(KernelInvocation ki) {
     return null;
   }
 }

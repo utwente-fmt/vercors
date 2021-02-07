@@ -21,10 +21,6 @@ class CarbonVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) {
       tool_home.resolve("boogie").resolve("2012-10-22").resolve("unix").resolve("bin").resolve("boogie").toString()
     }
     val carbon = new viper.carbon.CarbonVerifier(Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
-    print(Seq(
-        "--z3Exe",z3_exe,
-        "--boogieExe",boogie_exe,
-        "-"));
     carbon.parseCommandLine(Seq(
         "--z3Exe",z3_exe,
         "--boogieExe",boogie_exe,
