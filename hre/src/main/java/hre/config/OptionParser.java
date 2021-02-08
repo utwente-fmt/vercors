@@ -119,7 +119,7 @@ public class OptionParser {
   private class HelpOption extends AbstractOption {
 
     public HelpOption() {
-      super(false,false,"print help message");
+      super(false,false,"Prints all options of VerCors");
     }
 
     public void pass(){
@@ -130,6 +130,6 @@ public class OptionParser {
       System.exit(0);
     }
   }
-  
+
 }
 
