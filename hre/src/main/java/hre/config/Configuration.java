@@ -176,23 +176,8 @@ public class Configuration {
         return getZ3Path();
     }
 
-    public static File getChaliceZ3Path() {
-        return getZ3Path();
-    }
-
     public static File getBoogiePath() {
         File base = getFileOrAbort("/deps/boogie/2012-10-22/");
-        String os = System.getProperty("os.name");
-
-        if(os.startsWith("Windows")) {
-            return join(base, "windows", "bin");
-        } else {
-            return join(base, "unix", "bin");
-        }
-    }
-
-    public static File getChalicePath() {
-        File base = getFileOrAbort("/deps/chalice/2013-12-17/");
         String os = System.getProperty("os.name");
 
         if(os.startsWith("Windows")) {
@@ -234,15 +219,6 @@ public class Configuration {
         env.setTemporaryWorkingDirectory();
         env.addPath(getDafnyPath().getAbsolutePath());
         env.addPath(getDafnyZ3Path().getParentFile().getAbsolutePath());
-        return env;
-    }
-
-    public static MessageProcessEnvironment getChalice() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("chalice");
-        env.setTemporaryWorkingDirectory();
-        env.addPath(getChalicePath().getAbsolutePath());
-        env.addPath(getBoogiePath().getAbsolutePath());
-        env.addPath(getChaliceZ3Path().getAbsolutePath());
         return env;
     }
 

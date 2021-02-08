@@ -86,8 +86,6 @@ public class Main
 
       BooleanSetting boogie=new BooleanSetting(false);
       clops.add(boogie.getEnable("select Boogie backend"),"boogie");
-      BooleanSetting chalice=new BooleanSetting(false);
-      clops.add(chalice.getEnable("select Chalice backend"),"chalice");
       final StringSetting silver=new StringSetting("silver");
       clops.add(silver.getAssign("select Silver backend (silicon/carbon)"),"silver");
       clops.add(silver.getAssign("select Silicon backend","silicon"),"silicon");
@@ -237,7 +235,7 @@ public class Main
         CommandLineTesting.runTests();
         throw new HREExitException(0);
       }
-      if (!(boogie.get() || chalice.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
+      if (!(boogie.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
       }
       if (silver.used()){
@@ -326,7 +324,7 @@ public class Main
         //passes.add("reorder");
         //passes.add("check");
         passes.add("dafny"); // run backend
-      } else if (silver.used()||chalice.get()) {
+      } else if (silver.used()) {
         passes=new LinkedBlockingDeque<String>();
 
         if(Configuration.session_file.get() != null) {
@@ -398,13 +396,9 @@ public class Main
         passes.add("check");
         passes.add("array_null_values"); // rewrite null values for array types into None
         passes.add("check");
-        if (silver.used()){
-          // The new encoding does not apply to Chalice yet.
-          // Maybe it never will.
-          passes.add("java-encode"); // disambiguate overloaded stuff, copy inherited functions and specifications
-          passes.add("standardize");
-          passes.add("check");
-        }
+        passes.add("java-encode"); // disambiguate overloaded stuff, copy inherited functions and specifications
+        passes.add("standardize");
+        passes.add("check");
 
         if (sat_check.get()) {
           passes.add("sat_check"); // sanity check to avoid uncallable methods (where False is required)
@@ -445,23 +439,22 @@ public class Main
 
         passes.add("local-variable-check");
 
-        if (silver.used()) {
-          if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
-            passes.add("inline-atomic");
-            passes.add("check");
-            passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
-            passes.add("standardize");
-          }
+        if (features.usesIterationContracts()||features.usesParallelBlocks()||features.usesCSL()||features.usesPragma("omp")){
+          passes.add("inline-atomic");
           passes.add("check");
-          passes.add("simplify_quant"); // reduce nesting of quantifiers
-          passes.add("simplify_quant_relations");
-          if (features.usesSummation()||features.usesIterationContracts()) {
-            passes.add("check");
-            passes.add("simplify_sums"); // set of rewrite rules for removing summations
-          }
+          passes.add("parallel_blocks"); // pvl parallel blocks are put in separate methods that can be verified seperately. Method call replaces the contract of this parallel block.
           passes.add("standardize");
-          passes.add("check");
         }
+        passes.add("check");
+        passes.add("simplify_quant"); // reduce nesting of quantifiers
+        passes.add("simplify_quant_relations");
+        if (features.usesSummation()||features.usesIterationContracts()) {
+          passes.add("check");
+          passes.add("simplify_sums"); // set of rewrite rules for removing summations
+        }
+        passes.add("standardize");
+        passes.add("check");
+
 
         if (features.usesKernels()){// 8 feb 2018: is this now dead code (to be)? (SB)
           passes.add("kernel-split");
@@ -471,22 +464,11 @@ public class Main
           passes.add("check");
         }
 
-        if (silver.used()) {
-          if (  features.usesOperator(StandardOperator.Instance)
-            || features.usesInheritance()
-            || features.usesOperator(StandardOperator.TypeOf)
-          ){
-            passes.add("add-type-adt"); // add java's types of the programs as silicon's axiomatic datatypes
-            passes.add("standardize");
-            passes.add("check");
-          }
-        }
-
-        if (!silver.used() && features.usesInheritance()){ // 8 feb 2018: SB nominates this block for removal
-        	  // reason: chalice's types and inheritance mechanism isn't the same as Java's, so why not translate everything the same way and ignore chalice's mechanism
-          passes.add("standardize");
-          passes.add("check");
-          passes.add("ds_inherit"); // Use the old inheritance encoding for Chalice.
+        if (features.usesOperator(StandardOperator.Instance)
+          || features.usesInheritance()
+          || features.usesOperator(StandardOperator.TypeOf)
+        ){
+          passes.add("add-type-adt"); // add java's types of the programs as silicon's axiomatic datatypes
           passes.add("standardize");
           passes.add("check");
         }
@@ -519,11 +501,9 @@ public class Main
           passes.add("check");
         }
 
-        if (silver.used()) {
-          passes.add("current_thread"); // add argument 'current thread' to all methods
-          passes.add("standardize");
-          passes.add("check");
-        }
+        passes.add("current_thread"); // add argument 'current thread' to all methods
+        passes.add("standardize");
+        passes.add("check");
 
         passes.add("rewrite_arrays"); // array generation and various array-related rewrites
         passes.add("check");
@@ -544,28 +524,19 @@ public class Main
         passes.add("standardize");
         passes.add("check");
 
-        if (silver.used()) {
-          // Part of this is now done in java-encode
-          // The remainder is shifted to silver-class-reduction
-          //passes.add("class-conversion");
-          //passes.add("standardize");
-          //passes.add("check");
+        // Part of this is now done in java-encode
+        // The remainder is shifted to silver-class-reduction
+        //passes.add("class-conversion");
+        //passes.add("standardize");
+        //passes.add("check");
 
-          if(trigger_generation.get() > 0) {
-            passes.add("simple_triggers=" + trigger_generation.get());
-            passes.add("check");
-          }
-          passes.add("silver-class-reduction"); // remove the class (since all names are now unique), only one class remains
-          passes.add("standardize");
-          passes.add("check");
-        } else {
-          passes.add("globalize"); // create a separate class to contain all statics (class probably called 'Global', needs to be given as argument to the other methods)
-          passes.add("standardize");
-          passes.add("check");
-          passes.add("rm_cons"); // replace constructors by init-methods
-          passes.add("standardize");
+        if(trigger_generation.get() > 0) {
+          passes.add("simple_triggers=" + trigger_generation.get());
           passes.add("check");
         }
+        passes.add("silver-class-reduction"); // remove the class (since all names are now unique), only one class remains
+        passes.add("standardize");
+        passes.add("check");
 
         passes.add("create-return-parameter");
         passes.add("check");
@@ -573,56 +544,31 @@ public class Main
         passes.add("standardize");
         passes.add("check");
 
-        if (silver.used()) {
-          passes.add("ghost-lift"); // change ghost code into real code so it can is used in the check
-          passes.add("standardize");
-          passes.add("check");
-        }
+        passes.add("ghost-lift"); // change ghost code into real code so it can is used in the check
+        passes.add("standardize");
+        passes.add("check");
 
         passes.add("flatten");
         passes.add("reorder"); // leaves declarations at the top of blocks (within loops and branches)
         passes.add("flatten_before_after"); // method calls can have 'before/after' blocks of ghost-code attached. Put it around all method calls.
-        if (silver.used()) {
-          passes.add("silver-reorder"); // no declarations in branches (only in loops)
-          // passes.add("silver-identity"); // identity functions are used to not optimize expressions. Add it to silver.
-        }
+        passes.add("silver-reorder"); // no declarations in branches (only in loops)
+        // passes.add("silver-identity"); // identity functions are used to not optimize expressions. Add it to silver.
         passes.add("standardize");
         passes.add("check");
 
+        passes.add("scale-always"); // syntax: in silicon [p]predicate() is mandatory, so change pred() to [1]pred()
+        passes.add("check"); // the rewrite system needs a type check
+        passes.add("silver-optimize"); // rewrite to things that silver likes better
+        passes.add("check"); // the rewrite system needs a type check
+        passes.add("quant-optimize"); // some illegal-quantifier constructions need to be written differently (plus optimize)
+        passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver can reason more intelligently about them. Pure methods can be used in specifications through this.
+        passes.add("standardize");
+        passes.add("check");
+        passes.add("inline-pattern-to-trigger");
+        passes.add("gen-triggers");
+        passes.add("check");
 
-        if (!silver.used())  {
-          passes.add("finalize_args");
-          passes.add("reorder");
-          passes.add("standardize");
-          passes.add("check");
-        }
-
-        if (silver.used()) {
-          passes.add("scale-always"); // syntax: in silicon [p]predicate() is mandatory, so change pred() to [1]pred()
-          passes.add("check"); // the rewrite system needs a type check
-          passes.add("silver-optimize"); // rewrite to things that silver likes better
-          passes.add("check"); // the rewrite system needs a type check
-          passes.add("quant-optimize"); // some illegal-quantifier constructions need to be written differently (plus optimize)
-          passes.add("standardize-functions"); // pure methods do not need to be 'methods', try turning them into functions so silver and chalice can reason more intelligently about them. Pure methods can be used in specifications through this.
-          passes.add("standardize");
-          passes.add("check");
-          passes.add("inline-pattern-to-trigger");
-          passes.add("gen-triggers");
-          passes.add("check");
-
-          passes.add("silver");
-        } else { //CHALICE
-          passes.add("check"); // rewrite system needs a type check
-          passes.add("chalice-optimize");
-          passes.add("standardize-functions");
-          passes.add("standardize");
-          passes.add("check");
-
-          passes.add("chalice-preprocess");
-          passes.add("standardize");
-          passes.add("check");
-          passes.add("chalice");
-        }
+        passes.add("silver");
       } else {
       	Abort("no back-end or passes specified");
       }
@@ -1116,12 +1062,6 @@ public class Main
         return trs.normalize(arg);
       }
     });
-    defined_passes.put("chalice-optimize",new CompilerPass("Optimize expressions for Chalice"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        RewriteSystem trs=RewriteSystems.getRewriteSystem("chalice_optimize");
-        return trs.normalize(arg);
-      }
-    });
     defined_passes.put("simplify_calls",new CompilerPass("???"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new SimplifyCalls(arg).rewriteAll();
@@ -1164,11 +1104,6 @@ public class Main
     });
     branching_pass(defined_passes,"create-return-parameter","Replace return value by out parameter.",CreateReturnParameter.class);
     compiler_pass(defined_passes,"vector-encode","Encode vector blocks using the vector library",VectorEncode.class);
-    defined_passes.put("chalice-preprocess",new CompilerPass("Pre processing for chalice"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new ChalicePreProcess(arg).rewriteAll();
-      }
-    });
     defined_passes.put("simple_triggers", new CompilerPass("Add triggers to quantifiers if possible") {
       public ProgramUnit apply(ProgramUnit arg, String... args) {
         ProgramUnit res = arg;
