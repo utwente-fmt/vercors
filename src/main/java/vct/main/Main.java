@@ -20,7 +20,6 @@ import vct.col.ast.syntax.PVLSyntax;
 import vct.col.util.LocalVariableChecker;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
-import vct.col.rewrite.DeriveModifies;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -127,8 +126,6 @@ public class Main
       BooleanSetting global_with_field=new BooleanSetting(false);
       clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"),"global-with-field");
 
-      BooleanSetting infer_modifies=new BooleanSetting(false);
-      clops.add(infer_modifies.getEnable("infer modifies clauses"),"infer-modifies");
       BooleanSetting no_context=new BooleanSetting(false);
       clops.add(no_context.getEnable("disable printing the context of errors"),"no-context");
       BooleanSetting gui_context=new BooleanSetting(false);
@@ -865,12 +862,6 @@ public class Main
         "Encode magic wand proofs with abstract predicates",
         WandEncoder.class
         );
-    defined_passes.put("modifies",new CompilerPass("Derive modifies clauses for all contracts"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        new DeriveModifies().annotate(arg);
-        return arg;
-      }
-    });
     defined_passes.put("openmp2pvl",new CompilerPass("Compile OpenMP pragmas to PVL"){
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         return new OpenMPToPVL(arg).rewriteAll();
