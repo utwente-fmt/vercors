@@ -108,5 +108,5 @@ jobs:
       - run: ls
       - run: "sudo dpkg -i *.deb"
       - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --exclude-suite=slow,medium,problem-fail,skip-travis --progress
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool silicon --tool carbon --exclude-suite=slow,medium,problem-fail,skip-travis --progress
 
