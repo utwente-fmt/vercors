@@ -13,7 +13,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import hre.ast.FileOrigin;
 import hre.config.*;
-import hre.io.Paths;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
 import hre.util.Notifier;
