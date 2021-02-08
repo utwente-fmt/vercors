@@ -5,6 +5,7 @@ import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.langspecific.c.*;
+import vct.col.ast.stmt.decl.GPUOpt;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
@@ -56,6 +57,8 @@ public interface ASTMapping1<R,A1> {
   public R map(ASTClass c, A1 a);
 
   public R map(BindingExpression e, A1 a);
+
+  public R map(GPUOpt e, A1 a);
 
   public R map(Dereference e, A1 a);
 

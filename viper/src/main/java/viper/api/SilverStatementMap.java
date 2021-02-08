@@ -258,6 +258,13 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   }
 
   @Override
+  public S map(GPUOpt gpuOpt) {
+
+    return null;
+  }
+
+
+  @Override
   public S map(Contract contract) {
     
     return null;

@@ -88,6 +88,10 @@ IN: 'in';
 NEW: 'new';
 ID: 'id';
 
+GPUOPT: 'gpuopt';
+GPUOPT_LOOPUNROLL: 'loop_unroll';
+GPUOPT_MATRIX_REPR: 'matrix_repr';
+
 MAP: 'map';
 TUPLE: 'tuple';
 BOOL: 'boolean';

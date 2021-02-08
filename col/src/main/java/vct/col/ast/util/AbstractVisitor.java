@@ -8,6 +8,7 @@ import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.langspecific.c.*;
+import vct.col.ast.stmt.decl.GPUOpt;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
@@ -132,7 +133,9 @@ public class AbstractVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override public void visit(Contract c){ visit_any(c); }
 
   @Override public void visit(ASTSpecial s){ visit_any(s); }
-  
+
+  @Override public void visit(GPUOpt s){ visit_any(s); }
+
   @Override public void visit(VariableDeclaration s) { visit_any(s); }
   
   @Override public void visit(TupleType t) { visit_any(t); }

@@ -7,6 +7,7 @@ import java.util.Map;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 import vct.col.ast.langspecific.c.*;
+import vct.col.ast.stmt.decl.GPUOpt;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -218,7 +219,14 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   @Override
+  public void visit(GPUOpt opt) {
+    //TODO what does dispatch do
+    opt.args().apply(this);
+  }
+
+  @Override
   public void visit(LoopStatement s) {
+    //TODO add dispatch here after adding GPUOpt
     dispatch(s.get_before());
     dispatch(s.getInitBlock());
     dispatch(s.getEntryGuard());

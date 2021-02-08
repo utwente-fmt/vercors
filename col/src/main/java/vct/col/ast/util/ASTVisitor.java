@@ -6,6 +6,7 @@ import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.langspecific.c.*;
+import vct.col.ast.stmt.decl.GPUOpt;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
@@ -69,6 +70,8 @@ public interface ASTVisitor<T> {
   public void visit(ParallelBlock parallelBlock);
 
   public void visit(Contract contract);
+
+  public void visit(GPUOpt contract);
 
   public void visit(ASTSpecial special);
 

@@ -219,8 +219,8 @@ statement
  | 'vec' '(' iter ')' block
  | 'invariant' identifier '(' expr ')' block
  | 'atomic' '(' identifierList ')' block
- | invariantList 'while' '(' expr ')' statement
- | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+ | gpuopt? invariantList 'while' '(' expr ')' statement
+ | gpuopt? invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
  | block
  | '{*' expr '*}'
  | 'goto' identifier ';'
@@ -271,6 +271,13 @@ idArg: identifier | '*';
 
 invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
+
+gpuopt: 'gpuopt' gpuOptimization (expr)* ';';
+
+gpuOptimization
+ : 'loop_unroll'
+ | 'matrix_repr'
+ ;
 
 nonArrayType
  : container '<' type '>'

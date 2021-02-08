@@ -588,9 +588,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create invariant_block(convertID(label), expr(resource), convertBlock(block))
     case Statement14("atomic", "(", invariants, ")", block) =>
       create parallel_atomic(convertBlock(block), convertIDList(invariants):_*)
-    case Statement15(invariants, "while", "(", cond, ")", body) =>
+    case Statement15(maybeGPUopt, invariants, "while", "(", cond, ")", body) =>
       create while_loop(expr(cond), flattenIfSingleStatement(convertStat(body)), convertContract(invariants))
-    case Statement16(invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
+    case Statement16(maybeGPUopt, invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
       create for_loop(
         maybeInit.map(convertStatList).map(create block(_:_*)).orNull,
         maybeCond.map(expr).getOrElse(create constant true),
