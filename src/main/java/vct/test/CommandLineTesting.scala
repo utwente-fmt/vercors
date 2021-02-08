@@ -60,9 +60,6 @@ object CommandLineTesting {
     "execute test suites from the command line. " +
     "Each test suite is a folder which is scanned for valid test inputs")
 
-  private val saveDir = new StringSetting(null)
-  private val saveDirOption = saveDir.getAssign("save intermediate files to given directory")
-
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
 
@@ -123,7 +120,6 @@ object CommandLineTesting {
     parser.add(backendFilterOption, "tool")
     parser.add(testDirsOption, "test")
     parser.add(builtinTestOption, "test-builtin")
-    parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
     parser.add(travisTestOutputOption, "travis-test-output")
   }
