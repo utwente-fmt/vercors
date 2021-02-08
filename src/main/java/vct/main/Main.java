@@ -86,8 +86,6 @@ public class Main
       CollectSetting debugFilters = new CollectSetting();
       clops.add(debugFilters.getAddOption("Add a class to debug, or specify a line with Class:lineno"), "debug");
 
-      BooleanSetting boogie=new BooleanSetting(false);
-      clops.add(boogie.getEnable("select Boogie backend"),"boogie");
       final StringSetting silver=new StringSetting("silver");
       clops.add(silver.getAssign("select Silicon backend","silicon"),"silicon");
       clops.add(silver.getAssign("select Carbon backend","carbon"),"carbon");
@@ -234,7 +232,7 @@ public class Main
       if (CommandLineTesting.enabled()){
         CommandLineTesting.runTests();
       }
-      if (!(boogie.get() || silver.used() || pass_list.iterator().hasNext())) {
+      if (!(silver.used() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
       }
       if (silver.used()){
@@ -262,7 +260,7 @@ public class Main
       }
       Progress("Parsed %d file(s) in: %dms",cnt, tk.show());
 
-      if (boogie.get() || sequential_spec.get()) {
+      if (sequential_spec.get()) {
         program.setSpecificationFormat(SpecificationFormat.Sequential);
       }
       FeatureScanner features=new FeatureScanner();
@@ -277,36 +275,6 @@ public class Main
         for(String s:pass_list){
           passes.add(s);
         }
-      } else if (boogie.get()) {
-      	passes=new LinkedBlockingDeque<String>();
-      	passes.add("java_resolve"); // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
-        passes.add("standardize"); // a rewriter s.t. only a subset of col will have to be supported
-        passes.add("check"); // type check col. Add annotations (the types) to the ast.
-        passes.add("rewrite_arrays"); // array generation and various array-related rewrites
-        passes.add("check");
-        passes.add("flatten"); // expressions that contain method calls (possibly having side-effects) are put into separate statements.
-        passes.add("assign");  // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
-        passes.add("finalize_args"); // declare new variables to never have to change the arguments (which isn't allowed in silver)
-        passes.add("reorder"); // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
-        passes.add("simplify_calls"); // getting rid of some class names?
-        if (infer_modifies.get()) {
-          passes.add("standardize");
-          passes.add("check");
-          passes.add("modifies"); // modifies is mandatory. This is how to automatically add it
-        }
-        passes.add("standardize");
-        passes.add("check");
-        passes.add("create-return-parameter"); // all methods in Boogie are void, so use an out parameter instead of 'return..'
-        passes.add("standardize");
-        passes.add("check");
-        passes.add("flatten");
-        passes.add("reorder");
-        passes.add("standardize");
-        passes.add("check");
-        passes.add("strip_constructors"); // somewhere in the parser of Java, constructors are added implicitly. They need to be taken out again.
-        passes.add("standardize");
-        passes.add("check");
-      	passes.add("boogie"); // run backend
       } else if (silver.used()) {
         passes=new LinkedBlockingDeque<String>();
 

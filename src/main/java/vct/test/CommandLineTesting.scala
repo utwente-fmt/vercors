@@ -69,7 +69,6 @@ object CommandLineTesting {
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
   private lazy val z3 = Configuration.getZ3
-  private lazy val boogie = Configuration.getBoogie
   private lazy val carbon = Configuration.getCarbon
   private lazy val silicon = Configuration.getSilicon
   private lazy val vercors = Configuration.getThisVerCors
@@ -84,12 +83,6 @@ object CommandLineTesting {
     )),
     "!z3-unsat" -> Task(z3.withArgs("-smt2", selfTest("test-unsat.smt")), Seq(
       MustSay("unsat"),
-    )),
-    "!boogie-pass" -> Task(boogie.withArgs(selfTest("test-pass.bpl")), Seq(
-      MustSay("Boogie program verifier finished with 1 verified, 0 errors")
-    )),
-    "!boogie-fail" -> Task(boogie.withArgs(selfTest("test-fail.bpl")), Seq(
-      MustSay("Boogie program verifier finished with 0 verified, 1 error")
     )),
     "!carbon-pass" -> Task(carbon.withArgs(selfTest("test-pass.sil")), Seq(
       MustSay("No errors found.")
