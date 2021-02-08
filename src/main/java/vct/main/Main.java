@@ -89,11 +89,8 @@ public class Main
       BooleanSetting boogie=new BooleanSetting(false);
       clops.add(boogie.getEnable("select Boogie backend"),"boogie");
       final StringSetting silver=new StringSetting("silver");
-      clops.add(silver.getAssign("select Silver backend (silicon/carbon)"),"silver");
       clops.add(silver.getAssign("select Silicon backend","silicon"),"silicon");
       clops.add(silver.getAssign("select Carbon backend","carbon"),"carbon");
-      BooleanSetting dafny=new BooleanSetting(false);
-      clops.add(dafny.getEnable("select Dafny backend"),"dafny");
 
       CommandLineTesting.addOptions(clops);
 
@@ -237,15 +234,11 @@ public class Main
       if (CommandLineTesting.enabled()){
         CommandLineTesting.runTests();
       }
-      if (!(boogie.get() || silver.used() || dafny.get() || pass_list.iterator().hasNext())) {
+      if (!(boogie.get() || silver.used() || pass_list.iterator().hasNext())) {
         Fail("no back-end or passes specified");
       }
       if (silver.used()){
         switch(silver.get()){
-        case "silicon_qp":
-          Warning("silicon_qp has been merged into silicon, using silicon instead");
-          silver.set("silicon");
-          break;
         case "silicon":
         case "carbon":
           break;
@@ -314,18 +307,6 @@ public class Main
         passes.add("standardize");
         passes.add("check");
       	passes.add("boogie"); // run backend
-      } else if (dafny.get()) {
-        passes=new LinkedBlockingDeque<String>();
-        passes.add("java_resolve");
-        passes.add("standardize");
-        passes.add("check");
-        passes.add("create-return-parameter");
-        passes.add("standardize");
-        passes.add("check");
-        //passes.add("flatten");
-        //passes.add("reorder");
-        //passes.add("check");
-        passes.add("dafny"); // run backend
       } else if (silver.used()) {
         passes=new LinkedBlockingDeque<String>();
 

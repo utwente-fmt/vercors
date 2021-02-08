@@ -180,10 +180,6 @@ public class Configuration {
         return getZ3Path();
     }
 
-    public static File getDafnyZ3Path() {
-        return getZ3Path();
-    }
-
     public static File getBoogiePath() {
         File base = getFileOrAbort("/deps/boogie/2012-10-22/");
 
@@ -191,16 +187,6 @@ public class Configuration {
             return join(base, "windows", "bin");
         } else {
             return join(base, "unix", "bin");
-        }
-    }
-
-    public static File getDafnyPath() {
-        File base = getFileOrAbort("/deps/dafny/1.9.6/");
-
-        if (getOS() == OS.WINDOWS) {
-            return join(base, "windows");
-        } else {
-            return join(base, "unix");
         }
     }
 
@@ -217,14 +203,6 @@ public class Configuration {
         env.setEnvironmentVar("BOOGIE_Z3_EXE", getBoogieZ3Path().getAbsolutePath());
         env.addPath(getBoogiePath().getAbsolutePath());
         env.addPath(getBoogieZ3Path().getAbsolutePath());
-        return env;
-    }
-
-    public static MessageProcessEnvironment getDafny() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("dafny");
-        env.setTemporaryWorkingDirectory();
-        env.addPath(getDafnyPath().getAbsolutePath());
-        env.addPath(getDafnyZ3Path().getParentFile().getAbsolutePath());
         return env;
     }
 

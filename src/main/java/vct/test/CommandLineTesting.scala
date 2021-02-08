@@ -70,7 +70,6 @@ object CommandLineTesting {
   // dependencies that we don't use would be silly.
   private lazy val z3 = Configuration.getZ3
   private lazy val boogie = Configuration.getBoogie
-  private lazy val dafny = Configuration.getDafny
   private lazy val carbon = Configuration.getCarbon
   private lazy val silicon = Configuration.getSilicon
   private lazy val vercors = Configuration.getThisVerCors
@@ -91,13 +90,6 @@ object CommandLineTesting {
     )),
     "!boogie-fail" -> Task(boogie.withArgs(selfTest("test-fail.bpl")), Seq(
       MustSay("Boogie program verifier finished with 0 verified, 1 error")
-    )),
-    "!dafny-pass" -> Task(dafny.withArgs("/compile:0", selfTest("test-pass.dfy")), Seq(
-      MustSay("Dafny program verifier finished with 2 verified, 0 errors")
-    )),
-    "!dafny-fail" -> Task(dafny.withArgs("/compile:0", selfTest("test-fail.dfy")), Seq(
-      MustSay("Dafny program verifier finished with 1 verified, 1 error"),
-      ExpectVerdict(Verdict.Error)
     )),
     "!carbon-pass" -> Task(carbon.withArgs(selfTest("test-pass.sil")), Seq(
       MustSay("No errors found.")
