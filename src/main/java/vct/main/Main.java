@@ -124,10 +124,6 @@ public class Main
       BooleanSetting abruptTerminationViaExceptions = new BooleanSetting(false);
       clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions");
 
-
-      BooleanSetting explicit_encoding=new BooleanSetting(false);
-      clops.add(explicit_encoding.getEnable("explicit encoding"),"explicit");
-
       BooleanSetting global_with_field=new BooleanSetting(false);
       clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"),"global-with-field");
 
@@ -442,12 +438,6 @@ public class Main
           passes.add("standardize");
           passes.add("check");
           passes.add("check-history");
-          passes.add("standardize");
-          passes.add("check");
-        }
-
-        if (explicit_encoding.get()){
-          passes.add("explicit_encoding"); // magic wand paper: for passing around predicates witnesses. In chalice predicates do not have arguments, except 'this'. So we're making data-types to pass around witnesses. Not necessary for silicon.
           passes.add("standardize");
           passes.add("check");
         }
@@ -819,11 +809,6 @@ public class Main
       public ProgramUnit apply(ProgramUnit arg,String ... args){
         arg=new GenericPass1(arg).rewriteAll();
         return arg;
-      }
-    });
-    defined_passes.put("explicit_encoding",new CompilerPass("encode required and ensured permission as ghost arguments"){
-      public ProgramUnit apply(ProgramUnit arg,String ... args){
-        return new ExplicitPermissionEncoding(arg).rewriteAll();
       }
     });
     defined_passes.put("finalize_args",new CompilerPass("???"){
