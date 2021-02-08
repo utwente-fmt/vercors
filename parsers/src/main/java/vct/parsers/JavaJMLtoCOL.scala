@@ -819,7 +819,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       builder.context(expr(exp))
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
-    case ValContractClause9(_signals, _, signalsType, name, _, condition, _) =>
+    case ValContractClause9(_kernel_invariant, exp, _) =>
+      builder.appendKernelInvariant(expr(exp))
+    case ValContractClause10(_signals, _, signalsType, name, _, condition, _) =>
       builder.signals(origin(clause, new SignalsClause(convertID(name), convertType(signalsType), expr(condition))))
   }
 

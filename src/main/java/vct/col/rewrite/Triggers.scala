@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{Binder, BindingExpression, Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression}
+import vct.col.ast.expr.{Binder, BindingExpression, Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
@@ -106,7 +106,7 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
     val names = decls.map(_.name).toSet
 
     try {
-      computeTriggers(names, body) match {
+      computeTriggers(names, create.expression(StandardOperator.Implies, cond, body)) match {
         case Seq() => None
         case Seq(set) => Some(Set(set))
         case triggers => body match {

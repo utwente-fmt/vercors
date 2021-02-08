@@ -30,6 +30,11 @@ jobs:
         with:
           java-version: "11"
       # Currently sbt and fakeroot are installed by default
+      - name: Debug step 1
+        run: |
+          printf "${JAVA_HOME}\n"
+          ls $JAVA_HOME
+          ls $JAVA_HOME/bin
       - run: sbt debian:packageBin
       - name: Archive VerCors .deb
         uses: actions/upload-artifact@v2
@@ -38,6 +43,11 @@ jobs:
           retention-days: 1
           path: |
             target/*.deb
+      - name: Debug step 2
+        run: |
+          printf "${JAVA_HOME}\n"
+          ls $JAVA_HOME
+          ls $JAVA_HOME/bin
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         env:
@@ -45,6 +55,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # SONAR_TOKEN is set in the secrets section of the github repo
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # Avoid "java not found" error (see: https://community.sonarsource.com/t/cannot-run-sonarsource-sonarcloud-github-action-master-java-not-found/14922/3)
+          JAVA_HOME: '' 
     
       # If this is the dev branch we also want to build the .txz binary for the release
       - name: Build mac binary

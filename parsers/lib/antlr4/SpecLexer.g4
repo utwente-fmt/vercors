@@ -32,6 +32,8 @@ VAL_ZFRAC: 'zfrac';
 VAL_BOOL: 'bool';
 VAL_RATIONAL: 'rational';
 VAL_SEQ: 'seq';
+VAL_SET: 'set';
+VAL_POINTER: 'pointer';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
@@ -50,6 +52,7 @@ VAL_ENSURES: 'ensures';
 VAL_CONTEXT_EVERYWHERE: 'context_everywhere';
 VAL_CONTEXT: 'context';
 VAL_LOOP_INVARIANT: 'loop_invariant';
+VAL_KERNEL_INVARIANT: 'kernel_invariant';
 VAL_SIGNALS: 'signals';
 
 VAL_CREATE: 'create';
@@ -114,6 +117,7 @@ WRITE: 'write';
 READ: 'read';
 EMPTY: 'empty';
 
+CONS: '::';
 FRAC_DIV: '\\';
 SEP_CONJ: '**';
 IMPLIES: '==>';

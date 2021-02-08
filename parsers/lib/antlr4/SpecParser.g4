@@ -37,6 +37,7 @@ valContractClause
  | 'context_everywhere' langExpr ';'
  | 'context' langExpr ';'
  | 'loop_invariant' langExpr ';'
+ | 'kernel_invariant' langExpr ';'
  | 'signals' '(' langType langId ')' langExpr ';'
  ;
 
@@ -122,6 +123,14 @@ valPrimary
     | 'Reducible' '(' langExpr ',' valReducibleOperator ')'
     | langId ':' langExpr
     | '{:' langExpr ':}'
+    | 'seq' '<' langType '>' '{' valExpressionList '}'
+    | 'set' '<' langType '>' '{' valExpressionList '}'
+    | '(' langExpr '[' '..' langExpr ']' ')'
+    | '(' langExpr '[' langExpr '..' langExpr? ']' ')'
+    | '(' langExpr '[' langExpr '->' langExpr ']' ')'
+    | '(' langExpr '::' langExpr ')'
+    | '(' langExpr '++' langExpr ')'
+    | '(' langExpr '\\in' langExpr ')'
     ;
 
 valReducibleOperator
@@ -136,7 +145,7 @@ valReserved
     | VAL_CREATE | VAL_QED | VAL_APPLY | VAL_USE | VAL_DESTROY | VAL_SPLIT | VAL_MERGE | VAL_CHOOSE | VAL_FOLD
     | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS
     | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE
-    | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS )
+    | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS | VAL_KERNEL_INVARIANT | VAL_SET | VAL_POINTER)
  | '\\result'
  | '\\current_thread'
  | 'none' // No permission
@@ -151,6 +160,8 @@ valReserved
 valType
  : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool')
  | 'seq' '<' langType '>'
+ | 'set' '<' langType '>'
+ | 'pointer' '<' langType '>'
  ;
 
 valDeclaration

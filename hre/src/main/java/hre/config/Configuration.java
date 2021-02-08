@@ -16,6 +16,14 @@ import static hre.lang.System.Failure;
  *
  */
 public class Configuration {
+    // When we move to scala 3 this can maybe be refactored to a scala enum
+    public enum OS {
+        WINDOWS,
+        MAC,
+        UNIX,
+        UNKNOWN
+    }
+
     /**
      * Switch behavior of witness encoding.
      */
@@ -157,14 +165,14 @@ public class Configuration {
 
     public static File getZ3Path() {
         File base = getFileOrAbort("/deps/z3/4.8.6");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
-            return join(base, "Windows NT", "intel", "bin", "z3.exe");
-        } else if(os.startsWith("Mac")) {
-            return join(base, "Darwin", "x86_64", "bin", "z3");
-        } else {
-            return join(base, "Linux", "x86_64", "bin", "z3");
+        switch (getOS()) {
+            case WINDOWS:
+                return join(base, "Windows NT", "intel", "bin", "z3.exe");
+            case MAC:
+                return join(base, "Darwin", "x86_64", "bin", "z3");
+            default:
+                return join(base, "Linux", "x86_64", "bin", "z3");
         }
     }
 
@@ -178,9 +186,8 @@ public class Configuration {
 
     public static File getBoogiePath() {
         File base = getFileOrAbort("/deps/boogie/2012-10-22/");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
+        if(getOS() == OS.WINDOWS) {
             return join(base, "windows", "bin");
         } else {
             return join(base, "unix", "bin");
@@ -189,9 +196,8 @@ public class Configuration {
 
     public static File getDafnyPath() {
         File base = getFileOrAbort("/deps/dafny/1.9.6/");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
+        if (getOS() == OS.WINDOWS) {
             return join(base, "windows");
         } else {
             return join(base, "unix");
@@ -247,6 +253,9 @@ public class Configuration {
         env.addArg("-Xss128M");
         env.addArg("-cp", System.getProperty("java.class.path"));
         env.addArg("vct.main.Main");
+        if(System.getenv("TEMP") != null) {
+            env.setEnvironmentVar("TEMP", System.getenv("TEMP"));
+        }
         return env;
     }
 
@@ -266,5 +275,18 @@ public class Configuration {
         env.addArg("-cp", System.getProperty("java.class.path"));
         env.addArg("viper.api.SiliconVerifier");
         return env;
+    }
+
+    public static OS getOS() {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return OS.WINDOWS;
+        } else if (os.contains("mac")) {
+            return OS.MAC;
+        } else if (os.contains("nix") || os.contains("linux")) {
+            return OS.UNIX;
+        } else {
+            return OS.UNKNOWN;
+        }
     }
 }

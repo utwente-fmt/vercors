@@ -634,4 +634,9 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(SignalsClause sc) {
     return null;
   }
+
+  @Override
+  public E map(KernelInvocation ki) {
+    return null;
+  }
 }

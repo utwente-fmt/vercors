@@ -58,6 +58,8 @@ public class ColIParser implements Parser {
     pu=new ConvertTypeExpressions(pu).rewriteAll();
     Progress("converting type expressions took %dms",tk.show());
     Debug("after converting type expression %s",pu);
+
+    pu = new KernelInvocationToMethodInvocation(pu).rewriteAll();
         
     pu=new VerCorsDesugar(pu).rewriteAll();
     Progress("Desugaring took %dms",tk.show());
