@@ -98,11 +98,11 @@ public class Main
       CommandLineTesting.addOptions(clops);
 
       final BooleanSetting check_defined=new BooleanSetting(false);
-      clops.add(check_defined.getEnable("check if defined processes satisfy their contracts."),"check-defined");
+      clops.add(check_defined.getEnable("Check if the process-algebraic specification itself satisfies its contract."),"check-defined");
       final BooleanSetting check_axioms=new BooleanSetting(false);
-      clops.add(check_axioms.getEnable("check if defined processes satisfy their contracts."),"check-axioms");
+      clops.add(check_axioms.getEnable("Check if defined processes satisfy their contracts."),"check-axioms");
       final BooleanSetting check_history=new BooleanSetting(false);
-      clops.add(check_history.getEnable("check if defined processes satisfy their contracts."),"check-history");
+      clops.add(check_history.getEnable("Check if the program correctly implements the process-algebraic specification."),"check-history");
 
       final BooleanSetting separate_checks=new BooleanSetting(false);
       clops.add(separate_checks.getEnable("validate classes separately"),"separate");
