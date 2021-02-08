@@ -133,8 +133,6 @@ public class Main
       BooleanSetting explicit_encoding=new BooleanSetting(false);
       clops.add(explicit_encoding.getEnable("explicit encoding"),"explicit");
 
-      clops.add_removed("the inline option was removed in favor of the inline modifer","inline");
-
       BooleanSetting global_with_field=new BooleanSetting(false);
       clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"),"global-with-field");
 

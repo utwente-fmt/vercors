@@ -130,13 +130,6 @@ public class OptionParser {
       System.exit(0);
     }
   }
-
-  public void add_removed(final String message,Object ... options) {
-    add(new AbstractOption(false,false,message){
-      public void pass(){
-        Fail("%s",message);
-      }
-    },options);
-  }
+  
 }
 
