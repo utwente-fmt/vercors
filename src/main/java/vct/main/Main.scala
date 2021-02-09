@@ -1,5 +1,3 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.main
 
 import java.io._
@@ -204,38 +202,38 @@ class Main {
 
   private def collectPassesForBoogie: Seq[AbstractPass] = {
     var passes = Seq(
-      BY_KEY("java_resolve"), // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
+      BY_KEY("loadExternalClasses"), // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
       BY_KEY("standardize"), // a rewriter s.t. only a subset of col will have to be supported
-      BY_KEY("check"), // type check col. Add annotations (the types) to the ast.
-      BY_KEY("rewrite_arrays"), // array generation and various array-related rewrites
-      BY_KEY("check"),
-      BY_KEY("flatten"), // expressions that contain method calls (possibly having side-effects) are put into separate statements.
-      BY_KEY("assign"), // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
-      BY_KEY("finalize_args"), // declare new variables to never have to change the arguments (which isn't allowed in silver)
-      BY_KEY("reorder"), // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
+      BY_KEY("checkTypes"), // type check col. Add annotations (the types) to the ast.
+      BY_KEY("desugarArrayOps"), // array generation and various array-related rewrites
+      BY_KEY("checkTypes"),
+      BY_KEY("flattenNestedExpressions"), // expressions that contain method calls (possibly having side-effects) are put into separate statements.
+      BY_KEY("inlineAssignmentToStatement"), // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
+      BY_KEY("finalizeArguments"), // declare new variables to never have to change the arguments (which isn't allowed in silver)
+      BY_KEY("collectDeclarations"), // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
     )
 
     if (infer_modifies.get) {
       passes ++= Seq(
         BY_KEY("standardize"),
-        BY_KEY("check"),
-        BY_KEY("modifies"), // modifies is mandatory. This is how to automatically add it
+        BY_KEY("checkTypes"),
+        BY_KEY("deriveModifies"), // modifies is mandatory. This is how to automatically add it
       )
     }
 
     passes ++= Seq(
       BY_KEY("standardize"),
-      BY_KEY("check"),
+      BY_KEY("checkTypes"),
       BY_KEY("voidcalls"), // all methods in Boogie are void, so use an out parameter instead of 'return..'
       BY_KEY("standardize"),
-      BY_KEY("check"),
-      BY_KEY("flatten"),
-      BY_KEY("reorder"),
+      BY_KEY("checkTypes"),
+      BY_KEY("flattenNestedExpressions"),
+      BY_KEY("collectDeclarations"),
       BY_KEY("standardize"),
-      BY_KEY("check"),
+      BY_KEY("checkTypes"),
       BY_KEY("strip_constructors"), // somewhere in the parser of Java, constructors are added implicitly. They need to be taken out again.
       BY_KEY("standardize"),
-      BY_KEY("check"),
+      BY_KEY("checkTypes"),
       BY_KEY("boogie"), // run backend
     )
 
@@ -243,12 +241,12 @@ class Main {
   }
 
   private def collectPassesForDafny: Seq[AbstractPass] = Seq(
-    BY_KEY("java_resolve"),
+    BY_KEY("loadExternalClasses"),
     BY_KEY("standardize"),
-    BY_KEY("check"),
+    BY_KEY("checkTypes"),
     BY_KEY("voidcalls"),
     BY_KEY("standardize"),
-    BY_KEY("check"),
+    BY_KEY("checkTypes"),
     BY_KEY("dafny"),
   )
 
@@ -267,82 +265,82 @@ class Main {
   case class Choose(choices: Seq[ChainPart]*) extends ChainPart
 
   val silverPassOrder: Seq[ChainPart] = Seq(
-    "spec-ignore",
-    "flatten_variable_declarations",
-    "string-class",
-    "type-expressions",
-    "java_resolve",
+    "removeIgnoredElements",
+    "splitCompositeDeclarations",
+    "stringClassToPrimitive",
+    "resolveTypeExpressions",
+    "loadExternalClasses",
     "standardize",
-    "interpret-annotations",
-    "top-level-decls",
-    "unused-extern",
-    "lock-invariant-proof",
-    "unfold-synchronized",
-    "pvl-encode",
-    "specify-implicit-labels",
-    "unfold-switch",
-    "zero-constructor",
-    "java-encode",
-    "array_null_values",
-    "finalize_args",
-    "action-header",
-    "sat_check",
-    "standardize-functions",
-    "sort-before-after",
+    "interpretMethodAnnotations",
+    "wrapTopLevelDeclarations",
+    "removeUnusedExternMethods",
+    "encodeLockInvariantProof",
+    "synchronizedToTryFinally",
+    "encodeForkLockWait",
+    "specifyImplicitLoopLabels",
+    "switchToIfChain",
+    "addDefaultConstructor",
+    "propagateAbstractMethodContracts",
+    "arrayNullValuesToNone",
+    "finalizeArguments",
+    "actionHeaderToActionBlock",
+    "addRequirementSatCheck",
+    "pureMethodsToFunctions",
+    "sortWithThen",
     Choose(
       Seq(),
-      Seq("access", "check-history"),
-      Seq("access", "check-axioms"),
-      Seq("access", "check-defined"),
+      Seq("dereferenceToFieldAccess", "checkHistory"),
+      Seq("dereferenceToFieldAccess", "checkAxioms"),
+      Seq("dereferenceToFieldAccess", "checkDefined"),
     ),
-    "adt_operator_rewrite",
-    "assign",
-    "continue-to-break",
+    "desugarADTOperators",
+    "inlineAssignmentToStatement",
+    "continueToBreak",
     Choose(
-      Seq("break-return-to-exceptions"),
-      Seq("break-return-to-goto"),
+      Seq("breakReturnToExceptions"),
+      Seq("breakReturnToGoto"),
     ),
-    "current_thread",
-    "globalize",
-    "infer_adt_types",
-    "kernel-split",
-    "local-variable-check",
-    "magicwand",
+    "encodeCurrentThread",
+    "collectStaticFields",
+    "inferADTElementTypes",
+    "encodeKernelClass",
+    "checkAssignInPar",
+    "encodeMagicWands",
     "inline",
-    "csl-encode",
-    "openmp2pvl",
-    "propagate-invariants",
+    "inlineAtomicMethods",
+    "openMPToParallelBlocks",
+    "propagateInvariants",
     "dummy-InvariantsPropagatedHere",
-    "pvl-compile",
-    "simplify_quant_relations",
-    "ghost-lift",
-    "flatten_before_after",
-    "inline-atomic",
-    "parallel_blocks",
+    "compileToJava",
+    "simplifyQuantifiedIntegerRelations",
+    "liftGhostCode",
+    "inlineWithThenHints",
+    "inlineParallelAtomics",
+    "encodeParallelBlocks",
     Choose(
-      Seq("lift_declarations", "pointers_to_arrays_lifted"),
-      Seq("pointers_to_arrays"),
+      Seq("stackLocationsToHeapLocations", "pointersToArraysLifted"),
+      Seq("pointersToArrays"),
     ),
-    "desugar_valid_pointer",
-    "simplify_quant",
-    "simplify_sums",
-    "silver-optimize",
-    "vector-encode",
-    "generate_adt_functions",
-    "intro-exc-var",
-    "rewrite_arrays",
-    "flatten",
-    "add-type-adt",
-    "encode-try-throw-signals",
-    "silver-class-reduction",
-    "create-return-parameter",
-    "quant-optimize",
-    "inline-pattern-to-trigger",
-    "gen-triggers",
-    "scale-always",
-    "silver-reorder",
-    "reorder",
-    "silver",
+    "desugarValidPointer",
+    "simplify",
+    "simplifySums",
+    "optimizeForSilver",
+    "encodeVectorBlocks",
+    "adtOperatorsToFunctions",
+    "introExcVar",
+    "desugarArrayOps",
+    "flattenNestedExpressions",
+    "encodeInheritanceToDomain",
+    "tryThrowSignalsToGoto",
+    "importADTsAndAlsoEncodeThisAndConstructorsAndContextEverywhere",
+    "returnTypeToOutParameter",
+    "reduceQuantifierNesting",
+    "inlinePatternsToTriggers",
+    "generateQuantifierTriggers",
+    "scaleAllPredicateApplications",
+    "collectInnerDeclarations",
+    "collectDeclarations",
+    "applySilicon",
   )
 
   def validChain(chain: Seq[AbstractPass], featuresIn: Set[Feature]): Boolean = {
@@ -407,7 +405,7 @@ class Main {
   }
 
   def collectPassesForSilver: Seq[AbstractPass] = {
-    report = Passes.BY_KEY("java-check").apply_pass(report, Array())
+    report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
 
     var features = Feature.scan(report.getOutput) ++ Set(
       // These are "gated" features: they are (too) hard to detect normally.
@@ -488,7 +486,7 @@ class Main {
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
 
-      report = BY_KEY("java-check").apply_pass(report, Array())
+      report = BY_KEY("checkTypesJava").apply_pass(report, Array())
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
