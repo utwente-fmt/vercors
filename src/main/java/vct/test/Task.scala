@@ -21,7 +21,7 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
   var fail_methods: mutable.Set[String] = mutable.HashSet()
 
   override def call(): Seq[FailReason] = {
-    hre.lang.System.Output("Starting: %s", env.getInvocation)
+//    hre.lang.System.Output("Starting: %s", env.getInvocation)
 
     val p = env.startProcess()
 
@@ -46,7 +46,7 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
         case "stdout: %s" | "stderr: %s" =>
           val line = msg.getArg(0).asInstanceOf[String]
 
-          Output("[vercors worker output] %s", line)
+//          Output("[vercors worker output] %s", line)
 
           val lineMatcher = TIME_PATTERN.matcher(line)
           if(lineMatcher.find()) {
