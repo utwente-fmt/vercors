@@ -308,6 +308,7 @@ public class Configuration {
         env.addArg("--version");
         MessageProcess mp = env.startProcess();
         while (!mp.isFinished()) {
+            Output("Waiting for termination of \"mono --version\"...");
             // Wait for termination or timeout
         }
         List<Message> messages = mp.recvAll();

@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MessageProcessEnvironment {
   private HashMap<String, String> environment = new HashMap<>();
@@ -86,5 +85,16 @@ public class MessageProcessEnvironment {
     argv.add(0, this.process);
 
     return new MessageProcess(workingDirectory, argv.toArray(new String[0]), env);
+  }
+
+  public String getInvocation() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(process);
+    sb.append(" ");
+    for (String arg : args) {
+      sb.append(arg);
+      sb.append(" ");
+    }
+    return sb.toString();
   }
 }
