@@ -2,20 +2,26 @@ package vct.java
 
 import java.io.File
 import java.nio.file.{Path, Paths}
-
 import hre.ast.{FileOrigin, MessageOrigin}
-import vct.col.ast.`type`.{PrimitiveSort, Type}
-import vct.col.ast.stmt.decl.{ASTClass, Method, NameSpace}
+import vct.col.ast.`type`.{ClassType, PrimitiveSort, Type}
+import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, NameSpace}
 import vct.col.ast.util.{ASTFactory, ClassName, ExternalClassLoader, SequenceUtils}
 import vct.parsers.ColJavaParser
 import vct.parsers.rewrite.RemoveBodies
 
+import java.lang.reflect.{Modifier, Parameter}
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 object ASTClassLoader extends ExternalClassLoader {
   // PB: dumb java hack (is there no better way?)
   val INSTANCE: ExternalClassLoader = this
+
+  val METHOD_ALLOW_LIST: Set[String] = Set(
+    "printStackTrace",
+    "getMessage",
+  )
 
   private val REFLECTION_CACHE = mutable.Map[Seq[String], Option[ASTClass]]()
   private val FILE_CACHE = mutable.Map[(Path, Seq[String]), Option[ASTClass]]()
@@ -67,7 +73,7 @@ object ASTClassLoader extends ExternalClassLoader {
     }
   }
 
-  private def jvmTypeToCOL[T](create: ASTFactory[_], t: Class[T]): Type = t match {
+  private def jvmTypeToCOL(create: ASTFactory[_])(t: Class[_]): Type = t match {
     case java.lang.Boolean.TYPE => create primitive_type PrimitiveSort.Boolean
     case java.lang.Character.TYPE => create primitive_type PrimitiveSort.Char
     case java.lang.Byte.TYPE => create primitive_type PrimitiveSort.Byte
@@ -78,8 +84,18 @@ object ASTClassLoader extends ExternalClassLoader {
     case java.lang.Double.TYPE => create primitive_type PrimitiveSort.Double
     case java.lang.Void.TYPE => create primitive_type PrimitiveSort.Void
     case str if str.getCanonicalName == "java.lang.String" => create primitive_type PrimitiveSort.String
-    case arr if arr.isArray => SequenceUtils.optArrayCell(create, jvmTypeToCOL(create, arr.getComponentType))
+    case arr if arr.isArray => SequenceUtils.optArrayCell(create, jvmTypeToCOL(create)(arr.getComponentType))
     case cls => create class_type(cls.getCanonicalName.split('.'))
+  }
+
+  private def jvmParameterToCOL(create: ASTFactory[_])(p: Parameter): DeclarationStatement =
+    create field_decl(p.getName, jvmTypeToCOL(create)(p.getType))
+
+  @tailrec
+  private def isThrowable(t: Class[_]): Boolean = t.getCanonicalName match {
+    case "java.lang.Throwable" => true
+    case "java.lang.Object" => false
+    case _ => isThrowable(t.getSuperclass)
   }
 
   private def loadReflectively(name: Seq[String]): Option[ASTClass] = REFLECTION_CACHE.getOrElseUpdate(name, {
@@ -96,15 +112,36 @@ object ASTClassLoader extends ExternalClassLoader {
         Option(jvmClass.getSuperclass).map(`super` => create.class_type(`super`.getCanonicalName.split('.'))).orNull
       )
 
-      // Very limited: only import parameter-less constructors and the fields
-      jvmClass.getConstructors.filter(_.getParameterCount == 0).foreach(cons => {
+      jvmClass.getConstructors.filter(_.getParameterTypes.forall(isThrowable)).foreach(cons => {
         `class`.add_dynamic(
           create.method_kind(
             Method.Kind.Constructor,
             create primitive_type PrimitiveSort.Void,
             null,
             jvmClass.getSimpleName,
-            Array(),
+            cons.getParameters.map(jvmParameterToCOL(create)),
+            null
+          )
+        )
+      })
+
+      jvmClass.getMethods.filter(m => Seq(
+        METHOD_ALLOW_LIST.contains(m.getName),
+        m.getParameterCount == 0,
+        Modifier.isPublic(m.getModifiers),
+        !Modifier.isStatic(m.getModifiers),
+        !m.isBridge,
+        !m.isVarArgs,
+      ).forall(identity)).foreach(m => {
+        `class`.add_dynamic(
+          create.method_kind(
+            Method.Kind.Plain,
+            jvmTypeToCOL(create)(m.getReturnType),
+            m.getExceptionTypes.map(jvmTypeToCOL(create)),
+            null,
+            m.getName,
+            m.getParameters.map(jvmParameterToCOL(create)),
+            false,
             null
           )
         )
@@ -112,7 +149,7 @@ object ASTClassLoader extends ExternalClassLoader {
 
       jvmClass.getFields.foreach(field => {
         `class`.add_dynamic(
-          create.field_decl(field.getName, jvmTypeToCOL(create, field.getType))
+          create.field_decl(field.getName, jvmTypeToCOL(create)(field.getType))
         )
       })
 
