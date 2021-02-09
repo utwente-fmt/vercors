@@ -117,10 +117,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     if (decl == null) {
       cl = ASTClassLoader.load(t.getNameFull(), currentNamespace);
       decl = cl;
-
-      if (cl != null) {
-        cl.accept(this);
-      }
     }
     if (decl == null) {
       Fail("type error: defined type "+t.getFullName()+" not found");
