@@ -729,7 +729,7 @@ object Passes {
         features.NestedQuantifiers,
         features.InlineQuantifierPattern,
       )),
-    SimplePass("importADTsAndAlsoEncodeThisAndConstructorsAndContextEverywhere",
+    SimplePass("importADTsAndRefEncode",
       "reduce classes to single Ref class",
       new SilverClassReduction(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT + features.TopLevelImplementedMethod + features.TopLevelMethod,

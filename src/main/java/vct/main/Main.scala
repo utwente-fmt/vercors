@@ -332,7 +332,7 @@ class Main {
     "flattenNestedExpressions",
     "encodeInheritanceToDomain",
     "tryThrowSignalsToGoto",
-    "importADTsAndAlsoEncodeThisAndConstructorsAndContextEverywhere",
+    "importADTsAndRefEncode",
     "returnTypeToOutParameter",
     "reduceQuantifierNesting",
     "inlinePatternsToTriggers",
