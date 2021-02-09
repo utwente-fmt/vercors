@@ -405,6 +405,8 @@ class Main {
       report = Passes.BY_KEY("pvl").apply_pass(report, Array())
     }
 
+    report = Passes.BY_KEY("java-check").apply_pass(report, Array())
+
     if (Configuration.enable_gpu_optimizations.get()) {
       report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
       show(Passes.BY_KEY("unroll_loops"))
@@ -413,7 +415,6 @@ class Main {
     }
 
 
-    report = Passes.BY_KEY("java-check").apply_pass(report, Array())
 
     var features = Feature.scan(report.getOutput) ++ Set(
       // These are "gated" features: they are (too) hard to detect normally.

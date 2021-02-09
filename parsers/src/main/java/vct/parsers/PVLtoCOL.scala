@@ -232,6 +232,14 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case None => Seq()
   }
 
+  def convertExpSeq(args: ExprSeqContext): Seq[ASTNode] = args match {
+    case ExprSeq0(exp) =>
+      Seq(expr(exp))
+    case ExprSeq1(exp, expList) =>
+      expr(exp) +: convertExpSeq(expList)
+  }
+
+
   def convertExpList(args: ExprListContext): Seq[ASTNode] = args match {
     case ExprList0(exp) =>
       Seq(expr(exp))
@@ -589,13 +597,19 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Statement14("atomic", "(", invariants, ")", block) =>
       create parallel_atomic(convertBlock(block), convertIDList(invariants):_*)
     case Statement15(maybeGPUopt, invariants, "while", "(", cond, ")", body) =>
-      create while_loop(expr(cond), flattenIfSingleStatement(convertStat(body)), convertContract(invariants))
+      create while_loop(
+        expr(cond),
+        flattenIfSingleStatement(convertStat(body)),
+        maybeGPUopt.map(convertGPUOpt).orNull,
+        convertContract(invariants)
+      )
     case Statement16(maybeGPUopt, invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
       create for_loop(
         maybeInit.map(convertStatList).map(create block(_:_*)).orNull,
         maybeCond.map(expr).getOrElse(create constant true),
         maybeUpdate.map(convertStatList).map(create block(_:_*)).orNull,
         flattenIfSingleStatement(convertStat(body)),
+        maybeGPUopt.map(convertGPUOpt).get,
         convertContract(invariants)
       )
     case Statement17(block) => convertBlock(block)
@@ -620,6 +634,16 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case AllowedForStatement3(target, "=", exp) =>
       create assignment(expr(target), expr(exp))
   }))
+
+  def convertGPUOpt(tree: GpuoptContext): GPUOpt = tree match {
+    case Gpuopt0("gpuopt", name, maybeExprSeq, ";") => create gpuoptimization (
+      name match {
+        case GpuOptimization0(name) => GPUOptName.LoopUnroll
+        case _ => fail(tree, "unsupported optimization")
+      },
+      maybeExprSeq.map(convertExpSeq).get.asJava
+    )
+  }
 
   def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {
     case ForStatementList0(x) => convertStat(x)

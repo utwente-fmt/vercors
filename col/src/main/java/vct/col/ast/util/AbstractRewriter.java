@@ -375,7 +375,12 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     //checkPermission(e);
     result=new ConstantExpression(e.value(),e.getType(),e.getOrigin());
   }
-  
+
+  @Override
+  public void visit(GPUOpt o) {
+    result= create.gpuoptimization(o.name(), rewrite(o.argsJava()));
+  }
+
   @Override
   public void visit(DeclarationStatement s) {
     //checkPermission(s);
@@ -450,6 +455,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     if (tmp!=null) res.setEntryGuard(tmp.apply(this));
     tmp=s.getExitGuard();
     if (tmp!=null) res.setExitGuard(tmp.apply(this));
+    res.setUnroll(rewrite(s.getUnroll()));
     res.appendContract(rewrite(s.getContract()));
     tmp=s.getBody();
     res.setBody(tmp.apply(this));

@@ -272,7 +272,12 @@ idArg: identifier | '*';
 invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
 
-gpuopt: 'gpuopt' gpuOptimization (expr)* ';';
+gpuopt: 'gpuopt' gpuOptimization exprSeq? ';';
+
+exprSeq
+    : expr
+    | expr exprSeq
+    ;
 
 gpuOptimization
  : 'loop_unroll'

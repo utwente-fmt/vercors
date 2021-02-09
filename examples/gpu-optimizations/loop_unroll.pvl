@@ -9,12 +9,15 @@ class LoopUnrollExample {
 	void zero(int N, int[] ar) {
 		int i = 0;
 
+
         gpuopt loop_unroll i 2;
     	loop_invariant N == 5;
-		loop_invariant 0 <= i && i <= N;
+    	loop_invariant 0 <= i && i <= N;
+		//loop_invariant ??? <= i;
+		//loop_invariant i <= N;
 		loop_invariant (\forall* int j; 0 <= j && j < N; Perm(ar[j], write));
 		loop_invariant (\forall int j; 0 <= j && j < i; ar[j] == 0);
-		while(i < N) {
+		while(i <= N) {
 			ar[i] = 0;
 			i = i + 1;
 		}

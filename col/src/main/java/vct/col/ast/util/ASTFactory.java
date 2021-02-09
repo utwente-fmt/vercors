@@ -1,6 +1,8 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.col.ast.util;
 
+import scala.collection.JavaConverters;
+import scala.collection.JavaConverters.*;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -403,6 +405,17 @@ public class ASTFactory<E> implements FrameControl {
   }
 
   /**
+   * Create a name expression that refers to a field name.
+   */
+  public GPUOpt gpuoptimization(GPUOptName name, List<ASTNode> args) {
+    GPUOpt res=new GPUOpt(name, JavaConverters.asScalaBuffer(args).toList());
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+
+  /**
    * Fold left of a non-empty list. 
    * 
    * @param op Operator to fold with.
@@ -492,13 +505,14 @@ public class ASTFactory<E> implements FrameControl {
       return for_loop(init, test, update, body, Arrays.asList(invariant));
     }
           
-    public LoopStatement for_loop(ASTNode init, ASTNode test, ASTNode update, ASTNode body,Contract contract){
+    public LoopStatement for_loop(ASTNode init, ASTNode test, ASTNode update, ASTNode body, GPUOpt gpuopt, Contract contract){
       LoopStatement res=new LoopStatement();
       res.setEntryGuard(test);
       res.setInitBlock(init);
       res.setUpdateBlock(update);
       res.setBody(body);
       res.setOrigin(origin_stack.get());
+      res.setUnroll(gpuopt);
       res.setContract(contract);
       res.accept_if(post);
       return res;    
@@ -1115,25 +1129,35 @@ public VariableDeclaration variable_decl(Type type) {
 /**
  * Create a new while loop.
  */
-public LoopStatement while_loop(ASTNode test,ASTNode body,ASTNode ... invariant){
+public LoopStatement while_loop(ASTNode test,ASTNode body, ASTNode ... invariant) {
+  return while_loop(test,body, null, invariant);
+}
+
+public LoopStatement while_loop (ASTNode test,ASTNode body, GPUOpt gpuopt, ASTNode ... invariant){
   LoopStatement res=new LoopStatement();
   res.setEntryGuard(test);
   res.setBody(body);
   res.setOrigin(origin_stack.get());
+  res.setUnroll(null);
   for (ASTNode inv:invariant) res.appendInvariant(inv);
   res.fixate();
   res.accept_if(post);
-  return res;    
+  return res;
 }
 
 /**
  * Create a new while loop.
  */
-public LoopStatement while_loop(ASTNode test,ASTNode body,Contract contract){
+public LoopStatement while_loop(ASTNode test,ASTNode body, Contract contract) {
+  return while_loop(test,body, null, contract);
+}
+
+public LoopStatement while_loop(ASTNode test,ASTNode body, GPUOpt gpuOpt, Contract contract){
   LoopStatement res=new LoopStatement();
   res.setEntryGuard(test);
   res.setBody(body);
   res.setOrigin(origin_stack.get());
+  res.setUnroll(gpuOpt);
   res.setContract(contract);
   res.accept_if(post);
   return res;    

@@ -1,5 +1,8 @@
 package vct.col.ast.print;
 
+import scala.collection.Iterator;
+import scala.collection.JavaConverters.*;
+
 import hre.ast.TrackingOutput;
 import hre.ast.TrackingTree;
 import hre.lang.HREError;
@@ -37,6 +40,12 @@ public class PVLPrinter extends AbstractPrinter{
     public PVLPrinter(TrackingOutput out) {
         super(PVLSyntax.get(),out);
     }
+
+    /**
+     * Flag set before visiting loop invariants.
+     */
+    private boolean loopcontract = false;
+
 
     public void visit(TypeVariable v){
         out.print(v.name());
@@ -593,7 +602,7 @@ public class PVLPrinter extends AbstractPrinter{
                 out.lnprintf("");
             }
             for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
-                out.printf("loop_invariant ");
+                out.printf((loopcontract) ? "loop_invariant ": "context_everywhere ");
                 nextExpr();
                 e.accept(this);
                 out.lnprintf(";");
@@ -988,8 +997,21 @@ public class PVLPrinter extends AbstractPrinter{
         }
     }
 
+    public void visit(GPUOpt o) {
+        if (o == null) return;
+        out.printf("gpuopt ");
+        out.printf(o.name().toString() + " ");
+        Iterator<ASTNode> argsit = o.args().iterator();
+        print_tuple(" ", "", "", o.argsJava().toArray(new ASTNode[0]));
+        out.lnprintf(";");
+    }
+
     public void visit(LoopStatement s){
+        visit(s.getUnroll());
+        loopcontract = true;
         visit(s.getContract());
+        loopcontract = false;
+
         ASTNode tmp;
         if (s.getInitBlock()!=null || s.getUpdateBlock()!=null){
             out.printf("for(");
@@ -1054,16 +1076,20 @@ public class PVLPrinter extends AbstractPrinter{
         }
     }
 
-    private void print_tuple(ASTNode ... args){
-        out.print("(");
+        private void print_tuple(ASTNode ... args) {
+            print_tuple(",", "(", ")", args);
+        }
+
+        private void print_tuple(String delimiter, String prefix, String suffix, ASTNode ... args){
+        out.print(prefix);
         String sep="";
         for(ASTNode n:args){
             out.print(sep);
             nextExpr();
             n.accept(this);
-            sep=",";
+            sep=delimiter;
         }
-        out.print(")");
+        out.print(suffix);
     }
 
     public void visit(MethodInvokation s){
@@ -1156,6 +1182,22 @@ public class PVLPrinter extends AbstractPrinter{
                 if (nrofargs!=1){
                     Fail("Option type constructor with %d arguments instead of 1",nrofargs);
                 }
+
+                if (t.firstarg() instanceof PrimitiveType &&
+                        ((PrimitiveType) t.firstarg()).sort == PrimitiveSort.Array &&
+                        ((PrimitiveType) t.firstarg()).nrOfArguments() == 1 &&
+                        ((PrimitiveType) t.firstarg()).firstarg() instanceof PrimitiveType &&
+                        ((PrimitiveType) ((PrimitiveType) t.firstarg()).firstarg()).sort == PrimitiveSort.Cell &&
+                        ((PrimitiveType) ((PrimitiveType) t.firstarg()).firstarg()).nrOfArguments() == 1
+                ) {
+                    PrimitiveType cell = ((PrimitiveType) ((PrimitiveType) t.firstarg()).firstarg());
+
+                    //TODO make this general for multidimentional arrays
+                    cell.firstarg().apply(this);
+                    out.printf("[]");
+                    break;
+                }
+
                 out.printf("option<");
                 t.firstarg().accept(this);
                 out.printf(">");
@@ -1304,14 +1346,16 @@ public class PVLPrinter extends AbstractPrinter{
 
     @Override
     public void visit(VariableDeclaration decl){
-        decl.basetype.accept(this);
+//        decl.basetype.accept(this);
         String sep=" ";
         for(ASTDeclaration dd:decl.get()){
             out.print(sep);
             sep=",";
             if (dd instanceof DeclarationStatement){
                 DeclarationStatement d = (DeclarationStatement)dd;
-                d.getType().accept(this);
+                decl.basetype.accept(this);
+                out.printf(" " + d.name() + " ");
+//                d.getType().accept(this);
                 ASTNode init = d.initJava();
                 if (init!=null){
                     out.print("=");
@@ -1321,7 +1365,7 @@ public class PVLPrinter extends AbstractPrinter{
                 out.print("TODO");
             }
         }
-        out.println(";");
+//        out.println(";");
     }
 
     @Override

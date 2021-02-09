@@ -3,11 +3,15 @@ package vct.col.ast.stmt.decl
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 
-object GPUOptName extends Enumeration {
-  val LoopUnroll = Value
-}
+import scala.collection.JavaConverters._
 
-case class GPUOpt(val name:GPUOptName.Value, val args: List[ASTNode]) extends ASTNode {
+//object GPUOptName extends Enumeration {
+//  val LoopUnroll = Value("unroll")
+//}
+
+case class GPUOpt(val name:GPUOptName, val args: List[ASTNode]) extends ASTNode {
+
+    def argsJava = args.asJava
 
     override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)
     override def accept_simple[T](v:ASTVisitor[T]) = v.visit(this)
