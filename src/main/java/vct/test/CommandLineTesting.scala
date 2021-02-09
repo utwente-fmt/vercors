@@ -340,18 +340,6 @@ object CommandLineTesting {
       Progress("[%02d%%] Running: %s and %d further tasks queued", Int.box(progress), newCurrentlyRunning.map(keyOfTask).mkString(", "), Int.box(otherTasksLeft))
     }
 
-    Output("Introductions:")
-    for((feature, passes) <- intro.toSeq.sortBy(-_._2.size)) {
-      val parts = passes.groupBy(identity).map {
-        case (pass, passList) => (pass, passList.size)
-      }.toSeq.sortBy(-_._2).map {
-        case (pass, count) =>
-          s"$pass($count)"
-      }
-
-      Output("%s: %s", feature, parts.mkString(", "))
-    }
-
     Output("Verification times:")
 
     for (taskKey <- taskKeys) {
