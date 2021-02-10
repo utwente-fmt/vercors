@@ -500,6 +500,26 @@ public class ASTFactory<E> implements FrameControl {
         res.accept_if(post);
         return res;    
       }
+
+      public LoopStatement loop(ASTNode init_block,
+                                ASTNode entry_guard,
+                                ASTNode exit_guard,
+                                ASTNode update_block,
+                                ASTNode body,
+                                Contract contract
+      ){
+        LoopStatement res=new LoopStatement();
+
+        res.setInitBlock(init_block);
+        res.setEntryGuard(entry_guard);
+        res.setEntryGuard(exit_guard);
+        res.setUpdateBlock(update_block);
+        res.setBody(body);
+        res.setContract(contract);
+        res.setOrigin(origin_stack.get());
+        res.accept_if(post);
+        return res;
+      }
     
     public LoopStatement for_loop(ASTNode init, ASTNode test, ASTNode update, ASTNode body,ASTNode ... invariant){
       return for_loop(init, test, update, body, Arrays.asList(invariant));

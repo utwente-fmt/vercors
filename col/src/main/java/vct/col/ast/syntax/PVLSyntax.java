@@ -38,7 +38,8 @@ public class PVLSyntax extends Syntax {
       //TODO revise the whole syntax to see what is missing.
       syntax.addReserved(Null,"null");
       syntax.addOperator(Subscript,145,"","[","]"); // TODO: check if relative order to Select is OK!
-
+      syntax.addPostfix(PostIncr,"++",140);
+      syntax.addPostfix(PostDecr,"--",140);
 
       //syntax.addInfix(SubType,"<:",90);
       //syntax.addInfix(SuperType,":>",90);
