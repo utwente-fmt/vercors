@@ -512,7 +512,7 @@ public class ASTFactory<E> implements FrameControl {
 
         res.setInitBlock(init_block);
         res.setEntryGuard(entry_guard);
-        res.setEntryGuard(exit_guard);
+        res.setExitGuard(exit_guard);
         res.setUpdateBlock(update_block);
         res.setBody(body);
         res.setContract(contract);
