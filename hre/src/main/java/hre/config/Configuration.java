@@ -5,13 +5,17 @@ import hre.io.MessageProcess;
 import hre.io.MessageProcessEnvironment;
 import hre.io.Paths;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static hre.lang.System.*;
 
@@ -304,23 +308,31 @@ public class Configuration {
     }
 
     public static String getMonoVersion() {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("mono");
-        env.addArg("--version");
-        MessageProcess mp = env.startProcess();
-        long start = System.currentTimeMillis();
-        while (!mp.isFinished() && (System.currentTimeMillis() - start) < 100) {
-            try { Thread.sleep(5); } catch (InterruptedException e) {}
-            // Wait for termination or timeout
+        // Start the process
+        Process process;
+        try {
+            process = Runtime.getRuntime().exec(new String[]{"mono", "--version"});
+        } catch (IOException e) {
+            return null;
         }
 
-        // recvAll is not blocking, so even if there are no messages it's safe to check for messages
-        List<Message> messages = mp.recvAll();
-        Pattern pattern = Pattern.compile("version (\\d+(\\.\\d+)*)", Pattern.CASE_INSENSITIVE);
-        for (Message m : messages) {
-            Matcher matcher = pattern.matcher(m.getFormattedMessage());
-            if (matcher.find()) {
-                return matcher.group(1);
+        // Wait until it terminates, or fail if it times out or if interrupted
+        try {
+            if (!process.waitFor(10, TimeUnit.MILLISECONDS)) {
+                return null;
             }
+        } catch (InterruptedException e) {
+            // Re-set the flag; thread ends here.
+            Thread.currentThread().interrupt();
+            return null;
+        }
+
+        // Try to find a version string in the output
+        String output = new BufferedReader(new InputStreamReader(process.getInputStream())).lines().collect(Collectors.joining("\n"));
+        Pattern pattern = Pattern.compile("version (\\d+(\\.\\d+)*)", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(output);
+        if (matcher.find()) {
+            return matcher.group(1);
         }
 
         return null;
