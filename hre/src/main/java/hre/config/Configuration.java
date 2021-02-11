@@ -307,10 +307,13 @@ public class Configuration {
         MessageProcessEnvironment env = new MessageProcessEnvironment("mono");
         env.addArg("--version");
         MessageProcess mp = env.startProcess();
-        while (!mp.isFinished()) {
-            Output("Waiting for termination of \"mono --version\"...");
+        long start = System.currentTimeMillis();
+        while (!mp.isFinished() && (System.currentTimeMillis() - start) < 100) {
+            try { Thread.sleep(5); } catch (InterruptedException e) {}
             // Wait for termination or timeout
         }
+
+        // recvAll is not blocking, so even if there are no messages it's safe to check for messages
         List<Message> messages = mp.recvAll();
         Pattern pattern = Pattern.compile("version (\\d+(\\.\\d+)*)", Pattern.CASE_INSENSITIVE);
         for (Message m : messages) {
@@ -324,20 +327,14 @@ public class Configuration {
     }
 
     public static void checkCarbonRequirements() {
-        String os = System.getProperty("os.name").toLowerCase();
-        if (os.contains("mac") || os.contains("nix") || os.contains("linux")) {
-            // Mono must exist for boogie to run
-            if (!Paths.commandExists("mono")) {
-                Fail("Unable to detect mono. Please ensure the command \"mono\" is available in the PATH.");
-            }
-
+        if (getOS() == OS.MAC || getOS() == OS.UNIX) {
             // Prefer mono 5.x or mono 6.0
             String monoVersion = Configuration.getMonoVersion();
             if (monoVersion == null) {
                 Warning("Could not detect mono version. Only mono 5 and mono 6.0 is known to work.");
             } else if (!(monoVersion.startsWith("5.") || monoVersion.startsWith("6.0"))) {
                 Warning("Mono version %s detected, which has not been tested. Mono 5 and mono 6.0 are known to work." +
-                        "Mono 4 and any version beyond and including mono 6.1 are untested.", monoVersion);
+                        " Mono 4 and any version beyond and including mono 6.1 are untested.", monoVersion);
             }
         }
 

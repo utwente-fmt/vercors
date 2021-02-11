@@ -86,15 +86,4 @@ public class MessageProcessEnvironment {
 
     return new MessageProcess(workingDirectory, argv.toArray(new String[0]), env);
   }
-
-  public String getInvocation() {
-    StringBuilder sb = new StringBuilder();
-    sb.append(process);
-    sb.append(" ");
-    for (String arg : args) {
-      sb.append(arg);
-      sb.append(" ");
-    }
-    return sb.toString();
-  }
 }

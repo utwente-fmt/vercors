@@ -103,6 +103,6 @@ public class MessageProcess {
     }
 
     public boolean isFinished() {
-        return processWatcher.getFinished();
+        return processWatcher != null && processWatcher.getFinished();
     }
 }
