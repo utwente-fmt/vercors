@@ -362,25 +362,26 @@ gccDeclaratorExtension
     ;
 
 gccAttributeSpecifier
-    :   '__attribute__' '(' '(' gccAttributeList ')' ')'
+    :   '__attribute__' '(' '(' gccAttributeListEmpty ')' ')'
     ;
 
-gccAttributeList
-    :   gccAttribute (',' gccAttribute)*
+gccAttributeListEmpty
+    :   gccAttributeListNonEmpty
     |   // empty
+    ;
+
+gccAttributeListNonEmpty
+    :   gccAttributeListNonEmpty ',' gccAttribute
+    |   gccAttribute
     ;
 
 gccAttribute
     :   ~(',' | '(' | ')') // relaxed def for "identifier or reserved word"
-        ('(' argumentExpressionList? ')')?
+        parenthesizedArgumentExpressionList?
     |   // empty
     ;
 
-nestedParenthesesBlock
-    :   (   ~('(' | ')')
-        |   '(' nestedParenthesesBlock ')'
-        )*
-    ;
+parenthesizedArgumentExpressionList : '(' argumentExpressionList? ')' ;
 
 pointer
     :   '*' typeQualifierList?
@@ -480,7 +481,17 @@ statement
     |   selectionStatement
     |   iterationStatement
     |   jumpStatement
-    |   ('__asm' | '__asm__') ('volatile' | '__volatile__') '(' (logicalOrExpression (',' logicalOrExpression)*)? (':' (logicalOrExpression (',' logicalOrExpression)*)?)* ')' ';'
+    |   ('__asm' | '__asm__') ('volatile' | '__volatile__') '(' logicalOrExpressionList? logicalOrExpressionListColonList ')' ';'
+    ;
+
+logicalOrExpressionListColonList
+    :   ':' logicalOrExpressionList? logicalOrExpressionListColonList
+    |   // empty
+    ;
+
+logicalOrExpressionList
+    :   logicalOrExpression
+    |   logicalOrExpressionList ',' logicalOrExpression
     ;
 
 labeledStatement
