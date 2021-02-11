@@ -206,8 +206,9 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     if (s.getInitBlock()!=null) Abort("not a while loop");
     if (s.getExitGuard()!=null) Abort("not a while loop");
     ArrayList<Triple<Origin,String,T>> locals=new ArrayList<Triple<Origin,String,T>>();
+    ArrayList<String> labels = new ArrayList<>();
     ArrayList<S> stats=new ArrayList<S>();
-    VerCorsProgramFactory.split_block(ef, type, this, locals,(BlockStatement) s.getBody(), stats);
+    VerCorsProgramFactory.split_block(type, this, (BlockStatement) s.getBody(), locals, labels, stats);
     ArrayList<E> invs=new ArrayList<E>();
     for(ASTNode inv:ASTUtils.conjuncts(s.getContract().invariant,StandardOperator.Star)){
       invs.add(inv.apply(expr));

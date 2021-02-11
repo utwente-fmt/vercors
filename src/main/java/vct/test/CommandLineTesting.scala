@@ -274,6 +274,13 @@ object CommandLineTesting {
         case _ =>
       }
 
+      for(msg <- task.log) {
+        val text = String.format(msg.getFormat, msg.getArgs:_*)
+        if(text.contains("[warning]")) {
+          Warning("%s: %s", taskKey, text)
+        }
+      }
+
       if(testFailIdeaConfigs.get) {
         new File(IDEA_RUN_CONFIG_DIR, s"$taskKey.xml").delete()
       }
