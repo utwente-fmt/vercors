@@ -251,7 +251,9 @@ public class Main
           silver.set("silicon");
           break;
         case "silicon":
+          break;
         case "carbon":
+          Configuration.checkCarbonRequirements();
           break;
         default:
           Fail("unknown silver backend: %s",silver.get());

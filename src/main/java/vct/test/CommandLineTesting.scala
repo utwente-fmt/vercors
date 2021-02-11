@@ -66,8 +66,8 @@ object CommandLineTesting {
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
 
-  private val travisTestOutput = new BooleanSetting(false)
-  private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
+  private val actionsTestOutput = new BooleanSetting(false)
+  private val actionsTestOutputOption = actionsTestOutput.getEnable("output the full output of failing test cases as a foldable section in github actions")
 
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
@@ -132,7 +132,7 @@ object CommandLineTesting {
     parser.add(builtinTestOption, "test-builtin")
     parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
-    parser.add(travisTestOutputOption, "travis-test-output")
+    parser.add(actionsTestOutputOption, "actions-test-output")
   }
 
   def getCases: Map[String, Case] = {
@@ -239,14 +239,14 @@ object CommandLineTesting {
         fails += 1
         Progress("[%02d%%] Fail: %s", Int.box(progress), taskKey)
 
-        if(travisTestOutput.get()) {
-          Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput from case...");
+        if(actionsTestOutput.get()) {
+          Output("::group::Case output")
 
           for(msg <- tasks(taskKey).log) {
             Output(msg.getFormat, msg.getArgs:_*)
           }
 
-          Output("travis_fold:end:case_output");
+          Output("::endgroup::")
         }
 
         reasons.foreach {

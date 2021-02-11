@@ -143,6 +143,7 @@ public class SilverBackend {
       }
     } catch (Exception e){
       log.exception(e);
+      Output(e.toString());
     } finally {
       control.done();
     }

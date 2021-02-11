@@ -15,6 +15,7 @@ public class ProcessWatcher extends Thread {
   private Process process;
   private Queue<Message> queue;
   private Thread threads[];
+  private boolean finished;
   
   /**
    * Create a thread that will wait for completion of a process and threads.
@@ -36,6 +37,7 @@ public class ProcessWatcher extends Thread {
     this.process=process;
     this.queue=queue;
     this.threads=threads;
+    this.finished = false;
   }
 
   public void run(){
@@ -58,5 +60,10 @@ public class ProcessWatcher extends Thread {
     Debug("queueing exit");
     queue.add(new Message("exit %d",exitcode));
     Debug("process cleanup complete");
+    finished = true;
+  }
+
+  public boolean getFinished() {
+    return finished;
   }
 }
