@@ -31,17 +31,17 @@ public class ColSilverParser extends Parser {
 
     @Override
     public ProgramUnit parse(File file) {
-        return run_test(file);
+        return parseFile(file);
     }
 
     public static <T, E, S, Decl, DFunc, DAxiom, Program>
-    ProgramUnit run_test(File f) {
+    ProgramUnit parseFile(File f) {
         ViperAPI<Origin, ?, ?, ?, ?, ?, ?> viper =
                 SilverBackend.getVerifier("parser");
-        return run_test(f, viper);
+        return parseFile(f, viper);
     }
 
-    public static <Program> ProgramUnit run_test(File f, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> viper) {
+    public static <Program> ProgramUnit parseFile(File f, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> viper) {
         Program program = viper.prog.parse_program(f.toString());
         if (program == null) {
             throw new HREError("parsing %s failed", f);

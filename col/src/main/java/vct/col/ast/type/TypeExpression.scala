@@ -6,6 +6,8 @@ import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping, Visit
 import vct.col.ast.util.VisitorHelper
 
 object TypeExpression {
+  /* These operators don't affect the type that VerCors thinks the inner type is, but rather specify something about
+    the way they are stored (const, static) or are ignored (short, unsigned) */
   val LEAKY_OPERATORS = Set(
     TypeOperator.Const,
     TypeOperator.Short,

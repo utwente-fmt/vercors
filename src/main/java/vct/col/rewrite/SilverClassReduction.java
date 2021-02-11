@@ -313,10 +313,7 @@ public class SilverClassReduction extends AbstractRewriter {
   @Override
   public void visit(Dereference e){
     if (e.obj().getType()==null){
-      Fail("untyped object %s at %s", e.obj(), e.obj().getOrigin());
-      // PB: unreachable?
-      result=create.dereference(rewrite(e.obj()), e.field());
-      return;
+      throw Failure("untyped object %s at %s", e.obj(), e.obj().getOrigin());
     }
     Type t=e.obj().getType();
     if (t.isPrimitive(PrimitiveSort.Cell)){

@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import scala.Option;
-import scala.Some;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
@@ -18,7 +17,7 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.*;
 import vct.col.rewrite.AddZeroConstructor;
-import vct.java.ASTClassLoader;
+import vct.java.JavaASTClassLoader;
 import vct.logging.PassReport;
 import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
@@ -115,7 +114,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       decl=source().find(t.getNameFull());
     }
     if (decl == null) {
-      cl = ASTClassLoader.load(t.getNameFull(), currentNamespace);
+      cl = JavaASTClassLoader.load(t.getNameFull(), currentNamespace);
       decl = cl;
     }
     if (decl == null) {
@@ -162,7 +161,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       // This is a constructor invokation.
       ClassType t = e.dispatch();
       visit(t);
-      ASTClass cl = (ASTClass) t.definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass cl = (ASTClass) t.definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       Objects.requireNonNull(cl, () -> String.format("class %s not found", t));
       ASTNode args[]=e.getArgs();
       Type c_args[]=new Type[args.length];
@@ -212,9 +211,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         type[i]=e.getArg(i).getType();
         if (type[i]==null) Abort("argument %d has no type.",i);
       }
-      ASTClass cl = (ASTClass) object_type.definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass cl = (ASTClass) object_type.definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       Objects.requireNonNull(cl, () -> String.format("could not find class %s used in %s", object_type.getFullName(), e));
-      m=cl.find(e.method(), object_type, type, ASTClassLoader.INSTANCE(), currentNamespace);
+      m=cl.find(e.method(), object_type, type, JavaASTClassLoader.INSTANCE(), currentNamespace);
       if (m==null) {
         /*
         String parts[]=e.method.split("_");
@@ -313,7 +312,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     for(int i=0;i<N;i++){
       Type ti=m.getArgType(i);
       ASTNode arg=e.getArg(i);
-      if (!ti.supertypeof(arg.getType(), Option.apply(source()), Option.apply(ASTClassLoader.INSTANCE()), Option.apply(currentNamespace))){
+      if (!ti.supertypeof(arg.getType(), Option.apply(source()), Option.apply(JavaASTClassLoader.INSTANCE()), Option.apply(currentNamespace))){
         boolean argAssignable =
                 (arg instanceof Dereference || arg instanceof FieldAccess)
                 && ((Type)ti.firstarg()).supertypeof(source(), arg.getType());
@@ -796,7 +795,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (!(t instanceof ClassType)) {
         Fail("Data type must be a class type.");
       }
-      ASTClass cl = (ASTClass) ((ClassType) t).definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass cl = (ASTClass) ((ClassType) t).definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       variables.enter();
       for (DeclarationStatement decl : cl.dynamicFields()) {
         variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
@@ -1919,7 +1918,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(object_type);
     } else {
       Debug("resolving class "+((ClassType)object_type).getFullName()+" "+((ClassType)object_type).getNameFull().length);
-      ASTClass cl = (ASTClass) ((ClassType) object_type).definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass cl = (ASTClass) ((ClassType) object_type).definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       if (cl==null) {
         Fail("could not find class %s",((ClassType)object_type).getFullName());
       } else {

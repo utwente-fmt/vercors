@@ -164,7 +164,7 @@ public class System {
                         message = level.getShorthand() + String.format(format, args);
                     }
 
-                    if(needLineClear /* && Config.ansi true below */) {
+                    if(needLineClear) {
                         entry.getKey().append("\033[0K");
                         needLineClear = false;
                     }

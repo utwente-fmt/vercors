@@ -932,5 +932,5 @@ object Passes {
     BACKEND_COMPAT ++
     SIMPLIFYING ++
     BACKENDS ++
-    OLD_OR_UNUSED).map(_.tup).toMap
+    OLD_OR_UNUSED).map(pass => (pass.key, pass)).toMap
 }

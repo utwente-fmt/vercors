@@ -5,7 +5,7 @@ import vct.col.ast.expr.{NameExpression, NameExpressionKind}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, AxiomaticDataType, Method, NameSpace, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, RecursiveVisitor}
-import vct.java.ASTClassLoader
+import vct.java.JavaASTClassLoader
 
 import scala.collection.JavaConverters._
 
@@ -94,7 +94,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
     } else if(currentNamespace.nonEmpty && predef.contains(currentPackageName ++ name)) {
       Some(currentPackageName ++ name)
     } else {
-      val cls = ASTClassLoader.load(name, currentNamespace) match {
+      val cls = JavaASTClassLoader.load(name, currentNamespace) match {
         case Some(cls) => cls
         case None => return None
       }

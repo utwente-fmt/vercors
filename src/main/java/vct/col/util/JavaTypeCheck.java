@@ -14,7 +14,7 @@ import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
-import vct.java.ASTClassLoader;
+import vct.java.JavaASTClassLoader;
 import vct.logging.MessageFactory;
 import vct.logging.PassAddVisitor;
 import vct.logging.PassReport;
@@ -211,7 +211,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     }
 
     if (t instanceof ClassType) {
-      ASTClass astClass = (ASTClass)((ClassType) t).definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass astClass = (ASTClass)((ClassType) t).definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       if (astClass.kind == ASTClass.ClassKind.Record) {
         return true;
       }

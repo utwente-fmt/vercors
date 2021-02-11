@@ -14,7 +14,11 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-object ASTClassLoader extends ExternalClassLoader {
+/**
+ * The default and only external class loader. Attempts to load a class relative to the path of the importing file, and
+ * otherwise via reflection from the standard java library.
+ */
+object JavaASTClassLoader extends ExternalClassLoader {
   // PB: dumb java hack (is there no better way?)
   val INSTANCE: ExternalClassLoader = this
 
