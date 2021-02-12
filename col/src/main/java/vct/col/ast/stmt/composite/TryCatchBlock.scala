@@ -21,7 +21,8 @@ class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[t
   def this(main:BlockStatement, after:BlockStatement) = this(main, after, new ArrayBuffer[CatchClause]())
   
   /** Yields the catch-clauses attached to this try-catch-block as a Java iterator. */
-  def catches = catchClauses.toIterable.asJava
+  def catchesJava = catchClauses.toIterable.asJava
+  def catches: Seq[CatchClause] = catchClauses
   
   /**
    * Adds a catch clause (i.e. an exception handler) to the try-catch-block AST node,

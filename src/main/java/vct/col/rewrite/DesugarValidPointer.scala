@@ -38,13 +38,13 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
 
     var value = input
 
-    conditions += neq(value, create.reserved_name(ASTReserved.Null))
+    conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
     conditions += lte(size, create.dereference(value, "length"))
 
     conditions += create.starall(
       and(lte(constant(0), name("__i")), less(name("__i"), size)),
       create.expression(StandardOperator.Perm,
-        create.expression(StandardOperator.Subscript, value, name("__i")),
+        create.pattern(create.expression(StandardOperator.Subscript, value, name("__i"))),
         perm),
       List(new DeclarationStatement("__i", create.primitive_type(PrimitiveSort.Integer))):_*
     )
@@ -61,7 +61,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
     }
 
     var value = input
-    conditions += neq(value, create.reserved_name(ASTReserved.Null))
+    conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
     conditions += less(index, create.dereference(value, "length"))
 
     conditions += create.expression(StandardOperator.Perm,

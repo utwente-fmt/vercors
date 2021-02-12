@@ -7,22 +7,17 @@ import hre.util.Function;
 
 import java.util.*;
 
+import scala.Option;
 import scala.collection.JavaConverters;
 import vct.col.ast.stmt.decl.Method.Kind;
-import vct.col.ast.util.ASTMapping;
-import vct.col.ast.util.ASTMapping1;
+import vct.col.ast.util.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.col.ast.util.ASTVisitor;
-import vct.col.ast.util.MultiSubstitution;
-import vct.col.ast.util.DeclarationFilter;
-import vct.col.ast.util.MethodFilter;
-import vct.col.ast.util.ClassName;
-import static hre.lang.System.Abort;
+
 import static hre.lang.System.Debug;
 
 /** This class is the main container for declarations.
@@ -284,7 +279,7 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     }
     return null;
   }
-  private Method find(List<ASTNode> list,String name, ClassType object_type, Type[] type){
+  private Method find(List<ASTNode> list,String name, ClassType object_type, Type[] type, ExternalClassLoader loader, NameSpace ns){
     node:for(ASTNode n:list){
       if (n instanceof Method){
         Method m=(Method)n;
@@ -303,7 +298,7 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
                 idx=i;
               }
               Type m_idx_t=sigma.rewrite(m.getArgType(idx));
-              if (!m_idx_t.supertypeof(root(), type[i])){
+              if (!m_idx_t.supertypeof(type[i], Option.apply(root()), Option.apply(loader), Option.apply(ns))){
                 if (m_idx_t.isPrimitive(PrimitiveSort.Location)){
                   Type lt=(Type)m_idx_t.firstarg();
                   if (!lt.supertypeof(root(), type[i])){
@@ -329,18 +324,28 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     }
     return null;
   }
+
   public Method find(String name, ClassType object_type, Type[] type) {
-    return find(name,object_type,type,true);
+    return find(name, object_type, type, null, null);
   }
-  public Method find(String name, ClassType object_type, Type[] type,boolean recursive) {
+
+  public Method find(String name, ClassType object_type, Type[] type, ExternalClassLoader loader, NameSpace ns) {
+    return find(name,object_type,type, loader, ns, true);
+  }
+
+  public Method find(String name, ClassType object_type, Type[] type, boolean recursive) {
+    return find(name, object_type, type, null, null, recursive);
+  }
+
+  public Method find(String name, ClassType object_type, Type[] type, ExternalClassLoader loader, NameSpace ns, boolean recursive) {
     //TODO: support inheritance and detect duplicate definitions.
-    Method m=find(entries,name,object_type,type);
+    Method m=find(entries, name, object_type, type, loader, ns);
     if (m!=null) return m;
     if (recursive){
       for(ClassType parent:this.super_classes){
-        ASTClass rp = root().find(parent);
+        ASTClass rp = (ASTClass) parent.definitionJava(root(), loader, ns);
         Objects.requireNonNull(rp, String.format("could not find %s", parent));
-        m = rp.find(name,object_type,type);
+        m = rp.find(name, object_type, type, loader, ns, true);
         if (m != null) return m;
       }
     }  

@@ -62,6 +62,10 @@ public class MessageProcessEnvironment {
     this.addArg(argArg);
   }
 
+  public List<String> getArgs() {
+    return this.args;
+  }
+
   public MessageProcessEnvironment withArgs(String... args) {
     MessageProcessEnvironment newEnv = this.copy();
 

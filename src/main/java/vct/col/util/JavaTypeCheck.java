@@ -6,6 +6,7 @@ import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
+import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
@@ -13,6 +14,7 @@ import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
+import vct.java.JavaASTClassLoader;
 import vct.logging.MessageFactory;
 import vct.logging.PassAddVisitor;
 import vct.logging.PassReport;
@@ -50,16 +52,13 @@ public class JavaTypeCheck extends AbstractTypeCheck {
       Fail("Pure methods cannot throw exceptions");
     }
 
-    // Throws types must inherit from Throwable
-    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
-
     for (Type t : m.signals) {
       if (!(t instanceof ClassType)) {
         Fail("Throws type can only be class");
       }
 
       ClassType ct = (ClassType) t;
-      if (!throwableType.supertypeof(source(), ct)) {
+      if (!isThrowableType(ct)) {
         Fail("Throws type must extend throwable");
       }
 
@@ -82,7 +81,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     inSignals = false;
 
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
-    if (!throwableType.supertypeof(source(), sc.type())) {
+    if (!isThrowableType(sc.type())) {
       reportFail("Signals type must extend Throwable",
               VerCorsError.ErrorCode.TypeError, VerCorsError.SubCode.ExtendsThrowable,
               sc.getType(), sc);
@@ -115,7 +114,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     ArrayList<ClassType> encounteredCatchTypes = new ArrayList<>();
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
 
-    for (CatchClause cc : tcb.catches()) {
+    for (CatchClause cc : tcb.catchesJava()) {
       enter(cc);
       ArrayList<ClassType> encounteredMultiCatchTypes = new ArrayList<>();
 
@@ -126,7 +125,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
         ClassType ct = (ClassType) catchType;
 
-        if (!throwableType.supertypeof(source(), ct)) {
+        if (!isThrowableType(ct)) {
           Fail("Catch clause types must inherit from Throwable");
         }
 
@@ -195,8 +194,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     if (special.isSpecial(ASTSpecial.Kind.Throw)) {
       ASTNode throwee = special.getArg(0);
-      ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
-      if (!throwableType.supertypeof(source(), throwee.getType())) {
+      if (!isThrowableType(throwee.getType())) {
         reportFail("Type of thrown expression needs to extend Throwable",
                 VerCorsError.ErrorCode.TypeError, VerCorsError.SubCode.ExtendsThrowable,
                 throwee, special);
@@ -206,10 +204,32 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     }
   }
 
+  private boolean isThrowableType(Type t) {
+    /* When AddTypeADT has occurred, EncodeTryThrowSignals is about to encode the typing rules using the TYPE ADT. */
+    if(source().find_decl(new String[]{"TYPE"}) != null) {
+      return true;
+    }
+
+    if (t instanceof ClassType) {
+      ASTClass astClass = (ASTClass)((ClassType) t).definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
+      if (astClass.kind == ASTClass.ClassKind.Record) {
+        return true;
+      }
+    }
+
+    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
+    ClassType unflatThrowableType = new ClassType(new String[]{"java", "lang", "Throwable"});
+    visit(unflatThrowableType); // collect definition
+
+    return throwableType.supertypeof(source(), t) // Actually throwable
+            || unflatThrowableType.supertypeof(source(), t)
+            || (t.toString().startsWith("__") && t.toString().endsWith("_ex")); // We defined it (sorry, hacky!)
+    }
+
   public void visit(MethodInvokation mi) {
     super.visit(mi);
 
-    if (mi.definition().getKind() == Method.Kind.Constructor || mi.definition().getKind() == Method.Kind.Plain) {
+    if (mi.definition() != null && (mi.definition().getKind() == Method.Kind.Constructor || mi.definition().getKind() == Method.Kind.Plain)) {
       // Any types that the method has declared, can become live when calling this method
       liveExceptionTypes.addAll(Arrays.asList(mi.definition().signals));
     }

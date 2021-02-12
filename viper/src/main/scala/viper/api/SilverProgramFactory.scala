@@ -5,19 +5,20 @@ import viper.silver.ast._
 import scala.collection.JavaConverters._
 import scala.collection.JavaConverters._
 import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
+
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
-
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
-import java.nio.file.Path
 
+import java.nio.file.Path
 import hre.ast.OriginFactory
 import hre.util.Triple
 import viper.silver.parser.PLocalVarDecl
 import viper.silver.plugin.{PluginAwareReporter, SilverPluginManager}
 
+import java.util
 import scala.collection.mutable.WrappedArray
 
 class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
@@ -31,10 +32,11 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       in:List[Triple[O,String,Type]],
       out:List[Triple[O,String,Type]],
       local:List[Triple[O,String,Type]],
+      labels:List[String],
       body:Stmt) {
     
     // TODO : not quite sure if the method body 'body' and the 'locals' are currently handled like this..
-    val b = if (body==null) None else Some(Seqn(Seq(body), to_decls(o,local))(NoPosition, new OriginInfo(o), NoTrafos))
+    val b = if (body==null) None else Some(Seqn(Seq(body), to_decls(o,local) ++ to_labels(o, labels))(NoPosition, new OriginInfo(o), NoTrafos))
     
     p.methods.add(Method(
       name, // method name
@@ -177,6 +179,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
           map_decls(api,m.formalArgs), // input argument declarations
           map_decls(api,m.formalReturns), // output argument declarations (i.e. return values)
           map_decls(api, filter_local_decls(body.scopedDecls)), // list of local variables
+          Nil.asJava,
           map_stat(api,body) // method body
         ) 
       } 

@@ -101,6 +101,9 @@ public class Configuration {
      */
     public static final StringSetting cpp_command=new StringSetting("clang -C -E");
 
+    public static final BooleanSetting debugBackend = new BooleanSetting(false);
+    public static final BooleanSetting ansi = new BooleanSetting(false);
+
     /**
      * The option for session type generation
      */
@@ -125,6 +128,8 @@ public class Configuration {
         clops.add(cpp_defines.getAppendOption("add to the CPP defined variables"),'D');
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
+        clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
+        clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
         clops.add(session_file.getAssign("generate threads from session type"),"session");
     }
 

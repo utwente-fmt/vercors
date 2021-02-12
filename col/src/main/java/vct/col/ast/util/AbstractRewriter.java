@@ -145,7 +145,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
         result=tmp;
       }
       result.copyMissingFlags(n);
-      if (n.annotated() && !result.annotated()){
+      if (n.annotated() && n.annotations().size() > 0 && !result.annotated()){
         ASTNode tmp=result;
         for(ASTNode ann:n.annotations()){
           tmp.attach(rewrite(ann));
@@ -798,7 +798,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       args[i]=create.unresolved_name(name);
       i++;
     }
-    return create.invokation(null,null, method, args);
+    return create.invokation(create.diz(),null, method, args);
   }
 
   @Override
@@ -815,7 +815,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   @Override
   public void visit(TryCatchBlock tcb){
     TryCatchBlock res = create.try_catch(rewrite(tcb.main()), rewrite(tcb.after()));
-    for (CatchClause cc : tcb.catches()) {
+    for (CatchClause cc : tcb.catchesJava()) {
       res.addCatchClause(rewrite(cc));
     }
     result=res;

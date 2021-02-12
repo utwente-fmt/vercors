@@ -32,6 +32,7 @@ public class GhostLifter extends AbstractRewriter {
       for(DeclarationStatement arg:c.given){
         args.add(rewrite(arg));
       }
+      cb.appendInvariant(c.invariant);
       cb.requires(rewrite(c.pre_condition));
       for(DeclarationStatement arg:c.yields){
         ASTNode init=rewrite(arg.initJava());

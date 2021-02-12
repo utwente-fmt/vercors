@@ -70,8 +70,14 @@ public class Flatten extends AbstractRewriter {
 
   @Override
   public void visit(ASTSpecial s){
-    result=copy_pure.rewrite(s);
+    if (s.isSpecial(ASTSpecial.Kind.Throw)) {
+      // Want constructors and other method calls to be flattened out of throw statements
+      super.visit(s);
+    } else {
+      result = copy_pure.rewrite(s);
+    }
   }
+
   public void visit(BlockStatement s){
     block_stack.push(current_block);
     current_block=create.block();
@@ -126,10 +132,22 @@ public class Flatten extends AbstractRewriter {
       
       ASTNode val=e.arg(1);
       ASTNode val_res=val.apply(this);
-      
-      //current_block.add_statement(create.assignment(loc_res,create.expression(StandardOperator.Plus,loc_res,val_res)));
-      //result=null;
-      result=create.expression(StandardOperator.Assign,loc_res,create.expression(StandardOperator.Plus,loc_res,val_res));
+
+      current_block.addStatement(
+              create.assignment(loc_res, create.expression(StandardOperator.Plus, loc_res, val_res))
+      );
+      result = copy_rw.rewrite(loc_res);
+      return;
+    }
+    case Assign: {
+      ASTNode loc=e.arg(0);
+      ASTNode loc_res=loc.apply(this);
+
+      ASTNode val=e.arg(1);
+      ASTNode val_res=val.apply(this);
+
+      current_block.addStatement(create.assignment(loc_res, val_res));
+      result = copy_rw.rewrite(loc);
       return;
     }
     case PreIncr:
@@ -320,9 +338,9 @@ public class Flatten extends AbstractRewriter {
       }
     } else {
       ASTNode statement = body.apply(this);
-      if(!(statement instanceof NameExpression)) {
+      if(!(statement instanceof NameExpression || statement instanceof Dereference || statement instanceof OperatorExpression)) {
         /* invokations of methods that return something are flattened, but we want to ignore this value when the
-         method is instead used as a statement.*/
+         method is instead used as a statement. The same goes for e.g. a += b. */
         current_block.addStatement(statement);
       }
     }

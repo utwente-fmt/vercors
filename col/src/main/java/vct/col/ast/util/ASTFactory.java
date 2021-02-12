@@ -258,9 +258,6 @@ public class ASTFactory<E> implements FrameControl {
   public ClassType class_type(String name, List<ASTNode> args){
     return class_type(origin_stack.get(), name, args);
   }
-  public ASTSpecial comment(String text) {
-    return special(ASTSpecial.Kind.Comment,constant(text));
-  }
 
   public ConstantExpression constant(boolean b) {
     return constant(origin_stack.get(),b);
@@ -672,6 +669,12 @@ public class ASTFactory<E> implements FrameControl {
   
   public NameExpression local_name(String name) {
     return local_name(origin_stack.get(), name);
+  }
+
+  public Method final_method_decl(Type returns, Contract contract, String name, DeclarationStatement[] args, ASTNode body) {
+    Method result = method_decl(returns, contract, name, args, body);
+    result.setFlag(ASTFlags.FINAL, true);
+    return result;
   }
 
   /**
@@ -1098,6 +1101,13 @@ public ASTNode this_expression(ClassType t) {
   res.setOrigin(origin_stack.get());
   res.accept_if(post);
   return res;
+}
+
+public ASTNode diz() {
+  NameExpression result = new NameExpression(ASTReserved.This);
+  result.setOrigin(origin_stack.get());
+  result.accept_if(post);
+  return result;
 }
 
 /**

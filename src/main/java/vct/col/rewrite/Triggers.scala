@@ -1,24 +1,22 @@
 package vct.col.rewrite
 
+import hre.lang.System.Warning
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{Binder, BindingExpression, Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
-import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, ProgramUnit}
-import vct.col.ast.util.AbstractRewriter
-import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, Implies, LT, LTE, Member, NEQ, Scale, Size, Subscript}
+import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
+import vct.col.ast.expr._
+import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
+import vct.col.ast.util.AbstractRewriter
 
 case class UnrecognizedExpression(node: ASTNode) extends Exception
 
-/**
-  * Tries to add triggers to binding expressions that have none using some heuristics.
-  */
-case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
+object Triggers {
   /**
-    * Collect potentially admissible patterns from an expression
-    * @param node the expression to collect
-    * @return A set of viable patterns, and whether the node itself may be contained in a pattern
-    */
+   * Collect potentially admissible patterns from an expression
+   * @param node the expression to collect
+   * @return A set of viable patterns, and whether the node itself may be contained in a pattern
+   */
   def collectPatterns(node: ASTNode): (Set[ASTNode], Boolean) = node match {
     case NameExpression(_, reserved, NameExpressionKind.Reserved) => reserved match {
       case ASTReserved.Result =>
@@ -106,7 +104,7 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
     val names = decls.map(_.name).toSet
 
     try {
-      computeTriggers(names, create.expression(StandardOperator.Implies, cond, body)) match {
+      computeTriggers(names, new OperatorExpression(StandardOperator.Implies, Array(cond, body))) match {
         case Seq() => None
         case Seq(set) => Some(Set(set))
         case triggers => body match {
@@ -130,13 +128,18 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
         None
     }
   }
+}
 
+/**
+  * Tries to add triggers to binding expressions that have none using some heuristics.
+  */
+case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {
       case Binder.Forall | Binder.Star if expr.triggers == null || expr.triggers.isEmpty =>
         val select = rewrite(expr.select)
         val main = rewrite(expr.main)
-        tryComputeTrigger(expr.getDeclarations, select, main) match {
+        Triggers.tryComputeTrigger(expr.getDeclarations, select, main) match {
           case Some(trigger) =>
             result = create binder(
               expr.binder,

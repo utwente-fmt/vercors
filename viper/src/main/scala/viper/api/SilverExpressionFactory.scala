@@ -109,45 +109,32 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   override def neq(o:O,e1:Exp,e2:Exp) :Exp = NeCmp(e1,e2)(NoPosition,new OriginInfo(o))
   override def eq(o:O,e1:Exp,e2:Exp) :Exp = EqCmp(e1,e2)(NoPosition,new OriginInfo(o))
-  
+
   override def gt(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermGtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          GtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermGtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => GtCmp(e1,e2)(NoPosition,new OriginInfo(o))
+    e1.typ match {
+      case Perm => PermGtCmp(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => GtCmp(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
-  override def lt(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermLtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          LtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermLtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => LtCmp(e1,e2)(NoPosition,new OriginInfo(o))
+
+  override def lt(o: O, e1: Exp, e2: Exp): Exp = {
+    e1.typ match {
+      case Perm => PermLtCmp(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => LtCmp(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
+
   override def gte(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermGeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          GeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermGeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => GeCmp(e1,e2)(NoPosition,new OriginInfo(o))
+    e1.typ match {
+      case Perm => PermGeCmp(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => GeCmp(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
-  override def lte(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermLeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          LeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermLeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => LeCmp(e1,e2)(NoPosition,new OriginInfo(o))
+
+  override def lte(o: O, e1: Exp, e2: Exp): Exp = {
+    e1.typ match {
+      case Perm => PermLeCmp(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => LeCmp(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
     
@@ -186,14 +173,10 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
     PermDiv(e1, e2)(NoPosition, new OriginInfo(o))
   }
 
-  override def frac(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermDiv(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          FractionalPerm(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermDiv(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => FractionalPerm(e1,e2)(NoPosition,new OriginInfo(o))
+  override def frac(o: O, e1: Exp, e2: Exp): Exp = {
+    e1.typ match {
+      case Int => FractionalPerm(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => PermDiv(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
   override def mod(o:O,e1:Exp,e2:Exp) :Exp = Mod(e1,e2)(NoPosition,new OriginInfo(o))
