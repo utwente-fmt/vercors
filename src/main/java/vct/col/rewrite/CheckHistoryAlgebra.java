@@ -914,7 +914,6 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       @Override
       public void visit(FieldAccess d){
         ASTNode n=new_map.get(d.name());
-        Warning("name %s",d.name());
         if (n==null){
           super.visit(d);
         } else {

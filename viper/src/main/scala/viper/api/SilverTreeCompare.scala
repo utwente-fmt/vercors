@@ -3,7 +3,7 @@ package viper.api
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import hre.lang.System.Warning
 import viper.silicon.SiliconFrontend
-import viper.silver.ast.{And, BinExp, Exp, LocalVarDecl, Node, Or, Seqn, Typed}
+import viper.silver.ast.{And, BinExp, DomainFuncApp, Exp, LocalVarDecl, Node, Or, Seqn, Typed}
 import viper.silver.frontend.{SilFrontend, SilFrontendConfig}
 import viper.silver.verifier.{AbstractError, NoVerifier, Verifier}
 
@@ -41,7 +41,13 @@ object SilverTreeCompare {
   }
 
   private def subnodesWithoutType(node: Node): Seq[Node] = node match {
-    case typ: Typed => typ.subnodes.init
+    case typ: Typed => subnodes(typ).init
+    case other => subnodes(other)
+  }
+
+  private def subnodes(node: Node): Seq[Node] = node match {
+    case DomainFuncApp(_, args, map) =>
+      args ++ map.toSeq.sortBy(pair => pair._1.name).flatMap(pair => Seq(pair._1, pair._2))
     case other => other.subnodes
   }
 
@@ -99,6 +105,6 @@ object SilverTreeCompare {
     case (left, right) if left.getClass != right.getClass =>
       Seq((left, right))
     case _ =>
-      compare[Node](left, right, _.subnodes)
+      compare[Node](left, right, subnodes)
   }
 }
