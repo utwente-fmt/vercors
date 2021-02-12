@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Goto3
-//:: tools silicon
+//:: tools silicon carbon
 //:: verdict Pass
 
 class C {

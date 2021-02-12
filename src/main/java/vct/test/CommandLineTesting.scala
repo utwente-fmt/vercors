@@ -71,8 +71,8 @@ object CommandLineTesting {
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
 
-  private val travisTestOutput = new BooleanSetting(false)
-  private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
+  private val actionsTestOutput = new BooleanSetting(false)
+  private val actionsTestOutputOption = actionsTestOutput.getEnable("output the full output of failing test cases as a foldable section in github actions")
 
   private val testFailFast = new BooleanSetting(false)
   private val testFailFastOption = testFailFast.getEnable("store test failures at the end of the run, after which failing tests will run first on the next run")
@@ -143,9 +143,9 @@ object CommandLineTesting {
     parser.add(builtinTestOption, "test-builtin")
     parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
-    parser.add(travisTestOutputOption, "travis-test-output")
     parser.add(testFailFastOption, "test-fail-fast")
     parser.add(testFailIdeaConfigsOption, "test-fail-idea-configs")
+    parser.add(actionsTestOutputOption, "actions-test-output")
   }
 
   def getCases: Map[String, Case] = {
@@ -312,14 +312,14 @@ object CommandLineTesting {
           writer.close()
         }
 
-        if(travisTestOutput.get) {
-          Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput from case...");
+        if(actionsTestOutput.get()) {
+          Output("::group::Case output")
 
           for(msg <- allTasks(taskKey).log) {
             Output(msg.getFormat, msg.getArgs:_*)
           }
 
-          Output("travis_fold:end:case_output");
+          Output("::endgroup::")
         }
 
         reasons.foreach {

@@ -176,6 +176,7 @@ class Main {
         silver.set("silicon")
       case "silicon" =>
       case "carbon" =>
+        Configuration.checkCarbonRequirements()
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
     }
