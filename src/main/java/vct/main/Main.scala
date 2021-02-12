@@ -469,8 +469,6 @@ class Main {
   }
 
   private def doPasses(passes: Seq[AbstractPass]): Unit = {
-    Output("%s", passes)
-
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
