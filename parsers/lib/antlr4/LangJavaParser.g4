@@ -115,12 +115,13 @@ typeBound
     ;
 
 enumDeclaration
-    :   ENUM javaIdentifier ('implements' typeList)?
+    :   ENUM javaIdentifier imp?
         '{' enumConstants? ','? enumBodyDeclarations? '}'
     ;
 
 enumConstants
-    :   enumConstant (',' enumConstant)*
+    :   enumConstant
+    |   enumConstants ',' enumConstant
     ;
 
 enumConstant
@@ -312,8 +313,10 @@ typeArgumentList
 
 typeArgument
     :   type
-    |   '?' (('extends' | 'super') type)?
+    |   '?' boundType?
     ;
+
+boundType : ('extends' | 'super') type ;
 
 qualifiedNameList
     :   qualifiedName
@@ -373,13 +376,21 @@ literal
 // ANNOTATIONS
 
 annotation
-    :   '@' annotationName ( '(' ( elementValuePairs | elementValue )? ')' )?
+    :   '@' annotationName annotationArgs?
+    ;
+
+annotationArgs :   '(' annotationArgsElems? ')' ;
+
+annotationArgsElems
+    : elementValuePairs
+    | elementValue
     ;
 
 annotationName : qualifiedName ;
 
 elementValuePairs
-    :   elementValuePair (',' elementValuePair)*
+    :   elementValuePair
+    |   elementValuePairs ',' elementValuePair
     ;
 
 elementValuePair
@@ -393,7 +404,12 @@ elementValue
     ;
 
 elementValueArrayInitializer
-    :   '{' (elementValue (',' elementValue)*)? (',')? '}'
+    :   '{' elementValues? ','? '}'
+    ;
+
+elementValues
+    :   elementValue
+    |   elementValues ',' elementValue
     ;
 
 annotationTypeDeclaration
@@ -573,7 +589,7 @@ expression
     |   ('~'|'!') expression
     |   expression mulOp expression
     |   expression ('+'|'-') expression
-    |   expression ('<' '<' | '>' '>' '>' | '>' '>') expression
+    |   expression shiftOp expression
     |   expression ('<=' | '>=' | '>' | '<') expression
     |   expression 'instanceof' type
     |   expression ('==' | '!=') expression
@@ -584,21 +600,7 @@ expression
     |   expression '||' expression
     |   expression impOp  expression
     |   expression '?' expression ':' expression
-    |   <assoc=right> expression
-        (   '='
-        |   '+='
-        |   '-='
-        |   '*='
-        |   '/='
-        |   '&='
-        |   '|='
-        |   '^='
-        |   '>>='
-        |   '>>>='
-        |   '<<='
-        |   '%='
-        )
-        expression
+    |   <assoc=right> expression assignOp expression
     ;
 predicateEntryType: '@' javaIdentifier; // TODO: Find correct class type
 mulOp
@@ -611,6 +613,25 @@ andOp
     ;
 impOp
     : {specLevel>0}? valImpOp
+    ;
+shiftOp
+    :   '<' '<'
+    |   '>' '>' '>'
+    |   '>' '>'
+    ;
+assignOp
+    :   '='
+    |   '+='
+    |   '-='
+    |   '*='
+    |   '/='
+    |   '&='
+    |   '|='
+    |   '^='
+    |   '>>='
+    |   '>>>='
+    |   '<<='
+    |   '%='
     ;
 
 primary
