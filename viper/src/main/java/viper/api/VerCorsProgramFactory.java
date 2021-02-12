@@ -11,10 +11,7 @@ import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
-import vct.col.ast.util.ASTFactory;
-import vct.col.ast.util.ASTUtils;
-import vct.col.ast.util.Configuration;
-import vct.col.ast.util.ContractBuilder;
+import vct.col.ast.util.*;
 
 import java.util.*;
 
@@ -198,12 +195,12 @@ public class VerCorsProgramFactory implements
             }
           }
           ArrayList<Triple<Origin,String,T>> locals=new ArrayList<Triple<Origin,String,T>>();
-          ArrayList<String> labels = new ArrayList<>();
+          List<String> labels = NameScanner.labelsJava(m);
           S body;
           if (m.getBody() instanceof BlockStatement){
             BlockStatement block=(BlockStatement)m.getBody();
             ArrayList<S> stats=new ArrayList<S>();
-            VerCorsProgramFactory.split_block(type, stat, block, locals, labels, stats);
+            VerCorsProgramFactory.split_block(type, stat, block, locals, stats);
             body=api.stat.block(block.getOrigin(),stats);
           } else if (m.getBody()==null){
             Origin o=m.getOrigin();
@@ -324,15 +321,11 @@ public class VerCorsProgramFactory implements
       SilverStatementMap<T, E, S> stat,
       BlockStatement block,
       List<Triple<Origin,String,T>> locals,
-      List<String> labels,
       ArrayList<S> stats
   ) throws HREError {
     for(ASTNode node : block) {
       if(node instanceof DeclarationStatement) {
         locals.add(new Triple<>(node.getOrigin(), ((DeclarationStatement) node).name(), node.getType().apply(type)));
-      } else if(node.isSpecial(ASTSpecial.Kind.Label)) {
-        labels.add(((ASTSpecial) node).getArg(0).toString());
-        stats.add(node.apply(stat));
       } else {
         stats.add(node.apply(stat));
       }
