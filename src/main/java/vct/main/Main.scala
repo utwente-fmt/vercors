@@ -341,7 +341,6 @@ class Main {
     "scaleAllPredicateApplications",
     "collectInnerDeclarations",
     "collectDeclarations",
-    "applySilicon",
   )
 
   def validChain(chain: Seq[AbstractPass], featuresIn: Set[Feature]): Boolean = {
@@ -388,7 +387,10 @@ class Main {
 
   def computeGoal(featuresIn: Set[Feature]): Option[Seq[AbstractPass]] = {
     // Expand all choices
-    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)))
+    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)) :+ (silver.get() match {
+      case "carbon" => BY_KEY("applyCarbon")
+      case "silicon" => BY_KEY("applySilicon")
+    }))
 
     // Filter out passes that don't remove anything (even before the chain is valid)
     val filteredChains = chains.map(filterNopPasses(_, featuresIn))
