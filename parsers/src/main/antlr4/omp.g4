@@ -39,8 +39,6 @@ omp_simdopt : 'simd' ;
 
 omp_simdlen : 'simdlen' '(' Constant ')' ;
  
-// id_list : ( Identifier ( ',' Identifier )* )? ;
-
 id_list_empty : id_list | /* empty */ ;
 
 id_list : Identifier | id_list  ',' Identifier ;
