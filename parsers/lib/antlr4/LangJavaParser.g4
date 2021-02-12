@@ -642,9 +642,14 @@ primary
     |   javaIdentifier
     |   type '.' 'class'
     |   'void' '.' 'class'
-    |   nonWildcardTypeArguments (explicitGenericInvocationSuffix | 'this' arguments)
+    |   nonWildcardTypeArguments constructorCall
     |   {specLevel>0}? valPrimary
 	;
+
+constructorCall
+    :   explicitGenericInvocationSuffix
+    |   'this' arguments
+    ;
 
 creator
     :   nonWildcardTypeArguments createdName classCreatorRest
@@ -708,7 +713,7 @@ superSuffix
 
 explicitGenericInvocationSuffix
     :   'super' superSuffix
-    |   javaIdentifier ('@' javaIdentifier )? arguments
+    |   javaIdentifier predicateEntryType? arguments
     ;
 
 arguments

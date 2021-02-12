@@ -31,7 +31,7 @@ omp_option : omp_private | omp_nowait | omp_schedule | omp_simdlen | omp_simdopt
 
 omp_schedule : 'schedule' '(' 'static' ')' ;
 
-omp_private : 'private' '(' id_list ')' ;
+omp_private : 'private' '(' id_list_empty ')' ;
 
 omp_nowait : 'nowait' ;
 
@@ -39,7 +39,11 @@ omp_simdopt : 'simd' ;
 
 omp_simdlen : 'simdlen' '(' Constant ')' ;
  
-id_list : ( Identifier ( ',' Identifier )* )? ;
+// id_list : ( Identifier ( ',' Identifier )* )? ;
+
+id_list_empty : id_list | /* empty */ ;
+
+id_list : Identifier | id_list  ',' Identifier ;
 
 Identifier : [a-zA-Z_] ([0-9a-zA-Z_])* ;
 
