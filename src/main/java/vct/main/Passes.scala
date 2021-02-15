@@ -74,15 +74,7 @@ object Passes {
     },
     new AbstractPass("printJavaToFile", "Generate code") {
       override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
-        val dir = new File(args(0))
-        if (dir.exists) if (!dir.isDirectory) {
-          report.fatal("%s is not a directory", dir)
-          return arg
-        }
-        else if (!dir.mkdirs) {
-          report.fatal("could not create %s", dir)
-          return arg
-        }
+        val dir = new File(".").getAbsoluteFile
         val syntax = JavaSyntax.getJava(JavaDialect.JavaVerCors)
         for (node <- arg.asScala) {
           if (node.isInstanceOf[ASTClass]) {
