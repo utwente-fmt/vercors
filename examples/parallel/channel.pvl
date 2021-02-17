@@ -1,46 +1,69 @@
 class Channel {
-	
-	seq<int> buffer, sent, recvd;
-									
-	resource lock_invariant() = 
-		Perm(buffer, 1) ** 
-		Perm(sent, 1\2) ** 
-		Perm(recvd, 1\2) ** 
-		sent == recvd + buffer;
-		
-	ensures Perm(sent, 1\2) ** Perm(recvd, 1\2);
+
+	boolean transfering;
+    
+    int exchangeValue;
+    
+    seq<int> sent, recvd;
+    
+    resource lock_invariant() = 
+		Perm(transfering, 1) 
+		** Perm(exchangeValue,1)
+		** Perm(sent, 1\2)
+		** Perm(recvd, 1\2)
+		** (transfering	==> sent == recvd)
+		** (!transfering ==> sent == recvd ++ exchangeValue)
+		;
+    
+    ensures Perm(sent, 1\2) ** Perm(recvd, 1\2);
 	ensures |sent| == 0;
 	ensures |recvd| == 0;
-	Channel() {
-		buffer = seq<int> {};
+    Channel() {
+		transfering = true;
 		sent = seq<int> {};
 		recvd = seq<int> {};
-	}
-
-	
+    }
+ 
 	context Perm(sent, 1\2);
 	ensures sent == \old(sent) ++ v;
-	void writeValue(int v) {
+    void writeValue(int v) {
 		lock this;
-		buffer = buffer ++ v;
-		sent = sent ++ v;
-		notify this;
-		unlock this;
-	}
-	
+		loop_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
+		loop_invariant held(this);
+		loop_invariant Perm(sent, 1) ** Perm(recvd, 1\2);
+		loop_invariant (transfering	==> sent == recvd);
+		loop_invariant (!transfering ==> sent == recvd ++ exchangeValue);
+		loop_invariant sent == \old(sent);
+		while (!transfering) {
+			wait this;
+        }
+        transfering = false;
+        exchangeValue = v;
+        sent = sent ++ v;
+        notify this;
+        unlock this;
+    }
+ 
 	context Perm(recvd, 1\2);
 	ensures recvd == \old(recvd) ++ \result;
-	int readValue() {
+	ensures |recvd| == \old(|recvd|) + 1;
+    int readValue() {
 		lock this;
-		loop_invariant Perm(buffer, 1) ** Perm(sent, 1\2) ** Perm(recvd, 1) ** sent == recvd + buffer ** recvd == \old(recvd) ** held(this);
-		while(|buffer| <= 0) {
+		loop_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
+		loop_invariant held(this);
+		loop_invariant Perm(sent, 1\2) ** Perm(recvd, 1);
+		loop_invariant (transfering	==> sent == recvd);
+		loop_invariant (!transfering ==> sent == recvd ++ exchangeValue);
+		loop_invariant recvd == \old(recvd);
+        while (transfering) {
 			wait this;
-		}
-		int v = head(buffer);
-		buffer = tail(buffer);
-		recvd = recvd ++ v;
-		unlock this;
-		return v;
-	}
-	
+        }
+        int v = exchangeValue;
+        recvd = recvd ++ v;
+        transfering = true;
+        notify this;
+        unlock this;
+        return v;
+    } 
 }
+
