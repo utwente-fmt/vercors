@@ -335,6 +335,7 @@ public class Main
         passes.add("session-generate");
         passes.add("simplify_expr");
         passes.add("remove-empty-blocks");
+        passes.add("session-barrier");
         passes.add("session-thread-constr");
         passes.add("session-constr-repair");
         passes.add("session-add-channel-perms");
@@ -844,6 +845,12 @@ public class Main
         SessionGeneration sesGen = new SessionGeneration(arg);
         sesGen.addThreadClasses();
         return sesGen.target();
+      }
+    });
+    defined_passes.put("session-barrier", new CompilerPass("generate barrier") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        return new SessionBarrier(arg).rewriteAll();
       }
     });
     defined_passes.put("session-thread-constr", new CompilerPass("add constructors to the thread classes") {

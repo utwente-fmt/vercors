@@ -82,7 +82,6 @@ object SessionUtil {
         case _ => None
       }
       case n : NameExpression => Some(n)
-      case m : MethodInvokation => getNameFromNode(m.`object`)
       case _ => None
     }
   }
@@ -92,7 +91,12 @@ object SessionUtil {
       case Some(n) => List(n)
       case None =>  e match {
         case o : OperatorExpression => o.args.flatMap(getNamesFromExpression)
-        case _ => List()
+        case m : MethodInvokation => {
+          val objName = getNameFromNode(m.`object`)
+          val argsNames = m.getArgs.flatMap(getNamesFromExpression).toList
+          if(objName.isEmpty) argsNames else objName.get +: argsNames
+        }
+        case _ => List.empty
       }
     }
   }

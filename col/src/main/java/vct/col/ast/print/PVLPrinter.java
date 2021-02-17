@@ -54,9 +54,11 @@ public class PVLPrinter extends AbstractPrinter{
             if (ann==null){
                 out.printf(" <null annotation> ");
             } else {
-                nextExpr();
-                ann.accept(this);
-                out.printf(" ");
+                if(!(node instanceof Method && ((Method)node).kind == Method.Kind.Pure)) {
+                    nextExpr();
+                    ann.accept(this);
+                    out.printf(" ");
+                }
             }
         }
     }
@@ -756,9 +758,6 @@ public class PVLPrinter extends AbstractPrinter{
         } else {
             result_type.accept(this);
             out.printf(" ");
-        }
-        if (m.getKind()==Method.Kind.Pure) {
-            out.printf("pure ");
         }
         out.printf("%s(",name);
         if (N>0) {

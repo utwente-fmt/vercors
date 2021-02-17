@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.ast.MessageOrigin
 import hre.lang.System.Output
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, IfStatementCase, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
@@ -31,35 +31,19 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     create.setOrigin(new MessageOrigin("Generated thread class " + roleName))
     val threadName = getThreadClassName(roleName)
     val thread = create.new_class(threadName,null,null)
-    mainClass.methods().forEach(m => thread.add_dynamic(rewrite(m)))
-    mainClass.fields().forEach(f => if(f.name == roleName) thread.add_dynamic(rewrite(f)))
-    thread.add_dynamic(create.field_decl(barrierFieldName,getBarrierClass))
+    mainClass.methods().forEach(m => thread.add(rewrite(m)))
+    mainClass.fields().forEach(f => if(f.name == roleName) thread.add(rewrite(f)))
     create.leave()
     thread
   }
 
   override def visit(m : Method) = {
     if(m.kind == Method.Kind.Constructor) {
-      val newContract = new ContractBuilder()
-      val barrierArgField = create.field_name(getArgName(barrierFieldName))
-      newContract.requires(create.expression(StandardOperator.NEQ,create.field_name(getArgName(barrierFieldName)),create.reserved_name(ASTReserved.Null)))
-      getBarrierAnnotations().foreach(newContract.ensures(_))
-      rewrite(m.getContract,newContract)
-      m.getBody match {
-        case b : BlockStatement => {
-          val newArgs = rewrite(m.getArgs) :+ create.field_decl(getArgName(barrierFieldName),getBarrierClass())
-          val barAssign = create.assignment(create.field_name(barrierFieldName),create.field_name(getArgName(barrierFieldName)))
-          val newBody = create.block(rewrite(b.getStatements) :+ barAssign:_*)
-          result = create.method_kind(m.kind,m.getReturnType,newContract.getContract,getThreadClassName(roleName),newArgs,newBody)
-        }
-        case _ => Fail("Session Fail: expected BlockStatement in Method %s",m.name)
-      }
-
+      result = create.method_kind(m.kind,m.getReturnType,rewrite(m.getContract),getThreadClassName(roleName),m.getArgs,rewrite(m.getBody))
+    } else if(m.kind == Method.Kind.Pure) {
+      result = copy_rw.rewrite(m)
     } else {
-      val newContract = new ContractBuilder()
-      getBarrierAnnotations().foreach(newContract.context(_))
-      rewrite(m.getContract,newContract)
-      result = create.method_kind(m.kind,m.getReturnType,newContract.getContract,m.name,m.getArgs,rewrite(m.getBody))
+      super.visit(m)
     }
   }
 
@@ -85,59 +69,18 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   }
 
   override def visit(e : OperatorExpression) ={
-    e.operator match {
-      case StandardOperator.Perm =>
+    if(e.operator == StandardOperator.Perm) {
         if(getValidNameFromNode(false, e.first).nonEmpty) {
           result = create.constant(true)
         } else {
           super.visit(e)
         }
-      case _ =>
+    } else {
         if(e.args.exists(getValidNameFromNode(false, _).nonEmpty)) {
           result = create.constant(true)
         } else {
           super.visit(e)
         }
-    }
-  }
-
-  override def visit(s : IfStatement) = {
-    val stats : Seq[BlockStatement] = (0 until s.getCount).map(s.getStatement).filter {
-      case b: BlockStatement => true
-      case _ => Fail("Session Fail: expected BlockStatement in IfStatementCase"); false
-    }.asInstanceOf[Seq[BlockStatement]]
-      .map(b => create.block(prependBarrier(b): _*))
-    result = create.ifthenelse(rewrite(s.getGuard(0)),stats:_*)
-  }
-
-  override def visit(l : LoopStatement) = {
-    l.getBody match {
-      case b : BlockStatement => {
-        val newContract = new ContractBuilder()
-        getBarrierAnnotations().foreach(newContract.appendInvariant(_))
-        rewrite(l.getContract,newContract)
-        result = create.while_loop(rewrite(l.getEntryGuard),create.block(prependBarrier(b):_*),newContract.getContract)
-      }
-      case _ => Fail("Session Fail: expected BlockStatement in LoopStatement")
-    }
-  }
-
-  override def visit(b : BlockStatement) = {
-    val nrLoops = b.getStatements.count(_.isInstanceOf[LoopStatement])
-    if(nrLoops > 0) {
-      val newStats = new Array[ASTNode](b.getLength+nrLoops)
-      var i = 0
-      for(stat <- b.getStatements) {
-        newStats(i) = rewrite(stat)
-        i = i+1
-        if(stat.isInstanceOf[LoopStatement]) {
-          newStats(i) = getBarrierInvokation()
-          i = i+1
-        }
-      }
-      result = create.block(newStats:_*)
-    } else {
-      super.visit(b)
     }
   }
 
@@ -148,14 +91,5 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
 
   private def getValidNameFromExpression(isRole : Boolean, e : ASTNode) : Option[NameExpression] =
     getNamesFromExpression(e).find(n => if(isRole) (n.name == roleName) else n.name != roleName)
-
-  private def getBarrierInvokation() = create.invokation(create.field_name(barrierFieldName), null, barrierAwait)
-
-  private def prependBarrier(b : BlockStatement) : Array[ASTNode] = getBarrierInvokation() +: rewrite(b.getStatements)
-
-  private def getBarrierAnnotations() : List[OperatorExpression] = {
-    List(create.expression(StandardOperator.Perm,create.field_name(barrierFieldName),create.reserved_name(ASTReserved.ReadPerm)),
-    create.expression(StandardOperator.NEQ,create.field_name(barrierFieldName),create.reserved_name(ASTReserved.Null)))
-  }
 
 }
