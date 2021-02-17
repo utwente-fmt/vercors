@@ -6,7 +6,7 @@ import vct.col.ast.expr.{NameExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionUtil.{channelClassName, getChanClass, getRoleName, isChanName, isThreadClassName, mainClassName, runMethodName}
+import vct.col.util.SessionUtil.{barrierFieldName, channelClassName, getBarrierClass, getChanClass, getRoleName, isChanName, isThreadClassName, mainClassName, runMethodName}
 
 import scala.collection.JavaConversions._
 
@@ -27,16 +27,22 @@ class SessionStartThreadsClass(override val source: ProgramUnit)  extends Abstra
       threads.foldRight(Map():Map[String,Set[String]])((t,map) => map + (t.name -> t.dynamicFields().map(_.name).toSet))
     }
     val chansVars = threads.flatMap(getChanFieldNames).map(getChanVar).toArray
+    val barrierVar = getBarrierVar(threads.size)
     val threadVars = threads.map(t => getThreadVar(t,getChanFieldNames(t))).toArray
     val threadForks = threads.map(t => getThreadRunning(t.name, true)).toArray
     val threadJoins = threads.map(t => getThreadRunning(t.name, false)).toArray
-    val body = create.block(new MessageOrigin("Generated block of run method in Main class"),(chansVars ++ threadVars ++ threadForks ++ threadJoins):_*)
+    val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
+      (barrierVar +: (chansVars ++ threadVars ++ threadForks ++ threadJoins)):_*)
     val void = create.primitive_type(PrimitiveSort.Void)
     val noArgs = Array() : Array[DeclarationStatement]
     val runMethod = create.method_decl(void,new ContractBuilder().getContract,runMethodName,noArgs,body)
     mainClass.add_dynamic(runMethod)
     mainClass
   }
+
+  private def getBarrierVar(nrThreads : Int) =
+    create.field_decl(new MessageOrigin("Generated Barrier variable"),barrierFieldName,getBarrierClass(),
+      create.invokation(null,getBarrierClass(),Method.JavaConstructor,create.constant(nrThreads)))
 
   private def getChanFieldNames(thread : ASTClass) = thread.dynamicFields().map(_.name).filter(isChanName)
 
@@ -45,7 +51,9 @@ class SessionStartThreadsClass(override val source: ProgramUnit)  extends Abstra
       create.invokation(null,getChanClass(),Method.JavaConstructor))
 
   private def getThreadVar(thread : ASTClass, chans : Iterable[String]) = {
-    val args : Array[NameExpression] = chans.map(chan => create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name),chan)).toArray
+    val barArg = create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name), barrierFieldName)
+    val chanArgs = chans.map(chan => create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name),chan)).toArray
+    val args : Array[NameExpression] = barArg +: chanArgs
     create.field_decl(new MessageOrigin("Generated Thread variable"),getRoleName(thread.name),new ClassType(thread.name),
       create.invokation(null,new ClassType(thread.name),Method.JavaConstructor,args:_*))
   }

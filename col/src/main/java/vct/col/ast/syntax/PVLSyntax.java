@@ -34,7 +34,8 @@ public class PVLSyntax extends Syntax {
       syntax=new PVLSyntax("PVL");
 
       VerCorsSyntax.add(syntax);
-      
+      syntax.addPostfix(PostIncr,"++",140);
+      syntax.addPostfix(PostDecr,"--",140);
       //syntax.addInfix(SubType,"<:",90);
       //syntax.addInfix(SuperType,":>",90);
       syntax.addInfix(Implies,"==>",30);

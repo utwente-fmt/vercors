@@ -22,7 +22,7 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
 
   var chanMap : Map[String,Set[SessionChannel]] = Map() // A Map threadName -> {(chanName,isWriteValueCall)}
 
-  def getConstructors() = {
+  def addChansToConstructors() = {
     for(entry <- source.get()) {
       entry match {
         case c : ASTClass => {
@@ -58,24 +58,20 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
       create.enter()
       create.setOrigin(new MessageOrigin("Generated constructor " + m.name))
       val chans = chanMap.get(m.name).get
-      val args : Set[DeclarationStatement] = chans.map(chan => create.field_decl(chan.getArgChanName(),getChanClass()))
+      val chanArgs : Set[DeclarationStatement] = chans.map(chan => create.field_decl(chan.getArgChanName(),getChanClass()))
       val newContract = getRoleConstructorContract(chans)
       rewrite(m.getContract,newContract)
       val chanDecls : Array[ASTNode] = chans.map(chan =>
         create.assignment(create.name(NameExpressionKind.Unresolved,null,chan.channel),
                           create.name(NameExpressionKind.Unresolved,null,chan.getArgChanName()))).toArray
       val threadDecl : Array[ASTNode] = m.getBody match {
-          case b : BlockStatement => b.getStatements.head match {
-            case a : AssignmentStatement => {
-                  Set(rewrite(a)).toArray
-                }
-            case _ => Fail("Session Fail: expected a role declaration"); Array[ASTNode]()
-          }
+          case b : BlockStatement => b.getStatements
         case _ => Fail("Constructor %s must have a BlockStatement body",m.name); Array[ASTNode]()
       }
-      val allStats = threadDecl ++ chanDecls
+      val allStats = rewrite(threadDecl) ++ chanDecls
+      val args : Array[DeclarationStatement] = rewrite(m.getArgs) ++ chanArgs.toArray[DeclarationStatement]
       val body : BlockStatement = create.block(allStats:_*)
-      val myNewMethod = create.method_kind(m.kind,m.getReturnType,newContract.getContract,m.name,args.toArray,body)
+      val myNewMethod = create.method_kind(m.kind,m.getReturnType,newContract.getContract,m.name,args,body)
       create.leave()
       result = myNewMethod
     } else {

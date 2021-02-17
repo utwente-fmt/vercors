@@ -6,6 +6,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelRegion}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTFactory
+import vct.col.util.SessionUtil.getArgName
 
 import scala.sys.error
 
@@ -16,6 +17,9 @@ object SessionUtil {
   private val threadName : String = "Thread"
   private val chanName : String = "Chan"
   val channelClassName : String = "Channel"
+  val barrierClassName : String = "Barrier"
+  val barrierFieldName : String = "threadBarrier"
+  val barrierAwait : String = "await"
   val chanWrite : String = "writeValue"
   val chanRead : String = "readValue"
 
@@ -36,6 +40,10 @@ object SessionUtil {
   def getChanName(roleName : String) = roleName + chanName
 
   def getChanClass() = new ClassType(channelClassName)
+
+  def getBarrierClass() = new ClassType(barrierClassName)
+
+  def getArgName(name : String) = name + "Arg"
 
   def getChansFromBlockStateMent(block : ASTNode) : Set[MethodInvokation] = {
     block match {
@@ -100,7 +108,7 @@ object SessionUtil {
 
     override def toString: String = channel + " " + (if(isWrite) "Write" else "Read")
 
-    def getArgChanName() : String = channel + "Arg"
+    def getArgChanName() : String = getArgName(channel)
 
     def getArgChan() : SessionChannel = new SessionChannel(getArgChanName(), isWrite)
 

@@ -154,8 +154,9 @@ public class Main
 
       String input[] = clops.parse(args);
       if (Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
-        input = Arrays.copyOf(input, input.length + 1);
+        input = Arrays.copyOf(input, input.length + 2);
         input[input.length - 1] = "examples/parallel/channel.pvl";
+        input[input.length - 2] = "examples/parallel/barrier.pvl";
       }
 
       hre.lang.System.LogLevel level = hre.lang.System.LogLevel.Info;
@@ -335,7 +336,7 @@ public class Main
         passes.add("simplify_expr");
         passes.add("remove-empty-blocks");
         passes.add("session-thread-constr");
-        passes.add("session-channel-repair");
+        passes.add("session-constr-repair");
         passes.add("session-add-channel-perms");
         passes.add("session-add-start-threads");
         passes.add("pvl");
@@ -849,14 +850,14 @@ public class Main
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
         SessionThreadConstructors sesThreadConstr = new SessionThreadConstructors(arg);
-        sesThreadConstr.getConstructors();
+        sesThreadConstr.addChansToConstructors();
         return sesThreadConstr.rewriteAll();
       }
     });
-    defined_passes.put("session-channel-repair", new CompilerPass("remove fold and exhale from Channel constructor") {
+    defined_passes.put("session-constr-repair", new CompilerPass("remove fold and exhale from Channel constructor") {
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
-        return new SessionChannelConstructorRepair(arg).rewriteAll();
+        return new SessionLockCommitRepair(arg).rewriteAll();
       }
     });
     defined_passes.put("session-add-channel-perms", new CompilerPass("add channel permissions in contracts") {
