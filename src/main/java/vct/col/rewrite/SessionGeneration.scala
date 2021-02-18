@@ -42,8 +42,8 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(m : Method) = { //assume ony pre and postconditions
     val c = m.getContract()
     val cb = new ContractBuilder()
-    cb.requires(rewrite(selectPerms(c.pre_condition)))
-    cb.ensures(rewrite(selectPerms(c.post_condition)))
+    cb.requires(rewrite(selectAnnotation(c.pre_condition)))
+    cb.ensures(rewrite(selectAnnotation(c.post_condition)))
     if(m.kind == Method.Kind.Constructor) {
       result = create.method_kind(m.kind,m.getReturnType,cb.getContract,getThreadClassName(roleName),m.getArgs,rewrite(m.getBody))
     } else if(m.kind == Method.Kind.Pure) {
@@ -56,15 +56,15 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(l : LoopStatement) = { //assume while loop
     val c = l.getContract()
     val cb = new ContractBuilder()
-    cb.appendInvariant(rewrite(selectPerms(c.invariant)))
+    cb.appendInvariant(rewrite(selectAnnotation(c.invariant)))
     result = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract)
   }
 
   override def visit(pb : ParallelBlock) = {
     val c = pb.contract
     val cb = new ContractBuilder()
-    cb.requires(rewrite(selectPerms(c.pre_condition)))
-    cb.ensures(rewrite(selectPerms(c.post_condition)))
+    cb.requires(rewrite(selectAnnotation(c.pre_condition)))
+    cb.ensures(rewrite(selectAnnotation(c.post_condition)))
     result = create.parallel_block(pb.label,cb.getContract,pb.itersJava,rewrite(pb.block),pb.deps)
   }
 
@@ -90,32 +90,30 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   }
 
   override def visit(e : OperatorExpression) ={
-    if(e.operator == StandardOperator.Star) {
-      super.visit(e);
-    } else if(e.operator == StandardOperator.Not) {
-      result = create.expression(e.operator,rewriteConditionArg(e.first))
-    } else if(e.operator == StandardOperator.And) {
-      result = create.expression(e.operator,rewriteConditionArg(e.first),rewriteConditionArg(e.second))
-    } else {
-      result = copy_rw.rewrite(e)
+    if(e.operator == StandardOperator.Star || e.operator == StandardOperator.And) {
+      result = create.expression(e.operator,rewrite(e.first),rewrite(e.second))
+    } else getValidNameFromExpression(true,e) match {
+      case Some(_) => result = copy_rw.rewrite(e)
+      case None => result = create.constant(true)
     }
   }
 
-  private def rewriteConditionArg(n :ASTNode) : ASTNode=
-    if (getValidNameFromExpression(true,n).nonEmpty)
-      rewrite(n)
-    else create.constant(true)
+  private def selectAnnotation(n :ASTNode) : ASTNode =
+    n match {
+      case e : OperatorExpression => e.operator match {
+        case StandardOperator.Perm => n
+        case StandardOperator.NEQ => if (isNullNode(e.first) || isNullNode(e.second)) n else create.constant(true)
+        case StandardOperator.Star => create.expression(e.operator,selectAnnotation(e.first), selectAnnotation(e.second))
+        case _ => create.constant(true)
+      }
+      case _ => create.constant(true)
+    }
 
-  private def selectPerms(n : ASTNode) : ASTNode = {
-    val conj = ASTUtils.conjuncts(n, StandardOperator.Star).filter {
-      case e: OperatorExpression => e.operator == StandardOperator.Perm && getValidNameFromNode(true,e.first).nonEmpty
+  private def isNullNode(n : ASTNode) : Boolean =
+    n match {
+      case name : NameExpression => name.reserved == ASTReserved.Null
       case _ => false
     }
-    if (conj.isEmpty) create.constant(true)
-    else {
-      conj.reduce((l, r) => create.expression(StandardOperator.Star, l, r))
-    }
-  }
 
   private def getChanVar(role : NameExpression, isWrite : Boolean) =  create.name(NameExpressionKind.Unresolved, null, getChanName(if(isWrite) (roleName + role.name) else (role.name + roleName)))
 
