@@ -331,7 +331,6 @@ public class Main
       } else if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
         passes = new LinkedBlockingDeque<String>();
         passes.add("session-struct-check");
-        passes.add("session-assign-check");
         passes.add("session-generate");
         passes.add("simplify_expr");
         passes.add("remove-empty-blocks");
@@ -829,13 +828,6 @@ public class Main
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
         SessionStructureCheck.check(arg);
-        return arg;
-      }
-    });
-    defined_passes.put("session-assign-check", new CompilerPass("check that the run method of the main class only has assignments conforming the session restriction") {
-      @Override
-      protected ProgramUnit apply(ProgramUnit arg, String... args) {
-        new SessionCommunicationCheck(arg).checkMainMethodsAssignments();
         return arg;
       }
     });
