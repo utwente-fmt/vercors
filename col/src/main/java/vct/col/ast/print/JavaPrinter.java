@@ -73,7 +73,7 @@ public class JavaPrinter extends AbstractPrinter {
   public void visit(TryCatchBlock tcb){
     out.print("try");
     tcb.main().accept(this);
-    for (CatchClause cb : tcb.catches()) {
+    for (CatchClause cb : tcb.catchesJava()) {
       cb.accept(this);
     }
     if (tcb.after() != null){

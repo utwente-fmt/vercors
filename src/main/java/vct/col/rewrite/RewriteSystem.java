@@ -450,6 +450,11 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
     return null;
   }
 
+  @Override
+  public Boolean map(KernelInvocation ki, ASTNode arg) {
+    return null;
+  }
+
 }
 
 class MatchSubstitution extends AbstractRewriter {

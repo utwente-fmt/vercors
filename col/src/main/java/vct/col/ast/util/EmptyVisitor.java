@@ -356,4 +356,7 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
 
   @Override
   public void visit(SignalsClause sc) { }
+
+  @Override
+  public void visit(KernelInvocation ki) { }
 }

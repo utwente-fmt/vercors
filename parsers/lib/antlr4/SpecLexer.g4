@@ -41,6 +41,7 @@ VAL_SEQ: 'seq';
 VAL_SET: 'set';
 VAL_BAG: 'bag';
 VAL_LOC: 'loc';
+VAL_POINTER: 'pointer';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
@@ -59,6 +60,7 @@ VAL_ENSURES: 'ensures';
 VAL_CONTEXT_EVERYWHERE: 'context_everywhere';
 VAL_CONTEXT: 'context';
 VAL_LOOP_INVARIANT: 'loop_invariant';
+VAL_KERNEL_INVARIANT: 'kernel_invariant';
 VAL_SIGNALS: 'signals';
 
 VAL_CREATE: 'create';
@@ -124,6 +126,7 @@ VAL_SOME: 'Some';
 VAL_TAIL: 'tail';
 VAL_VALUE: 'Value';
 VAL_VALUES_MAP: 'valuesMap';
+VAL_GETOPTELSE: 'getOrElseOption';
 
 UNFOLDING: '\\unfolding';
 IN: '\\in';
@@ -157,6 +160,7 @@ WRITE: 'write';
 READ: 'read';
 EMPTY: 'empty';
 
+CONS: '::';
 FRAC_DIV: '\\';
 SEP_CONJ: '**';
 IMPLIES: '==>';

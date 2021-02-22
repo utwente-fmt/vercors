@@ -143,7 +143,14 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     }
     // TODO: fix dispatch(e.get_after());
   }
-  
+
+  @Override
+  public void visit(KernelInvocation e) {
+    e.blockCount().accept(this);
+    e.threadCount().accept(this);
+    dispatch(e.args());
+  }
+
   private void dispatch(Contract c){
     if (c!=null){
       c.accept(this);
@@ -397,7 +404,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override
   public void visit(TryCatchBlock tcb) {
     dispatch(tcb.main());
-    for (CatchClause cc : tcb.catches()) {
+    for (CatchClause cc : tcb.catchesJava()) {
         dispatch(cc);
     }
     dispatch(tcb.after());

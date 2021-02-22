@@ -26,7 +26,6 @@ public class PropagateInvariants extends AbstractRewriter {
       super.visit(m);
     } else {
       Contract c = m.getContract();
-      rewrite(c);
       ContractBuilder builder = new ContractBuilder();
       if(c.given != null) builder.given(rewrite(c.given));
       if(c.yields != null) builder.yields(rewrite(c.yields));
@@ -42,7 +41,7 @@ public class PropagateInvariants extends AbstractRewriter {
               m.kind,
               rewrite(m.getReturnType()),
               rewrite(m.signals),
-              rewrite(builder.getContract()),
+              builder.getContract(),
               m.name(),
               rewrite(m.getArgs()),
               m.usesVarArgs(),

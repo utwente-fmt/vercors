@@ -72,10 +72,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       adt.add_axiom(create.axiom("empty_1L",
           create.forall(create.constant(true),
               create.expression(StandardOperator.EQ,
-                  create.domain_call("Process", "p_merge",
+                  create.pattern(create.domain_call("Process", "p_merge",
                       create.domain_call("Process", "p_empty"),
                       create.local_name("p")
-                  ),
+                  )),
                   create.local_name("p")
               ),create.field_decl("p", adt_type)
           )
@@ -83,10 +83,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       adt.add_axiom(create.axiom("empty_2L",
           create.forall(create.constant(true),
               create.expression(StandardOperator.EQ,
-                  create.domain_call("Process", "p_seq",
+                  create.pattern(create.domain_call("Process", "p_seq",
                       create.domain_call("Process", "p_empty"),
                       create.local_name("p")
-                  ),
+                  )),
                   create.local_name("p")
               ),create.field_decl("p", adt_type)
           )
@@ -94,10 +94,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       adt.add_axiom(create.axiom("empty_2R",
           create.forall(create.constant(true),
               create.expression(StandardOperator.EQ,
-                  create.domain_call("Process", "p_seq",
+                  create.pattern(create.domain_call("Process", "p_seq",
                       create.local_name("p"),
                       create.domain_call("Process", "p_empty")
-                  ),
+                  )),
                   create.local_name("p")
               ),create.field_decl("p", adt_type)
           )
@@ -147,10 +147,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
               null,
               create.constant(true),
               create.expression(StandardOperator.EQ,
-                  create.domain_call("Process", "p_seq",
+                  create.pattern(create.domain_call("Process", "p_seq",
                       create.domain_call("Process","p_choice",create.local_name("p1"),create.local_name("p2")),
                       create.local_name("p3")
-                  ),
+                  )),
                   create.domain_call("Process", "p_choice",
                       create.domain_call("Process", "p_seq",create.local_name("p1"),create.local_name("p3")),                      
                       create.domain_call("Process", "p_seq",create.local_name("p2"),create.local_name("p3"))
@@ -187,6 +187,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       switch(mode){
       case AxiomVerification:{
         ASTClass res = create.new_class(cl.name(), new DeclarationStatement[0], null);
+        res.setFlag(ASTFlags.FINAL, true);
         for(Method m:cl.dynamicMethods()){
           if (m.getKind()==Method.Kind.Constructor){
             continue;
@@ -203,6 +204,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       }
       case ProgramVerification:{
         hist_class = create.new_class(cl.name(), new DeclarationStatement[0], null);
+        hist_class.setFlag(ASTFlags.FINAL, true);
         for(Method m:cl.dynamicMethods()){
           if (m.getKind()==Method.Kind.Constructor){
             hist_class.add_dynamic(rewrite(m));
@@ -912,7 +914,6 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       @Override
       public void visit(FieldAccess d){
         ASTNode n=new_map.get(d.name());
-        Warning("name %s",d.name());
         if (n==null){
           super.visit(d);
         } else {

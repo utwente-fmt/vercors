@@ -610,7 +610,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         maybeCond.map(expr).getOrElse(create constant true),
         maybeUpdate.map(convertStatList).map(create block(_:_*)).orNull,
         flattenIfSingleStatement(convertStat(body)),
-        maybeGPUopt.map(convertGPUOpt).get,
+        maybeGPUopt.map(convertGPUOpt).orNull,
         convertContract(invariants)
       )
     case Statement17(block) => convertBlock(block)
@@ -743,6 +743,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       builder.context(expr(exp))
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
+    case ValContractClause9(_kernel_invariant, exp, _) =>
+      builder.appendKernelInvariant(expr(exp))
+    case ValContractClause10(_signals, _, signalsType, name, _, condition, _) =>
+      builder.signals(origin(clause, new SignalsClause(convertID(name), convertType(signalsType), expr(condition))))
   }
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {
@@ -985,6 +989,26 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create expression(StandardOperator.Value, expr(arg))
     case ValPrimary61("valuesMap", _, map, _) =>
       create expression(StandardOperator.MapValueSet, expr(map))
+    case ValPrimary62("seq", "<", t, ">", "{", elems, "}") =>
+      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems):_*)
+    case ValPrimary63("set", "<", t, ">", "{", elems, "}") =>
+      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems):_*)
+    case ValPrimary64("(", seq, "[", "..", end, "]", ")") =>
+      create expression(Take, expr(seq), expr(end))
+    case ValPrimary65("(", seq, "[", start, "..", None, "]", ")") =>
+      create expression(Drop, expr(seq), expr(start))
+    case ValPrimary65("(", seq, "[", start, "..", Some(end), "]", ")") =>
+      create expression(Slice, expr(seq), expr(start), expr(end))
+    case ValPrimary66("(", seq, "[", idx, "->", replacement, "]", ")") =>
+      create expression(SeqUpdate, expr(seq), expr(idx), expr(replacement))
+    case ValPrimary67("(", x, "::", xs, ")") =>
+      create expression(PrependSingle, expr(x), expr(xs))
+    case ValPrimary68("(", xs, "++", ys, ")") =>
+      create expression(Concat, expr(xs), expr(ys))
+    case ValPrimary69("(", x, "\\in", xs, ")") =>
+      create expression(Member, expr(x), expr(xs))
+    case ValPrimary70("getOrElseOption", "(", opt, ",", alt, ")") =>
+      create expression(OptionGetOrElse, expr(opt), expr(alt))
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {
@@ -1091,6 +1115,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create primitive_type(PrimitiveSort.Bag, convertType(subType))
     case ValType4("loc", _, subType, _) =>
       create primitive_type(PrimitiveSort.Location, convertType(subType))
+    case ValType5("pointer", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Pointer, convertType(subType))
   })
 
   def convertValArg(arg: ValArgContext): DeclarationStatement = origin(arg, arg match {

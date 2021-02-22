@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import scala.Option;
-import scala.Some;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
@@ -19,7 +18,7 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.util.*;
 import vct.col.rewrite.AddZeroConstructor;
-import vct.java.ASTClassLoader;
+import vct.java.JavaASTClassLoader;
 import vct.logging.PassReport;
 import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
@@ -116,12 +115,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       decl=source().find(t.getNameFull());
     }
     if (decl == null) {
-      cl = ASTClassLoader.load(t.getNameFull(), currentNamespace);
+      cl = JavaASTClassLoader.load(t.getNameFull(), currentNamespace);
       decl = cl;
-
-      if (cl != null) {
-        cl.accept(this);
-      }
     }
     if (decl == null) {
       Fail("type error: defined type "+t.getFullName()+" not found");
@@ -167,7 +162,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       // This is a constructor invokation.
       ClassType t = e.dispatch();
       visit(t);
-      ASTClass cl = (ASTClass) t.definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass cl = (ASTClass) t.definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       Objects.requireNonNull(cl, () -> String.format("class %s not found", t));
       ASTNode args[]=e.getArgs();
       Type c_args[]=new Type[args.length];
@@ -217,9 +212,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         type[i]=e.getArg(i).getType();
         if (type[i]==null) Abort("argument %d has no type.",i);
       }
-      ASTClass cl = (ASTClass) object_type.definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass cl = (ASTClass) object_type.definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       Objects.requireNonNull(cl, () -> String.format("could not find class %s used in %s", object_type.getFullName(), e));
-      m=cl.find(e.method(), object_type, type, ASTClassLoader.INSTANCE(), currentNamespace);
+      m=cl.find(e.method(), object_type, type, JavaASTClassLoader.INSTANCE(), currentNamespace);
       if (m==null) {
         /*
         String parts[]=e.method.split("_");
@@ -318,7 +313,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     for(int i=0;i<N;i++){
       Type ti=m.getArgType(i);
       ASTNode arg=e.getArg(i);
-      if (!ti.supertypeof(arg.getType(), Option.apply(source()), Option.apply(ASTClassLoader.INSTANCE()), Option.apply(currentNamespace))){
+      if (!ti.supertypeof(arg.getType(), Option.apply(source()), Option.apply(JavaASTClassLoader.INSTANCE()), Option.apply(currentNamespace))){
         boolean argAssignable =
                 (arg instanceof Dereference || arg instanceof FieldAccess)
                 && ((Type)ti.firstarg()).supertypeof(source(), arg.getType());
@@ -840,7 +835,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       if (!(t instanceof ClassType)) {
         Fail("Data type must be a class type.");
       }
-      ASTClass cl = (ASTClass) ((ClassType) t).definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass cl = (ASTClass) ((ClassType) t).definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       variables.enter();
       for (DeclarationStatement decl : cl.dynamicFields()) {
         variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
@@ -1271,6 +1266,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType((Type) ((PrimitiveType) t).firstarg());
         break;
       }
+      case OptionGetOrElse: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Option)) {
+          Fail("first argument is %s rather then an option ", tt[0]);
+        } else if (!tt[1].comparableWith(source(), (Type) tt[0].firstarg())) {
+          Fail("type of the second argument %s does not match the value type of the option %s", tt[1], tt[0].firstarg());
+        }
+        e.setType((Type) tt[0].firstarg());
+        break;
+      }
       case PreIncr:
       case PreDecr:
       case PostIncr:
@@ -1400,8 +1404,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         break;
       }
       case GTE:
-      case LTE:
-      case LT:
       case GT: {
         if (!tt[0].isNumeric()) {
           Fail("First argument of %s is %s rather than a numeric type", op, tt[0]);
@@ -1410,12 +1412,28 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           Fail("Second argument of %s is %s rather than a numeric type", op, tt[1]);
         }
 
-        if(tt[0].isFraction()) force_frac(e.arg(1));
-        else if(tt[1].isFraction()) force_frac(e.arg(0));
+        if (tt[0].isFraction()) force_frac(e.arg(1));
+        else if (tt[1].isFraction()) force_frac(e.arg(0));
 
         e.setType(new PrimitiveType(PrimitiveSort.Boolean));
         break;
       }
+      case LTE:
+      case LT:
+        if (!tt[0].isNumeric() && !tt[0].isPrimitive(PrimitiveSort.Set) && !tt[0].isPrimitive(PrimitiveSort.Bag)) {
+          Fail("Left argument of %s is %s rather than a numeric type, set or a bag", op, tt[0]);
+        } else if (tt[0].isNumeric() && !tt[1].isNumeric()) {
+          Fail("Right argument of %s is %s rather than a numeric type", op, tt[1]);
+        } else if ((tt[0].isPrimitive(PrimitiveSort.Set) || tt[0].isPrimitive(PrimitiveSort.Bag)) && !tt[0].equals(tt[1])) {
+          Fail("Type of right side does not match the left side");
+        }
+        if (tt[0].isNumeric() && tt[1].isNumeric()) {
+          if (tt[0].isFraction()) force_frac(e.arg(1));
+          else if (tt[1].isFraction()) force_frac(e.arg(0));
+        }
+
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
       case Old: {
         Type t = e.arg(0).getType();
         if (t == null) Fail("type of argument is unknown at %s", e.getOrigin());
@@ -1428,54 +1446,73 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType((Type) t);
         break;
       }
-    case Drop:
-    case Take:
-    {
-      SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfoOrFail(tt[0], "Expected this expression to be of a sequence type, but got %s.");
+      case Drop:
+      case Take: {
+        SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfoOrFail(tt[0], "Expected this expression to be of a sequence type, but got %s.");
 
-      if (info.getSequenceSort() != PrimitiveSort.Sequence && info.getSequenceSort() != PrimitiveSort.Array) {
-        Fail("base must be of sequence type");
+        if (info.getSequenceSort() != PrimitiveSort.Sequence && info.getSequenceSort() != PrimitiveSort.Array) {
+          Fail("base must be of sequence type");
+        }
+        if (!tt[1].isInteger()) {
+          Fail("count has type '%s' rather than integer", tt[1]);
+        }
+        e.setType(tt[0]);
+        break;
       }
-      if (!tt[1].isInteger()) {
-        Fail("count has type '%s' rather than integer", tt[1]);
-      }
-      e.setType(tt[0]);
-      break;
-    }
-    case Slice:
-    {
-      if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
-        Fail("base must be of sequence type");
-      }
-      if (!tt[1].isInteger()) {
-        Fail("left count has type '%s' rather than integer", tt[1]);
-      }
-      if (!tt[2].isInteger()) {
-        Fail("right count has type '%s' rather than integer", tt[2]);
-      }
-      e.setType(tt[0]);
-      break;
-    }
-
-    case SeqUpdate: {
-      if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
-        Fail("base must be of sequence type");
+      case Slice: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
+          Fail("base must be of sequence type");
+        }
+        if (!tt[1].isInteger()) {
+          Fail("left count has type '%s' rather than integer", tt[1]);
+        }
+        if (!tt[2].isInteger()) {
+          Fail("right count has type '%s' rather than integer", tt[2]);
+        }
+        e.setType(tt[0]);
+        break;
       }
 
-      // for example, if `tt[0]` is of type `seq<int>`, then `innerType` shall be `int`.
-      Type innerType = (Type)tt[0].firstarg();
+      case SeqUpdate: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
+          Fail("base must be of sequence type");
+        }
 
-      if (!tt[1].isInteger()) {
-        Fail("index has type '%s' rather than integer", tt[1]);
+        // for example, if `tt[0]` is of type `seq<int>`, then `innerType` shall be `int`.
+        Type innerType = (Type) tt[0].firstarg();
+
+        if (!tt[1].isInteger()) {
+          Fail("index has type '%s' rather than integer", tt[1]);
+        }
+
+        if (!tt[2].equals(innerType)) {
+          Fail("the replacing element has type '%s' but should be '%s'", tt[2], innerType);
+        }
+
+        e.setType(tt[0]);
+        break;
       }
-
-      if (!tt[2].equals(innerType)) {
-        Fail("the replacing element has type '%s' but should be '%s'", tt[2], innerType);
+      case SubSet:
+      case SubSetEq:
+      {
+        if (!tt[0].isPrimitive(PrimitiveSort.Set) && !tt[0].isPrimitive(PrimitiveSort.Bag)) {
+          Fail("First argument of %s is %s rather than a set or a bag", op, tt[0]);
+        } else if (!tt[0].equals(tt[1])) {
+          Fail("Type of right side does not match the left side");
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
       }
-
-      e.setType(tt[0]);
-      break;
-    }
+      case SeqPermutation: {
+        if (!tt[0].isPrimitive(PrimitiveSort.Sequence)) {
+          Fail("First argument of %s is %s rather than a sequence", op, tt[0]);
+        } else if (!tt[1].isPrimitive(PrimitiveSort.Sequence)) {
+          Fail("First argument of %s is %s rather than a sequence", op, tt[1]);
+        } else if (!tt[0].firstarg().equals(tt[1].firstarg())) {
+          Fail("Types of sequences differ of %s: %s and %s", op, tt[0], tt[1]);
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+      }
     case Empty: {
       Type t = e.arg(0).getType();
       if (!(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Set) || t.isPrimitive(PrimitiveSort.Map))) {
@@ -1483,7 +1520,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
       e.setType(new PrimitiveType(PrimitiveSort.Boolean));
       break;
-
     }
     case Subscript:
     {
@@ -1922,7 +1958,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(object_type);
     } else {
       Debug("resolving class "+((ClassType)object_type).getFullName()+" "+((ClassType)object_type).getNameFull().length);
-      ASTClass cl = (ASTClass) ((ClassType) object_type).definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass cl = (ASTClass) ((ClassType) object_type).definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       if (cl==null) {
         Fail("could not find class %s",((ClassType)object_type).getFullName());
       } else {

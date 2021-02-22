@@ -82,14 +82,11 @@ case class ClassType(names: List[String], params: List[ASTNode]) extends Type(pa
       true
     } else {
       other.definition(source, loader, ns) == definition(source, loader, ns) || (
-        other.definition(source, loader, ns).flatMap {
-          case cls: ASTClass => Some(cls)
-          case _ /* adts and such */ => None
-        } match {
-          case None => false
-          case Some(cl) =>
-            (cl.super_classes ++ cl.implemented_classes)
+        other.definition(source, loader, ns) match {
+          case Some(cls: ASTClass) =>
+            (cls.super_classes ++ cls.implemented_classes)
               .exists(parent => searchForSupertype(parent, source, loader, ns))
+          case _ /* adts and such */ => false
         }
       )
     }

@@ -46,34 +46,6 @@ public class JavaEncoder extends AbstractRewriter {
           rewrite(m.dispatch())
       )));
 
-//    ASTNode parent=m.getParent();
-//    // ADT names are supposed to be globally unique.
-//    if (parent instanceof AxiomaticDataType){
-//      return "adt_"+m.name();
-//    }
-//    ASTClass cls=(ASTClass)parent;
-//    String prefix;
-//    if (cls==null){
-//      prefix="procedure_";
-//    } else {
-//      String name[]=cls.getFullName();
-//      if (m.name().equals(cls.name()) || m.getKind() == Kind.Constructor){
-//        prefix="constructor_";
-//      } else {
-//        prefix="method_";
-//      }
-//      for(String part:name){
-//        prefix+=part+"_";
-//      }
-//    }
-//    String res=m.name();
-//    for(DeclarationStatement decl:m.getArgs()){
-//      res=res+"__"+create_type_name(decl.getType());
-//    }
-//    if (m.usesVarArgs()){
-//      res+=ARRAY_SUFFIX;
-//    }
-//    return prefix+res;
       String method= get_initial_definition(m.getDefinition()).name();
       ArrayList<ASTNode> args=new ArrayList<ASTNode>();
       args.add(create.local_name("globals"));
@@ -94,34 +66,6 @@ public class JavaEncoder extends AbstractRewriter {
           rewrite(m.dispatch())
       )));
 
-//    ASTNode parent=m.getParent();
-//    // ADT names are supposed to be globally unique.
-//    if (parent instanceof AxiomaticDataType){
-//      return "adt_"+m.name();
-//    }
-//    ASTClass cls=(ASTClass)parent;
-//    String prefix;
-//    if (cls==null){
-//      prefix="procedure_";
-//    } else {
-//      String name[]=cls.getFullName();
-//      if (m.name().equals(cls.name()) || m.getKind() == Kind.Constructor){
-//        prefix="constructor_";
-//      } else {
-//        prefix="method_";
-//      }
-//      for(String part:name){
-//        prefix+=part+"_";
-//      }
-//    }
-//    String res=m.name();
-//    for(DeclarationStatement decl:m.getArgs()){
-//      res=res+"__"+create_type_name(decl.getType());
-//    }
-//    if (m.usesVarArgs()){
-//      res+=ARRAY_SUFFIX;
-//    }
-//    return prefix+res;
       String method= get_initial_definition(m.getDefinition()).name();
       ArrayList<ASTNode> args=new ArrayList<ASTNode>();
       args.add(create.local_name("globals"));
@@ -219,6 +163,11 @@ public class JavaEncoder extends AbstractRewriter {
           ArrayList<DeclarationStatement> parameters=gen_pars(m);
           switch(m.kind){
           case Plain:{
+            if (!(m.getContract() == null || m.getContract().isEmpty())) {
+              m.getOrigin().report("info", "This method cannot be automatically inherited by class %s", cl.name());
+              cl.getOrigin().report("error", "Automatic inheritance of method with non-empty contract is not supported");
+              Fail("Automatic inheritance of method with contract not supported");
+            }
             Contract external_contract=rewrite(m.getContract());
             internal_mode=true;
             Contract internal_contract=rewrite(m.getContract());
@@ -228,13 +177,12 @@ public class JavaEncoder extends AbstractRewriter {
             String internal_name = INTERNAL + m.name();
             boolean varArgs=m.usesVarArgs();
             res.add(create.method_kind(m.kind, returns, external_contract, external_name, parameters, varArgs, null));
-            BlockStatement body=create.block();
-            body.add(create.invokation(
-                create.reserved_name(ASTReserved.Super),
-                null,
-                INTERNAL + m.name(),
-                get_names(parameters)));
-            res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, body));
+            // We leave body empty, as the method is guaranteed to have no contract
+            // Therefore no extra proof steps (unfolding predicates, checking pre/post conditions for implications)
+            // are not necessary and we can leave the method abstract. However, when the empty contract check is
+            // removed, a call to super or something similar should be added, such that the static/dynamic contract
+            // implication is checked.
+            res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, null));
             break;
           }
           case Predicate:{
@@ -358,35 +306,6 @@ public class JavaEncoder extends AbstractRewriter {
     Contract internal_contract=rewrite(m.getContract());
     internal_mode=false;
     Contract external_contract=rewrite(m.getContract());
-
-//    ASTNode parent=m.getParent();
-//    // ADT names are supposed to be globally unique.
-//    if (parent instanceof AxiomaticDataType){
-//      return "adt_"+m.name();
-//    }
-//    ASTClass cls=(ASTClass)parent;
-//    String prefix;
-//    if (cls==null){
-//      prefix="procedure_";
-//    } else {
-//      String name[]=cls.getFullName();
-//      if (m.name().equals(cls.name()) || m.getKind() == Kind.Constructor){
-//        prefix="constructor_";
-//      } else {
-//        prefix="method_";
-//      }
-//      for(String part:name){
-//        prefix+=part+"_";
-//      }
-//    }
-//    String res=m.name();
-//    for(DeclarationStatement decl:m.getArgs()){
-//      res=res+"__"+create_type_name(decl.getType());
-//    }
-//    if (m.usesVarArgs()){
-//      res+=ARRAY_SUFFIX;
-//    }
-//    return prefix+res;
     String name= m.name();
     ArrayList<DeclarationStatement> args=gen_pars(m);
     int N=m.getArity();

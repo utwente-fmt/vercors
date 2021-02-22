@@ -178,7 +178,7 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
       create.forall(
         valueInRange(indexNode, constant(0), name(indexArgumentName)),
         eq(
-          get(result, indexNode),
+          create.pattern(get(result, indexNode)),
           get(name(sequenceArgumentName), indexNode)
         ),
         forAllIndex
@@ -189,7 +189,7 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
       create.forall(
         valueInRange(indexNode, name(indexArgumentName), size(result)),
         eq(
-          get(result, indexNode),
+          create.pattern(get(result, indexNode)),
           get(name(sequenceArgumentName), plus(indexNode, constant(1)))),
         forAllIndex
       )

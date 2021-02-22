@@ -1,5 +1,3 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.main
 
 import java.io._
@@ -16,6 +14,7 @@ import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
+import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
@@ -42,6 +41,7 @@ class Main {
   private val debugBefore = new CollectSetting
   private val debugAfter = new CollectSetting
   private val show_file = new StringSetting(null)
+  private val notifySetting = new BooleanSetting(false)
 
   private val pass_list = new StringListSetting
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
@@ -94,6 +94,7 @@ class Main {
     clops.add(show_file.getAssign("redirect show output to files instead of stdout"), "save-show")
     clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before")
     clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after")
+    clops.add(notifySetting.getEnable("Send a system notification upon completion"), "notify")
     clops.add(stop_after.getAppendOption("Stop after given passes"), "stop-after")
     clops.add(strictInternalConditions.getEnable("Enable strict internal checks for AST conditions (expert option)"), "strict-internal")
     clops.add(explicit_encoding.getEnable("explicit encoding"), "explicit")
@@ -175,6 +176,7 @@ class Main {
         silver.set("silicon")
       case "silicon" =>
       case "carbon" =>
+        Configuration.checkCarbonRequirements()
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
     }
@@ -201,38 +203,38 @@ class Main {
 
   private def collectPassesForBoogie: Seq[AbstractPass] = {
     var passes = Seq(
-      BY_KEY("java_resolve"), // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
+      BY_KEY("loadExternalClasses"), // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
       BY_KEY("standardize"), // a rewriter s.t. only a subset of col will have to be supported
-      BY_KEY("check"), // type check col. Add annotations (the types) to the ast.
-      BY_KEY("rewrite_arrays"), // array generation and various array-related rewrites
-      BY_KEY("check"),
-      BY_KEY("flatten"), // expressions that contain method calls (possibly having side-effects) are put into separate statements.
-      BY_KEY("assign"), // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
-      BY_KEY("finalize_args"), // declare new variables to never have to change the arguments (which isn't allowed in silver)
-      BY_KEY("reorder"), // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
+      BY_KEY("checkTypes"), // type check col. Add annotations (the types) to the ast.
+      BY_KEY("desugarArrayOps"), // array generation and various array-related rewrites
+      BY_KEY("checkTypes"),
+      BY_KEY("flattenNestedExpressions"), // expressions that contain method calls (possibly having side-effects) are put into separate statements.
+      BY_KEY("inlineAssignmentToStatement"), // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
+      BY_KEY("finalizeArguments"), // declare new variables to never have to change the arguments (which isn't allowed in silver)
+      BY_KEY("collectDeclarations"), // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
     )
 
     if (infer_modifies.get) {
       passes ++= Seq(
         BY_KEY("standardize"),
-        BY_KEY("check"),
-        BY_KEY("modifies"), // modifies is mandatory. This is how to automatically add it
+        BY_KEY("checkTypes"),
+        BY_KEY("deriveModifies"), // modifies is mandatory. This is how to automatically add it
       )
     }
 
     passes ++= Seq(
       BY_KEY("standardize"),
-      BY_KEY("check"),
+      BY_KEY("checkTypes"),
       BY_KEY("voidcalls"), // all methods in Boogie are void, so use an out parameter instead of 'return..'
       BY_KEY("standardize"),
-      BY_KEY("check"),
-      BY_KEY("flatten"),
-      BY_KEY("reorder"),
+      BY_KEY("checkTypes"),
+      BY_KEY("flattenNestedExpressions"),
+      BY_KEY("collectDeclarations"),
       BY_KEY("standardize"),
-      BY_KEY("check"),
+      BY_KEY("checkTypes"),
       BY_KEY("strip_constructors"), // somewhere in the parser of Java, constructors are added implicitly. They need to be taken out again.
       BY_KEY("standardize"),
-      BY_KEY("check"),
+      BY_KEY("checkTypes"),
       BY_KEY("boogie"), // run backend
     )
 
@@ -240,12 +242,12 @@ class Main {
   }
 
   private def collectPassesForDafny: Seq[AbstractPass] = Seq(
-    BY_KEY("java_resolve"),
+    BY_KEY("loadExternalClasses"),
     BY_KEY("standardize"),
-    BY_KEY("check"),
+    BY_KEY("checkTypes"),
     BY_KEY("voidcalls"),
     BY_KEY("standardize"),
-    BY_KEY("check"),
+    BY_KEY("checkTypes"),
     BY_KEY("dafny"),
   )
 
@@ -264,89 +266,91 @@ class Main {
   case class Choose(choices: Seq[ChainPart]*) extends ChainPart
 
   val silverPassOrder: Seq[ChainPart] = Seq(
-    "spec-ignore",
-    "flatten_variable_declarations",
-    "string-class",
-    "type-expressions",
-    "java_resolve",
+    "removeIgnoredElements",
+    "splitCompositeDeclarations",
+    "stringClassToPrimitive",
+    "resolveTypeExpressions",
+    "loadExternalClasses",
     "standardize",
-    "interpret-annotations",
-    "unused-extern",
-    "top-level-decls",
-    "lock-invariant-proof",
-    "unfold-synchronized",
-    "pvl-encode",
-    "specify-implicit-labels",
-    "unfold-switch",
-    "zero-constructor",
-    "java-encode",
-    "array_null_values",
-    "finalize_args",
-    "action-header",
-    "sat_check",
-    "standardize-functions",
+    "interpretMethodAnnotations",
+    "wrapTopLevelDeclarations",
+    "removeUnusedExternMethods",
+    "encodeLockInvariantProof",
+    "synchronizedToTryFinally",
+    "encodeForkLockWait",
+    "specifyImplicitLoopLabels",
+    "switchToIfChain",
+    "addDefaultConstructor",
+    "propagateAbstractMethodContracts",
+    "arrayNullValuesToNone",
+    "finalizeArguments",
+    "actionHeaderToActionBlock",
+    "addRequirementSatCheck",
+    "pureMethodsToFunctions",
+    "sortWithThen",
     Choose(
       Seq(),
-      Seq("access", "check-history"),
-      Seq("access", "check-axioms"),
-      Seq("access", "check-defined"),
+      Seq("dereferenceToFieldAccess", "checkHistory"),
+      Seq("dereferenceToFieldAccess", "checkAxioms"),
+      Seq("dereferenceToFieldAccess", "checkDefined"),
     ),
-    "adt_operator_rewrite",
-    "assign",
-    "chalice-optimize",
-    "chalice-preprocess",
-    "continue-to-break",
+    "desugarADTOperators",
+    "inlineAssignmentToStatement",
+    "continueToBreak",
     Choose(
-      Seq("break-return-to-exceptions"),
-      Seq("break-return-to-goto"),
+      Seq("breakReturnToExceptions"),
+      Seq("breakReturnToGoto"),
     ),
-    "current_thread",
-    "globalize",
-    "infer_adt_types",
-    "kernel-split",
-    "local-variable-check",
-    "magicwand",
+    "encodeCurrentThread",
+    "collectStaticFields",
+    "inferADTElementTypes",
+    "encodeKernelClass",
+    "checkAssignInPar",
+    "encodeMagicWands",
     "inline",
-    "openmp2pvl",
-    "propagate-invariants",
-    "pvl-compile",
-    "simplify_quant_relations",
-    "sort-before-after",
-    "csl-encode",
-    "ghost-lift",
-    "flatten_before_after",
-    "inline-atomic",
-    "parallel_blocks",
-    "lift_declarations",
-    "pointers_to_arrays_lifted",
-    "desugar_valid_pointer",
-    "simplify_quant",
-    "simplify_sums",
-    "silver-optimize",
-    "vector-encode",
-    "add-type-adt",
-    "generate_adt_functions",
-    "intro-exc-var",
-    "rewrite_arrays",
-    "flatten",
-    "encode-try-throw-signals",
-    "inline-pattern-to-trigger",
-    "silver-class-reduction",
-    "create-return-parameter",
-    "quant-optimize",
-    "gen-triggers",
-    "scale-always",
-    "silver-reorder",
-    "reorder",
-    "silver",
+    "inlineAtomicMethods",
+    "openMPToParallelBlocks",
+    "propagateInvariants",
+    "dummy-InvariantsPropagatedHere",
+    "compileToJava",
+    "simplifyQuantifiedIntegerRelations",
+    "liftGhostCode",
+    "inlineWithThenHints",
+    "inlineParallelAtomics",
+    "encodeParallelBlocks",
+    Choose(
+      Seq("stackLocationsToHeapLocations", "pointersToArraysLifted"),
+      Seq("pointersToArrays"),
+    ),
+    "desugarValidPointer",
+    "simplify",
+    "simplifySums",
+    "optimizeForSilver",
+    "encodeVectorBlocks",
+    "adtOperatorsToFunctions",
+    "introExcVar",
+    "desugarArrayOps",
+    "flattenNestedExpressions",
+    "encodeInheritanceToDomain",
+    "tryThrowSignalsToGoto",
+    "importADTsAndRefEncode",
+    "returnTypeToOutParameter",
+    "reduceQuantifierNesting",
+    "inlinePatternsToTriggers",
+    "generateQuantifierTriggers",
+    "scaleAllPredicateApplications",
+    "collectInnerDeclarations",
+    "collectDeclarations",
   )
 
   def validChain(chain: Seq[AbstractPass], featuresIn: Set[Feature]): Boolean = {
     var features = featuresIn
 
     for(pass <- chain) {
-      if((features -- pass.permits).nonEmpty)
+      if((features -- pass.permits).nonEmpty) {
+        Debug(s"Rejecting because ${pass.key} does not allow ${features -- pass.permits}")
         return false
+      }
 
       features ++= pass.introduces
       features --= pass.removes
@@ -383,7 +387,10 @@ class Main {
 
   def computeGoal(featuresIn: Set[Feature]): Option[Seq[AbstractPass]] = {
     // Expand all choices
-    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)))
+    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)) :+ (silver.get() match {
+      case "carbon" => BY_KEY("applyCarbon")
+      case "silicon" => BY_KEY("applySilicon")
+    }))
 
     // Filter out passes that don't remove anything (even before the chain is valid)
     val filteredChains = chains.map(filterNopPasses(_, featuresIn))
@@ -401,11 +408,12 @@ class Main {
   }
 
   def collectPassesForSilver: Seq[AbstractPass] = {
-    if (Configuration.session_file.get() != null) {
-      report = Passes.BY_KEY("pvl").apply_pass(report, Array())
-    }
+    //TODO do we still need this?
+//    if (Configuration.session_file.get() != null) {
+//      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
+//    }
 
-    report = Passes.BY_KEY("java-check").apply_pass(report, Array())
+    report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
 
     if (Configuration.enable_gpu_optimizations.get()) {
       //report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
@@ -424,14 +432,19 @@ class Main {
       vct.col.features.NullAsOptionValue,
       vct.col.features.NotOptimized,
       vct.col.features.DeclarationsNotLifted,
-      vct.col.features.UnusedExtern,
       vct.col.features.ParallelLocalAssignmentNotChecked,
       vct.col.features.NotJavaResolved,
+      vct.col.features.InvariantsPropagatedHere,
     ) ++ Set(
       // These are normal features, but need to run always for some reason
       vct.col.features.ScatteredDeclarations, // this pass finds duplicate names (even if they're not scattered)
       vct.col.features.ImplicitLabels, // Can be detected, lazy, sorry
     )
+
+    if(features.contains(vct.col.features.Extern))
+      /* too hard to detect whether an extern decl is used, but it needs top-level-decls and we don't want to run that
+       * for the silver frontend. */
+      features += vct.col.features.UnusedExtern
 
     // options are encoded as gated features
     if(sat_check.get()) features += vct.col.features.NeedsSatCheck
@@ -471,8 +484,6 @@ class Main {
   }
 
   private def doPasses(passes: Seq[AbstractPass]): Unit = {
-    Output("%s", passes)
-
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
@@ -491,7 +502,7 @@ class Main {
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
 
-      report = BY_KEY("java-check").apply_pass(report, Array())
+      report = BY_KEY("checkTypesJava").apply_pass(report, Array())
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
@@ -503,8 +514,15 @@ class Main {
         scanner.source().accept(scanner)
         val featuresOut = scanner.features
 
-        val notRemoved = featuresOut.intersect(pass.removes) -- Set(vct.col.features.QuantifierWithoutTriggers)
+        val notRemoved = featuresOut.intersect(pass.removes)
         val extraIntro = (featuresOut -- featuresIn) -- pass.introduces
+
+        val permissiveFeatures = Set(
+          vct.col.features.QuantifierWithoutTriggers,
+          vct.col.features.NestedQuantifiers,
+          vct.col.features.ExceptionalReturn,
+          vct.col.features.ContextEverywhere,
+        )
 
         if (notRemoved.nonEmpty) {
           notRemoved.foreach(feature => {
@@ -520,7 +538,7 @@ class Main {
           })
         }
 
-        if(notRemoved.nonEmpty || extraIntro.nonEmpty) {
+        if((notRemoved -- permissiveFeatures).nonEmpty || (extraIntro -- permissiveFeatures).nonEmpty) {
           Abort("Halting, because strict internal conditions are enabled.")
         }
       }
@@ -551,14 +569,20 @@ class Main {
     } catch {
       case e: HREExitException =>
         exit = e.exit
-        Verdict("The final verdict is Error")
+        if(exit != 0)
+          Verdict("The final verdict is Error")
       case e: Throwable =>
         DebugException(e)
         Warning("An unexpected error occured in VerCors! "
               + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. "
               + "You can see the full exception by adding '--debug vct.main.Main' to the flags.")
         Verdict("The final verdict is Error")
-    } finally Progress("entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
+    } finally {
+      Progress("entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
+      if(notifySetting.get()) {
+        Notifier.notify("VerCors", "Verification is complete")
+      }
+    }
     exit
   }
 }

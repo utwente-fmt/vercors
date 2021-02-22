@@ -2,8 +2,8 @@ package vct.test
 
 import java.util.concurrent.Callable
 import java.util.regex.Pattern
-
 import hre.io.{Message, MessageProcessEnvironment}
+import hre.lang.System.Output
 import hre.util.TestReport.Verdict
 
 import scala.collection.mutable
@@ -43,6 +43,7 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
           return Seq(InternalError(msg.getArg(0).asInstanceOf[String]))
         case "stdout: %s" | "stderr: %s" =>
           val line = msg.getArg(0).asInstanceOf[String]
+
           val lineMatcher = TIME_PATTERN.matcher(line)
           if(lineMatcher.find()) {
             times.put(lineMatcher.group(2), Integer.parseInt(lineMatcher.group(3)))

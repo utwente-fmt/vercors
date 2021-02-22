@@ -313,10 +313,7 @@ public class SilverClassReduction extends AbstractRewriter {
   @Override
   public void visit(Dereference e){
     if (e.obj().getType()==null){
-      Fail("untyped object %s at %s", e.obj(), e.obj().getOrigin());
-      // PB: unreachable?
-      result=create.dereference(rewrite(e.obj()), e.field());
-      return;
+      throw Failure("untyped object %s at %s", e.obj(), e.obj().getOrigin());
     }
     Type t=e.obj().getType();
     if (t.isPrimitive(PrimitiveSort.Cell)){
@@ -434,6 +431,11 @@ public class SilverClassReduction extends AbstractRewriter {
       result=create.invokation(t, null,method,rewrite(e.argsJava()));
       break;
     }
+    case OptionGetOrElse: {
+      options=true;
+      result=create.invokation(rewrite(e.first().getType()), null,"getVCTOptionOrElse",rewrite(e.argsJava()));
+      break;
+    }
     case New:{
       ClassType t=(ClassType)e.arg(0);
       ASTClass cl=source().find(t);
@@ -464,8 +466,9 @@ public class SilverClassReduction extends AbstractRewriter {
             create.domain_call("TYPE","type_of",object),
             //create.invokation(null,null,"type_of",object));
             create.domain_call("TYPE","class_"+t));
-            
-        ASTNode illegal=create.dereference(object,ILLEGAL_CAST);
+
+        /* PB: this is incorrect, but dereference(_, ILLEGAL_CAST) is also incorrect... */
+        ASTNode illegal = create.reserved_name(ASTReserved.Null);
         result=create.expression(StandardOperator.ITE,condition,object,illegal);
       }
       break;
@@ -756,8 +759,10 @@ public class SilverClassReduction extends AbstractRewriter {
     if(m.getParent() instanceof ASTClass) {
       name = ((ASTClass) m.getParent()).getName() + "_" + name;
     }
-    for(DeclarationStatement arg : m.getArgs()) {
-      name += "_" + arg.getType().toString();
+    if(!(m.getParent() instanceof AxiomaticDataType)) {
+      for (DeclarationStatement arg : m.getArgs()) {
+        name += "_" + arg.getType().toString();
+      }
     }
     name = name.replace('<', '$').replace('>', '$');
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
@@ -884,8 +889,10 @@ public class SilverClassReduction extends AbstractRewriter {
       method = ((ASTClass) s.definition().getParent()).getName() + "_" + method;
     }
 
-    for(DeclarationStatement arg : s.definition().getArgs()) {
-      method += "_" + arg.getType().toString();
+    if (!(s.definition().getParent() instanceof AxiomaticDataType)) {
+      for (DeclarationStatement arg : s.definition().getArgs()) {
+        method += "_" + arg.getType().toString();
+      }
     }
 
     method = method.replace('<', '$').replace('>', '$');

@@ -207,7 +207,7 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     if (s.getExitGuard()!=null) Abort("not a while loop");
     ArrayList<Triple<Origin,String,T>> locals=new ArrayList<Triple<Origin,String,T>>();
     ArrayList<S> stats=new ArrayList<S>();
-    VerCorsProgramFactory.split_block(ef, type, this, locals,(BlockStatement) s.getBody(), stats);
+    VerCorsProgramFactory.split_block(type, this, (BlockStatement) s.getBody(), locals, stats);
     ArrayList<E> invs=new ArrayList<E>();
     for(ASTNode inv:ASTUtils.conjuncts(s.getContract().invariant,StandardOperator.Star)){
       invs.add(inv.apply(expr));
@@ -481,6 +481,11 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
 
   @Override
   public S map(SignalsClause cc) {
+    return null;
+  }
+
+  @Override
+  public S map(KernelInvocation ki) {
     return null;
   }
 }

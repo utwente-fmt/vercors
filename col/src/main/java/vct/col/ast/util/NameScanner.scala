@@ -7,7 +7,7 @@ import scala.collection.mutable
 import scala.collection.JavaConverters._
 import vct.col.ast.expr._
 import vct.col.ast.stmt.composite.BlockStatement
-import vct.col.ast.stmt.decl.DeclarationStatement
+import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement}
 import vct.col.ast.stmt.composite.ForEachLoop
 import vct.col.ast.stmt.composite.LoopStatement
 import vct.col.ast.stmt.composite.ParallelBlock
@@ -18,32 +18,32 @@ import vct.col.ast.stmt.composite.VectorBlock
 import vct.col.ast.stmt.terminal.AssignmentStatement
 
 object NameScanner {
-  def freeVars[R <: ASTNode](nodes: util.List[R]): util.Map[String, Type] = {
+  private def scanned(nodes: Iterable[ASTNode]): NameScanner = {
     val scanner = new NameScanner
-    nodes.asScala.foreach(_.accept(scanner))
-    scanner.freeNamesJava
+    nodes.foreach(_.accept(scanner))
+    scanner
   }
+
+  def freeVars[R <: ASTNode](nodes: util.List[R]): util.Map[String, Type] =
+    scanned(nodes.asScala).freeNamesJava
 
   @varargs
   def freeVars(theNodes: ASTNode*): util.Map[String, Type] = freeVars(theNodes.asJava)
 
-  def accesses(arg: ASTNode): Set[String] = {
-    val ns = new NameScanner
-    arg.accept(ns)
-    ns.accesses
-  }
+  def accesses(arg: ASTNode): Set[String] =
+    scanned(Seq(arg)).accesses
 
-  def writes(arg: ASTNode): Set[String] = {
-    val ns = new NameScanner
-    arg.accept(ns)
-    ns.writes
-  }
+  def writes(arg: ASTNode): Set[String] =
+    scanned(Seq(arg)).writes
 
-  def reads(arg: ASTNode): Set[String] = {
-    val ns = new NameScanner
-    arg.accept(ns)
-    ns.reads
-  }
+  def reads(arg: ASTNode): Set[String] =
+    scanned(Seq(arg)).reads
+
+  def labels(arg: ASTNode): Set[String] =
+    scanned(Seq(arg)).labels.toSet
+
+  def labelsJava(arg: ASTNode): util.List[String] =
+    scanned(Seq(arg)).labels.toSeq.asJava
 }
 
 class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
@@ -63,6 +63,13 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     * There might be external code that depends on insertion order. Therefore use LinkedHashMap
     */
   val freeNames: mutable.Map[String, Entry] = mutable.LinkedHashMap()
+  val labels: mutable.Set[String] = mutable.Set()
+
+  /**
+    * Here all initBlocks of LoopStatements are saved. This can be used when visiting BlockStatements to not
+    * pop the frameStack, as declarations within initBlocks need to be visible in the rest of the LoopStatement.
+    */
+  val initBlocks: mutable.Set[BlockStatement] = mutable.Set()
 
   // Ensure there is at least one frame at the start
   pushFrame()
@@ -192,6 +199,8 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(s: LoopStatement): Unit = {
     pushFrame()
 
+    initBlocks += s.getInitBlock.asInstanceOf[BlockStatement]
+
     super.visit(s)
 
     popFrame()
@@ -234,11 +243,14 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   }
 
   override def visit(b: BlockStatement): Unit = {
-    pushFrame()
+    // Declarations in initblocks are supposed to leak into other components of LoopStatement.
+    // Therefore a frame is not pushed when an initBlock is encountered.
+    val isInitBlock = initBlocks contains b
+    if (!isInitBlock) pushFrame()
 
     super.visit(b)
 
-    popFrame()
+    if (!isInitBlock) popFrame()
   }
 
   override def visit(e: OperatorExpression): Unit = if ((e.operator eq StandardOperator.StructDeref) || (e.operator eq StandardOperator.StructSelect)) {
@@ -274,5 +286,15 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
     // This ensures before/after are not scanned after pop()
     auto_before_after = false
+  }
+
+  override def visit(special: ASTSpecial): Unit = {
+    special.kind match {
+      case ASTSpecial.Kind.Label =>
+        labels += special.args(0).toString
+      case _ =>
+    }
+
+    super.visit(special)
   }
 }

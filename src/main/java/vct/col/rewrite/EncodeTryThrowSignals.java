@@ -20,6 +20,7 @@ import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
+import vct.col.util.AstToId;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static vct.col.rewrite.AddTypeADT.ADT_NAME;
+import static vct.col.rewrite.AddTypeADT.TYPE_OF;
 import static vct.col.rewrite.IntroExcVar.excVar;
 
 public class EncodeTryThrowSignals extends AbstractRewriter {
@@ -89,7 +91,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      * They are saved in a hashmap because the counter needed to keep the labels unique is stateful.
      */
     public void generateLabels(TryCatchBlock tryCatchBlock) {
-        for (CatchClause catchClause : tryCatchBlock.catches()) {
+        for (CatchClause catchClause : tryCatchBlock.catchesJava()) {
             String label = generateLabel("catch");
             entryLabels.put(catchClause, label);
         }
@@ -111,7 +113,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     public CatchClause nextCatch(TryCatchBlock tryCatchBlock, CatchClause currentCatchClause) {
         boolean encounteredCurrentClause = false;
 
-        for (CatchClause catchClause : tryCatchBlock.catches()) {
+        for (CatchClause catchClause : tryCatchBlock.catchesJava()) {
             if (encounteredCurrentClause) {
                 return catchClause;
             } else if (catchClause == currentCatchClause) {
@@ -128,7 +130,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             As well as during typechecking!
             https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20 */
 
-        tryCatchBlock.catches().forEach(cc -> {
+        tryCatchBlock.catchesJava().forEach(cc -> {
             if (cc.catchTypes().length() > 1) {
                 Abort("Multi-catch not supported");
             }
@@ -145,7 +147,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                 create.local_name(oldExcVarName.get(tryCatchBlock)),
                 create.local_name(excVar)));
 
-        ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catches());
+        ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catchesJava());
 
         if (catchClauses.size() > 0) {
             pushNearestHandler(entryLabels.get(catchClauses.get(0)));
@@ -222,7 +224,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.Not,
                     create.invokation(null, null,"instanceof",
-                            create.expression(StandardOperator.TypeOf,create.local_name(excVar)),
+                            create.invokation(create.class_type(ADT_NAME), null, TYPE_OF, create.local_name(excVar)),
                             create.invokation(create.class_type(ADT_NAME),null,"class_" + catchType.toString())
                             )
                     ),
@@ -507,14 +509,26 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
             ASTNode resultLocation = assignment.location().apply(this);
 
-            result = create.assignment(resultLocation, resultInvokation);
-
             // Then, if exceptions are involved, and "regular" methods are concerned, insert a check that possibly jumps to a handler
+            // If the check determines the call did not throw an exception, we put the return value in the variable (because if an
+            // exception was thrown, the value wouldn't have been written to the variable)
             Method.Kind methodKind = invokation.getDefinition().getKind();
             if ((methodKind == Method.Kind.Plain || methodKind == Method.Kind.Constructor) && invokation.getDefinition().canThrowSpec()) {
-                currentBlock.add(result);
                 result = null;
-                currentBlock.add(createExceptionCheck(currentNearestHandler()));
+                String tempName = generateLabel("temp", AstToId.toId(resultLocation));
+                // Temp var to store the return variable
+                currentBlock.add(create.field_decl(tempName, invokation.getDefinition().getReturnType()));
+                currentBlock.add(create.assignment(create.local_name(tempName), resultInvokation));
+
+                IfStatement exceptionCheck = createExceptionCheck(currentNearestHandler());
+                if (exceptionCheck.hasElse()) {
+                    Abort("Unexpected else branch");
+                }
+                exceptionCheck.addClause(IfStatement.elseGuard(), create.assignment(resultLocation, create.local_name(tempName)));
+                currentBlock.add(exceptionCheck);
+            } else {
+                // If exceptions are not concerned, just emit the regular assignment
+                result = create.assignment(resultLocation, resultInvokation);
             }
         } else {
             super.visit(assignment);

@@ -5,11 +5,8 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.ast.TrackingOutput;
 import hre.lang.HREError;
-import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
-import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.Hole;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -175,6 +172,23 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
       current_precedence=precedence;
     }
     out.print(")");
+  }
+
+  public void visit(KernelInvocation e) {
+    setExpr();
+    out.printf("%s", e.method());
+    out.printf("<<<");
+    e.blockCount().accept(this);
+    out.printf(", ");
+    e.threadCount().accept(this);
+    out.printf(">>>(");
+    boolean first = true;
+    for(ASTNode arg : e.javaArgs()) {
+      if(!first) out.printf(", ");
+      arg.accept(this);
+      first = false;
+    }
+    out.printf(")");
   }
 
   public void visit(OperatorExpression e){

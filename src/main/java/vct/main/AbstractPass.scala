@@ -11,8 +11,6 @@ abstract class AbstractPass(val key: String, val description: String) {
   def introduces: Set[Feature]
   def permits: Set[Feature]
 
-  def tup: (String, AbstractPass) = (key, this)
-
   def apply_pass(reportIn: PassReport, args: Array[String]): PassReport = {
     val arg = reportIn.getOutput
     val reportOut = new PassReport(arg)
@@ -65,4 +63,11 @@ case class ErrorMapPass(override val key: String,
     reportOut.setOutput(applyImpl(arg, map))
     reportOut
   }
+}
+
+case class DummyPass(remove: Feature, disallow: Feature) extends AbstractPass(s"dummy-$remove", s"Dummy pass to remove $remove") {
+  override def removes: Set[Feature] = Set(remove)
+  override def introduces: Set[Feature] = Set()
+  override def permits: Set[Feature] = Feature.ALL - disallow
+  override def apply(arg: ProgramUnit, args: Array[String]): ProgramUnit = arg
 }

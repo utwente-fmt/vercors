@@ -51,6 +51,7 @@ public class CSLencoder extends AbstractRewriter {
   
   @Override
   public void visit(Method m){
+    /*
     if(m.kind==Method.Kind.Constructor && has_csl_inv((ASTClass)m.getParent())){
       Method.Kind kind=Method.Kind.Constructor;
       ContractBuilder cb=new ContractBuilder();
@@ -72,7 +73,9 @@ public class CSLencoder extends AbstractRewriter {
       result=create.method_kind(kind, returns, contract, name, args, m.usesVarArgs(), body);
     } else {
       super.visit(m);
-    }
+    }*/
+    // TODO PB: disabling this is unsound, but this logic cannot be combined with JavaEncoder: it was already disabled accidentally.
+    super.visit(m);
   }
   
   private AtomicInteger count=new AtomicInteger();

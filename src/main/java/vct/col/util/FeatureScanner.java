@@ -19,7 +19,6 @@ import vct.col.ast.stmt.composite.VectorBlock;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.terminal.ReturnStatement;
@@ -28,7 +27,6 @@ import vct.col.ast.util.RecursiveVisitor;
 import vct.col.ast.type.Type;
 
 public class FeatureScanner extends RecursiveVisitor<Object> {
-
   public FeatureScanner(){
     super(null,null);
   }
@@ -50,6 +48,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   private boolean has_catch = false;
   private boolean has_throwing_method_calls = false;
   private boolean uses_csl=false;
+  private boolean has_throwing_methods = false;
   private EnumSet<StandardOperator> ops_used=EnumSet.noneOf(StandardOperator.class);
   private EnumSet<ASTSpecial.Kind> specials_used=EnumSet.noneOf(ASTSpecial.Kind.class);
   private EnumSet<Binder> binders_used=EnumSet.noneOf(Binder.class);
@@ -168,6 +167,7 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
   public void visit(Method m){
     uses_csl |= m.name().equals("csl_invariant");
     has_synchronized_modifier |= m.isSynchronized();
+    has_throwing_methods |= m.signals.length > 0;
     super.visit(m);
   }
   @Override
@@ -264,5 +264,9 @@ public class FeatureScanner extends RecursiveVisitor<Object> {
     if (mi.getDefinition() != null && mi.getDefinition().getContract() != null) {
       has_throwing_method_calls |= mi.getDefinition().canThrowSpec();
     }
+  }
+
+  public boolean hasThrowingMethods() {
+    return has_throwing_methods;
   }
 }

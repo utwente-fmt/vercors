@@ -157,9 +157,12 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(struct_value: StructValue): Unit = {
-    if (!struct_value.`type`.isPrimitive(PrimitiveSort.Tuple) && !struct_value.`type`.isPrimitive(PrimitiveSort.Sequence)) {
-      RewriteArrayRef.getArrayConstructor(struct_value.getType, 1)
+    struct_value.`type` match {
+      case t: PrimitiveType if Set(PrimitiveSort.Option, PrimitiveSort.Array).contains(t.sort) =>
+        RewriteArrayRef.getArrayConstructor(struct_value.getType, 1)
+      case _ =>
     }
+
     super.visit(struct_value)
   }
 

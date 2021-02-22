@@ -23,7 +23,6 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.PVLSyntax;
-import vct.col.ast.syntax.Syntax;
 import vct.col.ast.type.*;
 import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
@@ -31,6 +30,8 @@ import vct.col.ast.util.ClassName;
 import java.io.PrintWriter;
 
 import static hre.lang.System.DebugException;
+import static vct.col.ast.type.PrimitiveSort.Map;
+import static vct.col.ast.type.PrimitiveSort.Tuple;
 
 /*
 Allows printing PVL programs from ASTNode
@@ -74,7 +75,7 @@ public class PVLPrinter extends AbstractPrinter{
     public void visit(TryCatchBlock tcb){
         out.print("try");
         tcb.main().accept(this);
-        for (CatchClause cb : tcb.catches()) {
+        for (CatchClause cb : tcb.catchesJava()) {
             cb.accept(this);
         }
         if (tcb.after() != null){
@@ -1011,7 +1012,6 @@ public class PVLPrinter extends AbstractPrinter{
         loopcontract = true;
         visit(s.getContract());
         loopcontract = false;
-
         ASTNode tmp;
         if (s.getInitBlock()!=null || s.getUpdateBlock()!=null){
             out.printf("for(");
@@ -1080,7 +1080,7 @@ public class PVLPrinter extends AbstractPrinter{
             print_tuple(",", "(", ")", args);
         }
 
-        private void print_tuple(String delimiter, String prefix, String suffix, ASTNode ... args){
+        private void print_tuple(String delimiter, String prefix, String suffix, ASTNode ... args) {
         out.print(prefix);
         String sep="";
         for(ASTNode n:args){
@@ -1346,16 +1346,14 @@ public class PVLPrinter extends AbstractPrinter{
 
     @Override
     public void visit(VariableDeclaration decl){
-//        decl.basetype.accept(this);
+        decl.basetype.accept(this);
         String sep=" ";
         for(ASTDeclaration dd:decl.get()){
             out.print(sep);
             sep=",";
             if (dd instanceof DeclarationStatement){
                 DeclarationStatement d = (DeclarationStatement)dd;
-                decl.basetype.accept(this);
-                out.printf(" " + d.name() + " ");
-//                d.getType().accept(this);
+                d.getType().accept(this);
                 ASTNode init = d.initJava();
                 if (init!=null){
                     out.print("=");
@@ -1365,7 +1363,7 @@ public class PVLPrinter extends AbstractPrinter{
                 out.print("TODO");
             }
         }
-//        out.println(";");
+        out.println(";");
     }
 
     @Override

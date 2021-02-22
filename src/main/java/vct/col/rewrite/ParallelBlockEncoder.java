@@ -131,7 +131,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         main_cb.ensures(create.starall(copy_rw.rewrite(iters_guard), rewrite(clause) , iter_decls));
       }
     }
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl()(
         create.primitive_type(Sort.Void),
         check_cb.getContract(),
         check_name,
@@ -213,14 +213,14 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         Abort("unexpected kind of invariant: %s",ib.getClass());
       }
     }
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         check_cb.getContract(),
         check_name,
         genPars(check_vars),
         res
     ));
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         main_cb.getContract(),
         main_name,
@@ -258,7 +258,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         Map<String,Type> block_vars = NameScanner.freeVars(pb);
         
         Contract c=(Contract)rewrite((ASTNode)pb);     
-        currentTargetClass.add(create.method_decl(
+        currentTargetClass.add(create.final_method_decl(
             create.primitive_type(PrimitiveSort.Void),
             c,
             block_name,
@@ -404,7 +404,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         blocks.put(pb.label(),pb);
       }
     }
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         main_cb.getContract(),
         main_name,
@@ -478,7 +478,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
             )
           );
     }
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         cb.getContract(),
         "check_"+pb1.label()+"_"+pb2.label(),
@@ -513,7 +513,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
   private String current_label;
   
   private Stack<ASTNode> guard_stack=new Stack<ASTNode>();
-  
+
+  private Stack<ASTNode> parBoundsStack = new Stack<ASTNode>();
+
   private ASTNode loop_invariant;
   
   private class SendRecvInfo {
@@ -586,7 +588,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
          
       cb.requires(copy_rw.rewrite(e.getArg(0))); //update new contract
   
-      Method send_body=create.method_decl(
+      Method send_body=create.final_method_decl(
               create.primitive_type(PrimitiveSort.Void),
               cb.getContract(), //method contract 
               send_name,
@@ -644,7 +646,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
          
       cb.ensures(copy_rw.rewrite(e.getArg(0))); //update new contract
       
-      Method recv_body=create.method_decl(
+      Method recv_body=create.final_method_decl(
               create.primitive_type(PrimitiveSort.Void),
               cb.getContract(), //method contract 
               recv_name,
@@ -687,8 +689,9 @@ public class ParallelBlockEncoder extends AbstractRewriter {
   private ASTNode do_block(ForEachLoop s,final boolean contract){
     Contract c=s.getContract();
     loop_invariant=c.invariant;
+    parBoundsStack.push(s.guard);
     ASTNode res=null;
-    Map<String, Type> bodyVars = NameScanner.freeVars(s.body,c,s.guard);
+    Map<String, Type> bodyVars = NameScanner.freeVars(s.body,c,create.fold(StandardOperator.And, parBoundsStack));
     //Hashtable<String,Type> iters=new Hashtable<String,Type>();
     Map<String, Type> mainVars = new HashMap<>(bodyVars);
     for(DeclarationStatement decl:s.decls){
@@ -787,7 +790,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       res=main_cb.getContract();
     } else {
       DeclarationStatement[] mainPars= genPars(mainVars);
-      currentTargetClass.add(create.method_decl(
+      currentTargetClass.add(create.final_method_decl(
           create.primitive_type(PrimitiveSort.Void),
           main_cb.getContract(),
           main_name,
@@ -795,8 +798,8 @@ public class ParallelBlockEncoder extends AbstractRewriter {
           null
       ));
     }
-    body_cb.requires(rewrite(s.guard));
-    body_cb.ensures(rewrite(s.guard));
+    body_cb.requires(create.fold(StandardOperator.And, parBoundsStack));
+    body_cb.ensures(create.fold(StandardOperator.And, parBoundsStack));
 
     for(ASTNode clause:ASTUtils.conjuncts(c.pre_condition, StandardOperator.Star)){
       if(clause.isa(StandardOperator.ReducibleSum)){
@@ -862,7 +865,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     }
     
     DeclarationStatement[] bodyPars = genPars(bodyVars);
-    currentTargetClass.add(create.method_decl(
+    currentTargetClass.add(create.final_method_decl(
         create.primitive_type(PrimitiveSort.Void),
         body_cb.getContract(),
         body_name,
@@ -871,12 +874,13 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     ));
     if (s.decls.length>0){
       String var_name = s.decls[s.decls.length-1].name();
-      check_send_recv(bodyPars, var_name, s.guard);
+      check_send_recv(bodyPars, var_name);
     }
     if (!contract) {
       res = genCall(main_name,mainVars);
     }
     loop_invariant=null;
+    parBoundsStack.pop();
     return res;
   }
   
@@ -890,8 +894,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     return false;
   }
 
-  protected void check_send_recv(DeclarationStatement[] body_decl,
-      String var_name, ASTNode guard) {
+  protected void check_send_recv(DeclarationStatement[] body_decl, String var_name) {
     ContractBuilder cb;
     BranchOrigin branch;
     for(String R:send_recv_map.keySet()){
@@ -922,7 +925,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         cb=new ContractBuilder();
         cb.requires(loop_invariant);
         cb.ensures(loop_invariant);
-        cb.requires(guard);
+        cb.requires(create.fold(StandardOperator.And, parBoundsStack));
         for(ASTNode g:recv_entry.guards){
           cb.requires(g);
         }
@@ -932,7 +935,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         for(ASTNode g:send_entry.guards){
           cb.ensures(shift.rewrite(g));
         }
-        Method guard_method=create.method_decl(
+        Method guard_method=create.final_method_decl(
             create.primitive_type(PrimitiveSort.Void),
             cb.getContract(),
             String.format("guard_check_%s_%s",S,R),
@@ -947,7 +950,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
         cb.requires(loop_invariant);
         cb.ensures(loop_invariant);
 
-        cb.requires(guard);
+        cb.requires(create.fold(StandardOperator.And, parBoundsStack));
         // lower bound is already guaranteed by guard check.
         //cb.requires(create.expression(StandardOperator.LTE,
         //    create.constant(dr),create.argument_name(var_name)
@@ -963,7 +966,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
           cb.ensures(shift.rewrite(g));
         }
         cb.ensures(copy_rw.rewrite(recv.getArg(0)));
-        Method resource_method=create.method_decl(
+        Method resource_method=create.final_method_decl(
             create.primitive_type(PrimitiveSort.Void),
             cb.getContract(),
             String.format("resource_check_%s_%s",S,R),

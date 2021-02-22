@@ -19,8 +19,8 @@ public class AddTypeADT extends AbstractRewriter {
 
   public static final String ADT_NAME = "TYPE";
 
-  private static final String DIRECT_SUPERCLASS = "directSuperclass";
-  private static final String TYPE_OF = "type_of";
+  public static final String DIRECT_SUPERCLASS = "directSuperclass";
+  public static final String TYPE_OF = "type_of";
 
   private AxiomaticDataType adt;
   private Method instanceofMethod;
@@ -109,15 +109,8 @@ public class AddTypeADT extends AbstractRewriter {
   }
 
   public void visit(ASTClass cl){
-    ASTClass res=new ASTClass(cl.name(), cl.kind, rewrite(cl.parameters), new ClassType[0], new ClassType[0]);
-    res.setOrigin(cl.getOrigin());
-    res.setContract(rewrite(cl.getContract()));
-
-    currentTargetClass = res;
-    for(ASTNode item : cl){
-      res.add(rewrite(item));
-    }
-    currentTargetClass = null;
+    super.visit(cl);
+    ASTClass res=(ASTClass)result;
 
     ensureTypeConstructor(new ClassType(cl.getFullName()));
     // Assume classes extend Object by default

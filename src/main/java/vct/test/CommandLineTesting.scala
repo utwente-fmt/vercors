@@ -71,8 +71,8 @@ object CommandLineTesting {
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
 
-  private val travisTestOutput = new BooleanSetting(false)
-  private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
+  private val actionsTestOutput = new BooleanSetting(false)
+  private val actionsTestOutputOption = actionsTestOutput.getEnable("output the full output of failing test cases as a foldable section in github actions")
 
   private val testFailFast = new BooleanSetting(false)
   private val testFailFastOption = testFailFast.getEnable("store test failures at the end of the run, after which failing tests will run first on the next run")
@@ -143,9 +143,9 @@ object CommandLineTesting {
     parser.add(builtinTestOption, "test-builtin")
     parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
-    parser.add(travisTestOutputOption, "travis-test-output")
     parser.add(testFailFastOption, "test-fail-fast")
     parser.add(testFailIdeaConfigsOption, "test-fail-idea-configs")
+    parser.add(actionsTestOutputOption, "actions-test-output")
   }
 
   def getCases: Map[String, Case] = {
@@ -274,6 +274,13 @@ object CommandLineTesting {
         case _ =>
       }
 
+      for(msg <- task.log) {
+        val text = String.format(msg.getFormat, msg.getArgs:_*)
+        if(text.contains("[warning]")) {
+          Warning("%s: %s", taskKey, text)
+        }
+      }
+
       if(testFailIdeaConfigs.get) {
         new File(IDEA_RUN_CONFIG_DIR, s"$taskKey.xml").delete()
       }
@@ -305,14 +312,14 @@ object CommandLineTesting {
           writer.close()
         }
 
-        if(travisTestOutput.get) {
-          Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput from case...");
+        if(actionsTestOutput.get()) {
+          Output("::group::Case output")
 
           for(msg <- allTasks(taskKey).log) {
             Output(msg.getFormat, msg.getArgs:_*)
           }
 
-          Output("travis_fold:end:case_output");
+          Output("::endgroup::")
         }
 
         reasons.foreach {
@@ -340,18 +347,6 @@ object CommandLineTesting {
       Progress("[%02d%%] Running: %s and %d further tasks queued", Int.box(progress), newCurrentlyRunning.map(keyOfTask).mkString(", "), Int.box(otherTasksLeft))
     }
 
-    Output("Introductions:")
-    for((feature, passes) <- intro.toSeq.sortBy(-_._2.size)) {
-      val parts = passes.groupBy(identity).map {
-        case (pass, passList) => (pass, passList.size)
-      }.toSeq.sortBy(-_._2).map {
-        case (pass, count) =>
-          s"$pass($count)"
-      }
-
-      Output("%s: %s", feature, parts.mkString(", "))
-    }
-
     Output("Verification times:")
 
     for (taskKey <- taskKeys) {
@@ -371,10 +366,10 @@ object CommandLineTesting {
 
     if (fails.nonEmpty) {
       hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails.size), Int.box(tasks.size))
-      System.exit(1)
+      throw new HREExitException(1)
     } else {
       hre.lang.System.Verdict("All %d tests passed", Int.box(tasks.size))
-      System.exit(0)
+      throw new HREExitException(0)
     }
   }
 

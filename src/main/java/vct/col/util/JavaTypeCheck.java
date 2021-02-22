@@ -2,6 +2,7 @@ package vct.col.util;
 
 import hre.ast.Origin;
 import vct.col.ast.expr.MethodInvokation;
+import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.TryCatchBlock;
@@ -10,9 +11,10 @@ import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.stmt.decl.SignalsClause;
+import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
-import vct.java.ASTClassLoader;
+import vct.java.JavaASTClassLoader;
 import vct.logging.MessageFactory;
 import vct.logging.PassAddVisitor;
 import vct.logging.PassReport;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 public class JavaTypeCheck extends AbstractTypeCheck {
 
   Set<Type> liveExceptionTypes = new HashSet<>();
+  boolean inSignals = false;
 
   public JavaTypeCheck(PassReport report, ProgramUnit arg) {
     super(report, arg);
@@ -73,7 +76,9 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   }
 
   public void visit(SignalsClause sc) {
+    inSignals = true;
     super.visit(sc);
+    inSignals = false;
 
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
     if (!isThrowableType(sc.type())) {
@@ -109,7 +114,7 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     ArrayList<ClassType> encounteredCatchTypes = new ArrayList<>();
     ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
 
-    for (CatchClause cc : tcb.catches()) {
+    for (CatchClause cc : tcb.catchesJava()) {
       enter(cc);
       ArrayList<ClassType> encounteredMultiCatchTypes = new ArrayList<>();
 
@@ -200,8 +205,13 @@ public class JavaTypeCheck extends AbstractTypeCheck {
   }
 
   private boolean isThrowableType(Type t) {
+    /* When AddTypeADT has occurred, EncodeTryThrowSignals is about to encode the typing rules using the TYPE ADT. */
+    if(source().find_decl(new String[]{"TYPE"}) != null) {
+      return true;
+    }
+
     if (t instanceof ClassType) {
-      ASTClass astClass = (ASTClass)((ClassType) t).definitionJava(source(), ASTClassLoader.INSTANCE(), currentNamespace);
+      ASTClass astClass = (ASTClass)((ClassType) t).definitionJava(source(), JavaASTClassLoader.INSTANCE(), currentNamespace);
       if (astClass.kind == ASTClass.ClassKind.Record) {
         return true;
       }
@@ -221,9 +231,15 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     if (mi.definition() != null && (mi.definition().getKind() == Method.Kind.Constructor || mi.definition().getKind() == Method.Kind.Plain)) {
       // Any types that the method has declared, can become live when calling this method
-      for (Type t : mi.definition().signals) {
-        liveExceptionTypes.add(t);
-      }
+      liveExceptionTypes.addAll(Arrays.asList(mi.definition().signals));
     }
+  }
+
+  public void visit(NameExpression name) {
+    if (name.isReserved(ASTReserved.Result) && inSignals) {
+      name.getOrigin().report("error", "Using \\result in signals is not allowed");
+      Fail("Using \\result in signals is not allowed");
+    }
+    super.visit(name);
   }
 }
