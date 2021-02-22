@@ -99,9 +99,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   }
 
   def convertMethod(method: MethodDeclContext): Method = origin(method, method match {
-    case MethodDecl0(contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
+    case MethodDecl0(maybeGPUOpts, contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
       val returns = convertType(returnType)
       var (kind, body) = convertBody(bodyNode)
+      val gpuopts = maybeGPUOpts.map(convertGPUOpts).getOrElse(Seq.empty[GPUOpt])
 
       modifiers.foreach {
         case Modifier0("pure") =>
@@ -113,7 +114,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         kind = Kind.Predicate
 
       val result = create method_kind(kind, returns, convertContract(contract),
-        convertID(name), maybeArgs.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
+        convertID(name), maybeArgs.map(convertArgs).getOrElse(Seq()).toArray, gpuopts.asJava, body.orNull)
 
       modifiers.map(convertModifier).foreach(mod => {
         /* These flags have special status in InlinePredicatesRewriter and CurrentThreadRewriter. Probably we should
@@ -639,11 +640,18 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Gpuopt0("gpuopt", name, maybeExprSeq, ";") => create gpuoptimization (
       name match {
         case GpuOptimization0(name) => GPUOptName.LoopUnroll
+        case GpuOptimization1(name) => GPUOptName.MatrixLinearization
         case _ => fail(tree, "unsupported optimization")
       },
       maybeExprSeq.map(convertExpSeq).get.asJava
     )
   }
+
+  def convertGPUOpts(tree: GpuoptsContext): Seq[GPUOpt] = tree match {
+    case Gpuopts0(gpuopt) => Seq(convertGPUOpt(gpuopt))
+    case Gpuopts1(gpuopt, gpuopts) => Seq(convertGPUOpt(gpuopt))++convertGPUOpts(gpuopts)
+  }
+
 
   def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {
     case ForStatementList0(x) => convertStat(x)

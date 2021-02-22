@@ -40,6 +40,62 @@ public class PVLSyntax extends Syntax {
       syntax.addOperator(Subscript,145,"","[","]"); // TODO: check if relative order to Select is OK!
       syntax.addPostfix(PostIncr,"++",140);
       syntax.addPostfix(PostDecr,"--",140);
+      syntax.addOperator(NewArray,-1,"new ","[","]");
+      syntax.addOperator(IndependentOf, -1 , "(" ,"!",")");
+
+      syntax.addLeftFix(Exp,"^^",125);
+      syntax.addLeftFix(StructSelect,".",-1);
+      syntax.addLeftFix(LeftMerge,"||_",30);
+
+      syntax.addOperator(Member,-1,"(","\\memberof",")");
+      syntax.addFunction(TypeOf,"\\typeof");
+      syntax.addFunction(CurrentPerm,"perm");
+      syntax.addFunction(HistoryPerm,"HPerm");
+      syntax.addOperator(Scale,130,"[","]","");
+      syntax.addFunction(History,"Hist");
+      syntax.addFunction(Future,"Future");
+      syntax.addFunction(AbstractState,"AbstractState");
+      syntax.addFunction(Contribution,"Contribution");
+      syntax.addFunction(Held,"held");
+      syntax.addFunction(SizeOf,"\\sizeof");
+      syntax.addFunction(AddrOf,"\\addrof");
+      syntax.addFunction(Indirection,"\\indirect");
+      syntax.addFunction(StructDeref,"\\structderef");
+      syntax.addFunction(IterationOwner,"\\owner");
+      syntax.addFunction(RemoveAt, "remove");
+      syntax.addRightFix(PrependSingle, "::", 110);
+      syntax.addLeftFix(AppendSingle, "++", 110);
+
+      syntax.addFunction(Values,"\\values");
+
+      syntax.addOperator(Unfolding,140,"\\unfolding","\\in","");
+      syntax.addOperator(IndependentOf, -1 , "(" ,"!",")");
+      syntax.addOperator(ReducibleSum,-1,"Reducible(",",+)");
+      syntax.addReserved(EmptyProcess, "empty");
+
+      syntax.addReserved(Inline,"inline");
+      syntax.addReserved(ThreadLocal,"thread_local");
+      syntax.addReserved(Pure,"pure");
+      syntax.addReserved(CurrentThread,"\\current_thread");
+      syntax.addFunction(OptionGet,"getOption");
+
+      syntax.addFunction(ValidArray,"\\array");
+      syntax.addFunction(ValidMatrix,"\\matrix");
+      syntax.addFunction(ValidPointer,"\\pointer");
+      syntax.addFunction(ValidPointerIndex, "\\pointer_index");
+
+      syntax.addFunction(MapBuild, "buildMap");
+      syntax.addFunction(MapEquality, "equalsMap");
+      syntax.addFunction(MapDisjoint, "disjointMap");
+      syntax.addFunction(MapKeySet, "keysMap");
+      syntax.addFunction(MapCardinality, "cardMap");
+      syntax.addFunction(MapValueSet, "valuesMap");
+      syntax.addFunction(MapGetByKey, "getFromMap");
+      syntax.addFunction(MapRemoveKey, "removeFromMap");
+      syntax.addFunction(MapItemSet, "itemsMap");
+
+
+
 
       //syntax.addInfix(SubType,"<:",90);
       //syntax.addInfix(SuperType,":>",90);

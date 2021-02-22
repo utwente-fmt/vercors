@@ -494,6 +494,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     Type[] signals = rewrite(m.signals);
     ASTNode body=rewrite(m.getBody());
     result=create.method_kind(kind, rt, signals, c, name, args, m.usesVarArgs(), body);
+
   }
 
   @Override

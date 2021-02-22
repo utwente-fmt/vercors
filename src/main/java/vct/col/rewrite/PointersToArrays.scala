@@ -1,5 +1,7 @@
 package vct.col.rewrite
 
+import java.util
+
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.constant.StructValue
 import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
@@ -35,21 +37,6 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
     )
 
     result.setOrigin(decl.getOrigin)
-  }
-
-  override def visit(method: Method): Unit = {
-    result = new Method(
-      method.kind,
-      method.name,
-      visitType(method.getReturnType),
-      method.signals.map(visitType),
-      rewrite(method.getContract),
-      rewrite(method.getArgs),
-      method.usesVarArgs,
-      rewrite(method.getBody),
-    )
-
-    result.setOrigin(method.getOrigin)
   }
 
   override def visit(expr: OperatorExpression): Unit = {

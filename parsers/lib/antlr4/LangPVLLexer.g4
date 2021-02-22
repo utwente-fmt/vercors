@@ -90,7 +90,7 @@ ID: 'id';
 
 GPUOPT: 'gpuopt';
 GPUOPT_LOOPUNROLL: 'loop_unroll';
-GPUOPT_MATRIX_REPR: 'matrix_repr';
+GPUOPT_MATRIX_REPR: 'matrix_lin';
 
 MAP: 'map';
 TUPLE: 'tuple';

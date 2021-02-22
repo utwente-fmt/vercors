@@ -10,7 +10,7 @@ import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.rewrite.gpgpuoptimizations.LoopUnroll
+import vct.col.rewrite.gpgpuoptimizations.{LoopUnroll, MatrixLinearization}
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
@@ -203,6 +203,12 @@ object Passes {
     SimplePass("unroll_loops",
       "Unroll specified loops",
       new LoopUnroll(_).rewriteAll,
+      permits=Feature.ALL,
+      removes=Set(),
+    ),
+    SimplePass("matrix_lin",
+      "Linearize matrices",
+      new MatrixLinearization(_).rewriteAll,
       permits=Feature.ALL,
       removes=Set(),
     ),

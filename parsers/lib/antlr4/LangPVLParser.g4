@@ -20,7 +20,7 @@ field : type identifierList ';' ;
 
 modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
 
-methodDecl : contract modifier* type identifier '(' args? ')' methodBody ;
+methodDecl : gpuopts? contract modifier* type identifier '(' args? ')' methodBody ;
 methodBody : '=' expr ';' | constructorBody ;
 
 constructor : contract identifier '(' args? ')' constructorBody ;
@@ -273,6 +273,10 @@ invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
 
 gpuopt: 'gpuopt' gpuOptimization exprSeq? ';';
+gpuopts
+    : gpuopt
+    | gpuopt gpuopts
+    ;
 
 exprSeq
     : expr
@@ -281,7 +285,7 @@ exprSeq
 
 gpuOptimization
  : 'loop_unroll'
- | 'matrix_repr'
+ | 'matrix_lin'
  ;
 
 nonArrayType

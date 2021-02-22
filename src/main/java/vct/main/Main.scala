@@ -408,8 +408,9 @@ class Main {
     report = Passes.BY_KEY("java-check").apply_pass(report, Array())
 
     if (Configuration.enable_gpu_optimizations.get()) {
-      report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
-      show(Passes.BY_KEY("unroll_loops"))
+      //report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
+//      report = Passes.BY_KEY("matrix_lin").apply_pass(report, Array())
+//      show(Passes.BY_KEY("matrix_lin"))
 //      report = Passes.BY_KEY("pvl").apply_pass(report, Array())
       return Seq.empty;
     }
