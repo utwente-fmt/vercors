@@ -7,20 +7,34 @@ class LoopUnrollExample {
 	context (\forall* int i; 0 <= i && i < N; Perm(ar[i], write));
 	ensures (\forall int i;  0 <= i && i < N; ar[i] == 0);
 	void zero(int N, int[] ar) {
-		int i = 0;
+		int i = 3;
 
-
-        gpuopt loop_unroll i 2;
+        //gpuopt loop_unroll i 4;
     	loop_invariant N == 5;
-    	loop_invariant 0 <= i && i <= N;
-		//loop_invariant ??? <= i;
-		//loop_invariant i <= N;
+    	loop_invariant 3 <= i && i <= N;
+    	//loop_invariant -1 < i && i < N+1;
 		loop_invariant (\forall* int j; 0 <= j && j < N; Perm(ar[j], write));
 		loop_invariant (\forall int j; 0 <= j && j < i; ar[j] == 0);
-		while(i <= N) {
+		while(i < N) {
 			ar[i] = 0;
-			i = i + 1;
+			i = i + 16;
 		}
 	}
+
+
+            //Different cases for the update statement
+            //i = 1 + i;
+			//i++;
+
+			//i = i - 1;
+			//i = -1 + i;
+			//i--;
+
+			//i = i * 1;
+			//i = 1 * i;
+
+			//i = i / 1;
+
+
 
 }
