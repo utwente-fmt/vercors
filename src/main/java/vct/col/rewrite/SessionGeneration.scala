@@ -10,7 +10,7 @@ import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionStructureCheck
-import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, chanRead, chanWrite, getArgName, getBarrierClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName}
+import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, chanRead, chanWrite, getArgName, getBarrierClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName}
 
 import scala.collection.JavaConversions._
 
@@ -21,7 +21,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   private var roleName : String = null
 
   def addThreadClasses() = {
-    SessionStructureCheck.getNonMainClasses(source).foreach(target().add(_))
+    source.get().filter(_.name != mainClassName).foreach(target().add(_))
     roleObjects.foreach(role => {
       target().add(createThreadClass(role))
     })

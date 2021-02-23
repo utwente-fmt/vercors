@@ -330,13 +330,14 @@ public class Main
         passes.add("dafny"); // run backend
       } else if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
         passes = new LinkedBlockingDeque<String>();
+        passes.add("session-constr-repair");
+        passes.add("check");
         passes.add("session-struct-check");
         passes.add("session-generate");
         passes.add("simplify_expr");
         passes.add("remove-empty-blocks");
         passes.add("session-barrier");
         passes.add("session-thread-constr");
-        passes.add("session-constr-repair");
         passes.add("session-add-channel-perms");
         passes.add("session-add-start-threads");
         passes.add("pvl");

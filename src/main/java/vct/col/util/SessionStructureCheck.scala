@@ -6,7 +6,7 @@ import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, O
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
 import vct.col.ast.stmt.decl.Method.Kind
-import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNamesFromExpression, isThreadClassName, mainClassName, runMethodName}
 
@@ -17,62 +17,64 @@ object SessionStructureCheck {
 
   def check(source : ProgramUnit) : Unit = {
     checkMainClass(source)
-    checkRoleObjectsInMainConstructor(source)
+    checkMainConstructor(source)
     checkMainMethodsAllowedSyntax(source)
     checkMainMethodsRecursion(source)
     checkRoleFieldsTypes(source)
     checkRoleMethodsTypes(source)
     checkOtherClassesFieldsTypes(source)
     checkOtherClassesMethodsTypes(source)
-    checkAbsenceRecursionNonMain(source)
-    checkLoopAbsenceNonMain(source)
+    checkAbsenceRecursionRoleHelper(source)
+    checkLoopAbsenceRoleHelper(source)
   }
 
-  def getNonMainClasses(source : ProgramUnit) : Iterable[ASTClass] = source.get().filter(c => c.name != mainClassName && c.name != channelClassName && c.name != barrierClassName) .map(_.asInstanceOf[ASTClass])
+  private def getRoleOrHelperClasses(source : ProgramUnit) : Iterable[ASTClass] = source.get().filter(c => c.name != mainClassName && c.name != channelClassName && c.name != barrierClassName) .map(_.asInstanceOf[ASTClass])
 
   def getMainClass(source : ProgramUnit) : ASTClass = source.get().find(_.name == mainClassName).get.asInstanceOf[ASTClass]
 
   private def checkMainClass(source : ProgramUnit) : Unit = {
     source.get().find(_.name == mainClassName) match {
-      case None => Fail("Session Fail: class 'Main' is required")
+      case None => Fail("Session Fail: class 'Main' is required!")
       case Some(main) =>
         val mcl = main.asInstanceOf[ASTClass]
         val constrs = mcl.methods().filter(_.kind== Kind.Constructor)
         if(constrs.size != 1) {
-          Fail("Session Fail: class 'Main' method must have exactly one constructor")
+          Fail("Session Fail: class 'Main' method must have exactly one constructor!")
         } else {
           if (constrs.head.getArity >0){
-            Fail("Session Fail: The constructor of class 'Main' cannot have any arguments")
+            Fail("Session Fail: The constructor of class 'Main' cannot have any arguments!")
+          } else if(constrs.head.name != mainClassName) {
+            Fail("Session Fail: Method without type provided, or constructor with other name than 'Main'")
           }
         }
         mcl.methods().find(_.name == runMethodName) match {
-          case None => Fail("Session Fail: The class 'Main' must have a method '%s'",runMethodName)
-          case Some(run) => if(run.getArgs.length != 0) Fail("Session Fail: the method %s of class 'Main' cannot have any arguments",runMethodName)
+          case None => Fail("Session Fail: The class 'Main' must have a method '%s'!",runMethodName)
+          case Some(run) => if(run.getArgs.length != 0) Fail("Session Fail: the method '%s' of class 'Main' cannot have any arguments!",runMethodName)
         }
     }
   }
 
-  def getMainConstructor(source : ProgramUnit) : Method = getMainClass(source).methods().find(_.kind== Kind.Constructor).get
+  private def getMainConstructor(source : ProgramUnit) : Method = getMainClass(source).methods().find(_.kind== Kind.Constructor).get
 
   def getRoleObjects(source : ProgramUnit) : Array[AssignmentStatement] = {
     getMainClass(source).methods().find(_.kind == Method.Kind.Constructor).get.getBody.asInstanceOf[BlockStatement].getStatements.map(_.asInstanceOf[AssignmentStatement])
   }
 
-  def getRoleObjectNames(source : ProgramUnit) : Array[String] = getRoleObjects(source).map(_.location.asInstanceOf[NameExpression].name)
+  private def getRoleObjectNames(source : ProgramUnit) : Array[String] = getRoleObjects(source).map(_.location.asInstanceOf[NameExpression].name)
 
-  private def checkRoleObjectsInMainConstructor(source : ProgramUnit) : Unit  = {
+  private def checkMainConstructor(source : ProgramUnit) : Unit  = {
     val roles : Array[ASTNode] = getMainConstructor(source).getBody match {
       case b: BlockStatement => b.getStatements
-      case _ => Fail("Constructor of 'Main' must have a body of type BlockStatement"); Array()
+      case _ => Fail("Constructor of 'Main' must have a body of type BlockStatement, i.e. be defined!"); Array()
     }
     if(roles.length == 0)
-      Fail("Session Fail: Main constructor must assign at least one role!")
+      Fail("Session Fail: Main constructor is mandatory and  must assign at least one role!")
     roles.foreach {
       case a: AssignmentStatement => a.location match {
         case n: NameExpression => getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
           case None => Fail("Session Fail: can only assign to role fields of class 'Main' in constructor")
           case Some(_) => a.expression match {
-            case m: MethodInvokation => getNonMainClasses(source).filter(c => c.name != channelClassName && c.name != barrierClassName).find(_.name == m.dispatch.getName) match {
+            case m: MethodInvokation => getRoleOrHelperClasses(source).find(_.name == m.dispatch.getName) match {
               case None => Fail("Session Fail: Wrong method: constructor of 'Main' must initialize roles with a call to a role constructor")
               case Some(_) => true
             }
@@ -83,11 +85,11 @@ object SessionStructureCheck {
       case _ => Fail("Session Fail: constructor of 'Main' can only assign role classes")
     }
     if(getRoleObjectNames(source).toSet != getMainClass(source).fields().map(_.name).toSet) {
-      Fail("Session Fail: the fields of class 'Main' must be the roles")
+      Fail("Session Fail: the fields of class 'Main' must be all assigned in constructor 'Main'")
     }
   }
 
-  def getMainMethods(source : ProgramUnit) : Iterable[Method] = getMainClass(source).methods().filter(m => m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure)
+  private def getMainMethods(source : ProgramUnit) : Iterable[Method] = getMainClass(source).methods().filter(m => m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure)
 
   private def checkMainMethodsAllowedSyntax(source : ProgramUnit) : Unit = {
     val roleNames = getRoleObjectNames(source)
@@ -169,9 +171,9 @@ object SessionStructureCheck {
     }
   }
 
-  def getRoleClasses(source : ProgramUnit) : Iterable[ASTClass] = {
+  private def getRoleClasses(source : ProgramUnit) : Iterable[ASTClass] = {
     val roleClassNames = getRoleObjects(source).map(_.expression.asInstanceOf[MethodInvokation].dispatch.getName)
-    getNonMainClasses(source).filter(c => roleClassNames.contains(c.name))
+    getRoleOrHelperClasses(source).filter(c => roleClassNames.contains(c.name))
   }
 
   private def checkMainMethodsRecursion(source : ProgramUnit) : Unit = {
@@ -179,7 +181,7 @@ object SessionStructureCheck {
     mainMethods.foreach(m => checkGuardedRecursion(m.getBody,Set(m.name),mainMethods))
   }
 
-  private def checkAbsenceRecursionNonMain(source : ProgramUnit) : Unit =
+  private def checkAbsenceRecursionRoleHelper(source : ProgramUnit) : Unit =
     source.get().filter({
       case c : ASTClass => c.name != mainClassName
       case _ => false
@@ -190,7 +192,7 @@ object SessionStructureCheck {
 
   private def checkGuardedRecursion(statement : ASTNode, encounteredMethods : Set[String], mainMethods : Iterable[Method]) : Unit =
     statement match {
-      case b : BlockStatement => checkGuardedRecursion(b.getStatement(0), encounteredMethods,mainMethods)
+      case b : BlockStatement => if(b.getLength > 0) checkGuardedRecursion(b.getStatement(0), encounteredMethods,mainMethods)
       case i : MethodInvokation =>
         if(encounteredMethods.contains(i.method))
           Fail("Session Fail: recursive call not allowed as first statement of method '%s'! %s", i.method, statement.getOrigin)
@@ -280,19 +282,34 @@ object SessionStructureCheck {
     others.foreach(_.methods().forEach(checkRoleMethodTypes(_,Set())))
   }
 
-  private def checkLoopAbsenceNonMain(source : ProgramUnit) : Unit =
-    getNonMainClasses(source).foreach(_.methods().foreach(m => checkAbsenceOfLoops(m.getBody)))
+  private def checkLoopAbsenceRoleHelper(source : ProgramUnit) : Unit =
+    getRoleOrHelperClasses(source).foreach(_.methods().foreach(m => checkAbsenceNonTerminatingStatements(m.getBody)))
 
 
-  private def checkAbsenceOfLoops(statement : ASTNode) : Unit = { statement match {
+  private def checkAbsenceNonTerminatingStatements(statement : ASTNode) : Unit = { statement match {
       case l : LoopStatement => Fail("Session Fail: loop not allowed in method of non-Main class! " +l.getOrigin)
-      case b : BlockStatement => b.getStatements.foreach(checkAbsenceOfLoops)
+      case s : ASTSpecial => excludeNonTerminatingSpecials(s)
+      case b : BlockStatement => b.getStatements.foreach(checkAbsenceNonTerminatingStatements)
       case i : IfStatement => {
-        checkAbsenceOfLoops(i.getStatement(0))
+        checkAbsenceNonTerminatingStatements(i.getStatement(0))
         if (i.getCount == 2)
-          checkAbsenceOfLoops(i.getStatement(1))
+          checkAbsenceNonTerminatingStatements(i.getStatement(1))
       }
-      case p : ParallelRegion => p.blocks.foreach(b => checkAbsenceOfLoops(b.block))
+      case p : ParallelRegion => p.blocks.foreach(b => checkAbsenceNonTerminatingStatements(b.block))
+      case _ => //fine!
+    }
+  }
+
+  private def excludeNonTerminatingSpecials(s : ASTSpecial) :Unit = {
+    s.kind match {
+      case ASTSpecial.Kind.Goto => Fail("Session Fail: Goto is not allowed! " + s.getOrigin)
+      case ASTSpecial.Kind.Wait => Fail("Session Fail: Wait is not allowed! " + s.getOrigin)
+      case ASTSpecial.Kind.Fork => Fail("Session Fail: Fork is not allowed! " + s.getOrigin)
+      case ASTSpecial.Kind.Join => Fail("Session Fail: Join is not allowed! " + s.getOrigin)
+      case ASTSpecial.Kind.Lock => Fail("Session Fail: Lock is not allowed! " + s.getOrigin)
+      case ASTSpecial.Kind.Unlock => Fail("Session Fail: Unlock is not allowed! " + s.getOrigin)
+      case ASTSpecial.Kind.Send => Fail("Session Fail: Send is not allowed! " + s.getOrigin)
+      case ASTSpecial.Kind.Recv => Fail("Session Fail: Recv is not allowed! " + s.getOrigin)
       case _ => //fine!
     }
   }
