@@ -1,0 +1,9 @@
+//:: tools silicon
+//:: verdict Error
+class SomeClass {
+
+	void aMethod(int a) {
+		a = 5;
+	}
+
+}

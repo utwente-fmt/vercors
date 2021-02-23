@@ -1,0 +1,19 @@
+//:: tools silicon
+//:: verdict Error
+class Main {
+
+	int i;
+
+	Main() {
+		i = new Foo();
+	}
+
+	void run() {
+	
+	}
+}
+
+class Foo {
+
+}
+

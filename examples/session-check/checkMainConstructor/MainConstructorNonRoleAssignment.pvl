@@ -1,0 +1,15 @@
+//:: tools silicon
+//:: verdict Error
+class Main {
+
+	int i;
+
+	Main() {
+		i = 5;
+	}
+
+	void run() {
+	
+	}
+}
+

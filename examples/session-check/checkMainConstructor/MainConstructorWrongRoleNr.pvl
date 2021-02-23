@@ -1,0 +1,21 @@
+//:: tools silicon
+//:: verdict Error
+class Main {
+
+	Role a,b;
+
+	Main() {
+		a = new Role();
+	}
+
+	void run() {
+	
+	}
+
+}
+
+class Role {
+
+	int i;
+}
+

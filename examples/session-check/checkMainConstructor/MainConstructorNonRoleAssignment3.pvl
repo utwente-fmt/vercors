@@ -1,0 +1,19 @@
+//:: tools silicon
+//:: verdict Error
+class Main {
+
+	int i;
+
+	Main() {
+		i = Main.foo();
+	}
+
+	void run() {
+	
+	}
+	
+	static int foo() { 
+		return 5;
+	}
+}
+
