@@ -16,7 +16,6 @@ import scala.collection.JavaConverters._
 object SessionStructureCheck {
 
   def check(source : ProgramUnit) : Unit = {
-    checkNonMainClasses(source)
     checkMainClass(source)
     checkRoleObjectsInMainConstructor(source)
     checkMainMethodsAllowedSyntax(source)
@@ -29,12 +28,7 @@ object SessionStructureCheck {
     checkLoopAbsenceNonMain(source)
   }
 
-  def getNonMainClasses(source : ProgramUnit) : Iterable[ASTClass] = source.get().filter(_.name != mainClassName) .map(_.asInstanceOf[ASTClass])
-
-  private def checkNonMainClasses(source : ProgramUnit) : Unit = {
-    if (getNonMainClasses(source).isEmpty)
-      Fail("Session Fail: A session program needs to have at least one class representing a role")
-  }
+  def getNonMainClasses(source : ProgramUnit) : Iterable[ASTClass] = source.get().filter(c => c.name != mainClassName && c.name != channelClassName && c.name != barrierClassName) .map(_.asInstanceOf[ASTClass])
 
   def getMainClass(source : ProgramUnit) : ASTClass = source.get().find(_.name == mainClassName).get.asInstanceOf[ASTClass]
 
@@ -71,12 +65,14 @@ object SessionStructureCheck {
       case b: BlockStatement => b.getStatements
       case _ => Fail("Constructor of 'Main' must have a body of type BlockStatement"); Array()
     }
+    if(roles.length == 0)
+      Fail("Session Fail: Main constructor must assign at least one role!")
     roles.foreach {
       case a: AssignmentStatement => a.location match {
         case n: NameExpression => getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
           case None => Fail("Session Fail: can only assign to role fields of class 'Main' in constructor")
           case Some(_) => a.expression match {
-            case m: MethodInvokation => getNonMainClasses(source).filter(_.name != channelClassName).find(_.name == m.dispatch.getName) match {
+            case m: MethodInvokation => getNonMainClasses(source).filter(c => c.name != channelClassName && c.name != barrierClassName).find(_.name == m.dispatch.getName) match {
               case None => Fail("Session Fail: Wrong method: constructor of 'Main' must initialize roles with a call to a role constructor")
               case Some(_) => true
             }
@@ -97,33 +93,40 @@ object SessionStructureCheck {
     val roleNames = getRoleObjectNames(source)
     val mainMethods = getMainMethods(source)
     val mainMethodNames = mainMethods.map(_.name)
-    getMainMethods(source).foreach(m => checkMainStatement(m.getBody,roleNames, mainMethodNames))
+    val pureMethods = getPureMainMethods(source)
+    getMainMethods(source).foreach(m => checkMainStatement(m.getBody,roleNames, mainMethodNames,pureMethods))
   }
 
-  private def checkMainStatement(s : ASTNode, roleNames : Array[String], mainMethodNames : Iterable[String]) : Unit = { //tau nog toestaan hier
+  private def getPureMainMethods(source : ProgramUnit) = getMainClass(source).methods().filter(_.kind == Method.Kind.Pure)
+
+  private def checkMainStatement(s : ASTNode, roleNames : Array[String], mainMethodNames : Iterable[String], pureMethods : Iterable[Method]) : Unit = {
     s match {
-      case b : BlockStatement => b.getStatements.foreach(checkMainStatement(_,roleNames,mainMethodNames))
+      case b : BlockStatement => b.getStatements.foreach(checkMainStatement(_,roleNames,mainMethodNames,pureMethods))
       case a: AssignmentStatement =>
         val expNames = getNamesFromExpression(a.expression).map(_.name).toSet.filter(roleNames.contains(_))
         if(expNames.size > 1) {
           Fail("Session Fail: the assignment %s in a method of class 'Main' cannot have multiple roles in its expression.",a.toString)
         }
-      case i: IfStatement =>
-        if(i.getCount == 1 || i.getCount == 2) {
+        checkAbsenceRecursionPureMethods(a,pureMethods)
+      case i: IfStatement => {
+        if (i.getCount == 1 || i.getCount == 2) {
           if (checkSessionCondition(i.getGuard(0), roleNames)) {
-            checkMainStatement(i.getStatement(0), roleNames,mainMethodNames)
-            if(i.getCount == 2) checkMainStatement(i.getStatement(1), roleNames,mainMethodNames)
+            checkMainStatement(i.getStatement(0), roleNames, mainMethodNames, pureMethods)
+            if (i.getCount == 2) checkMainStatement(i.getStatement(1), roleNames, mainMethodNames, pureMethods)
           } else Fail("Session Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
         } else Fail("Session Fail: one or two branches expected in IfStatement " + s.getOrigin)
+        checkAbsenceRecursionPureMethods(i.getGuard(0),pureMethods)
+      }
       case l: LoopStatement => {
         if (l.getInitBlock == null && l.getUpdateBlock == null)
           if (checkSessionCondition(l.getEntryGuard, roleNames))
-            checkMainStatement(l.getBody, roleNames,mainMethodNames)
+            checkMainStatement(l.getBody, roleNames,mainMethodNames,pureMethods)
           else Fail("Session Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
         else Fail("Session Fail: a for loop is not supported, use a while loop " + s.getOrigin)
+        checkAbsenceRecursionPureMethods(l.getEntryGuard,pureMethods)
       }
       case p : ParallelRegion => {
-        p.blocks.foreach(b => checkMainStatement(b.block,roleNames,mainMethodNames))
+        p.blocks.foreach(b => checkMainStatement(b.block,roleNames,mainMethodNames,pureMethods))
       }
       case m : MethodInvokation =>
         if(m.method == mainClassName)
@@ -152,6 +155,17 @@ object SessionStructureCheck {
         case _ => Set(node)
       }
       case _ => Set(node)
+    }
+  }
+
+  private def checkAbsenceRecursionPureMethods(n : ASTNode, pureMainMethods : Iterable[Method]) : Unit = {
+    n match {
+      case e : OperatorExpression => e.args.foreach(checkAbsenceRecursionPureMethods(_, pureMainMethods))
+      case mi : MethodInvokation => pureMainMethods.find(_.name == mi.method) match {
+        case Some(m) => checkAbsenceRecursion(m.getBody,Set(m.name),pureMainMethods)
+        case None => //fine
+      }
+      case _ => //fine
     }
   }
 
@@ -192,7 +206,7 @@ object SessionStructureCheck {
       case b : BlockStatement => b.getStatements.foreach(s => checkAbsenceRecursion(s,encounteredMethods,methodDefs))
       case m : MethodInvokation =>
         if(encounteredMethods.contains(m.method))
-          Fail("Session Fail: role methods are not allowed to use recursion; recursion encountered for method '%s' at %s", m.method, m.getOrigin)
+          Fail("Session Fail: role or pure methods are not allowed to use recursion (outside the specification); recursion encountered for method '%s' at %s", m.method, m.getOrigin)
         else methodDefs.find(_.name == m.method) match {
           case Some(method) => checkAbsenceRecursion(method.getBody,encounteredMethods + m.method, methodDefs)
           case None => Fail("Session Fail: Wrong method invocation, method %s is from another class! %s", m.method, m.getOrigin)
@@ -266,12 +280,12 @@ object SessionStructureCheck {
     others.foreach(_.methods().forEach(checkRoleMethodTypes(_,Set())))
   }
 
-  private def checkLoopAbsenceNonMain(source : ProgramUnit) =
+  private def checkLoopAbsenceNonMain(source : ProgramUnit) : Unit =
     getNonMainClasses(source).foreach(_.methods().foreach(m => checkAbsenceOfLoops(m.getBody)))
 
 
   private def checkAbsenceOfLoops(statement : ASTNode) : Unit = { statement match {
-      case l : LoopStatement => Fail("Session Fail: loop not allowed in method of non-Main class")
+      case l : LoopStatement => Fail("Session Fail: loop not allowed in method of non-Main class! " +l.getOrigin)
       case b : BlockStatement => b.getStatements.foreach(checkAbsenceOfLoops)
       case i : IfStatement => {
         checkAbsenceOfLoops(i.getStatement(0))
