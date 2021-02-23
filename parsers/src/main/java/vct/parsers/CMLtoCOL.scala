@@ -694,7 +694,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val operator = op match {
         case "=" => StandardOperator.Assign
         case "*=" => MulAssign
-        case "/=" => StandardOperator.DivAssign
+        case "/=" => StandardOperator.FloorDivAssign
         case "%=" => RemAssign
         case "+=" => AddAssign
         case "-=" => SubAssign
