@@ -94,7 +94,7 @@ public class ArrayNullValues extends AbstractRewriter {
                 break;
 
             case MulAssign:
-            case DivAssign:
+            case FloorDivAssign:
             case RemAssign:
             case AddAssign:
             case SubAssign:

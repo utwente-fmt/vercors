@@ -352,7 +352,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
           addFeature(MemberOfRange, op)
         }
       case StandardOperator.PostDecr | StandardOperator.PostIncr | StandardOperator.PreDecr | StandardOperator.PreIncr |
-           StandardOperator.MulAssign | StandardOperator.DivAssign | StandardOperator.RemAssign |
+           StandardOperator.MulAssign | StandardOperator.FloorDivAssign | StandardOperator.RemAssign |
            StandardOperator.AddAssign | StandardOperator.SubAssign | StandardOperator.ShlAssign |
            StandardOperator.ShrAssign | StandardOperator.SShrAssign | StandardOperator.AndAssign |
            StandardOperator.XorAssign | StandardOperator.OrAssign | StandardOperator.Assign =>

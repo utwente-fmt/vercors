@@ -740,7 +740,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case "+=" => create expression(AddAssign, expr(left), expr(right))
         case "-=" => create expression(SubAssign, expr(left), expr(right))
         case "*=" => create expression(MulAssign, expr(left), expr(right))
-        case "/=" => create expression(DivAssign, expr(left), expr(right))
+        case "/=" => create expression(FloorDivAssign, expr(left), expr(right))
         case "&=" => create expression(AndAssign, expr(left), expr(right))
         case "|=" => create expression(OrAssign, expr(left), expr(right))
         case "^=" => create expression(XorAssign, expr(left), expr(right))
