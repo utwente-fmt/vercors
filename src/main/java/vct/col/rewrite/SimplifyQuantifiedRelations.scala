@@ -290,7 +290,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
           case None => super.visit(expr); return
           case Some(main) => main
         }
-        result = create expression(Implies, (indepSelect ++ bounds.selectNonEmpty).reduce(and), claim))
+        result = create expression(Implies, (indepSelect ++ bounds.selectNonEmpty).reduce(and), claim)
       case _ =>
         super.visit(expr)
     }
