@@ -1,5 +1,7 @@
 package vct.col.rewrite
 
+import hre.lang.System.Output
+
 import java.util
 import vct.col.ast.`type`.Type
 import vct.col.ast.expr.StandardOperator.{And, Div, EQ, FloorDiv, GT, GTE, ITE, Implies, LT, LTE, Member, Minus, Mult, Plus, RangeSeq, UMinus}
@@ -19,6 +21,31 @@ import scala.collection.mutable.ArrayBuffer
   * where left or right is independent of all quantified names
   */
 class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(source) {
+  class Bounds(val names: Set[String]) {
+    val lowerBounds: mutable.Map[String, Seq[ASTNode]] = mutable.Map()
+    val upperBounds: mutable.Map[String, Seq[ASTNode]] = mutable.Map()
+
+    def addLowerBound(name: String, bound: ASTNode): Unit =
+      lowerBounds(name) = lowerBounds.getOrElse(name, Seq()) :+ bound
+
+    def addUpperBound(name: String, bound: ASTNode): Unit =
+      upperBounds(name) = upperBounds.getOrElse(name, Seq()) :+ bound
+
+    def extremeValue(name: String, maximizing: Boolean): Option[ASTNode] =
+      (if(maximizing) upperBounds else lowerBounds).get(name) match {
+        case None => None
+        case Some(bounds) => Some(SimplifyQuantifiedRelations.this.extremeValue(bounds, !maximizing))
+      }
+
+    def selectNonEmpty: Seq[ASTNode] =
+      lowerBounds.flatMap {
+        case (name, lowerBounds) =>
+          upperBounds.getOrElse(name, Seq()).flatMap(upperBound =>
+            lowerBounds.map(lowerBound => create.expression(StandardOperator.LTE, lowerBound, upperBound))
+          )
+      }.toSeq
+  }
+
   def getNames(node: ASTNode): Set[String] = {
     val scanner = new NameScanner()
     node.accept(scanner)
@@ -64,8 +91,15 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     }
   }
 
+  /**
+   * If we want the maximum/minimum of a list of nodes, that is encoded as an ITE. If we want to compose with our own
+   * pass (i.e. have nested foralls) it is nice to be able to transform something like (a < b ? a : b) back to min(a,b)
+   * if we encounter it again. We could/should make nodes min/max(a, b, c, ...), but this also works for now.
+   */
+  val extremeOfListNode: mutable.Map[ASTNode, (Seq[ASTNode], Boolean)] = mutable.Map()
+
   def extremeValue(values: Seq[ASTNode], maximizing: Boolean): ASTNode = {
-    if(values.size == 1) {
+    val result = if(values.size == 1) {
       values.head
     } else {
       val preferFirst = if(maximizing) GT else LT
@@ -75,33 +109,62 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
         extremeValue(values(1) +: values.slice(2, values.size), maximizing),
       )
     }
+    extremeOfListNode(result) = (values, maximizing)
+    result
   }
 
-  def extremeValue(bounds: Map[String, (ASTNode, ASTNode)], node: ASTNode, maximizing: Boolean): Option[ASTNode] = node match {
+  def extremeValue(bounds: Bounds, node: ASTNode, maximizing: Boolean): Option[ASTNode] = node match {
     case op: OperatorExpression => op.operator match {
       case Plus => mapOp(Plus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, maximizing))
       case Minus => mapOp(Minus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, !maximizing))
       case Mult | Div | FloorDiv =>
-        // Either side can flip the sign, so any combinating of maxima/minima can be the extreme value
+        val (left, right) = (op.first, op.second)
+        // Check that the two sides are independent over the bound variables
+        // e.g. max{i * (n-i) | 0 < i < N} is too hard
+        if(getNames(left).intersect(getNames(right)).intersect(bounds.names).nonEmpty)
+          return None
+
         val leftA = extremeValue(bounds, op.first, maximizing)
         val leftB = extremeValue(bounds, op.first, !maximizing)
         val rightA = extremeValue(bounds, op.second, maximizing)
         val rightB = extremeValue(bounds, op.second, !maximizing)
         val maybeValues = Seq(
           mapOp(op.operator, leftA, rightA),
-          mapOp(op.operator, leftA, rightB),
-          mapOp(op.operator, leftB, rightA),
           mapOp(op.operator, leftB, rightB),
         )
         if(maybeValues.exists(_.isEmpty)) return None
-        // We do take distinct here in case both/one side is constant
+        // We take distinct here in case both sides are constant
         val values = maybeValues.map(_.get).distinct
         Some(extremeValue(values, maximizing))
       case UMinus => extremeValue(bounds, node, !maximizing)
+      case ITE if extremeOfListNode.contains(node) =>
+        val (nodes, nodeIsMaximizing) = extremeOfListNode(node)
+
+        /* When maximizing == nodeIsMaximizing, e.g.:
+         * max_i { max(f(i), g(i)) | bounds }
+         * = max(max_i { f(i) | bounds }, max_i { g(i) | bounds })
+         *
+         * When maximizing == !nodeIsMaximizing, e.g.:
+         * max_{i,j} { min(f(i), g(j)) | bounds }
+         * = min(max_{i,j} { f(i) }, max_{i,j} { g(j) })
+         * check that the arguments to inner function are mutually independent over the bound variables
+         */
+
+        if(maximizing != nodeIsMaximizing) {
+          val nameSets = nodes.map(getNames)
+          for (left <- nameSets; right <- nameSets) {
+            if(left.intersect(right).intersect(bounds.names).nonEmpty) {
+              return None
+            }
+          }
+        }
+
+        val extremeNodes = nodes.map(extremeValue(bounds, _, maximizing))
+        if(extremeNodes.exists(_.isEmpty)) return None
+        Some(extremeValue(extremeNodes.map(_.get), nodeIsMaximizing))
       case _ => None
     }
-    case name: NameExpression if bounds.contains(name.getName) =>
-      Some(if(maximizing) create expression(Minus, bounds(name.getName)._2, create constant 1) else bounds(name.getName)._1)
+    case name: NameExpression if bounds.names.contains(name.getName) => bounds.extremeValue(name.getName, maximizing)
     case other: NameExpression => Some(other)
     case const: ConstantExpression => Some(const)
     case _ => None
@@ -113,9 +176,8 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     * @param select The "select" portion of a BindingExpression, e.g. of the form 0 <= i && i < n && 0 <= j && j < m
     * @return When succesful, a map of each name in `decls` to its inclusive lower bound and exclusive upper bound
     */
-  def getBounds(decls: Set[String], select: Seq[ASTNode]): Option[Map[String, (ASTNode, ASTNode)]] = {
-    var lowerBounds = mutable.Map[String, ASTNode]()
-    var upperBounds = mutable.Map[String, ASTNode]()
+  def getBounds(decls: Set[String], select: Seq[ASTNode]): Option[Bounds] = {
+    val bounds = new Bounds(decls)
 
     select.foreach {
       case expr: OperatorExpression if Set(LT, LTE, GT, GTE, EQ).contains(expr.operator) =>
@@ -140,22 +202,16 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
 
         op match {
           case LT =>
-            if(upperBounds.contains(name)) return None
-            upperBounds += name -> bound
+            bounds.addUpperBound(name, create expression(Minus, bound, create constant 1))
           case LTE =>
-            if(upperBounds.contains(name)) return None
-            upperBounds += name -> (create expression(Plus, bound, create constant 1))
+            bounds.addUpperBound(name, bound)
           case GT =>
-            if(lowerBounds.contains(name)) return None
-            lowerBounds += name -> (create expression(Minus, bound, create constant 1))
+            bounds.addLowerBound(name, create expression(Minus, bound, create constant 1))
           case GTE =>
-            if(lowerBounds.contains(name)) return None
-            lowerBounds += name -> bound
+            bounds.addLowerBound(name, bound)
           case EQ =>
-            if(upperBounds.contains(name)) return None
-            if(lowerBounds.contains(name)) return None
-            upperBounds += name -> bound
-            lowerBounds += name -> bound
+            bounds.addUpperBound(name, bound)
+            bounds.addLowerBound(name, bound)
         }
       case OperatorExpression(Member, List(elem, OperatorExpression(RangeSeq, List(low, high)))) =>
         val name = elem match {
@@ -165,31 +221,23 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
         }
 
         if(indepOf(decls, low) && indepOf(decls, high)) {
-          if(upperBounds.contains(name)) return None
-          if(lowerBounds.contains(name)) return None
-          upperBounds += name -> high
-          lowerBounds += name -> low
+          bounds.addUpperBound(name, create expression (Minus, high, create constant 1))
+          bounds.addLowerBound(name, low)
         } else {
           return None
         }
       case _ => return None
     }
 
-    if(lowerBounds.keySet == decls && upperBounds.keySet == decls) {
-      Some(decls.map(decl => decl -> (lowerBounds(decl), upperBounds(decl))).toMap)
-    } else {
-      None
-    }
+    Some(bounds)
   }
 
-  def rewriteMain(bounds: Map[String, (ASTNode, ASTNode)], main: ASTNode): Option[ASTNode] = {
+  def rewriteMain(bounds: Bounds, main: ASTNode, names: Set[String]): Option[ASTNode] = {
     val (left, op, right) = rewrite(main) match {
       case exp: OperatorExpression if Set(LT, LTE, GT, GTE).contains(exp.operator) =>
         (exp.first, exp.operator, exp.second)
       case _ => return None
     }
-
-    val names = bounds.keySet
 
     /* If one side is independent of the quantified variables, only emit the strongest statement.
      * e.g. forall i: 0<=i<n ==> len > i
@@ -228,10 +276,6 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     }
   }
 
-  def boundsNonEmpty(bounds: Map[String, (ASTNode, ASTNode)]): Seq[ASTNode] = {
-    bounds.values.map(bound => less(bound._1, bound._2)).toSeq
-  }
-
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {
       case Binder.Forall =>
@@ -242,11 +286,15 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
           case None => super.visit(expr); return
           case Some(bounds) => bounds
         }
-        val claim = rewriteMain(bounds, main) match {
+        val claim = rewriteMain(bounds, main, bindings) match {
           case None => super.visit(expr); return
           case Some(main) => main
         }
-        result = create expression(Implies, (indepSelect ++ boundsNonEmpty(bounds)).reduce(and), claim)
+        result = create expression(Implies, (indepSelect ++ bounds.selectNonEmpty).reduce(and), claim)
+        Output("Rewrote:")
+        Output("%s", expr)
+        Output("To:")
+        Output("%s", result)
       case _ =>
         super.visit(expr)
     }

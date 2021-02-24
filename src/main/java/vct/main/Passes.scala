@@ -658,6 +658,13 @@ object Passes {
         features.NotStandardized,
       ),
       removes=Set(features.TypeExpressions),
+      introduces=Feature.DEFAULT_INTRODUCE ++ Set(
+        features.ParallelBlocks,
+        features.GivenYields,
+        features.MemberOfRange,
+        features.QuantifierWithoutTriggers,
+        features.NestedQuantifiers,
+      )
     ),
     SimplePass(
       "stringClassToPrimitive", "Translate the java String class to its internal type",
@@ -800,6 +807,7 @@ object Passes {
         val trs = RewriteSystems.getRewriteSystem("simplify_quant_pass1")
         var res = trs.normalize(arg)
         res = RewriteSystems.getRewriteSystem("simplify_quant_pass2").normalize(res)
+        res = new SimplifyQuantifiedRelations(res).rewriteAll()
         res
       },
       permits=Feature.EXPR_ONLY_PERMIT,
@@ -813,7 +821,6 @@ object Passes {
       removes=Set(features.Summation),
       introduces=Feature.EXPR_ONLY_INTRODUCE + features.MemberOfRange,
     ),
-    SimplePass("simplifyQuantifiedIntegerRelations", "simplify quantified relational expressions", new SimplifyQuantifiedRelations(_).rewriteAll),
     SimplePass("reduceQuantifierNesting",
       "Removes nesting of quantifiers in chains of forall/starall and implies",
       new OptimizeQuantifiers(_).rewriteAll,

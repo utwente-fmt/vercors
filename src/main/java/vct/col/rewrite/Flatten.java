@@ -498,6 +498,11 @@ public class Flatten extends AbstractRewriter {
   private boolean simple_expression(ASTNode n){
     return (n instanceof NameExpression)||(n instanceof ClassType);
   }
+
+  @Override
+  public Contract rewrite(Contract c) {
+    return copy_pure.rewrite(c);
+  }
   
   @Override
   public void visit(Dereference e){
