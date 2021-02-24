@@ -1,17 +1,12 @@
 package vct.col.rewrite
 
-import hre.lang.System.Output
-
-import java.util
-import vct.col.ast.`type`.Type
-import vct.col.ast.expr.StandardOperator.{And, Div, EQ, FloorDiv, GT, GTE, ITE, Implies, LT, LTE, Member, Minus, Mult, Plus, RangeSeq, UMinus}
+import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr._
 import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.{AbstractRewriter, NameScanner}
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -61,6 +56,12 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     case other => Seq(other)
   }
 
+  // select = a ** b
+  // main (c && d) ==> ((e && f) ==> x)
+  //      (c && d) ==> ((F && F) ==> x)
+  //      (c && d) ==> T
+  // (a, b, c, d, e, f) x
+  // (a && b && .. && f) ==> x
   def splitSelect(select: ASTNode, main: ASTNode): (Seq[ASTNode], ASTNode) = {
     var left: ArrayBuffer[ASTNode] = ArrayBuffer()
     var right = main
@@ -105,29 +106,41 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
       val preferFirst = if(maximizing) GT else LT
       create.expression(ITE,
         create.expression(preferFirst, values(0), values(1)),
-        extremeValue(values(0) +: values.slice(2, values.size), maximizing),
-        extremeValue(values(1) +: values.slice(2, values.size), maximizing),
+        extremeValue(values(0) +: values.drop(2), maximizing),
+        extremeValue(values(1) +: values.drop(2), maximizing),
       )
     }
     extremeOfListNode(result) = (values, maximizing)
     result
   }
 
+  def indepBounds(bounds: Bounds, nodes: ASTNode*): Boolean = {
+    val nameSets = nodes.map(getNames)
+    for (left <- nameSets; right <- nameSets) {
+      if(left.intersect(right).intersect(bounds.names).nonEmpty) {
+        return false
+      }
+    }
+
+    true
+  }
+
   def extremeValue(bounds: Bounds, node: ASTNode, maximizing: Boolean): Option[ASTNode] = node match {
     case op: OperatorExpression => op.operator match {
-      case Plus => mapOp(Plus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, maximizing))
-      case Minus => mapOp(Minus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, !maximizing))
+      case Plus =>
+        if(!indepBounds(bounds, op.first, op.second)) return None
+        mapOp(Plus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, maximizing))
+      case Minus =>
+        if(!indepBounds(bounds, op.first, op.second)) return None
+        mapOp(Minus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, !maximizing))
       case Mult | Div | FloorDiv =>
         val (left, right) = (op.first, op.second)
-        // Check that the two sides are independent over the bound variables
-        // e.g. max{i * (n-i) | 0 < i < N} is too hard
-        if(getNames(left).intersect(getNames(right)).intersect(bounds.names).nonEmpty)
-          return None
+        if(!indepBounds(bounds, left, right)) return None
 
-        val leftA = extremeValue(bounds, op.first, maximizing)
-        val leftB = extremeValue(bounds, op.first, !maximizing)
-        val rightA = extremeValue(bounds, op.second, maximizing)
-        val rightB = extremeValue(bounds, op.second, !maximizing)
+        val leftA = extremeValue(bounds, left, maximizing)
+        val leftB = extremeValue(bounds, left, !maximizing)
+        val rightA = extremeValue(bounds, right, maximizing)
+        val rightB = extremeValue(bounds, right, !maximizing)
         val maybeValues = Seq(
           mapOp(op.operator, leftA, rightA),
           mapOp(op.operator, leftB, rightB),
@@ -150,13 +163,8 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
          * check that the arguments to inner function are mutually independent over the bound variables
          */
 
-        if(maximizing != nodeIsMaximizing) {
-          val nameSets = nodes.map(getNames)
-          for (left <- nameSets; right <- nameSets) {
-            if(left.intersect(right).intersect(bounds.names).nonEmpty) {
-              return None
-            }
-          }
+        if(maximizing != nodeIsMaximizing && !indepBounds(bounds, nodes:_*)) {
+          return None
         }
 
         val extremeNodes = nodes.map(extremeValue(bounds, _, maximizing))
@@ -206,7 +214,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
           case LTE =>
             bounds.addUpperBound(name, bound)
           case GT =>
-            bounds.addLowerBound(name, create expression(Minus, bound, create constant 1))
+            bounds.addLowerBound(name, create expression(Plus, bound, create constant 1))
           case GTE =>
             bounds.addLowerBound(name, bound)
           case EQ =>
@@ -221,7 +229,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
         }
 
         if(indepOf(decls, low) && indepOf(decls, high)) {
-          bounds.addUpperBound(name, create expression (Minus, high, create constant 1))
+          bounds.addUpperBound(name, create expression(Minus, high, create constant 1))
           bounds.addLowerBound(name, low)
         } else {
           return None
@@ -232,8 +240,8 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     Some(bounds)
   }
 
-  def rewriteMain(bounds: Bounds, main: ASTNode, names: Set[String]): Option[ASTNode] = {
-    val (left, op, right) = rewrite(main) match {
+  def rewriteMain(bounds: Bounds, main: ASTNode): Option[ASTNode] = {
+    val (left, op, right) = main match {
       case exp: OperatorExpression if Set(LT, LTE, GT, GTE).contains(exp.operator) =>
         (exp.first, exp.operator, exp.second)
       case _ => return None
@@ -243,33 +251,25 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
      * e.g. forall i: 0<=i<n ==> len > i
      * equivalent to: (0<n) ==> len >= n
      */
-    if(indepOf(names, left)) {
+    if(indepOf(bounds.names, left)) {
       if(Set(LT, LTE).contains(op)) {
         // constant <= right
-        extremeValue(bounds, right, maximizing = false) match {
-          case Some(min) => Some(create expression(op, left, min))
-          case None => None
-        }
-      } else {
+        extremeValue(bounds, right, maximizing = false)
+          .map(min => create expression(op, left, min))
+      } else /* GT, GTE */ {
         // constant >= right
-        extremeValue(bounds, right, maximizing = true) match {
-          case Some(max) => Some(create expression(op, left, max))
-          case None => None
-        }
+        extremeValue(bounds, right, maximizing = true)
+          .map(max => create expression(op, left, max))
       }
-    } else if(indepOf(names, right)) {
+    } else if(indepOf(bounds.names, right)) {
       if(Set(LT, LTE).contains(op)) {
         // left <= constant
-        extremeValue(bounds, left, maximizing = true) match {
-          case Some(max) => Some(create expression(op, max, right))
-          case None => None
-        }
-      } else {
+        extremeValue(bounds, left, maximizing = true)
+          .map(max => create expression(op, left, max))
+      } else /* GT, GTE */ {
         // left >= constant
-        extremeValue(bounds, left, maximizing = false) match {
-          case Some(min) => Some(create expression(op, min, right))
-          case None => None
-        }
+        extremeValue(bounds, left, maximizing = false)
+          .map(min => create expression(op, left, min))
       }
     } else {
       None
@@ -286,7 +286,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
           case None => super.visit(expr); return
           case Some(bounds) => bounds
         }
-        val claim = rewriteMain(bounds, main, bindings) match {
+        val claim = rewriteMain(bounds, main) match {
           case None => super.visit(expr); return
           case Some(main) => main
         }
