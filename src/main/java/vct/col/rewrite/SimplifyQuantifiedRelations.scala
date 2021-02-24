@@ -1,5 +1,6 @@
 package vct.col.rewrite
 
+import hre.lang.System.Output
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr._
 import vct.col.ast.expr.constant.ConstantExpression
@@ -115,24 +116,25 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
   }
 
   def indepBounds(bounds: Bounds, nodes: ASTNode*): Boolean = {
-    val nameSets = nodes.map(getNames)
-    for (left <- nameSets; right <- nameSets) {
-      if(left.intersect(right).intersect(bounds.names).nonEmpty) {
-        return false
-      }
-    }
-
-    true
+    nodes.map(getNames(_).intersect(bounds.names)).foldLeft[Either[Unit, Set[String]]](Right(Set.empty)) {
+      case (Right(used), nameSet) =>
+        if(nameSet.intersect(used).nonEmpty) {
+          Left(())
+        } else {
+          Right(nameSet ++ used)
+        }
+      case (Left(()), _) => Left(())
+    }.isRight
   }
 
   def extremeValue(bounds: Bounds, node: ASTNode, maximizing: Boolean): Option[ASTNode] = node match {
     case op: OperatorExpression => op.operator match {
       case Plus =>
-        if(!indepBounds(bounds, op.first, op.second)) return None
-        mapOp(Plus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, maximizing))
+        if(!indepBounds(bounds, op.first, op.second)) None
+        else mapOp(Plus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, maximizing))
       case Minus =>
-        if(!indepBounds(bounds, op.first, op.second)) return None
-        mapOp(Minus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, !maximizing))
+        if(!indepBounds(bounds, op.first, op.second)) None
+        else mapOp(Minus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, !maximizing))
       case Mult | Div | FloorDiv =>
         val (left, right) = (op.first, op.second)
         if(!indepBounds(bounds, left, right)) return None
@@ -265,11 +267,11 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
       if(Set(LT, LTE).contains(op)) {
         // left <= constant
         extremeValue(bounds, left, maximizing = true)
-          .map(max => create expression(op, left, max))
+          .map(max => create expression(op, max, right))
       } else /* GT, GTE */ {
         // left >= constant
         extremeValue(bounds, left, maximizing = false)
-          .map(min => create expression(op, left, min))
+          .map(min => create expression(op, min, right))
       }
     } else {
       None
