@@ -30,6 +30,9 @@ object NameScanner {
   @varargs
   def freeVars(theNodes: ASTNode*): util.Map[String, Type] = freeVars(theNodes.asJava)
 
+  def localVars(arg: ASTNode): Set[DeclarationStatement] =
+    scanned(Seq(arg)).localVariables.toSet
+
   def accesses(arg: ASTNode): Set[String] =
     scanned(Seq(arg)).accesses
 
@@ -51,6 +54,11 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   case class Entry(name: String, typ: Type, var writtenTo: Boolean)
 
   val frameStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
+
+  /**
+   * All local variable declarations
+   */
+  val localVariables: mutable.Set[DeclarationStatement] = mutable.Set.empty[DeclarationStatement]
 
   /**
     * Given/yields must be stacks as well, in case with/then blocks are nested
@@ -192,7 +200,7 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
   override def visit(d: DeclarationStatement): Unit = {
     // Discovered a new declaration
     frameStack.top.add(d)
-
+    localVariables += d
     super.visit(d)
   }
 

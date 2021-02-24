@@ -1,6 +1,7 @@
 package vct.col.util;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import scala.Option;
@@ -534,7 +535,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
     switch (opt.name()) {
       case LoopUnroll:
-        if (!(opt.argsJava().get(0) instanceof NameExpression)){
+        //TODO fix the typechecking here
+        if (!(opt.getParent() instanceof LoopStatement)) {
+          Fail("The loop unroll optimization can only be used above loop statements (e.g. for and while loops) at %s", opt.getOrigin());
+        } else if (!(opt.argsJava().get(0) instanceof NameExpression)){
           Fail("First argument of loop unrolling optimization is required to be a variable name at %s", opt.argsJava().get(0).getOrigin());
         } else if (!(opt.argsJava().get(1) instanceof ConstantExpression) || !(((ConstantExpression) opt.argsJava().get(1)).value() instanceof IntegerValue)) {
           Fail("Second argument of loop unrolling optimization is required to be a constant integer at %s", opt.argsJava().get(1).getOrigin());
@@ -542,19 +546,42 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         visit((NameExpression) opt.argsJava().get(0));
         break;
       case MatrixLinearization:
+        if (opt.getParent() != null && !(opt.getParent() instanceof Method)) {
+          Fail("The matrix linearization optimization can only be used above methods at %s", opt.getOrigin());
+        }
+
+        Method method = (Method) opt.getParent();
+        opt.argsJava().get(2).apply(this);
+        opt.argsJava().get(3).apply(this);
+
         if (!(opt.argsJava().get(0) instanceof NameExpression)){
           Fail("First argument of matrix linearization is required to be a matrix variable name at %s", opt.argsJava().get(0).getOrigin());
         } else if (opt.argsJava().get(1) instanceof NameExpression &&
                 !((NameExpression) opt.argsJava().get(1)).name().equals("C") && !((NameExpression) opt.argsJava().get(1)).name().equals("R")) {
           Fail("Second argument of matrix linearization has to be C (for column-major access) or R (for row-major access) at %s", opt.argsJava().get(1).getOrigin());
-        } else if (!(opt.argsJava().get(2) instanceof ConstantExpression) || !(((ConstantExpression) opt.argsJava().get(2)).value() instanceof IntegerValue)) {
-          Fail("Third argument of matrix linearization is required to be a constant integer at %s", opt.argsJava().get(2).getOrigin());
+        } else if (!(opt.argsJava().get(2).getType().isPrimitive(PrimitiveSort.Integer) )) {
+          Fail("Third argument of matrix linearization is required to be an integer at %s", opt.argsJava().get(2).getOrigin());
+        } else if (!(opt.argsJava().get(3).getType().isPrimitive(PrimitiveSort.Integer) )) {
+          Fail("Fourth argument of matrix linearization is required to be an integer at %s", opt.argsJava().get(3).getOrigin());
         }
+
+
+        Set<DeclarationStatement> ns = new HashSet<>();
+
+        if (method.getBody()!= null) ns = JavaConverters.setAsJavaSet(NameScanner.localVars(method.getBody()));
+
+        if (ns.stream().noneMatch(d -> d.name().equals(((NameExpression) opt.argsJava().get(0)).getName())) &&
+                Arrays.stream(method.getArgs()).noneMatch(d -> d.name().equals(((NameExpression) opt.argsJava().get(0)).getName()))
+        ) {
+          Fail("%s is not an argument nor a local variable at %s", opt.argsJava().get(0), opt.argsJava().get(0).getOrigin());
+        }
+
+
+
         break;
       default:
         Fail("Unsupported optimization %s", opt.name().toString());
     }
-    opt.argsJava().forEach(o -> o.apply(this));
     opt.setType(new PrimitiveType(PrimitiveSort.Void));
   }
 
@@ -635,7 +662,22 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         n.accept(this);
       }
     }
-    if (body!=null && (body instanceof BlockStatement)) {
+    if (m.getGpuOpts() != null) {
+      //TODO matlin must have unique names.
+      List<GPUOptName> gpuOptNames = m.getGpuOpts().stream().map(GPUOpt::name).filter(on -> on != GPUOptName.MatrixLinearization).collect(Collectors.toList());
+      if (gpuOptNames.size() != new HashSet<>(gpuOptNames).size()) {
+        Fail("Some optimizations are defined multiple times at %s", m.getOrigin());
+      }
+
+      Map<ASTNode, Long> matlins = m.getGpuOpts().stream()
+              .filter(on -> on.name() == GPUOptName.MatrixLinearization)
+              .map(on -> on.argsJava().get(0))
+              .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+      for (ASTNode k: matlins.keySet()) {
+        if (matlins.get(k) > 1) Fail("The matrix linearization optimization is defined twice for %s at %s", k, m.getOrigin());
+      }
+    }
+    if ((body instanceof BlockStatement)) {
       //TODO: determine type of block
       return;
     }
@@ -643,13 +685,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Type bt=body.getType();
       if (bt==null) Abort("untyped body of %s has class %s",name,body.getClass());
       check_loc_val(m.getReturnType(),body,"return type (%s) does not match body (%s)");
-    }
-
-    if (m.getGpuOpts() != null) {
-      List<GPUOptName> gpuOptNames = m.getGpuOpts().stream().map(GPUOpt::name).collect(Collectors.toList());
-      if (gpuOptNames.size() != new HashSet<>(gpuOptNames).size()) {
-        Fail("Some optimizations are defined multiple times at %s", m.getOrigin());
-      }
     }
   }
   public void visit(NameExpression e){

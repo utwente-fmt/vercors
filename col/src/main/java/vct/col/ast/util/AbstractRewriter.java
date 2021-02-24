@@ -497,7 +497,8 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     Type rt=rewrite(m.getReturnType());
     Type[] signals = rewrite(m.signals);
     ASTNode body=rewrite(m.getBody());
-    result=create.method_kind(kind, rt, signals, c, name, args, m.usesVarArgs(), body);
+    List<GPUOpt> gpuopts =rewrite(m.getGpuOpts());
+    result=create.method_kind(kind, rt, signals, c, name, args, gpuopts, m.usesVarArgs(), body);
 
   }
 

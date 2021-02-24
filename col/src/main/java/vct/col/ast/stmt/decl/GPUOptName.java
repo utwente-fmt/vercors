@@ -1,7 +1,7 @@
 package vct.col.ast.stmt.decl;
 
 public enum GPUOptName {
-    LoopUnroll("loop_unroll",2 ), MatrixLinearization("matlin", 3);
+    LoopUnroll("loop_unroll",2 ), MatrixLinearization("matlin", 4);
 
     //The name as defined in the gramamr
     private String name;

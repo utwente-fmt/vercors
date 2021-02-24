@@ -384,8 +384,8 @@ public class ASTFactory<E> implements FrameControl {
   }
 
   public DeclarationStatement field_decl(Origin o,String name, Type type,ASTNode init) {
-    if (type.isNull()){
-      Abort("cannot declare variable %s of <<null>> type.",name);
+    if (type == null){
+      Abort("cannot declare variable %s of <<null>> type at %s.",name, o);
     }
     DeclarationStatement res=new DeclarationStatement(name,type,init);
     res.setOrigin(o);

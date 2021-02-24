@@ -87,9 +87,9 @@ public class Configuration {
     public static final BooleanSetting enable_post_check=new BooleanSetting(true);
 
     /**
-     * Enable post check during kernel verification.
+     * List of gpu optimalizations to perform.
      */
-    public static final BooleanSetting enable_gpu_optimizations=new BooleanSetting(false);
+    public static final StringListSetting gpu_optimizations= new StringListSetting();
 
     /**
      * The include path passed to the C pre processor.
@@ -134,7 +134,7 @@ public class Configuration {
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
         clops.add(session_file.getAssign("generate threads from session type"),"session");
-        clops.add(enable_gpu_optimizations.getEnable("perform gpu optimizations"),"gpuopt");
+        clops.add(gpu_optimizations.getAppendOption("perform gpu optimizations"),"gpuopt");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
         clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
     }

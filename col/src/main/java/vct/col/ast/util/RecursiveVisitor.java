@@ -228,7 +228,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override
   public void visit(GPUOpt opt) {
     //TODO what does dispatch do
-    opt.args().apply(this);
+    opt.argsJava().forEach(this::dispatch);
   }
 
   @Override
@@ -264,6 +264,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(c.signals);
     }
     dispatch(m.getBody());
+    dispatch(m.getGpuOpts());
     if (c!=null) {
       // TODO: this is where \result should be declared.
       dispatch(c.post_condition);      

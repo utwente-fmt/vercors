@@ -93,6 +93,7 @@ public class Method extends ASTDeclaration {
       if (this.args[i].getParent()==null) this.args[i].setParent(this);
     }
     this.gpuOpts = gpuOpts;
+    this.gpuOpts.forEach(o -> o.setParent(this));
     this.body=body;
     this.kind=kind;
     setContract(contract);

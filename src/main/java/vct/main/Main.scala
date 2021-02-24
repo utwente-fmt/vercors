@@ -3,12 +3,13 @@ package vct.main
 import java.io._
 import java.time.Instant
 import java.util
+
 import hre.ast.FileOrigin
 import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, SpecificationFormat}
+import vct.col.ast.stmt.decl.{ASTClass, GPUOptName, Method, ProgramUnit, SpecificationFormat}
 import vct.col.util.FeatureScanner
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
@@ -415,14 +416,20 @@ class Main {
 
     report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
 
-    if (Configuration.enable_gpu_optimizations.get()) {
-      //report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
-//      report = Passes.BY_KEY("matrix_lin").apply_pass(report, Array())
-//      show(Passes.BY_KEY("matrix_lin"))
-//      report = Passes.BY_KEY("pvl").apply_pass(report, Array())
+    if (Configuration.gpu_optimizations.contains(GPUOptName.MatrixLinearization.toString)) {
+      report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
+      report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
+      report = Passes.BY_KEY("matrix_lin").apply_pass(report, Array())
+      show(Passes.BY_KEY("matrix_lin"))
+      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
       return Seq.empty;
     }
-
+    if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
+      report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
+      show(Passes.BY_KEY("unroll_loops"))
+      //      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
+      return Seq.empty;
+    }
 
 
     var features = Feature.scan(report.getOutput) ++ Set(

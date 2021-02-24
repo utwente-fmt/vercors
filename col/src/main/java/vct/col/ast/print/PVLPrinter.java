@@ -26,6 +26,7 @@ import vct.col.ast.syntax.PVLSyntax;
 import vct.col.ast.type.*;
 import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
+import vct.col.ast.util.SequenceUtils;
 
 import java.io.PrintWriter;
 
@@ -863,7 +864,34 @@ public class PVLPrinter extends AbstractPrinter{
     }
 
     public void visit(OperatorExpression e){
-        visitVerCors(e);
+        if (e.isa(StandardOperator.NewArray)) {
+            String[] op_syntax =syntax.getSyntax(e.operator());
+
+            out.print(op_syntax[0]);
+
+            SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfo((Type) e.arg(0));
+            while (info != null && !info.isCell()) {
+                info = SequenceUtils.getTypeInfo(info.getSequenceTypeArgument());
+            }
+            if (info == null || info.getElementType() == null) {
+                super.visit(e);
+                return;
+            }
+            info.getElementType().accept(this);
+
+
+            for(int i=1;i<e.args().size();i++){
+                out.print(op_syntax[1]);
+                boolean tmp = in_expr;
+                in_expr = true;
+                e.arg(i).accept(this);
+                in_expr = tmp;
+                out.print(op_syntax[2]);
+            }
+        } else {
+            visitVerCors(e);
+        }
+
     }
     private void visitVeriFast(OperatorExpression e){
         switch(e.operator()){
@@ -1149,7 +1177,12 @@ public class PVLPrinter extends AbstractPrinter{
                 break;
             }
             case Array:
-                t.firstarg().accept(this);
+                SequenceUtils.SequenceInfo info = SequenceUtils.getTypeInfo(t);
+                if (info != null && info.isCell()) {
+                    info.getElementType().accept(this);
+                } else {
+                    t.firstarg().accept(this);
+                }
                 switch(nrofargs){
                     case 1:
                         out.printf("[]");
@@ -1183,24 +1216,18 @@ public class PVLPrinter extends AbstractPrinter{
                     Fail("Option type constructor with %d arguments instead of 1",nrofargs);
                 }
 
-                if (t.firstarg() instanceof PrimitiveType &&
-                        ((PrimitiveType) t.firstarg()).sort == PrimitiveSort.Array &&
-                        ((PrimitiveType) t.firstarg()).nrOfArguments() == 1 &&
-                        ((PrimitiveType) t.firstarg()).firstarg() instanceof PrimitiveType &&
-                        ((PrimitiveType) ((PrimitiveType) t.firstarg()).firstarg()).sort == PrimitiveSort.Cell &&
-                        ((PrimitiveType) ((PrimitiveType) t.firstarg()).firstarg()).nrOfArguments() == 1
-                ) {
-                    PrimitiveType cell = ((PrimitiveType) ((PrimitiveType) t.firstarg()).firstarg());
+                SequenceUtils.SequenceInfo info1 = SequenceUtils.getTypeInfo(t);
+                if (info1 != null && info1.getSequenceSort() == PrimitiveSort.Array){
 
-                    //TODO make this general for multidimentional arrays
-                    cell.firstarg().apply(this);
+                    info1.getElementType().apply(this);
                     out.printf("[]");
                     break;
+                } else {
+                    out.printf("option<");
+                    t.firstarg().accept(this);
+                    out.printf(">");
                 }
 
-                out.printf("option<");
-                t.firstarg().accept(this);
-                out.printf(">");
                 break;
             case Map:
                 if (nrofargs!=2){
@@ -1274,11 +1301,17 @@ public class PVLPrinter extends AbstractPrinter{
     public void visit(ParallelBlock pb){
 
         int j = 0;
+        out.printf("(");
         for (DeclarationStatement iter : pb.itersJava()) {
-            iter.accept(this);
             if (j > 0) out.printf(",");
+            in_expr = true;
+            iter.accept(this);
+            in_expr = false;
+
             j++;
         }
+        out.printf(")");
+        out.newline();
 
         if (pb.depslength() > 0){
             out.printf(";");
@@ -1346,14 +1379,16 @@ public class PVLPrinter extends AbstractPrinter{
 
     @Override
     public void visit(VariableDeclaration decl){
-        decl.basetype.accept(this);
+//        decl.basetype.accept(this);
         String sep=" ";
         for(ASTDeclaration dd:decl.get()){
             out.print(sep);
             sep=",";
             if (dd instanceof DeclarationStatement){
                 DeclarationStatement d = (DeclarationStatement)dd;
-                d.getType().accept(this);
+                decl.basetype.accept(this);
+                out.printf(" " + d.name() + " ");
+//                d.getType().accept(this);
                 ASTNode init = d.initJava();
                 if (init!=null){
                     out.print("=");
@@ -1363,7 +1398,7 @@ public class PVLPrinter extends AbstractPrinter{
                 out.print("TODO");
             }
         }
-        out.println(";");
+//        out.println(";");
     }
 
     @Override
