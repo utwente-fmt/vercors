@@ -136,7 +136,11 @@ public abstract class ASTFrame<T> {
   
   /** */
   protected ASTNode getParentNode(){
-    return node_stack.get(node_stack.size()-2);
+    return node_stack.size() >= 2 ? node_stack.get(node_stack.size()-2) : null;
+  }
+
+  protected ASTNode getAncestor(int stepsBack) {
+    return node_stack.size() >= 2 + stepsBack ? node_stack.get(node_stack.size()-2-stepsBack) : null;
   }
 
   /**
@@ -282,6 +286,19 @@ public abstract class ASTFrame<T> {
         break;
       }
     }
+
+    @Override
+    public void visit(VariableDeclaration decl) {
+      for(DeclarationStatement stat : decl.flatten()) {
+        switch(action) {
+          case ENTER:
+            variables.add(stat.name(), new VariableInfo(stat, NameExpressionKind.Local));
+            break;
+          case LEAVE:
+            break;
+        }
+      }
+    }
    
     @Override
     public void visit(DeclarationStatement node){
@@ -419,7 +436,11 @@ public abstract class ASTFrame<T> {
             if (block.getStatement(i) instanceof DeclarationStatement){
               DeclarationStatement decl=(DeclarationStatement)block.getStatement(i);
               variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
-            }         
+            } else if(block.getStatement(i) instanceof VariableDeclaration) {
+              for(DeclarationStatement child : ((VariableDeclaration) block.getStatement(i)).flatten()) {
+                variables.add(child.name(), new VariableInfo(child, NameExpressionKind.Local));
+              }
+            }
           }
         }
         break;
@@ -568,7 +589,7 @@ public abstract class ASTFrame<T> {
     }
     scan_labels(c.pre_condition);
     for(DeclarationStatement decl:c.yields){
-      variables.add(decl.name(),new VariableInfo(decl, NameExpressionKind.Argument));
+      variables.add(decl.name(),new VariableInfo(decl, NameExpressionKind.Local));
     }
     scan_labels(c.post_condition);
   }

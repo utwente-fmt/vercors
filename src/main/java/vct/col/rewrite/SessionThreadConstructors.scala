@@ -22,7 +22,7 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
 
   var chanMap : Map[String,Set[SessionChannel]] = Map() // A Map threadName -> {(chanName,isWriteValueCall)}
 
-  def addChansToConstructors() = {
+  def addChansToConstructors : ProgramUnit = {
     for(entry <- source.get()) {
       entry match {
         case c : ASTClass => {
@@ -36,6 +36,7 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
         }
       }
     }
+    rewriteAll
   }
 
   private def getChansFromRunMethod(c : ASTClass) : Set[SessionChannel] = {

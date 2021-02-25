@@ -73,7 +73,7 @@ public class JavaPrinter extends AbstractPrinter {
   public void visit(TryCatchBlock tcb){
     out.print("try");
     tcb.main().accept(this);
-    for (CatchClause cb : tcb.catches()) {
+    for (CatchClause cb : tcb.catchesJava()) {
       cb.accept(this);
     }
     if (tcb.after() != null){
@@ -1035,10 +1035,14 @@ public class JavaPrinter extends AbstractPrinter {
     out.println("){");
     for(Case c:s.cases){
       for(ASTNode n:c.cases){
-        out.printf("case ");
-        nextExpr();
-        n.accept(this);
-        out.println(":");
+        if (n == null) {
+          out.println("default: ");
+        } else {
+          out.printf("case ");
+          nextExpr();
+          n.accept(this);
+          out.println(":");
+        }
       }
       out.incrIndent();
       for(ASTNode n:c.stats){

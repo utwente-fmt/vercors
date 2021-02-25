@@ -20,11 +20,12 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   private val mainClass = SessionStructureCheck.getMainClass(source)
   private var roleName : String = null
 
-  def addThreadClasses() = {
+  def addThreadClasses() : ProgramUnit = {
     source.get().filter(_.name != mainClassName).foreach(target().add(_))
     roleObjects.foreach(role => {
       target().add(createThreadClass(role))
     })
+    target()
   }
 
   private def createThreadClass(role : AssignmentStatement) = {

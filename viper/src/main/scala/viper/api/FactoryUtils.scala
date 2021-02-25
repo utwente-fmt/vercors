@@ -25,6 +25,9 @@ trait FactoryUtils[O] {
       t => add(LocalVarDecl (t.v2, t.v3) _, t.v1)
     }
   }
+
+  def to_labels(o: O, labels: List[String]): Seq[Label] =
+    labels.asScala.map(Label(_, Seq())(NoPosition, new OriginInfo(o)))
   
   def add[T](f : (Position, Info, ErrorTrafo) => T, o : O) =
     f(NoPosition, new OriginInfo(o), NoTrafos)

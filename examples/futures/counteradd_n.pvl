@@ -4,7 +4,7 @@
 //:: tool silicon
 //:: option --check-history
 
-class Future {
+class `Future` {
 	int counter;
 
 	// Models a single atomic "decrease" operation.
@@ -46,7 +46,7 @@ class Worker {
 class Program {
 	/* ghost */ int count;
 	/* ghost */ int threads;
-	Future f;
+	`Future` f;
 
 	resource lock_invariant() = Value(f) ** HPerm(f.counter, 1);
 
@@ -57,7 +57,7 @@ class Program {
 	Program(int count, int threads) {
 		this.count = count;
 		this.threads = threads;
-		this.f = new Future();
+		this.f = new `Future`();
 		this.f.counter = count;
 		create f, f.pardecr(threads);
 	}

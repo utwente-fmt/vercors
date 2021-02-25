@@ -3,6 +3,14 @@
 
 #define __global__ __vercors_kernel__
 
+#define cudaEvent_t int
+#define cudaMemcpyHostToDevice 0
+#define cudaMemcpyDeviceToHost 1
+
+#define atomicMin(tgt, val) __vercors_atomic__ { (tgt)[0] = (tgt)[0] < (val) ? (tgt)[0] : (val); }
+#define atomicAdd(tgt, val) __vercors_atomic__ { (tgt)[0] += (val); }
+#define atomicRelax(tgt, w, s) __vercors_atomic__ { (tgt)[0] = (s != -1 && ((tgt)[0] == -1 || s+w <= (tgt)[0])) ? s+w : (tgt)[0]; }
+
 extern /*@ pure @*/ int get_work_dim(); // Number of dimensions in use
 
 extern /*@ pure @*/ int get_global_size(int dimindx); // Number of global work-items
@@ -38,5 +46,11 @@ extern /*@ pure @*/ int get_sub_group_id (); // Sub-group ID
 #define __syncthreads() __vercors_barrier__(__vercors_local_barrier__)
 
 extern /*@ pure @*/ int get_sub_group_local_id (); // Unique work-item ID
+
+cudaEvent_t cudaEventCreate();
+void cudaEventDestroy(cudaEvent_t e);
+void cudaEventRecord(cudaEvent_t e, int i);
+void cudaEventSynchronize(cudaEvent_t e);
+int cudaEventElapsedTime(cudaEvent_t begin, cudaEvent_t end);
 
 #endif

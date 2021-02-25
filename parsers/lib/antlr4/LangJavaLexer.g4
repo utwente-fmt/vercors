@@ -10,6 +10,9 @@ import SpecLexer;
 
 VAL_INLINE    : 'inline';
 VAL_ASSERT    : EOF EOF;
+VAL_TRUE      : EOF EOF;
+VAL_FALSE     : EOF EOF;
+VAL_SIZEOF    : 'sizeof';
 
 // §3.9 Keywords
 
@@ -256,11 +259,8 @@ BinaryExponentIndicator
     ;
 
 // §3.10.3 Boolean Literals
-
-BooleanLiteral
-    :   'true'
-    |   'false'
-    ;
+True: 'true';
+False: 'false';
 
 // §3.10.4 Character Literals
 

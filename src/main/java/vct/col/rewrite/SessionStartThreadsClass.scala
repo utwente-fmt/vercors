@@ -13,12 +13,13 @@ import scala.collection.JavaConversions._
 class SessionStartThreadsClass(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
 
-  def addStartThreadClass() = {
+  def addStartThreadClass : ProgramUnit = {
     val threads = source.filter {
       case c: ASTClass => isThreadClassName(c.name)
       case _ => false
     }
     target.add(getStartThreadClass(threads.map(_.asInstanceOf[ASTClass]).toSet))
+    rewriteAll()
   }
 
   private def getStartThreadClass(threads : Set[ASTClass]) = {

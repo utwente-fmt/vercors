@@ -122,6 +122,7 @@ public interface ASTVisitor<T> {
   public void visit(InlineQuantifierPattern pattern);
   public void visit(CatchClause cc);
   public void visit(SignalsClause sc);
+  public void visit(KernelInvocation ki);
 }
 
 

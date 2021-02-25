@@ -119,4 +119,6 @@ public interface ASTMapping1<R,A1> {
   public R map(InlineQuantifierPattern pattern, A1 arg);
   public R map(CatchClause cc, A1 arg);
   public R map(SignalsClause sc, A1 arg);
+
+  public R map(KernelInvocation ki, A1 arg);
 }

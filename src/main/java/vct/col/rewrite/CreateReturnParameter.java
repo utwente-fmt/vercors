@@ -34,7 +34,7 @@ public class CreateReturnParameter extends AbstractRewriter {
   
   public void visit(NameExpression e){
     if (e.isReserved(ASTReserved.Result)){
-      result=create.unresolved_name(RETURN_VAR);
+      result=create.local_name(RETURN_VAR);
     } else {
       super.visit(e);
     }
@@ -63,9 +63,10 @@ public class CreateReturnParameter extends AbstractRewriter {
 
       result=create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
+          rewrite(m.signals),
           rewrite(m.getContract()),
           m.getName(),
-          args,
+          args.toArray(new DeclarationStatement[0]),
           rewrite(m.getBody()));
     }
   }

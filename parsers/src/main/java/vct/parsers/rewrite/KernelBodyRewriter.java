@@ -18,9 +18,9 @@ import vct.col.ast.util.ASTUtils;
 
 class KernelBodyRewriter extends AbstractRewriter {
 
-  public KernelBodyRewriter(ProgramUnit source) {
-    super(source);
-  }
+    public KernelBodyRewriter(ProgramUnit source) {
+        super(source);
+    }
 
     @Override
     public void visit(MethodInvokation e) {
@@ -38,7 +38,7 @@ class KernelBodyRewriter extends AbstractRewriter {
                 break;
             case "get_local_id":
                 arg = e.getArg(0);
-                if(arg.isConstant(0)) {
+                if (arg.isConstant(0)) {
                     result = create.local_name("opencl_lid");
                 } else {
                     Fail("bad dimension: %s", arg);
@@ -51,22 +51,22 @@ class KernelBodyRewriter extends AbstractRewriter {
 
     @Override
     public void visit(NameExpression n) {
-      if(n.kind() != NameExpressionKind.Reserved) {
-          super.visit(n);
-          return;
-      }
+        if (n.kind() != NameExpressionKind.Reserved) {
+            super.visit(n);
+            return;
+        }
 
-      switch(n.reserved()) {
-          case GlobalThreadId:
-              result = plus(mult(create.local_name("opencl_gid"), create.local_name("opencl_gsize")),
-                                    create.local_name("opencl_lid"));
-              break;
-          case LocalThreadId:
-              result = create.local_name("opencl_lid");
-              break;
-          default:
-              super.visit(n);
-      }
+        switch (n.reserved()) {
+            case GlobalThreadId:
+                result = plus(mult(create.local_name("opencl_gid"), create.local_name("opencl_gsize")),
+                        create.local_name("opencl_lid"));
+                break;
+            case LocalThreadId:
+                result = create.local_name("opencl_lid");
+                break;
+            default:
+                super.visit(n);
+        }
     }
 
     @Override
@@ -91,18 +91,22 @@ class KernelBodyRewriter extends AbstractRewriter {
             decls.add(rewrite(d));
         }
         Contract c = m.getContract();
+        if (c == null) {
+            c = new ContractBuilder().getContract(false);
+        }
         rewrite(c, icb);
+        icb.clearKernelInvariant();
         gcb.appendInvariant(rewrite(c.invariant));
         kcb.appendInvariant(rewrite(c.invariant));
-        Contract ic = rewrite(m.getContract());
-        for (ASTNode clause : ASTUtils.conjuncts(ic.pre_condition, StandardOperator.Star)) {
+        kcb.context(rewrite(c.kernelInvariant));
+        for (ASTNode clause : ASTUtils.conjuncts(c.pre_condition, StandardOperator.Star)) {
             ASTNode group = create.starall(
                     create.expression(StandardOperator.Member,
                             create.local_name("opencl_lid"),
                             create.expression(StandardOperator.RangeSeq,
                                     create.constant(0), create.local_name("opencl_gsize"))
                     ),
-                    clause,
+                    rewrite(clause),
                     create.field_decl("opencl_lid", create.primitive_type(PrimitiveSort.Integer)));
             gcb.requires(group);
             kcb.requires(create.starall(
@@ -124,20 +128,21 @@ class KernelBodyRewriter extends AbstractRewriter {
         body = create.block(create.region(null, create.parallel_block("group_block", icb.getContract(), iters, body)));
         iters = new DeclarationStatement[]{outer_decl};
         body = create.block(create.region(null, create.parallel_block("kernel_block", gcb.getContract(), iters, body)));
+        body = create.block(create.invariant_block("__vercors_kernel_invariant__", rewrite(c.kernelInvariant), body));
         result = create.method_decl(returns, kcb.getContract(), m.name(), decls, body);
     }
 
     @Override
 
     public void visit(OperatorExpression e) {
-        switch(e.operator()) {
+        switch (e.operator()) {
             case StructSelect:
-                if(e.arg(1).isName("x")) {
-                    if(e.arg(0).isName("threadIdx")) {
+                if (e.arg(1).isName("x")) {
+                    if (e.arg(0).isName("threadIdx")) {
                         result = name("opencl_lid");
-                    } else if(e.arg(0).isName("blockIdx")) {
+                    } else if (e.arg(0).isName("blockIdx")) {
                         result = name("opencl_gid");
-                    } else if(e.arg(0).isName("blockDim")) {
+                    } else if (e.arg(0).isName("blockDim")) {
                         result = name("opencl_gsize");
                     } else {
                         super.visit(e);

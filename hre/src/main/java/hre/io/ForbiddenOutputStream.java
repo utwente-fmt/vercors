@@ -1,5 +1,7 @@
 package hre.io;
 
+import hre.lang.HREExitException;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -22,6 +24,6 @@ public class ForbiddenOutputStream extends OutputStream {
       oldStream.println(String.format("at %s:%d", element.getFileName(), element.getLineNumber()));
     }
 
-    System.exit(1);
+    throw new HREExitException(1);
   }
 }

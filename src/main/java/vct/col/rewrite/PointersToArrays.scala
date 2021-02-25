@@ -1,8 +1,8 @@
 package vct.col.rewrite
 
-import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType, Type}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.constant.StructValue
-import vct.col.ast.expr.{OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
@@ -79,5 +79,18 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
       value.map.asJava,
       rewrite(value.values.asJava)
     )
+  }
+
+  override def visit(reserved: NameExpression): Unit = {
+    if(reserved.kind != NameExpressionKind.Reserved) {
+      super.visit(reserved)
+    } else {
+      reserved.reserved match {
+        case ASTReserved.Null if reserved.getType.isPrimitive(PrimitiveSort.Pointer) =>
+          result = create reserved_name(ASTReserved.OptionNone)
+        case _ =>
+          super.visit(reserved)
+      }
+    }
   }
 }

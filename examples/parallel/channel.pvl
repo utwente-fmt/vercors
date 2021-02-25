@@ -12,7 +12,7 @@ class Channel {
 		** Perm(sent, 1\2)
 		** Perm(recvd, 1\2)
 		** (transfering	==> sent == recvd)
-		** (!transfering ==> sent == recvd ++ exchangeValue)
+		** (!transfering ==> sent == recvd + seq<int>{exchangeValue})
 		;
     
     ensures Perm(sent, 1\2) ** Perm(recvd, 1\2);
@@ -32,7 +32,7 @@ class Channel {
 		loop_invariant held(this);
 		loop_invariant Perm(sent, 1) ** Perm(recvd, 1\2);
 		loop_invariant (transfering	==> sent == recvd);
-		loop_invariant (!transfering ==> sent == recvd ++ exchangeValue);
+		loop_invariant (!transfering ==> sent == recvd + seq<int>{exchangeValue});
 		loop_invariant sent == \old(sent);
 		while (!transfering) {
 			wait this;
@@ -53,7 +53,7 @@ class Channel {
 		loop_invariant held(this);
 		loop_invariant Perm(sent, 1\2) ** Perm(recvd, 1);
 		loop_invariant (transfering	==> sent == recvd);
-		loop_invariant (!transfering ==> sent == recvd ++ exchangeValue);
+		loop_invariant (!transfering ==> sent == recvd + seq<int>{exchangeValue});
 		loop_invariant recvd == \old(recvd);
         while (transfering) {
 			wait this;

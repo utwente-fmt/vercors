@@ -6,11 +6,7 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.composite.TryCatchBlock;
-import vct.col.ast.stmt.decl.ASTClass;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
@@ -82,8 +78,9 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         ASTClass exceptionClass = create.new_class(
                 name,
                 null,
-                null
+                new ClassType(ClassType.javaLangObjectName())
         );
+        exceptionClass.setFlag(ASTFlags.FINAL, true);
 
         if (arg != null && !arg.isVoid()) {
             ContractBuilder cb = new ContractBuilder();
@@ -188,8 +185,13 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             TryCatchBlock tryCatchBlock = create.try_catch(create.block(resultMethod.getBody()), null);
 
             String catchVarName = getUniqueName("ucv");
-            ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), FIELD_VALUE);
-            ReturnStatement returnStatement = create.return_statement(getReturnValueExpr);
+            ReturnStatement returnStatement;
+            if (method.getReturnType().isVoid()) {
+                returnStatement = create.return_statement();
+            } else {
+                ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), FIELD_VALUE);
+                returnStatement = create.return_statement(getReturnValueExpr);
+            }
             tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { returnExceptionType }, create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
         }

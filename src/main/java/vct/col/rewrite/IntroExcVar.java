@@ -57,7 +57,8 @@ public class IntroExcVar extends AbstractRewriter {
         } else if (usesExceptionalControlFlow(method)) {
             // Add local variable and init as null
             BlockStatement body = (BlockStatement) resultMethod.getBody();
-            body.prepend(create.field_decl(excVar, create.class_type(ClassType.javaLangObjectName()), create.reserved_name(ASTReserved.Null)));
+            body.prepend(create.assignment(create.local_name(excVar), create.reserved_name(ASTReserved.Null)));
+            body.prepend(create.field_decl(excVar, create.class_type(ClassType.javaLangObjectName())));
         }
     }
 
@@ -70,7 +71,8 @@ public class IntroExcVar extends AbstractRewriter {
         return scanner.usesFinally()
                 || scanner.usesCatch()
                 || scanner.usesSpecial(ASTSpecial.Kind.Throw)
-                || scanner.usesThrowingMethodCalls();
+                || scanner.usesThrowingMethodCalls()
+                || scanner.hasThrowingMethods();
     }
 
     public void visit(TryCatchBlock tryCatchBlock) {
@@ -78,7 +80,7 @@ public class IntroExcVar extends AbstractRewriter {
 
         TryCatchBlock resultTryCatch = (TryCatchBlock) result;
 
-        for (CatchClause catchClause : resultTryCatch.catches()) {
+        for (CatchClause catchClause : resultTryCatch.catchesJava()) {
             // Note that prepend is used here, which means the statements are added in reverse order
 
             // Set the exc variable to null, since the exception is now being handled by the local catch clause
@@ -153,6 +155,7 @@ public class IntroExcVar extends AbstractRewriter {
                         create.expression(StandardOperator.EQ,
                                 create.local_name(oldExcVar),
                                 create.local_name(excVar))),
+                lsc.kernelInvariant,
                 lsc.pre_condition,
                 lsc.post_condition,
                 lsc.signals);

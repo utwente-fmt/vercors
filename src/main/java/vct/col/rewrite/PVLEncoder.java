@@ -26,8 +26,8 @@ import vct.col.util.FeatureScanner;
  */
 public class PVLEncoder extends AbstractRewriter {
 
-  private static String INV="lock_invariant";
-  private static String HELD="lock_held";
+  public static final String INV="lock_invariant";
+  public static final String HELD="lock_held";
 
   public PVLEncoder(ProgramUnit source) {
     super(source);
@@ -102,8 +102,8 @@ public class PVLEncoder extends AbstractRewriter {
       }
       ContractBuilder cb=new ContractBuilder();
       cb.requires(rewrite(c.pre_condition));
-      cb.requires(create.invokation(null,null,"idleToken"));
-      cb.ensures(create.invokation(null,null,"joinToken"));
+      cb.requires(create.invokation(create.diz(),null,"idleToken"));
+      cb.ensures(create.invokation(create.diz(),null,"joinToken"));
       Method fork=create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
           cb.getContract(),
@@ -113,8 +113,8 @@ public class PVLEncoder extends AbstractRewriter {
       );
       currentTargetClass.add_dynamic(fork);
       cb=new ContractBuilder();
-      cb.requires(create.invokation(null,null,"joinToken"));
-      cb.ensures(create.invokation(null,null,"idleToken"));
+      cb.requires(create.invokation(create.diz(),null,"joinToken"));
+      cb.ensures(create.invokation(create.diz(),null,"idleToken"));
       cb.ensures(rewrite(c.post_condition));
       Method join=create.method_decl(
           create.primitive_type(PrimitiveSort.Void),
@@ -140,13 +140,13 @@ public class PVLEncoder extends AbstractRewriter {
       }
       if (runnable){
         currentContractBuilder=new ContractBuilder();
-        currentContractBuilder.ensures(create.invokation(null,null,"idleToken"));
+        currentContractBuilder.ensures(create.invokation(create.diz(),null,"idleToken"));
         super.visit(m);
         Method method=(Method)result;
         BlockStatement block=(BlockStatement)method.getBody();
         block.append(
             create.special(ASTSpecial.Kind.Inhale,
-            create.invokation(null,null,"idleToken")));
+            create.invokation(create.diz(),null,"idleToken")));
         return;
       }
     }

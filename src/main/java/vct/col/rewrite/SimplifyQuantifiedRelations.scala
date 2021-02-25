@@ -1,7 +1,6 @@
 package vct.col.rewrite
 
 import java.util
-
 import vct.col.ast.`type`.Type
 import vct.col.ast.expr.StandardOperator.{And, Div, EQ, FloorDiv, GT, GTE, ITE, Implies, LT, LTE, Member, Minus, Mult, Plus, RangeSeq, UMinus}
 import vct.col.ast.expr._
@@ -12,6 +11,7 @@ import vct.col.ast.util.{AbstractRewriter, NameScanner}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * This rewrite pass simplifies expressions of roughly this form:
@@ -32,6 +32,20 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     case op: OperatorExpression if op.operator == And =>
       getConjuncts(op.first) ++ getConjuncts(op.second)
     case other => Seq(other)
+  }
+
+  def splitSelect(select: ASTNode, main: ASTNode): (Seq[ASTNode], ASTNode) = {
+    var left: ArrayBuffer[ASTNode] = ArrayBuffer()
+    var right = main
+
+    left ++= getConjuncts(select)
+
+    while(right.isa(StandardOperator.Implies)) {
+      left ++= getConjuncts(right.asInstanceOf[OperatorExpression].first)
+      right = right.asInstanceOf[OperatorExpression].second
+    }
+
+    (left, right)
   }
 
   def indepOf(names: Set[String], node: ASTNode): Boolean =
@@ -99,16 +113,16 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     * @param select The "select" portion of a BindingExpression, e.g. of the form 0 <= i && i < n && 0 <= j && j < m
     * @return When succesful, a map of each name in `decls` to its inclusive lower bound and exclusive upper bound
     */
-  def getBounds(decls: Array[String], select: ASTNode): Option[Map[String, (ASTNode, ASTNode)]] = {
+  def getBounds(decls: Set[String], select: Seq[ASTNode]): Option[Map[String, (ASTNode, ASTNode)]] = {
     var lowerBounds = mutable.Map[String, ASTNode]()
     var upperBounds = mutable.Map[String, ASTNode]()
 
-    getConjuncts(select).foreach {
+    select.foreach {
       case expr: OperatorExpression if Set(LT, LTE, GT, GTE, EQ).contains(expr.operator) =>
-        val (quant, op, bound) = if(isNameIn(decls.toSet, expr.first) && indepOf(decls.toSet, expr.second)) {
+        val (quant, op, bound) = if(isNameIn(decls, expr.first) && indepOf(decls, expr.second)) {
           // If the quantified variable is the first argument: keep it as is
           (expr.first, expr.operator, expr.second)
-        } else if(isNameIn(decls.toSet, expr.second) && indepOf(decls.toSet, expr.first)) {
+        } else if(isNameIn(decls, expr.second) && indepOf(decls, expr.first)) {
           // If the quantified variable is the second argument: flip the relation
           val op = expr.operator match {
             case LT => GT
@@ -150,7 +164,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
           case _ => return None
         }
 
-        if(indepOf(decls.toSet, low) && indepOf(decls.toSet, high)) {
+        if(indepOf(decls, low) && indepOf(decls, high)) {
           if(upperBounds.contains(name)) return None
           if(lowerBounds.contains(name)) return None
           upperBounds += name -> high
@@ -161,7 +175,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
       case _ => return None
     }
 
-    if(lowerBounds.keySet == decls.toSet && upperBounds.keySet == decls.toSet) {
+    if(lowerBounds.keySet == decls && upperBounds.keySet == decls) {
       Some(decls.map(decl => decl -> (lowerBounds(decl), upperBounds(decl))).toMap)
     } else {
       None
@@ -214,22 +228,25 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     }
   }
 
-  def boundsNonEmpty(bounds: Map[String, (ASTNode, ASTNode)]): ASTNode = {
-    bounds.values.map(bound => less(bound._1, bound._2)).reduce(and)
+  def boundsNonEmpty(bounds: Map[String, (ASTNode, ASTNode)]): Seq[ASTNode] = {
+    bounds.values.map(bound => less(bound._1, bound._2)).toSeq
   }
 
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {
       case Binder.Forall =>
-        val bounds = getBounds(expr.getDeclarations.map(_.name), expr.select) match {
+        val bindings = expr.getDeclarations.map(_.name).toSet
+        val (select, main) = splitSelect(rewrite(expr.select), rewrite(expr.main))
+        val (indepSelect, potentialBounds) = select.partition(indepOf(bindings, _))
+        val bounds = getBounds(bindings, potentialBounds) match {
           case None => super.visit(expr); return
           case Some(bounds) => bounds
         }
-        val main = rewriteMain(bounds, expr.main) match {
+        val claim = rewriteMain(bounds, main) match {
           case None => super.visit(expr); return
           case Some(main) => main
         }
-        result = create expression(Implies, boundsNonEmpty(bounds), main)
+        result = create expression(Implies, (indepSelect ++ boundsNonEmpty(bounds)).reduce(and), claim)
       case _ =>
         super.visit(expr)
     }

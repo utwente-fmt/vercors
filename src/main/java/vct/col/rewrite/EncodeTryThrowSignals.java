@@ -29,7 +29,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static vct.col.rewrite.AddTypeADT.type_adt;
+import static vct.col.rewrite.AddTypeADT.ADT_NAME;
+import static vct.col.rewrite.AddTypeADT.TYPE_OF;
 import static vct.col.rewrite.IntroExcVar.excVar;
 
 public class EncodeTryThrowSignals extends AbstractRewriter {
@@ -90,7 +91,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
      * They are saved in a hashmap because the counter needed to keep the labels unique is stateful.
      */
     public void generateLabels(TryCatchBlock tryCatchBlock) {
-        for (CatchClause catchClause : tryCatchBlock.catches()) {
+        for (CatchClause catchClause : tryCatchBlock.catchesJava()) {
             String label = generateLabel("catch");
             entryLabels.put(catchClause, label);
         }
@@ -112,7 +113,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
     public CatchClause nextCatch(TryCatchBlock tryCatchBlock, CatchClause currentCatchClause) {
         boolean encounteredCurrentClause = false;
 
-        for (CatchClause catchClause : tryCatchBlock.catches()) {
+        for (CatchClause catchClause : tryCatchBlock.catchesJava()) {
             if (encounteredCurrentClause) {
                 return catchClause;
             } else if (catchClause == currentCatchClause) {
@@ -129,7 +130,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             As well as during typechecking!
             https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20 */
 
-        tryCatchBlock.catches().forEach(cc -> {
+        tryCatchBlock.catchesJava().forEach(cc -> {
             if (cc.catchTypes().length() > 1) {
                 Abort("Multi-catch not supported");
             }
@@ -146,7 +147,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                 create.local_name(oldExcVarName.get(tryCatchBlock)),
                 create.local_name(excVar)));
 
-        ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catches());
+        ArrayList<CatchClause> catchClauses = Lists.newArrayList(tryCatchBlock.catchesJava());
 
         if (catchClauses.size() > 0) {
             pushNearestHandler(entryLabels.get(catchClauses.get(0)));
@@ -222,9 +223,9 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.Not,
-                    create.invokation(create.class_type(type_adt), null,"instanceof",
-                            create.expression(StandardOperator.TypeOf,create.local_name(excVar)),
-                            create.invokation(create.class_type(type_adt),null,"class_" + catchType.toString())
+                    create.invokation(null, null,"instanceof",
+                            create.invokation(create.class_type(ADT_NAME), null, TYPE_OF, create.local_name(excVar)),
+                            create.invokation(create.class_type(ADT_NAME),null,"class_" + catchType.toString())
                             )
                     ),
                 create.gotoStatement(fallbackHandler)
@@ -300,12 +301,30 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
     public void visit(Method method) {
         if (!(method.getKind() == Method.Kind.Constructor || method.getKind() == Method.Kind.Plain)) {
-            super.visit(method);
+            result = create.method_kind(
+                    method.getKind(),
+                    rewrite(method.getReturnType()),
+                    new ClassType[0],
+                    rewrite(method.getContract()),
+                    method.name(),
+                    rewrite(method.getArgs()),
+                    method.usesVarArgs(),
+                    rewrite(method.getBody())
+            );
             return;
         }
 
         if (method.getBody() == null) {
-            super.visit(method);
+            result = create.method_kind(
+                    method.getKind(),
+                    rewrite(method.getReturnType()),
+                    new ClassType[0],
+                    rewrite(method.getContract()),
+                    method.name(),
+                    rewrite(method.getArgs()),
+                    method.usesVarArgs(),
+                    rewrite(method.getBody())
+            );
         } else {
             if (nearestHandlerPresent()) {
                 Abort("A nearest handler was present, even though we are entering a fresh method!");
@@ -314,7 +333,16 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             String unhandledExceptionHandler = generateLabel("method_end", method.getName());
             pushNearestHandler(unhandledExceptionHandler);
 
-            super.visit(method);
+            result = create.method_kind(
+                    method.getKind(),
+                    rewrite(method.getReturnType()),
+                    new ClassType[0],
+                    rewrite(method.getContract()),
+                    method.name(),
+                    rewrite(method.getArgs()),
+                    method.usesVarArgs(),
+                    rewrite(method.getBody())
+            );
 
             popNearestHandler();
 
@@ -327,7 +355,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         Method resultMethod = (Method) result;
         Contract contract = resultMethod.getContract();
 
-        if (resultMethod.canThrowSpec()) {
+        if (method.canThrowSpec()) {
             ASTNode newPostCondition = create.expression(StandardOperator.Implies,
                     create.expression(StandardOperator.EQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
                     contract.post_condition
