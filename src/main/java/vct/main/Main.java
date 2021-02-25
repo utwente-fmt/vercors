@@ -15,16 +15,13 @@ import hre.ast.FileOrigin;
 import hre.config.*;
 import hre.lang.HREError;
 import hre.lang.HREExitException;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.syntax.PVLSyntax;
 import vct.col.util.*;
 import hre.tools.TimeKeeper;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.rewrite.DeriveModifies;
-import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.stmt.decl.SpecificationFormat;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.rewrite.*;
 import vct.col.rewrite.CheckHistoryAlgebra.Mode;
@@ -331,8 +328,9 @@ public class Main
       } else if(Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) {
         passes = new LinkedBlockingDeque<String>();
         passes.add("session-constr-repair");
-        passes.add("check");
+      //  passes.add("check");
         passes.add("session-struct-check");
+        passes.add("session-termination-check");
         passes.add("session-generate");
         passes.add("simplify_expr");
         passes.add("remove-empty-blocks");
@@ -829,6 +827,13 @@ public class Main
       @Override
       protected ProgramUnit apply(ProgramUnit arg, String... args) {
         SessionStructureCheck.check(arg);
+        return arg;
+      }
+    });
+    defined_passes.put("session-termination-check", new CompilerPass("check for assuring that all roles and other methods, and all calls to pure functions lack any non-terminating statements") {
+      @Override
+      protected ProgramUnit apply(ProgramUnit arg, String... args) {
+        new SessionTerminationCheck(arg).checkTermination();
         return arg;
       }
     });

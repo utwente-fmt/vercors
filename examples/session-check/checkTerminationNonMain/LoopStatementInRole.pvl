@@ -1,0 +1,31 @@
+//:: tools silicon
+//:: verdict Error
+class Main {
+
+	Role a;
+
+	Main() {
+		a = new Role(5);
+	}
+	
+	void run() {
+		
+	}
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+	
+	void doWhile() {
+		int i = 0;
+		while(i < 5) {
+			i--;
+		}
+	}
+
+}

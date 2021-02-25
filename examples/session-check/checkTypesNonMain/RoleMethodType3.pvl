@@ -1,0 +1,35 @@
+//:: tools silicon
+//:: verdict Error
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role(5);
+		b = new Role(6);
+		c = new Role(7);
+	}
+	
+	void run() {
+		a.x = 1;
+	}
+
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+	
+	int some(int a, Role b) {
+		return 1;
+	}
+
+}
+
+class Other {
+
+}

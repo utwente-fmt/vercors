@@ -10,6 +10,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNamesFromExpression, isThreadClassName, mainClassName, runMethodName}
 
+import scala.collection.IterableView
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
@@ -24,11 +25,11 @@ object SessionStructureCheck {
     checkRoleMethodsTypes(source)
     checkOtherClassesFieldsTypes(source)
     checkOtherClassesMethodsTypes(source)
-    checkAbsenceRecursionRoleHelper(source)
-    checkLoopAbsenceRoleHelper(source)
+  //  checkAbsenceRecursionRoleHelper(source)
+  //  checkLoopAbsenceRoleHelper(source)
   }
 
-  private def getRoleOrHelperClasses(source : ProgramUnit) : Iterable[ASTClass] = source.get().filter(c => c.name != mainClassName && c.name != channelClassName && c.name != barrierClassName) .map(_.asInstanceOf[ASTClass])
+  def getRoleOrHelperClasses(source : ProgramUnit) : Iterable[ASTClass] = source.get().filter(c => c.name != mainClassName && c.name != channelClassName && c.name != barrierClassName) .map(_.asInstanceOf[ASTClass])
 
   def getMainClass(source : ProgramUnit) : ASTClass = source.get().find(_.name == mainClassName).get.asInstanceOf[ASTClass]
 
@@ -93,59 +94,64 @@ object SessionStructureCheck {
 
   private def checkMainMethodsAllowedSyntax(source : ProgramUnit) : Unit = {
     val roleNames = getRoleObjectNames(source)
+    val roleClasses = getRoleClasses(source).map(_.name)
     val mainMethods = getMainMethods(source)
     val mainMethodNames = mainMethods.map(_.name)
     val pureMethods = getPureMainMethods(source)
-    getMainMethods(source).foreach(m => checkMainStatement(m.getBody,roleNames, mainMethodNames,pureMethods))
+    getMainMethods(source).foreach(m => checkMainStatement(m.getBody,roleNames, roleClasses, mainMethodNames,pureMethods))
   }
 
   private def getPureMainMethods(source : ProgramUnit) = getMainClass(source).methods().filter(_.kind == Method.Kind.Pure)
 
-  private def checkMainStatement(s : ASTNode, roleNames : Array[String], mainMethodNames : Iterable[String], pureMethods : Iterable[Method]) : Unit = {
+  private def checkMainStatement(s : ASTNode, roleNames : Iterable[String], roleClassNames : Iterable[String], mainMethodNames : Iterable[String], pureMethods : Iterable[Method]) : Unit = {
     s match {
-      case b : BlockStatement => b.getStatements.foreach(checkMainStatement(_,roleNames,mainMethodNames,pureMethods))
+      case b : BlockStatement => b.getStatements.foreach(checkMainStatement(_,roleNames,roleClassNames,mainMethodNames,pureMethods))
       case a: AssignmentStatement =>
         val expNames = getNamesFromExpression(a.expression).map(_.name).toSet.filter(roleNames.contains(_))
         if(expNames.size > 1) {
           Fail("Session Fail: the assignment %s in a method of class 'Main' cannot have multiple roles in its expression.",a.toString)
         }
-        checkAbsenceRecursionPureMethods(a,pureMethods)
+      //  checkAbsenceRecursionPureMethods(a,pureMethods)
       case i: IfStatement => {
         if (i.getCount == 1 || i.getCount == 2) {
           if (checkSessionCondition(i.getGuard(0), roleNames)) {
-            checkMainStatement(i.getStatement(0), roleNames, mainMethodNames, pureMethods)
-            if (i.getCount == 2) checkMainStatement(i.getStatement(1), roleNames, mainMethodNames, pureMethods)
-          } else Fail("Session Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
-        } else Fail("Session Fail: one or two branches expected in IfStatement " + s.getOrigin)
-        checkAbsenceRecursionPureMethods(i.getGuard(0),pureMethods)
+            checkMainStatement(i.getStatement(0), roleNames,roleClassNames, mainMethodNames, pureMethods)
+            if (i.getCount == 2) checkMainStatement(i.getStatement(1), roleNames,roleClassNames, mainMethodNames, pureMethods)
+          } else Fail("Session Fail: IfStatement needs to have one condition for each role! " + s.getOrigin)
+        } else Fail("Session Fail: one or two branches expected in IfStatement! " + s.getOrigin)
+      //  checkAbsenceRecursionPureMethods(i.getGuard(0),pureMethods)
       }
       case l: LoopStatement => {
         if (l.getInitBlock == null && l.getUpdateBlock == null)
           if (checkSessionCondition(l.getEntryGuard, roleNames))
-            checkMainStatement(l.getBody, roleNames,mainMethodNames,pureMethods)
+            checkMainStatement(l.getBody, roleNames,roleClassNames,mainMethodNames,pureMethods)
           else Fail("Session Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
-        else Fail("Session Fail: a for loop is not supported, use a while loop " + s.getOrigin)
-        checkAbsenceRecursionPureMethods(l.getEntryGuard,pureMethods)
+        else Fail("Session Fail: a for loop is not supported, use a while loop! " + s.getOrigin)
+      //  checkAbsenceRecursionPureMethods(l.getEntryGuard,pureMethods)
       }
       case p : ParallelRegion => {
-        p.blocks.foreach(b => checkMainStatement(b.block,roleNames,mainMethodNames,pureMethods))
+        p.blocks.foreach(b => checkMainStatement(b.block,roleNames,roleClassNames,mainMethodNames,pureMethods))
       }
       case m : MethodInvokation =>
         if(m.method == mainClassName)
           Fail("Session Fail: cannot call constructor '%s'!",mainClassName)
-        else if(roleNames.contains(m.method))
-          Fail("Session Fail: cannot call role constructor '%s'",m.method)
-        else if(!mainMethodNames.contains(m.method))
+        else if(roleClassNames.contains(m.method))
+          Fail("Session Fail: cannot call constructor '%s'",m.method)
+        else if(!mainMethodNames.contains(m.method)) {
+          if(m.`object` == null) {
+            Fail("Session Fail: method call not allowed or object of method call '%s' is not given! %s",m.method,m.getOrigin)
+          }
           m.`object` match {
             case n : NameExpression =>
               if(!roleNames.contains(n.name))
-                Fail("Session Fail: invocation of method %s is not allowed here, because method is either pure, or from a non-role class!" + m.getOrigin)
+                Fail("Session Fail: invocation of method %s is not allowed here, because method is either pure, or from a non-role class! %s",m.method, m.getOrigin)
           }
+        }
       case _ => Fail("Session Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
     }
   }
 
-  private def checkSessionCondition(node: ASTNode, roleNames : Array[String]) : Boolean = {
+  private def checkSessionCondition(node: ASTNode, roleNames : Iterable[String]) : Boolean = {
     val roles = splitOnAnd(node).map(getNamesFromExpression).map(_.map(_.name).toSet)
     roles.forall(_.size == 1) && roleNames.toSet == roles.flatten
   }
@@ -160,17 +166,6 @@ object SessionStructureCheck {
     }
   }
 
-  private def checkAbsenceRecursionPureMethods(n : ASTNode, pureMainMethods : Iterable[Method]) : Unit = {
-    n match {
-      case e : OperatorExpression => e.args.foreach(checkAbsenceRecursionPureMethods(_, pureMainMethods))
-      case mi : MethodInvokation => pureMainMethods.find(_.name == mi.method) match {
-        case Some(m) => checkAbsenceRecursion(m.getBody,Set(m.name),pureMainMethods)
-        case None => //fine
-      }
-      case _ => //fine
-    }
-  }
-
   private def getRoleClasses(source : ProgramUnit) : Iterable[ASTClass] = {
     val roleClassNames = getRoleObjects(source).map(_.expression.asInstanceOf[MethodInvokation].dispatch.getName)
     getRoleOrHelperClasses(source).filter(c => roleClassNames.contains(c.name))
@@ -181,14 +176,6 @@ object SessionStructureCheck {
     mainMethods.foreach(m => checkGuardedRecursion(m.getBody,Set(m.name),mainMethods))
   }
 
-  private def checkAbsenceRecursionRoleHelper(source : ProgramUnit) : Unit =
-    source.get().filter({
-      case c : ASTClass => c.name != mainClassName
-      case _ => false
-    }).map(_.asInstanceOf[ASTClass]).foreach(c => {
-      val classMethods = c.methods()
-      classMethods.foreach(m => checkAbsenceRecursion(m.getBody,Set(m.name),classMethods))
-    })
 
   private def checkGuardedRecursion(statement : ASTNode, encounteredMethods : Set[String], mainMethods : Iterable[Method]) : Unit =
     statement match {
@@ -200,8 +187,34 @@ object SessionStructureCheck {
           case Some(m) => checkGuardedRecursion(m.getBody,encounteredMethods + m.name,mainMethods)
           case None => //fine, it is a role method (without any recursion)
         }
-      case _ => checkRecursionEasyNodeClasses(statement,encounteredMethods, (s, e) => checkGuardedRecursion(s,e,mainMethods))
+      case i : IfStatement => {
+        checkGuardedRecursion(i.getStatement(0), encounteredMethods,mainMethods)
+        if (i.getCount == 2)
+          checkGuardedRecursion(i.getStatement(1), encounteredMethods,mainMethods)
+      }
+      case l : LoopStatement => checkGuardedRecursion(l.getBody, encounteredMethods,mainMethods)
+      case p : ParallelRegion => p.blocks.foreach(b => checkGuardedRecursion(b.block,encounteredMethods,mainMethods))
+      case a : AssignmentStatement => checkGuardedRecursion(a.expression,encounteredMethods,mainMethods)
+      case e : OperatorExpression => e.args.foreach(checkGuardedRecursion(_,encounteredMethods,mainMethods))
+      case _ => //fine
     }
+/*
+  private def checkAbsenceRecursionPureMethods(n : ASTNode, pureMainMethods : Iterable[Method]) : Unit = {
+      n match {
+        case e : OperatorExpression => e.args.foreach(checkAbsenceRecursionPureMethods(_, pureMainMethods))
+        case mi : MethodInvokation => pureMainMethods.find(_.name == mi.method) match {
+          case Some(m) => checkAbsenceRecursion(m.getBody,Set(m.name),pureMainMethods)
+          case None => //fine
+        }
+        case _ => //fine
+      }
+    }
+
+  private def checkAbsenceRecursionRoleHelper(source : ProgramUnit) : Unit =
+    getRoleOrHelperClasses(source).foreach(c => {
+      val classMethods = c.methods()
+      classMethods.foreach(m => checkAbsenceRecursion(m.getBody,Set(m.name),classMethods))
+    })
 
   private def checkAbsenceRecursion(statement : ASTNode, encounteredMethods : Set[String], methodDefs : Iterable[Method]) : Unit =
     statement match {
@@ -227,9 +240,9 @@ object SessionStructureCheck {
       case p : ParallelRegion => p.blocks.foreach(b => check(b.block,encountered))
       case a : AssignmentStatement => check(a.expression,encountered)
       case e : OperatorExpression => e.args.foreach(check(_,encountered))
-      case _ => //fine!
+      case _ => //fine
     }
-
+*/
   private def checkRoleMethodsTypes(source : ProgramUnit) : Unit = {
     val roles = getRoleClasses(source)
     val roleClassNames = roles.map(_.name)
@@ -258,7 +271,7 @@ object SessionStructureCheck {
 
   private def isNonRoleOrPrimitive(t : Type, roleClassNames : Iterable[String]) : Boolean = t match {
     case p : PrimitiveType => p.isBoolean || p.isDouble || p.isInteger || p.isVoid
-    case c : ClassType => c.getName != mainClassName && !roleClassNames.contains(c.getName)
+    case c : ClassType => c.getName != mainClassName && c.getName != barrierClassName && c.getName != channelClassName && !roleClassNames.contains(c.getName)
     case _ => Fail("Session Fail: didn't expect this Type: " + t.toString); false
   }
 
@@ -271,17 +284,19 @@ object SessionStructureCheck {
 
   private def checkOtherClassesFieldsTypes(source : ProgramUnit) : Unit = {
     val others = getOtherClasses(source)
+    val roleClasses = getRoleClasses(source).map(_.name)
     others.foreach(role => role.fields().foreach(field => {
-      if(!isNonRoleOrPrimitive(field.`type`,Set()))
+      if(!isNonRoleOrPrimitive(field.`type`,roleClasses))
         Fail("Session Fail: type '%s' of field '%s' of non-role class '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
 
   private def checkOtherClassesMethodsTypes(source: ProgramUnit) : Unit = {
     val others = getOtherClasses(source)
-    others.foreach(_.methods().forEach(checkRoleMethodTypes(_,Set())))
+    val roleClasses = getRoleClasses(source).map(_.name)
+    others.foreach(_.methods().forEach(checkRoleMethodTypes(_,roleClasses)))
   }
-
+/*
   private def checkLoopAbsenceRoleHelper(source : ProgramUnit) : Unit =
     getRoleOrHelperClasses(source).foreach(_.methods().foreach(m => checkAbsenceNonTerminatingStatements(m.getBody)))
 
@@ -313,5 +328,5 @@ object SessionStructureCheck {
       case _ => //fine!
     }
   }
-
+*/
 }
