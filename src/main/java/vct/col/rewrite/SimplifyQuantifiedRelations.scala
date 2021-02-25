@@ -57,12 +57,6 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
     case other => Seq(other)
   }
 
-  // select = a ** b
-  // main (c && d) ==> ((e && f) ==> x)
-  //      (c && d) ==> ((F && F) ==> x)
-  //      (c && d) ==> T
-  // (a, b, c, d, e, f) x
-  // (a && b && .. && f) ==> x
   def splitSelect(select: ASTNode, main: ASTNode): (Seq[ASTNode], ASTNode) = {
     var left: ArrayBuffer[ASTNode] = ArrayBuffer()
     var right = main
