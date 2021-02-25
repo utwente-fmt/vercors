@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import hre.ast.MessageOrigin
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
@@ -13,24 +13,17 @@ import scala.collection.JavaConversions._
 
 class SessionBarrier(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
-  override def visit(c : ASTClass) = {
-    if(isThreadClassName(c.name)) {
-      c.add_dynamic(create.field_decl(new MessageOrigin("Generated barrier field"),barrierFieldName,getBarrierClass()))
-    }
-    super.visit(c)
-  }
-
   override def visit(m : Method) = {
     if(m.getParent.isInstanceOf[ASTClass] && isThreadClassName(m.getParent.asInstanceOf[ASTClass].name)) {
       if (m.kind == Method.Kind.Constructor) {
         val newContract = new ContractBuilder()
-        newContract.requires(create.expression(StandardOperator.NEQ, create.field_name(getArgName(barrierFieldName)), create.reserved_name(ASTReserved.Null)))
+        newContract.requires(create.expression(StandardOperator.NEQ, create.argument_name(getArgName(barrierFieldName)), create.reserved_name(ASTReserved.Null)))
         getBarrierAnnotations().foreach(newContract.ensures(_))
         rewrite(m.getContract, newContract)
         m.getBody match {
           case b: BlockStatement => {
             val newArgs = rewrite(m.getArgs) :+ create.field_decl(getArgName(barrierFieldName), getBarrierClass())
-            val barAssign = create.assignment(create.field_name(barrierFieldName), create.field_name(getArgName(barrierFieldName)))
+            val barAssign = create.assignment(create.field_name(barrierFieldName), create.argument_name(getArgName(barrierFieldName)))
             val newBody = create.block(rewrite(b.getStatements) :+ barAssign: _*)
             result = create.method_kind(m.kind, m.getReturnType, newContract.getContract, m.name, newArgs, newBody)
           }

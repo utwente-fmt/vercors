@@ -29,9 +29,6 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
           if(isThreadClassName(c.name)) {
             val chans = getChansFromRunMethod(c)
             chanMap += (c.name -> chans)
-            val chanFields = chans.map(chan =>
-              create.field_decl(new MessageOrigin("Generated Channel field " + chan.channel + " of class " + c.name),chan.channel,getChanClass()))
-            chanFields.foreach(c.add_dynamic(_))
           }
         }
       }
@@ -63,8 +60,8 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
       val newContract = getRoleConstructorContract(chans)
       rewrite(m.getContract,newContract)
       val chanDecls : Array[ASTNode] = chans.map(chan =>
-        create.assignment(create.name(NameExpressionKind.Unresolved,null,chan.channel),
-                          create.name(NameExpressionKind.Unresolved,null,chan.getArgChanName()))).toArray
+        create.assignment(create.field_name(chan.channel),
+                          create.argument_name(chan.getArgChanName()))).toArray
       val threadDecl : Array[ASTNode] = m.getBody match {
           case b : BlockStatement => b.getStatements
         case _ => Fail("Constructor %s must have a BlockStatement body",m.name); Array[ASTNode]()
@@ -85,16 +82,16 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
     val reqSentRecvd = chans.map(_.getArgChan().getChanFieldPerm(create))
     val reqNotNull = chans.map(chan =>
       create.expression(StandardOperator.NEQ,
-        create.name(NameExpressionKind.Unresolved,null,chan.getArgChanName()),
+        create.argument_name(chan.getArgChanName()),
         create.reserved_name(ASTReserved.Null)))
     val ensPerm = chans.map(chan =>
       create.expression(StandardOperator.Perm,
-        create.name(NameExpressionKind.Unresolved,null,chan.channel),
+        create.field_name(chan.channel),
         create.reserved_name(ASTReserved.ReadPerm)))
     val ensArgEq = chans.map(chan =>
       create.expression(StandardOperator.EQ,
-        create.name(NameExpressionKind.Unresolved,null,chan.channel),
-        create.name(NameExpressionKind.Unresolved,null,chan.getArgChanName())))
+        create.field_name(chan.channel),
+        create.argument_name(chan.getArgChanName())))
     val ensSentRecvd = chans.map(_.getChanFieldPerm(create))
     reqSentRecvd.foreach(contract.requires(_))
     reqNotNull.foreach(contract.requires(_))

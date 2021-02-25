@@ -73,11 +73,11 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
   private def getChanPerms(c : SessionChannel, isLoop : Boolean, contract : ContractBuilder) : ContractBuilder = {
     val chanNotNull =
       create.expression(StandardOperator.NEQ,
-        create.name(NameExpressionKind.Unresolved,null,c.channel),
+        create.field_name(c.channel),
         create.reserved_name(ASTReserved.Null))
     val chanPerm =
       create.expression(StandardOperator.Perm,
-        create.name(NameExpressionKind.Unresolved,null,c.channel),
+        create.field_name(c.channel),
         create.reserved_name(ASTReserved.ReadPerm))
     if(isLoop) {
       contract.appendInvariant(chanPerm)
