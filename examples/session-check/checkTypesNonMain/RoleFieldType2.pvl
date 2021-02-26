@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases RoleFieldType2
+//:: suite session-check
+//:: tools session
 //:: verdict Pass
 class Main {
 

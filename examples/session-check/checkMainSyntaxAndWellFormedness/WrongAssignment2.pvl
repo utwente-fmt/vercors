@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases WrongAssignment2
+//:: suite session-check
+//:: tools session
 //:: verdict Error
 class Main {
 

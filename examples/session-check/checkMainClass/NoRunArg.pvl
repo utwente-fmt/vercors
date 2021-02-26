@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases NoRunArg
+//:: suite session-check
+//:: tools session
 //:: verdict Error
 class Main {
 

@@ -109,7 +109,7 @@ class Main {
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
-    val sessionFiles = Array("examples/parallel/channel.pvl", "examples/parallel/barrier.pvl")
+    val sessionFiles = Array("examples/session-generate/channel.pvl", "examples/session-generate/barrier.pvl")
     clops.parse(args) ++ (if (Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) sessionFiles else Array[String]())
   }
 

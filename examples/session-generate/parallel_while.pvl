@@ -1,6 +1,7 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases ParallelWhile
-//:: tools silicon
+//:: suite session-generate
+//:: tools session
 //:: verdict Pass
 
 class Role {

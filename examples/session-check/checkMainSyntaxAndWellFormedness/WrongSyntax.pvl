@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases WrongSyntax
+//:: suite session-check
+//:: tools session
 //:: verdict Error
 class Main {
 

@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases ConstructorCall
+//:: suite session-check
+//:: tools session
 //:: verdict Error
 class Main {
 

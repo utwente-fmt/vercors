@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases NoMain
+//:: suite session-check
+//:: tools session
 //:: verdict Error
 class SomeClass {
 

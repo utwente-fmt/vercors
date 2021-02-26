@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases MainMethodCall
+//:: suite session-check
+//:: tools session
 //:: verdict Pass
 class Main {
 

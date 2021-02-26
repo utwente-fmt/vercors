@@ -1,3 +1,7 @@
+//:: cases SynchronousChannel
+//:: suite session-generate
+//:: tools silicon
+//:: verdict Pass
 class Channel {
 
 	boolean transfering;

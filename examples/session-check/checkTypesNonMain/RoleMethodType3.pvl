@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases RoleMethodType3
+//:: suite session-check
+//:: tools session
 //:: verdict Error
 class Main {
 

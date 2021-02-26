@@ -1,4 +1,6 @@
-//:: tools silicon
+//:: cases MainConstructorNonRoleAssignment4
+//:: suite session-check
+//:: tools session
 //:: verdict Error
 class Main {
 
