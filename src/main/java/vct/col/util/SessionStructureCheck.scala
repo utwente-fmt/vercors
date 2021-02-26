@@ -8,7 +8,7 @@ import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, P
 import vct.col.ast.stmt.decl.Method.Kind
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
-import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNamesFromExpression, mainClassName, runMethodName}
+import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNameFromNode, getNamesFromExpression, mainClassName, runMethodName}
 
 import scala.collection.JavaConversions._
 
@@ -103,6 +103,10 @@ object SessionStructureCheck {
     s match {
       case b : BlockStatement => b.getStatements.foreach(checkMainStatement(_,roleNames,roleClassNames,mainMethodNames,pureMethods))
       case a: AssignmentStatement =>
+        getNameFromNode(a.location).map(_.name) match {
+          case Some(n) => if (!roleNames.contains(n)) Fail("Session Fail: the assignment %s has a non-role name in its location.",a.toString)
+          case None => Fail("Session Fail: the assignment %s in a method of class 'Main' must have one role in its location.",a.toString)
+        }
         val expNames = getNamesFromExpression(a.expression).map(_.name).toSet.filter(roleNames.contains(_))
         if(expNames.size > 1) {
           Fail("Session Fail: the assignment %s in a method of class 'Main' cannot have multiple roles in its expression.",a.toString)

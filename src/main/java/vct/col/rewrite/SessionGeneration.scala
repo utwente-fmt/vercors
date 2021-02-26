@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.ast.MessageOrigin
 import hre.lang.System.Output
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, IfStatementCase, LoopStatement, ParallelBlock, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
@@ -76,35 +76,42 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   }
 
   override def visit(a : AssignmentStatement) : Unit = {
-    getValidNameFromNode(false, a.location) match {
-      case Some(otherRole) =>
-        if(getValidNameFromExpression(true, a.expression).nonEmpty) { //write a-exp to chan
-          val chan = getChanVar(otherRole,true)
-          chans += chan.name
-          result = create.invokation(chan, null, chanWrite, a.expression)
-        } else {
-          // remove a
-        }
-      case None =>
-        getValidNameFromExpression(false, a.expression) match { //receive a-exp at chan
-          case Some(n) => {
-            val chan = getChanVar(n,false)
-            chans += chan.name
-            result = create.assignment(a.location,create.invokation(chan,null, chanRead))
-          }
-          case None => super.visit(a)
-        }
+    val locRole = getNameFromNode(a.location).get
+    val expRole = getNamesFromExpression(a.expression)
+    if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName)) { //it is a normal assignment for roleName
+      result = copy_rw.rewrite(a)
+    } else if(locRole.name == roleName && expRole.size == 1 && expRole.head.name != roleName) { // it is a read for roleName
+      val chan = getChanVar(expRole.head,false)
+      chans += chan.name
+      result = create.assignment(a.location,create.invokation(chan,null, chanRead))
+    } else if(locRole.name != roleName && expRole.size == 1 && expRole.head.name == roleName){ // it is a write for roleName
+      val chan = getChanVar(locRole,true)
+      chans += chan.name
+      result = create.invokation(chan, null, chanWrite, a.expression)
+    } else if(locRole.name != roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name != roleName)) {
+        //remove a
+    } else {
+      Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
     }
   }
 
-  override def visit(e : OperatorExpression) : Unit ={
+  override def visit(e : OperatorExpression) : Unit = {
     if(e.operator == StandardOperator.Star || e.operator == StandardOperator.And) {
       result = create.expression(e.operator,rewrite(e.first),rewrite(e.second))
-    } else getValidNameFromExpression(true,e) match {
+    } else rewriteExpression(e)
+  }
+
+  override def visit(m : MethodInvokation) : Unit = rewriteExpression(m)
+
+  override def visit(n : NameExpression) : Unit = rewriteExpression(n)
+
+  override def visit(d : Dereference) : Unit = rewriteExpression(d)
+
+  private def rewriteExpression(e : ASTNode) : Unit =
+    getValidNameFromExpression(true,e) match {
       case Some(_) => result = copy_rw.rewrite(e)
       case None => result = create.constant(true)
     }
-  }
 
   private def selectAnnotation(n :ASTNode) : ASTNode =
     n match {
