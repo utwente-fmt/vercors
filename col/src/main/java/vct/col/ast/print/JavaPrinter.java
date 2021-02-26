@@ -1440,17 +1440,17 @@ public class JavaPrinter extends AbstractPrinter {
       sep=",";
       if (dd instanceof DeclarationStatement){
         DeclarationStatement d = (DeclarationStatement)dd;
-        d.getType().accept(this);
+        out.print(d.name());
         ASTNode init = d.initJava();
         if (init!=null){
-          out.print("=");
+          out.print(" = ");
+          setExpr();
           init.accept(this);
         }
       } else {
         out.print("TODO");
       }
     }
-    out.println(";");
   }
   
   @Override

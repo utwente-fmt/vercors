@@ -1334,19 +1334,17 @@ public class PVLPrinter extends AbstractPrinter{
             sep=",";
             if (dd instanceof DeclarationStatement){
                 DeclarationStatement d = (DeclarationStatement)dd;
-                //d.getType().accept(this); //don't print __common_type__
-                out.print(d.name()); //print name of variable
+                out.print(d.name());
                 ASTNode init = d.initJava();
                 if (init!=null){
                     out.print(" = ");
-                    setExpr(); //prevents printing of ; after init. Because VariableDeclaration is not self_terminating, it will get a ; from visit(BlockStatement)
+                    setExpr();
                     init.accept(this);
                 }
             } else {
                 out.print("TODO");
             }
         }
-        //out.println(";");
     }
 
     @Override
