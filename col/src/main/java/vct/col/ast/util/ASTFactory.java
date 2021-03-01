@@ -1475,6 +1475,10 @@ public Axiom axiom(String name, ASTNode exp){
     return struct_value(origin_stack.get(),type,map,values.toArray(new ASTNode[values.size()]));
   }
 
+  public StructValue sequence(Type elementType,ASTNode... values) {
+    return struct_value(origin_stack.get(),primitive_type(PrimitiveSort.Sequence, elementType),null,values);
+  }
+
   public VectorBlock vector_block(DeclarationStatement iter,BlockStatement block) {
     return vector_block(origin_stack.get(),iter,block);
   }

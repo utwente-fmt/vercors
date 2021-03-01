@@ -425,6 +425,17 @@ class Main {
       return Seq.empty;
     }
     if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
+      report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
+      report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
+      report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
+      show(Passes.BY_KEY("unroll_loops"))
+      //      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
+      return Seq.empty;
+    }
+
+    if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
+      report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
+      report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
       report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
       show(Passes.BY_KEY("unroll_loops"))
       //      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())

@@ -208,6 +208,13 @@ object Passes {
       permits=Feature.ALL,
       removes=Set(),
     ),
+    SimplePass("iter_merge",
+      "Merge Iterations",
+      new MatrixLinearization(_).rewriteAll,
+      permits=Feature.ALL,
+      removes=Set(),
+    ),
+    //TODO OS Make a pass which removes all gpuopts
   )
 
   val ARRAYS: Seq[AbstractPass] = Seq(

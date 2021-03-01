@@ -5,10 +5,6 @@ import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 
 import scala.collection.JavaConverters._
 
-//object GPUOptName extends Enumeration {
-//  val LoopUnroll = Value("unroll")
-//}
-
 case class GPUOpt(val name:GPUOptName, val args: List[ASTNode]) extends ASTNode {
 
     def argsJava = args.asJava

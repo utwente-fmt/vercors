@@ -2,38 +2,46 @@ class LoopUnrollExample {
 
 	// Original program
 	context_everywhere ar != null;
-	context_everywhere N == 5;
-	context ar.length == N;
-	context (\forall* int i; 0 <= i && i < N; Perm(ar[i], write));
-	ensures (\forall int i;  0 <= i && i < N; ar[i] == 0);
-	void zero(int N, int[] ar) {
-		int i = 3;
+	context_everywhere l == 5;
+	context ar.length == l;
+	context (\forall* int i; 0 <= i && i < l; Perm(ar[i], write));
+	ensures (\forall int i;  0 <= i && i < l; ar[i] == 0);
+	void zero(int l, int[] ar) {
+        int i = 0;
 
-        //gpuopt loop_unroll i 4;
-    	loop_invariant N == 5;
-    	loop_invariant 3 <= i && i <= N;
-    	//loop_invariant -1 < i && i < N+1;
-		loop_invariant (\forall* int j; 0 <= j && j < N; Perm(ar[j], write));
+        gpuopt loop_unroll i 6;
+    	loop_invariant l == 5;
+		loop_invariant 0 <= i && i <= l;
+		loop_invariant (\forall* int j; 0 <= j && j < l; Perm(ar[j], write));
 		loop_invariant (\forall int j; 0 <= j && j < i; ar[j] == 0);
-		while(i < N) {
+		while (i < l) {
+
+		    boolean asdf;
+		    int l;
 			ar[i] = 0;
-			i = i + 16;
+			i = i + 1;
 		}
 	}
 
 
-            //Different cases for the update statement
-            //i = 1 + i;
-			//i++;
+    ensures (| \result |) >= 1;
+    ensures \result [ 0 ] == i;
+    ensures (i < l ==> (| \result |) == (| U32(inc38(i),l) |) + 1);
+    ensures (! (i < l) ==> (| \result |) == 1);
+    ensures (\forall int j75;0 <= j75 && j75 < (| \result |) - 1;\result [ (j75 + 1) ] == inc38(\result [ j75 ]));
+    static pure seq<int> U32(int i,int l)=i < l ? (seq<int>{i} + U32(inc38(i),l)) : seq<int>{i};
 
-			//i = i - 1;
-			//i = -1 + i;
-			//i--;
+    static pure int inc38(int i)=i + 1;
 
-			//i = i * 1;
-			//i = 1 * i;
+    requires ar != null;
+    requires ar.length == l;
+    requires (l == 5);
+    requires (\forall* int i;0 <= i && i < l;Perm( ar [ i ] , write ));
+    static void check_loop_unroll_zero(int l,int[] ar){
+      int i = 0;
+      assert (| U32(i,l) |) > 6;
+    }
 
-			//i = i / 1;
 
 
 

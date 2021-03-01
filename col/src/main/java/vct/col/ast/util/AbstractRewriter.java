@@ -744,6 +744,12 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode lte(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.LTE,e1,e2);
   }
+  public ASTNode gte(ASTNode e1,ASTNode e2){
+  	return create.expression(StandardOperator.GTE,e1,e2);
+  }
+  public ASTNode gt(ASTNode e1,ASTNode e2){
+  	return create.expression(StandardOperator.GT,e1,e2);
+  }
   public ASTNode neq(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.NEQ,e1,e2);
   }
@@ -756,14 +762,21 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode size(ASTNode e1) {
     return create.expression(StandardOperator.Size, e1);
   }
+  public ASTNode concat(ASTNode e1, ASTNode e2) { return create.expression(StandardOperator.Concat, e1, e2); }
   public ASTNode star(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.Star,e1,e2);
+  }
+  public ASTNode implies(ASTNode e1,ASTNode e2){
+  	return create.expression(StandardOperator.Implies,e1,e2);
   }
   public ASTNode invoke(ASTNode object,String method,ASTNode ... args){
   	return create.invokation(object, null, method, args);
   }
   public ASTNode get(ASTNode e1, ASTNode index){
     return create.expression(StandardOperator.Subscript, e1, index);
+  }
+  public ASTNode not(ASTNode e1){
+    return create.expression(StandardOperator.Not, e1);
   }
 
 

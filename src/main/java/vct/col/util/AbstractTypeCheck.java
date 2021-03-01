@@ -535,8 +535,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
     switch (opt.name()) {
       case LoopUnroll:
-        //TODO fix the typechecking here
-        if (!(opt.getParent() instanceof LoopStatement)) {
+        if (opt.getParent() != null && !(opt.getParent() instanceof LoopStatement)) {
           Fail("The loop unroll optimization can only be used above loop statements (e.g. for and while loops) at %s", opt.getOrigin());
         } else if (!(opt.argsJava().get(0) instanceof NameExpression)){
           Fail("First argument of loop unrolling optimization is required to be a variable name at %s", opt.argsJava().get(0).getOrigin());

@@ -232,7 +232,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   @Override
-  public void visit(LoopStatement s) {
+  public void  visit(LoopStatement s) {
     //TODO add dispatch here after adding GPUOpt
     dispatch(s.get_before());
     dispatch(s.getInitBlock());
@@ -240,6 +240,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(s.getUpdateBlock());
     dispatch(s.getContract());
     s.getBody().accept(this);
+    dispatch(s.getUnroll());
     dispatch(s.getExitGuard());
     dispatch(s.get_after());
   }
