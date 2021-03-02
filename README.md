@@ -61,7 +61,7 @@ The last command tests the VerCors installation by verifying a large collection 
 - For bug reports and feature requests, visit <https://github.com/utwente-fmt/vercors/issues>.
 
 ## Related papers
-A complete list of papers on the VerCors project is given [here](http://eprints.eemcs.utwente.nl/view/project/VerCors.html).
+A complete list of papers on the VerCors project is given [here](https://vercors.ewi.utwente.nl/publications).
 
 ## License
 Copyright (c) 2008 - 2019 Formal Methods and Tools, University of Twente
