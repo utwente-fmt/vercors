@@ -5,7 +5,7 @@ This repository hosts VerCors, a toolset for the verification of concurrent and 
 
 A list of verified examples and case studies is maintained online and can be found [here](https://utwente.nl/vercors). This webpage also contains an online interface for VerCors and allows you to try VerCors online.
 
-The tutorial can be found on the [wiki](https://github.com/utwente-fmt/vercors/wiki)!
+### The tutorial can be found on the [VerCors Wiki](https://github.com/utwente-fmt/vercors/wiki)!
 
 # Installation
 You can install VerCors by either using a release (recommended for beginners), or by building VerCors from its source code.
