@@ -7,7 +7,10 @@ A list of verified examples and case studies is maintained online and can be fou
 
 The tutorial can be found on the [wiki](https://github.com/utwente-fmt/vercors/wiki)!
 
-## Installation
+# Installation
+You can install VerCors by either using a release (recommended for beginners), or by building VerCors from its source code.
+
+## Using a Release
 VerCors requires a java runtime environment (version 11 or later), as well as clang if you want support for C.
 
 ### Linux
@@ -39,13 +42,7 @@ You can obtain a java runtime environment e.g. [here](https://jdk.java.net). Mak
 
 Next, download the latest zip release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest) and unzip it. You can find the batch script for VerCors in the `bin` subdirectory.
 
-
-## Usage
-VerCors verifies programs that are annotated with JML-style specifications (the underlying theory uses separation logic with permission accounting). Details on the specification language can be found on the VerCors [Wiki pages](https://github.com/utwente-fmt/vercors/wiki). Furthermore, a large collection of example programs can be found (and verified) in the `./examples` directory.
-
-The VerCors toolset can be used by running `vercors --silicon <filepath>`, with `<filepath>` the path of the (Java, C, or PVL) file to verify.
-
-## Building
+## Building from source code
 When building VerCors, you additionally need these dependencies:
 
 - A Java _Development_ Kit, version 11 or greater, either OpenJDK or Oracle.
@@ -57,6 +54,13 @@ When building VerCors, you additionally need these dependencies:
 3. Test whether the build was successful by running `./bin/vct --test=examples/manual --tool=silicon --lang=pvl,java --progress`.
 
 The last command tests the VerCors installation by verifying a large collection of examples (from the `./examples` directory). This command should eventually report that `all ? tests passed`. There are also intstructions for importing VerCors into either eclipse or IntelliJ IDEA [here](https://github.com/utwente-fmt/vercors/wiki).
+
+
+# Running VerCors
+VerCors verifies programs that are annotated with JML-style specifications (the underlying theory uses separation logic with permission accounting). Details on the specification language can be found on the VerCors [Wiki pages](https://github.com/utwente-fmt/vercors/wiki). Furthermore, a large collection of example programs can be found (and verified) in the `./examples` directory.
+
+The VerCors toolset can be used by running `vercors --silicon <filepath>`, with `<filepath>` the path of the (Java, C, or PVL) file to verify.
+
 
 ## Contact
 - For questions and support, email to <vercors@lists.utwente.nl>.
