@@ -2,6 +2,7 @@ class MatrixRepOrig
 {
 
   gpuopt matrix_lin matrix C M N;
+
   context_everywhere matrix != null;
   context_everywhere matrix.length == M * N;
   context (\forall* int i; i >= 0 && i < M; (\forall* int j; j >= 0 && j < N; Perm(matrix[i][j], 1)));

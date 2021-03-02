@@ -240,7 +240,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(s.getUpdateBlock());
     dispatch(s.getContract());
     s.getBody().accept(this);
-    dispatch(s.getUnroll());
+    dispatch(s.getGpuopt());
     dispatch(s.getExitGuard());
     dispatch(s.get_after());
   }

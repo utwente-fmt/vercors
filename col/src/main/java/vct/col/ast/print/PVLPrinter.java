@@ -1,7 +1,6 @@
 package vct.col.ast.print;
 
 import scala.collection.Iterator;
-import scala.collection.JavaConverters.*;
 
 import hre.ast.TrackingOutput;
 import hre.ast.TrackingTree;
@@ -31,8 +30,6 @@ import vct.col.ast.util.SequenceUtils;
 import java.io.PrintWriter;
 
 import static hre.lang.System.DebugException;
-import static vct.col.ast.type.PrimitiveSort.Map;
-import static vct.col.ast.type.PrimitiveSort.Tuple;
 
 /*
 Allows printing PVL programs from ASTNode
@@ -1036,7 +1033,7 @@ public class PVLPrinter extends AbstractPrinter{
     }
 
     public void visit(LoopStatement s){
-        visit(s.getUnroll());
+        visit(s.getGpuopt());
         loopcontract = true;
         visit(s.getContract());
         loopcontract = false;

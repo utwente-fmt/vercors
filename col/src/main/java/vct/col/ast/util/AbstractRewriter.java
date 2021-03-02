@@ -4,7 +4,6 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import scala.Option;
 import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -459,7 +458,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     if (tmp!=null) res.setEntryGuard(tmp.apply(this));
     tmp=s.getExitGuard();
     if (tmp!=null) res.setExitGuard(tmp.apply(this));
-    res.setUnroll(rewrite(s.getUnroll()));
+    res.setGpuopt(rewrite(s.getGpuopt()));
     res.appendContract(rewrite(s.getContract()));
     tmp=s.getBody();
     res.setBody(tmp.apply(this));

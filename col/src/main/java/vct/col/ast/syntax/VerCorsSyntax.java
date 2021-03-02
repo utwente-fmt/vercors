@@ -45,6 +45,7 @@ public class VerCorsSyntax {
     syntax.addReserved(LocalThreadId, "\\ltid");
     syntax.addReserved(Pure,"pure");
     syntax.addReserved(Any,"*");
+    syntax.addReserved(This,"this");
     syntax.addPrefix(BindOutput,"?",666);
     
     syntax.addReserved(FullPerm,"write");

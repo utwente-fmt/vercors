@@ -429,16 +429,14 @@ class Main {
       report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
       report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
       show(Passes.BY_KEY("unroll_loops"))
-      //      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
+      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
       return Seq.empty;
     }
-
-    if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
+    if (Configuration.gpu_optimizations.contains(GPUOptName.IterationMerging.toString)) {
       report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
       report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
-      report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
-      show(Passes.BY_KEY("unroll_loops"))
-      //      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
+      report = Passes.BY_KEY("iteration_merge").apply_pass(report, Array())
+      show(Passes.BY_KEY("iteration_merge"))
       return Seq.empty;
     }
 
@@ -483,6 +481,7 @@ class Main {
     else if (boogie.get) collectPassesForBoogie
     else if (dafny.get) collectPassesForDafny
     else if (silver.used || chalice.get) collectPassesForSilver
+    //TODO OS, is this the place where GPUOpt passes should be?
     else { Fail("no back-end or passes specified"); ??? }
   }
 

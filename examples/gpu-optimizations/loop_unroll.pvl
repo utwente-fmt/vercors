@@ -1,48 +1,24 @@
-class LoopUnrollExample {
+class LoopUnrolling {
+    int[] ar;
 
 	// Original program
-	context_everywhere ar != null;
-	context_everywhere l == 5;
-	context ar.length == l;
-	context (\forall* int i; 0 <= i && i < l; Perm(ar[i], write));
-	ensures (\forall int i;  0 <= i && i < l; ar[i] == 0);
-	void zero(int l, int[] ar) {
-        int i = 0;
+	context Perm(ar, 1\2);
+	context ar != null;
+	context ar.length >= 2;
+	context (\forall* int i; 0 <= i && i < ar.length; Perm(ar[i], write));
+	ensures (\forall int i; 0 <= i && i < ar.length; ar[i] == 0);
+	void zero() {
+		int i = ar.length-1;
 
-        gpuopt loop_unroll i 6;
-    	loop_invariant l == 5;
-		loop_invariant 0 <= i && i <= l;
-		loop_invariant (\forall* int j; 0 <= j && j < l; Perm(ar[j], write));
-		loop_invariant (\forall int j; 0 <= j && j < i; ar[j] == 0);
-		while (i < l) {
-
-		    boolean asdf;
-		    int l;
+        gpuopt loop_unroll i 2;
+		loop_invariant Perm(ar, 1\2);
+		loop_invariant ar != null;
+		loop_invariant -1 <= i && i <= ar.length-1;
+		loop_invariant (\forall* int j; 0 <= j && j < ar.length; Perm(ar[j], write));
+		loop_invariant (\forall int j; i < j && j < ar.length; ar[j] == 0);
+		while(i >= 0) {
 			ar[i] = 0;
-			i = i + 1;
+			i = i - 1;
 		}
 	}
-
-
-    ensures (| \result |) >= 1;
-    ensures \result [ 0 ] == i;
-    ensures (i < l ==> (| \result |) == (| U32(inc38(i),l) |) + 1);
-    ensures (! (i < l) ==> (| \result |) == 1);
-    ensures (\forall int j75;0 <= j75 && j75 < (| \result |) - 1;\result [ (j75 + 1) ] == inc38(\result [ j75 ]));
-    static pure seq<int> U32(int i,int l)=i < l ? (seq<int>{i} + U32(inc38(i),l)) : seq<int>{i};
-
-    static pure int inc38(int i)=i + 1;
-
-    requires ar != null;
-    requires ar.length == l;
-    requires (l == 5);
-    requires (\forall* int i;0 <= i && i < l;Perm( ar [ i ] , write ));
-    static void check_loop_unroll_zero(int l,int[] ar){
-      int i = 0;
-      assert (| U32(i,l) |) > 6;
-    }
-
-
-
-
 }

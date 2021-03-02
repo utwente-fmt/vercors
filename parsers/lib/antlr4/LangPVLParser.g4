@@ -286,6 +286,7 @@ exprSeq
 gpuOptimization
  : 'loop_unroll'
  | 'matrix_lin'
+ | 'iter_merge'
  ;
 
 nonArrayType

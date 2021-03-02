@@ -2,7 +2,7 @@
 package vct.col.ast.util;
 
 import scala.collection.JavaConverters;
-import scala.collection.JavaConverters.*;
+
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -532,7 +532,7 @@ public class ASTFactory<E> implements FrameControl {
       res.setUpdateBlock(update);
       res.setBody(body);
       res.setOrigin(origin_stack.get());
-      res.setUnroll(gpuopt);
+      res.setGpuopt(gpuopt);
       res.setContract(contract);
       res.accept_if(post);
       return res;    
@@ -1182,7 +1182,7 @@ public LoopStatement while_loop (ASTNode test,ASTNode body, GPUOpt gpuopt, ASTNo
   res.setEntryGuard(test);
   res.setBody(body);
   res.setOrigin(origin_stack.get());
-  res.setUnroll(null);
+  res.setGpuopt(null);
   for (ASTNode inv:invariant) res.appendInvariant(inv);
   res.fixate();
   res.accept_if(post);
@@ -1201,7 +1201,7 @@ public LoopStatement while_loop(ASTNode test,ASTNode body, GPUOpt gpuOpt, Contra
   res.setEntryGuard(test);
   res.setBody(body);
   res.setOrigin(origin_stack.get());
-  res.setUnroll(gpuOpt);
+  res.setGpuopt(gpuOpt);
   res.setContract(contract);
   res.accept_if(post);
   return res;    

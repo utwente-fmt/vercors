@@ -575,8 +575,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           Fail("%s is not an argument nor a local variable at %s", opt.argsJava().get(0), opt.argsJava().get(0).getOrigin());
         }
 
-
-
+        break;
+      case IterationMerging:
+        //TODO OS, type check the arguments
         break;
       default:
         Fail("Unsupported optimization %s", opt.name().toString());

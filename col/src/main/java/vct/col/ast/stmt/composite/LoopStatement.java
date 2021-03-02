@@ -28,7 +28,7 @@ public class LoopStatement extends ASTNode implements BeforeAfterAnnotations {
   }
 
   private ContractBuilder cb=new ContractBuilder();
-  private GPUOpt unroll;
+  private GPUOpt gpuopt;
   private Contract contract;
   private ASTNode body;
   private ASTNode entry_guard;
@@ -52,12 +52,13 @@ public class LoopStatement extends ASTNode implements BeforeAfterAnnotations {
     this.contract=contract;
   }
 
-  public void setUnroll(GPUOpt gpuopt){
-    this.unroll = gpuopt;
+  public void setGpuopt(GPUOpt gpuopt){
+    this.gpuopt = gpuopt;
   }
 
-  public GPUOpt getUnroll(){
-    return this.unroll;
+  //TODO OS a loop can have a list of GPU OPTs
+  public GPUOpt getGpuopt(){
+    return this.gpuopt;
   }
 
   public Contract getContract(){

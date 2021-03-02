@@ -1,0 +1,31 @@
+class MergingAndUnrollingOrig {
+
+  context_everywhere array != null;
+  requires (\forall* int i;i >= 0 && i < array.length;Perm( array [ i ] , 1 ));
+  ensures (\forall* int i;i >= 0 && i < array.length;Perm( array [ i ] , 1 ));
+  ensures (\forall int i;i >= 0 && i < array.length;array [ i ] == \old( array [ i ] ) + 105 * i);
+  ensures false;
+  void merging_unrolling_orig(int[] array){
+    par
+      (int tid = 0 .. array.length)
+      requires Perm( array [ tid ] , 1 );
+      ensures Perm( array [ tid ] , 1 );
+      ensures array [ tid ] == \old( array [ tid ] ) + 105 * tid;
+      {
+        loop_invariant j % 5 == 0;
+        loop_invariant (j >= 0 && j <= 105 ** Perm( array [ tid ] , 1 ) ** array [ tid ] == \old( array [ tid ] ) + j * tid);
+        for(int j = 0;j < 105;j = j + 1){
+          array [ tid ] = array [ tid ] + tid;
+          j = j + 1;
+          array [ tid ] = array [ tid ] + tid;
+          j = j + 1;
+          array [ tid ] = array [ tid ] + tid;
+          j = j + 1;
+          array [ tid ] = array [ tid ] + tid;
+          j = j + 1;
+          array [ tid ] = array [ tid ] + tid;
+        }
+      }
+  }
+
+}

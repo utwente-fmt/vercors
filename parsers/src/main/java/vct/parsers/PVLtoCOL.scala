@@ -636,11 +636,13 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create assignment(expr(target), expr(exp))
   }))
 
+  //TODO OS rewrite this so that all of the gpuopts are their own case
   def convertGPUOpt(tree: GpuoptContext): GPUOpt = tree match {
     case Gpuopt0("gpuopt", name, maybeExprSeq, ";") => create gpuoptimization (
       name match {
         case GpuOptimization0(name) => GPUOptName.LoopUnroll
         case GpuOptimization1(name) => GPUOptName.MatrixLinearization
+        case GpuOptimization2(name) => GPUOptName.IterationMerging
         case _ => fail(tree, "unsupported optimization")
       },
       maybeExprSeq.map(convertExpSeq).get.asJava

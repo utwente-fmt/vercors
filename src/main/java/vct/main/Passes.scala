@@ -1,9 +1,9 @@
 package vct.main
 
 import hre.config.Configuration
-
 import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
 import java.util
+
 import hre.config.Configuration
 import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
@@ -11,7 +11,7 @@ import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.rewrite.gpgpuoptimizations.{LoopUnroll, MatrixLinearization}
+import vct.col.rewrite.gpgpuoptimizations.{IterationMerging, LoopUnroll, MatrixLinearization}
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
@@ -208,9 +208,9 @@ object Passes {
       permits=Feature.ALL,
       removes=Set(),
     ),
-    SimplePass("iter_merge",
+    SimplePass("iteration_merge",
       "Merge Iterations",
-      new MatrixLinearization(_).rewriteAll,
+      new IterationMerging(_).rewriteAll,
       permits=Feature.ALL,
       removes=Set(),
     ),
