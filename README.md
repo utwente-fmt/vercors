@@ -5,6 +5,8 @@ This repository hosts VerCors, a toolset for the verification of concurrent and 
 
 A list of verified examples and case studies is maintained online and can be found [here](https://utwente.nl/vercors). This webpage also contains an online interface for VerCors and allows you to try VerCors online.
 
+The tutorial can be found on the [wiki](https://github.com/utwente-fmt/vercors/wiki)!
+
 ## Installation
 VerCors requires a java runtime environment (version 11 or later), as well as clang if you want support for C.
 
