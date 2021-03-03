@@ -741,9 +741,6 @@ public class PVLPrinter extends AbstractPrinter{
             result_type.accept(this);
             out.printf(" ");
         }
-        if (m.getKind()==Method.Kind.Pure) {
-            out.printf("pure ");
-        }
         out.printf("%s(",name);
         if (N>0) {
             DeclarationStatement args[]=m.getArgs();
@@ -784,7 +781,7 @@ public class PVLPrinter extends AbstractPrinter{
             body.accept(this);
             out.lnprintf("");
         } else {
-            out.printf("=");
+            out.printf(" = ");
             nextExpr();
             body.accept(this);
             out.lnprintf(";");
