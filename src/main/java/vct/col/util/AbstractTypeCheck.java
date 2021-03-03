@@ -535,6 +535,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
     switch (opt.name()) {
       case LoopUnroll:
+      case IterationMerging:
         if (opt.getParent() != null && !(opt.getParent() instanceof LoopStatement)) {
           Fail("The loop unroll optimization can only be used above loop statements (e.g. for and while loops) at %s", opt.getOrigin());
         } else if (!(opt.argsJava().get(0) instanceof NameExpression)){
@@ -575,9 +576,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           Fail("%s is not an argument nor a local variable at %s", opt.argsJava().get(0), opt.argsJava().get(0).getOrigin());
         }
 
-        break;
-      case IterationMerging:
-        //TODO OS, type check the arguments
         break;
       default:
         Fail("Unsupported optimization %s", opt.name().toString());

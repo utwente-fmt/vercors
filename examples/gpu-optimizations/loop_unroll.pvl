@@ -4,11 +4,11 @@ class LoopUnrolling {
 	// Original program
 	context Perm(ar, 1\2);
 	context ar != null;
-	context ar.length >= 2;
+	//context ar.length >= 2;
 	context (\forall* int i; 0 <= i && i < ar.length; Perm(ar[i], write));
 	ensures (\forall int i; 0 <= i && i < ar.length; ar[i] == 0);
 	void zero() {
-		int i = ar.length-1;
+
 
         gpuopt loop_unroll i 2;
 		loop_invariant Perm(ar, 1\2);
@@ -16,9 +16,22 @@ class LoopUnrolling {
 		loop_invariant -1 <= i && i <= ar.length-1;
 		loop_invariant (\forall* int j; 0 <= j && j < ar.length; Perm(ar[j], write));
 		loop_invariant (\forall int j; i < j && j < ar.length; ar[j] == 0);
-		while(i >= 0) {
+		for(int i = ar.length-1; i >= 0; i = i - 1) {
+		    boolean asdf;
 			ar[i] = 0;
-			i = i - 1;
 		}
+	}
+
+	requires 1 != 1;
+	ensures 1 != 1;
+	void someRandomMethod() {
+	    boolean asdf;
+	}
+}
+class Plz {
+	requires 1 != 1;
+	ensures 1 != 1;
+	void someRandomMethod() {
+	    boolean asdf;
 	}
 }

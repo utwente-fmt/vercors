@@ -9,6 +9,9 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{Contract, GPUOptName, ProgramUnit}
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 
+import scala.collection.JavaConverters._
+
+
 case class IterationMerging(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   private var inLoop: Boolean = false
@@ -76,11 +79,31 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
 
     val K = I % M
 
-    if (K != 0) {
-      //TODO OS Unroll K times
+    if (M > I) {
+      Fail("The number of iterations is smaller than the number of iterations to merge at %s", s.getGpuopt.getOrigin)
     }
 
+    var loopToMerge = s
+    var xBodies = 0
+    if (K != 0) {
+      //TODO OS Unroll K times
 
+      //TODO OS check whether the gpu opt needs to be stored
+      val tmp = s.getGpuopt
+      s.setGpuopt(create.gpuoptimization(GPUOptName.LoopUnroll, Seq(itervar, constant(K)).asJava))
+
+      val unrollLoopPass = LoopUnroll(null, false)
+      loopToMerge = unrollLoopPass.rewrite(s)
+      val unrolledBodies = unrollLoopPass.tmpBlock
+      s.setGpuopt(tmp)
+
+      unrolledBodies.forEachStmt(st => current_sequence().add(copy_rw.rewrite(st)))
+    }
+
+    // if loop unroll (k!= 0)
+    //    newBody is without decls
+    // if not loop unroll (k == 0)
+    //     new
     Progress("%s", I.toString)
 
     val originalBody = copy_rw.rewrite(s.getBody)
@@ -105,20 +128,32 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
       }
 
 
-
-
-
-    0 until M foreach {
-      i =>
-        if (i == M - 1)
-        bodyWithoutDeclsWithoutUpdate.forEachStmt(stmt => newBody.add(copy_rw.rewrite(stmt)))
-        else
-        bodyWithoutDecls.forEachStmt(stmt => newBody.add(copy_rw.rewrite(stmt)))
+    if (K == 0) {
+      originalBody match {
+        case b: BlockStatement =>
+          b.getStatements.foreach(stmt => newBody.add(copy_rw.rewrite(stmt)))
+        case _ =>
+          newBody.add(removeDecl.rewrite(s.getBody))
+      }
+      xBodies = 1
     }
 
-    val newContract = copy_rw.rewrite(s.getContract)
+    xBodies until M foreach {
+      i =>
+        if (i == M - 1)
+          bodyWithoutDeclsWithoutUpdate.forEachStmt(stmt => newBody.add(copy_rw.rewrite(stmt)))
+        else
+          bodyWithoutDecls.forEachStmt(stmt => newBody.add(copy_rw.rewrite(stmt)))
+    }
+
+
+
+
+
+    //TODO OS do we have to rewrite here?
+    val newContract = copy_rw.rewrite(loopToMerge.getContract)
     val cb = new ContractBuilder
-    rewrite(s.getContract,cb);
+    rewrite(loopToMerge.getContract, cb);
     cb.prependInvariant(
       eq(
         create.expression(StandardOperator.Mod, rewrite(itervar), constant(M)),
@@ -126,11 +161,12 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
       )
     )
 
+    //TODO OS Have a warning when there is an optimization but VerCors is ran normally.
     result = create.loop(
-      rewrite(s.getInitBlock),
-      rewrite(s.getEntryGuard),
-      rewrite(s.getExitGuard),
-      rewrite(s.getUpdateBlock),
+      rewrite(loopToMerge.getInitBlock),
+      rewrite(loopToMerge.getEntryGuard),
+      rewrite(loopToMerge.getExitGuard),
+      rewrite(loopToMerge.getUpdateBlock),
       newBody,
       //TODO OS, add the one invariant
       cb.getContract()
@@ -145,18 +181,14 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
                           op: Int => Int): Int = {
     var a = start
     var Is = Seq(a)
-    while (condOp (a)) {
+    while (condOp(a)) {
 
       a = op(a) // the constant C is already implicit
       Is ++= Seq(a)
     }
 
-    Is.length-1
+    Is.length - 1
   }
-
-
-
-
 
 
   /////////////////////

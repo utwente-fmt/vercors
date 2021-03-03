@@ -9,29 +9,50 @@ import vct.col.ast.expr.{NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
-import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, GPUOptName, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, GPUOptName, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner}
-import vct.col.features
-import vct.col.features.Feature
-import vct.col.rewrite.SilverClassReduction
-import vct.col.util.AbstractTypeCheck
-import vct.logging.PassReport
-import vct.main.AbstractPass
-import vct.silver.ErrorDisplayVisitor
 
+import scala.collection.mutable.Map
+import scala.collection.mutable.Seq
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.language.postfixOps
 
 //TODO OS extract the common methods for loop unrolling and iteration merging into an object.
 //TODO OS remove all the Progress calls so the user does not see it.
-case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter(source) {
-
-  override def rewriteAll(): ProgramUnit = super.rewriteAll()
+case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean = true) extends AbstractRewriter(source) {
+  //TODO OS, the line below throws a ConcurrentModificationException
+  //  override def rewriteAll(): Program Unit = super.rewriteAll()
 
   private var inLoop: Boolean = false
+  val tmpBlock = create.block()
 
-  def findUpdateStatement(s: LoopStatement, itervar: ASTNode): Option[(StandardOperator, ASTNode)] = {
+  var unrolledProgram: ProgramUnit = null
+
+  override def rewriteAll(): ProgramUnit = {
+    unrolledProgram = super.rewriteAll()
+    if (generateCheck) {
+      val targetWithChecks = RemoveBodies(source, methodsWithUnroll).rewriteAll()
+      targetWithChecks
+    } else {
+      unrolledProgram
+    }
+  }
+
+  case class RemoveBodies(override val source: ProgramUnit, methodsToReplace: mutable.Map[String, mutable.Buffer[Method]]) extends AbstractRewriter(source) {
+    override def visit(m: Method): Unit = {
+      if (methodsToReplace(m.name).isEmpty) {
+        m.setBody(null)
+        super.visit(m)
+      } else {
+        methodsToReplace(m.name).foreach(currentTargetClass.add(_))
+      }
+    }
+  }
+
+
+    def findUpdateStatement(s: LoopStatement, itervar: ASTNode): Option[(StandardOperator, ASTNode)] = {
     val visitor = FindUpdateStatement(null, itervar)
     val body = visitor.rewrite(s.getBody)
     if (s.getUpdateBlock != null) s.getUpdateBlock.apply(visitor)
@@ -71,27 +92,27 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
       case e: OperatorExpression => e.operator match {
         case LT if e.second.equals(itervar) =>
           if (updateStmnt._1 == Plus) {
-            val updatedLowerbound = create.expression(Plus, e.first, constant(C*K))
+            val updatedLowerbound = create.expression(Plus, e.first, constant(C * K))
             val updatedInvariant = create.expression(LT, updatedLowerbound, rewrite(e.second))
             cb.appendInvariant(updatedInvariant)
           } else if (updateStmnt._1 == Mult) {
-            val updatedLowerbound = create.expression(Mult, e.first, constant(scala.math.pow(C,K).toInt))
+            val updatedLowerbound = create.expression(Mult, e.first, constant(scala.math.pow(C, K).toInt))
             val updatedInvariant = create.expression(LT, updatedLowerbound, rewrite(e.second))
             cb.appendInvariant(updatedInvariant)
           } else {
             cb.appendInvariant(rewrite(e))
           }
 
-//          cb.appendInvariant(rewrite(e))
+          //          cb.appendInvariant(rewrite(e))
           lowerbounds ++= Set(create.expression(Plus, e.first, create.constant(1))) // Lowerbound
         case LTE if e.second.equals(itervar) =>
-//          C <= i
+          //          C <= i
           if (updateStmnt._1 == Plus) {
-            val updatedLowerbound = create.expression(Plus, e.first, constant(C*K))
+            val updatedLowerbound = create.expression(Plus, e.first, constant(C * K))
             val updatedInvariant = create.expression(LTE, updatedLowerbound, rewrite(e.second))
             cb.appendInvariant(updatedInvariant)
           } else if (updateStmnt._1 == Mult) {
-            val updatedLowerbound = create.expression(Mult, e.first, constant(scala.math.pow(C,K).toInt))
+            val updatedLowerbound = create.expression(Mult, e.first, constant(scala.math.pow(C, K).toInt))
             val updatedInvariant = create.expression(LTE, updatedLowerbound, rewrite(e.second))
             cb.appendInvariant(updatedInvariant)
           } else {
@@ -100,13 +121,13 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
           lowerbounds ++= Set(e.first) // Lowerbound
 
         case GT if e.first.equals(itervar) =>
-//          i > 0
+          //          i > 0
           if (updateStmnt._1 == Plus) {
-            val updatedLowerbound = create.expression(Plus, e.second, constant(C*K))
+            val updatedLowerbound = create.expression(Plus, e.second, constant(C * K))
             val updatedInvariant = create.expression(GT, rewrite(e.first), updatedLowerbound)
             cb.appendInvariant(updatedInvariant)
           } else if (updateStmnt._1 == Mult) {
-            val updatedLowerbound = create.expression(Mult, e.second, constant(scala.math.pow(C,K).toInt))
+            val updatedLowerbound = create.expression(Mult, e.second, constant(scala.math.pow(C, K).toInt))
             val updatedInvariant = create.expression(GT, rewrite(e.second), updatedLowerbound)
             cb.appendInvariant(updatedInvariant)
           } else {
@@ -115,11 +136,11 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
           lowerbounds ++= Set(create.expression(Minus, e.second, create.constant(1))) // Lowerbound
         case GTE if e.first.equals(itervar) =>
           if (updateStmnt._1 == Plus) {
-            val updatedLowerbound = create.expression(Plus, e.second, constant(C*K))
+            val updatedLowerbound = create.expression(Plus, e.second, constant(C * K))
             val updatedInvariant = create.expression(GTE, rewrite(e.first), updatedLowerbound)
             cb.appendInvariant(updatedInvariant)
           } else if (updateStmnt._1 == Mult) {
-            val updatedLowerbound = create.expression(Mult, e.second, constant(scala.math.pow(C,K).toInt))
+            val updatedLowerbound = create.expression(Mult, e.second, constant(scala.math.pow(C, K).toInt))
             val updatedInvariant = create.expression(GTE, rewrite(e.second), updatedLowerbound)
             cb.appendInvariant(updatedInvariant)
           } else {
@@ -128,15 +149,14 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
           lowerbounds ++= Set(e.second) // Lowerbound
 
 
-
         case GT if e.second.equals(itervar) =>
-//         b > i
+          //         b > i
           if (updateStmnt._1 == Minus) {
-            val updatedUpperbound = create.expression(Minus, e.first, constant(C*K))
+            val updatedUpperbound = create.expression(Minus, e.first, constant(C * K))
             val updatedInvariant = create.expression(GT, updatedUpperbound, rewrite(e.second))
             cb.appendInvariant(updatedInvariant)
           } else if (updateStmnt._1 == FloorDiv) {
-            val updatedUpperbound = create.expression(FloorDiv, e.first, constant(scala.math.pow(C,K).toInt))
+            val updatedUpperbound = create.expression(FloorDiv, e.first, constant(scala.math.pow(C, K).toInt))
             val updatedInvariant = create.expression(GT, updatedUpperbound, rewrite(e.second))
             cb.appendInvariant(updatedInvariant)
           } else {
@@ -145,11 +165,11 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
           upperbounds ++= Set(create.expression(Plus, e.first, create.constant(1))) // Upperbound
         case GTE if e.second.equals(itervar) =>
           if (updateStmnt._1 == Minus) {
-            val updatedUpperbound = create.expression(Minus, e.first, constant(C*K))
+            val updatedUpperbound = create.expression(Minus, e.first, constant(C * K))
             val updatedInvariant = create.expression(GTE, updatedUpperbound, rewrite(e.second))
             cb.appendInvariant(updatedInvariant)
           } else if (updateStmnt._1 == FloorDiv) {
-            val updatedUpperbound = create.expression(FloorDiv, e.first, constant(scala.math.pow(C,K).toInt))
+            val updatedUpperbound = create.expression(FloorDiv, e.first, constant(scala.math.pow(C, K).toInt))
             val updatedInvariant = create.expression(GTE, updatedUpperbound, rewrite(e.second))
             cb.appendInvariant(updatedInvariant)
           } else {
@@ -157,13 +177,13 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
           }
           upperbounds ++= Set(e.first) // upperbound
         case LT if e.first.equals(itervar) =>
-//         i < b
+          //         i < b
           if (updateStmnt._1 == Minus) {
-            val updatedUpperbound = create.expression(Minus, e.second, constant(C*K))
+            val updatedUpperbound = create.expression(Minus, e.second, constant(C * K))
             val updatedInvariant = create.expression(LT, rewrite(e.first), updatedUpperbound)
             cb.appendInvariant(updatedInvariant)
           } else if (updateStmnt._1 == FloorDiv) {
-            val updatedUpperbound = create.expression(FloorDiv, e.second, constant(scala.math.pow(C,K).toInt))
+            val updatedUpperbound = create.expression(FloorDiv, e.second, constant(scala.math.pow(C, K).toInt))
             val updatedInvariant = create.expression(LT, rewrite(e.first), updatedUpperbound)
             cb.appendInvariant(updatedInvariant)
           } else {
@@ -173,11 +193,11 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
           upperbounds ++= Set(create.expression(Minus, e.second, create.constant(1))) // Upperbound
         case LTE if e.first.equals(itervar) =>
           if (updateStmnt._1 == Minus) {
-            val updatedUpperbound = create.expression(Minus, e.second, constant(C*K))
+            val updatedUpperbound = create.expression(Minus, e.second, constant(C * K))
             val updatedInvariant = create.expression(LTE, rewrite(e.first), updatedUpperbound)
             cb.appendInvariant(updatedInvariant)
           } else if (updateStmnt._1 == FloorDiv) {
-            val updatedUpperbound = create.expression(FloorDiv, e.second, constant(scala.math.pow(C,K).toInt))
+            val updatedUpperbound = create.expression(FloorDiv, e.second, constant(scala.math.pow(C, K).toInt))
             val updatedInvariant = create.expression(LTE, rewrite(e.first), updatedUpperbound)
             cb.appendInvariant(updatedInvariant)
           } else {
@@ -206,6 +226,9 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
 
     Option((a, b, cb.getContract(false)))
   }
+
+
+  val methodsWithUnroll: mutable.Map[String, mutable.Buffer[Method]] = mutable.Map.empty.withDefaultValue(mutable.Buffer.empty)
 
   override def visit(s: LoopStatement): Unit = {
     if (s.getGpuopt == null || s.getGpuopt.name != GPUOptName.LoopUnroll) {
@@ -252,7 +275,7 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
       Fail("%s in update statement is not a constant at ", updateStmt._2, updateStmt._2.getOrigin)
     }
     val C = updateStmt._2.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value
-//    Progress("Update Statement: %s in", updateStmt)
+    //    Progress("Update Statement: %s in", updateStmt)
 
     //////////////////////////////////////
     /// find the lower and upperbounds ///
@@ -263,145 +286,166 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
     }
     val (a, b, contract) = maybeBounds.get
 
-//    Progress("Lowerbound = %s", a)
-//    Progress("Upperbound = %s", b)
+    //    Progress("Lowerbound = %s", a)
+    //    Progress("Upperbound = %s", b)
 
     // TODO OS check if you can actually unroll
-
 
 
     ////////////////////////////////
     /// check if unroll is possible ///
     ////////////////////////////////
-    //TODO OS how to get a free name
-    val methodsStatic = true
-    val nameOfU = "U" + (Math.random() * 100).asInstanceOf[Int]
-    val nameOfInc = "inc" + (Math.random() * 100).asInstanceOf[Int]
+    //TODO OS how to get a free name (for future)
+
+    if (generateCheck) {
+      val methodsStatic = true
+      val nameOfU = "U" + (Math.random() * 100).asInstanceOf[Int]
+      val nameOfInc = "update" + (Math.random() * 100).asInstanceOf[Int]
 
 
-    val mapOfargsU = new util.LinkedHashMap[String, Type](NameScanner.freeVars(s.getEntryGuard))
-    val argsOfU = genPars(mapOfargsU)
+      val mapOfargsU = new util.LinkedHashMap[String, Type](NameScanner.freeVars(s.getEntryGuard))
+      val argsOfU = genPars(mapOfargsU)
 
-    val argsCallU = argsOfU.map(_.name).map(
-      k => if (itervar.isName(k)) invoke(null, nameOfInc, rewrite(itervar)) else create.local_name(k)
-    ).toSeq
+      val argsCallU = argsOfU.map(_.name).map(
+        k => if (itervar.isName(k)) invoke(null, nameOfInc, rewrite(itervar)) else create.local_name(k)
+      ).toSeq
 
-    val invokeU = invoke(null, nameOfU, argsCallU: _*)
+      val invokeU = invoke(null, nameOfU, argsCallU: _*)
 
-    val argsCallUForAssert = argsOfU.map(_.name).map(create.local_name).toSeq
+      val argsCallUForAssert = argsOfU.map(_.name).map(create.local_name).toSeq
 
-    val invokeUForAssert = invoke(null, nameOfU, argsCallUForAssert: _*)
-
-
-    val bodyOfU = create.expression(ITE,
-      rewrite(s.getEntryGuard),
-      concat(create.sequence(itervar.getType, itervar), invokeU),
-      create.sequence(rewrite(itervar.getType), itervar)
-    )
-    // We put the freeVars in a linked hashmap to retain the order of insersion.
+      val invokeUForAssert = invoke(null, nameOfU, argsCallUForAssert: _*)
 
 
-    val cb = new ContractBuilder()
-    cb.ensures(gte(size(create.reserved_name(ASTReserved.Result)), constant(1)))
-    cb.ensures(eq(get(create.reserved_name(ASTReserved.Result), constant(0)), rewrite(itervar)))
-    cb.ensures(implies(
-      rewrite(s.getEntryGuard),
-      eq(size(create.reserved_name(ASTReserved.Result)), plus(size(invokeU), constant(1)))
-    )
-    )
-
-    cb.ensures(implies(
-      not(rewrite(s.getEntryGuard)),
-      eq(size(create.reserved_name(ASTReserved.Result)), constant(1))
-    )
-    )
-
-
-    val nameOfJ = "j" + (Math.random() * 100).asInstanceOf[Int]
-    val forAllIndex = new DeclarationStatement(nameOfJ, create.primitive_type(PrimitiveSort.Integer))
-    val indexNode = name(nameOfJ)
-
-    val low = lte(constant(0), indexNode)
-    val high = less(indexNode, minus(size(create.reserved_name(ASTReserved.Result)), constant(1)))
-
-
-    cb.ensures(
-      create.forall(
-        and(low, high),
-        eq(
-          get(create.reserved_name(ASTReserved.Result), plus(indexNode, constant(1))),
-          invoke(null, nameOfInc, get(create.reserved_name(ASTReserved.Result), indexNode)),
-        ),
-        forAllIndex
+      val bodyOfU = create.expression(ITE,
+        rewrite(s.getEntryGuard),
+        concat(create.sequence(itervar.getType, itervar), invokeU),
+        create.sequence(rewrite(itervar.getType), itervar)
       )
-    )
-
-    val methodU = create.function_decl(
-      create.primitive_type(PrimitiveSort.Sequence, create.primitive_type(PrimitiveSort.Integer)),
-      cb.getContract(),
-      nameOfU,
-      argsOfU,
-      bodyOfU
-    )
-    methodU.setStatic(methodsStatic)
+      // We put the freeVars in a linked hashmap to retain the order of insersion.
 
 
-    val methodInc = create.function_decl(
-      create.primitive_type(PrimitiveSort.Integer),
-      null,
-      nameOfInc,
-      Seq(new DeclarationStatement(itervar.asInstanceOf[NameExpression].name, create.primitive_type(PrimitiveSort.Integer))).asJava,
-      create.expression(updateStmt._1, itervar, updateStmt._2)
-    )
-    methodInc.setStatic(methodsStatic)
+      val cb = new ContractBuilder()
+      cb.ensures(gte(size(create.reserved_name(ASTReserved.Result)), constant(1)))
+      cb.ensures(eq(get(create.reserved_name(ASTReserved.Result), constant(0)), rewrite(itervar)))
+      cb.ensures(implies(
+        rewrite(s.getEntryGuard),
+        eq(size(create.reserved_name(ASTReserved.Result)), plus(size(invokeU), constant(1)))
+      )
+      )
+
+      cb.ensures(implies(
+        not(rewrite(s.getEntryGuard)),
+        eq(size(create.reserved_name(ASTReserved.Result)), constant(1))
+      )
+      )
 
 
-    val bodyOfCheck = create.block()
-    current_sequence().forEach(st => bodyOfCheck.add(copy_rw.rewrite(st)))
+      val nameOfJ = "j" + (Math.random() * 100).asInstanceOf[Int]
+      val forAllIndex = new DeclarationStatement(nameOfJ, create.primitive_type(PrimitiveSort.Integer))
+      val indexNode = name(nameOfJ)
 
-    bodyOfCheck.add(create special(ASTSpecial.Kind.Assert, gt(size(invokeUForAssert), constant(K))))
-
-    val checkMethodName = "check_loop_unroll_" + current_method.name
-    val checkMethodContract = new ContractBuilder()
-    checkMethodContract.requires(copy_rw.rewrite(current_method().getContract.pre_condition))
-    checkMethodContract.requires(copy_rw.rewrite(current_method().getContract.invariant))
-
-    val methodCheck = create.method_kind(
-      current_method().kind,
-      create.primitive_type(PrimitiveSort.Void),
-      checkMethodContract.getContract(),
-      checkMethodName,
-      current_method().getArgs.map(d => copy_rw.rewrite(d)),
-      bodyOfCheck
-    )
-    methodCheck.setStatic(methodsStatic)
+      val low = lte(constant(0), indexNode)
+      val high = less(indexNode, minus(size(create.reserved_name(ASTReserved.Result)), constant(1)))
 
 
-    current_class().add_static(methodInc)
-    current_class().add_static(methodU)
-    current_class().add_static(methodCheck)
+      cb.ensures(
+        create.forall(
+          and(low, high),
+          eq(
+            get(create.reserved_name(ASTReserved.Result), plus(indexNode, constant(1))),
+            invoke(null, nameOfInc, get(create.reserved_name(ASTReserved.Result), indexNode)),
+          ),
+          forAllIndex
+        )
+      )
 
-//    Progress("U: \n%s", methodU)
-//    Progress("inc: \n%s", methodInc)
-//    Progress("Check method: \n%s", methodCheck)
+      val methodU = create.function_decl(
+        create.primitive_type(PrimitiveSort.Sequence, create.primitive_type(PrimitiveSort.Integer)),
+        cb.getContract(),
+        nameOfU,
+        argsOfU,
+        bodyOfU
+      )
+      methodU.setStatic(methodsStatic)
 
 
+      val methodInc = create.function_decl(
+        create.primitive_type(PrimitiveSort.Integer),
+        null,
+        nameOfInc,
+        Seq(new DeclarationStatement(itervar.asInstanceOf[NameExpression].name, create.primitive_type(PrimitiveSort.Integer))).asJava,
+        create.expression(updateStmt._1, itervar, updateStmt._2)
+      )
+      methodInc.setStatic(methodsStatic)
+
+
+      val bodyOfCheck = create.block()
+      current_sequence().forEach(st => bodyOfCheck.add(copy_rw.rewrite(st)))
+      if (s.getInitBlock != null)
+        s.getInitBlock match {
+          case b: BlockStatement =>
+            b.getStatements.foreach(st => bodyOfCheck.add(rewrite(st)))
+          case block =>
+            bodyOfCheck.add(rewrite(block))
+        }
+
+      bodyOfCheck.add(create special(ASTSpecial.Kind.Assert, gt(size(invokeUForAssert), constant(K))))
+
+      val checkMethodName = "check_loop_unroll_" + current_method.name
+      val checkMethodContract = new ContractBuilder()
+      checkMethodContract.requires(copy_rw.rewrite(current_method().getContract.pre_condition))
+      checkMethodContract.requires(copy_rw.rewrite(current_method().getContract.invariant))
+
+      val methodCheck = create.method_kind(
+        current_method().kind,
+        create.primitive_type(PrimitiveSort.Void),
+        checkMethodContract.getContract(),
+        checkMethodName,
+        current_method().getArgs.map(d => copy_rw.rewrite(d)),
+        bodyOfCheck
+      )
+      methodCheck.setStatic(false)
+
+      methodsWithUnroll(current_method().name) = methodsWithUnroll(current_method().name) ++ mutable.Buffer(methodInc, methodU, methodCheck)
+
+//      currentTargetClass.add_static(methodInc)
+//      currentTargetClass.add_static(methodU)
+//      currentTargetClass.add_dynamic(methodCheck)
+      //    Progress("U: \n%s", methodU)
+      //    Progress("inc: \n%s", methodInc)
+      //    Progress("Check method: \n%s", methodCheck)
+    }
 
     ////////////////////////////////
     /// Start the loop unrolling ///
     ////////////////////////////////
+
+    if (s.getInitBlock != null)
+      s.getInitBlock match {
+        case b: BlockStatement =>
+          b.getStatements.foreach(st => tmpBlock.add(rewrite(st)))
+        case block =>
+          tmpBlock.add(rewrite(block))
+      }
+
+    ASTUtils.conjuncts(copy_rw.rewrite(s.getContract.invariant), Star, And).forEach {
+      st =>
+      tmpBlock.add(create special(ASTSpecial.Kind.Assert, copy_rw.rewrite(st)))
+    }
+
     s.getBody match {
       case b: BlockStatement =>
-        b.getStatements.foreach(st => current_sequence().add(copy_rw.rewrite(st)))
+        b.getStatements.foreach(st => tmpBlock.add(copy_rw.rewrite(st)))
       case _ =>
-        current_sequence().add(copy_rw.rewrite(s.getBody))
+        tmpBlock.add(copy_rw.rewrite(s.getBody))
     }
     if (s.getUpdateBlock != null)
       s.getUpdateBlock match {
         case b: BlockStatement =>
-          b.getStatements.foreach(st => current_sequence().add(rewrite(st)))
+          b.getStatements.foreach(st => tmpBlock.add(rewrite(st)))
         case block =>
-          current_sequence().add(rewrite(block))
+          tmpBlock.add(rewrite(block))
       }
 
 
@@ -425,17 +469,28 @@ case class LoopUnroll(override val source: ProgramUnit) extends AbstractRewriter
       }
 
     1 until K foreach {
-      i => newbody.forEachStmt(stmt => current_sequence().add(copy_rw.rewrite(stmt)))
+      i =>
+        ASTUtils.conjuncts(copy_rw.rewrite(s.getContract.invariant), Star, And).forEach {
+          st =>
+            tmpBlock.add(create special(ASTSpecial.Kind.Assert, copy_rw.rewrite(st)))
+        }
+        newbody.forEachStmt(stmt => tmpBlock.add(copy_rw.rewrite(stmt)))
     }
 
-    result = create.loop(
-      rewrite(s.getInitBlock),
+    val newLoop = create.loop(
+      copy_rw.rewrite(itervar),
       rewrite(s.getEntryGuard),
       rewrite(s.getExitGuard),
       rewrite(s.getUpdateBlock),
       removeDecl.rewrite(s.getBody),
       contract
     )
+
+    if (generateCheck) {
+      tmpBlock.forEachStmt(st => current_sequence().add(copy_rw.rewrite(st)))
+    }
+    result = newLoop
+
 
     // At this point we can generate the method to see if unrolling is possible.
 

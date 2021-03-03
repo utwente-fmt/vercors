@@ -420,7 +420,7 @@ class Main {
       report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
       report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
       report = Passes.BY_KEY("matrix_lin").apply_pass(report, Array())
-      show(Passes.BY_KEY("matrix_lin"))
+//      show(Passes.BY_KEY("matrix_lin"))
       report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
       return Seq.empty;
     }
@@ -428,15 +428,16 @@ class Main {
       report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
       report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
       report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
-      show(Passes.BY_KEY("unroll_loops"))
+//      show(Passes.BY_KEY("unroll_loops"))
       report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
-      return Seq.empty;
+      report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
+      //      return Seq.empty;
     }
     if (Configuration.gpu_optimizations.contains(GPUOptName.IterationMerging.toString)) {
       report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
       report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
       report = Passes.BY_KEY("iteration_merge").apply_pass(report, Array())
-      show(Passes.BY_KEY("iteration_merge"))
+      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
       return Seq.empty;
     }
 
