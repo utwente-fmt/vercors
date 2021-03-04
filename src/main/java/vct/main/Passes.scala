@@ -214,7 +214,6 @@ object Passes {
       permits=Feature.ALL,
       removes=Set(),
     ),
-    //TODO OS Make a pass which removes all gpuopts
   )
 
   val ARRAYS: Seq[AbstractPass] = Seq(

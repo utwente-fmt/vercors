@@ -56,7 +56,6 @@ public class LoopStatement extends ASTNode implements BeforeAfterAnnotations {
     this.gpuopt = gpuopt;
   }
 
-  //TODO OS a loop can have a list of GPU OPTs
   public GPUOpt getGpuopt(){
     return this.gpuopt;
   }

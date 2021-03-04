@@ -2,7 +2,6 @@ package vct.col.rewrite.gpgpuoptimizations
 
 import java.util
 
-import hre.lang.System.Progress
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.expr.{NameExpression, OperatorExpression, StandardOperator}
@@ -19,8 +18,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
-//TODO OS extract the common methods for loop unrolling and iteration merging into an object.
-//TODO OS remove all the Progress calls so the user does not see it.
+//TODO OS how to get a free name (for future)
 case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean = true) extends AbstractRewriter(source) {
   //TODO OS, the line below throws a ConcurrentModificationException
   //  override def rewriteAll(): Program Unit = super.rewriteAll()
@@ -275,7 +273,6 @@ case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean =
       Fail("%s in update statement is not a constant at ", updateStmt._2, updateStmt._2.getOrigin)
     }
     val C = updateStmt._2.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value
-    //    Progress("Update Statement: %s in", updateStmt)
 
     //////////////////////////////////////
     /// find the lower and upperbounds ///
@@ -286,17 +283,10 @@ case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean =
     }
     val (a, b, contract) = maybeBounds.get
 
-    //    Progress("Lowerbound = %s", a)
-    //    Progress("Upperbound = %s", b)
-
-    // TODO OS check if you can actually unroll
-
 
     ////////////////////////////////
     /// check if unroll is possible ///
     ////////////////////////////////
-    //TODO OS how to get a free name (for future)
-
     if (generateCheck) {
       val methodsStatic = true
       val nameOfU = "U" + (Math.random() * 100).asInstanceOf[Int]
@@ -408,13 +398,6 @@ case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean =
       methodCheck.setStatic(false)
 
       methodsWithUnroll(current_method().name) = methodsWithUnroll(current_method().name) ++ mutable.Buffer(methodInc, methodU, methodCheck)
-
-//      currentTargetClass.add_static(methodInc)
-//      currentTargetClass.add_static(methodU)
-//      currentTargetClass.add_dynamic(methodCheck)
-      //    Progress("U: \n%s", methodU)
-      //    Progress("inc: \n%s", methodInc)
-      //    Progress("Check method: \n%s", methodCheck)
     }
 
     ////////////////////////////////

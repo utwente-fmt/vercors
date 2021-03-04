@@ -66,15 +66,10 @@ case class FindUpdateStatement(override val source: ProgramUnit, itervar: ASTNod
           }
         case Minus if e.first.equals(itervar) =>
           updateStmnt = Some(e.operator, e.second)
-        //TODO OS this case should be purged everywhere. C - i is not a valid case.
-        //        case Minus if e.second.equals(itervar) =>
-//          updateStmnt = Some(e.operator, e.first)
         case FloorDiv if e.first.equals(itervar) =>
           updateStmnt = Some(e.operator, e.second)
-        //        case (FloorDiv) if e.second.equals(itervar) =>
-        //TODO OS should there be a warning here
-        //          updateOp = e.operator
-        //          updateConstant = e.first
+        case Div if e.first.equals(itervar) =>
+          updateStmnt = Some(FloorDiv, e.second)
         case Mult if e.first.equals(itervar) =>
           updateStmnt = Some(e.operator, e.second)
         case Mult if e.second.equals(itervar) =>
@@ -85,10 +80,6 @@ case class FindUpdateStatement(override val source: ProgramUnit, itervar: ASTNod
     }
 
     super.visit(s)
-    // C is a ConstantExpression
-    // -C is a OperatorExpression UMinus C
-    //TODO OS treat -C + i as i - C
-
   }
 
 

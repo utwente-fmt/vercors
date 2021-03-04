@@ -11,7 +11,7 @@ import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 
 import scala.collection.JavaConverters._
 
-
+//TODO OS Have a warning when there is an optimization but VerCors is ran normally.
 case class IterationMerging(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   private var inLoop: Boolean = false
@@ -54,7 +54,6 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
       .asInstanceOf[ConstantExpression].value
       .asInstanceOf[IntegerValue].value
 
-    //TODO OS, check whether they are actually ConstantExpressions -> IntegerValue
     val a = maybeBounds.get._1.asInstanceOf[ConstantExpression].value
       .asInstanceOf[IntegerValue].value
     val b = maybeBounds.get._2.asInstanceOf[ConstantExpression].value
@@ -86,9 +85,6 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
     var loopToMerge = s
     var xBodies = 0
     if (K != 0) {
-      //TODO OS Unroll K times
-
-      //TODO OS check whether the gpu opt needs to be stored
       val tmp = s.getGpuopt
       s.setGpuopt(create.gpuoptimization(GPUOptName.LoopUnroll, Seq(itervar, constant(K)).asJava))
 
@@ -161,14 +157,12 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
       )
     )
 
-    //TODO OS Have a warning when there is an optimization but VerCors is ran normally.
     result = create.loop(
       rewrite(loopToMerge.getInitBlock),
       rewrite(loopToMerge.getEntryGuard),
       rewrite(loopToMerge.getExitGuard),
       rewrite(loopToMerge.getUpdateBlock),
       newBody,
-      //TODO OS, add the one invariant
       cb.getContract()
     )
 
@@ -236,50 +230,32 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
   }
 
   //TODO OS, remove K from the arguments.
-  def findBounds(s: LoopStatement, K: ConstantExpression, itervar: ASTNode, updateStmnt: (StandardOperator, ASTNode)): Option[(ASTNode, ASTNode, Contract)] = {
-    val cb = new ContractBuilder
-    val invs = s.getContract.invariant
+  def findBounds(s: LoopStatement, K: ConstantExpression, itervar: ASTNode, updateStmnt: (StandardOperator, ASTNode)): Option[(ASTNode, ASTNode)] = {
     var lowerbounds: Set[ASTNode] = Set.empty
     var upperbounds: Set[ASTNode] = Set.empty
 
-    ASTUtils.conjuncts(invs, Star, And).forEach {
+    ASTUtils.conjuncts(s.getContract.invariant, Star, And).forEach {
       case e: OperatorExpression => e.operator match {
         case LT if e.second.equals(itervar) =>
-          cb.appendInvariant(rewrite(e))
           lowerbounds ++= Set(create.expression(Plus, e.first, create.constant(1))) // Lowerbound
         case LTE if e.second.equals(itervar) =>
-          if (updateStmnt._1 == Plus) {
-            val updatedLowerbound = create.expression(Plus, e.first, create.expression(Mult, rewrite(updateStmnt._2), rewrite(K)))
-            val updatedInvariant = create.expression(LTE, updatedLowerbound, rewrite(e.second))
-            cb.appendInvariant(updatedInvariant)
-          } else {
-            //TODO OS this case is for debug purposes
-            cb.appendInvariant(rewrite(e))
-          }
-
           lowerbounds ++= Set(e.first) // Lowerbound
         case GT if e.second.equals(itervar) =>
-          cb.appendInvariant(rewrite(e))
           lowerbounds ++= Set(create.expression(Plus, e.first, create.constant(1))) // Lowerbound
         case GTE if e.first.equals(itervar) =>
-          cb.appendInvariant(rewrite(e))
           lowerbounds ++= Set(e.second) // Lowerbound
         case GTE if e.second.equals(itervar) =>
-          cb.appendInvariant(rewrite(e))
           upperbounds ++= Set(e.first) // Upperbound
         case LT if e.first.equals(itervar) =>
-          cb.appendInvariant(rewrite(e))
           upperbounds ++= Set(create.expression(Minus, e.second, create.constant(1))) // Upperbound
         case LTE if e.first.equals(itervar) =>
-          cb.appendInvariant(rewrite(e))
           upperbounds ++= Set(e.second) // Upperbound
         case GT if e.first.equals(itervar) =>
-          cb.appendInvariant(rewrite(e))
           upperbounds ++= Set(create.expression(Minus, e.second, create.constant(1))) // Upperbound
 
-        case _ => cb.appendInvariant(rewrite(e))
+        case _ =>
       }
-      case default => cb.appendInvariant(rewrite(default))
+      case default =>
     }
 
     if (lowerbounds.size > 1) {
@@ -296,7 +272,7 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
     val a = lowerbounds.head
     val b = upperbounds.head
 
-    Option((a, b, cb.getContract(false)))
+    Option((a, b))
   }
 
 }
