@@ -13,7 +13,7 @@ import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, KernelInvocationToMethodInvocation, RewriteWithThen, StripUnusedExtern}
+import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -441,11 +441,6 @@ object Passes {
       ),
       removes=Set(features.NoLockInvariantProof),
     ),
-    SimplePass(
-      "kernelInvocationToMethodInvocation", "Translate CUDA kernel invocation to regular method invocations",
-      KernelInvocationToMethodInvocation(_).rewriteAll(),
-      removes=Set(features.KernelInvocations),
-    )
   )
 
   val ONE_SHOT_FEATURE = Seq(
@@ -657,13 +652,14 @@ object Passes {
         features.NotJavaResolved,
         features.NotStandardized,
       ),
-      removes=Set(features.TypeExpressions),
+      removes=Set(features.TypeExpressions, features.KernelInvocations),
       introduces=Feature.DEFAULT_INTRODUCE ++ Set(
         features.ParallelBlocks,
         features.GivenYields,
         features.MemberOfRange,
         features.QuantifierWithoutTriggers,
         features.NestedQuantifiers,
+        features.BeforeAfter,
       )
     ),
     SimplePass(

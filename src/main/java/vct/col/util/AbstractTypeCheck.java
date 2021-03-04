@@ -810,6 +810,22 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       e.setType(new PrimitiveType(PrimitiveSort.Resource));
       return;
     }
+
+    if(e.isa(StandardOperator.StructSelect)) {
+      boolean leftKernelVar = false;
+
+      for(String kernelVar : new String[]{"blockIdx", "threadIdx", "threadDim"}) {
+        if(e.arg(0).isName(kernelVar)) {
+          leftKernelVar = true;
+        }
+      }
+
+      if(leftKernelVar && e.arg(1).isName("x")) {
+        e.setType(new PrimitiveType(PrimitiveSort.Integer));
+        return;
+      }
+    }
+
     super.visit(e);
 
     ASTNode[] operatorArgs = e.argsJava().toArray(new ASTNode[0]);
