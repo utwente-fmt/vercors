@@ -80,6 +80,14 @@ public class StringListSetting implements Iterable<String> {
   }
 
   /**
+   * Test whether the list is empty.
+   * @return
+   */
+  public boolean isEmpty() {
+    return list.isEmpty();
+  }
+
+  /**
    * Test is an item is present in the list.
    * @param item Item.
    * @return

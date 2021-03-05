@@ -196,23 +196,20 @@ object Passes {
   )
 
   val GPUOPTIMIZATIONS: Seq[AbstractPass] = Seq(
-    SimplePass("unroll_loops",
+    SimplePass("unrollLoops",
       "Unroll specified loops",
       new LoopUnroll(_).rewriteAll,
-      permits=Feature.ALL,
-      removes=Set(),
+      permits=Set.empty,
     ),
-    SimplePass("matrix_lin",
+    SimplePass("linearizeMatrices",
       "Linearize matrices",
       new MatrixLinearization(_).rewriteAll,
-      permits=Feature.ALL,
-      removes=Set(),
+      permits=Set.empty,
     ),
-    SimplePass("iteration_merge",
+    SimplePass("mergeLoopIterations",
       "Merge Iterations",
       new IterationMerging(_).rewriteAll,
-      permits=Feature.ALL,
-      removes=Set(),
+      permits=Set.empty,
     ),
   )
 

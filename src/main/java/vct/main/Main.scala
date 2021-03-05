@@ -202,6 +202,29 @@ class Main {
       report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
   }
 
+  private def collectPassesForGPUOpts: Seq[AbstractPass] = {
+    var passes = Seq(Passes.BY_KEY("splitCompositeDeclarations"), Passes.BY_KEY("checkTypesJava"))
+    if (Configuration.gpu_optimizations.contains(GPUOptName.MatrixLinearization.toString)) {
+      passes ++= Seq(Passes.BY_KEY("linearizeMatrices"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+    }
+    if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
+      passes ++= Seq(Passes.BY_KEY("unrollLoops"))
+      //TODO OS, remove the printPVL call below, it is there for debug purposes
+      //passes ++= Passes.BY_KEY("printPVL")
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+      passes ++= collectPassesForSilver
+    }
+    if (Configuration.gpu_optimizations.contains(GPUOptName.IterationMerging.toString)) {
+      passes ++= Seq(Passes.BY_KEY("mergeLoopIterations"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+    }
+    if (!Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
+      passes ++= Seq(Passes.BY_KEY("printPVL"))
+    }
+    passes
+  }
+
   private def collectPassesForBoogie: Seq[AbstractPass] = {
     var passes = Seq(
       BY_KEY("loadExternalClasses"), // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
@@ -409,38 +432,7 @@ class Main {
   }
 
   def collectPassesForSilver: Seq[AbstractPass] = {
-    //TODO do we still need this?
-//    if (Configuration.session_file.get() != null) {
-//      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
-//    }
-
     report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
-
-    if (Configuration.gpu_optimizations.contains(GPUOptName.MatrixLinearization.toString)) {
-      report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
-      report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
-      report = Passes.BY_KEY("matrix_lin").apply_pass(report, Array())
-//      show(Passes.BY_KEY("matrix_lin"))
-      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
-      return Seq.empty;
-    }
-    if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
-      report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
-      report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
-      report = Passes.BY_KEY("unroll_loops").apply_pass(report, Array())
-//      show(Passes.BY_KEY("unroll_loops"))
-      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
-      report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
-      //      return Seq.empty;
-    }
-    if (Configuration.gpu_optimizations.contains(GPUOptName.IterationMerging.toString)) {
-      report = Passes.BY_KEY("splitCompositeDeclarations").apply_pass(report, Array())
-      report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
-      report = Passes.BY_KEY("iteration_merge").apply_pass(report, Array())
-      report = Passes.BY_KEY("printPVL").apply_pass(report, Array())
-      return Seq.empty;
-    }
-
 
     var features = Feature.scan(report.getOutput) ++ Set(
       // These are "gated" features: they are (too) hard to detect normally.
@@ -469,7 +461,12 @@ class Main {
     if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
-    computeGoal(features).get
+    var passes = computeGoal(features).get
+
+    if (!Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.name()))
+      passes = passes :+ BY_KEY("printPVL")
+
+    passes
   }
 
   private def getPasses: Seq[AbstractPass] = {
@@ -479,6 +476,7 @@ class Main {
         case Some(pass) => pass
       }).toSeq
     }
+    else if (!Configuration.gpu_optimizations.isEmpty) collectPassesForGPUOpts
     else if (boogie.get) collectPassesForBoogie
     else if (dafny.get) collectPassesForDafny
     else if (silver.used || chalice.get) collectPassesForSilver
