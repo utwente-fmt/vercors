@@ -22,16 +22,4 @@ class LoopUnrolling {
 		}
 	}
 
-	requires 1 != 1;
-	ensures 1 != 1;
-	void someRandomMethod() {
-	    boolean asdf;
-	}
-}
-class Plz {
-	requires 1 != 1;
-	ensures 1 != 1;
-	void someRandomMethod() {
-	    boolean asdf;
-	}
 }

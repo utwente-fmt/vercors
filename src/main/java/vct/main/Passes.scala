@@ -11,7 +11,7 @@ import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.rewrite.gpgpuoptimizations.{IterationMerging, LoopUnroll, MatrixLinearization}
+import vct.col.rewrite.gpgpuoptimizations.{GlobalToRegister, IterationMerging, LoopUnroll, MatrixLinearization}
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
@@ -205,7 +205,8 @@ object Passes {
       "Prints the gpu optimized PVL file",
       arg => {
           if (Configuration.gpuopt_output_file.get() == null) {
-            Warning("No output file specified for gpu optimalizations.")
+            Warning("No output file generated for  gpgpu optimalizations.")
+            Warning("To output the optimized program to a file, use the --encoded-gpuopt flag.")
           } else {
             try {
               val f = new File(Configuration.gpuopt_output_file.get());
@@ -238,6 +239,11 @@ object Passes {
     SimplePass("mergeLoopIterations",
       "Merge Iterations",
       new IterationMerging(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("globalMemoryLocToRegister",
+      "Pull information from global memory locations to registers",
+      new GlobalToRegister(_).rewriteAll,
       permits=Set.empty,
     ),
   )

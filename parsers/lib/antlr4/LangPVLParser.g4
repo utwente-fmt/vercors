@@ -287,6 +287,7 @@ gpuOptimization
  : 'loop_unroll'
  | 'matrix_lin'
  | 'iter_merge'
+ | 'glob_to_reg'
  ;
 
 nonArrayType

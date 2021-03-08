@@ -529,7 +529,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
   @Override
   public void visit(GPUOpt opt) {
-    if (opt.argsJava().size() != opt.name().getArity()) {
+    //TODO OS check whether we need to skip DataLocation after rewriting grammar
+    if (opt.name() == GPUOptName.DataLocation && opt.args().size() < 2) {
+      Fail("The optimization expects %s arguments, but got  at %s", opt.name().getArity(), opt.argsJava().size(), opt.getOrigin());
+    } else if (opt.name() != GPUOptName.DataLocation && opt.argsJava().size() != opt.name().getArity()) {
       Fail("The optimization expects %s arguments, but got  at %s", opt.name().getArity(), opt.argsJava().size(), opt.getOrigin());
     }
 
@@ -576,6 +579,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           Fail("%s is not an argument nor a local variable at %s", opt.argsJava().get(0), opt.argsJava().get(0).getOrigin());
         }
 
+        break;
+      case DataLocation:
+        //TODO OS check whether we need to skip DataLocation after rewriting grammar
         break;
       default:
         Fail("Unsupported optimization %s", opt.name().toString());
@@ -661,14 +667,20 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     if (m.getGpuOpts() != null) {
-      //TODO matlin must have unique names.
-      List<GPUOptName> gpuOptNames = m.getGpuOpts().stream().map(GPUOpt::name).filter(on -> on != GPUOptName.MatrixLinearization).collect(Collectors.toList());
+      //TODO OS matlin must have unique names.
+      List<GPUOptName> gpuOptNames = m.getGpuOpts()
+              .stream()
+              .map(GPUOpt::name)
+              .filter(on -> on != GPUOptName.MatrixLinearization)
+              .filter(on -> on != GPUOptName.DataLocation)
+              .collect(Collectors.toList());
       if (gpuOptNames.size() != new HashSet<>(gpuOptNames).size()) {
         Fail("Some optimizations are defined multiple times at %s", m.getOrigin());
       }
 
       Map<ASTNode, Long> matlins = m.getGpuOpts().stream()
               .filter(on -> on.name() == GPUOptName.MatrixLinearization)
+              .filter(on -> on.name() == GPUOptName.DataLocation)
               .map(on -> on.argsJava().get(0))
               .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
       for (ASTNode k: matlins.keySet()) {

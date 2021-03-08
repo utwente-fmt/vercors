@@ -643,6 +643,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case GpuOptimization0(name) => GPUOptName.LoopUnroll
         case GpuOptimization1(name) => GPUOptName.MatrixLinearization
         case GpuOptimization2(name) => GPUOptName.IterationMerging
+        case GpuOptimization3(name) => GPUOptName.DataLocation
         case _ => fail(tree, "unsupported optimization")
       },
       maybeExprSeq.map(convertExpSeq).get.asJava

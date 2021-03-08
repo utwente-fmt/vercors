@@ -139,7 +139,7 @@ public class Configuration {
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
         clops.add(session_file.getAssign("generate threads from session type"),"session");
-        clops.add(gpuopt_output_file.getAssign("filename for storing the gpu optimized program"),"gpuoptout");
+        clops.add(gpuopt_output_file.getAssign("filename for storing the gpu optimized program"),"encoded-gpuopt");
         clops.add(gpu_optimizations.getAppendOption("perform gpu optimizations"),"gpuopt");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
         clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");

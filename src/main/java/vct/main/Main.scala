@@ -218,9 +218,11 @@ class Main {
       passes ++= Seq(Passes.BY_KEY("mergeLoopIterations"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
-    if (!Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
-      passes ++= Seq(Passes.BY_KEY("printGpuOptOut"))
+    if (Configuration.gpu_optimizations.contains(GPUOptName.DataLocation.toString)) {
+      passes ++= Seq(Passes.BY_KEY("globalMemoryLocToRegister"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
+    passes ++= Seq(Passes.BY_KEY("printGpuOptOut"))
     passes
   }
 
@@ -461,9 +463,6 @@ class Main {
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
     var passes = computeGoal(features).get
-
-    if (!Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.name()))
-      passes = passes :+ BY_KEY("printGpuOptOut")
 
     passes
   }

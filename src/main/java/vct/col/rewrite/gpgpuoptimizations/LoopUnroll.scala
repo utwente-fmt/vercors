@@ -397,7 +397,7 @@ case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean =
 
       val methodCheck = create.method_kind(
         //TODO OS this should be done differently, an errormapping has to be added to ErrorMap. The line below is for testing purposes
-        new CompositeOrigin(new MessageOrigin("Could not prove unroll for this loop"), s.getGpuopt.getOrigin),
+//        new CompositeOrigin(new MessageOrigin("Could not prove unroll for this loop"), s.getGpuopt.getOrigin),
         current_method().kind,
         create.primitive_type(PrimitiveSort.Void),
         Array.empty[Type],

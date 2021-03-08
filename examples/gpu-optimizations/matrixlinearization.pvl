@@ -1,8 +1,7 @@
 class MatrixRepOrig
 {
 
-  //gpuopt matrix_lin matrix C M N;
-  gpuopt tblock_lin threads C;
+  gpuopt matrix_lin matrix C M N;
 
   context_everywhere matrix != null;
   context_everywhere matrix.length == M * N;
@@ -10,43 +9,11 @@ class MatrixRepOrig
   ensures (\forall* int i; i >= 0 && i < M; (\forall* int j; j >= 0 && j < N; matrix[i][j] == \old(matrix[i][j]) + 1));
   void matrix_representation(int[M][N] matrix, int M, int N)
   {
-
-    // Parallel block with two int DeclStatements.
-    // First one is row index, second one is column index
-    par threads (int tidY = 0 .. N, int tidX = 0 .. M)
+    par threads (int tidX = 0 .. M, int tidY = 0 .. N)
     context Perm(matrix[tidX][tidY], 1);
     ensures matrix[tidX][tidY] == \old(matrix[tidX][tidY]) + 1;
     {
        matrix[tidX][tidY] = matrix[tidX][tidY] + 1;
     }
   }
-
-
-
-
-
-
-
-
-
-
-  //gpuopt matrix_lin matrix R M N;
-
-//  context_everywhere matrix != null;
-//  context_everywhere matrix.length == M * N;
-//  context (\forall* int l; l >= 0 && l < M*N; Perm(matrix[l%N][l/N], 1));
-//  ensures (\forall* int l; l >= 0 && l < M*N; matrix[l%N][l/N] == \old(matrix[l%N][l/N]) + 1);
-//  void matrix_representation(int[M][N] matrix, int M, int N)
-//  {
-//
-//    par threads (int k = 0 .. M*N)
-//    context Perm(matrix[k%N][k/N], 1);
-//    ensures matrix[k%N][k/N] == \old(matrix[k%N][k/N]) + 1;
-//    {
-//       matrix[k%N][k/N] = matrix[k%N][k/N] + 1;
-//    }
-//  }
-
-
 }
-

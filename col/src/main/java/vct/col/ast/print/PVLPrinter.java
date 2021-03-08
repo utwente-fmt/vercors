@@ -827,7 +827,8 @@ public class PVLPrinter extends AbstractPrinter{
                 || (s instanceof LoopStatement)
                 || (s instanceof ASTSpecial)
                 || (s instanceof DeclarationStatement)
-                || (s instanceof ParallelRegion);
+                || (s instanceof ParallelRegion)
+                || (s instanceof ParallelBarrier);
     }
 
     public void visit(AssignmentStatement s){
@@ -1295,6 +1296,7 @@ public class PVLPrinter extends AbstractPrinter{
     public void visit(ParallelBlock pb){
 
         int j = 0;
+        out.printf(pb.label());
         out.printf("(");
         for (DeclarationStatement iter : pb.itersJava()) {
             if (j > 0) out.printf(",");
@@ -1326,17 +1328,22 @@ public class PVLPrinter extends AbstractPrinter{
         if (pb.contract() == null) {
             Fail("parallel barrier with null contract!");
         } else {
-            out.printf("barrier(%s;%s){", pb.label(), pb.invs());
-            out.println("");
-            out.incrIndent();
-            visit(pb.contract());
-            out.decrIndent();
-            if (pb.body() == null ) {
-                out.println("{ }");
+            //TODO OS what does pb.invs() do. For now we remove it
+//            out.printf("barrier(%s;%s){", pb.label(), pb.invs());
+            out.printf("barrier(%s)", pb.label());
+            if (pb.body() == null) {
+                out.println(" { ");
+                out.incrIndent();
+                visit(pb.contract());
+                out.decrIndent();
+                out.println("}");
             } else {
+                out.newline();
+                out.incrIndent();
+                visit(pb.contract());
+                out.decrIndent();
                 pb.body().accept(this);
             }
-
         }
     }
     @Override
@@ -1349,11 +1356,10 @@ public class PVLPrinter extends AbstractPrinter{
     }
     @Override
     public void visit(ParallelRegion region){
+        out.println("par");
+
         if (region.contract() != null) {
-            out.println("par");
             region.contract().accept(this);
-        } else {
-            out.println("par");
         }
         for (ParallelBlock pb : region.blocksJava()) {
             out.incrIndent();
