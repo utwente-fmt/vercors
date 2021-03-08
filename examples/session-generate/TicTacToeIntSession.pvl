@@ -1,0 +1,233 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases TicTacToeInt
+//:: tools silicon
+//:: verdict Pass
+
+class Grid {
+
+	int c00, c01, c02, c10, c11, c12, c20, c21, c22;
+	int token;
+	int movei, movej;
+	int moveToken;
+	boolean turn;
+	
+	requires tok == 0 || tok == 1;
+	ensures Perm(c00, 1) ** Perm(c01, 1) ** Perm(c02, 1) ** 
+			Perm(c10, 1) ** Perm(c11, 1) ** Perm(c12, 1) ** 
+			Perm(c20, 1) ** Perm(c21, 1) ** Perm(c22, 1);
+	ensures c00 == -1 && c01 == -1 && c02 == -1 && 
+			c10 == -1 && c11 == -1 && c12 == -1 && 
+			c20 == -1 && c21 == -1 && c22 == -1;
+	ensures Perm(token,1\2);
+	ensures Perm(movei, 1) ** Perm(movej, 1) ** Perm(moveToken, 1);
+	ensures token == tok;
+	ensures token == 0 || token == 1;
+	ensures Perm(turn,1) ** turn == t;
+	Grid(int tok, boolean t) {
+		c00 = -1;
+		c01 = -1;
+		c02 = -1;
+		c10 = -1;
+		c11 = -1;
+		c12 = -1;
+		c20 = -1;
+		c21 = -1;
+		c22 = -1;
+		token = tok;
+		turn = t;
+	}
+
+	context Perm(c00, 1\2) ** Perm(c01, 1\2) ** Perm(c02, 1\2) ** 
+			Perm(c10, 1\2) ** Perm(c11, 1\2) ** Perm(c12, 1\2) ** 
+			Perm(c20, 1\2) ** Perm(c21, 1\2) ** Perm(c22, 1\2);
+	requires 0 <= i && i <= 2;
+	requires 0 <= j && j <= 2;
+	int readCell(int i, int j) {
+		if(i == 0 && j == 0) {
+			return c00;
+		} else if(i == 0 && j == 1) {
+			return c01;
+		} else if(i == 0 && j == 2) {
+			return c02;
+		} else if(i == 1 && j == 0) {
+			return c10;
+		} else if(i == 1 && j == 1) {
+			return c11;
+		} else if(i == 1 && j == 2) {
+			return c12;
+		} else if(i == 2 && j == 0) {
+			return c20;
+		} else if(i == 2 && j == 1) {
+			return c21;
+		} else if(i == 2 && j == 2) {
+			return c22;
+		}
+	}
+	
+	context Perm(c00, 1) ** Perm(c01, 1) ** Perm(c02, 1) ** 
+			Perm(c10, 1) ** Perm(c11, 1) ** Perm(c12, 1) ** 
+			Perm(c20, 1) ** Perm(c21, 1) ** Perm(c22, 1);
+	context Perm(movei, 1\2) ** Perm(movej, 1\2) ** Perm(moveToken, 1\2);
+	context 0 <= movei && movei <= 2;
+	context 0 <= movej && movej <= 2;
+	requires moveToken == 0 || moveToken == 1;
+	requires pureReadCell(movei,movej,c00, c01, c02, c10, c11, c12, c20, c21, c22) == -1;
+	ensures pureReadCell(movei,movej,c00, c01, c02, c10, c11, c12, c20, c21, c22) == moveToken;
+	ensures movei != 0 || movej != 0 ==> \old(c00) == c00;
+	ensures movei != 0 || movej != 1 ==> \old(c01) == c01;
+	ensures movei != 0 || movej != 2 ==> \old(c02) == c02;
+	ensures movei != 1 || movej != 0 ==> \old(c10) == c10;
+	ensures movei != 1 || movej != 1 ==> \old(c11) == c11;
+	ensures movei != 1 || movej != 2 ==> \old(c12) == c12;
+	ensures movei != 2 || movej != 0 ==> \old(c20) == c20;
+	ensures movei != 2 || movej != 1 ==> \old(c21) == c21;
+	ensures movei != 2 || movej != 2 ==> \old(c22) == c22;			
+	void doMove() {
+		if(movei == 0 && movej == 0) {
+			c00 = moveToken;
+		} else if(movei == 0 && movej == 1) {
+			c01 = moveToken;
+		} else if(movei == 0 && movej == 2) {
+			c02 = moveToken;
+		} else if(movei == 1 && movej == 0) {
+			c10 = moveToken;
+		} else if(movei == 1 && movej == 1) {
+			c11 = moveToken;
+		} else if(movei == 1 && movej == 2) {
+			c12 = moveToken;
+		} else if(movei == 2 && movej == 0) {
+			c20 = moveToken;
+		} else if(movei == 2 && movej == 1) {
+			c21 = moveToken;
+		} else if(movei == 2 && movej == 2) {
+			c22 = moveToken;
+		}
+	}
+
+	requires 0 <= i && i <= 2;
+	requires 0 <= j && j <= 2;
+	pure static int pureReadCell(int i, int j, int c00, int c01, int c02, int c10, int c11, int c12, int c20, int c21, int c22) =
+		(i == 0 && j == 0) ? c00
+		: (i == 0 && j == 1) ? c01
+		: (i == 0 && j == 2) ? c02 
+		: (i == 1 && j == 0) ? c10
+		: (i == 1 && j == 1) ? c11
+		: (i == 1 && j == 2) ? c12
+		: (i == 2 && j == 0) ? c20
+		: (i == 2 && j == 1) ? c21
+		: c22;
+		
+	pure static boolean gridFull(int c00, int c01, int c02, int c10, int c11, int c12, int c20, int c21, int c22) =
+		c00== -1 && c01== -1 && c02== -1 && 
+		c10== -1 && c11== -1 && c12== -1 && 
+		c20== -1 && c21== -1 && c22 == -1;
+		
+	pure static boolean gridWin(int c00, int c01, int c02, int c10, int c11, int c12, int c20, int c21, int c22) =
+		c00 != -1 && c00 == c01 && c01 == c02 ||
+		c10 != -1 && c10 == c11 && c11 == c12 ||
+		c20 != -1 && c20 == c21 && c21 == c22 ||
+		c00 != -1 && c00 == c10 && c10 == c20 ||
+		c01 != -1 && c01 == c11 && c11 == c21 ||
+		c02 != -1 && c02 == c12 && c12 == c22 ||
+		c00 != -1 && c00 == c11 && c11 == c22 ||
+		c02 != -1 && c02 == c11 && c11 == c20;
+	
+	pure static boolean gameFinished(int c00, int c01, int c02, int c10, int c11, int c12, int c20, int c21, int c22) =
+		gridFull(c00, c01, c02, c10, c11, c12, c20, c21, c22) ||
+		gridWin(c00, c01, c02, c10, c11, c12, c20, c21, c22);
+		
+	context Perm(movei,1) ** Perm(movej,1) ** Perm(moveToken, 1) ** Perm(token, 1\2);
+	context Perm(c00, 1\2) ** Perm(c01, 1\2) ** Perm(c02, 1\2) ** 
+			Perm(c10, 1\2) ** Perm(c11, 1\2) ** Perm(c12, 1\2) ** 
+			Perm(c20, 1\2) ** Perm(c21, 1\2) ** Perm(c22, 1\2);
+	ensures 0 <= movei && movei <= 2;
+	ensures 0 <= movej && movej <= 2;
+	requires token == 0 || token == 1;
+	ensures moveToken == token;
+	ensures moveToken == 0 || moveToken == 1;
+	ensures token == \old(token);
+	requires !gridFull(c00, c01, c02, c10, c11, c12, c20, c21, c22);
+	ensures pureReadCell(movei,movej,c00, c01, c02, c10, c11, c12, c20, c21, c22) == -1;
+	void createNewMove();
+	
+	context Perm(movei,1) ** Perm(movej,1) ** Perm(moveToken, 1) ** Perm(token, 1\2);
+	context Perm(c00, 1\2) ** Perm(c01, 1\2) ** Perm(c02, 1\2) ** 
+			Perm(c10, 1\2) ** Perm(c11, 1\2) ** Perm(c12, 1\2) ** 
+			Perm(c20, 1\2) ** Perm(c21, 1\2) ** Perm(c22, 1\2);
+	requires 0 <= i && i <= 2;
+	requires 0 <= j && j <= 2;
+	requires tok == 0 || tok == 1;
+	ensures moveToken == tok;
+	ensures movei == i && movej == j;
+	ensures token == \old(token);
+	context !gridFull(c00, c01, c02, c10, c11, c12, c20, c21, c22);
+	context pureReadCell(i,j,c00, c01, c02, c10, c11, c12, c20, c21, c22) == -1;
+	void setMove(int i, int j, int tok);
+	
+}
+
+class Main {
+	
+	Grid P1,P2;
+	
+	Main() {
+		P1 = new Grid(0,true);
+		P2 = new Grid(1,false);	
+	}
+	
+	context Perm(P1,read) ** Perm(P2,read);
+	context Perm(P1.c00, 1) ** Perm(P1.c01, 1) ** Perm(P1.c02, 1) ** 
+					   Perm(P1.c10, 1) ** Perm(P1.c11, 1) ** Perm(P1.c12, 1) ** 
+					   Perm(P1.c20, 1) ** Perm(P1.c21, 1) ** Perm(P1.c22, 1);
+	context Perm(P2.c00, 1) ** Perm(P2.c01, 1) ** Perm(P2.c02, 1) ** 
+				   Perm(P2.c10, 1) ** Perm(P2.c11, 1) ** Perm(P2.c12, 1) ** 
+				   Perm(P2.c20, 1) ** Perm(P2.c21, 1) ** Perm(P2.c22, 1);
+	context Perm(P1.movei,1) ** Perm(P1.movej,1) ** Perm(P1.moveToken, 1) ** Perm(P1.token, 1\2);
+	context Perm(P2.movei,1) ** Perm(P2.movej,1) ** Perm(P2.moveToken, 1) ** Perm(P2.token, 1\2);
+	context equalGrids(P1.c00, P1.c01, P1.c02, P1.c10, P1.c11, P1.c12, P1.c20, P1.c21, P1.c22,
+						  P2.c00, P2.c01, P2.c02, P2.c10, P2.c11, P2.c12, P2.c20, P2.c21, P2.c22);
+	context Perm(P1.turn,1) ** Perm(P2.turn,1);
+	context P1.token == 0;
+	context P2.token == 1;				  
+	context P1.turn != P2.turn;
+	void run() {	  
+		
+		loop_invariant Perm(P1,read) ** Perm(P2,read);
+		loop_invariant Perm(P1.c00, 1) ** Perm(P1.c01, 1) ** Perm(P1.c02, 1) ** 
+					   Perm(P1.c10, 1) ** Perm(P1.c11, 1) ** Perm(P1.c12, 1) ** 
+					   Perm(P1.c20, 1) ** Perm(P1.c21, 1) ** Perm(P1.c22, 1);
+		loop_invariant Perm(P2.c00, 1) ** Perm(P2.c01, 1) ** Perm(P2.c02, 1) ** 
+					   Perm(P2.c10, 1) ** Perm(P2.c11, 1) ** Perm(P2.c12, 1) ** 
+					   Perm(P2.c20, 1) ** Perm(P2.c21, 1) ** Perm(P2.c22, 1);
+	    loop_invariant Perm(P1.movei,1) ** Perm(P1.movej,1) ** Perm(P1.moveToken, 1) ** Perm(P1.token, 1\2);
+	    loop_invariant Perm(P2.movei,1) ** Perm(P2.movej,1) ** Perm(P2.moveToken, 1) ** Perm(P2.token, 1\2);
+	    loop_invariant Perm(P1.turn,1) ** Perm(P2.turn,1);
+	    loop_invariant equalGrids(P1.c00, P1.c01, P1.c02, P1.c10, P1.c11, P1.c12, P1.c20, P1.c21, P1.c22,
+						  P2.c00, P2.c01, P2.c02, P2.c10, P2.c11, P2.c12, P2.c20, P2.c21, P2.c22);
+//		loop_invariant Grid.gameFinished(P1.c00, P1.c01, P1.c02, P1.c10, P1.c11, P1.c12, P1.c20, P1.c21, P1.c22) 
+//				== Grid.gameFinished(P2.c00, P2.c01, P2.c02, P2.c10, P2.c11, P2.c12, P2.c20, P2.c21, P2.c22);
+		loop_invariant P1.token == 0;
+		loop_invariant P2.token == 1;
+		loop_invariant P1.turn != P2.turn;
+		while(!Grid.gameFinished(P1.c00, P1.c01, P1.c02, P1.c10, P1.c11, P1.c12, P1.c20, P1.c21, P1.c22) 
+				&& !Grid.gameFinished(P2.c00, P2.c01, P2.c02, P2.c10, P2.c11, P2.c12, P2.c20, P2.c21, P2.c22)) {
+			if(P1.turn && !P2.turn) {
+				P1.createNewMove();
+				P2.setMove(P1.movei, P1.movej, P1.moveToken);
+			} else {
+				P2.createNewMove();
+				P1.setMove(P2.movei, P2.movej, P2.moveToken);
+			}
+			P1.doMove();
+			P2.doMove();
+			P1.turn = !P1.turn;
+			P2.turn = !P2.turn;
+		}
+	}
+	
+	pure static boolean equalGrids(int c00, int c01, int c02, int c10, int c11, int c12, int c20, int c21, int c22,
+								   int d00, int d01, int d02, int d10, int d11, int d12, int d20, int d21, int d22) =
+		c00 == d00 && c01 == d01 && c02 == d02 && 
+		c10 == d10 && c11 == d11 && c12 == d12 && 
+		c20 == d20 && c21 == d21 && c22 == d22;
+}

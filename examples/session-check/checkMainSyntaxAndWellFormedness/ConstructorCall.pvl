@@ -13,7 +13,7 @@ class Main {
 	}
 	
 	void run() {
-		Main();
+		new Main();
 	}
 
 }

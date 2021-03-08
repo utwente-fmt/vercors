@@ -1,0 +1,20 @@
+//:: cases RoleFieldAssignment
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+	Role a;
+	
+	Main() {
+		a = new Role();
+	}
+	
+	void run() {
+		a = new Role();
+	}
+
+}
+
+class Role {
+
+}

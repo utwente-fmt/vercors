@@ -13,7 +13,7 @@ class Main {
 	}
 	
 	void run() {
-		Role(5);
+		new Role(5);
 	}
 
 }
