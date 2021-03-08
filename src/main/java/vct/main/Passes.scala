@@ -935,7 +935,7 @@ object Passes {
   //    new SessionLockCommitRepair(_).rewriteAll),
     SimplePass("sessionStructCheck", "check that provided program conforms to session syntax restriction",
       arg => {
-        SessionStructureCheck.check(arg)
+        new SessionStructureCheck(arg).check()
         arg
       }),
     SimplePass("sessionTerminationCheck", "check for assuring that all roles and other methods, and all calls to pure functions lack any non-terminating statements",

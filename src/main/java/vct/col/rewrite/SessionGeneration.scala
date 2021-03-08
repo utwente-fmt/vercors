@@ -16,7 +16,7 @@ import scala.collection.JavaConversions._
 
 class SessionGeneration(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
-  private val roleObjects : Array[AssignmentStatement] = SessionStructureCheck.getRoleObjects(source)
+  private val roleNames : Iterable[String] = SessionStructureCheck.getRoleNames(source)
   private val mainClass = SessionStructureCheck.getMainClass(source)
   private var roleName : String = "Error No Role Name!"
 
@@ -24,15 +24,15 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
 
   def addThreadClasses() : ProgramUnit = {
     source.get().filter(_.name != mainClassName).foreach(target().add(_))
-    roleObjects.foreach(role => {
+    roleNames.foreach(role => {
       target().add(createThreadClass(role))
     })
     target()
   }
 
-  private def createThreadClass(role : AssignmentStatement) = {
+  private def createThreadClass(role : String) = {
     create.enter()
-    roleName = role.location.asInstanceOf[NameExpression].name
+    roleName = role
     chans = Set()
     create.setOrigin(new MessageOrigin("Generated thread class " + roleName))
     val threadName = getThreadClassName(roleName)
