@@ -369,7 +369,7 @@ literal
     |   FloatingPointLiteral
     |   CharacterLiteral
     |   StringLiteral
-    |   BooleanLiteral
+    |   (True|False)
     |   'null'
     ;
 
@@ -573,7 +573,8 @@ constantExpression
     ;
 
 expression
-    :   primary
+    :   {specLevel>0}? valPrimary
+    |   primary
     |   expression '.' javaIdentifier
     |   expression '.' 'this'
     |   expression '.' 'new' nonWildcardTypeArguments? innerCreator
@@ -581,7 +582,7 @@ expression
     |   expression '.' explicitGenericInvocation
     |   expression '[' expression ']'
     |   expression '->' javaIdentifier arguments
-    |   expression predicateEntryType? arguments valEmbedWithThen?
+    |   expression '.' javaIdentifier predicateEntryType? arguments valEmbedWithThen?
     |   'new' creator valEmbedWithThen?
     |   '(' type ')' expression
     |   expression ('++' | '--')
@@ -640,10 +641,10 @@ primary
     |   'super'
     |   literal
     |   javaIdentifier
+    |   javaIdentifier predicateEntryType? arguments valEmbedWithThen?
     |   type '.' 'class'
     |   'void' '.' 'class'
     |   nonWildcardTypeArguments constructorCall
-    |   {specLevel>0}? valPrimary
 	;
 
 constructorCall

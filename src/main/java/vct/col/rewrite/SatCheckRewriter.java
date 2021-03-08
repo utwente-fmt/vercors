@@ -89,7 +89,9 @@ public class SatCheckRewriter extends AbstractRewriter {
 
             // Create method that will serve as a proof obligation for the satisfiability of the contract
             Method assert_method = create.method_kind(
-                    m.getKind(),
+                    // The name of constructors is not always considered, so it may not overlap there. Hence the method
+                    // generated is always plain.
+                    Method.Kind.Plain,
                     rewrite(m.getReturnType()),
                     rewrite(skimContract(m.getContract())),
                     "__contract_unsatisfiable__" + m.name(),
@@ -98,9 +100,15 @@ public class SatCheckRewriter extends AbstractRewriter {
                     blockStatement
             );
 
+            assert_method.copyMissingFlags(m);
             blockStatement.setParent(assert_method);
 
-            currentTargetClass.add(assert_method);
+            if(currentTargetClass == null) {
+                assert_method.setStatic(true);
+                target().add(assert_method);
+            } else {
+                currentTargetClass.add(assert_method);
+            }
         }
     }
 

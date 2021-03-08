@@ -1,11 +1,13 @@
 package vct.col.rewrite
 
 import vct.col.ast.`type`.Type
+import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.expr.{NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.langspecific.c._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, ProgramUnit}
+import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.FeatureScanner
 
@@ -142,12 +144,26 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       case other => other
     }
 
-    updateStatement match {
-      case incr: OperatorExpression if Set(StandardOperator.PostIncr, StandardOperator.PreIncr).contains(incr.operator) =>
-        if (!incr.arg(0).isName(name)) {
-          return None
-        }
+    val incremented: NameExpression = updateStatement match {
+      case OperatorExpression(StandardOperator.PostIncr, List(incrName: NameExpression)) => incrName
+      case OperatorExpression(StandardOperator.PreIncr, List(incrName: NameExpression)) => incrName
+      case OperatorExpression(StandardOperator.AddAssign,
+        List(incrName: NameExpression, ConstantExpression(IntegerValue(1)))
+      ) => incrName
+      case OperatorExpression(StandardOperator.Assign, List(
+        incrName: NameExpression,
+        OperatorExpression(StandardOperator.Plus, List(otherName: NameExpression, ConstantExpression(IntegerValue(1))))
+      )) if incrName == otherName => incrName
+      case assign: AssignmentStatement => assign.expression match {
+        case OperatorExpression(StandardOperator.Plus, List(otherName: NameExpression, ConstantExpression(IntegerValue(1))))
+          if assign.location == otherName => otherName
+        case _ => return None
+      }
       case _ => return None
+    }
+
+    if(incremented.name != name) {
+      return None
     }
 
     // The variable must be in the range {start..end}

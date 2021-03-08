@@ -8,7 +8,7 @@ for f in "$@" ; do
   case "$f" in
     *.pvl)
       echo "compiling $f"
-      $BIN/run-class vct.main.Main --passes=pvl-compile,codegen=. "$f"
+      $BIN/run-class vct.main.Main --passes=compileToJava,printJavaToFile "$f"
       tmp=`echo $f | sed 's/pvl/java/'`
       JAVA_FILES="$JAVA_FILES $tmp"
     ;;

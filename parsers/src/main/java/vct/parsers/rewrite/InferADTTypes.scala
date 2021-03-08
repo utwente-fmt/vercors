@@ -25,7 +25,7 @@ class InferADTTypes(source: ProgramUnit) extends AbstractRewriter(source, true) 
       v.`type`.firstarg.asInstanceOf[TypeVariable].name == InferADTTypes.typeVariableName
     ) {
       // If the inference succeeded in the type checker, then the type should be v.getType
-      result = create.struct_value(create.primitive_type(v.`type`.asInstanceOf[PrimitiveType].sort, v.getType.firstarg), null, v.values: _*)
+      result = create.struct_value(create.primitive_type(v.`type`.asInstanceOf[PrimitiveType].sort, v.getType.firstarg), null, rewrite(v.valuesArray):_*)
     } else {
       super.visit(v)
     }

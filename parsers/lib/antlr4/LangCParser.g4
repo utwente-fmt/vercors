@@ -31,7 +31,10 @@ parser grammar C;
 import LangOMPParser, LangGPGPUParser;
 
 primaryExpression
-    :   clangIdentifier
+    /* valPrimary has to be before even identifier, so we consume `reserved arguments` instead of greedily matching
+     * the identifier first. */
+    :   {specLevel>0}? valPrimary
+    |   clangIdentifier
     |   Constant
     |   StringLiteral+
     |   '(' expression ')'
@@ -39,7 +42,6 @@ primaryExpression
     |   '__extension__'? '(' compoundStatement ')' // Blocks (GCC extension)
     |   '__builtin_va_arg' '(' unaryExpression ',' typeName ')'
     |   '__builtin_offsetof' '(' typeName ',' unaryExpression ')'
-    |   {specLevel>0}? valPrimary
     ;
 
 genericSelection

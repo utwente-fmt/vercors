@@ -29,8 +29,6 @@ public class VerCorsSyntax {
     syntax.addFunction(AddsTo,"AddsTo");
     syntax.addFunction(Old,"\\old");
     syntax.addFunction(Length,"\\length");
-    syntax.addFunction(Get,"get?");
-    syntax.addFunction(Set,"set!");
     syntax.addOperator(Size,999,"|","|");
     syntax.addOperator(RangeSeq,-1,"{","..","}");
     syntax.addLeftFix(Concat,"+++",5);
@@ -83,9 +81,6 @@ public class VerCorsSyntax {
     syntax.add_annotation(ASTSpecial.Kind.Refute, "refute");
     syntax.add_annotation(ASTSpecial.Kind.Assume, "assume");
     
-    syntax.add_annotation(ASTSpecial.Kind.Invariant, "loop_invariant");
-    syntax.add_annotation(ASTSpecial.Kind.Invariant, "context_everywhere");
-    syntax.add_annotation(ASTSpecial.Kind.RequiresAndEnsures, "context");
     syntax.add_annotation(ASTSpecial.Kind.Label, "label");
     syntax.add_annotation(ASTSpecial.Kind.CSLSubject, "csl_subject");
     

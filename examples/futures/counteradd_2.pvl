@@ -4,7 +4,7 @@
 //:: tool silicon
 //:: option --check-history
 
-class Future {
+class `Future` {
     int step;
 	int counter;
 
@@ -26,7 +26,7 @@ class Program {
 	ensures \result == count - 4;
 	int decrease(int count) {
 
-		Future f = new Future();
+		`Future` f = new `Future`();
 		f.counter = count;
 		f.step = 2;
 		create f, f.pardecr();

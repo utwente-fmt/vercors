@@ -18,8 +18,8 @@ class Seq {
 	pure static seq<int> prepend(int v, seq<int> s) = s + seq<int> { v };
 	
 	/** removes the first occurence of `v` in `s`. */
-	pure static seq<int> remove(seq<int> s, int v) = Seq.is_empty(s) ? Seq.create_empty() :
-		(head(s) == v ? tail(s) : Seq.append(head(s), remove(tail(s), v)));
+	pure static seq<int> `remove`(seq<int> s, int v) = Seq.is_empty(s) ? Seq.create_empty() :
+		(head(s) == v ? tail(s) : Seq.append(head(s), `remove`(tail(s), v)));
 		
 	/** gives the reverse of `s`. */
 	pure static seq<int> reverse(seq<int> s) = Seq.is_empty(s) ? Seq.create_empty() : Seq.reverse(tail(s)) + seq<int> { head(s) };
@@ -173,8 +173,8 @@ class List {
 	context p != none ** list->state(p);
 	requires orig == List.as_seq(list, p);
 	ensures \result->state(write);
-	ensures List.as_seq(\result, write) == Seq.remove(orig, value);
-	static List remove(List list, int value) {
+	ensures List.as_seq(\result, write) == Seq.`remove`(orig, value);
+	static List `remove`(List list, int value) {
 		if (List.is_empty(list)) {
 			return null;
 		}
@@ -191,7 +191,7 @@ class List {
 			return result;
 		}
 		
-		List rec = remove(list.next, value) with { 
+		List rec = `remove`(list.next, value) with {
 			orig = tail(orig);
 			p = p;
 		};

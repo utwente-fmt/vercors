@@ -1,26 +1,15 @@
-grammar PVL;
-import SpecParser;
+parser grammar LangPVLParser;
 
 @parser::members {
     private static int specLevel = 1;
 }
-
-VAL_INLINE: 'inline';
-VAL_ASSERT: 'assert';
-
-langExpr: expr;
-langId: identifier;
-langType: type;
-langModifier: modifier;
-langStatement: statement;
-langDecl: EOF EOF;
 
 program  : programDecl* block? EOF ;
 
 programDecl : claz|kernel|block|field|methodDecl ;
 
 claz : contract 'class' identifier '{' clazMember* '}' ;
-clazMember : field | methodDecl | constructor;
+clazMember : methodDecl | constructor | field;
 
 kernel : 'kernel' identifier '{' kernelMember* '}' ;
 kernelMember : kernelField | methodDecl ;
@@ -157,7 +146,8 @@ nonTarget
  ;
 
 nonTargetUnit
- : 'this'
+ : valPrimary
+ | 'this'
  | 'null'
  | 'true'
  | 'false'
@@ -175,7 +165,6 @@ nonTargetUnit
  | values
  | '(' expr ')'
  | identifier
- | valPrimary
  ;
 
 collectionConstructors
@@ -327,23 +316,3 @@ identifierList
     ;
 
 identifier : Identifier | valReserved ;
-
-Identifier  : ('a'..'z'|'A'..'Z') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
-NUMBER : ('0'..'9')+;
-
-COMMENT : '/*' .*? '*/' -> skip;
-LINE_COMMENT : '//' .*? '\n' -> skip;
-
-WS  :   (   ' '
-        |   '\t'
-        |   '\r'
-        |   '\n'
-        )+ -> skip ;
-
-EmbeddedLatex
-    : '#' ~[\r\n]* '#' -> skip
-    ;
-
-// There's no such thing as embedding contracts in PVL
-startSpec: EOF EOF;
-endSpec: EOF EOF;

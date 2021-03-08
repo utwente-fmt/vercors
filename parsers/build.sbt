@@ -19,7 +19,7 @@ antlrTask := {
           Set(lib / "TestNoSpecLexer.g4")),
         (lib / "LangJavaLexer.g4", false,
           Set(lib / "TestNoSpecLexer.g4")),
-        (src / "PVL.g4", true,
+        (src / "PVLParser.g4", true,
           Set(lib / "TestNoSpecParser.g4", lib / "TestNoSpecLexer.g4")),
         (src / "CParser.g4", true,
           Set(lib / "TestNoSpecParser.g4", lib / "TestNoSpecLexer.g4",
@@ -38,8 +38,11 @@ antlrTask := {
           Set(lib / "SpecLexer.g4", lib / "LangOMPLexer.g4")),
         (lib / "LangJavaLexer.g4", false,
           Set(lib / "SpecLexer.g4")),
-        (src / "PVL.g4", true,
-          Set(lib / "SpecParser.g4", lib / "SpecLexer.g4")),
+        (lib / "LangPVLLexer.g4", false,
+          Set(lib / "SpecLexer.g4")),
+        (src / "PVLParser.g4", true,
+          Set(lib / "LangPVLParser.g4", lib / "LangPVLLexer.g4",
+              lib / "SpecParser.g4", lib / "SpecLexer.g4")),
         (src / "CParser.g4", true,
           Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",
               lib / "LangCParser.g4", lib / "LangCLexer.g4",
@@ -48,7 +51,6 @@ antlrTask := {
         (src / "JavaParser.g4", true,
           Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",
               lib / "LangJavaParser.g4", lib / "LangJavaLexer.g4")),
-        (src / "omp.g4", true, Set()),
     )
 
     val allInputFiles: Set[java.io.File] =

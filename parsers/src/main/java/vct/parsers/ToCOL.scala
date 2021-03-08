@@ -12,9 +12,9 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: org.an
 
   private def fileOrigin(tree: ParserRuleContext): FileOrigin = {
     val startLine = tree.start.getLine
-    val startCol = tree.start.getCharPositionInLine
+    val startCol = tree.start.getCharPositionInLine + 1
     val endLine = tree.stop.getLine
-    val endCol = tree.stop.getCharPositionInLine + tree.stop.getStopIndex - tree.stop.getStartIndex
+    val endCol = tree.stop.getCharPositionInLine + tree.stop.getStopIndex - tree.stop.getStartIndex + 1
 
     new FileOrigin(fileName, startLine, startCol, endLine, endCol)
   }
