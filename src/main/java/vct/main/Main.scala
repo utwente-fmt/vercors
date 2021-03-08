@@ -166,7 +166,8 @@ class Main {
       chalice.get,
       silver.used,
       dafny.get,
-      pass_list.asScala.nonEmpty
+      pass_list.asScala.nonEmpty,
+      !Configuration.gpu_optimizations.isEmpty
     ).forall(!_)) {
       Fail("no back-end or passes specified")
     }
@@ -210,8 +211,6 @@ class Main {
     }
     if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
       passes ++= Seq(Passes.BY_KEY("unrollLoops"))
-      //TODO OS, remove the printPVL call below, it is there for debug purposes
-      //passes ++= Passes.BY_KEY("printPVL")
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
       passes ++= collectPassesForSilver
     }
@@ -220,7 +219,7 @@ class Main {
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
     if (!Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
-      passes ++= Seq(Passes.BY_KEY("printPVL"))
+      passes ++= Seq(Passes.BY_KEY("printGpuOptOut"))
     }
     passes
   }
@@ -464,7 +463,7 @@ class Main {
     var passes = computeGoal(features).get
 
     if (!Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.name()))
-      passes = passes :+ BY_KEY("printPVL")
+      passes = passes :+ BY_KEY("printGpuOptOut")
 
     passes
   }

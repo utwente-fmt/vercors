@@ -1,12 +1,12 @@
 package vct.main
 
 import hre.config.Configuration
-import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
+import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintStream, PrintWriter}
 import java.util
 
 import hre.config.Configuration
-import hre.lang.System.{Abort, Debug}
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
+import hre.lang.System.{Abort, Debug, Fail, Progress, Warning}
+import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, GPUOptName, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
@@ -199,6 +199,35 @@ object Passes {
     SimplePass("unrollLoops",
       "Unroll specified loops",
       new LoopUnroll(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("printGpuOptOut",
+      "Prints the gpu optimized PVL file",
+      arg => {
+          if (Configuration.gpuopt_output_file.get() == null) {
+            Warning("No output file specified for gpu optimalizations.")
+          } else {
+            try {
+              val f = new File(Configuration.gpuopt_output_file.get());
+              val b = f.createNewFile();
+              if (!b) {
+                Debug("File %s already exists and is now overwritten", Configuration.gpuopt_output_file.get());
+              }
+              val out = new PrintWriter(new FileOutputStream(f));
+              var toPrint = arg
+              if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
+                toPrint = LoopUnroll.unrolledProgram
+              }
+              PVLSyntax.get().print(out, toPrint)
+              out.close()
+
+              Progress("Optimized program written to %s", f.getName)
+            } catch {
+              case e: IOException => Debug(e.getMessage);
+            }
+          }
+        arg
+      },
       permits=Set.empty,
     ),
     SimplePass("linearizeMatrices",

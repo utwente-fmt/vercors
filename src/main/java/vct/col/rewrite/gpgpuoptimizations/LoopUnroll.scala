@@ -2,15 +2,17 @@ package vct.col.rewrite.gpgpuoptimizations
 
 import java.util
 
+import hre.ast.{BranchOrigin, CompositeOrigin, MessageOrigin}
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.expr.{NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
-import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, GPUOptName, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, GPUOpt, GPUOptName, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner}
+import vct.col.rewrite.gpgpuoptimizations.LoopUnroll.unrolledProgram
 
 import scala.collection.mutable.Map
 import scala.collection.mutable.Seq
@@ -19,6 +21,11 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 //TODO OS how to get a free name (for future)
+
+object LoopUnroll {
+  var unrolledProgram: ProgramUnit = null
+}
+
 case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean = true) extends AbstractRewriter(source) {
   //TODO OS, the line below throws a ConcurrentModificationException
   //  override def rewriteAll(): Program Unit = super.rewriteAll()
@@ -26,15 +33,16 @@ case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean =
   private var inLoop: Boolean = false
   val tmpBlock = create.block()
 
-  var unrolledProgram: ProgramUnit = null
 
   override def rewriteAll(): ProgramUnit = {
-    unrolledProgram = super.rewriteAll()
+    val res = super.rewriteAll()
+
     if (generateCheck) {
       val targetWithChecks = RemoveBodies(source, methodsWithUnroll).rewriteAll()
+      unrolledProgram = res
       targetWithChecks
     } else {
-      unrolledProgram
+      res
     }
   }
 
@@ -388,14 +396,20 @@ case class LoopUnroll(override val source: ProgramUnit, generateCheck: Boolean =
       checkMethodContract.requires(copy_rw.rewrite(current_method().getContract.invariant))
 
       val methodCheck = create.method_kind(
+        //TODO OS this should be done differently, an errormapping has to be added to ErrorMap. The line below is for testing purposes
+        new CompositeOrigin(new MessageOrigin("Could not prove unroll for this loop"), s.getGpuopt.getOrigin),
         current_method().kind,
         create.primitive_type(PrimitiveSort.Void),
+        Array.empty[Type],
         checkMethodContract.getContract(),
         checkMethodName,
         current_method().getArgs.map(d => copy_rw.rewrite(d)),
+        List.empty[GPUOpt].asJava,
+        false,
         bodyOfCheck
       )
       methodCheck.setStatic(false)
+
 
       methodsWithUnroll(current_method().name) = methodsWithUnroll(current_method().name) ++ mutable.Buffer(methodInc, methodU, methodCheck)
     }
