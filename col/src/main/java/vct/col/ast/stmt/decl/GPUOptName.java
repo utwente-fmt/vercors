@@ -4,7 +4,8 @@ public enum GPUOptName {
     LoopUnroll("loop_unroll",2 ),
     MatrixLinearization("matlin", 4),
     DataLocation("glob_to_reg", -1),
-    IterationMerging("iter_merge", 2);
+    IterationMerging("iter_merge", 2),
+    Tiling("tile", 2);
 
     //The name as defined in the gramamr
     private String name;

@@ -11,7 +11,7 @@ import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.rewrite.gpgpuoptimizations.{GlobalToRegister, IterationMerging, LoopUnroll, MatrixLinearization}
+import vct.col.rewrite.gpgpuoptimizations.{GlobalToRegister, IterationMerging, LoopUnroll, MatrixLinearization, TileKernel}
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
@@ -244,6 +244,11 @@ object Passes {
     SimplePass("globalMemoryLocToRegister",
       "Pull information from global memory locations to registers",
       new GlobalToRegister(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("tileKernel",
+      "Tile a kernel",
+      new TileKernel(_).rewriteAll,
       permits=Set.empty,
     ),
   )

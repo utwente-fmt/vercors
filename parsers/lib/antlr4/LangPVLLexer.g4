@@ -93,6 +93,7 @@ GPUOPT_LOOPUNROLL: 'loop_unroll';
 GPUOPT_MATRIX_REPR: 'matrix_lin';
 GPUOPT_ITER_MERGE: 'iter_merge';
 GPUOPT_GLOB_TO_REG: 'glob_to_reg';
+GPUOPT_TILE: 'tile';
 
 MAP: 'map';
 TUPLE: 'tuple';
