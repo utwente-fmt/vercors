@@ -1,8 +1,7 @@
 lazy val antlrTask = taskKey[Seq[File]]("Generate visitors and listeners from ANTLR grammars")
 
-// TODO: Temporary redirect to other dependency. Change this to a nice version of Pieter's repo ASAP
-libraryDependencies += "antlr" % "antlr" % "4.8-extractors-1-ignore-assoc-patch" from
-  "https://github.com/bobismijnnaam/antlr4/releases/download/ignore-assoc-patch/antlr4-4.8-2-SNAPSHOT-complete-ignore-assoc-patch.jar"
+libraryDependencies += "antlr" % "antlr" % "4.8-extractors-2" from
+  "https://github.com/niomaster/antlr4/releases/download/4.8-extractors-2/antlr4.jar"
 libraryDependencies += "io.github.nicolasstucki" %% "multisets" % "0.4"
 
 antlrTask := {
