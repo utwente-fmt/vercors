@@ -1,7 +1,7 @@
 package vct.col.util
 
 import hre.lang.System.Fail
-import vct.col.ast.`type`.{ClassType, PrimitiveType, Type}
+import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
@@ -30,6 +30,7 @@ class SessionStructureCheck(source : ProgramUnit) {
   private var roleClassNames : Iterable[String] = null
   private var mainMethods : Iterable[Method] = null
   private var mainMethodNames : Iterable[String] = null
+  private var otherClasses : Iterable[ASTClass] = null
 
   def check() : Unit = {
     checkMainClass(source)
@@ -44,11 +45,12 @@ class SessionStructureCheck(source : ProgramUnit) {
     checkMainMethodsRecursion(source)
     checkRoleFieldsTypes(source)
     checkRoleMethodsTypes(source)
+    otherClasses = getOtherClasses(source)
     checkOtherClassesFieldsTypes(source)
     checkOtherClassesMethodsTypes(source)
   }
 
-  def getRoleOrHelperClasses(source : ProgramUnit) : Iterable[ASTClass] = source.get().filter(c => c.name != mainClassName && c.name != channelClassName && c.name != barrierClassName) .map(_.asInstanceOf[ASTClass])
+  def getRoleOrHelperClasses() : Iterable[ASTClass] = source.get().filter(c => c.name != mainClassName && c.name != channelClassName && c.name != barrierClassName) .map(_.asInstanceOf[ASTClass])
 
   private def checkMainClass(source : ProgramUnit) : Unit = {
     source.get().find(_.name == mainClassName) match {
@@ -102,7 +104,7 @@ class SessionStructureCheck(source : ProgramUnit) {
         case n: NameExpression => SessionStructureCheck.getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
           case None => Fail("Session Fail: can only assign to role fields of class 'Main' in constructor")
           case Some(_) => a.expression match {
-            case m: MethodInvokation => getRoleOrHelperClasses(source).find(_.name == m.dispatch.getName) match {
+            case m: MethodInvokation => getRoleOrHelperClasses().find(_.name == m.dispatch.getName) match {
               case None => Fail("Session Fail: Wrong method: constructor of 'Main' must initialize roles with a call to a role constructor")
               case Some(_) => true
             }
@@ -209,8 +211,8 @@ class SessionStructureCheck(source : ProgramUnit) {
   }
 
   private def getRoleClasses(source : ProgramUnit) : Iterable[ASTClass] = {
-    val roleClassNames = getRoleObjects().map(_.expression.asInstanceOf[MethodInvokation].dispatch.getName)
-    getRoleOrHelperClasses(source).filter(c => roleClassNames.contains(c.name))
+    val roleClassTypes = roleObjects.map(_.expression.asInstanceOf[MethodInvokation].dispatch.getName)
+    getRoleOrHelperClasses().filter(c => roleClassTypes.contains(c.name))
   }
 
   private def checkMainMethodsRecursion(source : ProgramUnit) : Unit = {
@@ -245,11 +247,11 @@ class SessionStructureCheck(source : ProgramUnit) {
   }
 
   private def checkRoleMethodTypes(roleMethod : Method) : Unit = {
-    if(!isNonRoleOrPrimitive(roleMethod.getReturnType)) {
+    if(!isNonRoleOrPrimitive(roleMethod.getReturnType,true)) {
       Fail("Session Fail: return type of method %s is a role or other unexpected type",roleMethod.name)
     }
     roleMethod.getArgs.foreach(arg => {
-      if(!isNonRoleOrPrimitive(arg.`type`)) {
+      if(!isNonRoleOrPrimitive(arg.`type`,false)) {
         Fail("Session Fail: the type of argument %s of method %s is a role or other unexpected type",arg.name,roleMethod.name)
       }
     })
@@ -257,15 +259,57 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   private def checkRoleFieldsTypes(source : ProgramUnit) : Unit = {
     roleClasses.foreach(role => role.fields().foreach(field => {
-     if(!isNonRoleOrPrimitive(field.`type`))
+     if(!isNonRoleOrPrimitive(field.`type`,false))
        Fail("Session Fail: type '%s' of field '%s' of role '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
 
-  private def isNonRoleOrPrimitive(t : Type) : Boolean = t match {
-    case p : PrimitiveType => p.isBoolean || p.isDouble || p.isInteger || p.isVoid
+  private def isNonRoleOrPrimitive(t : Type, isVoid : Boolean) : Boolean =
+    isBasePrimitiveType(t) || isOptionOfArray(t) || isSequence(t) || isVoid && isVoidType(t)
+
+  private def isVoidType(a : ASTNode) = a match {
+    case p : PrimitiveType => p.isVoid
+    case _ => false
+  }
+
+  private def isBasePrimitiveType(a : ASTNode) = a match {
+    case p : PrimitiveType => isBaseType(p)
     case c : ClassType => c.getName != mainClassName && c.getName != barrierClassName && c.getName != channelClassName && !roleClassNames.contains(c.getName)
-    case _ => Fail("Session Fail: didn't expect this Type: " + t.toString); false
+    case _ => false
+  }
+
+  private def isBaseType(p : PrimitiveType) = p.isBoolean || p.isDouble || p.isInteger
+
+  private def isOptionOfArray(o : ASTNode) = o match {
+    case p : PrimitiveType => p.sort match {
+        case PrimitiveSort.Option => p.nrOfArguments == 1 && isArray(p.args.head)
+        case _ => false
+    }
+    case _ => false
+  }
+
+  private def isArray(a : ASTNode) : Boolean = a match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Array => p.nrOfArguments == 1 && (isCell(p.args.head) || isArray(p.args.head))
+      case _ => false
+    }
+    case _ => false
+  }
+
+  private def isCell(c : ASTNode) = c match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Cell => p.nrOfArguments == 1 && isBasePrimitiveType(p.args.head)
+      case _ => false
+    }
+    case _ => false
+  }
+
+  private def isSequence(s : ASTNode) : Boolean = s match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Sequence => p.nrOfArguments == 1 && (isBasePrimitiveType(p.args.head) || isSequence(p.args.head))
+      case _ => false
+    }
+    case _ => false
   }
 
   private def getOtherClasses(source : ProgramUnit) : Iterable[ASTClass] = {
@@ -275,17 +319,14 @@ class SessionStructureCheck(source : ProgramUnit) {
   }
 
   private def checkOtherClassesFieldsTypes(source : ProgramUnit) : Unit = {
-    val others = getOtherClasses(source)
-    others.foreach(role => role.fields().foreach(field => {
-      if(!isNonRoleOrPrimitive(field.`type`))
+    otherClasses.foreach(role => role.fields().foreach(field => {
+      if(!isNonRoleOrPrimitive(field.`type`,false))
         Fail("Session Fail: type '%s' of field '%s' of non-role class '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
 
   private def checkOtherClassesMethodsTypes(source: ProgramUnit) : Unit = {
-    val others = getOtherClasses(source)
-    val roleClasses = getRoleClasses(source).map(_.name)
-    others.foreach(_.methods().forEach(checkRoleMethodTypes(_)))
+    otherClasses.foreach(_.methods().forEach(checkRoleMethodTypes(_)))
   }
 
 }
