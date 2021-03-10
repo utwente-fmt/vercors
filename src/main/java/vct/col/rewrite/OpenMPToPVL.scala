@@ -218,7 +218,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
     ))
     val inner = create vector_block(innerDecl, rewrite(loop.loop.getBody).asInstanceOf[BlockStatement])
 
-    val outerBody = create block()
+    val outerBody = create.block()
     outerBody.add(create special(ASTSpecial.Kind.Assume,
       create.expression(StandardOperator.LTE,
         create expression(StandardOperator.Mult, outerInc, len),

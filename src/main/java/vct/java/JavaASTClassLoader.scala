@@ -39,7 +39,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
       `import` => `import`.all || `import`.name.last == name
     ).map(
       `import` => (if (`import`.all) `import`.name.filter(_.nonEmpty) :+ name else `import`.name.filter(_.nonEmpty)).toSeq
-    )
+    ).toSeq
   }
 
   private def loadFile(basePath: Path, parts: Seq[String]): Option[ASTClass] = FILE_CACHE.getOrElseUpdate((basePath, parts), {

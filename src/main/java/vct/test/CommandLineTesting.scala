@@ -198,7 +198,7 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          result += (s"$name-$tool" -> Task(vercors.withArgs(args:_*), conditions))
+          result += (s"$name-$tool" -> Task(vercors.withArgs((args.toSeq):_*), conditions.toSeq))
         }
       }
     }

@@ -33,7 +33,7 @@ case class ThreadPool[T <: Callable[S], S](threadCount: Int, tasks: Seq[T]) {
   private def replaceWork(work: T, result: S): Option[T] = this.synchronized {
     runningWork -= work
     val newWork = fetchWork()
-    taskResult.push((work, result, runningWork.clone(), taskQueue.size))
+    taskResult.push((work, result, runningWork.clone().toSeq, taskQueue.size))
     newWork
   }
 

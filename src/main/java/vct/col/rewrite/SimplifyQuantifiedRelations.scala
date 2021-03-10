@@ -45,7 +45,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
       right = right.asInstanceOf[OperatorExpression].second
     }
 
-    (left, right)
+    (left.toSeq, right)
   }
 
   def indepOf(names: Set[String], node: ASTNode): Boolean =

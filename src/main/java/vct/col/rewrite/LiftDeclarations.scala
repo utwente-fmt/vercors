@@ -95,7 +95,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
       newContract,
       method.getName,
       args.asJava,
-      create.block(body:_*)
+      create.block((body.toSeq):_*)
     )
   }
 
