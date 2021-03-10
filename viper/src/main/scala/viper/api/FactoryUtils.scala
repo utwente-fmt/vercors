@@ -24,7 +24,7 @@ trait FactoryUtils[O] {
     map.asScala map {
       t => add(LocalVarDecl (t.v2, t.v3) _, t.v1)
     }
-  }
+  }.toSeq
 
   def to_labels(o: O, labels: List[String]): Seq[Label] =
     labels.asScala.map(Label(_, Seq())(NoPosition, new OriginInfo(o)))

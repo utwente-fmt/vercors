@@ -22,7 +22,7 @@ class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[t
   
   /** Yields the catch-clauses attached to this try-catch-block as a Java iterator. */
   def catchesJava = catchClauses.toIterable.asJava
-  def catches: Seq[CatchClause] = catchClauses
+  def catches: Seq[CatchClause] = catchClauses.toSeq
   
   /**
    * Adds a catch clause (i.e. an exception handler) to the try-catch-block AST node,

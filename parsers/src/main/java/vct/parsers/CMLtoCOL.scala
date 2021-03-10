@@ -251,7 +251,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case class TypedefNameTypeSpec(name: String) extends TypeSpec
     case class ValTypeSpec(t: Type) extends TypeSpec
 
-    // Scala magic that can be safely ignored: needed to use bags ("multisets")
+    // Scala magic that can be safely ignored: needed to use bags ("multisets") TODO: Refactor multisets away to use seqs + sort
     private implicit val m1: HashedBagConfiguration[PrimitiveTypeSpec] = Bag.configuration.compact[PrimitiveTypeSpec]
     private implicit val m2: HashedBagConfiguration[TypeSpec] = Bag.configuration.compact[TypeSpec]
     private implicit val m3: mutable.HashedBagConfiguration[TypeSpec] = mutable.Bag.configuration.compact[TypeSpec]
@@ -580,7 +580,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertStat(exp: ExpressionStatementContext): ASTNode = exp match {
     case ExpressionStatement0(None, _) =>
-      create block()
+      create.block()
     case ExpressionStatement0(Some(exp), _) =>
       expr(exp)
   }

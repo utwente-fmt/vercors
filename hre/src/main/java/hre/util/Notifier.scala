@@ -21,7 +21,7 @@ object Notifier {
   def notifyLibnotify(title: String, message: String): Boolean = {
     if (commandExists("notify-send")) {
       val cmd = Seq("notify-send", title, message)
-      cmd ! ProcessLogger(_ => Unit, _ => Unit) match {
+      cmd ! ProcessLogger(_ => (), _ => ()) match {
         case 0 => true
         case _ => false
       }
@@ -33,7 +33,7 @@ object Notifier {
   def notifyMacOS(title: String, message: String): Boolean = {
     if (commandExists("osascript")) {
       val cmd = Seq("osascript", "-e", s"""display notification "$message" with title "$title"""")
-      cmd ! ProcessLogger(_ => Unit, _ => Unit) match {
+      cmd ! ProcessLogger(_ => (), _ => ()) match {
         case 0 => true
         case _ => false
       }

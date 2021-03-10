@@ -507,7 +507,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create syncBlock(expr(obj), convertBlock(body))
     case Statement11("return", maybeValue, _) =>
       maybeValue match {
-        case None => create return_statement()
+        case None => create.return_statement()
         case Some(value) => create return_statement(expr(value))
       }
     case Statement12("throw", exc, _) =>
@@ -523,7 +523,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case Some(lbl) => create special(ASTSpecial.Kind.Continue, convertIDName(lbl))
       }
     case Statement15(";") =>
-      create block() //nop
+      create.block() // Nop
     case Statement16(exp, _) =>
       expr(exp)
     case Statement17(None, label, ":", stat) =>
