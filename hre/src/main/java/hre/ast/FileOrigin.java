@@ -4,7 +4,8 @@ package hre.ast;
 import hre.lang.HREError;
 import static hre.lang.System.*;
 
-import java.io.PrintStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Hashtable;
 
 /**
@@ -14,22 +15,22 @@ import java.util.Hashtable;
  */
 public class FileOrigin extends Origin {
 
+  private static Hashtable<Path, FileContext> data = new Hashtable<>();
+
   public int linesBefore=2;
   public int linesAfter=2;
   
 
   private void do_mark(String result) {
     String file=getName();
-    FileContext fc=data.get(file);
+    FileContext fc=data.get(Paths.get(file));
     if (fc==null) return;
     fc.mark(this,result);
   }
 
-  private static Hashtable<String,FileContext> data=new Hashtable<String,FileContext>();
-
   public void printContext(int before,int after){
     String file=getName();
-    FileContext fc=data.get(file);
+    FileContext fc=data.get(Paths.get(file));
     if (fc==null){
       Output("=========================================");
       Output("error at %s: ",this);
@@ -41,7 +42,7 @@ public class FileOrigin extends Origin {
   }
   
   public static void add(String file,boolean gui){
-    data.put(file,new FileContext(file,gui));
+    data.put(Paths.get(file), new FileContext(file,gui));
   }
   public synchronized void report(String level, Iterable<String> message) {
     printContext(linesBefore,linesAfter);
