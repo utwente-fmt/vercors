@@ -1,5 +1,6 @@
 package vct.col.rewrite;
 
+import vct.col.ast.expr.*;
 import vct.col.ast.stmt.composite.IfStatement;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
@@ -11,14 +12,9 @@ import vct.col.ast.type.PrimitiveType;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.expr.Dereference;
 import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpressionKind;
-import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
 import hre.ast.MessageOrigin;
 import vct.col.ast.util.NameScanner;
@@ -97,7 +93,7 @@ public class ChalicePreProcess extends AbstractRewriter {
   
   @Override
   public void visit(MethodInvokation e){
-    if (e.method().equals("length") && e.object().getType().isPrimitive(PrimitiveSort.Sequence)){
+    if (e.method().equals(Dereference$.MODULE$.ArrayLength()) && e.object().getType().isPrimitive(PrimitiveSort.Sequence)){
       result=create.expression(StandardOperator.Size,rewrite(e.object()));
     } else {
       super.visit(e);
@@ -106,7 +102,7 @@ public class ChalicePreProcess extends AbstractRewriter {
   
   @Override
   public void visit(Dereference e){
-    if (e.field().equals("length") && e.obj().getType().isPrimitive(PrimitiveSort.Sequence)){
+    if (e.field().equals(Dereference$.MODULE$.ArrayLength()) && e.obj().getType().isPrimitive(PrimitiveSort.Sequence)){
       result=create.expression(StandardOperator.Size,rewrite(e.obj()));
     } else {
       super.visit(e);

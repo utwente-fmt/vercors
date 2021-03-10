@@ -325,7 +325,13 @@ public class ASTFactory<E> implements FrameControl {
     res.accept_if(post);
     return res;
   }
-  
+
+  /** Create a length dereference for array objects
+   */
+  public Dereference array_length_dereference(ASTNode object) {
+    return dereference(object, Dereference$.MODULE$.ArrayLength());
+  }
+
   /**
    * Enter a new stack frame of the origin stack.
    */

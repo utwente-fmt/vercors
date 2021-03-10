@@ -5,6 +5,7 @@ import java.util.Hashtable;
 import java.util.List;
 
 import hre.ast.MessageOrigin;
+import vct.col.ast.expr.Dereference$;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.ASTFlags;
@@ -102,7 +103,7 @@ public class JavaEncoder extends AbstractRewriter {
   
   @Override
   public void visit(Dereference d){
-    if(d.field().equals("length") || d.field().equals("item")) {
+    if(d.field().equals(Dereference$.MODULE$.ArrayLength()) || d.field().equals("item")) {
       super.visit(d);
       return;
     }

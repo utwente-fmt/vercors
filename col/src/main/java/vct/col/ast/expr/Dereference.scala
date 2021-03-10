@@ -4,6 +4,10 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.Hole
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
+object Dereference {
+  val ArrayLength = "length"
+}
+
 case class Dereference(val obj:ASTNode, val field:String) extends ASTNode with VisitorHelper {
   override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))

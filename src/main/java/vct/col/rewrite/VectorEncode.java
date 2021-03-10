@@ -93,7 +93,7 @@ public class VectorEncode extends AbstractRewriter {
       cb.context(create.expression(StandardOperator.LTE,create.constant(0),create.local_name("from")));
       cb.context(create.expression(StandardOperator.LTE,create.local_name("from"),create.local_name("upto")));
       cb.context(create.expression(StandardOperator.LTE,create.local_name("upto"),
-          create.dereference(create.local_name("ar"), "length")));
+          create.array_length_dereference(create.local_name("ar"))));
       ASTNode range=create.expression(StandardOperator.And,
           create.expression(StandardOperator.LTE,create.local_name("from"),create.local_name("i")),
           create.expression(StandardOperator.LT,create.local_name("i"),create.local_name("upto"))
