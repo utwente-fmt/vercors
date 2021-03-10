@@ -36,8 +36,8 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       name, // method name
       to_decls(o, in), // list of arguments
       to_decls(o, out), // list of return values
-      pres.asScala, // list of preconditions
-      posts.asScala, // list of postconditions
+      pres.asScala.toSeq, // list of preconditions
+      posts.asScala.toSeq, // list of postconditions
       b // method body
     )(NoPosition,new OriginInfo(o), NoTrafos))
   }
@@ -58,8 +58,8 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       name, // function name
       to_decls(o, args), // argument declarations
       t, // function type
-      pres.asScala, // sequence of preconditions
-      posts.asScala, // sequence of postconditions
+      pres.asScala.toSeq, // sequence of preconditions
+      posts.asScala.toSeq, // sequence of postconditions
       b // function body
     )(NoPosition, new OriginInfo(o), NoTrafos))
   }
@@ -76,7 +76,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
     val args=pars.asScala map {
       d => viper.silver.ast.TypeVar(d)
     }
-    p.domains.add(Domain(name,funcs.asScala,axioms.asScala,args)(NoPosition,new OriginInfo(o)));
+    p.domains.add(Domain(name,funcs.asScala.toSeq,axioms.asScala.toSeq,args.toSeq)(NoPosition,new OriginInfo(o)));
   }
   
   override def parse_program(x$1: String): viper.api.Prog = {

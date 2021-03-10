@@ -44,12 +44,12 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
       x => x.asInstanceOf[LocalVar]
     }
     
-    add(MethodCall(m, in_args.asScala, outs)_, o)
+    add(MethodCall(m, in_args.asScala.toSeq, outs.toSeq)_, o)
   } 
   
   override def new_object(o:O, v:Exp,names:List[String],types:List[Type]):Stmt={
     val vs = (names.asScala zip types.asScala).map { a => a match { case (n,t) => Field(n,t)(NoPosition,new OriginInfo(o)) } }
-    NewStmt(v.asInstanceOf[LocalVar],vs)(NoPosition,new OriginInfo(o))
+    NewStmt(v.asInstanceOf[LocalVar],vs.toSeq)(NoPosition,new OriginInfo(o))
   }
   override def inhale(o:O, e:Exp) : Stmt = Inhale(e)(NoPosition,new OriginInfo(o))
   override def exhale(o:O, e:Exp) : Stmt = Exhale(e)(NoPosition,new OriginInfo(o))
@@ -61,7 +61,7 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
   override def fold(o:O, e:Exp) : Stmt = Fold(e.asInstanceOf[PredicateAccessPredicate])(NoPosition,new OriginInfo(o))
   override def unfold(o:O, e:Exp) : Stmt = Unfold(e.asInstanceOf[PredicateAccessPredicate])(NoPosition,new OriginInfo(o))
   override def goto_(o:O, l:String) : Stmt = Goto(l)(NoPosition,new OriginInfo(o))
-  override def label(o:O, l:String, invs:List[Exp]) : Stmt = Label(l, invs.asScala)(NoPosition, new OriginInfo(o))
+  override def label(o:O, l:String, invs:List[Exp]) : Stmt = Label(l, invs.asScala.toSeq)(NoPosition, new OriginInfo(o))
   override def assignment(o:O,loc:Exp,v:Exp) : Stmt = {
     loc match {
         case l : FieldAccess =>
@@ -86,13 +86,13 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
     
     While(
       cond, // condition expression
-      inv.asScala, // sequence of loop invariants
+      inv.asScala.toSeq, // sequence of loop invariants
       b // loop body
     )(NoPosition, new OriginInfo(o))
   }
   
   // TODO not sure if 'scopedDecls' (of the class 'Seqn') is properly handled here
   override def block(o:O, stats:List[Stmt]): Stmt =
-    Seqn(stats.asScala, Seq())(NoPosition, new OriginInfo(o))
+    Seqn(stats.asScala.toSeq, Seq())(NoPosition, new OriginInfo(o))
 }
 
