@@ -136,12 +136,20 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(MethodInvokation e) {
     // TODO: fix dispatch(e.get_before());
     dispatch(e.object());
+    dispatch(e.dispatch());
     for(ASTNode arg:e.getArgs()){
       arg.accept(this);
     }
     // TODO: fix dispatch(e.get_after());
   }
-  
+
+  @Override
+  public void visit(KernelInvocation e) {
+    e.blockCount().accept(this);
+    e.threadCount().accept(this);
+    dispatch(e.args());
+  }
+
   private void dispatch(Contract c){
     if (c!=null){
       c.accept(this);
@@ -235,6 +243,9 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
 //      dispatch(c.pre_condition);
 //      dispatch(c.post_condition);
 //    }
+    dispatch(m.getReturnType());
+    dispatch(m.getArgs());
+    dispatch(m.signals);
     Contract c=m.getContract();
     if (c!=null){
       dispatch(c.given);
@@ -244,7 +255,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(c.yields);
       dispatch(c.signals);
     }
-    dispatch(m.getArgs());
     dispatch(m.getBody());
     if (c!=null) {
       // TODO: this is where \result should be declared.
@@ -265,14 +275,11 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   
   @Override
   public void visit(ASTClass c){
-    int N;
-    N=c.getStaticCount();
-    for(int i=0;i<N;i++){
-      c.getStatic(i).accept(this);
-    }
-    N=c.getDynamicCount();
-    for(int i=0;i<N;i++){
-      c.getDynamic(i).accept(this);
+    dispatch(c.parameters);
+    dispatch(c.implemented_classes);
+    dispatch(c.super_classes);
+    for(ASTNode decl : c) {
+      decl.accept(this);
     }
   }
 
@@ -389,7 +396,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override
   public void visit(TryCatchBlock tcb) {
     dispatch(tcb.main());
-    for (CatchClause cc : tcb.catches()) {
+    for (CatchClause cc : tcb.catchesJava()) {
         dispatch(cc);
     }
     dispatch(tcb.after());

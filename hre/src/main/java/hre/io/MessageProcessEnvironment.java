@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MessageProcessEnvironment {
   private HashMap<String, String> environment = new HashMap<>();
@@ -61,6 +60,10 @@ public class MessageProcessEnvironment {
   public void addArg(String arg, String argArg) {
     this.addArg(arg);
     this.addArg(argArg);
+  }
+
+  public List<String> getArgs() {
+    return this.args;
   }
 
   public MessageProcessEnvironment withArgs(String... args) {

@@ -7,7 +7,7 @@
 // for analysing the models' contract, run: `vct --silicon --check-defined demo4.pvl`
 // for analysing that the program correctly implements the model, run: `vct --silicon --check-history demo4.pvl`
 
-class Future {
+class `Future` {
 	int x;
 
 	modifies x;
@@ -23,7 +23,7 @@ class Program {
 
 	ensures \result == x + 4;
 	int main(int x) {
-		Future model = new Future();
+		`Future` model = new `Future`();
 		model.x = x;
 		assert Perm(model.x, 1); // now we have this
 

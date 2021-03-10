@@ -17,7 +17,7 @@ import hre.ast.OriginFactory
 import viper.silver.parser.PLocalVarDecl
 
 import scala.collection.mutable.WrappedArray
-import hre.lang.System.Output
+import hre.lang.System.{Output, Warning}
 
 class SilverImplementation[O](o:OriginFactory[O])
   extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,
@@ -67,7 +67,37 @@ class SilverImplementation[O](o:OriginFactory[O])
               prog.methods.asScala.toList, Seq(/* no extension members */))()
               
     //println("=============\n" + program + "\n=============\n")
-    
+
+    val consistencyErrors = program.checkTransitively
+
+    if(consistencyErrors.nonEmpty) {
+      Warning("These errors may indicate a bug in VerCors:")
+      consistencyErrors.foreach(Warning("%s", _))
+    }
+
+    val sugarErrors = SilverTreeCompare.syntacticSugarIssues(program)
+
+    sugarErrors match {
+      case Left(errors) =>
+        if(consistencyErrors.nonEmpty) {
+          Warning("(cannot determine parsing idempotency issues due to consistency errors)")
+        } else {
+          Warning("There are no consistency errors, but re-parsing as text leads to errors. This may indicate a bug in Viper:")
+          errors.foreach(Warning("%s", _))
+        }
+      case Right(sugarErrors) =>
+        if(sugarErrors.nonEmpty) {
+          Warning("Some nodes in the silver AST are not idempotent when re-parsing as text. This may indicate we are submitting invalid silver ASTs to Viper.")
+          for ((left, right) <- sugarErrors) {
+            Warning("[%s with %d children] Our AST was:", left.getClass.getSimpleName, scala.Int.box(left.subnodes.size))
+            Warning("%s", left)
+            Warning("[%s with %d children] After re-parsing:", right.getClass.getSimpleName, scala.Int.box(right.subnodes.size))
+            Warning("%s", right)
+            Warning("")
+          }
+        }
+    }
+
     Reachable.gonogo = control.asInstanceOf[VerificationControl[Object]];
     
     val detail = Reachable.gonogo.detail();

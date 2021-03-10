@@ -61,6 +61,10 @@ class InlineAtomic(arg: ProgramUnit, map: ErrorMapping) extends AbstractRewriter
           create.block(atomicStat)
       }
 
+    // with/then surrounds the atomic implementation, which is in turn surrounded by inhale/exhale.
+    block.prepend(pa.get_before)
+    block.append(pa.get_after)
+
     for (node <- pa.synclist) {
       node match {
         case name: NameExpression if name.getKind == NameExpressionKind.Label =>

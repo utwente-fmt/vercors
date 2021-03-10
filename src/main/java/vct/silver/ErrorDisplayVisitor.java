@@ -1,5 +1,6 @@
 package vct.silver;
 
+import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import static hre.lang.System.Debug;
 import static hre.lang.System.Progress;
@@ -51,7 +52,11 @@ public class ErrorDisplayVisitor implements MessageVisitor {
   @Override
   public void visit(VerCorsError error) {
     Debug("reporting %s error",error.code);
-    error.main.report("error","%s:%s",error.code,error.sub);
+    if (error.main == null) {
+      new MessageOrigin("Missing origin").report("error","%s:%s",error.code,error.sub);
+    } else {
+      error.main.report("error","%s:%s",error.code,error.sub);
+    }
     for(Origin o:error.aux){
       o.report("auxiliary","caused by");
     }

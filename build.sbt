@@ -69,7 +69,7 @@ lazy val vercors = (project in file("."))
   .settings(
     name := "Vercors",
     organization := "University of Twente",
-    version := "1.3.0-SNAPSHOT",
+    version := "1.4.0-SNAPSHOT",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -84,6 +84,7 @@ lazy val vercors = (project in file("."))
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.8",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test",
     // libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
+    libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
 
     scalacOptions in ThisBuild += "-deprecation",
     scalacOptions in ThisBuild += "-feature",

@@ -1,5 +1,7 @@
 package hre.config;
 
+import hre.lang.HREExitException;
+
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -127,7 +129,7 @@ public class OptionParser {
       for(Entry<Option,String> entry : option_list.entrySet()){
         Output(" %-20s  : %s",entry.getValue(),entry.getKey().getHelp());
       }
-      System.exit(0);
+      throw new HREExitException(0);
     }
   }
 

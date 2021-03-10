@@ -4,7 +4,7 @@
 //:: tool silicon
 //:: option --check-history
 
-class Future {
+class `Future` {
 	boolean flag;
 	
 	modifies flag;
@@ -21,13 +21,13 @@ class Future {
 }
 
 class Lock {
-	Future m;
+	`Future` m;
 	
 	resource lock_invariant() = Value(m) ** HPerm(m.flag, write);
 	
 	/** constructs a new lock (with associated model `m`). */
 	requires HPerm(m.flag, write);
-	Lock(Future m) {
+	Lock(`Future` m) {
 		this.m = m;
 	} 
 	

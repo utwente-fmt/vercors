@@ -131,7 +131,6 @@ public class KernelRewriter extends AbstractRewriter {
 
   public void visit(ParallelBarrier pb){
     Integer no=barrier_map.get(pb);
-    currentBlock.add(create.comment("// pre barrier marker"));
     if (Configuration.auto_barrier.get()){
       currentBlock.add(create_barrier_call(no.intValue()));
       //Disabled these hints because old in barrier refers to before barrier... 

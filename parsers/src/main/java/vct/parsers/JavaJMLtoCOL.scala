@@ -49,6 +49,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   }
 
   def convertID(id: ParserRuleContext): String = id match {
+    case JavaIdentifier0(ValReserved1(s)) => s.substring(1, s.length-1)
     case JavaIdentifier0(reserved) =>
       fail(reserved, "This identifier is reserved, and may not be declared inside specifications.")
     case JavaIdentifier1(s) => s
@@ -609,20 +610,21 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ConstantExpression0(exp) => expr(exp)
     case LangExpr0(exp) => expr(exp)
 
-    case Expression0(primary) => expr(primary)
-    case Expression1(obj, ".", field) =>
+    case Expression0(valPrimary) => valExpr(valPrimary)
+    case Expression1(primary) => expr(primary)
+    case Expression2(obj, ".", field) =>
       create dereference(expr(obj), convertID(field))
-    case Expression2(obj, ".", "this") =>
+    case Expression3(obj, ".", "this") =>
       ??(tree)
       /* This is used to refer to a specific "this", within the context of an inner class (which is defined wrt an
       * outer class instance, unless it is defined as static). We should start supporting this if we end up
       * implementing inner classes. */
-    case Expression3(obj, ".", "new", typeArgs, creator) =>
+    case Expression4(obj, ".", "new", typeArgs, creator) =>
       ??(tree)
       /* This is again used in inner classes, where you instantiate an inner class with respect to a specific instance
        * of the outer class. Normally it is instantiated with respect to the current ("this") instance of the outer
        * class. */
-    case Expression4(obj, ".", "super", suffix) =>
+    case Expression5(obj, ".", "super", suffix) =>
       ??(tree)
       /*
       Two cases, either suffix = arguments:
@@ -633,37 +635,30 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
       inheritance is unsupported
       */
-    case Expression5(objNode, ".", invokation) =>
+    case Expression6(objNode, ".", invokation) =>
       ??(tree)
-    case Expression6(seq, "[", idx, "]") =>
+    case Expression7(seq, "[", idx, "]") =>
       create expression(Subscript, expr(seq), expr(idx))
-    case Expression7(objNode, "->", predicate, args) =>
+    case Expression8(objNode, "->", predicate, args) =>
       val obj = expr(objNode)
       create expression(Implies,
           create expression(NEQ, obj, create reserved_name ASTReserved.Null),
         create invokation(obj, null, convertID(predicate), exprList(args):_*)
       )
-    case Expression8(_, Some(predicateEntryType), _, _) =>
+    case Expression9(_, _, _, Some(predicateEntryType), _, _) =>
       // the predicate entry type is set as dispatch of an invokation
-      ??(tree)
-    case Expression8(obj, None, argsNode, maybeWithThen) =>
-      val args = exprList(argsNode)
-      val res = expr(obj) match {
-        case name: NameExpression =>
-          create invokation(null, null, name.getName, args:_*)
-        case deref: Dereference =>
-          create invokation(deref.obj, null, deref.field, args:_*)
-        case _ => ??(tree)
-      }
+      ??(predicateEntryType)
+    case Expression9(obj, ".", method, None, args, maybeWithThen) =>
+      val res = create invokation(expr(obj), null, convertID(method), exprList(args).asJava)
       maybeWithThen match {
         case None =>
         case Some(block) =>
-            res.set_after(create block(convertValWithThen(block):_*))
+          res.set_after(create block(convertValWithThen(block):_*))
       }
       res
-    case Expression9("new", Creator0(typeArgs, _, _), _) =>
+    case Expression10("new", Creator0(typeArgs, _, _), _) =>
       ??(typeArgs) // generics are unsupported
-    case Expression9("new", Creator1(name, creator), maybeWithThen) => (name, creator) match {
+    case Expression10("new", Creator1(name, creator), maybeWithThen) => (name, creator) match {
       case (CreatedName1(primitiveType), CreatorRest1(_classCreator)) =>
         fail(primitiveType, "This is invalid syntax; it parsed as a constructor call on a primitive type.")
       case (t, CreatorRest0(ArrayCreatorRest0(Dims0(dims), initializer))) =>
@@ -685,22 +680,22 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         res
     }
 
-    case Expression10("(", t, ")", exp) => create expression(Cast, convertType(t), expr(exp))
-    case Expression11(exp, "++") => create expression(PostIncr, expr(exp))
-    case Expression11(exp, "--") => create expression(PostDecr, expr(exp))
-    case Expression12("+", exp) => expr(exp)
-    case Expression12("-", exp) => create expression(UMinus, expr(exp))
-    case Expression12("++", exp) => create expression(PreIncr, expr(exp))
-    case Expression12("--", exp) => create expression(PreDecr, expr(exp))
-    case Expression13("~", exp) => create expression(BitNot, expr(exp))
-    case Expression13("!", exp) => create expression(Not, expr(exp))
-    case Expression14(left, MulOp0("*"), right) => create expression(Mult, expr(left), expr(right))
-    case Expression14(left, MulOp0("/"), right) => create expression(FloorDiv, expr(left), expr(right))
-    case Expression14(left, MulOp0("%"), right) => create expression(Mod, expr(left), expr(right))
-    case Expression14(left, MulOp1(valOp), right) => create expression(convertValOp(valOp), expr(left), expr(right))
-    case Expression15(left, "+", right) => create expression(Plus, expr(left), expr(right))
-    case Expression15(left, "-", right) => create expression(Minus, expr(left), expr(right))
-    case shiftExpr: Expression16Context =>
+    case Expression11("(", t, ")", exp) => create expression(Cast, convertType(t), expr(exp))
+    case Expression12(exp, "++") => create expression(PostIncr, expr(exp))
+    case Expression12(exp, "--") => create expression(PostDecr, expr(exp))
+    case Expression13("+", exp) => expr(exp)
+    case Expression13("-", exp) => create expression(UMinus, expr(exp))
+    case Expression13("++", exp) => create expression(PreIncr, expr(exp))
+    case Expression13("--", exp) => create expression(PreDecr, expr(exp))
+    case Expression14("~", exp) => create expression(BitNot, expr(exp))
+    case Expression14("!", exp) => create expression(Not, expr(exp))
+    case Expression15(left, MulOp0("*"), right) => create expression(Mult, expr(left), expr(right))
+    case Expression15(left, MulOp0("/"), right) => create expression(FloorDiv, expr(left), expr(right))
+    case Expression15(left, MulOp0("%"), right) => create expression(Mod, expr(left), expr(right))
+    case Expression15(left, MulOp1(valOp), right) => create expression(convertValOp(valOp), expr(left), expr(right))
+    case Expression16(left, "+", right) => create expression(Plus, expr(left), expr(right))
+    case Expression16(left, "-", right) => create expression(Minus, expr(left), expr(right))
+    case shiftExpr: Expression17Context =>
       val left = shiftExpr.children.get(0).asInstanceOf[ParserRuleContext]
       val right = shiftExpr.children.get(shiftExpr.children.size() - 1).asInstanceOf[ParserRuleContext]
       if(shiftExpr.children.size() == 5) { // >>>
@@ -710,42 +705,42 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       } else {
         create expression(RightShift, expr(left), expr(right))
       }
-    case Expression17(left, comp, right) =>
+    case Expression18(left, comp, right) =>
       create expression(comp match {
         case "<" => StandardOperator.LT
         case "<=" => LTE
         case ">=" => GTE
         case ">" => StandardOperator.GT
       }, expr(left), expr(right))
-    case Expression18(obj, "instanceof", t) =>
+    case Expression19(obj, "instanceof", t) =>
       create expression(Instance, expr(obj), convertType(t))
-    case Expression19(left, "==", right) =>
+    case Expression20(left, "==", right) =>
       create expression(EQ, expr(left), expr(right))
-    case Expression19(left, "!=", right) =>
+    case Expression20(left, "!=", right) =>
       create expression(NEQ, expr(left), expr(right))
-    case Expression20(left, "&", right) =>
+    case Expression21(left, "&", right) =>
       create expression(AmbiguousAnd, expr(left), expr(right))
-    case Expression21(left, "^", right) =>
+    case Expression22(left, "^", right) =>
       create expression(AmbiguousXor, expr(left), expr(right))
-    case Expression22(left, "|", right) =>
+    case Expression23(left, "|", right) =>
       create expression(AmbiguousOr, expr(left), expr(right))
-    case Expression23(left, AndOp0("&&"), right) =>
+    case Expression24(left, AndOp0("&&"), right) =>
       create expression(And, expr(left), expr(right))
-    case Expression23(left, AndOp1(valOp), right) =>
+    case Expression24(left, AndOp1(valOp), right) =>
       create expression(convertValOp(valOp), expr(left), expr(right))
-    case Expression24(left, "||", right) =>
+    case Expression25(left, "||", right) =>
       create expression(Or, expr(left), expr(right))
-    case Expression25(left, ImpOp0(valOp), right) =>
+    case Expression26(left, ImpOp0(valOp), right) =>
       create expression(convertValOp(valOp), expr(left), expr(right))
-    case Expression26(cond, "?", t, ":", f) =>
+    case Expression27(cond, "?", t, ":", f) =>
       create expression(ITE, expr(cond), expr(t), expr(f))
-    case assignment: Expression27Context => assignment.children.asScala.toSeq match {
+    case assignment: Expression28Context => assignment.children.asScala.toSeq match {
       case Seq(left: ExpressionContext, op, right: ExpressionContext) => op.getText match {
         case "=" => create assignment(expr(left), expr(right))
         case "+=" => create expression(AddAssign, expr(left), expr(right))
         case "-=" => create expression(SubAssign, expr(left), expr(right))
         case "*=" => create expression(MulAssign, expr(left), expr(right))
-        case "/=" => create expression(DivAssign, expr(left), expr(right))
+        case "/=" => create expression(FloorDivAssign, expr(left), expr(right))
         case "&=" => create expression(AndAssign, expr(left), expr(right))
         case "|=" => create expression(OrAssign, expr(left), expr(right))
         case "^=" => create expression(XorAssign, expr(left), expr(right))
@@ -768,13 +763,21 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Primary3(Literal4(s)) => create constant s.equals("true")
     case Primary3(Literal5("null")) => create reserved_name(ASTReserved.Null)
     case Primary4(name) => convertIDName(name)
-    case Primary5(t, ".", "class") =>
+    case Primary5(_, Some(predicateEntryType), _, _) =>
+      ??(predicateEntryType)
+    case Primary5(method, None, args, maybeWithThen) =>
+      val res = create invokation(null, null, convertID(method), exprList(args).asJava)
+      maybeWithThen match {
+        case None =>
+        case Some(block) =>
+          res.set_after(create block(convertValWithThen(block):_*))
+      }
+      res
+    case Primary6(t, ".", "class") =>
       ??(tree) // reflection is unsupported
-    case Primary6("void", ".", "class") =>
+    case Primary7("void", ".", "class") =>
       ??(tree) // reflection is unsupported
-    case _: Primary7Context => ??(tree) // generic invocation?
-    case Primary8(valPrimary) =>
-      valExpr(valPrimary)
+    case _: Primary8Context => ??(tree) // generic invocation?
 
     case VariableDeclaratorInit0(_, exp) => expr(exp)
     case VariableInitializer0(arr) => ??(arr)
@@ -819,7 +822,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       builder.context(expr(exp))
     case ValContractClause8(_loop_invariant, exp, _) =>
       builder.appendInvariant(expr(exp))
-    case ValContractClause9(_signals, _, signalsType, name, _, condition, _) =>
+    case ValContractClause9(_kernel_invariant, exp, _) =>
+      builder.appendKernelInvariant(expr(exp))
+    case ValContractClause10(_signals, _, signalsType, name, _, condition, _) =>
       builder.signals(origin(clause, new SignalsClause(convertID(name), convertType(signalsType), expr(condition))))
   }
 
@@ -983,7 +988,13 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create expression(MatrixCompare, expr(a), expr(b))
     case ValPrimary26("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary27("Reducible", "(", exp, _, opNode, ")") =>
+    case ValPrimary27(label, _, exp) =>
+      val res = expr(exp)
+      res.addLabel(create label(convertID(label)))
+      res
+    case ValPrimary28("{:", pattern, ":}") =>
+      create pattern expr(pattern)
+    case ValPrimary29("Reducible", "(", exp, _, opNode, ")") =>
       val opText = opNode match {
         case ValReducibleOperator0("+") => "+"
         case ValReducibleOperator1(id) => convertID(id)
@@ -993,12 +1004,90 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case "min" => ReducibleMin
         case "max" => ReducibleMax
       }, expr(exp))
-    case ValPrimary28(label, _, exp) =>
-      val res = expr(exp)
-      res.addLabel(create label(convertID(label)))
-      res
-    case ValPrimary29("{:", pattern, ":}") =>
-      create pattern expr(pattern)
+    case ValPrimary30("AbstractState", _, arg1, _, arg2, _) =>
+      create expression(StandardOperator.AbstractState, expr(arg1), expr(arg2))
+    case ValPrimary31("AddsTo", _, arg1, _, arg2, _) =>
+      create expression(StandardOperator.AddsTo, expr(arg1), expr(arg2))
+    case ValPrimary32("APerm", _, loc, _, perm, _) =>
+      create expression(StandardOperator.ActionPerm, expr(loc), expr(perm))
+    case ValPrimary33("ArrayPerm", _, ar, _, fst, _, step, _, cnt, _, perm, _) =>
+      create expression(StandardOperator.ArrayPerm, expr(ar), expr(fst), expr(step), expr(cnt), expr(perm))
+    case ValPrimary34("buildMap", _, map, _, k, _, v, _) =>
+      create expression(StandardOperator.MapBuild, expr(map), expr(k), expr(v))
+    case ValPrimary35("cardMap", _, map, _) =>
+      create expression(StandardOperator.MapCardinality, expr(map))
+    case ValPrimary36("Contribution", _, res, _, con, _) =>
+      create expression(StandardOperator.Contribution, expr(res), expr(con))
+    case ValPrimary37("disjointMap", _, map1, _, map2, _) =>
+      create expression(StandardOperator.MapDisjoint, expr(map1), expr(map2))
+    case ValPrimary38("equalsMap", _, map1, _, map2, _) =>
+      create expression(StandardOperator.MapEquality, expr(map1), expr(map2))
+    case ValPrimary39("Future", _, arg1, _, arg2, _, arg3, _) =>
+      create expression(StandardOperator.Future, expr(arg1), expr(arg2), expr(arg3))
+    case ValPrimary40("getFromMap", _, map, _, k, _) =>
+      create expression(StandardOperator.MapGetByKey, expr(map), expr(k))
+    case ValPrimary41("getFst", _, tup, _) =>
+      create expression(StandardOperator.TupleFst, expr(tup))
+    case ValPrimary42("getOption", _, opt, _) =>
+      create expression(StandardOperator.OptionGet, expr(opt))
+    case ValPrimary43("getSnd", _, tup, _) =>
+      create expression(StandardOperator.TupleSnd, expr(tup))
+    case ValPrimary44("head", _, seq, _) =>
+      create expression(StandardOperator.Head, expr(seq))
+    case ValPrimary45("held", _, lock, _) =>
+      create expression(StandardOperator.Held, expr(lock))
+    case ValPrimary46("Hist", _, arg1, _, arg2, _, arg3, _) =>
+      create expression(StandardOperator.History, expr(arg1), expr(arg2), expr(arg3))
+    case ValPrimary47("HPerm", _, loc, _, perm, _) =>
+      create expression(StandardOperator.HistoryPerm, expr(loc), expr(perm))
+    case ValPrimary48("idle", _, arg, _) =>
+      create expression(StandardOperator.PVLidleToken, expr(arg))
+    case ValPrimary49("isEmpty", _, seq, _) =>
+      create expression(StandardOperator.Empty, expr(seq))
+    case ValPrimary50("itemsMap", _, map, _) =>
+      create expression(StandardOperator.MapItemSet, expr(map))
+    case ValPrimary51("keysMap", _, map, _) =>
+      create expression(StandardOperator.MapKeySet, expr(map))
+    case ValPrimary52("perm", _, loc, _) =>
+      create expression(StandardOperator.CurrentPerm, expr(loc))
+    case ValPrimary53("Perm", _, loc, _, perm, _) =>
+      create expression(StandardOperator.Perm, expr(loc), expr(perm))
+    case ValPrimary54("PointsTo", _, loc, _, perm, _, value, _) =>
+      create expression(StandardOperator.PointsTo, expr(loc), expr(perm), expr(value))
+    case ValPrimary55(_removeAt, _, seq, _, i, _) =>
+      create expression(StandardOperator.RemoveAt, expr(seq), expr(i))
+    case ValPrimary56("removeFromMap", _, map, _, arg, _) =>
+      create expression(StandardOperator.MapRemoveKey, expr(map), expr(arg))
+    case ValPrimary57("running", _, arg, _) =>
+      create expression(StandardOperator.PVLjoinToken, expr(arg))
+    case ValPrimary58("Some", _, arg, _) =>
+      create expression(StandardOperator.OptionSome, expr(arg))
+    case ValPrimary59("tail", _, seq, _) =>
+      create expression(StandardOperator.Tail, expr(seq))
+    case ValPrimary60("Value", _, arg, _) =>
+      create expression(StandardOperator.Value, expr(arg))
+    case ValPrimary61("valuesMap", _, map, _) =>
+      create expression(StandardOperator.MapValueSet, expr(map))
+    case ValPrimary62("seq", "<", t, ">", "{", elems, "}") =>
+      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems):_*)
+    case ValPrimary63("set", "<", t, ">", "{", elems, "}") =>
+      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems):_*)
+    case ValPrimary64("(", seq, "[", "..", end, "]", ")") =>
+      create expression(Take, expr(seq), expr(end))
+    case ValPrimary65("(", seq, "[", start, "..", None, "]", ")") =>
+      create expression(Drop, expr(seq), expr(start))
+    case ValPrimary65("(", seq, "[", start, "..", Some(end), "]", ")") =>
+      create expression(Slice, expr(seq), expr(start), expr(end))
+    case ValPrimary66("(", seq, "[", idx, "->", replacement, "]", ")") =>
+      create expression(SeqUpdate, expr(seq), expr(idx), expr(replacement))
+    case ValPrimary67("(", x, "::", xs, ")") =>
+      create expression(PrependSingle, expr(x), expr(xs))
+    case ValPrimary68("(", xs, "++", ys, ")") =>
+      create expression(Concat, expr(xs), expr(ys))
+    case ValPrimary69("(", x, "\\in", xs, ")") =>
+      create expression(Member, expr(x), expr(xs))
+    case ValPrimary70("getOrElseOption", "(", opt, ",", alt, ")") =>
+      create expression(OptionGetOrElse, expr(opt), expr(alt))
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {
@@ -1017,24 +1106,30 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   def convertValReserved(reserved: ValReservedContext): NameExpression = origin(reserved, reserved match {
     case ValReserved0(_) =>
       fail(reserved, "This identifier is reserved and cannot be declared or used.")
-    case ValReserved1("\\result") =>
+    case ValReserved1(s) =>
+      create unresolved_name(s.substring(1, s.length-1))
+    case ValReserved2("\\result") =>
       create reserved_name ASTReserved.Result
-    case ValReserved2("\\current_thread") =>
+    case ValReserved3("\\current_thread") =>
       create reserved_name ASTReserved.CurrentThread
-    case ValReserved3("none") =>
+    case ValReserved4("none") =>
       create reserved_name ASTReserved.NoPerm
-    case ValReserved4("write") =>
+    case ValReserved5("write") =>
       create reserved_name ASTReserved.FullPerm
-    case ValReserved5("read") =>
+    case ValReserved6("read") =>
       create reserved_name ASTReserved.ReadPerm
-    case ValReserved6("None") =>
+    case ValReserved7("None") =>
       create reserved_name ASTReserved.OptionNone
-    case ValReserved7("empty") =>
+    case ValReserved8("empty") =>
       create reserved_name ASTReserved.EmptyProcess
-    case ValReserved8("\\ltid") =>
+    case ValReserved9("\\ltid") =>
       create reserved_name ASTReserved.LocalThreadId
-    case ValReserved9("\\gtid") =>
+    case ValReserved10("\\gtid") =>
       create reserved_name ASTReserved.GlobalThreadId
+    case ValReserved11("true") =>
+      ??(reserved)
+    case ValReserved12("false") =>
+      ??(reserved)
   })
 
   /**
@@ -1045,15 +1140,18 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
    */
   def convertOverlappingValReservedID(reserved: ValReservedContext): String = reserved match {
     case ValReserved0(s) => s
-    case ValReserved1("\\result") => fail(reserved, "This identifier is invalid in the current language")
-    case ValReserved2("\\current_thread") => fail(reserved, "This identifier is invalid in the current language")
-    case ValReserved3(s) => s
+    case ValReserved1(s) => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved2("\\result") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved3("\\current_thread") => fail(reserved, "This identifier is invalid in the current language")
     case ValReserved4(s) => s
     case ValReserved5(s) => s
     case ValReserved6(s) => s
     case ValReserved7(s) => s
-    case ValReserved8("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
-    case ValReserved9("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved8(s) => s
+    case ValReserved9("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved10("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
+    case ValReserved11(s) => s
+    case ValReserved12(s) => s
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =
@@ -1090,6 +1188,14 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     }
     case ValType1("seq", _, subType, _) =>
       create primitive_type(PrimitiveSort.Sequence, convertType(subType))
+    case ValType2("set", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Set, convertType(subType))
+    case ValType3("bag", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Bag, convertType(subType))
+    case ValType4("loc", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Location, convertType(subType))
+    case ValType5("pointer", _, subType, _) =>
+      create primitive_type(PrimitiveSort.Pointer, convertType(subType))
   })
 
   def convertValArg(arg: ValArgContext): DeclarationStatement = origin(arg, arg match {
