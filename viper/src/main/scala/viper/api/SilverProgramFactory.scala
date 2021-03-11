@@ -94,7 +94,12 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       case _ => y match {
         case SourcePosition(file,start,tmp) =>
           tmp match {
-            case None => f.file(file.toString(),start.line,start.column)
+            case None =>
+              if (file == null) {
+                f.message("null origin") // TODO: When upgrading to viper 21.01, had to add this null check but the null came out of nowhere, think there should be an actual value for file normally
+              } else {
+                f.file(file.toString(),start.line,start.column)
+              }
             case Some(end) =>
               if (file==null){
                 f.message("null origin");
