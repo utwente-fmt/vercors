@@ -14,7 +14,6 @@ import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationS
 import vct.col.ast.util.ContractBuilder
 import vct.col.ast.util.SequenceUtils
 
-import scala.collection.immutable.{Bag, HashedBagConfiguration}
 import scala.collection.mutable
 import java.util
 
