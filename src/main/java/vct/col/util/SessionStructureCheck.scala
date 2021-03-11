@@ -30,6 +30,7 @@ class SessionStructureCheck(source : ProgramUnit) {
   private var roleClassNames : Iterable[String] = null
   private var mainMethods : Iterable[Method] = null
   private var mainMethodNames : Iterable[String] = null
+  private var pureMainMethodNames : Iterable[String] = null
   private var otherClasses : Iterable[ASTClass] = null
 
   def check() : Unit = {
@@ -39,9 +40,10 @@ class SessionStructureCheck(source : ProgramUnit) {
     roleNames = getRoleNames()
     roleClasses = getRoleClasses(source)
     roleClassNames = roleClasses.map(_.name)
-    mainMethods = getMainMethods()
+    mainMethods = getMainMethodsNonPure()
     mainMethodNames = mainMethods.map(_.name)
-    checkMainMethodsAllowedSyntax(source)
+    checkMainMethodsAllowedSyntax(mainMethods)
+    pureMainMethodNames = mainClass.methods().filter(_.kind == Method.Kind.Pure).map(_.name)
     checkMainMethodsRecursion(source)
     checkRoleFieldsTypes(source)
     checkRoleMethodsTypes(source)
@@ -120,10 +122,10 @@ class SessionStructureCheck(source : ProgramUnit) {
     }
   }
 
-  private def getMainMethods() : Iterable[Method] = mainClass.methods().filter(m => m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure)
+  private def getMainMethodsNonPure() : Iterable[Method] = mainClass.methods().filter(m => m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure)
 
-  private def checkMainMethodsAllowedSyntax(source : ProgramUnit) : Unit = {
-    getMainMethods().foreach(m => checkMainStatement(m.getBody))
+  private def checkMainMethodsAllowedSyntax(methods : Iterable[Method]) : Unit = {
+    methods.foreach(m => checkMainStatement(m.getBody))
   }
 
   private def checkMainStatement(s : ASTNode) : Unit = {
@@ -170,6 +172,8 @@ class SessionStructureCheck(source : ProgramUnit) {
           Fail("Session Fail: cannot call constructor '%s'!",mainClassName)
         else if(m.method == Method.JavaConstructor && roleClassNames.contains(m.dispatch.getName))
             Fail("Session Fail: cannot call role constructor '%s'",m.method)
+        else if(pureMainMethodNames.contains(m.method))
+          Fail("Session Fail: cannot have a method call statement for pure method '%s'! %s",m.method,m.getOrigin)
         else if(!mainMethodNames.contains(m.method)) { //it is a role or other class method
           if(m.`object` == null) {
             Fail("Session Fail: method call not allowed or object of method call '%s' is not given! %s",m.method,m.getOrigin)
@@ -202,11 +206,11 @@ class SessionStructureCheck(source : ProgramUnit) {
     }
   }
 
-  private def getMethodInvocationsFromExpression(e : ASTNode): List[MethodInvokation] = {
+  private def getMethodInvocationsFromExpression(e : ASTNode): Set[MethodInvokation] = {
     e match {
-      case o : OperatorExpression => o.args.flatMap(getMethodInvocationsFromExpression(_))
-      case m : MethodInvokation => m +: m.args.flatMap(getMethodInvocationsFromExpression(_)).toList
-      case _ => List.empty
+      case o : OperatorExpression => o.args.flatMap(getMethodInvocationsFromExpression(_)).toSet
+      case m : MethodInvokation => m.args.flatMap(getMethodInvocationsFromExpression(_)).toSet + m
+      case _ => Set.empty
     }
   }
 
@@ -228,7 +232,7 @@ class SessionStructureCheck(source : ProgramUnit) {
           Fail("Session Fail: recursive call not allowed as first statement of method '%s'! %s", i.method, statement.getOrigin)
         else mainMethods.find(_.name == i.method) match {
           case Some(m) => checkGuardedRecursion(m.getBody,encounteredMethods + m.name)
-          case None => //fine, it is a role class or other class method (without any recursion)
+          case None => //fine, it is a pure main method, role class or other class method (without any recursion)
         }
       case i : IfStatement => {
         checkGuardedRecursion(i.getStatement(0), encounteredMethods)

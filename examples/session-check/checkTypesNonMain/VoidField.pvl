@@ -1,0 +1,26 @@
+//:: cases RoleFieldType
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role();
+		b = new Role();
+		c = new Role();
+	}
+	
+	void run() {
+	
+	}
+
+}
+
+class Role {
+
+	void x;
+	
+}
+

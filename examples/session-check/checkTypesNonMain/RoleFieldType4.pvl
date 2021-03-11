@@ -1,0 +1,33 @@
+//:: cases RoleFieldType4
+//:: suite session-check
+//:: tools session
+//:: verdict Pass
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role();
+		b = new Role();
+		c = new Role();
+	}
+	
+	void run() {
+		
+	}
+	
+
+}
+
+class Role {
+
+	int[][] x;
+	seq<seq<boolean>> y;
+	Other[] z;
+}
+
+class Other {
+
+	seq<int> f;
+}
+
