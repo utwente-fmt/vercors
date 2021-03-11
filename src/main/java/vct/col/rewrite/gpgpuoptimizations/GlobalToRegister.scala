@@ -52,6 +52,11 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
       Warning("No matches found for %s in the program", _)
     }
 
+    nodeToNameAndCount
+      .filter(kv => ((kv._2._2 == 1 || kv._2._2 == 2) && kv._2._3) || (kv._2._2 == 1 && !kv._2._3)).foreach { kv =>
+      Warning("Fetching the value of %s into the register might not be efficient, because there is only %s usages in the program.", kv._1, kv._2._2.toString)
+    }
+
     nodeToNameAndCount = mutable.Map.empty[ASTNode, (String,Int, Boolean) ]
   }
 
@@ -113,6 +118,9 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
   }
 
   override def visit(s: AssignmentStatement): Unit = {
+    //TODO OS nodeToNameAndCount locations cannot be written to.
+//    if (nodeToNameAndCount.keySet)
+
     if (nodeToNameAndCount.contains(s.location)) {
       val (newName, count, writtenTo) = nodeToNameAndCount(s.location)
       nodeToNameAndCount(s.location) = (newName, count, true)

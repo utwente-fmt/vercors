@@ -1,0 +1,79 @@
+class dataRedistOrig 
+{
+
+  requires false;
+  context_everywhere a != null && b != null && c != null;
+  context_everywhere a.length == b.length && b.length == c.length;
+  context (\forall* int i; i >= 0 && i < a.length; Perm(a[i], 1));
+  context (\forall* int i; i >= 0 && i < b.length; Perm(b[i], 1\2));
+  context (\forall* int i; i >= 0 && i < c.length; Perm(c[i], 1\2));
+  ensures (\forall int i; i >= 0 && i < a.length; a[i] == b[i] + c[i]);
+  void data_redistribution_orig(int[] a, int[] b, int[] c)
+  {
+    par threads (int tid = 0 .. a.length)
+    context Perm(a[tid], 1);
+    context Perm(b[tid], 1\2);
+    context Perm(c[tid], 1\2);
+    ensures a[tid] == b[tid] + c[tid];
+    {  
+        a[tid] = b[tid+1] + c[tid];
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	context_everywhere a != null;
+	context_everywhere b != null;
+	context_everywhere size > 0;
+	context_everywhere a.length == size;
+	context_everywhere b.length == size;
+	context (\forall* int i; i>=0 && i < size; Perm(a[i], 1\2));
+	context (\forall* int i; i>=0 && i < size; Perm(b[i], write));
+	requires (\forall int i; i>=0 && i < size; a[i] == 0);
+	ensures (\forall int i; i>=0 && i < size; b[i] == \old(a[i]) + 1);
+	void func1(int[] a, int[] b, int size){
+		int counter = 0;
+
+		loop_invariant counter >= 0 && counter <= size;
+		loop_invariant (\forall* int i; i>=0 && i < size; Perm(a[i], 1\2));
+		loop_invariant (\forall* int i; i>=0 && i < size; Perm(b[i], write));
+		//loop_invariant (\forall int i; i>=0 && i < size; a[i] == 0);
+		//loop_invariant (\forall int i; i>=counter && i < size; a[i] == \old(a[i]));
+		loop_invariant (\forall int i; i>=0 && i < counter; b[i] == \old(a[i]) + 1);
+		while(counter < size) {
+
+			assert (\forall int i; i>=0 && i < counter; b[i] == \old(a[i]) +  1);
+			int c = a[counter] + 1;
+			b[counter] = c;
+			assert (\forall int i; i>=0 && i < counter; b[i] == \old(a[i]) + 1);
+			assert b[counter] == \old(a[counter]) + 1;
+			counter = counter + 1;
+			assert b[counter-1] == \old(a[counter-1]) + 1;
+
+			assert (\forall int i; i>=0 && i < counter; b[i] == \old(a[i]) + 1);
+
+		}
+
+
+	}
+
+
+
+
+  
+}

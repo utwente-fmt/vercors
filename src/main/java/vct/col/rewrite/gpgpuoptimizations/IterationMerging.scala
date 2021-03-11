@@ -1,6 +1,6 @@
 package vct.col.rewrite.gpgpuoptimizations
 
-import hre.lang.System.Progress
+import hre.lang.System.{Output, Progress}
 import vct.col.ast.expr.{OperatorExpression, StandardOperator}
 import vct.col.ast.expr.StandardOperator.{And, EQ, FloorDiv, GT, GTE, LT, LTE, Minus, Mult, NEQ, Plus, Star}
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
@@ -96,12 +96,6 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
       unrolledBodies.forEachStmt(st => current_sequence().add(copy_rw.rewrite(st)))
     }
 
-    // if loop unroll (k!= 0)
-    //    newBody is without decls
-    // if not loop unroll (k == 0)
-    //     new
-    Progress("%s", I.toString)
-
     val originalBody = copy_rw.rewrite(s.getBody)
     val bodyWithoutDecls = create.block()
     val bodyWithoutDeclsWithoutUpdate = create.block()
@@ -129,8 +123,15 @@ case class IterationMerging(override val source: ProgramUnit) extends AbstractRe
         case b: BlockStatement =>
           b.getStatements.foreach(stmt => newBody.add(copy_rw.rewrite(stmt)))
         case _ =>
-          newBody.add(removeDecl.rewrite(s.getBody))
+          newBody.add(copy_rw.rewrite(s.getBody))
       }
+      if (s.getUpdateBlock != null)
+        s.getUpdateBlock match {
+          case b: BlockStatement =>
+            b.getStatements.foreach(stmt => newBody.add(copy_rw.rewrite(stmt)))
+          case notablock =>
+            newBody.add(copy_rw.rewrite(notablock))
+        }
       xBodies = 1
     }
 
