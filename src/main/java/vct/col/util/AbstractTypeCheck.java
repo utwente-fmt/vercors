@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import scala.Option;
 import scala.collection.JavaConverters;
+import scala.jdk.CollectionConverters;
 import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -1708,7 +1709,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
       Type inferredElementType = (Type) v.getType().firstarg();
 
-      for (ASTNode node : JavaConverters.asJavaIterable(v.values())) {
+      for (ASTNode node : v.valuesArray()) {
         node.setType(inferredElementType);
       }
     }
@@ -1745,7 +1746,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
 
       if(element.isPrimitive(PrimitiveSort.Option) || element.isPrimitive(PrimitiveSort.Pointer)) {
-        for (ASTNode node : JavaConverters.asJavaIterable(v.values())) {
+        for (ASTNode node : v.valuesArray()) {
           node.setType(element);
         }
       }

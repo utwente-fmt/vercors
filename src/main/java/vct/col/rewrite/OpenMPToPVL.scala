@@ -229,7 +229,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
     PPLBlock(Seq(outerDecl), outerBody, rewrite(loop.loop.getContract), loop)
   }
 
-  def translate(block: BlockStatement): Seq[PPL] = block.getStatements.map(matchNode)
+  def translate(block: BlockStatement): Seq[PPL] = block.getStatements.toIndexedSeq.map(matchNode)
 
   def matchNode(node: ASTNode): PPL = node match {
     case loop@OMPFor(_, _) => forLoopToPPL(loop)

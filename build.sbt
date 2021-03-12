@@ -81,8 +81,8 @@ lazy val vercors = (project in file("."))
         |PVL. """.stripMargin.replaceAll("\n", ""),
 
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
-    libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.8",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test",
+    libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.2",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
     // libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
 

@@ -51,6 +51,6 @@ case class ThreadPool[T <: Callable[S], S](threadCount: Int, tasks: Seq[T]) {
 
   /** Present the results of the tasks as a stream out of order: returns task, task result, currently running tasks and
     * remaining number of queued tasks */
-  def results(): Stream[(T, S, Seq[T], Int)] =
-    tasks.indices.toStream.map(_ => taskResult.take())
+  def results(): LazyList[(T, S, Seq[T], Int)] =
+    tasks.indices.to(LazyList).map(_ => taskResult.take())
 }

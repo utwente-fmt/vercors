@@ -31,7 +31,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
 
   private def currentPackageName: Seq[String] = currentNamespace match {
     case None => Seq()
-    case Some(ns) => ns.getDeclName.name.filter(_.nonEmpty)
+    case Some(ns) => ns.getDeclName.name.toIndexedSeq.filter(_.nonEmpty)
   }
 
   override def visit(cls: ASTClass): Unit =
@@ -102,7 +102,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
       if(!scanned.contains(cls))
         toScan += cls
 
-      Some(cls.getName.split('.'))
+      Some(cls.getName.split('.').toIndexedSeq)
     }
   }
 

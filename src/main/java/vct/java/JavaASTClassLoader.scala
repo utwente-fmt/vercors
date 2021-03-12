@@ -68,7 +68,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
         if(name.size == 1) {
           // If it's one name and it's not defined, it must be imported or package-local
           potentialImportsOfNamespace(name.head, ns)
-            .toStream.flatMap(loadFile(basePath, _)).headOption
+            .to(LazyList).flatMap(loadFile(basePath, _)).headOption
         } else {
           // If it's multiple names, it must be fully qualified
           loadFile(basePath, name)
@@ -168,7 +168,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
       ns match {
         case Some(ns) =>
           potentialImportsOfNamespace(name.head, ns)
-            .toStream.flatMap(loadReflectively).headOption
+            .to(LazyList).flatMap(loadReflectively).headOption
             .orElse(loadReflectively(Seq("java", "lang") :+ name.head))
         case _ => None
       }
