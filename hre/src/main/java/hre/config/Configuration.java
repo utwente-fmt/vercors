@@ -204,12 +204,18 @@ public class Configuration {
     }
 
     public static File getBoogiePath() {
-        File base = getFileOrAbort("/deps/boogie/2.4.1.10503");
+        File base = getFileOrAbort("/deps/boogie/1.0.0.0-carbon");
 
-        if (getOS() == OS.WINDOWS) {
-            return join(base, "Boogie.exe");
-        } else {
-            return join(base, "Boogie");
+        switch (getOS()) {
+            case WINDOWS:
+                return join(base,"Windows", "Boogie.exe");
+            case UNIX:
+                return join(base, "Linux", "Boogie");
+            case MAC:
+                return join(base, "Darwin", "Boogie");
+            default:
+                Abort("Could not find boogie for unknown architecture");
+                return null;
         }
     }
 
@@ -313,58 +319,6 @@ public class Configuration {
         env.addArg("-cp", System.getProperty("java.class.path"));
         env.addArg("viper.api.SiliconVerifier");
         return env;
-    }
-
-    public static String getMonoVersion() {
-        // Start the process
-        Process process;
-        try {
-            process = Runtime.getRuntime().exec(new String[]{"mono", "--version"});
-        } catch (IOException e) {
-            return null;
-        }
-
-        // Wait until it terminates, or fail if it times out or if interrupted
-        try {
-            if (!process.waitFor(10, TimeUnit.MILLISECONDS)) {
-                return null;
-            }
-        } catch (InterruptedException e) {
-            // Re-set the flag; thread ends here.
-            Thread.currentThread().interrupt();
-            return null;
-        }
-
-        // Try to find a version string in the output
-        String output = new BufferedReader(new InputStreamReader(process.getInputStream())).lines().collect(Collectors.joining("\n"));
-        Pattern pattern = Pattern.compile("version (\\d+(\\.\\d+)*)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(output);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-
-        return null;
-    }
-
-    public static void checkCarbonRequirements() {
-        if (getOS() == OS.MAC || getOS() == OS.UNIX) {
-            // Prefer mono 5.x or mono 6.0
-            String monoVersion = Configuration.getMonoVersion();
-            if (monoVersion == null) {
-                Warning("Could not detect mono version. Only mono 5 and mono 6.0 is known to work.");
-            } else if (!(monoVersion.startsWith("5.") || monoVersion.startsWith("6.0"))) {
-                Warning("Mono version %s detected, which has not been tested. Mono 5 and mono 6.0 are known to work." +
-                        " Mono 4 and any version beyond and including mono 6.1 are untested.", monoVersion);
-            }
-        }
-
-        /*
-            Document:
-                The following error on linux:
-                  System.MissingFieldException: Field not found: Microsoft.Boogie.OutputPrinter Microsoft.Boogie.ExecutionEngine.printer Due to: Could not find field in class
-                was be resolved by installing the development libraries for mono. So on debian that is "mono-devel", probably
-                similarly named on ubuntu too.
-        */
     }
 
     public static OS getOS() {
