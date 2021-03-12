@@ -2,8 +2,7 @@ package viper.api
 
 import viper.silver.ast._
 
-import scala.collection.JavaConverters._
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
 import java.util.Properties

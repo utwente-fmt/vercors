@@ -1,6 +1,6 @@
 package vct.col.ast.expr
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import hre.ast.FileOrigin
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.Hole

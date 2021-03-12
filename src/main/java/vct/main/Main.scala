@@ -19,7 +19,7 @@ import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 
 object Main {
@@ -497,7 +497,7 @@ class Main {
       if(strictInternalConditions.get()) {
         val scanner = new RainbowVisitor(report.getOutput)
         scanner.source().accept(scanner)
-        val featuresOut = scanner.features
+        val featuresOut = scanner.features.toSet
 
         val notRemoved = featuresOut.intersect(pass.removes)
         val extraIntro = (featuresOut -- featuresIn) -- pass.introduces
