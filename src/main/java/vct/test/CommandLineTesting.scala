@@ -15,7 +15,7 @@ import scala.collection.mutable
 import scala.io.Source
 
 sealed trait CaseFilter {
-  def addOptions(parser: OptionParser)
+  def addOptions(parser: OptionParser): Unit
   def isPossible(kees: Case): Boolean
 }
 

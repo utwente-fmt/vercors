@@ -88,6 +88,6 @@ class InlineAtomic(arg: ProgramUnit, map: ErrorMapping) extends AbstractRewriter
   override def visit(inv: ParallelInvariant): Unit = {
     invBlocks.push(inv)
     super.visit(inv)
-    invBlocks.pop
+    invBlocks.pop()
   }
 }
