@@ -7,7 +7,7 @@ import hre.ast.OriginFactory
 import hre.config.Configuration
 import viper.silver.plugin.PluginAwareReporter
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) {
   override def createVerifier(z3Path: Path, z3Settings: Properties):viper.silver.verifier.Verifier = {

@@ -1,6 +1,6 @@
 package vct.col.ast.stmt.composite
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import vct.col.ast.`type`.Type
 import vct.col.ast.generic.{ASTNode, DebugNode}

@@ -14,7 +14,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationS
 import vct.col.ast.util.ContractBuilder
 import hre.lang.System.Warning
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object JavaJMLtoCOL {
   def convert(tree: CompilationUnitContext, fileName: String, tokens: CommonTokenStream, parser: JavaParser): ProgramUnit = {

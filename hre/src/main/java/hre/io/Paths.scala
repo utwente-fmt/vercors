@@ -2,7 +2,7 @@ package hre.io
 
 import java.io.File
 import java.nio.file.{Files, Paths}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object Paths {
   def commandExists(cmd: String): Boolean = {

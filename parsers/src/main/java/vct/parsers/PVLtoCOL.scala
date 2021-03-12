@@ -19,7 +19,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.util.ContractBuilder
 import vct.parsers.rewrite.InferADTTypes
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object PVLtoCOL {
   def convert(tree: ProgramContext, fileName: String, tokens: CommonTokenStream, parser: PVLParser): ProgramUnit = {

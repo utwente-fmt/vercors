@@ -7,7 +7,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder, FieldAccessCollector}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.{JavaConverters, mutable}
 
 object GenerateADTFunctions {

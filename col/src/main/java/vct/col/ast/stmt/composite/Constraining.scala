@@ -4,7 +4,7 @@ import vct.col.ast.expr.NameExpression
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class Constraining(val block:BlockStatement, val vars:List[NameExpression]) extends ASTNode with VisitorHelper {
   require(vars != null, "The list of (constraining) vars is null.")

@@ -1,6 +1,6 @@
 package vct.col.rewrite
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind}
 import vct.col.ast.generic.ASTNode

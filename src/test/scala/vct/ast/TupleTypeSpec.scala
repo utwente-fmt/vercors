@@ -3,7 +3,7 @@ package vct.ast
 import org.scalatest._
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast._
 import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType, TupleType, Type}
 

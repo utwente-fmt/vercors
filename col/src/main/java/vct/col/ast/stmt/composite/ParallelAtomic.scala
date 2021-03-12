@@ -3,7 +3,7 @@ package vct.col.ast.stmt.composite
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class ParallelAtomic(val block:ASTNode, val synclist:List[ASTNode]) extends ASTNode with VisitorHelper with BeforeAfterAnnotations {
   private var before: BlockStatement = new BlockStatement

@@ -6,7 +6,7 @@ import java.io.{ByteArrayInputStream, File}
 import sys.process._
 import hre.lang.System.Warning
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import java.nio.file.{Files, Paths}
 import java.util.regex.Pattern
 

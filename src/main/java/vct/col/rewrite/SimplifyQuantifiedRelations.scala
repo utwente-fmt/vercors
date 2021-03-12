@@ -9,7 +9,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.{AbstractRewriter, NameScanner}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 

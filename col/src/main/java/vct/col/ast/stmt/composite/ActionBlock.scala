@@ -3,7 +3,7 @@ package vct.col.ast.stmt.composite
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.Map
 
 /**

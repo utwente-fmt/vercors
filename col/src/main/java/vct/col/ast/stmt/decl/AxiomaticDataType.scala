@@ -1,6 +1,6 @@
 package vct.col.ast.stmt.decl
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import hre.lang.System.Abort
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, ClassName, VisitorHelper}
 

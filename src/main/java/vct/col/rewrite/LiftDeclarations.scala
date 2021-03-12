@@ -8,7 +8,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method
 import vct.col.ast.stmt.terminal.ReturnStatement
 import vct.col.ast.util.{AbstractRewriter, SequenceUtils}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ListBuffer
 
 class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {

@@ -6,7 +6,7 @@ import hre.util.Triple
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
 import viper.silver.ast.{SeqAppend, _}

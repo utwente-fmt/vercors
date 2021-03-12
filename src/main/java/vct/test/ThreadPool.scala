@@ -4,7 +4,7 @@ import java.util.concurrent.{Callable, LinkedBlockingDeque}
 
 import hre.lang.System.Output
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 /**

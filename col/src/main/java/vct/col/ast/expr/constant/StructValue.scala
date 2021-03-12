@@ -1,6 +1,6 @@
 package vct.col.ast.expr.constant
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast.`type`.Type
 import vct.col.ast.expr.ExpressionNode
 import vct.col.ast.generic.ASTNode

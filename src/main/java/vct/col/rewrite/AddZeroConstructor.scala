@@ -6,7 +6,7 @@ import vct.col.ast.expr.StandardOperator
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object AddZeroConstructor {
   def hasConstructor(cls: ASTClass): Boolean =

@@ -7,7 +7,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, AxiomaticDataType, Metho
 import vct.col.ast.util.{AbstractRewriter, RecursiveVisitor}
 import vct.java.JavaASTClassLoader
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object JavaResolver {
   val DOT = "_DOT_"
