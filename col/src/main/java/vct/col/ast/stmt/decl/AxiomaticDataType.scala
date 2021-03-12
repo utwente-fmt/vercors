@@ -60,6 +60,6 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def getDeclName = new ClassName(name)
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("parameters")
-  override def debugTreePropertyFields(): Iterable[String] = Seq("name")
+  override def debugTreeChildrenFields: Iterable[String] = Seq("parameters")
+  override def debugTreePropertyFields: Iterable[String] = Seq("name")
 }

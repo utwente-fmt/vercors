@@ -21,8 +21,8 @@ case class ParallelAtomic(val block:ASTNode, val synclist:List[ASTNode]) extends
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("synclist", "block")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("synclist", "block")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 
   override def set_before(block: BlockStatement): BeforeAfterAnnotations = { before = block; this }
   override def get_before: BlockStatement = before

@@ -35,6 +35,6 @@ case class ParallelBlock (val label:String, val contract:Contract, val iters:Lis
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("iters", "contract", "deps", "block")
-  override def debugTreePropertyFields(): Iterable[String] = Seq("label")
+  override def debugTreeChildrenFields: Iterable[String] = Seq("iters", "contract", "deps", "block")
+  override def debugTreePropertyFields: Iterable[String] = Seq("label")
 }

@@ -103,6 +103,6 @@ class BlockStatement extends ASTNode with ASTSequence[BlockStatement] with Visit
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("statements")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("statements")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

@@ -44,6 +44,6 @@ class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[t
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("main", "catchClauses", "after")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("main", "catchClauses", "after")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }
