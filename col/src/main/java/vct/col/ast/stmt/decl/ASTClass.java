@@ -35,12 +35,12 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
 
   @Override
   public scala.collection.Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("parameters", "super_classes", "implemented_classes", "entries"));
+    return DeclHelper.toIterable("parameters", "super_classes", "implemented_classes", "entries");
   }
 
   @Override
   public scala.collection.Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("kind"));
+    return DeclHelper.toIterable("kind");
   }
 
   /**

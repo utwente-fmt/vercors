@@ -4,7 +4,7 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters._
 
-object Paths {
+object PathUtil {
   def commandExists(cmd: String): Boolean = {
     System.getenv().asScala.getOrElse("PATH", "")
       .split(File.pathSeparator)

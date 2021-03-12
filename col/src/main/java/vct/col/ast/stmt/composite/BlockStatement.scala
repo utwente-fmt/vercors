@@ -94,7 +94,7 @@ class BlockStatement extends ASTNode with ASTSequence[BlockStatement] with Visit
   override def get(i:Int) : ASTNode = statements.apply(i)
   
   /** Yields an (Java) iterator for the statements in this block. */
-  override def iterator = statements.toIterator.asJava
+  override def iterator = statements.iterator.asJava
   
   /** Yields the number of statements in this statement block. */
   override def size : Int = statements.length

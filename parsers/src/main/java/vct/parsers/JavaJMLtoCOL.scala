@@ -14,6 +14,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationS
 import vct.col.ast.util.ContractBuilder
 import hre.lang.System.Warning
 
+import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
 object JavaJMLtoCOL {
@@ -22,6 +23,8 @@ object JavaJMLtoCOL {
   }
 }
 
+// Maybe we can turn this off in the future.
+@nowarn("msg=not.*?exhaustive")
 case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: JavaParser)
   extends ToCOL(fileName, tokens, parser) {
   def convertUnit(tree: CompilationUnitContext): ProgramUnit = tree match {
@@ -176,7 +179,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   })
 
   def convertThrows(maybeThrows: Option[ThrowyContext]): Seq[Type] = maybeThrows match {
-    case None => Array[Type]()
+    case None => Seq()
     case Some(Throwy0(_, qualifiedNameList)) => convertTypeList(qualifiedNameList)
   }
 

@@ -27,7 +27,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       out:List[Triple[O,String,Type]],
       local:List[Triple[O,String,Type]],
       labels:List[String],
-      body:Stmt) {
+      body:Stmt): Unit = {
     
     // TODO : not quite sure if the method body 'body' and the 'locals' are currently handled like this..
     val b = if (body==null) None else Some(Seqn(Seq(body), to_decls(o,local) ++ to_labels(o, labels))(NoPosition, new OriginInfo(o), NoTrafos))

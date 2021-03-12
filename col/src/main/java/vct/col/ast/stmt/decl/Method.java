@@ -38,12 +38,12 @@ public class Method extends ASTDeclaration {
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("return_type", "args", "spec", "body"));
+    return DeclHelper.toIterable("return_type", "args", "spec", "body");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("var_args", "kind"));
+    return DeclHelper.toIterable("var_args", "kind");
   }
 
   /** Enumeration of kinds of methods. */

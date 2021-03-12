@@ -1,5 +1,6 @@
 package vct.col.rewrite
 
+import scala.annotation.nowarn
 import java.util
 import vct.col.ast.`type`.Type
 import vct.col.ast.expr.StandardOperator.{And, Div, EQ, FloorDiv, GT, GTE, ITE, Implies, LT, LTE, Member, Minus, Mult, Plus, RangeSeq, UMinus}
@@ -124,6 +125,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
           (expr.first, expr.operator, expr.second)
         } else if(isNameIn(decls, expr.second) && indepOf(decls, expr.first)) {
           // If the quantified variable is the second argument: flip the relation
+          @nowarn("msg=not.*?exhaustive")
           val op = expr.operator match {
             case LT => GT
             case LTE => GTE
@@ -138,7 +140,8 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
 
         val name = quant.asInstanceOf[NameExpression].getName
 
-        op match {
+        @nowarn("msg=not.*?exhaustive")
+        val x = op match {
           case LT =>
             if(upperBounds.contains(name)) return None
             upperBounds += name -> bound
@@ -157,6 +160,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
             upperBounds += name -> bound
             lowerBounds += name -> bound
         }
+        x
       case OperatorExpression(Member, List(elem, OperatorExpression(RangeSeq, List(low, high)))) =>
         val name = elem match {
           case expr: NameExpression if decls.contains(expr.getName) =>

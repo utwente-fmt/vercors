@@ -6,7 +6,7 @@ import java.util.Comparator
 import sbt.internal._
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
-ThisBuild / scalaVersion := "2.13.4"
+ThisBuild / scalaVersion := "2.13.5"
 
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)

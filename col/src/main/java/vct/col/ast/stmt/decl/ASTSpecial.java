@@ -1,10 +1,8 @@
 package vct.col.ast.stmt.decl;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -27,12 +25,13 @@ public class ASTSpecial extends ASTDeclaration {
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("args"));
+    // Ideally this class should be rewritten into Scala. But that is a bit too much work for now.
+    return DeclHelper.toIterable("args");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("kind"));
+    return DeclHelper.toIterable("kind");
   }
 
   public static enum Kind {

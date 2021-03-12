@@ -80,8 +80,8 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
 
     // TODO not quite sure if the local variable declarations are handled correctly now
     val b : Seqn = body match {
-      case null => Seqn(Seq(), locs)()
-      case s => Seqn(Seq(s), locs)(s.pos, s.info, s.errT)
+      case null => Seqn(Seq(), locs.toSeq)()
+      case s => Seqn(Seq(s), locs.toSeq)(s.pos, s.info, s.errT)
     }
     
     While(

@@ -1,5 +1,7 @@
 package vct.parsers
 
+import scala.annotation.nowarn
+
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.CParser
 import vct.antlr4.generated.CParser._
@@ -23,6 +25,8 @@ object CMLtoCOL {
   }
 }
 
+// Maybe we can turn this off in the future.
+@nowarn("msg=not.*?exhaustive")
 class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   extends ToCOL(fileName, tokens, parser)
 {

@@ -1,7 +1,6 @@
 package vct.parsers
 
 import java.util.{ArrayList => JavaArrayList}
-
 import hre.lang.System._
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.PVLParser
@@ -19,6 +18,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.util.ContractBuilder
 import vct.parsers.rewrite.InferADTTypes
 
+import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
 object PVLtoCOL {
@@ -27,6 +27,8 @@ object PVLtoCOL {
   }
 }
 
+// Maybe we can turn this off in the future.
+@nowarn("msg=not.*?exhaustive")
 case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLParser)
   extends ToCOL(fileName, tokens, parser) {
   def convertProgram(tree: ProgramContext): ProgramUnit = {
