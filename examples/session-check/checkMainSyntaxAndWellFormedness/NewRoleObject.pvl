@@ -1,4 +1,4 @@
-//:: cases NewNonRoleObject
+//:: cases NewRoleObject
 //:: suite session-check
 //:: tools session
 //:: verdict Pass

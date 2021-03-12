@@ -1,4 +1,4 @@
-//:: cases RoleFieldType
+//:: cases VoidField
 //:: suite session-check
 //:: tools session
 //:: verdict Error
