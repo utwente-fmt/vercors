@@ -1,7 +1,9 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.col.ast.util;
 
+import scala.Enumeration;
 import scala.collection.JavaConverters;
+import scala.collection.JavaConverters.*;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -12,6 +14,7 @@ import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.decl.Major.*;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.stmt.composite.Switch.Case;
@@ -404,15 +407,36 @@ public class ASTFactory<E> implements FrameControl {
     return res;
   }
 
-  /**
-   * Create a name expression that refers to a field name.
-   */
-  public GPUOpt gpuoptimization(GPUOptName name, List<ASTNode> args) {
-    GPUOpt res=new GPUOpt(name, JavaConverters.asScalaBuffer(args).toList());
+  public GPUOpt opt_loop_unroll(NameExpression itervar, ConstantExpression K) {
+    GPUOpt res=new LoopUnrolling(itervar, K);
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
   }
+
+  public GPUOpt opt_iter_merge(NameExpression itervar, ConstantExpression M) {
+    GPUOpt res=new IterationMerging(itervar, M);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+  public GPUOpt opt_matrix_lin(NameExpression matrixName, Enumeration.Value rowOrColumn, ASTNode dimX, ASTNode dimY) {
+    GPUOpt res=new MatrixLinearization(matrixName, rowOrColumn, dimX, dimY);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+  public GPUOpt opt_glob_to_reg(NameExpression arrayName, List<ASTNode> locations) {
+    GPUOpt res=new DataLocation(arrayName, JavaConverters.asScalaBuffer(locations).toList());
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+
+
 
 
   /**

@@ -636,20 +636,20 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create assignment(expr(target), expr(exp))
   }))
 
-  //TODO OS rewrite this so that all of the gpuopts are their own case
-  def convertGPUOpt(tree: GpuoptContext): GPUOpt = tree match {
-    case Gpuopt0("gpuopt", name, maybeExprSeq, ";") => create gpuoptimization (
-      name match {
-        case GpuOptimization0(name) => GPUOptName.LoopUnroll
-        case GpuOptimization1(name) => GPUOptName.MatrixLinearization
-        case GpuOptimization2(name) => GPUOptName.IterationMerging
-        case GpuOptimization3(name) => GPUOptName.DataLocation
-        case GpuOptimization4(name) => GPUOptName.Tiling
-        case _ => fail(tree, "unsupported optimization")
-      },
-      maybeExprSeq.map(convertExpSeq).get.asJava
-    )
-  }
+  def convertGPUOpt(tree: GpuoptContext): GPUOpt = origin(tree, tree match {
+    case Gpuopt0(gpuOptKeyword, "loop_unroll", itervar, k, _) => {
+      create.opt_loop_unroll(convertIDName(itervar), create constant Integer.parseInt(k))
+    }
+    case Gpuopt1(gpuOptKeyword, "iter_merge" , itervar, m, _) => create.opt_iter_merge(convertIDName(itervar), create constant Integer.parseInt(m))
+    case Gpuopt2(gpuOptKeyword, "matrix_lin" , matrixName, major, dimX, dimY, _) =>
+      val toMajor = major match {
+        case "C" => Major.Column
+        case "R" => Major.Row
+      }
+      create.opt_matrix_lin(convertIDName(matrixName), toMajor, expr(dimX), expr(dimY))
+    case Gpuopt3(gpuOptKeyword, "glob_to_reg", matrixName, locs, _) => create.opt_glob_to_reg(convertIDName(matrixName), convertExpSeq(locs).asJava)
+
+  })
 
   def convertGPUOpts(tree: GpuoptsContext): Seq[GPUOpt] = tree match {
     case Gpuopts0(gpuopt) => Seq(convertGPUOpt(gpuopt))

@@ -4,14 +4,14 @@ import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{DeclarationStatement, GPUOptName, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{DeclarationStatement, Major, MatrixLinearization, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, SequenceUtils}
 
 import scala.collection.JavaConverters._
 
-case class MatrixLinearization(override val source: ProgramUnit) extends AbstractRewriter(source) {
+case class LinearizeMatrices(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
-  private var matrixOpts: Seq[(NameExpression, Boolean, ASTNode, ASTNode)] = Seq.empty
+  private var matrixOpts: Seq[MatrixLinearization] = Seq.empty
 
   private var inDecl = false;
 
@@ -45,18 +45,17 @@ case class MatrixLinearization(override val source: ProgramUnit) extends Abstrac
 
 
   override def visit(m: Method): Unit = {
-    val opts = m.getGpuOpts.asScala.filter(_.name == GPUOptName.MatrixLinearization).toList
+    val opts = m.getGpuOpts.asScala.filter(_.isInstanceOf[MatrixLinearization]).toList
     if (opts.isEmpty) {
       super.visit(m)
       return
     }
 
     addIdx
-    opts.foreach { o =>
-      matrixOpts ++= Seq((o.args.head.asInstanceOf[NameExpression], o.args(1).asInstanceOf[NameExpression].name.equals("R"), o.args(2), o.args(3)))
-    }
+    matrixOpts = opts.map(_.asInstanceOf[MatrixLinearization])
 
     super.visit(m)
+
     matrixOpts = Seq.empty
   }
 
@@ -68,16 +67,16 @@ case class MatrixLinearization(override val source: ProgramUnit) extends Abstrac
     e.operator match {
       case Subscript => e.first match {
         case o: OperatorExpression if o.operator == Subscript =>
-          if (!o.first.isInstanceOf[NameExpression] || !matrixOpts.exists(_._1.equals(o.first))) {
+          if (!o.first.isInstanceOf[NameExpression] || !matrixOpts.exists(_.matrixName.equals(o.first))) {
             super.visit(e)
             return
           }
           val array = rewrite(o.first)
 
-          val matrixOpt = matrixOpts.find(_._1.equals(o.first)).get
+          val matrixOpt = matrixOpts.find(_.matrixName.equals(o.first)).get
 
-          val (innerI, outerI) = if (matrixOpt._2) (rewrite(e.second), rewrite(o.second)) else (rewrite(o.second), rewrite(e.second))
-          val dimension = if (matrixOpt._2) matrixOpt._4 else matrixOpt._3
+          val (innerI, outerI) = if (Major.Row.eq(matrixOpt.rowOrColumn)) (rewrite(e.second), rewrite(o.second)) else (rewrite(o.second), rewrite(e.second))
+          val dimension = if (Major.Row.eq(matrixOpt.rowOrColumn)) matrixOpt.dimY else matrixOpt.dimX
 
           val newIndex = create.invokation(null, null, idxname, dimension, outerI, innerI)
 
@@ -109,7 +108,7 @@ case class MatrixLinearization(override val source: ProgramUnit) extends Abstrac
 
 
   override def visit(s: DeclarationStatement): Unit = {
-    if (matrixOpts.exists(_._1.name.equals(s.name))) {
+    if (matrixOpts.exists(_.matrixName.name.equals(s.name))) {
       inDecl = true;
     }
     super.visit(s)
@@ -138,7 +137,6 @@ case class MatrixLinearization(override val source: ProgramUnit) extends Abstrac
       } else {
         super.visit(t)
     }
-
   }
 
 

@@ -272,7 +272,14 @@ idArg: identifier | '*';
 invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
 
-gpuopt: 'gpuopt' gpuOptimization exprSeq? ';';
+gpuopt
+    : 'gpuopt' 'loop_unroll' identifier NUMBER ';'
+    | 'gpuopt' 'iter_merge' identifier NUMBER ';'
+    | 'gpuopt' 'matrix_lin' identifier ('C'|'R') expr expr ';'
+    | 'gpuopt' 'glob_to_reg' identifier exprSeq ';'
+//  TODO OS what arguments did tiling have?
+//    | 'gpuopt' 'tile' exprSeq? ';'
+    ;
 gpuopts
     : gpuopt
     | gpuopt gpuopts
@@ -282,15 +289,6 @@ exprSeq
     : expr
     | expr exprSeq
     ;
-
-gpuOptimization
- : 'loop_unroll'
- | 'matrix_lin'
- | 'iter_merge'
- | 'glob_to_reg'
- | 'tile'
- ;
-
 nonArrayType
  : container '<' type '>'
  | 'option' '<' type '>'

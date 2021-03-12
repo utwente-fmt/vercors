@@ -4,7 +4,7 @@ import vct.col.ast.expr.{NameExpressionKind, OperatorExpression, StandardOperato
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{LoopStatement, ParallelBlock, ParallelRegion}
-import vct.col.ast.stmt.decl.{DeclarationStatement, GPUOptName, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{DataLocation, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 
@@ -21,10 +21,10 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
    * The triple consists of the new name by which to replace the (key) ASTNode, an integer to keep track of how many
    *  times it has been encountered and a flag to keep track of whether it has been written to
    */
-  var nodeToNameAndCount = mutable.Map.empty[ASTNode, (String,Int, Boolean)]
+  var nodeToNameAndCount = mutable.Map.empty[ASTNode, (String, Int, Boolean)]
 
   override def visit(m: Method): Unit = {
-    val opts = m.getGpuOpts.asScala.filter(_.name == GPUOptName.DataLocation).toList
+    val opts = m.getGpuOpts.asScala.filter(_.isInstanceOf[DataLocation]).map(_.asInstanceOf[DataLocation]).toList
     if (opts.isEmpty) {
       super.visit(m)
       return
@@ -34,8 +34,8 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
 
     var counter = 0
     opts.foreach { opt =>
-      val name = opt.args.head
-      opt.args.drop(1).foreach { loc =>
+      val name = opt.arrayName
+      opt.locations.foreach { loc =>
         val newName = (name + "_reg_" + counter)
           .replaceAll(" ", "")
           .replaceAll("[^A-Za-z0-9]", "_")
@@ -118,9 +118,6 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
   }
 
   override def visit(s: AssignmentStatement): Unit = {
-    //TODO OS nodeToNameAndCount locations cannot be written to.
-//    if (nodeToNameAndCount.keySet)
-
     if (nodeToNameAndCount.contains(s.location)) {
       val (newName, count, writtenTo) = nodeToNameAndCount(s.location)
       nodeToNameAndCount(s.location) = (newName, count, true)

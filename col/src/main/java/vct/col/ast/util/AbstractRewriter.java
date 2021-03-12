@@ -381,7 +381,21 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   @Override
   public void visit(GPUOpt o) {
-    result= create.gpuoptimization(o.name(), rewrite(o.argsJava()));
+    if (o instanceof LoopUnrolling) {
+      LoopUnrolling opt = (LoopUnrolling) o;
+      result= create.opt_loop_unroll(rewrite(opt.itervar()), rewrite(opt.K()));
+    } else if (o instanceof MatrixLinearization) {
+      MatrixLinearization opt = (MatrixLinearization) o;
+      result= create.opt_matrix_lin(rewrite(opt.matrixName()), opt.rowOrColumn(), rewrite(opt.dimX()), rewrite(opt.dimY()));
+    } else if (o instanceof IterationMerging) {
+      IterationMerging opt = (IterationMerging) o;
+      result= create.opt_loop_unroll(rewrite(opt.itervar()), rewrite(opt.M()));
+    } else if (o instanceof DataLocation) {
+      DataLocation opt = (DataLocation) o;
+      result= create.opt_glob_to_reg(rewrite(opt.arrayName()), rewrite(JavaConverters.bufferAsJavaList(opt.locations().toBuffer())));
+    } else {
+      Fail("Rewrite rule not defined for this specific GPUOpt.");
+    }
   }
 
   @Override
@@ -712,7 +726,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
    * The following functions make generating code easier...
    */
   
-  public ASTNode constant(int c){
+  public ConstantExpression constant(int c){
   	return create.constant(c);
   }
   public NameExpression name(String name){

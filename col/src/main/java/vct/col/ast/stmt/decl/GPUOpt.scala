@@ -1,11 +1,24 @@
 package vct.col.ast.stmt.decl
 
+import vct.col.ast.expr.NameExpression
+import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.decl.Major.Major
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 
 import scala.collection.JavaConverters._
 
-case class GPUOpt(val name:GPUOptName, val args: List[ASTNode]) extends ASTNode {
+object GPUOptFlags extends Enumeration {
+    val loopUnrolling = Value("loop_unroll")
+    val matrixLin = Value("matlin")
+    val dataLoc = Value("glob_to_reg")
+    val iterMerge = Value("iter_merge")
+    val tiling = Value("tile")
+}
+
+abstract case class GPUOpt(val args: List[ASTNode]) extends ASTNode {
+    require(args != null, "args is null")
+    require(!args.exists(_ == null), s"None of the ${args.length} arguments should be null")
 
     def argsJava = args.asJava
 
@@ -13,7 +26,39 @@ case class GPUOpt(val name:GPUOptName, val args: List[ASTNode]) extends ASTNode 
     override def accept_simple[T](v:ASTVisitor[T]) = v.visit(this)
     override def accept_simple[T](m:ASTMapping[T]) = m.map(this)
 
-    override def debugTreeChildrenFields: Iterable[String] = Seq("name", "args")
+    override def debugTreeChildrenFields: Iterable[String] = Seq("args")
 
     override def debugTreePropertyFields: Iterable[String] = Seq()
-  }
+}
+
+class LoopUnrolling(val itervar: NameExpression, val K: ConstantExpression)
+  extends GPUOpt(List(itervar, K)) {
+    require(K.value.isInstanceOf[IntegerValue], "The constant K is not an integer constant")
+
+    def getK: Int = K.value.asInstanceOf[IntegerValue].value
+}
+
+class IterationMerging(val itervar: NameExpression, val M: ConstantExpression)
+  extends GPUOpt(List(itervar, M)) {
+    require(M.value.isInstanceOf[IntegerValue], "The constant K is not an integer constant")
+}
+
+object Major extends Enumeration {
+    type Major = Value
+    val Row, Column = Value
+}
+
+class MatrixLinearization(val matrixName: NameExpression, val rowOrColumn: Major, val dimX: ASTNode, val dimY: ASTNode)
+  extends GPUOpt(List(matrixName, dimX, dimY)) {
+}
+
+class DataLocation(val arrayName: NameExpression, val locations: List[ASTNode])
+  extends GPUOpt(arrayName+: locations) {
+    require(locations.nonEmpty, "There must be at least one location")
+}
+
+//TODO OS what were the be done
+//case class Tiling(matrixName: NameExpression, rowOrColumn: Major, dimX: ASTNode, dimY: ASTNode)
+//  extends GPUOpt(GPUOptName.MatrixLinearization ,List(matrixName, dimX, dimY)) {
+//}
+

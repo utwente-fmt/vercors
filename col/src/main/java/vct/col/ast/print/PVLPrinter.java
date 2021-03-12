@@ -1024,7 +1024,7 @@ public class PVLPrinter extends AbstractPrinter{
     public void visit(GPUOpt o) {
         if (o == null) return;
         out.printf("gpuopt ");
-        out.printf(o.name().toString() + " ");
+//        out.printf(o.name().toString() + " ");
         Iterator<ASTNode> argsit = o.args().iterator();
         print_tuple(" ", "", "", o.argsJava().toArray(new ASTNode[0]));
         out.lnprintf(";");
@@ -1328,7 +1328,7 @@ public class PVLPrinter extends AbstractPrinter{
         if (pb.contract() == null) {
             Fail("parallel barrier with null contract!");
         } else {
-            //TODO OS what does pb.invs() do. For now we remove it
+            //TODO what does pb.invs() do. For now we remove it
 //            out.printf("barrier(%s;%s){", pb.label(), pb.invs());
             out.printf("barrier(%s)", pb.label());
             if (pb.body() == null) {

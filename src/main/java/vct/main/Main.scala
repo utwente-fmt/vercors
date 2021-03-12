@@ -9,7 +9,7 @@ import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration,
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ASTClass, GPUOptName, Method, ProgramUnit, SpecificationFormat}
+import vct.col.ast.stmt.decl.{ASTClass, GPUOptFlags, Method, ProgramUnit, SpecificationFormat}
 import vct.col.util.FeatureScanner
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
@@ -205,24 +205,24 @@ class Main {
 
   private def collectPassesForGPUOpts: Seq[AbstractPass] = {
     var passes = Seq(Passes.BY_KEY("splitCompositeDeclarations"), Passes.BY_KEY("checkTypesJava"))
-    if (Configuration.gpu_optimizations.contains(GPUOptName.MatrixLinearization.toString)) {
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.matrixLin.toString)) {
       passes ++= Seq(Passes.BY_KEY("linearizeMatrices"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
-    if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.loopUnrolling.toString)) {
       passes ++= Seq(Passes.BY_KEY("unrollLoops"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
       passes ++= collectPassesForSilver
     }
-    if (Configuration.gpu_optimizations.contains(GPUOptName.IterationMerging.toString)) {
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.iterMerge.toString)) {
       passes ++= Seq(Passes.BY_KEY("mergeLoopIterations"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
-    if (Configuration.gpu_optimizations.contains(GPUOptName.DataLocation.toString)) {
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.dataLoc.toString)) {
       passes ++= Seq(Passes.BY_KEY("globalMemoryLocToRegister"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
-    if (Configuration.gpu_optimizations.contains(GPUOptName.Tiling.toString)) {
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.tiling.toString)) {
       passes ++= Seq(Passes.BY_KEY("globalMemoryLocToRegister"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
@@ -482,7 +482,6 @@ class Main {
     else if (boogie.get) collectPassesForBoogie
     else if (dafny.get) collectPassesForDafny
     else if (silver.used || chalice.get) collectPassesForSilver
-    //TODO OS, is this the place where GPUOpt passes should be?
     else { Fail("no back-end or passes specified"); ??? }
   }
 

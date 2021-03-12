@@ -22,6 +22,7 @@ case class FindUpdateStatement(override val source: ProgramUnit, itervar: ASTNod
 
     o.operator match {
       //TODO OS add cases for i += -C (and for -=, *=, /=)
+      // Currently these operators are not support by PVL so it is difficult to test. So we leave thi
       case AddAssign =>
         updateStmnt = Some(Plus, o.second)
       case PostIncr =>

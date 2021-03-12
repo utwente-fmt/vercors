@@ -529,63 +529,46 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
   @Override
   public void visit(GPUOpt opt) {
-    //TODO OS check whether we need to skip DataLocation after rewriting grammar
-    if (opt.name() == GPUOptName.DataLocation && opt.args().size() < 2) {
-      Fail("The optimization expects %s arguments, but got  at %s", opt.name().getArity(), opt.argsJava().size(), opt.getOrigin());
-    } else if (opt.name() != GPUOptName.DataLocation && opt.argsJava().size() != opt.name().getArity()) {
-      Fail("The optimization expects %s arguments, but got  at %s", opt.name().getArity(), opt.argsJava().size(), opt.getOrigin());
-    }
+    if (opt instanceof LoopUnrolling) {
+      if (opt.getParent() != null && !(opt.getParent() instanceof LoopStatement)) {
+        Fail("The loop unroll optimization can only be used above loop statements (e.g. for and while loops) at %s", opt.getOrigin());
+      }
+      visit(((LoopUnrolling) opt).itervar());
+    } else if (opt instanceof IterationMerging) {
+      if (opt.getParent() != null && !(opt.getParent() instanceof LoopStatement)) {
+        Fail("The loop unroll optimization can only be used above loop statements (e.g. for and while loops) at %s", opt.getOrigin());
+      }
+      visit(((IterationMerging) opt).itervar());
+    } else if (opt instanceof MatrixLinearization) {
+      if (opt.getParent() != null && !(opt.getParent() instanceof Method)) {
+        Fail("The matrix linearization optimization can only be used above methods at %s", opt.getOrigin());
+      }
+      MatrixLinearization ml = (MatrixLinearization) opt;
+      ml.dimX().apply(this);
+      ml.dimY().apply(this);
 
-    switch (opt.name()) {
-      case LoopUnroll:
-      case IterationMerging:
-        if (opt.getParent() != null && !(opt.getParent() instanceof LoopStatement)) {
-          Fail("The loop unroll optimization can only be used above loop statements (e.g. for and while loops) at %s", opt.getOrigin());
-        } else if (!(opt.argsJava().get(0) instanceof NameExpression)){
-          Fail("First argument of loop unrolling optimization is required to be a variable name at %s", opt.argsJava().get(0).getOrigin());
-        } else if (!(opt.argsJava().get(1) instanceof ConstantExpression) || !(((ConstantExpression) opt.argsJava().get(1)).value() instanceof IntegerValue)) {
-          Fail("Second argument of loop unrolling optimization is required to be a constant integer at %s", opt.argsJava().get(1).getOrigin());
-        }
-        visit((NameExpression) opt.argsJava().get(0));
-        break;
-      case MatrixLinearization:
-        if (opt.getParent() != null && !(opt.getParent() instanceof Method)) {
-          Fail("The matrix linearization optimization can only be used above methods at %s", opt.getOrigin());
+      if (!(ml.dimX().getType().isPrimitive(PrimitiveSort.Integer) )) {
+          Fail("Third argument of matrix linearization is required to be an integer at %s", ml.dimX().getOrigin());
+        } else if (!(ml.dimY().getType().isPrimitive(PrimitiveSort.Integer) )) {
+          Fail("Fourth argument of matrix linearization is required to be an integer at %s", ml.dimY().getOrigin());
         }
 
         Method method = (Method) opt.getParent();
-        opt.argsJava().get(2).apply(this);
-        opt.argsJava().get(3).apply(this);
-
-        if (!(opt.argsJava().get(0) instanceof NameExpression)){
-          Fail("First argument of matrix linearization is required to be a matrix variable name at %s", opt.argsJava().get(0).getOrigin());
-        } else if (opt.argsJava().get(1) instanceof NameExpression &&
-                !((NameExpression) opt.argsJava().get(1)).name().equals("C") && !((NameExpression) opt.argsJava().get(1)).name().equals("R")) {
-          Fail("Second argument of matrix linearization has to be C (for column-major access) or R (for row-major access) at %s", opt.argsJava().get(1).getOrigin());
-        } else if (!(opt.argsJava().get(2).getType().isPrimitive(PrimitiveSort.Integer) )) {
-          Fail("Third argument of matrix linearization is required to be an integer at %s", opt.argsJava().get(2).getOrigin());
-        } else if (!(opt.argsJava().get(3).getType().isPrimitive(PrimitiveSort.Integer) )) {
-          Fail("Fourth argument of matrix linearization is required to be an integer at %s", opt.argsJava().get(3).getOrigin());
-        }
-
-
         Set<DeclarationStatement> ns = new HashSet<>();
 
         if (method.getBody()!= null) ns = JavaConverters.setAsJavaSet(NameScanner.localVars(method.getBody()));
 
-        if (ns.stream().noneMatch(d -> d.name().equals(((NameExpression) opt.argsJava().get(0)).getName())) &&
-                Arrays.stream(method.getArgs()).noneMatch(d -> d.name().equals(((NameExpression) opt.argsJava().get(0)).getName()))
+        if (ns.stream().noneMatch(d -> d.name().equals(ml.matrixName().getName())) &&
+                Arrays.stream(method.getArgs()).noneMatch(d -> d.name().equals(ml.matrixName().getName()))
         ) {
-          Fail("%s is not an argument nor a local variable at %s", opt.argsJava().get(0), opt.argsJava().get(0).getOrigin());
+          Fail("%s is not an argument nor a local variable at %s", ml.matrixName(), ml.matrixName().getOrigin());
         }
-
-        break;
-      case DataLocation:
-        //TODO OS check whether we need to skip DataLocation after rewriting grammar
-        break;
-      default:
-        Fail("Unsupported optimization %s", opt.name().toString());
+    } else if (opt instanceof DataLocation) {
+      //        //TODO OS check whether we need to skip DataLocation after rewriting grammar
+    } else {
+      Fail("Unsupported optimization %s", opt.getClass().toString());
     }
+
     opt.setType(new PrimitiveType(PrimitiveSort.Void));
   }
 
@@ -667,21 +650,18 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
     if (m.getGpuOpts() != null) {
-      //TODO OS matlin must have unique names.
-      List<GPUOptName> gpuOptNames = m.getGpuOpts()
+      List<GPUOpt> gpuOptNames = m.getGpuOpts()
               .stream()
-              .map(GPUOpt::name)
-              .filter(on -> on != GPUOptName.MatrixLinearization)
-              .filter(on -> on != GPUOptName.DataLocation)
+              .filter(o -> !(o instanceof MatrixLinearization))
+              .filter(o -> !(o instanceof DataLocation))
               .collect(Collectors.toList());
       if (gpuOptNames.size() != new HashSet<>(gpuOptNames).size()) {
         Fail("Some optimizations are defined multiple times at %s", m.getOrigin());
       }
 
       Map<ASTNode, Long> matlins = m.getGpuOpts().stream()
-              .filter(on -> on.name() == GPUOptName.MatrixLinearization)
-              .filter(on -> on.name() == GPUOptName.DataLocation)
-              .map(on -> on.argsJava().get(0))
+              .filter(o -> o instanceof MatrixLinearization)
+              .map(on -> ((MatrixLinearization) on).matrixName())
               .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
       for (ASTNode k: matlins.keySet()) {
         if (matlins.get(k) > 1) Fail("The matrix linearization optimization is defined twice for %s at %s", k, m.getOrigin());

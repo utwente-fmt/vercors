@@ -6,12 +6,12 @@ import java.util
 
 import hre.config.Configuration
 import hre.lang.System.{Abort, Debug, Fail, Progress, Warning}
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, GPUOptName, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, GPUOptFlags, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.rewrite.gpgpuoptimizations.{GlobalToRegister, IterationMerging, LoopUnroll, MatrixLinearization, TileKernel}
+import vct.col.rewrite.gpgpuoptimizations.{GlobalToRegister, MergeIterations, UnrollLoops, LinearizeMatrices, TileKernel}
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
@@ -198,7 +198,7 @@ object Passes {
   val GPUOPTIMIZATIONS: Seq[AbstractPass] = Seq(
     SimplePass("unrollLoops",
       "Unroll specified loops",
-      new LoopUnroll(_).rewriteAll,
+      new UnrollLoops(_).rewriteAll,
       permits=Set.empty,
     ),
     SimplePass("printGpuOptOut",
@@ -216,8 +216,8 @@ object Passes {
               }
               val out = new PrintWriter(new FileOutputStream(f));
               var toPrint = arg
-              if (Configuration.gpu_optimizations.contains(GPUOptName.LoopUnroll.toString)) {
-                toPrint = LoopUnroll.unrolledProgram
+              if (Configuration.gpu_optimizations.contains(GPUOptFlags.loopUnrolling.toString)) {
+                toPrint = UnrollLoops.unrolledProgram
               }
               PVLSyntax.get().print(out, toPrint)
               out.close()
@@ -233,12 +233,12 @@ object Passes {
     ),
     SimplePass("linearizeMatrices",
       "Linearize matrices",
-      new MatrixLinearization(_).rewriteAll,
+      new LinearizeMatrices(_).rewriteAll,
       permits=Set.empty,
     ),
     SimplePass("mergeLoopIterations",
       "Merge Iterations",
-      new IterationMerging(_).rewriteAll,
+      new MergeIterations(_).rewriteAll,
       permits=Set.empty,
     ),
     SimplePass("globalMemoryLocToRegister",
