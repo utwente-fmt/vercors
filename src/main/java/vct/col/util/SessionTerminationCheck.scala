@@ -8,9 +8,14 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.RecursiveVisitor
+import vct.col.util.SessionTerminationCheck.deadlockWarning
 import vct.col.util.SessionUtil.{barrierClassName, channelClassName, mainClassName}
 
 import scala.collection.JavaConversions._
+
+object SessionTerminationCheck {
+  private val deadlockWarning = " might not terminate, deadlock-freedom cannot be guaranteed! "
+}
 
 class SessionTerminationCheck(override val source : ProgramUnit) extends RecursiveVisitor(null, true) {
 
@@ -63,7 +68,7 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
 
   override def visit(m : MethodInvokation) : Unit = {
     if(encountered.contains(m.method))
-      Fail("Session Fail: recursion encountered for method '%s' at %s", m.method, m.getOrigin)
+      Warning("Session Warning: recursive call of method '%s'" + deadlockWarning, m.method, m.getOrigin)
     else methods.find(tup => tup._1.name == m.method) match {
       case Some(tup) => {
         val method = tup._1
@@ -87,18 +92,18 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
 
   override def visit(l : LoopStatement) : Unit =
     if(currentClass != mainClassName)
-      Fail ("Session Fail: loop not allowed in method of non-Main class! " + l.getOrigin)
+      Warning("Session Warning: loop in method of non-Main class" + deadlockWarning)
 
   override def visit(s : ASTSpecial) : Unit = {
     s.kind match {
-      case ASTSpecial.Kind.Goto => Fail("Session Fail: Goto is not allowed! " + s.getOrigin)
-      case ASTSpecial.Kind.Wait => Fail("Session Fail: Wait is not allowed! " + s.getOrigin)
-      case ASTSpecial.Kind.Fork => Fail("Session Fail: Fork is not allowed! " + s.getOrigin)
-      case ASTSpecial.Kind.Join => Fail("Session Fail: Join is not allowed! " + s.getOrigin)
-      case ASTSpecial.Kind.Lock => Fail("Session Fail: Lock is not allowed! " + s.getOrigin)
-      case ASTSpecial.Kind.Unlock => Fail("Session Fail: Unlock is not allowed! " + s.getOrigin)
-      case ASTSpecial.Kind.Send => Fail("Session Fail: Send is not allowed! " + s.getOrigin)
-      case ASTSpecial.Kind.Recv => Fail("Session Fail: Recv is not allowed! " + s.getOrigin)
+      case ASTSpecial.Kind.Goto => Warning("Session Warning: Goto" + deadlockWarning)
+      case ASTSpecial.Kind.Wait => Warning("Session Warning: Wait" + deadlockWarning)
+      case ASTSpecial.Kind.Fork => Warning("Session Warning: Fork" + deadlockWarning)
+      case ASTSpecial.Kind.Join => Warning("Session Warning: Join" + deadlockWarning)
+      case ASTSpecial.Kind.Lock => Warning("Session Warning: Lock" + deadlockWarning)
+      case ASTSpecial.Kind.Unlock => Warning("Session Warning: Unlock" + deadlockWarning)
+      case ASTSpecial.Kind.Send => Warning("Session Warning: Send" + deadlockWarning)
+      case ASTSpecial.Kind.Recv => Warning("Session Warning: Recv" + deadlockWarning)
       case _ => super.visit(s)
     }
   }

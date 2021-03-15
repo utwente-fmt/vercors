@@ -1,7 +1,7 @@
 //:: cases AbsenceRecursion
 //:: suite session-check
 //:: tools session
-//:: verdict Error
+//:: verdict Pass
 class Main {
 
 	Role a,b,c;
