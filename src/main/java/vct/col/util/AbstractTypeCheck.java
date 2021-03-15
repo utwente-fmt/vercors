@@ -2,6 +2,7 @@ package vct.col.util;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import scala.Option;
 import scala.collection.JavaConverters;
@@ -1691,7 +1692,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
             ((TypeVariable) v.type().firstarg()).name().equals(InferADTTypes.typeVariableName())
     ) {
       // The scala array of values is converted into a java list and the types of the ASTNodes are collected into a Set.
-      Set<Type> valueTypes = JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).filter(Objects::nonNull).collect(Collectors.toSet());
+      Set<Type> valueTypes = Stream.of(v.valuesArray()).map(ASTNode::getType).filter(Objects::nonNull).collect(Collectors.toSet());
 
       if (valueTypes.size() == 1) {
         // Inference is possible, thus get the type from the values.

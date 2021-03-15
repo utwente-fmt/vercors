@@ -876,7 +876,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void visit(CFunctionType t) {
     Type returnType = rewrite(t.returnType());
     List<ParamSpec> paramSpecs = new ArrayList<>();
-    for(ParamSpec spec : JavaConverters.asJavaIterable(t.params())) {
+    for(ParamSpec spec : t.paramsJava()) {
       Option<Type> newType;
       if(spec.t().isEmpty()) {
         newType = Option.empty();

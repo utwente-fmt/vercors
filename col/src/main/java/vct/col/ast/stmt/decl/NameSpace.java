@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Iterator;
 
 import hre.lang.HREError;
+import hre.util.ScalaHelper;
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
@@ -23,12 +24,12 @@ public class NameSpace extends ASTDeclaration implements ASTSequence<NameSpace> 
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("imports", "space"));
+    return ScalaHelper.toIterable("imports", "space");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("full_name"));
+    return ScalaHelper.toIterable("full_name");
   }
 
   public static class Import {

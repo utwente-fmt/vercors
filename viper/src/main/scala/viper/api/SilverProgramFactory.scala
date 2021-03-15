@@ -3,6 +3,7 @@ package viper.api
 import hre.ast.OriginFactory
 import hre.lang.System.Warning
 import hre.util.Triple
+
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
@@ -13,6 +14,8 @@ import viper.silver.ast.{SeqAppend, _}
 import viper.silver.plugin.PluginAwareReporter
 import viper.silver.ast._
 import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
+
+import scala.annotation.nowarn
 
 
 class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
@@ -413,6 +416,9 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
   }
 }
 
+// We can only refactor this once silver starts using trait parameters (or the suggested workaround)
+// So we silence the warning because it is not useful.
+@nowarn("msg=.*early initializers are deprecated.*")
 object Parser extends {
   // early initializer: reporter must be populated before initialization of superclass SilFrontend
   override val reporter: PluginAwareReporter = PluginAwareReporter(HREViperReporter())

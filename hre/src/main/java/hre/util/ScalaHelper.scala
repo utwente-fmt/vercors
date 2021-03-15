@@ -1,8 +1,8 @@
-package vct.col.ast.stmt.decl
+package hre.util
 
 import scala.annotation.varargs
 
-object DeclHelper {
+object ScalaHelper {
   @varargs
   def toIterable(fields: String*): Iterable[String] = Seq("args")
 }
