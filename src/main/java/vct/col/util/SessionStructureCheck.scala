@@ -42,8 +42,8 @@ class SessionStructureCheck(source : ProgramUnit) {
     roleClassNames = roleClasses.map(_.name)
     mainMethods = getMainMethodsNonPure()
     mainMethodNames = mainMethods.map(_.name)
-    checkMainMethodsAllowedSyntax(mainMethods)
     pureMainMethodNames = mainClass.methods().filter(_.kind == Method.Kind.Pure).map(_.name)
+    checkMainMethodsAllowedSyntax(mainMethods)
     checkMainMethodsRecursion(source)
     checkRoleFieldsTypes(source)
     checkRoleMethodsTypes(source)
@@ -251,11 +251,11 @@ class SessionStructureCheck(source : ProgramUnit) {
   }
 
   private def checkRoleMethodTypes(roleMethod : Method) : Unit = {
-    if(!isNonRoleOrPrimitive(roleMethod.getReturnType,true)) {
+    if(!isNonRoleOrPrimitive(roleMethod.getReturnType,true,false)) {
       Fail("Session Fail: return type of method %s is a role or other unexpected type",roleMethod.name)
     }
     roleMethod.getArgs.foreach(arg => {
-      if(!isNonRoleOrPrimitive(arg.`type`,false)) {
+      if(!isNonRoleOrPrimitive(arg.`type`,false,roleMethod.kind == Method.Kind.Pure)) {
         Fail("Session Fail: the type of argument %s of method %s is a role or other unexpected type",arg.name,roleMethod.name)
       }
     })
@@ -263,54 +263,54 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   private def checkRoleFieldsTypes(source : ProgramUnit) : Unit = {
     roleClasses.foreach(role => role.fields().foreach(field => {
-     if(!isNonRoleOrPrimitive(field.`type`,false))
+     if(!isNonRoleOrPrimitive(field.`type`,false,false))
        Fail("Session Fail: type '%s' of field '%s' of role '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
 
-  private def isNonRoleOrPrimitive(t : Type, isVoid : Boolean) : Boolean =
-    isBasePrimitiveType(t) || isOptionOfArray(t) || isSequence(t) || isVoid && isVoidType(t)
+  private def isNonRoleOrPrimitive(t : Type, isVoid : Boolean, allowRoles : Boolean) : Boolean =
+    isBasePrimitiveType(t, allowRoles) || isOptionOfArray(t, allowRoles) || isSequence(t, allowRoles) || isVoid && isVoidType(t)
 
   private def isVoidType(a : ASTNode) = a match {
     case p : PrimitiveType => p.isVoid
     case _ => false
   }
 
-  private def isBasePrimitiveType(a : ASTNode) = a match {
+  private def isBasePrimitiveType(a : ASTNode, allowRoles : Boolean) = a match {
     case p : PrimitiveType => isBaseType(p)
-    case c : ClassType => c.getName != mainClassName && c.getName != barrierClassName && c.getName != channelClassName && !roleClassNames.contains(c.getName)
+    case c : ClassType => c.getName != mainClassName && c.getName != barrierClassName && c.getName != channelClassName && (allowRoles || !roleClassNames.contains(c.getName))
     case _ => false
   }
 
   private def isBaseType(p : PrimitiveType) = p.isBoolean || p.isDouble || p.isInteger
 
-  private def isOptionOfArray(o : ASTNode) = o match {
+  private def isOptionOfArray(o : ASTNode, allowRoles : Boolean) = o match {
     case p : PrimitiveType => p.sort match {
-        case PrimitiveSort.Option => p.nrOfArguments == 1 && isArray(p.args.head)
+        case PrimitiveSort.Option => p.nrOfArguments == 1 && isArray(p.args.head, allowRoles)
         case _ => false
     }
     case _ => false
   }
 
-  private def isArray(a : ASTNode) : Boolean = a match {
+  private def isArray(a : ASTNode, allowRoles : Boolean) : Boolean = a match {
     case p : PrimitiveType => p.sort match {
-      case PrimitiveSort.Array => p.nrOfArguments == 1 && (isCell(p.args.head) || isArray(p.args.head))
+      case PrimitiveSort.Array => p.nrOfArguments == 1 && (isCell(p.args.head, allowRoles) || isArray(p.args.head, allowRoles))
       case _ => false
     }
     case _ => false
   }
 
-  private def isCell(c : ASTNode) = c match {
+  private def isCell(c : ASTNode, allowRoles : Boolean) = c match {
     case p : PrimitiveType => p.sort match {
-      case PrimitiveSort.Cell => p.nrOfArguments == 1 && isBasePrimitiveType(p.args.head)
+      case PrimitiveSort.Cell => p.nrOfArguments == 1 && isBasePrimitiveType(p.args.head, allowRoles)
       case _ => false
     }
     case _ => false
   }
 
-  private def isSequence(s : ASTNode) : Boolean = s match {
+  private def isSequence(s : ASTNode, allowRoles : Boolean) : Boolean = s match {
     case p : PrimitiveType => p.sort match {
-      case PrimitiveSort.Sequence => p.nrOfArguments == 1 && (isBasePrimitiveType(p.args.head) || isSequence(p.args.head))
+      case PrimitiveSort.Sequence => p.nrOfArguments == 1 && (isBasePrimitiveType(p.args.head, allowRoles) || isSequence(p.args.head, allowRoles))
       case _ => false
     }
     case _ => false
@@ -324,7 +324,7 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   private def checkOtherClassesFieldsTypes(source : ProgramUnit) : Unit = {
     otherClasses.foreach(role => role.fields().foreach(field => {
-      if(!isNonRoleOrPrimitive(field.`type`,false))
+      if(!isNonRoleOrPrimitive(field.`type`,false,false))
         Fail("Session Fail: type '%s' of field '%s' of non-role class '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
