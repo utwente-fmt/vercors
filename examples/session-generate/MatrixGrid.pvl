@@ -1,7 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases TicTacToeMatrix
-//:: tools session
-//:: verdict Pass
 
 class Grid {
 

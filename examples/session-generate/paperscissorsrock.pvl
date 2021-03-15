@@ -1,3 +1,8 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases PaperScissorsRock
+//:: tools session
+//:: verdict Pass
+
 class Role {
 	
 	int i,x,y,z;

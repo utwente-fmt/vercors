@@ -1,7 +1,6 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases TicTacToeInt TicTacToeMatrix
-//:: tools session
-//:: verdict Pass
+
 class Move {
 	int i, j, token;
 	

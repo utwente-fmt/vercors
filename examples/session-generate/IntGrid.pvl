@@ -1,7 +1,6 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases TicTacToeInt
-//:: tools session
-//:: verdict Pass
+
 class Grid {
 
 	int c00, c01, c02, c10, c11, c12, c20, c21, c22;
