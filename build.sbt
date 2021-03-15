@@ -136,4 +136,6 @@ lazy val vercors: Project = (project in file("."))
     // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
     // allows them to access the Sil test suite.
     publishArtifact in(Test, packageBin) := true,
+
+    cleanFiles += baseDirectory.value / "bin" / ".classpath",
   )
