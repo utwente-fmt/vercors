@@ -1,0 +1,149 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases TicTacToeMatrix
+//:: tools session
+//:: verdict Pass
+
+class Grid {
+
+	int[][] grid;
+	int myToken;
+	Move move;
+	boolean turn;
+	
+	inline resource gridWritePerm() = 
+		Perm(grid,read) ** grid != null **
+		(\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],write)));
+
+	requires tok == 0 || tok == 1;
+	ensures Perm(grid,read);
+	ensures grid != null;
+	ensures  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],write)));
+    ensures Perm(myToken,read);
+	ensures Perm(move,1);
+	ensures myToken == tok;
+	ensures myToken == 0 || myToken == 1;
+	ensures Perm(turn,1) ** turn == t;
+	Grid(int tok, boolean t) {
+		grid = new int[3][3];
+		loop_invariant Perm(grid, write) ** grid != null;
+		loop_invariant (\forall* int i; 0 <= i && i < 3;
+                    (\forall* int j; 0 <= j && j < 3; 
+                     Perm(grid[i][j],write)));
+		loop_invariant 0 <= i ** i <= 3;
+		for(int i = 0; i < 3; i++) {
+			loop_invariant Perm(grid, write) ** grid != null;
+			loop_invariant (\forall* int i; 0 <= i && i < 3;
+                      (\forall* int j; 0 <= j && j < 3;
+                       Perm(grid[i][j],write)));
+			loop_invariant 0 <= j ** j <= 3;
+			for(int j = 0; j < 3; j++) {
+				grid[i][j] = -1;
+			}
+		}
+		myToken = tok;
+		turn = t;
+	}
+
+	context Perm(move,1\2) ** move != null ** Perm(move.i, read) ** Perm(move.j, read) ** Perm(move.token, read);
+	context Perm(grid,read) ** grid != null;
+	context 0 <= move.i && move.i <= 2;
+	context 0 <= move.j && move.j <= 2;
+	context Perm(grid[move.i][move.j],1);
+	requires move.token == 0 || move.token == 1;
+	requires readMoveCell() == -1;
+	ensures readMoveCell() == move.token;
+	void doMove() {
+		grid[move.i][move.j] = move.token;
+	}
+	
+	requires Perm(move,1\2) ** Perm(move.i,read) ** Perm(move.j,read);
+	requires 0 <= move.i && move.i <= 2;
+	requires 0 <= move.j && move.j <= 2;
+	requires Perm(grid,read) ** grid != null ** Perm(grid[move.i][move.j],1\2);
+	pure int readMoveCell() = grid[move.i][move.j];
+		
+	requires Perm(grid,read) ** grid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));         
+	pure boolean gameFinished() {
+		return gridFull() || gridWin();
+	}
+	
+
+	requires Perm(grid,read) ** grid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));
+	pure boolean gridWinDiagonal() = 
+		grid[0][0] != -1 && grid[0][0] == grid[1][1] && grid[1][1] == grid[2][2]
+		|| grid[0][2] != -1 && grid[0][2] == grid[1][1] && grid[1][1] == grid[2][0];
+	
+	requires Perm(grid,read) ** grid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));
+    requires 0 <= row && row < 3;
+	pure boolean gridWinRow(int row) =
+		grid[row][0] != -1 && grid[row][0] == grid[row][1] && grid[row][1] == grid[row][2]
+		|| grid[0][row] != -1 && grid[0][row] == grid[1][row] && grid[1][row] == grid[2][row];
+	
+	requires Perm(grid,read) ** grid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));
+	pure boolean gridWin() = 
+		gridWinRow(0) || gridWinRow(1) || gridWinRow(2) || gridWinDiagonal();
+	
+	requires Perm(grid,read) ** grid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));
+	pure boolean gridFull() = 
+		(\forall int i ; 0 <= i && i < 3; (\forall int j ; 0 <= j && j < 3; grid[i][j] != -1));
+		
+	
+/*	
+	requires Perm(grid,read) ** grid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));
+	pure boolean gridFull() = 
+		grid[0][0] != -1 && grid[0][1] != -1 && grid[0][2] != -1 &&
+		grid[1][0] != -1 && grid[1][1] != -1 && grid[1][2] != -1 &&
+		grid[2][0] != -1 && grid[2][1] != -1 && grid[2][2] != -1;
+	*/
+	
+	requires Perm(grid,read) ** grid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));
+    requires  Perm(other.grid, read) ** other.grid != null;
+	requires  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(other.grid[i][j],1\2)));
+	pure boolean equals(Grid other) =
+		(\forall int i ; 0 <= i && i < 3; (\forall int j ; 0 <= j && j < 3; grid[i][j] == other.grid[i][j]));
+		
+	
+	context Perm(move,1) ** Perm(myToken, read);
+	context Perm(grid,read) ** grid != null;
+	context  (\forall* int i ; 0 <= i && i < 3 ;
+             (\forall* int j ; 0 <= j && j < 3 ;
+               Perm(grid[i][j],1\2)));
+	ensures Perm(move.i,read) ** Perm(move.j,read) ** Perm(move.token,read);
+	ensures 0 <= move.i && move.i <= 2;
+	ensures 0 <= move.j && move.j <= 2;
+	requires myToken == 0 || myToken == 1;
+	ensures move.token == myToken;
+	ensures move.token == 0 || move.token == 1;
+	ensures myToken == \old(myToken);
+	requires !gridFull();
+	ensures readMoveCell() == -1;
+	void createNewMove();
+	
+}
