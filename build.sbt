@@ -61,11 +61,9 @@ scalaVersion in ProjectRef(silver_url, "common") := (scalaVersion in silver_ref)
 scalaVersion in ProjectRef(carbon_url, "common") := (scalaVersion in silver_ref).value
 scalaVersion in ProjectRef(silicon_url, "common") := (scalaVersion in silver_ref).value
 
-lazy val vercors = (project in file("."))
-  .dependsOn(hre)
-  .dependsOn(col)
-  .dependsOn(viper_api)
-  .dependsOn(parsers)
+lazy val vercors: Project = (project in file("."))
+  .dependsOn(hre, col, viper_api, parsers)
+  .aggregate(hre, col, viper_api, parsers)
   .settings(
     name := "Vercors",
     organization := "University of Twente",
