@@ -13,12 +13,12 @@ class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) 
   override def createVerifier(z3Path: Path, z3Settings: Properties):viper.silver.verifier.Verifier = {
     val silicon = new viper.silicon.Silicon(PluginAwareReporter(HREViperReporter()), Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
 
-//    val z3Config = s""" "${z3Settings.asScala.map{case (k, v) => s"$k=$v"}.mkString(" ")}" """
-    val z3Config = ""
+    val z3KeyValues = z3Settings.asScala.map{case (k, v) => s"$k=$v"}.mkString(" ")
 
     var siliconConfig = Seq(
       "--z3Exe", z3Path.toString,
-      "--z3ConfigArgs", z3Config,
+      // Ensure key-value pairs are wrapped in quotes without leading or trailing spaces
+      "--z3ConfigArgs", s""" "${z3KeyValues}" """.trim,
     )
 
     if(Configuration.debugBackend.get()) {
