@@ -61,6 +61,8 @@ scalaVersion in ProjectRef(silver_url, "common") := (scalaVersion in silver_ref)
 scalaVersion in ProjectRef(carbon_url, "common") := (scalaVersion in silver_ref).value
 scalaVersion in ProjectRef(silicon_url, "common") := (scalaVersion in silver_ref).value
 
+lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
+
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
   .aggregate(hre, col, viper_api, parsers)
@@ -139,3 +141,12 @@ lazy val vercors: Project = (project in file("."))
 
     cleanFiles += baseDirectory.value / "bin" / ".classpath",
   )
+
+Global / printMainClasspath := {
+    val paths = (vercors / Compile / fullClasspath).value
+    val joinedPaths = paths
+        .map(_.data)
+        .mkString(":")
+    println(joinedPaths)
+}
+
