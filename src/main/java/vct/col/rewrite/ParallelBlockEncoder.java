@@ -691,7 +691,12 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     loop_invariant=c.invariant;
     parBoundsStack.push(s.guard);
     ASTNode res=null;
-    Map<String, Type> bodyVars = NameScanner.freeVars(s.body,c,create.fold(StandardOperator.And, parBoundsStack));
+    NameScanner bodyVarScanner = new NameScanner();
+    s.body.accept(bodyVarScanner);
+    c.accept(bodyVarScanner);
+    for(ASTNode parBound : parBoundsStack)
+      parBound.accept(bodyVarScanner);
+    Map<String, Type> bodyVars = bodyVarScanner.freeNamesJava();
     //Hashtable<String,Type> iters=new Hashtable<String,Type>();
     Map<String, Type> mainVars = new HashMap<>(bodyVars);
     for(DeclarationStatement decl:s.decls){

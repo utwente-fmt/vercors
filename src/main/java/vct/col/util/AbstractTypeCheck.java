@@ -1129,6 +1129,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         } else if (tt[1].isPrimitive(PrimitiveSort.Option)) {
           e.arg(0).setType(tt[1]);
         }
+        if(tt[0].isPrimitive(PrimitiveSort.Pointer)) {
+          e.arg(1).setType(tt[0]);
+        } else if(tt[1].isPrimitive(PrimitiveSort.Pointer)) {
+          e.arg(0).setType(tt[1]);
+        }
         break;
       }
       case ValidArray: {
@@ -1868,34 +1873,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
           break;
       }
     }
-
-//    if (arg.getType().isPrimitive(PrimitiveSort.ZFraction)||
-//        arg.getType().isPrimitive(PrimitiveSort.Fraction)) {
-//      if (arg instanceof OperatorExpression){
-//        OperatorExpression e=(OperatorExpression)arg;
-//        switch(e.operator()){
-//        case ITE:
-//          force_frac(e.arg(1));
-//          force_frac(e.arg(2));
-//          break;
-//        }
-//      }
-//      return;
-//    }
-//    arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
-//    if (arg instanceof OperatorExpression){
-//      OperatorExpression e=(OperatorExpression)arg;
-//      switch(e.operator()){
-//      case Div:
-//        //force_frac(e.getArg(0));
-//        break;
-//      default:
-//        for(ASTNode n:e.argsJava()){
-//          force_frac(n);
-//        }
-//        break;
-//      }
-//    }
   }
 
   public void visit(Dereference e){
