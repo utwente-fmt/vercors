@@ -5,8 +5,6 @@ import java.util.List;
 
 import hre.ast.Origin;
 import viper.api.ViperError;
-//import static vct.logging.VerCorsError.ErrorCode.*;
-//import static vct.logging.VerCorsError.SubCode.*;
 
 /**
  * Represents verifications errors as log messages.

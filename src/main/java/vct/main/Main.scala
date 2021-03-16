@@ -174,9 +174,8 @@ class Main {
       case "silicon_qp" =>
         Warning("silicon_qp has been merged into silicon, using silicon instead")
         silver.set("silicon")
-      case "silicon" =>
-      case "carbon" =>
-        // Nothing to check for
+      case "silicon" => // Nothing to check for
+      case "carbon" => // Nothing to check for
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
     }
