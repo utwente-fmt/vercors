@@ -364,10 +364,10 @@ gccDeclaratorExtension
     ;
 
 gccAttributeSpecifier
-    :   '__attribute__' '(' '(' gccAttributeListEmpty ')' ')'
+    :   '__attribute__' '(' '(' gccAttributeList ')' ')'
     ;
 
-gccAttributeListEmpty
+gccAttributeList
     :   gccAttributeListNonEmpty
     |   // empty
     ;
