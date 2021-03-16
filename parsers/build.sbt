@@ -1,7 +1,7 @@
 lazy val antlrTask = taskKey[Seq[File]]("Generate visitors and listeners from ANTLR grammars")
 
-libraryDependencies += "antlr" % "antlr" % "4.8-extractors-1" from
-  "https://github.com/niomaster/antlr4/releases/download/4.8-extractors-1/antlr4.jar"
+libraryDependencies += "antlr" % "antlr" % "4.8-extractors-2" from
+  "https://github.com/niomaster/antlr4/releases/download/4.8-extractors-2/antlr4.jar"
 
 antlrTask := {
     val cp = (dependencyClasspath in Compile).value.files
