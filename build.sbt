@@ -146,7 +146,7 @@ Global / printMainClasspath := {
     val paths = (vercors / Compile / fullClasspath).value
     val joinedPaths = paths
         .map(_.data)
-        .mkString(java.io.File.pathSeparator)
+        .mkString(pathSeparator)
     println(joinedPaths)
 }
 
