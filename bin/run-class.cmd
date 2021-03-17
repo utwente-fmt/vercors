@@ -13,7 +13,7 @@ if not exist "%CPFILE%" (
     echo Extracting classpath from SBT. This might take a moment.
     cd %~dp0..
     rem get classpath from SBT
-    sbt --error "Global / printMainClasspath" > "%CPFILE%"
+    call sbt --error "Global / printMainClasspath" > "%CPFILE%"
     cd %cur%
     echo Classpath extracted
 )
