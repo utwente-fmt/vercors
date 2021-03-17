@@ -1,5 +1,6 @@
 import NativePackagerHelper._
 import sys.process._
+import java.io.File.pathSeparator
 import java.nio.file.{Files, Path, Paths}
 import java.net.URL
 import java.util.Comparator
@@ -145,7 +146,7 @@ Global / printMainClasspath := {
     val paths = (vercors / Compile / fullClasspath).value
     val joinedPaths = paths
         .map(_.data)
-        .mkString(":")
+        .mkString(java.io.File.pathSeparator)
     println(joinedPaths)
 }
 
