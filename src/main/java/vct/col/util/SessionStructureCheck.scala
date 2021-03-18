@@ -156,7 +156,7 @@ class SessionStructureCheck(source : ProgramUnit) {
         } else Fail("Session Fail: one or two branches expected in IfStatement! " + s.getOrigin)
       }
       case l: LoopStatement => {
-        if (l.getInitBlock == null && l.getUpdateBlock == null)
+        if (l.getInitBlock == null && l.getUpdateBlock == null) //it is a while loop
           if (checkSessionCondition(l.getEntryGuard, roleNames))
             checkMainStatement(l.getBody)
           else Fail("Session Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
@@ -282,7 +282,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     case _ => false
   }
 
-  private def isBaseType(p : PrimitiveType) = p.isBoolean || p.isDouble || p.isInteger
+  private def isBaseType(p : PrimitiveType) = p.isBoolean || p.isDouble || p.isInteger || p.sort == PrimitiveSort.Resource
 
   private def isOptionOfArray(o : ASTNode, allowRoles : Boolean) = o match {
     case p : PrimitiveType => p.sort match {
