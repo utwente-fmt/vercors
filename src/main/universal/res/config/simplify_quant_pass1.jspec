@@ -431,4 +431,22 @@ class simplify_quant_pass1 {
     ==
     (e1 < e2) ==> (\forall* int i; (i \memberof {e3 .. e4}); Perm(e5, (p1 * (e2 - e1))\p2))
   }
+
+  axiom read_spreads_l {
+    read * i
+    ==
+    read
+  }
+
+  axiom read_spreads_r {
+    i * read
+    ==
+    read
+  }
+
+  axiom resource_independent_read_quant {
+    (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, read)!tid))
+    ==
+    (e1<e2) ==> Perm(g1, read)
+  }
 }
