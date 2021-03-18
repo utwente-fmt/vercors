@@ -3,7 +3,7 @@ package vct.col.util
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelRegion}
+import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTFactory
 import vct.col.util.SessionUtil.getArgName
@@ -51,6 +51,7 @@ object SessionUtil {
         val stats = b.getStatements.toSet : Set[ASTNode]
         stats.flatMap(s => s match {
           case l: LoopStatement => getChansFromBlockStateMent(l.getBody)
+          case i : IfStatement => getChansFromBlockStateMent(i.getStatement(0)) ++ (if(i.getCount > 1) getChansFromBlockStateMent(i.getStatement(1)) else Set.empty)
           case p: ParallelRegion => {
             val blocks = p.blocks.map(_.block).toSet: Set[BlockStatement]
             blocks.flatMap(getChansFromBlockStateMent): Set[MethodInvokation]
