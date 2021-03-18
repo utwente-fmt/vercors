@@ -1,18 +1,13 @@
 package vct.col.rewrite
 
 import scala.annotation.nowarn
-import java.util
-import vct.col.ast.`type`.Type
 import vct.col.ast.expr.StandardOperator.{And, Div, EQ, FloorDiv, GT, GTE, ITE, Implies, LT, LTE, Member, Minus, Mult, Plus, RangeSeq, UMinus}
-import hre.lang.System.Output
-import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr._
 import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.{AbstractRewriter, NameScanner}
 
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
