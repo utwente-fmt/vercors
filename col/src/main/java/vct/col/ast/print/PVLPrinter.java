@@ -727,7 +727,7 @@ public class PVLPrinter extends AbstractPrinter{
                         case ASTFlags.INLINE:
                             out.printf("inline ");
                         case ASTFlags.PUBLIC:
-                            out.printf("public ");
+                            //no public in PVL
                             break;
                         case ASTFlags.THREAD_LOCAL:
                             out.printf("thread_local  ");
