@@ -457,7 +457,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(par: OMPForSimd): Unit = { super.visit(par); addFeature(OpenMP, par) }
   override def visit(fr: OMPFor): Unit = { super.visit(fr); addFeature(OpenMP, fr) }
 
-  override def visit(s: stmt.composite.ParallelAtomic): Unit = { super.visit(s); addFeature(ParallelAtomic, s) }
+  override def visit(s: stmt.composite.ParallelAtomic): Unit = {
+    super.visit(s)
+    visitBeforeAfter(s)
+    addFeature(ParallelAtomic, s)
+  }
   override def visit(s: ParallelBarrier): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
   override def visit(s: ParallelBlock): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
   override def visit(s: ParallelInvariant): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }

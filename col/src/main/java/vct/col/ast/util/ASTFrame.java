@@ -7,6 +7,10 @@ import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.type.TypeExpression;
+import vct.col.ast.type.TypeOperator;
 
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicReference;
@@ -378,6 +382,13 @@ public abstract class ASTFrame<T> {
         variables.enter();
         for (DeclarationStatement decl:(node).getArgs()) {
           variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Argument));
+        }
+        if(node.getReturnType() instanceof TypeExpression && ((TypeExpression) node.getReturnType()).operator() == TypeOperator.Kernel) {
+          for(String kernelArgument : new String[]{"opencl_lid", "opencl_gid", "opencl_gcount", "opencl_gsize"}) {
+            variables.add(kernelArgument, new VariableInfo(
+                    new DeclarationStatement(kernelArgument, new PrimitiveType(PrimitiveSort.Integer)),
+                    NameExpressionKind.Argument));
+          }
         }
         add_contract_vars(node);
         break;

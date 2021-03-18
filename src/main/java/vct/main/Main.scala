@@ -312,7 +312,6 @@ class Main {
     "propagateInvariants",
     "dummy-InvariantsPropagatedHere",
     "compileToJava",
-    "simplifyQuantifiedIntegerRelations",
     "liftGhostCode",
     "inlineWithThenHints",
     "inlineParallelAtomics",
