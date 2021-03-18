@@ -7,18 +7,18 @@ class Main {
 	
 	Grid P1,P2;
 	
+	ensures Perm(P1,read) ** Perm(P2,read);
+	ensures P1.gridWritePerm() ** P2.gridWritePerm();
+	ensures Perm(P1.move,1) ** Perm(P2.move,1);
+	ensures Perm(P1.myToken,read) ** Perm(P2.myToken,read);
+	ensures Perm(P1.turn,1) ** Perm(P2.turn,1);
+	ensures P1.myToken == 0 ** P2.myToken == 1; 
 	Main() {
 		P1 = new Grid(0,true);
 		P2 = new Grid(1,false);	
 	}
 	
 	context Perm(P1,read) ** Perm(P2,read);
-/*	context Perm(P1.c00, 1) ** Perm(P1.c01, 1) ** Perm(P1.c02, 1) ** 
-					   Perm(P1.c10, 1) ** Perm(P1.c11, 1) ** Perm(P1.c12, 1) ** 
-					   Perm(P1.c20, 1) ** Perm(P1.c21, 1) ** Perm(P1.c22, 1);
-	context Perm(P2.c00, 1) ** Perm(P2.c01, 1) ** Perm(P2.c02, 1) ** 
-				   Perm(P2.c10, 1) ** Perm(P2.c11, 1) ** Perm(P2.c12, 1) ** 
-				   Perm(P2.c20, 1) ** Perm(P2.c21, 1) ** Perm(P2.c22, 1); */
 	context P1.gridWritePerm();
 	context P2.gridWritePerm();
 	context Perm(P1.move,1) ** Perm(P1.myToken, read);
@@ -27,16 +27,10 @@ class Main {
 	context Perm(P1.turn,1) ** Perm(P2.turn,1);
 	context P1.myToken == 0;
 	context P2.myToken == 1;				  
-	context P1.turn != P2.turn;
+//	context P1.turn != P2.turn;
 	ensures P1.gameFinished() && P2.gameFinished();
 	void run() {	  
 		loop_invariant Perm(P1,read) ** Perm(P2,read);
-	/*	loop_invariant Perm(P1.c00, 1) ** Perm(P1.c01, 1) ** Perm(P1.c02, 1) ** 
-					   Perm(P1.c10, 1) ** Perm(P1.c11, 1) ** Perm(P1.c12, 1) ** 
-					   Perm(P1.c20, 1) ** Perm(P1.c21, 1) ** Perm(P1.c22, 1);
-		loop_invariant Perm(P2.c00, 1) ** Perm(P2.c01, 1) ** Perm(P2.c02, 1) ** 
-					   Perm(P2.c10, 1) ** Perm(P2.c11, 1) ** Perm(P2.c12, 1) ** 
-					   Perm(P2.c20, 1) ** Perm(P2.c21, 1) ** Perm(P2.c22, 1); */
 		loop_invariant P1.gridWritePerm();
 		loop_invariant P2.gridWritePerm();
 	    loop_invariant Perm(P1.move,1) ** Perm(P1.myToken, read);
@@ -46,10 +40,8 @@ class Main {
 	//	loop_invariant P1.gameFinished() == P2.gameFinished(); this invariant is not necessary with the equals invariant
 		loop_invariant P1.myToken == 0;
 		loop_invariant P2.myToken == 1;
-		loop_invariant P1.turn != P2.turn;
+	//	loop_invariant P1.turn != P2.turn; //invariant not needed
 		while(!P1.gameFinished() && !P2.gameFinished()) {
-			unfold P1.gridWritePerm();
-			unfold P2.gridWritePerm();
 			if(P1.turn && !P2.turn) {
 				P1.createNewMove();
 				P2.move = P1.move;
