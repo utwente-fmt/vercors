@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import hre.ast.MessageOrigin
 import hre.lang.System.Output
-import vct.col.ast.`type`.ASTReserved
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType}
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, IfStatementCase, LoopStatement, ParallelBlock, ParallelRegion}
@@ -49,8 +49,8 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(m : Method) : Unit = { //assume ony pre and postconditions
     val c = m.getContract()
     val cb = new ContractBuilder()
-    cb.requires(rewrite(selectAnnotation(c.pre_condition)))
-    cb.ensures(rewrite(selectAnnotation(c.post_condition)))
+    cb.requires(rewrite(c.pre_condition))
+    cb.ensures(rewrite(c.post_condition))
     if(m.kind == Method.Kind.Constructor) {
       result = create.method_kind(m.kind,m.getReturnType,cb.getContract,getThreadClassName(roleName),m.getArgs,rewrite(m.getBody))
     } else if(m.kind == Method.Kind.Pure) {
@@ -60,18 +60,18 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     }
   }
 
-  override def visit(l : LoopStatement) : Unit = { //assume while loop
+  override def visit(l : LoopStatement) : Unit = { //it is while loop
     val c = l.getContract
     val cb = new ContractBuilder()
-    cb.appendInvariant(rewrite(selectAnnotation(c.invariant)))
+    cb.appendInvariant(rewrite(c.invariant))
     result = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract)
   }
 
   override def visit(pb : ParallelBlock) : Unit = {
     val c = pb.contract
     val cb = new ContractBuilder()
-    cb.requires(rewrite(selectAnnotation(c.pre_condition)))
-    cb.ensures(rewrite(selectAnnotation(c.post_condition)))
+    cb.requires(rewrite(c.pre_condition))
+    cb.ensures(rewrite(c.post_condition))
     result = create.parallel_block(pb.label,cb.getContract,pb.itersJava,rewrite(pb.block),pb.deps)
   }
 
@@ -101,24 +101,35 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     } else rewriteExpression(e)
   }
 
-  override def visit(m : MethodInvokation) : Unit = rewriteExpression(m)
+  override def visit(m : MethodInvokation) : Unit = {
+    m.getParent match {
+      case b :BlockStatement => //it is a statement
+        if(isSingleRoleNameExpression(m))
+          copy_rw.rewrite(m)
+        //else remove m
+      case _ => rewriteExpression(m)
+    }
+  }
 
   override def visit(n : NameExpression) : Unit = rewriteExpression(n)
 
   override def visit(d : Dereference) : Unit = rewriteExpression(d)
 
   private def rewriteExpression(e : ASTNode) : Unit =
-    getValidNameFromExpression(true,e) match {
-      case Some(_) => result = copy_rw.rewrite(e)
-      case None => result = create.constant(true)
-    }
+    if(isSingleRoleNameExpression(e))
+      result = copy_rw.rewrite(e)
+    else result = create.constant(true)
 
-  private def selectAnnotation(n :ASTNode) : ASTNode =
+  private def selectResourceAnnotation(n :ASTNode) : ASTNode =
     n match {
       case e : OperatorExpression => e.operator match {
         case StandardOperator.Perm => n
         case StandardOperator.NEQ => if (isNullNode(e.first) || isNullNode(e.second)) n else create.constant(true)
-        case StandardOperator.Star => create.expression(e.operator,selectAnnotation(e.first), selectAnnotation(e.second))
+        case StandardOperator.Star => create.expression(e.operator,selectResourceAnnotation(e.first), selectResourceAnnotation(e.second))
+        case _ => create.constant(true)
+      }
+      case mi : MethodInvokation => mi.getType match {
+        case p : PrimitiveType => if(p.sort == PrimitiveSort.Resource) n else create.constant(true)
         case _ => create.constant(true)
       }
       case _ => create.constant(true)
@@ -132,10 +143,9 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
 
   private def getChanVar(role : NameExpression, isWrite : Boolean) =  create.field_name(getChanName(if(isWrite) (roleName + role.name) else (role.name + roleName)))
 
-  def getValidNameFromNode(isRole : Boolean, n : ASTNode) : Option[NameExpression] =
-    getNameFromNode(n).filter(n => if(isRole) (n.name == roleName) else n.name != roleName)
-
-  private def getValidNameFromExpression(isRole : Boolean, e : ASTNode) : Option[NameExpression] =
-    getNamesFromExpression(e).find(n => if(isRole) (n.name == roleName) else n.name != roleName)
+  private def isSingleRoleNameExpression(e : ASTNode) : Boolean = {
+    val expRoles = getNamesFromExpression(e).filter(n => roleNames.contains(n.name))
+    expRoles.isEmpty || (expRoles.size == 1 && expRoles.head.name == roleName)
+  }
 
 }

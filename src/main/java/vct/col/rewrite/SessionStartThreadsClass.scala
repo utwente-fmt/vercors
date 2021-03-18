@@ -24,9 +24,6 @@ class SessionStartThreadsClass(override val source: ProgramUnit)  extends Abstra
 
   private def getStartThreadClass(threads : Set[ASTClass]) = {
     val mainClass = create.new_class(mainClassName,null,null)
-    val chansPerThread : Map[String,Set[String]] = {
-      threads.foldRight(Map():Map[String,Set[String]])((t,map) => map + (t.name -> t.dynamicFields().map(_.name).toSet))
-    }
     val chansVars = threads.flatMap(getChanFieldNames).map(getChanVar).toArray
     val barrierVar = getBarrierVar(threads.size)
     val threadVars = threads.map(t => getThreadVar(t,getChanFieldNames(t))).toArray
@@ -37,7 +34,7 @@ class SessionStartThreadsClass(override val source: ProgramUnit)  extends Abstra
     val void = create.primitive_type(PrimitiveSort.Void)
     val noArgs = Array() : Array[DeclarationStatement]
     val runMethod = create.method_decl(void,new ContractBuilder().getContract,runMethodName,noArgs,body)
-    mainClass.add_dynamic(runMethod)
+    mainClass.add_static(runMethod)
     mainClass
   }
 
