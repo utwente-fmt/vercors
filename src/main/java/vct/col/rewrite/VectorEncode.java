@@ -27,8 +27,6 @@ import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.SequenceUtils;
 
-import static vct.col.rewrite.VectorEncode.Op.*;
-
 public class VectorEncode extends AbstractRewriter {
   protected enum Op {AssignConst, Add}
   private static class Pair<E1,E2>{
@@ -173,14 +171,14 @@ public class VectorEncode extends AbstractRewriter {
         ArrayList<ASTNode> args=new ArrayList<ASTNode>();
         Op op=null;
         if (expr instanceof ConstantExpression){
-          op=AssignConst;
+          op=Op.AssignConst;
           args.add(expr);
         }
         if (expr.isa(StandardOperator.Plus)){
           OperatorExpression rhs=(OperatorExpression)expr;
           Pair<String, Type> left = detectArray(rhs.arg(0), iterVarName);
           Pair<String, Type> right = detectArray(rhs.arg(1), iterVarName);
-          op=Add;
+          op=Op.Add;
           args.add(create.expression(StandardOperator.Values,create.local_name(left.e1),from,upto));
           args.add(create.expression(StandardOperator.Values,create.local_name(right.e1),from,upto));
         }

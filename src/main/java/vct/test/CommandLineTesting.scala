@@ -10,12 +10,12 @@ import hre.lang.System.{Output, Progress, Warning}
 import hre.util.TestReport.Verdict
 import vct.col.features.Feature
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.io.Source
 
 sealed trait CaseFilter {
-  def addOptions(parser: OptionParser)
+  def addOptions(parser: OptionParser): Unit
   def isPossible(kees: Case): Boolean
 }
 
@@ -198,7 +198,7 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          result += (s"$name-$tool" -> Task(vercors.withArgs(args:_*), conditions))
+          result += (s"$name-$tool" -> Task(vercors.withArgs((args.toSeq):_*), conditions.toSeq))
         }
       }
     }

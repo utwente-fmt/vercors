@@ -5,7 +5,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -22,7 +22,7 @@ class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[t
   
   /** Yields the catch-clauses attached to this try-catch-block as a Java iterator. */
   def catchesJava = catchClauses.toIterable.asJava
-  def catches: Seq[CatchClause] = catchClauses
+  def catches: Seq[CatchClause] = catchClauses.toSeq
   
   /**
    * Adds a catch clause (i.e. an exception handler) to the try-catch-block AST node,
@@ -44,6 +44,6 @@ class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[t
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("main", "catchClauses", "after")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("main", "catchClauses", "after")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

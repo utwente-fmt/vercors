@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
-import hre.lang.System.Output
-import vct.col.ast.expr.StandardOperator._
+import scala.annotation.nowarn
+import vct.col.ast.expr.StandardOperator.{And, Div, EQ, FloorDiv, GT, GTE, ITE, Implies, LT, LTE, Member, Minus, Mult, Plus, RangeSeq, UMinus}
 import vct.col.ast.expr._
 import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.generic.ASTNode
@@ -68,7 +68,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
       right = right.asInstanceOf[OperatorExpression].second
     }
 
-    (left, right)
+    (left.toSeq, right)
   }
 
   def indepOf(names: Set[String], node: ASTNode): Boolean =
@@ -190,6 +190,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
           (expr.first, expr.operator, expr.second)
         } else if(isNameIn(decls, expr.second) && indepOf(decls, expr.first)) {
           // If the quantified variable is the second argument: flip the relation
+          @nowarn("msg=not.*?exhaustive")
           val op = expr.operator match {
             case LT => GT
             case LTE => GTE
@@ -204,7 +205,8 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
 
         val name = quant.asInstanceOf[NameExpression].getName
 
-        op match {
+        @nowarn("msg=not.*?exhaustive")
+        val x = op match {
           case LT =>
             bounds.addUpperBound(name, create expression(Minus, bound, create constant 1))
           case LTE =>
@@ -217,6 +219,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
             bounds.addUpperBound(name, bound)
             bounds.addLowerBound(name, bound)
         }
+        x
       case OperatorExpression(Member, List(elem, OperatorExpression(RangeSeq, List(low, high)))) =>
         val name = elem match {
           case expr: NameExpression if decls.contains(expr.getName) =>

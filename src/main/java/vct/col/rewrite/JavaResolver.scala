@@ -7,7 +7,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, AxiomaticDataType, Metho
 import vct.col.ast.util.{AbstractRewriter, RecursiveVisitor}
 import vct.java.JavaASTClassLoader
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object JavaResolver {
   val DOT = "_DOT_"
@@ -31,7 +31,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
 
   private def currentPackageName: Seq[String] = currentNamespace match {
     case None => Seq()
-    case Some(ns) => ns.getDeclName.name.filter(_.nonEmpty)
+    case Some(ns) => ns.getDeclName.name.toIndexedSeq.filter(_.nonEmpty)
   }
 
   override def visit(cls: ASTClass): Unit =
@@ -44,7 +44,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
         rewrite(cls.implemented_classes),
       )
 
-      cls.asScala.map(rewrite(_)).foreach(res add)
+      cls.asScala.map(rewrite(_)).foreach(res.add)
       result = res
     } else {
       super.visit(cls)
@@ -102,7 +102,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
       if(!scanned.contains(cls))
         toScan += cls
 
-      Some(cls.getName.split('.'))
+      Some(cls.getName.split('.').toIndexedSeq)
     }
   }
 
