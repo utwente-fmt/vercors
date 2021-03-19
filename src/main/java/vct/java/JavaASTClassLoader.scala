@@ -60,7 +60,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
     ns match {
       // If we're going by file: require a namespace, as we can't guess how many directories to go up etc.
       case Some(ns) if ns.getOrigin != null && ns.getOrigin.isInstanceOf[FileOrigin] =>
-        var basePath = Paths.get(ns.getOrigin.asInstanceOf[FileOrigin].getName).toAbsolutePath.getParent
+        var basePath = ns.getOrigin.asInstanceOf[FileOrigin].getPath.toAbsolutePath.getParent
         for(_ <- ns.getDeclName.name.filter(_.nonEmpty /* pls */)) {
           basePath = basePath.getParent
         }

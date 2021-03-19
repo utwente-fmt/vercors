@@ -99,15 +99,15 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
           tmp match {
             case None =>
               if (file == null) {
-                f.message("null origin") // TODO: When upgrading to viper 21.01, had to add this null check but the null came out of nowhere, think there should be an actual value for file normally
+                f.message("null origin") // When upgrading to viper 21.01, had to add this null check but the null came out of nowhere, think there should be an actual value for file normally
               } else {
-                f.file(file.toString(),start.line,start.column)
+                f.file(file,start.line,start.column)
               }
             case Some(end) =>
               if (file==null){
                 f.message("null origin");
               } else {
-                f.file(file.toString(),start.line,start.column,end.line,end.column)
+                f.file(file,start.line,start.column,end.line,end.column)
               }
           }
         case _ => null.asInstanceOf[OO]

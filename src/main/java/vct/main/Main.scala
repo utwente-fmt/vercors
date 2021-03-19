@@ -18,9 +18,8 @@ import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
-
 import scala.jdk.CollectionConverters._
-import scala.collection.mutable.ArrayBuffer
+import java.nio.file.Paths
 
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
@@ -188,10 +187,10 @@ class Main {
     report.add(new ErrorDisplayVisitor)
 
     tk.show
-    for (name <- inputPaths) {
-      val f = new File(name)
-      if (!no_context.get) FileOrigin.add(name, gui_context.get)
-      report.getOutput.add(Parsers.parseFile(f.getPath))
+    for (pathName <- inputPaths) {
+      val path = Paths.get(pathName);
+      if (!no_context.get) FileOrigin.add(path, gui_context.get)
+      report.getOutput.add(Parsers.parseFile(path))
     }
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
