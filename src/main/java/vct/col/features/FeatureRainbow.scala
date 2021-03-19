@@ -170,10 +170,16 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       }
     }
 
-    if(isPure(m) && isInline(m))
-      addFeature(InlinePredicate, m)
-    if(isPure(m) && m.getBody.isInstanceOf[BlockStatement])
-      addFeature(PureImperativeMethods, m)
+    if(isPure(m)) {
+      if(isInline(m))
+        addFeature(InlinePredicate, m)
+      if(m.getBody.isInstanceOf[BlockStatement])
+        addFeature(PureImperativeMethods, m)
+    }
+
+    if(m.kind == Method.Kind.Pure && m.getReturnType.isPrimitive(PrimitiveSort.Resource))
+      addFeature(NotStandardized, m)
+
     if(m.kind == Method.Kind.Constructor)
       addFeature(Constructors, m)
     if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && !isPure(m))
