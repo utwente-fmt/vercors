@@ -41,7 +41,7 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
   override def visit(m : Method) : Unit = {
     m.getParent match {
       case c: ASTClass =>
-        if (c.name != barrierClassName && c.name != channelClassName && (methodCalled || m.kind != Method.Kind.Pure)) {
+        if (c.name != barrierClassName && c.name != channelClassName && (methodCalled || m.kind != Method.Kind.Pure) ) {
           //only check called pure method  or non-pure method
           //don't check methods from Barrier or Channel class, so only methods from Main, roles, ot other classes
           if (methodCalled)
@@ -66,8 +66,16 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
     })
   }
 
+  override def visit(op : OperatorExpression) : Unit = {
+    val tmp = encountered
+    op.args.foreach(s => {
+      encountered = tmp
+      s.accept(this)
+    })
+  }
+
   override def visit(m : MethodInvokation) : Unit = {
-    if(encountered.contains(m.method))
+    if(encountered.contains(MethodInvToString(m)))
       Warning("Session Warning: recursive call of method '%s'" + deadlockWarning, m.method, m.getOrigin)
     else methods.find(tup => tup._1.name == m.method) match {
       case Some(tup) => {
@@ -77,7 +85,7 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
           Fail("Session Fail: Cannot call Main method '%s' from role or other class! %s", m.method,m.getOrigin)
         } else if (mClass != mainClassName || method.kind == Method.Kind.Pure) {
           methodCalled = true
-          encountered += method.name
+          encountered += MethodInvToString(m)
           visit(method)
         } else {
           //stop checking; recursion is allowed in non-pure main methods
@@ -89,6 +97,8 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
       }
     }
   }
+
+  def MethodInvToString(mi : MethodInvokation) = mi.method //(if (mi.`object`==null) "" else mi.`object`.toString) + mi.method
 
   override def visit(l : LoopStatement) : Unit =
     if(currentClass != mainClassName)

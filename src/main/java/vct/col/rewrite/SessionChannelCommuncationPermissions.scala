@@ -13,7 +13,7 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
   override def visit(m : Method) = {
     m.getParent match {
       case c : ASTClass => {
-        if(isThreadClassName(c.name) && m.kind != Method.Kind.Pure) {
+        if(isThreadClassName(c.name) && m.kind != Method.Kind.Pure && m.kind != Method.Kind.Predicate) {
           val chans : Set[SessionChannel] = m.getBody match {
             case b : BlockStatement => getChans(b)
             case _ => Fail("Session Fail: Body of method %s in class %s is not a BlockStatement\n",m.name,c.name); Set()

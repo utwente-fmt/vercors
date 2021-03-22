@@ -6,7 +6,7 @@ import vct.col.ast.expr.{NameExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionUtil.{barrierFieldName, channelClassName, getBarrierClass, getChanClass, getRoleName, isChanName, isThreadClassName, mainClassName, runMethodName}
+import vct.col.util.SessionUtil.{barrierFieldName, channelClassName, getBarrierClass, getChanClass, getRoleName, isChanName, isThreadClassName, mainClassName, mainMethodName, runMethodName}
 
 import scala.collection.JavaConversions._
 
@@ -33,8 +33,8 @@ class SessionStartThreadsClass(override val source: ProgramUnit)  extends Abstra
       (barrierVar +: (chansVars ++ threadVars ++ threadForks ++ threadJoins)):_*)
     val void = create.primitive_type(PrimitiveSort.Void)
     val noArgs = Array() : Array[DeclarationStatement]
-    val runMethod = create.method_decl(void,new ContractBuilder().getContract,runMethodName,noArgs,body)
-    mainClass.add_static(runMethod)
+    val mainMethod = create.method_decl(void,new ContractBuilder().getContract,mainMethodName,noArgs,body)
+    mainClass.add_static(mainMethod)
     mainClass
   }
 

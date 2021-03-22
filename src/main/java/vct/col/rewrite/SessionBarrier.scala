@@ -30,7 +30,7 @@ class SessionBarrier(override val source: ProgramUnit) extends AbstractRewriter(
           case _ => Fail("Session Fail: expected BlockStatement in Method %s", m.name)
         }
 
-      } else if (m.kind == Method.Kind.Pure) {
+      } else if (m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate) {
         result = copy_rw.rewrite(m)
       } else {
         val newContract = new ContractBuilder()

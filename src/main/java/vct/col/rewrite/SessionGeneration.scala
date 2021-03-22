@@ -10,7 +10,7 @@ import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionStructureCheck
-import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, chanRead, chanWrite, getArgName, getBarrierClass, getChanClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName}
+import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, chanRead, chanWrite, getArgName, getBarrierClass, getChanClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName, mainMethodName}
 
 import scala.collection.JavaConversions._
 
@@ -37,7 +37,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     create.setOrigin(new MessageOrigin("Generated thread class " + roleName))
     val threadName = getThreadClassName(roleName)
     val thread = create.new_class(threadName,null,null)
-    val rewMethods = mainClass.methods().map(rewrite(_))
+    val rewMethods = mainClass.methods().filter(_.name != mainMethodName).map(rewrite(_))
     mainClass.fields().forEach(f => if(f.name == roleName) thread.add(rewrite(f)))
     chans.foreach(chan => thread.add_dynamic(create.field_decl(chan,getChanClass())))
     thread.add_dynamic(create.field_decl(barrierFieldName,getBarrierClass()))
@@ -104,7 +104,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(m : MethodInvokation) : Unit = {
     m.getParent match {
       case b :BlockStatement => //it is a statement
-        if(isSingleRoleNameExpression(m))
+        if(isSingleRoleNameExpression(m, roleNames))
           copy_rw.rewrite(m)
         //else remove m
       case _ => rewriteExpression(m)
@@ -116,7 +116,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(d : Dereference) : Unit = rewriteExpression(d)
 
   private def rewriteExpression(e : ASTNode) : Unit =
-    if(isSingleRoleNameExpression(e))
+    if(isSingleRoleNameExpression(e,roleNames))
       result = copy_rw.rewrite(e)
     else result = create.constant(true)
 
@@ -143,7 +143,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
 
   private def getChanVar(role : NameExpression, isWrite : Boolean) =  create.field_name(getChanName(if(isWrite) (roleName + role.name) else (role.name + roleName)))
 
-  private def isSingleRoleNameExpression(e : ASTNode) : Boolean = {
+  def isSingleRoleNameExpression(e : ASTNode, roleNames : Iterable[String]) : Boolean = {
     val expRoles = getNamesFromExpression(e).filter(n => roleNames.contains(n.name))
     expRoles.isEmpty || (expRoles.size == 1 && expRoles.head.name == roleName)
   }

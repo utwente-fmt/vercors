@@ -8,7 +8,7 @@ import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, P
 import vct.col.ast.stmt.decl.Method.Kind
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
-import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNameFromNode, getNamesFromExpression, mainClassName, runMethodName}
+import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNameFromNode, getNamesFromExpression, mainClassName, mainMethodName, runMethodName}
 
 import scala.collection.IterableView
 import scala.collection.JavaConversions._
@@ -40,7 +40,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     roleNames = getRoleNames()
     roleClasses = getRoleClasses(source)
     roleClassNames = roleClasses.map(_.name)
-    mainMethods = getMainMethodsNonPure()
+    mainMethods = getMainMethodsNonPureNonResourcePredicate()
     mainMethodNames = mainMethods.map(_.name)
     pureMainMethodNames = mainClass.methods().filter(_.kind == Method.Kind.Pure).map(_.name)
     checkMainMethodsAllowedSyntax(mainMethods)
@@ -72,16 +72,19 @@ class SessionStructureCheck(source : ProgramUnit) {
         mcl.methods().find(_.name == runMethodName) match {
           case None => Fail("Session Fail: The class 'Main' must have a method '%s'!",runMethodName)
           case Some(run) => {
-            if(run.getArgs.length != 0)
-              Fail("Session Fail: the method '%s' of class 'Main' cannot have any arguments!",runMethodName)
-            else run.getReturnType match {
-              case p : PrimitiveType =>
-                if(!p.isVoid) {
-                  Fail("Session Fail: The return type of method '%s' has to be void!", runMethodName)
-                }
-              case _ => Fail("Session Fail: The return type of method '%s' has to be void!",runMethodName)
-            }
+            if (run.getArgs.length != 0)
+              Fail("Session Fail: the method '%s' of class 'Main' cannot have any arguments!", runMethodName)
+            else if (!isVoidType(run.getReturnType))
+              Fail("Session Fail: The return type of method '%s' has to be void!", runMethodName)
           }
+        }
+        mcl.methods().find(_.name == mainMethodName) match {
+          case None => Fail("Session Fail: The class 'Main' must have the following method: \nvoid " + mainMethodName + "() {\n\t\t(new Main())."+ runMethodName +"();\n\t}")
+          case Some(mainMethod) =>
+            if(mainMethod.getArgs.length != 0)
+              Fail("Session Fail: the method '%s' of class 'Main' cannot have any arguments!",mainMethodName)
+            else if(!isVoidType(mainMethod.getReturnType))
+              Fail("Session Fail: The return type of method '%s' has to be void!", mainMethodName)
         }
     }
   }
@@ -122,7 +125,37 @@ class SessionStructureCheck(source : ProgramUnit) {
     }
   }
 
-  private def getMainMethodsNonPure() : Iterable[Method] = mainClass.methods().filter(m => m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure)
+  private def getMainMethodsNonPureNonResourcePredicate() : Iterable[Method] = mainClass.methods().filter(m => m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)))
+
+  private def isResourceType(t : Type) : Boolean = t match {
+    case p : PrimitiveType => p.sort == PrimitiveSort.Resource
+    case _ => false
+  }
+
+  private def checkMainMethod() : Unit = {
+    val mainMethod = mainClass.methods().find(_.name == mainMethodName).get
+    mainMethod.getBody match {
+      case b : BlockStatement => {
+        if(b.getLength != 1)
+          Fail("Session Fail: Method %s can only have one statement (namely %s)!",mainMethodName,"(new Main())."+ runMethodName +"();")
+        else b.getStatement(0) match {
+          case m : MethodInvokation => {
+            m.`object` match {
+              case mo : MethodInvokation =>
+                if(!(mo.method == Method.JavaConstructor && mo.dispatch.getName == mainMethodName))
+                  Fail("Session Fail: Didn't find expected statement %s in method %s!","(new Main())."+ runMethodName +"();",mainMethodName)
+              case _ => Fail("Session Fail: Didn't find expected statement %s in method %s!","(new Main())."+ runMethodName +"();",mainMethodName)
+            }
+            if(m.method != runMethodName)
+              Fail("Session Fail: Didn't find expected statement %s in method %s!","(new Main())."+ runMethodName +"();",mainMethodName)
+          }
+          case _ => Fail("Session Fail: Didn't find expected statement %s in method %s!","(new Main())."+ runMethodName +"();",mainMethodName)
+        }
+      }
+      case _ => Fail("Session Fail: expected BlockStatement for method %s", mainMethodName)
+    }
+
+  }
 
   private def checkMainMethodsAllowedSyntax(methods : Iterable[Method]) : Unit = {
     methods.foreach(m => checkMainStatement(m.getBody))
@@ -271,7 +304,7 @@ class SessionStructureCheck(source : ProgramUnit) {
   private def isNonRoleOrPrimitive(t : Type, isVoid : Boolean, allowRoles : Boolean) : Boolean =
     isBasePrimitiveType(t, allowRoles) || isOptionOfArray(t, allowRoles) || isSequence(t, allowRoles) || isVoid && isVoidType(t)
 
-  private def isVoidType(a : ASTNode) = a match {
+  def isVoidType(a : ASTNode) = a match {
     case p : PrimitiveType => p.isVoid
     case _ => false
   }

@@ -14,6 +14,7 @@ object SessionUtil {
 
   val mainClassName : String = "Main"
   val runMethodName : String = "run"
+  val mainMethodName : String = "main"
   private val threadName : String = "Thread"
   private val chanName : String = "Chan"
   val channelClassName : String = "Channel"
