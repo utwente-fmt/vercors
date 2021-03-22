@@ -584,14 +584,22 @@ public class PVLPrinter extends AbstractPrinter{
     private void printRequires(ASTNode expr) {
         out.printf("requires ");
         nextExpr();
+        if(expr instanceof MethodInvokation)
+            out.print("(");
         expr.accept(this);
+        if(expr instanceof MethodInvokation)
+            out.print(")");
         out.lnprintf(";");
     }
 
     private void printEnsures(ASTNode expr) {
         out.printf("ensures ");
         nextExpr();
+        if(expr instanceof MethodInvokation)
+            out.print("(");
         expr.accept(this);
+        if(expr instanceof MethodInvokation)
+            out.print(")");
         out.lnprintf(";");
     }
 
@@ -620,7 +628,12 @@ public class PVLPrinter extends AbstractPrinter{
                 if(pre.equals(post)) {
                     out.printf("context ");
                     nextExpr();
+                    if(pre instanceof MethodInvokation)
+                        out.print("(");
                     pre.accept(this);
+                    if(pre instanceof MethodInvokation)
+                        out.print(")");
+
                     out.lnprintf(";");
                 } else { //cannot undo next(), so need to print pre and post
                     printprepost = true;

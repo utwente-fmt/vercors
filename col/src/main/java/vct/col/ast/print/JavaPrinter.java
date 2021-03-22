@@ -647,7 +647,11 @@ public class JavaPrinter extends AbstractPrinter {
       for(ASTNode e:ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star)){
         out.printf("requires ");
         nextExpr();
+        if(e instanceof MethodInvokation)
+          out.print("(");
         e.accept(this);
+        if(e instanceof MethodInvokation)
+          out.print(")");
         out.lnprintf(";");
       }
       for (DeclarationStatement d:contract.yields){
@@ -658,7 +662,11 @@ public class JavaPrinter extends AbstractPrinter {
       for(ASTNode e:ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star)){
         out.printf("ensures ");
         nextExpr();
+        if(e instanceof MethodInvokation)
+          out.print("(");
         e.accept(this);
+        if(e instanceof MethodInvokation)
+          out.print(")");
         out.lnprintf(";");
       }
       for (SignalsClause sc : contract.signals){
