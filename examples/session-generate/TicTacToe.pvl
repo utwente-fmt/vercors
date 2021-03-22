@@ -7,26 +7,21 @@ class Main {
 	
 	Grid P1,P2;
 	
-	ensures Perm(P1,read) ** Perm(P2,read);
-	ensures P1.gridWritePerm() ** P2.gridWritePerm();
-	ensures Perm(P1.move,1) ** Perm(P2.move,1);
-	ensures Perm(P1.myToken,read) ** Perm(P2.myToken,read);
-	ensures Perm(P1.turn,1) ** Perm(P2.turn,1);
-	ensures P1.myToken == 0 ** P2.myToken == 1; 
+	inline resource ticTacToeAnnotations() = Perm(P1,read) ** Perm(P2,read)
+	** P1.gridWritePerm() ** P2.gridWritePerm()
+	** Perm(P1.move,1) ** Perm(P2.move,1)
+	** Perm(P1.myToken,read) ** Perm(P2.myToken,read)
+	** Perm(P1.turn,1) ** Perm(P2.turn,1)
+	** P1.myToken == 0 ** P2.myToken == 1
+	** P1.equals(P2); 
+	
+	ensures (ticTacToeAnnotations());
 	Main() {
 		P1 = new Grid(0,true);
 		P2 = new Grid(1,false);	
 	}
 	
-	context Perm(P1,read) ** Perm(P2,read);
-	context P1.gridWritePerm();
-	context P2.gridWritePerm();
-	context Perm(P1.move,1) ** Perm(P1.myToken, read);
-	context Perm(P2.move,1) ** Perm(P2.myToken, read);
-	context P1.equals(P2);
-	context Perm(P1.turn,1) ** Perm(P2.turn,1);
-	context P1.myToken == 0;
-	context P2.myToken == 1;				  
+	context (ticTacToeAnnotations());		  
 //	context P1.turn != P2.turn;
 	ensures P1.gameFinished() && P2.gameFinished();
 	void run() {	  
@@ -54,6 +49,10 @@ class Main {
 			P1.turn = !P1.turn;
 			P2.turn = !P2.turn;
 		}
+	}
+	
+	void main() {
+		(new Main()).run();
 	}
 
 }
