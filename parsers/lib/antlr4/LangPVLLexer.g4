@@ -96,6 +96,8 @@ GPUOPT_GLOB_TO_REG: 'glob_to_reg';
 GPUOPT_TILE: 'tile';
 COLUMN_MAJOR: 'C';
 ROW_MAJOR: 'R';
+TILE_INTER: 'inter';
+TILE_INTRA: 'intra';
 
 MAP: 'map';
 TUPLE: 'tuple';

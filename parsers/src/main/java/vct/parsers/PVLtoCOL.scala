@@ -648,7 +648,12 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       }
       create.opt_matrix_lin(convertIDName(matrixName), toMajor, expr(dimX), expr(dimY))
     case Gpuopt3(gpuOptKeyword, "glob_to_reg", matrixName, locs, _) => create.opt_glob_to_reg(convertIDName(matrixName), convertExpSeq(locs).asJava)
-
+    case Gpuopt4(gpuOptKeyword, "tile", interOrIntra, tileSize, _) =>
+      val config = interOrIntra match {
+        case "inter" => TilingConfig.Inter
+        case "intra" => TilingConfig.Intra
+      }
+      create.opt_tiling(config, create constant Integer.parseInt(tileSize))
   })
 
   def convertGPUOpts(tree: GpuoptsContext): Seq[GPUOpt] = tree match {

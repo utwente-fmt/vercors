@@ -277,8 +277,7 @@ gpuopt
     | 'gpuopt' 'iter_merge' identifier NUMBER ';'
     | 'gpuopt' 'matrix_lin' identifier ('C'|'R') expr expr ';'
     | 'gpuopt' 'glob_to_reg' identifier exprSeq ';'
-//  TODO OS what arguments did tiling have?
-//    | 'gpuopt' 'tile' exprSeq? ';'
+    | 'gpuopt' 'tile' ('inter'| 'intra') NUMBER ';'
     ;
 gpuopts
     : gpuopt

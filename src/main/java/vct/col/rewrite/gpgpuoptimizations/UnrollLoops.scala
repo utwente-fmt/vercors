@@ -154,7 +154,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
     val K: Int = lu.getK
 
     if (K <= 0) {
-      Warning("K is smaller or equal to zero. Loop unroll optimization is not performed at %s", lu.getOrigin)
+      Warning("K is less or equal to zero. Loop unroll optimization is not performed at %s", lu.getOrigin)
       return
     }
 
@@ -366,6 +366,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
   }
 
   private def generateCheckMethods(s: LoopStatement, itervar: NameExpression, K: Int, updateStmt: (StandardOperator, ASTNode)): Seq[Method] = {
+    //TODO OS, prefix the names of the generated methods with something like vct_lu_
     val methodsStatic = true
     val nameOfU = "U" + (Math.random() * 100).asInstanceOf[Int]
     val nameOfInc = "update" + (Math.random() * 100).asInstanceOf[Int]

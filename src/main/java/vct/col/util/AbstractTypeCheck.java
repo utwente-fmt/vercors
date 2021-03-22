@@ -563,7 +563,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         ) {
           Fail("%s is not an argument nor a local variable at %s", ml.matrixName(), ml.matrixName().getOrigin());
         }
-    } else if (opt instanceof DataLocation) {
+    } else if (opt instanceof DataLocation || opt instanceof Tiling) {
       //        //TODO OS check whether we need to skip DataLocation after rewriting grammar
     } else {
       Fail("Unsupported optimization %s", opt.getClass().toString());
@@ -661,7 +661,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
       Map<ASTNode, Long> matlins = m.getGpuOpts().stream()
               .filter(o -> o instanceof MatrixLinearization)
-              .map(on -> ((MatrixLinearization) on).matrixName())
+              .map(on -> (ASTNode) ((MatrixLinearization) on).matrixName())
               .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
       for (ASTNode k: matlins.keySet()) {
         if (matlins.get(k) > 1) Fail("The matrix linearization optimization is defined twice for %s at %s", k, m.getOrigin());

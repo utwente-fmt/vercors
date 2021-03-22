@@ -223,7 +223,7 @@ class Main {
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
     if (Configuration.gpu_optimizations.contains(GPUOptFlags.tiling.toString)) {
-      passes ++= Seq(Passes.BY_KEY("globalMemoryLocToRegister"))
+      passes ++= Seq(Passes.BY_KEY("tileKernel"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
     passes ++= Seq(Passes.BY_KEY("printGpuOptOut"))

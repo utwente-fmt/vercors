@@ -1,5 +1,31 @@
 class RegisterOrig3{
 
+  gpuopt glob_to_reg a tid tid+1;
+  gpuopt glob_to_reg b tid;
+  context_everywhere a != null && b != null;
+  context_everywhere a.length == b.length;
+  context (\forall* int i; i >= 0 && i < a.length; Perm(a[i], 1));
+  context (\forall* int i; i >= 0 && i < a.length; Perm(b[i], 1\2));
+  ensures (\forall int i; i >= 0 && i < a.length; a[i] == 3 * b[i] - 4);
+  void Register_Orig(int[] a, int[] b){
+    par kernel1 (int tid = 0 .. a.length)
+    context Perm(a[tid], 1);
+    context Perm(b[tid], 1\2);
+    ensures a[tid] == 3 * b[tid] - 4;
+    {
+
+       // 6 memory fetches
+       a[tid] = 2 * b[tid];
+       a[tid] = a[tid] + 1;
+       a[tid] = a[tid] + b[tid];
+       a[tid] = a[tid] - 5;
+    }
+  }
+
+
+
+
+
 
   gpuopt glob_to_reg a tid tid+1;
   gpuopt glob_to_reg b tid;
@@ -9,26 +35,15 @@ class RegisterOrig3{
   context (\forall* int i; i >= 0 && i < a.length; Perm(a[i], 1));
   context (\forall* int i; i >= 0 && i < a.length; Perm(b[i], 1\2));
   ensures (\forall int i; i >= 0 && i < a.length; a[i] == \old(a[i]) + N * b[i]);
-  void Register_Orig(int[] a, int[] b, int N){
+  void Register_Orig(int[][] a, int[] b, int N){
 
-    par kernel1 (int tid = 0 .. a.length)
-    context Perm(a[tid], 1);
-    context Perm(b[tid], 1\2);
-    ensures a[tid] == \old(a[tid]) + N * b[tid];
+    par kernel1 (int tidX, tidY)
     {
        // N memory fetches
-
+       a = new int[3][2];
        int counter = 0;
+       a[tid] = ???;
 
-       loop_invariant counter >= 0 && counter <= N;
-       loop_invariant Perm(a[tid], 1);
-       loop_invariant Perm(b[tid], 1\2);
-       loop_invariant a[tid] == \old(a[tid]) + counter * b[tid];
-       while(counter < N){
-         a[tid] = a[tid] + b[tid];
-         //f(a);
-         counter = counter + 1;
-       }
     }
   }
 }

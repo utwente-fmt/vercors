@@ -428,6 +428,13 @@ public class ASTFactory<E> implements FrameControl {
     return res;
   }
 
+  public GPUOpt opt_tiling(Enumeration.Value interOrIntra, ConstantExpression tileSize) {
+    GPUOpt res=new Tiling(interOrIntra, tileSize);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
   public GPUOpt opt_glob_to_reg(NameExpression arrayName, List<ASTNode> locations) {
     GPUOpt res=new DataLocation(arrayName, JavaConverters.asScalaBuffer(locations).toList());
     res.setOrigin(origin_stack.get());

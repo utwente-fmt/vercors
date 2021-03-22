@@ -4,6 +4,7 @@ import vct.col.ast.expr.NameExpression
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.Major.Major
+import vct.col.ast.stmt.decl.TilingConfig.TilingConfig
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 
 import scala.collection.JavaConverters._
@@ -55,6 +56,19 @@ class MatrixLinearization(val matrixName: NameExpression, val rowOrColumn: Major
 class DataLocation(val arrayName: NameExpression, val locations: List[ASTNode])
   extends GPUOpt(arrayName+: locations) {
     require(locations.nonEmpty, "There must be at least one location")
+}
+
+object TilingConfig extends Enumeration {
+    type TilingConfig = Value
+    val Inter, Intra = Value
+}
+
+
+class Tiling(val interOrIntra: TilingConfig, val tileSize: ConstantExpression)
+  extends GPUOpt(List(tileSize)) {
+    require(tileSize.value.isInstanceOf[IntegerValue], "The tilesize is not an integer constant")
+
+    val tileSizeInt = tileSize.value.asInstanceOf[IntegerValue].value
 }
 
 //TODO OS what were the be done

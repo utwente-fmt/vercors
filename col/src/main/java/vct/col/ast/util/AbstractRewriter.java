@@ -393,6 +393,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     } else if (o instanceof DataLocation) {
       DataLocation opt = (DataLocation) o;
       result= create.opt_glob_to_reg(rewrite(opt.arrayName()), rewrite(JavaConverters.bufferAsJavaList(opt.locations().toBuffer())));
+    } else if (o instanceof Tiling) {
+      Tiling opt = (Tiling) o;
+      result= create.opt_tiling(opt.interOrIntra(), rewrite(opt.tileSize()));
     } else {
       Fail("Rewrite rule not defined for this specific GPUOpt.");
     }
@@ -790,6 +793,12 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
   public ASTNode not(ASTNode e1){
     return create.expression(StandardOperator.Not, e1);
+  }
+  public ASTNode mod(ASTNode e1, ASTNode e2){
+    return create.expression(StandardOperator.Mod, e1, e2);
+  }
+  public ASTNode floordiv(ASTNode e1, ASTNode e2){
+    return create.expression(StandardOperator.FloorDiv, e1, e2);
   }
 
 

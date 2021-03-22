@@ -11,8 +11,8 @@ class MergingAndUnrollingOrig
     ensures array[tid] == \old(array[tid]) + 105*tid;
     {
 
-      gpuopt iter_merge j 6;
-      loop_invariant j >= 0 && j <= 105;
+      gpuopt iter_merge j 7;
+      loop_invariant j >= 0 && j <= 107;
       loop_invariant Perm(array[tid], 1);
       loop_invariant array[tid] == \old(array[tid]) + j*tid;
       for(int j = 0; j < 105; j++)
@@ -23,5 +23,4 @@ class MergingAndUnrollingOrig
       }
     }
   }
-
 }

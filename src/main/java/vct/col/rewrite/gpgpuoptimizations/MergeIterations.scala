@@ -66,7 +66,7 @@ case class MergeIterations(override val source: ProgramUnit) extends AbstractRew
     val K = I % M
 
     if (M > I) {
-      Fail("The number of iterations is smaller than the number of iterations to merge at %s", s.getGpuopt.getOrigin)
+      Fail("The number of iterations is less than the number of iterations to merge at %s", s.getGpuopt.getOrigin)
     }
 
     var loopToMerge = s

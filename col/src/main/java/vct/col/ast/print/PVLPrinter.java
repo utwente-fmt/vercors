@@ -600,7 +600,7 @@ public class PVLPrinter extends AbstractPrinter{
                 d.accept(this);
                 out.lnprintf("");
             }
-            for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
+            for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star, StandardOperator.And)){
                 out.printf((loopcontract) ? "loop_invariant ": "context_everywhere ");
                 nextExpr();
                 e.accept(this);
