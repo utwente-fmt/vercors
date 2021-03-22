@@ -18,6 +18,11 @@ class Main {
 			b.x = b.x+1;
 		}
 	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
 
 }
 

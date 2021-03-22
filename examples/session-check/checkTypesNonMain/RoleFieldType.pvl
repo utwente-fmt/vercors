@@ -16,6 +16,11 @@ class Main {
 		a.x = 1;
 	}
 	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+	
 
 }
 

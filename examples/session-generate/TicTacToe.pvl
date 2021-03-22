@@ -52,7 +52,8 @@ class Main {
 	}
 	
 	void main() {
-		(new Main()).run();
+		Main m = new Main();
+		m.run();
 	}
 
 }

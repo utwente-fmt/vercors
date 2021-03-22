@@ -18,6 +18,11 @@ class Main {
 	
 
 	pure static boolean foo() = true;
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
 
 }
 

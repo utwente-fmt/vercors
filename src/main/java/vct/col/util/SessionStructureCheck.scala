@@ -5,8 +5,8 @@ import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
-import vct.col.ast.stmt.decl.Method.Kind
-import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.Method.{JavaConstructor, Kind}
+import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNameFromNode, getNamesFromExpression, mainClassName, mainMethodName, runMethodName}
 
@@ -37,6 +37,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     checkMainClass(source)
     mainClass = SessionStructureCheck.getMainClass(source)
     checkMainConstructor()
+    checkMainMethod()
     roleNames = getRoleNames()
     roleClasses = getRoleClasses(source)
     roleClassNames = roleClasses.map(_.name)
@@ -79,7 +80,7 @@ class SessionStructureCheck(source : ProgramUnit) {
           }
         }
         mcl.methods().find(_.name == mainMethodName) match {
-          case None => Fail("Session Fail: The class 'Main' must have the following method: \nvoid " + mainMethodName + "() {\n\t\t(new Main())."+ runMethodName +"();\n\t}")
+          case None => Fail("Session Fail: The class 'Main' must have the following method: \nvoid " + mainMethodName + "() {\n\tMain m = new Main();\n\tm." + runMethodName + "();\n}")
           case Some(mainMethod) =>
             if(mainMethod.getArgs.length != 0)
               Fail("Session Fail: the method '%s' of class 'Main' cannot have any arguments!",mainMethodName)
@@ -104,7 +105,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     }
     if(roles.length == 0)
       Fail("Session Fail: Main constructor is mandatory and  must assign at least one role!")
-    roles.foreach {
+    roles.foreach { r => r match {
       case a: AssignmentStatement => a.location match {
         case n: NameExpression => SessionStructureCheck.getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
           case None => Fail("Session Fail: can only assign to role fields of class 'Main' in constructor")
@@ -116,8 +117,10 @@ class SessionStructureCheck(source : ProgramUnit) {
             case _ => Fail("Session Fail: No MethodInvokation: constructor of 'Main' must initialize roles with a call to a role constructor")
           }
         }
+        case _ => Fail("Session Fail: Can only assign roles, statement %s is not allowed!",a)
       }
       case _ => Fail("Session Fail: constructor of 'Main' can only assign role classes")
+    }
     }
     roleObjects = getRoleObjects()
     if(getRoleNames().toSet != mainClass.fields().map(_.name).toSet) {
@@ -125,7 +128,8 @@ class SessionStructureCheck(source : ProgramUnit) {
     }
   }
 
-  private def getMainMethodsNonPureNonResourcePredicate() : Iterable[Method] = mainClass.methods().filter(m => m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)))
+  private def getMainMethodsNonPureNonResourcePredicate() : Iterable[Method] =
+    mainClass.methods().filter(m => m.name != mainMethodName && m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)))
 
   private def isResourceType(t : Type) : Boolean = t match {
     case p : PrimitiveType => p.sort == PrimitiveSort.Resource
@@ -136,20 +140,39 @@ class SessionStructureCheck(source : ProgramUnit) {
     val mainMethod = mainClass.methods().find(_.name == mainMethodName).get
     mainMethod.getBody match {
       case b : BlockStatement => {
-        if(b.getLength != 1)
-          Fail("Session Fail: Method %s can only have one statement (namely %s)!",mainMethodName,"(new Main())."+ runMethodName +"();")
-        else b.getStatement(0) match {
-          case m : MethodInvokation => {
-            m.`object` match {
-              case mo : MethodInvokation =>
-                if(!(mo.method == Method.JavaConstructor && mo.dispatch.getName == mainMethodName))
-                  Fail("Session Fail: Didn't find expected statement %s in method %s!","(new Main())."+ runMethodName +"();",mainMethodName)
-              case _ => Fail("Session Fail: Didn't find expected statement %s in method %s!","(new Main())."+ runMethodName +"();",mainMethodName)
-            }
-            if(m.method != runMethodName)
-              Fail("Session Fail: Didn't find expected statement %s in method %s!","(new Main())."+ runMethodName +"();",mainMethodName)
+        if(b.getLength != 2)
+          Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+        else {
+          b.getStatement(1) match {
+            case m : MethodInvokation =>
+              if(m.method != runMethodName)
+                Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+              else m.`object` match {
+                case n : NameExpression => //fine
+                case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+              }
+            case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
           }
-          case _ => Fail("Session Fail: Didn't find expected statement %s in method %s!","(new Main())."+ runMethodName +"();",mainMethodName)
+          b.getStatement(0) match {
+            case v : VariableDeclaration =>
+              v.basetype match {
+                case c : ClassType => if(c.getName != mainClassName) Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+              }
+              if(v.get().size == 1) {
+                  v.get().head match {
+                  case d : DeclarationStatement =>
+                    d.initJava match {
+                      case m : MethodInvokation =>
+                        if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name && m.method == JavaConstructor && m.dispatch.getName == mainClassName))
+                          Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                      case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                    }
+                  case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                }
+              } else Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+            case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+          }
         }
       }
       case _ => Fail("Session Fail: expected BlockStatement for method %s", mainMethodName)
@@ -179,7 +202,7 @@ class SessionStructureCheck(source : ProgramUnit) {
         }
         val mi = getMethodInvocationsFromExpression(a.expression)
         if(mi.exists(m => m.method == Method.JavaConstructor && (m.dispatch.getName == mainClassName || roleClassNames.contains(m.dispatch.getName))))
-          Fail("Session Fail: Cannot assign a new Main or role object in %s! %s", a.toString,a.getOrigin)
+          Fail("Session Fail: Cannot assign a new Main or role object in statement %s! %s", a.toString,a.getOrigin)
       case i: IfStatement => {
         if (i.getCount == 1 || i.getCount == 2) {
           if (checkSessionCondition(i.getGuard(0), roleNames)) {
@@ -204,7 +227,7 @@ class SessionStructureCheck(source : ProgramUnit) {
         else if(m.method == Method.JavaConstructor && m.dispatch.getName == mainClassName)
           Fail("Session Fail: cannot call constructor '%s'!",mainClassName)
         else if(m.method == Method.JavaConstructor && roleClassNames.contains(m.dispatch.getName))
-            Fail("Session Fail: cannot call role constructor '%s'",m.method)
+            Fail("Session Fail: cannot call role constructor '%s'",m.dispatch.getName)
         else if(pureMainMethodNames.contains(m.method))
           Fail("Session Fail: cannot have a method call statement for pure method '%s'! %s",m.method,m.getOrigin)
         else if(!mainMethodNames.contains(m.method)) { //it is a role or other class method
@@ -220,6 +243,9 @@ class SessionStructureCheck(source : ProgramUnit) {
           if(roles.size > 1)
             Fail("Session Fail: Non-Main method call %s uses object and/or arguments from multiple roles! %s",m.toString,m.getOrigin)
         }
+      case as : ASTSpecial =>
+        if(as.kind != ASTSpecial.Kind.Fold || as.kind != ASTSpecial.Kind.Unfold)
+          Fail("Session Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
       case _ => Fail("Session Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
     }
   }

@@ -17,5 +17,10 @@ class Main {
 	static int foo() { 
 		return 5;
 	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
 }
 

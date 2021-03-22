@@ -19,6 +19,11 @@ class Main {
 	void foo(){
 		a.x = 7;
 	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
 
 }
 

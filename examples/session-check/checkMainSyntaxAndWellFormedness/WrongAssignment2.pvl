@@ -19,6 +19,11 @@ class Main {
 	void bla() {
 		a.x = b.x + c.x;
 	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
 }
 
 class Role {

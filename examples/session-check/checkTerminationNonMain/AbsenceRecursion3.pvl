@@ -19,6 +19,11 @@ class Main {
 	pure static int some(int i) {
 		return 5 + some(i);
 	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
 
 }
 
@@ -30,7 +35,7 @@ class Role {
 		x = v;
 	}
 	
-	run() {
+	void run() {
 		x = 4;
 		Main.some(5);
 	}

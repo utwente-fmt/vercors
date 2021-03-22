@@ -1,4 +1,4 @@
-//:: cases ForLoop
+//:: cases ForLoopTerm
 //:: suite session-check
 //:: tools session
 //:: verdict Pass
@@ -12,6 +12,11 @@ class Main {
 	
 	void run() {
 		
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
 	}
 
 }

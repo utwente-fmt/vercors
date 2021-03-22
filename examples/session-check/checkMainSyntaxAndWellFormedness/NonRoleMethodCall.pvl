@@ -16,7 +16,10 @@ class Main {
 		Other.foo();
 	}
 	
-
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
 
 }
 

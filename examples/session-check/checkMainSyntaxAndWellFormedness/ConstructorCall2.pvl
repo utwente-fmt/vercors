@@ -15,6 +15,11 @@ class Main {
 	void run() {
 		new Role(5);
 	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
 
 }
 
