@@ -9,7 +9,14 @@ class Role {
 	// 0 == paper, 1 == rock, 2 == scissors
 	
 	ensures Perm(i,1) ** Perm(x,1) ** Perm(y,1) ** Perm(z,1);
-	Role();
+	ensures (draw());
+	ensures i == j;
+	Role(int j);
+	
+	requires Perm(x,1\2) ** Perm(y,1\2) ** Perm(z,1\2);
+	pure boolean draw() = 
+		(x == y && y == z) ||
+		(x != y && y != z && z != x);
 	
 }
 
@@ -19,19 +26,18 @@ class Main {
 
 	Role a,b,c;
 
-	requires Perm(q.x,1) ** Perm(q.y,1) ** Perm(q.z,1);
-	pure static boolean draw(Role q) = 
-		(q.x == q.y && q.y == q.z) ||
-		(q.x != q.y && q.y != q.z && q.z != q.x);
+	
 
 	ensures Perm(a,read) ** Perm(b,read) ** Perm(c,read);
 	ensures Perm(a.i,1) ** Perm(a.x,1) ** Perm(a.y,1) ** Perm(a.z,1);
 	ensures Perm(b.i,1) ** Perm(b.x,1) ** Perm(b.y,1) ** Perm(b.z,1);
 	ensures Perm(c.x,1) ** Perm(c.y,1) ** Perm(c.z,1);
+	ensures a.i == 0 && b.i == 1;
+	ensures a.draw() && b.draw() && c.draw();
 	Main() {	
-		a = new Role();
-		b = new Role();
-		c = new Role();
+		a = new Role(0);
+		b = new Role(1);
+		c = new Role(0);
 	}
 	
 	context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
@@ -39,7 +45,7 @@ class Main {
 	context Perm(b.i,1) ** Perm(b.x,1) ** Perm(b.y,1) ** Perm(b.z,1);
 	context Perm(c.x,1) ** Perm(c.y,1) ** Perm(c.z,1);
 	requires a.i == 0 && b.i == 1;
-	requires draw(a) && draw(b) && draw(c);
+	requires a.draw() && b.draw() && c.draw();
 	ensures a.i == -2 && b.i == 3;
 	void run() {
 		loop_invariant Perm(a,read) ** Perm(b,read) ** Perm(c,read);
@@ -47,7 +53,7 @@ class Main {
 		loop_invariant Perm(b.i,1) ** Perm(b.x,1) ** Perm(b.y,1) ** Perm(b.z,1);
 		loop_invariant Perm(c.x,1) ** Perm(c.y,1) ** Perm(c.z,1);
 		loop_invariant a.i <= 0 && b.i >= 1;
-		loop_invariant a.i == 0 && b.i == 1 ==> draw(a) && draw(b) && draw(c);
+		loop_invariant a.i == 0 && b.i == 1 ==> a.draw() && b.draw() && c.draw();
 		loop_invariant a.i == b.i*(-1) + 1;
 		loop_invariant a.i < 0 ==> a.x == b.x && a.x == c.x;
 		loop_invariant a.i < 0 ==> b.y == a.y && b.y == c.y;
@@ -56,7 +62,7 @@ class Main {
 		loop_invariant a.i < 0 ==> b.y == (b.i == 6 ? 0 : 1);
 		loop_invariant a.i < 0 ==> c.z == 2;
 		loop_invariant b.i - a.i <= 5;
-		while(draw(a) && draw(b) && draw(c)) {
+		while(a.draw() && b.draw() && c.draw()) {
 			par 
 			context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
 			context Perm(a.i,1) ** Perm(a.x,1) ** Perm(b.x,1) ** Perm(c.x,1);
@@ -90,6 +96,10 @@ class Main {
 				b.z = c.z; //typo in paper hier
 			}
 		}
+	}
+	
+	void main() {
+		(new Main()).run();
 	}
 
 }

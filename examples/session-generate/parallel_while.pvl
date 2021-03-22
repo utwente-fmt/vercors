@@ -92,6 +92,10 @@ class Main {
 		}
 	}
 	
+	void main() {
+		(new Main()).run();
+	}
+	
 	
 }
 
