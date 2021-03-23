@@ -8,6 +8,29 @@ jobs:
     steps:
       - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
-        with:
-          repository: utwente-fmt/vercors.wiki
+      - run: sudo apt install pandoc
+      - run: cd util/wiki
+      - run: pip3 install -r requirements.txt
+      - run: ./generate_wiki_pdf.py --pdf
       - run: ls
+      - name: Set wiki pdf tag in github repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --local user.name "Vercors Team"
+          git config --local user.email "vercors@lists.utwente.nl"
+          git tag --force wiki-pdf
+          git remote set-url origin https://${GITHUB_TOKEN}@github.com/utwente-fmt/vercors.git
+          git push --force --tags
+      - name: Create Wiki PDF release
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "*.pdf"
+          artifactContentType: application/pdf
+          body: This is an automatically generated LaTeX/PDF version of the tutorial on the VerCors wiki.
+          name: VerCors Wiki PDF
+          prerelease: true
+          tag: wiki-pdf
+          token: ${{ secrets.GITHUB_TOKEN }}

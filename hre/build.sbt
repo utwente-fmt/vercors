@@ -9,5 +9,4 @@ lazy val hre = (project in file("."))
     // Disable documentation generation
     sources in (Compile, doc) := Seq(),
     publishArtifact in (Compile, packageDoc) := false,
-    publishArtifact in packageDoc := false
   )

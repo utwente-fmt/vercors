@@ -96,4 +96,3 @@ managedSourceDirectories in Compile += (sourceManaged in Compile).value / "antlr
 // Disable documentation generation
 sources in (Compile, doc) := Seq()
 publishArtifact in (Compile, packageDoc) := false
-publishArtifact in packageDoc := false
