@@ -230,7 +230,7 @@ object CommandLineTesting {
             null
           }
 
-          val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args: _*)
+          val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args.toSeq: _*)
 
           result += (s"$name-$tool" -> Task(vercorsProcess, conditions.toSeq))
         }
@@ -279,7 +279,7 @@ object CommandLineTesting {
       Debug(msg.getFormat, msg.getArgs:_*)
     }
 
-    removeTempJacocoDir
+    removeTempJacocoDir()
   }
 
   def removeTempJacocoDir(): Unit = {
@@ -296,7 +296,7 @@ object CommandLineTesting {
       // Ensure jacoco output dir exists and remove old reports
       val jacocoOutputDir = Paths.get(tempCoverageReportPath.get()).toFile
       if (jacocoOutputDir.exists) {
-        removeTempJacocoDir
+        removeTempJacocoDir()
       }
       jacocoOutputDir.mkdir
     }
@@ -384,7 +384,7 @@ object CommandLineTesting {
         Output("Fail: %s", taskKey)
 
         if(testFailIdeaConfigs.get) {
-          val dropArgs = Configuration.getThisVerCors.getArgs.size
+          val dropArgs = Configuration.getThisVerCors(null).getArgs.size
           val args = task.env.getArgs.asScala.drop(dropArgs) ++ Seq("--encoded", "tmp/output.sil")
           val config =
             <component name="ProjectRunConfigurationManager">
@@ -452,7 +452,7 @@ object CommandLineTesting {
     }
 
     if (enableCoverage.get) {
-      generateJacocoXML
+      generateJacocoXML()
     }
 
     if(testFailFast.get()) {
