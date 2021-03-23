@@ -1,13 +1,13 @@
 package vct.col.rewrite
 
-import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType, Type}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.constant.StructValue
-import vct.col.ast.expr.{OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
   def visitType(t: Type): Type = {
@@ -42,7 +42,7 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
       method.kind,
       method.name,
       visitType(method.getReturnType),
-      method.throwy.map(visitType),
+      method.signals.map(visitType),
       rewrite(method.getContract),
       rewrite(method.getArgs),
       method.usesVarArgs,
@@ -79,5 +79,18 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
       value.map.asJava,
       rewrite(value.values.asJava)
     )
+  }
+
+  override def visit(reserved: NameExpression): Unit = {
+    if(reserved.kind != NameExpressionKind.Reserved) {
+      super.visit(reserved)
+    } else {
+      reserved.reserved match {
+        case ASTReserved.Null if reserved.getType.isPrimitive(PrimitiveSort.Pointer) =>
+          result = create reserved_name(ASTReserved.OptionNone)
+        case _ =>
+          super.visit(reserved)
+      }
+    }
   }
 }

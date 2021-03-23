@@ -3,9 +3,11 @@ package hre.io;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static hre.lang.System.Debug;
 import static hre.lang.System.Warning;
@@ -20,6 +22,7 @@ public class MessageProcess {
     private Process process;
     private BlockingQueue<Message> processOutputLineQueue;
     private Path workingDirectory;
+    private ProcessWatcher processWatcher;
 
     /**
      * Wraps a system process as an interactive resources.
@@ -46,7 +49,21 @@ public class MessageProcess {
         stderr_parser.start();
 
         processStdin = new PrintStream(process.getOutputStream());
-        new ProcessWatcher(process, processOutputLineQueue, stdout_parser, stderr_parser).start();
+        processWatcher = new ProcessWatcher(process, processOutputLineQueue, stdout_parser, stderr_parser);
+        processWatcher.start();
+
+        new Thread(() -> {
+            try {
+                /* This time is a little bit under the max no-output time of our CI */
+                if(!process.waitFor(8, TimeUnit.MINUTES)) {
+                    processOutputLineQueue.add(new Message("killed"));
+                    process.destroyForcibly();
+                }
+            } catch (InterruptedException e) {
+                // Re-set the flag; thread ends here.
+                Thread.currentThread().interrupt();
+            }
+        }).start();
     }
 
     public MessageProcess(String[] command_line) {
@@ -72,7 +89,20 @@ public class MessageProcess {
         return result;
     }
 
+    /**
+     * @return All messages currently in the queue.
+     */
+    public List<Message> recvAll() {
+        List<Message> messages = new ArrayList<>();
+        processOutputLineQueue.drainTo(messages);
+        return messages;
+    }
+
     public Path getWorkingDirectory() {
         return workingDirectory;
+    }
+
+    public boolean isFinished() {
+        return processWatcher != null && processWatcher.getFinished();
     }
 }

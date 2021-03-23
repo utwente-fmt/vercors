@@ -8,6 +8,9 @@ import SpecLexer, LangOMPLexer, LangGPGPULexer;
 
 VAL_INLINE: EOF EOF;
 VAL_ASSERT: 'assert';
+VAL_TRUE: 'true';
+VAL_FALSE: 'false';
+VAL_SIZEOF: EOF EOF;
 
 Placeholder : EOF EOF ;
 
@@ -341,10 +344,6 @@ SChar
     |   EscapeSequence
     ;
 
-EmbeddedLatex
-    : '$' ~[$\r\n]* '$' -> skip
-    ;
-
 LineDirective
     :   '#' Whitespace? DecimalConstant Whitespace? StringLiteral ~[\r\n]*
         { setChannel(2); }
@@ -363,8 +362,8 @@ BlockCommentStart: '/*' -> mode(COMMENT), skip;
 LineCommentStart: '//' -> mode(LINE_COMMENT), skip;
 
 EndSpec
-    : {inBlockSpec}? '@'? '*/' {inBlockSpec = false;}
-    | {inLineSpec}? ('\n'|'\r\n') {inLineSpec = false;}
+    : '@'? '*/' {inBlockSpec}? {inBlockSpec = false;}
+    | ('\n'|'\r\n') {inLineSpec}? {inLineSpec = false;}
     ;
 
 Whitespace
@@ -404,7 +403,7 @@ Identifier
     ;
 
 ExtraAt
-    : {inBlockSpec}? ('\n'|'\r\n') [ \t\u000C]* '@' -> skip
+    :  ('\n'|'\r\n') [ \t\u000C]* '@' {inBlockSpec}? -> skip
     ;
 
 mode COMMENT;

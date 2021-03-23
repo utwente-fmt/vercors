@@ -201,7 +201,6 @@ public class AddSimpleTriggers extends AbstractRewriter {
         // assume every operation is illigal except ...
         switch (e.operator()) {
         case Subscript:
-        case Get:
         case OptionGet:
         case Length:
         case Size:

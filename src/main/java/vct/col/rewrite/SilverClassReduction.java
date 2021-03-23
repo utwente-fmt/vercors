@@ -11,12 +11,17 @@ import vct.main.Parsers;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
+import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.util.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.*;
 import hre.config.Configuration;
+
+import vct.col.ast.util.ContractBuilder;
+import vct.col.ast.util.UndefinedMapping;
+import viper.carbon.boogie.Decl;
 
 /**
  * This rewriter converts a program with classes into
@@ -146,22 +151,6 @@ public class SilverClassReduction extends AbstractRewriter {
     target().add(ref_class);
     ref_type=create.class_type("Ref");
   }
-
-  @Override
-  public void visit(AxiomaticDataType adt){
-    super.visit(adt);
-    if (adt.name().equals("TYPE")){
-      AxiomaticDataType res=(AxiomaticDataType)result;
-      res.add_cons(create.function_decl(
-          create.class_type("TYPE"),
-          null,
-          "type_of",
-          new DeclarationStatement[]{create.field_decl("val",create.class_type("Ref"))},
-          null
-      ));
-      ref_class.add(create.field_decl(ILLEGAL_CAST,create.class_type("Ref")));
-    }
-  }
   
   @Override
   public void visit(NameExpression e){
@@ -180,12 +169,13 @@ public class SilverClassReduction extends AbstractRewriter {
       }
     } else if(e.isReserved(ASTReserved.FullPerm) || e.isReserved(ASTReserved.ReadPerm)) {
       fractions = true;
-      result = create.invokation(null, null, "new_frac", e);
+      result = create.invokation(rewrite(e.getType()), null, "new_frac", e);
     } else if(e.isReserved(ASTReserved.NoPerm)) {
       fractions = true;
-      result = create.invokation(null, null, "new_zfrac", e);
+      result = create.invokation(rewrite(e.getType()), null, "new_zfrac", e);
     } else {
-      super.visit(e);
+       String newName = e.getName().replace('<', '$').replace('>', '$');
+      result = create.name(e.getKind(), e.reserved(), newName);
     }
   }
 
@@ -200,7 +190,10 @@ public class SilverClassReduction extends AbstractRewriter {
   private boolean arrays = false;
   private boolean floats = false;
   private boolean fractions = false;
-  
+  private boolean maps = false;
+  private boolean tuple = false;
+
+
   private AtomicInteger option_count=new AtomicInteger();
   private HashMap<String, String> option_get = new HashMap<String, String>();
   private HashMap<String, Type> option_get_type = new HashMap<String, Type>();
@@ -234,6 +227,30 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.class_type("VCTArray", ct);
       break;
     }
+    case Tuple: {
+      tuple = true;
+      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      args.get(0).addLabel(create.label("F"));
+      args.get(1).addLabel(create.label("S"));
+      result=create.class_type("VCTTuple",args);
+      break;
+    }
+    case Map:
+      maps = true;
+      tuple = true;
+      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      args.get(0).addLabel(create.label("K"));
+      args.get(1).addLabel(create.label("V"));
+      result=create.class_type("VCTMap",args);
+      break;
+    case Fraction:
+      fractions = true;
+      result = create.class_type("frac");
+      break;
+    case ZFraction:
+      fractions = true;
+      result = create.class_type("zfrac");
+      break;
     default:
       super.visit(t);
       break;
@@ -256,15 +273,18 @@ public class SilverClassReduction extends AbstractRewriter {
         target().add(rewrite(n));
       } else if (n instanceof DeclarationStatement) {
         Fail("Illegal static field %s",n);
-      } else if(n.isSpecial(ASTSpecial.Kind.Comment)) {
-        target().add(rewrite(n));
       } else {
         Fail("Illegal static member %s",n);
       }
     }
     for(ASTNode n:cl.dynamicMembers()){
       if (n instanceof DeclarationStatement){
-        ref_class.add(rewrite(n));
+        DeclarationStatement field = (DeclarationStatement) n;
+        ref_class.add(create.field_decl(
+                cl.getName() + "_" + field.name(),
+                rewrite(field.type()),
+                rewrite(field.initJava())
+        ));
       } else if (n instanceof Method){
         Method m=(Method)n;
         if (m.name().equals("multidim_index_2")){
@@ -274,8 +294,6 @@ public class SilverClassReduction extends AbstractRewriter {
         ASTNode res=rewrite(n);
         res.setStatic(true);
         target().add(res);
-      } else if(n.isSpecial(ASTSpecial.Kind.Comment)) {
-        target().add(rewrite(n));
       } else {
         Fail("Illegal dynamic member %s",n);
       }
@@ -291,12 +309,11 @@ public class SilverClassReduction extends AbstractRewriter {
       result=create.class_type("Ref");
     }
   }
+
   @Override
   public void visit(Dereference e){
     if (e.obj().getType()==null){
-      Fail("untyped object %s at %s", e.obj(), e.obj().getOrigin());
-      result=create.dereference(rewrite(e.obj()), e.field());
-      return;
+      throw Failure("untyped object %s at %s", e.obj(), e.obj().getOrigin());
     }
     Type t=e.obj().getType();
     if (t.isPrimitive(PrimitiveSort.Cell)){
@@ -305,6 +322,8 @@ public class SilverClassReduction extends AbstractRewriter {
       String name=silverTypeString(type);
       ref_items.add(type);
       result=create.dereference(rewrite(e.obj()), name+SEP+e.field());
+    } else if(t instanceof ClassType) {
+      result = create.dereference(rewrite(e.obj()), ((ClassType) t).definitionJava(source(), null, null).name() + "_" + e.field());
     } else {
       result=create.dereference(rewrite(e.obj()), e.field());
     }
@@ -326,20 +345,21 @@ public class SilverClassReduction extends AbstractRewriter {
 
   private ASTNode getFracVal(ASTNode node) {
     fractions = true;
-    String method = node.getType().isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
+    Type t = node.getType();
+    String method = t.isPrimitive(PrimitiveSort.ZFraction) ? "zfrac_val" : "frac_val";
     node = rewrite(node);
 
     if(node instanceof MethodInvokation && (((MethodInvokation) node).method().equals("new_frac") || ((MethodInvokation) node).method().equals("new_zfrac"))) {
       return ((MethodInvokation) node).getArg(0);
     } else {
-      return create.invokation(null, null, method, node);
+      return create.invokation(rewrite(t), null, method, node);
     }
   }
 
   private ASTNode packFracVal(Type t, ASTNode node) {
     fractions = true;
     String method = t.isPrimitive(PrimitiveSort.ZFraction) ? "new_zfrac" : "new_frac";
-    return create.invokation(null, null, method, node);
+    return create.invokation(rewrite(t), null, method, node);
   }
   
   @Override
@@ -408,7 +428,12 @@ public class SilverClassReduction extends AbstractRewriter {
       options=true;
       Type t=rewrite(e.arg(0).getType());
       String method=optionGet(t);
-      result=create.invokation(null, null,method,rewrite(e.argsJava()));
+      result=create.invokation(t, null,method,rewrite(e.argsJava()));
+      break;
+    }
+    case OptionGetOrElse: {
+      options=true;
+      result=create.invokation(rewrite(e.first().getType()), null,"getVCTOptionOrElse",rewrite(e.argsJava()));
       break;
     }
     case New:{
@@ -418,13 +443,9 @@ public class SilverClassReduction extends AbstractRewriter {
       //NameExpression f=create.field_name("A__x");
       //f.setSite(ref_class);
       for(DeclarationStatement field:cl.dynamicFields()){
-        args.add(create.dereference(create.class_type("Ref"),field.name()));
+        args.add(create.dereference(create.class_type("Ref"), cl.name() + "_" + field.name()));
       }
       result=create.expression(StandardOperator.NewSilver,args.toArray(new ASTNode[0]));
-      break;
-    }
-    case TypeOf:{
-      result=create.domain_call("TYPE","type_of",rewrite(e.arg(0)));
       break;
     }
     case Cast:{
@@ -441,12 +462,13 @@ public class SilverClassReduction extends AbstractRewriter {
         // Type marker, ignore.
         result = rewrite(e.arg(1));
       } else {
-        ASTNode condition=create.invokation(null, null,"instanceof",
+        ASTNode condition=create.invokation(null, null, "instanceof_TYPE_TYPE",
             create.domain_call("TYPE","type_of",object),
             //create.invokation(null,null,"type_of",object));
             create.domain_call("TYPE","class_"+t));
-            
-        ASTNode illegal=create.dereference(object,ILLEGAL_CAST);
+
+        /* PB: this is incorrect, but dereference(_, ILLEGAL_CAST) is also incorrect... */
+        ASTNode illegal = create.reserved_name(ASTReserved.Null);
         result=create.expression(StandardOperator.ITE,condition,object,illegal);
       }
       break;
@@ -522,6 +544,10 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal);
       break;
     }
+    case CurrentPerm:
+      super.visit(e);
+      result = create.invokation(null, null, "new_zfrac", result);
+      break;
     case Scale: {
       ASTNode permVal = e.arg(0);
       if (permVal.getType().isFraction()) {
@@ -543,6 +569,63 @@ public class SilverClassReduction extends AbstractRewriter {
       result = create.expression(e.operator(), rewrite(e.arg(0)), permVal, rewrite(e.arg(2)));
       break;
     }
+    case MapBuild:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.getType()), null, "vctmap_build", args);
+      break;
+    }
+    case MapEquality: {
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_equals", args);
+      break;
+    }
+    case MapDisjoint:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_disjoint", args);
+      break;
+    }
+    case MapKeySet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_keys", args);
+      break;
+    }
+    case MapCardinality:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_card", args);
+      break;
+    }
+    case MapValueSet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_values", args);
+      break;
+    }
+    case MapGetByKey:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_get", args);
+      break;
+    }
+    case MapRemoveKey:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_remove", args);
+      break;
+    }
+      case MapItemSet:{
+      List<ASTNode> args = rewrite(e.argsJava());
+      result = create.invokation(rewrite(e.first().getType()), null, "vctmap_items", args);
+      break;
+    }
+      case TupleFst:{
+        ASTNode type = rewrite(e.first().getType().firstarg());
+        List<ASTNode> args = rewrite(e.argsJava());
+        result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_fst", args);
+        break;
+    }
+    case TupleSnd:{
+        ASTNode type = rewrite(e.first().getType().secondarg());
+        List<ASTNode> args = rewrite(e.argsJava());
+        result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_snd", args);
+        break;
+      }
     default:
       super.visit(e);
     }
@@ -564,7 +647,6 @@ public class SilverClassReduction extends AbstractRewriter {
   @Override
   public void visit(ConstantExpression val) {
     if(val.value() instanceof IntegerValue && val.getType().isFraction()) {
-      val.setType(new PrimitiveType(PrimitiveSort.Rational));
       result = packFracVal(val.getType(), val);
     } else {
       super.visit(val);
@@ -572,8 +654,24 @@ public class SilverClassReduction extends AbstractRewriter {
   }
 
   @Override
+  public void visit(StructValue v) {
+    if (v.type().isPrimitive(PrimitiveSort.Map)) {
+      Type resultType = rewrite(v.type());
+      ASTNode map = create.invokation(resultType,null,"vctmap_empty");
+      for (int i=0; i < v.valuesArray().length; i+=2) {
+        map = create.invokation(resultType, null, "vctmap_build", map, v.valuesArray()[i], v.valuesArray()[i+1]);
+      }
+      result = map;
+    } else if (v.type().isPrimitive(PrimitiveSort.Tuple)) {
+      Type resultType = rewrite(v.type());
+      result =  create.invokation(resultType,null,"vcttuple_tuple", rewrite(v.valuesArray()));;
+    } else {
+      super.visit(v);
+    }
+  }
+
+  @Override
   public void visit(Method m){
-    String name=m.getName();
     ContractBuilder cb=new ContractBuilder();
     ArrayList<DeclarationStatement> args=new ArrayList<DeclarationStatement>();
     ASTNode body=m.getBody();
@@ -621,20 +719,14 @@ public class SilverClassReduction extends AbstractRewriter {
         cb.ensures(rewrite(clause));
       }
       in_ensures=false;
-      if (c.signals!=null) for(DeclarationStatement decl:c.signals){
-        cb.signals((ClassType)rewrite(decl.getType()), decl.name(), rewrite(decl.initJava()));      
+      if (c.signals!=null) {
+        for(SignalsClause sc : c.signals){
+          cb.signals(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
+        }
       }
       constructor_this.pop();
     }
-    Method.Kind kind;
-    Type rt;
-    if(m.kind==Kind.Constructor){
-      kind=Kind.Plain;
-      rt=ref_type;
-    } else {
-      kind=m.kind;
-      rt=rewrite(m.getReturnType());
-    }
+
     currentContractBuilder=null;
     body=rewrite(body);
     if (m.kind==Method.Kind.Constructor){
@@ -652,6 +744,27 @@ public class SilverClassReduction extends AbstractRewriter {
       }   
     }
     c=cb.getContract();
+
+    Method.Kind kind;
+    Type rt;
+    if(m.kind==Kind.Constructor){
+      kind=Kind.Plain;
+      rt=ref_type;
+    } else {
+      kind=m.kind;
+      rt=rewrite(m.getReturnType());
+    }
+
+    String name=m.getName();
+    if(m.getParent() instanceof ASTClass) {
+      name = ((ASTClass) m.getParent()).getName() + "_" + name;
+    }
+    if(!(m.getParent() instanceof AxiomaticDataType)) {
+      for (DeclarationStatement arg : m.getArgs()) {
+        name += "_" + arg.getType().toString();
+      }
+    }
+    name = name.replace('<', '$').replace('>', '$');
     result=create.method_kind(kind, rt, c, name, args, m.usesVarArgs(), body);
 
   }
@@ -663,7 +776,7 @@ public class SilverClassReduction extends AbstractRewriter {
       String s=silverTypeString(t);
       ref_class.add_dynamic(create.field_decl(s+SEP+"item",t));
     }
-    if (options || floats || arrays || fractions){
+    if (options || floats || arrays || fractions || maps || tuple){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
       File file = Configuration.getConfigFile(preludeFile);
       ProgramUnit prelude=Parsers.getParser("sil").parse(file);
@@ -688,6 +801,12 @@ public class SilverClassReduction extends AbstractRewriter {
           case "zfrac":
             if(fractions) res.add(n);
             break;
+          case "VCTMap":
+            if(maps) res.add(n);
+            break;
+          case "VCTTuple":
+            if (maps || tuple) res.add(n);
+              break;
           }
         } else if(n instanceof Method) {
           Method method = (Method) n;
@@ -741,50 +860,43 @@ public class SilverClassReduction extends AbstractRewriter {
   
   @Override
   public void visit(MethodInvokation s){
-    String method;
+    String method = s.method();
     ArrayList<ASTNode> args=new ArrayList<ASTNode>();
     Method def=s.getDefinition();
-    ClassType dispatch=s.dispatch();
-    if (def.kind==Kind.Constructor){
-      dispatch=null;
-    }
     ASTNode object=null;
-    if (def.getParent()==null){
-      method=s.method();
-    } else if (s.object() instanceof ClassType){
-      if (s.method().equals(Method.JavaConstructor)){
-        method=s.dispatch().getName()+SEP+s.dispatch().getName();
-        dispatch=null;
-      } else if (def.getParent() instanceof AxiomaticDataType){
-        method=s.method();
-        object=copy_rw.rewrite(s.object());
-      } else {
-        method=s.method();
-      }
-    } else if (s.object()==null){
-      if (s.method().equals(Method.JavaConstructor)){
-        method=s.dispatch().getName()+SEP+s.dispatch().getName();
-        dispatch=null;
-      } else {
-        method=s.method();
-      }
-    } else {
-      method=s.method();
-      if (method.equals("<<adt>>") || def.getParent() instanceof AxiomaticDataType){
-        method=s.method();
-      } else {
-        if (!def.isStatic()){
-          args.add(rewrite(s.object()));
+
+    if (def.getParent() != null) {
+      if (s.object() instanceof ClassType){
+        if (s.method().equals(Method.JavaConstructor)){
+          method=s.definition().name();
+        } else if (def.getParent() instanceof AxiomaticDataType){
+          object=copy_rw.rewrite(s.object());
         }
-        if (def.kind==Kind.Predicate && !s.object().isReserved(ASTReserved.This) && (!fold_unfold) ){
-          //extra=create.expression(StandardOperator.NEQ,rewrite(s.object()),create.reserved_name(ASTReserved.Null));
+      } else if (s.object()==null){
+        if (s.method().equals(Method.JavaConstructor)){
+          method=s.definition().name();
         }
-      }      
+      } else if (!method.equals("<<adt>>") && !(def.getParent() instanceof AxiomaticDataType) && !def.isStatic()) {
+        args.add(rewrite(s.object()));
+      }
     }
+
     for(ASTNode arg :s.getArgs()){
       args.add(rewrite(arg));
     }
-    MethodInvokation res=create.invokation(object, dispatch, method, args.toArray(new ASTNode[0]));
+
+    if(s.definition().getParent() instanceof ASTClass) {
+      method = ((ASTClass) s.definition().getParent()).getName() + "_" + method;
+    }
+
+    if (!(s.definition().getParent() instanceof AxiomaticDataType)) {
+      for (DeclarationStatement arg : s.definition().getArgs()) {
+        method += "_" + arg.getType().toString();
+      }
+    }
+
+    method = method.replace('<', '$').replace('>', '$');
+    MethodInvokation res=create.invokation(object, null, method, args.toArray(new ASTNode[0]));
     res.set_before(rewrite(s.get_before()));
     res.set_after(rewrite(s.get_after()));
     result=res;

@@ -2,12 +2,13 @@
 //:: cases Java6LockImplementation
 //:: suite problem-fail
 //:: tools silicon
+//:: verdict Pass
 
 /*
     vct --silver=silicon Java6Lock.java
  */
 //begin(all)
-class AtomicInteger {
+final class AtomicInteger {
 
   int dummy;
 
@@ -32,7 +33,7 @@ class AtomicInteger {
 
 }
 
-class Subject {
+final class Subject {
 
   /*@
     resource inv();
@@ -41,7 +42,7 @@ class Subject {
 }
 
 
-class Thread {
+final class Thread {
 
   Thread(){
     //@ assume false;
@@ -54,9 +55,9 @@ class Thread {
   Lock locks[];
 
   /*@
-    inline resource APerm(loc<AtomicInteger> ref,frac p)=
+    inline resource MyMyAPerm(loc<AtomicInteger> ref,frac p)=
       Value(ref)**Perm(ref.val,p);
-    inline resource APointsTo(loc<AtomicInteger> ref,frac p,int v)=
+    inline resource MyMyAPointsTo(loc<AtomicInteger> ref,frac p,int v)=
       Value(ref)**PointsTo(ref.val,p,v);
     
     inline thread_local resource common()= Value(T) **
@@ -72,7 +73,7 @@ thread_local resource lockset(bag<int> S)=
   Value(T) ** 0 <= \current_thread < T **
   Value(L) ** L > 0 ** Value(locks) ** locks != null **
   (\forall* int l ; 0 <= l < L ;
-     Value(locks[l]) ** Value(locks[l].subject) **
+     Value({:locks[l]:}) ** Value(locks[l].subject) **
      Value(locks[l].T) ** locks[l].T==T **
      Value(locks[l].held) ** locks[l].lockset_part() **
      Value(locks[l].count) ** Value(locks[l].count.dummy) ** // skip(lockset) silicon incompleteness
@@ -99,7 +100,7 @@ thread_local resource lockset(bag<int> S)=
     boolean res;
     //@ unfold lockset(S);
     res=locks[lock_id].trylock();
-    /*@
+    /*@ ghost
       if (res) {
         fold lockset(S+bag<int>{lock_id});
       } else {
@@ -112,16 +113,16 @@ thread_local resource lockset(bag<int> S)=
 
 
 
-class Lock {
+final class Lock {
 
-  /*@ 
-    int T; // Maximum number of threads.
+  /*@
+    ghost int T; // Maximum number of threads.
 
-    int held[];
+    ghost int held[];
   
-    int holder;
+    ghost int holder;
     
-    Subject subject;
+    ghost Subject subject;
   @*/
   
   AtomicInteger count;
@@ -135,9 +136,9 @@ class Lock {
       Value(held) ** held != null **
       Value(subject);
       
-    inline resource APerm(loc<AtomicInteger> ref,frac p)=
+    inline resource MyAPerm(loc<AtomicInteger> ref,frac p)=
       Value(ref)**Perm(ref.val,p);
-    inline resource APointsTo(loc<AtomicInteger> ref,frac p,int v)=
+    inline resource MyAPointsTo(loc<AtomicInteger> ref,frac p,int v)=
       Value(ref)**PointsTo(ref.val,p,v);
   @*/
   
@@ -145,13 +146,13 @@ class Lock {
 // begin(context_everywhere)
 resource csl_invariant()= Value(T) ** T > 0 **
    Value(held) ** held != null ** Value(subject) **
-   APerm(count,1\2) ** APerm(owner,1\2) **
+   MyAPerm(count,1\2) ** MyAPerm(owner,1\2) **
    (count.val == 0 ==> subject.inv() **
-           APerm(count,1\2) ** APerm(owner,1\2)) **
+           MyAPerm(count,1\2) ** MyAPerm(owner,1\2)) **
    Perm(holder,1) ** -1 <= holder < T **
    (holder == -1) == (count.val == 0) **
    (\forall* int i; 0 <= i < T ;
-     Perm(held[i],1\2) ** (i!=holder ==> held[i]==0)
+     Perm({:held[i]:},1\2) ** (i!=holder ==> held[i]==0)
      ** held[i] >= 0 ** (held[i]==0 ==> owner.val!=i)
    );
 // end(context_everywhere)
@@ -163,8 +164,8 @@ resource csl_invariant()= Value(T) ** T > 0 **
     resource lockset_part()= held!=null **
        Perm(held[\current_thread],1\2) **
        (held[\current_thread] > 0 ==>
-          APointsTo(count,1\2,held[\current_thread]) **
-          APointsTo(owner,1\2,\current_thread));
+          MyAPointsTo(count,1\2,held[\current_thread]) **
+          MyAPointsTo(owner,1\2,\current_thread));
 // end(context_everywhere)
   @*/
 

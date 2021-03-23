@@ -1,9 +1,8 @@
 package hre.config;
 
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import hre.lang.HREExitException;
+
+import java.util.*;
 import java.util.Map.Entry;
 
 import static hre.lang.System.*;
@@ -74,9 +73,7 @@ public class OptionParser {
           name=name.substring(0,arg_idx);
         }
         Option opt=long_options.get(name);
-        if (opt==null){
-          Fail("unknown option %s",name);
-        }
+        Objects.requireNonNull(opt, String.format("unknown option %s", name));
         if (arg==null && opt.needsArgument() && i+1<args.length){
           i++;
           arg=args[i];
@@ -104,9 +101,7 @@ public class OptionParser {
         }
         for(int j=1;j<N;j++){
           Option opt=short_options.get(args[i].charAt(j));
-          if (opt==null){
-            Fail("unknown flag %c",args[i].charAt(j));
-          }
+          Objects.requireNonNull(opt, String.format("unknown flag %c", args[i].charAt(j)));
           if (opt.needsArgument()){
             Fail("option %c needs an argument.",args[i].charAt(j));
           }
@@ -134,7 +129,7 @@ public class OptionParser {
       for(Entry<Option,String> entry : option_list.entrySet()){
         Output(" %-20s  : %s",entry.getValue(),entry.getKey().getHelp());
       }
-      System.exit(0);
+      throw new HREExitException(0);
     }
   }
 

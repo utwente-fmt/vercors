@@ -1,23 +1,22 @@
 package viper.api
 
-import viper.silver.ast._
+import hre.ast.OriginFactory
+import hre.lang.System.Warning
+import hre.util.Triple
 
-import scala.collection.JavaConverters._
-import scala.collection.JavaConverters._
-import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
-
+import scala.jdk.CollectionConverters._
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
-import java.nio.file.Path
+import viper.silver.ast.{SeqAppend, _}
+import viper.silver.plugin.PluginAwareReporter
+import viper.silver.ast._
+import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 
-import hre.ast.OriginFactory
-import hre.util.Triple
-import viper.silver.parser.PLocalVarDecl
+import scala.annotation.nowarn
 
-import scala.collection.mutable.WrappedArray
 
 class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
     DomainFunc,DomainAxiom,Prog] with FactoryUtils[O]{
@@ -30,17 +29,18 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       in:List[Triple[O,String,Type]],
       out:List[Triple[O,String,Type]],
       local:List[Triple[O,String,Type]],
-      body:Stmt) {
+      labels:List[String],
+      body:Stmt): Unit = {
     
     // TODO : not quite sure if the method body 'body' and the 'locals' are currently handled like this..
-    val b = if (body==null) None else Some(Seqn(Seq(body), to_decls(o,local))(NoPosition, new OriginInfo(o), NoTrafos))
+    val b = if (body==null) None else Some(Seqn(Seq(body), to_decls(o,local) ++ to_labels(o, labels))(NoPosition, new OriginInfo(o), NoTrafos))
     
     p.methods.add(Method(
       name, // method name
       to_decls(o, in), // list of arguments
       to_decls(o, out), // list of return values
-      pres.asScala, // list of preconditions
-      posts.asScala, // list of postconditions
+      pres.asScala.toSeq, // list of preconditions
+      posts.asScala.toSeq, // list of postconditions
       b // method body
     )(NoPosition,new OriginInfo(o), NoTrafos))
   }
@@ -61,8 +61,8 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       name, // function name
       to_decls(o, args), // argument declarations
       t, // function type
-      pres.asScala, // sequence of preconditions
-      posts.asScala, // sequence of postconditions
+      pres.asScala.toSeq, // sequence of preconditions
+      posts.asScala.toSeq, // sequence of postconditions
       b // function body
     )(NoPosition, new OriginInfo(o), NoTrafos))
   }
@@ -72,14 +72,14 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
   }
   
   override def daxiom(o:O,name:String,expr:Exp,domain:String)={
-    DomainAxiom(name,expr)(NoPosition,new OriginInfo(o),domain)
+    NamedDomainAxiom(name,expr)(NoPosition,new OriginInfo(o),domain)
   }
   
   override def add_adt(p:Prog,o:O,name:String,funcs:List[DomainFunc],axioms:List[DomainAxiom],pars:List[String])={
     val args=pars.asScala map {
       d => viper.silver.ast.TypeVar(d)
     }
-    p.domains.add(Domain(name,funcs.asScala,axioms.asScala,args)(NoPosition,new OriginInfo(o)));
+    p.domains.add(Domain(name,funcs.asScala.toSeq,axioms.asScala.toSeq,args.toSeq)(NoPosition,new OriginInfo(o)));
   }
   
   override def parse_program(x$1: String): viper.api.Prog = {
@@ -97,12 +97,17 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       case _ => y match {
         case SourcePosition(file,start,tmp) =>
           tmp match {
-            case None => f.file(file.toString(),start.line,start.column)
+            case None =>
+              if (file == null) {
+                f.message("null origin") // When upgrading to viper 21.01, had to add this null check but the null came out of nowhere, think there should be an actual value for file normally
+              } else {
+                f.file(file,start.line,start.column)
+              }
             case Some(end) =>
               if (file==null){
                 f.message("null origin");
               } else {
-                f.file(file.toString(),start.line,start.column,end.line,end.column)
+                f.file(file,start.line,start.column,end.line,end.column)
               }
           }
         case _ => null.asInstanceOf[OO]
@@ -112,6 +117,14 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
   
   private def filter_local_decls(xs : Seq[Declaration]) : Seq[LocalVarDecl] = xs.collect {
     case decl : LocalVarDecl => decl
+  }
+
+  def discardUnnamedLocalVars(vars: Seq[AnyLocalVarDecl]): Seq[LocalVarDecl] = vars flatMap {
+    case localVar: LocalVarDecl => Some(localVar)
+    case _: UnnamedLocalVarDecl =>
+      // Unnamed local vars are currently not supported in COL
+      Warning("Unnamed local variable declaration detected, discarding")
+      None
   }
 
   override def convert [T2, E2, S2, DFunc2, DAxiom2, P2](
@@ -124,13 +137,16 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
         val functions:java.util.List[DFunc2]=(d.functions map {
           x => {
             val o=get_info(x.info,x.pos,api.origin)
-            val pars=map_decls(api, x.formalArgs)
+            val pars=map_decls(api, discardUnnamedLocalVars(x.formalArgs))
             val res=map_type(api,x.typ)
             api.prog.dfunc(o,x.name,pars,res,d.name, x.unique)
           }
         }).asJava
         val axioms:java.util.List[DAxiom2]=d.axioms.map {
-          x => api.prog.daxiom(o,x.name,map_expr(api,x.exp),d.name)
+          case NamedDomainAxiom(name, exp) =>
+            api.prog.daxiom(o, name, map_expr(api, exp), d.name)
+          case AnonymousDomainAxiom(exp) =>
+            api.prog.daxiom(o, "unnamed", map_expr(api, exp), d.name)
         }.asJava
         val vars=(d.typVars map { x => x.name } ).asJava
         api.prog.add_adt(out_prog,o,name,functions,axioms,vars)
@@ -173,6 +189,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
           map_decls(api,m.formalArgs), // input argument declarations
           map_decls(api,m.formalReturns), // output argument declarations (i.e. return values)
           map_decls(api, filter_local_decls(body.scopedDecls)), // list of local variables
+          Nil.asJava,
           map_stat(api,body) // method body
         ) 
       } 
@@ -224,8 +241,6 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
            null,
            null
        )
-       case Fresh(ps) => api.stat.fresh(o,map_expr(api,ps))
-       case Constraining(ps,body) => api.stat.constraining(o,map_expr(api,ps),map_stat(api,body))
        case Exhale(e) => api.stat.exhale(o,map_expr(api,e))
        case Goto(e) => api.stat.goto_(o,e)
        case If(c, s1, s2) => api.stat.if_then_else(o,
@@ -335,6 +350,9 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
            x:Trigger => map_expr(v,x.exps)
          }).asJava
          ve.forall(o,map_decls(v,vars),trigs,map_expr(v,e))
+       case Exists(vars,triggers,e) =>
+         // The triggers are ignored
+         ve.exists(o,map_decls(v,vars),map_expr(v,e))
        case EmptyMultiset(t) =>
          ve.explicit_bag(o,map_type(v,t),Seq().asJava)
        case EmptySeq(t) =>
@@ -398,7 +416,13 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
   }
 }
 
-object Parser extends viper.silver.frontend.SilFrontend {
+// We can only refactor this once silver starts using trait parameters (or the suggested workaround)
+// So we silence the warning because it is not useful.
+@nowarn("msg=.*early initializers are deprecated.*")
+object Parser extends {
+  // early initializer: reporter must be populated before initialization of superclass SilFrontend
+  override val reporter: PluginAwareReporter = PluginAwareReporter(HREViperReporter())
+} with viper.silver.frontend.SilFrontend {
   private var silicon: viper.silver.verifier.NoVerifier = new viper.silver.verifier.NoVerifier
 
   def parse_sil(name:String) = {
@@ -409,13 +433,13 @@ object Parser extends viper.silver.frontend.SilFrontend {
     semanticAnalysis()
     translation()
     _program match {
-      case Some(Program(domains,fields,functions,predicates,methods)) => 
+      case Some(Program(domains,fields,functions,predicates,methods,_)) =>
         val prog=new Prog();
-          prog.domains.addAll(domains.asJava)
-          prog.fields.addAll(fields.asJava)
-          prog.functions.addAll(functions.asJava)
-          prog.predicates.addAll(predicates.asJava)
-          prog.methods.addAll(methods.asJava)
+        prog.domains.addAll(domains.asJava)
+        prog.fields.addAll(fields.asJava)
+        prog.functions.addAll(functions.asJava)
+        prog.predicates.addAll(predicates.asJava)
+        prog.methods.addAll(methods.asJava)
         prog;
       case _ => throw new Error("empty file");
     }
@@ -424,11 +448,10 @@ object Parser extends viper.silver.frontend.SilFrontend {
   def configureVerifier(args: Seq[String]): viper.silver.frontend.SilFrontendConfig = {
     null
   }
-  
+
   def createVerifier(fullCmd: String): viper.silver.verifier.Verifier = {
     new viper.silver.verifier.NoVerifier
   }
-  
 }
 
 

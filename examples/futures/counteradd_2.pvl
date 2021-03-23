@@ -1,40 +1,44 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case ConcurrentCounting
-//:: suite problem-fail
-//:: verdict Fail
+//:: verdict Pass
 //:: tool silicon
 //:: option --check-history
 
-class Future {
+class `Future` {
+    int step;
 	int counter;
 
 	// Models a single atomic "decrease" operation.
+	accessible step;
 	modifies counter;
-	ensures counter == \old(counter) - 1;
+	ensures counter == \old(counter) - step;
 	process decr();
 
 	// Models a concurrent system with two "decrease" actions.
-	ensures counter == \old(counter) - 2;
+	accessible step;
+	modifies counter;
+	ensures counter == \old(counter) - 2 * step;
 	process pardecr() = decr() || decr();
 }
 
 class Program {
 
-	ensures \result == count - 2;
+	ensures \result == count - 4;
 	int decrease(int count) {
 
-		Future f = new Future();
+		`Future` f = new `Future`();
 		f.counter = count;
+		f.step = 2;
 		create f, f.pardecr();
 		split f, 1\2, f.decr(), 1\2, f.decr();
 
-		invariant lockinv(HPerm(f.counter, write)) {
+		invariant lockinv(HPerm(f.counter, write) ** HPerm(f.step, 1\2)) {
 			par T0()
 				requires Future(f, 1\2, f.decr());
 				ensures Future(f, 1\2, empty);
 			{
 				atomic(lockinv) {
-					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - 1; }
+					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - f.step; }
 				}
 			}
 			and T1()
@@ -42,7 +46,7 @@ class Program {
 				ensures Future(f, 1\2, empty);
 			{
 				atomic(lockinv) {
-					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - 1; }
+					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - f.step; }
 				}
 			}
 		}

@@ -10,6 +10,9 @@ import SpecLexer;
 
 VAL_INLINE    : 'inline';
 VAL_ASSERT    : EOF EOF;
+VAL_TRUE      : EOF EOF;
+VAL_FALSE     : EOF EOF;
+VAL_SIZEOF    : 'sizeof';
 
 // §3.9 Keywords
 
@@ -256,11 +259,8 @@ BinaryExponentIndicator
     ;
 
 // §3.10.3 Boolean Literals
-
-BooleanLiteral
-    :   'true'
-    |   'false'
-    ;
+True: 'true';
+False: 'false';
 
 // §3.10.4 Character Literals
 
@@ -413,11 +413,11 @@ ELLIPSIS : '...';
 FileName : '"' ~[\r\n"]* '"' ;
 
 EndSpec
-    : {inBlockSpec}? '@'? '*/' {inBlockSpec = false;}
-    | {inLineSpec}? ('\n'|'\r\n') {inLineSpec = false;}
+    : '@'? '*/' {inBlockSpec}? {inBlockSpec = false;}
+    | ('\n'|'\r\n') {inLineSpec}? {inLineSpec = false;}
     ;
 
-LineCommentStartInSpec: {inLineSpec}? '//' {inLineSpec=false;} -> mode(LINE_COMMENT);
+LineCommentStartInSpec: '//' {inLineSpec}? {inLineSpec=false;} -> mode(LINE_COMMENT);
 
 BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
 BlockCommentStart: '/*' -> mode(COMMENT), skip;
@@ -438,7 +438,7 @@ Identifier
     ;
 
 ExtraAt
-    : {inBlockSpec}? ('\n'|'\r\n') [ \t\u000C]* '@' -> skip
+    :  ('\n'|'\r\n') [ \t\u000C]* '@' {inBlockSpec}? -> skip
     ;
 
 WS  :  [ \t\r\n\u000C] -> skip

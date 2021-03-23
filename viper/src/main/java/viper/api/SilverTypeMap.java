@@ -1,6 +1,7 @@
 package viper.api;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import hre.ast.MessageOrigin;
@@ -69,7 +70,7 @@ public class SilverTypeMap<T> implements TypeMapping<T> {
     if (t.getName().equals("Ref")){
       return create.Ref();
     } else {
-      HashMap<String,T> map=new HashMap<String, T>();
+      LinkedHashMap<String,T> map=new LinkedHashMap<String, T>();
       return domain_type(map,t);
     }
   }

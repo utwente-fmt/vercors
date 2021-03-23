@@ -1,4 +1,5 @@
 //:: case KeywordsAllowC
+//:: tools silicon chalice carbon
 //:: verdict Pass
 
 void test() {
@@ -54,4 +55,8 @@ void test() {
     int action;
     int atomic;
     int Reducible;
+    int signals;
+    int kernel_invariant;
+    int set;
+    int pointer;
 }

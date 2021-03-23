@@ -5,13 +5,8 @@ import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.PrimitiveSort;
 
-import static vct.col.ast.type.ASTReserved.Any;
-import static vct.col.ast.type.ASTReserved.FullPerm;
-import static vct.col.ast.type.ASTReserved.NoPerm;
-import static vct.col.ast.type.ASTReserved.Pure;
-import static vct.col.ast.type.ASTReserved.ReadPerm;
-import static vct.col.ast.type.ASTReserved.Result;
 import static vct.col.ast.expr.StandardOperator.*;
+import static vct.col.ast.type.ASTReserved.*;
 
 public class VerCorsSyntax {
 
@@ -34,11 +29,9 @@ public class VerCorsSyntax {
     syntax.addFunction(AddsTo,"AddsTo");
     syntax.addFunction(Old,"\\old");
     syntax.addFunction(Length,"\\length");
-    syntax.addFunction(Get,"get?");
-    syntax.addFunction(Set,"set!");
     syntax.addOperator(Size,999,"|","|");
     syntax.addOperator(RangeSeq,-1,"{","..","}");
-    syntax.addLeftFix(Append,"+++",5);
+    syntax.addLeftFix(Concat,"+++",5);
     syntax.addLeftFix(Star,"**",4);
     
     syntax.addPrimitiveType(PrimitiveSort.ZFraction,"zfrac");
@@ -48,6 +41,8 @@ public class VerCorsSyntax {
     syntax.addPrimitiveType(PrimitiveSort.Location,"loc");
     
     syntax.addReserved(Result,"\\result");
+    syntax.addReserved(GlobalThreadId, "\\gtid");
+    syntax.addReserved(LocalThreadId, "\\ltid");
     syntax.addReserved(Pure,"pure");
     syntax.addReserved(Any,"*");
     syntax.addPrefix(BindOutput,"?",666);
@@ -86,9 +81,6 @@ public class VerCorsSyntax {
     syntax.add_annotation(ASTSpecial.Kind.Refute, "refute");
     syntax.add_annotation(ASTSpecial.Kind.Assume, "assume");
     
-    syntax.add_annotation(ASTSpecial.Kind.Invariant, "loop_invariant");
-    syntax.add_annotation(ASTSpecial.Kind.Invariant, "context_everywhere");
-    syntax.add_annotation(ASTSpecial.Kind.RequiresAndEnsures, "context");
     syntax.add_annotation(ASTSpecial.Kind.Label, "label");
     syntax.add_annotation(ASTSpecial.Kind.CSLSubject, "csl_subject");
     

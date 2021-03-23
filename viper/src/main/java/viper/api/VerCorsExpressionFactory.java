@@ -16,7 +16,6 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTFactory;
-import viper.api.ExpressionFactory;
 
 public class VerCorsExpressionFactory implements
     ExpressionFactory<Origin, Type, ASTNode> {
@@ -78,6 +77,14 @@ public class VerCorsExpressionFactory implements
   }
 
   @Override
+  public ASTNode any_set_subset(Origin o, ASTNode e1, ASTNode e2) {
+      enter(o);
+      ASTNode res= create.expression(StandardOperator.SubSet, e1, e2);
+      leave();
+    return res;
+  }
+
+  @Override
   public ASTNode any_set_union(Origin o, ASTNode e1, ASTNode e2) {
     enter(o);
     ASTNode res=create.expression(StandardOperator.Plus, e1, e2);
@@ -88,7 +95,7 @@ public class VerCorsExpressionFactory implements
   @Override
   public ASTNode append(Origin o, ASTNode e1, ASTNode e2) {
     enter(o);
-    ASTNode res=create.expression(StandardOperator.Append,e1,e2);
+    ASTNode res=create.expression(StandardOperator.Concat,e1,e2);
     leave();
     return res;
   }

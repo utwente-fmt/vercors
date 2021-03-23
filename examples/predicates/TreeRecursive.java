@@ -1,11 +1,12 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases TreeRecursive
-//:: tools chalice
+//:: tools silicon
+//:: verdict Pass
 /**
   
   The command line to verify with the VerCors Tool is:
   
-  vct --chalice TreeRecursive.java
+  vct --silicon TreeRecursive.java
   
   The expected result is Pass.
 */
@@ -17,15 +18,15 @@ public class Tree {
   public Tree right;
 
   /*@
-    public resource state()=Perm(data,100)**
-	Perm(left,100)**Perm(right,100)**
-	left->state()**right->state();
+    final public resource state()=Perm(data,1) **
+    Perm(left,1) ** Perm(right,1) **
+    left->state() ** right->state();
   @*/
 
   /*@
     requires t->state();
     ensures  t!=null ==> \result.length > 0;
-    public pure seq<int> contents(Tree t){
+    ghost public pure seq<int> contents(Tree t) {
       if(t==null){
           return seq<int>{};
       } else {

@@ -103,6 +103,14 @@ public enum ASTReserved {
   /**
    * The default case in a switch.
    */
-  Default
+  Default,
+  /**
+   * Global thread ID, equivalent to get_global_id(0) in OpenCL.
+   */
+  GlobalThreadId,
+  /**
+   * Local thread ID, equivalent to get_local_id(0) in OpenCL.
+   */
+  LocalThreadId,
 }
 

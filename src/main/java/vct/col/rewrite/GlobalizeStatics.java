@@ -14,6 +14,8 @@ import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ClassName;
 
+import java.util.Objects;
+
 /**
  * Base class for rewriting all static entries as a single Global class.
  * This base class will do all of the rewriting, except the creation
@@ -45,7 +47,7 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
     switch(cl.kind){
     case Plain:{
       int N;
-      ASTClass res=create.ast_class(cl.name(), ClassKind.Plain,null,null,null);
+      ASTClass res=create.ast_class(cl.name(), ClassKind.Plain,rewrite(cl.parameters),rewrite(cl.super_classes),rewrite(cl.implemented_classes));
       N=cl.getStaticCount();
       prefix=new ClassName(cl.getFullName()).toString("_");
       processing_static=true;
@@ -126,7 +128,7 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
   
   public void visit(MethodInvokation e){
     Method m=e.getDefinition();
-    if (m==null) Abort("cannot globalize method invokaiton without method definition");
+    Objects.requireNonNull(m, "cannot globalize method invokation without method definition");
     if (m.getParent() instanceof AxiomaticDataType){
       super.visit(e);
       return;

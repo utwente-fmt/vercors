@@ -2,7 +2,7 @@ package vct.ast
 
 import org.scalatest._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast._
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType}
 import vct.col.ast.generic.ASTNode

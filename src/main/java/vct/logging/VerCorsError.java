@@ -1,10 +1,10 @@
 package vct.logging;
 
 import java.util.ArrayList;
+import java.util.List;
+
 import hre.ast.Origin;
 import viper.api.ViperError;
-import static vct.logging.VerCorsError.ErrorCode.*;
-import static vct.logging.VerCorsError.SubCode.*;
 
 /**
  * Represents verifications errors as log messages.
@@ -34,7 +34,8 @@ public class VerCorsError extends AbstractMessage {
     CallPreCondition,
     AssignmentFailed,
     MethodPreConditionUnsound,
-    UnspecifiedError
+    UnspecifiedError,
+    TypeError
   }
   
   /**
@@ -48,7 +49,11 @@ public class VerCorsError extends AbstractMessage {
     DivisionByZero,
     InsufficientPermission,
     MethodPreConditionFalse,
-    UnspecifiedCause
+    ExtendsThrowable,
+    UnspecifiedCause,
+    UnusedCatch,
+    UnlistedExceptionType
+    ;
   }
   
   
@@ -59,7 +64,7 @@ public class VerCorsError extends AbstractMessage {
   
   public final Origin main;
   
-  public final ArrayList<Origin> aux=new ArrayList<Origin>();
+  public final List<Origin> aux=new ArrayList<Origin>();
   
   
   public static VerCorsError viper_error(ViperError<Origin> e){
@@ -68,60 +73,60 @@ public class VerCorsError extends AbstractMessage {
     String err[]=e.getError(0).split(":");
     switch(err[0]){
     case "postcondition.violated":
-      code=PostConditionFailed;
+      code=ErrorCode.PostConditionFailed;
       break;
     case "exhale.failed":
-      code=ExhaleFailed;
+      code=ErrorCode.ExhaleFailed;
       break;
     case "assert.failed":
-      code=AssertFailed;
+      code=ErrorCode.AssertFailed;
       break;
     case "assignment.failed":
-      code=AssignmentFailed;
+      code=ErrorCode.AssignmentFailed;
       break;
     case "invariant.not.established":
-      code=InvariantNotEstablished;
+      code=ErrorCode.InvariantNotEstablished;
       break;
     case "invariant.not.preserved":
-      code=InvariantNotPreserved;
+      code=ErrorCode.InvariantNotPreserved;
       break;
     case "predicate.not.wellformed":
     case "not.wellformed":
-      code=NotWellFormed;
+      code=ErrorCode.NotWellFormed;
       break;
     case "application.precondition":
-      code=ApplicationPreCondition;
+      code=ErrorCode.ApplicationPreCondition;
       break;
     case "call.precondition":
-      code=CallPreCondition;
+      code=ErrorCode.CallPreCondition;
       break;
     case "method.precondition.unsound":
-      code=MethodPreConditionUnsound;
+      code=ErrorCode.MethodPreConditionUnsound;
       break;
     default:
       hre.lang.System.Warning("unspecified error %s",err[0]);
-      code=UnspecifiedError;
+      code=ErrorCode.UnspecifiedError;
       break;
     }
     switch(err[1]){
     case "assertion.false":
-      sub=AssertionFalse;
+      sub=SubCode.AssertionFalse;
       break;
     case "division.by.zero":
-      sub=DivisionByZero;
+      sub=SubCode.DivisionByZero;
       break;
     case "insufficient.permission":
-      sub=InsufficientPermission;
+      sub=SubCode.InsufficientPermission;
       break;
     case "receiver.not.injective":
-      sub=InsufficientPermission;
+      sub=SubCode.InsufficientPermission;
       break;
     case "method.precondition.false":
-      sub = MethodPreConditionFalse;
+      sub = SubCode.MethodPreConditionFalse;
       break;
     default:
       hre.lang.System.Warning("unspecified cause %s",err[1]);
-      sub=UnspecifiedCause;
+      sub=SubCode.UnspecifiedCause;
       break;    
     }
     Origin main=e.getOrigin(0);
@@ -132,7 +137,7 @@ public class VerCorsError extends AbstractMessage {
     return new VerCorsError(code,sub,main,aux);
   }
   
-  public VerCorsError(ErrorCode code, SubCode sub,Origin origin, ArrayList<Origin> aux) {
+  public VerCorsError(ErrorCode code, SubCode sub,Origin origin, List<Origin> aux) {
     this.code=code;
     this.sub=sub;
     this.main=origin;

@@ -6,11 +6,10 @@ import hre.ast.TrackingTree;
 import hre.lang.HREError;
 
 import java.io.PrintWriter;
+import java.util.List;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
@@ -73,19 +72,8 @@ public class JavaPrinter extends AbstractPrinter {
   public void visit(TryCatchBlock tcb){
     out.print("try");
     tcb.main().accept(this);
-    for (CatchClause cb : tcb.catches()) {
-      out.print("catch (");
-      nextExpr();
-      boolean first = true;
-      for(Type t : cb.javaCatchTypes()) {
-        if(!first) out.print(" | ");
-        t.accept(this);
-        first = false;
-      }
-      out.print(" ");
-      out.print(cb.name());
-      out.print(")");
-      cb.block().accept(this);
+    for (CatchClause cb : tcb.catchesJava()) {
+      cb.accept(this);
     }
     if (tcb.after() != null){
       out.print(" finally ");
@@ -513,6 +501,10 @@ public class JavaPrinter extends AbstractPrinter {
       case Sum:
         binder="\\sum";
         break;
+      case SetComp:
+        //TODO Have a correct way of outputting this.
+        out.printf("setcomp");
+        break;
       default:
         Abort("binder %s unimplemented",e.binder());
     }
@@ -631,7 +623,8 @@ public class JavaPrinter extends AbstractPrinter {
       out.println("");
     }
     out.decrIndent();
-    out.lnprintf("}");    
+    out.lnprintf("}");
+    out.println("");
   }
 
   @Override
@@ -645,7 +638,7 @@ public class JavaPrinter extends AbstractPrinter {
         out.lnprintf("");
       }
       for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
-        out.printf("invariant ");
+        out.printf("loop_invariant ");
         nextExpr();
         e.accept(this);
         out.lnprintf(";");
@@ -667,14 +660,9 @@ public class JavaPrinter extends AbstractPrinter {
         e.accept(this);
         out.lnprintf(";");
       }
-      for (DeclarationStatement d:contract.signals){
-        out.printf("signals (");
-        d.getType().accept(this);
-        out.printf(" %s) ",d.name());
-        nextExpr();
-        d.initJava().accept(this);
-        out.lnprintf(";");
-      }      
+      for (SignalsClause sc : contract.signals){
+        sc.accept(this);
+      }
       if (contract.modifies!=null){
         out.printf("modifies ");
         if (contract.modifies.length==0){
@@ -710,13 +698,22 @@ public class JavaPrinter extends AbstractPrinter {
     }
   }
 
+  public void visit(SignalsClause sc) {
+    out.printf("signals (");
+    sc.type().accept(this);
+    out.printf(" %s) ",sc.name());
+    nextExpr();
+    sc.condition().accept(this);
+    out.lnprintf(";");
+  }
+
   public void visit(DeclarationStatement s){
     ASTNode expr = s.initJava();
     nextExpr();
     s.getType().accept(this);
     out.printf(" %s", s.name());
     if (expr!=null){
-      out.printf("=");
+      out.printf(" = ");
       nextExpr();
       expr.accept(this);
     }
@@ -810,6 +807,17 @@ public class JavaPrinter extends AbstractPrinter {
     out.printf(")");
     if (contract!=null && dialect==JavaDialect.JavaVeriFast && !predicate){
       visitVeriFast(contract);
+    }
+    if (m.signals.length > 0) {
+      out.printf(" throws ");
+      m.signals[0].accept(this);
+      if (m.signals.length > 1) {
+        for (int i = 1; i < m.signals.length; i++) {
+          Type t = m.signals[i];
+          out.printf(", ");
+          t.accept(this);
+        }
+      }
     }
     ASTNode body=m.getBody();
     if (body==null) {
@@ -906,13 +914,14 @@ public class JavaPrinter extends AbstractPrinter {
         || (s instanceof IfStatement)
         || (s instanceof LoopStatement)
         || (s instanceof ASTSpecial)
-        || (s instanceof DeclarationStatement); 
+        || (s instanceof DeclarationStatement)
+        || (s instanceof ParallelRegion);
   }
 
   public void visit(AssignmentStatement s){
     setExpr();
     s.location().accept(this);
-    out.printf("=");
+    out.printf(" = ");
     s.expression().accept(this);
   }
 
@@ -925,7 +934,7 @@ public class JavaPrinter extends AbstractPrinter {
       setExpr();
       expr.accept(this);
     }
-    if (s.get_after()!=null){
+    if (s.get_after()!=null && s.get_after().size() > 0){
       out.printf("/*@ ");
       out.printf("then ");
       s.get_after().accept(this);
@@ -1025,10 +1034,14 @@ public class JavaPrinter extends AbstractPrinter {
     out.println("){");
     for(Case c:s.cases){
       for(ASTNode n:c.cases){
-        out.printf("case ");
-        nextExpr();
-        n.accept(this);
-        out.println(":");
+        if (n == null) {
+          out.println("default: ");
+        } else {
+          out.printf("case ");
+          nextExpr();
+          n.accept(this);
+          out.println(":");
+        }
       }
       out.incrIndent();
       for(ASTNode n:c.stats){
@@ -1121,25 +1134,25 @@ public class JavaPrinter extends AbstractPrinter {
     } else {
       out.printf("do");
     }
-    if (s.get_before()!=null || s.get_after()!=null){
+    if (s.get_before()!=null && s.get_before().size()>0 || s.get_after()!=null  && s.get_after().size()>0){
       out.println("");
       out.println("/*@");
       out.incrIndent();
     }
-    if (s.get_before()!=null){
+    if (s.get_before()!=null && s.get_before().size()>0){
       out.printf("with ");
       s.get_before().accept(this);
       out.println("");
     }
-    if (s.get_after()!=null){
+    if (s.get_after()!=null  && s.get_after().size()>0){
       out.printf("then ");
       s.get_after().accept(this);
       out.println("");
     }
-    if (s.get_before()!=null || s.get_after()!=null){
+    if (s.get_before()!=null && s.get_before().size()>0 || s.get_after()!=null  && s.get_after().size()>0){
       out.decrIndent();
       out.println("@*/");
-    }    
+    }
     tmp=s.getBody();
     if (!(tmp instanceof BlockStatement)) { out.printf(" "); }
     tmp.accept(this);
@@ -1268,6 +1281,26 @@ public class JavaPrinter extends AbstractPrinter {
         }
         out.printf("option<");
         t.firstarg().accept(this);
+        out.printf(">");
+        break;
+      case Map:
+        if (nrofargs!=2){
+          Fail("Map type constructor with %d arguments instead of 2",nrofargs);
+        }
+        out.printf("map<");
+        t.firstarg().accept(this);
+        out.printf(",");
+        t.secondarg().accept(this);
+        out.printf(">");
+        break;
+      case Tuple:
+        if (nrofargs!=2){
+          Fail("Tuple type constructor with %d arguments instead of 2",nrofargs);
+        }
+        out.printf("tuple<");
+        t.firstarg().accept(this);
+        out.printf(",");
+        t.secondarg().accept(this);
         out.printf(">");
         break;
       case Sequence:
@@ -1463,27 +1496,27 @@ public class JavaPrinter extends AbstractPrinter {
     c.block().accept(this);
   }
 
-  private void visitNames(Seq<String> names) {
+  private void visitNames(List<String> names) {
     boolean first = true;
-    for(String name : JavaConverters.asJavaIterable(names)) {
+    for(String name : names) {
       if(!first) out.print(", ");
       first = false;
       out.print(name);
     }
   }
 
-  private void visitOmpOptions(Seq<OMPOption> options) {
-    for(OMPOption option : JavaConverters.asJavaIterable(options)) {
+  private void visitOmpOptions(List<OMPOption> options) {
+    for(OMPOption option : options) {
       out.print(" ");
       if(option instanceof OMPNoWait$) {
         out.print("nowait");
       } else if(option instanceof OMPPrivate) {
         out.print("private(");
-        visitNames(((OMPPrivate) option).names());
+        visitNames(((OMPPrivate) option).namesJava());
         out.print(")");
       } else if(option instanceof OMPShared) {
         out.print("shared(");
-        visitNames(((OMPShared) option).names());
+        visitNames(((OMPShared) option).namesJava());
         out.print(")");
       } else if(option instanceof OMPSimdLen) {
         out.printf("simdlen(%d)", ((OMPSimdLen) option).len());
@@ -1507,7 +1540,7 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(OMPParallel parallel) {
     out.print("#pragma omp parallel");
-    visitOmpOptions(parallel.options());
+    visitOmpOptions(parallel.optionsJava());
     out.newline();
     parallel.block().accept(this);
   }
@@ -1527,7 +1560,7 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(OMPFor loop) {
     out.print("#pragma omp for");
-    visitOmpOptions(loop.options());
+    visitOmpOptions(loop.optionsJava());
     out.newline();
     loop.loop().accept(this);
   }
@@ -1535,7 +1568,7 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(OMPParallelFor loop) {
     out.print("#pragma omp parallel for");
-    visitOmpOptions(loop.options());
+    visitOmpOptions(loop.optionsJava());
     out.newline();
     loop.loop().accept(this);
   }
@@ -1543,8 +1576,39 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(OMPForSimd loop) {
     out.print("#pragma omp for simd");
-    visitOmpOptions(loop.options());
+    visitOmpOptions(loop.optionsJava());
     out.newline();
     loop.loop().accept(this);
+  }
+
+  @Override
+  public void visit(InlineQuantifierPattern pattern) {
+    out.print("{:");
+    pattern.inner().apply(this);
+    out.print(":}");
+  }
+
+  public void visit(Synchronized sync) {
+    out.print("synchronized (");
+    nextExpr();
+    sync.expr().accept(this);
+    out.lnprintf(")");
+    sync.statement().accept(this);
+  }
+
+  @Override
+  public void visit(CatchClause cc) {
+    out.print("catch (");
+    nextExpr();
+    boolean first = true;
+    for(Type t : cc.javaCatchTypes()) {
+      if(!first) out.print(" | ");
+      t.accept(this);
+      first = false;
+    }
+    out.print(" ");
+    out.print(cc.name());
+    out.print(")");
+    cc.block().accept(this);
   }
 }

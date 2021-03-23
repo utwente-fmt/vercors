@@ -4,7 +4,7 @@
 //:: options --check-history
 //:: verdict Pass
 
-class Future {
+class `Future` {
 	int sum;
 
 	modifies sum;
@@ -24,13 +24,13 @@ class Program {
 
 	context_everywhere model != null && 0 < |xs|;
 	requires Future(model, 1, model.P(xs));
-	ensures (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.incr(xs[i]) * model.done(xs[i])));
-	void lemma_P_split_all(Future model, seq<int> xs);
+	ensures (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.incr({:xs[i]:}) * model.done(xs[i])));
+	void lemma_P_split_all(`Future` model, seq<int> xs);
 
 	context_everywhere model != null && 0 < |xs|;
-	requires (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.done(xs[i])));
+	requires (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.done({:xs[i]:})));
 	ensures Future(model, 1, empty);
-	void lemma_done_merge_all(Future model, seq<int> xs);
+	void lemma_done_merge_all(`Future` model, seq<int> xs);
 
 	given seq<int> xs;
 	context_everywhere A != null && A.length == |xs| && 0 < A.length;
@@ -38,15 +38,16 @@ class Program {
 	context (\forall int i; 0 <= i && i < A.length; A[i] == xs[i]);
 	ensures \result == sum(xs);
 	int parsum(int[] A) {
-		Future model = new Future();
+		`Future` model = new `Future`();
 		create model, model.P(xs);
 		lemma_P_split_all(model, xs);
 		invariant inv(HPerm(model.sum, 1)) //;
 		{
 			par (int tid = 0 .. A.length)
-				context Perm(A[tid], 1\4) ** A[tid] == xs[tid];
-				requires Future(model, 1\|xs|, model.incr(A[tid]) * model.done(A[tid]));
-				ensures Future(model, 1\|xs|, model.done(A[tid]));
+				context Perm({:A[tid]:}, 1\4);
+				context {:A[tid]:} == {:xs[tid]:};
+				requires Future(model, 1\|xs|, model.incr({:A[tid]:}) * model.done(A[tid]));
+				ensures Future(model, 1\|xs|, model.done({:A[tid]:}));
 			{
 				atomic(inv) {
 					action(model, 1\|xs|, model.done(A[tid]), model.incr(A[tid])) {

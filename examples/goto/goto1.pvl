@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Goto1
-//:: tools silicon
+//:: tools silicon carbon
 //:: verdict Fail
 
 class Ref {

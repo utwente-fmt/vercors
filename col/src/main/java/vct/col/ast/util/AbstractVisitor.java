@@ -206,4 +206,23 @@ public class AbstractVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(OMPForSimd loop) {
     visit_any(loop);
   }
+
+  @Override
+  public void visit(InlineQuantifierPattern pattern) {
+    visit_any(pattern);
+  }
+
+  public void visit(CatchClause cc) {
+    visit_any(cc);
+  }
+
+  @Override
+  public void visit(SignalsClause sc) {
+    visit_any(sc);
+  }
+
+  @Override
+  public void visit(KernelInvocation ki) {
+    visit_any(ki);
+  }
 }

@@ -1,0 +1,31 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases Goto3
+//:: tools silicon carbon
+//:: verdict Pass
+
+class C {
+   int m() {
+     int r = 3;
+     goto lbl;
+     r = 4;
+     label lbl;
+     assert r == 3;
+   }
+}
+
+class D {
+  int m() {
+    int r = 10;
+
+    loop_invariant r == 10;
+    while (true) {
+      r = 20;
+      goto lbl2;
+    }
+    assert r == 10;
+    label lbl2;
+    assert r == 20;
+  }
+}
+
+

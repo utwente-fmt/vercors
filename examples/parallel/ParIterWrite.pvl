@@ -1,0 +1,16 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ParIterWrite
+//:: tools silicon
+//:: verdict Error
+
+class C {
+    int f();
+
+    void m() {
+        int x;
+        par (int tid = 0 .. 2)
+        {
+            x = f();
+        }
+    }
+}

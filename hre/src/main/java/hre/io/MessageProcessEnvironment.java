@@ -1,5 +1,6 @@
 package hre.io;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -7,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MessageProcessEnvironment {
   private HashMap<String, String> environment = new HashMap<>();
@@ -62,6 +62,10 @@ public class MessageProcessEnvironment {
     this.addArg(argArg);
   }
 
+  public List<String> getArgs() {
+    return this.args;
+  }
+
   public MessageProcessEnvironment withArgs(String... args) {
     MessageProcessEnvironment newEnv = this.copy();
 
@@ -73,7 +77,7 @@ public class MessageProcessEnvironment {
   }
 
   public MessageProcess startProcess() {
-    String path = String.join(":", this.path);
+    String path = String.join(File.pathSeparator, this.path);
 
     environment.put("PATH", path);
 

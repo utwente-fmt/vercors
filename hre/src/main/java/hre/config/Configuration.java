@@ -1,13 +1,13 @@
 package hre.config;
 
 import hre.io.MessageProcessEnvironment;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 
-import static hre.lang.System.Debug;
-import static hre.lang.System.Failure;
+import static hre.lang.System.*;
 
 /**
  * This class contains the configuration options of the VerCors library.
@@ -16,6 +16,14 @@ import static hre.lang.System.Failure;
  *
  */
 public class Configuration {
+    // When we move to scala 3 this can maybe be refactored to a scala enum
+    public enum OS {
+        WINDOWS,
+        MAC,
+        UNIX,
+        UNKNOWN
+    }
+
     /**
      * Switch behavior of witness encoding.
      */
@@ -83,6 +91,14 @@ public class Configuration {
      */
     public static final StringSetting cpp_command=new StringSetting("clang -C -E");
 
+    public static final BooleanSetting debugBackend = new BooleanSetting(false);
+    public static final BooleanSetting ansi = new BooleanSetting(false);
+
+    /**
+     * The option for session type generation
+     */
+    public static final StringSetting session_file=new StringSetting(null);
+
     /**
      * Add the VCT library options to the given option parser.
      * @param clops Option parser.
@@ -102,6 +118,9 @@ public class Configuration {
         clops.add(cpp_defines.getAppendOption("add to the CPP defined variables"),'D');
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
+        clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
+        clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
+        clops.add(session_file.getAssign("generate threads from session type"),"session");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);
@@ -151,14 +170,14 @@ public class Configuration {
 
     public static File getZ3Path() {
         File base = getFileOrAbort("/deps/z3/4.8.6");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
-            return join(base, "Windows NT", "intel", "bin", "z3.exe");
-        } else if(os.startsWith("Mac")) {
-            return join(base, "Darwin", "x86_64", "bin", "z3");
-        } else {
-            return join(base, "Linux", "x86_64", "bin", "z3");
+        switch (getOS()) {
+            case WINDOWS:
+                return join(base, "Windows NT", "intel", "bin", "z3.exe");
+            case MAC:
+                return join(base, "Darwin", "x86_64", "bin", "z3");
+            default:
+                return join(base, "Linux", "x86_64", "bin", "z3");
         }
     }
 
@@ -175,21 +194,25 @@ public class Configuration {
     }
 
     public static File getBoogiePath() {
-        File base = getFileOrAbort("/deps/boogie/2012-10-22/");
-        String os = System.getProperty("os.name");
+        File base = getFileOrAbort("/deps/boogie/1.0.0.0-carbon");
 
-        if(os.startsWith("Windows")) {
-            return join(base, "windows", "bin");
-        } else {
-            return join(base, "unix", "bin");
+        switch (getOS()) {
+            case WINDOWS:
+                return join(base,"Windows", "Boogie.exe");
+            case UNIX:
+                return join(base, "Linux", "Boogie");
+            case MAC:
+                return join(base, "Darwin", "Boogie");
+            default:
+                Abort("Could not find boogie for unknown architecture");
+                return null;
         }
     }
 
     public static File getChalicePath() {
         File base = getFileOrAbort("/deps/chalice/2013-12-17/");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
+        if(getOS() == OS.WINDOWS) {
             return join(base, "windows", "bin");
         } else {
             return join(base, "unix", "bin");
@@ -198,9 +221,8 @@ public class Configuration {
 
     public static File getDafnyPath() {
         File base = getFileOrAbort("/deps/dafny/1.9.6/");
-        String os = System.getProperty("os.name");
 
-        if(os.startsWith("Windows")) {
+        if (getOS() == OS.WINDOWS) {
             return join(base, "windows");
         } else {
             return join(base, "unix");
@@ -290,6 +312,9 @@ public class Configuration {
         }
 
         env.addArg("vct.main.Main");
+        if(System.getenv("TEMP") != null) {
+            env.setEnvironmentVar("TEMP", System.getenv("TEMP"));
+        }
         return env;
     }
 
@@ -309,5 +334,18 @@ public class Configuration {
         env.addArg("-cp", System.getProperty("java.class.path"));
         env.addArg("viper.api.SiliconVerifier");
         return env;
+    }
+
+    public static OS getOS() {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return OS.WINDOWS;
+        } else if (os.contains("mac")) {
+            return OS.MAC;
+        } else if (os.contains("nix") || os.contains("linux")) {
+            return OS.UNIX;
+        } else {
+            return OS.UNKNOWN;
+        }
     }
 }

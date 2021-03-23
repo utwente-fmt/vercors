@@ -4,7 +4,7 @@
 //:: tool silicon
 //:: option --check-history
 
-class Future {
+class `Future` {
 	int counter;
 	
 	modifies counter;
@@ -25,7 +25,7 @@ class Program {
 	requires c > 0 && n > 0;
 	ensures \result == (c + n) * n || \result == (c * n) + n;
 	int count(int c, int n) {
-		Future f = new Future();
+		`Future` f = new `Future`();
 		f.counter = c;
 		create f, f.parcount(n);
 		split f, 1\2, f.plus(n), 1\2, f.mult(n);

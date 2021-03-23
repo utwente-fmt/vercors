@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases TestValue2
-//:: tools silicon chalice carbon
+//:: tools silicon
 //:: verdict Fail
 
 class Test {

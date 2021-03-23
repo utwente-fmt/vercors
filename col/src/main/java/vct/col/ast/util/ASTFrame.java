@@ -2,10 +2,15 @@ package vct.col.ast.util;
 
 import hre.lang.Failure;
 import hre.util.SingleNameSpace;
+import scala.Option;
 import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.type.TypeExpression;
+import vct.col.ast.type.TypeOperator;
 
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicReference;
@@ -135,7 +140,11 @@ public abstract class ASTFrame<T> {
   
   /** */
   protected ASTNode getParentNode(){
-    return node_stack.get(node_stack.size()-2);
+    return node_stack.size() >= 2 ? node_stack.get(node_stack.size()-2) : null;
+  }
+
+  protected ASTNode getAncestor(int stepsBack) {
+    return node_stack.size() >= 2 + stepsBack ? node_stack.get(node_stack.size()-2-stepsBack) : null;
   }
 
   /**
@@ -281,6 +290,19 @@ public abstract class ASTFrame<T> {
         break;
       }
     }
+
+    @Override
+    public void visit(VariableDeclaration decl) {
+      for(DeclarationStatement stat : decl.flatten()) {
+        switch(action) {
+          case ENTER:
+            variables.add(stat.name(), new VariableInfo(stat, NameExpressionKind.Local));
+            break;
+          case LEAVE:
+            break;
+        }
+      }
+    }
    
     @Override
     public void visit(DeclarationStatement node){
@@ -361,6 +383,13 @@ public abstract class ASTFrame<T> {
         for (DeclarationStatement decl:(node).getArgs()) {
           variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Argument));
         }
+        if(node.getReturnType() instanceof TypeExpression && ((TypeExpression) node.getReturnType()).operator() == TypeOperator.Kernel) {
+          for(String kernelArgument : new String[]{"opencl_lid", "opencl_gid", "opencl_gcount", "opencl_gsize"}) {
+            variables.add(kernelArgument, new VariableInfo(
+                    new DeclarationStatement(kernelArgument, new PrimitiveType(PrimitiveSort.Integer)),
+                    NameExpressionKind.Argument));
+          }
+        }
         add_contract_vars(node);
         break;
       case LEAVE:
@@ -418,7 +447,11 @@ public abstract class ASTFrame<T> {
             if (block.getStatement(i) instanceof DeclarationStatement){
               DeclarationStatement decl=(DeclarationStatement)block.getStatement(i);
               variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
-            }         
+            } else if(block.getStatement(i) instanceof VariableDeclaration) {
+              for(DeclarationStatement child : ((VariableDeclaration) block.getStatement(i)).flatten()) {
+                variables.add(child.name(), new VariableInfo(child, NameExpressionKind.Local));
+              }
+            }
           }
         }
         break;
@@ -496,6 +529,41 @@ public abstract class ASTFrame<T> {
       }
     }
 
+    @Override
+    public void visit(CatchClause cc) {
+      switch(action){
+        case ENTER:
+          variables.enter();
+          if (cc.javaCatchTypes().length != 1) {
+            // To support this, the least upper bound of all the types must be used here
+            // See: https://docs.oracle.com/javase/specs/jls/se8/html/jls-14.html#jls-14.20
+            Abort("Multi-catch not yet supported");
+          }
+          DeclarationStatement ccDeclarationStatement = new DeclarationStatement(cc.name(), cc.javaCatchTypes()[0], Option.empty());
+          variables.add(cc.name(), new VariableInfo(ccDeclarationStatement, NameExpressionKind.Local));
+          break;
+        case LEAVE:
+          variables.leave();
+          break;
+        default:
+          break;
+      }
+    }
+
+    @Override
+    public void visit(SignalsClause sc) {
+      switch(action){
+        case ENTER:
+          variables.enter();
+          variables.add(sc.name(), new VariableInfo(sc.asDeclarationStatement(), NameExpressionKind.Local));
+          break;
+        case LEAVE:
+          variables.leave();
+          break;
+        default:
+          break;
+      }
+    }
   };
   
   private void recursively_add_class_info(ASTClass cl) {
@@ -532,7 +600,7 @@ public abstract class ASTFrame<T> {
     }
     scan_labels(c.pre_condition);
     for(DeclarationStatement decl:c.yields){
-      variables.add(decl.name(),new VariableInfo(decl, NameExpressionKind.Argument));
+      variables.add(decl.name(),new VariableInfo(decl, NameExpressionKind.Local));
     }
     scan_labels(c.post_condition);
   }

@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Refute2
-// tools chalice silicon
+// tools silicon
 // verdict Fail
 
 /*
@@ -8,9 +8,9 @@
 */
 public class Refute {
 
-/*@
-  requires true;
-@*/
+  /*@
+    requires true;
+  @*/
   public void bad(){
     if (false) {
       //@ refute false;

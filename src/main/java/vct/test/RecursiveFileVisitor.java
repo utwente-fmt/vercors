@@ -19,7 +19,7 @@ import static hre.lang.System.Warning;
 
 public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
   public static final String OPTION_START = "//::";
-  public static final Set<String> TESTCASE_EXTENSIONS = new HashSet<>(Arrays.asList("c", "java", "pvl", "sil"));
+  public static final Set<String> TESTCASE_EXTENSIONS = new HashSet<>(Arrays.asList("c", "java", "pvl", "sil", "cu"));
 
   public final HashMap<String, Case> testsuite = new HashMap<String, Case>();
   public HashSet<Path> unmarked = new HashSet<Path>();
@@ -150,7 +150,12 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
   @Override
   public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
           throws IOException {
-    return FileVisitResult.CONTINUE;
+    // If the last path element is exactly "private", disregard the directory.
+    if(dir.endsWith("private")) {
+      return FileVisitResult.SKIP_SUBTREE;
+    } else {
+      return FileVisitResult.CONTINUE;
+    }
   }
 
   @Override

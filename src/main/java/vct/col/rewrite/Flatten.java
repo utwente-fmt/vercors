@@ -70,8 +70,14 @@ public class Flatten extends AbstractRewriter {
 
   @Override
   public void visit(ASTSpecial s){
-    result=copy_pure.rewrite(s);
+    if (s.isSpecial(ASTSpecial.Kind.Throw)) {
+      // Want constructors and other method calls to be flattened out of throw statements
+      super.visit(s);
+    } else {
+      result = copy_pure.rewrite(s);
+    }
   }
+
   public void visit(BlockStatement s){
     block_stack.push(current_block);
     current_block=create.block();
@@ -126,10 +132,22 @@ public class Flatten extends AbstractRewriter {
       
       ASTNode val=e.arg(1);
       ASTNode val_res=val.apply(this);
-      
-      //current_block.add_statement(create.assignment(loc_res,create.expression(StandardOperator.Plus,loc_res,val_res)));
-      //result=null;
-      result=create.expression(StandardOperator.Assign,loc_res,create.expression(StandardOperator.Plus,loc_res,val_res));
+
+      current_block.addStatement(
+              create.assignment(loc_res, create.expression(StandardOperator.Plus, loc_res, val_res))
+      );
+      result = copy_rw.rewrite(loc_res);
+      return;
+    }
+    case Assign: {
+      ASTNode loc=e.arg(0);
+      ASTNode loc_res=loc.apply(this);
+
+      ASTNode val=e.arg(1);
+      ASTNode val_res=val.apply(this);
+
+      current_block.addStatement(create.assignment(loc_res, val_res));
+      result = copy_rw.rewrite(loc);
       return;
     }
     case PreIncr:
@@ -167,6 +185,30 @@ public class Flatten extends AbstractRewriter {
       result=create.local_name(name);
       return;
     }
+      case ITE: {
+        String name = "__flatten_"+(++counter);
+        ASTNode decl = create.field_decl(name, e.arg(1).getType());
+        declaration_block.addStatement(decl);
+
+        IfStatement ifStatement = new IfStatement();
+        ASTNode guard = rewrite(e.arg(0));
+
+        block_stack.push(current_block);
+        current_block = create.block();
+        ASTNode evalTrue = create.assignment(create.local_name(name), rewrite(e.arg(1)));
+        current_block.add(evalTrue);
+        ifStatement.addClause(guard, current_block);
+
+        current_block = create.block();
+        ASTNode evalFalse = create.assignment(create.local_name(name), rewrite(e.arg(2)));
+        current_block.add(evalFalse);
+        ifStatement.addClause(IfStatement.elseGuard(), current_block);
+        current_block = block_stack.pop();
+
+        current_block.addStatement(ifStatement);
+        result = create.local_name(name);
+        return;
+      }
     default:
       super.visit(e);
       return;
@@ -296,9 +338,9 @@ public class Flatten extends AbstractRewriter {
       }
     } else {
       ASTNode statement = body.apply(this);
-      if(!(statement instanceof NameExpression)) {
+      if(!(statement instanceof NameExpression || statement instanceof Dereference || statement instanceof OperatorExpression)) {
         /* invokations of methods that return something are flattened, but we want to ignore this value when the
-         method is instead used as a statement.*/
+         method is instead used as a statement. The same goes for e.g. a += b. */
         current_block.addStatement(statement);
       }
     }
@@ -350,7 +392,7 @@ public class Flatten extends AbstractRewriter {
       c=copy_pure.rewrite(mc);
     }
     Method.Kind kind=m.kind;
-    Method res=create.method_kind(kind,rewrite(m.getReturnType()) , c, name, args, m.usesVarArgs(),null);
+    Method res=create.method_kind(kind, rewrite(m.getReturnType()), rewrite(m.signals), c, name, args, m.usesVarArgs(),null);
     ASTNode body=m.getBody();
     if (body!=null) {
       if (body instanceof BlockStatement) {
@@ -403,7 +445,7 @@ public class Flatten extends AbstractRewriter {
         if(derefItem) target = create.dereference(target, "item");
         current_block.addStatement(create.assignment(target, rewrite(v.value(i))));
       }
-    } else if(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Set) || t.isPrimitive(PrimitiveSort.Bag)) {
+    } else if(t.isPrimitive(PrimitiveSort.Sequence) || t.isPrimitive(PrimitiveSort.Set) || t.isPrimitive(PrimitiveSort.Bag) || t.isPrimitive(PrimitiveSort.Map) || t.isPrimitive(PrimitiveSort.Tuple)) {
         // The SilverExpressionMap has separate constructs for explicit seq, set & bag expressions, so we do not rewrite
         // it here.
         current_block.addStatement(create.assignment(
@@ -455,6 +497,11 @@ public class Flatten extends AbstractRewriter {
 
   private boolean simple_expression(ASTNode n){
     return (n instanceof NameExpression)||(n instanceof ClassType);
+  }
+
+  @Override
+  public Contract rewrite(Contract c) {
+    return copy_pure.rewrite(c);
   }
   
   @Override

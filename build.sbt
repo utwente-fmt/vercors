@@ -1,9 +1,14 @@
 import NativePackagerHelper._
 import sys.process._
+import java.io.File.pathSeparator
+import java.nio.file.{Files, Path, Paths}
+import java.net.URL
+import java.util.Comparator
 import sbt.internal._
 
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
+ThisBuild / scalaVersion := "2.13.5"
 
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
@@ -11,9 +16,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("hg:https://bitbucket.org/viperproject/silver#1a2059df2fc348a6a777e73e00ad10a4c129da0f")
-val carbon_url = uri("hg:https://bitbucket.org/viperproject/carbon#1565055c99f3b07d71f02f99de092d3077491d66")
-val silicon_url = uri("hg:https://bitbucket.org/viperproject/silicon#44fda0b4d7d8fb5c8cb9cd04216bb849003ae8c7")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#v.21.01-release")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.21.01-release")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.21.01-release")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -46,27 +51,27 @@ lazy val col = (project in file("col")).dependsOn(hre)
 lazy val parsers = (project in file("parsers")).dependsOn(hre, col)
 lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, carbon_ref, silicon_ref)
 
-def hasGit = "which git" ! ProcessLogger(a => (), b => ()) == 0 // Right hand side of ! silences it
-def gitHasChanges =
-  if (hasGit) {
-    if (("git diff-index --quiet HEAD --" ! ProcessLogger(a => (), b => ())) == 1) {
-      "with changes"
-    } else {
-      ""
-    }
-  } else {
-    "unknown"
-  }
+// We fix the scalaVersion of all viper components to be silver's scalaVersion, because
+// it seems that in some cases the scalaVersion of the other components is lost.
+// SBT then assumes the version we want for those components is 2.10, and then
+// suddenly it can't find the dependencies anymore! Smart move, sbt.
+// If Viper ever moves to maven central or some other proper dependency mechanism,
+// this can probably be removed.
+scalaVersion in carbon_ref := (scalaVersion in silver_ref).value
+scalaVersion in silicon_ref := (scalaVersion in silver_ref).value
+scalaVersion in ProjectRef(silver_url, "common") := (scalaVersion in silver_ref).value
+scalaVersion in ProjectRef(carbon_url, "common") := (scalaVersion in silver_ref).value
+scalaVersion in ProjectRef(silicon_url, "common") := (scalaVersion in silver_ref).value
 
-lazy val vercors = (project in file("."))
-  .dependsOn(hre)
-  .dependsOn(col)
-  .dependsOn(viper_api)
-  .dependsOn(parsers)
+lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
+
+lazy val vercors: Project = (project in file("."))
+  .dependsOn(hre, col, viper_api, parsers)
+  .aggregate(hre, col, viper_api, parsers)
   .settings(
     name := "Vercors",
     organization := "University of Twente",
-    version := "1.3.0-SNAPSHOT",
+    version := "1.4.0-SNAPSHOT",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -77,13 +82,11 @@ lazy val vercors = (project in file("."))
         |(concurrent) programs written in Java, C, OpenCL, OpenMP, and its own Prototypal Verification Language
         |PVL. """.stripMargin.replaceAll("\n", ""),
 
-    libraryDependencies += "commons-io" % "commons-io" % "2.4",
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
-    libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-    libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
-
-    scalaVersion := "2.12.10",
+    libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.2",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
+    // libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
+    libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
 
     scalacOptions in ThisBuild += "-deprecation",
     scalacOptions in ThisBuild += "-feature",
@@ -93,7 +96,6 @@ lazy val vercors = (project in file("."))
     javacOptions in Compile += "-Xlint:deprecation",
     javacOptions in Compile += "-Xlint:unchecked",
     javacOptions in Compile += "-deprecation",
-    javacOptions in doc := Seq(),
 
     javaOptions in (Compile, run) += "-J-Xss128M",
     /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
@@ -102,22 +104,13 @@ lazy val vercors = (project in file("."))
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
-        // If git doesn't exist in path abort
-        if (hasGit) {
-          ("git rev-parse --abbrev-ref HEAD" !!).stripLineEnd
-        } else {
-          "unknown"
-        }
+        Git.currentBranch
       },
       BuildInfoKey.action("currentShortCommit") {
-        if (hasGit) {
-          ("git rev-parse --short HEAD" !!).stripLineEnd
-        } else {
-          "unknown"
-        }
+        Git.currentShortCommit
       },
       BuildInfoKey.action("gitHasChanges") {
-        gitHasChanges
+        Git.gitHasChanges
       }
     ),
     buildInfoOptions += BuildInfoOption.BuildTime,
@@ -148,4 +141,15 @@ lazy val vercors = (project in file("."))
     // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
     // allows them to access the Sil test suite.
     publishArtifact in(Test, packageBin) := true,
+
+    cleanFiles += baseDirectory.value / "bin" / ".classpath",
   )
+
+Global / printMainClasspath := {
+    val paths = (vercors / Compile / fullClasspath).value
+    val joinedPaths = paths
+        .map(_.data)
+        .mkString(pathSeparator)
+    println(joinedPaths)
+}
+

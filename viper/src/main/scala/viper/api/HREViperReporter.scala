@@ -1,7 +1,7 @@
 package viper.api
 
-import viper.silver.reporter.{ConfigurationConfirmation, CopyrightReport, EntityFailureMessage, EntitySuccessMessage, ExceptionReport, ExternalDependenciesReport, InternalWarningMessage, InvalidArgumentsReport, Message, OverallFailureMessage, OverallSuccessMessage, Reporter, SimpleMessage, Time, format}
-import hre.lang.System.{Output, DebugException}
+import hre.lang.System.{DebugException, Output, Warning}
+import viper.silver.reporter._
 
 case class HREViperReporter(name: String = "hre_reporter", timeInfo: Boolean = true) extends Reporter {
   // Code below adapted from viper.silver.reporter.StdIOReporter
@@ -53,8 +53,8 @@ case class HREViperReporter(name: String = "hre_reporter", timeInfo: Boolean = t
       case CopyrightReport(text) =>
         Output( text )
 
-      case EntitySuccessMessage(_, _, _) =>    // FIXME Currently, we only print overall verification results to STDOUT.
-      case EntityFailureMessage(_, _, _, _) => // FIXME Currently, we only print overall verification results to STDOUT.
+      case EntitySuccessMessage(_, _, _, _) =>    // FIXME Currently, we only print overall verification results to STDOUT.
+      case EntityFailureMessage(_, _, _, _, _) => // FIXME Currently, we only print overall verification results to STDOUT.
       case ConfigurationConfirmation(_) =>     // TODO  use for progress reporting
         //Output( s"Configuration confirmation: $text" )
       case InternalWarningMessage(_) =>        // TODO  use for progress reporting

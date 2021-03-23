@@ -3,7 +3,7 @@ package vct.col.ast.stmt.composite
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.Map
 
 /**
@@ -31,6 +31,6 @@ case class ActionBlock(val history:ASTNode, val fraction:ASTNode, val process:AS
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("history", "fraction", "process", "action", "map", "block")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("history", "fraction", "process", "action", "map", "block")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

@@ -8,6 +8,7 @@ import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.composite.ParallelBlock;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.util.AbstractRewriter;
@@ -32,6 +33,7 @@ public class GhostLifter extends AbstractRewriter {
       for(DeclarationStatement arg:c.given){
         args.add(rewrite(arg));
       }
+      cb.appendInvariant(c.invariant);
       cb.requires(rewrite(c.pre_condition));
       for(DeclarationStatement arg:c.yields){
         ASTNode init=rewrite(arg.initJava());
@@ -137,5 +139,17 @@ public class GhostLifter extends AbstractRewriter {
     if (m.get_before()!=null) res.set_before(before);
     if (m.get_after()!=null) res.set_after(after);
     result=res;
+  }
+
+  @Override
+  public void visit(ParallelBlock pb) {
+    result = create.parallel_block(
+      pb.label(),
+      rewrite(pb.contract()),
+      rewrite(pb.itersJava()),
+      rewrite(pb.block()),
+      // parallel blocks use a method invocation to specify deps, which GhostLifter gets confused about.
+      copy_rw.rewrite(pb.deps())
+    );
   }
 }

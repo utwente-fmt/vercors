@@ -8,9 +8,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 
+import hre.util.ScalaHelper;
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
-import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -36,11 +36,12 @@ public class Contract extends ASTNode {
   }
 
   public final ASTNode invariant;
+  public final ASTNode kernelInvariant;
   public final ASTNode pre_condition;
   public final ASTNode post_condition;
   public final DeclarationStatement given[];
   public final DeclarationStatement yields[];
-  public final DeclarationStatement signals[];
+  public final SignalsClause[] signals;
   public final ASTNode modifies[];
   public final ASTNode accesses[];
   
@@ -49,7 +50,7 @@ public class Contract extends ASTNode {
         && pre_condition.isConstant(default_true)
         && post_condition.isConstant(default_true)
         && given.length==0 && yields.length==0
-        && (signals==null || signals.length==0)
+        && signals.length==0
         && modifies == null
         ;
   }
@@ -63,11 +64,12 @@ public class Contract extends ASTNode {
       ASTNode pre_condition,
       ASTNode post_condition){
     this.invariant=inv;
+    this.kernelInvariant = default_true;
     this. pre_condition= pre_condition;
     this.post_condition=post_condition;
     this.given=given;
     this.yields=yields;
-    this.signals=null;
+    this.signals=new SignalsClause[0];
     modifies=null;
     accesses=null;
     build_labels();
@@ -82,13 +84,14 @@ public class Contract extends ASTNode {
       ASTNode pre_condition,
       ASTNode post_condition){
     this.invariant=inv;
+    this.kernelInvariant = default_true;
     this. pre_condition= pre_condition;
     this.post_condition=post_condition;
     this.given=given;
     this.yields=yields;
     this.modifies=modifies;
     this.accesses=accesses;
-    this.signals=null;
+    this.signals=new SignalsClause[0];
     build_labels();
   }
   
@@ -98,10 +101,12 @@ public class Contract extends ASTNode {
       ASTNode modifies[],
       ASTNode accesses[],
       ASTNode inv,
+      ASTNode kernelInvariant,
       ASTNode pre_condition,
       ASTNode post_condition,
-      DeclarationStatement[]signals){
+      SignalsClause[] signals){
     this.invariant=inv;
+    this.kernelInvariant = kernelInvariant;
     this. pre_condition= pre_condition;
     this.post_condition=post_condition;
     this.given=given;
@@ -157,12 +162,12 @@ public class Contract extends ASTNode {
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("invariant", "pre_condition", "post_condition", "given", "yields", "signals", "modifies", "accesses"));
+    return ScalaHelper.toIterable("invariant", "pre_condition", "post_condition", "given", "yields", "signals", "modifies", "accesses");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
+    return ScalaHelper.toIterable();
   }
 }
 

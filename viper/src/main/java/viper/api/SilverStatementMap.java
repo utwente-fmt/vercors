@@ -1,10 +1,5 @@
 package viper.api;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-
 import hre.ast.AssertOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
@@ -12,15 +7,21 @@ import hre.util.Triple;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.generic.ASTNode;
 import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
-import vct.col.ast.util.ASTMapping;
-import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
+import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTUtils;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+
 import static hre.lang.System.Abort;
 
 public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
@@ -206,7 +207,7 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     if (s.getExitGuard()!=null) Abort("not a while loop");
     ArrayList<Triple<Origin,String,T>> locals=new ArrayList<Triple<Origin,String,T>>();
     ArrayList<S> stats=new ArrayList<S>();
-    VerCorsProgramFactory.split_block(ef, type, this, locals,(BlockStatement) s.getBody(), stats);
+    VerCorsProgramFactory.split_block(type, this, (BlockStatement) s.getBody(), locals, stats);
     ArrayList<E> invs=new ArrayList<E>();
     for(ASTNode inv:ASTUtils.conjuncts(s.getContract().invariant,StandardOperator.Star)){
       invs.add(inv.apply(expr));
@@ -265,9 +266,6 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   @Override
   public S map(ASTSpecial special) {
     switch(special.kind){
-    case Comment:
-      valid_null=true;
-      return null;
     case Goto:
       return create.goto_(special.getOrigin(),special.args[0].toString());
     case Label:
@@ -288,7 +286,9 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     case Assume: return create.inhale(special.getOrigin(),special.args[0].apply(expr));
     case Fold: return create.fold(special.getOrigin(),special.args[0].apply(expr));
     case Unfold: return create.unfold(special.getOrigin(),special.args[0].apply(expr));
-    case Fresh: return create.fresh(special.getOrigin(),do_names(special.args));
+    case Fresh:
+      throw new HREError("Fresh is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");
+      // Old implementation: return create.fresh(special.getOrigin(),do_names(special.args));
     default:
       throw new HREError("cannot map special %s",special.kind);
     }
@@ -408,7 +408,8 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
 
   @Override
   public S map(Constraining c) {
-    return create.constraining(c.getOrigin(), do_names(c.varsJava()), c.block().apply(this));
+    throw new HREError("Constraining is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");
+    // Old implementation: return create.constraining(c.getOrigin(), do_names(c.varsJava()), c.block().apply(this));
   }
 
   @Override
@@ -458,6 +459,26 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
 
   @Override
   public S map(OMPForSimd loop) {
+    return null;
+  }
+
+  @Override
+  public S map(InlineQuantifierPattern pattern) {
+    return null;
+  }
+
+  @Override
+  public S map(CatchClause cc) {
+    return null;
+  }
+
+  @Override
+  public S map(SignalsClause cc) {
+    return null;
+  }
+
+  @Override
+  public S map(KernelInvocation ki) {
     return null;
   }
 }

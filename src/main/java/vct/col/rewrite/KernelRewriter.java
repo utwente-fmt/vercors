@@ -1,12 +1,7 @@
 package vct.col.rewrite;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Set;
-import java.util.Stack;
+import java.util.*;
 
 import hre.config.Configuration;
 import vct.col.ast.stmt.decl.ASTClass;
@@ -136,7 +131,6 @@ public class KernelRewriter extends AbstractRewriter {
 
   public void visit(ParallelBarrier pb){
     Integer no=barrier_map.get(pb);
-    currentBlock.add(create.comment("// pre barrier marker"));
     if (Configuration.auto_barrier.get()){
       currentBlock.add(create_barrier_call(no.intValue()));
       //Disabled these hints because old in barrier refers to before barrier... 
@@ -307,7 +301,7 @@ public class KernelRewriter extends AbstractRewriter {
         if (m.getArity()!=0) Fail("TODO: kernel argument support");
         Type returns=create(m).primitive_type(PrimitiveSort.Void);
         Contract contract=m.getContract();
-        if (contract==null) Fail("kernel without contract");
+        Objects.requireNonNull(contract, "kernel without contract");
         base_name=m.getName();
         barrier_no=0;
         barrier_map=new HashMap<ParallelBarrier, Integer>();

@@ -5,14 +5,19 @@ This repository hosts VerCors, a toolset for the verification of concurrent and 
 
 A list of verified examples and case studies is maintained online and can be found [here](https://utwente.nl/vercors). This webpage also contains an online interface for VerCors and allows you to try VerCors online.
 
-## Installation
-VerCors requires a java runtime environment (version 8 or later), as well as clang if you want support for C.
+### The tutorial can be found on the [VerCors Wiki](https://github.com/utwente-fmt/vercors/wiki)!
+
+# Installation
+You can install VerCors by either using a release (recommended for beginners), or by building VerCors from its source code.
+
+## Using a Release
+VerCors requires a java runtime environment (version 11 or later), as well as clang if you want support for C.
 
 ### Linux
 Currently we support debian-based systems; let us know if you need something else! Install the dependencies:
 
 ```shell script
-sudo apt install clang openjdk-8-jre 
+sudo apt install clang openjdk-11-jre
 ```
 
 Obtain the latest deb release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest), and install it by running:
@@ -37,18 +42,11 @@ You can obtain a java runtime environment e.g. [here](https://jdk.java.net). Mak
 
 Next, download the latest zip release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest) and unzip it. You can find the batch script for VerCors in the `bin` subdirectory.
 
-
-## Usage
-VerCors verifies programs that are annotated with JML-style specifications (the underlying theory uses separation logic with permission accounting). Details on the specification language can be found on the VerCors [Wiki pages](https://github.com/utwente-fmt/vercors/wiki). Furthermore, a large collection of example programs can be found (and verified) in the `./examples` directory.
-
-The VerCors toolset can be used by running `vercors --silicon <filepath>`, with `<filepath>` the path of the (Java, C, or PVL) file to verify.
-
-## Building
+## Building from source code
 When building VerCors, you additionally need these dependencies:
 
-- A Java _Development_ Kit, version 8 or greater, either OpenJDK or Oracle.
+- A Java _Development_ Kit, version 11 or greater, either OpenJDK or Oracle.
 - Git (on Windows you need Git Bash, see <https://git-scm.com/downloads>)
-- Mercurial (See <https://www.mercurial-scm.org/downloads>)
 - Scala SBT, version 1.3.0 or greater (see <http://www.scala-sbt.org> for instructions)
 
 1. Clone the VerCors repository using `git clone https://github.com/utwente-fmt/vercors.git` and move into the cloned directory, `cd vercors`.
@@ -57,12 +55,19 @@ When building VerCors, you additionally need these dependencies:
 
 The last command tests the VerCors installation by verifying a large collection of examples (from the `./examples` directory). This command should eventually report that `all ? tests passed`. There are also intstructions for importing VerCors into either eclipse or IntelliJ IDEA [here](https://github.com/utwente-fmt/vercors/wiki).
 
+
+# Running VerCors
+VerCors verifies programs that are annotated with JML-style specifications (the underlying theory uses separation logic with permission accounting). Details on the specification language can be found on the VerCors [Wiki pages](https://github.com/utwente-fmt/vercors/wiki). Furthermore, a large collection of example programs can be found (and verified) in the `./examples` directory.
+
+The VerCors toolset can be used by running `vercors --silicon <filepath>`, with `<filepath>` the path of the (Java, C, or PVL) file to verify.
+
+
 ## Contact
 - For questions and support, email to <vercors@lists.utwente.nl>.
 - For bug reports and feature requests, visit <https://github.com/utwente-fmt/vercors/issues>.
 
 ## Related papers
-A complete list of papers on the VerCors project is given [here](http://eprints.eemcs.utwente.nl/view/project/VerCors.html).
+A complete list of papers on the VerCors project is given [here](https://vercors.ewi.utwente.nl/publications).
 
 ## License
 Copyright (c) 2008 - 2019 Formal Methods and Tools, University of Twente

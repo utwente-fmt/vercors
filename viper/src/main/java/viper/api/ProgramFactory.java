@@ -31,6 +31,7 @@ public interface ProgramFactory<O, T,E,S,DFunc,DAxiom,P> {
       List<Triple<O,String,T>> in,
       List<Triple<O,String,T>> out,
       List<Triple<O,String,T>> local,
+      List<String> labels,
       S body);
   
   public void add_field(P p,O o,String name,T t);

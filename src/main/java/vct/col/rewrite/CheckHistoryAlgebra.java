@@ -1,27 +1,25 @@
 package vct.col.rewrite;
 
 import hre.lang.HREError;
+import vct.col.ast.expr.*;
+import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.composite.ActionBlock;
+import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.decl.ASTSpecial.Kind;
+import vct.col.ast.type.*;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.Configuration;
+import vct.col.ast.util.ContractBuilder;
+import vct.col.util.AstToId;
+import vct.logging.ErrorMapping;
+import vct.logging.VerCorsError.ErrorCode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import vct.col.ast.expr.*;
-import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.decl.ASTSpecial.Kind;
-import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.composite.ActionBlock;
-import vct.col.ast.stmt.decl.*;
-import vct.col.ast.type.*;
-import vct.col.ast.util.AbstractRewriter;
-import vct.col.ast.util.Configuration;
-import vct.col.ast.util.ContractBuilder;
-import vct.logging.ErrorMapping;
-import vct.logging.VerCorsError.ErrorCode;
-import static vct.col.ast.expr.StandardOperator.Perm;
-import static vct.col.ast.expr.StandardOperator.PointsTo;
-import static vct.col.ast.expr.StandardOperator.EQ;
-import static vct.col.ast.expr.StandardOperator.Old;
+import static vct.col.ast.expr.StandardOperator.*;
 import static vct.col.ast.type.ASTReserved.FullPerm;
 
 public class CheckHistoryAlgebra extends AbstractRewriter {
@@ -44,6 +42,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   private Type adt_type;
   private AxiomaticDataType adt;
   private ASTClass hist_class;
+
+  private String histName(String name) {
+    return name + "_hist_hist";
+  }
   
   @Override
   public void visit(ASTClass cl){
@@ -70,10 +72,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       adt.add_axiom(create.axiom("empty_1L",
           create.forall(create.constant(true),
               create.expression(StandardOperator.EQ,
-                  create.domain_call("Process", "p_merge",
+                  create.pattern(create.domain_call("Process", "p_merge",
                       create.domain_call("Process", "p_empty"),
                       create.local_name("p")
-                  ),
+                  )),
                   create.local_name("p")
               ),create.field_decl("p", adt_type)
           )
@@ -81,10 +83,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       adt.add_axiom(create.axiom("empty_2L",
           create.forall(create.constant(true),
               create.expression(StandardOperator.EQ,
-                  create.domain_call("Process", "p_seq",
+                  create.pattern(create.domain_call("Process", "p_seq",
                       create.domain_call("Process", "p_empty"),
                       create.local_name("p")
-                  ),
+                  )),
                   create.local_name("p")
               ),create.field_decl("p", adt_type)
           )
@@ -92,10 +94,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       adt.add_axiom(create.axiom("empty_2R",
           create.forall(create.constant(true),
               create.expression(StandardOperator.EQ,
-                  create.domain_call("Process", "p_seq",
+                  create.pattern(create.domain_call("Process", "p_seq",
                       create.local_name("p"),
                       create.domain_call("Process", "p_empty")
-                  ),
+                  )),
                   create.local_name("p")
               ),create.field_decl("p", adt_type)
           )
@@ -109,12 +111,12 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
                 ,create.field_decl("p2", adt_type)},
               null,
               create.constant(true),
-              create.domain_call("Process", "p_is_choice",
+              create.pattern(create.domain_call("Process", "p_is_choice",
                   create.domain_call("Process", "p_choice",
                       create.local_name("p1"),create.local_name("p2")
                   ),
                   create.local_name("p1")
-              )
+              ))
           )
       ));
       adt.add_axiom(create.axiom("choice_R",
@@ -126,12 +128,12 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
                 ,create.field_decl("p2", adt_type)},
               null,
               create.constant(true),
-              create.domain_call("Process", "p_is_choice",
+              create.pattern(create.domain_call("Process", "p_is_choice",
                   create.domain_call("Process", "p_choice",
                       create.local_name("p1"),create.local_name("p2")
                   ),
                   create.local_name("p2")
-              )
+              ))
           )
       ));
       adt.add_axiom(create.axiom("choice_dist",
@@ -145,10 +147,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
               null,
               create.constant(true),
               create.expression(StandardOperator.EQ,
-                  create.domain_call("Process", "p_seq",
+                  create.pattern(create.domain_call("Process", "p_seq",
                       create.domain_call("Process","p_choice",create.local_name("p1"),create.local_name("p2")),
                       create.local_name("p3")
-                  ),
+                  )),
                   create.domain_call("Process", "p_choice",
                       create.domain_call("Process", "p_seq",create.local_name("p1"),create.local_name("p3")),                      
                       create.domain_call("Process", "p_seq",create.local_name("p2"),create.local_name("p3"))
@@ -182,10 +184,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
               )
           )
       ));
-      target().add(adt);
       switch(mode){
       case AxiomVerification:{
         ASTClass res = create.new_class(cl.name(), new DeclarationStatement[0], null);
+        res.setFlag(ASTFlags.FINAL, true);
         for(Method m:cl.dynamicMethods()){
           if (m.getKind()==Method.Kind.Constructor){
             continue;
@@ -202,6 +204,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       }
       case ProgramVerification:{
         hist_class = create.new_class(cl.name(), new DeclarationStatement[0], null);
+        hist_class.setFlag(ASTFlags.FINAL, true);
         for(Method m:cl.dynamicMethods()){
           if (m.getKind()==Method.Kind.Constructor){
             hist_class.add_dynamic(rewrite(m));
@@ -222,7 +225,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_act",m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_write",m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_free",m.getType()));
-          hist_class.add_dynamic(create.field_decl(m.name() + "_hist_hist",m.getType()));
+          hist_class.add_dynamic(create.field_decl(histName(m.name()), m.getType()));
           hist_class.add_dynamic(create.field_decl(m.name() + "_hist_action",m.getType()));
           add_setters_and_getter(hist_class, m.name(), m.getType());
         }
@@ -244,9 +247,9 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
 
   private void add_setters_and_getter(ASTClass cl, String name, Type type) {
     ContractBuilder hist_set_cb=new ContractBuilder();
-    ASTNode var=create.field_name(name+"_hist_value");
+    ASTNode var=create.dereference(create.diz(), name+"_hist_value");
     ASTNode val=create.local_name("value");
-    ASTNode wr=create.field_name(name+"_hist_write");
+    ASTNode wr=create.dereference(create.diz(), name+"_hist_write");
     ASTNode full=create.reserved_name(FullPerm);
     hist_set_cb.requires(create.expression(Perm,var,full));
     hist_set_cb.requires(create.expression(Perm,wr,full));
@@ -272,29 +275,29 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       if (hist){
         cb.requires(free_perm(diz,d.name(), full));
         cb.ensures(hist_perm(diz,d.name(), full));
-        cb.ensures(create.expression(Perm,create.field_name(d.name() + "_hist_init"),create.reserved_name(FullPerm)));
+        cb.ensures(create.expression(Perm,create.dereference(create.diz(), d.name() + "_hist_init"),create.reserved_name(FullPerm)));
       } else {
         cb.requires(hist_perm(diz,d.name(), full));
         cb.ensures(free_perm(diz,d.name(), full));        
-        cb.requires(create.expression(Perm,create.field_name(d.name() + "_hist_init"),create.reserved_name(FullPerm)));
+        cb.requires(create.expression(Perm,create.dereference(create.diz(), d.name() + "_hist_init"),create.reserved_name(FullPerm)));
       }
       cb.ensures(create.expression(EQ
-          , create.field_name(d.name() + "_hist_value")
-          , create.expression(Old,create.field_name(d.name() + "_hist_value"))
+          , create.dereference(create.diz(), d.name() + "_hist_value")
+          , create.expression(Old,create.dereference(create.diz(), d.name() + "_hist_value"))
       ));
       if (hist){
         cb.ensures(create.expression(EQ
-          , create.field_name(d.name() + "_hist_init")
-          , create.expression(Old,create.field_name(d.name() + "_hist_value"))
+          , create.dereference(create.diz(), d.name() + "_hist_init")
+          , create.expression(Old,create.dereference(create.diz(), d.name() + "_hist_value"))
         ));
       } else {
         cb.ensures(create.expression(EQ
-          , create.field_name(d.name() + "_hist_value")
-          , create.expression(Old,create.field_name(d.name() + "_hist_init"))
+          , create.dereference(create.diz(), d.name() + "_hist_value")
+          , create.expression(Old,create.dereference(create.diz(), d.name() + "_hist_init"))
         ));
       }
     }
-    ASTNode tmp=create.invokation(null, null, "hist_idle",
+    ASTNode tmp=create.invokation(create.diz(), null, "hist_idle",
         create.reserved_name(ASTReserved.FullPerm),
         create.domain_call("Process", "p_empty")
     );
@@ -322,13 +325,13 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
             create.reserved_name(FullPerm)
     );
 
-    ASTNode split1=create.invokation(null, null, "hist_idle",
+    ASTNode split1=create.invokation(create.diz(), null, "hist_idle",
         create.local_name("frac1"),create.local_name("proc1")
     );
-    ASTNode split2=create.invokation(null, null, "hist_idle",
+    ASTNode split2=create.invokation(create.diz(), null, "hist_idle",
         create.local_name("frac2"),create.local_name("proc2")
     );
-    ASTNode merge=create.invokation(null, null, "hist_idle",
+    ASTNode merge=create.invokation(create.diz(), null, "hist_idle",
         create.expression(StandardOperator.Plus,create.local_name("frac1"),create.local_name("frac2")),
         create.domain_call("Process","p_merge",create.local_name("proc1"),create.local_name("proc2"))
     );
@@ -395,10 +398,10 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     begin_cb.ensures(create.expression(StandardOperator.NEQ,create.local_name("fr"),create.reserved_name(ASTReserved.NoPerm)));
     commit_cb.requires(create.expression(StandardOperator.NEQ,create.local_name("fr"),create.reserved_name(ASTReserved.NoPerm)));
     commit_cb.ensures(create.expression(StandardOperator.NEQ,create.local_name("fr"),create.reserved_name(ASTReserved.NoPerm)));
-    begin_cb.requires(create.invokation(null, null,"hist_idle",create.local_name("fr"),is_history?proc:action_proc));
-    begin_cb.ensures(create.invokation(null, null,"hist_do_"+m.name(), do_args));
-    commit_cb.requires(create.invokation(null, null,"hist_do_"+m.name(), do_args));
-    commit_cb.ensures(create.invokation(null, null,"hist_idle",create.local_name("fr"),is_history?proc_action:proc));
+    begin_cb.requires(create.invokation(create.diz(), null,"hist_idle",create.local_name("fr"),is_history?proc:action_proc));
+    begin_cb.ensures(create.invokation(create.diz(), null,"hist_do_"+m.name(), do_args));
+    commit_cb.requires(create.invokation(create.diz(), null,"hist_do_"+m.name(), do_args));
+    commit_cb.ensures(create.invokation(create.diz(), null,"hist_idle",create.local_name("fr"),is_history?proc_action:proc));
     HashMap<NameExpression,ASTNode> old_map=new HashMap<NameExpression, ASTNode>();
     HashMap<NameExpression,ASTNode> new_map=new HashMap<NameExpression, ASTNode>();
     if (c.modifies!=null) for(ASTNode n:c.modifies){
@@ -426,11 +429,11 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       HashMap<NameExpression, ASTNode> new_map, ASTNode n,
       ASTNode frac) {
     String name=((FieldAccess)n).name();
-    ASTNode nact=create.unresolved_name(name+"_hist_act");
+    ASTNode nact=create.dereference(create.diz(), name+"_hist_act");
     ASTNode obj=((FieldAccess)n).object();
     n=create.dereference(((FieldAccess)n).object(), name + "_hist_value");
-    old_map.put(create.field_name(name),create.unresolved_name(name+"_hist_act"));
-    new_map.put(create.field_name(name),create.unresolved_name(name+"_hist_value"));
+    old_map.put(create.field_name(name),create.dereference(create.diz(), name+"_hist_act"));
+    new_map.put(create.field_name(name),create.dereference(create.diz(), name+"_hist_value"));
 
     
     if (frac==null){
@@ -559,9 +562,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   
   @Override
   public void visit(NameExpression e){
-    if (e.getKind()== NameExpressionKind.Label){
-      result=create.unresolved_name(e.getName());
-    } else if (e.isReserved(ASTReserved.EmptyProcess)) {
+    if (e.isReserved(ASTReserved.EmptyProcess)) {
       result=create.domain_call("Process", "p_empty");
     } else {
       super.visit(e);
@@ -721,7 +722,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   private ASTNode hist_perm(ASTNode obj, String name, ASTNode frac) {
     return create.fold(StandardOperator.Star
         ,create.expression(Perm,create.dereference(obj,name+"_hist_value"),frac)
-        ,create.expression(Perm,create.dereference(obj,name+"_hist_hist"),frac)
+        ,create.expression(Perm, create.dereference(obj, histName(name)), frac)
     );
   }
   private ASTNode action_perm(ASTNode obj, String name, ASTNode frac) {
@@ -733,6 +734,8 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   }
 
   protected boolean in_action=false;
+
+  int counter = 0;
   
   @Override
   public void visit(ActionBlock ab){
@@ -754,20 +757,42 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     for(ASTNode n:act.getArgs()){
       args.add(rewrite(n));
     }
+    BlockStatement body = create.block();
     if (ac.accesses!=null) for(ASTNode n:ac.accesses){
-      String name="f_"+((FieldAccess)n).name();
+      create.enter(n);
+
+      String name = "f_" + AstToId.toId(n) + counter++;
+      String fieldName = ((FieldAccess) n).name();
       names.add(create.local_name(name));
       args.add(create.local_name(name));
-      res.add(create.field_decl(name, create.primitive_type(PrimitiveSort.Fraction)));
-      res.add(create.special(Kind.Fresh,create.local_name(name)));
+      res.add(create.field_decl(name, create.primitive_type(PrimitiveSort.ZFraction)));
+      CheckProcessAlgebra.ensureFreshZfracPresent(source(), target(), create);
+      body.add(create.assignment(create.local_name(name), create.invokation(null, null, CheckProcessAlgebra.FRESH_ZFRAC_NAME)));
+
+      body.add(create.special(Kind.Assert, create.expression(LT,
+              create.constant(0),
+              create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), histName(fieldName))
+              ))));
+
+      body.add(create.special(Kind.Assert, create.expression(LT,
+              create.constant(0),
+              create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), histName(fieldName))
+              ))));
+
+      body.add(create.special(Kind.Inhale, create.fold(Star,
+              create.expression(LT, create.constant(0), create.local_name(name)),
+              create.expression(LT, create.local_name(name), create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), histName(fieldName)))),
+              create.expression(LT, create.local_name(name), create.expression(CurrentPerm, create.dereference(copy_rw.rewrite(hist), fieldName + "_hist_value")))
+              )));
+
+      create.leave();
     }
-    BlockStatement body=create.block();
     body.add(create.invokation(hist, null, act.method()+"_begin", args.toArray(new ASTNode[0])));
     for(ASTNode n:(BlockStatement)ab.block()){
       body.add(rewrite(n));
     }
     body.add(create.invokation(hist, null, act.method()+"_commit", args.toArray(new ASTNode[0])));
-    res.add(create.constraining(body, names));
+    res.add(body);
     result=res;
     in_action=false;
   }
@@ -889,7 +914,6 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
       @Override
       public void visit(FieldAccess d){
         ASTNode n=new_map.get(d.name());
-        Warning("name %s",d.name());
         if (n==null){
           super.visit(d);
         } else {
@@ -902,33 +926,35 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     ASTNode diz=create.reserved_name(ASTReserved.This);
     ASTNode full=create.reserved_name(ASTReserved.FullPerm);
     for(DeclarationStatement d:cl.dynamicFields()){
-      map.put(d.name(), create.expression(Old,create.field_name(d.name() + (hist?"_hist_init":"_hist_value"))));
-      new_map.put(d.name(), create.field_name(d.name() + (hist?"_hist_value":"_hist_init")));
+      map.put(d.name(), create.expression(Old,create.dereference(create.diz(), d.name() + (hist?"_hist_init":"_hist_value"))));
+      new_map.put(d.name(), create.dereference(create.diz(), d.name() + (hist?"_hist_value":"_hist_init")));
       if (hist){
-        cb.requires(create.expression(Perm,create.field_name(d.name() + "_hist_init"),full));
+        cb.requires(create.expression(Perm,create.dereference(create.diz(), d.name() + "_hist_init"),full));
         cb.requires(hist_perm(diz,d.name(), full));
         cb.ensures(free_perm(diz,d.name(), full));
       } else {
         cb.requires(free_perm(diz,d.name(), full));
         cb.ensures(hist_perm(diz,d.name(), full));
-        cb.ensures(create.expression(Perm,create.field_name(d.name() + "_hist_init"),full));
+        cb.ensures(create.expression(Perm,create.dereference(create.diz(), d.name() + "_hist_init"),full));
       }
       cb.ensures(create.expression(EQ
-          , create.field_name(d.name() + "_hist_value")
-          , create.expression(Old,create.field_name(d.name() + "_hist_value"))
+          , create.dereference(create.diz(), d.name() + "_hist_value")
+          , create.expression(Old,create.dereference(create.diz(), d.name() + "_hist_value"))
       ));
     }
-    ASTNode temp=rewrite(def.getContract().pre_condition);
-    Debug("REQ %s", temp);
-    cb.requires(temp);
-    cb.ensures(new_sigma.rewrite(rename_old.rewrite(def.getContract().post_condition)));
+    if (def.getContract() != null) {
+      ASTNode temp = rewrite(def.getContract().pre_condition);
+      Debug("REQ %s", temp);
+      cb.requires(temp);
+      cb.ensures(new_sigma.rewrite(rename_old.rewrite(def.getContract().post_condition)));
+    }
     
     ArrayList<ASTNode> def_names=new ArrayList<ASTNode>();
     for(DeclarationStatement d:def.getArgs()){
       def_names.add(create.local_name(d.name()));
     }
     
-    ASTNode tmp=create.invokation(null, null, "hist_idle",
+    ASTNode tmp=create.invokation(create.diz(), null, "hist_idle",
         create.reserved_name(ASTReserved.FullPerm),
         create.domain_call("Process","p_"+effect.method(),def_names)
     );
@@ -985,6 +1011,9 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
         ASTDeclaration tmp=rewrite(d);
         if(tmp!=null) target().add(tmp);
       }
+    }
+    if(adt != null) {
+      target().add(adt);
     }
     target().index_classes();
     return target();

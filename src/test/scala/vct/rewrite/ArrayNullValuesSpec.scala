@@ -8,7 +8,7 @@ import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.rewrite.ArrayNullValues
 import vct.col.util.AbstractTypeCheck
 
-class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=new AbstractTypeCheck(new ProgramUnit())) {
+class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=new AbstractTypeCheck(null, new ProgramUnit())) {
   def INT_TYPE = create primitive_type PrimitiveSort.Integer
   def SEQ_TYPE = create class_type "seq"
   def BOOL_TYPE = create primitive_type PrimitiveSort.Boolean
@@ -74,10 +74,6 @@ class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=
 
   it should "propagate typing in Wrap expressions" in {
     wrappingOperator(StandardOperator.Wrap)
-  }
-
-  it should "propagate typing in Identity applications" in {
-    wrappingOperator(StandardOperator.Identity)
   }
 
   it should "rewrite array values within StructValues" in {

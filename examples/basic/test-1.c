@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Test-1-c
-//:: tools silicon chalice
+//:: tools silicon
 //:: verdict Pass
 
 // Simple method contract example.

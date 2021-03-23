@@ -1,6 +1,7 @@
 package hre.util;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
  * Filters the given iterator for the elements that must be passed.
@@ -45,7 +46,14 @@ public class FilteredIterator<F,E> implements Iterator<E> {
   }
 
   public E next() {
-    E res=buffer;
+    if (buffer == null) {
+      fill_buffer();
+      if (buffer == null) {
+        throw new NoSuchElementException();
+      }
+    }
+    E res = buffer;
+    buffer = null;
     fill_buffer();
     return res;
   }

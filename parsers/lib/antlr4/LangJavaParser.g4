@@ -115,12 +115,13 @@ typeBound
     ;
 
 enumDeclaration
-    :   ENUM javaIdentifier ('implements' typeList)?
+    :   ENUM javaIdentifier imp?
         '{' enumConstants? ','? enumBodyDeclarations? '}'
     ;
 
 enumConstants
-    :   enumConstant (',' enumConstant)*
+    :   enumConstant
+    |   enumConstants ',' enumConstant
     ;
 
 enumConstant
@@ -312,11 +313,14 @@ typeArgumentList
 
 typeArgument
     :   type
-    |   '?' (('extends' | 'super') type)?
+    |   '?' boundType?
     ;
 
+boundType : ('extends' | 'super') type ;
+
 qualifiedNameList
-    :   qualifiedName (',' qualifiedName)*
+    :   qualifiedName
+    |   qualifiedName ',' qualifiedNameList
     ;
 
 formalParameters
@@ -365,20 +369,28 @@ literal
     |   FloatingPointLiteral
     |   CharacterLiteral
     |   StringLiteral
-    |   BooleanLiteral
+    |   (True|False)
     |   'null'
     ;
 
 // ANNOTATIONS
 
 annotation
-    :   '@' annotationName ( '(' ( elementValuePairs | elementValue )? ')' )?
+    :   '@' annotationName annotationArgs?
+    ;
+
+annotationArgs :   '(' annotationArgsElems? ')' ;
+
+annotationArgsElems
+    : elementValuePairs
+    | elementValue
     ;
 
 annotationName : qualifiedName ;
 
 elementValuePairs
-    :   elementValuePair (',' elementValuePair)*
+    :   elementValuePair
+    |   elementValuePairs ',' elementValuePair
     ;
 
 elementValuePair
@@ -392,7 +404,12 @@ elementValue
     ;
 
 elementValueArrayInitializer
-    :   '{' (elementValue (',' elementValue)*)? (',')? '}'
+    :   '{' elementValues? ','? '}'
+    ;
+
+elementValues
+    :   elementValue
+    |   elementValues ',' elementValue
     ;
 
 annotationTypeDeclaration
@@ -472,7 +489,7 @@ statement
     |   'continue' javaIdentifier? ';'
     |   ';'
     |   statementExpression ';'
-    |   javaIdentifier ':' statement
+    |   valEmbedContract? javaIdentifier ':' statement
     |   {specLevel>0}? valStatement
     ;
 
@@ -556,7 +573,8 @@ constantExpression
     ;
 
 expression
-    :   primary
+    :   {specLevel>0}? valPrimary
+    |   primary
     |   expression '.' javaIdentifier
     |   expression '.' 'this'
     |   expression '.' 'new' nonWildcardTypeArguments? innerCreator
@@ -564,7 +582,7 @@ expression
     |   expression '.' explicitGenericInvocation
     |   expression '[' expression ']'
     |   expression '->' javaIdentifier arguments
-    |   expression predicateEntryType? arguments valEmbedWithThen?
+    |   expression '.' javaIdentifier predicateEntryType? arguments valEmbedWithThen?
     |   'new' creator valEmbedWithThen?
     |   '(' type ')' expression
     |   expression ('++' | '--')
@@ -572,7 +590,7 @@ expression
     |   ('~'|'!') expression
     |   expression mulOp expression
     |   expression ('+'|'-') expression
-    |   expression ('<' '<' | '>' '>' '>' | '>' '>') expression
+    |   expression shiftOp expression
     |   expression ('<=' | '>=' | '>' | '<') expression
     |   expression 'instanceof' type
     |   expression ('==' | '!=') expression
@@ -583,21 +601,7 @@ expression
     |   expression '||' expression
     |   expression impOp  expression
     |   expression '?' expression ':' expression
-    |   <assoc=right> expression
-        (   '='
-        |   '+='
-        |   '-='
-        |   '*='
-        |   '/='
-        |   '&='
-        |   '|='
-        |   '^='
-        |   '>>='
-        |   '>>>='
-        |   '<<='
-        |   '%='
-        )
-        expression
+    |   <assoc=right> expression assignOp expression
     ;
 predicateEntryType: '@' javaIdentifier; // TODO: Find correct class type
 mulOp
@@ -611,6 +615,25 @@ andOp
 impOp
     : {specLevel>0}? valImpOp
     ;
+shiftOp
+    :   '<' '<'
+    |   '>' '>' '>'
+    |   '>' '>'
+    ;
+assignOp
+    :   '='
+    |   '+='
+    |   '-='
+    |   '*='
+    |   '/='
+    |   '&='
+    |   '|='
+    |   '^='
+    |   '>>='
+    |   '>>>='
+    |   '<<='
+    |   '%='
+    ;
 
 primary
     :   '(' expression ')'
@@ -618,11 +641,16 @@ primary
     |   'super'
     |   literal
     |   javaIdentifier
+    |   javaIdentifier predicateEntryType? arguments valEmbedWithThen?
     |   type '.' 'class'
     |   'void' '.' 'class'
-    |   nonWildcardTypeArguments (explicitGenericInvocationSuffix | 'this' arguments)
-    |   {specLevel>0}? valPrimary
+    |   nonWildcardTypeArguments constructorCall
 	;
+
+constructorCall
+    :   explicitGenericInvocationSuffix
+    |   'this' arguments
+    ;
 
 creator
     :   nonWildcardTypeArguments createdName classCreatorRest
@@ -686,7 +714,7 @@ superSuffix
 
 explicitGenericInvocationSuffix
     :   'super' superSuffix
-    |   javaIdentifier ('@' javaIdentifier )? arguments
+    |   javaIdentifier predicateEntryType? arguments
     ;
 
 arguments

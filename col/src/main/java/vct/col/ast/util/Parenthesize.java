@@ -1,11 +1,8 @@
 package vct.col.ast.util;
 
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.type.ClassType;
+import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.stmt.decl.Contract;
-import vct.col.ast.util.AbstractRewriter;
-import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
@@ -15,23 +12,25 @@ import vct.col.ast.syntax.Syntax.Associativity;
 public class Parenthesize extends AbstractRewriter {
 
   private final Syntax syntax;
-  
+
   public Parenthesize(Syntax syntax){
     super(null,null);
     this.syntax=syntax;
   }
-  
+
   public void rewrite(Contract c,ContractBuilder cb){
     if (c==null) return;
     cb.given(rewrite(c.given));
     cb.yields(rewrite(c.yields));
-    if (c.modifies!=null) cb.modifies(rewrite(c.modifies)); 
-    if (c.accesses!=null) cb.accesses(rewrite(c.accesses)); 
+    if (c.modifies != null) cb.modifies(rewrite(c.modifies));
+    if (c.accesses != null) cb.accesses(rewrite(c.accesses));
     cb.appendInvariant(rewrite(c.invariant));
     cb.requires(rewrite(c.pre_condition));
     cb.ensures(rewrite(c.post_condition));
-    if (c.signals!=null) for(DeclarationStatement decl:c.signals){
-      cb.signals((ClassType)rewrite(decl.getType()),decl.name(), rewrite(decl.initJava()));      
+    if (c.signals != null) {
+      for (SignalsClause sc : c.signals) {
+        cb.signals(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
+      }
     }
   }
 

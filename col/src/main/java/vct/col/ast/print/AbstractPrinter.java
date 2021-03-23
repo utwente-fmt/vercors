@@ -5,11 +5,8 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.ast.TrackingOutput;
 import hre.lang.HREError;
-import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
-import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.Hole;
 import vct.col.ast.stmt.decl.ASTSpecial;
@@ -177,6 +174,23 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
     out.print(")");
   }
 
+  public void visit(KernelInvocation e) {
+    setExpr();
+    out.printf("%s", e.method());
+    out.printf("<<<");
+    e.blockCount().accept(this);
+    out.printf(", ");
+    e.threadCount().accept(this);
+    out.printf(">>>(");
+    boolean first = true;
+    for(ASTNode arg : e.javaArgs()) {
+      if(!first) out.printf(", ");
+      arg.accept(this);
+      first = false;
+    }
+    out.printf(")");
+  }
+
   public void visit(OperatorExpression e){
     StandardOperator op=e.operator();
     String op_syntax[]=syntax.getSyntax(op);
@@ -213,21 +227,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
   
   public void visit(ASTSpecial s){
     switch(s.kind){
-    case Comment:
-      String lines[]=s.args[0].toString().split("\n");
-      for(int i=0;i<lines.length;i++){
-        out.println(lines[i]);
-      }
-      break;
-    case Pragma:
-      out.printf("@pragma(\"%s\")%n", s.args[0]);
-      break;
-    case Modifies:
-      out.println("modifies ...");
-      break;
-    case Accessible:
-      out.println("accessible ...");
-      break;
     default:
       if (s.args.length==0){
         out.printf("%s;%n",s.kind);

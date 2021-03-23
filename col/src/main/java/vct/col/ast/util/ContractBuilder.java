@@ -2,15 +2,15 @@
 package vct.col.ast.util;
 
 import hre.ast.CompositeOrigin;
-import hre.ast.FileOrigin;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.stmt.decl.VariableDeclaration;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
-import vct.col.ast.type.ClassType;
+import vct.col.ast.type.Type;
 
 import java.util.*;
 
@@ -18,24 +18,24 @@ import static vct.col.ast.stmt.decl.Contract.default_true;
 
 public class ContractBuilder {
 
-  private boolean empty=true;
-  
-  private ASTNode pre_condition=default_true;
-  private ASTNode post_condition=default_true;
-  private ASTNode invariant=default_true;
-  private ArrayList<DeclarationStatement> given=new ArrayList<DeclarationStatement>();
-  private ArrayList<DeclarationStatement> yields=new ArrayList<DeclarationStatement>();
+  private ASTNode pre_condition = default_true;
+  private ASTNode post_condition = default_true;
+  private ASTNode invariant = default_true;
+  private ASTNode kernelInvariant = default_true;
+  private ArrayList<DeclarationStatement> given = new ArrayList<>();
+  private ArrayList<DeclarationStatement> yields = new ArrayList<>();
   private HashSet<ASTNode> modifiable;
   private HashSet<ASTNode> accessible;
-  private ArrayList<DeclarationStatement> signals=new ArrayList<DeclarationStatement>();
+  private ArrayList<SignalsClause> signals = new ArrayList<>();
   
   public boolean isEmpty() {
-    return  invariant.isConstant(default_true)
+    return invariant.isConstant(default_true)
         && pre_condition.isConstant(default_true)
         && post_condition.isConstant(default_true)
         && given.size()==0 && yields.size()==0
         && signals.size()==0
         && modifiable == null
+        && accessible == null
         ;
   }
 
@@ -58,7 +58,6 @@ public class ContractBuilder {
    * @param decls A block consisting of declaration statement only.
    */
   public void given(BlockStatement decls){
-    empty=false;
     scan_to(given,decls);
   }
   /**
@@ -66,27 +65,23 @@ public class ContractBuilder {
    * @param decls
    */
   public void yields(BlockStatement decls){
-    empty=false;
-    scan_to(yields,decls);    
+    scan_to(yields,decls);
   }
   /**
    * Add the given declarations to the list of given variables.
    * @param decls Any number of declarations.
    */
   public void given(DeclarationStatement ... decls){
-    empty=false;
     for(DeclarationStatement d:decls) given.add(d);
   }
   
   public void given(VariableDeclaration decl){
-	empty=false;
     for(DeclarationStatement d:decl.flatten()){
       given.add(d);
     }
   }
 
   public void yields(VariableDeclaration decl){
-    empty=false;
     for(DeclarationStatement d:decl.flatten()){
       yields.add(d);
     }
@@ -96,14 +91,18 @@ public class ContractBuilder {
    * @param decls Any number of declarations.
    */
   public void yields(DeclarationStatement ... decls){
-    empty=false;
     for(DeclarationStatement d:decls) yields.add(d);
   }
+
+  public void clearGivenYields() {
+    given.clear();
+    yields.clear();
+  }
+
   public void ensures(ASTNode condition){
     ensures(condition,true);
   }
   public void ensures(ASTNode condition,boolean at_end){
-    empty=false;
     if (post_condition==default_true) {
       post_condition=condition;
     } else {
@@ -120,7 +119,6 @@ public class ContractBuilder {
     requires(condition,true);
   }
   public void requires(ASTNode condition,boolean at_end){
-    empty=false;
     if (pre_condition==default_true) {
       pre_condition=condition;
     } else {
@@ -135,7 +133,6 @@ public class ContractBuilder {
   }
 
   public void appendInvariant(ASTNode condition){
-    empty=false;
     if (invariant==default_true) {
       invariant=condition;
     } else {
@@ -144,9 +141,22 @@ public class ContractBuilder {
       invariant.setOrigin(new CompositeOrigin(tmp.getOrigin(),condition.getOrigin()));
     }
   }
+
+  public void appendKernelInvariant(ASTNode condition) {
+    if(kernelInvariant == default_true) {
+      kernelInvariant = condition;
+    } else {
+      ASTNode newInvariant = new OperatorExpression(StandardOperator.Star, new ASTNode[]{kernelInvariant, condition});
+      newInvariant.setOrigin(new CompositeOrigin(kernelInvariant.getOrigin(), condition.getOrigin()));
+      kernelInvariant = newInvariant;
+    }
+  }
+
+  public void clearKernelInvariant() {
+    kernelInvariant = default_true;
+  }
   
   public void prependInvariant(ASTNode condition){
-    empty=false;
     if (invariant==default_true) {
       invariant=condition;
     } else {
@@ -161,7 +171,7 @@ public class ContractBuilder {
   }
   
   public Contract getContract(boolean null_on_empty){
-    if (empty && null_on_empty) return null;
+    if (isEmpty() && null_on_empty) return null;
     DeclarationStatement[] decls=new DeclarationStatement[0];
     ASTNode[] mods=null;
     if (modifiable!=null){
@@ -171,17 +181,27 @@ public class ContractBuilder {
     if (accessible!=null){
       accs=accessible.toArray(new ASTNode[0]);
     }
-    return new Contract(given.toArray(decls),yields.toArray(decls),mods,accs,invariant,pre_condition,post_condition,signals.toArray(decls));
+    return new Contract(
+            given.toArray(decls),
+            yields.toArray(decls),
+            mods,
+            accs,
+            invariant,
+            kernelInvariant,
+            pre_condition,
+            post_condition,
+            signals.toArray(new SignalsClause[0])
+            );
   }
   public void modifies(ASTNode ... locs) {
-    empty=false;
+    if (locs.length == 0) return;
     if (modifiable==null) modifiable=new HashSet<ASTNode>();
     for (ASTNode loc : locs){
       modifiable.add(loc);
     }
   }
   public void accesses(ASTNode ... locs) {
-    empty=false;
+    if (locs.length == 0) return;
     if (accessible==null) accessible=new HashSet<ASTNode>();
     for (ASTNode loc : locs){
       accessible.add(loc);
@@ -192,12 +212,12 @@ public class ContractBuilder {
     return new Contract(new DeclarationStatement[0],new DeclarationStatement[0],default_true,default_true,default_true);
   }
 
-  public void signals(ClassType type, String name, ASTNode expr) {
-    DeclarationStatement decl=new DeclarationStatement(name,type,expr);
-    FileOrigin o1=(FileOrigin)type.getOrigin();
-    FileOrigin o2=(FileOrigin)expr.getOrigin();
-    decl.setOrigin(o1.merge(o2));
-    signals.add(decl);
+  public void signals(String name, Type type, ASTNode condition) {
+      signals(new SignalsClause(name, type, condition));
+  }
+
+  public void signals(SignalsClause signalsClause) {
+    signals.add(signalsClause);
   }
 
   public void requires(Iterable<ASTNode> collection) {
@@ -220,6 +240,5 @@ public class ContractBuilder {
     requires(e);
     ensures(e);
   }
-
 }
 

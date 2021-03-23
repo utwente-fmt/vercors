@@ -1,4 +1,5 @@
 //:: case KeywordsAllowJava
+//:: tools silicon chalice carbon
 //:: verdict Pass
 
 class Keywords {
@@ -54,4 +55,8 @@ class Keywords {
     int action;
     int atomic;
     int Reducible;
+    int signals;
+    int kernel_invariant;
+    int set;
+    int pointer;
 }
