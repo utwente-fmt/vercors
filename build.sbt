@@ -67,9 +67,9 @@ scalaVersion in ProjectRef(silicon_url, "common") := (scalaVersion in silver_ref
 publishArtifact in (carbon_ref, packageDoc) := false
 publishArtifact in (silver_ref, packageDoc) := false
 publishArtifact in (silicon_ref, packageDoc) := false
-publishArtifact in ProjectRef(silver_url, "common") := false
-publishArtifact in ProjectRef(carbon_url, "common") := false
-publishArtifact in ProjectRef(silicon_url, "common") := false
+publishArtifact in (ProjectRef(silver_url, "common"), packageDoc) := false
+publishArtifact in (ProjectRef(carbon_url, "common"), packageDoc) := false
+publishArtifact in (ProjectRef(silicon_url, "common"), packageDoc) := false
 
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 
