@@ -249,7 +249,7 @@ object CommandLineTesting {
     })
 
     // Indicate class path
-    System.getProperty("java.class.path").split(':').foreach((cp: String) => {
+    System.getProperty("java.class.path").split(File.pathSeparatorChar).foreach((cp: String) => {
       // Jacoco can't handle duplicate classes, and somehow there are a few duplicate classes in our transitive dependencies.
       // To work around this we prevent inclusion of any .jar files in the classpath, as those are often transitive dependencies
       // (And therefore this will break as soon as vercors code ends up in a jar file)

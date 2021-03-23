@@ -38,13 +38,16 @@ jobs:
           retention-days: 1
           path: |
             target/*.deb
+      - name: "Zip VerCors class files"
+        # We skip the parsers subproject because sonar doesn't scan it, it's only generated code anyway
+        run: "find . -path ./parsers -prune -false -o -name '*.class' | zip -@ classfiles.zip"
       - name: Archive VerCors class files
         uses: actions/upload-artifact@v2
         with:
           name: vercors-class-files
           retention-days: 1
           path: |
-            **/target/**/*.class
+            classfiles.zip
 
       # If this is the dev branch we also want to build the .txz binary for the release
       - name: Build mac binary
@@ -95,7 +98,7 @@ jobs:
           name: vercors-debian-package
       - run: "sudo dpkg -i *.deb"
       - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
       - run: ls jacoco*
       - name: Archive Java Code Coverage (jacoco_n_m.xml)
         uses: actions/upload-artifact@v2
@@ -120,6 +123,8 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: vercors-class-files
+      - name: Unzip VerCors class files
+        run: "unzip classfiles.zip"
       - name: Download Java Code Coverage
         uses: actions/download-artifact@v2
         with:
