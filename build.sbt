@@ -63,6 +63,14 @@ scalaVersion in ProjectRef(silver_url, "common") := (scalaVersion in silver_ref)
 scalaVersion in ProjectRef(carbon_url, "common") := (scalaVersion in silver_ref).value
 scalaVersion in ProjectRef(silicon_url, "common") := (scalaVersion in silver_ref).value
 
+// Disable doc generation in all viper projects
+publishArtifact in (carbon_ref, packageDoc) := false
+publishArtifact in (silver_ref, packageDoc) := false
+publishArtifact in (silicon_ref, packageDoc) := false
+publishArtifact in ProjectRef(silver_url, "common") := false
+publishArtifact in ProjectRef(carbon_url, "common") := false
+publishArtifact in ProjectRef(silicon_url, "common") := false
+
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 
 lazy val vercors: Project = (project in file("."))

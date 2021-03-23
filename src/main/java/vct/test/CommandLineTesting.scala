@@ -76,7 +76,7 @@ object CommandLineTesting {
   private val tempCoverageReportPathOption = tempCoverageReportPath.getAssign("Indicate folder where coverage reports of test workers are stored")
 
   private val coverageReportFile = new StringSetting("jacoco.xml")
-  private val coverageReportFileOption = coverageReportFile.getAssign("Name of coverage report output file")
+  private val coverageReportFileOption = coverageReportFile.getAssign("Path of where to write the coverage report output file, in xml")
 
   private val coverageHtmlReportFile = new StringSetting(null)
   private val coverageHtmlReportFileOption = coverageHtmlReportFile.getAssign("Creates a new directory containing coverage report in html")
