@@ -1,23 +1,16 @@
 package vct.test
 
-import java.nio.file.{FileSystems, FileVisitOption, Files, Path, Paths}
-import java.io.{BufferedWriter, File, FileNotFoundException, FileOutputStream, FileWriter, OutputStreamWriter}
-import java.nio.file.{FileVisitOption, Files, Paths}
-import java.util.concurrent.{Executors, Future}
-
 import hre.config._
 import hre.lang.HREExitException
-import hre.lang.System.{Output, Progress, Warning}
+import hre.lang.System.{Debug, Output, Progress, Warning}
 import hre.util.TestReport.Verdict
-import hre.lang.System.Warning
-import hre.lang.System.Progress
-import hre.lang.System.Output
-import hre.lang.System.Debug
 import vct.col.features.Feature
 
-import scala.jdk.CollectionConverters._
+import java.io._
+import java.nio.file.{FileVisitOption, Files, Paths}
 import scala.collection.mutable
 import scala.io.Source
+import scala.jdk.CollectionConverters._
 
 sealed trait CaseFilter {
   def addOptions(parser: OptionParser): Unit
