@@ -38,6 +38,13 @@ jobs:
           retention-days: 1
           path: |
             target/*.deb
+      - name: Archive VerCors class files
+        uses: actions/upload-artifact@v2
+        with:
+          name: vercors-class-files
+          retention-days: 1
+          path: |
+            **/target/**/*.class
 
       # If this is the dev branch we also want to build the .txz binary for the release
       - name: Build mac binary
@@ -101,12 +108,11 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
-      - name: Download VerCors binary
+      - name: Download VerCors class files
         uses: actions/download-artifact@v2
         with:
-          name: vercors-debian-package
-      - run: "sudo dpkg -i *.deb"
-      - run: "ls /usr/share/vercors/lib"
+          name: vercors-class-files
+      - run: "sudo apt install tree && tree"
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         env:
