@@ -60,7 +60,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(ConstantExpression e) {
     if (e.value() instanceof IntegerValue) {
       int v = ((IntegerValue) e.value()).value();
-      if (e.getType().isPrimitive(PrimitiveSort.Rational)) {
+      if (e.getType().isFraction()) {
         switch (v) {
           case 0:
             return create.no_perm(e.getOrigin());
@@ -360,33 +360,6 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     Origin o = e.getOrigin();
     switch (e.binder()) {
     case Star:
-      if ((e.main() instanceof BindingExpression)||e.getDeclarations().length>1){
-        hre.lang.System.Warning("Simplification failure: %s",e);
-        failure=true;
-      } else {
-        boolean good=false;
-        if (e.main().getType().isBoolean()){
-          good=true;
-        } else if (e.main().isa(StandardOperator.Perm)||e.main().isa(StandardOperator.Value)){
-          ASTNode loc=((OperatorExpression)e.main()).arg(0);
-          while (loc instanceof Dereference){
-            loc=((Dereference)loc).obj();
-          }
-          if (loc instanceof MethodInvokation
-                  && ((MethodInvokation) loc).object() instanceof ClassType
-                  && ((ClassType) ((MethodInvokation) loc).object()).getName().equals("VCTArray")
-                  && ((MethodInvokation) loc).method().startsWith("loc")) {
-            loc = ((MethodInvokation) loc).getArg(0);
-          }
-          if(loc instanceof MethodInvokation && ((MethodInvokation) loc).method().startsWith("getVCTOption")) {
-            loc = ((MethodInvokation) loc).getArg(0);
-          }
-          good=loc instanceof NameExpression;
-        }
-        if(!good){
-          hre.lang.System.Warning("Possible simplification failure: %s",e);
-        }
-      }
     case Forall:
       E expr;
       if (e.select().isConstant(true)){

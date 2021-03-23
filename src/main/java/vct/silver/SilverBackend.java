@@ -8,10 +8,8 @@ import viper.api.*;
 
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Properties;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 import hre.ast.Origin;
 import hre.lang.HREError;
@@ -62,6 +60,7 @@ public class SilverBackend {
     ProgramUnit arg=given.getOutput();
     PassReport report=new PassReport(arg);
     report.add(new PassAddVisitor(given));
+    report.setOutput(given.getOutput());
     MessageFactory log=new MessageFactory(new PassAddVisitor(report));
     TaskBegin verification=log.begin("Viper verification");
 
@@ -75,6 +74,11 @@ public class SilverBackend {
       PrintWriter pw=null;
       try {
         pw = new java.io.PrintWriter(new java.io.File(fname));
+        Date now = new Date();
+        pw.print("// Generated on ");
+        pw.print(new SimpleDateFormat("yyyy-MM-dd").format(now));
+        pw.print(" at ");
+        pw.println(new SimpleDateFormat("HH:mm:ss").format(now));
         verifier.write_program(pw,program);
       } catch (FileNotFoundException e) {
         DebugException(e);
@@ -143,6 +147,7 @@ public class SilverBackend {
       }
     } catch (Exception e){
       log.exception(e);
+      Output(e.toString());
     } finally {
       control.done();
     }

@@ -51,7 +51,7 @@ final class Integer {
 
 final class Queue {
 /*@
-  ensures Value(begin) ** Value(head) ** Value(tail);
+  ensures Value(begin) ** Value(`head`) ** Value(`tail`);
 @*/
   public Queue(){
     begin=new Node();
@@ -59,8 +59,8 @@ final class Queue {
     head=new AtomicNode(begin);
     tail=new AtomicNode(begin);
     last=begin;
-    //@ fold reachable(begin,head.val);
-    //@ fold reachable(begin,tail.val);
+    //@ fold reachable(begin,`head`.val);
+    //@ fold reachable(begin,`tail`.val);
     //@ fold reachable(begin,last);
     //@ fold chain(begin,last);
   }
@@ -100,10 +100,10 @@ final class Queue {
     (n1!=n2 ==> chain_link(n1) ** chain(n1.next.val,n2));
 
   resource csl_invariant() = Value(begin) **
-    RPerm(head) ** ([read]reachable(begin,head.val)) **
-    RPerm(tail) ** ([read]reachable(begin,tail.val)) **
+    RPerm(`head`) ** ([read]reachable(begin,`head`.val)) **
+    RPerm(`tail`) ** ([read]reachable(begin,`tail`.val)) **
     Perm(last,1)   ** ([read]reachable(begin,last)) **
-    chain(head.val,last) ** RPointsTo(last.next,null);
+    chain(`head`.val,last) ** RPointsTo(last.next,null);
    */
    
   /*@
@@ -123,8 +123,8 @@ final class Queue {
     }
   }
   
-/*@ requires Value(head) ** Value(tail);
-      ensures  Value(head) ** Value(tail)
+/*@ requires Value(`head`) ** Value(`tail`);
+      ensures  Value(`head`) ** Value(`tail`)
       ** (\result != null ==> Perm(\result.val,1)); @*/
   Integer try_deq(){
     Node n1,n2; boolean tmp; Integer res=null;
@@ -133,7 +133,7 @@ final class Queue {
       lemma_readable_or_last(this.begin,n1); } @*/;
     if (n2!=null) {
       tmp=head.compareAndSet(n1,n2)/*@ with {
-        if (head.val==n1) { unfold chain(head.val,last); } } @*/;
+        if (`head`.val==n1) { unfold chain(`head`.val,last); } } @*/;
       if(tmp){ res=new Integer(n2.val); }
     }
     return res; }
@@ -163,9 +163,9 @@ final class Queue {
     }
   }
   
-/*@ requires Value(tail) ** Perm(nn.val,1)
+/*@ requires Value(`tail`) ** Perm(nn.val,1)
              ** RPointsTo(nn.next,null);
-    ensures  Value(tail) ** (!\result ==>
+    ensures  Value(`tail`) ** (!\result ==>
       Perm(nn.val,1) ** RPointsTo(nn.next,null)); @*/
   boolean try_enq(Node nn){
     Node n1,n2; boolean res=false;
@@ -182,13 +182,13 @@ final class Queue {
   /*@
     requires Perm(last,1) ** last==n1 ** RPointsTo(last.next,n2)
       ** RPointsTo(n2.next,null) ** Perm(n2.val,1)
-      ** Value(head) ** Perm(head.val,1\2) ** chain(head.val,last)
+      ** Value(`head`) ** Perm(`head`.val,1\2) ** chain(`head`.val,last)
       ** Value(begin) ** ([read]reachable(begin,last))
-      ** ([read]reachable(begin,head.val));
+      ** ([read]reachable(begin,`head`.val));
     ensures  Perm(last,1) ** last==n2 ** RPointsTo(last.next,null)
       ** Value(begin) ** ([read]reachable(begin,last))
-      ** Value(head) ** Perm(head.val,1\2)
-      ** chain(head.val,last) ** head.val==\old(head.val);
+      ** Value(`head`) ** Perm(`head`.val,1\2)
+      ** chain(`head`.val,last) ** `head`.val==\old(`head`.val);
   @*/
   void lemma_shift_last(Node n1,Node n2){
     last=n2;

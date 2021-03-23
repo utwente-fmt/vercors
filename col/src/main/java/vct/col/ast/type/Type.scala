@@ -2,10 +2,10 @@ package vct.col.ast.`type`
 
 import hre.lang.System.Abort
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.ProgramUnit
-import vct.col.ast.util.TypeMapping
+import vct.col.ast.stmt.decl.{NameSpace, ProgramUnit}
+import vct.col.ast.util.{ExternalClassLoader, TypeMapping}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
  * Subclass of ASTNode meant for holding all type expressions.
@@ -68,17 +68,21 @@ abstract class Type(val args:List[ASTNode]) extends ASTNode {
   }
   
   /** Yields a comma-separated string of type arguments */
-  def argsCommaSeparated = args mkString ","
-  
+  def argsUnderscoreSeparated = args mkString "_"
+
   /**
-   * Yields a string "<`a_1,...,a_n`>" of the list `args` of arguments `a_i`, 
+   * Yields a string "<`a_1_..._a_n`>" of the list `args` of arguments `a_i`,
    * provided that `args` has at least one element.
    */
   override def toString = args.isEmpty match {
-    case false => s"<$argsCommaSeparated>"
+    case false => s"<$argsUnderscoreSeparated>"
     case true => ""
   }
   
   def supertypeof(unit:ProgramUnit, t:Type) : Boolean
+
+  def supertypeof(other: Type, source: Option[ProgramUnit], loader: Option[ExternalClassLoader], ns: Option[NameSpace]): Boolean =
+    supertypeof(source.orNull, other)
+
   protected def accept_simple[T](map:TypeMapping[T]) : T
 }

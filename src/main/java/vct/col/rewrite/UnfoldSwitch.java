@@ -31,7 +31,7 @@ public class UnfoldSwitch extends AbstractRewriter {
 
     public void visit(Switch switchStatement) {
         String switchID = Objects.requireNonNull(switchStatement.getLabel(0).getName());
-        BlockStatement caseStatements = (BlockStatement) create.block().labeled(switchID);
+        BlockStatement caseStatements = create.block();
 
         // Put the case expr in a var s.t. it can be referenced in the if chain
         String exprName = switchID + "_" + counter++;
@@ -97,8 +97,8 @@ public class UnfoldSwitch extends AbstractRewriter {
         }
 
         // Add all the ifs, and then all the case statements the ifs jump to
-        currentBlock.add(totalIfChain);
-        currentBlock.add(caseStatements);
+        // By putting them all within one containing block, all jumps from ifs to casestatements happen within the block
+        currentBlock.add(create.block(totalIfChain, caseStatements).labeled(switchID));
 
         result = null;
     }

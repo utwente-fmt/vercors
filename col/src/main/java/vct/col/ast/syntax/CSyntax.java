@@ -65,7 +65,7 @@ public class CSyntax extends Syntax{
     syntax.addRightFix(AddAssign,"+=",30);
     syntax.addRightFix(SubAssign,"-=",30);
     syntax.addRightFix(MulAssign,"*=",30);
-    syntax.addRightFix(DivAssign,"/=",30);
+    syntax.addRightFix(FloorDivAssign,"/=",30);
     syntax.addRightFix(RemAssign,"%=",30);
     syntax.addRightFix(AndAssign,"&=",30);
     syntax.addRightFix(XorAssign,"^=",30);

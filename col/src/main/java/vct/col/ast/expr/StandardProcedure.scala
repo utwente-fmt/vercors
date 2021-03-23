@@ -18,6 +18,6 @@ case class StandardProcedure(val operator:StandardOperator) extends ASTNode with
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq()
-  override def debugTreePropertyFields(): Iterable[String] = Seq("operator")
+  override def debugTreeChildrenFields: Iterable[String] = Seq()
+  override def debugTreePropertyFields: Iterable[String] = Seq("operator")
 }

@@ -431,4 +431,24 @@ class simplify_quant_pass1 {
     ==
     (e1 < e2) ==> (\forall* int i; (i \memberof {e3 .. e4}); Perm(e5, (p1 * (e2 - e1))\p2))
   }
+
+  // We keep the expression around, because it must trigger an error when it is not well formed, but we don't use it
+  // We're counting on the backend to not optimize it away if it contains an error
+  axiom read_spreads_l {
+    read * i
+    ==
+    (\let int canary = i; i == 0 ? read : read)
+  }
+
+  axiom read_spreads_r {
+    i * read
+    ==
+    (\let int canary = i; i == 0 ? read : read)
+  }
+
+  axiom resource_independent_read_quant {
+    (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, read)!tid))
+    ==
+    (e1<e2) ==> Perm(g1, read)
+  }
 }

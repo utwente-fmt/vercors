@@ -32,7 +32,7 @@
     for(int j=0;j<N;j++) /*@
       context hist != NULL && matrix != NULL;
       context Perm(hist[matrix[i][j]], write);
-      requires (\forall* int k=0 .. P ; Reducible(hist[k],+)); $\label{histogram reducible}$
+      requires (\forall* int k=0 .. P ; Reducible(hist[k],+));
       context Perm(matrix[i][j],1\4) ** 0 <= matrix[i][j] < P ;
       context matrix[i][j] == data[i][j];
       ensures (\forall* int k=0 .. P ; Contribution(hist[k],data[i][j]==k?1:0));

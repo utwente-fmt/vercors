@@ -28,7 +28,7 @@ public class GlobalizeStaticsParameter extends GlobalizeStatics {
    * Add the global argument to every non-static method.
    */
   public void visit(Method m){
-    if (prefix!=null){
+    if (prefix!=null || m.isStatic()){
       super.visit(m);
     } else {
       switch(m.getKind()){
@@ -47,9 +47,11 @@ public class GlobalizeStaticsParameter extends GlobalizeStatics {
         result=create.method_kind(
             m.getKind(),
             rewrite(m.getReturnType()),
+            rewrite(m.signals),
             cb.getContract(),
             m.getName(),
             args,
+            m.usesVarArgs(),
             rewrite(m.getBody()));
         break;
       }

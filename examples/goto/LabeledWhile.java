@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases LabeledWhile
-//:: tools silicon
+//:: tools silicon carbon
 //:: verdict Pass
 
 class C {

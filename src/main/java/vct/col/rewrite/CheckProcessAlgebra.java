@@ -422,9 +422,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
       }
       counter++;
       body.add(mi);
-    } else if (m_body.isReserved(ASTReserved.EmptyProcess)){
-      body.add(create.comment("// empty process"));
-    } else {
+    } else if (!m_body.isReserved(ASTReserved.EmptyProcess)){
       Abort("unknown process %s",m_body.getClass());
     }
     create.leave();

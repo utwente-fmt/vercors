@@ -15,11 +15,7 @@ public class AccessIntroduce extends AbstractRewriter {
 
   @Override
   public void visit(Dereference e){
-    //if (!in_ensures && !in_invariant && !in_requires){
-      result = create.get_field(null, e.obj(), e.field());
-    //} else {
-    //  super.visit(e);
-    //}
+    result = create.get_field(null, rewrite(e.obj()), e.field());
   }
   
   @Override
