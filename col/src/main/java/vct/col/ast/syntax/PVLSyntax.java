@@ -12,11 +12,7 @@ import vct.col.ast.util.Parenthesize;
 import java.io.PrintWriter;
 
 import static vct.col.ast.expr.StandardOperator.*;
-import static vct.col.ast.type.ASTReserved.FullPerm;
-import static vct.col.ast.type.ASTReserved.NoPerm;
-import static vct.col.ast.type.ASTReserved.ReadPerm;
-import static vct.col.ast.type.ASTReserved.EmptyProcess;
-import static vct.col.ast.type.ASTReserved.CurrentThread;
+import static vct.col.ast.type.ASTReserved.*;
 
 /**
  * Defines the syntax of common types and operations of  
@@ -38,7 +34,8 @@ public class PVLSyntax extends Syntax {
       syntax=new PVLSyntax("PVL");
 
       VerCorsSyntax.add(syntax);
-      
+      syntax.addPostfix(PostIncr,"++",140);
+      syntax.addPostfix(PostDecr,"--",140);
       //syntax.addInfix(SubType,"<:",90);
       //syntax.addInfix(SuperType,":>",90);
       syntax.addInfix(Implies,"==>",30);
@@ -177,6 +174,8 @@ public class PVLSyntax extends Syntax {
       syntax.addReserved(NoPerm,"none");
       syntax.addReserved(EmptyProcess,"empty");
       syntax.addReserved(CurrentThread,"current_thread");
+      syntax.addReserved(Null,"null");
+      syntax.addReserved(This,"this");
       
       syntax.addOperator(Unfolding,140,"unfolding","in","");
       
