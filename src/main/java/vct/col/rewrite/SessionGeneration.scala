@@ -12,7 +12,7 @@ import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionStructureCheck
 import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, chanRead, chanWrite, getArgName, getBarrierClass, getChanClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName, mainMethodName}
 
-import scala.collection.JavaConversions._
+import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
 class SessionGeneration(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 

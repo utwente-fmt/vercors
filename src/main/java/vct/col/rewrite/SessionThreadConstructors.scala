@@ -11,8 +11,7 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionChannel
 import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanClass, getChansFromBlockStateMent, getThreadClassName, isThreadClassName, runMethodName}
-
-import scala.collection.JavaConversions._
+import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
 /**
   * Adds the channels to Thread constructors

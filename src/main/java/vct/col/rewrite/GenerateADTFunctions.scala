@@ -7,7 +7,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder, FieldAccessCollector}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.{JavaConverters, mutable}
 
 object GenerateADTFunctions {
@@ -60,7 +60,7 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
       case Binder.SetComp =>
         // Get Arguments
         var boundedVariables = binding.asInstanceOf[SetComprehension].variables
-        val args = JavaConverters.collectionAsScalaIterable(binding.asInstanceOf[SetComprehension].variables.values())
+        val args = binding.asInstanceOf[SetComprehension].variables.values().asScala
 
         result = create.invokation(null,
           null,
@@ -114,7 +114,7 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
 
     var selector: ASTNode = create.constant(true)
     if (setComprehension.variables != null && !setComprehension.variables.isEmpty) {
-      selector = JavaConverters.collectionAsScalaIterable(setComprehension.variables.entrySet()).map(entry =>
+      selector = setComprehension.variables.entrySet().asScala.map(entry =>
         create.expression(StandardOperator.Member,
           entry.getKey,
           create.argument_name("setCompArg" + entry.getKey.getName)
@@ -123,7 +123,7 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     }
 
 
-    val argsOfFunction = JavaConverters.collectionAsScalaIterable(setComprehension.variables.entrySet())
+    val argsOfFunction = setComprehension.variables.entrySet().asScala
       .map(boundedVar =>
         new DeclarationStatement(
           "setCompArg" + boundedVar.getKey.getName,

@@ -6,11 +6,10 @@ import hre.ast.TrackingTree;
 import hre.lang.HREError;
 
 import java.io.PrintWriter;
+import java.util.List;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
@@ -26,7 +25,6 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.JavaSyntax;
-import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 import hre.util.LambdaHelper;
 
@@ -633,75 +631,7 @@ public class JavaPrinter extends AbstractPrinter {
     if (contract!=null){
       out.lnprintf("/*@");
       out.incrIndent();
-      for (DeclarationStatement d:contract.given){
-        out.printf("given ");
-        d.accept(this);
-        out.lnprintf("");
-      }
-      for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
-        out.printf("loop_invariant ");
-        nextExpr();
-        e.accept(this);
-        out.lnprintf(";");
-      }
-      for(ASTNode e:ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star)){
-        out.printf("requires ");
-        nextExpr();
-        if(e instanceof MethodInvokation)
-          out.print("(");
-        e.accept(this);
-        if(e instanceof MethodInvokation)
-          out.print(")");
-        out.lnprintf(";");
-      }
-      for (DeclarationStatement d:contract.yields){
-        out.printf("yields ");
-        d.accept(this);
-        out.lnprintf("");
-      }
-      for(ASTNode e:ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star)){
-        out.printf("ensures ");
-        nextExpr();
-        if(e instanceof MethodInvokation)
-          out.print("(");
-        e.accept(this);
-        if(e instanceof MethodInvokation)
-          out.print(")");
-        out.lnprintf(";");
-      }
-      for (SignalsClause sc : contract.signals){
-        sc.accept(this);
-      }
-      if (contract.modifies!=null){
-        out.printf("modifies ");
-        if (contract.modifies.length==0){
-          out.lnprintf("\\nothing;");
-        } else {
-          nextExpr();
-          contract.modifies[0].accept(this);
-          for(int i=1;i<contract.modifies.length;i++){
-            out.printf(", ");
-            nextExpr();
-            contract.modifies[i].accept(this);
-          }
-          out.lnprintf(";");
-        }
-      }
-      if (contract.accesses!=null){
-        out.printf("accessible ");
-        if (contract.accesses.length==0){
-          out.lnprintf("\\nothing;");
-        } else {
-          nextExpr();
-          contract.accesses[0].accept(this);
-          for(int i=1;i<contract.accesses.length;i++){
-            out.printf(", ");
-            nextExpr();
-            contract.accesses[i].accept(this);
-          }
-          out.lnprintf(";");
-        }
-      }
+      super.visit(contract);
       out.decrIndent();
       out.lnprintf("@*/");
     }
@@ -1505,27 +1435,27 @@ public class JavaPrinter extends AbstractPrinter {
     c.block().accept(this);
   }
 
-  private void visitNames(Seq<String> names) {
+  private void visitNames(List<String> names) {
     boolean first = true;
-    for(String name : JavaConverters.asJavaIterable(names)) {
+    for(String name : names) {
       if(!first) out.print(", ");
       first = false;
       out.print(name);
     }
   }
 
-  private void visitOmpOptions(Seq<OMPOption> options) {
-    for(OMPOption option : JavaConverters.asJavaIterable(options)) {
+  private void visitOmpOptions(List<OMPOption> options) {
+    for(OMPOption option : options) {
       out.print(" ");
       if(option instanceof OMPNoWait$) {
         out.print("nowait");
       } else if(option instanceof OMPPrivate) {
         out.print("private(");
-        visitNames(((OMPPrivate) option).names());
+        visitNames(((OMPPrivate) option).namesJava());
         out.print(")");
       } else if(option instanceof OMPShared) {
         out.print("shared(");
-        visitNames(((OMPShared) option).names());
+        visitNames(((OMPShared) option).namesJava());
         out.print(")");
       } else if(option instanceof OMPSimdLen) {
         out.printf("simdlen(%d)", ((OMPSimdLen) option).len());
@@ -1549,7 +1479,7 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(OMPParallel parallel) {
     out.print("#pragma omp parallel");
-    visitOmpOptions(parallel.options());
+    visitOmpOptions(parallel.optionsJava());
     out.newline();
     parallel.block().accept(this);
   }
@@ -1569,7 +1499,7 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(OMPFor loop) {
     out.print("#pragma omp for");
-    visitOmpOptions(loop.options());
+    visitOmpOptions(loop.optionsJava());
     out.newline();
     loop.loop().accept(this);
   }
@@ -1577,7 +1507,7 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(OMPParallelFor loop) {
     out.print("#pragma omp parallel for");
-    visitOmpOptions(loop.options());
+    visitOmpOptions(loop.optionsJava());
     out.newline();
     loop.loop().accept(this);
   }
@@ -1585,7 +1515,7 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(OMPForSimd loop) {
     out.print("#pragma omp for simd");
-    visitOmpOptions(loop.options());
+    visitOmpOptions(loop.optionsJava());
     out.newline();
     loop.loop().accept(this);
   }

@@ -18,9 +18,8 @@ import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters._
+import java.nio.file.Paths
 
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
@@ -176,9 +175,8 @@ class Main {
       case "silicon_qp" =>
         Warning("silicon_qp has been merged into silicon, using silicon instead")
         silver.set("silicon")
-      case "silicon" =>
-      case "carbon" =>
-        Configuration.checkCarbonRequirements()
+      case "silicon" => // Nothing to check for
+      case "carbon" => // Nothing to check for
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
     }
@@ -191,10 +189,10 @@ class Main {
     report.add(new ErrorDisplayVisitor)
 
     tk.show
-    for (name <- inputPaths) {
-      val f = new File(name)
-      if (!no_context.get) FileOrigin.add(name, gui_context.get)
-      report.getOutput.add(Parsers.parseFile(f.getPath))
+    for (pathName <- inputPaths) {
+      val path = Paths.get(pathName);
+      if (!no_context.get) FileOrigin.add(path, gui_context.get)
+      report.getOutput.add(Parsers.parseFile(path))
     }
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
@@ -329,7 +327,6 @@ class Main {
     "propagateInvariants",
     "dummy-InvariantsPropagatedHere",
     "compileToJava",
-    "simplifyQuantifiedIntegerRelations",
     "liftGhostCode",
     "inlineWithThenHints",
     "inlineParallelAtomics",
@@ -518,7 +515,7 @@ class Main {
       if(strictInternalConditions.get()) {
         val scanner = new RainbowVisitor(report.getOutput)
         scanner.source().accept(scanner)
-        val featuresOut = scanner.features
+        val featuresOut = scanner.features.toSet
 
         val notRemoved = featuresOut.intersect(pass.removes)
         val extraIntro = (featuresOut -- featuresIn) -- pass.introduces

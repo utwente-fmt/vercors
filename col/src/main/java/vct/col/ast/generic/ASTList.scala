@@ -1,6 +1,6 @@
 package vct.col.ast.generic
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 
 class ASTList extends ASTSequence[ASTList] {
@@ -12,7 +12,7 @@ class ASTList extends ASTSequence[ASTList] {
   }
   
   override def add(item:ASTNode) = add(Option(item))
-  override def iterator = list.toIterator.asJava
+  override def iterator = list.iterator.asJava
   override def get(i:Int) = list.apply(i)
   override def size = list.size
 }

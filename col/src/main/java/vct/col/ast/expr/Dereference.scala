@@ -19,6 +19,6 @@ case class Dereference(val obj:ASTNode, val field:String) extends ASTNode with V
     case _ => false
   }
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("obj")
-  override def debugTreePropertyFields(): Iterable[String] = Seq("field")
+  override def debugTreeChildrenFields: Iterable[String] = Seq("obj")
+  override def debugTreePropertyFields: Iterable[String] = Seq("field")
 }

@@ -7,8 +7,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionUtil.{barrierFieldName, channelClassName, getBarrierClass, getChanClass, getRoleName, isChanName, isThreadClassName, mainClassName, mainMethodName, runMethodName}
-
-import scala.collection.JavaConversions._
+import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
 class SessionStartThreadsClass(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 

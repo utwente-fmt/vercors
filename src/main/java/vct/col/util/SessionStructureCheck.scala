@@ -9,9 +9,7 @@ import vct.col.ast.stmt.decl.Method.{JavaConstructor, Kind}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNameFromNode, getNamesFromExpression, mainClassName, mainMethodName, runMethodName}
-
-import scala.collection.IterableView
-import scala.collection.JavaConversions._
+import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
 object SessionStructureCheck {
   def getMainClass(source : ProgramUnit) : ASTClass = source.get().find(_.name == mainClassName).get.asInstanceOf[ASTClass]

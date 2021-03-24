@@ -5,8 +5,6 @@ import hre.ast.TrackingTree;
 import hre.lang.HREError;
 import hre.util.LambdaHelper;
 import org.apache.commons.lang3.StringEscapeUtils;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StringValue;
@@ -21,11 +19,10 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.PVLSyntax;
 import vct.col.ast.type.*;
-import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 
 import java.io.PrintWriter;
-import java.util.Iterator;
+import java.util.*;
 
 import static hre.lang.System.DebugException;
 
@@ -581,119 +578,6 @@ public class PVLPrinter extends AbstractPrinter{
         out.println("");
     }
 
-    private void printRequires(ASTNode expr) {
-        out.printf("requires ");
-        nextExpr();
-        if(expr instanceof MethodInvokation)
-            out.print("(");
-        expr.accept(this);
-        if(expr instanceof MethodInvokation)
-            out.print(")");
-        out.lnprintf(";");
-    }
-
-    private void printEnsures(ASTNode expr) {
-        out.printf("ensures ");
-        nextExpr();
-        if(expr instanceof MethodInvokation)
-            out.print("(");
-        expr.accept(this);
-        if(expr instanceof MethodInvokation)
-            out.print(")");
-        out.lnprintf(";");
-    }
-
-    @Override
-    public void visit(Contract contract) {
-        if (contract!=null){
-            //out.incrIndent();
-            for (DeclarationStatement d:contract.given){
-                out.printf("given ");
-                d.accept(this);
-                out.lnprintf("");
-            }
-            for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
-                out.printf("loop_invariant ");
-                nextExpr();
-                e.accept(this);
-                out.lnprintf(";");
-            }
-            Iterator<ASTNode> preIt = ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star).iterator();
-            Iterator<ASTNode> postIt = ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star).iterator();
-            ASTNode pre = null, post = null;
-            boolean printprepost = false;
-            while(preIt.hasNext() && postIt.hasNext()) {
-                pre = preIt.next();
-                post = postIt.next();
-                if(pre.equals(post)) {
-                    out.printf("context ");
-                    nextExpr();
-                    if(pre instanceof MethodInvokation)
-                        out.print("(");
-                    pre.accept(this);
-                    if(pre instanceof MethodInvokation)
-                        out.print(")");
-
-                    out.lnprintf(";");
-                } else { //cannot undo next(), so need to print pre and post
-                    printprepost = true;
-                    break;
-                }
-            }
-            if(printprepost) {
-                printRequires(pre);
-            }
-            while(preIt.hasNext()){
-                printRequires(preIt.next());
-            }
-            for (DeclarationStatement d:contract.yields){
-                out.printf("yields ");
-                d.accept(this);
-                out.lnprintf("");
-            }
-            if(printprepost) {
-                printEnsures(post);
-            }
-            while(postIt.hasNext()){
-                printEnsures(postIt.next());
-            }
-            for (SignalsClause sc : contract.signals){
-                sc.accept(this);
-            }
-            if (contract.modifies!=null){
-                out.printf("modifies ");
-                if (contract.modifies.length==0){
-                    out.lnprintf("\\nothing;");
-                } else {
-                    nextExpr();
-                    contract.modifies[0].accept(this);
-                    for(int i=1;i<contract.modifies.length;i++){
-                        out.printf(", ");
-                        nextExpr();
-                        contract.modifies[i].accept(this);
-                    }
-                    out.lnprintf(";");
-                }
-            }
-            if (contract.accesses!=null){
-                out.printf("accessible ");
-                if (contract.accesses.length==0){
-                    out.lnprintf("\\nothing;");
-                } else {
-                    nextExpr();
-                    contract.accesses[0].accept(this);
-                    for(int i=1;i<contract.accesses.length;i++){
-                        out.printf(", ");
-                        nextExpr();
-                        contract.accesses[i].accept(this);
-                    }
-                    out.lnprintf(";");
-                }
-            }
-            //out.decrIndent();
-        }
-    }
-
     public void visit(SignalsClause sc) {
         out.printf("signals (");
         sc.type().accept(this);
@@ -722,10 +606,8 @@ public class PVLPrinter extends AbstractPrinter{
         String name=m.getName();
         Contract contract=m.getContract();
         boolean predicate=m.getKind()==Method.Kind.Predicate;
-        if (predicate){
-            if (contract!=null) {
+        if (predicate && contract!=null){
                 Debug("ignoring contract of predicate");
-            }
         }
         if (contract!=null && !predicate){
             visit(contract);
@@ -1404,27 +1286,27 @@ public class PVLPrinter extends AbstractPrinter{
         c.block().accept(this);
     }
 
-    private void visitNames(Seq<String> names) {
+    private void visitNames(List<String> names) {
         boolean first = true;
-        for(String name : JavaConverters.asJavaIterable(names)) {
+        for(String name : names) {
             if(!first) out.print(", ");
             first = false;
             out.print(name);
         }
     }
 
-    private void visitOmpOptions(Seq<OMPOption> options) {
-        for(OMPOption option : JavaConverters.asJavaIterable(options)) {
+    private void visitOmpOptions(List<OMPOption> options) {
+        for(OMPOption option : options) {
             out.print(" ");
             if(option instanceof OMPNoWait$) {
                 out.print("nowait");
             } else if(option instanceof OMPPrivate) {
                 out.print("private(");
-                visitNames(((OMPPrivate) option).names());
+                visitNames(((OMPPrivate) option).namesJava());
                 out.print(")");
             } else if(option instanceof OMPShared) {
                 out.print("shared(");
-                visitNames(((OMPShared) option).names());
+                visitNames(((OMPShared) option).namesJava());
                 out.print(")");
             } else if(option instanceof OMPSimdLen) {
                 out.printf("simdlen(%d)", ((OMPSimdLen) option).len());
@@ -1448,7 +1330,7 @@ public class PVLPrinter extends AbstractPrinter{
     @Override
     public void visit(OMPParallel parallel) {
         out.print("#pragma omp parallel");
-        visitOmpOptions(parallel.options());
+        visitOmpOptions(parallel.optionsJava());
         out.newline();
         parallel.block().accept(this);
     }
@@ -1468,7 +1350,7 @@ public class PVLPrinter extends AbstractPrinter{
     @Override
     public void visit(OMPFor loop) {
         out.print("#pragma omp for");
-        visitOmpOptions(loop.options());
+        visitOmpOptions(loop.optionsJava());
         out.newline();
         loop.loop().accept(this);
     }
@@ -1476,7 +1358,7 @@ public class PVLPrinter extends AbstractPrinter{
     @Override
     public void visit(OMPParallelFor loop) {
         out.print("#pragma omp parallel for");
-        visitOmpOptions(loop.options());
+        visitOmpOptions(loop.optionsJava());
         out.newline();
         loop.loop().accept(this);
     }
@@ -1484,7 +1366,7 @@ public class PVLPrinter extends AbstractPrinter{
     @Override
     public void visit(OMPForSimd loop) {
         out.print("#pragma omp for simd");
-        visitOmpOptions(loop.options());
+        visitOmpOptions(loop.optionsJava());
         out.newline();
         loop.loop().accept(this);
     }

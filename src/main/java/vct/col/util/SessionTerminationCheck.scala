@@ -11,7 +11,7 @@ import vct.col.ast.util.RecursiveVisitor
 import vct.col.util.SessionTerminationCheck.deadlockWarning
 import vct.col.util.SessionUtil.{barrierClassName, channelClassName, mainClassName}
 
-import scala.collection.JavaConversions._
+import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
 object SessionTerminationCheck {
   private val deadlockWarning = " might not terminate, deadlock-freedom cannot be guaranteed! "

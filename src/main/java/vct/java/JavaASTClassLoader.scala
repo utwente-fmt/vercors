@@ -11,7 +11,7 @@ import vct.parsers.rewrite.RemoveBodies
 
 import java.lang.reflect.{Modifier, Parameter}
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 /**
@@ -39,7 +39,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
       `import` => `import`.all || `import`.name.last == name
     ).map(
       `import` => (if (`import`.all) `import`.name.filter(_.nonEmpty) :+ name else `import`.name.filter(_.nonEmpty)).toSeq
-    )
+    ).toSeq
   }
 
   private def loadFile(basePath: Path, parts: Seq[String]): Option[ASTClass] = FILE_CACHE.getOrElseUpdate((basePath, parts), {
@@ -60,7 +60,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
     ns match {
       // If we're going by file: require a namespace, as we can't guess how many directories to go up etc.
       case Some(ns) if ns.getOrigin != null && ns.getOrigin.isInstanceOf[FileOrigin] =>
-        var basePath = Paths.get(ns.getOrigin.asInstanceOf[FileOrigin].getName).toAbsolutePath.getParent
+        var basePath = ns.getOrigin.asInstanceOf[FileOrigin].getPath.toAbsolutePath.getParent
         for(_ <- ns.getDeclName.name.filter(_.nonEmpty /* pls */)) {
           basePath = basePath.getParent
         }
@@ -68,7 +68,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
         if(name.size == 1) {
           // If it's one name and it's not defined, it must be imported or package-local
           potentialImportsOfNamespace(name.head, ns)
-            .toStream.flatMap(loadFile(basePath, _)).headOption
+            .to(LazyList).flatMap(loadFile(basePath, _)).headOption
         } else {
           // If it's multiple names, it must be fully qualified
           loadFile(basePath, name)
@@ -168,7 +168,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
       ns match {
         case Some(ns) =>
           potentialImportsOfNamespace(name.head, ns)
-            .toStream.flatMap(loadReflectively).headOption
+            .to(LazyList).flatMap(loadReflectively).headOption
             .orElse(loadReflectively(Seq("java", "lang") :+ name.head))
         case _ => None
       }
