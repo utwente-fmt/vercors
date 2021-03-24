@@ -149,7 +149,7 @@ object CollectRetainEntities {
   def collect(source: ProgramUnit, names: Set[String]): (Entities, Set[String]) = {
     val cre = new CollectRetainEntities(source, names)
     source.accept(cre)
-    (cre.getEntities, cre.leftoverNames.to[Set])
+    (cre.getEntities, cre.leftoverNames.toSet)
   }
 }
 
@@ -158,7 +158,7 @@ object CollectRetainEntities {
   * Assumes all values in `names` are unique in the AST.
   */
 class CollectRetainEntities(source: ProgramUnit, names: Set[String]) extends RecursiveVisitor(source) {
-  val leftoverNames: mutable.Set[String] = names.to[mutable.Set]
+  val leftoverNames: mutable.Set[String] = names.to(mutable.Set)
 
   val methods = mutable.Set[String]()
   val functions = mutable.Set[String]()
