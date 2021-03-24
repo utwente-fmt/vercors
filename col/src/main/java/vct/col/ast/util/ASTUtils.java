@@ -18,7 +18,7 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 
 public class ASTUtils {
 
-  public static Iterable<ASTNode> conjuncts(ASTNode e, StandardOperator op, StandardOperator ... ops){
+  public static Iterable<ASTNode> conjuncts(ASTNode e,StandardOperator op,StandardOperator ... ops){
     ArrayList<ASTNode> res=new ArrayList<ASTNode>();
     EnumSet<StandardOperator> allops=EnumSet.of(op,ops);
     scan_ops(res,allops,e);
