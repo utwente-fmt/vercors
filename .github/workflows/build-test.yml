@@ -119,6 +119,7 @@ jobs:
 
   test-windows:
     runs-on: windows-latest
+    needs: build
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v1
