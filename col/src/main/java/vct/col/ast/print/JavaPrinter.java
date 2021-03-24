@@ -6,8 +6,6 @@ import hre.ast.TrackingTree;
 import hre.lang.HREError;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
@@ -646,31 +644,30 @@ public class JavaPrinter extends AbstractPrinter {
         e.accept(this);
         out.lnprintf(";");
       }
-      List<ASTNode> contextElems = new ArrayList<>();
-      for(ASTNode pre : ASTUtils.conjuncts(contract.pre_condition, StandardOperator.Star)) {
-        boolean added = false;
-        for(ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
-          if (pre.equals(post)) {
-            contextElems.add(pre);
-            added = true;
-          }
-        }
-        if(!added) {
-          printContractElement(pre, "requires");
-        }
-      }
-      for(ASTNode con : contextElems) {
-        printContractElement(con,"context");
-      }
-      for(ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
-        if(!contextElems.contains(post)) {
-          printContractElement(post,"ensures");
-        }
+      for(ASTNode e:ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star)){
+        out.printf("requires ");
+        nextExpr();
+        if(e instanceof MethodInvokation)
+          out.print("(");
+        e.accept(this);
+        if(e instanceof MethodInvokation)
+          out.print(")");
+        out.lnprintf(";");
       }
       for (DeclarationStatement d:contract.yields){
         out.printf("yields ");
         d.accept(this);
         out.lnprintf("");
+      }
+      for(ASTNode e:ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star)){
+        out.printf("ensures ");
+        nextExpr();
+        if(e instanceof MethodInvokation)
+          out.print("(");
+        e.accept(this);
+        if(e instanceof MethodInvokation)
+          out.print(")");
+        out.lnprintf(";");
       }
       for (SignalsClause sc : contract.signals){
         sc.accept(this);
@@ -708,17 +705,6 @@ public class JavaPrinter extends AbstractPrinter {
       out.decrIndent();
       out.lnprintf("@*/");
     }
-  }
-
-  private void printContractElement(ASTNode expr, String contractHead) {
-    out.printf(contractHead + " ");
-    nextExpr();
-    if(expr instanceof MethodInvokation)
-      out.print("(");
-    expr.accept(this);
-    if(expr instanceof MethodInvokation)
-      out.print(")");
-    out.lnprintf(";");
   }
 
   public void visit(SignalsClause sc) {
