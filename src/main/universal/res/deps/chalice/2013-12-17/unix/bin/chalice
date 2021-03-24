@@ -1,4 +1,0 @@
-#!/bin/bash
-
-exec java -cp $CHALICE_HOME/chalice_2.10-1.0.jar:$CHALICE_HOME/scala-library.jar chalice.Chalice -boogie:`which boogie` "$@"
-

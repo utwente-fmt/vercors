@@ -770,10 +770,6 @@ object Passes {
       removes=Set(features.MemberOfRange),
       introduces=Feature.EXPR_ONLY_INTRODUCE,
     ),
-    SimplePass("optimizeForChalice", "Optimize expressions for Chalice", arg => {
-      val trs = RewriteSystems.getRewriteSystem("chalice_optimize")
-      trs.normalize(arg)
-    }),
     ErrorMapPass("returnTypeToOutParameter",
       "Replace return value by out parameter.",
       new CreateReturnParameter(_, _).rewriteAll,
@@ -789,7 +785,6 @@ object Passes {
         features.NestedQuantifiers,
         features.InlineQuantifierPattern,
       )),
-    SimplePass("preprocessForChalice", "Pre processing for chalice", new ChalicePreProcess(_).rewriteAll),
   )
 
   val SIMPLIFYING: Seq[AbstractPass] = Seq(
@@ -891,17 +886,11 @@ object Passes {
   )
 
   val OLD_OR_UNUSED: Seq[AbstractPass] = Seq(
-    SimplePass("encodePredicatesForChalice", "encode required and ensured permission as ghost arguments", new ExplicitPermissionEncoding(_).rewriteAll),
     SimplePass("dsinherit", "rewrite contracts to reflect inheritance, predicate chaining", arg => new DynamicStaticInheritance(arg).rewriteOrdered),
-    SimplePass("deriveModifies", "Derive modifies clauses for all contracts", arg => {
-      new DeriveModifies().annotate(arg)
-      arg
-    }),
     Pass("applyRewriteSystem", "Apply a term rewrite system", (arg, args) => {
       val trs = RewriteSystems.getRewriteSystem(args(0))
       trs.normalize(arg)
     }),
-    SimplePass("removeConstructorsForChalice", "???", new ConstructorRewriter(_).rewriteAll),
     Pass("generateQuantifierTriggersOld", "Add triggers to quantifiers if possible", (arg, args) => {
       var res = arg
       val `val` = Integer.valueOf(args(0))
