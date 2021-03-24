@@ -2,6 +2,7 @@ package vct.col.ast.stmt.decl;
 
 import java.util.*;
 
+import hre.util.ScalaHelper;
 import scala.collection.JavaConverters;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
@@ -311,11 +312,11 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
 
   @Override
   public scala.collection.Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("library", "program", "classes", "decl_map", "adt_map", "proc_map"));
+    return ScalaHelper.toIterable("library", "program", "classes", "decl_map", "adt_map", "proc_map");
   }
 
   @Override
   public scala.collection.Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("format"));
+    return ScalaHelper.toIterable("format");
   }
 }

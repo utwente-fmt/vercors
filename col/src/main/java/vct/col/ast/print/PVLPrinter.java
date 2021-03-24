@@ -5,8 +5,6 @@ import hre.ast.TrackingTree;
 import hre.lang.HREError;
 import hre.util.LambdaHelper;
 import org.apache.commons.lang3.StringEscapeUtils;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StringValue;
@@ -1381,27 +1379,27 @@ public class PVLPrinter extends AbstractPrinter{
         c.block().accept(this);
     }
 
-    private void visitNames(Seq<String> names) {
+    private void visitNames(List<String> names) {
         boolean first = true;
-        for(String name : JavaConverters.asJavaIterable(names)) {
+        for(String name : names) {
             if(!first) out.print(", ");
             first = false;
             out.print(name);
         }
     }
 
-    private void visitOmpOptions(Seq<OMPOption> options) {
-        for(OMPOption option : JavaConverters.asJavaIterable(options)) {
+    private void visitOmpOptions(List<OMPOption> options) {
+        for(OMPOption option : options) {
             out.print(" ");
             if(option instanceof OMPNoWait$) {
                 out.print("nowait");
             } else if(option instanceof OMPPrivate) {
                 out.print("private(");
-                visitNames(((OMPPrivate) option).names());
+                visitNames(((OMPPrivate) option).namesJava());
                 out.print(")");
             } else if(option instanceof OMPShared) {
                 out.print("shared(");
-                visitNames(((OMPShared) option).names());
+                visitNames(((OMPShared) option).namesJava());
                 out.print(")");
             } else if(option instanceof OMPSimdLen) {
                 out.printf("simdlen(%d)", ((OMPSimdLen) option).len());
@@ -1425,7 +1423,7 @@ public class PVLPrinter extends AbstractPrinter{
     @Override
     public void visit(OMPParallel parallel) {
         out.print("#pragma omp parallel");
-        visitOmpOptions(parallel.options());
+        visitOmpOptions(parallel.optionsJava());
         out.newline();
         parallel.block().accept(this);
     }
@@ -1445,7 +1443,7 @@ public class PVLPrinter extends AbstractPrinter{
     @Override
     public void visit(OMPFor loop) {
         out.print("#pragma omp for");
-        visitOmpOptions(loop.options());
+        visitOmpOptions(loop.optionsJava());
         out.newline();
         loop.loop().accept(this);
     }
@@ -1453,7 +1451,7 @@ public class PVLPrinter extends AbstractPrinter{
     @Override
     public void visit(OMPParallelFor loop) {
         out.print("#pragma omp parallel for");
-        visitOmpOptions(loop.options());
+        visitOmpOptions(loop.optionsJava());
         out.newline();
         loop.loop().accept(this);
     }
@@ -1461,7 +1459,7 @@ public class PVLPrinter extends AbstractPrinter{
     @Override
     public void visit(OMPForSimd loop) {
         out.print("#pragma omp for simd");
-        visitOmpOptions(loop.options());
+        visitOmpOptions(loop.optionsJava());
         out.newline();
         loop.loop().accept(this);
     }

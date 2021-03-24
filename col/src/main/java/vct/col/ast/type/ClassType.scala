@@ -7,7 +7,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, NameSpace, ProgramUnit}
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, ExternalClassLoader, TypeMapping, VisitorHelper}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ClassType {
   val nullType = new ClassType("<<null>>")

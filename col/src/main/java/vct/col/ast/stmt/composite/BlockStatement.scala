@@ -3,7 +3,7 @@ package vct.col.ast.stmt.composite
 import vct.col.ast.generic.{ASTNode, ASTSequence}
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -94,7 +94,7 @@ class BlockStatement extends ASTNode with ASTSequence[BlockStatement] with Visit
   override def get(i:Int) : ASTNode = statements.apply(i)
   
   /** Yields an (Java) iterator for the statements in this block. */
-  override def iterator = statements.toIterator.asJava
+  override def iterator = statements.iterator.asJava
   
   /** Yields the number of statements in this statement block. */
   override def size : Int = statements.length
@@ -103,6 +103,6 @@ class BlockStatement extends ASTNode with ASTSequence[BlockStatement] with Visit
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("statements")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("statements")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

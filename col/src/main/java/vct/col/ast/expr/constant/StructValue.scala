@@ -1,6 +1,6 @@
 package vct.col.ast.expr.constant
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast.`type`.Type
 import vct.col.ast.expr.ExpressionNode
 import vct.col.ast.generic.ASTNode
@@ -30,6 +30,6 @@ case class StructValue(val `type`:Type, val map:Map[String,Integer], val values:
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("type", "map", "values")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("type", "map", "values")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }
