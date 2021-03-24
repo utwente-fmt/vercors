@@ -87,7 +87,6 @@ jobs:
     env:
       maxTestID: 5
     steps:
-      - uses: actions/checkout@v2
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
@@ -107,6 +106,17 @@ jobs:
           retention-days: 1
           path: |
             jacoco*.xml
+
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+          java-package: jre
+      - run: "sbt compile"
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} bin\vct.cmd --test=examples\basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
 
   sonar:
     needs:
