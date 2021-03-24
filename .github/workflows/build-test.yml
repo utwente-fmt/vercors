@@ -37,7 +37,7 @@ jobs:
           name: vercors-debian-package
           retention-days: 1
           path: |
-            target/universal/*.zip
+            target/*.deb
       - run: mv target/universal/*.zip target/vercors.zip
       - name: Archive VerCors .zip
         uses: actions/upload-artifact@v2
