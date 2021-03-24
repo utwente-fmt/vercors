@@ -30,14 +30,22 @@ jobs:
         with:
           java-version: "11"
       # Currently sbt and fakeroot are installed by default
-      - run: sbt debian:packageBin
+      - run: sbt debian:packageBin universal:packageBin
       - name: Archive VerCors .deb
         uses: actions/upload-artifact@v2
         with:
           name: vercors-debian-package
           retention-days: 1
           path: |
-            target/*.deb
+            target/universal/*.zip
+      - run: mv target/universal/*.zip target/vercors.zip
+      - name: Archive VerCors .zip
+        uses: actions/upload-artifact@v2
+        with:
+          name: vercors-zip-package
+          retention-days: 1
+          path: |
+            target/vercors.zip
       - name: "Zip VerCors class files"
         # We skip the parsers subproject because sonar doesn't scan it, it's only generated code anyway
         run: "find . -path ./parsers -prune -false -o -name '*.class' | zip -@ classfiles.zip"
@@ -116,8 +124,13 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
-      - run: "sbt compile"
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} bin\vct.cmd --test=examples\basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
+      - name: Download VerCors binary
+        uses: actions/download-artifact@v2
+        with:
+          name: vercors-zip-package
+      - run: mkdir vercorszip
+      - run: tar -xf --strip-components=1 --directory vercorszip vercors.zip
+      - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
 
   sonar:
     needs:
