@@ -25,7 +25,7 @@ import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 
 import java.io.PrintWriter;
-import java.util.Iterator;
+import java.util.*;
 
 import static hre.lang.System.DebugException;
 
@@ -581,27 +581,6 @@ public class PVLPrinter extends AbstractPrinter{
         out.println("");
     }
 
-    private void printRequires(ASTNode expr) {
-        out.printf("requires ");
-        nextExpr();
-        if(expr instanceof MethodInvokation)
-            out.print("(");
-        expr.accept(this);
-        if(expr instanceof MethodInvokation)
-            out.print(")");
-        out.lnprintf(";");
-    }
-
-    private void printEnsures(ASTNode expr) {
-        out.printf("ensures ");
-        nextExpr();
-        if(expr instanceof MethodInvokation)
-            out.print("(");
-        expr.accept(this);
-        if(expr instanceof MethodInvokation)
-            out.print(")");
-        out.lnprintf(";");
-    }
 
     @Override
     public void visit(Contract contract) {
@@ -618,44 +597,31 @@ public class PVLPrinter extends AbstractPrinter{
                 e.accept(this);
                 out.lnprintf(";");
             }
-            Iterator<ASTNode> preIt = ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star).iterator();
-            Iterator<ASTNode> postIt = ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star).iterator();
-            ASTNode pre = null, post = null;
-            boolean printprepost = false;
-            while(preIt.hasNext() && postIt.hasNext()) {
-                pre = preIt.next();
-                post = postIt.next();
-                if(pre.equals(post)) {
-                    out.printf("context ");
-                    nextExpr();
-                    if(pre instanceof MethodInvokation)
-                        out.print("(");
-                    pre.accept(this);
-                    if(pre instanceof MethodInvokation)
-                        out.print(")");
-
-                    out.lnprintf(";");
-                } else { //cannot undo next(), so need to print pre and post
-                    printprepost = true;
-                    break;
+            List<ASTNode> contextElems = new ArrayList<>();
+            for(ASTNode pre : ASTUtils.conjuncts(contract.pre_condition, StandardOperator.Star)) {
+                boolean added = false;
+                for(ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
+                    if (pre.equals(post)) {
+                        contextElems.add(pre);
+                        added = true;
+                    }
+                }
+                if(!added) {
+                    printContractElement(pre, "requires");
                 }
             }
-            if(printprepost) {
-                printRequires(pre);
+            for(ASTNode con : contextElems) {
+                printContractElement(con,"context");
             }
-            while(preIt.hasNext()){
-                printRequires(preIt.next());
+            for(ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
+                if(!contextElems.contains(post)) {
+                    printContractElement(post,"ensures");
+                }
             }
             for (DeclarationStatement d:contract.yields){
                 out.printf("yields ");
                 d.accept(this);
                 out.lnprintf("");
-            }
-            if(printprepost) {
-                printEnsures(post);
-            }
-            while(postIt.hasNext()){
-                printEnsures(postIt.next());
             }
             for (SignalsClause sc : contract.signals){
                 sc.accept(this);
@@ -692,6 +658,17 @@ public class PVLPrinter extends AbstractPrinter{
             }
             //out.decrIndent();
         }
+    }
+
+    private void printContractElement(ASTNode expr, String contractHead) {
+        out.printf(contractHead + " ");
+        nextExpr();
+        if(expr instanceof MethodInvokation)
+            out.print("(");
+        expr.accept(this);
+        if(expr instanceof MethodInvokation)
+            out.print(")");
+        out.lnprintf(";");
     }
 
     public void visit(SignalsClause sc) {
