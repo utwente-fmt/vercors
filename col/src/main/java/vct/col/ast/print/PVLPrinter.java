@@ -18,13 +18,11 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.PVLSyntax;
-import vct.col.ast.syntax.Syntax;
 import vct.col.ast.type.*;
-import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 
 import java.io.PrintWriter;
-import java.util.List;
+import java.util.*;
 
 import static hre.lang.System.DebugException;
 
@@ -53,9 +51,11 @@ public class PVLPrinter extends AbstractPrinter{
             if (ann==null){
                 out.printf(" <null annotation> ");
             } else {
-                nextExpr();
-                ann.accept(this);
-                out.printf(" ");
+                if(!(node instanceof Method && ((Method)node).kind == Method.Kind.Pure)) {
+                    nextExpr();
+                    ann.accept(this);
+                    out.printf(" ");
+                }
             }
         }
     }
@@ -281,6 +281,7 @@ public class PVLPrinter extends AbstractPrinter{
                 setExpr();
                 ASTNode prop=s.args[0];
                 prop.accept(this);
+                out.println(";");
                 break;
             }
             case Join:{
@@ -289,6 +290,7 @@ public class PVLPrinter extends AbstractPrinter{
                 setExpr();
                 ASTNode prop=s.args[0];
                 prop.accept(this);
+                out.println(";");
                 break;
             }
             case Goto:
@@ -537,17 +539,11 @@ public class PVLPrinter extends AbstractPrinter{
         int N=block.getLength();
         for(int i=0;i<N;i++){
             ASTNode statement=block.getStatement(i);
-            if (statement.isValidFlag(ASTFlags.GHOST) && statement.isGhost()){
-                out.enterGhost();
-            }
             statement.accept(this);
             if (self_terminating(statement)){
                 out.clearline();
             } else {
                 out.lnprintf(";");
-            }
-            if (statement.isValidFlag(ASTFlags.GHOST) && statement.isGhost()){
-                out.leaveGhost();
             }
         }
         out.decrIndent();
@@ -582,75 +578,6 @@ public class PVLPrinter extends AbstractPrinter{
         out.println("");
     }
 
-    @Override
-    public void visit(Contract contract) {
-        if (contract!=null){
-            //out.incrIndent();
-            for (DeclarationStatement d:contract.given){
-                out.printf("given ");
-                d.accept(this);
-                out.lnprintf("");
-            }
-            for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
-                out.printf("loop_invariant ");
-                nextExpr();
-                e.accept(this);
-                out.lnprintf(";");
-            }
-            for(ASTNode e:ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star)){
-                out.printf("requires ");
-                nextExpr();
-                e.accept(this);
-                out.lnprintf(";");
-            }
-            for (DeclarationStatement d:contract.yields){
-                out.printf("yields ");
-                d.accept(this);
-                out.lnprintf("");
-            }
-            for(ASTNode e:ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star)){
-                out.printf("ensures ");
-                nextExpr();
-                e.accept(this);
-                out.lnprintf(";");
-            }
-            for (SignalsClause sc : contract.signals){
-                sc.accept(this);
-            }
-            if (contract.modifies!=null){
-                out.printf("modifies ");
-                if (contract.modifies.length==0){
-                    out.lnprintf("\\nothing;");
-                } else {
-                    nextExpr();
-                    contract.modifies[0].accept(this);
-                    for(int i=1;i<contract.modifies.length;i++){
-                        out.printf(", ");
-                        nextExpr();
-                        contract.modifies[i].accept(this);
-                    }
-                    out.lnprintf(";");
-                }
-            }
-            if (contract.accesses!=null){
-                out.printf("accessible ");
-                if (contract.accesses.length==0){
-                    out.lnprintf("\\nothing;");
-                } else {
-                    nextExpr();
-                    contract.accesses[0].accept(this);
-                    for(int i=1;i<contract.accesses.length;i++){
-                        out.printf(", ");
-                        nextExpr();
-                        contract.accesses[i].accept(this);
-                    }
-                    out.lnprintf(";");
-                }
-            }
-            //out.decrIndent();
-        }
-    }
-
     public void visit(SignalsClause sc) {
         out.printf("signals (");
         sc.type().accept(this);
@@ -679,13 +606,8 @@ public class PVLPrinter extends AbstractPrinter{
         String name=m.getName();
         Contract contract=m.getContract();
         boolean predicate=m.getKind()==Method.Kind.Predicate;
-        if (predicate){
-            if (contract!=null) {
-                out.lnprintf("//ignoring contract of predicate");
+        if (predicate && contract!=null){
                 Debug("ignoring contract of predicate");
-            }
-            out.incrIndent();
-            out.print("predicate ");
         }
         if (contract!=null && !predicate){
             visit(contract);
@@ -700,7 +622,7 @@ public class PVLPrinter extends AbstractPrinter{
                         case ASTFlags.INLINE:
                             out.printf("inline ");
                         case ASTFlags.PUBLIC:
-                            out.printf("public ");
+                            //no public in PVL
                             break;
                         case ASTFlags.THREAD_LOCAL:
                             out.printf("thread_local  ");
@@ -731,9 +653,6 @@ public class PVLPrinter extends AbstractPrinter{
         } else {
             result_type.accept(this);
             out.printf(" ");
-        }
-        if (m.getKind()==Method.Kind.Pure) {
-            out.printf("pure ");
         }
         out.printf("%s(",name);
         if (N>0) {
@@ -779,9 +698,6 @@ public class PVLPrinter extends AbstractPrinter{
             nextExpr();
             body.accept(this);
             out.lnprintf(";");
-        }
-        if (predicate){
-            out.decrIndent();
         }
     }
 
@@ -1285,9 +1201,12 @@ public class PVLPrinter extends AbstractPrinter{
         } else {
             out.println("par");
         }
-        for (ParallelBlock pb : region.blocksJava()) {
+        for (Iterator<ParallelBlock> it = region.blocksJava().iterator(); it.hasNext();) {
             out.incrIndent();
-            pb.accept(this);
+            it.next().accept(this);
+            if(it.hasNext()) {
+                out.print(" and");
+            }
             out.println("");
             out.decrIndent();
         }
@@ -1310,17 +1229,17 @@ public class PVLPrinter extends AbstractPrinter{
             sep=",";
             if (dd instanceof DeclarationStatement){
                 DeclarationStatement d = (DeclarationStatement)dd;
-                d.getType().accept(this);
+                out.print(d.name());
                 ASTNode init = d.initJava();
                 if (init!=null){
-                    out.print("=");
+                    out.print(" = ");
+                    setExpr();
                     init.accept(this);
                 }
             } else {
                 out.print("TODO");
             }
         }
-        out.println(";");
     }
 
     @Override
