@@ -6,7 +6,6 @@ import hre.ast.TrackingTree;
 import hre.lang.HREError;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -26,7 +25,6 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.JavaSyntax;
-import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 import hre.util.LambdaHelper;
 

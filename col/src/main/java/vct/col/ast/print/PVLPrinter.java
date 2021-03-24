@@ -19,7 +19,6 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.PVLSyntax;
 import vct.col.ast.type.*;
-import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 
 import java.io.PrintWriter;
@@ -607,10 +606,8 @@ public class PVLPrinter extends AbstractPrinter{
         String name=m.getName();
         Contract contract=m.getContract();
         boolean predicate=m.getKind()==Method.Kind.Predicate;
-        if (predicate){
-            if (contract!=null) {
+        if (predicate && contract!=null){
                 Debug("ignoring contract of predicate");
-            }
         }
         if (contract!=null && !predicate){
             visit(contract);
