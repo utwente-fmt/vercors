@@ -130,7 +130,11 @@ jobs:
         with:
           name: vercors-zip-package
       - run: mkdir vercorszip
-      - run: tar -xf --strip-components=1 --directory vercorszip vercors.zip
+      # --strip-components is needed because the zip contains a directory, which contains bin, examples, etc.
+      # But the name of this directory changes from time to time, because of the version number
+      # By stripping the first component this directory this is not a problem
+      # --directory extracts to a given directory, ensuring the current directory is not cluttered.
+      - run: tar --strip-components=1 --directory vercorszip -xf vercors.zip
       - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
 
   sonar:
