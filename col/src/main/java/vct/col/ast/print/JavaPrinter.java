@@ -633,90 +633,10 @@ public class JavaPrinter extends AbstractPrinter {
     if (contract!=null){
       out.lnprintf("/*@");
       out.incrIndent();
-      for (DeclarationStatement d:contract.given){
-        out.printf("given ");
-        d.accept(this);
-        out.lnprintf("");
-      }
-      for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
-        out.printf("loop_invariant ");
-        nextExpr();
-        e.accept(this);
-        out.lnprintf(";");
-      }
-      List<ASTNode> contextElems = new ArrayList<>();
-      for(ASTNode pre : ASTUtils.conjuncts(contract.pre_condition, StandardOperator.Star)) {
-        boolean added = false;
-        for(ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
-          if (pre.equals(post)) {
-            contextElems.add(pre);
-            added = true;
-          }
-        }
-        if(!added) {
-          printContractElement(pre, "requires");
-        }
-      }
-      for(ASTNode con : contextElems) {
-        printContractElement(con,"context");
-      }
-      for(ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
-        if(!contextElems.contains(post)) {
-          printContractElement(post,"ensures");
-        }
-      }
-      for (DeclarationStatement d:contract.yields){
-        out.printf("yields ");
-        d.accept(this);
-        out.lnprintf("");
-      }
-      for (SignalsClause sc : contract.signals){
-        sc.accept(this);
-      }
-      if (contract.modifies!=null){
-        out.printf("modifies ");
-        if (contract.modifies.length==0){
-          out.lnprintf("\\nothing;");
-        } else {
-          nextExpr();
-          contract.modifies[0].accept(this);
-          for(int i=1;i<contract.modifies.length;i++){
-            out.printf(", ");
-            nextExpr();
-            contract.modifies[i].accept(this);
-          }
-          out.lnprintf(";");
-        }
-      }
-      if (contract.accesses!=null){
-        out.printf("accessible ");
-        if (contract.accesses.length==0){
-          out.lnprintf("\\nothing;");
-        } else {
-          nextExpr();
-          contract.accesses[0].accept(this);
-          for(int i=1;i<contract.accesses.length;i++){
-            out.printf(", ");
-            nextExpr();
-            contract.accesses[i].accept(this);
-          }
-          out.lnprintf(";");
-        }
-      }
+      super.visit(contract);
       out.decrIndent();
       out.lnprintf("@*/");
     }
-  }
-
-  private void printContractElement(ASTNode expr, String contractHead) {
-    out.printf(contractHead + " ");
-    nextExpr();
-    if(expr instanceof MethodInvokation)
-      out.print("(");
-    expr.accept(this);
-    if(expr instanceof MethodInvokation)
-      out.print(")");
-    out.lnprintf(";");
   }
 
   public void visit(SignalsClause sc) {
