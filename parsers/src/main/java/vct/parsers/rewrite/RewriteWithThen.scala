@@ -2,12 +2,12 @@ package vct.parsers.rewrite
 
 import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
+import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelAtomic}
 import vct.col.ast.stmt.decl.ASTSpecial.Kind
 import vct.col.ast.stmt.decl.{ASTSpecial, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class RewriteWithThen(source: ProgramUnit) extends AbstractRewriter(source) {
   private def process_with_then[T <: ASTNode with BeforeAfterAnnotations](dst: T, src: T)= {
@@ -54,5 +54,12 @@ class RewriteWithThen(source: ProgramUnit) extends AbstractRewriter(source) {
     result.asInstanceOf[BeforeAfterAnnotations].set_before(null)
     result.asInstanceOf[BeforeAfterAnnotations].set_after(null)
     process_with_then(result.asInstanceOf[LoopStatement], loop)
+  }
+
+  override def visit(atomic: ParallelAtomic): Unit = {
+    super.visit(atomic)
+    result.asInstanceOf[BeforeAfterAnnotations].set_before(create.block())
+    result.asInstanceOf[BeforeAfterAnnotations].set_after(create.block())
+    process_with_then(result.asInstanceOf[ParallelAtomic], atomic)
   }
 }

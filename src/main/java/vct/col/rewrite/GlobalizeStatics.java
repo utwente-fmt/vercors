@@ -47,7 +47,7 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
     switch(cl.kind){
     case Plain:{
       int N;
-      ASTClass res=create.ast_class(cl.name(), ClassKind.Plain,null,null,null);
+      ASTClass res=create.ast_class(cl.name(), ClassKind.Plain,rewrite(cl.parameters),rewrite(cl.super_classes),rewrite(cl.implemented_classes));
       N=cl.getStaticCount();
       prefix=new ClassName(cl.getFullName()).toString("_");
       processing_static=true;

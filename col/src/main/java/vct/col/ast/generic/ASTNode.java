@@ -434,7 +434,7 @@ public abstract class ASTNode implements ASTFlags, DebugNode {
   }
   
   public boolean annotated(){
-    return annotations!=null && annotations.size()>0; 
+    return annotations!=null;
   }
 
   public boolean hasAnnotation(ASTReserved reservedName) {

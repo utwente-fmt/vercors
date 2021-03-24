@@ -4,6 +4,7 @@ import hre.ast.MessageOrigin;
 
 import java.util.*;
 
+import hre.util.ScalaHelper;
 import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
@@ -150,11 +151,11 @@ public class VariableDeclaration extends ASTNode {
 
   @Override
   public scala.collection.Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("basetype", "vars"));
+    return ScalaHelper.toIterable("basetype", "vars");
   }
 
   @Override
   public scala.collection.Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
+    return ScalaHelper.toIterable();
   }
 }

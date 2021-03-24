@@ -1,5 +1,6 @@
 package vct.test
 
+import java.io.{BufferedWriter, File, FileNotFoundException, FileOutputStream, FileWriter, OutputStreamWriter}
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util.concurrent.{Executors, Future}
 
@@ -7,12 +8,14 @@ import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Output, Progress, Warning}
 import hre.util.TestReport.Verdict
+import vct.col.features.Feature
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
+import scala.io.Source
 
 sealed trait CaseFilter {
-  def addOptions(parser: OptionParser)
+  def addOptions(parser: OptionParser): Unit
   def isPossible(kees: Case): Boolean
 }
 
@@ -47,6 +50,8 @@ object Language extends CaseFilter {
 }
 
 object CommandLineTesting {
+  val IDEA_RUN_CONFIG_DIR: String = ".idea/runConfigurations"
+
   private val caseFilters = Seq(IncludeSuite, ExcludeSuite, Language)
 
   private val backendFilter = new StringListSetting()
@@ -66,8 +71,14 @@ object CommandLineTesting {
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
 
-  private val travisTestOutput = new BooleanSetting(false)
-  private val travisTestOutputOption = travisTestOutput.getEnable("output the full output of failing test cases as a foldable section in travis")
+  private val actionsTestOutput = new BooleanSetting(false)
+  private val actionsTestOutputOption = actionsTestOutput.getEnable("output the full output of failing test cases as a foldable section in github actions")
+
+  private val testFailFast = new BooleanSetting(false)
+  private val testFailFastOption = testFailFast.getEnable("store test failures at the end of the run, after which failing tests will run first on the next run")
+
+  private val testFailIdeaConfigs = new BooleanSetting(false)
+  private val testFailIdeaConfigsOption = testFailIdeaConfigs.getEnable("store test failures as run configurations in .idea/runConfigurations")
 
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
@@ -132,7 +143,9 @@ object CommandLineTesting {
     parser.add(builtinTestOption, "test-builtin")
     parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
-    parser.add(travisTestOutputOption, "travis-test-output")
+    parser.add(testFailFastOption, "test-fail-fast")
+    parser.add(testFailIdeaConfigsOption, "test-fail-idea-configs")
+    parser.add(actionsTestOutputOption, "actions-test-output")
   }
 
   def getCases: Map[String, Case] = {
@@ -169,6 +182,7 @@ object CommandLineTesting {
           var args = mutable.ArrayBuffer[String]()
           args += "--progress"
           args += "--" + tool
+          args += "--strict-internal"
           args ++= kees.options.asScala
           args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
 
@@ -184,7 +198,7 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
-          result += (s"case-$tool-$name" -> Task(vercors.withArgs(args:_*), conditions))
+          result += (s"$name-$tool" -> Task(vercors.withArgs((args.toSeq):_*), conditions.toSeq))
         }
       }
     }
@@ -193,8 +207,26 @@ object CommandLineTesting {
   }
 
   def runTests(): Unit = {
-    val tasks = getTasks
-    val sortedTaskKeys = tasks.keys.toSeq.sorted
+    val allTasks = getTasks
+
+    if(testFailIdeaConfigs.get()) {
+      new File(IDEA_RUN_CONFIG_DIR).mkdir()
+    }
+
+    val sortedTaskKeys =
+      if(testFailFast.get())
+        try {
+          val f = Source.fromFile("tmp/failing-tests")
+          val failingTests = f.mkString.split(';').filter(_ != "") // silly java split
+          f.close()
+          allTasks.keys.toSeq.sortBy(key => (!failingTests.contains(key), key))
+        } catch {
+          case _: FileNotFoundException =>
+            allTasks.keys.toSeq.sorted
+        }
+      else {
+        allTasks.keys.toSeq.sorted
+      }
 
     var splitDiv = 1
     var splitMod = 0
@@ -216,37 +248,78 @@ object CommandLineTesting {
     }
 
     val taskKeys = (splitMod to sortedTaskKeys.length by splitDiv).collect(sortedTaskKeys)
-    val pool = Executors.newFixedThreadPool(workers.get())
-    var futures = mutable.ArrayBuffer[(Future[Seq[FailReason]], String)]()
-
+    val tasks = taskKeys.map(allTasks(_))
+    val keyOfTask = allTasks.map{ case (a, b) => (b, a) }.toMap
+    val pool = ThreadPool[Task, Seq[FailReason]](workers.get(), tasks)
     Progress("Submitting %d tasks to thread pool with %d worker(s)", Int.box(taskKeys.length), Int.box(workers.get()))
+    pool.start()
 
-    for (taskKey <- taskKeys) {
-      val task = tasks(taskKey)
-      val future = pool.submit(task)
-      futures += ((future, taskKey))
-    }
+    var fails = Set.empty[String]
+    val intro = mutable.Map[String, Seq[String]]() ++ Feature.ALL.map(f => (f.toString, Seq())).toMap
 
-    var fails = 0
+    for(((task, reasons, newCurrentlyRunning, otherTasksLeft), i) <- pool.results().zipWithIndex) {
+      val taskKey = keyOfTask(task)
+      val progress = 100 * i / tasks.size
 
-    for (((future, taskKey), i) <- futures.zipWithIndex) {
-      val reasons = future.get()
-      val progress = 100 * i / futures.size
+      allTasks(taskKey).log.foreach {
+        case msg if msg.getFormat == "stdout: %s" => msg.getArg(0) match {
+          case line: String if line.startsWith("!intro") =>
+            val parts = line.split(' ')
+            if(parts.length == 3)
+              parts(2).split(',').foreach(feature => {
+                intro.update(feature, intro(feature) :+ parts(1))
+              })
+          case _ =>
+        }
+        case _ =>
+      }
 
-      if (reasons.isEmpty) {
-        Progress("[%02d%%] Pass: %s", Int.box(progress), taskKey)
-      } else {
-        fails += 1
-        Progress("[%02d%%] Fail: %s", Int.box(progress), taskKey)
+      for(msg <- task.log) {
+        val text = String.format(msg.getFormat, msg.getArgs:_*)
+        if(text.contains("[warning]")) {
+          Warning("%s: %s", taskKey, text)
+        }
+      }
 
-        if(travisTestOutput.get()) {
-          Output("%s", "travis_fold:start:case_output\r\u001b[0KOutput from case...");
+      if(testFailIdeaConfigs.get) {
+        new File(IDEA_RUN_CONFIG_DIR, s"$taskKey.xml").delete()
+      }
 
-          for(msg <- tasks(taskKey).log) {
+      if (reasons.nonEmpty) {
+        fails += taskKey
+        Output("Fail: %s", taskKey)
+
+        if(testFailIdeaConfigs.get) {
+          val dropArgs = Configuration.getThisVerCors.getArgs.size
+          val args = task.env.getArgs.asScala.drop(dropArgs) ++ Seq("--encoded", "tmp/output.sil")
+          val config =
+            <component name="ProjectRunConfigurationManager">
+              <configuration default="false" name={s"{failing} $taskKey"} type="Application" factoryName="Application">
+                <option name="INCLUDE_PROVIDED_SCOPE" value="true" />
+                <option name="MAIN_CLASS_NAME" value="vct.main.Main" />
+                <module name="vercors" />
+                <option name="PROGRAM_PARAMETERS" value={args.mkString(" ")} />
+                <option name="VM_PARAMETERS" value="-Xss128M" />
+                <method v="2">
+                  <option name="Make" enabled="true" />
+                </method>
+              </configuration>
+            </component>
+
+          val f = new File(IDEA_RUN_CONFIG_DIR, s"$taskKey.xml")
+          val writer = new OutputStreamWriter(new FileOutputStream(f))
+          writer.write(config.toString())
+          writer.close()
+        }
+
+        if(actionsTestOutput.get()) {
+          Output("::group::Case output")
+
+          for(msg <- allTasks(taskKey).log) {
             Output(msg.getFormat, msg.getArgs:_*)
           }
 
-          Output("travis_fold:end:case_output");
+          Output("::endgroup::")
         }
 
         reasons.foreach {
@@ -270,23 +343,32 @@ object CommandLineTesting {
             Output("- Output did not contain '%s'", text)
         }
       }
+
+      Progress("[%02d%%] Running: %s and %d further tasks queued", Int.box(progress), newCurrentlyRunning.map(keyOfTask).mkString(", "), Int.box(otherTasksLeft))
     }
 
     Output("Verification times:")
 
     for (taskKey <- taskKeys) {
-      val time = tasks(taskKey).times.get("entire run")
+      val time = allTasks(taskKey).times.get("entire run")
       Output("%-40s: %s", taskKey, time match {
         case None => "unknown"
         case Some(ms) => String.format("%dms", Int.box(ms))
       })
     }
 
-    if (fails > 0) {
-      hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails), Int.box(futures.length))
+    if(testFailFast.get()) {
+      val f = new File("tmp/failing-tests")
+      val writer = new BufferedWriter(new FileWriter(f))
+      writer.write(fails.mkString(";"))
+      writer.close()
+    }
+
+    if (fails.nonEmpty) {
+      hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails.size), Int.box(tasks.size))
       throw new HREExitException(1)
     } else {
-      hre.lang.System.Verdict("All %d tests passed", Int.box(futures.length))
+      hre.lang.System.Verdict("All %d tests passed", Int.box(tasks.size))
       throw new HREExitException(0)
     }
   }

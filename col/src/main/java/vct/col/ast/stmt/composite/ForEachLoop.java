@@ -1,6 +1,7 @@
 package vct.col.ast.stmt.composite;
 
 import hre.ast.MessageOrigin;
+import hre.util.ScalaHelper;
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
@@ -47,12 +48,12 @@ public class ForEachLoop extends ASTNode implements BeforeAfterAnnotations {
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("decls", "guard", "body"));
+    return ScalaHelper.toIterable("decls", "guard", "body");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.emptyList());
+    return ScalaHelper.toIterable();
   }
 
   @Override

@@ -258,9 +258,6 @@ public class ASTFactory<E> implements FrameControl {
   public ClassType class_type(String name, List<ASTNode> args){
     return class_type(origin_stack.get(), name, args);
   }
-  public ASTSpecial comment(String text) {
-    return special(ASTSpecial.Kind.Comment,constant(text));
-  }
 
   public ConstantExpression constant(boolean b) {
     return constant(origin_stack.get(),b);
@@ -625,6 +622,16 @@ public class ASTFactory<E> implements FrameControl {
     return invokation(object,dispatch,method,args.toArray(new ASTNode[args.size()]));
   }
 
+  public KernelInvocation kernelInvocation(String method, ASTNode blockCount, ASTNode threadCount, ASTNode... args) {
+    return kernelInvocation(origin_stack.get(), method, blockCount, threadCount, args);
+  }
+
+  public KernelInvocation kernelInvocation(Origin o, String method, ASTNode blockCount, ASTNode threadCount, ASTNode... args) {
+    KernelInvocation result = new KernelInvocation(method, blockCount, threadCount, args);
+    result.setOrigin(o);
+    return result;
+  }
+
   /**
    * Create a name expression that refers to a label.
    */
@@ -662,6 +669,12 @@ public class ASTFactory<E> implements FrameControl {
   
   public NameExpression local_name(String name) {
     return local_name(origin_stack.get(), name);
+  }
+
+  public Method final_method_decl(Type returns, Contract contract, String name, DeclarationStatement[] args, ASTNode body) {
+    Method result = method_decl(returns, contract, name, args, body);
+    result.setFlag(ASTFlags.FINAL, true);
+    return result;
   }
 
   /**
@@ -1088,6 +1101,13 @@ public ASTNode this_expression(ClassType t) {
   res.setOrigin(origin_stack.get());
   res.accept_if(post);
   return res;
+}
+
+public ASTNode diz() {
+  NameExpression result = new NameExpression(ASTReserved.This);
+  result.setOrigin(origin_stack.get());
+  result.accept_if(post);
+  return result;
 }
 
 /**

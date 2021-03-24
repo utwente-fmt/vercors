@@ -37,9 +37,6 @@ public class JavaPostProcessor extends AbstractRewriter {
     case ActionHeader:
       Fail("cannot create block around action",s.getOrigin());
       break;
-    case Expression:
-      result=rewrite(s.args[0]);
-      break;
     default:
       super.visit(s);
       break;
@@ -48,31 +45,9 @@ public class JavaPostProcessor extends AbstractRewriter {
   
   @Override
   public void visit(ClassType t){
-    String name[]=t.getNameFull();
-    if (name.length==1){
-      switch(name[0]){
-      case "String":
-        result=create.primitive_type(PrimitiveSort.String);
-        return;
-      case "seq":
-        result=create.primitive_type(PrimitiveSort.Sequence,rewrite(t.argsJava()));
-        return;
-      case "set":
-        result=create.primitive_type(PrimitiveSort.Set,rewrite(t.argsJava()));
-        return;
-      case "loc":
-        result=create.primitive_type(PrimitiveSort.Location,rewrite(t.argsJava()));
-        return;
-      case "bag":
-        result=create.primitive_type(PrimitiveSort.Bag,rewrite(t.argsJava()));
-        return;
-      case "process":
-        result=create.primitive_type(PrimitiveSort.Process);
-        return;
-      default:
-        super.visit(t);
-        return;
-      }
+    String[] name = t.getNameFull();
+    if (name.length==1 && name[0].equals("String")) {
+        result = create.primitive_type(PrimitiveSort.String);
     } else {
       super.visit(t);
     }
@@ -87,106 +62,6 @@ public class JavaPostProcessor extends AbstractRewriter {
       if (m.kind==Method.Kind.Constructor) N++;
     }
     if (N==0 && c.kind!=ASTClass.ClassKind.Interface) create.addZeroConstructor(decl);
-  }
-
-  @Override
-  public void visit(Method m){
-    if (m.getReturnType().isPrimitive(PrimitiveSort.Resource)){
-      result=create.predicate(m.getName(), rewrite(m.getBody()), rewrite(m.getArgs()));
-    } else {
-      super.visit(m);
-    }
-  }
-  
-  @Override
-  public void visit(MethodInvokation e){
-    if (e.object()==null){
-      JavaSyntax syntax=JavaSyntax.getJava(JavaDialect.JavaVerCors);
-      StandardOperator op=syntax.parseFunction(e.method());
-      if (op!=null){
-        result=create.expression(op,rewrite(e.getArgs()));
-        return;
-      }
-    }
-    MethodInvokation res = create.invokation(rewrite(e.object()), e.dispatch(), e.method(), rewrite(e.getArgs()));
-    res.set_before(rewrite(e.get_before()));
-    res.set_after(rewrite(e.get_after()));
-    result = res;
-  }
-
-  public void visit(NameExpression n){
-    if (n.getName().equals("?")){
-      wildcard_count++;
-      String name="wildcard_"+wildcard_count;
-      if (currentContractBuilder==null) Abort("no contract builder set");
-      currentContractBuilder.given(create.field_decl(name, create.primitive_type(PrimitiveSort.Class),create.class_type("Object")));
-      result=create.unresolved_name(name);
-      return;
-    } else {
-      super.visit(n);
-    }
-  }
-  
-  @Override
-  public void visit(OperatorExpression e){
-    Type deftype=create.class_type("Object");
-    switch(e.operator()){
-      case StructSelect:
-        ASTNode arg=e.arg(1);
-        if (arg instanceof NameExpression){
-          result=create.dereference(rewrite(e.arg(0)), arg.toString());
-          return;
-        } else {
-          Abort("unexpected StructSelect expression");
-        }
-      case SubType:
-        deftype=(Type)rewrite(e.arg(1));
-      case SuperType:
-      {
-        NameExpression n=(NameExpression)e.arg(0);
-        if (n.getName().equals("?")){
-          wildcard_count++;
-          String name="wildcard_"+wildcard_count;
-          if (currentContractBuilder==null) Abort("no contract builder set");
-          currentContractBuilder.given(create.field_decl(name, create.primitive_type(PrimitiveSort.Class),deftype));
-          currentContractBuilder.requires(create.expression(e.operator(),create.unresolved_name(name),rewrite(e.arg(1))));
-          result=create.unresolved_name(name);
-          return;
-        }
-        break;
-      }
-      case LT:
-      case LTE:
-      {
-        ASTNode arg0=rewrite(e.arg(0));
-        ASTNode arg1=rewrite(e.arg(1));
-        OperatorExpression res;
-        if (arg0 instanceof OperatorExpression && is_comparison(((OperatorExpression)arg0).operator())){
-          ASTNode tmp=rewrite(((OperatorExpression)e.arg(0)).arg(1));
-          arg1=create.expression(e.operator(),tmp,arg1);
-          res=create.expression(StandardOperator.And,arg0,arg1);
-        } else {
-          res=create.expression(e.operator(),arg0,arg1);
-        }
-        result=res;
-        return;
-      }
-    default:
-      break;
-    }
-    super.visit(e);
-    OperatorExpression res=(OperatorExpression) result;
-    result=res;
-  }
-  
-  private boolean is_comparison(StandardOperator operator) {
-    switch(operator){
-    case LT:
-    case LTE:
-      return true;
-    default:
-      return false;
-    }
   }
   
   @Override

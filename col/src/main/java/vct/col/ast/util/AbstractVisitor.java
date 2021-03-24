@@ -220,4 +220,9 @@ public class AbstractVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(SignalsClause sc) {
     visit_any(sc);
   }
+
+  @Override
+  public void visit(KernelInvocation ki) {
+    visit_any(ki);
+  }
 }

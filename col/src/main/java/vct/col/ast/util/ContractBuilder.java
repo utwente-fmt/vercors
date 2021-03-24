@@ -21,6 +21,7 @@ public class ContractBuilder {
   private ASTNode pre_condition = default_true;
   private ASTNode post_condition = default_true;
   private ASTNode invariant = default_true;
+  private ASTNode kernelInvariant = default_true;
   private ArrayList<DeclarationStatement> given = new ArrayList<>();
   private ArrayList<DeclarationStatement> yields = new ArrayList<>();
   private HashSet<ASTNode> modifiable;
@@ -92,6 +93,12 @@ public class ContractBuilder {
   public void yields(DeclarationStatement ... decls){
     for(DeclarationStatement d:decls) yields.add(d);
   }
+
+  public void clearGivenYields() {
+    given.clear();
+    yields.clear();
+  }
+
   public void ensures(ASTNode condition){
     ensures(condition,true);
   }
@@ -134,6 +141,20 @@ public class ContractBuilder {
       invariant.setOrigin(new CompositeOrigin(tmp.getOrigin(),condition.getOrigin()));
     }
   }
+
+  public void appendKernelInvariant(ASTNode condition) {
+    if(kernelInvariant == default_true) {
+      kernelInvariant = condition;
+    } else {
+      ASTNode newInvariant = new OperatorExpression(StandardOperator.Star, new ASTNode[]{kernelInvariant, condition});
+      newInvariant.setOrigin(new CompositeOrigin(kernelInvariant.getOrigin(), condition.getOrigin()));
+      kernelInvariant = newInvariant;
+    }
+  }
+
+  public void clearKernelInvariant() {
+    kernelInvariant = default_true;
+  }
   
   public void prependInvariant(ASTNode condition){
     if (invariant==default_true) {
@@ -166,6 +187,7 @@ public class ContractBuilder {
             mods,
             accs,
             invariant,
+            kernelInvariant,
             pre_condition,
             post_condition,
             signals.toArray(new SignalsClause[0])
@@ -218,6 +240,5 @@ public class ContractBuilder {
     requires(e);
     ensures(e);
   }
-
 }
 

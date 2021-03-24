@@ -1,6 +1,6 @@
 package vct.col.rewrite
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind}
 import vct.col.ast.generic.ASTNode
@@ -61,6 +61,10 @@ class InlineAtomic(arg: ProgramUnit, map: ErrorMapping) extends AbstractRewriter
           create.block(atomicStat)
       }
 
+    // with/then surrounds the atomic implementation, which is in turn surrounded by inhale/exhale.
+    block.prepend(pa.get_before)
+    block.append(pa.get_after)
+
     for (node <- pa.synclist) {
       node match {
         case name: NameExpression if name.getKind == NameExpressionKind.Label =>
@@ -84,6 +88,6 @@ class InlineAtomic(arg: ProgramUnit, map: ErrorMapping) extends AbstractRewriter
   override def visit(inv: ParallelInvariant): Unit = {
     invBlocks.push(inv)
     super.visit(inv)
-    invBlocks.pop
+    invBlocks.pop()
   }
 }

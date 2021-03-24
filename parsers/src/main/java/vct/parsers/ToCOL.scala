@@ -7,16 +7,18 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.Contract
 import vct.col.ast.util.{ASTFactory, ContractBuilder}
 
+import java.nio.file.Paths
+
 abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: org.antlr.v4.runtime.Parser) {
   val create = new ASTFactory[ParserRuleContext]()
 
   private def fileOrigin(tree: ParserRuleContext): FileOrigin = {
     val startLine = tree.start.getLine
-    val startCol = tree.start.getCharPositionInLine
+    val startCol = tree.start.getCharPositionInLine + 1
     val endLine = tree.stop.getLine
-    val endCol = tree.stop.getCharPositionInLine + tree.stop.getStopIndex - tree.stop.getStartIndex
+    val endCol = tree.stop.getCharPositionInLine + tree.stop.getStopIndex - tree.stop.getStartIndex + 1
 
-    new FileOrigin(fileName, startLine, startCol, endLine, endCol)
+    new FileOrigin(Paths.get(fileName), startLine, startCol, endLine, endCol)
   }
 
   def origin[T <: ASTNode](tree: ParserRuleContext, node: T): T = {

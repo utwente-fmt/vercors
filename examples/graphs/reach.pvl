@@ -10,14 +10,14 @@
 
 class Graph {
 	// for now we say that `G` is a _graph_ if `G` is an `n*n` matrix.
-	pure boolean Graph(int n, seq<seq<boolean>> G) = |G| == n && (\forall seq<boolean> e; e in G; |e| == n);
+	pure boolean graph(int n, seq<seq<boolean>> G) = |G| == n && (\forall seq<boolean> e; e in G; |e| == n);
 	
-	requires Graph(n, G);
+	requires graph(n, G);
 	pure boolean Path(int n, seq<seq<boolean>> G, seq<int> P) =
 		(\forall int j; 0 <= j && j < |P|; 0 <= P[j] && P[j] < n) && (\forall int j; 0 <= j && j < |P|-1; G[P[j]][P[j+1]]);
 	
 	yields seq<int> P;
-	requires 0 < n && Graph(n, G);
+	requires 0 < n && graph(n, G);
 	requires 0 <= x && x < n && 0 <= y && y < n;
 	ensures \result ==> 0 < |P|;
 	ensures \result ==> P[0] == x && P[|P|-1] == y;
@@ -40,7 +40,7 @@ class Graph {
 	yields seq<int> P;
 	context_everywhere marked != null && marked.length == n;
 	context_everywhere 0 <= x && x < n && 0 <= y && y < n;
-	context 0 < n && Graph(n, G);
+	context 0 < n && graph(n, G);
 	context (\forall* int j; 0 <= j && j < n; Perm(marked[j], write));
 	ensures \result ==> 0 < |P|;
 	ensures \result ==> P[0] == x && P[|P|-1] == y;

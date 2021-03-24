@@ -444,6 +444,11 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
     return null;
   }
 
+  @Override
+  public Boolean map(KernelInvocation ki, ASTNode arg) {
+    return null;
+  }
+
 }
 
 class MatchSubstitution extends AbstractRewriter {
@@ -635,10 +640,6 @@ public class RewriteSystem {
         continue;
       }
       if (d instanceof Method && ((Method)d).kind==Method.Kind.Constructor){
-        continue;
-      }
-      if (d instanceof ASTSpecial &&
-         ((ASTSpecial)d).kind==ASTSpecial.Kind.Comment) {
         continue;
       }
       d.getOrigin().report("fatal","unexpected item in rewrite system: %s",d);

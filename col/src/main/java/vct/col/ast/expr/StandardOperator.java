@@ -2,10 +2,6 @@
 package vct.col.ast.expr;
 
 public enum StandardOperator {
-  /** get a location */
-  Get(1),
-  /** set a location (and return new value) */
-  Set(2),
   /** Unary plus. */
   UPlus(1),
   /** Unary minus. */
@@ -79,7 +75,7 @@ public enum StandardOperator {
   /** Multiply with */
   MulAssign(2),
   /** Divide by */
-  DivAssign(2),
+  FloorDivAssign(2),
   /** Assign modulo */
   RemAssign(2),
   /** Add to */

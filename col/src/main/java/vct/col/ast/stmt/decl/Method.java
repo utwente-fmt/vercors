@@ -4,6 +4,7 @@ package vct.col.ast.stmt.decl;
 import java.util.*;
 
 import hre.ast.Origin;
+import hre.util.ScalaHelper;
 import scala.Option;
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
@@ -38,12 +39,12 @@ public class Method extends ASTDeclaration {
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("return_type", "args", "spec", "body"));
+    return ScalaHelper.toIterable("return_type", "args", "spec", "body");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("var_args", "kind"));
+    return ScalaHelper.toIterable("var_args", "kind");
   }
 
   /** Enumeration of kinds of methods. */
