@@ -200,6 +200,8 @@ object CommandLineTesting {
           val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args.toSeq: _*)
 
           result += (s"$name-$tool" -> Task(vercorsProcess, conditions.toSeq))
+
+          Output(s"$name-$tool suites: ${kees.suites}")
         }
       }
     }
