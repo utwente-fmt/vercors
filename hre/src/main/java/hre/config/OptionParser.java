@@ -65,6 +65,7 @@ public class OptionParser {
           unparsed.add(args[i]);
         }
       } else if (args[i].startsWith("--")){
+        Output("Parsing: %s", args[i]);
         String name=args[i].substring(2);
         int arg_idx=name.indexOf('=');
         String arg=null;
