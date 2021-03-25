@@ -1,18 +1,48 @@
 package vct.col.rewrite
 
 import hre.ast.MessageOrigin
-import hre.lang.System.Output
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType}
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, IfStatementCase, LoopStatement, ParallelBlock, ParallelRegion}
-import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
+import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
+import vct.col.ast.stmt.decl.{Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
-import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
+import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
+import vct.col.rewrite.SessionGeneration.getLocalAction
 import vct.col.util.SessionStructureCheck
-import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, chanRead, chanWrite, getArgName, getBarrierClass, getChanClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName, mainMethodName}
+import vct.col.util.SessionUtil.{barrierFieldName, chanRead, chanWrite, getBarrierClass, getChanClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName, mainMethodName}
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
+
+case object BarrierWait extends LocalAction with GlobalAction
+case object ErrorAction extends LocalAction with GlobalAction
+final case class LocalAssign(assign : AssignmentStatement) extends LocalAction with GlobalAction
+sealed trait GlobalAction
+//final case class CommunicationAction(receiverWithField : Dereference, sender : NameExpression, sendExpression : ASTNode) extends GlobalAction
+sealed trait LocalAction
+final case class ReadAction(receiverWithField : ASTNode, sender : NameExpression) extends LocalAction
+final case class WriteAction(receiver : NameExpression, sender : String, sendExpression : ASTNode) extends LocalAction
+case object Tau extends LocalAction
+
+object SessionGeneration {
+  def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
+    val expRole = getNamesFromExpression(a.expression)
+    getNameFromNode(a.location) match {
+      case Some(locRole) => {
+        if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName))
+          LocalAssign(a)
+        else if(locRole.name == roleName && expRole.size == 1 && expRole.head.name != roleName)
+          ReadAction(a.location,expRole.head)
+        else if(locRole.name != roleName && expRole.size == 1 && expRole.head.name == roleName)
+          WriteAction(locRole,roleName,a.expression)
+        else if(locRole.name != roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name != roleName))
+          Tau
+        else ErrorAction
+      }
+      case None => ErrorAction
+    }
+  }
+}
 
 class SessionGeneration(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
@@ -76,22 +106,20 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   }
 
   override def visit(a : AssignmentStatement) : Unit = {
-    val locRole = getNameFromNode(a.location).get
-    val expRole = getNamesFromExpression(a.expression)
-    if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName)) { //it is a normal assignment for roleName
-      result = copy_rw.rewrite(a)
-    } else if(locRole.name == roleName && expRole.size == 1 && expRole.head.name != roleName) { // it is a read for roleName
-      val chan = getChanVar(expRole.head,false)
-      chans += chan.name
-      result = create.assignment(a.location,create.invokation(chan,null, chanRead))
-    } else if(locRole.name != roleName && expRole.size == 1 && expRole.head.name == roleName){ // it is a write for roleName
-      val chan = getChanVar(locRole,true)
-      chans += chan.name
-      result = create.invokation(chan, null, chanWrite, a.expression)
-    } else if(locRole.name != roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name != roleName)) {
-        //remove a
-    } else {
-      Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
+    getLocalAction(a,roleName) match {
+      case LocalAssign(_) => result = copy_rw.rewrite(a)
+      case ReadAction(receiverWithField, sender) => {
+        val chan = getChanVar(sender,false)
+        chans += chan.name
+        result = create.assignment(receiverWithField,create.invokation(chan,null, chanRead))
+      }
+      case WriteAction(receiver, _, sendExpression) => {
+        val chan = getChanVar(receiver,true)
+        chans += chan.name
+        result = create.invokation(chan, null, chanWrite, sendExpression)
+      }
+      case Tau => //remove a
+      case _ => Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
     }
   }
 
@@ -105,7 +133,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     m.getParent match {
       case b :BlockStatement => //it is a statement
         if(isSingleRoleNameExpression(m, roleNames))
-          copy_rw.rewrite(m)
+          result = copy_rw.rewrite(m)
         //else remove m
       case _ => rewriteExpression(m)
     }
