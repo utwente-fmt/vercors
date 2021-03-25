@@ -54,8 +54,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ProgramDecl3(field) => ??(tree) // This is global state?
     case ProgramDecl4(method_decl) => ??(tree) // Global method?
 
-    case ClazMember0(method) => Seq(convertMethod(method))
-    case ClazMember1(constructor) => Seq(convertConstructor(constructor))
+    case ClazMember0(constructor) => Seq(convertConstructor(constructor))
+    case ClazMember1(method) => Seq(convertMethod(method))
     case ClazMember2(field) => convertField(field)
 
     case KernelMember0(field) => convertKernelField(field)
