@@ -63,9 +63,6 @@ object CommandLineTesting {
     "execute test suites from the command line. " +
     "Each test suite is a folder which is scanned for valid test inputs")
 
-  private val saveDir = new StringSetting(null)
-  private val saveDirOption = saveDir.getAssign("save intermediate files to given directory")
-
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
 
@@ -93,9 +90,6 @@ object CommandLineTesting {
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
   private lazy val z3 = Configuration.getZ3
-  private lazy val boogie = Configuration.getBoogie
-  private lazy val chalice = Configuration.getChalice
-  private lazy val dafny = Configuration.getDafny
   private lazy val carbon = Configuration.getCarbon
   private lazy val silicon = Configuration.getSilicon
   private lazy val vercors = Configuration.getThisVerCors(null)
@@ -110,25 +104,6 @@ object CommandLineTesting {
     )),
     "!z3-unsat" -> Task(z3.withArgs("-smt2", selfTest("test-unsat.smt")), Seq(
       MustSay("unsat"),
-    )),
-    "!boogie-pass" -> Task(boogie.withArgs(selfTest("test-pass.bpl")), Seq(
-      MustSay("Boogie program verifier finished with 1 verified, 0 errors")
-    )),
-    "!boogie-fail" -> Task(boogie.withArgs(selfTest("test-fail.bpl")), Seq(
-      MustSay("Boogie program verifier finished with 0 verified, 1 error")
-    )),
-    "!chalice-pass" -> Task(chalice.withArgs(selfTest("test-pass.chalice")), Seq(
-      MustSay("Boogie program verifier finished with 3 verified, 0 errors")
-    )),
-    "!chalice-fail" -> Task(chalice.withArgs(selfTest("test-fail.chalice")), Seq(
-      MustSay("Boogie program verifier finished with 2 verified, 1 error")
-    )),
-    "!dafny-pass" -> Task(dafny.withArgs("/compile:0", selfTest("test-pass.dfy")), Seq(
-      MustSay("Dafny program verifier finished with 2 verified, 0 errors")
-    )),
-    "!dafny-fail" -> Task(dafny.withArgs("/compile:0", selfTest("test-fail.dfy")), Seq(
-      MustSay("Dafny program verifier finished with 1 verified, 1 error"),
-      ExpectVerdict(Verdict.Error)
     )),
     "!carbon-pass" -> Task(carbon.withArgs(selfTest("test-pass.sil")), Seq(
       MustSay("No errors found.")
@@ -151,7 +126,6 @@ object CommandLineTesting {
     parser.add(backendFilterOption, "tool")
     parser.add(testDirsOption, "test")
     parser.add(builtinTestOption, "test-builtin")
-    parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
     parser.add(enableCoverageOption, "enable-test-coverage")
     parser.add(tempCoverageReportPathOption, "coverage-temp-dir")

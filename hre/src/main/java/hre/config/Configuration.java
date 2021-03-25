@@ -185,14 +185,6 @@ public class Configuration {
         return getZ3Path();
     }
 
-    public static File getDafnyZ3Path() {
-        return getZ3Path();
-    }
-
-    public static File getChaliceZ3Path() {
-        return getZ3Path();
-    }
-
     public static File getBoogiePath() {
         File base = getFileOrAbort("/deps/boogie/1.0.0.0-carbon");
 
@@ -206,26 +198,6 @@ public class Configuration {
             default:
                 Abort("Could not find boogie for unknown architecture");
                 return null;
-        }
-    }
-
-    public static File getChalicePath() {
-        File base = getFileOrAbort("/deps/chalice/2013-12-17/");
-
-        if(getOS() == OS.WINDOWS) {
-            return join(base, "windows", "bin");
-        } else {
-            return join(base, "unix", "bin");
-        }
-    }
-
-    public static File getDafnyPath() {
-        File base = getFileOrAbort("/deps/dafny/1.9.6/");
-
-        if (getOS() == OS.WINDOWS) {
-            return join(base, "windows");
-        } else {
-            return join(base, "unix");
         }
     }
 
@@ -260,23 +232,6 @@ public class Configuration {
         env.setEnvironmentVar("BOOGIE_Z3_EXE", getBoogieZ3Path().getAbsolutePath());
         env.addPath(getBoogiePath().getAbsolutePath());
         env.addPath(getBoogieZ3Path().getAbsolutePath());
-        return env;
-    }
-
-    public static MessageProcessEnvironment getDafny() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("dafny");
-        env.setTemporaryWorkingDirectory();
-        env.addPath(getDafnyPath().getAbsolutePath());
-        env.addPath(getDafnyZ3Path().getParentFile().getAbsolutePath());
-        return env;
-    }
-
-    public static MessageProcessEnvironment getChalice() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("chalice");
-        env.setTemporaryWorkingDirectory();
-        env.addPath(getChalicePath().getAbsolutePath());
-        env.addPath(getBoogiePath().getAbsolutePath());
-        env.addPath(getChaliceZ3Path().getAbsolutePath());
         return env;
     }
 
