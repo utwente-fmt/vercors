@@ -33,8 +33,14 @@ object ExcludeSuite extends CaseFilter {
 
   override def addOptions(parser: OptionParser): Unit = parser.add(option, "exclude-suite")
 
-  override def isPossible(kees: Case): Boolean =
+  override def isPossible(kees: Case): Boolean = {
+    Output(s"------")
+    Output(s"Files: ${kees.files}")
+    Output(s"Suites: ${kees.suites}")
+    Output(s"excludes.asScala.forall(!kees.suites.contains(_)) == ${excludes.asScala.forall(!kees.suites.contains(_))}")
+
     !option.used() || excludes.asScala.forall(!kees.suites.contains(_))
+  }
 }
 
 object Language extends CaseFilter {
@@ -200,8 +206,6 @@ object CommandLineTesting {
           val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args.toSeq: _*)
 
           result += (s"$name-$tool" -> Task(vercorsProcess, conditions.toSeq))
-
-          Output(s"$name-$tool suites: ${kees.suites}")
         }
       }
     }
