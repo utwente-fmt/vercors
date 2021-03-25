@@ -125,8 +125,10 @@ jobs:
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
-      - run: choco install llvm
-        name: Install clang
+      - name: Install clang
+        run: |
+          choco install llvm
+          refreshenv
       - name: Download VerCors binary
         uses: actions/download-artifact@v2
         with:
