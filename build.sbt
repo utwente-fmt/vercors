@@ -108,7 +108,7 @@ lazy val vercors: Project = (project in file("."))
     javaOptions in (Compile, run) += "-J-Xss128M",
     /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
     separated by "--". We instead want to accept only VerCors arguments, so we force "--" into the arguments. */
-    javaOptions in Universal ++= Seq("-J-Xss128M", "--"),
+    javaOptions in Universal ++= Seq("-J-Xss128M"),
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
