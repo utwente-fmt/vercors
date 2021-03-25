@@ -103,7 +103,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     }
     if(roles.length == 0)
       Fail("Session Fail: Main constructor is mandatory and  must assign at least one role!")
-    roles.foreach { r => r match {
+    roles.foreach {
       case a: AssignmentStatement => a.location match {
         case n: NameExpression => SessionStructureCheck.getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
           case None => Fail("Session Fail: can only assign to role fields of class 'Main' in constructor")
@@ -115,10 +115,9 @@ class SessionStructureCheck(source : ProgramUnit) {
             case _ => Fail("Session Fail: No MethodInvokation: constructor of 'Main' must initialize roles with a call to a role constructor")
           }
         }
-        case _ => Fail("Session Fail: Can only assign roles, statement %s is not allowed!",a)
+        case _ => Fail("Session Fail: Can only assign roles, statement %s is not allowed!", a)
       }
       case _ => Fail("Session Fail: constructor of 'Main' can only assign role classes")
-    }
     }
     roleObjects = getRoleObjects()
     if(getRoleNames().toSet != mainClass.fields().map(_.name).toSet) {
@@ -188,7 +187,7 @@ class SessionStructureCheck(source : ProgramUnit) {
       case a: AssignmentStatement =>
         a.location match {
           case n : NameExpression => if(roleNames.contains(n.name)) Fail("Session Fail: cannot assign role anywhere else then in Main constructor")
-          case _ => //fine, continue check
+          case _ => //fine, continue check of a.location below
         }
         getNameFromNode(a.location).map(_.name) match {
           case Some(n) => if (!roleNames.contains(n)) Fail("Session Fail: the assignment %s has a non-role name in its location.",a.toString)
@@ -201,6 +200,11 @@ class SessionStructureCheck(source : ProgramUnit) {
         val mi = getMethodInvocationsFromExpression(a.expression)
         if(mi.exists(m => m.method == Method.JavaConstructor && (m.dispatch.getName == mainClassName || roleClassNames.contains(m.dispatch.getName))))
           Fail("Session Fail: Cannot assign a new Main or role object in statement %s! %s", a.toString,a.getOrigin)
+        mi.foreach(mii => getNameFromNode(mii.`object`)match {
+          case Some(n) => if(!roleNames.contains(n.name)) Fail("Session Fail: can only call role methods in assignment expression %s!", a.expression.toString)
+          case None => if(mii.definition.kind != Method.Kind.Pure)
+                        Fail("Session Fail: cannot call non-pure methods from Main in assignment expression %s!", a.expression.toString)
+        })
       case i: IfStatement => {
         if (i.getCount == 1 || i.getCount == 2) {
           if (checkSessionCondition(i.getGuard(0), roleNames)) {
