@@ -129,7 +129,10 @@ jobs:
         run: |
           choco install llvm
           refreshenv
+      - name: Update PATH
+        run: |
           echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
+          echo "C:\Program Files\LLVM\bin" >> $GITHUB_PATH
       - run: clang --version
       - name: Download VerCors binary
         uses: actions/download-artifact@v2
@@ -163,7 +166,7 @@ jobs:
       # By stripping the first component of the path when extracting this directory this is not a problem
       # --directory extracts to a given directory, ensuring the current directory is not cluttered.
       - run: tar --strip-components=1 --directory vercorszip -xf vercors.zip
-      - run: vercorszip/bin/vercors --test=examples\basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
+      - run: vercorszip/bin/vercors --test=examples/basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
 
   sonar:
     needs:
