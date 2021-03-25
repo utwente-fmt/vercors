@@ -37,6 +37,7 @@ object ExcludeSuite extends CaseFilter {
     Output(s"------")
     Output(s"Files: ${kees.files}")
     Output(s"Suites: ${kees.suites}")
+    Output(s"Excludes: ${excludes.asScala}")
     Output(s"excludes.asScala.forall(!kees.suites.contains(_)) == ${excludes.asScala.forall(!kees.suites.contains(_))}")
 
     !option.used() || excludes.asScala.forall(!kees.suites.contains(_))
