@@ -75,9 +75,7 @@ public class StringListSetting implements Iterable<String> {
         override=true;
         list.clear();
       }
-      Output("Splitting: %s", arg);
       for(String item:arg.split(",")){
-        Output("Addding: %s", item);
         list.add(item);
       }
     }

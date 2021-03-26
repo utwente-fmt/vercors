@@ -18,19 +18,22 @@ jobs:
       # running when for example new commits are pushed.
       - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
-      - name: Cache SBT dependencies modules
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.sbt
-            ~/.ivy2/cache
-            ~/.cache/coursier
-          key: ${{ runner.os }}-build-vercors-sbt-jdk11
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
       # Currently sbt and fakeroot are installed by default
-      - run: sbt debian:packageBin universal:packageBin
+      - name: Coursier cache
+        uses: coursier/cache-action@v5
+      - name: Build and package
+        # From the sbt manual, clean up any leftover intermediate files
+        # https://www.scala-sbt.org/1.x/docs/GitHub-Actions-with-sbt.html
+        run: |
+          sbt debian:packageBin universal:packageBin
+          rm -rf "$HOME/.ivy2/local" || true
+          find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
+          find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
+          find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
+          find $HOME/.sbt                              -name "*.lock"               -delete || true
       - name: Archive VerCors .deb
         uses: actions/upload-artifact@v2
         with:
@@ -48,6 +51,7 @@ jobs:
             target/vercors.zip
       - name: "Zip VerCors class files"
         # We skip the parsers subproject because sonar doesn't scan it, it's only generated code anyway
+        # And we zip them because this speeds up upload massively because only 1 file has to be uploaded instead of 1000
         run: "find . -path ./parsers -prune -false -o -name '*.class' | zip -@ classfiles.zip"
       - name: Archive VerCors class files
         uses: actions/upload-artifact@v2
@@ -147,7 +151,10 @@ jobs:
       # By stripping the first component of the path when extracting this directory this is not a problem
       # --directory extracts to a given directory, ensuring the current directory is not cluttered.
       - run: tar --strip-components=1 --directory vercorszip -xf vercors.zip
-      # Note how arguments with commas are quoted, as commas have meaning as array separators in powershell, so they must be quoted.
+      # Note how arguments with commas are quoted triply:
+      # - One layer gets peeled of by the .bat script
+      # - Another layer gets peeled of by powershell
+      # This prevents the commas from being interpreted as array separators, a marvelous powershell feature.
       - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon """--exclude-suite=slow,medium,problem-fail,skip-travis""" --progress --actions-test-output
 
   test-mac:

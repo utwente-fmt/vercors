@@ -34,12 +34,6 @@ object ExcludeSuite extends CaseFilter {
   override def addOptions(parser: OptionParser): Unit = parser.add(option, "exclude-suite")
 
   override def isPossible(kees: Case): Boolean = {
-    Output(s"------")
-    Output(s"Files: ${kees.files}")
-    Output(s"Suites: ${kees.suites}")
-    Output(s"Excludes: ${excludes.asScala}")
-    Output(s"excludes.asScala.forall(!kees.suites.contains(_)) == ${excludes.asScala.forall(!kees.suites.contains(_))}")
-
     !option.used() || excludes.asScala.forall(!kees.suites.contains(_))
   }
 }
