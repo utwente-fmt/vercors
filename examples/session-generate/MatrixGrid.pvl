@@ -56,7 +56,7 @@ class Grid {
 		turn = t;
 	}
 
-	context Perm(move,1\2) ** move != null ** Perm(move.i, read) ** Perm(move.j, read) ** Perm(move.token, read);
+	context Perm(move,1\2) ** Perm(move.i, read) ** Perm(move.j, read) ** Perm(move.token, read);
 	context Perm(grid,read) ** grid != null;
 	context 0 <= move.i && move.i <= 2;
 	context 0 <= move.j && move.j <= 2;

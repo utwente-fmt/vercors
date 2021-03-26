@@ -42,7 +42,7 @@ class Grid {
 	context Perm(c00, 1) ** Perm(c01, 1) ** Perm(c02, 1) ** 
 			Perm(c10, 1) ** Perm(c11, 1) ** Perm(c12, 1) ** 
 			Perm(c20, 1) ** Perm(c21, 1) ** Perm(c22, 1);
-	context Perm(move,1\2) ** move != null ** Perm(move.i, read) ** Perm(move.j, read) ** Perm(move.token, read);
+	context Perm(move,1\2) ** Perm(move.i, read) ** Perm(move.j, read) ** Perm(move.token, read);
 	context 0 <= move.i && move.i <= 2;
 	context 0 <= move.j && move.j <= 2;
 	requires move.token == 0 || move.token == 1;
