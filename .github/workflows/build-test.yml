@@ -148,7 +148,7 @@ jobs:
       # --directory extracts to a given directory, ensuring the current directory is not cluttered.
       - run: tar --strip-components=1 --directory vercorszip -xf vercors.zip
       # Note how arguments with commas are quoted, as commas have meaning as array separators in powershell, so they must be quoted.
-      - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon "--exclude-suite=slow,medium,problem-fail,skip-travis" --progress --actions-test-output
+      - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon """--exclude-suite=slow,medium,problem-fail,skip-travis""" --progress --actions-test-output
 
   test-mac:
     runs-on: macos-latest
