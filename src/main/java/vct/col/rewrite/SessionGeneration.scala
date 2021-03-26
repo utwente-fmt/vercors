@@ -14,16 +14,6 @@ import vct.col.util.SessionUtil.{barrierFieldName, chanRead, chanWrite, getBarri
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
-case object BarrierWait extends LocalAction with GlobalAction
-case object ErrorAction extends LocalAction with GlobalAction
-final case class LocalAssign(assign : AssignmentStatement) extends LocalAction with GlobalAction
-sealed trait GlobalAction
-//final case class CommunicationAction(receiverWithField : Dereference, sender : NameExpression, sendExpression : ASTNode) extends GlobalAction
-sealed trait LocalAction
-final case class ReadAction(receiverWithField : ASTNode, sender : NameExpression) extends LocalAction
-final case class WriteAction(receiver : NameExpression, sender : String, sendExpression : ASTNode) extends LocalAction
-case object Tau extends LocalAction
-
 object SessionGeneration {
   def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
     val expRole = getNamesFromExpression(a.expression)

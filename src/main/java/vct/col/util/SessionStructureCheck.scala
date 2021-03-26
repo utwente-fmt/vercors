@@ -28,7 +28,7 @@ class SessionStructureCheck(source : ProgramUnit) {
   private var roleClassNames : Iterable[String] = null
   private var mainMethods : Iterable[Method] = null
   private var mainMethodNames : Iterable[String] = null
-  private var pureMainMethodNames : Iterable[String] = null
+  private var nonPlainMainMethodNames : Iterable[String] = null
   private var otherClasses : Iterable[ASTClass] = null
 
   def check() : Unit = {
@@ -41,7 +41,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     roleClassNames = roleClasses.map(_.name)
     mainMethods = getMainMethodsNonPureNonResourcePredicate()
     mainMethodNames = mainMethods.map(_.name)
-    pureMainMethodNames = mainClass.methods().filter(_.kind == Method.Kind.Pure).map(_.name)
+    nonPlainMainMethodNames = mainClass.methods().filter(_.kind == Method.Kind.Pure || _.kind == Method.Kind.Predicate).map(_.name)
     checkMainMethodsAllowedSyntax(mainMethods)
     checkMainMethodsRecursion(source)
     checkRoleFieldsTypes(source)
@@ -178,6 +178,10 @@ class SessionStructureCheck(source : ProgramUnit) {
   }
 
   private def checkMainMethodsAllowedSyntax(methods : Iterable[Method]) : Unit = {
+    methods.foreach(m => m.getBody match {
+      case b : BlockStatement => //fine
+      case _ => Fail("Session Fail: a Plain method in class Main must have a BlockStatement body!")
+    })
     methods.foreach(m => checkMainStatement(m.getBody))
   }
 
@@ -230,8 +234,8 @@ class SessionStructureCheck(source : ProgramUnit) {
           Fail("Session Fail: cannot call constructor '%s'!",mainClassName)
         else if(m.method == Method.JavaConstructor && roleClassNames.contains(m.dispatch.getName))
             Fail("Session Fail: cannot call role constructor '%s'",m.dispatch.getName)
-        else if(pureMainMethodNames.contains(m.method))
-          Fail("Session Fail: cannot have a method call statement for pure method '%s'! %s",m.method,m.getOrigin)
+        else if(nonPlainMainMethodNames.contains(m.method))
+          Fail("Session Fail: cannot have a method call statement for pure/predicate method '%s'! %s",m.method,m.getOrigin)
         else if(!mainMethodNames.contains(m.method)) { //it is a role or other class method
           if(m.`object` == null) {
             Fail("Session Fail: method call not allowed or object of method call '%s' is not given! %s",m.method,m.getOrigin)

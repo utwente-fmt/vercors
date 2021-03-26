@@ -103,25 +103,14 @@ object SessionUtil {
     }
   }
 
-}
-
-  class SessionChannel(val channel: String, val isWrite : Boolean) {
-
-    override def equals(obj: Any): Boolean = obj match {
-      case other : SessionChannel => channel == other.channel && isWrite == other.isWrite
-      case _ => false
+  def mapInsert[K,V](f : (V, V) => V, key : K, value : V, map : Map[K,V]) : Map[K,V] =
+    map get key match {
+      case None => map + (key -> value)
+      case Some(v2) => map + (key -> f(value,v2))
     }
 
-    override def toString: String = channel + " " + (if(isWrite) "Write" else "Read")
+  def mapInsertSetValue[K,V](key : K, value : V, map : Map[K,Set[V]]) : Map[K,Set[V]] =
+    mapInsert((a, b) => a ++ b,key,Set(value),map)
 
-    def getArgChanName() : String = getArgName(channel)
-
-    def getArgChan() : SessionChannel = new SessionChannel(getArgChanName(), isWrite)
-
-    def getChanFieldPerm(create : ASTFactory[_]) : ASTNode = {
-      val arg1 = create.dereference(create.name(NameExpressionKind.Unresolved,null,channel), if(isWrite) "sent" else "recvd")
-      create.expression(StandardOperator.Perm,arg1,getHalfFraction(create))
-    }
-
-    def getHalfFraction(create : ASTFactory[_]) = create.expression(StandardOperator.Div,create.constant(1),create.constant(2))
 }
+
