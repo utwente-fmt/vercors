@@ -26,7 +26,7 @@ jobs:
         uses: coursier/cache-action@v5
       - name: Build
         run: |
-          sbt debian:packagebin
+          sbt debian:packageBin
           sudo dpkg -i target/*.deb
       - name: Run slow and medium test suites
         run: |
