@@ -25,10 +25,12 @@ jobs:
       - name: Coursier cache
         uses: coursier/cache-action@v5
       - name: Build
-        run: sbt compile
+        run: |
+          sbt debian:packagebin
+          sudo dpkg -i target/*.deb
       - name: Run slow and medium test suites
         run: |
-          ./bin/vct --test=examples --test-workers=2 --tool carbon --tool silicon --include-suite=slow,medium --exclude-suite=problem-fail,skip-travis --progress --actions-test-output
+          vercors --test=examples --test-workers=2 --tool carbon --tool silicon --include-suite=slow,medium --exclude-suite=problem-fail,skip-travis --progress --actions-test-output
       - name: Clean up temporary build files
         # From the sbt manual, clean up any leftover intermediate files
         # https://www.scala-sbt.org/1.x/docs/GitHub-Actions-with-sbt.html
