@@ -25,6 +25,8 @@ jobs:
       - name: Coursier cache
         uses: coursier/cache-action@v5
       - name: Build
+        run: sbt compile
+      - name: Run slow and medium test suites
         run: |
           ./bin/vct --test=examples --test-workers=2 --tool carbon --tool silicon --include-suite=slow,medium --exclude-suite=problem-fail,skip-travis --progress --actions-test-output
       - name: Clean up temporary build files
