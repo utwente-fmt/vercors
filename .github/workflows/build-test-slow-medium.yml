@@ -1,0 +1,70 @@
+name: Vercors build and test workflow for the slow and medium test suites
+
+on: 
+  push:
+    branches:
+      - '**'
+    tags-ignore: 
+      - dev-prerelease
+  pull_request:
+    branches:
+      - '**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: Default
+    steps:
+      # This should automatically cancel any previous workflows that are still
+      # running when for example new commits are pushed.
+      - uses: technote-space/auto-cancel-redundant-workflow@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+      # Currently sbt and fakeroot are installed by default
+      - name: Coursier cache
+        uses: coursier/cache-action@v5
+      - name: Build
+        run: |
+          ./bin/vct --test=examples --test-workers=2 --tool carbon --tool silicon --include-suite=slow,medium --exclude-suite=problem-fail,skip-travis --progress --actions-test-output
+      - name: Clean up temporary build files
+        # From the sbt manual, clean up any leftover intermediate files
+        # https://www.scala-sbt.org/1.x/docs/GitHub-Actions-with-sbt.html
+        run: |
+          rm -rf "$HOME/.ivy2/local" || true
+          find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
+          find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
+          find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
+          find $HOME/.sbt                              -name "*.lock"               -delete || true
+#
+#  test-linux:
+#    needs: build
+#    runs-on: ubuntu-latest
+#    strategy:
+#      matrix:
+#        testID: [0, 1, 2, 3, 4]
+#    env:
+#      maxTestID: 5
+#    steps:
+#      # Need to check out the repo for the "examples" directory
+#      - uses: actions/checkout@v2
+#      - uses: actions/setup-java@v1
+#        with:
+#          java-version: "11"
+#          java-package: jre
+#      - name: Download VerCors binary
+#        uses: actions/download-artifact@v2
+#        with:
+#          name: vercors-debian-package
+#      - run: "sudo dpkg -i *.deb"
+#      - run: vercors --silicon examples/manual/fibonacci.pvl
+#      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
+#      - run: ls jacoco*
+#      - name: Archive Java Code Coverage (jacoco_n_m.xml)
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: vercors-jacoco-xml
+#          retention-days: 1
+#          path: |
+#            jacoco*.xml
+#
