@@ -9,7 +9,7 @@ import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, ParallelRegion}
 import vct.col.ast.stmt.decl.TilingConfig._
-import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit, Tiling}
+import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, Method, ProgramUnit, Tiling}
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner, RecursiveVisitor}
 
 import scala.collection.JavaConverters._
@@ -17,7 +17,6 @@ import scala.collection.mutable
 import scala.collection.mutable.Seq
 
 case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter(source) {
-
 
   case class FindOlds(override val source: ProgramUnit, var olds: mutable.Set[OperatorExpression] = mutable.Set.empty[OperatorExpression]) extends RecursiveVisitor[ASTNode](source) {
     override def visit(e: OperatorExpression): Unit = e.operator match {
@@ -29,11 +28,13 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
 
 
   val newIdxFuncName = "vct_tile_newIdx"
+  val lowFuncName = "vct_tile_low"
+  val uppFuncName = "vct_tile_upp"
   val ceilingFuncName = "vct_tile_ceiling"
 
-  var mapTidto: Option[(NameExpression, MethodInvokation)] = None
+  var mapTidto: Option[(NameExpression, ASTNode)] = None
 
-  def addCeilingFunc: Unit = {
+  def addCeilingFunc(): Unit = {
     if (currentTargetClass.find(ceilingFuncName, null, null) != null) {
       return
     }
@@ -56,7 +57,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     currentTargetClass.add_static(func)
   }
 
-  def addNewIdxFunc: Unit = {
+  def addNewIdxFunc(): Unit = {
     if (currentTargetClass.find(newIdxFuncName, null, null) != null) {
       return
     }
@@ -75,6 +76,38 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
       )
     )
     currentTargetClass.add_static(func)
+  }
+
+  def addLowerAndUppFunc(): Unit = {
+    if (currentTargetClass.find(lowFuncName, null, null) == null) {
+      val lowerfunc = create.function_decl(
+        create.primitive_type(PrimitiveSort.Integer),
+        null,
+        lowFuncName,
+        Seq(
+          new DeclarationStatement("a", create.primitive_type(PrimitiveSort.Integer)),
+          new DeclarationStatement("b", create.primitive_type(PrimitiveSort.Integer)),
+        ).asJava,
+        create.expression(Mult, create.local_name("a"), create.local_name("b")
+        )
+      )
+      currentTargetClass.add_static(lowerfunc)
+    }
+    if (currentTargetClass.find(uppFuncName, null, null) == null) {
+      val upperfunc = create.function_decl(
+        create.primitive_type(PrimitiveSort.Integer),
+        null,
+        uppFuncName,
+        Seq(
+          new DeclarationStatement("a", create.primitive_type(PrimitiveSort.Integer)),
+          new DeclarationStatement("b", create.primitive_type(PrimitiveSort.Integer)),
+        ).asJava,
+        create.expression(Mult, plus(create.local_name("a"), constant(1)), create.local_name("b")
+        )
+      )
+      currentTargetClass.add_static(upperfunc)
+    }
+
   }
 
   override def visit(m: Method): Unit = {
@@ -99,11 +132,282 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     addCeilingFunc
   }
 
-
   def interTiling(m: Method, opt: Tiling): Method = {
-    Fail("TODO inter tiling optimization")
-    //TODO OS add the lower/upper functions
-    null
+
+    //    super.visit(m)
+    //    check m.getBody.isInstanceOf[BlockStatement]
+    //    check m.getBody.asInstanceOf[BlockStatement].getStatement(0).isInstanceOf[ParallelRegion]
+    val region = m.getBody.asInstanceOf[BlockStatement].getStatement(0).asInstanceOf[ParallelRegion]
+    //    check region.blocks.size == 1
+    val parBlock = region.blocks.head
+    //    check parBlock.iters.size == 1
+    val tidDecl = parBlock.iters.head
+    val tid = tidDecl.name
+    //    check tidDecl.init.isInstanceOf[OperatorExpression]
+    //    check tidDecl.init.asInstanceOf[OperatorExpression].op == RangeSeq
+    val upperBoundNode = tidDecl.init.get.asInstanceOf[OperatorExpression].second
+
+    val upperBound = upperBoundNode match {
+      case c: ConstantExpression =>
+        c.value.asInstanceOf[IntegerValue].value
+      case _ =>
+        val possibleUpperBounds = ASTUtils.conjuncts(create.expression(And, m.getContract.invariant, m.getContract.pre_condition), Star, And).asScala
+          .map {
+            case o: OperatorExpression =>
+              o.operator match {
+                case EQ if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                case EQ if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                case GTE if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                case GT if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
+                case LTE if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                case LT if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
+                case _ => None
+              }
+            case _ => None
+          }
+          .filter(_.isDefined)
+        if (possibleUpperBounds.isEmpty) {
+          Fail("Could not determine that %s is less than the upperbound for the thread id %s. " +
+            "Please specify in the contract of the method that the tile size %s is less than the upperbound for %s",
+            opt.tileSize, tid, opt.tileSize, tid)
+        }
+
+        possibleUpperBounds.map(_.get).max
+    }
+
+    if (upperBound <= opt.tileSizeInt) {
+      Fail("The tile size %s must be less than the upperbound %s of %s", opt.tileSize, constant(upperBound), tid)
+    }
+
+    addLowerAndUppFunc()
+
+    val parBody = parBlock.block
+    val parContract = parBlock.contract
+    val parTid = parBlock.iters.head
+    val parLabel = parBlock.label
+    val forallVarName = "i_134"
+
+    val itervar = "vct_tile_counter"
+
+    mapTidto = Some((create.unresolved_name(tid), create.local_name(forallVarName)))
+
+    val cb = new ContractBuilder
+    val cbLoop = new ContractBuilder
+    ASTUtils.conjuncts(parContract.pre_condition, And, Star).forEach(pre =>
+      if (NameScanner.accesses(pre).contains(tid)) {
+        cb.requires(tileOnNodeInter(opt, tid, upperBoundNode, forallVarName, pre))
+        if (pre.getType != null && pre.getType.isPrimitive(PrimitiveSort.Resource)) {
+          cbLoop.appendInvariant(tileOnNodeInter(opt, tid, upperBoundNode, forallVarName, pre))
+        } else {
+          cbLoop.appendInvariant(tileOnNodeInterWithLow(opt, tid, upperBoundNode, forallVarName, pre, name(itervar)))
+        }
+      } else {
+        cb.requires(copy_rw.rewrite(pre))
+        if (pre.getType != null && pre.getType.isPrimitive(PrimitiveSort.Resource)) {
+          cb.appendInvariant(copy_rw.rewrite(pre))
+        }
+      }
+    )
+
+    ASTUtils.conjuncts(parContract.post_condition, And, Star).forEach(post => {
+      if (NameScanner.accesses(post).contains(tid)) {
+        val findOlds = FindOlds(null)
+        post.accept(findOlds)
+        val olds = findOlds.olds
+        olds.foreach(old => {
+          val newPost = eq(copy_rw.rewrite(old), old.first)
+          cbLoop.appendInvariant(
+            tileOnNodeInterWithLow(opt, tid, upperBoundNode, forallVarName, newPost, name(itervar))
+          )
+        })
+      }
+
+      if (NameScanner.accesses(post).contains(tid)) {
+        cb.ensures(tileOnNodeInter(opt, tid, upperBoundNode, forallVarName, post))
+        if (post.getType != null && !post.getType.isPrimitive(PrimitiveSort.Resource)) {
+          cbLoop.appendInvariant(tileOnNodeInterWithUppWithoutAdd(opt, tid, upperBoundNode, forallVarName, post, name(itervar)))
+        }
+      } else {
+        cb.ensures(copy_rw.rewrite(post))
+      }
+    }
+    )
+    ASTUtils.conjuncts(parContract.invariant, And, Star).forEach(pre =>
+      cb.appendInvariant(copy_rw.rewrite(pre))
+    )
+    ASTUtils.conjuncts(parContract.kernelInvariant, And, Star).forEach(pre =>
+      cb.appendKernelInvariant(copy_rw.rewrite(pre))
+    )
+
+    cbLoop.prependInvariant(
+      and(
+        gte(name(itervar), create.invokation(null, null, lowFuncName, create.local_name(tid), opt.tileSize)),
+        and(
+          lte(name(itervar), create.invokation(null, null, uppFuncName, create.local_name(tid), opt.tileSize)),
+          lte(name(itervar), upperBoundNode)
+        )
+      )
+    )
+
+    val newParContract = cb.getContract(true)
+
+    val newParBody = create.block()
+
+    mapTidto = Some((create.unresolved_name(tid), create.local_name(itervar)))
+
+    newParBody.add(create.special(ASTSpecial.Kind.Assert, lte(name(tid), floordiv(upperBoundNode, opt.tileSize))))
+    newParBody.add(create.for_loop(
+      create.field_decl(itervar, create.primitive_type(PrimitiveSort.Integer), create.invokation(null, null, lowFuncName, create.local_name(tid), opt.tileSize)),
+      and(
+        less(name(itervar), create.invokation(null, null, uppFuncName, create.local_name(tid), opt.tileSize)),
+        less(name(itervar), copy_rw.rewrite(upperBoundNode))
+      ),
+      create.assignment(name(itervar), plus(name(itervar), constant(1))),
+      rewrite(parBody),
+      null,
+      cbLoop.getContract(false),
+    ))
+
+
+    val newParTid = List(
+      DeclarationStatement(
+        parTid.name,
+        rewrite(parTid.`type`),
+        Some(create.expression(RangeSeq, constant(0), invoke(null, ceilingFuncName, upperBoundNode, opt.tileSize))))
+    )
+    val newParLabel = parBlock.label
+
+    val newParBlock = create.parallel_block(newParLabel, newParContract, newParTid.toArray, newParBody)
+    //TODO OS the region contract has to be rewritten according
+    //  to the rules for rewriting the method contract.
+    val newParRegion = create.region(rewrite(region.contract), newParBlock)
+
+    val cbMethod = new ContractBuilder()
+    cbMethod.appendInvariant(copy_rw.rewrite(m.getContract().invariant))
+    cbMethod.appendKernelInvariant(copy_rw.rewrite(m.getContract().kernelInvariant))
+
+    ASTUtils.conjuncts(m.getContract().pre_condition, And, Star).forEach {
+      case bindexpr: BindingExpression
+        if bindexpr.binder == Binder.Star || bindexpr.binder == Binder.Forall =>
+
+        findBounds(bindexpr.select, name(bindexpr.decls.head.name)) match {
+          case Some(bounds) =>
+            val j = bindexpr.decls.head.name + "_1"
+            val i = "i_0"
+
+
+            //
+            //
+
+            val newSelect = and(
+              and(
+                gte(create.local_name(j), create.invokation(null, null, lowFuncName, create.local_name(i), opt.tileSize)),
+                less(create.local_name(j), create.invokation(null, null, uppFuncName, create.local_name(i), opt.tileSize))
+              ),
+              less(create.local_name(j), bounds._2)
+            )
+
+            val newMain = ASTUtils.replace(create.local_name(bindexpr.decls.head.name), create.local_name(j), bindexpr.main)
+            //TODO OS make a rewrite method for Arrays
+            //            val newTriggers = bindexpr match {
+            //              case null => null
+            //              case _ => bindexpr.triggers.map(n => n.map(n1 => copy_rw.rewrite(n1)).toArray).toArray
+            //            }
+            val innerForall = create.binder(bindexpr.binder,
+              copy_rw.rewrite(bindexpr.result_type),
+              Array(create.field_decl(j, copy_rw.rewrite(bindexpr.decls.head.`type`))),
+              Array.empty[Array[ASTNode]],
+              newSelect, // ASTNode selection,
+              newMain // ASTNode main
+            )
+
+
+            val outerLoop = create.binder(bindexpr.binder,
+              copy_rw.rewrite(bindexpr.result_type),
+              Array(create.field_decl(i, copy_rw.rewrite(bindexpr.decls.head.`type`))),
+              Array.empty[Array[ASTNode]],
+              and(
+                lte(constant(0), name(i)),
+                less(name(i), invoke(null, ceilingFuncName, bounds._2, opt.tileSize))
+              ),
+              innerForall
+            )
+
+            cbMethod.requires(outerLoop)
+          case None => cbMethod.requires(copy_rw.rewrite(bindexpr))
+        }
+      case pre =>
+        cbMethod.requires(copy_rw.rewrite(pre))
+    }
+
+    ASTUtils.conjuncts(m.getContract().post_condition, And, Star).forEach {
+      case bindexpr: BindingExpression
+        if bindexpr.binder == Binder.Star || bindexpr.binder == Binder.Forall =>
+
+        findBounds(bindexpr.select, name(bindexpr.decls.head.name)) match {
+          case Some(bounds) =>
+            val j = bindexpr.decls.head.name + "_1"
+            val i = "i_0"
+
+
+            //
+            //
+
+            val newSelect = and(
+              and(
+                gte(create.local_name(j), create.invokation(null, null, lowFuncName, create.local_name(i), opt.tileSize)),
+                less(create.local_name(j), create.invokation(null, null, uppFuncName, create.local_name(i), opt.tileSize))
+              ),
+              less(create.local_name(j), bounds._2)
+            )
+
+            val newMain = ASTUtils.replace(create.local_name(bindexpr.decls.head.name), create.local_name(j), bindexpr.main)
+            //TODO OS make a rewrite method for Arrays
+            //            val newTriggers = bindexpr match {
+            //              case null => null
+            //              case _ => bindexpr.triggers.map(n => n.map(n1 => copy_rw.rewrite(n1)).toArray).toArray
+            //            }
+            val innerForall = create.binder(bindexpr.binder,
+              copy_rw.rewrite(bindexpr.result_type),
+              Array(create.field_decl(j, copy_rw.rewrite(bindexpr.decls.head.`type`))),
+              Array.empty[Array[ASTNode]],
+              newSelect, // ASTNode selection,
+              newMain // ASTNode main
+            )
+
+
+            val outerLoop = create.binder(bindexpr.binder,
+              copy_rw.rewrite(bindexpr.result_type),
+              Array(create.field_decl(i, copy_rw.rewrite(bindexpr.decls.head.`type`))),
+              Array.empty[Array[ASTNode]],
+              and(
+                lte(constant(0), name(i)),
+                less(name(i), invoke(null, ceilingFuncName, bounds._2, opt.tileSize))
+              ),
+              innerForall
+            )
+
+            cbMethod.ensures(outerLoop)
+          case None => cbMethod.ensures(copy_rw.rewrite(bindexpr))
+        }
+      case post =>
+        cbMethod.ensures(copy_rw.rewrite(post))
+    }
+
+
+    create.method_decl(
+      copy_rw.rewrite(m.getReturnType),
+      cbMethod.getContract(),
+      m.getName,
+      copy_rw.rewrite(m.getArgs),
+      create.block(newParRegion)
+    )
   }
 
   def intraTiling(m: Method, opt: Tiling): Method = {
@@ -292,10 +596,10 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
             )
             val newMain = ASTUtils.replace(name(bindexpr.decls.head.name), invoke(null, newIdxFuncName, name(i), name(j), opt.tileSize), bindexpr.main)
             //TODO OS make a rewrite method for Arrays
-//            val newTriggers = bindexpr match {
-//              case null => null
-//              case _ => bindexpr.triggers.map(n => n.map(n1 => copy_rw.rewrite(n1)).toArray).toArray
-//            }
+            //            val newTriggers = bindexpr match {
+            //              case null => null
+            //              case _ => bindexpr.triggers.map(n => n.map(n1 => copy_rw.rewrite(n1)).toArray).toArray
+            //            }
             val innerForall = create.binder(bindexpr.binder,
               copy_rw.rewrite(bindexpr.result_type),
               Array(create.field_decl(j, copy_rw.rewrite(bindexpr.decls.head.`type`))),
@@ -372,7 +676,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
         cbMethod.ensures(copy_rw.rewrite(pre))
     }
 
-      create.method_decl(
+    create.method_decl(
       copy_rw.rewrite(m.getReturnType),
       //TO BE CHANGED
       cbMethod.getContract(),
@@ -413,7 +717,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     }
 
     if (lowerbounds.size > 1 || lowerbounds.isEmpty || upperbounds.size > 1 || upperbounds.isEmpty) {
-       return None
+      return None
     }
 
     // a is the lowerbound, b is the upperbound
@@ -435,7 +739,66 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
   }
 
   private def tileOnNode(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode): ASTNode = {
-    tileOnNodeWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node, constant(0),invoke (null, ceilingFuncName, copy_rw.rewrite(upperBoundNode), opt.tileSize))
+    tileOnNodeWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node, constant(0), invoke(null, ceilingFuncName, copy_rw.rewrite(upperBoundNode), opt.tileSize))
+  }
+
+  private def tileOnNodeInter(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode): ASTNode = {
+    tileOnNodeInterWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node,
+      create.invokation(null, null, lowFuncName, create.local_name(tid), opt.tileSize),
+      create.invokation(null, null, uppFuncName, create.local_name(tid), opt.tileSize)
+    )
+  }
+
+  private def tileOnNodeInterWithUpp(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, upperbound: ASTNode): ASTNode = {
+    tileOnNodeInterWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node,
+      create.invokation(null, null, lowFuncName, create.local_name(tid), opt.tileSize),
+      upperbound
+    )
+  }
+
+  private def tileOnNodeInterWithUppWithoutAdd(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, upperbound: ASTNode): ASTNode = {
+    tileOnNodeInterWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node,
+      create.invokation(null, null, lowFuncName, create.local_name(tid), opt.tileSize),
+      upperbound,
+      addUpperLimit = false
+    )
+  }
+
+  private def tileOnNodeInterWithLow(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, lowerbound: ASTNode): ASTNode = {
+    tileOnNodeInterWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node,
+      lowerbound,
+      create.invokation(null, null, uppFuncName, create.local_name(tid), opt.tileSize)
+    )
+  }
+
+  private def tileOnNodeInterWithLowAndUpp(
+                                            opt: Tiling,
+                                            tid: String,
+                                            upperBoundNode: ASTNode,
+                                            forallVarName: String,
+                                            node: ASTNode,
+                                            lowerBound: ASTNode,
+                                            upperBound: ASTNode,
+                                            addUpperLimit: Boolean = true
+                                          ): ASTNode = {
+    val uppBoundForallVar = if (addUpperLimit)
+      and(
+        less(name(forallVarName), upperBound),
+        less(create.local_name(forallVarName), copy_rw.rewrite(upperBoundNode))
+      ) else
+      less(name(forallVarName), upperBound)
+
+    create.starall(
+      and(
+        gte(name(forallVarName), lowerBound),
+        and(
+          less(name(forallVarName), upperBound),
+          uppBoundForallVar
+        )
+      ),
+      rewrite(node),
+      create.field_decl(forallVarName, create.primitive_type(PrimitiveSort.Integer)),
+    )
   }
 
 
@@ -455,6 +818,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
       create.field_decl(forallVarName, create.primitive_type(PrimitiveSort.Integer)),
     )
   }
+
 
   override def visit(e: NameExpression): Unit = {
     if (mapTidto.isEmpty) {

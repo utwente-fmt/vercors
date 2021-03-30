@@ -1,0 +1,25 @@
+class dataRedistOrig
+{
+
+  gpuopt tile inter 6;
+  context_everywhere a != null && b != null && c != null;
+  context_everywhere a.length == b.length && b.length == c.length;
+  context_everywhere a.length/2 == 8;
+  context (\forall* int j; 0 <= j && j < a.length; Perm(a[j], 1));
+  context (\forall* int i; i >= 0 && i < a.length; Perm(b[i], 1));
+  context (\forall* int i; i >= 0 && i < a.length; Perm(c[i], 1\2));
+  ensures (\forall int i; i >= 0 && i < a.length/2; a[i] == \old(b[i]) + c[i]);
+  ensures (\forall int i; i >= 0 && i < a.length/2; b[i] == a[i] + c[i]);
+  void data_redistribution_orig(int[] a, int[] b, int[] c)
+  {
+    par threads (int tid = 0 .. a.length/2)
+    context Perm(a[tid], 1) ** Perm(b[tid], 1);
+    context Perm(c[tid], 1\2);
+    ensures a[tid] == \old(b[tid]) + c[tid];
+    ensures b[tid] == a[tid] + c[tid];
+    {
+        a[tid] = b[tid] + c[tid];
+        b[tid] = a[tid] + c[tid];
+    }
+  }
+}
