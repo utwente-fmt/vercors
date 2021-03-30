@@ -150,6 +150,7 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
     }
   }
 
+  //TODO OS do we need to exclude asserts, assumes, inhales, etc.
   def exclude(node: OperatorExpression): Unit = {
     val tmp = excludeNode
     excludeNode = true

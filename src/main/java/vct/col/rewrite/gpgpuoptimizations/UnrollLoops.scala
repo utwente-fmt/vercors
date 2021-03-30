@@ -165,6 +165,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
     }
 
     // find the update statement
+    // U(i) where updateStmt._1 is the operator and updateStmt._2 is C
     val updateStmt = findUpdateStatement(s, itervar)
     if (!updateStmt._2.isInstanceOf[ConstantExpression] || !updateStmt._2.asInstanceOf[ConstantExpression].value.isInstanceOf[IntegerValue]) {
       Fail("%s in update statement is not a constant at ", updateStmt._2, updateStmt._2.getOrigin)
