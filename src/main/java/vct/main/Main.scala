@@ -41,6 +41,7 @@ class Main {
   private val debugAfter = new CollectSetting
   private val show_file = new StringSetting(null)
   private val notifySetting = new BooleanSetting(false)
+  private val parseOnly = new BooleanSetting(false)
 
   private val pass_list = new StringListSetting
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
@@ -86,6 +87,7 @@ class Main {
     clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before")
     clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after")
     clops.add(notifySetting.getEnable("Send a system notification upon completion"), "notify")
+    clops.add(parseOnly.getEnable("Only parses the inputs"), "parse-only")
     clops.add(stop_after.getAppendOption("Stop after given passes"), "stop-after")
     clops.add(strictInternalConditions.getEnable("Enable strict internal checks for AST conditions (expert option)"), "strict-internal")
     clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"), "global-with-field")
@@ -173,13 +175,20 @@ class Main {
     for (pathName <- inputPaths) {
       val path = Paths.get(pathName);
       if (!no_context.get) FileOrigin.add(path, gui_context.get)
-      report.getOutput.add(Parsers.parseFile(path))
+      try {
+        report.getOutput.add(Parsers.parseFile(path))
+      } catch {
+        case t => Output("Parse failed: %s", t)
+      }
     }
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
 
     if (sequential_spec.get)
       report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
+
+    if (parseOnly.get())
+      throw new HREExitException(0)
   }
 
 
