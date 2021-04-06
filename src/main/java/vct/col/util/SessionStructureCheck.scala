@@ -41,7 +41,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     roleClassNames = roleClasses.map(_.name)
     mainMethods = getMainMethodsNonPureNonResourcePredicate()
     mainMethodNames = mainMethods.map(_.name)
-    nonPlainMainMethodNames = mainClass.methods().filter(_.kind == Method.Kind.Pure || _.kind == Method.Kind.Predicate).map(_.name)
+    nonPlainMainMethodNames = mainClass.methods().filter(m => m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate).map(_.name)
     checkMainMethodsAllowedSyntax(mainMethods)
     checkMainMethodsRecursion(source)
     checkRoleFieldsTypes(source)
@@ -204,6 +204,8 @@ class SessionStructureCheck(source : ProgramUnit) {
         val mi = getMethodInvocationsFromExpression(a.expression)
         if(mi.exists(m => m.method == Method.JavaConstructor && (m.dispatch.getName == mainClassName || roleClassNames.contains(m.dispatch.getName))))
           Fail("Session Fail: Cannot assign a new Main or role object in statement %s! %s", a.toString,a.getOrigin)
+        if(mi.exists(_.definition.kind == Method.Kind.Pure))
+          Fail("Session Fail: Cannot call pure method in assignment expression! ")
         mi.foreach(mii => getNameFromNode(mii.`object`)match {
           case Some(n) => if(!roleNames.contains(n.name)) Fail("Session Fail: can only call role methods in assignment expression %s!", a.expression.toString)
           case None => if(mii.definition.kind != Method.Kind.Pure)
@@ -257,6 +259,9 @@ class SessionStructureCheck(source : ProgramUnit) {
   }
 
   private def checkSessionCondition(node: ASTNode, roleNames : Iterable[String]) : Boolean = {
+    val mi = getMethodInvocationsFromExpression(node)
+    if(mi.exists(_.definition.kind == Method.Kind.Pure))
+      Fail("Session Fail: Cannot call pure method in if or while condition! ")
     val roles = splitOnAnd(node).map(getNamesFromExpression).map(_.map(_.name).filter(roleNames.contains(_)).toSet)
     roles.forall(_.size == 1) && roleNames.toSet == roles.flatten
   }

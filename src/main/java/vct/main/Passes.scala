@@ -937,14 +937,11 @@ object Passes {
   //  SimplePass("sessionConstrRepair", "remove fold and exhale from Channel constructor",
   //    new SessionLockCommitRepair(_).rewriteAll),
     SimplePass("sessionStructCheck", "check that provided program conforms to session syntax restriction",
-      arg => {
-        new SessionStructureCheck(arg).check()
-        arg
-      }),
+      arg => { new SessionStructureCheck(arg).check(); arg }),
     SimplePass("sessionTerminationCheck", "check for assuring that all roles and other methods, and all calls to pure functions lack any non-terminating statements",
-      arg => {
-        new SessionTerminationCheck(arg).checkTermination()
-        arg}),
+      arg => { new SessionTerminationCheck(arg).checkTermination(); arg}),
+    SimplePass("sessionGlobalLTS", "generate LTS of global program",
+      arg => { new SessionGlobalLTS(arg).generateLTSAndPrint(); arg }),
     SimplePass("sessionGenerate", "generate thread classes from session program",
       new SessionGeneration(_).addThreadClasses()),
     //simplify

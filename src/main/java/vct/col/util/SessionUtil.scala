@@ -88,29 +88,28 @@ object SessionUtil {
     }
   }
 
-  def getNamesFromExpression(e : ASTNode) : List[NameExpression] = {
+  def getNamesFromExpression(e : ASTNode) : Set[NameExpression] = {
     getNameFromNode(e) match {
-      case Some(n) => List(n)
+      case Some(n) => Set(n)
       case None =>  e match {
-        case o : OperatorExpression => o.args.flatMap(getNamesFromExpression)
+        case o : OperatorExpression => o.args.flatMap(getNamesFromExpression).toSet
         case m : MethodInvokation => {
           val objName = getNameFromNode(m.`object`)
-          val argsNames = m.getArgs.flatMap(getNamesFromExpression).toList
-          if(objName.isEmpty) argsNames else objName.get +: argsNames
+          val argsNames = m.getArgs.flatMap(getNamesFromExpression).toSet
+          if(objName.isEmpty) argsNames else argsNames + objName.get
         }
-        case _ => List.empty
+        case _ => Set.empty
       }
     }
   }
 
-  def mapInsert[K,V](f : (V, V) => V, key : K, value : V, map : Map[K,V]) : Map[K,V] =
+  def mapInsertSetValue[K,V](key : K, value : V, map : Map[K,Set[V]]) : Map[K,Set[V]] =
     map get key match {
-      case None => map + (key -> value)
-      case Some(v2) => map + (key -> f(value,v2))
+      case None => map + (key -> Set(value))
+      case Some(vSet) => map + (key -> (vSet + value))
     }
 
-  def mapInsertSetValue[K,V](key : K, value : V, map : Map[K,Set[V]]) : Map[K,Set[V]] =
-    mapInsert((a, b) => a ++ b,key,Set(value),map)
+  def toLineString(s : ASTNode) = s.toString.replace(";\n","")
 
 }
 

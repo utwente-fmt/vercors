@@ -252,11 +252,10 @@ class Main {
   )
 
   private def collectPassesForSession : Seq[AbstractPass] = Seq(
-  //  BY_KEY("sessionConstrRepair"),
     BY_KEY("sessionStructCheck"),
     BY_KEY("sessionTerminationCheck"),
+    BY_KEY("sessionGlobalLTS"),
     BY_KEY("sessionGenerate"),
-  //  BY_KEY("simplify"),
     BY_KEY("removeEmptyBlocks"),
     BY_KEY("sessionBarrier"),
     BY_KEY("sessionThreadConstr"),
