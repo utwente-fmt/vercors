@@ -6,8 +6,7 @@
 
 class Role {
 	
-	int x;
-	int left;
+	int x, left;
 	
 	ensures Perm(x, write) ** Perm(left, write);
 	ensures x == v;
@@ -52,7 +51,7 @@ class Main {
 		ensures c.left == b.x;
 		{
 				c.left = b.x;
-		} and
+		} and 
 		context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
 		context Perm(c.x, 1\2) ** Perm(a.left, 1);
 		ensures a.left == c.x;
