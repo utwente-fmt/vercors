@@ -17,7 +17,7 @@ enablePlugins(DebianPlugin)
  re-import the project into their IDE, as the location of the viper projects below will change. */
 val silver_url = uri("git:https://github.com/viperproject/silver.git#ceaeefdf4d1bf97c54c590a0dd5963ab5bf66b0b")
 val carbon_url = uri("git:https://github.com/viperproject/carbon.git#4980be19c5f83bb09a86ad09ca10205ac014c9d3")
-val silicon_url = uri("git:https://github.com/viperproject/silicon.git#fa9f8a3f1c84fe5b4daf13e1749a43ee47c68009")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#bc8c538fed426fb973642ff6427ee0b3b4cd629a")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
