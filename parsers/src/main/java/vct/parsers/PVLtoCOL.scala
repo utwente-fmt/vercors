@@ -425,19 +425,22 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create struct_value(create primitive_type(
         PrimitiveSort.Set, InferADTTypes.typeVariable
       ), null, convertExpList(exps):_*)
-    case CollectionConstructors4("{t:", t, "}") =>
+    case CollectionConstructors4("{", exp1, "..", exp2, "}") =>
+      create.expression(StandardOperator.RangeSeq,
+                        expr(exp1), expr(exp2))
+    case CollectionConstructors5("{t:", t, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Set, convertType(t)),
         null)
-    case CollectionConstructors5("b{", exps, "}") =>
+    case CollectionConstructors6("b{", exps, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Bag, InferADTTypes.typeVariable
       ), null, convertExpList(exps):_*)
-    case CollectionConstructors6("b{t:", t, "}") =>
+    case CollectionConstructors7("b{t:", t, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Bag, convertType(t)),
         null)
-    case CollectionConstructors7("set", _, elemType, _, _, main, _, selectors, _, guard, _) => {
+    case CollectionConstructors8("set", _, elemType, _, _, main, _, selectors, _, guard, _) => {
       create setComp(
         create primitive_type (PrimitiveSort.Set, convertType(elemType)), // Type
         expr(guard), // The guard expression
