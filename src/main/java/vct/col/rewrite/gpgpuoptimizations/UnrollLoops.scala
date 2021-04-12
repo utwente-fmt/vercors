@@ -138,8 +138,25 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
     }
   }
 
-  case class GenerateCheckMethod(override val source: ProgramUnit, methodsToReplace: mutable.Map[String, mutable.Buffer[Method]]) extends AbstractRewriter(source) {
+  case class GenerateCheckMethod(override val source: ProgramUnit, loop: LoopStatement, replace:ASTNode) extends AbstractRewriter(source) {
+    var done = false;
 
+    override def visit(s: BlockStatement): Unit = {
+      val newBlock = create.block()
+      s.forEachStmt( st =>
+        if (!done) newBlock.add(rewrite(st))
+      )
+      result = newBlock
+    }
+
+    override def visit(s: LoopStatement): Unit = {
+      if (s.equals(loop)){
+        result = replace
+        done = true
+      } else {
+        super.visit(s)
+      }
+    }
   }
 
 
@@ -439,18 +456,21 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
     )
     methodInc.setStatic(methodsStatic)
 
+    val newAssert = create special(ASTSpecial.Kind.Assert, gt(size(invokeUForAssert), constant(K)))
 
-    val bodyOfCheck = create.block()
-    current_sequence().forEach(st => bodyOfCheck.add(copy_rw.rewrite(st)))
-    s.getInitBlock match {
-      case null => //Do nothing
-      case b: BlockStatement =>
-        b.getStatements.foreach(st => bodyOfCheck.add(rewrite(st)))
-      case block =>
-        bodyOfCheck.add(rewrite(block))
-    }
+    val gcm = new GenerateCheckMethod(null, s, newAssert)
+    val bodyOfCheck = gcm.rewrite(current_method()).getBody
 
-    bodyOfCheck.add(create special(ASTSpecial.Kind.Assert, gt(size(invokeUForAssert), constant(K))))
+//    current_sequence().forEach(st => bodyOfCheck.add(copy_rw.rewrite(st)))
+//    s.getInitBlock match {
+//      case null => //Do nothing
+//      case b: BlockStatement =>
+//        b.getStatements.foreach(st => bodyOfCheck.add(rewrite(st)))
+//      case block =>
+//        bodyOfCheck.add(rewrite(block))
+//    }
+//
+//    bodyOfCheck.add(create special(ASTSpecial.Kind.Assert, gt(size(invokeUForAssert), constant(K))))
 
     val checkMethodName = "check_loop_unroll_" + current_method.name
     val checkMethodContract = new ContractBuilder()
@@ -463,7 +483,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
       //TODO OS this should be done differently, an errormapping has to be added to ErrorMap. The line below is for testing purposes
       //        new CompositeOrigin(new MessageOrigin("Could not prove unroll for this loop"), s.getGpuopt.getOrigin),
       current_method().kind,
-      create.primitive_type(PrimitiveSort.Void),
+      rewrite(current_method().getReturnType),
       Array.empty[Type],
       checkMethodContract.getContract(),
       checkMethodName,

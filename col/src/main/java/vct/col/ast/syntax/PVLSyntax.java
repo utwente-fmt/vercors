@@ -140,8 +140,8 @@ public class PVLSyntax extends Syntax {
       syntax.addOperator(Member,45,"","in","");
       syntax.addOperator(Slice, 10, "", "[","..","]");
       syntax.addOperator(SeqUpdate, 10,  "", "[","->","]");
-      syntax.addInfix(Drop, "drop", 85);
-      syntax.addInfix(Take, "take", 85);
+      syntax.addOperator(Drop, 85,"", "[", "..]");
+      syntax.addOperator(Take, 85, "", "[..", "]");
 
       syntax.addPrefix(Not, "!", 130);
       syntax.addPrefix(UMinus, "-", 130);
