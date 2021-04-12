@@ -8,7 +8,9 @@ import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, P
 import vct.col.ast.stmt.decl.Method.{JavaConstructor, Kind}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.stmt.terminal.AssignmentStatement
+import vct.col.util.SessionStructureCheck.isResourceType
 import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNameFromNode, getNamesFromExpression, mainClassName, mainMethodName, runMethodName}
+
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
 object SessionStructureCheck {
@@ -17,6 +19,13 @@ object SessionStructureCheck {
     getMainClass(source).methods().find(_.kind== Kind.Constructor) //getMainConstructor
       .get.getBody.asInstanceOf[BlockStatement].getStatements.map(_.asInstanceOf[AssignmentStatement]) //getRoleObjects
       .map(_.location.asInstanceOf[NameExpression].name) //getRoleNames
+
+  def isExecutableMainMethod(m : Method) : Boolean = m.name != mainMethodName && m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType))
+
+  private def isResourceType(t : Type) : Boolean = t match {
+    case p : PrimitiveType => p.sort == PrimitiveSort.Resource
+    case _ => false
+  }
 }
 
 class SessionStructureCheck(source : ProgramUnit) {
@@ -127,11 +136,6 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   private def getMainMethodsNonPureNonResourcePredicate() : Iterable[Method] =
     mainClass.methods().filter(m => m.name != mainMethodName && m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)))
-
-  private def isResourceType(t : Type) : Boolean = t match {
-    case p : PrimitiveType => p.sort == PrimitiveSort.Resource
-    case _ => false
-  }
 
   private def checkMainMethod() : Unit = {
     val mainMethod = mainClass.methods().find(_.name == mainMethodName).get
@@ -260,8 +264,9 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   private def checkSessionCondition(node: ASTNode, roleNames : Iterable[String]) : Boolean = {
     val mi = getMethodInvocationsFromExpression(node)
-    if(mi.exists(_.definition.kind == Method.Kind.Pure))
+    if(mi.exists(m => nonPlainMainMethodNames.contains(m.method))) {
       Fail("Session Fail: Cannot call pure method in if or while condition! ")
+    }
     val roles = splitOnAnd(node).map(getNamesFromExpression).map(_.map(_.name).filter(roleNames.contains(_)).toSet)
     roles.forall(_.size == 1) && roleNames.toSet == roles.flatten
   }

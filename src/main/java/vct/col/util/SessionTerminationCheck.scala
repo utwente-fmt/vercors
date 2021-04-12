@@ -35,6 +35,7 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
       encountered = Set()
       m._1.accept(this)
     })
+    val i =1
   }
 
 

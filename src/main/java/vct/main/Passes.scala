@@ -3,21 +3,18 @@ package vct.main
 import hre.config.Configuration
 
 import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
-import java.util
 import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SessionStructureCheck, SessionTerminationCheck, SimpleTypeCheck}
+import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SessionStructureCheck, SessionTerminationCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
 
 import scala.jdk.CollectionConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 object Passes {
   val DIAGNOSTIC: Seq[AbstractPass] = Seq(
@@ -941,10 +938,13 @@ object Passes {
     SimplePass("sessionTerminationCheck", "check for assuring that all roles and other methods, and all calls to pure functions lack any non-terminating statements",
       arg => { new SessionTerminationCheck(arg).checkTermination(); arg}),
     SimplePass("sessionGlobalLTS", "generate LTS of global program",
-      arg => { new SessionGlobalLTS(arg).generateLTSAndPrint(); arg }),
+      arg => { new SessionGlobalLTS(arg,true).generateLTSAndPrint(); arg }),
     SimplePass("sessionGenerate", "generate thread classes from session program",
       new SessionGeneration(_).addThreadClasses()),
-    //simplify
+    SimplePass("sessionLocalLTS", "generate LTSs of local programs",
+      arg => { new SessionGlobalLTS(arg,false).generateLTSAndPrint(); arg }),
+    SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
+      new SessionRemoveTau(_).rewriteAll()),
     SimplePass("removeEmptyBlocks", "remove empty blocks of parallel regions",
       new RemoveEmptyBlocks(_).rewriteAll),
     SimplePass("sessionBarrier", "generate barrier annotations",

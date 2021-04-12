@@ -256,6 +256,8 @@ class Main {
     BY_KEY("sessionTerminationCheck"),
     BY_KEY("sessionGlobalLTS"),
     BY_KEY("sessionGenerate"),
+    BY_KEY("sessionLocalLTS"),
+    BY_KEY("removeTaus"),
     BY_KEY("removeEmptyBlocks"),
     BY_KEY("sessionBarrier"),
     BY_KEY("sessionThreadConstr"),

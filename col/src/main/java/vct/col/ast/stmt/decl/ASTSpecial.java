@@ -116,7 +116,11 @@ public class ASTSpecial extends ASTDeclaration {
     /**
      * Continue a loop.
      */
-    Continue(-1)
+    Continue(-1),
+    /**
+     * Represents unobservable action
+     */
+    TauAction
     ;
 
     

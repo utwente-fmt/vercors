@@ -5,7 +5,7 @@ import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType}
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
-import vct.col.ast.stmt.decl.{Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.rewrite.SessionGeneration.getLocalAction
@@ -20,9 +20,9 @@ object SessionGeneration {
     getNameFromNode(a.location) match {
       case Some(locRole) => {
         if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName))
-          LocalAssign(a)
+          SingleRoleAction(a)
         else if(locRole.name == roleName && expRole.size == 1 && expRole.head.name != roleName)
-          ReadAction(a.location,expRole.head)
+          ReadAction(locRole,expRole.head,a.location.asInstanceOf[Dereference].field)
         else if(locRole.name != roleName && expRole.size == 1 && expRole.head.name == roleName)
           WriteAction(locRole,roleName,a.expression)
         else if(locRole.name != roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name != roleName))
@@ -97,18 +97,18 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
 
   override def visit(a : AssignmentStatement) : Unit = {
     getLocalAction(a,roleName) match {
-      case LocalAssign(_) => result = copy_rw.rewrite(a)
-      case ReadAction(receiverWithField, sender) => {
+      case SingleRoleAction(_) => result = copy_rw.rewrite(a)
+      case ReadAction(receiver, sender,receiverField) => {
         val chan = getChanVar(sender,false)
         chans += chan.name
-        result = create.assignment(receiverWithField,create.invokation(chan,null, chanRead))
+        result = create.assignment(create.dereference(receiver,receiverField),create.invokation(chan,null, chanRead))
       }
       case WriteAction(receiver, _, sendExpression) => {
         val chan = getChanVar(receiver,true)
         chans += chan.name
         result = create.invokation(chan, null, chanWrite, sendExpression)
       }
-      case Tau => //remove a
+      case Tau => result = create.special(ASTSpecial.Kind.TauAction,Array[ASTNode]():_*)
       case _ => Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
     }
   }
@@ -124,7 +124,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
       case b :BlockStatement => //it is a statement
         if(isSingleRoleNameExpression(m, roleNames))
           result = copy_rw.rewrite(m)
-        //else remove m
+        else result = create.special(ASTSpecial.Kind.TauAction,Array[ASTNode]():_*)
       case _ => rewriteExpression(m)
     }
   }
