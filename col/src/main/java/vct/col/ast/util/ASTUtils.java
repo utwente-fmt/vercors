@@ -13,6 +13,7 @@ import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
 
@@ -113,6 +114,14 @@ public class ASTUtils {
           result = b;
         } else  {
           super.visit(e);
+        }
+      }
+      @Override
+      public void visit(LoopStatement s) {
+        if(s.equals(a)) {
+          result = b;
+        } else  {
+          super.visit(s);
         }
       }
     };

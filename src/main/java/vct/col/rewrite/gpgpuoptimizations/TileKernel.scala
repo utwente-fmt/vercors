@@ -129,12 +129,11 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
       case Intra => intraTiling(m, opt)
     }
 
-    addCeilingFunc
+    addCeilingFunc()
   }
 
   def interTiling(m: Method, opt: Tiling): Method = {
 
-    //    super.visit(m)
     //    check m.getBody.isInstanceOf[BlockStatement]
     //    check m.getBody.asInstanceOf[BlockStatement].getStatement(0).isInstanceOf[ParallelRegion]
     val region = m.getBody.asInstanceOf[BlockStatement].getStatement(0).asInstanceOf[ParallelRegion]
@@ -728,31 +727,29 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
   }
 
 
-  // For tiling preconditions
   private def tileOnNodeWithLow(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, lowerBound: ASTNode): ASTNode = {
     tileOnNodeWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node, lowerBound, invoke(null, ceilingFuncName, copy_rw.rewrite(upperBoundNode), opt.tileSize))
   }
-
-  // For tiling postconditions
   private def tileOnNodeWithUpper(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, upperBound: ASTNode): ASTNode = {
     tileOnNodeWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node, constant(0), upperBound)
   }
-
   private def tileOnNode(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode): ASTNode = {
     tileOnNodeWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node, constant(0), invoke(null, ceilingFuncName, copy_rw.rewrite(upperBoundNode), opt.tileSize))
   }
-
-  private def tileOnNodeInter(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode): ASTNode = {
-    tileOnNodeInterWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node,
-      create.invokation(null, null, lowFuncName, create.local_name(tid), opt.tileSize),
-      create.invokation(null, null, uppFuncName, create.local_name(tid), opt.tileSize)
-    )
-  }
-
-  private def tileOnNodeInterWithUpp(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, upperbound: ASTNode): ASTNode = {
-    tileOnNodeInterWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node,
-      create.invokation(null, null, lowFuncName, create.local_name(tid), opt.tileSize),
-      upperbound
+  private def tileOnNodeWithLowAndUpp(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, lowerBound: ASTNode, upperBound: ASTNode): ASTNode = {
+    create.starall(
+      and(
+        gte(name(forallVarName), lowerBound),
+        and(
+          less(name(forallVarName), upperBound),
+          less(
+            create.invokation(null, null, newIdxFuncName, create.local_name(tid), create.local_name(forallVarName), opt.tileSize),
+            copy_rw.rewrite(upperBoundNode)
+          )
+        )
+      ),
+      rewrite(node),
+      create.field_decl(forallVarName, create.primitive_type(PrimitiveSort.Integer)),
     )
   }
 
@@ -763,24 +760,19 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
       addUpperLimit = false
     )
   }
-
   private def tileOnNodeInterWithLow(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, lowerbound: ASTNode): ASTNode = {
     tileOnNodeInterWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node,
       lowerbound,
       create.invokation(null, null, uppFuncName, create.local_name(tid), opt.tileSize)
     )
   }
-
-  private def tileOnNodeInterWithLowAndUpp(
-                                            opt: Tiling,
-                                            tid: String,
-                                            upperBoundNode: ASTNode,
-                                            forallVarName: String,
-                                            node: ASTNode,
-                                            lowerBound: ASTNode,
-                                            upperBound: ASTNode,
-                                            addUpperLimit: Boolean = true
-                                          ): ASTNode = {
+  private def tileOnNodeInter(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode): ASTNode = {
+    tileOnNodeInterWithLowAndUpp(opt, tid, upperBoundNode, forallVarName, node,
+      create.invokation(null, null, lowFuncName, create.local_name(tid), opt.tileSize),
+      create.invokation(null, null, uppFuncName, create.local_name(tid), opt.tileSize)
+    )
+  }
+  private def tileOnNodeInterWithLowAndUpp(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, lowerBound: ASTNode, upperBound: ASTNode, addUpperLimit: Boolean = true): ASTNode = {
     val uppBoundForallVar = if (addUpperLimit)
       and(
         less(name(forallVarName), upperBound),
@@ -801,23 +793,6 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     )
   }
 
-
-  private def tileOnNodeWithLowAndUpp(opt: Tiling, tid: String, upperBoundNode: ASTNode, forallVarName: String, node: ASTNode, lowerBound: ASTNode, upperBound: ASTNode): ASTNode = {
-    create.starall(
-      and(
-        gte(name(forallVarName), lowerBound),
-        and(
-          less(name(forallVarName), upperBound),
-          less(
-            create.invokation(null, null, newIdxFuncName, create.local_name(tid), create.local_name(forallVarName), opt.tileSize),
-            copy_rw.rewrite(upperBoundNode)
-          )
-        )
-      ),
-      rewrite(node),
-      create.field_decl(forallVarName, create.primitive_type(PrimitiveSort.Integer)),
-    )
-  }
 
 
   override def visit(e: NameExpression): Unit = {

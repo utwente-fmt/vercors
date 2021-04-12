@@ -2,7 +2,7 @@ package vct.col.rewrite.gpgpuoptimizations
 
 import java.util
 
-import hre.lang.System.Fail
+import hre.lang.System.{Fail, Progress}
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.expr.{NameExpression, OperatorExpression, StandardOperator}
@@ -127,7 +127,9 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
 
   case class RemoveBodies(override val source: ProgramUnit, methodsToReplace: mutable.Map[String, mutable.Buffer[Method]]) extends AbstractRewriter(source) {
     override def visit(m: Method): Unit = {
-      if (methodsToReplace(m.name).isEmpty) {
+      if (m.kind.equals(Method.Kind.Pure) || m.kind.equals(Method.Kind.Predicate)) {
+        super.visit(m)
+      } else if (methodsToReplace(m.name).isEmpty) {
         m.setBody(null)
         super.visit(m)
       } else {
@@ -136,7 +138,12 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
     }
   }
 
-  override def visit(s: LoopStatement): Unit = {
+  case class GenerateCheckMethod(override val source: ProgramUnit, methodsToReplace: mutable.Map[String, mutable.Buffer[Method]]) extends AbstractRewriter(source) {
+
+  }
+
+
+    override def visit(s: LoopStatement): Unit = {
     if (s.getGpuopt == null || !s.getGpuopt.isInstanceOf[LoopUnrolling]) {
       super.visit(s)
       return
@@ -308,25 +315,6 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
         current_sequence().add(rewrite(block))
     }
 
-    ASTUtils.conjuncts(copy_rw.rewrite(s.getContract.invariant), Star, And).forEach {
-        st => current_sequence().add(create special(ASTSpecial.Kind.Assert, copy_rw.rewrite(st)))
-    }
-
-    s.getBody match {
-      case b: BlockStatement =>
-        b.getStatements.foreach(st => current_sequence().add(copy_rw.rewrite(st)))
-      case _ =>
-        current_sequence().add(copy_rw.rewrite(s.getBody))
-    }
-
-    s.getUpdateBlock match {
-      case null => //Do nothing
-      case b: BlockStatement =>
-        b.getStatements.foreach(st => current_sequence().add(rewrite(st)))
-      case block =>
-        current_sequence().add(rewrite(block))
-    }
-
     // A copy of the new body (without any declarations)
     val newbody = create.block()
     val removeDecl = ReplaceDeclarationsByAssignments(null)
@@ -346,7 +334,9 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
         newbody.add(removeDecl.rewrite(notablock))
     }
 
-    1 until K foreach {
+    removeDecl.declaredVars.foreach(decl => current_sequence().add(create.field_decl(decl.name, rewrite(decl.`type`), rewrite(decl.`type`.zero))))
+
+    0 until K foreach {
       i =>
         ASTUtils.conjuncts(copy_rw.rewrite(s.getContract.invariant), Star, And).forEach {
           st =>
@@ -464,8 +454,10 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
 
     val checkMethodName = "check_loop_unroll_" + current_method.name
     val checkMethodContract = new ContractBuilder()
+    checkMethodContract.`given`(copy_rw.rewrite(current_method().getContract.`given`):_*)
+    checkMethodContract.yields(copy_rw.rewrite(current_method().getContract.yields):_*)
     checkMethodContract.requires(copy_rw.rewrite(current_method().getContract.pre_condition))
-    checkMethodContract.requires(copy_rw.rewrite(current_method().getContract.invariant))
+    checkMethodContract.appendInvariant(copy_rw.rewrite(current_method().getContract.invariant))
 
     val methodCheck = create.method_kind(
       //TODO OS this should be done differently, an errormapping has to be added to ErrorMap. The line below is for testing purposes
