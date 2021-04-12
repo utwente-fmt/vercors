@@ -10,7 +10,7 @@ import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, GPUOpt, LoopUnrolling, Method, ProgramUnit}
-import vct.col.ast.util.{ASTFactory, ASTUtils, AbstractRewriter, ContractBuilder, NameScanner}
+import vct.col.ast.util.{ASTFactory, ASTUtils, AbstractRewriter, ContractBuilder, NameScanner, SequenceUtils}
 import vct.col.rewrite.gpgpuoptimizations.LoopOperations.{findUpdateStatement, matchCondition}
 import vct.col.rewrite.gpgpuoptimizations.UnrollLoops.unrolledProgram
 
@@ -151,11 +151,40 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
 
     override def visit(s: LoopStatement): Unit = {
       if (s.equals(loop)){
-        result = replace
+          val newBlock = create.block()
+          s.getInitBlock match {
+            case null =>
+            case b: BlockStatement =>
+              b.forEachStmt(st => newBlock.add(rewrite(st)))
+            case elseNode => newBlock.add(rewrite(elseNode))
+          }
+        newBlock.add(replace)
+        result = newBlock
         done = true
       } else {
         super.visit(s)
       }
+    }
+
+    override def rewrite(c: Contract): Contract = {
+      val cb = new ContractBuilder()
+      cb.requires(copy_rw.rewrite(c.pre_condition))
+      cb.`given`(copy_rw.rewrite(c.`given`):_*)
+      cb.yields(copy_rw.rewrite(c.yields):_*)
+      cb.appendInvariant(copy_rw.rewrite(c.invariant))
+
+      cb.getContract(false)
+    }
+
+    /**
+     * Rewrite contract using a contract builder.
+     * WARNING: Does not preserve origin!
+     */
+    override def rewrite(c: Contract, cb: ContractBuilder): Unit = {
+      cb.requires(copy_rw.rewrite(c.pre_condition))
+      cb.`given`(copy_rw.rewrite(c.`given`):_*)
+      cb.yields(copy_rw.rewrite(c.yields):_*)
+      cb.appendInvariant(copy_rw.rewrite(c.invariant))
     }
   }
 
@@ -249,7 +278,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
               create.expression(GT, rewrite(e.first), updatedLowerbound)
             case Mult =>
               val updatedLowerbound = create.expression(Mult, e.second, constant(scala.math.pow(C, K).toInt))
-              create.expression(GT, rewrite(e.second), updatedLowerbound)
+              create.expression(GT, rewrite(e.first), updatedLowerbound)
             case _ => rewrite(e)
           }
           cb.appendInvariant(invariant)
@@ -261,7 +290,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
               create.expression(GTE, rewrite(e.first), updatedLowerbound)
             case Mult =>
               val updatedLowerbound = create.expression(Mult, e.second, constant(scala.math.pow(C, K).toInt))
-              create.expression(GTE, rewrite(e.second), updatedLowerbound)
+              create.expression(GTE, rewrite(e.first), updatedLowerbound)
             case _ => rewrite(e)
           }
           cb.appendInvariant(invariant)
@@ -403,6 +432,12 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
 
 
     val cb = new ContractBuilder()
+    argsOfU.foreach(decl => {
+      val info = SequenceUtils.getTypeInfo(decl.`type`)
+      if (info != null && info.getSequenceType.isPrimitive(PrimitiveSort.Array)) {
+        cb.requires(neq(name(decl.name), create.reserved_name(ASTReserved.Null)))
+      }
+    })
     cb.ensures(gte(size(create.reserved_name(ASTReserved.Result)), constant(1)))
     cb.ensures(eq(get(create.reserved_name(ASTReserved.Result), constant(0)), rewrite(itervar)))
     cb.ensures(implies(
@@ -472,7 +507,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
 //
 //    bodyOfCheck.add(create special(ASTSpecial.Kind.Assert, gt(size(invokeUForAssert), constant(K))))
 
-    val checkMethodName = "check_loop_unroll_" + current_method.name
+    val checkMethodName = if (current_method().kind == Method.Kind.Constructor) current_method().name else "check_loop_unroll_" + current_method.name
     val checkMethodContract = new ContractBuilder()
     checkMethodContract.`given`(copy_rw.rewrite(current_method().getContract.`given`):_*)
     checkMethodContract.yields(copy_rw.rewrite(current_method().getContract.yields):_*)
@@ -482,7 +517,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
     val methodCheck = create.method_kind(
       //TODO OS this should be done differently, an errormapping has to be added to ErrorMap. The line below is for testing purposes
       //        new CompositeOrigin(new MessageOrigin("Could not prove unroll for this loop"), s.getGpuopt.getOrigin),
-      current_method().kind,
+      current_method.kind,
       rewrite(current_method().getReturnType),
       Array.empty[Type],
       checkMethodContract.getContract(),

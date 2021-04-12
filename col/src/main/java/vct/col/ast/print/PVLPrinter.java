@@ -290,6 +290,7 @@ public class PVLPrinter extends AbstractPrinter{
                 setExpr();
                 ASTNode prop=s.args[0];
                 prop.accept(this);
+                out.printf(";");
                 break;
             }
             case Join:{
@@ -298,6 +299,7 @@ public class PVLPrinter extends AbstractPrinter{
                 setExpr();
                 ASTNode prop=s.args[0];
                 prop.accept(this);
+                out.printf(";");
                 break;
             }
             case Goto:
@@ -694,7 +696,7 @@ public class PVLPrinter extends AbstractPrinter{
                 Debug("ignoring contract of predicate");
             }
             out.incrIndent();
-            out.print("predicate ");
+//            out.print("predicate ");
         }
         if (contract!=null && !predicate){
             visit(contract);
@@ -709,7 +711,7 @@ public class PVLPrinter extends AbstractPrinter{
                         case ASTFlags.INLINE:
                             out.printf("inline ");
                         case ASTFlags.PUBLIC:
-                            out.printf("public ");
+//                            out.printf("public ");
                             break;
                         case ASTFlags.THREAD_LOCAL:
                             out.printf("thread_local  ");
@@ -1024,7 +1026,15 @@ public class PVLPrinter extends AbstractPrinter{
     public void visit(GPUOpt o) {
         if (o == null) return;
         out.printf("gpuopt ");
-//        out.printf(o.name().toString() + " ");
+        if (o instanceof LoopUnrolling) {
+            out.printf(" loop_unroll ");
+        } else if (o instanceof MatrixLinearization) {
+            out.printf(" matlin ");
+        } else if (o instanceof Tiling) {
+            out.printf(" tile ");
+        } else {
+            Warning("Could not find name of " + o.getClass());
+        }
         Iterator<ASTNode> argsit = o.args().iterator();
         print_tuple(" ", "", "", o.argsJava().toArray(new ASTNode[0]));
         out.lnprintf(";");
