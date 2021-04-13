@@ -8,31 +8,10 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.rewrite.SessionGeneration.getLocalAction
 import vct.col.util.SessionStructureCheck
 import vct.col.util.SessionUtil.{barrierFieldName, chanRead, chanWrite, getBarrierClass, getChanClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName, mainMethodName}
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
-
-object SessionGeneration {
-  def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
-    val expRole = getNamesFromExpression(a.expression)
-    getNameFromNode(a.location) match {
-      case Some(locRole) => {
-        if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName))
-          SingleRoleAction(a)
-        else if(locRole.name == roleName && expRole.size == 1 && expRole.head.name != roleName)
-          ReadAction(locRole,expRole.head,a.location.asInstanceOf[Dereference].field)
-        else if(locRole.name != roleName && expRole.size == 1 && expRole.head.name == roleName)
-          WriteAction(locRole,roleName,a.expression)
-        else if(locRole.name != roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name != roleName))
-          Tau
-        else ErrorAction
-      }
-      case None => ErrorAction
-    }
-  }
-}
 
 class SessionGeneration(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
@@ -98,10 +77,10 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(a : AssignmentStatement) : Unit = {
     getLocalAction(a,roleName) match {
       case SingleRoleAction(_) => result = copy_rw.rewrite(a)
-      case ReadAction(receiver, sender,receiverField) => {
+      case ReadAction(receiver, sender,receiveExpression) => {
         val chan = getChanVar(sender,false)
         chans += chan.name
-        result = create.assignment(create.dereference(receiver,receiverField),create.invokation(chan,null, chanRead))
+        result = create.assignment(receiveExpression,create.invokation(chan,null, chanRead))
       }
       case WriteAction(receiver, _, sendExpression) => {
         val chan = getChanVar(receiver,true)
@@ -110,6 +89,24 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
       }
       case Tau => result = create.special(ASTSpecial.Kind.TauAction,Array[ASTNode]():_*)
       case _ => Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
+    }
+  }
+
+  def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
+    val expRole = getNamesFromExpression(a.expression)
+    getNameFromNode(a.location) match {
+      case Some(locRole) => {
+        if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName))
+          SingleRoleAction(a)
+        else if(locRole.name == roleName && expRole.size == 1 && expRole.head.name != roleName)
+          ReadAction(locRole,expRole.head,a.location)
+        else if(locRole.name != roleName && expRole.size == 1 && expRole.head.name == roleName)
+          WriteAction(locRole,roleName,a.expression)
+        else if(locRole.name != roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name != roleName))
+          Tau
+        else ErrorAction
+      }
+      case None => ErrorAction
     }
   }
 
