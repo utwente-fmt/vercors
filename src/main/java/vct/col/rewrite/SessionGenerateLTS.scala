@@ -50,7 +50,6 @@ final class LTSState(val nextStatements : List[ASTNode]) {
     case _ => false
   }
   override def hashCode(): Int = this.toString().hashCode()
-
   override def toString: String = nextStatements.map(PVLSyntax.get().print(_).toString).toString()
 
   def getCopy(copy_rw : AbstractRewriter) = new LTSState(copy_rw.rewrite(nextStatements.toArray).toList)
@@ -62,7 +61,14 @@ final class LTSTransition(val label : LTSLabel, val destState : LTSState) {
   override def toString: String = label.toString + " -> " + destState.toString
 }
 
-final class LTSSequence(val currentState : LTSState, val sequence: List[ASTNode], val recursiveNodes : List[ASTNode])
+final class LTSSequence(val currentState : LTSState, val sequence: List[ASTNode], var recursiveNodes : List[ASTNode]) {
+  override def equals(that: Any): Boolean = that match {
+    case s : LTSSequence => currentState == s.currentState && new LTSState(sequence) == new LTSState(s.sequence)
+    case _ => false
+  }
+  override def hashCode(): Int = this.toString.hashCode
+  override def toString: String = currentState.toString + new LTSState(sequence).toString
+}
 
 class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) extends AbstractRewriter(null, true){
 
@@ -71,8 +77,8 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
   private var roleNames : Iterable[String] = null
   private var mainMethods : Iterable[Method] = null
   private var roleName : String = null
-  private var recursiveNodes : List[ASTNode] = List()
   private var todo : Set[LTSSequence] = null
+  private var done : Set[LTSSequence] = null
 
   private val sessionFileName = Configuration.session_file.get()
   private val session_global_lts = sessionFileName.slice(0,sessionFileName.length-4) + "GlobalLTS.aut"
@@ -90,7 +96,6 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
       roleClasses.foreach{ thread =>
         initialState = null
         transitions = Map()
-        recursiveNodes = List()
         mainMethods = thread.methods().filter(isExecutableMainMethod)
         roleName = getRoleName(thread.name)
         generateLTS(thread)
@@ -134,16 +139,24 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
     val runMethodStats = classDef.methods().find(_.name == runMethodName).get.getBody.asInstanceOf[BlockStatement].getStatements.toList
     initialState = new LTSState(runMethodStats).getCopy(copy_rw)
     todo = Set(new LTSSequence(initialState,initialState.nextStatements,List.empty))
-    visitStatementSequence(initialState,initialState.nextStatements,false)
+    done = Set.empty
+    visitAllSequences()
   }
 
   private def visitAllSequences() : Unit = {
     while(todo.nonEmpty) {
-      val seq = todo.head
-      todo = todo - seq
-      visitStatementSequence(seq.currentState,seq.sequence,false)
+      val exp = todo.head
+      done = done + exp
+      todo = todo - exp
+      visitStatementSequence(exp)
     }
   }
+
+  private def addTodo(exp : LTSSequence) : Unit =
+    if(exp.sequence.nonEmpty && !done.contains(exp)) {
+      todo = todo + exp
+      Output("todo: " + todo.size)
+    }
 
   override def visit(m : Method) : Unit =
     Fail("Session Fail: method visit(Method) should not be reached")
@@ -151,36 +164,35 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
   override def visit(b : BlockStatement) : Unit =
     Fail("Session Fail: method visit(BlockStatement) should not be reached")
 
-  def visitStatementSequence(currentState : LTSState, seq : List[ASTNode], extendCurrentStateTrans : Boolean) : Unit = {
-    if((extendCurrentStateTrans || !transitions.contains(currentState)) && seq.nonEmpty) {
-      val s1 = seq.head
-      val nextSeq = seq.tail
-      visitNode(s1, currentState, nextSeq)
+  def visitStatementSequence(exp : LTSSequence) : Unit = {
+    if(!isRecursion(exp.sequence.head,exp.recursiveNodes)) { //|| !transitions.contains(exp.currentState)
+      val s1 = exp.sequence.head
+      val nextSeq = exp.sequence.tail
+      visitNode(s1, new LTSSequence(exp.currentState,nextSeq,exp.recursiveNodes))
       if(nextSeq.nonEmpty) {
         val s2 = nextSeq.head
         if (weakSequenceAllowed(s1, s2)) { //if weak sequence allowed: also do other order s2;s1
-          val nextSeq2 = s1 +: nextSeq.tail
-          visitNode(s2, currentState, nextSeq2)
+          addTodo(new LTSSequence(exp.currentState,s2 +: s1 +: nextSeq.tail,exp.recursiveNodes))
         }
       }
     }
   }
 
-  def visitNode(n : ASTNode, currentState : LTSState, seqAfterFirstStatement : List[ASTNode]) : Unit = n match {
-    case a : AssignmentStatement => visit(a,currentState,seqAfterFirstStatement)
-    case i : IfStatement => visit(i,currentState,seqAfterFirstStatement)
-    case l : LoopStatement => visit(l,currentState,seqAfterFirstStatement)
-    case p : ParallelRegion => visit(p,currentState,seqAfterFirstStatement)
-    case m : MethodInvokation => visit(m,currentState,seqAfterFirstStatement)
-    case s : ASTSpecial => visit(s,currentState,seqAfterFirstStatement)
+  def visitNode(n : ASTNode, exp : LTSSequence) : Unit = n match {
+    case a : AssignmentStatement => visit(a,exp)
+    case i : IfStatement => visit(i,exp)
+    case l : LoopStatement => visit(l,exp)
+    case p : ParallelRegion => visit(p,exp)
+    case m : MethodInvokation => visit(m,exp)
+    case s : ASTSpecial => visit(s,exp)
     case _ => Fail("Session Fail: cannot visit this type of statement!")
   }
 
-  def takeTransition(currentState : LTSState, label : LTSLabel, nextStateSeq : List[ASTNode]) : LTSState = {
-    val nextState = new LTSState(nextStateSeq)
+  def takeTransition(label : LTSLabel, exp : LTSSequence) = {
+    val nextState = new LTSState(exp.sequence)
     Output(label.action.toString.replace('%','^'))
-    transitions = mapInsertTransition(currentState, new LTSTransition(label,nextState))
-    nextState
+    transitions = mapInsertTransition(exp.currentState, new LTSTransition(label,nextState))
+    addTodo(new LTSSequence(nextState,exp.sequence,exp.recursiveNodes))
   }
 
   def weakSequenceAllowed(s1 : ASTNode, s2: ASTNode) : Boolean = {
@@ -227,20 +239,17 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
     case _ => true
   }
 
-  def visit(s : ASTSpecial, currentState : LTSState, seq : List[ASTNode]) : Unit =
+  def visit(s : ASTSpecial, exp : LTSSequence) : Unit =
     if (s.kind == ASTSpecial.Kind.TauAction) {
-      val nextState = takeTransition(currentState, new LTSLabel(None,Tau), seq)
-      visitStatementSequence(nextState, seq,false)
+      takeTransition(new LTSLabel(None,Tau), exp)
     } else Fail("Session Fail: cannot visit this type of statement!")
 
 
   def mapInsertTransition(k : LTSState, v : LTSTransition) : Map[LTSState,Set[LTSTransition]] =
     mapInsertSetValue[LTSState,LTSTransition](k,v,transitions)
 
-  def visit(a : AssignmentStatement, currentState : LTSState, seq : List[ASTNode]) = {
-    val nextState = takeTransition(currentState, new LTSLabel(None,if(isGlobal) getGlobalAction(a) else getLocalAction(a,roleName)), seq)
-    visitStatementSequence(nextState,seq,false)
-  }
+  def visit(a : AssignmentStatement, exp : LTSSequence) : Unit =
+    takeTransition(new LTSLabel(None,if(isGlobal) getGlobalAction(a) else getLocalAction(a,roleName)), exp)
 
   override def visit(a : AssignmentStatement) : Unit = {
     Fail("Session Fail: method visit(AssignmentStatement) should not be reached")
@@ -283,19 +292,17 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
     case _ => false
   }
 
-  def visit(i: IfStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
-    takeTwoBranches(i.getGuard(0),ASTNodeToList(i.getStatement(0)),if(i.getCount > 1) ASTNodeToList(i.getStatement(1)) else List.empty,currentState,seq)
+  def visit(i: IfStatement, exp : LTSSequence) : Unit =
+    takeTwoBranches(i.getGuard(0),ASTNodeToList(i.getStatement(0)),if(i.getCount > 1) ASTNodeToList(i.getStatement(1)) else List.empty,exp)
 
   override def visit(i: IfStatement) =
     Fail("Session Fail: method visit(IfStatement) should not be reached")
 
-  def isRecursion(s : ASTNode) : Boolean = recursiveNodes.exists(n => new LTSState(List(n)).toString == new LTSState(List(s)).toString)
+  def isRecursion(s : ASTNode, recursiveNodes : List[ASTNode]) : Boolean = recursiveNodes.exists(n => new LTSState(List(n)).toString == new LTSState(List(s)).toString)
 
-  def visit(l : LoopStatement, currentState : LTSState, seq : List[ASTNode]) : Unit = {
-    if(!isRecursion(l)) {
-      recursiveNodes = l +: recursiveNodes
-      takeTwoBranches(l.getEntryGuard,ASTNodeToList(l.getBody) :+ l,List.empty,currentState,seq)
-    }
+  def visit(l : LoopStatement, exp : LTSSequence) : Unit = {
+      exp.recursiveNodes = l +: exp.recursiveNodes
+      takeTwoBranches(l.getEntryGuard,ASTNodeToList(l.getBody) :+ l,List.empty,exp)
   }
 
   override def visit(l : LoopStatement) =
@@ -308,23 +315,61 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
 
   //visit(new IfStatement(l.getEntryGuard,create.block(l.getBody,l),new BlockStatement()))
 
-  private def takeTwoBranches(cond : ASTNode, leftBranch : List[ASTNode], rightBranch : List[ASTNode], currentState : LTSState, seq : List[ASTNode]) : Unit = {
+  private def takeTwoBranches(cond : ASTNode, leftBranch : List[ASTNode], rightBranch : List[ASTNode], exp : LTSSequence) : Unit = {
     val condTrue = new LTSLabel(Some(cond),BarrierWait)
-    takeIfBranch(condTrue,leftBranch,currentState,seq)
+    takeIfBranch(condTrue,leftBranch,exp)
     val condFalse = new LTSLabel(Some(OperatorExpression(StandardOperator.Not,List(cond))),BarrierWait)
-    takeIfBranch(condFalse,rightBranch,currentState,seq)
+    takeIfBranch(condFalse,rightBranch,exp)
   }
 
-  private def takeIfBranch(condLabel : LTSLabel, statements : List[ASTNode], currentState : LTSState, seq : List[ASTNode]) : Unit = {
-    val totalNextSeq = statements ++ seq
-    val nextState = takeTransition(currentState, condLabel, totalNextSeq)
-    visitStatementSequence(nextState, totalNextSeq,false)
-  }
+  private def takeIfBranch(condLabel : LTSLabel, statements : List[ASTNode], exp : LTSSequence) : Unit =
+    takeTransition(condLabel,new LTSSequence(exp.currentState,statements ++ exp.sequence,exp.recursiveNodes))
 
   override def visit(pr : ParallelRegion) : Unit =
     Fail("Session Fail: method visit(ParallelRegion) should not be reached")
 
-  def visit(pr : ParallelRegion, currentState : LTSState, nextSeq : List[ASTNode]) : Unit = {
+  private def getWeakSequences(seq : List[ASTNode]) : List[List[ASTNode]] = {
+    if(seq.size <= 1) {
+      List(seq)
+    } else {
+      val s1 = seq.head
+      val s2 = seq.tail.head
+      val strongSeqList = for (l <- getWeakSequences(seq.tail)) yield s1 +: l
+      if(weakSequenceAllowed(s1,s2)) {
+        val weakSeqList = for (l <- getWeakSequences(s1 +: seq.tail.tail)) yield s2 +: l
+        strongSeqList ++ weakSeqList
+      } else strongSeqList
+    }
+  }
+                                    //blockWeakseq                  ListBlockSeq
+  private def getCombinations(blocks : List[List[List[ASTNode]]]) : List[List[List[ASTNode]]] = {
+    if (blocks.forall(_.isEmpty)) {
+      List.empty
+    } else if (blocks.forall(_.size <= 1)) {
+      List(blocks.map(b => if (b.isEmpty) List.empty else b.head))
+    } else {
+      blocks.indices.map(i => {
+        val split = blocks.splitAt(i)
+        val blist : List[List[ASTNode]] = split._2.head
+        val otherBlocks = split._1 ++ split._2.tail
+        for (seq : List[ASTNode] <- blist; comb : List[List[ASTNode]] <- getCombinations(otherBlocks)) yield seq +: comb
+      }).reduce((l1,l2) => l1 ++ l2)
+    }
+  }
+
+  private def getInterLeavings(seqs : List[List[ASTNode]]) : List[List[ASTNode]] = {
+    val neseqs = seqs.filter(_.nonEmpty)
+    if(neseqs.size > 1) {
+      neseqs.indices.map(i => {
+        val split = neseqs.splitAt(i)
+        val seq = split._2.head
+        val others = split._1 ++ split._2.tail
+        for (l <- getInterLeavings(seq.tail +: others)) yield seq.head +: l
+      }).reduce((l1,l2) => l1 ++ l2)
+    } else neseqs
+  }
+
+  def visit(pr : ParallelRegion, exp : LTSSequence) : Unit = {
     val nextSequences = pr.blocks.indices.map(i => {
       val split = pr.blocks.splitAt(i)
       (split._2.head, split._1 ++ split._2.tail)
@@ -332,29 +377,13 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
       val afterAction = getTailParBlock(b)
       val newPr = create.region(pr.contract,(if (afterAction.block.isEmpty) others else afterAction +: others):_*)
       if(newPr.blocks.forall(_.block.size == 0))
-        b.block.getStatement(0) +: nextSeq
+        b.block.getStatement(0) +: exp.sequence
       else
-        b.block.getStatement(0) +: newPr +: nextSeq
+        b.block.getStatement(0) +: newPr +: exp.sequence
     }}
     nextSequences.foreach(seq => {
-      visitStatementSequence(currentState,seq,true)
+      addTodo(new LTSSequence(exp.currentState,seq,exp.recursiveNodes))
     })
-    /*
-        for(i <- pr.blocks.indices) {
-          currentState = tmpCurrent
-          nextSequence = tmpSeq
-          val b = pr.blocks(i)
-          if(b.block.size > 0) {
-            val otherBlocks = pr.blocks.take(i) ++ pr.blocks.drop(i+1)
-            val newBlocks = getTailParBlock(b) +: otherBlocks
-            val newPr = create.region(pr.contract,newBlocks:_*)
-            if(newPr.blocks.forall(_.block.size == 0))
-              nextSequence = b.block.getStatement(0) +: nextSequence
-            else
-              nextSequence = b.block.getStatement(0) +: newPr +: nextSequence
-            visitStatementSequence()
-          }
-        } */
   }
 
   private def getCopyBlockWithStats(pb : ParallelBlock, statements : Array[ASTNode]) : ParallelBlock =
@@ -365,25 +394,20 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
   override def visit(m : MethodInvokation) : Unit =
     Fail("Session Fail: method visit(MethodInvokation) should not be reached")
 
-  def visit(m : MethodInvokation, currentState : LTSState, nextSeq : List[ASTNode]) = {
+  def visit(m : MethodInvokation, exp : LTSSequence) = {
     if(m.`object` == null) { // it is a main method
-      if(!isRecursion(m)) {
-        recursiveNodes = m +: recursiveNodes
-        visitStatementSequence(currentState,ASTNodeToList(getMethodFromCall(m).getBody) ++ nextSeq, false)
-      }
+        addTodo(new LTSSequence(exp.currentState,ASTNodeToList(getMethodFromCall(m).getBody) ++ exp.sequence,m +: exp.recursiveNodes))
     } else {
       if(m.method == chanWrite) {
         val argExp = m.args.head
         val sender = getNamesFromExpression(argExp).head
         val chan = m.`object`.asInstanceOf[NameExpression].name
         val receiver = chan.substring(sender.name.length,chan.length-chanName.length)
-        val nextState = takeTransition(currentState, new LTSLabel(None, WriteAction(create.field_name(receiver),sender.name,argExp)), nextSeq)
-        visitStatementSequence(nextState,nextSeq, false)
+        takeTransition(new LTSLabel(None, WriteAction(create.field_name(receiver),sender.name,argExp)), exp)
       } else if(m.method == barrierAwait) {
         Fail("Session Fail: Barrier!!!")
       } else { //role method
-        val nextState = takeTransition(currentState,new LTSLabel(None, SingleRoleAction(m)), nextSeq)
-        visitStatementSequence(nextState,nextSeq, false)
+        takeTransition(new LTSLabel(None, SingleRoleAction(m)), exp)
       }
     }
   }
