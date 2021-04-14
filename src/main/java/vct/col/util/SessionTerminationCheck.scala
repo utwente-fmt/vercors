@@ -35,7 +35,6 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
       encountered = Set()
       m._1.accept(this)
     })
-    val i =1
   }
 
 
@@ -49,7 +48,7 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
             methodCalled = false
           else
             encountered = Set()
-          if (!(c.name == mainClassName && m.kind != Method.Kind.Pure)) //recursion is allowed in non-pure main methods
+        //  if (!(c.name == mainClassName && m.kind != Method.Kind.Pure)) //recursion is allowed in non-pure main methods
             encountered += m.name
           currentClass = c.name
           if(m.getBody != null) //abstract methods terminate anyway
@@ -76,19 +75,26 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
   }
 
   override def visit(m : MethodInvokation) : Unit = {
-    if(encountered.contains(MethodInvToString(m)))
+    if(encountered.contains(MethodInvToString(m))) {
+      methods.find(tup => tup._1.name == m.method) match {
+        case Some(tup) => {
+          if(tup._2 == mainClassName)
+            Fail("Session Fail: recursive call %s in Main class not supported",m.method)
+        }
+        case None =>
+      }
       Warning("Session Warning: recursive call of method '%s'" + deadlockWarning, m.method, m.getOrigin)
-    else methods.find(tup => tup._1.name == m.method) match {
+    } else methods.find(tup => tup._1.name == m.method) match {
       case Some(tup) => {
         val method = tup._1
         val mClass = tup._2
         if(mClass == mainClassName && currentClass != mainClassName) {
           Fail("Session Fail: Cannot call Main method '%s' from role or other class! %s", m.method,m.getOrigin)
-        } else if (mClass != mainClassName || method.kind == Method.Kind.Pure) {
+        } else { //if (mClass != mainClassName || method.kind == Method.Kind.Pure) {
           methodCalled = true
           encountered += MethodInvToString(m)
           visit(method)
-        } else {
+        // } else {
           //stop checking; recursion is allowed in non-pure main methods
         }
       }

@@ -67,7 +67,6 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
   private var initialState : LTSState = null
   private var transitions : Map[LTSState,Set[LTSTransition]] = Map()
   private var roleNames : Iterable[String] = null
-  private var mainMethods : Iterable[Method] = null
   private var roleName : String = null
 
   private val sessionFileName = Configuration.session_file.get()
@@ -76,7 +75,6 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
 
   def generateLTSAndPrint() : Unit = {
     if(isGlobal) {
-      mainMethods = SessionStructureCheck.getMainClass(source).methods().filter(isExecutableMainMethod)
       roleNames = SessionStructureCheck.getRoleNames(source)
       generateLTS(SessionStructureCheck.getMainClass(source))
       print()
@@ -86,7 +84,6 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
       roleClasses.foreach{ thread =>
         initialState = null
         transitions = Map()
-        mainMethods = thread.methods().filter(isExecutableMainMethod)
         roleName = thread.fields().head.name
         generateLTS(thread)
         print()
@@ -124,10 +121,29 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
     }
   }
 
+  private def getStatementsFromNode(classDef : ASTClass, mainMethods : Iterable[Method],a : ASTNode) : List[ASTNode] = a match {
+    case m: MethodInvokation =>
+      if (m.`object` == null) {
+        val mdefs = mainMethods.filter(method => method.name == m.method && method.getArity == m.getArity)
+        if(mdefs.size > 1)
+          Fail("Session Fail: Main class has two different methods with the same name and arity")
+        else if(mdefs.isEmpty)
+          Fail("Session Fail: couldn't find definition for method call %s",m.method)
+        preProcessMethodCalls(classDef,mainMethods,mdefs.head)
+      } else List(m)
+    case n: ASTNode => List(n)
+  }
+
+  private def preProcessMethodCalls(classDef : ASTClass,  mainMethods : Iterable[Method], method : Method) : List[ASTNode] = {
+    val stats = method.getBody.asInstanceOf[BlockStatement].getStatements.toList
+    stats.flatMap(s => getStatementsFromNode(classDef, mainMethods, s))
+  }
+
   private def generateLTS(classDef : ASTClass) : Unit = {
     //val constructorStats = mainClass.methods().find(_.kind == Method.Kind.Constructor).get.getBody.asInstanceOf[BlockStatement].getStatements.toList
-    val runMethodStats = classDef.methods().find(_.name == runMethodName).get.getBody.asInstanceOf[BlockStatement].getStatements.toList
-    initialState = new LTSState(runMethodStats).getCopy(copy_rw)
+    val runMethod = classDef.methods().find(_.name == runMethodName).get
+    val mainMethods = classDef.methods().filter(isExecutableMainMethod)
+    initialState = new LTSState(preProcessMethodCalls(classDef,mainMethods,runMethod)).getCopy(copy_rw)
     visitStatementSequence(initialState,initialState.nextStatements)
   }
 
@@ -137,11 +153,34 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
   override def visit(b : BlockStatement) : Unit =
     Fail("Session Fail: method visit(BlockStatement) should not be reached")
 
+  def getNrLastWeakFirstStatements(seq : List[ASTNode], seen : List[ASTNode]) : Int = {
+    if (seq.isEmpty)
+      0
+    else if(seq.size == 1)
+      1
+    else {
+      val s1 = seq.head
+      val s2 = seq.tail.head
+      if(weakSequenceAllowed(s1,s2) && seen.forall(s0 => weakSequenceAllowed(s0,s2)))
+        1 + getNrLastWeakFirstStatements(seq.tail,s1 +: seen)
+      else
+        1
+    }
+  }
+
+  private def getElAndRestByIndex[A](seq : List[A], index : Int) : (A, List[A]) = {
+    val split = seq.splitAt(index)
+    (split._2.head, split._1 ++ split._2.tail)
+  }
+
+  private def getWeakSequences(seq : List[ASTNode]) : List[(ASTNode,List[ASTNode])] = {
+    val nr = getNrLastWeakFirstStatements(seq,List.empty)
+    (for(i <- 0 until nr) yield getElAndRestByIndex(seq,i)).toList
+  }
+
   def visitStatementSequence(currentState : LTSState, seq : List[ASTNode]) : Unit = {
     if(seq.nonEmpty && !transitions.contains(currentState)) {
-      val s1 = seq.head
-      val nextSeq = seq.tail
-      visitStatementSequenceAbstract(currentState,s1,nextSeq,if (nextSeq.isEmpty) None else Some((nextSeq.head,nextSeq.tail)))
+      visitStatementSequenceAbstract(currentState,getWeakSequences(seq))
     /*  visitNode(s1, currentState, nextSeq)
       if(nextSeq.nonEmpty) {
         val s2 = nextSeq.head
@@ -153,16 +192,8 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
     }
   }
 
-  def visitStatementSequenceAbstract(currentState : LTSState, s1 : ASTNode, s1NextSeq : List[ASTNode], s2Opt : Option[(ASTNode, List[ASTNode])]) = {
-    visitNode(s1, currentState, s1NextSeq)
-    s2Opt match {
-      case Some((s2,s2NextSeq)) =>
-        if (weakSequenceAllowed(s1, s2)) { //if weak sequence allowed: also do other order s2;s1
-          visitNode(s2, currentState, s2NextSeq)
-        }
-      case None => //do nothing
-    }
-  }
+  def visitStatementSequenceAbstract(currentState : LTSState, firstAndNext :List[(ASTNode,List[ASTNode])]) =
+    firstAndNext.foreach{case (s,seq) => visitNode(s,currentState,seq)}
 
   def visitNode(n : ASTNode, currentState : LTSState, seqAfterFirstStatement : List[ASTNode]) : Unit = n match {
     case a : AssignmentStatement => visit(a,currentState,seqAfterFirstStatement)
@@ -210,9 +241,10 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
       case _ : LoopStatement => roleNames.toSet
       case p : ParallelRegion => p.blocks.map(_.block).toSet.flatMap(getSubjects(seen,_))
       case m : MethodInvokation => {
-        if(m.`object` == null) //it is a main method
-          getNamesFromExpression(m).map(_.name) ++ (if(seen.contains(m.method)) Set.empty else getSubjects(seen + m.method,getMethodFromCall(m).getBody.asInstanceOf[BlockStatement].head))
-        else getNamesFromExpression(m).map(_.name)
+        if(m.`object` == null) { //it is a main method
+          Fail("Session Fail: encountered method call %s in LTS generation",m.method)
+          Set.empty
+        } else getNamesFromExpression(m).map(_.name)
       }
       case _ : ASTSpecial => roleNames.toSet
     }
@@ -323,35 +355,28 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
       val split = pr.blocks.splitAt(i)
       val b = split._2.head
       val others = split._1 ++ split._2.tail
-      val s1 = b.block.getStatement(0)
-      val nextSeqb = b.block.getStatements.tail
-      val s1NextSeq = getNewPrBeforeNextSeq(b, nextSeqb,others,pr, nextSeq)
-      val s2Opt = if (nextSeqb.isEmpty) None else {
-        Some((nextSeqb.head,getNewPrBeforeNextSeq(b,s1 +: nextSeqb.tail,others,pr,nextSeq)))
-      }
-      visitStatementSequenceAbstract(currentState,s1,s1NextSeq,s2Opt)
+      val fns = getWeakSequences(b.block.getStatements.toList).map(fn =>
+        (fn._1,getNewPrBeforeNextSeq(b,fn._2,others,pr,nextSeq))
+      )
+      visitStatementSequenceAbstract(currentState,fns)
       })
-  /*  nextSequences.foreach(seq => {
-      visitStatementSequence(currentState,seq,true)
-    }) */
   }
 
-  private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : Array[ASTNode], others : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
+  private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], others : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
     val afterActions2 = getCopyBlockWithStats(b,seq)
     val newPr = create.region(pr.contract,(if (afterActions2.block.isEmpty) others else afterActions2 +: others):_*)
     if(newPr.blocks.forall(_.block.size == 0)) nextSeq else newPr +: nextSeq
   }
 
-  private def getCopyBlockWithStats(pb : ParallelBlock, statements : Array[ASTNode]) : ParallelBlock =
-    create.parallel_block(pb.label,pb.contract,pb.itersJava,create.block(copy_rw.rewrite(statements):_*), pb.deps)
+  private def getCopyBlockWithStats(pb : ParallelBlock, statements : List[ASTNode]) : ParallelBlock =
+    create.parallel_block(pb.label,pb.contract,pb.itersJava,create.block(copy_rw.rewrite(statements.toArray):_*), pb.deps)
 
   override def visit(m : MethodInvokation) : Unit =
     Fail("Session Fail: method visit(MethodInvokation) should not be reached")
 
   def visit(m : MethodInvokation, currentState : LTSState, nextSeq : List[ASTNode]) = {
     if(m.`object` == null) { // it is a main method
-      // if(!isRecursion(m)) {
-        visitStatementSequence(currentState,ASTNodeToList(getMethodFromCall(m).getBody) ++ nextSeq, false)
+      Fail("Session Fail: encountered method call %s in LTS generation",m.method)
     } else {
       if(m.method == chanWrite) {
         val argExp = m.args.head
@@ -368,13 +393,5 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
       }
     }
   }
-
-  private def getMethodFromCall(m : MethodInvokation) : Method = {
-    val method = mainMethods.filter(md => md.name == m.method && m.getArity == md.getArity)
-    if(method.size != 1)
-      Fail("Session: Fail could not find method definition for method " + m.method)
-    method.head
-  }
-
 
 }

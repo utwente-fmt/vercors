@@ -52,7 +52,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     mainMethodNames = mainMethods.map(_.name)
     nonPlainMainMethodNames = mainClass.methods().filter(m => m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate).map(_.name)
     checkMainMethodsAllowedSyntax(mainMethods)
-    checkMainMethodsRecursion(source)
+  //  checkMainMethodsRecursion(source) //no guarded recusion supported by LTS generation
     checkRoleFieldsTypes(source)
     checkRoleMethodsTypes(source)
     otherClasses = getOtherClasses(source)
