@@ -62,9 +62,9 @@ final class LTSTransition(val label : LTSLabel, val destState : LTSState) {
   override def toString: String = label.toString + " -> " + destState.toString
 }
 
-final class LTSSequence(val currentState : LTSState, val sequence: List[ASTNode], val recursiveNodes : List[ASTNode])
+final class LTSGenState(val currentState : LTSState, val sequence1: List[ASTNode], val sequence2: List[ASTNode], val recursiveNodes : List[ASTNode])
 
-class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) extends AbstractRewriter(null, true){
+class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends AbstractRewriter(null, true){
 
   private var initialState : LTSState = null
   private var transitions : Map[LTSState,Set[LTSTransition]] = Map()
@@ -72,7 +72,6 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
   private var mainMethods : Iterable[Method] = null
   private var roleName : String = null
   private var recursiveNodes : List[ASTNode] = List()
-  private var todo : Set[LTSSequence] = null
 
   private val sessionFileName = Configuration.session_file.get()
   private val session_global_lts = sessionFileName.slice(0,sessionFileName.length-4) + "GlobalLTS.aut"
@@ -92,7 +91,7 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
         transitions = Map()
         recursiveNodes = List()
         mainMethods = thread.methods().filter(isExecutableMainMethod)
-        roleName = getRoleName(thread.name)
+        roleName = thread.fields().head.name
         generateLTS(thread)
         print()
       }
@@ -133,16 +132,7 @@ class SessionGlobalLTS(override val source : ProgramUnit, isGlobal : Boolean) ex
     //val constructorStats = mainClass.methods().find(_.kind == Method.Kind.Constructor).get.getBody.asInstanceOf[BlockStatement].getStatements.toList
     val runMethodStats = classDef.methods().find(_.name == runMethodName).get.getBody.asInstanceOf[BlockStatement].getStatements.toList
     initialState = new LTSState(runMethodStats).getCopy(copy_rw)
-    todo = Set(new LTSSequence(initialState,initialState.nextStatements,List.empty))
     visitStatementSequence(initialState,initialState.nextStatements,false)
-  }
-
-  private def visitAllSequences() : Unit = {
-    while(todo.nonEmpty) {
-      val seq = todo.head
-      todo = todo - seq
-      visitStatementSequence(seq.currentState,seq.sequence,false)
-    }
   }
 
   override def visit(m : Method) : Unit =
