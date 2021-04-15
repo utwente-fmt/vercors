@@ -238,14 +238,13 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
           Set.empty
         } else getNamesFromExpression(m).map(_.name)
       }
-      case _ : ASTSpecial => roleNames.toSet
+      case _ : ASTSpecial => Set.empty
     }
   }
 
   def canSwap(n : ASTNode) : Boolean = n match {
     case _ : IfStatement => false
     case _ : LoopStatement => false
-    case _ : ASTSpecial => false
     case _ => true
   }
 

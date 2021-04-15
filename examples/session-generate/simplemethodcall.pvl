@@ -1,5 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases ParallelWhileSimplified
+//:: cases SimpleMethodCall
 //:: suite session-generate
 //:: tools session
 //:: verdict Pass
@@ -14,6 +14,9 @@ class Role {
 		x = v;
 	}
 	
+	void compute() {
+        compute();
+	}
 }
 
 
@@ -36,28 +39,18 @@ class Main {
 	context Perm(a.x, write) ** Perm(a.left, write);
 	context Perm(b.x, write) ** Perm(b.left, write);
 	context Perm(c.x, write) ** Perm(c.left, write);
-//	requires a.x == 0 && b.x == 8 && c.x == 4;
-	requires b.x - c.x == c.x - a.x;
+	requires a.x == 0 && b.x == 8 && c.x == 4;
 	ensures a.x == b.x && b.x == c.x; 
 	void run() {
-		b.left = a.x;
-		c.left = b.x;
-		a.left = c.x;
 		
-		loop_invariant Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-		loop_invariant Perm(a.x, 1) ** Perm(b.x, 1) ** Perm(c.x, 1);
-		loop_invariant Perm(a.left, 1) ** Perm(b.left, 1) ** Perm(c.left, 1);
-		loop_invariant b.x - c.x == c.x - a.x;
-	//	loop_invariant (a.left != a.x) == (b.left != b.x);
-	//	loop_invariant (b.left != b.x) == (c.left != c.x);
-		loop_invariant b.left == a.x && c.left == b.x && a.left == c.x;
-		while(a.left != a.x && b.left != b.x && c.left != c.x) {
-			a.x = a.x + 1;
-			b.left = a.x;
-			b.x = b.x - 1;
-			c.left = b.x;
-			a.left = c.x;
-		}
+		b.x = 3;
+		foo();
+		a.compute();
+	}
+	
+	void foo() {
+	    a.x = 6;
+	    c.x = 1;
 	}
 
 	void main() {

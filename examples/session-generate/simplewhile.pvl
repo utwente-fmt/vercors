@@ -1,5 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases ParallelWhile
+//:: cases SimpleWhile
 //:: suite session-generate
 //:: tools session
 //:: verdict Pass
