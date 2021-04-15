@@ -1,10 +1,11 @@
 package vct.col.rewrite.gpgpuoptimizations
 
-import vct.col.ast.expr.{NameExpressionKind, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.OperatorExpression
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{LoopStatement, ParallelBlock, ParallelRegion}
-import vct.col.ast.stmt.decl.{DataLocation, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.composite.{LoopStatement, ParallelBlock}
+import vct.col.ast.stmt.decl.{ASTSpecial, DataLocation, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.ASTSpecial.Kind._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 
@@ -150,8 +151,30 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
     }
   }
 
-  //TODO OS do we need to exclude asserts, assumes, inhales, etc.
+
+  override def visit(special: ASTSpecial): Unit = {
+    special.kind match {
+      case Assert =>
+        exclude(special)
+      case Assume =>
+        exclude(special)
+      case Inhale =>
+        exclude(special)
+      case Exhale =>
+        exclude(special)
+      case _ => super.visit(special)
+    }
+
+  }
+
   def exclude(node: OperatorExpression): Unit = {
+    val tmp = excludeNode
+    excludeNode = true
+    super.visit(node)
+    excludeNode = tmp
+  }
+
+  def exclude(node: ASTSpecial): Unit = {
     val tmp = excludeNode
     excludeNode = true
     super.visit(node)

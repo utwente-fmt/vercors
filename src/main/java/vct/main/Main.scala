@@ -518,6 +518,7 @@ class Main {
       }
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
+      if (show_after.contains(pass.key)) show(pass)
 
       report = BY_KEY("checkTypesJava").apply_pass(report, Array())
 

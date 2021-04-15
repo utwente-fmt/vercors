@@ -19,8 +19,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
-//TODO OS how to get a free name (for future)
-
 object UnrollLoops {
   var unrolledProgram: ProgramUnit = null
 }
@@ -58,30 +56,35 @@ object LoopOperations {
     condCheck
   }
 
-  def findBounds(s: LoopStatement, itervar: ASTNode, create: ASTFactory[_]): (ASTNode, ASTNode) = {
+  def findBounds(s: LoopStatement, itervar: ASTNode, create: ASTFactory[_]): (ASTNode, ASTNode, Int, Int) = {
     val invs = s.getContract.invariant
     var lowerbounds: Set[ASTNode] = Set.empty
     var upperbounds: Set[ASTNode] = Set.empty
-
+    var offsetLow = 0
+    var offsetUpp = 0
     ASTUtils.conjuncts(invs, Star, And).forEach {
       case e: OperatorExpression => e.operator match {
         // Lowerbounds
         case LT if e.second.equals(itervar) =>
-          lowerbounds ++= Set(create.expression(Plus, e.first, create.constant(1)))
+          lowerbounds ++= Set(e.first)
+          offsetLow= 1
         case LTE if e.second.equals(itervar) =>
           lowerbounds ++= Set(e.first)
         case GT if e.first.equals(itervar) =>
-          lowerbounds ++= Set(create.expression(Minus, e.second, create.constant(1)))
+          lowerbounds ++= Set(e.second)
+          offsetLow= -1
         case GTE if e.first.equals(itervar) =>
           lowerbounds ++= Set(e.second)
 
         // Upperbounds
         case GT if e.second.equals(itervar) =>
-          upperbounds ++= Set(create.expression(Plus, e.first, create.constant(1)))
+          upperbounds ++= Set(e.first)
+          offsetUpp= 1
         case GTE if e.second.equals(itervar) =>
           upperbounds ++= Set(e.first)
         case LT if e.first.equals(itervar) =>
-          upperbounds ++= Set(create.expression(Minus, e.second, create.constant(1)))
+          upperbounds ++= Set(e.second)
+          offsetUpp= -1
         case LTE if e.first.equals(itervar) =>
           upperbounds ++= Set(e.second)
         case _ =>
@@ -103,7 +106,7 @@ object LoopOperations {
     val a = lowerbounds.head
     val b = upperbounds.head
 
-    (a, b)
+    (a, b, offsetLow, offsetUpp)
   }
 }
 
@@ -194,7 +197,6 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
       super.visit(s)
       return
     } else if (inLoop) {
-      //TODO OS think of a better warning message
       Warning("Only one loop can be optimized at a time. By default, the outer loop is optimized first. Please run VerCors again with the output to optimize the inner loops %s", s.getOrigin)
       super.visit(s)
       return
@@ -403,7 +405,6 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
   }
 
   private def generateCheckMethods(s: LoopStatement, itervar: NameExpression, K: Int, updateStmt: (StandardOperator, ASTNode)): Seq[Method] = {
-    //TODO OS, prefix the names of the generated methods with something like vct_lu_
     val methodsStatic = true
     val nameOfU = "U" + (Math.random() * 100).asInstanceOf[Int]
     val nameOfInc = "update" + (Math.random() * 100).asInstanceOf[Int]

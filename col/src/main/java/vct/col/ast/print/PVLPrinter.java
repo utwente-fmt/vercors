@@ -1027,12 +1027,17 @@ public class PVLPrinter extends AbstractPrinter{
         if (o == null) return;
         out.printf("gpuopt ");
         if (o instanceof LoopUnrolling) {
-            out.printf(" loop_unroll ");
+            out.printf("loop_unroll ");
         } else if (o instanceof MatrixLinearization) {
-            out.printf(" matlin ");
+            out.printf("matlin ");
         } else if (o instanceof Tiling) {
-            out.printf(" tile ");
-        } else {
+            out.printf("tile ");
+        } else if (o instanceof IterationMerging) {
+            out.printf("iter_merge ");
+        } else if (o instanceof DataLocation) {
+            out.printf("glob_to_reg ");
+        }
+        else {
             Warning("Could not find name of " + o.getClass());
         }
         Iterator<ASTNode> argsit = o.args().iterator();

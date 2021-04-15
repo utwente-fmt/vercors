@@ -68,11 +68,5 @@ class Tiling(val interOrIntra: TilingConfig, val tileSize: ConstantExpression)
   extends GPUOpt(List(tileSize)) {
     require(tileSize.value.isInstanceOf[IntegerValue], "The tilesize is not an integer constant")
 
-    val tileSizeInt = tileSize.value.asInstanceOf[IntegerValue].value
+    val tileSizeInt: Int = tileSize.value.asInstanceOf[IntegerValue].value
 }
-
-//TODO OS what were the be done
-//case class Tiling(matrixName: NameExpression, rowOrColumn: Major, dimX: ASTNode, dimY: ASTNode)
-//  extends GPUOpt(GPUOptName.MatrixLinearization ,List(matrixName, dimX, dimY)) {
-//}
-

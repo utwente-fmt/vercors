@@ -133,6 +133,8 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
   }
 
   def interTiling(m: Method, opt: Tiling): Method = {
+    //TODO OS write all the ifs written informally
+
 
     //    check m.getBody.isInstanceOf[BlockStatement]
     //    check m.getBody.asInstanceOf[BlockStatement].getStatement(0).isInstanceOf[ParallelRegion]

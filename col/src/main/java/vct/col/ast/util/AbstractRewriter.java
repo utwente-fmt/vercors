@@ -389,7 +389,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       result= create.opt_matrix_lin(rewrite(opt.matrixName()), opt.rowOrColumn(), rewrite(opt.dimX()), rewrite(opt.dimY()));
     } else if (o instanceof IterationMerging) {
       IterationMerging opt = (IterationMerging) o;
-      result= create.opt_loop_unroll(rewrite(opt.itervar()), rewrite(opt.M()));
+      result= create.opt_iter_merge(rewrite(opt.itervar()), rewrite(opt.M()));
     } else if (o instanceof DataLocation) {
       DataLocation opt = (DataLocation) o;
       result= create.opt_glob_to_reg(rewrite(opt.arrayName()), rewrite(JavaConverters.bufferAsJavaList(opt.locations().toBuffer())));
@@ -765,6 +765,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
   public ASTNode gt(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.GT,e1,e2);
+  }
+  public ASTNode ite(ASTNode e1,ASTNode e2,ASTNode e3){
+  	return create.expression(StandardOperator.ITE,e1,e2,e3);
   }
   public ASTNode neq(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.NEQ,e1,e2);
