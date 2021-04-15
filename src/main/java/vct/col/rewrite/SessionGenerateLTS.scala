@@ -181,14 +181,6 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
   def visitStatementSequence(currentState : LTSState, seq : List[ASTNode]) : Unit = {
     if(seq.nonEmpty && !transitions.contains(currentState)) {
       visitStatementSequenceAbstract(currentState,getWeakSequences(seq))
-    /*  visitNode(s1, currentState, nextSeq)
-      if(nextSeq.nonEmpty) {
-        val s2 = nextSeq.head
-        if (weakSequenceAllowed(s1, s2)) { //if weak sequence allowed: also do other order s2;s1
-          val nextSeq2 = s1 +: nextSeq.tail
-          visitNode(s2, currentState, nextSeq2)
-        }
-      } */
     }
   }
 
@@ -207,7 +199,7 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
 
   def takeTransition(currentState : LTSState, label : LTSLabel, nextStateSeq : List[ASTNode]) : LTSState = {
     val nextState = new LTSState(nextStateSeq)
-    Output(label.action.toString.replace('%','^') + " " + (if(label.action == BarrierWait) label.condition.get else ""))
+    Debug(label.action.toString.replace('%','^') + " " + (if(label.action == BarrierWait) label.condition.get else ""))
     transitions = mapInsertTransition(currentState, new LTSTransition(label,nextState))
     nextState
   }
@@ -354,17 +346,16 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
     pr.blocks.indices.foreach(i => {
       val split = pr.blocks.splitAt(i)
       val b = split._2.head
-      val others = split._1 ++ split._2.tail
       val fns = getWeakSequences(b.block.getStatements.toList).map(fn =>
-        (fn._1,getNewPrBeforeNextSeq(b,fn._2,others,pr,nextSeq))
+        (fn._1,getNewPrBeforeNextSeq(b,fn._2,split._1,split._2.tail,pr,nextSeq))
       )
       visitStatementSequenceAbstract(currentState,fns)
       })
   }
 
-  private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], others : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
-    val afterActions2 = getCopyBlockWithStats(b,seq)
-    val newPr = create.region(pr.contract,(if (afterActions2.block.isEmpty) others else afterActions2 +: others):_*)
+  private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], othersPreBlock : List[ParallelBlock], othersPostBlock : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
+    val afterFirstbAction = getCopyBlockWithStats(b,seq)
+    val newPr = create.region(pr.contract,(if (afterFirstbAction.block.isEmpty) othersPreBlock ++ othersPostBlock  else othersPreBlock ++ (afterFirstbAction +: othersPostBlock)):_*)
     if(newPr.blocks.forall(_.block.size == 0)) nextSeq else newPr +: nextSeq
   }
 
