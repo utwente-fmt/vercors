@@ -72,14 +72,14 @@ object LoopOperations {
           lowerbounds ++= Set(e.first)
         case GT if e.first.equals(itervar) =>
           lowerbounds ++= Set(e.second)
-          offsetLow= -1
+          offsetLow= 1
         case GTE if e.first.equals(itervar) =>
           lowerbounds ++= Set(e.second)
 
         // Upperbounds
         case GT if e.second.equals(itervar) =>
           upperbounds ++= Set(e.first)
-          offsetUpp= 1
+          offsetUpp= -1
         case GTE if e.second.equals(itervar) =>
           upperbounds ++= Set(e.first)
         case LT if e.first.equals(itervar) =>
