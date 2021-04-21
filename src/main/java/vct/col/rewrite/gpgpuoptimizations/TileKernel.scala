@@ -35,7 +35,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
   var mapTidto: Option[(NameExpression, ASTNode)] = None
 
   def addCeilingFunc(): Unit = {
-    if (currentTargetClass.find(ceilingFuncName, null, null) != null) {
+    if (currentTargetClass.find_predicate(ceilingFuncName) != null) {
       return
     }
     val cb = new ContractBuilder
@@ -58,7 +58,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
   }
 
   def addNewIdxFunc(): Unit = {
-    if (currentTargetClass.find(newIdxFuncName, null, null) != null) {
+    if (currentTargetClass.find_predicate(newIdxFuncName) != null) {
       return
     }
     val func = create.function_decl(
@@ -79,7 +79,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
   }
 
   def addLowerAndUppFunc(): Unit = {
-    if (currentTargetClass.find(lowFuncName, null, null) == null) {
+    if (currentTargetClass.find_predicate(lowFuncName) == null) {
       val lowerfunc = create.function_decl(
         create.primitive_type(PrimitiveSort.Integer),
         null,
@@ -93,7 +93,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
       )
       currentTargetClass.add_static(lowerfunc)
     }
-    if (currentTargetClass.find(uppFuncName, null, null) == null) {
+    if (currentTargetClass.find_predicate(uppFuncName) == null) {
       val upperfunc = create.function_decl(
         create.primitive_type(PrimitiveSort.Integer),
         null,

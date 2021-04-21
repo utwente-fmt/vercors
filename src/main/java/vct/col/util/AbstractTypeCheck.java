@@ -556,13 +556,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         Method method = (Method) opt.getParent();
         Set<DeclarationStatement> ns = new HashSet<>();
 
-        if (method.getBody()!= null) ns = JavaConverters.setAsJavaSet(NameScanner.localVars(method.getBody()));
-
-        if (ns.stream().noneMatch(d -> d.name().equals(ml.matrixName().getName())) &&
-                Arrays.stream(method.getArgs()).noneMatch(d -> d.name().equals(ml.matrixName().getName()))
-        ) {
-          Fail("%s is not an argument nor a local variable at %s", ml.matrixName(), ml.matrixName().getOrigin());
-        }
+//        if (method.getBody()!= null) ns = JavaConverters.setAsJavaSet(NameScanner.localVars(method.getBody()));
+//
+//        if (ns.stream().noneMatch(d -> d.name().equals(ml.matrixName().getName())) &&
+//                Arrays.stream(method.getArgs()).noneMatch(d -> d.name().equals(ml.matrixName().getName()))
+//        ) {
+//          Fail("%s is not an argument nor a local variable at %s", ml.matrixName(), ml.matrixName().getOrigin());
+//        }
     } else if (opt instanceof DataLocation || opt instanceof Tiling) {
       //        //TODO OS check whether we need to skip DataLocation after rewriting grammar
     } else {

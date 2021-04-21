@@ -830,7 +830,10 @@ public class PVLPrinter extends AbstractPrinter{
                 || (s instanceof ASTSpecial)
                 || (s instanceof DeclarationStatement)
                 || (s instanceof ParallelRegion)
-                || (s instanceof ParallelBarrier);
+                || (s instanceof ParallelBarrier)
+                || (s instanceof ParallelAtomic)
+                || (s instanceof ParallelInvariant)
+                ;
     }
 
     public void visit(AssignmentStatement s){
@@ -1029,7 +1032,7 @@ public class PVLPrinter extends AbstractPrinter{
         if (o instanceof LoopUnrolling) {
             out.printf("loop_unroll ");
         } else if (o instanceof MatrixLinearization) {
-            out.printf("matlin ");
+            out.printf("matrix_lin ");
         } else if (o instanceof Tiling) {
             out.printf("tile ");
         } else if (o instanceof IterationMerging) {
@@ -1363,7 +1366,7 @@ public class PVLPrinter extends AbstractPrinter{
     }
     @Override
     public void visit(ParallelInvariant pb) {
-        out.printf("invariants %s (", pb.label());
+        out.printf("invariant %s (", pb.label());
         nextExpr();
         pb.inv().accept(this);
         out.printf(")");
@@ -1376,11 +1379,16 @@ public class PVLPrinter extends AbstractPrinter{
         if (region.contract() != null) {
             region.contract().accept(this);
         }
+        int i=0;
         for (ParallelBlock pb : region.blocksJava()) {
             out.incrIndent();
             pb.accept(this);
-            out.println("");
+            if (i < region.blocks().size()-1) {
+                out.println(" and ");
+
+            }
             out.decrIndent();
+            i++;
         }
     }
 

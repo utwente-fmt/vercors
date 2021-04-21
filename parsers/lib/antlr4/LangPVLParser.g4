@@ -23,7 +23,7 @@ modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
 methodDecl : gpuopts? contract modifier* type identifier '(' args? ')' methodBody ;
 methodBody : '=' expr ';' | constructorBody ;
 
-constructor : contract identifier '(' args? ')' constructorBody ;
+constructor : gpuopts? contract identifier '(' args? ')' constructorBody ;
 constructorBody : ';' | block ;
 
 contract : valContractClause* ;
@@ -276,7 +276,7 @@ gpuopt
     : 'gpuopt' 'loop_unroll' identifier NUMBER ';'
     | 'gpuopt' 'iter_merge' identifier NUMBER ';'
     | 'gpuopt' 'matrix_lin' identifier ('C'|'R') expr expr ';'
-    | 'gpuopt' 'glob_to_reg' identifier exprSeq ';'
+    | 'gpuopt' 'glob_to_reg' expr exprSeq ';'
     | 'gpuopt' 'tile' ('inter'| 'intra') NUMBER ';'
     ;
 gpuopts

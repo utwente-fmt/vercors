@@ -219,7 +219,8 @@ case class MergeIterations(override val source: ProgramUnit) extends AbstractRew
       }
       case _ => Fail("unsupported operator")
     }
-    cb.prependInvariant(lte(name(newL), constant(I+1)))
+    //TODO run all tests again because I+1 changed to I
+    cb.prependInvariant(lte(name(newL), constant(I)))
     cb.prependInvariant(lte(constant(K),name(newL)))
 
     //////////////////////////////////////
@@ -288,7 +289,7 @@ case class MergeIterations(override val source: ProgramUnit) extends AbstractRew
 
 
   def addPowFunc(): Unit = {
-    if (currentTargetClass.find(powFuncName, null, null) == null) {
+    if (currentTargetClass.find_predicate(powFuncName) == null) {
 //      requires y >= 0;
 //      ensures (y == 0) ==> \result == 1;
 //      ensures (y != 0) ==> \result == x * pow(x, y-1);
@@ -400,7 +401,7 @@ case class MergeIterations(override val source: ProgramUnit) extends AbstractRew
 
 
   def addDivFunc(): Unit = {
-    if (currentTargetClass.find(divFuncName, null, null) == null) {
+    if (currentTargetClass.find_predicate(divFuncName) == null) {
       //  requires k >= 0;
       //  requires y != 0;
       //  ensures (k == 0) ==> \result == x;

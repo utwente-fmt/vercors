@@ -435,7 +435,7 @@ public class ASTFactory<E> implements FrameControl {
     return res;
   }
 
-  public GPUOpt opt_glob_to_reg(NameExpression arrayName, List<ASTNode> locations) {
+  public GPUOpt opt_glob_to_reg(ASTNode arrayName, List<ASTNode> locations) {
     GPUOpt res=new DataLocation(arrayName, JavaConverters.asScalaBuffer(locations).toList());
     res.setOrigin(origin_stack.get());
     res.accept_if(post);

@@ -142,11 +142,13 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   })
 
   def convertConstructor(method: ConstructorContext): Method = origin(method, method match {
-    case Constructor0(contract, name, "(", args, ")", bodyNode) =>
+    case Constructor0(maybeGPUopts, contract, name, "(", args, ")", bodyNode) =>
       val returns = create primitive_type PrimitiveSort.Void
       val (_, body) = convertBody(bodyNode)
-      create method_kind(Kind.Constructor, returns, convertContract(contract),
-        convertID(name), args.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
+      val gpuopts = maybeGPUopts.map(convertGPUOpts).getOrElse(Seq.empty[GPUOpt])
+
+        create method_kind(Kind.Constructor, returns, convertContract(contract),
+        convertID(name), args.map(convertArgs).getOrElse(Seq()).toArray, gpuopts.asJava, body.orNull)
   })
 
   def convertContract(contract: ParserRuleContext): Contract = origin(contract, contract match {
@@ -647,7 +649,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case "R" => Major.Row
       }
       create.opt_matrix_lin(convertIDName(matrixName), toMajor, expr(dimX), expr(dimY))
-    case Gpuopt3(gpuOptKeyword, "glob_to_reg", matrixName, locs, _) => create.opt_glob_to_reg(convertIDName(matrixName), convertExpSeq(locs).asJava)
+    case Gpuopt3(gpuOptKeyword, "glob_to_reg", arr, locs, _) => create.opt_glob_to_reg(expr(arr), convertExpSeq(locs).asJava)
     case Gpuopt4(gpuOptKeyword, "tile", interOrIntra, tileSize, _) =>
       val config = interOrIntra match {
         case "inter" => TilingConfig.Inter

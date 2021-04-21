@@ -20,6 +20,7 @@ case class LinearizeMatrices(override val source: ProgramUnit) extends AbstractR
   private val idxname = prefix + "Idx"
 
   def addIdx = {
+    if (currentTargetClass.find_predicate(idxname) == null) {
 
       val args: Seq[DeclarationStatement] = Seq(
         create.field_decl(prefix + "X", create.primitive_type(PrimitiveSort.Integer)),
@@ -40,8 +41,10 @@ case class LinearizeMatrices(override val source: ProgramUnit) extends AbstractR
       )
       result.setStatic(true)
 
-    currentTargetClass.add(result)
+      currentTargetClass.add(result)
+    }
   }
+
 
 
   override def visit(m: Method): Unit = {
@@ -100,7 +103,10 @@ case class LinearizeMatrices(override val source: ProgramUnit) extends AbstractR
           return
         }
         val elementType = array.getElementType
-        result = create.expression(NewArray, SequenceUtils.optArrayCell(create, elementType), create.expression(Mult, e.arg(1), e.arg(2)))
+        result = create.expression(NewArray, SequenceUtils.optArrayCell(create, elementType), create.expression(Mult, rewrite(e.arg(1)), rewrite(e.arg(2))))
+      }
+      case ValidMatrix => {
+        result = create.expression(ValidArray, rewrite(e.arg(0)), create.expression(Mult, rewrite(e.arg(1)), rewrite(e.arg(2))))
       }
       case _ => super.visit(e)
     }

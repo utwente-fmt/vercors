@@ -53,7 +53,7 @@ class MatrixLinearization(val matrixName: NameExpression, val rowOrColumn: Major
   extends GPUOpt(List(matrixName, dimX, dimY)) {
 }
 
-class DataLocation(val arrayName: NameExpression, val locations: List[ASTNode])
+class DataLocation(val arrayName: ASTNode, val locations: List[ASTNode])
   extends GPUOpt(arrayName+: locations) {
     require(locations.nonEmpty, "There must be at least one location")
 }
