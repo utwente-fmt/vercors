@@ -128,22 +128,23 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
                   case _ =>
                 }
               }
-              case binder: BindingExpression if binder.binder == Binder.Star => {
-                binder.main match {
-                  case expr: OperatorExpression if expr.operator == Perm =>
-                    //  we have of form        input [ (tid * 2 + 2) ]
-                    //  expr.first is of form  input[i]
-                    val replaces = ASTUtils.replace(name(binder.decls.head.name), keyval._1.asInstanceOf[OperatorExpression].second, expr.first)
-                    if (keyval._1.equals(replaces)) {
-                      val selector = ASTUtils.replace(
-                        name(binder.decls.head.name),
-                        keyval._1.asInstanceOf[OperatorExpression].second,
-                        binder.select)
-
-                      cond = if (cond.equals(create.constant(true))) selector else and(cond, selector)                    }
-                  case _ =>
-                }
-              }
+                // WIP
+//              case binder: BindingExpression if binder.binder == Binder.Star => {
+//                binder.main match {
+//                  case expr: OperatorExpression if expr.operator == Perm =>
+//                    //  we have of form        input [ (tid * 2 + 2) ]
+//                    //  expr.first is of form  input[i]
+//                    val replaces = ASTUtils.replace(name(binder.decls.head.name), keyval._1.asInstanceOf[OperatorExpression].second, expr.first)
+//                    if (keyval._1.equals(replaces)) {
+//                      val selector = ASTUtils.replace(
+//                        name(binder.decls.head.name),
+//                        keyval._1.asInstanceOf[OperatorExpression].second,
+//                        binder.select)
+//
+//                      cond = if (cond.equals(create.constant(true))) selector else and(cond, selector)                    }
+//                  case _ =>
+//                }
+//              }
               case _ =>
             }
 
@@ -196,22 +197,23 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
                   case _ =>
                 }
               }
-              case binder: BindingExpression if binder.binder == Binder.Star => {
-                binder.main match {
-                  case expr: OperatorExpression if expr.operator == Perm =>
-                    //                  we have of form          input [ (tid * 2 + 2) ]
-                    //                  expr.first is of form    input[i]
-                    val replaces = ASTUtils.replace(name(binder.decls.head.name), keyval._1.asInstanceOf[OperatorExpression].second, expr.first)
-                    if (keyval._1.equals(replaces)) {
-                      val selector = ASTUtils.replace(
-                        name(binder.decls.head.name),
-                        keyval._1.asInstanceOf[OperatorExpression].second,
-                        binder.select)
-                      cond = if (cond.equals(create.constant(true))) selector else and(cond, selector)
-                    }
-                  case _ =>
-                }
-              }
+                // WIP
+//              case binder: BindingExpression if binder.binder == Binder.Star => {
+//                binder.main match {
+//                  case expr: OperatorExpression if expr.operator == Perm =>
+//                    //                  we have of form          input [ (tid * 2 + 2) ]
+//                    //                  expr.first is of form    input[i]
+//                    val replaces = ASTUtils.replace(name(binder.decls.head.name), keyval._1.asInstanceOf[OperatorExpression].second, expr.first)
+//                    if (keyval._1.equals(replaces)) {
+//                      val selector = ASTUtils.replace(
+//                        name(binder.decls.head.name),
+//                        keyval._1.asInstanceOf[OperatorExpression].second,
+//                        binder.select)
+//                      cond = if (cond.equals(create.constant(true))) selector else and(cond, selector)
+//                    }
+//                  case _ =>
+//                }
+//              }
               case _ =>
             }
 
