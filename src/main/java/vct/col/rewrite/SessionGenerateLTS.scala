@@ -250,8 +250,10 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
 
   def visit(s : ASTSpecial, currentState : LTSState, seq : List[ASTNode]) : Unit =
     if (s.kind == ASTSpecial.Kind.TauAction) {
-      val nextState = takeTransition(currentState, new LTSLabel(None,Tau), seq)
+      val nextState = takeTransition(currentState, new LTSLabel(None, Tau), seq)
       visitStatementSequence(nextState, seq)
+    } else if(s.kind == ASTSpecial.Kind.Assert) {
+        //skip
     } else Fail("Session Fail: cannot visit this type of statement!")
 
 

@@ -254,7 +254,7 @@ class Main {
   private def collectPassesForSession : Seq[AbstractPass] = Seq(
     BY_KEY("sessionStructCheck"),
     BY_KEY("sessionTerminationCheck"),
-    BY_KEY("sessionGlobalLTS"),
+  //  BY_KEY("sessionGlobalLTS"),
     BY_KEY("sessionGenerate"),
     BY_KEY("sessionLocalLTS"),
     BY_KEY("removeTaus"),

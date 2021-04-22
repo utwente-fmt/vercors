@@ -13,6 +13,7 @@ class Main {
 	** Perm(P1.myToken,read) ** Perm(P2.myToken,read)
 	** Perm(P1.turn,1) ** Perm(P2.turn,1)
 	** P1.myToken == 0 ** P2.myToken == 1
+	** P1.turn != P2.turn
 	** P1.equals(P2); 
 	
 	ensures (ticTacToeAnnotations());
@@ -22,21 +23,12 @@ class Main {
 	}
 	
 	context (ticTacToeAnnotations());		  
-//	context P1.turn != P2.turn;
 	ensures P1.gameFinished() && P2.gameFinished();
 	void run() {	  
-		loop_invariant Perm(P1,read) ** Perm(P2,read);
-		loop_invariant P1.gridWritePerm();
-		loop_invariant P2.gridWritePerm();
-	    loop_invariant Perm(P1.move,1) ** Perm(P1.myToken, read);
-	    loop_invariant Perm(P2.move,1) ** Perm(P2.myToken, read);
-	    loop_invariant Perm(P1.turn,1) ** Perm(P2.turn,1);
-	    loop_invariant P1.equals(P2);
-	//	loop_invariant P1.gameFinished() == P2.gameFinished(); this invariant is not necessary with the equals invariant
-		loop_invariant P1.myToken == 0;
-		loop_invariant P2.myToken == 1;
-	//	loop_invariant P1.turn != P2.turn; //invariant not needed
+		loop_invariant (ticTacToeAnnotations());
+		loop_invariant !P1.gameFinished() == !P2.gameFinished();
 		while(!P1.gameFinished() && !P2.gameFinished()) {
+			assert P1.turn == !P2.turn;
 			if(P1.turn && !P2.turn) {
 				P1.createNewMove();
 				P2.move = P1.move;

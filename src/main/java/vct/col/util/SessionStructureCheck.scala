@@ -6,8 +6,9 @@ import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression, S
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
 import vct.col.ast.stmt.decl.Method.{JavaConstructor, Kind}
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
+import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.stmt.terminal.AssignmentStatement
+import vct.col.ast.util.ASTUtils
 import vct.col.util.SessionStructureCheck.isResourceType
 import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNameFromNode, getNamesFromExpression, mainClassName, mainMethodName, runMethodName}
 
@@ -39,6 +40,7 @@ class SessionStructureCheck(source : ProgramUnit) {
   private var mainMethodNames : Iterable[String] = null
   private var nonPlainMainMethodNames : Iterable[String] = null
   private var otherClasses : Iterable[ASTClass] = null
+  private var prevAssertArg : ASTNode = null
 
   def check() : Unit = {
     checkMainClass(source)
@@ -46,7 +48,7 @@ class SessionStructureCheck(source : ProgramUnit) {
     checkMainConstructor()
     checkMainMethod()
     roleNames = getRoleNames()
-    roleClasses = getRoleClasses(source)
+    roleClasses = getRoleClasses()
     roleClassNames = roleClasses.map(_.name)
     mainMethods = getMainMethodsNonPureNonResourcePredicate()
     mainMethodNames = mainMethods.map(_.name)
@@ -218,48 +220,65 @@ class SessionStructureCheck(source : ProgramUnit) {
       case i: IfStatement => {
         if (i.getCount == 1 || i.getCount == 2) {
           if (checkSessionCondition(i.getGuard(0), roleNames)) {
-            checkMainStatement(i.getStatement(0))
-            if (i.getCount == 2) checkMainStatement(i.getStatement(1))
+            if(checkEqualRoleExpressions(prevAssertArg,i.getGuard(0))) {
+              checkMainStatement(i.getStatement(0))
+              if (i.getCount == 2) checkMainStatement(i.getStatement(1))
+            } else Fail("Session Fail: IfStatement needs to be preceded by an assert stating the equality of all the role expressions from the conditions! %s",i.getOrigin)
           } else Fail("Session Fail: IfStatement needs to have one condition for each role! " + s.getOrigin)
         } else Fail("Session Fail: one or two branches expected in IfStatement! " + s.getOrigin)
       }
       case l: LoopStatement => {
-        if (l.getInitBlock == null && l.getUpdateBlock == null) //it is a while loop
-          if (checkSessionCondition(l.getEntryGuard, roleNames))
-            checkMainStatement(l.getBody)
-          else Fail("Session Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
-        else Fail("Session Fail: a for loop is not supported, use a while loop! " + s.getOrigin)
+        if (l.getInitBlock == null && l.getUpdateBlock == null) { //it is a while loop
+          if (checkSessionCondition(l.getEntryGuard, roleNames)) {
+            if(checkEqualRoleExpressions(l.getContract.invariant,l.getEntryGuard))
+              checkMainStatement(l.getBody)
+            else Fail("Session Fail: a while loop needs to be preceded by an assert stating the equality of all the role expressions from the conditions! %s",l.getOrigin)
+          } else Fail("Session Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
+        } else Fail("Session Fail: a for loop is not supported, use a while loop! " + s.getOrigin)
       }
       case p : ParallelRegion => {
+        if (p.blocks.exists(_.block.isEmpty))
+          Fail("Session Fail: empty parallel block is not allowed! %s",p.getOrigin)
         p.blocks.foreach(b => checkMainStatement(b.block))
       }
-      case m : MethodInvokation =>
-        if(m.method == mainClassName)
-          Fail("This should have been detected by typechecker: cannot call method '%s'!",mainClassName)
-        else if(m.method == Method.JavaConstructor && m.dispatch.getName == mainClassName)
-          Fail("Session Fail: cannot call constructor '%s'!",mainClassName)
-        else if(m.method == Method.JavaConstructor && roleClassNames.contains(m.dispatch.getName))
-            Fail("Session Fail: cannot call role constructor '%s'",m.dispatch.getName)
-        else if(nonPlainMainMethodNames.contains(m.method))
-          Fail("Session Fail: cannot have a method call statement for pure/predicate method '%s'! %s",m.method,m.getOrigin)
-        else if(!mainMethodNames.contains(m.method)) { //it is a role or other class method
-          if(m.`object` == null) {
-            Fail("Session Fail: method call not allowed or object of method call '%s' is not given! %s",m.method,m.getOrigin)
+      case m : MethodInvokation => {
+        if (m.method == mainClassName)
+          Fail("This should have been detected by typechecker: cannot call method '%s'!", mainClassName)
+        else if (m.method == Method.JavaConstructor && m.dispatch.getName == mainClassName)
+          Fail("Session Fail: cannot call constructor '%s'!", mainClassName)
+        else if (m.method == Method.JavaConstructor && roleClassNames.contains(m.dispatch.getName))
+          Fail("Session Fail: cannot call role constructor '%s'", m.dispatch.getName)
+        else if (nonPlainMainMethodNames.contains(m.method))
+          Fail("Session Fail: cannot have a method call statement for pure/predicate method '%s'! %s", m.method, m.getOrigin)
+        else {
+          if (mainMethodNames.contains(m.method)) {
+            if(m.getArity > 0)
+              Fail("Session Fail: methods in class Main cannot have any arguments! %s",m.getOrigin)
+          } else { //it is a role or other class method
+            if (m.`object` == null) {
+              Fail("Session Fail: method call not allowed or object of method call '%s' is not given! %s", m.method, m.getOrigin)
+            }
+            m.`object` match {
+              case n: NameExpression =>
+                if (!roleNames.contains(n.name))
+                  Fail("Session Fail: invocation of method %s is not allowed here, because method is either pure, or from a non-role class! %s", m.method, m.getOrigin)
+            }
+            val roles = getNamesFromExpression(m).filter(n => roleNames.contains(n.name))
+            if (roles.size > 1)
+              Fail("Session Fail: Non-Main method call %s uses object and/or arguments from multiple roles! %s", m.toString, m.getOrigin)
           }
-          m.`object` match {
-            case n : NameExpression =>
-              if(!roleNames.contains(n.name))
-                Fail("Session Fail: invocation of method %s is not allowed here, because method is either pure, or from a non-role class! %s",m.method, m.getOrigin)
-          }
-          val roles = getNamesFromExpression(m).filter(n => roleNames.contains(n.name))
-          if(roles.size > 1)
-            Fail("Session Fail: Non-Main method call %s uses object and/or arguments from multiple roles! %s",m.toString,m.getOrigin)
         }
+      }
       case as : ASTSpecial =>
-        if(as.kind != ASTSpecial.Kind.Fold || as.kind != ASTSpecial.Kind.Unfold)
-          Fail("Session Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
+        if(as.kind == ASTSpecial.Kind.Assert) {
+          if(as.args.size != 1) {
+            Fail("Session Fail: Assert can only have one argument!")
+          } else prevAssertArg = as.args.head
+        } else Fail("Session Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
       case _ => Fail("Session Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
     }
+    if(!s.isInstanceOf[ASTSpecial]) //it is no ASTSpeicial, so no assert
+      prevAssertArg = null
   }
 
   private def checkSessionCondition(node: ASTNode, roleNames : Iterable[String]) : Boolean = {
@@ -289,9 +308,25 @@ class SessionStructureCheck(source : ProgramUnit) {
     }
   }
 
-  private def getRoleClasses(source : ProgramUnit) : Iterable[ASTClass] = {
+  private def getRoleClasses() : Iterable[ASTClass] = {
     val roleClassTypes = roleObjects.map(_.expression.asInstanceOf[MethodInvokation].dispatch.getName)
     getRoleOrHelperClasses().filter(c => roleClassTypes.contains(c.name))
+  }
+
+  private def checkEqualRoleExpressions(assert : ASTNode, condition : ASTNode) : Boolean = {
+    var expMap : Map[ASTNode,Int] = splitOnAnd(condition).map(n => (n,0)).toMap
+    for(exp <- ASTUtils.conjuncts(assert,StandardOperator.Star, StandardOperator.And)) {
+      exp match {
+        case op : OperatorExpression => if(op.operator == StandardOperator.EQ && op.argslength == 2 && op.arg(0) != op.arg(1)) {
+          op.args.foreach(a =>
+            if(expMap.contains(a))
+              expMap = expMap + (a -> (expMap(a) + 1))
+          )
+        }
+        case _ => //do nothing
+      }
+    }
+    expMap.values.sum == (expMap.size - 1) * 2
   }
 
   private def checkMainMethodsRecursion(source : ProgramUnit) : Unit = {
