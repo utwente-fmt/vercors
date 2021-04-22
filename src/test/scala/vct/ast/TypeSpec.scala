@@ -1,12 +1,13 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType}
 import vct.col.ast.generic.ASTNode
 import vct.mock.TypeMock
 
-class TypeSpec extends FlatSpec with Matchers {
+class TypeSpec extends AnyFlatSpec with Matchers {
   
   "A type" should "yield an empty string when calling toString when there are not arguments" in {
     var tupletype = new TypeMock(List[ASTNode]())

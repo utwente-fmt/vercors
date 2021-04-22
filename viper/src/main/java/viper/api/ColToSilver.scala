@@ -20,7 +20,7 @@ case class ColToSilver(program: col.Program) {
   val predicates: ArrayBuffer[silver.Predicate] = ArrayBuffer()
   val methods: ArrayBuffer[silver.Method] = ArrayBuffer()
 
-  val nameStack: mutable.ArrayStack[mutable.Map[col.Declaration, String]] = mutable.ArrayStack()
+  val nameStack: mutable.Stack[mutable.Map[col.Declaration, String]] = mutable.Stack()
   var names: mutable.Map[col.Declaration, String] = mutable.Map()
 
   def ??(node: col.Node): Nothing = {
@@ -81,7 +81,7 @@ case class ColToSilver(program: col.Program) {
 
   def transform(): silver.Program = {
     program.decls.foreach(collect)
-    silver.Program(domains, fields.values.toSeq, functions, predicates, methods, extensions=Seq())()
+    silver.Program(domains.toSeq, fields.values.toSeq, functions.toSeq, predicates.toSeq, methods.toSeq, extensions=Seq())()
   }
 
   def collect(decl: col.GlobalDeclaration): Unit = decl match {

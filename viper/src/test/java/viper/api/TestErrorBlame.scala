@@ -1,6 +1,6 @@
 package viper.api
 
-import org.scalatest.Matchers.fail
+import org.scalatest.Assertions.fail
 import vct.col.ast.{Assert, ContractApplicable, ContractFailure, Deref, DividingExpr, Exhale, Invocation, Old, Scapegoat, SeqSubscript, SilverDeref, SilverFieldAssign, SilverFold, SilverUnfold, SilverWhile}
 
 import scala.collection.mutable

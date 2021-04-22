@@ -3,8 +3,9 @@ package viper.api
 import hre.util
 import viper.silver.ast._
 
+import scala.jdk.CollectionConverters._
+import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
-import scala.collection.JavaConverters._
 
 
 class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with FactoryUtils[O] {
@@ -24,13 +25,13 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   override def explicit_set(o:O,t:Type,elems:List[Exp]): Exp =
     if (elems.size() == 0) EmptySet(t)(NoPosition,new OriginInfo(o))
-    else ExplicitSet(elems.asScala)(NoPosition,new OriginInfo(o))
+    else ExplicitSet(elems.asScala.toSeq)(NoPosition,new OriginInfo(o))
   override def explicit_bag(o:O,t:Type,elems:List[Exp]): Exp =
     if (elems.size() == 0) EmptyMultiset(t)(NoPosition,new OriginInfo(o))
-    else ExplicitMultiset(elems.asScala)(NoPosition,new OriginInfo(o))
+    else ExplicitMultiset(elems.asScala.toSeq)(NoPosition,new OriginInfo(o))
   override def explicit_seq(o:O,t:Type,elems:List[Exp]): Exp =
     if (elems.size() == 0) EmptySeq(t)(NoPosition,new OriginInfo(o))
-    else ExplicitSeq(elems.asScala)(NoPosition,new OriginInfo(o))
+    else ExplicitSeq(elems.asScala.toSeq)(NoPosition,new OriginInfo(o))
    
   override def range(o:O, e1:Exp, e2:Exp): Exp = RangeSeq(e1, e2)(NoPosition,new OriginInfo(o))
   override def index(o:O, e1:Exp, e2:Exp): Exp = SeqIndex(e1, e2)(NoPosition,new OriginInfo(o))
@@ -199,9 +200,9 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   override def forall(o:O, vars:List[util.Triple[O,String,Type]], triggers:List[List[Exp]], e:Exp):Exp = {
     val tmp=triggers.asScala map {
-      l => Trigger(l.asScala)(NoPosition,new OriginInfo(o))
+      l => Trigger(l.asScala.toSeq)(NoPosition,new OriginInfo(o))
     }
-    Forall(to_decls(o,vars),tmp,e)(NoPosition,new OriginInfo(o))
+    Forall(to_decls(o,vars),tmp.toSeq,e)(NoPosition,new OriginInfo(o))
   }
   
   override def exists(o:O, vars:List[util.Triple[O,String,Type]], e:Exp):Exp = {

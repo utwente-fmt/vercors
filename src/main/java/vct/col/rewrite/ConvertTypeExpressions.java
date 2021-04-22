@@ -1,6 +1,8 @@
 package vct.col.rewrite;
 
 import hre.ast.MessageOrigin;
+import vct.col.ast.expr.KernelInvocation;
+import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.Type;
@@ -49,7 +51,8 @@ public class ConvertTypeExpressions extends AbstractRewriter {
   
   @Override
   public void visit(Method m){
-    Method res=copy_rw.rewrite(m);
+    super.visit(m);
+    Method res = (Method)result;
     Type t=m.getReturnType();
     boolean kernel=false;
     while(t instanceof TypeExpression){
@@ -75,17 +78,29 @@ public class ConvertTypeExpressions extends AbstractRewriter {
     Method out=create.method_kind(
         res.getKind(),
         t,
-        copy_rw.rewrite(res.getContract()),
+        rewrite(res.getContract()),
         res.name(),
-        copy_rw.rewrite(res.getArgs()),
+        rewrite(res.getArgs()),
         res.usesVarArgs(),
-        copy_rw.rewrite(res.getBody()));
+        rewrite(res.getBody()));
     out.copyMissingFlags(res);
     if(kernel){
       result=kbr.rewrite(out);
     } else {
       result=out;
     }
+  }
+
+  @Override
+  public void visit(KernelInvocation ki) {
+    MethodInvokation res = create.invokation(null, null, ki.method(), rewrite(ki.javaArgs()));
+
+    res.get_before().addStatement(
+            create.assignment(create.unresolved_name("opencl_gcount"), rewrite(ki.blockCount())));
+    res.get_before().addStatement(
+            create.assignment(create.unresolved_name("opencl_gsize"), rewrite(ki.threadCount())));
+
+    result = res;
   }
 
   @Override

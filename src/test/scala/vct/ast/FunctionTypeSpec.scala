@@ -1,12 +1,13 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast._
 import vct.col.ast.`type`.{ClassType, FunctionType, Type}
 
-class FunctionTypeSpec extends FlatSpec with Matchers  {
+class FunctionTypeSpec extends AnyFlatSpec with Matchers  {
   
   "A function type" should "be constructable normally" in {
     var param1 = new ClassType(Array("Int"))

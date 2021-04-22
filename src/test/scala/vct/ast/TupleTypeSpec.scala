@@ -1,13 +1,14 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast._
 import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType, TupleType, Type}
 
-class TupleTypeSpec extends FlatSpec with Matchers {
+class TupleTypeSpec extends AnyFlatSpec with Matchers {
   
   "A tuple type" should "yield the correct type when queried for one" in {
     var inttype = new PrimitiveType(PrimitiveSort.Integer)

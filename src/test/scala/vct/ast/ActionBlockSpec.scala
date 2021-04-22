@@ -1,12 +1,13 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.ActionBlock
 
-class ActionBlockSpec extends FlatSpec with Matchers {
+class ActionBlockSpec extends AnyFlatSpec with Matchers {
   
   "An action block" should "successfully instantiate when given valid input" in {
     val hist = new ClassType("Some history")

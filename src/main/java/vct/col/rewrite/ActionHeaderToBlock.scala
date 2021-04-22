@@ -4,7 +4,7 @@ import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.stmt.decl.{ASTSpecial, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class ActionHeaderToBlock(override val source: ProgramUnit) extends AbstractRewriter(source) {
   override def visit(block: BlockStatement): Unit =

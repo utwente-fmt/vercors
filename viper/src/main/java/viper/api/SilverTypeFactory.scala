@@ -1,7 +1,8 @@
 package viper.api
 
-import scala.collection.JavaConverters._
 import viper.silver.ast._
+
+import scala.jdk.CollectionConverters._
 
 class SilverTypeFactory extends TypeFactory[Type] {
   

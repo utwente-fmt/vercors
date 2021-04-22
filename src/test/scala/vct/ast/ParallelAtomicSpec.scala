@@ -1,12 +1,13 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, ParallelAtomic}
 
-class ParallelAtomicSpec extends FlatSpec with Matchers {
+class ParallelAtomicSpec extends AnyFlatSpec with Matchers {
   
   "A parallel atomic" should "successfully instantiate with given valid input" in {
     val block = new BlockStatement()

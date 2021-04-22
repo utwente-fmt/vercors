@@ -1,10 +1,10 @@
 package viper.api
 
-import org.scalatest.FlatSpec
 import vct.col.ast._
 import Constant._
+import org.scalatest.flatspec.AnyFlatSpec
 
-abstract class VerifySpec(backend: Backend) extends FlatSpec {
+abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
   implicit val noErrors: Scapegoat = new NoErrors()
   implicit val origin: Origin = DiagnosticOrigin
   private var _registry: Option[ExpectedErrorsRegistry] = None

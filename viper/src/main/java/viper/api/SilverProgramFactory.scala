@@ -1,12 +1,14 @@
 package viper.api
 
 import hre.ast.OriginFactory
+import hre.lang.System.Warning
 import hre.util.Triple
+import viper.silver.ast.{SeqAppend, _}
+import viper.silver.plugin.PluginAwareReporter
 
 import java.util.List
-import scala.collection.JavaConverters._
-import viper.silver.ast._
-import viper.silver.plugin.PluginAwareReporter
+import scala.annotation.nowarn
+import scala.jdk.CollectionConverters._
 
 class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
     DomainFunc,DomainAxiom,Prog] with FactoryUtils[O]{
@@ -20,7 +22,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       out:List[Triple[O,String,Type]],
       local:List[Triple[O,String,Type]],
       labels:List[String],
-      body:Stmt) {
+      body:Stmt): Unit = {
     
     // TODO : not quite sure if the method body 'body' and the 'locals' are currently handled like this..
     val b = if (body==null) None else Some(Seqn(Seq(body), to_decls(o,local) ++ to_labels(o, labels))(NoPosition, new OriginInfo(o), NoTrafos))
@@ -29,8 +31,8 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       name, // method name
       to_decls(o, in), // list of arguments
       to_decls(o, out), // list of return values
-      pres.asScala, // list of preconditions
-      posts.asScala, // list of postconditions
+      pres.asScala.toSeq, // list of preconditions
+      posts.asScala.toSeq, // list of postconditions
       b // method body
     )(NoPosition,new OriginInfo(o), NoTrafos))
   }
@@ -51,8 +53,8 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       name, // function name
       to_decls(o, args), // argument declarations
       t, // function type
-      pres.asScala, // sequence of preconditions
-      posts.asScala, // sequence of postconditions
+      pres.asScala.toSeq, // sequence of preconditions
+      posts.asScala.toSeq, // sequence of postconditions
       b // function body
     )(NoPosition, new OriginInfo(o), NoTrafos))
   }
@@ -69,7 +71,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
     val args=pars.asScala map {
       d => viper.silver.ast.TypeVar(d)
     }
-    p.domains.add(Domain(name,funcs.asScala,axioms.asScala,args)(NoPosition,new OriginInfo(o)));
+    p.domains.add(Domain(name,funcs.asScala.toSeq,axioms.asScala.toSeq,args.toSeq)(NoPosition,new OriginInfo(o)));
   }
   
   override def parse_program(x$1: String): viper.api.Prog = {
@@ -87,12 +89,17 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
       case _ => y match {
         case SourcePosition(file,start,tmp) =>
           tmp match {
-            case None => f.file(file.toString(),start.line,start.column)
+            case None =>
+              if (file == null) {
+                f.message("null origin") // When upgrading to viper 21.01, had to add this null check but the null came out of nowhere, think there should be an actual value for file normally
+              } else {
+                f.file(file,start.line,start.column)
+              }
             case Some(end) =>
               if (file==null){
                 f.message("null origin");
               } else {
-                f.file(file.toString(),start.line,start.column,end.line,end.column)
+                f.file(file,start.line,start.column,end.line,end.column)
               }
           }
         case _ => null.asInstanceOf[OO]
@@ -102,6 +109,14 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
   
   private def filter_local_decls(xs : Seq[Declaration]) : Seq[LocalVarDecl] = xs.collect {
     case decl : LocalVarDecl => decl
+  }
+
+  def discardUnnamedLocalVars(vars: Seq[AnyLocalVarDecl]): Seq[LocalVarDecl] = vars flatMap {
+    case localVar: LocalVarDecl => Some(localVar)
+    case _: UnnamedLocalVarDecl =>
+      // Unnamed local vars are currently not supported in COL
+      Warning("Unnamed local variable declaration detected, discarding")
+      None
   }
 
   override def convert [T2, E2, S2, DFunc2, DAxiom2, P2](
@@ -114,7 +129,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
         val functions:java.util.List[DFunc2]=(d.functions map {
           x => {
             val o=get_info(x.info,x.pos,api.origin)
-            val pars=map_decls(api, x.formalArgs)
+            val pars=map_decls(api, discardUnnamedLocalVars(x.formalArgs))
             val res=map_type(api,x.typ)
             api.prog.dfunc(o,x.name,pars,res,d.name, x.unique)
           }
@@ -393,6 +408,9 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
   }
 }
 
+// We can only refactor this once silver starts using trait parameters (or the suggested workaround)
+// So we silence the warning because it is not useful.
+@nowarn("msg=.*early initializers are deprecated.*")
 object Parser extends {
   // early initializer: reporter must be populated before initialization of superclass SilFrontend
   override val reporter: PluginAwareReporter = PluginAwareReporter(HREViperReporter())

@@ -56,22 +56,22 @@ class ScopeContext {
   // The default action for declarations is to be succeeded by a similar declaration, for example a copy.
   val successionMap: mutable.Map[Declaration, Declaration] = mutable.Map()
 
-  val globalScopes: mutable.ArrayStack[ArrayBuffer[GlobalDeclaration]] = mutable.ArrayStack()
-  val classScopes: mutable.ArrayStack[ArrayBuffer[ClassDeclaration]] = mutable.ArrayStack()
-  val adtScopes: mutable.ArrayStack[ArrayBuffer[ADTDeclaration]] = mutable.ArrayStack()
-  val variableScopes: mutable.ArrayStack[ArrayBuffer[Variable]] = mutable.ArrayStack()
-  val labelScopes: mutable.ArrayStack[ArrayBuffer[LabelDecl]] = mutable.ArrayStack()
-  val parBlockScopes: mutable.ArrayStack[ArrayBuffer[ParBlockDecl]] = mutable.ArrayStack()
-  val parInvariantScopes: mutable.ArrayStack[ArrayBuffer[ParInvariantDecl]] = mutable.ArrayStack()
-  val modelScopes: mutable.ArrayStack[ArrayBuffer[ModelDeclaration]] = mutable.ArrayStack()
+  val globalScopes: mutable.Stack[ArrayBuffer[GlobalDeclaration]] = mutable.Stack()
+  val classScopes: mutable.Stack[ArrayBuffer[ClassDeclaration]] = mutable.Stack()
+  val adtScopes: mutable.Stack[ArrayBuffer[ADTDeclaration]] = mutable.Stack()
+  val variableScopes: mutable.Stack[ArrayBuffer[Variable]] = mutable.Stack()
+  val labelScopes: mutable.Stack[ArrayBuffer[LabelDecl]] = mutable.Stack()
+  val parBlockScopes: mutable.Stack[ArrayBuffer[ParBlockDecl]] = mutable.Stack()
+  val parInvariantScopes: mutable.Stack[ArrayBuffer[ParInvariantDecl]] = mutable.Stack()
+  val modelScopes: mutable.Stack[ArrayBuffer[ModelDeclaration]] = mutable.Stack()
 
-  def collectInScope[T](scope: mutable.ArrayStack[ArrayBuffer[T]])(f: => Unit): Seq[T] = {
+  def collectInScope[T](scope: mutable.Stack[ArrayBuffer[T]])(f: => Unit): Seq[T] = {
     scope.push(ArrayBuffer())
     f
-    scope.pop()
+    scope.pop().toSeq
   }
 
-  def collectOneInScope[T](scope: mutable.ArrayStack[ArrayBuffer[T]])(f: => Unit): T = {
+  def collectOneInScope[T](scope: mutable.Stack[ArrayBuffer[T]])(f: => Unit): T = {
     val result = collectInScope(scope)(f)
 
     if(result.size != 1) {

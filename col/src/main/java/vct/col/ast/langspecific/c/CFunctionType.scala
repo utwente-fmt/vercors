@@ -3,6 +3,7 @@ package vct.col.ast.langspecific.c
 import vct.col.ast.`type`.Type
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping}
+import scala.jdk.CollectionConverters._
 
 case class ParamSpec(t: Option[Type], name: Option[String]) {
   def asDecl: Option[DeclarationStatement] = (t, name) match {
@@ -29,6 +30,8 @@ case class CFunctionType(params: Seq[ParamSpec], returnType: Type) extends Type 
     case funcType: CFunctionType => funcType == this
     case _ => false
   }
+
+  def paramsJava: java.util.List[ParamSpec] = params.asJava
 
   override protected def accept_simple[T](map: TypeMapping[T]): T = map.map(this)
   override def accept_simple[T](visitor: ASTVisitor[T]): Unit = visitor.visit(this)

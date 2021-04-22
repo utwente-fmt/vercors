@@ -218,7 +218,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
     ))
     val inner = create vector_block(innerDecl, rewrite(loop.loop.getBody).asInstanceOf[BlockStatement])
 
-    val outerBody = create block()
+    val outerBody = create.block()
     outerBody.add(create special(ASTSpecial.Kind.Assume,
       create.expression(StandardOperator.LTE,
         create expression(StandardOperator.Mult, outerInc, len),
@@ -229,7 +229,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
     PPLBlock(Seq(outerDecl), outerBody, rewrite(loop.loop.getContract), loop)
   }
 
-  def translate(block: BlockStatement): Seq[PPL] = block.getStatements.map(matchNode)
+  def translate(block: BlockStatement): Seq[PPL] = block.getStatements.toIndexedSeq.map(matchNode)
 
   def matchNode(node: ASTNode): PPL = node match {
     case loop@OMPFor(_, _) => forLoopToPPL(loop)

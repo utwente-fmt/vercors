@@ -1,12 +1,13 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.expr.{OperatorExpression, StandardOperator}
 import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.generic.ASTNode
 
-class OperatorExpressionSpec extends FlatSpec with Matchers {
+class OperatorExpressionSpec extends AnyFlatSpec with Matchers {
   
   "A operator expression" should "successfully instantiate with valid/matching input arguments (from an array)" in {
     val op = StandardOperator.Plus

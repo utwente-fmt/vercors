@@ -23,7 +23,7 @@ case class RecordType(val types:List[RecordTypeEntry]) extends Type with Visitor
   require(!types.isEmpty, "Record types must have at least one field entry.")
   
   /** Instantiates a record type out of separate lists of `names` and `types`. */
-  def this(names:List[String], types:List[Type]) = this((names, types).zipped map (new RecordTypeEntry(_,_)))
+  def this(names:List[String], types:List[Type]) = this(names.lazyZip(types) map (new RecordTypeEntry(_,_)))
   
   /** @return The number of fields in this record. */
   def fieldCount : Int = types.length

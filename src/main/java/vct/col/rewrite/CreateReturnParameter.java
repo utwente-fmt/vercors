@@ -94,8 +94,8 @@ public class CreateReturnParameter extends AbstractRewriter {
       res.add(rewrite(n));
     }
 
-    ASTNode post=rewrite(current_method().getContract().post_condition);
     if (current_method().getContract()!=null){
+      ASTNode post=rewrite(current_method().getContract().post_condition);
       res.add(create.special(ASTSpecial.Kind.Assert,post).set_branch(RETURN_BRANCH));
     }
     res.add(create.special(ASTSpecial.Kind.Assume,create.constant(false)));

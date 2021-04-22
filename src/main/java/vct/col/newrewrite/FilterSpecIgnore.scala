@@ -22,7 +22,7 @@ case class FilterSpecIgnore() extends Rewriter {
           }
       }
 
-      block.rewrite(result)
+      block.rewrite(result.toSeq)
     case other => rewriteDefault(other)
   }
 

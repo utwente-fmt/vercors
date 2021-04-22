@@ -4,7 +4,7 @@ import viper.silver.ast.Info
 
 class OriginInfo[O](origin : O, comments : Seq[String]) extends Info {
   
-  def this(origin : O){
+  def this(origin : O) = {
     this(origin,Nil)
   }
   
@@ -32,11 +32,11 @@ object Reachable {
 
 object VControl {
 
-  def profile(node : viper.silver.ast.Infoed,task : String){
+  def profile(node : viper.silver.ast.Infoed,task : String): Unit = {
     Reachable.gonogo.profile(get_origin(node.info),task)
   }
   
-  def get_origin[O](info : viper.silver.ast.Info):O ={
+  def get_origin[O](info : viper.silver.ast.Info):O = {
     if (info.isInstanceOf[OriginInfo[O]@unchecked]){
       info.asInstanceOf[OriginInfo[O]].loc;
     } else {

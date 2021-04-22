@@ -6,7 +6,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class ProveLockInvariantInConstructors(override val source: ProgramUnit) extends AbstractRewriter(source) {
   private var haveLockInvariant = false

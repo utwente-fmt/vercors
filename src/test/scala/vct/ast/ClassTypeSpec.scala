@@ -1,14 +1,15 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast._
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.ProgramUnit
 
-class ClassTypeSpec extends FlatSpec with Matchers {
+class ClassTypeSpec extends AnyFlatSpec with Matchers {
  
   "A class type" should "reject definitions without name" in {
     a [IllegalArgumentException] should be thrownBy {

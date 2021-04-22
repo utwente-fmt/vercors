@@ -16,7 +16,7 @@ import vct.col.ast.stmt.decl.ASTClass.ClassKind
 import vct.col.ast.stmt.terminal.{AssignmentStatement, ReturnStatement}
 import vct.col.rewrite.{AddTypeADT, InferADTTypes, IntroExcVar, PVLEncoder}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -169,10 +169,16 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       }
     }
 
-    if(isPure(m) && isInline(m))
-      addFeature(InlinePredicate, m)
-    if(isPure(m) && m.getBody.isInstanceOf[BlockStatement])
-      addFeature(PureImperativeMethods, m)
+    if(isPure(m)) {
+      if(isInline(m))
+        addFeature(InlinePredicate, m)
+      if(m.getBody.isInstanceOf[BlockStatement])
+        addFeature(PureImperativeMethods, m)
+    }
+
+    if(m.kind == Method.Kind.Pure && m.getReturnType.isPrimitive(PrimitiveSort.Resource))
+      addFeature(NotStandardized, m)
+
     if(m.kind == Method.Kind.Constructor)
       addFeature(Constructors, m)
     if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && !isPure(m))
@@ -456,7 +462,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(par: OMPForSimd): Unit = { super.visit(par); addFeature(OpenMP, par) }
   override def visit(fr: OMPFor): Unit = { super.visit(fr); addFeature(OpenMP, fr) }
 
-  override def visit(s: stmt.composite.ParallelAtomic): Unit = { super.visit(s); addFeature(ParallelAtomic, s) }
+  override def visit(s: stmt.composite.ParallelAtomic): Unit = {
+    super.visit(s)
+    visitBeforeAfter(s)
+    addFeature(ParallelAtomic, s)
+  }
   override def visit(s: ParallelBarrier): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
   override def visit(s: ParallelBlock): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
   override def visit(s: ParallelInvariant): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }

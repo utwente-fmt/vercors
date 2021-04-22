@@ -4,7 +4,7 @@ import hre.util.Triple
 import viper.silver.ast._
 
 import java.util.List
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait FactoryUtils[O] {
   def to_decls(o:O, map:List[Triple[O,String,Type]]) : Seq[LocalVarDecl] = {
@@ -12,10 +12,10 @@ trait FactoryUtils[O] {
     map.asScala map {
       t => add(LocalVarDecl (t.v2, t.v3) _, t.v1)
     }
-  }
+  }.toSeq
 
   def to_labels(o: O, labels: List[String]): Seq[Label] =
-    labels.asScala.map(Label(_, Seq())(NoPosition, new OriginInfo(o)))
+    labels.asScala.map(Label(_, Seq())(NoPosition, new OriginInfo(o))).toSeq
   
   def add[T](f : (Position, Info, ErrorTrafo) => T, o : O) =
     f(NoPosition, new OriginInfo(o), NoTrafos)

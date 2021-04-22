@@ -7,7 +7,7 @@ import vct.col.ast.stmt.decl.ASTSpecial.Kind
 import vct.col.ast.stmt.decl.{ASTSpecial, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class RewriteWithThen(source: ProgramUnit) extends AbstractRewriter(source) {
   private def process_with_then[T <: ASTNode with BeforeAfterAnnotations](dst: T, src: T)= {

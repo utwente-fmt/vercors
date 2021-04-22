@@ -30,7 +30,7 @@ abstract class ToCol(val originProvider: OriginProvider) {
     def consume[T](buffer: mutable.ArrayBuffer[(ParserRuleContext, T)]): Seq[T] = {
       val result = buffer.map(_._2)
       buffer.clear()
-      result
+      result.toSeq
     }
 
     def consumeApplicableContract()(implicit o: Origin): ApplicableContract = {

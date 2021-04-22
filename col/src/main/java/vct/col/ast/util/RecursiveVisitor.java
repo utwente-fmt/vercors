@@ -147,7 +147,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(KernelInvocation e) {
     e.blockCount().accept(this);
     e.threadCount().accept(this);
-    dispatch(e.args());
+    dispatch(e.javaArgs());
   }
 
   private void dispatch(Contract c){
@@ -165,14 +165,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   
   private <R extends ASTNode> void dispatch(List<R> nodes) {
     for (R node : nodes) {
-      if (node != null) {
-        node.accept(this);
-      }
-    }
-  }
-
-  private <R extends ASTNode> void dispatch(Seq<R> nodes) {
-    for (R node : JavaConverters.seqAsJavaList(nodes)) {
       if (node != null) {
         node.accept(this);
       }
@@ -429,7 +421,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(CFunctionType t) {
     dispatch(t.returnType());
 
-    for(ParamSpec param : JavaConverters.seqAsJavaList(t.params())) {
+    for(ParamSpec param : t.paramsJava()) {
       if(param.t().isDefined()) {
         dispatch(param.t().get());
       }

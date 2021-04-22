@@ -1,12 +1,13 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast._
 import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType, RecordType, RecordTypeEntry}
 
-class RecordTypeSpec extends FlatSpec with Matchers {
+class RecordTypeSpec extends AnyFlatSpec with Matchers {
   
   "A record type" should "successfully instantiate after invoking the default constructor" in {
     var record = new RecordType(List(

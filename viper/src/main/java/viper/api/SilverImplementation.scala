@@ -7,7 +7,7 @@ import viper.silver.verifier.{AbortedExceptionally, Failure, Success, Verificati
 
 import java.nio.file.Path
 import java.util.{List, Properties}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class SilverImplementation[O](o:OriginFactory[O])
   extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,
@@ -28,7 +28,7 @@ class SilverImplementation[O](o:OriginFactory[O])
   private def getOrigin(e : Object) : O = e.asInstanceOf[Infoed].info.asInstanceOf[O]
   
  
-  private def show(text: String, obj: Any) {
+  private def show(text: String, obj: Any): Unit = {
     println(s"$text (${obj.getClass.getSimpleName}): $obj")
   }
   
@@ -117,7 +117,7 @@ class SilverImplementation[O](o:OriginFactory[O])
                  case in: viper.silver.ast.Infoed =>
                   locFromInfo(in.info) match {
                     case Some(loc) => new viper.api.ViperErrorImpl[O](loc,err)
-                    case None => new viper.api.ViperErrorImpl[O](in.pos+": "+err)
+                    case None => new viper.api.ViperErrorImpl[O](s"${in.pos}: $err")
                   }
                 case _ =>
                   new viper.api.ViperErrorImpl[O](err)
@@ -135,7 +135,7 @@ class SilverImplementation[O](o:OriginFactory[O])
                       error.add_extra(loc,because);
                     }
                     case _ => {
-                      error.add_extra(in.pos+": "+because)
+                      error.add_extra(s"${in.pos}: $because")
                       //throw new Error("info is not an origin!")
                     }
                   }
