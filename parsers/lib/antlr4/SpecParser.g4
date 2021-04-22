@@ -27,9 +27,14 @@ valExpressionList
     | langExpr ',' valExpressionList
     ;
 
+valIdList
+    : langId
+    | langId ',' valIdList
+    ;
+
 valContractClause
- : 'modifies' valExpressionList ';'
- | 'accessible' valExpressionList ';'
+ : 'modifies' valIdList ';'
+ | 'accessible' valIdList ';'
  | 'requires' langExpr ';'
  | 'ensures' langExpr ';'
  | 'given' langType langId ';'
@@ -76,7 +81,7 @@ valStatement
  | 'spec_ignore' '}'
  | 'spec_ignore' '{'
  | 'action' langExpr ',' langExpr ',' langExpr ',' langExpr valActionMap* ';'
- | 'atomic' '(' valExpressionList? ')' langStatement
+ | 'atomic' '(' langId ')' langStatement
  ;
 
 valActionMap: ',' langExpr ',' langExpr;
@@ -203,26 +208,37 @@ valType
  | 'seq' '<' langType '>'
  | 'set' '<' langType '>'
  | 'bag' '<' langType '>'
- | 'loc' '<' langType '>'
  | 'pointer' '<' langType '>'
  ;
 
-valDeclaration
- : valContractClause* valModifier* langType langId '(' valArgList? ')' valPredicateDef
- | 'axiom' langId '{' langExpr '==' langExpr '}'
- | valContractClause* 'ghost' langDecl
+valGlobalDeclaration
+ : 'axiom' langId '{' langExpr '==' langExpr '}'
+ | valModifier* 'resource' langId '(' valArgList? ')' valDef
+ | valContractClause* valModifier* 'pure' langType langId '(' valArgList? ')' valDef
+ | 'model' langId '{' valModelDeclaration* '}'
+ | 'ghost' langGlobalDecl
  ;
 
-valPredicateDef
+valClassDeclaration
+ : valModifier* 'resource' langId '(' valArgList? ')' valDef
+ | valContractClause* valModifier* 'pure' langType langId '(' valArgList? ')' valDef
+ | 'ghost' langClassDecl
+ ;
+
+valModelDeclaration
+ : langType langId ';'
+ | valContractClause* 'process' langId '(' valArgList? ')' '=' langExpr ';'
+ | valContractClause* 'action' langId '(' valArgList? ')' ';'
+ ;
+
+valDef
  : ';'
  | '=' langExpr ';'
  ;
 
 valModifier
- :('pure'
- | 'inline'
- | 'thread_local'
-)| langModifier
+ : ('pure' | 'inline' | 'thread_local')
+ | langStatic
  ;
 
 valArgList
@@ -255,11 +271,17 @@ valEmbedWithThen
  : valEmbedWithThenBlock+
  ;
 
-valEmbedDeclarationBlock
- : startSpec valDeclaration* endSpec
+valEmbedGlobalDeclarationBlock
+ : startSpec valGlobalDeclaration* endSpec
+ | {specLevel>0}? valGlobalDeclaration+
  ;
 
-valEmbedModifiers
- : startSpec valModifier* endSpec
- | {specLevel>0}? valModifier+
+valEmbedClassDeclarationBlock
+ : startSpec valClassDeclaration* endSpec
+ | {specLevel>0}? valClassDeclaration+
+ ;
+
+valEmbedModifier
+ : startSpec valModifier endSpec
+ | {specLevel>0}? valModifier
  ;

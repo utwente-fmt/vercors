@@ -4,6 +4,11 @@ import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping, VisitorHelper}
 import vct.col.ast.util.VisitorHelper
 
+object TypeVariable {
+  val inferTypeName = "INFER_ADT_TYPE"
+  val inferTypeVar: TypeVariable = TypeVariable(inferTypeName)
+}
+
 case class TypeVariable(val name:String) extends Type with VisitorHelper {
   override def isNumeric() = false
   override def hashCode() = name.hashCode();

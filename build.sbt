@@ -19,7 +19,7 @@ val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.20.07-r
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
-silicon and carbon specify their dependencies as a regular sbt subproject: they expect a symlink in the project root to
+silicon and carbon specify their dependencies as a regular sbtbuild subproject: they expect a symlink in the project root to
 the relevant project. Instead, we replace those dependencies by a reference to the repository as above. So e.g.
 "the silver project at hg:carbon" becomes "the silver project at hg:silver". All other dependencies are left alone.
  */

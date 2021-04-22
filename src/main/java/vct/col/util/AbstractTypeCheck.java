@@ -19,7 +19,6 @@ import vct.col.ast.util.*;
 import vct.col.rewrite.AddZeroConstructor;
 import vct.java.JavaASTClassLoader;
 import vct.logging.PassReport;
-import vct.parsers.rewrite.InferADTTypes;
 import vct.col.rewrite.TypeVarSubstitution;
 import viper.api.SilverTypeMap;
 
@@ -1687,7 +1686,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 
     if (collections.stream().anyMatch(s -> v.type().isPrimitive(s)) &&
             v.type().firstarg() instanceof TypeVariable &&
-            ((TypeVariable) v.type().firstarg()).name().equals(InferADTTypes.typeVariableName())
+            ((TypeVariable) v.type().firstarg()).name().equals(TypeVariable.inferTypeName())
     ) {
       // The scala array of values is converted into a java list and the types of the ASTNodes are collected into a Set.
       Set<Type> valueTypes = JavaConverters.asJavaCollection(v.values()).stream().map(ASTNode::getType).filter(Objects::nonNull).collect(Collectors.toSet());

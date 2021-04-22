@@ -216,7 +216,7 @@ declarationSpecifier
     |   functionSpecifier
     |   alignmentSpecifier
     |   gpgpuKernelSpecifier
-    |   valEmbedModifiers
+    |   valEmbedModifier
     ;
 
 initDeclaratorList
@@ -549,7 +549,7 @@ translationUnit
 externalDeclaration
     :   functionDefinition
     |   declaration
-    |   valEmbedDeclarationBlock
+    |   valEmbedGlobalDeclarationBlock
     |   ';' // stray ;
     ;
 

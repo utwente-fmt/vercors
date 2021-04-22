@@ -33,9 +33,9 @@ public class ColPVLParser extends Parser {
             ec.report();
             Debug("parser got: %s", tree.toStringTree(parser));
 
-            ProgramUnit pu = PVLtoCOL.convert(tree, file_name, tokens, parser);
+//            ProgramUnit pu = PVLtoCOL.convert(tree, file_name, tokens, parser);
             Progress("AST conversion pass took %dms", tk.show());
-            return pu;
+            return null;
         } catch (HREExitException e) {
             throw e;
         } catch (Exception e) {

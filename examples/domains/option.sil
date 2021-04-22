@@ -32,6 +32,6 @@ method test() {
   
   assert get_Integer(y) == 37
   
-  i := get_Integer(x)
+  i := <:preconditionNotSatisfied:>get_Integer(x)<:>
 }
 

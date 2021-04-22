@@ -14,8 +14,7 @@ import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.langspecific.c.{OMPFor, OMPForSimd, OMPParallel, OMPParallelFor, OMPSection, OMPSections}
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
 import vct.col.ast.stmt.terminal.{AssignmentStatement, ReturnStatement}
-import vct.col.rewrite.{AddTypeADT, IntroExcVar, PVLEncoder}
-import vct.parsers.rewrite.InferADTTypes
+import vct.col.rewrite.{AddTypeADT, InferADTTypes, IntroExcVar, PVLEncoder}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -256,7 +255,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   override def visit(t: TypeVariable): Unit = {
     super.visit(t)
-    if(t.name == InferADTTypes.typeVariableName)
+    if(t.name == TypeVariable.inferTypeName)
       addFeature(UnresolvedTypeInference, t)
   }
 

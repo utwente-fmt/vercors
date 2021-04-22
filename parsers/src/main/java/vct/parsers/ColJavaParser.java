@@ -16,7 +16,6 @@ import org.antlr.v4.runtime.Lexer;
 
 import vct.antlr4.generated.*;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.parsers.rewrite.*;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.JavaSyntax;
 
@@ -35,7 +34,7 @@ public class ColJavaParser extends Parser {
       try {
         TimeKeeper tk=new TimeKeeper();
 
-        ProgramUnit pu;
+        ProgramUnit pu = null;
         Lexer lexer = new LangJavaLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         JavaParser parser = new JavaParser(tokens);
@@ -48,7 +47,7 @@ public class ColJavaParser extends Parser {
         ec.report();
         Progress("first parsing pass took %dms",tk.show());
 
-        pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
+//        pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
         Progress("AST conversion took %dms",tk.show());
         Debug("program after Java parsing:%n%s",pu);
 

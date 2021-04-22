@@ -45,6 +45,10 @@ public class ColCParser extends ColIParser {
             for (String p : Configuration.cpp_defines) {
                 command.append(" -D").append(p);
             }
+
+            File interpretedTemp = File.createTempFile("vercors-interpreted-", ".i");
+            command.append(" -o ").append(interpretedTemp.getAbsolutePath());
+
             command.append(" -");
 
             Progress("pre-processing command line: %s", command.toString());
@@ -80,7 +84,9 @@ public class ColCParser extends ColIParser {
             });
             t.setDaemon(true);
             t.start();
-            return super.parse(CharStreams.fromStream(process.getInputStream()), file_name);
+            process.waitFor();
+
+            return new ColIParser().parse(interpretedTemp);
         } catch (Exception e) {
             DebugException(e);
             Abort("Exception %s while parsing %s", e.getClass(), file_name);

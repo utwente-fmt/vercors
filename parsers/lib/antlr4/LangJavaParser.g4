@@ -59,6 +59,7 @@ typeDeclaration
     |   classOrInterfaceModifier* enumDeclaration
     |   classOrInterfaceModifier* interfaceDeclaration
     |   classOrInterfaceModifier* annotationTypeDeclaration
+    |   valEmbedGlobalDeclarationBlock
     |   ';'
     ;
 
@@ -69,7 +70,7 @@ modifier
         |   'transient'
         |   'volatile'
         )
-    |   valEmbedModifiers
+    |   valEmbedModifier
     ;
 
 classOrInterfaceModifier
@@ -101,7 +102,7 @@ typeParameters
 
 typeParameterList
     :   typeParameter
-    |   typeParameterList ',' typeParameterList
+    |   typeParameter ',' typeParameterList
     ;
 
 typeParameter
@@ -153,8 +154,7 @@ classBodyDeclaration
     :   ';'
     |   'static'? block
     |   valEmbedContract? modifier* memberDeclaration
-    |   valEmbedDeclarationBlock
-    |   {specLevel>0}? valDeclaration
+    |   valEmbedClassDeclarationBlock
     ;
 
 memberDeclaration
@@ -200,8 +200,8 @@ fieldDeclaration
     ;
 
 interfaceBodyDeclaration
-    :   modifier* interfaceMemberDeclaration
-    |   valEmbedDeclarationBlock
+    :   valEmbedContract? modifier* interfaceMemberDeclaration
+    |   valEmbedClassDeclarationBlock
     |   ';'
     ;
 
@@ -459,8 +459,8 @@ statement
     :   block
     |   ASSERT expression assertMessage? ';'
     |   'if' parExpression statement elseBlock?
-    |   valEmbedContract? 'for' '(' forControl ')' valEmbedContract? statement
-    |   valEmbedContract? 'while' parExpression valEmbedContract? statement
+    |   valEmbedContract? loopLabel? 'for' '(' forControl ')' valEmbedContract? statement
+    |   valEmbedContract? loopLabel? 'while' parExpression valEmbedContract? statement
     |   'do' statement 'while' parExpression ';'
     |   'try' block catchClause+ finallyBlock?
     |   'try' block finallyBlock
@@ -473,12 +473,16 @@ statement
     |   'continue' javaIdentifier? ';'
     |   ';'
     |   statementExpression ';'
-    |   valEmbedContract? javaIdentifier ':' statement
+    |   javaIdentifier ':' statement
     |   {specLevel>0}? valStatement
     ;
 
 assertMessage: ':' expression;
 elseBlock: 'else' statement;
+
+loopLabel
+    : javaIdentifier ':'
+    ;
 
 catchClause
     :   'catch' '(' variableModifier* catchType javaIdentifier ')' block
@@ -567,14 +571,14 @@ expression
     |   expression '[' expression ']'
     |   expression '->' javaIdentifier arguments
     |   expression '.' javaIdentifier predicateEntryType? arguments valEmbedWithThen?
-    |   'new' creator valEmbedWithThen?
+    |   'new' creator
     |   '(' type ')' expression
     |   expression ('++' | '--')
     |   ('+'|'-'|'++'|'--') expression
     |   ('~'|'!') expression
     |   expression mulOp expression
     |   expression ('+'|'-') expression
-    |   expression ('<' '<' | '>' '>' '>' | '>' '>') expression
+    |   expression shiftOp expression
     |   expression ('<=' | '>=' | '>' | '<') expression
     |   expression 'instanceof' type
     |   expression ('==' | '!=') expression
@@ -605,6 +609,11 @@ predicateEntryType: '@' javaIdentifier; // TODO: Find correct class type
 mulOp
     : ('*'|'/'|'%')
     | {specLevel>0}? valMulOp
+    ;
+shiftOp
+    : '<' '<'
+    | '>' '>' '>'
+    | '>' '>'
     ;
 andOp
     : ('&&')
@@ -660,7 +669,7 @@ specifiedDims
 specifiedDim: '[' expression ']';
 
 classCreatorRest
-    :   arguments classBody?
+    :   arguments valEmbedWithThen? classBody?
     ;
 
 explicitGenericInvocation
@@ -688,7 +697,7 @@ superSuffix
 
 explicitGenericInvocationSuffix
     :   'super' superSuffix
-    |   javaIdentifier ('@' javaIdentifier )? arguments
+    |   javaIdentifier predicateEntryType? arguments
     ;
 
 arguments
