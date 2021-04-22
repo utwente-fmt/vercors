@@ -393,8 +393,12 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
         newbody.forEachStmt(stmt => current_sequence().add(copy_rw.rewrite(stmt)))
     }
 
+    val newInit = s.getInitBlock match {
+      case null => null
+      case _ => copy_rw.rewrite(itervar)
+    }
     val newLoop = create.loop(
-      copy_rw.rewrite(itervar),
+      newInit,
       rewrite(s.getEntryGuard),
       rewrite(s.getExitGuard),
       rewrite(s.getUpdateBlock),

@@ -209,11 +209,6 @@ class Main {
       passes ++= Seq(Passes.BY_KEY("linearizeMatrices"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
-    if (Configuration.gpu_optimizations.contains(GPUOptFlags.loopUnrolling.toString)) {
-      passes ++= Seq(Passes.BY_KEY("unrollLoops"))
-      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
-      passes ++= collectPassesForSilver
-    }
     if (Configuration.gpu_optimizations.contains(GPUOptFlags.iterMerge.toString)) {
       passes ++= Seq(Passes.BY_KEY("mergeLoopIterations"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
@@ -225,6 +220,11 @@ class Main {
     if (Configuration.gpu_optimizations.contains(GPUOptFlags.tiling.toString)) {
       passes ++= Seq(Passes.BY_KEY("tileKernel"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+    }
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.loopUnrolling.toString)) {
+      passes ++= Seq(Passes.BY_KEY("unrollLoops"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+      passes ++= collectPassesForSilver
     }
     passes ++= Seq(Passes.BY_KEY("printGpuOptOut"))
     passes
