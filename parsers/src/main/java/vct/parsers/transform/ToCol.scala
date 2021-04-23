@@ -1,12 +1,7 @@
-package vct.parsers
+package vct.parsers.transform
 
-import hre.ast.FileOrigin
-import hre.lang.HREExitException
 import org.antlr.v4.runtime.ParserRuleContext
-import vct.col.ast.{ApplicableContract, Expr, Origin, Star, Type, Variable}
-import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.Contract
-import vct.col.ast.util.{ASTFactory, ContractBuilder}
+import vct.col.ast._
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

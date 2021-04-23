@@ -47,7 +47,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
       val parser = new ColJavaParser(false)
       // (path/to/src, Seq(java, lang, Object)) -> path/to/src/java/lang/Object.java
       val f = new File(parts.init.foldLeft(basePath.toFile)(new File(_, _)), parts.last + ".java")
-      val pu = parser.parse(f)
+      val pu = /* parser.parse(f) */ null
       val strippedPU = new RemoveBodies(pu).rewriteAll()
       // Make sure the class name matches by finding it
       Option(strippedPU.find(new ClassName(parts:_*)))

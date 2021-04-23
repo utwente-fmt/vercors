@@ -1,4 +1,4 @@
-package vct.parsers
+package vct.parsers.transform
 
 import vct.col.ast.Origin
 import vct.result.VerificationResult

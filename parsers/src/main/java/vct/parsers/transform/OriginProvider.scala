@@ -1,7 +1,7 @@
-package vct.parsers
+package vct.parsers.transform
 
-import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
-import vct.col.ast.{FileOrigin, InputOrigin, InterpretedOrigin, Origin, Scapegoat}
+import org.antlr.v4.runtime.{CommonTokenStream, Lexer, ParserRuleContext}
+import vct.col.ast._
 
 import java.nio.file.Path
 
@@ -13,7 +13,7 @@ trait BlameProvider {
   def apply(node: ParserRuleContext): Scapegoat
 }
 
-case class FileOriginProvider(tokens: CommonTokenStream, path: Path) extends OriginProvider with BlameProvider {
+case class FileOriginProvider(path: Path) extends OriginProvider with BlameProvider {
   override def apply(ctx: ParserRuleContext): FileOrigin = {
     val startLine = ctx.start.getLine - 1
     val startCol = ctx.start.getCharPositionInLine

@@ -12,6 +12,8 @@ object VerificationResult {
    * should be a (documented) UserError. */
   trait SystemError extends VerificationResult
 
+  case class Unreachable(text: String) extends SystemError
+
   /* Verification completed. Any failures have been reported to the appropriate Blame. */
   case object Ok extends VerificationResult {
     override def text: String = "Verification completed normally."

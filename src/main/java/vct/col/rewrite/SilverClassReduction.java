@@ -779,7 +779,7 @@ public class SilverClassReduction extends AbstractRewriter {
     if (options || floats || arrays || fractions || maps || tuple){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
       File file = Configuration.getConfigFile(preludeFile);
-      ProgramUnit prelude=Parsers.getParser("sil").parse(file);
+      ProgramUnit prelude = /*Parsers.getParser("sil").parse(file)*/ null;
       for(ASTNode n:prelude){
         if (n instanceof AxiomaticDataType){
           AxiomaticDataType adt=(AxiomaticDataType)n;
