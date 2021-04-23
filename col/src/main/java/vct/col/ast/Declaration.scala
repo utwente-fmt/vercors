@@ -1,7 +1,12 @@
 package vct.col.ast
 
+import vct.col.ast.ScopeContext.WrongDeclarationCount
+import vct.result.VerificationResult.SystemError
+
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
+import scala.runtime.ScalaRunTime
 
 sealed abstract class Declaration extends Node {
   def succeedDefault(scope: ScopeContext, pred: Declaration): Unit = {
@@ -16,43 +21,75 @@ object Ref {
   val EXC_MESSAGE = "The AST is in an invalid state: a Ref contains a declaration of the wrong kind."
 
   def unapply(obj: Any): Option[Declaration] = obj match {
-    case ref: Ref => Some(ref.decl)
+    case ref: Ref[_] => Some(ref.decl)
     case _ => None
   }
 }
 
-trait Ref {
-  def decl: Declaration
-
-  private def matchOrThrow[T, S](x: T)(f: PartialFunction[T, S]): S =
-    f.lift(x).getOrElse(throw new IllegalStateException(Ref.EXC_MESSAGE))
-
-  def asVariable: Variable = matchOrThrow(decl) { case v: Variable => v }
-  def asField: Field = matchOrThrow(decl) { case f: Field => f }
-  def asSilverField: SilverField = matchOrThrow(decl) { case f: SilverField => f }
-  def asApplicable: Applicable = matchOrThrow(decl) { case a: Applicable => a }
-  def asFunction: AbstractFunction = matchOrThrow(decl) { case f: AbstractFunction => f }
-  def asMethod: AbstractMethod = matchOrThrow(decl) { case m: AbstractMethod => m }
-  def asLabel: LabelDecl = matchOrThrow(decl) { case l: LabelDecl => l }
+/* NB: While Ref's can be stricter than just any Declaration (e.g. Ref[Function]), we can construct any variant with
+   just a Declaration. This is because:
+   - We cannot prove that the successor of a Declaration is of the correct type when we construct it: then it wouldn't
+     be lazy and we wouldn't be able to cross-reference declarations out of AST order.
+   - We do not want to cast or check refs to be of the correct kind every time we want to use it.
+   The most acceptable solution is then to pretend to have a safe interface that returns a declaration of the right
+   kind, but quietly check the type on first access.
+ */
+trait Ref[+T <: Declaration] {
+  def decl: T
 
   override def equals(obj: Any): Boolean = obj match {
-    case Ref(other) => other eq decl
-    case _ => false
+    case other: Ref[_] => decl == other.decl
+  }
+
+  override def hashCode(): Int = ScalaRunTime._hashCode((Ref.getClass, decl))
+}
+
+case class MistypedRef(received: Declaration, expected: ClassTag[_]) extends ASTStateError {
+  override def text: String =
+    "A reference in the AST is referencing a declaration of the wrong kind.\n" +
+      s"A ${expected.runtimeClass.getSimpleName} was expected here, but we got a ${received.getClass.getSimpleName}"
+}
+
+class DirectRef[+T <: Declaration](genericDecl: Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
+  override def decl: T = genericDecl match {
+    case decl: /*tagged*/ T => decl
+    case other => throw MistypedRef(other, tag)
   }
 }
 
-class DirectRef(val decl: Declaration) extends Ref
-
-class LazyRef(lazyDecl: => Declaration) extends Ref {
-  def decl: Declaration = lazyDecl
+class LazyRef[+T <: Declaration](lazyDecl: => Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
+  def decl: T = lazyDecl match {
+    case decl: /*tagged*/ T => decl
+    case other => throw MistypedRef(other, tag)
+  }
 }
 
-class UnresolvedRef(name: String) extends Ref {
-  def decl: Declaration = throw new IllegalStateException("Cannot query an unresolved reference before it is resolved")
+case class NotResolved(ref: UnresolvedRef[Declaration], expected: ClassTag[_]) extends ASTStateError {
+  override def text: String =
+    "The declaration of an unresolved reference was queried, but it is not yet resolved.\n" +
+      s"We expected the name `${ref.name}` to resolve to a ${expected.runtimeClass.getSimpleName}."
+}
+
+class UnresolvedRef[+T <: Declaration](val name: String)(implicit tag: ClassTag[T]) extends Ref[T] {
+  private var resolvedDecl: Option[Declaration] = None
+
+  def resolve(decl: Declaration): Unit = resolvedDecl = Some(decl)
+
+  def decl: T = resolvedDecl match {
+    case None => throw NotResolved(this, tag)
+    case Some(decl: /*tagged*/ T) => decl
+    case Some(other) => throw MistypedRef(other, tag)
+  }
+}
+
+object ScopeContext {
+  case class WrongDeclarationCount(kind: ClassTag[_], count: Int) extends SystemError {
+    override def text: String =
+      s"Expected exactly one declaration of kind ${kind.runtimeClass.getSimpleName}, but got $count."
+  }
 }
 
 class ScopeContext {
-
   // The default action for declarations is to be succeeded by a similar declaration, for example a copy.
   val successionMap: mutable.Map[Declaration, Declaration] = mutable.Map()
 
@@ -71,11 +108,11 @@ class ScopeContext {
     scope.pop().toSeq
   }
 
-  def collectOneInScope[T](scope: mutable.Stack[ArrayBuffer[T]])(f: => Unit): T = {
+  def collectOneInScope[T](scope: mutable.Stack[ArrayBuffer[T]])(f: => Unit)(implicit tag: ClassTag[T]): T = {
     val result = collectInScope(scope)(f)
 
     if(result.size != 1) {
-      throw new IllegalStateException()
+      throw WrongDeclarationCount(tag, result.size)
     }
 
     result.head
@@ -226,7 +263,7 @@ sealed trait ModelDeclaration extends Declaration {
 class ModelField(val t: Type)(implicit val o: Origin) extends ModelDeclaration with NoCheck
 class ModelProcess(val args: Seq[Variable], val impl: Expr,
                    val requires: Expr, val ensures: Expr,
-                   val modifies: Seq[Ref], val accessible: Seq[Ref])
+                   val modifies: Seq[Ref[ModelField]], val accessible: Seq[Ref[ModelField]])
                   (implicit val o: Origin) extends ModelDeclaration with Applicable {
   override def returnType: Type = TProcess()
   override def body: Option[Node] = Some(impl)
@@ -236,7 +273,7 @@ class ModelProcess(val args: Seq[Variable], val impl: Expr,
 }
 class ModelAction(val args: Seq[Variable],
                   val requires: Expr, val ensures: Expr,
-                  val modifies: Seq[Ref], val accessible: Seq[Ref])
+                  val modifies: Seq[Ref[ModelField]], val accessible: Seq[Ref[ModelField]])
                  (implicit val o: Origin) extends ModelDeclaration with Applicable {
   override def returnType: Type = TProcess()
   override def body: Option[Node] = None

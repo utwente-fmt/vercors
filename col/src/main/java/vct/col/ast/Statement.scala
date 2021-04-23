@@ -22,11 +22,11 @@ case class TryCatchFinally(body: Statement, after: Statement, catches: Seq[Catch
 case class Synchronized(obj: Expr, body: Statement)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with Statement
 
 case class ParInvariant(decl: ParInvariantDecl, inv: Expr, content: Statement)(implicit val o: Origin) extends Check(inv.checkSubType(TResource())) with Statement
-case class ParAtomic(inv: Ref, content: Statement)(implicit val o: Origin) extends Statement {
+case class ParAtomic(inv: Ref[ParInvariantDecl], content: Statement)(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =
     context.inScope(inv)
 }
-case class ParBarrier(block: Ref, invs: Seq[Ref], requires: Expr, ensures: Expr, content: Statement)(implicit val o: Origin) extends Statement {
+case class ParBarrier(block: Ref[ParBlockDecl], invs: Seq[Ref[ParInvariantDecl]], requires: Expr, ensures: Expr, content: Statement)(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =
     requires.checkSubType(TResource()) ++
       ensures.checkSubType(TResource()) ++
@@ -36,7 +36,7 @@ case class ParBarrier(block: Ref, invs: Seq[Ref], requires: Expr, ensures: Expr,
 case class ParRegion(requires: Expr, ensures: Expr, blocks: Seq[ParBlock])(implicit val o: Origin)
   extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with Statement
 case class IterVariable(variable: Variable, from: Expr, to: Expr)(implicit val o: Origin) extends Check(from.checkSubType(TInt()), to.checkSubType(TInt())) with NodeFamily
-case class ParBlock(decl: ParBlockDecl, after: Seq[Ref], iters: Seq[IterVariable], requires: Expr, ensures: Expr, content: Statement)(implicit val o: Origin)
+case class ParBlock(decl: ParBlockDecl, after: Seq[Ref[ParBlockDecl]], iters: Seq[IterVariable], requires: Expr, ensures: Expr, content: Statement)(implicit val o: Origin)
   extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with NodeFamily
 
 case class Throw(e: Expr)(implicit val o: Origin) extends Check(e.checkSubType(TClass.THROWABLE)) with Statement
@@ -44,7 +44,7 @@ case class Throw(e: Expr)(implicit val o: Origin) extends Check(e.checkSubType(T
 case class DefaultCase()(implicit val o: Origin) extends Statement with NoCheck
 case class Case(pattern: Expr)(implicit val o: Origin) extends Statement with NoCheck
 case class Label(decl: LabelDecl)(implicit val o: Origin) extends Statement with NoCheck
-case class Goto(lbl: Ref)(implicit val o: Origin) extends Statement {
+case class Goto(lbl: Ref[LabelDecl])(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =
     context.currentApplicable.get.body.get.transSubnodes.collectFirst {
       case label: LabelDecl if label == lbl.decl => label
@@ -82,7 +82,7 @@ case class WandQed(wand: Expr)(implicit val o: Origin) extends Check(wand.checkS
 case class WandApply(wand: Expr)(implicit val o: Origin) extends Check(wand.checkSubType(TResource())) with Statement
 case class WandUse(pred: Expr)(implicit val o: Origin) extends Check(pred.checkSubType(TResource())) with Statement
 
-case class ModelCreate(target: Expr, model: Ref, process: Expr)(implicit val o: Origin)
+case class ModelCreate(target: Expr, model: Ref[Model], process: Expr)(implicit val o: Origin)
   extends Check(process.checkSubType(TProcess())) with Statement
 case class ModelDestroy(model: Expr)(implicit val o: Origin) extends Check(model.checkModelThen()) with Statement
 case class ModelSplitInto(model: Expr, leftPerm: Expr, left: Expr, rightPerm: Expr, right: Expr)(implicit val o: Origin)
@@ -100,5 +100,5 @@ case class ModelDo(model: Expr, perm: Expr, after: Expr, action: Expr)(implicit 
 
 case class Havoc(loc: Expr)(implicit val o: Origin) extends Statement with NoCheck
 
-case class Break(label: Option[Ref])(implicit val o: Origin) extends Statement with NoCheck
-case class Continue(label: Option[Ref])(implicit val o: Origin) extends Statement with NoCheck
+case class Break(label: Option[Ref[LabelDecl]])(implicit val o: Origin) extends Statement with NoCheck
+case class Continue(label: Option[Ref[LabelDecl]])(implicit val o: Origin) extends Statement with NoCheck

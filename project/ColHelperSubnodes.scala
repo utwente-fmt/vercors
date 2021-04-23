@@ -21,12 +21,13 @@ case class ColHelperSubnodes(info: ColDescription) {
         }
       case Type.Name(typ) if info.supports("NodeFamily")(typ) || info.supports(DECLARATION)(typ) =>
         Some(node => q"Seq($node)")
-      case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("Ref") =>
+      case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Ref"), _) =>
         None
       case other =>
-        println("ColHelpers failed!")
-        println(s"Tried to derive the subnodes for unknown type: $other")
-        ???
+        MetaUtil.fail(
+          s"Tried to derive the subnodes for unknown type: $other",
+          node=Some(other)
+        )
     }
 
   def subnodePattern(cls: ClassDef): Case = {

@@ -18,11 +18,12 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
   for(param <- params) {
     // PB: sorry if this breaks; can't find the list of keywords elsewhere...
     if(internal.tokenizers.keywords.contains(param.name.value)) {
-      println("ColHelpers has failed!")
-      println(s"Class ${names.mkString(".")} has a parameter named ${param.name.value}, which is a keyword in Scala.")
-      println("Although this is possible, this leads to incorrectly generated patterns in match statements, so please pick a different name.")
-      println("(The keyword may be a soft keyword, or only a keyword as of Scala 3, but will be generated incorrectly nonetheless.)")
-      ???
+      MetaUtil.fail(
+        s"Class ${names.mkString(".")} has a parameter named ${param.name.value}, which is a keyword in Scala.\n" +
+          "Although this is possible, this leads to incorrectly generated patterns in match statements, so please pick a different name.\n" +
+          "(The keyword may be a soft keyword, or only a keyword as of Scala 3, but will be generated incorrectly nonetheless.)",
+        node=Some(param)
+      )
     }
   }
 
@@ -43,7 +44,6 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
     Type.Name(baseName + "Builder")
 
   private def termQual: Term.Ref = {
-    Term.Ref
     val qualNames = names.init.map(Term.Name(_))
     qualNames.init.foldLeft[Term.Ref](qualNames.last)(Term.Select(_, _))
   }
@@ -89,16 +89,17 @@ class ColDescription {
     case Type.Name(typ) if families.contains(typ) =>
       q"rewriter.dispatch($term)"
 
-    case Type.Name("Ref") =>
-      q"new LazyRef(rewriter.successionMap($term.decl))"
+    case Type.Apply(Type.Name("Ref"), List(arg)) =>
+      q"new LazyRef[$arg](rewriter.successionMap($term.decl))"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") =>
       term
 
     case _ =>
-      println("ColHelpers has failed!")
-      println(s"Encountered an unknown type while generating default rewriters: $typ")
-      println("Perhaps there is an extends Expr or so missing?")
-      ???
+      MetaUtil.fail(
+        s"Encountered an unknown type while generating default rewriters: $typ\n" +
+          "Perhaps there is an 'extends Expr' or so missing?",
+        node=Some(typ)
+      )
   }
 
   /**
@@ -142,11 +143,11 @@ class ColDescription {
    */
   def collectBases(stat: Stat): Unit = stat match {
     case Defn.Class(_, name, _, _, Template(_, inits, _, _)) =>
-      bases(name.value) = inits.map {
+      bases(name.value) = inits.collect {
         case Init(Type.Name(name), _, _) => name
       }
     case Defn.Trait(_, name, _, _, Template(_, inits, _, _)) =>
-      bases(name.value) = inits.map {
+      bases(name.value) = inits.collect {
         case Init(Type.Name(name), _, _) => name
       }
     case _ =>
@@ -181,10 +182,11 @@ class ColDescription {
         stats.foreach(collectBases)
         stats.foreach(collectFamily)
       case other =>
-        println("ColHelpers failed!")
-        println(s"Source file $file did not parse in the expected pattern Source(List(Pkg(_, stats))), but instead as:")
-        println(other)
-        ???
+        MetaUtil.fail(
+          s"Source file $file did not parse in the expected pattern Source(List(Pkg(_, stats))), but instead as:\n" +
+            other.toString,
+          node=Some(other)
+        )
     }
   }
 }

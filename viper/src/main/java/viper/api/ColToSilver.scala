@@ -67,7 +67,7 @@ case class ColToSilver(program: col.Program) {
   /**
    * Retrieve the name for this reference
    */
-  def ref(r: col.Ref): String = ref(r.decl)
+  def ref(r: col.Ref[col.Declaration]): String = ref(r.decl)
 
   /**
    * Retrieve the name for this declaration
@@ -167,17 +167,17 @@ case class ColToSilver(program: col.Program) {
     case resource@col.SilverPerm(obj, field, perm) =>
       val permissionValue = exp(perm)
       permissionValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(resource)
-      silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field.asSilverField))(info=NodeInfo(e)), permissionValue)(info=NodeInfo(e))
+      silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field.decl))(info=NodeInfo(e)), permissionValue)(info=NodeInfo(e))
     case resource@col.SilverPredPerm(access) =>
       val silver = pred(access)
       silver.perm.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(resource)
       silver
     case col.SilverCurPredPerm(p, args) => silver.CurrentPerm(silver.PredicateAccess(args.map(exp), ref(p))(info=NodeInfo(e)))(info=NodeInfo(e))
-    case col.SilverCurFieldPerm(obj, field) => silver.CurrentPerm(silver.FieldAccess(exp(obj), fields(field.asSilverField))(info=NodeInfo(e)))(info=NodeInfo(e))
-    case col.Local(v) => silver.LocalVar(ref(v), typ(v.asVariable.t))(info=NodeInfo(e))
-    case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.asSilverField))(info=NodeInfo(e))
+    case col.SilverCurFieldPerm(obj, field) => silver.CurrentPerm(silver.FieldAccess(exp(obj), fields(field.decl))(info=NodeInfo(e)))(info=NodeInfo(e))
+    case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(info=NodeInfo(e))
+    case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(info=NodeInfo(e))
     case col.FunctionInvocation(f, args) =>
-      silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, silver.NoInfo, typ(f.asFunction.returnType), silver.NoTrafos)
+      silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, silver.NoInfo, typ(f.decl.returnType), silver.NoTrafos)
     case col.SilverUnfolding(p, body) => silver.Unfolding(pred(p), exp(body))(info=NodeInfo(e))
     case col.Select(condition, whenTrue, whenFalse) => silver.CondExp(exp(condition), exp(whenTrue), exp(whenFalse))(info=NodeInfo(e))
     case col.Old(expr, None) => silver.Old(exp(expr))(info=NodeInfo(e))
@@ -222,12 +222,12 @@ case class ColToSilver(program: col.Program) {
 
   def stat(s: col.Statement): silver.Stmt = s match {
     case col.Eval(inv@col.ProcedureInvocation(method, args, outArgs)) =>
-      silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.asVariable.t))()))(
+      silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
         silver.NoPosition, NodeInfo(inv), silver.NoTrafos)
     case col.SilverFieldAssign(obj, field, value) =>
-      silver.FieldAssign(silver.FieldAccess(exp(obj), fields(field.asSilverField))(info=NodeInfo(s)), exp(value))(info=NodeInfo(s))
+      silver.FieldAssign(silver.FieldAccess(exp(obj), fields(field.decl))(info=NodeInfo(s)), exp(value))(info=NodeInfo(s))
     case col.SilverLocalAssign(v, value) =>
-      silver.LocalVarAssign(silver.LocalVar(ref(v), typ(v.asVariable.t))(info=NodeInfo(s)), exp(value))(info=NodeInfo(s))
+      silver.LocalVarAssign(silver.LocalVar(ref(v), typ(v.decl.t))(info=NodeInfo(s)), exp(value))(info=NodeInfo(s))
     case col.Block(statements) => silver.Seqn(statements.map(stat), Seq())(info=NodeInfo(s))
     case col.Scope(locals, body) =>
       val silverLocals = locals.map(variable)
@@ -242,7 +242,7 @@ case class ColToSilver(program: col.Program) {
     case col.Assume(assn) => silver.Assume(exp(assn))(info=NodeInfo(s))
     case col.SilverFold(p) => silver.Fold(pred(p))(info=NodeInfo(s))
     case col.SilverUnfold(p) => silver.Unfold(pred(p))(info=NodeInfo(s))
-    case col.SilverNewRef(v, fs) => silver.NewStmt(silver.LocalVar(ref(v), typ(v.asVariable.t))(), fs.map(ref => fields(ref.asSilverField)))(info=NodeInfo(s))
+    case col.SilverNewRef(v, fs) => silver.NewStmt(silver.LocalVar(ref(v), typ(v.decl.t))(), fs.map(ref => fields(ref.decl)))(info=NodeInfo(s))
     case other => ??(other)
   }
 

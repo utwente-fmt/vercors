@@ -1,5 +1,7 @@
 package vct.col.ast
 
+import vct.result.VerificationResult.SystemError
+
 case class Program(decls: Seq[GlobalDeclaration])(val blame: InternalErrorBlame) {
   def check: Seq[CheckError] =
     decls.flatMap(_.checkTrans(CheckContext(scopes=Seq(decls.toSet))))
@@ -35,3 +37,5 @@ trait Node {
   Expr (which always rewrites to an Expr), but also single-purpose nodes, such as a catch clause.
  */
 trait NodeFamily extends Node
+
+trait ASTStateError extends SystemError

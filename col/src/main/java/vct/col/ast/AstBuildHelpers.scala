@@ -2,6 +2,8 @@ package vct.col.ast
 
 import Constant._
 
+import scala.reflect.ClassTag
+
 object AstBuildHelpers {
   implicit class ExprBuildHelpers(left: Expr) {
     def +(right: Expr)(implicit origin: Origin): Plus = Plus(left, right)
@@ -27,8 +29,8 @@ object AstBuildHelpers {
     def @@(index: Expr)(implicit blame: SeqBoundsBlame, origin: Origin): SeqSubscript = SeqSubscript(left, index)(blame)
   }
 
-  implicit class DeclarationBuildHelpers(left: Declaration) {
-    def ref: Ref = new DirectRef(left)
+  implicit class DeclarationBuildHelpers[T <: Declaration](left: T)(implicit tag: ClassTag[T]) {
+    def ref: Ref[T] = new DirectRef[T](left)
   }
 
   implicit class VarBuildHelpers(left: Variable) {

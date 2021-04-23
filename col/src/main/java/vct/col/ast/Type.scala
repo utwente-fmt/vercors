@@ -114,8 +114,8 @@ object TClass {
   val THROWABLE: TClass = TClass(new DirectRef(null))(null) // FIXME
   val RUNNABLE: TClass = TClass(new DirectRef(null))(null) // FIXME
 }
-case class TModel(model: Ref)(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TClass(cls: Ref)(implicit val o: Origin = DiagnosticOrigin) extends Type {
+case class TModel(model: Ref[Model])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TClass(cls: Ref[Class])(implicit val o: Origin = DiagnosticOrigin) extends Type {
   override def superTypeOf(other: Type): Boolean = other == TSkip() || ???
 }
 

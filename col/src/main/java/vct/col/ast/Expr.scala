@@ -150,13 +150,13 @@ case class InlinePattern(inner: Expr)(implicit val o: Origin) extends Expr with 
   override def t: Type = inner.t
 }
 
-case class Local(ref: Ref)(implicit val o: Origin) extends Expr {
-  override def t: Type = ref.asVariable.t
+case class Local(ref: Ref[Variable])(implicit val o: Origin) extends Expr {
+  override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
     context.inScope(ref)
 }
-case class Deref(obj: Expr, ref: Ref)(implicit val o: Origin) extends Expr {
-  override def t: Type = ref.asField.t
+case class Deref(obj: Expr, ref: Ref[Variable])(implicit val o: Origin) extends Expr {
+  override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
     context.inScope(ref)
 }
@@ -170,29 +170,29 @@ case class AddrOf(e: Expr)(implicit val o: Origin) extends Expr with NoCheck {
 }
 
 sealed trait Invocation extends Expr {
-  def ref: Ref
+  def ref: Ref[ContractApplicable]
   def args: Seq[Expr]
   def blame: PreconditionBlame
 
-  override def t: Type = ref.asApplicable.returnType
+  override def t: Type = ref.decl.returnType
 
   override def check(context: CheckContext): Seq[CheckError] =
-    ref.asApplicable.args.zip(args).flatMap {
+    ref.decl.args.zip(args).flatMap {
       case (arg, value) => value.checkSubType(arg.t)
     }
 }
 
-case class KernelInvocation(ref: Ref, blockCount: Expr, threadCount: Expr, args: Seq[Expr])
+case class KernelInvocation(ref: Ref[Procedure], blockCount: Expr, threadCount: Expr, args: Seq[Expr])
                            (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
 
-case class ProcedureInvocation(ref: Ref, args: Seq[Expr], outArgs: Seq[Ref])
+case class ProcedureInvocation(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]])
                               (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
-case class FunctionInvocation(ref: Ref, args: Seq[Expr])
+case class FunctionInvocation(ref: Ref[Function], args: Seq[Expr])
                              (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
 
-case class MethodInvocation(obj: Expr, ref: Ref, args: Seq[Expr], outArgs: Seq[Ref])
+case class MethodInvocation(obj: Expr, ref: Ref[InstanceMethod], args: Seq[Expr], outArgs: Seq[Ref[Variable]])
                            (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
-case class InstanceFunctionInvocation(obj: Expr, ref: Ref, args: Seq[Expr])
+case class InstanceFunctionInvocation(obj: Expr, ref: Ref[InstanceFunction], args: Seq[Expr])
                                      (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
 
 sealed trait UnExpr extends Expr {
@@ -327,7 +327,7 @@ case class Select(condition: Expr, whenTrue: Expr, whenFalse: Expr)(implicit val
     condition.checkSubType(TBool()) ++ Type.checkComparable(whenTrue, whenFalse)
 }
 
-case class NewObject(cls: Ref)(implicit val o: Origin) extends Expr with NoCheck {
+case class NewObject(cls: Ref[Class])(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TClass(cls)
 }
 
@@ -335,7 +335,7 @@ case class NewArray(element: Type, dims: Seq[Expr])(implicit val o: Origin) exte
   override def t: Type = TArray(element)
 }
 
-case class Old(expr: Expr, at: Option[Ref])(val blame: LabelNotReachedBlame)(implicit val o: Origin) extends Expr with NoCheck {
+case class Old(expr: Expr, at: Option[Ref[LabelDecl]])(val blame: LabelNotReachedBlame)(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = expr.t
 }
 
@@ -344,7 +344,7 @@ case class AmbiguousSubscript(collection: Expr, index: Expr)(implicit val o: Ori
     case TArray(t) => t
     case TSeq(t) => t
     case TPointer(t) => t
-    case _ => throw new IllegalStateException("")
+    case _ => throw UnreachableAfterTypeCheck("AmbiguousSubscript should subscript an array, sequence or pointer.", this)
   }
 
   override def check(context: CheckContext): Seq[CheckError] =
@@ -430,7 +430,7 @@ case class AmbiguousMember(x: Expr, xs: Expr)(implicit val o: Origin) extends Ex
     xs.t match {
       case TSeq(_) | TSet(_) | TMap(_, _) => TBool()
       case TBag(_) => TInt()
-      case _ => throw new IllegalStateException("The AST is in an invalid state: Member expects a collection type.")
+      case _ => throw UnreachableAfterTypeCheck("AmbiguousMember expects a collection type", this)
     }
 
   override def check(context: CheckContext): Seq[CheckError] =
@@ -495,7 +495,7 @@ case class Cast(value: Expr, typeValue: Expr)(implicit val o: Origin) extends Ex
   override def t: Type = typeValue.t match {
     case TType(t) =>
       t
-    case _ => throw new IllegalStateException("The AST is in an invalid state: type expression of cast is not a type value.")
+    case _ => throw UnreachableAfterTypeCheck("The cast type is not a type", this)
   }
   override def check(context: CheckContext): Seq[CheckError] =
     typeValue.t match {
@@ -548,8 +548,8 @@ case class IdleToken(thread: Expr)(implicit val o: Origin) extends Check(thread.
 case class JoinToken(thread: Expr)(implicit val o: Origin) extends Check(thread.checkSubType(TClass.RUNNABLE)) with BoolExpr
 
 case class EmptyProcess()(implicit val o: Origin) extends ProcessExpr with NoCheck
-case class ActionApply(action: Ref, args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with NoCheck
-case class ProcessApply(process: Ref, args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with NoCheck
+case class ActionApply(action: Ref[ModelAction], args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with NoCheck
+case class ProcessApply(process: Ref[ModelProcess], args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with NoCheck
 case class ProcessSeq(left: Expr, right: Expr)(implicit val o: Origin)
   extends Check(left.checkSubType(TProcess()), right.checkSubType(TProcess())) with ProcessExpr
 case class ProcessChoice(left: Expr, right: Expr)(implicit val o: Origin)
