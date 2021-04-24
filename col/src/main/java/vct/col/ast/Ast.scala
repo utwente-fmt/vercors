@@ -2,7 +2,7 @@ package vct.col.ast
 
 import vct.result.VerificationResult.SystemError
 
-case class Program(decls: Seq[GlobalDeclaration])(val blame: InternalErrorBlame) {
+case class Program(decls: Seq[GlobalDeclaration]) {
   def check: Seq[CheckError] =
     decls.flatMap(_.checkTrans(CheckContext(scopes=Seq(decls.toSet))))
 }

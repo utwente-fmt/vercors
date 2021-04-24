@@ -9,6 +9,7 @@ import vct.col.rewrite.JavaResolver;
 import vct.col.rewrite.RewriteSystem;
 import vct.col.util.AbstractTypeCheck;
 import hre.config.Configuration;
+import vct.parsers.Parsers;
 
 public class RewriteSystems {
 
@@ -23,7 +24,7 @@ public class RewriteSystems {
     if (unit==null) synchronized(systems){
       unit=systems.get(f);
       if (unit==null){
-        unit=Parsers.getParser("jspec").parse(f);
+        unit= null/*Parsers.getByExtension("jspec").parse(f, null, null)*/;
         unit=new JavaResolver(unit).rewriteAll();
         new AbstractTypeCheck(null, unit).check();
         systems.put(f, unit);

@@ -1,12 +1,16 @@
 package viper.api
 import vct.col.ast._
 import vct.col.{ast => col}
+import vct.result.VerificationResult.SystemError
 import viper.silver.verifier.errors._
 import viper.silver.verifier.reasons
 import viper.silver.verifier._
 import viper.silver.{ast => silver}
 
 trait SilverBackend extends Backend {
+  case class NotSupported(text: String) extends SystemError
+  case class ViperCrashed(text: String) extends SystemError
+
   def createVerifier: Verifier
 
   private def get[T <: col.Node](node: silver.Infoed): T =
@@ -20,7 +24,7 @@ trait SilverBackend extends Backend {
       case Failure(errors) => errors.foreach {
         case err: AbstractVerificationError => err match {
           case Internal(node, reason, _) =>
-            program.blame.internalError(s"Viper returned an internal error at $node: $reason")
+            throw ViperCrashed(s"Viper returned an internal error at $node: $reason")
           case AssignmentFailed(node, reason, _) =>
             get[SilverAssign](node) match {
               case fieldAssign@SilverFieldAssign(_, _, _) =>
@@ -118,26 +122,26 @@ trait SilverBackend extends Backend {
           case PredicateNotWellformed(_, reason, _) =>
             defer(reason)
           case TerminationFailed(_, _, _) =>
-            program.blame.internalError(s"Vercors does not support termination measures from Viper")
+            throw NotSupported(s"Vercors does not support termination measures from Viper")
           case PackageFailed(node, reason, _) =>
-            program.blame.internalError(s"Vercors does not support magic wands from Viper")
+            throw NotSupported(s"Vercors does not support magic wands from Viper")
           case ApplyFailed(node, reason, _) =>
-            program.blame.internalError(s"Vercors does not support magic wands from Viper")
+            throw NotSupported(s"Vercors does not support magic wands from Viper")
           case MagicWandNotWellformed(_, _, _) =>
-            program.blame.internalError(s"Vercors does not support magic wands from Viper")
+            throw NotSupported(s"Vercors does not support magic wands from Viper")
           case LetWandFailed(_, _, _) =>
-            program.blame.internalError(s"Vercors does not support magic wands from Viper")
+            throw NotSupported(s"Vercors does not support magic wands from Viper")
           case HeuristicsFailed(_, _, _) =>
-            program.blame.internalError(s"Vercors does not support magic wands from Viper")
+            throw NotSupported(s"Vercors does not support magic wands from Viper")
           case ErrorWrapperWithExampleTransformer(_, _) =>
-            program.blame.internalError(s"Vercors does not support counterexamples from Viper")
+            throw NotSupported(s"Vercors does not support counterexamples from Viper")
           case VerificationErrorWithCounterexample(_, _, _, _, _) =>
-            program.blame.internalError(s"Vercors does not support counterexamples from Viper")
+            throw NotSupported(s"Vercors does not support counterexamples from Viper")
         }
         case AbortedExceptionally(throwable) =>
-          program.blame.internalError(s"Viper has crashed: $throwable")
+          throw ViperCrashed(s"Viper has crashed: $throwable")
         case other =>
-          program.blame.internalError(s"Viper returned an error that VerCors does not recognize: $other")
+          throw NotSupported(s"Viper returned an error that VerCors does not recognize: $other")
       }
     }
   }

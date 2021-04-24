@@ -1,25 +1,27 @@
 package vct.main
 
-import java.io._
-import java.time.Instant
-import java.util
 import hre.ast.FileOrigin
 import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
+import hre.io.ForbiddenPrintStream
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, SpecificationFormat}
-import vct.col.util.FeatureScanner
+import hre.util.Notifier
+import vct.col.ast.Program
+import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
+import vct.col.features.{Feature, RainbowVisitor}
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
-import vct.silver.ErrorDisplayVisitor
-import hre.io.ForbiddenPrintStream
-import hre.util.Notifier
-import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
+import vct.parsers.Parsers
+import vct.silver.ErrorDisplayVisitor
 import vct.test.CommandLineTesting
-import scala.jdk.CollectionConverters._
+
+import java.io._
 import java.nio.file.Paths
+import java.time.Instant
+import java.util
+import scala.jdk.CollectionConverters._
 
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
@@ -163,25 +165,8 @@ class Main {
     }
   }
 
-  private def parseInputs(inputPaths: Array[String]): Unit = {
-    Progress("parsing inputs...")
-    report = new PassReport(new ProgramUnit)
-    report.setOutput(report.getInput)
-    report.add(new ErrorDisplayVisitor)
-
-    tk.show
-    for (pathName <- inputPaths) {
-      val path = Paths.get(pathName);
-      if (!no_context.get) FileOrigin.add(path, gui_context.get)
-      report.getOutput.add(Parsers.parseFile(path))
-    }
-
-    Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
-
-    if (sequential_spec.get)
-      report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
-  }
-
+  private def parseInputs(inputPaths: Array[String]): Program =
+    Program(inputPaths.map(Paths.get(_)).flatMap(Parsers.parse))
 
   object ChainPart {
     def inflate(parts: Seq[ChainPart]): Seq[Seq[String]] =

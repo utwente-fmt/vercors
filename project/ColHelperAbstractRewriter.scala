@@ -22,7 +22,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       def rewrite(source: $PROGRAM_TYPE): $PROGRAM_TYPE =
         $PROGRAM_TERM(collectInScope(globalScopes) {
           source.decls.foreach(dispatch)
-        })(source.$BLAME_TERM)
+        })
 
       def dispatch(decl: $DECLARATION_TYPE): Unit
 

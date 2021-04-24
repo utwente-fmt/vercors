@@ -9,15 +9,19 @@ import java.io.InputStream;
 
 import org.antlr.v4.runtime.CharStream;
 import scala.NotImplementedError;
+import scala.collection.immutable.Seq;
+import vct.col.ast.GlobalDeclaration;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.parsers.Parser;
+import vct.parsers.transform.BlameProvider;
+import vct.parsers.transform.OriginProvider;
 import viper.api.ViperAPI;
 
 public class ColSilverParser extends Parser {
-    @Override
+    /*@Override
     public ProgramUnit parse(InputStream stream, String name) {
         throw new NotImplementedError(
                 "Cannot parse a silver file from an InputStream: the silver parser requires a file");
@@ -60,6 +64,10 @@ public class ColSilverParser extends Parser {
             }
         }
         return res;
-    }
+    }*/
 
+    @Override
+    public Seq<GlobalDeclaration> parse(CharStream stream, OriginProvider originProvider, BlameProvider blameProvider) {
+        throw new NotImplementedError(); // FIXME PB: should re-implement sil -> col parsing for new col
+    }
 }
