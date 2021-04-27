@@ -86,7 +86,7 @@ class SessionBarrier(override val source: ProgramUnit) extends AbstractRewriter(
   private def prependBarrier(b : BlockStatement) : Array[ASTNode] = getBarrierInvokation() +: rewrite(b.getStatements)
 
   private def getBarrierAnnotations() : List[OperatorExpression] = {
-    List(create.expression(StandardOperator.Perm,create.field_name(barrierFieldName),create.reserved_name(ASTReserved.ReadPerm)),
-      create.expression(StandardOperator.NEQ,create.field_name(barrierFieldName),create.reserved_name(ASTReserved.Null)))
+    List(create.expression(StandardOperator.Perm,create.field_name(barrierFieldName),create.reserved_name(ASTReserved.ReadPerm))
+    ,create.expression(StandardOperator.NEQ,create.field_name(barrierFieldName),create.reserved_name(ASTReserved.Null)))
   }
 }

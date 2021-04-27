@@ -10,7 +10,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationS
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.{SessionChannel, SessionStructureCheck}
-import vct.col.util.SessionUtil.{barrierFieldName, chanName, chanRead, chanWrite, channelClassName, cloneMethod, getBarrierClass, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName, mainMethodName}
+import vct.col.util.SessionUtil.{barrierClassName, barrierFieldName, chanName, chanRead, chanWrite, channelClassName, cloneMethod, getBarrierClass, getNameFromNode, getNamesFromExpression, getThreadClassName, getTypeChannelClass, isChannelClass, mainClassName, mainMethodName}
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
@@ -19,7 +19,7 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   private val roleNames : Iterable[String] = SessionStructureCheck.getRoleNames(source)
   private val mainClass = SessionStructureCheck.getMainClass(source)
   private val roleOrOtherClass = SessionStructureCheck.getRoleOrHelperClass(source)
-  private var roleName : String = "Error No Role Name!"
+  private var roleName : String = null
 
   private var chans : Set[SessionChannel] = Set()
   private var cloneClasses : Set[ASTDeclaration] = Set()
@@ -28,12 +28,18 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     roleNames.foreach(role => {
       target().add(createThreadClass(role))
     })
+    roleName = null
     source.get().filter(_.name != mainClassName).foreach(c =>
-    /*  if(cloneClasses.exists(_.name == c.name))
-        target().add(addClone(c.asInstanceOf[ASTClass]))
-      // else if(c.name == channelClassName && cloneClasses.nonEmpty)
-      else */
-        target().add(c))
+      if(isChannelClass(c.name)) {// && cloneClasses.nonEmpty) //annotations for readValue?
+        if(chans.exists(_.chanType.toString == getTypeChannelClass(c.name))) //only add used channel classes
+          target().add(c)
+      }
+      else if(c.name == barrierClassName)
+        target.add(c)
+      else if(cloneClasses.exists(_.name == c.name))
+        target().add(rewrite(addClone(c.asInstanceOf[ASTClass])))
+      else
+        target().add(rewrite(c)))
     target()
   }
 
@@ -73,12 +79,14 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(m : Method) : Unit = { //assume ony pre and postconditions
     val c = m.getContract()
     val cb = new ContractBuilder()
-    cb.requires(rewrite(c.pre_condition))
-    cb.ensures(rewrite(c.post_condition))
-    if(m.kind == Method.Kind.Constructor) {
-      result = create.method_kind(m.kind,m.getReturnType,cb.getContract,getThreadClassName(roleName),m.getArgs,rewrite(m.getBody))
-    } else if(m.kind == Method.Kind.Pure) {
-      result = copy_rw.rewrite(m)
+    cb.requires(rewrite(selectResourceAnnotation(c.pre_condition)))
+    cb.ensures(rewrite(selectResourceAnnotation(c.post_condition)))
+    if(m.kind == Method.Kind.Constructor && roleName != null) {
+      result = create.method_kind(m.kind, m.getReturnType, cb.getContract, getThreadClassName(roleName), m.getArgs, rewrite(m.getBody))
+      //  } else if(m.kind == Method.Kind.Pure) {
+      //    result = copy_rw.rewrite(m)
+    } else if(m.kind == Method.Kind.Predicate) {
+      result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(selectResourceAnnotation(m.getBody)))
     } else {
       result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(m.getBody))
     }
@@ -87,46 +95,50 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(l : LoopStatement) : Unit = { //it is while loop
     val c = l.getContract
     val cb = new ContractBuilder()
-    cb.appendInvariant(rewrite(c.invariant))
+    cb.appendInvariant(rewrite(selectResourceAnnotation(c.invariant)))
     result = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract)
   }
 
   override def visit(pb : ParallelBlock) : Unit = {
     val c = pb.contract
     val cb = new ContractBuilder()
-    cb.requires(rewrite(c.pre_condition))
-    cb.ensures(rewrite(c.post_condition))
+    cb.requires(rewrite(selectResourceAnnotation(c.pre_condition)))
+    cb.ensures(rewrite(selectResourceAnnotation(c.post_condition)))
     result = create.parallel_block(pb.label,cb.getContract,pb.itersJava,rewrite(pb.block),pb.deps)
   }
 
   override def visit(a : AssignmentStatement) : Unit = {
-    getLocalAction(a,roleName) match {
-      case SingleRoleAction(_) => result = copy_rw.rewrite(a)
-      case ReadAction(receiver, sender,receiveExpression) => {
-        val chanType = receiveExpression.getType
-        val chanName = getChanName(sender,false, chanType)
-        chans += new SessionChannel(chanName,false,chanType)
-        result = create.assignment(receiveExpression,create.invokation(create.field_name(chanName),null, chanRead))
-      }
-      case WriteAction(receiver, _, sendExpression) => {
-        val chanType = sendExpression.getType
-        val chanName = getChanName(receiver,true,chanType)
-        chans += new SessionChannel(chanName,true,chanType)
-        if(chanType.isNumeric || chanType.isBoolean)
-          result = create.invokation(create.field_name(chanName), null, chanWrite, sendExpression)
-        else {
-        /*  roleOrOtherClass.find(c => c.name == chanType.toString) match {
-            case Some(c) => {
-              cloneClasses = cloneClasses + c
-              result = create.invokation(chan, null, chanWrite, create.invokation(sendExpression,null,"clone") )
-            }
-            case None => */
-              Fail("Session Fail: channel of type %s not supported",chanType)
-         // }
+    if(roleName == null) {
+      super.visit(a)
+    } else {
+      getLocalAction(a, roleName) match {
+        case SingleRoleAction(_) => result = copy_rw.rewrite(a)
+        case ReadAction(receiver, sender, receiveExpression) => {
+          val chanType = receiveExpression.getType
+          val chanName = getChanName(sender, false, chanType)
+          chans += new SessionChannel(chanName, false, chanType)
+          result = create.assignment(receiveExpression, create.invokation(create.field_name(chanName), null, chanRead))
         }
+        case WriteAction(receiver, _, sendExpression) => {
+          val chanType = sendExpression.getType
+          val chanName = getChanName(receiver, true, chanType)
+          chans += new SessionChannel(chanName, true, chanType)
+          if (chanType.isNumeric || chanType.isBoolean)
+            result = create.invokation(create.field_name(chanName), null, chanWrite, sendExpression)
+          else {
+            roleOrOtherClass.find(c => c.name == chanType.toString) match {
+              case Some(c) => {
+                cloneClasses = cloneClasses + c
+                result = create.invokation(create.field_name(chanName), null, chanWrite, create.invokation(sendExpression, null, "clone"))
+              }
+              case None =>
+                Fail("Session Fail: channel of type %s not supported", chanType)
+            }
+          }
+        }
+        case Tau => result = create.special(ASTSpecial.Kind.TauAction, Array[ASTNode](): _*)
+        case _ => Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
       }
-      case Tau => result = create.special(ASTSpecial.Kind.TauAction,Array[ASTNode]():_*)
-      case _ => Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
     }
   }
 
@@ -149,24 +161,32 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
   }
 
   override def visit(e : OperatorExpression) : Unit = {
-    if(e.operator == StandardOperator.Star || e.operator == StandardOperator.And) {
-      result = create.expression(e.operator,rewrite(e.first),rewrite(e.second))
-    } else rewriteExpression(e)
-  }
-
-  override def visit(m : MethodInvokation) : Unit = {
-    m.getParent match {
-      case b :BlockStatement => //it is a statement
-        if(isSingleRoleNameExpression(m, roleNames))
-          result = copy_rw.rewrite(m)
-        else result = create.special(ASTSpecial.Kind.TauAction,Array[ASTNode]():_*)
-      case _ => rewriteExpression(m)
+    if(roleName == null) {
+      super.visit(e)
+    } else {
+      if (e.operator == StandardOperator.Star || e.operator == StandardOperator.And) {
+        result = create.expression(e.operator, rewrite(e.first), rewrite(e.second))
+      } else rewriteExpression(e)
     }
   }
 
-  override def visit(n : NameExpression) : Unit = rewriteExpression(n)
+  override def visit(m : MethodInvokation) : Unit = {
+    if(roleName == null) {
+      super.visit(m)
+    } else {
+      m.getParent match {
+        case b: BlockStatement => //it is a statement
+          if (isSingleRoleNameExpression(m, roleNames))
+            result = copy_rw.rewrite(m)
+          else result = create.special(ASTSpecial.Kind.TauAction, Array[ASTNode](): _*)
+        case _ => rewriteExpression(m)
+      }
+    }
+  }
 
-  override def visit(d : Dereference) : Unit = rewriteExpression(d)
+  override def visit(n : NameExpression) : Unit = if(roleName == null) super.visit(n) else rewriteExpression(n)
+
+  override def visit(d : Dereference) : Unit = if(roleName == null) super.visit(d) else rewriteExpression(d)
 
   private def rewriteExpression(e : ASTNode) : Unit =
     if(isSingleRoleNameExpression(e,roleNames))

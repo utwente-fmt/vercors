@@ -37,7 +37,9 @@ object SessionUtil {
     }
   }
 
-  def isNoBarrierOrChannelClass(name : String) = name != barrierClassName && !name.endsWith(channelClassName)
+  def getTypeChannelClass(name : String) = name.slice(0,name.length - channelClassName.length)
+  def isChannelClass(name : String) = name.endsWith(channelClassName)
+  def isNoBarrierOrChannelClass(name : String) = name != barrierClassName && !isChannelClass(name)
   def isRoleOrHelperClassName(name : String) = name != mainClassName && isNoBarrierOrChannelClass(name)
 
   def isChanName(chan : String) = chan.endsWith(chanName)

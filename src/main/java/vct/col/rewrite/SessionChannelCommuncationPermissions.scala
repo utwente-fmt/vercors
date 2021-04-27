@@ -81,11 +81,11 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
         create.reserved_name(ASTReserved.ReadPerm))
     if(isLoop) {
       contract.appendInvariant(chanPerm)
-      contract.appendInvariant(chanNotNull)
+    //  contract.appendInvariant(chanNotNull)
       contract.appendInvariant(c.getChanFieldPerm(create))
     } else {
       contract.context(chanPerm)
-      contract.context(chanNotNull)
+    //  contract.context(chanNotNull)
       contract.context(c.getChanFieldPerm(create))
     }
     contract

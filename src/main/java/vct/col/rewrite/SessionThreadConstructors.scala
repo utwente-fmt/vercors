@@ -10,7 +10,7 @@ import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUni
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionChannel
-import vct.col.util.SessionUtil.{chanRead, chanWrite, channelClassName, getChansFromBlockStateMent, getRoleName, getThreadClassName, isThreadClassName, runMethodName}
+import vct.col.util.SessionUtil.{chanRead, chanWrite, channelClassName, getChansFromBlockStateMent, getRoleName, getThreadClassName, isChannelClass, isThreadClassName, runMethodName}
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
@@ -38,7 +38,7 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
 
   private def getChansFromFields(c : ASTClass) : Set[SessionChannel] = {
     val role = c.fields().head.name //role is first field
-    c.fields().filter(_.`type`.toString.endsWith(channelClassName)).map(f => new SessionChannel(f.name,f.name.startsWith(role),f.`type`)).toSet
+    c.fields().filter(f => isChannelClass(f.`type`.toString)).map(f => new SessionChannel(f.name,f.name.startsWith(role),f.`type`)).toSet
   }
 
   override def visit(m : Method) = {
