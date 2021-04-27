@@ -1,15 +1,16 @@
 package vct.col.rewrite
 
 import hre.ast.MessageOrigin
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType}
+import hre.lang.System.Output
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
-import vct.col.ast.stmt.decl.{ASTSpecial, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionStructureCheck
-import vct.col.util.SessionUtil.{barrierFieldName, chanRead, chanWrite, getBarrierClass, getChanClass, getChanName, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName, mainMethodName}
+import vct.col.util.{SessionChannel, SessionStructureCheck}
+import vct.col.util.SessionUtil.{barrierFieldName, chanName, chanRead, chanWrite, channelClassName, cloneMethod, getBarrierClass, getNameFromNode, getNamesFromExpression, getThreadClassName, mainClassName, mainMethodName}
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
@@ -17,15 +18,22 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
 
   private val roleNames : Iterable[String] = SessionStructureCheck.getRoleNames(source)
   private val mainClass = SessionStructureCheck.getMainClass(source)
+  private val roleOrOtherClass = SessionStructureCheck.getRoleOrHelperClass(source)
   private var roleName : String = "Error No Role Name!"
 
-  private var chans : Set[String] = Set()
+  private var chans : Set[SessionChannel] = Set()
+  private var cloneClasses : Set[ASTDeclaration] = Set()
 
   def addThreadClasses() : ProgramUnit = {
-    source.get().filter(_.name != mainClassName).foreach(target().add(_))
     roleNames.foreach(role => {
       target().add(createThreadClass(role))
     })
+    source.get().filter(_.name != mainClassName).foreach(c =>
+    /*  if(cloneClasses.exists(_.name == c.name))
+        target().add(addClone(c.asInstanceOf[ASTClass]))
+      // else if(c.name == channelClassName && cloneClasses.nonEmpty)
+      else */
+        target().add(c))
     target()
   }
 
@@ -38,11 +46,28 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     val thread = create.new_class(threadName,null,null)
     val rewMethods = mainClass.methods().filter(_.name != mainMethodName).map(rewrite(_))
     mainClass.fields().forEach(f => if(f.name == roleName) thread.add(rewrite(f)))
-    chans.foreach(chan => thread.add_dynamic(create.field_decl(chan,getChanClass())))
+    chans.foreach(chan => thread.add_dynamic(create.field_decl(chan.channel,chan.getChanClass())))
     thread.add_dynamic(create.field_decl(barrierFieldName,getBarrierClass()))
     rewMethods.foreach(thread.add)
     create.leave()
     thread
+  }
+
+  private def addClone(c : ASTClass) : ASTClass = {
+    c.methods().find(_.name == cloneMethod) match {
+      case Some(_) => Fail("Session Fail: Class %s is not allowed to have a method with name '%s'",c.name,cloneMethod); c
+      case None => {
+        create.enter()
+        create.setOrigin(new MessageOrigin("Generated clone method in class " + c.name))
+        val contract = new ContractBuilder()
+        c.fields().forEach(f => contract.context(create.expression(StandardOperator.Perm,create.field_name(f.name),create.reserved_name(ASTReserved.ReadPerm))))
+        c.fields().forEach(f => contract.ensures(create.expression(StandardOperator.Perm,create.dereference(create.reserved_name(ASTReserved.Result),f.name),create.constant(1))))
+        val m = create.method_decl(create.class_type(c.name,Array[DeclarationStatement]():_*),contract.getContract,cloneMethod,Array[DeclarationStatement]() ,null)
+        c.add_dynamic(m)
+        create.leave()
+        c
+      }
+    }
   }
 
   override def visit(m : Method) : Unit = { //assume ony pre and postconditions
@@ -78,14 +103,27 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     getLocalAction(a,roleName) match {
       case SingleRoleAction(_) => result = copy_rw.rewrite(a)
       case ReadAction(receiver, sender,receiveExpression) => {
-        val chan = getChanVar(sender,false)
-        chans += chan.name
-        result = create.assignment(receiveExpression,create.invokation(chan,null, chanRead))
+        val chanType = receiveExpression.getType
+        val chanName = getChanName(sender,false, chanType)
+        chans += new SessionChannel(chanName,false,chanType)
+        result = create.assignment(receiveExpression,create.invokation(create.field_name(chanName),null, chanRead))
       }
       case WriteAction(receiver, _, sendExpression) => {
-        val chan = getChanVar(receiver,true)
-        chans += chan.name
-        result = create.invokation(chan, null, chanWrite, sendExpression)
+        val chanType = sendExpression.getType
+        val chanName = getChanName(receiver,true,chanType)
+        chans += new SessionChannel(chanName,true,chanType)
+        if(chanType.isNumeric || chanType.isBoolean)
+          result = create.invokation(create.field_name(chanName), null, chanWrite, sendExpression)
+        else {
+        /*  roleOrOtherClass.find(c => c.name == chanType.toString) match {
+            case Some(c) => {
+              cloneClasses = cloneClasses + c
+              result = create.invokation(chan, null, chanWrite, create.invokation(sendExpression,null,"clone") )
+            }
+            case None => */
+              Fail("Session Fail: channel of type %s not supported",chanType)
+         // }
+        }
       }
       case Tau => result = create.special(ASTSpecial.Kind.TauAction,Array[ASTNode]():_*)
       case _ => Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
@@ -156,7 +194,8 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
       case _ => false
     }
 
-  private def getChanVar(role : NameExpression, isWrite : Boolean) =  create.field_name(getChanName(if(isWrite) (roleName + role.name) else (role.name + roleName)))
+  private def getChanName(role : NameExpression, isWrite : Boolean, chanType : Type) : String =
+    (if(isWrite) (roleName + role.name) else (role.name + roleName)) + chanType.toString + chanName
 
   def isSingleRoleNameExpression(e : ASTNode, roleNames : Iterable[String]) : Boolean = {
     val expRoles = getNamesFromExpression(e).filter(n => roleNames.contains(n.name))

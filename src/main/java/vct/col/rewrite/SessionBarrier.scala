@@ -7,7 +7,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, getArgName, getBarrierClass, getChanClass, getThreadClassName, isThreadClassName}
+import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, getArgName, getBarrierClass, isThreadClassName}
 
 class SessionBarrier(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 

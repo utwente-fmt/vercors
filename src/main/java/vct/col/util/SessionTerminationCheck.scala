@@ -9,7 +9,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.RecursiveVisitor
 import vct.col.util.SessionTerminationCheck.deadlockWarning
-import vct.col.util.SessionUtil.{barrierClassName, channelClassName, mainClassName}
+import vct.col.util.SessionUtil.{isNoBarrierOrChannelClass, mainClassName}
 
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
@@ -26,7 +26,7 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
 
   private def getAllMethods(source : ProgramUnit) : Iterable[(Method,String)] =
     source.get().filter(_.isInstanceOf[ASTClass]).map(_.asInstanceOf[ASTClass])
-      .filter(c => c.name != barrierClassName && c.name != channelClassName).flatMap(c => c.methods().map((_,c.name)))
+      .filter(c => isNoBarrierOrChannelClass(c.name)).flatMap(c => c.methods().map((_,c.name)))
 
 
 
@@ -41,7 +41,7 @@ class SessionTerminationCheck(override val source : ProgramUnit) extends Recursi
   override def visit(m : Method) : Unit = {
     m.getParent match {
       case c: ASTClass =>
-        if (c.name != barrierClassName && c.name != channelClassName && (methodCalled || m.kind != Method.Kind.Pure) ) {
+        if (isNoBarrierOrChannelClass(c.name) && (methodCalled || m.kind != Method.Kind.Pure) ) {
           //only check called pure method  or non-pure method
           //don't check methods from Barrier or Channel class, so only methods from Main, roles, ot other classes
           if (methodCalled)

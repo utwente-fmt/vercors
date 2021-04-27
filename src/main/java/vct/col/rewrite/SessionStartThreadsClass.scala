@@ -4,9 +4,11 @@ import hre.ast.MessageOrigin
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{NameExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.decl.Method.Kind
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionUtil.{barrierFieldName, channelClassName, getBarrierClass, getChanClass, getRoleName, isChanName, isThreadClassName, mainClassName, mainMethodName, runMethodName}
+import vct.col.util.SessionUtil.{barrierFieldName, getBarrierClass, getRoleName, isThreadClassName, mainClassName, mainMethodName, unArgName}
+
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
 class SessionStartThreadsClass(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
@@ -23,9 +25,9 @@ class SessionStartThreadsClass(override val source: ProgramUnit)  extends Abstra
 
   private def getStartThreadClass(threads : Set[ASTClass]) = {
     val mainClass = create.new_class(mainClassName,null,null)
-    val chansVars = threads.flatMap(getChanFieldNames).map(getChanVar).toArray
+    val chansVars = threads.flatMap(getConstrChanArgs).map(getChanVar).toArray
     val barrierVar = getBarrierVar(threads.size)
-    val threadVars = threads.map(t => getThreadVar(t,getChanFieldNames(t))).toArray
+    val threadVars = threads.map(t => getThreadVar(t,getConstrChanArgs(t).map(a => unArgName(a.name)))).toArray
     val threadForks = threads.map(t => getThreadRunning(t.name, true)).toArray
     val threadJoins = threads.map(t => getThreadRunning(t.name, false)).toArray
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
@@ -37,17 +39,20 @@ class SessionStartThreadsClass(override val source: ProgramUnit)  extends Abstra
     mainClass
   }
 
-  private def getBarrierVar(nrThreads : Int) =
+  private def getBarrierVar(nrThreads : Int) : DeclarationStatement =
     create.field_decl(new MessageOrigin("Generated Barrier variable"),barrierFieldName,getBarrierClass(),
       create.invokation(null,getBarrierClass(),Method.JavaConstructor,create.constant(nrThreads)))
 
-  private def getChanFieldNames(thread : ASTClass) = thread.dynamicFields().map(_.name).filter(isChanName)
+  private def getConstrChanArgs(thread : ASTClass) : Array[DeclarationStatement] =
+    thread.methods().find(_.kind== Kind.Constructor).get.getArgs.tail
 
-  private def getChanVar(chanName : String) =
-    create.field_decl(new MessageOrigin("Generated Channel variable"),chanName,getChanClass(),
-      create.invokation(null,getChanClass(),Method.JavaConstructor))
+  private def getChanVar(chanArg : DeclarationStatement) : DeclarationStatement = {
+    val chanType = create.class_type(chanArg.`type`.toString)
+    create.field_decl(new MessageOrigin("Generated Channel variable"),unArgName(chanArg.name),chanType,
+      create.invokation(null,chanType,Method.JavaConstructor))
+  }
 
-  private def getThreadVar(thread : ASTClass, chans : Iterable[String]) = {
+  private def getThreadVar(thread : ASTClass, chans : Iterable[String]) : DeclarationStatement = {
     val barArg = create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name), barrierFieldName)
     val chanArgs = chans.map(chan => create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name),chan)).toArray
     val args : Array[NameExpression] = barArg +: chanArgs
@@ -55,7 +60,7 @@ class SessionStartThreadsClass(override val source: ProgramUnit)  extends Abstra
       create.invokation(null,new ClassType(thread.name),Method.JavaConstructor,args:_*))
   }
 
-  private def getThreadRunning(threadClassName : String, isFork : Boolean) = {
+  private def getThreadRunning(threadClassName : String, isFork : Boolean) : ASTSpecial = {
     create.special(if(isFork) ASTSpecial.Kind.Fork else ASTSpecial.Kind.Join,
       create.local_name(new MessageOrigin("Generated argument for forking or joining"),getRoleName(threadClassName)))
   }

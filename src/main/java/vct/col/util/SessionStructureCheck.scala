@@ -9,13 +9,15 @@ import vct.col.ast.stmt.decl.Method.{JavaConstructor, Kind}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTUtils
-import vct.col.util.SessionStructureCheck.isResourceType
-import vct.col.util.SessionUtil.{barrierClassName, channelClassName, getNameFromNode, getNamesFromExpression, mainClassName, mainMethodName, runMethodName}
+import vct.col.util.SessionStructureCheck.{getRoleOrHelperClass, isResourceType}
+import vct.col.util.SessionUtil.{barrierClassName, getNameFromNode, getNamesFromExpression, isRoleOrHelperClassName, mainClassName, mainMethodName, runMethodName}
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
 object SessionStructureCheck {
   def getMainClass(source : ProgramUnit) : ASTClass = source.get().find(_.name == mainClassName).get.asInstanceOf[ASTClass]
+  def getRoleOrHelperClass(source : ProgramUnit) =
+    source.get().filter(c => c.isInstanceOf[ASTClass] && isRoleOrHelperClassName(c.name)).map(_.asInstanceOf[ASTClass])
   def getRoleNames(source : ProgramUnit) : Iterable[String] =
     getMainClass(source).methods().find(_.kind== Kind.Constructor) //getMainConstructor
       .get.getBody.asInstanceOf[BlockStatement].getStatements.map(_.asInstanceOf[AssignmentStatement]) //getRoleObjects
@@ -61,8 +63,6 @@ class SessionStructureCheck(source : ProgramUnit) {
     checkOtherClassesFieldsTypes(source)
     checkOtherClassesMethodsTypes(source)
   }
-
-  def getRoleOrHelperClasses() : Iterable[ASTClass] = source.get().filter(c => c.name != mainClassName && c.name != channelClassName && c.name != barrierClassName) .map(_.asInstanceOf[ASTClass])
 
   private def checkMainClass(source : ProgramUnit) : Unit = {
     source.get().find(_.name == mainClassName) match {
@@ -119,7 +119,7 @@ class SessionStructureCheck(source : ProgramUnit) {
         case n: NameExpression => SessionStructureCheck.getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
           case None => Fail("Session Fail: can only assign to role fields of class 'Main' in constructor")
           case Some(_) => a.expression match {
-            case m: MethodInvokation => getRoleOrHelperClasses().find(_.name == m.dispatch.getName) match {
+            case m: MethodInvokation => getRoleOrHelperClass(source).find(_.name == m.dispatch.getName) match {
               case None => Fail("Session Fail: Wrong method: constructor of 'Main' must initialize roles with a call to a role constructor")
               case Some(_) => true
             }
@@ -310,7 +310,7 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   private def getRoleClasses() : Iterable[ASTClass] = {
     val roleClassTypes = roleObjects.map(_.expression.asInstanceOf[MethodInvokation].dispatch.getName)
-    getRoleOrHelperClasses().filter(c => roleClassTypes.contains(c.name))
+    getRoleOrHelperClass(source).filter(c => roleClassTypes.contains(c.name))
   }
 
   private def checkEqualRoleExpressions(assert : ASTNode, condition : ASTNode) : Boolean = {
@@ -388,7 +388,7 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   private def isBasePrimitiveType(a : ASTNode, allowRoles : Boolean) = a match {
     case p : PrimitiveType => isBaseType(p)
-    case c : ClassType => c.getName != mainClassName && c.getName != barrierClassName && c.getName != channelClassName && (allowRoles || !roleClassNames.contains(c.getName))
+    case c : ClassType => isRoleOrHelperClassName(c.getName) && (allowRoles || !roleClassNames.contains(c.getName))
     case _ => false
   }
 
@@ -428,7 +428,7 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   private def getOtherClasses(source : ProgramUnit) : Iterable[ASTClass] = {
     source.get().filter({
-      case c : ASTClass => c.name != mainClassName && !roleClassNames.contains(c.name) && c.name != channelClassName && c.name != barrierClassName
+      case c : ASTClass => isRoleOrHelperClassName(c.name) && !roleClassNames.contains(c.name)
     }).map(_.asInstanceOf[ASTClass])
   }
 

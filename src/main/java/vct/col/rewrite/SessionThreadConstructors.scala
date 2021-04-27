@@ -10,8 +10,9 @@ import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUni
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.util.SessionChannel
-import vct.col.util.SessionUtil.{chanRead, chanWrite, getChanClass, getChansFromBlockStateMent, getThreadClassName, isThreadClassName, runMethodName}
-import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
+import vct.col.util.SessionUtil.{chanRead, chanWrite, channelClassName, getChansFromBlockStateMent, getRoleName, getThreadClassName, isThreadClassName, runMethodName}
+
+import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
 /**
   * Adds the channels to Thread constructors
@@ -19,14 +20,14 @@ import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
   */
 class SessionThreadConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
-  var chanMap : Map[String,Set[SessionChannel]] = Map() // A Map threadName -> {(chanName,isWriteValueCall)}
+  var chanMap : Map[String,Set[SessionChannel]] = Map()
 
   def addChansToConstructors : ProgramUnit = {
     for(entry <- source.get()) {
       entry match {
         case c : ASTClass => {
           if(isThreadClassName(c.name)) {
-            val chans = getChansFromRunMethod(c)
+            val chans = getChansFromFields(c)
             chanMap += (c.name -> chans)
           }
         }
@@ -35,19 +36,9 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
     rewriteAll
   }
 
-  private def getChansFromRunMethod(c : ASTClass) : Set[SessionChannel] = {
-    c.methods().find(_.name == runMethodName) match {
-      case Some(runMethod) => {
-        val chanMethods = getChansFromBlockStateMent(runMethod.getBody)
-        chanMethods.filter(m => m.`object` match {
-          case n: NameExpression => true
-          case _ => false
-        }).map(m => {
-          new SessionChannel(m.`object`.asInstanceOf[NameExpression].name, m.method == chanWrite)
-        })
-      }
-      case None => Fail("Session Fail: Thread has no 'run' method"); Set()
-    }
+  private def getChansFromFields(c : ASTClass) : Set[SessionChannel] = {
+    val role = c.fields().head.name //role is first field
+    c.fields().filter(_.`type`.toString.endsWith(channelClassName)).map(f => new SessionChannel(f.name,f.name.startsWith(role),f.`type`)).toSet
   }
 
   override def visit(m : Method) = {
@@ -55,7 +46,7 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
       create.enter()
       create.setOrigin(new MessageOrigin("Generated constructor " + m.name))
       val chans = chanMap.get(m.name).get
-      val chanArgs : Set[DeclarationStatement] = chans.map(chan => create.field_decl(chan.getArgChanName(),getChanClass()))
+      val chanArgs : Set[DeclarationStatement] = chans.map(chan => create.field_decl(chan.getArgChanName(),chan.chanType))
       val newContract = getRoleConstructorContract(chans)
       rewrite(m.getContract,newContract)
       val chanDecls : Array[ASTNode] = chans.map(chan =>

@@ -23,6 +23,7 @@ object SessionUtil {
   val barrierAwait : String = "await"
   val chanWrite : String = "writeValue"
   val chanRead : String = "readValue"
+  val cloneMethod : String = "clone"
 
   def getThreadClassName(roleName : String) : String = roleName.toUpperCase() + threadName
 
@@ -36,15 +37,16 @@ object SessionUtil {
     }
   }
 
+  def isNoBarrierOrChannelClass(name : String) = name != barrierClassName && !name.endsWith(channelClassName)
+  def isRoleOrHelperClassName(name : String) = name != mainClassName && isNoBarrierOrChannelClass(name)
+
   def isChanName(chan : String) = chan.endsWith(chanName)
-
-  def getChanName(roleName : String) = roleName + chanName
-
-  def getChanClass() = new ClassType(channelClassName)
 
   def getBarrierClass() = new ClassType(barrierClassName)
 
   def getArgName(name : String) = name + "Arg"
+
+  def unArgName(arg : String) = arg.slice(0,arg.length-3)
 
   def getChansFromBlockStateMent(block : ASTNode) : Set[MethodInvokation] = {
     block match {

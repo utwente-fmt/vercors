@@ -65,7 +65,7 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
 
   private def getChans(b : BlockStatement): Set[SessionChannel] = {
     getChansFromBlockStateMent(b).flatMap(m => m.`object` match {
-      case n: NameExpression => if (isChanName(n.name)) Set(new SessionChannel(n.name, m.method == chanWrite)) else Set()  : Set[SessionChannel]
+      case n: NameExpression => if (isChanName(n.name)) Set(new SessionChannel(n.name, m.method == chanWrite,null)) else Set()  : Set[SessionChannel]
       case _ => Set() : Set[SessionChannel]
     })
   }
