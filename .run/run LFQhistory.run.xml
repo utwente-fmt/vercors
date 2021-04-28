@@ -5,7 +5,7 @@
     <option name="MAIN_CLASS_NAME" value="vct.main.Main" />
     <module name="vercors" />
     <option name="PROGRAM_PARAMETERS" value="--progress --silicon --strict-internal --check-history C:\Users\Ivan\Documents\Develop\vercors\examples\layers\LFQHist.java --encoded tmp/output.sil" />
-    <option name="VM_PARAMETERS" value="-Xss16m" />
+    <option name="VM_PARAMETERS" value="-Xss128m" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
