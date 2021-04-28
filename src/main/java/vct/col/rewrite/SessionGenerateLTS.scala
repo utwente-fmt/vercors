@@ -253,7 +253,7 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
       val nextState = takeTransition(currentState, new LTSLabel(None, Tau), seq)
       visitStatementSequence(nextState, seq)
     } else if(s.kind == ASTSpecial.Kind.Assert) {
-        //skip
+      visitStatementSequence(currentState, seq) //skip assert
     } else Fail("Session Fail: cannot visit this type of statement!")
 
 
