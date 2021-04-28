@@ -93,6 +93,7 @@ jobs:
     strategy:
       matrix:
         testID: [0, 1, 2, 3, 4]
+      fail-fast: false
     env:
       maxTestID: 5
     steps:
