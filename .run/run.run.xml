@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="run" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="11 (2)" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="MAIN_CLASS_NAME" value="vct.main.Main" />
+    <module name="vercors" />
+    <option name="PROGRAM_PARAMETERS" value="--progress --silicon --strict-internal --check-history C:\Users\Ivan\Documents\Develop\vercors\examples\histories\HistoryAppl.java C:\Users\Ivan\Documents\Develop\vercors\examples\histories\HistoryJava.java --encoded tmp/output.sil" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
