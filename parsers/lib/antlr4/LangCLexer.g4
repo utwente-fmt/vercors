@@ -349,14 +349,6 @@ LineDirective
         { setChannel(2); }
     ;
 
-/*
-used by OMP
-PragmaDirective
-    :   '#' Whitespace? 'pragma' Whitespace ~[\r\n]*
-        { setChannel(2); }
-    ;
-*/
-
 BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
 BlockCommentStart: '/*' -> mode(COMMENT), skip;
 LineCommentStart: '//' -> mode(LINE_COMMENT), skip;

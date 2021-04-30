@@ -9,9 +9,10 @@ import LangCParser, SpecParser;
 langExpr: expression;
 langId: clangIdentifier;
 langType: typeSpecifier;
-langModifier: storageClassSpecifier;
 langStatement: blockItem;
-langDecl: functionDefinition;
+langStatic: EOF EOF;
+langGlobalDecl: externalDeclaration;
+langClassDecl: EOF EOF;
 
 startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};

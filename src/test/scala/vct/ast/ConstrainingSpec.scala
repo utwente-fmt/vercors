@@ -1,12 +1,13 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.`type`.ASTReserved
 import vct.col.ast.expr.NameExpression
 import vct.col.ast.stmt.composite.{BlockStatement, Constraining}
 
-class ConstrainingSpec extends FlatSpec with Matchers {
+class ConstrainingSpec extends AnyFlatSpec with Matchers {
   
   "A constrained block" should "successfully instantiate when given proper input" in {
     val block = new BlockStatement

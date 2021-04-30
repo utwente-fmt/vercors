@@ -1,13 +1,14 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.`type`.{PrimitiveSort, PrimitiveType}
 import vct.col.ast.expr.constant.IntegerValue
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.stmt.decl.{AxiomaticDataType, DeclarationStatement}
 
-class AxiomaticDataTypeSpec extends FlatSpec with Matchers {
+class AxiomaticDataTypeSpec extends AnyFlatSpec with Matchers {
   
   def intDeclaration(name:String, value:Int) = 
     DeclarationStatement(name, new PrimitiveType(PrimitiveSort.Integer), Some(new ConstantExpression(new IntegerValue(value))))

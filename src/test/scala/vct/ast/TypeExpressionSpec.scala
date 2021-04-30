@@ -1,10 +1,11 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.`type`.{ClassType, Type, TypeExpression, TypeOperator}
 
-class TypeExpressionSpec extends FlatSpec with Matchers {
+class TypeExpressionSpec extends AnyFlatSpec with Matchers {
   
   "A type expression" should "successfully instantiate when given valid input" in {
     val op = TypeOperator.Static

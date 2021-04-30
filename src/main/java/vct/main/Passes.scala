@@ -1,19 +1,16 @@
 package vct.main
 
 import hre.config.Configuration
-
-import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
-import java.util
 import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
-import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.features.Feature
 import vct.col.rewrite._
-import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
+import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
+import java.io._
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable

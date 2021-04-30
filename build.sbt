@@ -21,7 +21,7 @@ val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.21.01-r
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
-silicon and carbon specify their dependencies as a regular sbt subproject: they expect a symlink in the project root to
+silicon and carbon specify their dependencies as a regular sbtbuild subproject: they expect a symlink in the project root to
 the relevant project. Instead, we replace those dependencies by a reference to the repository as above. So e.g.
 "the silver project at hg:carbon" becomes "the silver project at hg:silver". All other dependencies are left alone.
  */
@@ -82,8 +82,8 @@ lazy val vercors: Project = (project in file("."))
         |PVL. """.stripMargin.replaceAll("\n", ""),
 
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
-    libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.2",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
+    libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.7",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test",
     // libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
 

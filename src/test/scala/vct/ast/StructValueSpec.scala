@@ -1,11 +1,12 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.expr.constant.StructValue
 
-class StructValueSpec extends FlatSpec with Matchers {
+class StructValueSpec extends AnyFlatSpec with Matchers {
   
   "A struct value" should "instantiate with an empty map" in {
     var t = new ClassType(Array("Integer"))

@@ -7,7 +7,6 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import vct.main.Parsers;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
@@ -779,7 +778,7 @@ public class SilverClassReduction extends AbstractRewriter {
     if (options || floats || arrays || fractions || maps || tuple){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
       File file = Configuration.getConfigFile(preludeFile);
-      ProgramUnit prelude=Parsers.getParser("sil").parse(file);
+      ProgramUnit prelude = /*Parsers.getParser("sil").parse(file)*/ null;
       for(ASTNode n:prelude){
         if (n instanceof AxiomaticDataType){
           AxiomaticDataType adt=(AxiomaticDataType)n;

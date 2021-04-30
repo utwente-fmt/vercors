@@ -6,8 +6,8 @@ import hre.ast.{FileOrigin, MessageOrigin}
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, Type}
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, NameSpace}
 import vct.col.ast.util.{ASTFactory, ClassName, ExternalClassLoader, SequenceUtils}
+import vct.col.rewrite.RemoveBodies
 import vct.parsers.ColJavaParser
-import vct.parsers.rewrite.RemoveBodies
 
 import java.lang.reflect.{Modifier, Parameter}
 import scala.annotation.tailrec
@@ -47,7 +47,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
       val parser = new ColJavaParser(false)
       // (path/to/src, Seq(java, lang, Object)) -> path/to/src/java/lang/Object.java
       val f = new File(parts.init.foldLeft(basePath.toFile)(new File(_, _)), parts.last + ".java")
-      val pu = parser.parse(f)
+      val pu = /* parser.parse(f) */ null
       val strippedPU = new RemoveBodies(pu).rewriteAll()
       // Make sure the class name matches by finding it
       Option(strippedPU.find(new ClassName(parts:_*)))

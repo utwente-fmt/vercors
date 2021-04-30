@@ -1,6 +1,7 @@
 package vct.ast
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite
@@ -8,7 +9,7 @@ import vct.col.ast.stmt.composite.{BlockStatement, ParallelBlock, ParallelRegion
 import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.ContractBuilder
 
-class ParallelRegionSpec extends FlatSpec with Matchers {
+class ParallelRegionSpec extends AnyFlatSpec with Matchers {
   
   "A parallel region" should "instantiate when given valid input" in {
     val builder = new ContractBuilder

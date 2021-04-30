@@ -52,6 +52,7 @@ VAL_GIVEN: 'given';
 VAL_YIELDS: 'yields';
 
 VAL_AXIOM: 'axiom';
+VAL_MODEL: 'model';
 
 VAL_MODIFIES: 'modifies';
 VAL_ACCESSIBLE: 'accessible';
