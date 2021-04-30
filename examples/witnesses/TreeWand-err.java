@@ -22,7 +22,7 @@ class Tree {
   public Tree left;
   public Tree right;
   
-  /*@ public resource state()=Perm(data,100)**
+  /*@ resource state()=Perm(data,100)**
       Perm(left,100)**Perm(right,100)**left->state()**right->state();
   @*/
 
@@ -47,7 +47,7 @@ class Tree {
   @*/
 
   /*@
-    public resource contains(Tree t,seq<int>L)=t->state() ** L == contents(t);
+    resource contains(Tree t,seq<int>L)=t->state() ** L == contents(t);
 
     public boolean sorted_list(seq<int> s)=
       (\forall int i ; 1 < i && i < |s| ; s[i-1] <= s[i] );

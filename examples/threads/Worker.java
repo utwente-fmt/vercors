@@ -3,9 +3,9 @@
 
 public class Worker extends Thread {
 
-  //@ public resource preFork(frac p)=Value(input)**p!=none**Perm(output,p);
+  //@ resource preFork(frac p)=Value(input)**p!=none**Perm(output,p);
 
-  //@ public resource postJoin(frac p)=Value(input)**p!=none**PointsTo(output,p,input+1);
+  //@ resource postJoin(frac p)=Value(input)**p!=none**PointsTo(output,p,input+1);
 
   /*@
     ensures preFork(1) ** Value(this.input) ** this.input==input;

@@ -379,7 +379,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
       case MultiplicativeOp0(_) => Mult(convert(left), convert(right))
       case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blameProvider(expr))
       case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right))(blameProvider(expr))
-      case MultiplicativeOp3(_) => ??(op)
+      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blameProvider(expr))
     }
   }
 
@@ -462,7 +462,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ClangIdentifier1(id) => id
     case ClangIdentifier2(specOutOfSpec) =>
       val text = specOutOfSpec.getText
-      if(text.matches("[a-zA-Z]+")) text
+      if(text.matches("[a-zA-Z_]+")) text
       else fail(specOutOfSpec, f"This identifier is not allowed in C.")
   }
 

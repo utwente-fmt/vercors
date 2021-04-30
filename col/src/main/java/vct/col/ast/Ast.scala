@@ -38,4 +38,4 @@ trait Node {
  */
 trait NodeFamily extends Node
 
-trait ASTStateError extends SystemError
+abstract class ASTStateError extends SystemError

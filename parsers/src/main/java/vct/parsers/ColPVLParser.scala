@@ -11,7 +11,7 @@ case class ColPVLParser() extends Parser {
       val lexer = new LangPVLLexer(stream)
       val tokens = new CommonTokenStream(lexer)
       val parser = new PVLParser(tokens)
-      val ec = errorCounter(parser, lexer)
+      val ec = errorCounter(parser, lexer, originProvider)
 
       val tree = parser.program
       ec.report()

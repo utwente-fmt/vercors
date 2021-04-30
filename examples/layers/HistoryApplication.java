@@ -64,11 +64,11 @@ public class History {/*@
 
 public class Thread {
 
-  //@ public resource joinToken(frac p);
+  //@ resource joinToken(frac p);
 
-  //@ public resource preFork(frac p)=true;
+  //@ resource preFork(frac p)=true;
 
-  //@ public resource postJoin(frac p)=true;
+  //@ resource postJoin(frac p)=true;
   
   public Thread(){
     //@ assume false;

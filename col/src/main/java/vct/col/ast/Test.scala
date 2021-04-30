@@ -14,7 +14,7 @@ object Test {
 
     val exp = Plus(0, 5)
     println(exp.rewrite(left=IntegerValue(3)))
-//    val exp2: Expr = 0 + 1 / 2
-//    println(exp2)
+    val exp2: Expr = 0 + 1 / 2
+    println(exp2)
   }
 }

@@ -2,6 +2,7 @@ package vct.parsers.transform
 
 import org.antlr.v4.runtime.ParserRuleContext
 import vct.col.ast._
+import vct.parsers.ParseError
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

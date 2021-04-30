@@ -23,8 +23,8 @@ public class SingleCellMod{
 
 	/*@	 
 	 
-	 public resource inv_value(int x) = (x ==0 ==> true) ** ( x== 1 ==> true ) ** (x == 2 ==> Value(data));
-	 public resource inv_resource(int x) = (x == 0 ==> Perm(data,100));
+	 resource inv_value(int x) = (x ==0 ==> true) ** ( x== 1 ==> true ) ** (x == 2 ==> Value(data));
+	 resource inv_resource(int x) = (x == 0 ==> Perm(data,100));
 	 */
 		
 	/*@ resource contains(int d)= Value(data) ** data == d; */

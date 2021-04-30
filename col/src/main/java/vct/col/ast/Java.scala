@@ -18,6 +18,9 @@ case class JavaSynchronized()(implicit val o: Origin) extends JavaModifier
 case class JavaTransient()(implicit val o: Origin) extends JavaModifier
 case class JavaVolatile()(implicit val o: Origin) extends JavaModifier
 
+case class JavaPure()(implicit val o: Origin) extends JavaModifier
+case class JavaInline()(implicit val o: Origin) extends JavaModifier
+
 sealed trait JavaGlobalDeclaration extends ExtraGlobalDeclaration
 case class JavaNamespace(pkg: Option[JavaName], imports: Seq[JavaImport], decls: Seq[GlobalDeclaration])(implicit val o: Origin)
   extends JavaGlobalDeclaration with NoCheck
@@ -47,6 +50,9 @@ case class JavaMethod(modifiers: Seq[JavaModifier], returnType: Type, dims: Int,
                       parameters: Seq[Variable], typeParameters: Seq[Variable],
                       signals: Seq[JavaName], body: Option[Statement], contract: ApplicableContract)
                      (implicit val o: Origin)
+  extends JavaClassDeclaration with NoCheck
+
+case class JavaSpecDeclaration(isStatic: Boolean, declaration: ClassDeclaration)(implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck
 
 sealed trait JavaStatement extends ExtraStatement

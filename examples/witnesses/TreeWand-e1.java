@@ -23,7 +23,7 @@ class Tree {
   public Tree left;
   public Tree right;
   
-  /*@ public resource state()=Perm(data,100)**
+  /*@ resource state()=Perm(data,100)**
       Perm(left,100)**Perm(right,100)**(left->state())**(right->state());
   @*/
 
@@ -39,13 +39,14 @@ class Tree {
     requires state();
     ensures  \result.length>0;
     ensures  \result == tolist(this);
-    public pure seq<int> contents()=tolist(left) + seq<int>{data} + tolist(right);
+    pure seq<int> contents()=tolist(left) + seq<int>{data} + tolist(right);
 
+    ghost
     requires t->state();
     ensures  t!=null ==> \result == t.contents();
     ensures  t==null ==> \result == seq<int>{};
     ensures  \result == (t==null ? seq<int>{} : t.contents());
-    public pure seq<int> tolist(Tree t){
+    pure seq<int> tolist(Tree t){
         if (t==null) {
             return seq<int>{};
         } else {
@@ -56,15 +57,15 @@ class Tree {
   @*/
 
   /*@
-    public resource state_contains(seq<int> L)=state() ** contents()==L;
+    resource state_contains(seq<int> L)=state() ** contents()==L;
         
-    public resource contains(Tree t,seq<int>L)=t->state() ** L == tolist(t);
+    resource contains(Tree t,seq<int>L)=t->state() ** L == tolist(t);
 
-    public boolean sorted_list(seq<int> s)=
+    pure boolean sorted_list(seq<int> s)=
       (\forall int i ; 1 < i && i < |s| ; s[i-1] <= s[i] );
       
     requires t->state();
-    public boolean sorted(Tree t)=t==null || sorted_list(t.contents());
+    pure boolean sorted(Tree t)=t==null || sorted_list(t.contents());
   @*/
 
   //@ requires top!=null ** top.state();

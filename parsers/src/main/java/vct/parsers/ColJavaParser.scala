@@ -14,7 +14,7 @@ case class ColJavaParser(val topLevelSpecs: Boolean) extends Parser {
       val lexer = new LangJavaLexer(stream)
       val tokens = new CommonTokenStream(lexer)
       val parser = new JavaParser(tokens)
-      val ec = errorCounter(parser, lexer)
+      val ec = errorCounter(parser, lexer, originProvider)
 
       parser.specLevel = if(topLevelSpecs) 1 else 0
 

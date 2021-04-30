@@ -85,6 +85,14 @@ case class AmbiguousThis()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TSkip()
 }
 
+case class AmbiguousResult()(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TSkip()
+}
+
+case class CurrentThreadId()(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TInt()
+}
+
 case class Null()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TNull()
 }

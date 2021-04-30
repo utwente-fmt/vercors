@@ -16,26 +16,26 @@ final class Tree {
   public Tree left;
   public Tree right;
   
-  /*@ public resource state()=Perm(data,write)**
+  /*@ resource state()=Perm(data,write)**
       Perm(left,write)**Perm(right,write)**left->state()**right->state();
   @*/
 
   /*@
     requires t->state();
-    public static seq<int> tolist(Tree t)=(t==null)?seq<int>{}:
+    static pure seq<int> tolist(Tree t)=(t==null)?seq<int>{}:
         \unfolding t.state() \in tolist(t.left) + seq<int>{t.data} + tolist(t.right);
     @*/
 
   /*@
-    public inline resource state_contains(seq<int> L)=this.state() ** tolist(this)==L;
+    inline resource state_contains(seq<int> L)=this.state() ** tolist(this)==L;
         
-    public static inline resource contains(Tree t,seq<int>L)=t->state() ** L == tolist(t);
+    static inline resource contains(Tree t,seq<int>L)=t->state() ** L == tolist(t);
 
-    public static boolean sorted_list(seq<int> s)=
+    static pure boolean sorted_list(seq<int> s)=
       (\forall int i ; 1 < i && i < |s| ; s[i-1] <= s[i] );
       
     requires t->state();
-    public static boolean sorted(Tree t)=sorted_list(tolist(t));
+    static pure boolean sorted(Tree t)=sorted_list(tolist(t));
   @*/
 
   //@ requires top!=null ** top.state();

@@ -45,6 +45,11 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       case "transient" => JavaTransient()
       case "volatile" => JavaVolatile()
     }
+    case Modifier2(mods) => withModifiers(mods, m => {
+      if(m.consume(m.pure)) JavaPure()
+      else if(m.consume(m.inline)) JavaInline()
+      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
+    })
   }
 
   def convert(implicit modifier: ClassOrInterfaceModifierContext): JavaModifier = modifier match {
@@ -548,24 +553,23 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     }
     case Expression27(cond, _, whenTrue, _, whenFalse) =>
       Select(convert(cond), convert(whenTrue), convert(whenFalse))
-    case _: Expression28Context => ??? // Extractor should be in the new ANTLR fork update
-//    case Expression28(left, op, right) =>
-//      val target = convert(left)
-//      val value = convert(right)
-//      PreAssignExpression(target, op match {
-//        case "=" => value
-//        case "+=" => Plus(target, value)
-//        case "-=" => Minus(target, value)
-//        case "*=" => Mult(target,  value)
-//        case "/=" => FloorDiv(target,  value)(blameProvider(expr))
-//        case "&=" => BitAnd(target, value)
-//        case "|=" => BitOr(target, value)
-//        case "^=" => BitXor(target, value)
-//        case ">>=" => BitShr(target, value)
-//        case ">>>=" => BitUShr(target, value)
-//        case "<<=" => BitShl(target, value)
-//        case "%=" => Mod(target, value)(blameProvider(expr))
-//      })
+    case Expression28(left, AssignOp0(op), right) =>
+      val target = convert(left)
+      val value = convert(right)
+      PreAssignExpression(target, op match {
+        case "=" => value
+        case "+=" => Plus(target, value)
+        case "-=" => Minus(target, value)
+        case "*=" => Mult(target,  value)
+        case "/=" => FloorDiv(target,  value)(blameProvider(expr))
+        case "&=" => BitAnd(target, value)
+        case "|=" => BitOr(target, value)
+        case "^=" => BitXor(target, value)
+        case ">>=" => BitShr(target, value)
+        case ">>>=" => BitUShr(target, value)
+        case "<<=" => BitShl(target, value)
+        case "%=" => Mod(target, value)(blameProvider(expr))
+      })
   }
 
   def convert(implicit invocation: ExplicitGenericInvocationSuffixContext,
@@ -604,7 +608,11 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case Primary1(_) => AmbiguousThis()
     case Primary2(_) => ??(expr)
     case Primary3(literal) => convert(literal)
-    case Primary4(name) => Local(new UnresolvedRef(convert(name)))
+    case Primary4(name) => name match {
+      case JavaIdentifier0(specInSpec) => convert(specInSpec)
+      case JavaIdentifier1(name) => Local(new UnresolvedRef(name))
+      case JavaIdentifier2(_) => Local(new UnresolvedRef(convert(name)))
+    }
     case Primary5(name, familyType, args, withThen) =>
       failIfDefined(familyType, "Predicate families are unsupported (for now)")
       val (before, after) = withThen.map(convert(_)).getOrElse((Nil, Nil))
@@ -642,7 +650,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case JavaIdentifier1(id) => id
     case JavaIdentifier2(specOutOfSpec) =>
       val text = specOutOfSpec.getText
-      if(text.matches("[a-zA-Z]+")) text
+      if(text.matches("[a-zA-Z_]+")) text
       else fail(specOutOfSpec, f"This identifier is not allowed in Java.")
   }
 
@@ -803,7 +811,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   }
 
   def convert(implicit mulOp: ValMulOpContext, left: Expr, right: Expr): Expr = mulOp match {
-    case ValMulOp0("\\\\") => Div(left, right)(blameProvider(mulOp))
+    case ValMulOp0(_) => Div(left, right)(blameProvider(mulOp))
   }
 
   def convert(implicit block: ValEmbedStatementBlockContext): Block = block match {
@@ -898,7 +906,29 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       convert(inner)
   }
 
-  def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration] = ???
+  def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration] = decl match {
+    case ValEmbedClassDeclarationBlock0(_, decls, _) => decls.flatMap(convert(_))
+    case ValEmbedClassDeclarationBlock1(decls) => decls.flatMap(convert(_))
+  }
+
+  def convert[T](implicit decl: ValClassDeclarationContext, transform: ClassDeclaration => T = x => x): Seq[T] = decl match {
+    case ValClassDeclaration0(modifiers, _, name, _, args, _, definition) =>
+      Seq(withModifiers(modifiers, mods => {
+        transform(new InstancePredicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
+          mods.consume(mods.threadLocal), mods.consume(mods.inline))(
+          SourceNameOrigin(convert(name), origin(decl))))
+      }))
+    case ValClassDeclaration1(contract, modifiers, _, t, name, _, args, _, definition) =>
+      Seq(withContract(contract, c => {
+        withModifiers(modifiers, m => {
+          new InstanceFunction(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
+            c.consumeApplicableContract(), m.consume(m.inline))(
+            blameProvider(decl))(
+            SourceNameOrigin(convert(name), origin(decl)))
+        })
+      }))
+    case ValClassDeclaration2(_, decl) => convert(decl)
+  }
 
   def convert(implicit decl: ValModelDeclarationContext): ModelDeclaration = decl match {
     case ValModelDeclaration0(t, name, _) =>
@@ -1045,8 +1075,8 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       f"This identifier is reserved, and cannot be declared or used in specifications. " +
         f"You might want to escape the identifier with backticks: `$name`")
     case ValReserved1(id) => Local(new UnresolvedRef(id.substring(1, id.length-1)))
-    case ValReserved2(_) => ???
-    case ValReserved3(_) => ???
+    case ValReserved2(_) => AmbiguousResult()
+    case ValReserved3(_) => CurrentThreadId()
     case ValReserved4(_) => NoPerm()
     case ValReserved5(_) => WritePerm()
     case ValReserved6(_) => ReadPerm()

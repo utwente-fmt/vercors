@@ -3,12 +3,14 @@ package vct.test
 import java.io.{BufferedWriter, File, FileNotFoundException, FileOutputStream, FileWriter, OutputStreamWriter}
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util.concurrent.{Executors, Future}
-
 import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Output, Progress, Warning}
 import hre.util.TestReport.Verdict
 import vct.col.features.Feature
+import vct.parsers.Parsers
+import vct.result.VerificationResult
+import vct.result.VerificationResult.Ok
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable
@@ -172,12 +174,29 @@ object CommandLineTesting {
           conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
           conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
 
+          if(kees.verdict != Verdict.Error) {
+            kees.files.forEach(file => {
+              if (Files.isRegularFile(file)) {
+                try {
+                  Parsers.parse(file)
+                  throw Ok
+                } catch {
+                  case result: VerificationResult => println(s"${result.text} $file")
+                  case other =>
+                    println(file)
+                    other.printStackTrace()
+                }
+              }
+            })
+          }
+
           result += (s"$name-$tool" -> Task(vercors.withArgs((args.toSeq):_*), conditions.toSeq))
         }
       }
     }
 
     result.toMap
+    Map.empty
   }
 
   def runTests(): Unit = {

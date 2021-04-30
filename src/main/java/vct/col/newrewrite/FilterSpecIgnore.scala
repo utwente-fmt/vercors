@@ -4,8 +4,13 @@ import vct.col.ast._
 
 import scala.collection.mutable.ArrayBuffer
 import RewriteHelpers._
+import vct.result.VerificationResult.UserError
 
 case class FilterSpecIgnore() extends Rewriter {
+  case class UnbalancedSpecIgnore() extends UserError {
+    override def text: String = "bla bla bla"
+  }
+
   override def dispatch(stat: Statement): Statement = stat match {
     case block@Block(statements) =>
       var level = 0

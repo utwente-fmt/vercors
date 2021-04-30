@@ -3,11 +3,11 @@
 
 public class Thread {
 
-  //@ public resource joinToken(frac p);
+  //@ resource joinToken(frac p);
 
-  //@ public resource preFork(frac p);
+  //@ resource preFork(frac p);
 
-  //@ public resource postJoin(frac p);
+  //@ resource postJoin(frac p);
   
   public Thread(){
     //@ assume false;
