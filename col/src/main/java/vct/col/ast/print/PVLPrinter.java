@@ -602,7 +602,7 @@ public class PVLPrinter extends AbstractPrinter{
                 d.accept(this);
                 out.lnprintf("");
             }
-            for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star, StandardOperator.And)){
+            for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star, StandardOperator.And, StandardOperator.Wrap)){
                 out.printf((loopcontract) ? "loop_invariant ": "context_everywhere ");
                 nextExpr();
                 e.accept(this);
@@ -698,6 +698,10 @@ public class PVLPrinter extends AbstractPrinter{
             out.incrIndent();
 //            out.print("predicate ");
         }
+        if (!m.getGpuOpts().isEmpty()) {
+            m.getGpuOpts().forEach(opt -> visit(opt));
+        }
+
         if (contract!=null && !predicate){
             visit(contract);
         }
@@ -1374,7 +1378,7 @@ public class PVLPrinter extends AbstractPrinter{
     }
     @Override
     public void visit(ParallelRegion region){
-        out.println("par");
+        out.print("par ");
 
         if (region.contract() != null) {
             region.contract().accept(this);
