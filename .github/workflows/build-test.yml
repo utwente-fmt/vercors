@@ -35,7 +35,7 @@ jobs:
           printf "${JAVA_HOME}\n"
           ls $JAVA_HOME
           ls $JAVA_HOME/bin
-      - run: sbt debian:packageBin
+      - run: sbt test debian:packageBin
       - name: Archive VerCors .deb
         uses: actions/upload-artifact@v2
         with:
@@ -86,6 +86,10 @@ jobs:
           prerelease: true
           tag: dev-prerelease
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v2
+        with:
+          report_paths: '**/target/test-reports/TEST-*.xml'
       
   integration_test:
     needs: build
@@ -135,7 +139,8 @@ jobs:
           ls $JAVA_HOME/bin
       - name: Run tests
         run: sbt test
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v2
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
         with:
-          report_paths: '**/target/test-reports/TEST-*.xml'
+          files: target/test-reports/**/*.xml
