@@ -35,7 +35,8 @@ jobs:
           printf "${JAVA_HOME}\n"
           ls $JAVA_HOME
           ls $JAVA_HOME/bin
-      - run: sbt ";debian:packageBin;test" || true
+      - run: sbt debian:packageBin
+      - run: sbt test || true
       - name: Archive VerCors .deb
         uses: actions/upload-artifact@v2
         with:
