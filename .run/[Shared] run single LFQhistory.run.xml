@@ -1,10 +1,8 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="[Shared] example\layers\LFQhistory.java" type="Application" factoryName="Application">
-    <option name="ALTERNATIVE_JRE_PATH" value="11 (2)" />
-    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="MAIN_CLASS_NAME" value="vct.main.Main" />
     <module name="vercors" />
-    <option name="PROGRAM_PARAMETERS" value="--progress --silicon --strict-internal --check-history C:\Users\Ivan\Documents\Develop\vercors\examples\layers\LFQHist.java --encoded tmp/output.sil" />
+    <option name="PROGRAM_PARAMETERS" value="--progress --silicon --strict-internal --check-history examples\layers\LFQHist.java --encoded tmp/output.sil" />
     <option name="VM_PARAMETERS" value="-Xss128m" />
     <method v="2">
       <option name="Make" enabled="true" />
