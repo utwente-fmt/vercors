@@ -133,7 +133,5 @@ jobs:
           printf "${JAVA_HOME}\n"
           ls $JAVA_HOME
           ls $JAVA_HOME/bin
-      - name: Build
-        run: sbt build
       - name: Run tests
         run: sbt test
