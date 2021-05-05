@@ -66,35 +66,35 @@ class StructureCheck(source : ProgramUnit) {
 
   private def checkMainClass(source : ProgramUnit) : Unit = {
     source.get().find(_.name == mainClassName) match {
-      case None => Fail("Session Fail: class 'Main' is required!")
+      case None => Fail("VeyMont Fail: class 'Main' is required!")
       case Some(main) =>
         val mcl = main.asInstanceOf[ASTClass]
         val constrs = mcl.methods().filter(_.kind== Kind.Constructor)
         if(constrs.size != 1) {
-          Fail("Session Fail: class 'Main' method must have exactly one constructor!")
+          Fail("VeyMont Fail: class 'Main' method must have exactly one constructor!")
         } else {
           if (constrs.head.getArity >0){
-            Fail("Session Fail: The constructor of class 'Main' cannot have any arguments!")
+            Fail("VeyMont Fail: The constructor of class 'Main' cannot have any arguments!")
           } else if(constrs.head.name != mainClassName) {
-            Fail("Session Fail: Method without type provided, or constructor with other name than 'Main'")
+            Fail("VeyMont Fail: Method without type provided, or constructor with other name than 'Main'")
           }
         }
         mcl.methods().find(_.name == runMethodName) match {
-          case None => Fail("Session Fail: The class 'Main' must have a method '%s'!",runMethodName)
+          case None => Fail("VeyMont Fail: The class 'Main' must have a method '%s'!",runMethodName)
           case Some(run) => {
             if (run.getArgs.length != 0)
-              Fail("Session Fail: the method '%s' of class 'Main' cannot have any arguments!", runMethodName)
+              Fail("VeyMont Fail: the method '%s' of class 'Main' cannot have any arguments!", runMethodName)
             else if (!isVoidType(run.getReturnType))
-              Fail("Session Fail: The return type of method '%s' has to be void!", runMethodName)
+              Fail("VeyMont Fail: The return type of method '%s' has to be void!", runMethodName)
           }
         }
         mcl.methods().find(_.name == mainMethodName) match {
-          case None => Fail("Session Fail: The class 'Main' must have the following method: \nvoid " + mainMethodName + "() {\n\tMain m = new Main();\n\tm." + runMethodName + "();\n}")
+          case None => Fail("VeyMont Fail: The class 'Main' must have the following method: \nvoid " + mainMethodName + "() {\n\tMain m = new Main();\n\tm." + runMethodName + "();\n}")
           case Some(mainMethod) =>
             if(mainMethod.getArgs.length != 0)
-              Fail("Session Fail: the method '%s' of class 'Main' cannot have any arguments!",mainMethodName)
+              Fail("VeyMont Fail: the method '%s' of class 'Main' cannot have any arguments!",mainMethodName)
             else if(!isVoidType(mainMethod.getReturnType))
-              Fail("Session Fail: The return type of method '%s' has to be void!", mainMethodName)
+              Fail("VeyMont Fail: The return type of method '%s' has to be void!", mainMethodName)
         }
     }
   }
@@ -113,26 +113,26 @@ class StructureCheck(source : ProgramUnit) {
       case _ => Fail("Constructor of 'Main' must have a body of type BlockStatement, i.e. be defined!"); Array()
     }
     if(roles.length == 0)
-      Fail("Session Fail: Main constructor is mandatory and  must assign at least one role!")
+      Fail("VeyMont Fail: Main constructor is mandatory and  must assign at least one role!")
     roles.foreach {
       case a: AssignmentStatement => a.location match {
         case n: NameExpression => StructureCheck.getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
-          case None => Fail("Session Fail: can only assign to role fields of class 'Main' in constructor")
+          case None => Fail("VeyMont Fail: can only assign to role fields of class 'Main' in constructor")
           case Some(_) => a.expression match {
             case m: MethodInvokation => getRoleOrHelperClass(source).find(_.name == m.dispatch.getName) match {
-              case None => Fail("Session Fail: Wrong method: constructor of 'Main' must initialize roles with a call to a role constructor")
+              case None => Fail("VeyMont Fail: Wrong method: constructor of 'Main' must initialize roles with a call to a role constructor")
               case Some(_) => true
             }
-            case _ => Fail("Session Fail: No MethodInvokation: constructor of 'Main' must initialize roles with a call to a role constructor")
+            case _ => Fail("VeyMont Fail: No MethodInvokation: constructor of 'Main' must initialize roles with a call to a role constructor")
           }
         }
-        case _ => Fail("Session Fail: Can only assign roles, statement %s is not allowed!", a)
+        case _ => Fail("VeyMont Fail: Can only assign roles, statement %s is not allowed!", a)
       }
-      case _ => Fail("Session Fail: constructor of 'Main' can only assign role classes")
+      case _ => Fail("VeyMont Fail: constructor of 'Main' can only assign role classes")
     }
     roleObjects = getRoleObjects()
     if(getRoleNames().toSet != mainClass.fields().map(_.name).toSet) {
-      Fail("Session Fail: the fields of class 'Main' must be all assigned in constructor 'Main'")
+      Fail("VeyMont Fail: the fields of class 'Main' must be all assigned in constructor 'Main'")
     }
   }
 
@@ -145,23 +145,23 @@ class StructureCheck(source : ProgramUnit) {
     mainMethod.getBody match {
       case b : BlockStatement => {
         if(b.getLength != 2)
-          Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+          Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
         else {
           b.getStatement(1) match {
             case m : MethodInvokation =>
               if(m.method != runMethodName)
-                Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
               else m.`object` match {
                 case n : NameExpression => //fine
-                case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
               }
-            case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+            case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
           }
           b.getStatement(0) match {
             case v : VariableDeclaration =>
               v.basetype match {
-                case c : ClassType => if(c.getName != mainClassName) Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-                case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                case c : ClassType => if(c.getName != mainClassName) Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
               }
               if(v.get().size == 1) {
                   v.get().head match {
@@ -169,17 +169,17 @@ class StructureCheck(source : ProgramUnit) {
                     d.initJava match {
                       case m : MethodInvokation =>
                         if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name && m.method == JavaConstructor && m.dispatch.getName == mainClassName))
-                          Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-                      case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                          Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                      case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
                     }
-                  case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+                  case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
                 }
-              } else Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-            case _ => Fail("Session Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+              } else Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+            case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
           }
         }
       }
-      case _ => Fail("Session Fail: expected BlockStatement for method %s", mainMethodName)
+      case _ => Fail("VeyMont Fail: expected BlockStatement for method %s", mainMethodName)
     }
 
   }
@@ -187,7 +187,7 @@ class StructureCheck(source : ProgramUnit) {
   private def checkMainMethodsAllowedSyntax(methods : Iterable[Method]) : Unit = {
     methods.foreach(m => m.getBody match {
       case b : BlockStatement => //fine
-      case _ => Fail("Session Fail: a Plain method in class Main must have a BlockStatement body!")
+      case _ => Fail("VeyMont Fail: a Plain method in class Main must have a BlockStatement body!")
     })
     methods.foreach(m => checkMainStatement(m.getBody))
   }
@@ -197,26 +197,26 @@ class StructureCheck(source : ProgramUnit) {
       case b : BlockStatement => b.getStatements.foreach(checkMainStatement)
       case a: AssignmentStatement =>
         a.location match {
-          case n : NameExpression => if(roleNames.contains(n.name)) Fail("Session Fail: cannot assign role anywhere else then in Main constructor")
+          case n : NameExpression => if(roleNames.contains(n.name)) Fail("VeyMont Fail: cannot assign role anywhere else then in Main constructor")
           case _ => //fine, continue check of a.location below
         }
         getNameFromNode(a.location).map(_.name) match {
-          case Some(n) => if (!roleNames.contains(n)) Fail("Session Fail: the assignment %s has a non-role name in its location.",a.toString)
-          case None => Fail("Session Fail: the assignment %s in a method of class 'Main' must have one role in its location.",a.toString)
+          case Some(n) => if (!roleNames.contains(n)) Fail("VeyMont Fail: the assignment %s has a non-role name in its location.",a.toString)
+          case None => Fail("VeyMont Fail: the assignment %s in a method of class 'Main' must have one role in its location.",a.toString)
         }
         val expNames = getNamesFromExpression(a.expression).map(_.name).toSet.filter(roleNames.contains(_))
         if(expNames.size > 1) {
-          Fail("Session Fail: the assignment %s in a method of class 'Main' cannot have multiple roles in its expression.",a.toString)
+          Fail("VeyMont Fail: the assignment %s in a method of class 'Main' cannot have multiple roles in its expression.",a.toString)
         }
         val mi = getMethodInvocationsFromExpression(a.expression)
         if(mi.exists(m => m.method == Method.JavaConstructor && (m.dispatch.getName == mainClassName || roleClassNames.contains(m.dispatch.getName))))
-          Fail("Session Fail: Cannot assign a new Main or role object in statement %s! %s", a.toString,a.getOrigin)
+          Fail("VeyMont Fail: Cannot assign a new Main or role object in statement %s! %s", a.toString,a.getOrigin)
         if(mi.exists(_.definition.kind == Method.Kind.Pure))
-          Fail("Session Fail: Cannot call pure method in assignment expression! ")
+          Fail("VeyMont Fail: Cannot call pure method in assignment expression! ")
         mi.foreach(mii => getNameFromNode(mii.`object`)match {
-          case Some(n) => if(!roleNames.contains(n.name)) Fail("Session Fail: can only call role methods in assignment expression %s!", a.expression.toString)
+          case Some(n) => if(!roleNames.contains(n.name)) Fail("VeyMont Fail: can only call role methods in assignment expression %s!", a.expression.toString)
           case None => if(mii.definition.kind != Method.Kind.Pure)
-                        Fail("Session Fail: cannot call non-pure methods from Main in assignment expression %s!", a.expression.toString)
+                        Fail("VeyMont Fail: cannot call non-pure methods from Main in assignment expression %s!", a.expression.toString)
         })
       case i: IfStatement => {
         if (i.getCount == 1 || i.getCount == 2) {
@@ -224,59 +224,59 @@ class StructureCheck(source : ProgramUnit) {
             if(checkEqualRoleExpressions(prevAssertArg,i.getGuard(0))) {
               checkMainStatement(i.getStatement(0))
               if (i.getCount == 2) checkMainStatement(i.getStatement(1))
-            } else Fail("Session Fail: IfStatement needs to be preceded by an assert stating the equality of all the role expressions from the conditions! %s",i.getOrigin)
-          } else Fail("Session Fail: IfStatement needs to have one condition for each role! " + s.getOrigin)
-        } else Fail("Session Fail: one or two branches expected in IfStatement! " + s.getOrigin)
+            } else Fail("VeyMont Fail: IfStatement needs to be preceded by an assert stating the equality of all the role expressions from the conditions! %s",i.getOrigin)
+          } else Fail("VeyMont Fail: IfStatement needs to have one condition for each role! " + s.getOrigin)
+        } else Fail("VeyMont Fail: one or two branches expected in IfStatement! " + s.getOrigin)
       }
       case l: LoopStatement => {
         if (l.getInitBlock == null && l.getUpdateBlock == null) { //it is a while loop
           if (checkSessionCondition(l.getEntryGuard, roleNames)) {
             if(checkEqualRoleExpressions(l.getContract.invariant,l.getEntryGuard))
               checkMainStatement(l.getBody)
-            else Fail("Session Fail: a while loop needs to be preceded by an assert stating the equality of all the role expressions from the conditions! %s",l.getOrigin)
-          } else Fail("Session Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
-        } else Fail("Session Fail: a for loop is not supported, use a while loop! " + s.getOrigin)
+            else Fail("VeyMont Fail: a while loop needs to be preceded by an assert stating the equality of all the role expressions from the conditions! %s",l.getOrigin)
+          } else Fail("VeyMont Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
+        } else Fail("VeyMont Fail: a for loop is not supported, use a while loop! " + s.getOrigin)
       }
       case p : ParallelRegion => {
         if (p.blocks.exists(_.block.isEmpty))
-          Fail("Session Fail: empty parallel block is not allowed! %s",p.getOrigin)
+          Fail("VeyMont Fail: empty parallel block is not allowed! %s",p.getOrigin)
         p.blocks.foreach(b => checkMainStatement(b.block))
       }
       case m : MethodInvokation => {
         if (m.method == mainClassName)
           Fail("This should have been detected by typechecker: cannot call method '%s'!", mainClassName)
         else if (m.method == Method.JavaConstructor && m.dispatch.getName == mainClassName)
-          Fail("Session Fail: cannot call constructor '%s'!", mainClassName)
+          Fail("VeyMont Fail: cannot call constructor '%s'!", mainClassName)
         else if (m.method == Method.JavaConstructor && roleClassNames.contains(m.dispatch.getName))
-          Fail("Session Fail: cannot call role constructor '%s'", m.dispatch.getName)
+          Fail("VeyMont Fail: cannot call role constructor '%s'", m.dispatch.getName)
         else if (nonPlainMainMethodNames.contains(m.method))
-          Fail("Session Fail: cannot have a method call statement for pure/predicate method '%s'! %s", m.method, m.getOrigin)
+          Fail("VeyMont Fail: cannot have a method call statement for pure/predicate method '%s'! %s", m.method, m.getOrigin)
         else {
           if (mainMethodNames.contains(m.method)) {
             if(m.getArity > 0)
-              Fail("Session Fail: methods in class Main cannot have any arguments! %s",m.getOrigin)
+              Fail("VeyMont Fail: methods in class Main cannot have any arguments! %s",m.getOrigin)
           } else { //it is a role or other class method
             if (m.`object` == null) {
-              Fail("Session Fail: method call not allowed or object of method call '%s' is not given! %s", m.method, m.getOrigin)
+              Fail("VeyMont Fail: method call not allowed or object of method call '%s' is not given! %s", m.method, m.getOrigin)
             }
             m.`object` match {
               case n: NameExpression =>
                 if (!roleNames.contains(n.name))
-                  Fail("Session Fail: invocation of method %s is not allowed here, because method is either pure, or from a non-role class! %s", m.method, m.getOrigin)
+                  Fail("VeyMont Fail: invocation of method %s is not allowed here, because method is either pure, or from a non-role class! %s", m.method, m.getOrigin)
             }
             val roles = getNamesFromExpression(m).filter(n => roleNames.contains(n.name))
             if (roles.size > 1)
-              Fail("Session Fail: Non-Main method call %s uses object and/or arguments from multiple roles! %s", m.toString, m.getOrigin)
+              Fail("VeyMont Fail: Non-Main method call %s uses object and/or arguments from multiple roles! %s", m.toString, m.getOrigin)
           }
         }
       }
       case as : ASTSpecial =>
         if(as.kind == ASTSpecial.Kind.Assert) {
           if(as.args.size != 1) {
-            Fail("Session Fail: Assert can only have one argument!")
+            Fail("VeyMont Fail: Assert can only have one argument!")
           } else prevAssertArg = as.args.head
-        } else Fail("Session Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
-      case _ => Fail("Session Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
+        } else Fail("VeyMont Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
+      case _ => Fail("VeyMont Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
     }
     if(!s.isInstanceOf[ASTSpecial]) //it is no ASTSpeicial, so no assert
       prevAssertArg = null
@@ -285,7 +285,7 @@ class StructureCheck(source : ProgramUnit) {
   private def checkSessionCondition(node: ASTNode, roleNames : Iterable[String]) : Boolean = {
     val mi = getMethodInvocationsFromExpression(node)
     if(mi.exists(m => nonPlainMainMethodNames.contains(m.method))) {
-      Fail("Session Fail: Cannot call pure method in if or while condition! ")
+      Fail("VeyMont Fail: Cannot call pure method in if or while condition! ")
     }
     val roles = splitOnAnd(node).map(getNamesFromExpression).map(_.map(_.name).filter(roleNames.contains(_)).toSet)
     roles.forall(_.size == 1) && roleNames.toSet == roles.flatten
@@ -340,7 +340,7 @@ class StructureCheck(source : ProgramUnit) {
       case b : BlockStatement => if(b.getLength > 0) checkGuardedRecursion(b.getStatement(0), encounteredMethods)
       case i : MethodInvokation =>
         if(encounteredMethods.contains(i.method))
-          Fail("Session Fail: recursive call not allowed as first statement of method '%s'! %s", i.method, statement.getOrigin)
+          Fail("VeyMont Fail: recursive call not allowed as first statement of method '%s'! %s", i.method, statement.getOrigin)
         else mainMethods.find(_.name == i.method) match {
           case Some(m) => checkGuardedRecursion(m.getBody,encounteredMethods + m.name)
           case None => //fine, it is a pure main method, role class or other class method (without any recursion)
@@ -363,11 +363,11 @@ class StructureCheck(source : ProgramUnit) {
 
   private def checkRoleMethodTypes(roleMethod : Method) : Unit = {
     if(!isNonRoleOrPrimitive(roleMethod.getReturnType,true,false)) {
-      Fail("Session Fail: return type of method %s is a role or other unexpected type",roleMethod.name)
+      Fail("VeyMont Fail: return type of method %s is a role or other unexpected type",roleMethod.name)
     }
     roleMethod.getArgs.foreach(arg => {
       if(!isNonRoleOrPrimitive(arg.`type`,false,roleMethod.kind == Method.Kind.Pure)) {
-        Fail("Session Fail: the type of argument %s of method %s is a role or other unexpected type",arg.name,roleMethod.name)
+        Fail("VeyMont Fail: the type of argument %s of method %s is a role or other unexpected type",arg.name,roleMethod.name)
       }
     })
   }
@@ -375,7 +375,7 @@ class StructureCheck(source : ProgramUnit) {
   private def checkRoleFieldsTypes(source : ProgramUnit) : Unit = {
     roleClasses.foreach(role => role.fields().foreach(field => {
      if(!isNonRoleOrPrimitive(field.`type`,false,false))
-       Fail("Session Fail: type '%s' of field '%s' of role '%s' is not allowed", field.`type`.toString, field.name, role.name)
+       Fail("VeyMont Fail: type '%s' of field '%s' of role '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
 
@@ -436,7 +436,7 @@ class StructureCheck(source : ProgramUnit) {
   private def checkOtherClassesFieldsTypes(source : ProgramUnit) : Unit = {
     otherClasses.foreach(role => role.fields().foreach(field => {
       if(!isNonRoleOrPrimitive(field.`type`,false,false))
-        Fail("Session Fail: type '%s' of field '%s' of non-role class '%s' is not allowed", field.`type`.toString, field.name, role.name)
+        Fail("VeyMont Fail: type '%s' of field '%s' of non-role class '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
 

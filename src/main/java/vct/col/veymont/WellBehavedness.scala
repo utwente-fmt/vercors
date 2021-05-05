@@ -7,11 +7,11 @@ object WellBehavedness {
   def check(transitions : Map[LTSState,Set[LTSTransition]], LTSRole : String) : Unit = {
     val tauClosure = getTauClosure(transitions)
     if(!checkForwardNonTau(transitions,tauClosure))
-      Fail("Session Fail: Local LTS of %s not well-behaved (ForwardNonTau)",LTSRole)
+      Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardNonTau)",LTSRole)
     else if(!checkForwardTau(transitions,tauClosure))
-      Fail("Session Fail: Local LTS of %s not well-behaved (ForwardTau)",LTSRole)
+      Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardTau)",LTSRole)
     else  if(!checkBackward(transitions,tauClosure))
-      Fail("Session Fail: Local LTS of %s not well-behaved (Backward)",LTSRole)
+      Fail("VeyMont Fail: Local LTS of %s not well-behaved (Backward)",LTSRole)
   }
 
   def getTauClosure(transitions : Map[LTSState,Set[LTSTransition]]) : Map[LTSState, Set[LTSState]] = {

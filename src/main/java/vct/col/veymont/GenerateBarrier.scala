@@ -24,7 +24,7 @@ class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter
             val newBody = create.block(rewrite(b.getStatements) :+ barAssign: _*)
             result = create.method_kind(m.kind, m.getReturnType, newContract.getContract, m.name, newArgs, newBody)
           }
-          case _ => Fail("Session Fail: expected BlockStatement in Method %s", m.name)
+          case _ => Fail("VeyMont Fail: expected BlockStatement in Method %s", m.name)
         }
 
       } else if (m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate) {
@@ -43,7 +43,7 @@ class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter
   override def visit(s : IfStatement) = {
     val stats : Seq[BlockStatement] = (0 until s.getCount).map(s.getStatement).filter {
       case b: BlockStatement => true
-      case _ => Fail("Session Fail: expected BlockStatement in IfStatementCase"); false
+      case _ => Fail("VeyMont Fail: expected BlockStatement in IfStatementCase"); false
     }.asInstanceOf[Seq[BlockStatement]]
       .map(b => create.block(prependBarrier(b): _*))
     result = create.ifthenelse(rewrite(s.getGuard(0)),stats:_*)
@@ -57,7 +57,7 @@ class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter
         rewrite(l.getContract,newContract)
         result = create.while_loop(rewrite(l.getEntryGuard),create.block(prependBarrier(b):_*),newContract.getContract)
       }
-      case _ => Fail("Session Fail: expected BlockStatement in LoopStatement")
+      case _ => Fail("VeyMont Fail: expected BlockStatement in LoopStatement")
     }
   }
 

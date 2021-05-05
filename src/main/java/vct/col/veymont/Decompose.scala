@@ -63,7 +63,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
 
   private def addClone(c : ASTClass) : ASTClass = {
     c.methods().find(_.name == cloneMethod) match {
-      case Some(_) => Fail("Session Fail: Class %s is not allowed to have a method with name '%s'",c.name,cloneMethod); c
+      case Some(_) => Fail("VeyMont Fail: Class %s is not allowed to have a method with name '%s'",c.name,cloneMethod); c
       case None => {
         create.enter()
         create.setOrigin(new MessageOrigin("Generated clone method in class " + c.name))
@@ -134,12 +134,12 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
                 result = create.invokation(create.field_name(chanName), null, chanWrite, create.invokation(sendExpression, null, "clone"))
               }
               case None =>
-                Fail("Session Fail: channel of type %s not supported", chanType)
+                Fail("VeyMont Fail: channel of type %s not supported", chanType)
             }
           }
         }
         case Tau => result = create.special(ASTSpecial.Kind.TauAction, Array[ASTNode](): _*)
-        case _ => Fail("Session Fail: assignment %s is no session assignment! ", a.toString)
+        case _ => Fail("VeyMont Fail: assignment %s is no session assignment! ", a.toString)
       }
     }
   }

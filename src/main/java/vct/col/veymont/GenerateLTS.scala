@@ -124,9 +124,9 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       if (m.`object` == null) {
         val mdefs = mainMethods.filter(method => method.name == m.method && method.getArity == m.getArity)
         if(mdefs.size > 1)
-          Fail("Session Fail: Main class has two different methods with the same name and arity")
+          Fail("VeyMont Fail: Main class has two different methods with the same name and arity")
         else if(mdefs.isEmpty)
-          Fail("Session Fail: couldn't find definition for method call %s",m.method)
+          Fail("VeyMont Fail: couldn't find definition for method call %s",m.method)
         preProcessMethodCalls(classDef,mainMethods,mdefs.head)
       } else List(m)
     case n: ASTNode => List(n)
@@ -146,10 +146,10 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   override def visit(m : Method) : Unit =
-    Fail("Session Fail: method visit(Method) should not be reached")
+    Fail("VeyMont Fail: method visit(Method) should not be reached")
 
   override def visit(b : BlockStatement) : Unit =
-    Fail("Session Fail: method visit(BlockStatement) should not be reached")
+    Fail("VeyMont Fail: method visit(BlockStatement) should not be reached")
 
   def getNrLastWeakFirstStatements(seq : List[ASTNode], seen : List[ASTNode]) : Int = {
     if (seq.isEmpty)
@@ -192,7 +192,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     case p : ParallelRegion => visit(p,currentState,seqAfterFirstStatement)
     case m : MethodInvokation => visit(m,currentState,seqAfterFirstStatement)
     case s : ASTSpecial => visit(s,currentState,seqAfterFirstStatement)
-    case _ => Fail("Session Fail: cannot visit this type of statement!")
+    case _ => Fail("VeyMont Fail: cannot visit this type of statement!")
   }
 
   def takeTransition(currentState : LTSState, label : LTSLabel, nextStateSeq : List[ASTNode]) : LTSState = {
@@ -216,11 +216,11 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
           case an : AssignmentStatement => an.location match {
             case d : Dereference => Set(d.obj.asInstanceOf[NameExpression].name)
             case n : NameExpression => Set(n.name)
-            case _ => Fail("Session Fail: cannot determine subject of  assignment " + a.toString); Set.empty
+            case _ => Fail("VeyMont Fail: cannot determine subject of  assignment " + a.toString); Set.empty
           }
           case m : MethodInvokation => m.`object` match {
             case n : NameExpression => Set(n.name)
-            case _ => Fail("Session Fail: cannot determine subject of  assignment " + a.toString); Set.empty
+            case _ => Fail("VeyMont Fail: cannot determine subject of  assignment " + a.toString); Set.empty
           }
         }
         case CommunicationAction(receiver,_, sender, _) =>
@@ -232,7 +232,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       case p : ParallelRegion => p.blocks.map(_.block).toSet.flatMap(getSubjects(seen,_))
       case m : MethodInvokation => {
         if(m.`object` == null) { //it is a main method
-          Fail("Session Fail: encountered method call %s in LTS generation",m.method)
+          Fail("VeyMont Fail: encountered method call %s in LTS generation",m.method)
           Set.empty
         } else getNamesFromExpression(m).map(_.name)
       }
@@ -252,7 +252,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       visitStatementSequence(nextState, seq)
     } else if(s.kind == ASTSpecial.Kind.Assert) {
       visitStatementSequence(currentState, seq) //skip assert
-    } else Fail("Session Fail: cannot visit this type of statement!")
+    } else Fail("VeyMont Fail: cannot visit this type of statement!")
 
 
   def mapInsertTransition(k : LTSState, v : LTSTransition) : Map[LTSState,Set[LTSTransition]] =
@@ -264,7 +264,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   override def visit(a : AssignmentStatement) : Unit = {
-    Fail("Session Fail: method visit(AssignmentStatement) should not be reached")
+    Fail("VeyMont Fail: method visit(AssignmentStatement) should not be reached")
     //takeTransition(new LTSLabel(None,getGlobalAction(a)))
   }
 
@@ -308,7 +308,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     takeTwoBranches(i.getGuard(0),ASTNodeToList(i.getStatement(0)),if(i.getCount > 1) ASTNodeToList(i.getStatement(1)) else List.empty,currentState,seq)
 
   override def visit(i: IfStatement) =
-    Fail("Session Fail: method visit(IfStatement) should not be reached")
+    Fail("VeyMont Fail: method visit(IfStatement) should not be reached")
 
   def isRecursion(s : ASTNode, recursiveNodes : List[ASTNode]) : Boolean = recursiveNodes.exists(n => new LTSState(List(n)).toString == new LTSState(List(s)).toString)
 
@@ -316,7 +316,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       takeTwoBranches(l.getEntryGuard,ASTNodeToList(l.getBody) :+ l,List.empty,currentState,seq)
 
   override def visit(l : LoopStatement) =
-    Fail("Session Fail: method visit(LoopStatement) should not be reached")
+    Fail("VeyMont Fail: method visit(LoopStatement) should not be reached")
 
   private def ASTNodeToList(n : ASTNode) : List[ASTNode] = n match {
     case b : BlockStatement => b.getStatements.toList
@@ -339,7 +339,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   override def visit(pr : ParallelRegion) : Unit =
-    Fail("Session Fail: method visit(ParallelRegion) should not be reached")
+    Fail("VeyMont Fail: method visit(ParallelRegion) should not be reached")
 
   def visit(pr : ParallelRegion, currentState : LTSState, nextSeq : List[ASTNode]) : Unit = {
     pr.blocks.indices.foreach(i => {
@@ -362,11 +362,11 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     create.parallel_block(pb.label,pb.contract,pb.itersJava,create.block(copy_rw.rewrite(statements.toArray):_*), pb.deps)
 
   override def visit(m : MethodInvokation) : Unit =
-    Fail("Session Fail: method visit(MethodInvokation) should not be reached")
+    Fail("VeyMont Fail: method visit(MethodInvokation) should not be reached")
 
   def visit(m : MethodInvokation, currentState : LTSState, nextSeq : List[ASTNode]) = {
     if(m.`object` == null) { // it is a main method
-      Fail("Session Fail: encountered method call %s in LTS generation",m.method)
+      Fail("VeyMont Fail: encountered method call %s in LTS generation",m.method)
     } else {
       if(m.method == chanWrite) {
         val argExp = m.args.head
@@ -376,7 +376,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         val nextState = takeTransition(currentState, new LTSLabel(None, WriteAction(create.field_name(receiver),sender.name,argExp)), nextSeq)
         visitStatementSequence(nextState,nextSeq)
       } else if(m.method == barrierAwait) {
-        Fail("Session Fail: Barrier!!!")
+        Fail("VeyMont Fail: Barrier!!!")
       } else { //role method
         val nextState = takeTransition(currentState,new LTSLabel(None, SingleRoleAction(m)), nextSeq)
         visitStatementSequence(nextState,nextSeq)

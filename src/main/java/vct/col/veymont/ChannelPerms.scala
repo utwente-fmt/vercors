@@ -15,7 +15,7 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
         if(isThreadClassName(c.name) && m.kind != Method.Kind.Pure && m.kind != Method.Kind.Predicate) {
           val chans : Set[ChannelRepr] = m.getBody match {
             case b : BlockStatement => getChans(b)
-            case _ => Fail("Session Fail: Body of method %s in class %s is not a BlockStatement\n",m.name,c.name); Set()
+            case _ => Fail("VeyMont Fail: Body of method %s in class %s is not a BlockStatement\n",m.name,c.name); Set()
           }
           if(chans.nonEmpty) {
             result = create.method_decl(m.getReturnType, extendContract(chans, m.getContract(), false), m.name, m.getArgs, rewrite(m.getBody))
@@ -42,11 +42,11 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
   override def visit(l : LoopStatement) = {
     val chans = l.getBody match {
       case b : BlockStatement => getChans(b)
-      case _ => Fail("Session Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin); Set() : Set[ChannelRepr]
+      case _ => Fail("VeyMont Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin); Set() : Set[ChannelRepr]
     }
     if(chans.nonEmpty) {
       if(l.getExitGuard != null) {
-        Fail("Session Fail: LoopStatement has an exit guard")
+        Fail("VeyMont Fail: LoopStatement has an exit guard")
       } else {
         result = create.for_loop(l.getInitBlock,l.getEntryGuard,l.getUpdateBlock,rewrite(l.getBody),extendContract(chans,l.getContract,true))
       }

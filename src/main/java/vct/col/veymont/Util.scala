@@ -31,7 +31,7 @@ object Util {
     if (isThreadClassName(name)) {
       name.substring(0, name.length - threadName.length).toLowerCase()
     } else {
-      error("Session Fail: Cannot get role from non-Thread-name")
+      error("VeyMont Fail: Cannot get role from non-Thread-name")
     }
   }
 
@@ -65,7 +65,7 @@ object Util {
           case a: AssignmentStatement => getChanFromMethodInvokation(a.expression)
           case o: ASTNode => getChanFromMethodInvokation(o)
         })
-      case _ => error("Session Fail: expected BlockStatement"); Set()
+      case _ => error("VeyMont Fail: expected BlockStatement"); Set()
     }
   }
 

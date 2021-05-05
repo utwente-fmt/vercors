@@ -54,7 +54,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
           if(m.getBody != null) //abstract methods terminate anyway
             m.getBody.accept(this) //check method calls in all (main, role, and other class) method bodies
         }
-      case _ => Fail("Session Fail: method '%s' doesn't have ASTCLass parent", m.name)
+      case _ => Fail("VeyMont Fail: method '%s' doesn't have ASTCLass parent", m.name)
     }
   }
 
@@ -79,7 +79,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
       methods.find(tup => tup._1.name == m.method) match {
         case Some(tup) => {
           if(tup._2 == mainClassName)
-            Fail("Session Fail: recursive call %s in Main class not supported",m.method)
+            Fail("VeyMont Fail: recursive call %s in Main class not supported",m.method)
         }
         case None =>
       }
@@ -89,7 +89,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
         val method = tup._1
         val mClass = tup._2
         if(mClass == mainClassName && currentClass != mainClassName) {
-          Fail("Session Fail: Cannot call Main method '%s' from role or other class! %s", m.method,m.getOrigin)
+          Fail("VeyMont Fail: Cannot call Main method '%s' from role or other class! %s", m.method,m.getOrigin)
         } else { //if (mClass != mainClassName || method.kind == Method.Kind.Pure) {
           methodCalled = true
           encountered += MethodInvToString(m)
@@ -100,7 +100,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
       }
       case None => {
         if(!(m.method == Method.JavaConstructor && currentClass == mainClassName)) //Main constructor is fine, so skip
-          Fail("Session Fail: Method invocation %s not allowed! %s", m.method, m.getOrigin)
+          Fail("VeyMont Fail: Method invocation %s not allowed! %s", m.method, m.getOrigin)
       }
     }
   }
