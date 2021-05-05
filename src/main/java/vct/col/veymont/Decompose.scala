@@ -1,7 +1,7 @@
 package vct.col.veymont
 
 import hre.ast.MessageOrigin
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
+import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
@@ -29,12 +29,16 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     roleName = null
     source.get().filter(_.name != mainClassName).foreach(c =>
       if(isChannelClass(c.name)) {// && cloneClasses.nonEmpty) //annotations for readValue?
-    /*    val chanSorts = chans.map(_.chanType match {
-          case p : PrimitiveType => p.sort
-          case ct : ClassType => ct.getType
-        }) */
-        if(chans.exists(_.chanType.toString == getTypeChannelClass(c.name))) //only add used channel classes
-          target().add(c)
+        val chanTypes = chans.map(_.chanType match {
+          case p : PrimitiveType => Left(p)
+          case ct : ClassType => Right(ct)
+          case o => {Fail("VeyMont Fail: Unexpected channel type: %s",o);Left(create.primitive_type(PrimitiveSort.Void))}
+        })
+        val chanClassProg = new ProgramUnit()
+        chanClassProg.add(c)
+        chanTypes.foreach(t => target().add(new GenerateTypedChannel(chanClassProg,t).rewriteAll().get(0)))
+     //   if(chans.exists(_.chanType.toString == getTypeChannelClass(c.name))) //only add used channel classes
+     //     target().add(c)
       }
       else if(c.name == barrierClassName)
         target.add(c)

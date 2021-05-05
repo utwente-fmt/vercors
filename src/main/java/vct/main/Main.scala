@@ -108,7 +108,7 @@ class Main {
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
-    val VeyMontFiles = Array("examples/veymont-src/channel.pvl", "examples/veymont-src/barrier.pvl") ++ (if(args.exists(_.endsWith("Move.pvl"))) Array("examples/veymont-src/movechannel.pvl") else Array()) //repair this later with generics!
+    val VeyMontFiles = Array("examples/veymont-src/channel.pvl", "examples/veymont-src/barrier.pvl")
     clops.parse(args) ++ (if (Configuration.veymont_file.get() != null && Configuration.veymont_file.get().endsWith(".pvl")) VeyMontFiles else Array[String]())
   }
 
