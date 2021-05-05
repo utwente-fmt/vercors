@@ -1,17 +1,16 @@
-package vct.col.rewrite
+package vct.col.veymont
 
 import hre.ast.MessageOrigin
-import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType, Type}
-import vct.col.ast.expr.{NameExpression, StandardOperator}
-import vct.col.ast.generic.ASTNode
+import vct.col.ast.`type`.{ClassType, PrimitiveSort}
+import vct.col.ast.expr.NameExpression
 import vct.col.ast.stmt.decl.Method.Kind
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.decl._
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionUtil.{barrierFieldName, getBarrierClass, getRoleName, isThreadClassName, mainClassName, mainMethodName, unArgName}
+import vct.col.veymont.Util._
 
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
-class SessionStartThreadsClass(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+class GenerateParallelMain(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
 
   def addStartThreadClass : ProgramUnit = {

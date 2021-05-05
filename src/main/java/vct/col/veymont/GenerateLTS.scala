@@ -1,21 +1,18 @@
-package vct.col.rewrite
+package vct.col.veymont
 
-import hre.config.{Configuration, StringSetting}
-import hre.lang.System.{Debug, Fail, Output}
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
+import hre.config.Configuration
+import vct.col.ast.expr._
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.print.PVLPrinter
-import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelBlock, ParallelRegion}
+import vct.col.ast.stmt.composite._
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.syntax.PVLSyntax
 import vct.col.ast.util.AbstractRewriter
-import vct.col.util.SessionStructureCheck
-import vct.col.util.SessionStructureCheck.isExecutableMainMethod
-import vct.col.util.SessionUtil.{barrierAwait, chanName, chanRead, chanWrite, getNameFromNode, getNamesFromExpression, getRoleName, getThreadClassName, isThreadClassName, mainMethodName, mapInsertSetValue, runMethodName, toLineString}
+import vct.col.util.StructureCheck.isExecutableMainMethod
+import Util._
 
-import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 import java.io.{File, FileOutputStream, IOException, PrintWriter}
+import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
 sealed trait Action
 sealed trait GlobalAction extends Action
@@ -62,7 +59,7 @@ final class LTSTransition(val label : LTSLabel, val destState : LTSState) {
   override def toString: String = label.toString + " -> " + destState.toString
 }
 
-class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends AbstractRewriter(null, true){
+class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends AbstractRewriter(null, true){
 
   private var initialState : LTSState = null
   private var transitions : Map[LTSState,Set[LTSTransition]] = Map()
@@ -75,8 +72,8 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
 
   def generateLTSAndPrint() : Unit = {
     if(isGlobal) {
-      roleNames = SessionStructureCheck.getRoleNames(source)
-      generateLTS(SessionStructureCheck.getMainClass(source))
+      roleNames = StructureCheck.getRoleNames(source)
+      generateLTS(StructureCheck.getMainClass(source))
       print()
     } else {
       val roleClasses = source.get().filter(n => isThreadClassName(n.name)).map(_.asInstanceOf[ASTClass])

@@ -1,4 +1,4 @@
-package vct.col.util
+package vct.col.veymont
 
 import hre.lang.System.Fail
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType, Type}
@@ -6,15 +6,14 @@ import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression, S
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
 import vct.col.ast.stmt.decl.Method.{JavaConstructor, Kind}
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
+import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTUtils
-import vct.col.util.SessionStructureCheck.{getRoleOrHelperClass, isResourceType}
-import vct.col.util.SessionUtil.{barrierClassName, getNameFromNode, getNamesFromExpression, isRoleOrHelperClassName, mainClassName, mainMethodName, runMethodName}
+import Util._
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
-object SessionStructureCheck {
+object StructureCheck {
   def getMainClass(source : ProgramUnit) : ASTClass = source.get().find(_.name == mainClassName).get.asInstanceOf[ASTClass]
   def getRoleOrHelperClass(source : ProgramUnit) =
     source.get().filter(c => c.isInstanceOf[ASTClass] && isRoleOrHelperClassName(c.name)).map(_.asInstanceOf[ASTClass])
@@ -31,7 +30,7 @@ object SessionStructureCheck {
   }
 }
 
-class SessionStructureCheck(source : ProgramUnit) {
+class StructureCheck(source : ProgramUnit) {
 
   private var mainClass : ASTClass = null
   private var roleObjects : Iterable[AssignmentStatement] = null
@@ -46,7 +45,7 @@ class SessionStructureCheck(source : ProgramUnit) {
 
   def check() : Unit = {
     checkMainClass(source)
-    mainClass = SessionStructureCheck.getMainClass(source)
+    mainClass = StructureCheck.getMainClass(source)
     checkMainConstructor()
     checkMainMethod()
     roleNames = getRoleNames()
@@ -116,7 +115,7 @@ class SessionStructureCheck(source : ProgramUnit) {
       Fail("Session Fail: Main constructor is mandatory and  must assign at least one role!")
     roles.foreach {
       case a: AssignmentStatement => a.location match {
-        case n: NameExpression => SessionStructureCheck.getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
+        case n: NameExpression => StructureCheck.getMainClass(source).fields().map(_.name).find(r => r == n.name) match {
           case None => Fail("Session Fail: can only assign to role fields of class 'Main' in constructor")
           case Some(_) => a.expression match {
             case m: MethodInvokation => getRoleOrHelperClass(source).find(_.name == m.dispatch.getName) match {

@@ -1,11 +1,11 @@
-package vct.col.rewrite
+package vct.col.veymont
 
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType}
 import vct.col.ast.stmt.decl.{Method, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
-import vct.col.util.SessionUtil.channelClassName
+import vct.col.veymont.Util.channelClassName
 
-class SessionChannelPrimitiveType(override val source: ProgramUnit, val sort : Either[PrimitiveSort,ClassType]) extends AbstractRewriter(null, true) {
+class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveSort,ClassType]) extends AbstractRewriter(null, true) {
 
   override def visit(t : PrimitiveType) : Unit = {
     sort match {

@@ -1,23 +1,22 @@
-package vct.col.util
+package vct.col.veymont
 
 import vct.col.ast.`type`.PrimitiveType
 import vct.col.ast.expr.constant.ConstantExpression
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
+import vct.col.ast.expr._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit, VariableDeclaration}
+import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.RecursiveVisitor
-import vct.col.util.SessionTerminationCheck.deadlockWarning
-import vct.col.util.SessionUtil.{isNoBarrierOrChannelClass, mainClassName}
+import Util.{isNoBarrierOrChannelClass, mainClassName}
 
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
-object SessionTerminationCheck {
+object TerminationCheck {
   private val deadlockWarning = " might not terminate, deadlock-freedom cannot be guaranteed! "
 }
 
-class SessionTerminationCheck(override val source : ProgramUnit) extends RecursiveVisitor(null, true) {
+class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisitor(null, true) {
 
   private var encountered : Set[String] = Set()
   private var methodCalled = false

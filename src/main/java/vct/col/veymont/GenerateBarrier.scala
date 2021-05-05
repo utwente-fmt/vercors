@@ -1,15 +1,14 @@
-package vct.col.rewrite
+package vct.col.veymont
 
-import hre.ast.MessageOrigin
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{NameExpressionKind, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionUtil.{barrierAwait, barrierFieldName, getArgName, getBarrierClass, isThreadClassName}
+import vct.col.veymont.Util._
 
-class SessionBarrier(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
+class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
   override def visit(m : Method) = {
     if(m.getParent.isInstanceOf[ASTClass] && isThreadClassName(m.getParent.asInstanceOf[ASTClass].name)) {

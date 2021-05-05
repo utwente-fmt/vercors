@@ -9,7 +9,8 @@ import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SessionStructureCheck, SessionTerminationCheck}
+import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
+import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateParallelMain, LocalProgConstructors, StructureCheck, TerminationCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
@@ -934,27 +935,27 @@ object Passes {
   //  SimplePass("sessionConstrRepair", "remove fold and exhale from Channel constructor",
   //    new SessionLockCommitRepair(_).rewriteAll),
     SimplePass("sessionStructCheck", "check that provided program conforms to session syntax restriction",
-      arg => { new SessionStructureCheck(arg).check(); arg }),
+      arg => { new StructureCheck(arg).check(); arg }),
     SimplePass("sessionTerminationCheck", "check for assuring that all roles and other methods, and all calls to pure functions lack any non-terminating statements",
-      arg => { new SessionTerminationCheck(arg).checkTermination(); arg}),
+      arg => { new TerminationCheck(arg).checkTermination(); arg}),
   //  SimplePass("sessionGlobalLTS", "generate LTS of global program",
   //    arg => { new SessionGenerateLTS(arg,true).generateLTSAndPrint(); arg }),
     SimplePass("sessionGenerate", "generate thread classes from session program",
-      new SessionGeneration(_).addThreadClasses()),
+      new Decompose(_).addThreadClasses()),
     SimplePass("sessionLocalLTS", "generate LTSs of local programs",
-      arg => { new SessionGenerateLTS(arg,false).generateLTSAndPrint(); arg }),
+      arg => { new GenerateLTS(arg,false).generateLTSAndPrint(); arg }),
     SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
-      new SessionRemoveTau(_).rewriteAll()),
+      new RemoveTaus(_).rewriteAll()),
     SimplePass("removeEmptyBlocks", "remove empty blocks of parallel regions",
       new RemoveEmptyBlocks(_).rewriteAll),
     SimplePass("sessionBarrier", "generate barrier annotations",
-      new SessionBarrier(_).rewriteAll),
+      new GenerateBarrier(_).rewriteAll),
     SimplePass("sessionThreadConstr", "add constructors to the thread classes",
-      new SessionThreadConstructors(_).addChansToConstructors),
+      new LocalProgConstructors(_).addChansToConstructors),
     SimplePass("sessionAddChannelPerms", "add channel permissions in contracts",
-      new SessionChannelCommuncationPermissions(_).rewriteAll),
+      new ChannelPerms(_).rewriteAll),
     SimplePass("sessionAddStartThreads", "add Main class to start all thread classes",
-      new SessionStartThreadsClass(_).addStartThreadClass),
+      new GenerateParallelMain(_).addStartThreadClass),
   )
 
   val BY_KEY: Map[String, AbstractPass] = (

@@ -1,27 +1,25 @@
-package vct.col.rewrite
+package vct.col.veymont
 
 import hre.ast.MessageOrigin
-import hre.lang.System.Output
-import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, Type}
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
+import vct.col.ast.expr._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.{SessionChannel, SessionStructureCheck}
-import vct.col.util.SessionUtil.{barrierClassName, barrierFieldName, chanName, chanRead, chanWrite, channelClassName, cloneMethod, getBarrierClass, getNameFromNode, getNamesFromExpression, getThreadClassName, getTypeChannelClass, isChannelClass, mainClassName, mainMethodName}
+import vct.col.veymont.Util._
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
-class SessionGeneration(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
+class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
-  private val roleNames : Iterable[String] = SessionStructureCheck.getRoleNames(source)
-  private val mainClass = SessionStructureCheck.getMainClass(source)
-  private val roleOrOtherClass = SessionStructureCheck.getRoleOrHelperClass(source)
+  private val roleNames : Iterable[String] = StructureCheck.getRoleNames(source)
+  private val mainClass = StructureCheck.getMainClass(source)
+  private val roleOrOtherClass = StructureCheck.getRoleOrHelperClass(source)
   private var roleName : String = null
 
-  private var chans : Set[SessionChannel] = Set()
+  private var chans : Set[ChannelRepr] = Set()
   private var cloneClasses : Set[ASTDeclaration] = Set()
 
   def addThreadClasses() : ProgramUnit = {
@@ -120,13 +118,13 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
         case ReadAction(receiver, sender, receiveExpression) => {
           val chanType = receiveExpression.getType
           val chanName = getChanName(sender, false, chanType)
-          chans += new SessionChannel(chanName, false, chanType)
+          chans += new ChannelRepr(chanName, false, chanType)
           result = create.assignment(receiveExpression, create.invokation(create.field_name(chanName), null, chanRead))
         }
         case WriteAction(receiver, _, sendExpression) => {
           val chanType = sendExpression.getType
           val chanName = getChanName(receiver, true, chanType)
-          chans += new SessionChannel(chanName, true, chanType)
+          chans += new ChannelRepr(chanName, true, chanType)
           if (chanType.isNumeric || chanType.isBoolean)
             result = create.invokation(create.field_name(chanName), null, chanWrite, sendExpression)
           else {

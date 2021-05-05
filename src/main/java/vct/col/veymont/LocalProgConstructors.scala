@@ -1,26 +1,23 @@
-package vct.col.rewrite
+package vct.col.veymont
 
 import hre.ast.MessageOrigin
-import hre.lang.System.Output
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
+import vct.col.ast.expr.StandardOperator
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock, ParallelRegion}
+import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
-import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionChannel
-import vct.col.util.SessionUtil.{chanRead, chanWrite, channelClassName, getChansFromBlockStateMent, getRoleName, getThreadClassName, isChannelClass, isThreadClassName, runMethodName}
+import vct.col.veymont.Util.{isChannelClass, isThreadClassName}
 
-import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
+import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
 /**
   * Adds the channels to Thread constructors
   * @param source
   */
-class SessionThreadConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
-  var chanMap : Map[String,Set[SessionChannel]] = Map()
+  var chanMap : Map[String,Set[ChannelRepr]] = Map()
 
   def addChansToConstructors : ProgramUnit = {
     for(entry <- source.get()) {
@@ -36,9 +33,9 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
     rewriteAll
   }
 
-  private def getChansFromFields(c : ASTClass) : Set[SessionChannel] = {
+  private def getChansFromFields(c : ASTClass) : Set[ChannelRepr] = {
     val role = c.fields().head.name //role is first field
-    c.fields().filter(f => isChannelClass(f.`type`.toString)).map(f => new SessionChannel(f.name,f.name.startsWith(role),f.`type`)).toSet
+    c.fields().filter(f => isChannelClass(f.`type`.toString)).map(f => new ChannelRepr(f.name,f.name.startsWith(role),f.`type`)).toSet
   }
 
   override def visit(m : Method) = {
@@ -67,7 +64,7 @@ class SessionThreadConstructors(override val source: ProgramUnit)  extends Abstr
     }
   }
 
-  private def getRoleConstructorContract(chans : Set[SessionChannel]) = {
+  private def getRoleConstructorContract(chans : Set[ChannelRepr]) = {
     val contract = new ContractBuilder()
     val reqSentRecvd = chans.map(_.getArgChan().getChanFieldPerm(create))
     val reqNotNull = chans.map(chan =>

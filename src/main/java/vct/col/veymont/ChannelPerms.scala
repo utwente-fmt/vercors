@@ -1,20 +1,19 @@
-package vct.col.rewrite
+package vct.col.veymont
 
 import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
-import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock, ParallelRegion}
+import vct.col.ast.expr.{NameExpression, StandardOperator}
+import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.util.SessionChannel
-import vct.col.util.SessionUtil.{chanWrite, getChansFromBlockStateMent, isChanName, isThreadClassName}
+import vct.col.veymont.Util.{chanWrite, getChansFromBlockStateMent, isChanName, isThreadClassName}
 
-class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  extends AbstractRewriter(null, true) {
+class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(null, true) {
 
   override def visit(m : Method) = {
     m.getParent match {
       case c : ASTClass => {
         if(isThreadClassName(c.name) && m.kind != Method.Kind.Pure && m.kind != Method.Kind.Predicate) {
-          val chans : Set[SessionChannel] = m.getBody match {
+          val chans : Set[ChannelRepr] = m.getBody match {
             case b : BlockStatement => getChans(b)
             case _ => Fail("Session Fail: Body of method %s in class %s is not a BlockStatement\n",m.name,c.name); Set()
           }
@@ -43,7 +42,7 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
   override def visit(l : LoopStatement) = {
     val chans = l.getBody match {
       case b : BlockStatement => getChans(b)
-      case _ => Fail("Session Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin); Set() : Set[SessionChannel]
+      case _ => Fail("Session Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin); Set() : Set[ChannelRepr]
     }
     if(chans.nonEmpty) {
       if(l.getExitGuard != null) {
@@ -56,21 +55,21 @@ class SessionChannelCommuncationPermissions(override val source : ProgramUnit)  
     }
   }
 
-  private def extendContract(chans : Set[SessionChannel], c : Contract, isLoop : Boolean) : Contract = {
+  private def extendContract(chans : Set[ChannelRepr], c : Contract, isLoop : Boolean) : Contract = {
     val cb = new ContractBuilder()
     chans.foreach(getChanPerms(_,isLoop,cb))
     super.rewrite(c,cb)
     cb.getContract()
   }
 
-  private def getChans(b : BlockStatement): Set[SessionChannel] = {
+  private def getChans(b : BlockStatement): Set[ChannelRepr] = {
     getChansFromBlockStateMent(b).flatMap(m => m.`object` match {
-      case n: NameExpression => if (isChanName(n.name)) Set(new SessionChannel(n.name, m.method == chanWrite,null)) else Set()  : Set[SessionChannel]
-      case _ => Set() : Set[SessionChannel]
+      case n: NameExpression => if (isChanName(n.name)) Set(new ChannelRepr(n.name, m.method == chanWrite,null)) else Set()  : Set[ChannelRepr]
+      case _ => Set() : Set[ChannelRepr]
     })
   }
 
-  private def getChanPerms(c : SessionChannel, isLoop : Boolean, contract : ContractBuilder) : ContractBuilder = {
+  private def getChanPerms(c : ChannelRepr, isLoop : Boolean, contract : ContractBuilder) : ContractBuilder = {
     val chanNotNull =
       create.expression(StandardOperator.NEQ,
         create.field_name(c.channel),

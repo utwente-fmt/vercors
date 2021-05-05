@@ -1,16 +1,15 @@
-package vct.col.util
+package vct.col.veymont
 
-import org.scalactic.Fail
 import vct.col.ast.`type`.{ClassType, Type}
-import vct.col.ast.expr.{NameExpressionKind, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.ASTFactory
-import vct.col.util.SessionUtil.{channelClassName, getArgName}
+import Util.{channelClassName, getArgName}
 
-class SessionChannel(val channel: String, val isWrite : Boolean, val chanType : Type) {
+class ChannelRepr(val channel: String, val isWrite : Boolean, val chanType : Type) {
 
   override def equals(that: Any): Boolean = that match {
-    case s : SessionChannel => s.channel == channel
+    case s : ChannelRepr => s.channel == channel
     case _ => false
   }
 
@@ -21,7 +20,7 @@ class SessionChannel(val channel: String, val isWrite : Boolean, val chanType : 
 
   def getArgChanName() : String = getArgName(channel)
 
-  def getArgChan() : SessionChannel = new SessionChannel(getArgChanName(), isWrite, chanType)
+  def getArgChan() : ChannelRepr = new ChannelRepr(getArgChanName(), isWrite, chanType)
 
   def getChanFieldPerm(create : ASTFactory[_]) : ASTNode = {
     val arg1 = create.dereference(create.name(NameExpressionKind.Unresolved,null,channel), if(isWrite) "sent" else "recvd")
