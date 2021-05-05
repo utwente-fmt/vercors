@@ -70,8 +70,8 @@ class SessionGenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) 
   private var roleName : String = null
 
   private val sessionFileName = Configuration.session_file.get()
-  private val session_global_lts = sessionFileName.slice(0,sessionFileName.length-4) + "GlobalLTS.aut"
-  private def session_local_lts : String = sessionFileName.slice(0,sessionFileName.length-4) + roleName + "LocalLTS.aut"
+  private val session_global_lts = sessionFileName.slice(0,sessionFileName.length-4) + "LTS.aut"
+  private def session_local_lts : String = sessionFileName.slice(0,sessionFileName.length-4) + roleName + "LTS.aut"
 
   def generateLTSAndPrint() : Unit = {
     if(isGlobal) {

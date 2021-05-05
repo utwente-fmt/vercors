@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import hre.ast.MessageOrigin
 import hre.lang.System.Output
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType, Type}
+import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
@@ -31,6 +31,10 @@ class SessionGeneration(override val source: ProgramUnit) extends AbstractRewrit
     roleName = null
     source.get().filter(_.name != mainClassName).foreach(c =>
       if(isChannelClass(c.name)) {// && cloneClasses.nonEmpty) //annotations for readValue?
+    /*    val chanSorts = chans.map(_.chanType match {
+          case p : PrimitiveType => p.sort
+          case ct : ClassType => ct.getType
+        }) */
         if(chans.exists(_.chanType.toString == getTypeChannelClass(c.name))) //only add used channel classes
           target().add(c)
       }
