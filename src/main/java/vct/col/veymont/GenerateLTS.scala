@@ -8,8 +8,8 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.syntax.PVLSyntax
 import vct.col.ast.util.AbstractRewriter
-import vct.col.util.StructureCheck.isExecutableMainMethod
 import Util._
+import vct.col.veymont.StructureCheck.isExecutableMainMethod
 
 import java.io.{File, FileOutputStream, IOException, PrintWriter}
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`

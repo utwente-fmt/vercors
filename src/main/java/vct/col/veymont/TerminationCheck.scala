@@ -9,6 +9,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.RecursiveVisitor
 import Util.{isNoBarrierOrChannelClass, mainClassName}
+import vct.col.veymont.TerminationCheck.deadlockWarning
 
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 

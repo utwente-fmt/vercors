@@ -10,6 +10,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTUtils
 import Util._
+import vct.col.veymont.StructureCheck.{getRoleOrHelperClass, isResourceType}
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
 
@@ -136,7 +137,8 @@ class StructureCheck(source : ProgramUnit) {
   }
 
   private def getMainMethodsNonPureNonResourcePredicate() : Iterable[Method] =
-    mainClass.methods().filter(m => m.name != mainMethodName && m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)))
+    mainClass.methods().filter(m => m.name != mainMethodName && m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure
+      && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)))
 
   private def checkMainMethod() : Unit = {
     val mainMethod = mainClass.methods().find(_.name == mainMethodName).get
