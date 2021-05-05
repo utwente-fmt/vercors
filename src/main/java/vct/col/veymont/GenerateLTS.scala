@@ -83,6 +83,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         transitions = Map()
         roleName = thread.fields().head.name
         generateLTS(thread)
+        //WellBehavedness.check(transitions,roleName)
         print()
       }
     }
