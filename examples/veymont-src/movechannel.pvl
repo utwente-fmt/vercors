@@ -1,4 +1,4 @@
-//:: cases SynchronousChannel
+//:: cases SynchronousMoveChannel
 //:: suite session-generate
 //:: tools silicon
 //:: verdict Pass

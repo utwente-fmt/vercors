@@ -1,6 +1,6 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases TicTacToeInt TicTacToeMatrix
-//:: tools silicon
+//:: tools veymont
 //:: verdict Pass
 
 class Main {

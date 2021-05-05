@@ -33,10 +33,10 @@ object Passes {
     }, introduces=Set(), permits=Feature.ALL),
     SimplePass("printPVL", "print AST in PVL syntax", arg => {
       try {
-        val f = new File(Configuration.session_file.get());
+        val f = new File(Configuration.veymont_file.get());
         val b = f.createNewFile();
         if(!b) {
-          Debug("File %s already exists and is now overwritten", Configuration.session_file.get());
+          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get());
         }
         val out = new PrintWriter(new FileOutputStream(f));
         PVLSyntax.get().print(out,arg);
@@ -931,30 +931,28 @@ object Passes {
     }),
   )
 
-  val SESSION: Seq[AbstractPass] = Seq(
-  //  SimplePass("sessionConstrRepair", "remove fold and exhale from Channel constructor",
-  //    new SessionLockCommitRepair(_).rewriteAll),
-    SimplePass("sessionStructCheck", "check that provided program conforms to session syntax restriction",
+  val VEYMONT: Seq[AbstractPass] = Seq(
+    SimplePass("VeyMontStructCheck", "check that provided program conforms to VeyMont global program syntax restriction",
       arg => { new StructureCheck(arg).check(); arg }),
-    SimplePass("sessionTerminationCheck", "check for assuring that all roles and other methods, and all calls to pure functions lack any non-terminating statements",
+    SimplePass("VeyMontTerminationCheck", "check non-terminating statements",
       arg => { new TerminationCheck(arg).checkTermination(); arg}),
-  //  SimplePass("sessionGlobalLTS", "generate LTS of global program",
-  //    arg => { new SessionGenerateLTS(arg,true).generateLTSAndPrint(); arg }),
-    SimplePass("sessionGenerate", "generate thread classes from session program",
+  //  SimplePass("VeyMontGlobalLTS", "generate LTS of global program",
+  //    arg => { new GenerateLTS(arg,true).generateLTSAndPrint(); arg }),
+    SimplePass("VeyMontDecompose", "generate local program classes from VeyMont global program",
       new Decompose(_).addThreadClasses()),
-    SimplePass("sessionLocalLTS", "generate LTSs of local programs",
+    SimplePass("VeyMontLocalLTS", "generate LTSs of local programs",
       arg => { new GenerateLTS(arg,false).generateLTSAndPrint(); arg }),
     SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
       new RemoveTaus(_).rewriteAll()),
     SimplePass("removeEmptyBlocks", "remove empty blocks of parallel regions",
       new RemoveEmptyBlocks(_).rewriteAll),
-    SimplePass("sessionBarrier", "generate barrier annotations",
+    SimplePass("VeyMontBarrier", "generate barrier annotations",
       new GenerateBarrier(_).rewriteAll),
-    SimplePass("sessionThreadConstr", "add constructors to the thread classes",
+    SimplePass("VeyMontLocalProgConstr", "add constructors to the local program classes",
       new LocalProgConstructors(_).addChansToConstructors),
-    SimplePass("sessionAddChannelPerms", "add channel permissions in contracts",
+    SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
       new ChannelPerms(_).rewriteAll),
-    SimplePass("sessionAddStartThreads", "add Main class to start all thread classes",
+    SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
       new GenerateParallelMain(_).addStartThreadClass),
   )
 
@@ -969,6 +967,6 @@ object Passes {
     BACKEND_COMPAT ++
     SIMPLIFYING ++
     BACKENDS ++
-    SESSION ++
+    VEYMONT ++
     OLD_OR_UNUSED).map(pass => (pass.key, pass)).toMap
 }

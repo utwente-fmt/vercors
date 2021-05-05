@@ -1,7 +1,6 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases ParallelWhileSimplified
-//:: suite session-generate
-//:: tools session
+//:: cases ParallelWhile
+//:: tools veymont
 //:: verdict Pass
 
 class Role {
@@ -40,23 +39,57 @@ class Main {
 	requires b.x - c.x == c.x - a.x;
 	ensures a.x == b.x && b.x == c.x; 
 	void run() {
-		b.left = a.x;
-		c.left = b.x;
-		a.left = c.x;
+		par
+		context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
+		context Perm(a.x, 1\2) ** Perm(b.left, 1);
+		ensures b.left == a.x;
+		{
+				b.left = a.x;
+		} and 
+		context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
+		context Perm(b.x, 1\2) ** Perm(c.left, 1);
+		ensures c.left == b.x;
+		{
+				c.left = b.x;
+		} and 
+		context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
+		context Perm(c.x, 1\2) ** Perm(a.left, 1);
+		ensures a.left == c.x;
+		{
+				a.left = c.x;
+		}
 		
 		loop_invariant Perm(a,read) ** Perm(b,read) ** Perm(c,read);
 		loop_invariant Perm(a.x, 1) ** Perm(b.x, 1) ** Perm(c.x, 1);
 		loop_invariant Perm(a.left, 1) ** Perm(b.left, 1) ** Perm(c.left, 1);
 		loop_invariant b.x - c.x == c.x - a.x;
+		loop_invariant b.left == a.x && c.left == b.x && a.left == c.x;
 		loop_invariant (a.left != a.x) == (b.left != b.x);
 		loop_invariant (b.left != b.x) == (c.left != c.x);
-	//	loop_invariant b.left == a.x && c.left == b.x && a.left == c.x;
 		while(a.left != a.x && b.left != b.x && c.left != c.x) {
-			a.x = a.x + 1;
-			b.left = a.x;
-			b.x = b.x - 1;
-			c.left = b.x;
-			a.left = c.x;
+			par
+			context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
+			context Perm(a.x, 1) ** Perm(b.left, 1);
+			ensures a.x == \old(a.x) + 1;
+			ensures b.left == a.x;
+			{
+				a.x = a.x + 1;
+				b.left = a.x;
+			} and
+			context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
+			context Perm(b.x, 1) ** Perm(c.left, 1);
+			ensures b.x == \old(b.x) - 1;
+			ensures c.left == b.x;
+			{
+				b.x = b.x - 1;
+				c.left = b.x;
+			} and
+			context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
+			context Perm(c.x, 1\2) ** Perm(a.left, 1);
+			ensures a.left == c.x;
+			{ 
+				a.left = c.x;
+			}
 		}
 	}
 

@@ -108,8 +108,8 @@ class Main {
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
-    val sessionFiles = Array("examples/session-generate/channel.pvl", "examples/session-generate/barrier.pvl") ++ (if(args.exists(_.endsWith("Move.pvl"))) Array("examples/session-generate/movechannel.pvl") else Array()) //repair this later with generics!
-    clops.parse(args) ++ (if (Configuration.session_file.get() != null && Configuration.session_file.get().endsWith(".pvl")) sessionFiles else Array[String]())
+    val VeyMontFiles = Array("examples/veymont-src/channel.pvl", "examples/veymont-src/barrier.pvl") ++ (if(args.exists(_.endsWith("Move.pvl"))) Array("examples/veymont-src/movechannel.pvl") else Array()) //repair this later with generics!
+    clops.parse(args) ++ (if (Configuration.veymont_file.get() != null && Configuration.veymont_file.get().endsWith(".pvl")) VeyMontFiles else Array[String]())
   }
 
   private def setupLogging(): Unit = {
@@ -166,7 +166,7 @@ class Main {
       silver.used,
       dafny.get,
       pass_list.asScala.nonEmpty,
-      Configuration.session_file.used()
+      Configuration.veymont_file.used()
     ).forall(!_)) {
       Fail("no back-end or passes specified")
     }
@@ -251,18 +251,18 @@ class Main {
     BY_KEY("dafny"),
   )
 
-  private def collectPassesForSession : Seq[AbstractPass] = Seq(
-    BY_KEY("sessionStructCheck"),
-    BY_KEY("sessionTerminationCheck"),
-  //  BY_KEY("sessionGlobalLTS"),
-    BY_KEY("sessionGenerate"),
-    BY_KEY("sessionLocalLTS"),
+  private def collectPassesForVeyMont : Seq[AbstractPass] = Seq(
+    BY_KEY("VeyMontStructCheck"),
+    BY_KEY("VeyMontTerminationCheck"),
+  //  BY_KEY("VeyMontGlobalLTS"),
+    BY_KEY("VeyMontDecompose"),
+    BY_KEY("VeyMontLocalLTS"),
     BY_KEY("removeTaus"),
     BY_KEY("removeEmptyBlocks"),
-    BY_KEY("sessionBarrier"),
-    BY_KEY("sessionThreadConstr"),
-    BY_KEY("sessionAddChannelPerms"),
-    BY_KEY("sessionAddStartThreads"),
+    BY_KEY("VeyMontBarrier"),
+    BY_KEY("VeyMontLocalProgConstr"),
+    BY_KEY("VeyMontAddChannelPerms"),
+    BY_KEY("VeyMontAddStartThreads"),
     BY_KEY("printPVL"),
   )
 
@@ -464,7 +464,7 @@ class Main {
     else if (boogie.get) collectPassesForBoogie
     else if (dafny.get) collectPassesForDafny
     else if (silver.used || chalice.get) collectPassesForSilver
-    else if (Configuration.session_file.used()) collectPassesForSession
+    else if (Configuration.veymont_file.used()) collectPassesForVeyMont
     else { Fail("no back-end or passes specified"); ??? }
   }
 

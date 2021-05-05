@@ -66,7 +66,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   private var roleNames : Iterable[String] = null
   private var roleName : String = null
 
-  private val sessionFileName = Configuration.session_file.get()
+  private val sessionFileName = Configuration.veymont_file.get()
   private val session_global_lts = sessionFileName.slice(0,sessionFileName.length-4) + "LTS.aut"
   private def session_local_lts : String = sessionFileName.slice(0,sessionFileName.length-4) + roleName + "LTS.aut"
 

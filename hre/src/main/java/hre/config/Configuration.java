@@ -95,9 +95,9 @@ public class Configuration {
     public static final BooleanSetting ansi = new BooleanSetting(false);
 
     /**
-     * The option for session type generation
+     * The option for veymont decomposition
      */
-    public static final StringSetting session_file=new StringSetting(null);
+    public static final StringSetting veymont_file =new StringSetting(null);
 
     /**
      * Add the VCT library options to the given option parser.
@@ -120,7 +120,7 @@ public class Configuration {
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
         clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
-        clops.add(session_file.getAssign("generate threads from session type"),"session");
+        clops.add(veymont_file.getAssign("decompose with VeyMont"),"veymont");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);

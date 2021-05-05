@@ -1,6 +1,6 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases PaperScissorsRock
-//:: tools session
+//:: tools veymont
 //:: verdict Pass
 
 class Role {
