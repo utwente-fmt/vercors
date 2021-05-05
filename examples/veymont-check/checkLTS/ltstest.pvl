@@ -1,6 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases ParallelWhile
-//:: suite session-generate
+//:: cases LTSMethodCallTest
 //:: tools session
 //:: verdict Pass
 
