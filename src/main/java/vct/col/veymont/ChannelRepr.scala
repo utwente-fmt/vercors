@@ -4,7 +4,7 @@ import vct.col.ast.`type`.{ClassType, Type}
 import vct.col.ast.expr.{NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.ASTFactory
-import Util.{channelClassName, getArgName}
+import Util.{chanRecvdFieldName, chanSentFieldName, channelClassName, getArgName}
 
 class ChannelRepr(val channel: String, val isWrite : Boolean, val chanType : Type) {
 
@@ -23,7 +23,7 @@ class ChannelRepr(val channel: String, val isWrite : Boolean, val chanType : Typ
   def getArgChan() : ChannelRepr = new ChannelRepr(getArgChanName(), isWrite, chanType)
 
   def getChanFieldPerm(create : ASTFactory[_]) : ASTNode = {
-    val arg1 = create.dereference(create.name(NameExpressionKind.Unresolved,null,channel), if(isWrite) "sent" else "recvd")
+    val arg1 = create.dereference(create.name(NameExpressionKind.Unresolved,null,channel), if(isWrite) chanSentFieldName else chanRecvdFieldName)
     create.expression(StandardOperator.Perm,arg1,create.expression(StandardOperator.Div,create.constant(2),create.constant(3)))
   }
 

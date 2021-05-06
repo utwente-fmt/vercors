@@ -8,6 +8,7 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
+import vct.col.veymont.StructureCheck.isAllowedPrimitive
 import vct.col.veymont.Util._
 
 import scala.collection.convert.ImplicitConversions.{`collection asJava`, `iterable AsScalaIterable`}
@@ -31,12 +32,13 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       if(isChannelClass(c.name)) {// && cloneClasses.nonEmpty) //annotations for readValue?
         val chanTypes = chans.map(_.chanType match {
           case p : PrimitiveType => Left(p)
-          case ct : ClassType => Right(ct)
+          case ct : ClassType => Right(roleOrOtherClass.find(_.name == ct.getName).get)
           case o => {Fail("VeyMont Fail: Unexpected channel type: %s",o);Left(create.primitive_type(PrimitiveSort.Void))}
         })
         val chanClassProg = new ProgramUnit()
         chanClassProg.add(c)
-        chanTypes.foreach(t => target().add(new GenerateTypedChannel(chanClassProg,t).rewriteAll().get(0)))
+        val newChansClasses = chanTypes.map(t => new GenerateTypedChannel(chanClassProg,t).rewriteAll().get(0))
+        newChansClasses.foreach(target().add(_))
      //   if(chans.exists(_.chanType.toString == getTypeChannelClass(c.name))) //only add used channel classes
      //     target().add(c)
       }
@@ -123,19 +125,23 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
           val chanType = receiveExpression.getType
           val chanName = getChanName(sender, false, chanType)
           chans += new ChannelRepr(chanName, false, chanType)
-          result = create.assignment(receiveExpression, create.invokation(create.field_name(chanName), null, chanRead))
+          result = create.assignment(receiveExpression, create.invokation(create.field_name(chanName), null, chanReadMethodName))
         }
         case WriteAction(receiver, _, sendExpression) => {
           val chanType = sendExpression.getType
           val chanName = getChanName(receiver, true, chanType)
           chans += new ChannelRepr(chanName, true, chanType)
-          if (chanType.isNumeric || chanType.isBoolean)
-            result = create.invokation(create.field_name(chanName), null, chanWrite, sendExpression)
-          else {
-            roleOrOtherClass.find(c => c.name == chanType.toString) match {
+          chanType match {
+            case p : PrimitiveType =>
+              if(isAllowedPrimitive(p))
+                result = create.invokation(create.field_name(chanName), null, chanWriteMethodName, sendExpression)
+              else Fail("VeyMont Fail: channel of type %s not supported", chanType)
+            case cl : ClassType => roleOrOtherClass.find(c => c.name == cl.getName) match {
               case Some(c) => {
+                if(!c.fields().forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
+                  Fail("VeyMont Fail: channel of type %s not supported, because fields are not primitive")
                 cloneClasses = cloneClasses + c
-                result = create.invokation(create.field_name(chanName), null, chanWrite, create.invokation(sendExpression, null, "clone"))
+                result = create.invokation(create.field_name(chanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
               }
               case None =>
                 Fail("VeyMont Fail: channel of type %s not supported", chanType)

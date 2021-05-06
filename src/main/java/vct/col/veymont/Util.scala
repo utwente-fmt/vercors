@@ -19,9 +19,12 @@ object Util {
   val barrierClassName: String = "Barrier"
   val barrierFieldName: String = "threadBarrier"
   val barrierAwait: String = "await"
-  val chanWrite: String = "writeValue"
-  val chanRead: String = "readValue"
+  val chanWriteMethodName: String = "writeValue"
+  val chanReadMethodName: String = "readValue"
   val cloneMethod: String = "clone"
+  val chanSentFieldName = "sent"
+  val chanRecvdFieldName = "recvd"
+  val chanValueFieldName = "exchangeValue"
 
   def getThreadClassName(roleName: String): String = roleName.toUpperCase() + threadName
 
@@ -72,7 +75,7 @@ object Util {
   private def getChanFromMethodInvokation(o: ASTNode): Set[MethodInvokation] = {
     o match {
       case m: MethodInvokation => {
-        if (m.method == chanRead || m.method == chanWrite) {
+        if (m.method == chanReadMethodName || m.method == chanWriteMethodName) {
           Set(m)
         } else {
           Set(): Set[MethodInvokation]

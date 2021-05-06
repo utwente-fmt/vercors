@@ -300,7 +300,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   private def isReadChanMethod(n : ASTNode) = n match {
-    case m : MethodInvokation => m.method == chanRead
+    case m : MethodInvokation => m.method == chanReadMethodName
     case _ => false
   }
 
@@ -368,7 +368,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     if(m.`object` == null) { // it is a main method
       Fail("VeyMont Fail: encountered method call %s in LTS generation",m.method)
     } else {
-      if(m.method == chanWrite) {
+      if(m.method == chanWriteMethodName) {
         val argExp = m.args.head
         val sender = getNamesFromExpression(argExp).head
         val chan = m.`object`.asInstanceOf[NameExpression].name

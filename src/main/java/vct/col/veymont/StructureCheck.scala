@@ -29,6 +29,8 @@ object StructureCheck {
     case p : PrimitiveType => p.sort == PrimitiveSort.Resource
     case _ => false
   }
+
+  def isAllowedPrimitive(p : PrimitiveType) = p.isBoolean || p.isDouble || p.isInteger
 }
 
 class StructureCheck(source : ProgramUnit) {
@@ -393,7 +395,7 @@ class StructureCheck(source : ProgramUnit) {
     case _ => false
   }
 
-  private def isBaseType(p : PrimitiveType) = p.isBoolean || p.isDouble || p.isInteger || p.sort == PrimitiveSort.Resource
+  private def isBaseType(p : PrimitiveType) = StructureCheck.isAllowedPrimitive(p) || p.sort == PrimitiveSort.Resource
 
   private def isOptionOfArray(o : ASTNode, allowRoles : Boolean) = o match {
     case p : PrimitiveType => p.sort match {
