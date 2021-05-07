@@ -10,8 +10,7 @@ abstract class ThrowCatchThrowE {
     
     //@ context_everywhere Perm(x, write);
     //@ context_everywhere Perm(chosenE, write);
-    //@ signals (Exception e) x == 5;
-    //@ signals (Exception e) e == chosenE;
+    //@ signals (Exception e) Perm(x, write) ** Perm(chosenE, write) ** x == 5 ** e == chosenE;
     //@ ensures x == 3;
     void  m() throws Exception {
         boolean throwB = randomBoolean();

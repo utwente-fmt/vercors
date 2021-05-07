@@ -10,9 +10,9 @@ class TryInFinally {
 
     boolean randomBoolean();
     
+    //@ signals (ArithmeticException e) Perm(x, write) ** (x == 31 || x == 32);
+    //@ signals (ArrayStoreException e) Perm(x, write) ** (x == 111 || x == 112);
     //@ context_everywhere Perm(x, write);
-    //@ signals (ArithmeticException e) x == 31 || x == 32;
-    //@ signals (ArrayStoreException e) x == 111 || x == 112;
     //@ ensures x == 32;
     int  m() {
         x = 0;

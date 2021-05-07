@@ -8,7 +8,7 @@ class ThrowCatchThrowNewE {
     boolean randomBoolean();
     
     //@ context_everywhere Perm(x, write);
-    //@ signals (RuntimeException e) x == 5;
+    //@ signals (RuntimeException e) Perm(x, write) ** x == 5;
     //@ ensures x == 3;
     int  m() {
         try {
