@@ -1,10 +1,9 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case LeaderElect
 //:: tool silicon
-//:: suite problem-fail
 //:: option --check-history
 
-class Future {
+class `Future` {
 
 	/* ** Communication primitives */
 	
@@ -79,7 +78,7 @@ class Program {
 	boolean initialised;
 	int size;
 	int maxvalue;
-	Future f;
+	`Future` f;
 	
 	resource lock_invariant() =
 		Perm(initialised, 1\2) ** Perm(size, 1\2) **
@@ -100,7 +99,7 @@ class Program {
 	ensures Perm(this.size, 1\2) ** this.size == size;
 	ensures Perm(this.maxvalue, 1\2) ** this.maxvalue == max;
 	ensures Perm(this.initialised, 1\2) ** this.initialised;
-	Program(Future f, int size, int max) {
+	Program(`Future` f, int size, int max) {
 		this.f = f;
 		this.maxvalue = max;
 		this.size = size;
@@ -158,7 +157,7 @@ class Program {
 	ensures size == \old(size);
 	ensures f.channel == \old(f.channel);
 	ensures Future(f, q, f.Recv((rank - 1) % size, x) * f.Check(rank, size, v, x, maxvalue, n));
-	void lemma_sigmaRecv_choice(Future f, int rank, int v, int w, int x, int n) {
+	void lemma_sigmaRecv_choice(`Future` f, int rank, int v, int w, int x, int n) {
 		if (x == w) {
 			if (0 < x) {
 				choose f, q, f.SigmaRecv(rank, size, v, w, maxvalue, n), f.Recv((rank - 1) % size, x) * f.Check(rank, size, v, w, maxvalue, n);
@@ -176,7 +175,7 @@ class Program {
 	requires 0 <= rank && rank < size;
 	requires Future(f, q, f.Elect(rank, size, v, maxvalue, n));
 	ensures Future(f, q, f.Send((rank + 1) % size, v) * f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
-	void lemma_fut_elect(Future f, int rank, int size, int v, int maxvalue, int n) {
+	void lemma_fut_elect(`Future` f, int rank, int size, int v, int maxvalue, int n) {
 	}
 	
 	
@@ -360,7 +359,7 @@ class Main {
 	context_everywhere (\forall int j; 0 <= j && j < |xs|; (\forall int k; 0 <= k && k < |xs| && j != k; xs[j] != xs[k]));
 	context_everywhere (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < max);
 	static void main(int size, int max, seq<int> xs) {
-		Future f = new Future();
+		`Future` f = new `Future`();
 		f.channel = seq<seq<int>> { };
 		f.results = seq<int> { };
 
