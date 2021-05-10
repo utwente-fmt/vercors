@@ -2,11 +2,11 @@
 //:: tools silicon
 //:: verdict Pass
 
-abstract class ThrowCatchThrowE {
+class ThrowCatchThrowE {
     int x;
     Exception chosenE;
 
-    abstract boolean randomBoolean();
+    boolean randomBoolean();
     
     //@ context_everywhere Perm(x, write);
     //@ context_everywhere Perm(chosenE, write);
