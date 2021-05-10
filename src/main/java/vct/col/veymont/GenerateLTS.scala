@@ -276,10 +276,19 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         if(expRole.isEmpty || expRole.size == 1 && expRole.head.name == locRole.name)
           SingleRoleAction(a)
         else if(expRole.size == 1 && expRole.head.name != locRole.name)
-          CommunicationAction(locRole,a.location.asInstanceOf[Dereference].field,expRole.head,a.expression)
+          CommunicationAction(locRole,getFieldFromDereference(a.location),expRole.head,a.expression)
         else ErrorAction
       }
     }
+
+  private def getFieldFromDereference(n : ASTNode) : String = n match {
+    case d : Dereference => d.field
+  /*  case op : OperatorExpression =>
+      if(op.operator == StandardOperator.Subscript)
+        getFieldFromDereference(op.arg(0))
+      else Fail("VeyMont Fail: not an array element!"); "" */
+    case _ => Fail("VeyMont Fail: not a Dereference! %s",n); ""
+  }
 
   def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
     val expRole = getNamesFromExpression(a.expression)

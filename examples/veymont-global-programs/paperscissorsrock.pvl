@@ -62,6 +62,7 @@ class Main {
 		loop_invariant a.i < 0 ==> b.y == (b.i == 6 ? 0 : 1);
 		loop_invariant a.i < 0 ==> c.z == 2;
 		loop_invariant b.i - a.i <= 5;
+		loop_invariant a.draw() == b.draw() && b.draw() == c.draw();
 		while(a.draw() && b.draw() && c.draw()) {
 			par 
 			context Perm(a,read) ** Perm(b,read) ** Perm(c,read);

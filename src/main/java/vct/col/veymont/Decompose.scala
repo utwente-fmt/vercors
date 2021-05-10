@@ -7,7 +7,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
-import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
+import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 import vct.col.veymont.StructureCheck.isAllowedPrimitive
 import vct.col.veymont.Util._
 
@@ -87,14 +87,20 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   override def visit(m : Method) : Unit = { //assume ony pre and postconditions
     val c = m.getContract()
     val cb = new ContractBuilder()
-    cb.requires(rewrite(selectResourceAnnotation(c.pre_condition)))
-    cb.ensures(rewrite(selectResourceAnnotation(c.post_condition)))
+    val pre = selectResourceAnnotation(c.pre_condition)
+    val post = selectResourceAnnotation(c.post_condition)
+    checkAnnotation(pre, roleNames)
+    checkAnnotation(post,roleNames)
+    cb.requires(rewrite(pre))
+    cb.ensures(rewrite(post))
     if(m.kind == Method.Kind.Constructor && roleName != null) {
       result = create.method_kind(m.kind, m.getReturnType, cb.getContract, getThreadClassName(roleName), m.getArgs, rewrite(m.getBody))
       //  } else if(m.kind == Method.Kind.Pure) {
       //    result = copy_rw.rewrite(m)
     } else if(m.kind == Method.Kind.Predicate) {
-      result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(selectResourceAnnotation(m.getBody)))
+      val body = selectResourceAnnotation(m.getBody)
+      checkAnnotation(body,roleNames)
+      result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(body))
     } else {
       result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(m.getBody))
     }
@@ -103,15 +109,21 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   override def visit(l : LoopStatement) : Unit = { //it is while loop
     val c = l.getContract
     val cb = new ContractBuilder()
-    cb.appendInvariant(rewrite(selectResourceAnnotation(c.invariant)))
+    val invar = selectResourceAnnotation(c.invariant)
+    checkAnnotation(invar, roleNames)
+    cb.appendInvariant(rewrite(invar))
     result = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract)
   }
 
   override def visit(pb : ParallelBlock) : Unit = {
     val c = pb.contract
     val cb = new ContractBuilder()
-    cb.requires(rewrite(selectResourceAnnotation(c.pre_condition)))
-    cb.ensures(rewrite(selectResourceAnnotation(c.post_condition)))
+    val pre = selectResourceAnnotation(c.pre_condition)
+    val post = selectResourceAnnotation(c.post_condition)
+    checkAnnotation(pre, roleNames)
+    checkAnnotation(post,roleNames)
+    cb.requires(rewrite(pre))
+    cb.ensures(rewrite(post))
     result = create.parallel_block(pb.label,cb.getContract,pb.itersJava,rewrite(pb.block),pb.deps)
   }
 
@@ -133,9 +145,13 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
           chans += new ChannelRepr(chanName, true, chanType)
           chanType match {
             case p : PrimitiveType =>
-              if(isAllowedPrimitive(p))
+              if(isAllowedPrimitive(p)) {
+                sendExpression match {
+                  case op : OperatorExpression => if(op.operator == StandardOperator.Subscript) Fail("VeyMont Fail: channels for array elements not supported in: %s!",a)
+                  case _ => //skip
+                }
                 result = create.invokation(create.field_name(chanName), null, chanWriteMethodName, sendExpression)
-              else Fail("VeyMont Fail: channel of type %s not supported", chanType)
+              } else Fail("VeyMont Fail: channel of type %s not supported", chanType)
             case cl : ClassType => roleOrOtherClass.find(c => c.name == cl.getName) match {
               case Some(c) => {
                 if(!c.fields().forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
@@ -188,7 +204,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     } else {
       m.getParent match {
         case b: BlockStatement => //it is a statement
-          if (isSingleRoleNameExpression(m, roleNames))
+          if (isSingleRoleNameExpressionOfRole(m, roleNames))
             result = copy_rw.rewrite(m)
           else result = create.special(ASTSpecial.Kind.TauAction, Array[ASTNode](): _*)
         case _ => rewriteExpression(m)
@@ -201,7 +217,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   override def visit(d : Dereference) : Unit = if(roleName == null) super.visit(d) else rewriteExpression(d)
 
   private def rewriteExpression(e : ASTNode) : Unit =
-    if(isSingleRoleNameExpression(e,roleNames))
+    if(isSingleRoleNameExpressionOfRole(e,roleNames))
       result = copy_rw.rewrite(e)
     else result = create.constant(true)
 
@@ -229,9 +245,29 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   private def getChanName(role : NameExpression, isWrite : Boolean, chanType : Type) : String =
     (if(isWrite) (roleName + role.name) else (role.name + roleName)) + chanType.toString + chanName
 
-  def isSingleRoleNameExpression(e : ASTNode, roleNames : Iterable[String]) : Boolean = {
+  def isSingleRoleNameExpressionOfRole(e : ASTNode, roleNames : Iterable[String]) : Boolean = {
     val expRoles = getNamesFromExpression(e).filter(n => roleNames.contains(n.name))
     expRoles.isEmpty || (expRoles.size == 1 && expRoles.head.name == roleName)
+  }
+
+  def isSingleRoleNameExpression(e : ASTNode, roleNames : Iterable[String]) : Boolean = {
+    val expRoles = getNamesFromExpression(e).filter(n => roleNames.contains(n.name))
+    expRoles.isEmpty || expRoles.size == 1
+  }
+
+  private def checkAnnotation(n : ASTNode, roleNames : Iterable[String]) : Unit = {
+    val wrong = splitOnStar(n).filter(op => !isSingleRoleNameExpression(op,roleNames))
+    wrong.foreach(op => Fail("VeyMont Fail: annotation refers to multiple roles: %s!",op))
+  }
+
+  private def splitOnStar(node : ASTNode) : Set[ASTNode] = {
+    node match {
+      case e : OperatorExpression => e.operator match {
+        case StandardOperator.Star => splitOnStar(e.first) ++ splitOnStar(e.second)
+        case _ => Set(node)
+      }
+      case _ => Set(node)
+    }
   }
 
 }

@@ -1,12 +1,13 @@
 package vct.col.veymont
 
+import geny.Generator.from
 import hre.lang.System.Output
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType}
-import vct.col.ast.expr.{OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, VariableDeclaration}
-import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
+import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 import vct.col.veymont.Util.{chanReadMethodName, chanValueFieldName, chanWriteMethodName, channelClassName}
 
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
@@ -43,6 +44,18 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
           cl.methods().find(_.kind == Method.Kind.Constructor) match {
             case None => Fail("VeyMont Fail: Cannot find constructor of class %s!",cl.name)
             case Some(constr) => {
+              if(!ASTUtils.conjuncts(constr.getContract.post_condition, StandardOperator.Star).filter(_ match {
+                case op : OperatorExpression => op.operator == StandardOperator.Perm && (op.arg(0) match {
+                  case n : NameExpression => cl.fields().map(_.name).contains(n.name)
+                  case _ => false
+                })
+                case _ => false
+              }).forall(_.asInstanceOf[OperatorExpression].arg(1) match {
+                case r : NameExpression => r.kind == NameExpressionKind.Reserved && r.reserved == ASTReserved.ReadPerm
+                case _ => false
+              })) {
+                Fail("VeyMont Fail: the constructor of class %s must ensure read permission to its fields!",cl.name)
+              }
               val dummyArgs : Array[ASTNode] = constr.getArgs.map(_.`type` match {
                 case p : PrimitiveType => p.sort match {
                   case PrimitiveSort.Boolean => create.constant(true)

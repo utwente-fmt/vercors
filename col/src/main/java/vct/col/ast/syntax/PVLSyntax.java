@@ -36,6 +36,8 @@ public class PVLSyntax extends Syntax {
       VerCorsSyntax.add(syntax);
       syntax.addPostfix(PostIncr,"++",140);
       syntax.addPostfix(PostDecr,"--",140);
+      syntax.addOperator(NewArray,-1,"new ","[","]");
+      syntax.addOperator(Subscript,145,"","[","]"); // TODO: check if relative order to Select is OK!
       //syntax.addInfix(SubType,"<:",90);
       //syntax.addInfix(SuperType,":>",90);
       syntax.addInfix(Implies,"==>",30);

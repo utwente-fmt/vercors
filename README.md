@@ -20,13 +20,15 @@ The last command tests the VerCors installation by verifying a large collection 
 ## Running VerCors and VeyMont
 The VerCors tool can be used by running:
 
- `./bin/vct --silicon <filepath>`, with `<filepath>` the path of the (Java, C, or PVL) file to verify.
+ `./bin/vct --silicon <filepath>`, with `<filepath>` the path of the file to verify.
 
 The VeyMont tool can be used by running:
 
  `./bin/vct --veymont <filepath-to-output-file-for-local-programs> <filepath-to-global-program>`
 
 VerCors verifies programs that are annotated with JML-style specifications (the underlying theory uses separation logic with permission accounting). Details on the specification language can be found on the VerCors [Wiki pages](https://github.com/utwente-fmt/vercors/wiki). Furthermore, a large collection of example programs can be found (and verified) in the `/examples` directory. In particular, example global programs for VeyMont can be found in `examples/veymont-global-programs`.
+
+Local program LTSes are stored in `.aut` files at the same location as the file for the local programs. They can be viewed using the mCRL2 (https://www.mcrl2.org) command `ltsgraph <filepath-to-LTSfile>`.
 
 ## Source code
 All VeyMont specific source code can be found in the directory `src/main/java/vct/col/veymont`

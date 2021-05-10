@@ -203,8 +203,8 @@ class StructureCheck(source : ProgramUnit) {
           case _ => //fine, continue check of a.location below
         }
         getNameFromNode(a.location).map(_.name) match {
-          case Some(n) => if (!roleNames.contains(n)) Fail("VeyMont Fail: the assignment %s has a non-role name in its location.",a.toString)
-          case None => Fail("VeyMont Fail: the assignment %s in a method of class 'Main' must have one role in its location.",a.toString)
+          case Some(n) => if (!roleNames.contains(n)) Fail("VeyMont Fail: the assignment %s has a non-role name in its location.", a.toString)
+          case None => Fail("VeyMont Fail: the assignment %s in a method of class 'Main' must have one role in its location.", a.toString)
         }
         val expNames = getNamesFromExpression(a.expression).map(_.name).toSet.filter(roleNames.contains(_))
         if(expNames.size > 1) {
@@ -235,13 +235,15 @@ class StructureCheck(source : ProgramUnit) {
           if (checkSessionCondition(l.getEntryGuard, roleNames)) {
             if(checkEqualRoleExpressions(l.getContract.invariant,l.getEntryGuard))
               checkMainStatement(l.getBody)
-            else Fail("VeyMont Fail: a while loop needs to be preceded by an assert stating the equality of all the role expressions from the conditions! %s",l.getOrigin)
+            else Fail("VeyMont Fail: a while loop needs to have a loop invariant stating the equality of all the role expressions from the conditions! %s",l.getOrigin)
           } else Fail("VeyMont Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
         } else Fail("VeyMont Fail: a for loop is not supported, use a while loop! " + s.getOrigin)
       }
       case p : ParallelRegion => {
         if (p.blocks.exists(_.block.isEmpty))
           Fail("VeyMont Fail: empty parallel block is not allowed! %s",p.getOrigin)
+        if(p.blocks.exists(_.iters.nonEmpty))
+          Fail("VeyMont Fail: Parallel block with iterator not allowed!")
         p.blocks.foreach(b => checkMainStatement(b.block))
       }
       case m : MethodInvokation => {

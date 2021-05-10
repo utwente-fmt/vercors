@@ -1,7 +1,7 @@
 package vct.col.veymont
 
 import vct.col.ast.`type`.ClassType
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
 import vct.col.ast.stmt.terminal.AssignmentStatement
@@ -89,9 +89,11 @@ object Util {
     n match {
       case d: Dereference => d.obj match {
         case n: NameExpression => Some(n)
+        case d2 : Dereference => getNameFromNode(d2.obj)
         case _ => None
       }
       case n: NameExpression => Some(n)
+      case op : OperatorExpression => if(op.operator == StandardOperator.Subscript) getNameFromNode(op.arg(0)) else None
       case _ => None
     }
   }
