@@ -8,7 +8,7 @@ import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.rewrite.ArrayNullValues
 import vct.col.util.AbstractTypeCheck
 
-class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=new AbstractTypeCheck(null, new ProgramUnit())) {
+class ArrayNullValuesSpecOld extends RewriteSpecOld(new ArrayNullValues(null), before=new AbstractTypeCheck(null, new ProgramUnit())) {
   def INT_TYPE = create primitive_type PrimitiveSort.Integer
   def SEQ_TYPE = create class_type "seq"
   def BOOL_TYPE = create primitive_type PrimitiveSort.Boolean
