@@ -1,0 +1,11 @@
+//:: cases RecursiveInlinePredicate
+//:: tools silicon
+//:: verdict Error
+
+class C {
+    inline resource p() = true ** p();
+
+    void p() {
+        assert p();
+    }
+}

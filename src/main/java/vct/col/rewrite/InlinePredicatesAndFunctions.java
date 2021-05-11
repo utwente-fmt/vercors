@@ -11,20 +11,32 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.util.AbstractRewriter;
+import vct.test.ThreadPool;
 
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Stack;
+
+import static hre.lang.System.Output;
 
 public class InlinePredicatesAndFunctions extends AbstractRewriter {
 
   int count = 0;
   Stack<String> inlinedScalars = new Stack<>();
- 
+  IdentityHashMap<Method, Object> currentlyBeingInlined = new IdentityHashMap<>();
+
   public InlinePredicatesAndFunctions(ProgramUnit source) {
     super(source);
   }
 
   public ASTNode inlineCall(MethodInvokation e, Method def) {
+    if (currentlyBeingInlined.containsKey(def)) {
+      def.getOrigin().report("error", "Inline predicate or function cannot contain itself.");
+      hre.lang.System.Abort("Cyclical inline predicate or function detected");
+    } else {
+      currentlyBeingInlined.put(def, def);
+    }
+
     int N=def.getArity();
     HashMap<NameExpression,ASTNode> map=new HashMap<NameExpression, ASTNode>();
     Substitution sigma=new Substitution(source(),map);
@@ -35,7 +47,10 @@ public class InlinePredicatesAndFunctions extends AbstractRewriter {
     ASTNode body=rewrite(def.getBody());
     InlineMarking marker=new InlineMarking(source(),e.getOrigin());
     body.accept(marker);
-    return sigma.rewrite(body);
+
+    ASTNode result = sigma.rewrite(body);
+    currentlyBeingInlined.remove(def);
+    return result;
   }
 
   @Override
