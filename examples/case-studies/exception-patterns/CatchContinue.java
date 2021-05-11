@@ -1,8 +1,8 @@
-//:: cases ControlFlowCatchContinue.java
+//:: cases CatchContinue
 //:: tools silicon
 //:: verdict Pass
 
-class ControlFlowCatchContinue {
+class CatchContinue {
     //@ requires n >= 0;
     void m (int n) {
         int i = 0;

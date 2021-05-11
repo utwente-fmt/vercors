@@ -1,11 +1,11 @@
-//:: cases TryInFinally
+//:: cases FinallyNestedTry
 //:: tools silicon
 //:: verdict Pass
 
 
 import java.io.IOException;
 
-class TryInFinally {
+class FinallyNestedTry {
     int x;
 
     boolean randomBoolean();

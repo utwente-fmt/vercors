@@ -1,8 +1,8 @@
-//:: cases MethodCallFinallyLog
+//:: cases FinallyLog
 //:: tools silicon
 //:: verdict Pass
 
-class MethodCallFinallyLog {
+class FinallyLog {
     void log(String msg);
     String getMessage();
 

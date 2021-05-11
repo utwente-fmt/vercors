@@ -1,8 +1,8 @@
-//:: cases ControlFlowFinallyContinue
+//:: cases FinallyContinue
 //:: tools silicon
 //:: verdict Pass
 
-class ControlFlowFinallyContinue {
+class FinallyContinue {
     //@ requires n >= 0;
     void  m(int n) {
         int i = 0;

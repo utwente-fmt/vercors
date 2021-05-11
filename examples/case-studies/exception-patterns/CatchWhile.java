@@ -1,8 +1,8 @@
-//:: cases ControlFlowCatchWhile
+//:: cases CatchWhile
 //:: tools silicon
 //:: verdict Pass
 
-class ControlFlowCatchWhile {
+class CatchWhile {
     boolean randomBoolean();
 
     //@ requires n >= 0;

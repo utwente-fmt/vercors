@@ -1,8 +1,8 @@
-//:: cases EmptyCatch
+//:: cases CatchEmpty
 //:: tools silicon
 //:: verdict Pass
 
-class EmptyCatch {
+class CatchEmpty {
     void m () {
         try {
             throw new Exception();

@@ -1,8 +1,8 @@
-//:: cases EmptyFinally
+//:: cases FinallyEmpty
 //:: tools silicon
 //:: verdict Pass
 
-class EmptyFinally {
+class FinallyEmpty {
     void m () {
         try {
             

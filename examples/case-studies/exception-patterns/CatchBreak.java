@@ -1,8 +1,8 @@
-//:: cases ControlFlowCatchBreak
+//:: cases CatchBreak
 //:: tools silicon
 //:: verdict Pass
 
-class ControlFlowCatchBreak {
+class CatchBreak {
     //@ context_everywhere xs != null ** Perm(xs[*], write);
     void m (int[] xs) {
         int i = 0;

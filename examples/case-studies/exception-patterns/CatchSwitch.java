@@ -1,8 +1,8 @@
-//:: cases ControlFlowCatchSwitch
+//:: cases CatchSwitch
 //:: tools silicon
 //:: verdict Pass
 
-class ControlFlowCatchSwitch {
+class CatchSwitch {
     boolean randomBoolean();
     
     //@ ensures start <= \result && \result < end;

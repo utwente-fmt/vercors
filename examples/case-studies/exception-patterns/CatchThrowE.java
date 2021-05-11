@@ -1,8 +1,8 @@
-//:: cases ThrowCatchThrowE
+//:: cases CatchThrowE
 //:: tools silicon
 //:: verdict Pass
 
-class ThrowCatchThrowE {
+class CatchThrowE {
     int x;
     Exception chosenE;
 

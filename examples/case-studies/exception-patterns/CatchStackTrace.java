@@ -1,8 +1,8 @@
-//:: cases MethodCallCatchStackTrace
+//:: cases CatchStackTrace
 //:: tools silicon
 //:: verdict Pass
 
-class MethodCallCatchStackTrace {
+class CatchStackTrace {
     void m () {
         try {
             throw new Exception();

@@ -1,8 +1,8 @@
-//:: cases ThrowFinallyThrowNewE
+//:: cases FinallyThrowNewE
 //:: tools silicon
 //:: verdict Pass
 
-class ThrowFinallyThrowNewE {
+class FinallyThrowNewE {
     int x;
 
     boolean randomBoolean();

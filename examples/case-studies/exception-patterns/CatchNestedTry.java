@@ -1,8 +1,8 @@
-//:: cases TryInCatch
+//:: cases CatchNestedTry
 //:: tools silicon
 //:: verdict Pass
 
-class TryInCatch {
+class CatchNestedTry {
     boolean randomBoolean();
     
     int  m() {

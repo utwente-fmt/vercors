@@ -1,8 +1,8 @@
-//:: cases ControlFlowCatchIf
+//:: cases CatchIf
 //:: tools silicon
 //:: verdict Pass
 
-class ControlFlowCatchIf {
+class CatchIf {
     boolean randomBoolean();
 
     void m () {

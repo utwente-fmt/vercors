@@ -1,8 +1,8 @@
-//:: cases ControlFlowFinallyReturn
+//:: cases FinallyReturn
 //:: tools silicon
 //:: verdict Pass
 
-class ControlFlowFinallyReturn {
+class FinallyReturn {
     //@ ensures \result == 3;
     int  m() {
         int x = 0;
