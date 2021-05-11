@@ -1,0 +1,395 @@
+class MainFJ {
+  
+  static void MainFJ(){
+    Barrier threadBarrier = new Barrier(4);
+    IntegerChannel daIntegerChan = new IntegerChannel();
+    IntegerChannel abIntegerChan = new IntegerChannel();
+    IntegerChannel bcIntegerChan = new IntegerChannel();
+    IntegerChannel cdIntegerChan = new IntegerChannel();
+    AThread a = new AThread(threadBarrier,daIntegerChan,abIntegerChan);
+    BThread b = new BThread(threadBarrier,abIntegerChan,bcIntegerChan);
+    CThread c = new CThread(threadBarrier,bcIntegerChan,cdIntegerChan);
+    DThread d = new DThread(threadBarrier,daIntegerChan,cdIntegerChan);
+    fork a;
+    fork b;
+    fork c;
+    fork d;
+    join a;
+    join b;
+    join c;
+    join d;
+  }
+  
+}
+
+class AThread {
+  Node a;
+  IntegerChannel daIntegerChan;
+  IntegerChannel abIntegerChan;
+  Barrier threadBarrier;
+  
+  requires daIntegerChanArg != null;
+  requires abIntegerChanArg != null;
+  requires threadBarrierArg != null;
+  ensures Perm( daIntegerChan , read );
+  ensures Perm( abIntegerChan , read );
+  ensures daIntegerChan == daIntegerChanArg;
+  ensures abIntegerChan == abIntegerChanArg;
+  ensures Perm( threadBarrier , read );
+  ensures threadBarrier != null;
+  ensures Perm( a , read );
+  ensures Perm( a.rank , read );
+  ensures Perm( a.maxVal , 1 );
+  ensures Perm( a.left , 1 );
+  ensures Perm( a.n , 1 );
+  AThread(Barrier threadBarrierArg,IntegerChannel daIntegerChanArg,IntegerChannel abIntegerChanArg){
+    a = new Node(0);
+    threadBarrier = threadBarrierArg;
+    daIntegerChan = daIntegerChanArg;
+    abIntegerChan = abIntegerChanArg;
+  }
+  
+  context Perm( daIntegerChan , read );
+  context daIntegerChan != null;
+  context Perm( abIntegerChan , read );
+  context abIntegerChan != null;
+  context Perm( threadBarrier , read );
+  context threadBarrier != null;
+  context Perm( a , read );
+  context Perm( a.rank , read );
+  context Perm( a.maxVal , 1 );
+  context Perm( a.left , 1 );
+  context Perm( a.n , 1 );
+  void run(){
+    loop_invariant Perm( daIntegerChan , read );
+    loop_invariant daIntegerChan != null;
+    loop_invariant Perm( abIntegerChan , read );
+    loop_invariant abIntegerChan != null;
+    loop_invariant Perm( threadBarrier , read );
+    loop_invariant threadBarrier != null;
+    loop_invariant Perm( a , read );
+    loop_invariant Perm( a.rank , read );
+    loop_invariant Perm( a.maxVal , 1 );
+    loop_invariant Perm( a.left , 1 );
+    loop_invariant Perm( a.n , 1 );
+    while(a.n < 3 && true && true && true){
+      threadBarrier.await();
+      a.left = daIntegerChan.readValue();
+      abIntegerChan.writeValue(a.maxVal);
+      a.updateMax();
+    }
+    threadBarrier.await();
+  }
+  
+}
+
+class BThread {
+  Node b;
+  IntegerChannel abIntegerChan;
+  IntegerChannel bcIntegerChan;
+  Barrier threadBarrier;
+  
+  requires abIntegerChanArg != null;
+  requires bcIntegerChanArg != null;
+  requires threadBarrierArg != null;
+  ensures Perm( abIntegerChan , read );
+  ensures Perm( bcIntegerChan , read );
+  ensures abIntegerChan == abIntegerChanArg;
+  ensures bcIntegerChan == bcIntegerChanArg;
+  ensures Perm( threadBarrier , read );
+  ensures threadBarrier != null;
+  ensures Perm( b , read );
+  ensures Perm( b.rank , read );
+  ensures Perm( b.maxVal , 1 );
+  ensures Perm( b.left , 1 );
+  ensures Perm( b.n , 1 );
+  BThread(Barrier threadBarrierArg,IntegerChannel abIntegerChanArg,IntegerChannel bcIntegerChanArg){
+    b = new Node(8);
+    threadBarrier = threadBarrierArg;
+    abIntegerChan = abIntegerChanArg;
+    bcIntegerChan = bcIntegerChanArg;
+  }
+  
+  context Perm( abIntegerChan , read );
+  context abIntegerChan != null;
+  context Perm( bcIntegerChan , read );
+  context bcIntegerChan != null;
+  context Perm( threadBarrier , read );
+  context threadBarrier != null;
+  context Perm( b , read );
+  context Perm( b.rank , read );
+  context Perm( b.maxVal , 1 );
+  context Perm( b.left , 1 );
+  context Perm( b.n , 1 );
+  void run(){
+    loop_invariant Perm( abIntegerChan , read );
+    loop_invariant abIntegerChan != null;
+    loop_invariant Perm( bcIntegerChan , read );
+    loop_invariant bcIntegerChan != null;
+    loop_invariant Perm( threadBarrier , read );
+    loop_invariant threadBarrier != null;
+    loop_invariant Perm( b , read );
+    loop_invariant Perm( b.rank , read );
+    loop_invariant Perm( b.maxVal , 1 );
+    loop_invariant Perm( b.left , 1 );
+    loop_invariant Perm( b.n , 1 );
+    while(true && b.n < 3 && true && true){
+      threadBarrier.await();
+      b.left = abIntegerChan.readValue();
+      bcIntegerChan.writeValue(b.maxVal);
+      b.updateMax();
+    }
+    threadBarrier.await();
+  }
+  
+}
+
+class CThread {
+  Node c;
+  IntegerChannel bcIntegerChan;
+  IntegerChannel cdIntegerChan;
+  Barrier threadBarrier;
+  
+  requires bcIntegerChanArg != null;
+  requires cdIntegerChanArg != null;
+  requires threadBarrierArg != null;
+  ensures Perm( bcIntegerChan , read );
+  ensures Perm( cdIntegerChan , read );
+  ensures bcIntegerChan == bcIntegerChanArg;
+  ensures cdIntegerChan == cdIntegerChanArg;
+  ensures Perm( threadBarrier , read );
+  ensures threadBarrier != null;
+  ensures Perm( c , read );
+  ensures Perm( c.rank , read );
+  ensures Perm( c.maxVal , 1 );
+  ensures Perm( c.left , 1 );
+  ensures Perm( c.n , 1 );
+  CThread(Barrier threadBarrierArg,IntegerChannel bcIntegerChanArg,IntegerChannel cdIntegerChanArg){
+    c = new Node(4);
+    threadBarrier = threadBarrierArg;
+    bcIntegerChan = bcIntegerChanArg;
+    cdIntegerChan = cdIntegerChanArg;
+  }
+  
+  context Perm( bcIntegerChan , read );
+  context bcIntegerChan != null;
+  context Perm( cdIntegerChan , read );
+  context cdIntegerChan != null;
+  context Perm( threadBarrier , read );
+  context threadBarrier != null;
+  context Perm( c , read );
+  context Perm( c.rank , read );
+  context Perm( c.maxVal , 1 );
+  context Perm( c.left , 1 );
+  context Perm( c.n , 1 );
+  void run(){
+    loop_invariant Perm( bcIntegerChan , read );
+    loop_invariant bcIntegerChan != null;
+    loop_invariant Perm( cdIntegerChan , read );
+    loop_invariant cdIntegerChan != null;
+    loop_invariant Perm( threadBarrier , read );
+    loop_invariant threadBarrier != null;
+    loop_invariant Perm( c , read );
+    loop_invariant Perm( c.rank , read );
+    loop_invariant Perm( c.maxVal , 1 );
+    loop_invariant Perm( c.left , 1 );
+    loop_invariant Perm( c.n , 1 );
+    while(true && true && c.n < 3 && true){
+      threadBarrier.await();
+      c.left = bcIntegerChan.readValue();
+      cdIntegerChan.writeValue(c.maxVal);
+      c.updateMax();
+    }
+    threadBarrier.await();
+  }
+  
+}
+
+class DThread {
+  Node d;
+  IntegerChannel daIntegerChan;
+  IntegerChannel cdIntegerChan;
+  Barrier threadBarrier;
+  
+  requires daIntegerChanArg != null;
+  requires cdIntegerChanArg != null;
+  requires threadBarrierArg != null;
+  ensures Perm( daIntegerChan , read );
+  ensures Perm( cdIntegerChan , read );
+  ensures daIntegerChan == daIntegerChanArg;
+  ensures cdIntegerChan == cdIntegerChanArg;
+  ensures Perm( threadBarrier , read );
+  ensures threadBarrier != null;
+  ensures Perm( d , read );
+  ensures Perm( d.rank , read );
+  ensures Perm( d.maxVal , 1 );
+  ensures Perm( d.left , 1 );
+  ensures Perm( d.n , 1 );
+  DThread(Barrier threadBarrierArg,IntegerChannel daIntegerChanArg,IntegerChannel cdIntegerChanArg){
+    d = new Node(5);
+    threadBarrier = threadBarrierArg;
+    daIntegerChan = daIntegerChanArg;
+    cdIntegerChan = cdIntegerChanArg;
+  }
+  
+  context Perm( daIntegerChan , read );
+  context daIntegerChan != null;
+  context Perm( cdIntegerChan , read );
+  context cdIntegerChan != null;
+  context Perm( threadBarrier , read );
+  context threadBarrier != null;
+  context Perm( d , read );
+  context Perm( d.rank , read );
+  context Perm( d.maxVal , 1 );
+  context Perm( d.left , 1 );
+  context Perm( d.n , 1 );
+  void run(){
+    loop_invariant Perm( daIntegerChan , read );
+    loop_invariant daIntegerChan != null;
+    loop_invariant Perm( cdIntegerChan , read );
+    loop_invariant cdIntegerChan != null;
+    loop_invariant Perm( threadBarrier , read );
+    loop_invariant threadBarrier != null;
+    loop_invariant Perm( d , read );
+    loop_invariant Perm( d.rank , read );
+    loop_invariant Perm( d.maxVal , 1 );
+    loop_invariant Perm( d.left , 1 );
+    loop_invariant Perm( d.n , 1 );
+    while(true && true && true && d.n < 3){
+      threadBarrier.await();
+      daIntegerChan.writeValue(d.maxVal);
+      d.left = cdIntegerChan.readValue();
+      d.updateMax();
+    }
+    threadBarrier.await();
+  }
+  
+}
+
+class Node {
+  int rank;
+  int maxVal;
+  int left;
+  int n;
+  
+  ensures Perm( rank , read );
+  ensures Perm( maxVal , 1 );
+  ensures Perm( left , 1 );
+  ensures Perm( n , 1 );
+  Node(int v);
+  
+  context Perm( maxVal , 1 );
+  context Perm( left , 1 \ 2 );
+  context Perm( n , 1 );
+  void updateMax();
+  
+  pure int maxVal(int a,int b,int c);
+  
+  pure int maxVal(int a,int b,int c,int d);
+  
+}
+
+class IntegerChannel {
+  boolean transfering;
+  int exchangeValue;
+  
+  resource lock_invariant()=Perm( transfering , 1 ) ** Perm( exchangeValue , 1 );
+  
+  IntegerChannel(){
+    transfering = true;
+  }
+  
+  void writeValue(int v){
+    lock this;
+    loop_invariant Perm( transfering , 1 );
+    loop_invariant Perm( exchangeValue , 1 );
+    loop_invariant held( this );
+    while(! transfering){
+      wait this;
+    }
+    transfering = false;
+    exchangeValue = v;
+    notify this;
+    unlock this;
+  }
+  
+  int readValue(){
+    lock this;
+    loop_invariant Perm( transfering , 1 );
+    loop_invariant Perm( exchangeValue , 1 );
+    loop_invariant held( this );
+    while(transfering){
+      wait this;
+    }
+    int v = exchangeValue;
+    transfering = true;
+    notify this;
+    unlock this;
+    return v;
+  }
+  
+}
+
+class Barrier {
+  int k;
+  int n;
+  boolean outgoing;
+  
+  resource lock_invariant()=Perm( k , 1 ) ** Perm( n , read ) ** Perm( outgoing , 1 ) ** 0 <= k ** k < n ** (outgoing ? 1 <= k : 0 <= k) ** n > 1;
+  
+  requires nrThreads > 1;
+  Barrier(int nrThreads){
+    n = nrThreads;
+    k = 0;
+    outgoing = false;
+  }
+  
+  void await(){
+    lock this;
+    loop_invariant held( this );
+    loop_invariant Perm( k , 1 );
+    loop_invariant Perm( n , read );
+    loop_invariant Perm( outgoing , 1 );
+    loop_invariant k < n;
+    loop_invariant (outgoing ? 1 <= k : 0 <= k);
+    loop_invariant n > 1;
+    while(outgoing){
+      wait this;
+    }
+    k ++;
+    if (k == n) {
+      outgoing = true;
+      k --;
+      loop_invariant Perm( n , read );
+      loop_invariant (1 <= i && i <= n);
+      loop_invariant held( this );
+      for(int i = 1;i < n;i ++){
+        notify this;
+      }
+    } else {
+      loop_invariant held( this );
+      loop_invariant Perm( k , 1 );
+      loop_invariant Perm( n , read );
+      loop_invariant Perm( outgoing , 1 );
+      loop_invariant k < n;
+      loop_invariant (outgoing ? 1 <= k : 0 <= k);
+      loop_invariant n > 1;
+      while(! outgoing){
+        wait this;
+      }
+      k --;
+      if (k == 0) {
+        outgoing = false;
+        loop_invariant Perm( n , read );
+        loop_invariant (1 <= i && i <= n);
+        loop_invariant held( this );
+        for(int i = 1;i < n;i ++){
+          notify this;
+        }
+      }
+    }
+    unlock this;
+  }
+  
+}
+

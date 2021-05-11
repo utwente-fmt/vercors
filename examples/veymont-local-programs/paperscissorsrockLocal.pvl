@@ -1,0 +1,453 @@
+class MainFJ {
+  
+  static void MainFJ(){
+    Barrier threadBarrier = new Barrier(3);
+    IntegerChannel cbIntegerChan = new IntegerChannel();
+    IntegerChannel caIntegerChan = new IntegerChannel();
+    IntegerChannel acIntegerChan = new IntegerChannel();
+    IntegerChannel baIntegerChan = new IntegerChannel();
+    IntegerChannel bcIntegerChan = new IntegerChannel();
+    IntegerChannel abIntegerChan = new IntegerChannel();
+    AThread a = new AThread(threadBarrier,abIntegerChan,acIntegerChan,baIntegerChan,caIntegerChan);
+    BThread b = new BThread(threadBarrier,abIntegerChan,baIntegerChan,bcIntegerChan,cbIntegerChan);
+    CThread c = new CThread(threadBarrier,acIntegerChan,bcIntegerChan,caIntegerChan,cbIntegerChan);
+    fork a;
+    fork b;
+    fork c;
+    join a;
+    join b;
+    join c;
+  }
+  
+}
+
+class AThread {
+  Role a;
+  IntegerChannel abIntegerChan;
+  IntegerChannel acIntegerChan;
+  IntegerChannel baIntegerChan;
+  IntegerChannel caIntegerChan;
+  Barrier threadBarrier;
+  
+  requires abIntegerChanArg != null;
+  requires acIntegerChanArg != null;
+  requires baIntegerChanArg != null;
+  requires caIntegerChanArg != null;
+  requires threadBarrierArg != null;
+  ensures Perm( abIntegerChan , read );
+  ensures Perm( acIntegerChan , read );
+  ensures Perm( baIntegerChan , read );
+  ensures Perm( caIntegerChan , read );
+  ensures abIntegerChan == abIntegerChanArg;
+  ensures acIntegerChan == acIntegerChanArg;
+  ensures baIntegerChan == baIntegerChanArg;
+  ensures caIntegerChan == caIntegerChanArg;
+  ensures Perm( threadBarrier , read );
+  ensures threadBarrier != null;
+  ensures Perm( a , read );
+  ensures Perm( a.i , 1 );
+  ensures Perm( a.x , 1 );
+  ensures Perm( a.y , 1 );
+  ensures Perm( a.z , 1 );
+  AThread(Barrier threadBarrierArg,IntegerChannel abIntegerChanArg,IntegerChannel acIntegerChanArg,IntegerChannel baIntegerChanArg,IntegerChannel caIntegerChanArg){
+    a = new Role(0);
+    threadBarrier = threadBarrierArg;
+    abIntegerChan = abIntegerChanArg;
+    acIntegerChan = acIntegerChanArg;
+    baIntegerChan = baIntegerChanArg;
+    caIntegerChan = caIntegerChanArg;
+  }
+  
+  context Perm( abIntegerChan , read );
+  context abIntegerChan != null;
+  context Perm( acIntegerChan , read );
+  context acIntegerChan != null;
+  context Perm( baIntegerChan , read );
+  context baIntegerChan != null;
+  context Perm( caIntegerChan , read );
+  context caIntegerChan != null;
+  context Perm( threadBarrier , read );
+  context threadBarrier != null;
+  context Perm( a , read );
+  context Perm( a.i , 1 );
+  context Perm( a.x , 1 );
+  context Perm( a.y , 1 );
+  context Perm( a.z , 1 );
+  void run(){
+    loop_invariant Perm( abIntegerChan , read );
+    loop_invariant abIntegerChan != null;
+    loop_invariant Perm( acIntegerChan , read );
+    loop_invariant acIntegerChan != null;
+    loop_invariant Perm( baIntegerChan , read );
+    loop_invariant baIntegerChan != null;
+    loop_invariant Perm( caIntegerChan , read );
+    loop_invariant caIntegerChan != null;
+    loop_invariant Perm( threadBarrier , read );
+    loop_invariant threadBarrier != null;
+    loop_invariant Perm( a , read );
+    loop_invariant Perm( a.i , 1 );
+    loop_invariant Perm( a.x , 1 );
+    loop_invariant Perm( a.y , 1 );
+    loop_invariant Perm( a.z , 1 );
+    while(a.draw() && true && true){
+      threadBarrier.await();
+      par
+        context Perm( abIntegerChan , read );
+        context abIntegerChan != null;
+        context Perm( acIntegerChan , read );
+        context acIntegerChan != null;
+        context Perm( a , read );
+        context Perm( a.i , 1 );
+        context Perm( a.x , 1 );
+        {
+          a.x = a.i % 2 == 1 ? 1 : 0;
+          a.i = a.i - 1;
+          abIntegerChan.writeValue(a.x);
+          acIntegerChan.writeValue(a.x);
+        } and
+        context Perm( baIntegerChan , read );
+        context baIntegerChan != null;
+        context Perm( a , read );
+        context Perm( a.y , 1 );
+        {
+          a.y = baIntegerChan.readValue();
+        } and
+        context Perm( caIntegerChan , read );
+        context caIntegerChan != null;
+        context Perm( a , read );
+        context Perm( a.z , 1 );
+        {
+          a.z = caIntegerChan.readValue();
+        }
+    }
+    threadBarrier.await();
+  }
+  
+}
+
+class BThread {
+  Role b;
+  IntegerChannel abIntegerChan;
+  IntegerChannel baIntegerChan;
+  IntegerChannel bcIntegerChan;
+  IntegerChannel cbIntegerChan;
+  Barrier threadBarrier;
+  
+  requires abIntegerChanArg != null;
+  requires baIntegerChanArg != null;
+  requires bcIntegerChanArg != null;
+  requires cbIntegerChanArg != null;
+  requires threadBarrierArg != null;
+  ensures Perm( abIntegerChan , read );
+  ensures Perm( baIntegerChan , read );
+  ensures Perm( bcIntegerChan , read );
+  ensures Perm( cbIntegerChan , read );
+  ensures abIntegerChan == abIntegerChanArg;
+  ensures baIntegerChan == baIntegerChanArg;
+  ensures bcIntegerChan == bcIntegerChanArg;
+  ensures cbIntegerChan == cbIntegerChanArg;
+  ensures Perm( threadBarrier , read );
+  ensures threadBarrier != null;
+  ensures Perm( b , read );
+  ensures Perm( b.i , 1 );
+  ensures Perm( b.x , 1 );
+  ensures Perm( b.y , 1 );
+  ensures Perm( b.z , 1 );
+  BThread(Barrier threadBarrierArg,IntegerChannel abIntegerChanArg,IntegerChannel baIntegerChanArg,IntegerChannel bcIntegerChanArg,IntegerChannel cbIntegerChanArg){
+    b = new Role(1);
+    threadBarrier = threadBarrierArg;
+    abIntegerChan = abIntegerChanArg;
+    baIntegerChan = baIntegerChanArg;
+    bcIntegerChan = bcIntegerChanArg;
+    cbIntegerChan = cbIntegerChanArg;
+  }
+  
+  context Perm( abIntegerChan , read );
+  context abIntegerChan != null;
+  context Perm( baIntegerChan , read );
+  context baIntegerChan != null;
+  context Perm( bcIntegerChan , read );
+  context bcIntegerChan != null;
+  context Perm( cbIntegerChan , read );
+  context cbIntegerChan != null;
+  context Perm( threadBarrier , read );
+  context threadBarrier != null;
+  context Perm( b , read );
+  context Perm( b.i , 1 );
+  context Perm( b.x , 1 );
+  context Perm( b.y , 1 );
+  context Perm( b.z , 1 );
+  void run(){
+    loop_invariant Perm( abIntegerChan , read );
+    loop_invariant abIntegerChan != null;
+    loop_invariant Perm( baIntegerChan , read );
+    loop_invariant baIntegerChan != null;
+    loop_invariant Perm( bcIntegerChan , read );
+    loop_invariant bcIntegerChan != null;
+    loop_invariant Perm( cbIntegerChan , read );
+    loop_invariant cbIntegerChan != null;
+    loop_invariant Perm( threadBarrier , read );
+    loop_invariant threadBarrier != null;
+    loop_invariant Perm( b , read );
+    loop_invariant Perm( b.i , 1 );
+    loop_invariant Perm( b.x , 1 );
+    loop_invariant Perm( b.y , 1 );
+    loop_invariant Perm( b.z , 1 );
+    while(true && b.draw() && true){
+      threadBarrier.await();
+      par
+        context Perm( abIntegerChan , read );
+        context abIntegerChan != null;
+        context Perm( b , read );
+        context Perm( b.x , 1 );
+        {
+          b.x = abIntegerChan.readValue();
+        } and
+        context Perm( baIntegerChan , read );
+        context baIntegerChan != null;
+        context Perm( bcIntegerChan , read );
+        context bcIntegerChan != null;
+        context Perm( b , read );
+        context Perm( b.i , 1 );
+        context Perm( b.y , 1 );
+        {
+          b.y = b.i == 5 ? 0 : 1;
+          b.i = b.i + 1;
+          baIntegerChan.writeValue(b.y);
+          bcIntegerChan.writeValue(b.y);
+        } and
+        context Perm( cbIntegerChan , read );
+        context cbIntegerChan != null;
+        context Perm( b , read );
+        context Perm( b.z , 1 );
+        {
+          b.z = cbIntegerChan.readValue();
+        }
+    }
+    threadBarrier.await();
+  }
+  
+}
+
+class CThread {
+  Role c;
+  IntegerChannel acIntegerChan;
+  IntegerChannel bcIntegerChan;
+  IntegerChannel caIntegerChan;
+  IntegerChannel cbIntegerChan;
+  Barrier threadBarrier;
+  
+  requires acIntegerChanArg != null;
+  requires bcIntegerChanArg != null;
+  requires caIntegerChanArg != null;
+  requires cbIntegerChanArg != null;
+  requires threadBarrierArg != null;
+  ensures Perm( acIntegerChan , read );
+  ensures Perm( bcIntegerChan , read );
+  ensures Perm( caIntegerChan , read );
+  ensures Perm( cbIntegerChan , read );
+  ensures acIntegerChan == acIntegerChanArg;
+  ensures bcIntegerChan == bcIntegerChanArg;
+  ensures caIntegerChan == caIntegerChanArg;
+  ensures cbIntegerChan == cbIntegerChanArg;
+  ensures Perm( threadBarrier , read );
+  ensures threadBarrier != null;
+  ensures Perm( c , read );
+  ensures Perm( c.x , 1 );
+  ensures Perm( c.y , 1 );
+  ensures Perm( c.z , 1 );
+  CThread(Barrier threadBarrierArg,IntegerChannel acIntegerChanArg,IntegerChannel bcIntegerChanArg,IntegerChannel caIntegerChanArg,IntegerChannel cbIntegerChanArg){
+    c = new Role(0);
+    threadBarrier = threadBarrierArg;
+    acIntegerChan = acIntegerChanArg;
+    bcIntegerChan = bcIntegerChanArg;
+    caIntegerChan = caIntegerChanArg;
+    cbIntegerChan = cbIntegerChanArg;
+  }
+  
+  context Perm( acIntegerChan , read );
+  context acIntegerChan != null;
+  context Perm( bcIntegerChan , read );
+  context bcIntegerChan != null;
+  context Perm( caIntegerChan , read );
+  context caIntegerChan != null;
+  context Perm( cbIntegerChan , read );
+  context cbIntegerChan != null;
+  context Perm( threadBarrier , read );
+  context threadBarrier != null;
+  context Perm( c , read );
+  context Perm( c.x , 1 );
+  context Perm( c.y , 1 );
+  context Perm( c.z , 1 );
+  void run(){
+    loop_invariant Perm( acIntegerChan , read );
+    loop_invariant acIntegerChan != null;
+    loop_invariant Perm( bcIntegerChan , read );
+    loop_invariant bcIntegerChan != null;
+    loop_invariant Perm( caIntegerChan , read );
+    loop_invariant caIntegerChan != null;
+    loop_invariant Perm( cbIntegerChan , read );
+    loop_invariant cbIntegerChan != null;
+    loop_invariant Perm( threadBarrier , read );
+    loop_invariant threadBarrier != null;
+    loop_invariant Perm( c , read );
+    loop_invariant Perm( c.x , 1 );
+    loop_invariant Perm( c.y , 1 );
+    loop_invariant Perm( c.z , 1 );
+    while(true && true && c.draw()){
+      threadBarrier.await();
+      par
+        context Perm( acIntegerChan , read );
+        context acIntegerChan != null;
+        context Perm( c , read );
+        context Perm( c.x , 1 );
+        {
+          c.x = acIntegerChan.readValue();
+        } and
+        context Perm( bcIntegerChan , read );
+        context bcIntegerChan != null;
+        context Perm( c , read );
+        context Perm( c.y , 1 );
+        {
+          c.y = bcIntegerChan.readValue();
+        } and
+        context Perm( caIntegerChan , read );
+        context caIntegerChan != null;
+        context Perm( cbIntegerChan , read );
+        context cbIntegerChan != null;
+        context Perm( c , read );
+        context Perm( c.z , 1 );
+        {
+          c.z = 2;
+          caIntegerChan.writeValue(c.z);
+          cbIntegerChan.writeValue(c.z);
+        }
+    }
+    threadBarrier.await();
+  }
+  
+}
+
+class Role {
+  int i;
+  int x;
+  int y;
+  int z;
+  
+  ensures Perm( i , 1 );
+  ensures Perm( x , 1 );
+  ensures Perm( y , 1 );
+  ensures Perm( z , 1 );
+  Role(int j);
+  
+  requires Perm( x , 1 \ 2 );
+  requires Perm( y , 1 \ 2 );
+  requires Perm( z , 1 \ 2 );
+  pure boolean draw()=x == y && y == z || x != y && y != z && z != x;
+  
+}
+
+class IntegerChannel {
+  boolean transfering;
+  int exchangeValue;
+  
+  resource lock_invariant()=Perm( transfering , 1 ) ** Perm( exchangeValue , 1 );
+  
+  IntegerChannel(){
+    transfering = true;
+  }
+  
+  void writeValue(int v){
+    lock this;
+    loop_invariant Perm( transfering , 1 );
+    loop_invariant Perm( exchangeValue , 1 );
+    loop_invariant held( this );
+    while(! transfering){
+      wait this;
+    }
+    transfering = false;
+    exchangeValue = v;
+    notify this;
+    unlock this;
+  }
+  
+  int readValue(){
+    lock this;
+    loop_invariant Perm( transfering , 1 );
+    loop_invariant Perm( exchangeValue , 1 );
+    loop_invariant held( this );
+    while(transfering){
+      wait this;
+    }
+    int v = exchangeValue;
+    transfering = true;
+    notify this;
+    unlock this;
+    return v;
+  }
+  
+}
+
+class Barrier {
+  int k;
+  int n;
+  boolean outgoing;
+  
+  resource lock_invariant()=Perm( k , 1 ) ** Perm( n , read ) ** Perm( outgoing , 1 ) ** 0 <= k ** k < n ** (outgoing ? 1 <= k : 0 <= k) ** n > 1;
+  
+  requires nrThreads > 1;
+  Barrier(int nrThreads){
+    n = nrThreads;
+    k = 0;
+    outgoing = false;
+  }
+  
+  void await(){
+    lock this;
+    loop_invariant held( this );
+    loop_invariant Perm( k , 1 );
+    loop_invariant Perm( n , read );
+    loop_invariant Perm( outgoing , 1 );
+    loop_invariant k < n;
+    loop_invariant (outgoing ? 1 <= k : 0 <= k);
+    loop_invariant n > 1;
+    while(outgoing){
+      wait this;
+    }
+    k ++;
+    if (k == n) {
+      outgoing = true;
+      k --;
+      loop_invariant Perm( n , read );
+      loop_invariant (1 <= i && i <= n);
+      loop_invariant held( this );
+      for(int i = 1;i < n;i ++){
+        notify this;
+      }
+    } else {
+      loop_invariant held( this );
+      loop_invariant Perm( k , 1 );
+      loop_invariant Perm( n , read );
+      loop_invariant Perm( outgoing , 1 );
+      loop_invariant k < n;
+      loop_invariant (outgoing ? 1 <= k : 0 <= k);
+      loop_invariant n > 1;
+      while(! outgoing){
+        wait this;
+      }
+      k --;
+      if (k == 0) {
+        outgoing = false;
+        loop_invariant Perm( n , read );
+        loop_invariant (1 <= i && i <= n);
+        loop_invariant held( this );
+        for(int i = 1;i < n;i ++){
+          notify this;
+        }
+      }
+    }
+    unlock this;
+  }
+  
+}
+
