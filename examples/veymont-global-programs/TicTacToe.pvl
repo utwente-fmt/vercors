@@ -7,7 +7,8 @@ class Main {
 	
 	Grid P1,P2;
 	
-	inline resource ticTacToeAnnotations() = Perm(P1,read) ** Perm(P2,read)
+	inline resource ticTacToeAnnotations() = 
+	   Perm(P1,read) ** Perm(P2,read)
 	** P1.gridWritePerm() ** P2.gridWritePerm()
 	** Perm(P1.move,1) ** Perm(P2.move,1)
 	** Perm(P1.myToken,read) ** Perm(P2.myToken,read)

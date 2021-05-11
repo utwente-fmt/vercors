@@ -283,10 +283,10 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
 
   private def getFieldFromDereference(n : ASTNode) : String = n match {
     case d : Dereference => d.field
-  /*  case op : OperatorExpression =>
+    case op : OperatorExpression =>
       if(op.operator == StandardOperator.Subscript)
         getFieldFromDereference(op.arg(0))
-      else Fail("VeyMont Fail: not an array element!"); "" */
+      else Fail("VeyMont Fail: not an array element!"); ""
     case _ => Fail("VeyMont Fail: not a Dereference! %s",n); ""
   }
 

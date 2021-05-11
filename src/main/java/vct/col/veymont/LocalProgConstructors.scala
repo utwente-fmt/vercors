@@ -80,11 +80,11 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
         create.field_name(chan.channel),
         create.argument_name(chan.getArgChanName())))
     val ensSentRecvd = chans.map(_.getChanFieldPerm(create))
-    reqSentRecvd.foreach(contract.requires(_))
+  //  reqSentRecvd.foreach(contract.requires(_))
     reqNotNull.foreach(contract.requires(_))
     ensPerm.foreach(contract.ensures(_))
     ensArgEq.foreach(contract.ensures(_))
-    ensSentRecvd.foreach(contract.ensures(_))
+  //  ensSentRecvd.foreach(contract.ensures(_))
     contract
   }
 
