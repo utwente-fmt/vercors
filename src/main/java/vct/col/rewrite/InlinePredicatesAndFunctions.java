@@ -15,14 +15,12 @@ import vct.col.ast.util.AbstractRewriter;
 import java.util.HashMap;
 import java.util.Stack;
 
-// Also: doublecheck if output predicate have _predicate instead of _constructor
-
-public class InlinePredicatesFunctions extends AbstractRewriter {
+public class InlinePredicatesAndFunctions extends AbstractRewriter {
 
   int count = 0;
   Stack<String> inlinedScalars = new Stack<>();
  
-  public InlinePredicatesFunctions(ProgramUnit source) {
+  public InlinePredicatesAndFunctions(ProgramUnit source) {
     super(source);
   }
 
