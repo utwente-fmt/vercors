@@ -10,7 +10,7 @@ import vct.col.veymont.Util._
 
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
 
-class GenerateParallelMain(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
 
   def addStartThreadClass : ProgramUnit = {
@@ -23,7 +23,7 @@ class GenerateParallelMain(override val source: ProgramUnit)  extends AbstractRe
   }
 
   private def getStartThreadClass(threads : Set[ASTClass]) = {
-    val mainClass = create.new_class(mainClassName,null,null)
+    val mainClass = create.new_class(localMainClassName,null,null)
     val chansVars = threads.flatMap(getConstrChanArgs).map(getChanVar).toArray
     val barrierVar = getBarrierVar(threads.size)
     val threadVars = threads.map(t => getThreadVar(t,getConstrChanArgs(t).map(a => unArgName(a.name)))).toArray
@@ -33,7 +33,7 @@ class GenerateParallelMain(override val source: ProgramUnit)  extends AbstractRe
       (barrierVar +: (chansVars ++ threadVars ++ threadForks ++ threadJoins)):_*)
     val void = create.primitive_type(PrimitiveSort.Void)
     val noArgs = Array() : Array[DeclarationStatement]
-    val mainMethod = create.method_decl(void,new ContractBuilder().getContract,mainMethodName,noArgs,body)
+    val mainMethod = create.method_decl(void,new ContractBuilder().getContract,localMainClassName,noArgs,body)
     mainClass.add_static(mainMethod)
     mainClass
   }

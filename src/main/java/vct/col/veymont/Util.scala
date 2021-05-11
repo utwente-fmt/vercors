@@ -11,6 +11,7 @@ import scala.sys.error
 object Util {
 
   val mainClassName: String = "Main"
+  val localMainClassName : String = "MainFJ"
   val runMethodName: String = "run"
   val mainMethodName: String = "main"
   private val threadName: String = "Thread"

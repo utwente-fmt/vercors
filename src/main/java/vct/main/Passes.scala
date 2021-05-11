@@ -10,7 +10,7 @@ import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateParallelMain, LocalProgConstructors, StructureCheck, TerminationCheck}
+import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateForkJoinMain, LocalProgConstructors, StructureCheck, TerminationCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
@@ -953,7 +953,7 @@ object Passes {
     SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
       new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
-      new GenerateParallelMain(_).addStartThreadClass),
+      new GenerateForkJoinMain(_).addStartThreadClass),
   )
 
   val BY_KEY: Map[String, AbstractPass] = (

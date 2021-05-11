@@ -133,7 +133,7 @@ class Player {
 		Perm(other.c00,1\2) ** Perm(other.c01,1\2) ** Perm(other.c02,1\2) ** 
 		Perm(other.c10,1\2) ** Perm(other.c11,1\2) ** Perm(other.c12,1\2) **
 		Perm(other.c20,1\2) ** Perm(other.c21,1\2) ** Perm(other.c22,1\2);
-	pure boolean equalGrid(Grid other) =
+	pure boolean equalGrid(Player other) =
 		c00 == other.c00 && c01 == other.c01 && c02 == other.c02 && 
 		c10 == other.c10 && c11 == other.c11 && c12 == other.c12 && 
 		c20 == other.c20 && c21 == other.c21 && c22 == other.c22;
