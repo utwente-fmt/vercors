@@ -1,7 +1,7 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases TicTacToeMatrix
 
-class Grid {
+class Player {
 
 	int[][] grid;
 	int myToken;
@@ -28,7 +28,7 @@ class Grid {
 	ensures (\forall* int i ; 0 <= i && i < 3 ;
              (\forall* int j ; 0 <= j && j < 3 ;
                grid[i][j] == -1));
-	Grid(int tok, boolean t) {
+	Player(int tok, boolean t) {
 		grid = new int[3][3];
 		loop_invariant Perm(grid, write) ** grid != null;
 		loop_invariant (\forall* int i; 0 <= i && i < 3;
@@ -134,7 +134,7 @@ class Grid {
 	requires  (\forall* int i ; 0 <= i && i < 3 ;
              (\forall* int j ; 0 <= j && j < 3 ;
                Perm(other.grid[i][j],1\2)));
-	pure boolean equals(Grid other) =
+	pure boolean equalGrid(Grid other) =
 		(\forall int i ; 0 <= i && i < 3; (\forall int j ; 0 <= j && j < 3; grid[i][j] == other.grid[i][j]));
 		
 	

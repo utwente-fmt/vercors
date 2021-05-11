@@ -5,42 +5,42 @@
 
 class Main {
 	
-	Grid P1,P2;
+	Player p1,p2;
 	
 	inline resource ticTacToeAnnotations() = 
-	   Perm(P1,read) ** Perm(P2,read)
-	** P1.gridWritePerm() ** P2.gridWritePerm()
-	** Perm(P1.move,1) ** Perm(P2.move,1)
-	** Perm(P1.myToken,read) ** Perm(P2.myToken,read)
-	** Perm(P1.turn,1) ** Perm(P2.turn,1)
-	** P1.myToken == 0 ** P2.myToken == 1
-	** P1.turn != P2.turn
-	** P1.equals(P2); 
+	   Perm(p1,read) ** Perm(p2,read)
+	** p1.gridWritePerm() ** p2.gridWritePerm()
+	** Perm(p1.move,1) ** Perm(p2.move,1)
+	** Perm(p1.myToken,read) ** Perm(p2.myToken,read)
+	** Perm(p1.turn,1) ** Perm(p2.turn,1)
+	** p1.myToken == 0 ** p2.myToken == 1
+	** p1.turn != p2.turn
+	** p1.equalGrid(p2); 
 	
 	ensures (ticTacToeAnnotations());
 	Main() {
-		P1 = new Grid(0,true);
-		P2 = new Grid(1,false);	
+		p1 = new Player(0,true);
+		p2 = new Player(1,false);	
 	}
 	
 	context (ticTacToeAnnotations());		  
-	ensures P1.gameFinished() && P2.gameFinished();
+	ensures p1.gameFinished() && p2.gameFinished();
 	void run() {	  
 		loop_invariant (ticTacToeAnnotations());
-		loop_invariant !P1.gameFinished() == !P2.gameFinished();
-		while(!P1.gameFinished() && !P2.gameFinished()) {
-			assert P1.turn == !P2.turn;
-			if(P1.turn && !P2.turn) {
-				P1.createNewMove();
-				P2.move = P1.move;
+		loop_invariant !p1.gameFinished() == !p2.gameFinished();
+		while(!p1.gameFinished() && !p2.gameFinished()) {
+			assert p1.turn == !p2.turn;
+			if(p1.turn && !p2.turn) {
+				p1.createNewMove();
+				p2.move = p1.move;
 			} else {
-				P2.createNewMove();
-				P1.move = P2.move;
+				p2.createNewMove();
+				p1.move = p2.move;
 			}
-			P1.doMove();
-			P2.doMove();
-			P1.turn = !P1.turn;
-			P2.turn = !P2.turn;
+			p1.doMove();
+			p2.doMove();
+			p1.turn = !p1.turn;
+			p2.turn = !p2.turn;
 		}
 	}
 	
