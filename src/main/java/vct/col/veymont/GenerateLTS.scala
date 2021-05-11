@@ -9,10 +9,13 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.syntax.PVLSyntax
 import vct.col.ast.util.AbstractRewriter
 import Util._
+import org.scalactic.Fail
 import vct.col.veymont.StructureCheck.isExecutableMainMethod
 
 import java.io.{File, FileOutputStream, IOException, PrintWriter}
+import java.util.Scanner
 import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
+import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
 
 sealed trait Action
 sealed trait GlobalAction extends Action
@@ -83,8 +86,8 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         transitions = Map()
         roleName = thread.fields().head.name
         generateLTS(thread)
-        //WellBehavedness.check(transitions,roleName)
         print()
+        checkWellBehavedness(session_local_lts,roleName)
       }
     }
   }
@@ -117,6 +120,16 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     } catch {
       case e: IOException => Debug(e.getMessage);
     }
+  }
+
+  def checkWellBehavedness(ltsFileName : String, ltsRole : String) : Unit = {
+    val tauClosure = new AldebaranTau(new Scanner(new File(ltsFileName)),WellBehavednessJava.isTau)
+    if(!WellBehavednessJava.checkForwardNonTau(tauClosure))
+      Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardNonTau)",ltsRole)
+    else if(!WellBehavednessJava.checkForwardTau(tauClosure))
+      Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardTau)",ltsRole)
+    else  if(!WellBehavednessJava.checkBackward(tauClosure))
+      Fail("VeyMont Fail: Local LTS of %s not well-behaved (Backward)",ltsRole)
   }
 
   private def getStatementsFromNode(classDef : ASTClass, mainMethods : Iterable[Method],a : ASTNode) : List[ASTNode] = a match {
