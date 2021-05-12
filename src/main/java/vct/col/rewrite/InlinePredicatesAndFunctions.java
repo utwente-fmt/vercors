@@ -179,7 +179,7 @@ public class InlinePredicatesAndFunctions extends AbstractRewriter {
   @Override
   public void visit(ASTSpecial e) {
     if ((e.kind == ASTSpecial.Kind.Fold || e.kind == ASTSpecial.Kind.Unfold) && inline(e.args[0])) {
-      Warning("Folding/unfolding an inline predicate is allowed but not encouraged. See https://github.com/utwente-fmt/vercors/wiki/Resources-and-Predicates#inline-predicates for more info.");
+      Warning("Folding/unfolding an inline predicate is allowed but not encouraged. See https://github.com/utwente-fmt/vercors/wiki/Predicates#inline-predicates for more info.");
       result = create.special(ASTSpecial.Kind.Assert, rewrite(e.getArg(0)));
     } else {
       super.visit(e);
