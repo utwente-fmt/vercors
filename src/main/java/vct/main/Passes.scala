@@ -475,9 +475,9 @@ object Passes {
     ),
     SimplePass("inline",
       "inlineInlineMethods",
-      new InlinePredicatesRewriter(_).rewriteAll,
+      new InlinePredicatesAndFunctions(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.Lemma - features.MethodAnnotations + features.TopLevelImplementedMethod + features.TopLevelMethod,
-      removes=Set(features.InlinePredicate)),
+      removes=Set(features.InlinePredicate, features.InlineFunction)),
     ErrorMapPass(
       "encodeMagicWands", "Encode magic wand proofs with abstract predicates",
       new WandEncoder(_, _).rewriteAll,
