@@ -12,15 +12,6 @@ import scala.Console
 
 class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
 
-  //Iets van een rewrite gebruiken om alle nodes langs te gaan.
-
-  "2" should "be equal to 2" in {
-    val i = 2
-    assert(i==2)
-  }
-
-
-
   it should "not change anything given tree without filterSpecIgnore" in {
     var treeInput: Program = null
     var programExpectedOutput: Program = null
@@ -31,8 +22,10 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
       val variable1 = new Variable(TInt())
       val body1 = Block(Seq(
         LocalDecl(variable1),
-        Eval(Plus(Local(new DirectRef(variable1)), Local(new DirectRef(variable1)))),
-        Return(Local(new DirectRef(variable1)))
+        SpecIgnoreStart(),
+        Eval(Plus(Local(new DirectRef[Variable](variable1)), Local(new DirectRef[Variable](variable1)))),
+        SpecIgnoreEnd(),
+        Return(Local(new DirectRef[Variable](variable1)))
       ))
       val blame1 = origin
       val method1 = new InstanceMethod(TVoid(), Seq(), Seq(), Option(body1), contract1)(blame1)
@@ -43,14 +36,10 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     {
       implicit val origin2: InputOrigin = FileOrigin(Paths.get(""), 1, 1, 1, 1)
       val variable2 = new Variable(TInt())
-      Console.println(new DirectRef(variable2))
-
       val contract2 = ApplicableContract(BooleanValue(value = true),BooleanValue(value = true),BooleanValue(value = true),Seq(),Seq(),Seq())
       val body2 = Block(Seq(
         LocalDecl(variable2),
-        Eval(Plus(Local(new DirectRef(variable2)), Local(new DirectRef(variable2)))),
-        Eval(Plus(Local(new DirectRef(variable2)), Local(new DirectRef(variable2)))),
-        Return(Local(new DirectRef(variable2)))
+        Return(Local(new DirectRef[Variable](variable2)))
       ))
       val blame2 = origin2
       val method2 = new InstanceMethod(TVoid(), Seq(), Seq(), Option(body2), contract2)(blame2)
@@ -73,8 +62,12 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     assert(result.isRight)
   }
 
+  //TODO: replace to string to a col printer?
   //TODO: replace all left with error throwing. It is easier with debugger.
   def programEquals(left: Program, right: Program): Either[String, Unit] ={
+
+    throw AstUnequalException("test",left,right)
+
     val succession: Map[Declaration, Declaration] = Map()
     val leftGlobalDeclarations = left.decls
     val rightGlobalDeclarations = right.decls
@@ -153,5 +146,20 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
           s"but it has no matching declaration.")
     }
   }
+
+
+  case class AstUnequalException(message: String,left: Any, right: Any) extends Exception(this.toString()) {
+
+    override def toString: String = {
+      var completeMessage = message
+      completeMessage += "\n";
+      completeMessage += left;
+      completeMessage += "\n";
+      completeMessage += right;
+      return completeMessage
+    }
+
+  }
+
 
 }
