@@ -58,6 +58,7 @@ public class ErrorDisplayVisitor implements MessageVisitor {
       error.main.report("error","%s:%s",error.code,error.sub);
     }
     for(Origin o:error.aux){
+      if (o != null)
       o.report("auxiliary","caused by");
     }
   }

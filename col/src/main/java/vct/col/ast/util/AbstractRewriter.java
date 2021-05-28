@@ -19,6 +19,7 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import hre.util.LambdaHelper;
 
+import java.awt.image.Kernel;
 import java.util.*;
 
 /**
@@ -396,6 +397,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     } else if (o instanceof Tiling) {
       Tiling opt = (Tiling) o;
       result= create.opt_tiling(opt.interOrIntra(), rewrite(opt.tileSize()));
+    } else if (o instanceof KernelFusion) {
+      KernelFusion opt = (KernelFusion) o;
+      result= create.opt_fusion(rewrite(opt.F()), rewrite(opt.N()));
     } else {
       Fail("Rewrite rule not defined for this specific GPUOpt.");
     }
@@ -683,7 +687,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   
   @Override
   public void visit(ParallelRegion region){
-    result = create.region(rewrite(region.contract()), rewrite(region.blocksJava()));
+    result = create.region(rewrite(region.fuse()), rewrite(region.contract()), rewrite(region.blocksJava()));
   }
   
   @Override

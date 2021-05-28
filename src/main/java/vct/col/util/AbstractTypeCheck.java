@@ -563,8 +563,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
 //        ) {
 //          Fail("%s is not an argument nor a local variable at %s", ml.matrixName(), ml.matrixName().getOrigin());
 //        }
-    } else if (opt instanceof DataLocation || opt instanceof Tiling) {
-      //        //TODO OS check whether we need to skip DataLocation after rewriting grammar
+    } else if (opt instanceof DataLocation || opt instanceof Tiling || opt instanceof KernelFusion) {
+      //TODO OS check whether we need to skip DataLocation after rewriting grammar
+      // No checks needed for KernelFusion
     } else {
       Fail("Unsupported optimization %s", opt.getClass().toString());
     }

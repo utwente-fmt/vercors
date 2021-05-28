@@ -1,0 +1,30 @@
+class KernelFusionOrig{
+
+  context_everywhere a != null && b != null && c != null;
+  context_everywhere a.length == b.length && a.length == c.length;
+  context (\forall* int i; i >= 0 && i < a.length; Perm(a[i], 1));
+  context (\forall* int i; i >= 0 && i < a.length; Perm(b[i], 1));
+  context (\forall* int i; i >= 0 && i < a.length; Perm(c[i], 1));
+  ensures (\forall* int i; i >= 0 && i < a.length; a[i] == 2 * b[i]);
+  ensures (\forall* int i; i >= 0 && i < a.length; c[i] == b[i] - 1);
+  void Kernel_Fusion_Orig(int[] a, int[] b, int[] c){
+    gpuopt fuse 1 1;
+    par kernel1 (int tid = 0 .. a.length)
+    context Perm(a[tid], 1);
+    context Perm(b[tid], 1\2);
+    context Perm(c[tid], 1\2);
+    ensures a[tid] == 2 * b[tid];
+    {
+        a[tid] = 2 * b[tid];
+    }
+
+    par kernel2 (int tid = 0 .. a.length)
+    context Perm(a[tid], 1\2);
+    context Perm(b[tid], 1\2);
+    context Perm(c[tid], 1);
+    ensures c[tid] == b[tid] - 1;
+    {
+        c[tid] = b[tid] - 1;
+    }
+  }
+}

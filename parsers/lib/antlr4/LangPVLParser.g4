@@ -215,7 +215,7 @@ statement
  | valStatement
  | 'if' '(' expr ')' statement elseBlock?
  | 'barrier' '(' identifier barrierTags? ')' barrierBody
- | contract 'par' parUnitList
+ | gpuopt? contract 'par' parUnitList
  | 'vec' '(' iter ')' block
  | 'invariant' identifier '(' expr ')' block
  | 'atomic' '(' identifierList ')' block
@@ -278,6 +278,7 @@ gpuopt
     | 'gpuopt' 'matrix_lin' identifier ('C'|'R') expr expr ';'
     | 'gpuopt' 'glob_to_reg' expr exprSeq ';'
     | 'gpuopt' 'tile' ('inter'| 'intra') NUMBER ';'
+    | 'gpuopt' 'fuse' NUMBER NUMBER ';'
     ;
 gpuopts
     : gpuopt

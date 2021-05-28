@@ -3,6 +3,7 @@ package hre.ast;
 
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Origin that encapsulates other origins.
@@ -13,6 +14,11 @@ public class CompositeOrigin extends Origin {
 
     private Origin origins[];
     public CompositeOrigin(Origin ... origins){
+        boolean test = false;
+        for (int i = 0; i < origins.length; i++) {
+            test = test || origins[i] == null;
+        }
+
         this.origins=Arrays.copyOf(origins,origins.length);
     }
     public String toString(){

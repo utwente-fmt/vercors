@@ -5,13 +5,13 @@ import java.io.{File, FileNotFoundException, FileOutputStream, IOException, Prin
 import java.util
 
 import hre.config.Configuration
-import hre.lang.System.{Abort, Debug, Fail, Progress, Warning}
+import hre.lang.System.{Abort, Debug, Fail, Progress, Verdict, Warning}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, GPUOptFlags, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.rewrite._
-import vct.col.rewrite.gpgpuoptimizations.{GlobalToRegister, MergeIterations, UnrollLoops, LinearizeMatrices, TileKernel}
+import vct.col.rewrite.gpgpuoptimizations.{FuseKernels, GlobalToRegister, LinearizeMatrices, MergeIterations, TileKernel, UnrollLoops}
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
@@ -249,6 +249,11 @@ object Passes {
     SimplePass("tileKernel",
       "Tile a kernel",
       new TileKernel(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("fuseKernels",
+      "Fuse kernels.",
+      new FuseKernels(_).rewriteAll,
       permits=Set.empty,
     ),
   )
@@ -931,6 +936,33 @@ object Passes {
     },
     new AbstractPass("applyCarbon", "verify input with Carbon") {
       override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "carbon")
+      override def removes: Set[Feature] = Set()
+      override def introduces: Set[Feature] = Set()
+      override def permits: Set[Feature] = Set(
+        features.Dereference,
+        features.Null,
+        features.ComplexSubscript,
+        features.TopLevelImplementedMethod,
+        features.TopLevelMethod,
+        features.DeclarationsNotLifted,
+        features.Goto,
+        features.NoExcVar,
+        features.NoTypeADT,
+        features.Extern,
+      )
+    },
+    new AbstractPass("checkProperties", "check the propeties  with Silicon") {
+      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = {
+        val report = vct.silver.SilverBackend.TestSilicon(arg, "silicon")
+
+        if(report.getFatal > 0) {
+          if (Configuration.gpu_optimizations.contains(GPUOptFlags.fusion.toString)) {
+            Warning("Data dependency")
+          }
+        }
+
+        report
+      }
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
       override def permits: Set[Feature] = Set(

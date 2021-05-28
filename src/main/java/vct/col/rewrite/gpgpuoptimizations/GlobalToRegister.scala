@@ -248,10 +248,14 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
     val tmp = inLoop
     inLoop = true
 
-    val newBody = s.getBody match {
-      case b: BlockStatement => rewriteBody(b, s)
-      case notablock => rewrite(notablock)
+    val newBody = rewrite(s.getBody)
+    val cb = new ContractBuilder()
+    rewrite(s.getContract, cb)
+
+    nodeToNameAndCount.filter(kv => kv._2._2 != 0 && !kv._2._3).foreach {
+      kv => cb.appendInvariant(eq(copy_rw.rewrite(kv._1), name(kv._2._1)))
     }
+
 
     result = create.loop(
       rewrite(s.getInitBlock),
@@ -259,7 +263,7 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
       rewrite(s.getExitGuard),
       rewrite(s.getUpdateBlock),
       newBody,
-      rewrite(s.getContract)
+      cb.getContract(true)
     )
     inLoop = tmp
   }

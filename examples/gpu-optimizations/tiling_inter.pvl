@@ -1,7 +1,7 @@
 class dataRedistOrig
 {
 
-  gpuopt tile inter 6;
+  gpuopt tile intra 6;
   context_everywhere a != null && b != null && c != null;
   context_everywhere a.length == b.length && b.length == c.length;
   context_everywhere a.length/2 == 8;

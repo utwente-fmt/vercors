@@ -125,9 +125,9 @@ class KernelBodyRewriter extends AbstractRewriter {
         //icb.requires(create.expression(StandardOperator.EQ,
         //    create.local_name("opencl_tid"),plus(mult(create.local_name("opencl_gid"),create.local_name("opencl_gsize")),create.local_name("opencl_lid"))));
         DeclarationStatement[] iters = new DeclarationStatement[]{inner_decl};
-        body = create.block(create.region(null, create.parallel_block("group_block", icb.getContract(), iters, body)));
+        body = create.block(create.region(null, null, create.parallel_block("group_block", icb.getContract(), iters, body)));
         iters = new DeclarationStatement[]{outer_decl};
-        body = create.block(create.region(null, create.parallel_block("kernel_block", gcb.getContract(), iters, body)));
+        body = create.block(create.region(null, null, create.parallel_block("kernel_block", gcb.getContract(), iters, body)));
         body = create.block(create.invariant_block("__vercors_kernel_invariant__", rewrite(c.kernelInvariant), body));
         result = create.method_decl(returns, kcb.getContract(), m.name(), decls, body);
     }

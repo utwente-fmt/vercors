@@ -546,10 +546,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       builder.appendInvariant(expr(exp))
   }
 
-  def convertBlock(block: ParserRuleContext): BlockStatement = block match {
+  def convertBlock(block: ParserRuleContext): BlockStatement = origin(block, block match {
     case Block0(_, statements, _) =>
       create block(statements.flatMap(convertStat):_*)
-  }
+  })
 
   def convertStat(stat: ParserRuleContext): Seq[ASTNode] = origin(stat, Seq[ASTNode](stat match {
     case Statement0("return", None, _) => create.return_statement()
@@ -589,10 +589,16 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       }
       val tagsJavaList = new JavaArrayList[String](tags.asJava)
       create barrier(convertID(name), contract, tagsJavaList, maybeBody.orNull)
-    case Statement11(contract, "par", parUnitList) =>
+    case Statement11(maybeFuse, contract, "par", parUnitList) =>
       val parUnits = convertParUnitList(parUnitList)
       val javaParUnits = new JavaArrayList[ParallelBlock](parUnits.asJava)
-      create region(convertContract(contract), javaParUnits)
+      val opt:KernelFusion = maybeFuse.map(convertGPUOpt) match {
+        case None => null
+        case Some(f) if f.isInstanceOf[KernelFusion] => f.asInstanceOf[KernelFusion]
+        case Some(f) => fail(stat, "Only fusion allowed for parallel regions.")
+      }
+
+      create region(opt,convertContract(contract), javaParUnits)
     case Statement12("vec", "(", iter, ")", block) =>
       create vector_block(convertParIter(iter), convertBlock(block))
     case Statement13("invariant", label, "(", resource, ")", block) =>
@@ -656,6 +662,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case "intra" => TilingConfig.Intra
       }
       create.opt_tiling(config, create constant Integer.parseInt(tileSize))
+    case Gpuopt5(gpuOptKeyword, "fuse", fuse, tblocks, _) =>
+      create.opt_fusion(create constant Integer.parseInt(fuse), create constant Integer.parseInt(tblocks))
   })
 
   def convertGPUOpts(tree: GpuoptsContext): Seq[GPUOpt] = tree match {

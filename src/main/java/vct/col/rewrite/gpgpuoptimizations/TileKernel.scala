@@ -7,7 +7,7 @@ import vct.col.ast.expr.{Binder, BindingExpression, MethodInvokation, NameExpres
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{BlockStatement, ParallelRegion}
+import vct.col.ast.stmt.composite.{BlockStatement, ParallelInvariant, ParallelRegion}
 import vct.col.ast.stmt.decl.TilingConfig._
 import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, Method, ProgramUnit, Tiling}
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner, RecursiveVisitor}
@@ -124,6 +124,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
       return
     }
 
+    //TODO OS match on parallelregion instead of method
     result = opt.interOrIntra match {
       case Inter => interTiling(m, opt)
       case Intra => intraTiling(m, opt)
@@ -138,7 +139,11 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
 
     //    check m.getBody.isInstanceOf[BlockStatement]
     //    check m.getBody.asInstanceOf[BlockStatement].getStatement(0).isInstanceOf[ParallelRegion]
-    val region = m.getBody.asInstanceOf[BlockStatement].getStatement(0).asInstanceOf[ParallelRegion]
+    val region = m.getBody.asInstanceOf[BlockStatement].getStatement(0) match {
+      case pb: ParallelRegion => pb
+      case ParallelInvariant(label, inv, block) => block.getStatement(0).asInstanceOf[ParallelRegion]
+    }
+//    val region = m.getBody.asInstanceOf[BlockStatement].getStatement(0).asInstanceOf[ParallelRegion]
     //    check region.blocks.size == 1
     val parBlock = region.blocks.head
     //    check parBlock.iters.size == 1
@@ -148,39 +153,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     //    check tidDecl.init.asInstanceOf[OperatorExpression].op == RangeSeq
     val upperBoundNode = tidDecl.init.get.asInstanceOf[OperatorExpression].second
 
-    val upperBound = upperBoundNode match {
-      case c: ConstantExpression =>
-        c.value.asInstanceOf[IntegerValue].value
-      case _ =>
-        val possibleUpperBounds = ASTUtils.conjuncts(create.expression(And, m.getContract.invariant, m.getContract.pre_condition), Star, And).asScala
-          .map {
-            case o: OperatorExpression =>
-              o.operator match {
-                case EQ if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
-                case EQ if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
-                case GTE if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
-                case GT if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
-                case LTE if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
-                case LT if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
-                case _ => None
-              }
-            case _ => None
-          }
-          .filter(_.isDefined)
-        if (possibleUpperBounds.isEmpty) {
-          Fail("Could not determine that %s is less than the upperbound for the thread id %s. " +
-            "Please specify in the contract of the method that the tile size %s is less than the upperbound for %s",
-            opt.tileSize, tid, opt.tileSize, tid)
-        }
-
-        possibleUpperBounds.map(_.get).max
-    }
+    val upperBound = findUpperbound(m, opt, tid, upperBoundNode)
 
     if (upperBound <= opt.tileSizeInt) {
       Fail("The tile size %s must be less than the upperbound %s of %s", opt.tileSize, constant(upperBound), tid)
@@ -188,11 +161,16 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
 
     addLowerAndUppFunc()
 
+    ////////////////
+    ////////////////
+    ////////////////
+    ////////////////
+
     val parBody = parBlock.block
     val parContract = parBlock.contract
     val parTid = parBlock.iters.head
     val parLabel = parBlock.label
-    val forallVarName = "i_134"
+    val forallVarName = "vct_i"
 
     val itervar = "vct_tile_counter"
 
@@ -259,7 +237,6 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     val newParContract = cb.getContract(true)
 
     val newParBody = create.block()
-
     mapTidto = Some((create.unresolved_name(tid), create.local_name(itervar)))
 
     newParBody.add(create.special(ASTSpecial.Kind.Assert, lte(name(tid), floordiv(upperBoundNode, opt.tileSize))))
@@ -287,10 +264,72 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     val newParBlock = create.parallel_block(newParLabel, newParContract, newParTid.toArray, newParBody)
     //TODO OS the region contract has to be rewritten according
     //  to the rules for rewriting the method contract.
-    val newParRegion = create.region(rewrite(region.contract), newParBlock)
+
+
+
+
+
+    val newParRegion = m.getBody.asInstanceOf[BlockStatement].getStatement(0) match {
+      case pb: ParallelRegion => create.region(rewrite(pb.fuse), rewrite(region.contract), newParBlock)
+      case parinv: ParallelInvariant => {
+
+        var newinvs:ASTNode = create.constant(true)
+
+        ASTUtils.conjuncts(parinv.inv, And, Star).forEach {
+          case bindexpr: BindingExpression
+            if bindexpr.binder == Binder.Star || bindexpr.binder == Binder.Forall =>
+
+            findBounds(bindexpr.select, name(bindexpr.decls.head.name)) match {
+              case Some(bounds) =>
+                val j = bindexpr.decls.head.name + "_1"
+                val i = "i_0"
+                val newSelect = and(
+                  and(
+                    gte(create.local_name(j), create.invokation(null, null, lowFuncName, create.local_name(i), opt.tileSize)),
+                    less(create.local_name(j), create.invokation(null, null, uppFuncName, create.local_name(i), opt.tileSize))
+                  ),
+                  less(create.local_name(j), bounds._2)
+                )
+
+                val newMain = ASTUtils.replace(create.local_name(bindexpr.decls.head.name), create.local_name(j), bindexpr.main)
+                val innerForall = create.binder(bindexpr.binder,
+                  copy_rw.rewrite(bindexpr.result_type),
+                  Array(create.field_decl(j, copy_rw.rewrite(bindexpr.decls.head.`type`))),
+                  Array.empty[Array[ASTNode]],
+                  newSelect, // ASTNode selection,
+                  newMain // ASTNode main
+                )
+
+
+                val outerLoop = create.binder(bindexpr.binder,
+                  copy_rw.rewrite(bindexpr.result_type),
+                  Array(create.field_decl(i, copy_rw.rewrite(bindexpr.decls.head.`type`))),
+                  Array.empty[Array[ASTNode]],
+                  and(
+                    lte(constant(0), name(i)),
+                    less(name(i), invoke(null, ceilingFuncName, bounds._2, opt.tileSize))
+                  ),
+                  innerForall
+                )
+                newinvs = star(newinvs, outerLoop)
+//                  cbMethod.requires(outerLoop)
+              case None => newinvs = star(newinvs, copy_rw.rewrite(bindexpr))
+            }
+          case pre =>
+            newinvs = star(newinvs, copy_rw.rewrite(pre))
+        }
+
+        create.invariant_block(parinv.label, newinvs, create.block(create.region(rewrite(region.fuse), rewrite(region.contract), newParBlock)))
+      }
+      case _ => ???
+    }
+
+
 
     val cbMethod = new ContractBuilder()
     cbMethod.appendInvariant(copy_rw.rewrite(m.getContract().invariant))
+    cbMethod.given(copy_rw.rewrite(m.getContract().given):_*)
+    cbMethod.yields(copy_rw.rewrite(m.getContract().`yields`):_*)
     cbMethod.appendKernelInvariant(copy_rw.rewrite(m.getContract().kernelInvariant))
 
     ASTUtils.conjuncts(m.getContract().pre_condition, And, Star).forEach {
@@ -302,10 +341,6 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
             val j = bindexpr.decls.head.name + "_1"
             val i = "i_0"
 
-
-            //
-            //
-
             val newSelect = and(
               and(
                 gte(create.local_name(j), create.invokation(null, null, lowFuncName, create.local_name(i), opt.tileSize)),
@@ -315,11 +350,6 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
             )
 
             val newMain = ASTUtils.replace(create.local_name(bindexpr.decls.head.name), create.local_name(j), bindexpr.main)
-            //TODO OS make a rewrite method for Arrays
-            //            val newTriggers = bindexpr match {
-            //              case null => null
-            //              case _ => bindexpr.triggers.map(n => n.map(n1 => copy_rw.rewrite(n1)).toArray).toArray
-            //            }
             val innerForall = create.binder(bindexpr.binder,
               copy_rw.rewrite(bindexpr.result_type),
               Array(create.field_decl(j, copy_rw.rewrite(bindexpr.decls.head.`type`))),
@@ -356,10 +386,6 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
             val j = bindexpr.decls.head.name + "_1"
             val i = "i_0"
 
-
-            //
-            //
-
             val newSelect = and(
               and(
                 gte(create.local_name(j), create.invokation(null, null, lowFuncName, create.local_name(i), opt.tileSize)),
@@ -369,11 +395,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
             )
 
             val newMain = ASTUtils.replace(create.local_name(bindexpr.decls.head.name), create.local_name(j), bindexpr.main)
-            //TODO OS make a rewrite method for Arrays
-            //            val newTriggers = bindexpr match {
-            //              case null => null
-            //              case _ => bindexpr.triggers.map(n => n.map(n1 => copy_rw.rewrite(n1)).toArray).toArray
-            //            }
+
             val innerForall = create.binder(bindexpr.binder,
               copy_rw.rewrite(bindexpr.result_type),
               Array(create.field_decl(j, copy_rw.rewrite(bindexpr.decls.head.`type`))),
@@ -381,7 +403,6 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
               newSelect, // ASTNode selection,
               newMain // ASTNode main
             )
-
 
             val outerLoop = create.binder(bindexpr.binder,
               copy_rw.rewrite(bindexpr.result_type),
@@ -416,8 +437,10 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     //    super.visit(m)
     //    check m.getBody.isInstanceOf[BlockStatement]
     //    check m.getBody.asInstanceOf[BlockStatement].getStatement(0).isInstanceOf[ParallelRegion]
-    val region = m.getBody.asInstanceOf[BlockStatement].getStatement(0).asInstanceOf[ParallelRegion]
-    //    check region.blocks.size == 1
+    val region = m.getBody.asInstanceOf[BlockStatement].getStatement(0) match {
+      case pb: ParallelRegion => pb
+      case ParallelInvariant(label, inv, block) => block.getStatement(0).asInstanceOf[ParallelRegion]
+    }    //    check region.blocks.size == 1
     val parBlock = region.blocks.head
     //    check parBlock.iters.size == 1
     val tidDecl = parBlock.iters.head
@@ -426,45 +449,13 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     //    check tidDecl.init.asInstanceOf[OperatorExpression].op == RangeSeq
     val upperBoundNode = tidDecl.init.get.asInstanceOf[OperatorExpression].second
 
-    val upperBound = upperBoundNode match {
-      case c: ConstantExpression =>
-        c.value.asInstanceOf[IntegerValue].value
-      case _ =>
-        val possibleUpperBounds = ASTUtils.conjuncts(create.expression(And, m.getContract.invariant, m.getContract.pre_condition), Star, And).asScala
-          .map {
-            case o: OperatorExpression =>
-              o.operator match {
-                case EQ if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
-                case EQ if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
-                case GTE if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
-                case GT if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
-                case LTE if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
-                case LT if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
-                case _ => None
-              }
-            case _ => None
-          }
-          .filter(_.isDefined)
-        if (possibleUpperBounds.isEmpty) {
-          Fail("Could not determine that %s is less than the upperbound for the thread id %s. " +
-            "Please specify in the contract of the method that the tile size %s is less than the upperbound for %s",
-            opt.tileSize, tid, opt.tileSize, tid)
-        }
-
-        possibleUpperBounds.map(_.get).max
-    }
+    val upperBound = findUpperbound(m, opt, tid, upperBoundNode)
 
     if (upperBound <= opt.tileSizeInt) {
       Fail("The tile size %s must be less than the upperbound %s of %s", opt.tileSize, constant(upperBound), tid)
     }
 
-    addNewIdxFunc
+    addNewIdxFunc()
 
     ////////////////
     ////////////////
@@ -475,7 +466,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     val parContract = parBlock.contract
     val parTid = parBlock.iters.head
     val parLabel = parBlock.label
-    val forallVarName = "i"
+    val forallVarName = "vct_i"
 
     val itervar = "vct_tile_counter"
 
@@ -502,7 +493,6 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     ASTUtils.conjuncts(parContract.post_condition, And, Star).forEach(post => {
       if (NameScanner.accesses(post).contains(tid)) {
         val findOlds = FindOlds(null)
-        //TODO OS ask what accept does
         post.accept(findOlds)
         val olds = findOlds.olds
         olds.foreach(old => {
@@ -572,11 +562,69 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     val newParBlock = create.parallel_block(newParLabel, newParContract, newParTid.toArray, newParBody)
     //TODO OS the region contract has to be rewritten according
     //  to the rules for rewriting the method contract.
-    val newParRegion = create.region(rewrite(region.contract), newParBlock)
+    val newParRegion = m.getBody.asInstanceOf[BlockStatement].getStatement(0) match {
+      case pb: ParallelRegion => create.region(rewrite(pb.fuse), rewrite(region.contract), newParBlock)
+      case parinv: ParallelInvariant => {
+
+        var newinvs:ASTNode = create.constant(true)
+
+        ASTUtils.conjuncts(parinv.inv, And, Star).forEach {
+          case bindexpr: BindingExpression
+            if bindexpr.binder == Binder.Star || bindexpr.binder == Binder.Forall =>
+
+            findBounds(bindexpr.select, name(bindexpr.decls.head.name)) match {
+              case Some(bounds) => {
+                val j = bindexpr.decls.head.name + "_1"
+                val i = "i_0"
+                val newSelect = and(
+                  and(
+                    gte(name(j), bounds._1),
+                    less(name(j), invoke(null, ceilingFuncName, bounds._2, opt.tileSize))
+                  ),
+                  less(
+                    invoke(null, newIdxFuncName, name(i), name(j), opt.tileSize),
+                    bounds._2
+                  )
+                )
+                val newMain = ASTUtils.replace(name(bindexpr.decls.head.name), invoke(null, newIdxFuncName, name(i), name(j), opt.tileSize), bindexpr.main)
+                val innerForall = create.binder(bindexpr.binder,
+                  copy_rw.rewrite(bindexpr.result_type),
+                  Array(create.field_decl(j, copy_rw.rewrite(bindexpr.decls.head.`type`))),
+                  Array.empty[Array[ASTNode]],
+                  newSelect, // ASTNode selection,
+                  newMain // ASTNode main
+                )
+
+                val outerLoop = create.binder(bindexpr.binder,
+                  copy_rw.rewrite(bindexpr.result_type),
+                  Array(create.field_decl(i, copy_rw.rewrite(bindexpr.decls.head.`type`))),
+                  Array.empty[Array[ASTNode]],
+                  and(
+                    lte(constant(0), name(i)),
+                    less(name(i), opt.tileSize)
+                  ),
+                  innerForall
+                )
+                newinvs = star(newinvs, outerLoop)
+              }
+              case None => newinvs = star(newinvs, copy_rw.rewrite(bindexpr))
+            }
+          case pre =>
+            newinvs = star(newinvs, copy_rw.rewrite(pre))
+        }
+
+
+
+        create.invariant_block(parinv.label, newinvs, create.block(create.region(rewrite(region.fuse), rewrite(region.contract), newParBlock)))
+      }
+      case _ => ???
+    }
 
     val cbMethod = new ContractBuilder()
     cbMethod.appendInvariant(copy_rw.rewrite(m.getContract().invariant))
     cbMethod.appendKernelInvariant(copy_rw.rewrite(m.getContract().kernelInvariant))
+    cbMethod.given(copy_rw.rewrite(m.getContract().given):_*)
+    cbMethod.yields(copy_rw.rewrite(m.getContract().`yields`):_*)
     ASTUtils.conjuncts(m.getContract().pre_condition, And, Star).forEach {
       case bindexpr: BindingExpression
         if bindexpr.binder == Binder.Star || bindexpr.binder == Binder.Forall =>
@@ -596,11 +644,6 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
               )
             )
             val newMain = ASTUtils.replace(name(bindexpr.decls.head.name), invoke(null, newIdxFuncName, name(i), name(j), opt.tileSize), bindexpr.main)
-            //TODO OS make a rewrite method for Arrays
-            //            val newTriggers = bindexpr match {
-            //              case null => null
-            //              case _ => bindexpr.triggers.map(n => n.map(n1 => copy_rw.rewrite(n1)).toArray).toArray
-            //            }
             val innerForall = create.binder(bindexpr.binder,
               copy_rw.rewrite(bindexpr.result_type),
               Array(create.field_decl(j, copy_rw.rewrite(bindexpr.decls.head.`type`))),
@@ -685,6 +728,42 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
       copy_rw.rewrite(m.getArgs),
       create.block(newParRegion)
     )
+  }
+
+  private def findUpperbound(m: Method, opt: Tiling, tid: String, upperBoundNode: ASTNode) = {
+    upperBoundNode match {
+      case c: ConstantExpression =>
+        c.value.asInstanceOf[IntegerValue].value
+      case _ =>
+        val possibleUpperBounds = ASTUtils.conjuncts(create.expression(And, m.getContract.invariant, m.getContract.pre_condition), Star, And).asScala
+          .map {
+            case o: OperatorExpression =>
+              o.operator match {
+                case EQ if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                case EQ if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                case GTE if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                case GT if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
+                case LTE if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                case LT if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
+                case _ => None
+              }
+            case _ => None
+          }
+          .filter(_.isDefined)
+        if (possibleUpperBounds.isEmpty) {
+          Fail("Could not determine that %s is less than the upperbound for the thread id %s. " +
+            "Please specify in the contract of the method that the tile size %s is less than the upperbound for %s",
+            opt.tileSize, tid, opt.tileSize, tid)
+        }
+
+        possibleUpperBounds.map(_.get).max
+    }
   }
 
   def findBounds(node: ASTNode, itervar: NameExpression): Option[(ASTNode, ASTNode)] = {

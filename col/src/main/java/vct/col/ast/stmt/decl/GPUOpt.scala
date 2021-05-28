@@ -15,6 +15,9 @@ object GPUOptFlags extends Enumeration {
     val dataLoc = Value("glob_to_reg")
     val iterMerge = Value("iter_merge")
     val tiling = Value("tile")
+    //TODO OS do we need to distinguish between fusion and hostsync
+    val fusion = Value("fuse")
+    val hostsync = Value("sync")
 }
 
 abstract case class GPUOpt(val args: List[ASTNode]) extends ASTNode {
@@ -69,4 +72,15 @@ class Tiling(val interOrIntra: TilingConfig, val tileSize: ConstantExpression)
     require(tileSize.value.isInstanceOf[IntegerValue], "The tilesize is not an integer constant")
 
     val tileSizeInt: Int = tileSize.value.asInstanceOf[IntegerValue].value
+}
+
+class KernelFusion(val F: ConstantExpression, val N: ConstantExpression)
+  extends GPUOpt(List(F, N)) {
+    require(F.value.isInstanceOf[IntegerValue], "The constant F is not an integer constant")
+    require(N.value.isInstanceOf[IntegerValue], "The constant N is not an integer constant")
+}
+
+class HostSync(val F: ConstantExpression)
+  extends GPUOpt(List(F)) {
+    require(F.value.isInstanceOf[IntegerValue], "The constant F is not an integer constant")
 }

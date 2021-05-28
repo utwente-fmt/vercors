@@ -346,6 +346,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
   
   public void visit(ParallelRegion region){
+    dispatch(region.fuse());
     dispatch(region.contract());
     dispatch(region.blocksJava());
   }

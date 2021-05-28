@@ -25,7 +25,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       val labels = (blocks zip blocks.indices.map("omp_" + _.toString)).toMap
       val deps = getDeps
 
-      create region(contract, blocks.map((block) => {
+      create region(null, contract, blocks.map((block) => {
         block.toParBlock(
           labels(block),
           deps.filter(_.next == block).map(_.asCOLDep(labels)).toArray)
@@ -264,7 +264,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(par: OMPParallelFor): Unit = {
-    result = create region(null, forLoopToPPL(par).toParBlock(null, Array()))
+    result = create region(null, null, forLoopToPPL(par).toParBlock(null, Array()))
   }
 
   override def visit(sections: OMPSections): Unit = {
@@ -313,7 +313,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
   override def visit(loop: LoopStatement): Unit = {
     tryParallel(loop) match {
       case Some((decls, body, contract)) =>
-        result = create region(null, create parallel_block("auto", contract, decls.toArray, body.asInstanceOf[BlockStatement]))
+        result = create region(null, null, create parallel_block("auto", contract, decls.toArray, body.asInstanceOf[BlockStatement]))
       case None =>
         super.visit(loop)
     }

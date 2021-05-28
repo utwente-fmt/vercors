@@ -434,6 +434,12 @@ public class ASTFactory<E> implements FrameControl {
     res.accept_if(post);
     return res;
   }
+  public GPUOpt opt_fusion(ConstantExpression fuse, ConstantExpression tblocks) {
+    GPUOpt res=new KernelFusion(fuse, tblocks);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
 
   public GPUOpt opt_glob_to_reg(ASTNode arrayName, List<ASTNode> locations) {
     GPUOpt res=new DataLocation(arrayName, JavaConverters.asScalaBuffer(locations).toList());
@@ -1420,16 +1426,16 @@ public Axiom axiom(String name, ASTNode exp){
     return res;
   }
 
-  public ParallelRegion region(Contract c,ParallelBlock ... blocks) {
-    return region(origin_stack.get(),c,blocks);
+  public ParallelRegion region(KernelFusion fuse, Contract c,ParallelBlock ... blocks) {
+    return region(origin_stack.get(), fuse, c,blocks);
   }
   
-  public ParallelRegion region(Contract c, List<ParallelBlock> blocks) {
-    return region(origin_stack.get(), c, blocks);
+  public ParallelRegion region(KernelFusion fuse, Contract c, List<ParallelBlock> blocks) {
+    return region(origin_stack.get(), fuse, c, blocks);
   }
 
-  public ParallelRegion region(Origin origin,Contract c,ParallelBlock ... blocks) {
-    ParallelRegion res=new ParallelRegion(c,blocks);
+  public ParallelRegion region(Origin origin,KernelFusion fuse, Contract c,ParallelBlock ... blocks) {
+    ParallelRegion res=new ParallelRegion(fuse, c,blocks);
     res.setOrigin(origin);
     res.accept_if(post);
     return res;
@@ -1439,15 +1445,15 @@ public Axiom axiom(String name, ASTNode exp){
         return expression(op,n,ns.toArray(new ASTNode[ns.size()]));
     }
 
-  public ParallelRegion region(Origin origin, Contract c, List<ParallelBlock> blocks) {
-    ParallelRegion res=new ParallelRegion(c, blocks);
+  public ParallelRegion region(Origin origin, KernelFusion fuse, Contract c, List<ParallelBlock> blocks) {
+    ParallelRegion res=new ParallelRegion(fuse, c, blocks);
 	res.setOrigin(origin);
 	res.accept_if(post);
 	return res;
   }
 
-  public ASTNode region(Contract c,ArrayList<ParallelBlock> res) {
-    return region(c,res.toArray(new ParallelBlock[res.size()]));
+  public ASTNode region(KernelFusion fuse, Contract c,ArrayList<ParallelBlock> res) {
+    return region(fuse, c,res.toArray(new ParallelBlock[res.size()]));
   }
 
   public Method function_decl(Type t, Contract contract, String name,
