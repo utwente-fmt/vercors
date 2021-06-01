@@ -1,9 +1,6 @@
 package vct.col.veymont;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.Objects;
-import java.util.Scanner;
 
 public class WellBehavednessJava {
 
@@ -85,36 +82,4 @@ public class WellBehavednessJava {
         return checkForwardNonTau(a) && checkForwardTau(a) && checkBackward(a);
     }
 
-    public static void main(String[] args) throws FileNotFoundException {
-        var examples = new String[]{
-                "../program-ltss/ifelseaLocalLTS.aut",
-                "../program-ltss/ifelsebLocalLTS.aut",
-                "../program-ltss/ifelsecLocalLTS.aut",
-
-                "../program-ltss/whileaLocalLTS.aut",
-                "../program-ltss/whilebLocalLTS.aut",
-                "../program-ltss/whilecLocalLTS.aut",
-
-                "../program-ltss/parallel_whileaLocalLTS.aut",
-                "../program-ltss/parallel_whilebLocalLTS.aut",
-                "../program-ltss/parallel_whilecLocalLTS.aut",
-
-                "../program-ltss/methodcallaLocalLTS.aut",
-                "../program-ltss/methodcallbLocalLTS.aut",
-                "../program-ltss/methodcallcLocalLTS.aut",
-
-                "../program-ltss/TicTacToeP1LocalLTS.aut",
-                "../program-ltss/TicTacToeP2LocalLTS.aut",
-
-                "../program-ltss/paperscissorsrockaLocalLTS.aut",
-                "../program-ltss/paperscissorsrockbLocalLTS.aut",
-                "../program-ltss/paperscissorsrockcLocalLTS.aut",
-        };
-
-        for (String s : examples) {
-            var f = new File(s);
-            var b = check(new AldebaranTau(new Scanner(f), WellBehavednessJava::isTau));
-            System.out.println(b + " (" + s + ")");
-        }
-    }
 }
