@@ -65,9 +65,6 @@ object CommandLineTesting {
     "execute test suites from the command line. " +
     "Each test suite is a folder which is scanned for valid test inputs")
 
-  private val saveDir = new StringSetting(null)
-  private val saveDirOption = saveDir.getAssign("save intermediate files to given directory")
-
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
 
@@ -83,9 +80,6 @@ object CommandLineTesting {
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
   private lazy val z3 = Configuration.getZ3
-  private lazy val boogie = Configuration.getBoogie
-  private lazy val chalice = Configuration.getChalice
-  private lazy val dafny = Configuration.getDafny
   private lazy val carbon = Configuration.getCarbon
   private lazy val silicon = Configuration.getSilicon
   private lazy val vercors = Configuration.getThisVerCors
@@ -100,25 +94,6 @@ object CommandLineTesting {
     )),
     "!z3-unsat" -> Task(z3.withArgs("-smt2", selfTest("test-unsat.smt")), Seq(
       MustSay("unsat"),
-    )),
-    "!boogie-pass" -> Task(boogie.withArgs(selfTest("test-pass.bpl")), Seq(
-      MustSay("Boogie program verifier finished with 1 verified, 0 errors")
-    )),
-    "!boogie-fail" -> Task(boogie.withArgs(selfTest("test-fail.bpl")), Seq(
-      MustSay("Boogie program verifier finished with 0 verified, 1 error")
-    )),
-    "!chalice-pass" -> Task(chalice.withArgs(selfTest("test-pass.chalice")), Seq(
-      MustSay("Boogie program verifier finished with 3 verified, 0 errors")
-    )),
-    "!chalice-fail" -> Task(chalice.withArgs(selfTest("test-fail.chalice")), Seq(
-      MustSay("Boogie program verifier finished with 2 verified, 1 error")
-    )),
-    "!dafny-pass" -> Task(dafny.withArgs("/compile:0", selfTest("test-pass.dfy")), Seq(
-      MustSay("Dafny program verifier finished with 2 verified, 0 errors")
-    )),
-    "!dafny-fail" -> Task(dafny.withArgs("/compile:0", selfTest("test-fail.dfy")), Seq(
-      MustSay("Dafny program verifier finished with 1 verified, 1 error"),
-      ExpectVerdict(Verdict.Error)
     )),
     "!carbon-pass" -> Task(carbon.withArgs(selfTest("test-pass.sil")), Seq(
       MustSay("No errors found.")
@@ -141,7 +116,6 @@ object CommandLineTesting {
     parser.add(backendFilterOption, "tool")
     parser.add(testDirsOption, "test")
     parser.add(builtinTestOption, "test-builtin")
-    parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
     parser.add(testFailFastOption, "test-fail-fast")
     parser.add(testFailIdeaConfigsOption, "test-fail-idea-configs")
@@ -350,7 +324,8 @@ object CommandLineTesting {
     Output("Verification times:")
 
     for (taskKey <- taskKeys) {
-      val time = allTasks(taskKey).times.get("entire run")
+      val task = allTasks(taskKey)
+      val time = task.times.get("entire run")
       Output("%-40s: %s", taskKey, time match {
         case None => "unknown"
         case Some(ms) => String.format("%dms", Int.box(ms))
@@ -366,6 +341,9 @@ object CommandLineTesting {
 
     if (fails.nonEmpty) {
       hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails.size), Int.box(tasks.size))
+      for(fail <- fails){
+        Output(fail);
+      }
       throw new HREExitException(1)
     } else {
       hre.lang.System.Verdict("All %d tests passed", Int.box(tasks.size))
