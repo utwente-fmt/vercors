@@ -5,10 +5,10 @@ import hre.lang.System.Output
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
 import vct.col.ast.`type`.PrimitiveSort._
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{NameExpression, OperatorExpression}
+import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression}
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{BlockStatement, ParallelBlock, ParallelRegion}
+import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, Method, ProgramUnit}
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner, RecursiveVisitor, SequenceUtils}
 
@@ -39,54 +39,53 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
     }
     var nf = 0
     var parBlocks = Seq.empty[ParallelRegion]
-    val block = create.block()
+    val newBlock = create.block()
     for (st <- s.getStatements) {
-          st match {
-            case pr: ParallelRegion if pr.fuse != null => {
-              val f = pr.fuse.F.value.asInstanceOf[IntegerValue].value
-              if (f == 0) {
-                Warning("Number of fusions is zero, no optimization applied.", pr.fuse.getOrigin)
-              } else {
-                nf = math.max(nf - 1, f)
-                parBlocks ++= Seq(pr)
-              }
-            }
-            case pr: ParallelRegion => {
-              if (nf != 0) {
-                nf = math.max(nf - 1, 0)
-                parBlocks ++= Seq(pr)
-                if (nf == 0) {
-                  val parblock = fuseParBlocks(parBlocks)
-                  block.add(create region(null, null, parblock))
-                }
-              } else {
-                block.add(copy_rw.rewrite(pr))
-              }
-            }
-            case stmt => {
-              if (nf != 0) {
-                Fail("No statements allowed between parallel regions while fusion", stmt.getOrigin)
-              }
-              //TODO OS on which statements should it fail and which not?
-              block.add(rewrite(stmt))
-            }
+      st match {
+        case pr: ParallelRegion if pr.fuse != null => {
+          val f = pr.fuse.F.value.asInstanceOf[IntegerValue].value
+          if (f == 0) {
+            Warning("Number of fusions is zero, no optimization applied.", pr.fuse.getOrigin)
+          } else {
+            nf = math.max(nf - 1, f)
+            parBlocks ++= Seq(pr)
           }
+        }
+        case pr: ParallelRegion => {
+          if (nf != 0) {
+            nf = math.max(nf - 1, 0)
+            parBlocks ++= Seq(pr)
+            if (nf == 0) {
+              newBlock.add(fuseParBlocks(parBlocks))
+            }
+          } else {
+            newBlock.add(copy_rw.rewrite(pr))
+          }
+        }
+        case stmt => {
+          if (nf != 0) {
+            Fail("No statements allowed between parallel regions while fusion", stmt.getOrigin)
+          }
+          //TODO OS on which statements should it fail and which not?
+          newBlock.add(rewrite(stmt))
+        }
+      }
     }
     if (nf != 0) {
-//      Fail("There are not enough kernels to fuse as specified in one of the gpuopt annotations")
+      //      Fail("There are not enough kernels to fuse as specified in one of the gpuopt annotations")
     }
-    result = block
+    result = newBlock
 
   }
 
   private def fuseParBlocks(parBlocks: Seq[ParallelRegion]) = {
-    val parreg = parBlocks.head
-    val tid = parreg.blocks.head.iters.head.name
-    val parbody = create.block()
+
     //TODO OS check whether each region only has one block
     //TODO OS check whether each one block only had one iter
 
-    // check if all kernels to fuse have the same configuration
+    ////////////////////////////////
+    /// Check bounds of all tids ///
+    ////////////////////////////////
     val distinctBounds = parBlocks.map(_.blocks.head.iters.head.init.get.asInstanceOf[OperatorExpression])
       .map(n => (n.first, n.second))
       .distinct
@@ -95,26 +94,15 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       Fail("All kernels (and parallel blocks) to fuse must have the same thread configuration")
     }
 
+    ////////////////////////////
+    /// Initiliaze variables ///
+    ////////////////////////////
+    val newParBody = create.block()
     val newTid = name("vct_fused_tid")
 
-    /////////////////////////////////////
-    /// Which variables are shared??? ///
-    /////////////////////////////////////
-    var shared = mutable.Set.empty[String]
-    var nonshared = mutable.Set.empty[String]
-    for (pb <- parBlocks) {
-      shared = shared.intersect(NameScanner.freeVars(pb).keySet().asScala)
-    }
-
-      /////////////////////////////
-    /// Data dependency check ///
-    /////////////////////////////
-    val dataDepCheckMethod = generateDepCheck(parBlocks, newTid)
-    methodsWithFusion(current_method().name) = methodsWithFusion(current_method().name) ++ mutable.Buffer(dataDepCheckMethod)
-
-    ////////////
-    /// Fuse ///
-    ////////////
+    ///////////////////
+    /// Fuse bodies ///
+    ///////////////////
     val parblocks = parBlocks
       .map(p => ASTUtils.replace(name(p.blocks.head.iters.head.name), newTid, p).asInstanceOf[ParallelRegion])
       .zipWithIndex
@@ -126,355 +114,185 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
             b.forEachStmt(st => newBlock.add(rewrite(st)))
           case elseNode => newBlock.add(rewrite(elseNode))
         }
-        if (pbi._2 < parBlocks.length-1) {
+        if (pbi._2 < parBlocks.length - 1) {
           ASTUtils.conjuncts(pbi._1.blocks.head.contract.post_condition, Star, And, Wrap).forEach { stmt =>
             newBlock.add(create special(ASTSpecial.Kind.Assert, copy_rw.rewrite(stmt)))
           }
         }
         newBlock
       }
-    parblocks.foreach(_.forEachStmt(l => parbody.add(rewrite(l))))
-
-    /*
-              for each (consecutive) kernels i and i+1:
-                    1. Precondition:
-                         [DONE] Permissions: Taken from the dependency check method contract
-                         Functional correctness:
-                            Take all preconditions for non-shared variables
-                            Take the preconditions of the first kernel for shared variable
-
-                    2. Postcondition:
-                          Permissions:
-                            Take all postconditions for non-shared variables
-                            Take the postconditions of the last kernel for shared variable
-                          Functional:
-                            Take all postconditions for non-shared variables
-                            Take the postconditions of the last kernel for shared variable
-
-                    3. [DONE] Body:
-                        [DONE] Take the body of kernel i.
-                        [DONE] Append the postconditions of kernel i as assertions.
-                        [DONE] If kernel i+1 is the last kernel, append the body of kernel i + 1.
-            */
-
-    val cbParBlock = new ContractBuilder()
-    cbParBlock.requires(copy_rw.rewrite(dataDepCheckMethod.getContract().pre_condition))
+    parblocks.foreach(_.forEachStmt(l => newParBody.add(rewrite(l))))
 
 
-    for (i <- 0 to parBlocks.size - 2) {
-      val prunedcbi = new ContractBuilder()
+    //////////////////////
+    /// Fuse contracts ///
+    //////////////////////
+    var kernelZeroToI = parBlocks.head
+    for (i <- 0 to parBlocks.length - 2) {
+      val kernelIPlusOne = parBlocks(i + 1)
 
-      ASTUtils.conjuncts(parBlocks(i).blocks.head.contract.pre_condition, Star, And, Wrap).forEach { stmt =>
+      val cbPermsI = new ContractBuilder()
+      val cbNonPermI = new ContractBuilder()
+      val cbPermsIPlusOne = new ContractBuilder()
+      val cbNonPermsIPlusOne = new ContractBuilder()
+      ASTUtils.conjuncts(kernelZeroToI.blocks.head.contract.pre_condition, Star, And, Wrap).forEach { stmt =>
         val cp = new CollectPerms()
         cp.rewrite(stmt)
-        if (cp.perm.isEmpty) {
-          prunedcbi.requires(stmt)
+        if (cp.perm.isDefined) {
+          cbPermsI.requires(stmt)
+        } else {
+          cbNonPermI.requires(stmt)
+        }
+      }
+      ASTUtils.conjuncts(kernelZeroToI.blocks.head.contract.post_condition, Star, And, Wrap).forEach { stmt =>
+        val cp = new CollectPerms()
+        cp.rewrite(stmt)
+        if (cp.perm.isDefined) {
+          cbPermsI.ensures(stmt)
+        } else {
+          cbNonPermI.ensures(stmt)
         }
       }
 
-      val prunedcbiplusone = new ContractBuilder()
-      ASTUtils.conjuncts(parBlocks(i + 1).blocks.head.contract.pre_condition, Star, And, Wrap).forEach { stmt =>
+      ASTUtils.conjuncts(kernelIPlusOne.blocks.head.contract.pre_condition, Star, And, Wrap).forEach { stmt =>
         val cp = new CollectPerms()
         cp.rewrite(stmt)
-        if (cp.perm.isEmpty) {
-          prunedcbiplusone.requires(stmt)
+        if (cp.perm.isDefined) {
+          cbPermsIPlusOne.requires(stmt)
+        } else {
+          cbNonPermsIPlusOne.requires(stmt)
+        }
+      }
+      ASTUtils.conjuncts(kernelIPlusOne.blocks.head.contract.post_condition, Star, And, Wrap).forEach { stmt =>
+        val cp = new CollectPerms()
+        cp.rewrite(stmt)
+        if (cp.perm.isDefined) {
+          cbPermsIPlusOne.ensures(stmt)
+        } else {
+          cbNonPermsIPlusOne.ensures(stmt)
         }
       }
 
-      val freeVarsI = NameScanner.freeVars(prunedcbi.getContract().pre_condition).asScala
-        .filter(kv => SequenceUtils.getTypeInfo(kv._2) != null && SequenceUtils.getTypeInfo(kv._2).getSequenceSort.equals(Array))
-      val freeVarsIplusone = NameScanner.freeVars(prunedcbiplusone.getContract().pre_condition).asScala
-        .filter(kv => SequenceUtils.getTypeInfo(kv._2) != null && SequenceUtils.getTypeInfo(kv._2).getSequenceSort.equals(Array))
+      val contractIPerm =
+        ASTUtils.replace(name(kernelZeroToI.blocks.head.iters.head.name), newTid, cbPermsI.getContract(false)).asInstanceOf[Contract]
+      val contractIPlusOnePerm =
+        ASTUtils.replace(name(kernelIPlusOne.blocks.head.iters.head.name), newTid, cbPermsIPlusOne.getContract(false)).asInstanceOf[Contract]
+      val contractINonPerm =
+        ASTUtils.replace(name(kernelZeroToI.blocks.head.iters.head.name), newTid, cbNonPermI.getContract(false)).asInstanceOf[Contract]
+      val contractIPlusOneNonPerm =
+        ASTUtils.replace(name(kernelIPlusOne.blocks.head.iters.head.name), newTid, cbNonPermsIPlusOne.getContract(false)).asInstanceOf[Contract]
 
-      val prunedContractI =
-        ASTUtils.replace(name(parBlocks(i).blocks.head.iters.head.name), newTid, prunedcbi.getContract()).asInstanceOf[Contract]
-      val prunedContractIPlusOne =
-        ASTUtils.replace(name(parBlocks(i + 1).blocks.head.iters.head.name), newTid, prunedcbiplusone.getContract()).asInstanceOf[Contract]
 
+      ////////////////////////////////////////
+      /// Calculate shared/non-shared sets ///
+      ////////////////////////////////////////
+      val freeVarsI = NameScanner.freeVars(contractIPerm.pre_condition).asScala
+        .filter(!_._1.equals(newTid.name))
+        .filter(kv => SequenceUtils.getTypeInfo(kv._2) == null || SequenceUtils.getTypeInfo(kv._2).getSequenceSort.equals(Array))
+
+      val freeVarsIplusone = NameScanner.freeVars(contractIPlusOnePerm.pre_condition).asScala
+        .filter(!_._1.equals(newTid.name))
+        .filter(kv => SequenceUtils.getTypeInfo(kv._2) == null || SequenceUtils.getTypeInfo(kv._2).getSequenceSort.equals(Array))
 
       val varsI = freeVarsI.keySet
       val varsIplusone = freeVarsIplusone.keySet
 
       val shared = varsI.intersect(varsIplusone)
-      val nonshared = (varsI diff varsIplusone) union (varsIplusone diff varsI)
+      val nonshared = ((varsI diff varsIplusone) union (varsIplusone diff varsI))
 
-
-
-    }
-
-
-
-
-
-
-
-
-
-
-
-//    for (i <- 0 to parBlocks.size - 2) {
-//      val prunedcbi = new ContractBuilder()
-//
-//      ASTUtils.conjuncts(parBlocks(i).blocks.head.contract.pre_condition, Star, And, Wrap).forEach { stmt =>
-//        val cp = new CollectPerms()
-//        cp.rewrite(stmt)
-//        if (cp.perm.isDefined) {
-//          prunedcbi.requires(stmt)
-//        }
-//      }
-//      ASTUtils.conjuncts(parBlocks(i).blocks.head.contract.post_condition, Star, And, Wrap).forEach { stmt =>
-//        val cp = new CollectPerms()
-//        cp.rewrite(stmt)
-//        if (cp.perm.isDefined) {
-//          prunedcbi.ensures(stmt)
-//        }
-//      }
-//      val prunedcbiplusone = new ContractBuilder()
-//      ASTUtils.conjuncts(parBlocks(i + 1).blocks.head.contract.pre_condition, Star, And, Wrap).forEach { stmt =>
-//        val cp = new CollectPerms()
-//        cp.rewrite(stmt)
-//        if (cp.perm.isDefined) {
-//          prunedcbiplusone.requires(stmt)
-//        }
-//      }
-//
-//      val freeVarsI = NameScanner.freeVars(prunedcbi.getContract().pre_condition).asScala
-//        .filter(kv => SequenceUtils.getTypeInfo(kv._2) != null && SequenceUtils.getTypeInfo(kv._2).getSequenceSort.equals(Array))
-//      val freeVarsIplusone = NameScanner.freeVars(prunedcbiplusone.getContract().pre_condition).asScala
-//        .filter(kv => SequenceUtils.getTypeInfo(kv._2) != null && SequenceUtils.getTypeInfo(kv._2).getSequenceSort.equals(Array))
-//
-//      val prunedContractI =
-//        ASTUtils.replace(name(parBlocks(i).blocks.head.iters.head.name), newTid, prunedcbi.getContract()).asInstanceOf[Contract]
-//      val prunedContractIPlusOne =
-//        ASTUtils.replace(name(parBlocks(i + 1).blocks.head.iters.head.name), newTid, prunedcbiplusone.getContract()).asInstanceOf[Contract]
-//
-//
-//      val varsI = freeVarsI.keySet
-//      val varsIplusone = freeVarsIplusone.keySet
-//
-//      val shared = varsI.intersect(varsIplusone)
-//      val nonshared = (varsI diff varsIplusone) union (varsIplusone diff varsI)
-//
-//      nonshared.foreach { nonsharedVar =>
-//        var foundAny = false
-//        ASTUtils.conjuncts(prunedContractI.pre_condition, Star, And, Wrap).forEach { stmt =>
-//          val found = ASTUtils.find_name(stmt, nonsharedVar)
-//          if (found) {
-//            cbDepCheck.requires(rewrite(stmt))
-//            foundAny = true
-//          }
-//        }
-//        if (!foundAny) {
-//          ASTUtils.conjuncts(prunedContractIPlusOne.pre_condition, Star, And, Wrap).forEach { stmt =>
-//            if (ASTUtils.find_name(stmt, nonsharedVar)) {
-//              cbDepCheck.requires(rewrite(stmt))
-//            }
-//          }
-//        }
-//      }
-//
-//      shared.foreach { sharedVar =>
-//        ASTUtils.conjuncts(prunedContractI.pre_condition, Star, And, Wrap).forEach { stmt =>
-//          if (ASTUtils.find_name(stmt, sharedVar)) {
-//            cbDepCheck.requires(rewrite(stmt))
-//          }
-//        }
-//      }
-//
-//
-//      val preiPlusOne = ASTUtils.conjuncts(prunedContractIPlusOne.pre_condition, Star, And, Wrap).asScala
-//        .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
-//        .map { pre =>
-//          val cp = new CollectPerms()
-//          cp.rewrite(pre)
-//          val res = cp.perm.get
-//          (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
-//        }
-//        .groupBy(_._1)
-//        .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
-//        .map { kv =>
-//          val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
-//            (prev, next) =>
-//              (prev._1 :+ next._1, prev._2 :+ next._2)
-//          }
-//          (kv._1, value)
-//        }
-//
-//      val posti = ASTUtils.conjuncts(prunedContractI.post_condition, Star, And, Wrap).asScala
-//        .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
-//        .map { pre =>
-//          val cp = new CollectPerms()
-//          cp.rewrite(pre)
-//          val res = cp.perm.get
-//          (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
-//        }
-//        .groupBy(_._1)
-//        .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
-//        .map { kv =>
-//          val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
-//            (prev, next) =>
-//              (prev._1 :+ next._1, prev._2 :+ next._2)
-//          }
-//          (kv._1, value)
-//        }
-//
-//      /*
-//                for each (consecutive) kernels i and i+1:
-//                    0. [DONE] ignore out all non-permission related contracts
-//                    1. [DONE] Replace all different thread identifiers in the separate kernels by a unique new thread identifier
-//                    2. [DONE] distinguish variables shared between the parblock contracts.
-//                    3. [DONE] Create an empty contract.
-//                    4. [DONE] for non-shared variables, add the precondition statements of both parblock contracts to
-//                        the new contract
-//                    5. [DONE] Add all preconditions of kernel i related to any shared variable
-//
-//                    6. [DONE] Construct a map from the patterns to a list of permissions (a[tid] -> ([1/4, 1/2], [pre1, pre2]))
-//                        for the postcondition of kernel i and the precondition of kernel i+1
-//
-//                    7. for each pattern e1 using a shared variable a in precondition PermPre(a[e1]) of kernel i+1,
-//                          search for the permission pattern e1 in the postcondition of kernel i,
-//                    7.1 [DONE] If the permission pattern e1 is not found,
-//                          add the precondition PermPre(a[e1]) in kernel i+1 to the new contract
-//                    7.2 [DONE] Else if, the permission fraction for a[e1] is the same as in the postcondition of kernel i,
-//                          then continue (the permission is already added in 2.)
-//                    7.3 [DONE] Else if the permission fraction for a[e1] is smaller than the permission in the postcondition of kernel i,
-//                          then continue (the permission is already added in 2.)
-//
-//                    7.4 Else if the permission fraction for a[e1] is larger than the permission in the postcondition of kernel i,
-//                          then add a separate permission predicate (Perm) for a[e1] with the difference (in permission) between kernel i+1 and i
-//                    // Only for merging, add the new permission predicate to the contract of existing barriers in kernel i
-//              */
-//
-//      preiPlusOne.foreach { kv =>
-//        if (!posti.contains(kv._1)) {
-//          kv._2._2.foreach(s => cbDepCheck.requires(rewrite(s))) // Do 7.1
-//        } else if (kv._2._1.map(interpretPermission).sum > posti(kv._1)._1.map(interpretPermission).sum) {
-//          // Do 7.4
-//          val additionalPerm = rewrite(minus(
-//            kv._2._1.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs))),
-//            posti(kv._1)._1.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))
-//          )
-//          )
-//          val newRequires = create.expression(Perm, rewrite(kv._1), additionalPerm)
-//          cbDepCheck.requires(newRequires)
-//        }
-//        // else if (posti(kv._1)._1 == kv._2._1) { // 7.2 Do nothing }
-//        // else if (kv._2._1 < posti(kv._1)._1 ) { // 7.3Do nothing }
-//      }
-//
-//    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    val newIter = create.field_decl(newTid.name, create.primitive_type(PrimitiveSort.Integer), rewrite(parBlocks.head.blocks.head.iters.head.init.get))
-    val parblock = create parallel_block(
-      "vct_fused_kernels",
-      cbParBlock.getContract(false),
-      scala.Array(newIter).toList.asJava,
-      parbody,
-      null
-    )
-    parblock
-  }
-
-  private def generateDepCheck(parBlocks: Seq[ParallelRegion], newTid: NameExpression): Method = {
-    val cbDepCheck = new ContractBuilder()
-    var i = 0
-    var shared = mutable.Set.empty[String]
-    var nonshared = mutable.Set.empty[String]
-    // For each parallel region
-    for (i <- 0 to parBlocks.size - 2) {
-      val prunedcbi = new ContractBuilder()
-
-      ASTUtils.conjuncts(parBlocks(i).blocks.head.contract.pre_condition, Star, And, Wrap).forEach { stmt =>
-        val cp = new CollectPerms()
-        cp.rewrite(stmt)
-        if (cp.perm.isDefined) {
-          prunedcbi.requires(stmt)
-        }
-      }
-      ASTUtils.conjuncts(parBlocks(i).blocks.head.contract.post_condition, Star, And, Wrap).forEach { stmt =>
-        val cp = new CollectPerms()
-        cp.rewrite(stmt)
-        if (cp.perm.isDefined) {
-          prunedcbi.ensures(stmt)
-        }
-      }
-      val prunedcbiplusone = new ContractBuilder()
-      ASTUtils.conjuncts(parBlocks(i + 1).blocks.head.contract.pre_condition, Star, And, Wrap).forEach { stmt =>
-        val cp = new CollectPerms()
-        cp.rewrite(stmt)
-        if (cp.perm.isDefined) {
-          prunedcbiplusone.requires(stmt)
-        }
-      }
-
-      val prunedContractI =
-        ASTUtils.replace(name(parBlocks(i).blocks.head.iters.head.name), newTid, prunedcbi.getContract()).asInstanceOf[Contract]
-      val prunedContractIPlusOne =
-        ASTUtils.replace(name(parBlocks(i + 1).blocks.head.iters.head.name), newTid, prunedcbiplusone.getContract()).asInstanceOf[Contract]
-
-      val freeVarsI = NameScanner.freeVars(prunedcbi.getContract().pre_condition).asScala
-        .filter(kv => SequenceUtils.getTypeInfo(kv._2) != null && SequenceUtils.getTypeInfo(kv._2).getSequenceSort.equals(Array))
-      val freeVarsIplusone = NameScanner.freeVars(prunedcbiplusone.getContract().pre_condition).asScala
-        .filter(kv => SequenceUtils.getTypeInfo(kv._2) != null && SequenceUtils.getTypeInfo(kv._2).getSequenceSort.equals(Array))
-
-      val varsI = freeVarsI.keySet
-      val varsIplusone = freeVarsIplusone.keySet
-
-      shared = shared union varsI.intersect(varsIplusone)
-      nonshared = nonshared union ((varsI diff varsIplusone) union (varsIplusone diff varsI))
-
+      /////////////////////////////
+      /// Data dependency check ///
+      /////////////////////////////
+      //TODO OS look at the data dependency check method again
+      val cbDepCheck = new ContractBuilder()
+      val cbFusedParBlock = new ContractBuilder()
 
       nonshared.foreach { nonsharedVar =>
         var foundAny = false
-        ASTUtils.conjuncts(prunedContractI.pre_condition, Star, And, Wrap).forEach { stmt =>
-          val found = ASTUtils.find_name(stmt, nonsharedVar)
-          if (found) {
+        ASTUtils.conjuncts(contractIPerm.pre_condition, Star, And, Wrap).forEach { stmt =>
+          if (ASTUtils.find_name(stmt, nonsharedVar)) {
             cbDepCheck.requires(rewrite(stmt))
+            cbFusedParBlock.requires(rewrite(stmt))
             foundAny = true
           }
         }
         if (!foundAny) {
-          ASTUtils.conjuncts(prunedContractIPlusOne.pre_condition, Star, And, Wrap).forEach { stmt =>
+          ASTUtils.conjuncts(contractIPlusOnePerm.pre_condition, Star, And, Wrap).forEach { stmt =>
             if (ASTUtils.find_name(stmt, nonsharedVar)) {
               cbDepCheck.requires(rewrite(stmt))
+              cbFusedParBlock.requires(rewrite(stmt))
             }
           }
         }
       }
 
       shared.foreach { sharedVar =>
-        ASTUtils.conjuncts(prunedContractI.pre_condition, Star, And, Wrap).forEach { stmt =>
+        ASTUtils.conjuncts(contractIPerm.pre_condition, Star, And, Wrap).forEach { stmt =>
           if (ASTUtils.find_name(stmt, sharedVar)) {
             cbDepCheck.requires(rewrite(stmt))
+            cbFusedParBlock.requires(rewrite(stmt))
+          }
+        }
+      }
+
+      nonshared.foreach { nonsharedVar =>
+        var foundAny = false
+        ASTUtils.conjuncts(contractIPerm.post_condition, Star, And, Wrap).forEach { stmt =>
+          if (ASTUtils.find_name(stmt, nonsharedVar)) {
+            cbFusedParBlock.ensures(rewrite(stmt))
+            foundAny = true
+          }
+        }
+        if (!foundAny) {
+          ASTUtils.conjuncts(contractIPlusOnePerm.post_condition, Star, And, Wrap).forEach { stmt =>
+            if (ASTUtils.find_name(stmt, nonsharedVar)) {
+              cbFusedParBlock.ensures(rewrite(stmt))
+            }
           }
         }
       }
 
 
-      val preiPlusOne = ASTUtils.conjuncts(prunedContractIPlusOne.pre_condition, Star, And, Wrap).asScala
+
+      val permPatternsIPlusOne = ASTUtils.conjuncts(contractIPlusOnePerm.pre_condition, Star, And, Wrap).asScala
+        .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
+        .map { pre =>
+          val cp = new CollectPerms()
+          cp.rewrite(pre)
+          val res = cp.perm.get
+          // (Pattern -> (permission, original precondition))
+          (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
+        }
+        .groupBy(_._1)
+        .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
+        .map { kv =>
+          val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
+            (prev, next) =>
+              (prev._1 :+ next._1, prev._2 :+ next._2)
+          }
+          (kv._1, value)
+        }
+
+      val permPatternsIPlusOnePost = ASTUtils.conjuncts(contractIPlusOnePerm.post_condition, Star, And, Wrap).asScala
+        .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
+        .map { pre =>
+          val cp = new CollectPerms()
+          cp.rewrite(pre)
+          val res = cp.perm.get
+          // (Pattern -> (permission, original precondition))
+          (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
+        }
+        .groupBy(_._1)
+        .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
+        .map { kv =>
+          val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
+            (prev, next) =>
+              (prev._1 :+ next._1, prev._2 :+ next._2)
+          }
+          (kv._1, value)
+        }
+
+      val permPatternsI = ASTUtils.conjuncts(contractIPerm.pre_condition, Star, And, Wrap).asScala
         .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
         .map { pre =>
           val cp = new CollectPerms()
@@ -492,7 +310,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           (kv._1, value)
         }
 
-      val posti = ASTUtils.conjuncts(prunedContractI.post_condition, Star, And, Wrap).asScala
+      val permPatternsIPost = ASTUtils.conjuncts(contractIPerm.post_condition, Star, And, Wrap).asScala
         .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
         .map { pre =>
           val cp = new CollectPerms()
@@ -510,76 +328,200 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           (kv._1, value)
         }
 
-      /*
-                for each (consecutive) kernels i and i+1:
-                    0. [DONE] ignore out all non-permission related contracts
-                    1. [DONE] Replace all different thread identifiers in the separate kernels by a unique new thread identifier
-                    2. [DONE] distinguish variables shared between the parblock contracts.
-                    3. [DONE] Create an empty contract.
-                    4. [DONE] for non-shared variables, add the precondition statements of both parblock contracts to
-                        the new contract
-                    5. [DONE] Add all preconditions of kernel i related to any shared variable
+      permPatternsIPlusOne.foreach { case (patt, (perms, conditions)) =>
+        if (!permPatternsIPost.contains(patt)) { // Do 5.1
+          // Precondition     Permissions
+          conditions.foreach { s =>
+            cbDepCheck.requires(rewrite(s))
+            cbFusedParBlock.requires(rewrite(s))
+          }
+          // Precondition     Functional
+          // TODO OS
 
-                    6. [DONE] Construct a map from the patterns to a list of permissions (a[tid] -> ([1/4, 1/2], [pre1, pre2]))
-                        for the postcondition of kernel i and the precondition of kernel i+1
+          // Postcondition    Permissions
+          // Do 2.2.1.1
+          val sharedVars = NameScanner.freeVars(patt).asScala.filter(!_._1.equals(newTid.name))
+          sharedVars.foreach { case (varName, varType) =>
+            permPatternsIPost.foreach { case (pattIPost, (permsIPlusOnePost, conditionsIPost)) =>
+              if (ASTUtils.find_name(pattIPost, varName)) {
+                //TODO OS can you get duplicates
+                conditionsIPost.foreach(st => cbFusedParBlock.ensures(copy_rw.rewrite(st)))
+              }
+            }
+            permPatternsIPlusOnePost.foreach { case (pattIPlusOnePost, (_, conditionsIPlusOnePost)) =>
+              if (ASTUtils.find_name(pattIPlusOnePost, varName)) {
+                conditionsIPlusOnePost.foreach(st => cbFusedParBlock.ensures(copy_rw.rewrite(st)))
+              }
+            }
+          }
 
-                    7. for each pattern e1 using a shared variable a in precondition PermPre(a[e1]) of kernel i+1,
-                          search for the permission pattern e1 in the postcondition of kernel i,
-                    7.1 [DONE] If the permission pattern e1 is not found,
-                          add the precondition PermPre(a[e1]) in kernel i+1 to the new contract
-                    7.2 [DONE] Else if, the permission fraction for a[e1] is the same as in the postcondition of kernel i,
-                          then continue (the permission is already added in 2.)
-                    7.3 [DONE] Else if the permission fraction for a[e1] is smaller than the permission in the postcondition of kernel i,
-                          then continue (the permission is already added in 2.)
-
-                    7.4 Else if the permission fraction for a[e1] is larger than the permission in the postcondition of kernel i,
-                          then add a separate permission predicate (Perm) for a[e1] with the difference (in permission) between kernel i+1 and i
-                    // Only for merging, add the new permission predicate to the contract of existing barriers in kernel i
-              */
-
-      preiPlusOne.foreach { kv =>
-        if (!posti.contains(kv._1)) {
-          kv._2._2.foreach(s => cbDepCheck.requires(rewrite(s))) // Do 7.1
-        } else if (kv._2._1.map(interpretPermission).sum > posti(kv._1)._1.map(interpretPermission).sum) {
-          // Do 7.4
+          // Postcondition    Functional
+          // TODO OS
+        } else if (perms.map(interpretPermission).sum == permPatternsIPost(patt)._1.map(interpretPermission).sum) { // Do 5.2
+          // Precondition     Permissions
+          // Do nothing
+          // Precondition     Functional
+          // TODO OS
+          // Postcondition    Permissions
+          // See below
+          // Postcondition    Functional
+          // TODO OS
+        } else if (perms.map(interpretPermission).sum < permPatternsIPost(patt)._1.map(interpretPermission).sum) { // Do 5 .3
+          // Precondition     Permissions
+          // Do nothing
+          // Precondition     Functional
+          // TODO OS
+          // Postcondition    Permissions
+          // See below
+          // Postcondition    Functional
+          // TODO OS
+        } else if (perms.map(interpretPermission).sum > permPatternsIPost(patt)._1.map(interpretPermission).sum) { // Do 5.4
+          // Precondition     Permissions
           val additionalPerm = rewrite(minus(
-            kv._2._1.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs))),
-            posti(kv._1)._1.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))
+            perms.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs))),
+            permPatternsIPost(patt)._1.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))
           )
           )
-          val newRequires = create.expression(Perm, rewrite(kv._1), additionalPerm)
+          val newRequires = create.expression(Perm, rewrite(patt), additionalPerm)
           cbDepCheck.requires(newRequires)
+          cbFusedParBlock.requires(newRequires)
+          // Precondition     Functional
+          // TODO OS
+          // Postcondition    Permissions
+          // See below
+          // Postcondition    Functional
+          // TODO OS
         }
-        // else if (posti(kv._1)._1 == kv._2._1) { // 7.2 Do nothing }
-        // else if (kv._2._1 < posti(kv._1)._1 ) { // 7.3Do nothing }
+
+        if (permPatternsIPost.contains(patt)) {
+          // Postcondition    Permissions
+          // So case 5.2, 5.3 or 5.4
+          // Do 2.2.1.2
+          val sharedVars = NameScanner.freeVars(patt).asScala.filter(!_._1.equals(newTid.name))
+          val permPatternsFusedPre = ASTUtils.conjuncts(cbFusedParBlock.getContract(false).pre_condition, Star, And, Wrap).asScala
+            .filter(pre => sharedVars.keySet.exists(ASTUtils.find_name(pre, _)))
+            .map { pre =>
+              val cp = new CollectPerms()
+              cp.rewrite(pre)
+              val res = cp.perm.get
+              // (Pattern -> (permission, original precondition))
+              (rewrite(res.first), rewrite(res.second))
+            }
+            .groupBy(_._1)
+            .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
+            .map { kv =>
+              val value = kv._2.foldLeft(Seq.empty[ASTNode]) { (prev, next) => prev :+ next }
+              (kv._1, value)
+              // (Pattern -> [permission]
+            }
+
+          //Do 2.2.1.
+          sharedVars.foreach { sharedVar =>
+            val sharedIPlusOnePost = permPatternsIPlusOnePost
+              .filter { case (pattern, (perms, conditions)) => ASTUtils.find_name(pattern, sharedVar._1) }
+
+            //Do 2.2.1.2.2
+            val totalPermsFusedPre = permPatternsFusedPre
+              .filter { case (pattern, _) => ASTUtils.find_name(pattern, newTid.name) && ASTUtils.find_name(pattern, sharedVar._1) }
+              .map { case (patt, perms) => (patt, perms.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))) }
+              .values
+              .reduce((lhs, rhs) => plus(lhs, rhs))
+
+            //Do 2.2.1.2.3
+
+            val totalPermIPre = permPatternsI
+              .filter { case (pattern, _) => ASTUtils.find_name(pattern, newTid.name) && ASTUtils.find_name(pattern, sharedVar._1) }
+              .map { case (patt, (perms, _)) => (patt, perms.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))) }
+              .values
+              .reduce((lhs, rhs) => plus(lhs, rhs))
+            val totalPermIPost = permPatternsIPost
+              .filter { case (pattern, _) => ASTUtils.find_name(pattern, newTid.name) && ASTUtils.find_name(pattern, sharedVar._1) }
+              .map { case (patt, (perms, _)) => (patt, perms.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))) }
+              .values
+              .reduce((lhs, rhs) => plus(lhs, rhs))
+
+            val totalPermIPlusOnePre = permPatternsIPlusOne
+              .filter { case (pattern, _) => ASTUtils.find_name(pattern, newTid.name) && ASTUtils.find_name(pattern, sharedVar._1) }
+              .map { case (patt, (perms, _)) => (patt, perms.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))) }
+              .values
+              .reduce((lhs, rhs) => plus(lhs, rhs))
+
+            val totalPermIPlusOnePost = permPatternsIPlusOnePost
+              .filter { case (pattern, _) => ASTUtils.find_name(pattern, newTid.name) && ASTUtils.find_name(pattern, sharedVar._1) }
+              .map { case (patt, (perms, _)) => (patt, perms.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))) }
+              .values
+              .reduce((lhs, rhs) => plus(lhs, rhs))
+
+            val diffI = minus(totalPermIPre, totalPermIPost)
+            val diffIPlusOne = minus(totalPermIPlusOnePre, totalPermIPlusOnePost)
+            val lostPerms = plus (diffI, diffIPlusOne)
+            val newPerm = minus(totalPermsFusedPre, lostPerms)
+
+            sharedIPlusOnePost.foreach { case (pattern, (_, permStmts)) =>
+              permStmts.foreach { permStmt =>
+                cbFusedParBlock.ensures(replacePerm(pattern, newPerm, permStmt))
+              }
+            }
+          }
+        }
       }
 
+
+      val depCheckParBlock = create.parallel_block(
+        "vct_fused_dep_check",
+        cbDepCheck.getContract(),
+        scala.Array(create.field_decl(newTid.name, create.primitive_type(PrimitiveSort.Integer), rewrite(parBlocks.head.blocks.head.iters.head.init.get))).toList.asJava,
+        create.block(),
+        scala.Array.empty[ASTNode].toSeq.asJava.toArray(scala.Array.empty[ASTNode])
+      )
+      val depCheckParRegion = create.region(null, null, depCheckParBlock)
+      val cbDepCheckMethod = new ContractBuilder()
+      cbDepCheckMethod.requires(copy_rw.rewrite(current_method().getContract().pre_condition))
+      cbDepCheckMethod.`given`(copy_rw.rewrite(current_method().getContract().`given`): _*)
+      cbDepCheckMethod.yields(copy_rw.rewrite(current_method().getContract().yields): _*)
+      cbDepCheckMethod.appendInvariant(copy_rw.rewrite(current_method().getContract().invariant))
+
+      val depCheckMethod = create.method_decl(
+        create.primitive_type(PrimitiveSort.Void),
+        cbDepCheckMethod.getContract,
+        "vct_dependency_check_" + current_method().name,
+        copy_rw.rewrite(current_method().getArgs),
+        create.block().add(depCheckParRegion)
+      )
+      depCheckMethod.setStatic(false)
+
+      Output("%s", depCheckMethod)
+
+      //      methodsWithFusion(current_method().name) = methodsWithFusion(current_method().name) ++ mutable.Buffer(dataDepCheckMethod)
+
+      ///////////////////////////
+      /// Create fused kernel ///
+      ///////////////////////////
+      val newIter = create.field_decl(newTid.name, create.primitive_type(PrimitiveSort.Integer), rewrite(parBlocks.head.blocks.head.iters.head.init.get))
+      val newLabel = "vct_fused_kernels"
+      val newParBlock = create parallel_block(
+        newLabel,
+        cbFusedParBlock.getContract(false),
+        scala.Array(newIter).toList.asJava,
+        newParBody,
+        null
+      )
+      kernelZeroToI = create.region(null, null, newParBlock)
     }
 
-    val depCheckParBlock = create.parallel_block(
-      "vct_fused_dep_check",
-      cbDepCheck.getContract(),
-      scala.Array(create.field_decl(newTid.name, create.primitive_type(PrimitiveSort.Integer), rewrite(parBlocks.head.blocks.head.iters.head.init.get))).toList.asJava,
-      create.block(),
-      scala.Array.empty[ASTNode].toSeq.asJava.toArray(scala.Array.empty[ASTNode])
-    )
 
-    val depCheckParRegion = create.region(null, null, depCheckParBlock)
-    val cbDepCheckMethod = new ContractBuilder()
-    cbDepCheckMethod.requires(copy_rw.rewrite(current_method().getContract().pre_condition))
-    cbDepCheckMethod.`given`(copy_rw.rewrite(current_method().getContract().`given`): _*)
-    cbDepCheckMethod.yields(copy_rw.rewrite(current_method().getContract().yields): _*)
-    cbDepCheckMethod.appendInvariant(copy_rw.rewrite(current_method().getContract().invariant))
+    kernelZeroToI
+  }
 
-    val depCheckMethod = create.method_decl(
-      create.primitive_type(PrimitiveSort.Void),
-      cbDepCheckMethod.getContract,
-      "vct_dependency_check_" + current_method().name,
-      copy_rw.rewrite(current_method().getArgs),
-      create.block().add(depCheckParRegion)
-    )
-    depCheckMethod.setStatic(false)
-    depCheckMethod
+  def replacePerm(pattern: ASTNode, newPerm: ASTNode, tree: ASTNode): ASTNode = {
+    val rw = new AbstractRewriter(null.asInstanceOf[ProgramUnit]) {
+      override def visit(e: OperatorExpression): Unit = {
+        if (e.operator == Perm)
+          result = create.expression(Perm, rewrite(e.first), copy_rw.rewrite(newPerm))
+        else super.visit(e)
+      }
+    }
+    rw.rewrite(tree)
   }
 
   def interpretPermission(perm: ASTNode): scala.Float = {
