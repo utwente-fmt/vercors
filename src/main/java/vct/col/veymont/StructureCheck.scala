@@ -1,6 +1,6 @@
 package vct.col.veymont
 
-import hre.lang.System.Fail
+import hre.lang.System.{Fail, Failure}
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
@@ -112,7 +112,7 @@ class StructureCheck(source : ProgramUnit) {
   private def checkMainConstructor() : Unit  = {
     val roles : Array[ASTNode] = getMainConstructor().getBody match {
       case b: BlockStatement => b.getStatements
-      case _ => Fail("Constructor of 'Main' must have a body of type BlockStatement, i.e. be defined!"); Array()
+      case _ => throw Failure("Constructor of 'Main' must have a body of type BlockStatement, i.e. be defined!")
     }
     if(roles.length == 0)
       Fail("VeyMont Fail: Main constructor is mandatory and  must assign at least one role!")

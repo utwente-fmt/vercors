@@ -103,7 +103,7 @@ public class JavaEncoder extends AbstractRewriter {
   
   @Override
   public void visit(Dereference d){
-    if(d.field().equals(Dereference$.MODULE$.ArrayLength()) || d.field().equals("item")) {
+    if(d.field().equals(Dereference.ArrayLength()) || d.field().equals("item")) {
       super.visit(d);
       return;
     }

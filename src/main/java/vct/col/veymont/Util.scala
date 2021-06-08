@@ -1,5 +1,6 @@
 package vct.col.veymont
 
+import hre.lang.System.Failure
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
@@ -69,7 +70,7 @@ object Util {
           case a: AssignmentStatement => getChanFromMethodInvokation(a.expression)
           case o: ASTNode => getChanFromMethodInvokation(o)
         })
-      case _ => error("VeyMont Fail: expected BlockStatement"); Set()
+      case _ => throw Failure("VeyMont Fail: expected BlockStatement")
     }
   }
 
@@ -79,10 +80,10 @@ object Util {
         if (m.method == chanReadMethodName || m.method == chanWriteMethodName) {
           Set(m)
         } else {
-          Set(): Set[MethodInvokation]
+          Set.empty[MethodInvokation]
         }
       }
-      case _ => Set(): Set[MethodInvokation]
+      case _ => Set.empty[MethodInvokation]
     }
   }
 

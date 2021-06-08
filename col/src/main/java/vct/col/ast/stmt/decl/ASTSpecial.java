@@ -120,7 +120,7 @@ public class ASTSpecial extends ASTDeclaration {
     /**
      * Represents unobservable action
      */
-    TauAction
+    TauAction(0)
     ;
 
     

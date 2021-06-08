@@ -19,7 +19,7 @@ object TerminationCheck {
 
 class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisitor(null, true) {
 
-  private var encountered : Set[String] = Set()
+  private var encountered = Set.empty[String]
   private var methodCalled = false
   private var currentClass : String = null
   private val methods =  getAllMethods(source)
@@ -32,7 +32,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
 
   def checkTermination(): Unit = {
     methods.foreach(m => {
-      encountered = Set()
+      encountered = Set.empty
       m._1.accept(this)
     })
   }
@@ -47,7 +47,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
           if (methodCalled)
             methodCalled = false
           else
-            encountered = Set()
+            encountered = Set.empty
         //  if (!(c.name == mainClassName && m.kind != Method.Kind.Pure)) //recursion is allowed in non-pure main methods
             encountered += m.name
           currentClass = c.name

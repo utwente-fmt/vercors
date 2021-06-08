@@ -5,7 +5,7 @@ import vct.col.ast.stmt.composite.Hole
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
 object Dereference {
-  val ArrayLength = "length"
+  val ArrayLength : String = "length"
 }
 
 case class Dereference(val obj:ASTNode, val field:String) extends ASTNode with VisitorHelper {

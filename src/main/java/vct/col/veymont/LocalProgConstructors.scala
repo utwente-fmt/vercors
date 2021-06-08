@@ -17,7 +17,7 @@ import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
   */
 class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
-  var chanMap : Map[String,Set[ChannelRepr]] = Map()
+  var chanMap = Map.empty[String,Set[ChannelRepr]]
 
   def addChansToConstructors : ProgramUnit = {
     for(entry <- source.get()) {
@@ -51,7 +51,7 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
                           create.argument_name(chan.getArgChanName()))).toArray
       val threadDecl : Array[ASTNode] = m.getBody match {
           case b : BlockStatement => b.getStatements
-        case _ => Fail("Constructor %s must have a BlockStatement body",m.name); Array[ASTNode]()
+        case _ => throw Failure("Constructor %s must have a BlockStatement body",m.name)
       }
       val allStats = rewrite(threadDecl) ++ chanDecls
       val args : Array[DeclarationStatement] = rewrite(m.getArgs) ++ chanArgs.toArray[DeclarationStatement]

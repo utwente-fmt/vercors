@@ -43,7 +43,7 @@ class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter
   override def visit(s : IfStatement) = {
     val stats : Seq[BlockStatement] = (0 until s.getCount).map(s.getStatement).filter {
       case b: BlockStatement => true
-      case _ => Fail("VeyMont Fail: expected BlockStatement in IfStatementCase"); false
+      case _ => throw Failure("VeyMont Fail: expected BlockStatement in IfStatementCase")
     }.asInstanceOf[Seq[BlockStatement]]
       .map(b => create.block(prependBarrier(b): _*))
     result = create.ifthenelse(rewrite(s.getGuard(0)),stats:_*)

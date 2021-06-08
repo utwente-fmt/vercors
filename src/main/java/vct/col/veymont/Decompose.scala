@@ -20,8 +20,8 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   private val roleOrOtherClass = StructureCheck.getRoleOrHelperClass(source)
   private var roleName : String = null
 
-  private var chans : Set[ChannelRepr] = Set()
-  private var cloneClasses : Set[ASTDeclaration] = Set()
+  private var chans = Set.empty[ChannelRepr]
+  private var cloneClasses = Set.empty[ASTDeclaration]
 
   def addThreadClasses() : ProgramUnit = {
     roleNames.foreach(role => {
@@ -33,7 +33,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         val chanTypes = chans.map(_.chanType match {
           case p : PrimitiveType => Left(p)
           case ct : ClassType => Right(roleOrOtherClass.find(_.name == ct.getName).get)
-          case o => {Fail("VeyMont Fail: Unexpected channel type: %s",o);Left(create.primitive_type(PrimitiveSort.Void))}
+          case o => throw Failure("VeyMont Fail: Unexpected channel type: %s",o)
         })
         val chanClassProg = new ProgramUnit()
         chanClassProg.add(c)
@@ -54,7 +54,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   private def createThreadClass(role : String) = {
     create.enter()
     roleName = role
-    chans = Set()
+    chans = Set.empty
     create.setOrigin(new MessageOrigin("Generated thread class " + roleName))
     val threadName = getThreadClassName(roleName)
     val thread = create.new_class(threadName,null,null)
@@ -69,7 +69,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
 
   private def addClone(c : ASTClass) : ASTClass = {
     c.methods().find(_.name == cloneMethod) match {
-      case Some(_) => Fail("VeyMont Fail: Class %s is not allowed to have a method with name '%s'",c.name,cloneMethod); c
+      case Some(_) => throw Failure("VeyMont Fail: Class %s is not allowed to have a method with name '%s'",c.name,cloneMethod)
       case None => {
         create.enter()
         create.setOrigin(new MessageOrigin("Generated clone method in class " + c.name))

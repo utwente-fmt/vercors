@@ -22,7 +22,6 @@ public class Aldebaran {
         if (!in.hasNextLine()) throw new IllegalArgumentException();
 
         String l;
-        var b = new StringBuilder();
 
         /*
          * Parse header
@@ -30,7 +29,6 @@ public class Aldebaran {
 
         l = in.nextLine();
         if (!l.startsWith("des (") || !l.endsWith(")")) throw new IllegalArgumentException();
-        b.append(l).append("\n");
 
         l = l.substring(5, l.length() - 1);
         var tokens = l.split(",");
@@ -52,7 +50,6 @@ public class Aldebaran {
         while (in.hasNextLine()) {
             l = in.nextLine();
             if (!l.startsWith("(") || !l.endsWith(")")) throw new IllegalArgumentException();
-            b.append(l).append("\n");
 
             l = l.substring(1, l.length() - 1);
             if (l.indexOf(",") == l.lastIndexOf(",")) throw new IllegalArgumentException();
@@ -78,7 +75,6 @@ public class Aldebaran {
             if (!transitions.containsKey(i)) transitions.put(i, new LinkedHashMap<>());
         }
 
-        //assert b.toString().strip().equals(toString()) : "\n\n" + b.toString().strip() + "\n\n -- input (above) vs. output (below) -- \n\n" + toString() + "\n";
     }
 
     public boolean statesAllMatch(Predicate<Integer> p) {

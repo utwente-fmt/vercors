@@ -170,7 +170,7 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
   }
 
   public void visit(Dereference e){
-    if (e.field().equals(Dereference$.MODULE$.ArrayLength())){
+    if (e.field().equals(Dereference.ArrayLength())){
       super.visit(e);
       return;
     }

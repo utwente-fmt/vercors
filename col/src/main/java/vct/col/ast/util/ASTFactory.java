@@ -329,7 +329,7 @@ public class ASTFactory<E> implements FrameControl {
   /** Create a length dereference for array objects
    */
   public Dereference array_length_dereference(ASTNode object) {
-    return dereference(object, Dereference$.MODULE$.ArrayLength());
+    return dereference(object, Dereference.ArrayLength());
   }
 
   /**

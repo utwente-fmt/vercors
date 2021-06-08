@@ -65,7 +65,7 @@ final class LTSTransition(val label : LTSLabel, val destState : LTSState) {
 class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends AbstractRewriter(null, true){
 
   private var initialState : LTSState = null
-  private var transitions : Map[LTSState,Set[LTSTransition]] = Map()
+  private var transitions = Map.empty[LTSState,Set[LTSTransition]]
   private var roleNames : Iterable[String] = null
   private var roleName : String = null
 
@@ -83,7 +83,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       roleNames = roleClasses.map(c => getRoleName(c.name))
       roleClasses.foreach{ thread =>
         initialState = null
-        transitions = Map()
+        transitions = Map.empty
         roleName = thread.fields().head.name
         generateLTS(thread)
         print()
@@ -103,22 +103,20 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         out.println("(" + stateMap(src) + ",\"" + tr.label + "\"," + stateMap(tr.destState) + ")")
       })
     }
-    //out.println("\nStates:")
-    //stateMap.foreach{ case (s,i) => out.println(i + ": " + s)}
   }
 
   private def print() : Unit = {
     try {
-      val f = if(isGlobal) new File(session_global_lts) else new File(session_local_lts);
-      val b = f.createNewFile();
+      val f = if(isGlobal) new File(session_global_lts) else new File(session_local_lts)
+      val b = f.createNewFile()
       if (!b) {
-        Debug("File %s already exists and is now overwritten", f.toString);
+        Debug("File %s already exists and is now overwritten", f.toString)
       }
-      val out = new PrintWriter(new FileOutputStream(f));
+      val out = new PrintWriter(new FileOutputStream(f))
       print(out)
-      out.close();
+      out.close()
     } catch {
-      case e: IOException => Debug(e.getMessage);
+      case e: IOException => Debug(e.getMessage)
     }
   }
 
@@ -229,11 +227,11 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
           case an : AssignmentStatement => an.location match {
             case d : Dereference => Set(d.obj.asInstanceOf[NameExpression].name)
             case n : NameExpression => Set(n.name)
-            case _ => Fail("VeyMont Fail: cannot determine subject of  assignment " + a.toString); Set.empty
+            case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
           }
           case m : MethodInvokation => m.`object` match {
             case n : NameExpression => Set(n.name)
-            case _ => Fail("VeyMont Fail: cannot determine subject of  assignment " + a.toString); Set.empty
+            case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
           }
         }
         case CommunicationAction(receiver,_, sender, _) =>
@@ -299,8 +297,8 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     case op : OperatorExpression =>
       if(op.operator == StandardOperator.Subscript)
         getFieldFromDereference(op.arg(0))
-      else Fail("VeyMont Fail: not an array element!"); ""
-    case _ => Fail("VeyMont Fail: not a Dereference! %s",n); ""
+      else throw Failure("VeyMont Fail: not an array element!")
+    case _ => throw Failure("VeyMont Fail: not a Dereference! %s",n)
   }
 
   def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {

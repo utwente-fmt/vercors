@@ -15,12 +15,12 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
         if(isThreadClassName(c.name) && m.kind != Method.Kind.Pure && m.kind != Method.Kind.Predicate) {
           val chans : Set[ChannelRepr] = m.getBody match {
             case b : BlockStatement => getChans(b)
-            case _ => Fail("VeyMont Fail: Body of method %s in class %s is not a BlockStatement\n",m.name,c.name); Set()
+            case _ => throw Failure("VeyMont Fail: Body of method %s in class %s is not a BlockStatement",m.name,c.name)
           }
           if(chans.nonEmpty) {
             result = create.method_decl(m.getReturnType, extendContract(chans, m.getContract(), false), m.name, m.getArgs, rewrite(m.getBody))
           } else {
-            super.visit(m);
+            super.visit(m)
           }
         } else {
           super.visit(m)
@@ -42,7 +42,7 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
   override def visit(l : LoopStatement) = {
     val chans = l.getBody match {
       case b : BlockStatement => getChans(b)
-      case _ => Fail("VeyMont Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin); Set() : Set[ChannelRepr]
+      case _ => throw Failure("VeyMont Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin)
     }
     if(chans.nonEmpty) {
       if(l.getExitGuard != null) {
@@ -64,8 +64,8 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
 
   private def getChans(b : BlockStatement): Set[ChannelRepr] = {
     getChansFromBlockStateMent(b).flatMap(m => m.`object` match {
-      case n: NameExpression => if (isChanName(n.name)) Set(new ChannelRepr(n.name, m.method == chanWriteMethodName,null)) else Set()  : Set[ChannelRepr]
-      case _ => Set() : Set[ChannelRepr]
+      case n: NameExpression => if (isChanName(n.name)) Set(new ChannelRepr(n.name, m.method == chanWriteMethodName,null)) else Set.empty[ChannelRepr]
+      case _ => Set.empty[ChannelRepr]
     })
   }
 

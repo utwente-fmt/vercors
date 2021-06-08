@@ -1170,7 +1170,8 @@ public class PVLPrinter extends AbstractPrinter{
         for (DeclarationStatement iter : pb.itersJava()) {
             out.print("(");
             setExpr();
-            //iter.accept(this);
+            if (j > 0) out.printf(",");
+            j++;
             ASTNode expr = iter.initJava();
             nextExpr();
             iter.getType().accept(this);
@@ -1182,11 +1183,11 @@ public class PVLPrinter extends AbstractPrinter{
                     ((OperatorExpression) expr).arg(0).accept(this);
                     out.print(" .. ");
                     ((OperatorExpression) expr).arg(1).accept(this);
+                } else {
+                    Fail("Unexpected DeclarationStatement in iters of ParallelBlock");
                 }
                 //expr.accept(this);
             }
-            if (j > 0) out.printf(",");
-            j++;
             out.println(")");
         }
 

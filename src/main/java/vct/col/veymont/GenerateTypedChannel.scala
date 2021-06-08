@@ -61,7 +61,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
                   case PrimitiveSort.Boolean => create.constant(true)
                   case PrimitiveSort.Integer => create.constant(0)
                   case PrimitiveSort.Double => val d : Double = 0.1; create.constant(d)
-                  case _ => Fail("VeyMont Fail: Could not generate channel of type %s",cl.name); create.constant(true)
+                  case _ => throw Failure("VeyMont Fail: Could not generate channel of type %s",cl.name)
                 }
               })
               val initValueField = create.invokation(null,create.class_type(cl.name),Method.JavaConstructor,dummyArgs:_*)

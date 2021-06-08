@@ -32,7 +32,7 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
       (barrierVar +: (chansVars ++ threadVars ++ threadForks ++ threadJoins)):_*)
     val void = create.primitive_type(PrimitiveSort.Void)
-    val noArgs = Array() : Array[DeclarationStatement]
+    val noArgs = Array.empty[DeclarationStatement]
     val mainMethod = create.method_decl(void,new ContractBuilder().getContract,localMainClassName,noArgs,body)
     mainClass.add_static(mainMethod)
     mainClass
