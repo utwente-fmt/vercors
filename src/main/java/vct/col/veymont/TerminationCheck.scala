@@ -1,17 +1,12 @@
 package vct.col.veymont
 
-import vct.col.ast.`type`.PrimitiveType
-import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.expr._
-import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl._
-import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.RecursiveVisitor
 import Util.{isNoBarrierOrChannelClass, mainClassName}
 import vct.col.veymont.TerminationCheck.deadlockWarning
-
-import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
+import scala.jdk.CollectionConverters._
 
 object TerminationCheck {
   private val deadlockWarning = " might not terminate, deadlock-freedom cannot be guaranteed! "
@@ -25,8 +20,8 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
   private val methods =  getAllMethods(source)
 
   private def getAllMethods(source : ProgramUnit) : Iterable[(Method,String)] =
-    source.get().filter(_.isInstanceOf[ASTClass]).map(_.asInstanceOf[ASTClass])
-      .filter(c => isNoBarrierOrChannelClass(c.name)).flatMap(c => c.methods().map((_,c.name)))
+    source.get().asScala.filter(_.isInstanceOf[ASTClass]).map(_.asInstanceOf[ASTClass])
+      .filter(c => isNoBarrierOrChannelClass(c.name)).flatMap(c => c.methods().asScala.map((_,c.name)))
 
 
 
@@ -105,7 +100,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
     }
   }
 
-  def MethodInvToString(mi : MethodInvokation) = mi.method //(if (mi.`object`==null) "" else mi.`object`.toString) + mi.method
+  def MethodInvToString(mi : MethodInvokation): String = mi.method //(if (mi.`object`==null) "" else mi.`object`.toString) + mi.method
 
   override def visit(l : LoopStatement) : Unit =
     if(currentClass != mainClassName)
@@ -124,76 +119,5 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
       case _ => super.visit(s)
     }
   }
-/*
-  private def isForLoop(l : LoopStatement) : Boolean = {
-    val guardOp = l.getEntryGuard.asInstanceOf[OperatorExpression]
-    val initval = l.getInitBlock.asInstanceOf[BlockStatement].getStatement(0).asInstanceOf[VariableDeclaration].get().head.asInstanceOf[DeclarationStatement].init.get.asInstanceOf[ConstantExpression]
-
-    val updateOp = l.getUpdateBlock.asInstanceOf[BlockStatement].getStatement(0)
-    //TODO: get Value from initval
-    if(isLengthExpr(guardOp.arg(1)))
-      initval.value == 0 && Set(StandardOperator.LT).contains(guardOp.operator) && updateOp.operator == StandardOperator.PostIncr
-    else initval.value < guardOp.arg(1).asInstanceOf[ConstantExpression].value && updateOp.operator == StandardOperator.PostIncr ||
-      initval.value > guardOp.arg(1).asInstanceOf[ConstantExpression].value && updateOp.operator == StandardOperator.PostDecr
-  }
-*/
-  private def isLengthExpr(e : ASTNode) : Boolean = e match {
-    case d : Dereference => d.field == Dereference.ArrayLength
-    case _ => false
-  }
-
-  //TODO: check declaration has int type
-  private def isConstantInitDecl(i : ASTNode) : Boolean =
-    i match {
-      case ib : BlockStatement =>
-        ib.size == 1 && (ib.getStatement(0) match {
-          case init : VariableDeclaration =>
-            init.basetype match {
-              case p : PrimitiveType => p.isInteger && init.get().size == 1 && (init.get().head match {
-                case d : DeclarationStatement => d.init match {
-                  case Some(initval) => initval.isInstanceOf[ConstantExpression]
-                  case None => false
-                }
-                case _ => false
-              })
-              case _ => false
-            }
-          case _ => false
-        })
-      case _ => false
-    }
-
-  private def isConstantOpGuard(g : ASTNode, itName : String) =
-    g match {
-      case op : OperatorExpression =>
-        Set(StandardOperator.LT, StandardOperator.LTE,StandardOperator.GT, StandardOperator.GTE).contains(op.operator) &&
-          op.argslength == 2 && isItName(op.arg(0), itName) && isConstantOrLength(op.arg(1))
-      case _ => false
-    }
-
-  private def isConstantOrLength(e : ASTNode) : Boolean = e match {
-    case c : ConstantExpression => true
-    case d : Dereference => d.field == Dereference.ArrayLength
-    case _ => false
-  }
-
-  private def isItName(e : ASTNode, itName : String) : Boolean = e match {
-    case n : NameExpression => n.name == itName
-    case _ => false
-  }
-
-  private def isConstantUpdate(u : ASTNode, itName : String) : Boolean = u match {
-    case ub: BlockStatement =>
-      ub.size == 1 && (ub.getStatement(0) match {
-        case op : OperatorExpression => Set(StandardOperator.PostDecr, StandardOperator.PostIncr).contains(op.operator) && op.argslength == 1 && isItName(op.arg(0),itName)
-        case a : AssignmentStatement => isItName(a.location,itName) && (a.expression match {
-          case aop : OperatorExpression => Set(StandardOperator.Plus,StandardOperator.Minus).contains(aop.operator) &&
-            aop.argslength == 2 && isItName(aop.arg(0), itName) && aop.arg(1).isInstanceOf[ConstantExpression]
-        })
-        case _ => false
-      })
-    case _ => false
-  }
-
 
 }

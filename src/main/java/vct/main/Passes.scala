@@ -938,11 +938,11 @@ object Passes {
     SimplePass("VeyMontBarrier", "generate barrier annotations",
       new GenerateBarrier(_).rewriteAll),
     SimplePass("VeyMontLocalProgConstr", "add constructors to the local program classes",
-      new LocalProgConstructors(_).addChansToConstructors),
+      new LocalProgConstructors(_).addChansToConstructors()),
     SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
       new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
-      new GenerateForkJoinMain(_).addStartThreadClass),
+      new GenerateForkJoinMain(_).addStartThreadClass()),
   )
 
   val BY_KEY: Map[String, AbstractPass] = (

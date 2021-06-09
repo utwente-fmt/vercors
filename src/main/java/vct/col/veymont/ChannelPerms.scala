@@ -9,7 +9,7 @@ import vct.col.veymont.Util.{chanWriteMethodName, getChansFromBlockStateMent, is
 
 class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(null, true) {
 
-  override def visit(m : Method) = {
+  override def visit(m : Method) : Unit = {
     m.getParent match {
       case c : ASTClass => {
         if(isThreadClassName(c.name) && m.kind != Method.Kind.Pure && m.kind != Method.Kind.Predicate) {
@@ -30,7 +30,7 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
     }
   }
 
-  override def visit(pb : ParallelBlock) = {
+  override def visit(pb : ParallelBlock) : Unit = {
     val chans = getChans(pb.block)
     if(chans.nonEmpty) {
       result = create.parallel_block(pb.label,extendContract(chans,rewrite(pb.contract), false), pb.itersJava, rewrite(pb.block),pb.deps)
@@ -39,7 +39,7 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
     }
   }
 
-  override def visit(l : LoopStatement) = {
+  override def visit(l : LoopStatement) : Unit = {
     val chans = l.getBody match {
       case b : BlockStatement => getChans(b)
       case _ => throw Failure("VeyMont Fail: Body of LoopStatement is not a BlockStatement\n" + l.getBody.getOrigin)
@@ -64,7 +64,7 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
 
   private def getChans(b : BlockStatement): Set[ChannelRepr] = {
     getChansFromBlockStateMent(b).flatMap(m => m.`object` match {
-      case n: NameExpression => if (isChanName(n.name)) Set(new ChannelRepr(n.name, m.method == chanWriteMethodName,null)) else Set.empty[ChannelRepr]
+      case n: NameExpression => if (isChanName(n.name)) Set(ChannelRepr(n.name)(m.method == chanWriteMethodName,null)) else Set.empty[ChannelRepr]
       case _ => Set.empty[ChannelRepr]
     })
   }

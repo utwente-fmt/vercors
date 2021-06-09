@@ -1,16 +1,15 @@
 package vct.col.veymont
 
 import geny.Generator.from
-import hre.lang.System.Output
-import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType}
 import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
+import vct.col.ast.stmt.composite.LoopStatement
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
-import vct.col.veymont.Util.{chanReadMethodName, chanValueFieldName, chanWriteMethodName, channelClassName}
+import vct.col.veymont.Util.{chanReadMethodName, chanValueFieldName, chanWriteMethodName, channelClassName, getBlockOrThrow}
 
-import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
+import scala.jdk.CollectionConverters._
 
 class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveType,ASTClass]) extends AbstractRewriter(null, true) {
 
@@ -28,7 +27,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
       case Left(s) => s
       case Right(c) => create.class_type(c.name)
     }
-    result = create.field_decl(v.get().head.name,varType,create.field_name(chanValueFieldName))
+    result = create.field_decl(v.get().asScala.head.name,varType,create.field_name(chanValueFieldName))
   }
 
   override def visit(m : Method) : Unit = {
@@ -41,16 +40,16 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
       }
       case Right(cl) => {
         if(m.kind == Method.Kind.Constructor) {
-          cl.methods().find(_.kind == Method.Kind.Constructor) match {
+          cl.methods().asScala.find(_.kind == Method.Kind.Constructor) match {
             case None => Fail("VeyMont Fail: Cannot find constructor of class %s!",cl.name)
             case Some(constr) => {
-              if(!ASTUtils.conjuncts(constr.getContract.post_condition, StandardOperator.Star).filter(_ match {
-                case op : OperatorExpression => op.operator == StandardOperator.Perm && (op.arg(0) match {
-                  case n : NameExpression => cl.fields().map(_.name).contains(n.name)
+              if(!ASTUtils.conjuncts(constr.getContract.post_condition, StandardOperator.Star).asScala.filter {
+                case op: OperatorExpression => op.operator == StandardOperator.Perm && (op.arg(0) match {
+                  case n: NameExpression => cl.fields().asScala.map(_.name).contains(n.name)
                   case _ => false
                 })
                 case _ => false
-              }).forall(_.asInstanceOf[OperatorExpression].arg(1) match {
+              }.forall(_.asInstanceOf[OperatorExpression].arg(1) match {
                 case r : NameExpression => r.kind == NameExpressionKind.Reserved && r.reserved == ASTReserved.ReadPerm
                 case _ => false
               })) {
@@ -66,11 +65,11 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
               })
               val initValueField = create.invokation(null,create.class_type(cl.name),Method.JavaConstructor,dummyArgs:_*)
               val initAssign = create.assignment(create.field_name(chanValueFieldName),initValueField)
-              m.getBody match {
-                case b : BlockStatement => result = create.method_kind(m.kind, m.getReturnType, rewrite(m.getContract),
-                  getTypeName, m.getArgs, create.block((rewrite(b.getStatements) :+ initAssign):_*))
-                case _ => Fail("VeyMont Fail: BlockStatement expected!")
-              }
+              result = create.method_kind(m.kind, m.getReturnType, rewrite(m.getContract),
+                  getTypeName, m.getArgs, create.block((rewrite(
+                  getBlockOrThrow(m.getBody,"VeyMont Fail: BlockStatement expected!")
+                    .getStatements) :+ initAssign):_*))
+
             }
           }
         } else if(m.kind == Method.Kind.Predicate) {
@@ -111,7 +110,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
 
   override def visit(c : ASTClass) : Unit = {
     val res = create.new_class(getTypeName, null, null)
-    for (item <- c) {
+    for (item <- c.asScala) {
       res.add(rewrite(item))
     }
     result = res
@@ -123,7 +122,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
   }) + channelClassName
 
   private def getFieldPerms(astClass : ASTClass, varNode : ASTNode) : OperatorExpression =
-    astClass.fields().map(f =>
+    astClass.fields().asScala.map(f =>
       create.expression(StandardOperator.Perm,create.dereference(varNode,f.name),create.reserved_name(ASTReserved.ReadPerm)))
       .reduce((p1,p2) => create.expression(StandardOperator.Star,p1,p2))
 }

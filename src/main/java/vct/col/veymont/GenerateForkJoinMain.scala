@@ -7,18 +7,16 @@ import vct.col.ast.stmt.decl.Method.Kind
 import vct.col.ast.stmt.decl._
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.veymont.Util._
-
-import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
+import scala.jdk.CollectionConverters._
 
 class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
 
-  def addStartThreadClass : ProgramUnit = {
-    val threads = source.filter {
-      case c: ASTClass => isThreadClassName(c.name)
-      case _ => false
+  def addStartThreadClass() : ProgramUnit = {
+    val threads = source.asScala.collect {
+      case c: ASTClass if isThreadClassName(c.name) => c
     }
-    target.add(getStartThreadClass(threads.map(_.asInstanceOf[ASTClass]).toSet))
+    target.add(getStartThreadClass(threads.toSet))
     rewriteAll()
   }
 
@@ -31,19 +29,18 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val threadJoins = threads.map(t => getThreadRunning(t.name, false)).toArray
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
       (barrierVar +: (chansVars ++ threadVars ++ threadForks ++ threadJoins)):_*)
-    val void = create.primitive_type(PrimitiveSort.Void)
-    val noArgs = Array.empty[DeclarationStatement]
-    val mainMethod = create.method_decl(void,new ContractBuilder().getContract,localMainClassName,noArgs,body)
+    val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),new ContractBuilder().getContract,
+      localMainClassName,Array.empty[DeclarationStatement],body)
     mainClass.add_static(mainMethod)
     mainClass
   }
 
   private def getBarrierVar(nrThreads : Int) : DeclarationStatement =
-    create.field_decl(new MessageOrigin("Generated Barrier variable"),barrierFieldName,getBarrierClass(),
-      create.invokation(null,getBarrierClass(),Method.JavaConstructor,create.constant(nrThreads)))
+    create.field_decl(new MessageOrigin("Generated Barrier variable"),barrierFieldName,getBarrierClass,
+      create.invokation(null,getBarrierClass,Method.JavaConstructor,create.constant(nrThreads)))
 
   private def getConstrChanArgs(thread : ASTClass) : Array[DeclarationStatement] =
-    thread.methods().find(_.kind== Kind.Constructor).get.getArgs.tail
+    thread.methods().asScala.find(_.kind== Kind.Constructor).get.getArgs.tail
 
   private def getChanVar(chanArg : DeclarationStatement) : DeclarationStatement = {
     val chanType = create.class_type(chanArg.`type`.toString)

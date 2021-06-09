@@ -6,7 +6,7 @@ import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, Operator
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
 import vct.col.ast.stmt.terminal.AssignmentStatement
-
+import scala.annotation.tailrec
 import scala.sys.error
 
 object Util {
@@ -30,7 +30,7 @@ object Util {
 
   def getThreadClassName(roleName: String): String = roleName.toUpperCase() + threadName
 
-  def isThreadClassName(className: String) = className.endsWith(threadName)
+  def isThreadClassName(className: String): Boolean = className.endsWith(threadName)
 
   def getRoleName(name: String): String = {
     if (isThreadClassName(name)) {
@@ -40,39 +40,33 @@ object Util {
     }
   }
 
-  def getTypeChannelClass(name: String) = name.slice(0, name.length - channelClassName.length)
+  def getTypeChannelClass(name: String): String = name.slice(0, name.length - channelClassName.length)
 
-  def isChannelClass(name: String) = name.endsWith(channelClassName)
+  def isChannelClass(name: String): Boolean = name.endsWith(channelClassName)
 
-  def isNoBarrierOrChannelClass(name: String) = name != barrierClassName && !isChannelClass(name)
+  def isNoBarrierOrChannelClass(name: String): Boolean = name != barrierClassName && !isChannelClass(name)
 
-  def isRoleOrHelperClassName(name: String) = name != mainClassName && isNoBarrierOrChannelClass(name)
+  def isRoleOrHelperClassName(name: String): Boolean = name != mainClassName && isNoBarrierOrChannelClass(name)
 
-  def isChanName(chan: String) = chan.endsWith(chanName)
+  def isChanName(chan: String): Boolean = chan.endsWith(chanName)
 
-  def getBarrierClass() = new ClassType(barrierClassName)
+  def getBarrierClass : ClassType = new ClassType(barrierClassName)
 
-  def getArgName(name: String) = name + "Arg"
+  def getArgName(name: String): String = name + "Arg"
 
-  def unArgName(arg: String) = arg.slice(0, arg.length - 3)
+  def unArgName(arg: String): String = arg.slice(0, arg.length - 3)
 
-  def getChansFromBlockStateMent(block: ASTNode): Set[MethodInvokation] = {
-    block match {
-      case b: BlockStatement =>
-        val stats = b.getStatements.toSet: Set[ASTNode]
-        stats.flatMap(s => s match {
-          case l: LoopStatement => getChansFromBlockStateMent(l.getBody)
-          case i: IfStatement => getChansFromBlockStateMent(i.getStatement(0)) ++ (if (i.getCount > 1) getChansFromBlockStateMent(i.getStatement(1)) else Set.empty)
-          case p: ParallelRegion => {
-            val blocks = p.blocks.map(_.block).toSet: Set[BlockStatement]
-            blocks.flatMap(getChansFromBlockStateMent): Set[MethodInvokation]
-          }
-          case a: AssignmentStatement => getChanFromMethodInvokation(a.expression)
-          case o: ASTNode => getChanFromMethodInvokation(o)
-        })
-      case _ => throw Failure("VeyMont Fail: expected BlockStatement")
-    }
-  }
+  def getChansFromBlockStateMent(block: ASTNode): Set[MethodInvokation] =
+    getBlockOrThrow(block,"VeyMont Fail: expected BlockStatement").getStatements.toSet[ASTNode].flatMap(s => s match {
+      case l: LoopStatement => getChansFromBlockStateMent(l.getBody)
+      case i: IfStatement => getChansFromBlockStateMent(i.getStatement(0)) ++ (if (i.getCount > 1) getChansFromBlockStateMent(i.getStatement(1)) else Set.empty)
+      case p: ParallelRegion => {
+        val blocks = p.blocks.map(_.block).toSet: Set[BlockStatement]
+        blocks.flatMap(getChansFromBlockStateMent): Set[MethodInvokation]
+      }
+      case a: AssignmentStatement => getChanFromMethodInvokation(a.expression)
+      case o: ASTNode => getChanFromMethodInvokation(o)
+    })
 
   private def getChanFromMethodInvokation(o: ASTNode): Set[MethodInvokation] = {
     o match {
@@ -87,6 +81,7 @@ object Util {
     }
   }
 
+  @tailrec
   def getNameFromNode(n: ASTNode): Option[NameExpression] = {
     n match {
       case d: Dereference => d.obj match {
@@ -121,6 +116,11 @@ object Util {
       case Some(vSet) => map + (key -> (vSet + value))
     }
 
-  def toLineString(s: ASTNode) = s.toString.replace(";\n", "")
+  def toLineString(s: ASTNode): String = s.toString.replace(";\n", "")
+
+  def getBlockOrThrow(a : ASTNode, errorMessage : String) : BlockStatement = a match {
+    case b : BlockStatement => b
+    case _ => throw Failure(errorMessage)
+  }
 
 }

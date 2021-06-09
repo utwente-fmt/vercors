@@ -9,13 +9,11 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.syntax.PVLSyntax
 import vct.col.ast.util.AbstractRewriter
 import Util._
-import org.scalactic.Fail
 import vct.col.veymont.StructureCheck.isExecutableMainMethod
-
 import java.io.{File, FileOutputStream, IOException, PrintWriter}
 import java.util.Scanner
-import scala.collection.convert.ImplicitConversions.`iterable AsScalaIterable`
-import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
+import scala.annotation.tailrec
+import scala.jdk.CollectionConverters._
 
 sealed trait Action
 sealed trait GlobalAction extends Action
@@ -69,9 +67,15 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   private var roleNames : Iterable[String] = null
   private var roleName : String = null
 
-  private val sessionFileName = Configuration.veymont_file.get()
-  private val session_global_lts = sessionFileName.slice(0,sessionFileName.length-4) + "LTS.aut"
-  private def session_local_lts : String = sessionFileName.slice(0,sessionFileName.length-4) + roleName + "LTS.aut"
+  private val veymontFileName = Configuration.veymont_file.get()
+  private def veymontGlobalLts : String = {
+    require(veymontFileName.endsWith(".pvl"))
+    veymontFileName.slice(0,veymontFileName.length-4) + "LTS.aut"
+  }
+  private def veymontLocalLts : String = {
+    require(veymontFileName.endsWith(".pvl"))
+    veymontFileName.slice(0,veymontFileName.length-4) + roleName + "LTS.aut"
+  }
 
   def generateLTSAndPrint() : Unit = {
     if(isGlobal) {
@@ -79,22 +83,21 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       generateLTS(StructureCheck.getMainClass(source))
       print()
     } else {
-      val roleClasses = source.get().filter(n => isThreadClassName(n.name)).map(_.asInstanceOf[ASTClass])
+      val roleClasses = source.get().asScala.filter(n => isThreadClassName(n.name)).map(_.asInstanceOf[ASTClass])
       roleNames = roleClasses.map(c => getRoleName(c.name))
-      roleClasses.foreach{ thread =>
+      for(thread <- roleClasses) {
         initialState = null
         transitions = Map.empty
-        roleName = thread.fields().head.name
+        roleName = thread.fields().asScala.head.name
         generateLTS(thread)
         print()
-        checkWellBehavedness(session_local_lts,roleName)
+        checkWellBehavedness(veymontLocalLts, roleName)
       }
     }
   }
 
   private def print(out : PrintWriter) : Unit = {
-    val destStates : Set[LTSState] = transitions.values.flatMap(_.map(_.destState)).toSet
-    val states : Set[LTSState] = transitions.keys.toSet ++ destStates
+    val states : Seq[LTSState] = (transitions.keys.toList ++ transitions.values.flatMap(_.map(_.destState))).distinct
     val stateMap : Map[LTSState,Int] = states.zipWithIndex.toMap
     val nrTrans = transitions.values.map(_.size).sum
     out.println("des (" + stateMap(initialState) + "," + nrTrans + "," + states.size + ")")
@@ -107,7 +110,10 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
 
   private def print() : Unit = {
     try {
-      val f = if(isGlobal) new File(session_global_lts) else new File(session_local_lts)
+      val f = if(isGlobal) new File(veymontGlobalLts) else new File(veymontLocalLts)
+      val dir = f.toPath.getParent.toFile
+      if(!dir.isDirectory)
+        dir.mkdir()
       val b = f.createNewFile()
       if (!b) {
         Debug("File %s already exists and is now overwritten", f.toString)
@@ -121,13 +127,17 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   def checkWellBehavedness(ltsFileName : String, ltsRole : String) : Unit = {
-    val tauClosure = new AldebaranTau(new Scanner(new File(ltsFileName)),WellBehavednessJava.isTau)
-    if(!WellBehavednessJava.checkForwardNonTau(tauClosure))
-      Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardNonTau)",ltsRole)
-    else if(!WellBehavednessJava.checkForwardTau(tauClosure))
-      Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardTau)",ltsRole)
-    else  if(!WellBehavednessJava.checkBackward(tauClosure))
-      Fail("VeyMont Fail: Local LTS of %s not well-behaved (Backward)",ltsRole)
+    try {
+      val tauClosure = new AldebaranTau(new Scanner(new File(ltsFileName)), WellBehavednessJava.isTau)
+      if (!WellBehavednessJava.checkForwardNonTau(tauClosure))
+        Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardNonTau)", ltsRole)
+      else if (!WellBehavednessJava.checkForwardTau(tauClosure))
+        Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardTau)", ltsRole)
+      else if (!WellBehavednessJava.checkBackward(tauClosure))
+        Fail("VeyMont Fail: Local LTS of %s not well-behaved (Backward)", ltsRole)
+    } catch {
+      case e : IllegalArgumentException => Fail("VeyMont Fail: Could not parse file %s",ltsFileName)
+    }
   }
 
   private def getStatementsFromNode(classDef : ASTClass, mainMethods : Iterable[Method],a : ASTNode) : List[ASTNode] = a match {
@@ -149,18 +159,11 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   private def generateLTS(classDef : ASTClass) : Unit = {
-    //val constructorStats = mainClass.methods().find(_.kind == Method.Kind.Constructor).get.getBody.asInstanceOf[BlockStatement].getStatements.toList
-    val runMethod = classDef.methods().find(_.name == runMethodName).get
-    val mainMethods = classDef.methods().filter(isExecutableMainMethod)
+    val runMethod = classDef.methods().asScala.find(_.name == runMethodName).get
+    val mainMethods = classDef.methods().asScala.filter(isExecutableMainMethod)
     initialState = new LTSState(preProcessMethodCalls(classDef,mainMethods,runMethod)).getCopy(copy_rw)
     visitStatementSequence(initialState,initialState.nextStatements)
   }
-
-  override def visit(m : Method) : Unit =
-    Fail("VeyMont Fail: method visit(Method) should not be reached")
-
-  override def visit(b : BlockStatement) : Unit =
-    Fail("VeyMont Fail: method visit(BlockStatement) should not be reached")
 
   def getNrLastWeakFirstStatements(seq : List[ASTNode], seen : List[ASTNode]) : Int = {
     if (seq.isEmpty)
@@ -193,7 +196,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     }
   }
 
-  def visitStatementSequenceAbstract(currentState : LTSState, firstAndNext :List[(ASTNode,List[ASTNode])]) =
+  def visitStatementSequenceAbstract(currentState : LTSState, firstAndNext :List[(ASTNode,List[ASTNode])]) : Unit =
     firstAndNext.foreach{case (s,seq) => visitNode(s,currentState,seq)}
 
   def visitNode(n : ASTNode, currentState : LTSState, seqAfterFirstStatement : List[ASTNode]) : Unit = n match {
@@ -269,14 +272,9 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   def mapInsertTransition(k : LTSState, v : LTSTransition) : Map[LTSState,Set[LTSTransition]] =
     mapInsertSetValue[LTSState,LTSTransition](k,v,transitions)
 
-  def visit(a : AssignmentStatement, currentState : LTSState, seq : List[ASTNode]) = {
+  def visit(a : AssignmentStatement, currentState : LTSState, seq : List[ASTNode]) : Unit = {
     val nextState = takeTransition(currentState, new LTSLabel(None,if(isGlobal) getGlobalAction(a) else getLocalAction(a,roleName)), seq)
     visitStatementSequence(nextState,seq)
-  }
-
-  override def visit(a : AssignmentStatement) : Unit = {
-    Fail("VeyMont Fail: method visit(AssignmentStatement) should not be reached")
-    //takeTransition(new LTSLabel(None,getGlobalAction(a)))
   }
 
   def getGlobalAction(a : AssignmentStatement) : GlobalAction =
@@ -292,6 +290,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       }
     }
 
+  @tailrec
   private def getFieldFromDereference(n : ASTNode) : String = n match {
     case d : Dereference => d.field
     case op : OperatorExpression =>
@@ -327,23 +326,15 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   def visit(i: IfStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
     takeTwoBranches(i.getGuard(0),ASTNodeToList(i.getStatement(0)),if(i.getCount > 1) ASTNodeToList(i.getStatement(1)) else List.empty,currentState,seq)
 
-  override def visit(i: IfStatement) =
-    Fail("VeyMont Fail: method visit(IfStatement) should not be reached")
-
   def isRecursion(s : ASTNode, recursiveNodes : List[ASTNode]) : Boolean = recursiveNodes.exists(n => new LTSState(List(n)).toString == new LTSState(List(s)).toString)
 
   def visit(l : LoopStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
       takeTwoBranches(l.getEntryGuard,ASTNodeToList(l.getBody) :+ l,List.empty,currentState,seq)
 
-  override def visit(l : LoopStatement) =
-    Fail("VeyMont Fail: method visit(LoopStatement) should not be reached")
-
   private def ASTNodeToList(n : ASTNode) : List[ASTNode] = n match {
     case b : BlockStatement => b.getStatements.toList
     case a : ASTNode => List(a)
   }
-
-  //visit(new IfStatement(l.getEntryGuard,create.block(l.getBody,l),new BlockStatement()))
 
   private def takeTwoBranches(cond : ASTNode, leftBranch : List[ASTNode], rightBranch : List[ASTNode], currentState : LTSState, seq : List[ASTNode]) : Unit = {
     val condTrue = new LTSLabel(Some(cond),BarrierWait)
@@ -357,9 +348,6 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     val nextState = takeTransition(currentState, condLabel, totalNextSeq)
     visitStatementSequence(nextState, totalNextSeq)
   }
-
-  override def visit(pr : ParallelRegion) : Unit =
-    Fail("VeyMont Fail: method visit(ParallelRegion) should not be reached")
 
   def visit(pr : ParallelRegion, currentState : LTSState, nextSeq : List[ASTNode]) : Unit = {
     pr.blocks.indices.foreach(i => {
@@ -381,10 +369,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   private def getCopyBlockWithStats(pb : ParallelBlock, statements : List[ASTNode]) : ParallelBlock =
     create.parallel_block(pb.label,pb.contract,pb.itersJava,create.block(copy_rw.rewrite(statements.toArray):_*), pb.deps)
 
-  override def visit(m : MethodInvokation) : Unit =
-    Fail("VeyMont Fail: method visit(MethodInvokation) should not be reached")
-
-  def visit(m : MethodInvokation, currentState : LTSState, nextSeq : List[ASTNode]) = {
+  def visit(m : MethodInvokation, currentState : LTSState, nextSeq : List[ASTNode]) : Unit = {
     if(m.`object` == null) { // it is a main method
       Fail("VeyMont Fail: encountered method call %s in LTS generation",m.method)
     } else {
