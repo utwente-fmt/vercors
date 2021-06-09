@@ -10,6 +10,7 @@ import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, Method, ProgramUnit}
+import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner, RecursiveVisitor, SequenceUtils}
 
 import scala.collection.JavaConverters._
@@ -187,6 +188,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       val cbFusedParBlock = new ContractBuilder()
 
       nonshared.foreach { nonsharedVar =>
+        // Precondition for permissions
         var foundAny = false
         ASTUtils.conjuncts(contractIPerm.pre_condition, Star, And, Wrap).forEach { stmt =>
           if (ASTUtils.find_name(stmt, nonsharedVar)) {
@@ -203,6 +205,17 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
             }
           }
         }
+        // Precondition for functional properties
+        ASTUtils.conjuncts(contractINonPerm.pre_condition, Star, And, Wrap).forEach { preNonPerm =>
+          if (ASTUtils.find_name(preNonPerm, nonsharedVar) && !shared.exists(ASTUtils.find_name(preNonPerm, _))) {
+            cbFusedParBlock.requires(rewrite(preNonPerm))
+          }
+        }
+        ASTUtils.conjuncts(contractIPlusOneNonPerm.pre_condition, Star, And, Wrap).forEach { preNonPerm =>
+          if (ASTUtils.find_name(preNonPerm, nonsharedVar) && !shared.exists(ASTUtils.find_name(preNonPerm, _))) {
+            cbFusedParBlock.requires(rewrite(preNonPerm))
+          }
+        }
       }
 
       shared.foreach { sharedVar =>
@@ -213,6 +226,16 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           }
         }
       }
+
+
+      ASTUtils.conjuncts(contractINonPerm.pre_condition, Star, And, Wrap).forEach { preNonPerm =>
+        if (shared.exists(ASTUtils.find_name(preNonPerm, _))) {
+          cbFusedParBlock.requires(rewrite(preNonPerm))
+        }
+      }
+
+
+
 
       nonshared.foreach { nonsharedVar =>
         var foundAny = false
@@ -231,80 +254,52 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
         }
       }
 
+      // Postcondition for non-shared functional properties
+      ASTUtils.conjuncts(contractINonPerm.post_condition, Star, And, Wrap).forEach { postNonPerm =>
+        if (nonshared.exists(ASTUtils.find_name(postNonPerm, _)) && !shared.exists(ASTUtils.find_name(postNonPerm, _))) {
+          cbFusedParBlock.ensures(rewrite(postNonPerm))
+        }
+      }
+      ASTUtils.conjuncts(contractIPlusOneNonPerm.post_condition, Star, And, Wrap).forEach { postNonPerm =>
+        if (nonshared.exists(ASTUtils.find_name(postNonPerm, _)) && !shared.exists(ASTUtils.find_name(postNonPerm, _))) {
+          cbFusedParBlock.ensures(rewrite(postNonPerm))
+        }
+      }
 
-      val permPatternsIPlusOnePre = ASTUtils.conjuncts(contractIPlusOnePerm.pre_condition, Star, And, Wrap).asScala
-        .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
-        .map { pre =>
-          val cp = new CollectPerms()
-          cp.rewrite(pre)
-          val res = cp.perm.get
-          // (Pattern -> (permission, original precondition))
-          (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
-        }
-        .groupBy(_._1)
-        .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
-        .map { kv =>
-          val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
-            (prev, next) =>
-              (prev._1 :+ next._1, prev._2 :+ next._2)
+      val getPermPatterns = (i: ASTNode) => {
+        ASTUtils.conjuncts(i, Star, And, Wrap).asScala.toSeq
+          .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
+          .map { pre =>
+            val cp = new CollectPerms()
+            cp.rewrite(pre)
+            val res = cp.perm.get
+            (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
           }
-          (kv._1, value)
-        }
+          .groupBy(_._1)
+          .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
+          .map { kv =>
+            val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
+              (prev, next) =>
+                (prev._1 :+ next._1, prev._2 :+ next._2)
+            }
+            (kv._1, value)
+          }
+      }
 
-      val permPatternsIPlusOnePost = ASTUtils.conjuncts(contractIPlusOnePerm.post_condition, Star, And, Wrap).asScala
-        .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
-        .map { pre =>
-          val cp = new CollectPerms()
-          cp.rewrite(pre)
-          val res = cp.perm.get
-          // (Pattern -> (permission, original precondition))
-          (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
-        }
-        .groupBy(_._1)
-        .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
-        .map { kv =>
-          val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
-            (prev, next) =>
-              (prev._1 :+ next._1, prev._2 :+ next._2)
-          }
-          (kv._1, value)
-        }
+      val permPatternsIPlusOnePre = getPermPatterns(contractIPlusOnePerm.pre_condition)
+      val permPatternsIPlusOnePost = getPermPatterns(contractIPlusOnePerm.post_condition)
+      val permPatternsIPre = getPermPatterns(contractIPerm.pre_condition)
+      val permPatternsIPost = getPermPatterns(contractIPerm.post_condition)
 
-      val permPatternsI = ASTUtils.conjuncts(contractIPerm.pre_condition, Star, And, Wrap).asScala
-        .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
-        .map { pre =>
-          val cp = new CollectPerms()
-          cp.rewrite(pre)
-          val res = cp.perm.get
-          (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
-        }
-        .groupBy(_._1)
-        .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
-        .map { kv =>
-          val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
-            (prev, next) =>
-              (prev._1 :+ next._1, prev._2 :+ next._2)
-          }
-          (kv._1, value)
-        }
+//      val nonPermPatternsIPlusOnePre = getPermPatterns(contractIPlusOneNonPerm.pre_condition)
+//      val nonPermPatternsIPlusOnePost = getPermPatterns(contractIPlusOneNonPerm.post_condition)
+//      val nonPermPatternsIPre = getPermPatterns(contractINonPerm.pre_condition)
+//      val nonPermPatternsIPost = getPermPatterns(contractINonPerm.post_condition)
 
-      val permPatternsIPost = ASTUtils.conjuncts(contractIPerm.post_condition, Star, And, Wrap).asScala
-        .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
-        .map { pre =>
-          val cp = new CollectPerms()
-          cp.rewrite(pre)
-          val res = cp.perm.get
-          (rewrite(res.first), (rewrite(res.second), rewrite(pre)))
-        }
-        .groupBy(_._1)
-        .map(kv => (kv._1, kv._2.map(kv2 => kv2._2)))
-        .map { kv =>
-          val value = kv._2.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
-            (prev, next) =>
-              (prev._1 :+ next._1, prev._2 :+ next._2)
-          }
-          (kv._1, value)
-        }
+      // The set of variables that have the case for 5.1
+      val in5_1     = mutable.Set.empty[String]
+      val notIn5_1  = mutable.Set.empty[String]
+
 
       permPatternsIPlusOnePre
         .foreach { case (patt, (perms, conditions)) =>
@@ -315,11 +310,13 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
               cbFusedParBlock.requires(rewrite(s))
             }
             // Precondition     Functional
-            // TODO OS
+            // Outside of the loop
 
             // Postcondition    Permissions
             // Do 2.2.1.1
             val sharedVars = NameScanner.freeVars(patt).asScala.filter(!_._1.equals(newTid.name))
+            in5_1 ++= sharedVars.keySet
+
             sharedVars.foreach { case (varName, varType) =>
               var found = false
               permPatternsIPost.foreach { case (pattIPost, (permsIPlusOnePost, conditionsIPost)) =>
@@ -340,6 +337,8 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
 
             // Postcondition    Functional
             // TODO OS
+
+
           } else if (perms.map(interpretPermission).sum == permPatternsIPost(patt)._1.map(interpretPermission).sum) { // Do 5.2
             // Precondition     Permissions
             // Do nothing
@@ -419,7 +418,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
 
               //Do 2.2.1.2.3
 
-              val totalPermIPre = permPatternsI
+              val totalPermIPre = permPatternsIPre
                 .filter { case (pattern, _) => ASTUtils.find_name(pattern, newTid.name) && ASTUtils.find_name(pattern, sharedVar._1) }
                 .map { case (patt, (perms, _)) => (patt, perms.reduce((lhs, rhs) => plus(rewrite(lhs), rewrite(rhs)))) }
                 .values
@@ -509,7 +508,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
               val reducedPerm = terms.tail.foldLeft(terms.head) {
                 case (lhs, rhs) =>
                   rhs match {
-                    case o:OperatorExpression if o.operator == UMinus => minus(lhs, o)
+                    case o: OperatorExpression if o.operator == UMinus => minus(lhs, o)
                     case _ => plus(lhs, rhs)
                   }
               }
@@ -520,8 +519,50 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
                 }
               }
             }
+
+            // Postcondition    Functional
+            // So 5.2, 5.3 && 5.4
+            notIn5_1 ++= sharedVars.keySet
           }
         }
+
+      //2.2.2.1
+      ASTUtils.conjuncts(contractINonPerm.post_condition, Star, And, Wrap).forEach { postNonPerm =>
+        if (in5_1.exists(ASTUtils.find_name(postNonPerm, _)) && !notIn5_1.exists(ASTUtils.find_name(postNonPerm, _))) {
+          cbFusedParBlock.ensures(rewrite(postNonPerm))
+        }
+      }
+
+      //2.2.2.2
+
+      val bodyOfI = ASTUtils.replace(name(kernelZeroToI.blocks.head.iters.head.name), newTid, kernelZeroToI).asInstanceOf[ParallelRegion]
+      val bodyOfIPlusOne = ASTUtils.replace(name(kernelIPlusOne.blocks.head.iters.head.name), newTid, kernelIPlusOne).asInstanceOf[ParallelRegion]
+
+      val writeVisitorBodyIPlusOne = new WriteOrRead(notIn5_1.toSet)
+      writeVisitorBodyIPlusOne.visit(bodyOfIPlusOne)
+
+//      val varToWriteBodyI        = writeVisitorBodyI.varToWritten
+      val varToWriteBodyIPlusOne = writeVisitorBodyIPlusOne.varToWritten
+
+      ASTUtils.conjuncts(contractINonPerm.post_condition, Star, And, Wrap).asScala
+        .filter(annotation => notIn5_1.exists(ASTUtils.find_name(annotation, _)))
+        .map(ann => (ann, NameScanner.freeVars(ann).asScala.keySet))
+        .map { case (ann, freeVars) => (ann, freeVars.intersect(notIn5_1)) }
+        .foreach { case (ann, sharedVars) =>
+          // sharedVars are those of the case 5.2, 5.3 or 5.4.
+          if (!sharedVars.exists(varToWriteBodyIPlusOne.getOrElse(_, false))) {
+            cbFusedParBlock.ensures(rewrite(ann))
+          }
+        }
+
+      //2.2.2.1 & 2.2.2.2.4
+      ASTUtils.conjuncts(contractIPlusOneNonPerm.post_condition, Star, And, Wrap).forEach { postNonPerm =>
+//        if (in5_1.exists(ASTUtils.find_name(postNonPerm, _)) && !notIn5_1.exists(ASTUtils.find_name(postNonPerm, _))) {
+          cbFusedParBlock.ensures(rewrite(postNonPerm))
+//        }
+      }
+
+
 
 
       val depCheckParBlock = create.parallel_block(
@@ -554,7 +595,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       /// Fuse bodies ///
       ///////////////////
       pbLabel = Some(newLabel)
-      val myFunc = (pr: ParallelRegion) => {
+      val fuseBody = (pr: ParallelRegion) => {
         Seq(pr).map(p => ASTUtils.replace(name(p.blocks.head.iters.head.name), newTid, p).asInstanceOf[ParallelRegion])
           .zipWithIndex
           .map { pbi =>
@@ -574,10 +615,10 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           }
       }
 
-      myFunc(kernelZeroToI).foreach(_.forEachStmt(l => newParBody.add(rewrite(l))))
+      fuseBody(kernelZeroToI).foreach(_.forEachStmt(l => newParBody.add(rewrite(l))))
       pbLabel = None
       pbNewPerms = create.constant(true)
-      myFunc(kernelIPlusOne).foreach(_.forEachStmt(l => newParBody.add(rewrite(l))))
+      fuseBody(kernelIPlusOne).foreach(_.forEachStmt(l => newParBody.add(rewrite(l))))
 
       ///////////////////////////
       /// Create fused kernel ///
@@ -724,6 +765,42 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
         case Perm =>
           perm = Some(copy_rw.rewrite(e))
         case _ =>
+      }
+      super.visit(e)
+    }
+  }
+
+  case class WriteOrRead(vars: Set[String]) extends RecursiveVisitor(null: ProgramUnit) {
+
+    var varToWritten = mutable.Map.empty[String, Boolean]
+
+    override def visit(s: AssignmentStatement): Unit = {
+      s.location match {
+        case o: OperatorExpression if o.operator == Subscript =>
+          o.first match {
+            case name: NameExpression if vars.contains(name.name) =>
+              varToWritten(name.name) = true
+            case _ =>
+          }
+          o.second.accept(this)
+        case _ =>
+          super.visit(s)
+      }
+    }
+
+    override def visit(e: OperatorExpression): Unit = {
+      e.operator match {
+        case Subscript =>
+          e.first match {
+            case name: NameExpression if vars.contains(name.name) =>
+              if (!varToWritten.contains(name.name)) {
+                varToWritten(name.name) = false
+              }
+              e.second.accept(this)
+            case _ =>
+              super.visit(e)
+          }
+        case _ => super.visit(e)
       }
       super.visit(e)
     }

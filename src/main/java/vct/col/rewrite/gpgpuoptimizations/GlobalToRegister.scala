@@ -363,22 +363,6 @@ class GlobalToRegister(override val source: ProgramUnit) extends AbstractRewrite
     }
   }
 
-
-  //  override def visit(special: ASTSpecial): Unit = {
-  //    special.kind match {
-  //      case Assert =>
-  //        exclude(special)
-  //      case Assume =>
-  //        exclude(special)
-  //      case Inhale =>
-  //        exclude(special)
-  //      case Exhale =>
-  //        exclude(special)
-  //      case _ => super.visit(special)
-  //    }
-  //
-  //  }
-
   def exclude(node: OperatorExpression): Unit = {
     val tmp = excludeNode
     excludeNode = true
