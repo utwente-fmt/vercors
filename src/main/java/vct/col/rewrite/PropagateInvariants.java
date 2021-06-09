@@ -74,7 +74,7 @@ public class PropagateInvariants extends AbstractRewriter {
       invariants.push(region.contract().invariant);
       ParallelBlock blocks[] = rewrite(region.blocksJava()).toArray(new ParallelBlock[0]);
       invariants.pop();
-      result=create.region(cb.getContract(),blocks);
+      result=create.region(null, cb.getContract(),blocks);
     } else {
       super.visit(region);
     }
