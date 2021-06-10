@@ -24,10 +24,10 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
       entry match {
         case c : ASTClass => {
           if(isThreadClassName(c.name)) {
-            val chans = getChansFromFields(c)
-            chanMap += (c.name -> chans)
+            chanMap += (c.name -> getChansFromFields(c))
           }
         }
+        case _ => Fail("VeyMont Fail: global program can only have classes at top-level!")
       }
     }
     rewriteAll

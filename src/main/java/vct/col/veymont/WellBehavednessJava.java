@@ -23,9 +23,6 @@ public class WellBehavednessJava {
                                             Objects.equals(label1, label2) && Objects.equals(k1, k2)))) {
                                 return true;
                             } else {
-                                System.out.println("(" + i + ",\"" + label1 + "\"," + j1 + ") and (" + i + ",tau^*," + j2 + ")");
-                                System.out.println();
-                                System.out.println(a);
                                 return false;
                             }
                         })));
@@ -46,9 +43,6 @@ public class WellBehavednessJava {
                                             Objects.equals(k1, k2)))) {
                                 return true;
                             } else {
-                                System.out.println("(" + i + ",tau^*," + j1 + ") and (" + i + ",tau^*," + j2 + ")");
-                                System.out.println();
-                                System.out.println(a);
                                 return false;
                             }
                         })));
@@ -69,10 +63,6 @@ public class WellBehavednessJava {
                                             Objects.equals(label1, label2) && Objects.equals(k1, k2)))) {
                                 return true;
                             } else {
-                                System.out.println("(" + i + ",tau^*," + j1 + ") and (" + j1 + ",\"" + label1 + "\"," + k1 + ")");
-                                System.out.println();
-                                System.out.println(a);
-
                                 return false;
                             }
                         })));

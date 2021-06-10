@@ -922,9 +922,9 @@ object Passes {
 
   val VEYMONT: Seq[AbstractPass] = Seq(
     SimplePass("VeyMontStructCheck", "check that provided program conforms to VeyMont global program syntax restriction",
-      arg => { new StructureCheck(arg).check(); arg }),
+      arg => { new StructureCheck(arg); arg }),
     SimplePass("VeyMontTerminationCheck", "check non-terminating statements",
-      arg => { new TerminationCheck(arg).checkTermination(); arg}),
+      arg => { new TerminationCheck(arg); arg}),
   //  SimplePass("VeyMontGlobalLTS", "generate LTS of global program",
   //    arg => { new GenerateLTS(arg,true).generateLTSAndPrint(); arg }),
     SimplePass("VeyMontDecompose", "generate local program classes from VeyMont global program",

@@ -44,12 +44,12 @@ case object Tau extends LocalAction {
 
 final class LTSState(val nextStatements : List[ASTNode]) {
   override def equals(that: Any): Boolean = that match {
-    case s : LTSState => this.toString == s.toString()
+    case s : LTSState => this.toString == s.toString
     case _ => false
   }
-  override def hashCode(): Int = this.toString().hashCode()
+  override def hashCode(): Int = this.toString.hashCode()
 
-  override def toString: String = nextStatements.map(PVLSyntax.get().print(_).toString).toString()
+  override def toString: String = nextStatements.map(PVLSyntax.get().print(_).toString).toString
 
   def getCopy(copy_rw : AbstractRewriter) = new LTSState(copy_rw.rewrite(nextStatements.toArray).toList)
 }
@@ -143,12 +143,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   private def getStatementsFromNode(classDef : ASTClass, mainMethods : Iterable[Method],a : ASTNode) : List[ASTNode] = a match {
     case m: MethodInvokation =>
       if (m.`object` == null) {
-        val mdefs = mainMethods.filter(method => method.name == m.method && method.getArity == m.getArity)
-        if(mdefs.size > 1)
-          Fail("VeyMont Fail: Main class has two different methods with the same name and arity")
-        else if(mdefs.isEmpty)
-          Fail("VeyMont Fail: couldn't find definition for method call %s",m.method)
-        preProcessMethodCalls(classDef,mainMethods,mdefs.head)
+        preProcessMethodCalls(classDef,mainMethods,m.definition)
       } else List(m)
     case n: ASTNode => List(n)
   }
@@ -165,20 +160,15 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     visitStatementSequence(initialState,initialState.nextStatements)
   }
 
-  def getNrLastWeakFirstStatements(seq : List[ASTNode], seen : List[ASTNode]) : Int = {
-    if (seq.isEmpty)
-      0
-    else if(seq.size == 1)
-      1
-    else {
-      val s1 = seq.head
-      val s2 = seq.tail.head
-      if(weakSequenceAllowed(s1,s2) && seen.forall(s0 => weakSequenceAllowed(s0,s2)))
-        1 + getNrLastWeakFirstStatements(seq.tail,s1 +: seen)
-      else
-        1
+  def getNrLastWeakFirstStatements(seq : List[ASTNode], seen : List[ASTNode]) : Int =
+    seq match {
+      case Nil => 0
+      case (x :: Nil) => 1
+      case s1 :: s2 :: xs =>
+        if (weakSequenceAllowed(s1, s2) && seen.forall(s0 => weakSequenceAllowed(s0, s2))) {
+          1 + getNrLastWeakFirstStatements(s2 :: xs, s1 +: seen)
+        } else 1
     }
-  }
 
   private def getElAndRestByIndex[A](seq : List[A], index : Int) : (A, List[A]) = {
     val split = seq.splitAt(index)
@@ -326,7 +316,8 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   def visit(i: IfStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
     takeTwoBranches(i.getGuard(0),ASTNodeToList(i.getStatement(0)),if(i.getCount > 1) ASTNodeToList(i.getStatement(1)) else List.empty,currentState,seq)
 
-  def isRecursion(s : ASTNode, recursiveNodes : List[ASTNode]) : Boolean = recursiveNodes.exists(n => new LTSState(List(n)).toString == new LTSState(List(s)).toString)
+  def isRecursion(s : ASTNode, recursiveNodes : List[ASTNode]) : Boolean =
+    recursiveNodes.exists(n => new LTSState(List(n)) == new LTSState(List(s)))
 
   def visit(l : LoopStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
       takeTwoBranches(l.getEntryGuard,ASTNodeToList(l.getBody) :+ l,List.empty,currentState,seq)
@@ -349,16 +340,15 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     visitStatementSequence(nextState, totalNextSeq)
   }
 
-  def visit(pr : ParallelRegion, currentState : LTSState, nextSeq : List[ASTNode]) : Unit = {
+  def visit(pr : ParallelRegion, currentState : LTSState, nextSeq : List[ASTNode]) : Unit =
     pr.blocks.indices.foreach(i => {
-      val split = pr.blocks.splitAt(i)
-      val b = split._2.head
-      val fns = getWeakSequences(b.block.getStatements.toList).map(fn =>
-        (fn._1,getNewPrBeforeNextSeq(b,fn._2,split._1,split._2.tail,pr,nextSeq))
-      )
+      val (left,right) = pr.blocks.splitAt(i)
+      val b = right.head
+      val fns = getWeakSequences(b.block.getStatements.toList).map { case (fnleft, fnright) =>
+        (fnleft, getNewPrBeforeNextSeq(b, fnright, left, right.tail, pr, nextSeq))
+      }
       visitStatementSequenceAbstract(currentState,fns)
       })
-  }
 
   private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], othersPreBlock : List[ParallelBlock], othersPostBlock : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
     val afterFirstbAction = getCopyBlockWithStats(b,seq)
@@ -381,7 +371,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         val nextState = takeTransition(currentState, new LTSLabel(None, WriteAction(create.field_name(receiver),sender.name,argExp)), nextSeq)
         visitStatementSequence(nextState,nextSeq)
       } else if(m.method == barrierAwait) {
-        Fail("VeyMont Fail: Barrier!!!")
+        Fail("VeyMont Fail: It is not allowed to use a method with name %s",barrierAwait)
       } else { //role method
         val nextState = takeTransition(currentState,new LTSLabel(None, SingleRoleAction(m)), nextSeq)
         visitStatementSequence(nextState,nextSeq)

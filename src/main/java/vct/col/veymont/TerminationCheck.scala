@@ -18,19 +18,15 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
   private var methodCalled = false
   private var currentClass : String = null
   private val methods =  getAllMethods(source)
+  methods.foreach(m => {
+    encountered = Set.empty
+    m._1.accept(this)
+  })
 
   private def getAllMethods(source : ProgramUnit) : Iterable[(Method,String)] =
-    source.get().asScala.filter(_.isInstanceOf[ASTClass]).map(_.asInstanceOf[ASTClass])
-      .filter(c => isNoBarrierOrChannelClass(c.name)).flatMap(c => c.methods().asScala.map((_,c.name)))
-
-
-
-  def checkTermination(): Unit = {
-    methods.foreach(m => {
-      encountered = Set.empty
-      m._1.accept(this)
-    })
-  }
+    source.get().asScala.collect {
+      case c: ASTClass if isNoBarrierOrChannelClass(c.name) => c.methods().asScala.map((_,c.name))
+    }.flatten
 
 
   override def visit(m : Method) : Unit = {
@@ -49,7 +45,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
           if(m.getBody != null) //abstract methods terminate anyway
             m.getBody.accept(this) //check method calls in all (main, role, and other class) method bodies
         }
-      case _ => Fail("VeyMont Fail: method '%s' doesn't have ASTCLass parent", m.name)
+      case _ => Fail("VeyMont Fail: method '%s' doesn't have a CLass parent", m.name)
     }
   }
 

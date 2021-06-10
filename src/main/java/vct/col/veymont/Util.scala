@@ -56,13 +56,13 @@ object Util {
 
   def unArgName(arg: String): String = arg.slice(0, arg.length - 3)
 
-  def getChansFromBlockStateMent(block: ASTNode): Set[MethodInvokation] =
+  def getChansFromBlockStatement(block: ASTNode): Set[MethodInvokation] =
     getBlockOrThrow(block,"VeyMont Fail: expected BlockStatement").getStatements.toSet[ASTNode].flatMap(s => s match {
-      case l: LoopStatement => getChansFromBlockStateMent(l.getBody)
-      case i: IfStatement => getChansFromBlockStateMent(i.getStatement(0)) ++ (if (i.getCount > 1) getChansFromBlockStateMent(i.getStatement(1)) else Set.empty)
+      case l: LoopStatement => getChansFromBlockStatement(l.getBody)
+      case i: IfStatement => getChansFromBlockStatement(i.getStatement(0)) ++ (if (i.getCount > 1) getChansFromBlockStatement(i.getStatement(1)) else Set.empty)
       case p: ParallelRegion => {
         val blocks = p.blocks.map(_.block).toSet: Set[BlockStatement]
-        blocks.flatMap(getChansFromBlockStateMent): Set[MethodInvokation]
+        blocks.flatMap(getChansFromBlockStatement): Set[MethodInvokation]
       }
       case a: AssignmentStatement => getChanFromMethodInvokation(a.expression)
       case o: ASTNode => getChanFromMethodInvokation(o)

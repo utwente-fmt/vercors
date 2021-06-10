@@ -34,37 +34,27 @@ object StructureCheck {
 }
 
 class StructureCheck(source : ProgramUnit) {
-
-  private var mainClass : ASTClass = null
-  private var roleObjects : Iterable[AssignmentStatement] = null
-  private var roleNames : Iterable[String] = null
-  private var roleClasses : Iterable[ASTClass] = null
-  private var roleClassNames : Iterable[String] = null
-  private var mainMethods : Iterable[Method] = null
-  private var mainMethodNames : Iterable[String] = null
-  private var nonPlainMainMethodNames : Iterable[String] = null
-  private var otherClasses : Iterable[ASTClass] = null
+  checkMainClass(source)
+  private val mainClass : ASTClass = StructureCheck.getMainClass(source)
+  checkMainConstructor()
+  private val roleObjects : Iterable[AssignmentStatement] = getRoleObjects
+  checkRoleNames
+  checkMainMethod()
+  private val roleNames : Iterable[String] = getRoleNames
+  private val roleClasses : Iterable[ASTClass] = getRoleClasses
+  private val roleClassNames : Iterable[String] = roleClasses.map(_.name)
+  private val mainMethods : Iterable[Method] = getMainMethodsNonPureNonResourcePredicate
+  private val mainMethodNames : Iterable[String] = mainMethods.map(_.name)
+  private val nonPlainMainMethodNames : Iterable[String] =
+    mainClass.methods().asScala.filter(m => m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate).map(_.name)
   private var prevAssertArg : ASTNode = null
-
-  def check() : Unit = {
-    checkMainClass(source)
-    mainClass = StructureCheck.getMainClass(source)
-    checkMainConstructor()
-    checkMainMethod()
-    roleNames = getRoleNames
-    roleClasses = getRoleClasses
-    roleClassNames = roleClasses.map(_.name)
-    mainMethods = getMainMethodsNonPureNonResourcePredicate
-    mainMethodNames = mainMethods.map(_.name)
-    nonPlainMainMethodNames = mainClass.methods().asScala.filter(m => m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate).map(_.name)
-    checkMainMethodsAllowedSyntax(mainMethods)
+  checkMainMethodsAllowedSyntax(mainMethods)
   //  checkMainMethodsRecursion(source) //no guarded recusion supported by LTS generation
-    checkRoleFieldsTypes(source)
-    checkRoleMethodsTypes(source)
-    otherClasses = getOtherClasses(source)
-    checkOtherClassesFieldsTypes(source)
-    checkOtherClassesMethodsTypes(source)
-  }
+  checkRoleFieldsTypes(source)
+  checkRoleMethodsTypes(source)
+  private val otherClasses : Iterable[ASTClass] = getOtherClasses(source)
+  checkOtherClassesFieldsTypes(source)
+  checkOtherClassesMethodsTypes(source)
 
   private def checkMainClass(source : ProgramUnit) : Unit = {
     source.get().asScala.find(_.name == mainClassName) match {
@@ -130,11 +120,12 @@ class StructureCheck(source : ProgramUnit) {
       }
       case _ => Fail("VeyMont Fail: constructor of 'Main' can only assign role classes")
     }
-    roleObjects = getRoleObjects
+  }
+
+  private def checkRoleNames =
     if(getRoleNames.toSet != mainClass.fields().asScala.map(_.name).toSet) {
       Fail("VeyMont Fail: the fields of class 'Main' must be all assigned in constructor 'Main'")
     }
-  }
 
   private def getMainMethodsNonPureNonResourcePredicate : Iterable[Method] =
     mainClass.methods().asScala.filter(m => m.name != mainMethodName && m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure
@@ -424,11 +415,10 @@ class StructureCheck(source : ProgramUnit) {
     case _ => false
   }
 
-  private def getOtherClasses(source : ProgramUnit) : Iterable[ASTClass] = {
-    source.get().asScala.filter({
-      case c : ASTClass => isRoleOrHelperClassName(c.name) && !roleClassNames.exists(_ == c.name)
-    }).map(_.asInstanceOf[ASTClass])
-  }
+  private def getOtherClasses(source : ProgramUnit) : Iterable[ASTClass] =
+    source.get().asScala.collect {
+      case c : ASTClass if isRoleOrHelperClassName(c.name) && !roleClassNames.exists(_ == c.name) => c
+    }
 
   private def checkOtherClassesFieldsTypes(source : ProgramUnit) : Unit = {
     otherClasses.foreach(role => role.fields().asScala.foreach(field => {

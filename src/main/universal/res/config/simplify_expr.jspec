@@ -13,7 +13,6 @@ class simplify_expr {
   boolean b1,b2;
   int e1;
 
-  axiom ideq { (b1 == b1) == true }
   axiom idandl { (b1 && true) == b1 }
   axiom idandr { (true && b2) == b2 }
 

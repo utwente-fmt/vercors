@@ -5,7 +5,7 @@ import vct.col.ast.expr.{NameExpression, StandardOperator}
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.veymont.Util.{chanWriteMethodName, getChansFromBlockStateMent, isChanName, isThreadClassName}
+import vct.col.veymont.Util.{chanWriteMethodName, getChansFromBlockStatement, isChanName, isThreadClassName}
 
 class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(null, true) {
 
@@ -63,7 +63,7 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
   }
 
   private def getChans(b : BlockStatement): Set[ChannelRepr] = {
-    getChansFromBlockStateMent(b).flatMap(m => m.`object` match {
+    getChansFromBlockStatement(b).flatMap(m => m.`object` match {
       case n: NameExpression => if (isChanName(n.name)) Set(ChannelRepr(n.name)(m.method == chanWriteMethodName,null)) else Set.empty[ChannelRepr]
       case _ => Set.empty[ChannelRepr]
     })
