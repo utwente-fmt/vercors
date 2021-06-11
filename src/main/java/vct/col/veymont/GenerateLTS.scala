@@ -9,10 +9,14 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.syntax.PVLSyntax
 import vct.col.ast.util.AbstractRewriter
 import Util._
+import geny.Generator.from
+import hre.lang.System.Output
 import vct.col.veymont.StructureCheck.isExecutableMainMethod
+
 import java.io.{File, FileOutputStream, IOException, PrintWriter}
 import java.util.Scanner
 import scala.annotation.tailrec
+import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.jdk.CollectionConverters._
 
 sealed trait Action
@@ -90,8 +94,8 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         transitions = Map.empty
         roleName = thread.fields().asScala.head.name
         generateLTS(thread)
-        print()
-        checkWellBehavedness(veymontLocalLts, roleName)
+        print(); checkWellBehavedness(veymontLocalLts, roleName)
+        //WellBehavednessIterative.check(transitions,roleName)
       }
     }
   }
