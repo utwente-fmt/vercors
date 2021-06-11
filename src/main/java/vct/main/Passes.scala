@@ -920,16 +920,24 @@ object Passes {
     }),
   )
 
+  /*
+  VeyMont decomposes the global program from the input files into several local programs that can be executed in parallel.
+  The program from the input files has to adhere to the syntax of a 'global program'. Syntax violations result in VeyMont Fail messages.
+  The decomposition preserves the behaviour of the global program.
+  This implies that all functional properties proven (with VerCors) for the global program also hold for the local program.
+  Memory and thread safety can be checked by running VerCors on the file produced by VeyMont.
+  For more information on VeyMont, please check the VerCors Wiki.
+   */
   val VEYMONT: Seq[AbstractPass] = Seq(
     SimplePass("VeyMontStructCheck", "check that provided program conforms to VeyMont global program syntax restriction",
       arg => { new StructureCheck(arg); arg }),
-    SimplePass("VeyMontTerminationCheck", "check non-terminating statements",
+    SimplePass("VeyMontTerminationCheck", "check absence non-terminating statements",
       arg => { new TerminationCheck(arg); arg}),
   //  SimplePass("VeyMontGlobalLTS", "generate LTS of global program",
   //    arg => { new GenerateLTS(arg,true).generateLTSAndPrint(); arg }),
-    SimplePass("VeyMontDecompose", "generate local program classes from VeyMont global program",
+    SimplePass("VeyMontDecompose", "generate local program classes from given global program",
       new Decompose(_).addThreadClasses()),
-    SimplePass("VeyMontLocalLTS", "generate LTSs of local programs",
+    SimplePass("VeyMontLocalLTS", "generate LTSs of local programs and check well-behavedness",
       arg => { new GenerateLTS(arg,false).generateLTSAndCheckWellBehavedness(); arg }),
     SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
       new RemoveTaus(_).rewriteAll()),

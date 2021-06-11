@@ -46,6 +46,7 @@ class Main {
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
   private val stop_after = new StringListSetting
   private val strictInternalConditions = new BooleanSetting(false)
+  private var inputPaths = Array.empty[String]
 
   private val silver = new StringSetting("silver")
 
@@ -97,8 +98,7 @@ class Main {
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
-    val VeyMontFiles = Configuration.getVeyMontFiles.map(_.getAbsolutePath())
-    clops.parse(args) ++ (if (Configuration.veymont_file.get() != null && Configuration.veymont_file.get().endsWith(".pvl")) VeyMontFiles else Array[String]())
+    clops.parse(args) ++ (if (Configuration.veymont_file.get() != null) Configuration.getVeyMontFiles.map(_.getAbsolutePath()) else Array.empty[String])
   }
 
   private def setupLogging(): Unit = {
@@ -162,6 +162,15 @@ class Main {
       case "carbon" => // Nothing to check for
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
+    }
+
+    val vFile = Configuration.veymont_file.get()
+    if(vFile != null) {
+      val nonPVL = inputPaths.filter(!_.endsWith(".pvl"))
+      if(nonPVL.nonEmpty)
+        Fail("VeyMont cannot use non-PVL files %s",nonPVL.mkString(", "))
+      if(!vFile.endsWith(".pvl"))
+        Fail("VeyMont cannot output to non-PVL file %s",vFile)
     }
   }
 
@@ -491,7 +500,7 @@ class Main {
     try {
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info)
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info)
-      val inputPaths = parseOptions(args)
+      inputPaths = parseOptions(args)
       setupLogging()
       checkOptions()
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()

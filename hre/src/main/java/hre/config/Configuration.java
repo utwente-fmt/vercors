@@ -120,7 +120,13 @@ public class Configuration {
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
         clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
-        clops.add(veymont_file.getAssign("decompose with VeyMont"),"veymont");
+        clops.add(veymont_file.getAssign(
+                "VeyMont decomposes the global program from the input files into several local programs that can be executed in parallel. " +
+                        "The program from the input files has to adhere to the syntax of a 'global program'. Syntax violations result in VeyMont Fail messages. " +
+                        "The decomposition preserves the behaviour of the global program. " +
+                        "This implies that all functional properties proven (with VerCors) for the global program also hold for the local program. " +
+                        "Memory and thread safety can be checked by running VerCors on the file produced by VeyMont. " +
+                        "For more information on VeyMont, please check the VerCors Wiki."),"veymont");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);
