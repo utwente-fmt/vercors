@@ -81,7 +81,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     veymontFileName.slice(0,veymontFileName.length-4) + roleName + "LTS.aut"
   }
 
-  def generateLTSAndPrint() : Unit = {
+  def generateLTSAndCheckWellBehavedness() : Unit = {
     if(isGlobal) {
       roleNames = StructureCheck.getRoleNames(source)
       generateLTS(StructureCheck.getMainClass(source))
@@ -94,8 +94,8 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         transitions = Map.empty
         roleName = thread.fields().asScala.head.name
         generateLTS(thread)
-        print(); checkWellBehavedness(veymontLocalLts, roleName)
-        //WellBehavednessIterative.check(transitions,roleName)
+        //print() //use this method to print LTS to a file
+        WellBehavednessIterative.check(transitions,roleName)
       }
     }
   }
@@ -127,20 +127,6 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       out.close()
     } catch {
       case e: IOException => Debug(e.getMessage)
-    }
-  }
-
-  def checkWellBehavedness(ltsFileName : String, ltsRole : String) : Unit = {
-    try {
-      val tauClosure = new AldebaranTau(new Scanner(new File(ltsFileName)), WellBehavednessJava.isTau)
-      if (!WellBehavednessJava.checkForwardNonTau(tauClosure))
-        Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardNonTau)", ltsRole)
-      else if (!WellBehavednessJava.checkForwardTau(tauClosure))
-        Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardTau)", ltsRole)
-      else if (!WellBehavednessJava.checkBackward(tauClosure))
-        Fail("VeyMont Fail: Local LTS of %s not well-behaved (Backward)", ltsRole)
-    } catch {
-      case e : IllegalArgumentException => Fail("VeyMont Fail: Could not parse file %s",ltsFileName)
     }
   }
 

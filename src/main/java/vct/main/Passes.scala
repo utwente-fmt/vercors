@@ -930,7 +930,7 @@ object Passes {
     SimplePass("VeyMontDecompose", "generate local program classes from VeyMont global program",
       new Decompose(_).addThreadClasses()),
     SimplePass("VeyMontLocalLTS", "generate LTSs of local programs",
-      arg => { new GenerateLTS(arg,false).generateLTSAndPrint(); arg }),
+      arg => { new GenerateLTS(arg,false).generateLTSAndCheckWellBehavedness(); arg }),
     SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
       new RemoveTaus(_).rewriteAll()),
     SimplePass("removeEmptyBlocks", "remove empty blocks of parallel regions",
