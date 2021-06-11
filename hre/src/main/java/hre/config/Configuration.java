@@ -164,6 +164,12 @@ public class Configuration {
         return getFileOrAbort("/include");
     }
 
+    public static File[] getVeyMontFiles()  {
+        File bar = getFileOrAbort("/include/barrier.pvl");
+        File chan = getFileOrAbort("/include/channel.pvl");
+        return new File[] {bar,chan};
+    }
+
     public static File getSelfTestPath(String test) {
         return getFileOrAbort("/selftest/" + test);
     }
