@@ -1,0 +1,38 @@
+//:: cases PureMethodCall
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role(5);
+		b = new Role(6);
+		c = new Role(7);
+	}
+	
+	void run() {
+		Main.foo();
+	}
+	
+
+	pure static boolean foo() = true;
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+
+}
+

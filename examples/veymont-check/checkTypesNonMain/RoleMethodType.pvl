@@ -1,0 +1,42 @@
+//:: cases RoleMethodType
+//:: suite session-check
+//:: tools session
+//:: verdict Pass
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role(5);
+		b = new Role(6);
+		c = new Role(7);
+	}
+	
+	void run() {
+		a.x = 1;
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+	
+	Other some() {
+	
+	}
+
+}
+
+class Other {
+
+}

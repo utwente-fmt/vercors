@@ -1,0 +1,26 @@
+//:: cases MainConstructorAssignmenWrongType
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	int i;
+
+	Main() {
+		i = new Foo();
+	}
+
+	void run() {
+	
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+
+class Foo {
+
+}
+

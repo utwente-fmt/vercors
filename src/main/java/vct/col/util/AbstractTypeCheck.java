@@ -1895,7 +1895,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       object_type=(Type)object_type.firstarg();
     }
     if (object_type instanceof PrimitiveType){
-      if (e.field().equals("length")){
+      if (e.field().equals(Dereference.ArrayLength())){
         e.setType(new PrimitiveType(PrimitiveSort.Integer));
         return;
       }
