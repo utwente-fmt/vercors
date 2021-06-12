@@ -1,0 +1,117 @@
+name: Slow tests
+# Only run the workflow when a commit has been made to dev.
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+      - issue-509-slow-tests
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: Default
+    steps:
+      # This should automatically cancel any previous workflows that are still
+      # running when for example new commits are pushed.
+      - uses: technote-space/auto-cancel-redundant-workflow@v1
+      - uses: actions/checkout@v2
+      - name: Cache SBT dependencies modules
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.cache/coursier
+          key: ${{ runner.os }}-build-vercors-sbt-jdk11
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+      # Currently sbt and fakeroot are installed by default
+      - name: Debug step 1
+        run: |
+          printf "${JAVA_HOME}\n"
+          ls $JAVA_HOME
+          ls $JAVA_HOME/bin
+      - run: sbt debian:packageBin
+      - run: sbt test || true
+      - name: Archive VerCors .deb
+        uses: actions/upload-artifact@v2
+        with:
+          name: vercors-debian-package
+          retention-days: 1
+          path: |
+            target/*.deb
+      - name: Debug step 2
+        run: |
+          printf "${JAVA_HOME}\n"
+          ls $JAVA_HOME
+          ls $JAVA_HOME/bin
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          # This is set automatically by github
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # SONAR_TOKEN is set in the secrets section of the github repo
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # Avoid "java not found" error (see: https://community.sonarsource.com/t/cannot-run-sonarsource-sonarcloud-github-action-master-java-not-found/14922/3)
+          JAVA_HOME: '' 
+    
+      # If this is the dev branch we also want to build the .txz binary for the release
+      - name: Build mac binary
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        run: sbt universal:packageZipTarball
+      # If this is the dev branch we update the pre-release tag in the github repo
+      # We also package the release zip
+      - name: Set pre-release tag in github repo
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --local user.name "Vercors Team"
+          git config --local user.email "vercors@lists.utwente.nl"
+          git tag --force dev-prerelease
+          git remote set-url origin https://${GITHUB_TOKEN}@github.com/utwente-fmt/vercors.git
+          git push --force --tags
+      - name: Create Release
+        if: ${{ github.ref == 'refs/heads/dev' }}
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "target/*.deb,target/universal/*.tgz"
+          artifactContentType: application/zip
+          body: This is an alpha build of the vercors development branch. It is updated automatically after each merge. Refer to the commit on the left for the last update.
+          name: Vercors Dev Build
+          prerelease: true
+          tag: dev-prerelease
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v2
+        with:
+          report_paths: '**/target/test-reports/TEST-*.xml'
+      
+  integration_test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        testID: [0, 1, 2, 3, 4]
+      fail-fast: false
+    env:
+      maxTestID: 5
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+          java-package: jre
+      - name: Download VerCors binary
+        uses: actions/download-artifact@v2
+        with:
+          name: vercors-debian-package
+      - run: ls
+      - run: "sudo dpkg -i *.deb"
+      - run: mono --version
+      - run: vercors --silicon examples/manual/fibonacci.pvl
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
