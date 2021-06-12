@@ -49,7 +49,7 @@ jobs:
           ls $JAVA_HOME
           ls $JAVA_HOME/bin
 
-  integration_test:
+  slow_tests:
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -72,4 +72,23 @@ jobs:
       - run: "sudo dpkg -i *.deb"
       - run: mono --version
       - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=slow,medium,skip-travis --progress --actions-test-output
+
+  problem_fail_tests:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+          java-package: jre
+      - name: Download VerCors binary
+        uses: actions/download-artifact@v2
+        with:
+          name: vercors-debian-package
+      - run: ls
+      - run: "sudo dpkg -i *.deb"
+      - run: mono --version
+      - run: vercors --silicon examples/manual/fibonacci.pvl
+      - run: vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=problem-fail --progress --actions-test-output
