@@ -35,7 +35,6 @@ jobs:
           ls $JAVA_HOME
           ls $JAVA_HOME/bin
       - run: sbt debian:packageBin
-      - run: sbt test || true
       - name: Archive VerCors .deb
         uses: actions/upload-artifact@v2
         with:
@@ -49,7 +48,7 @@ jobs:
           ls $JAVA_HOME
           ls $JAVA_HOME/bin
 
-  slow_tests:
+  slow_and_skip_travis_tests:
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -97,7 +96,7 @@ jobs:
       - run: "sudo dpkg -i *.deb"
       - run: mono --version
       - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }}  vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=problem-fail --progress --actions-test-output
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }}  vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=problem-fail --progress --actions-test-output || 1
 
   not_working_tests:
     needs: build
