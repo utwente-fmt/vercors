@@ -17,7 +17,7 @@ public class Main {
     w.join()/*@ with { p = 1; } @*/;
     //@ assert w.input==7;
     //@ open w.postJoin@Worker(1);
-    // do not unfold w.postJoin@Worker(1);
+    // do not unfold w.postJoinWorker(1);
     //@ assert w.output==8;
   }
 
