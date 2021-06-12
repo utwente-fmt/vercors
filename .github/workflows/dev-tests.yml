@@ -122,4 +122,4 @@ jobs:
       - run: "sudo dpkg -i *.deb"
       - run: mono --version
       - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }}  vercors --test=not_working_examples --test-workers=1 --tool carbon --tool silicon --progress --actions-test-output
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }}  vercors --test=not_working_examples --test-workers=1 --tool carbon --tool silicon --progress --actions-test-output || 1
