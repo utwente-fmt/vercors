@@ -1,0 +1,44 @@
+//:: cases AbsenceRecursion3
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role(5);
+		b = new Role(6);
+		c = new Role(7);
+	}
+	
+	void run() {
+		a.x = 1;
+	}
+	
+	pure static int some(int i) {
+		return 5 + some(i);
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+	
+	void run() {
+		x = 4;
+		Main.some(5);
+	}
+	
+	
+}

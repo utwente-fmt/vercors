@@ -1,0 +1,11 @@
+//:: cases NoMain
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class SomeClass {
+
+	void aMethod(int a) {
+		a = 5;
+	}
+
+}

@@ -1,0 +1,22 @@
+//:: cases MainMethod
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a;
+	
+	Main() {
+		a = new Role();
+	}
+	
+	void run() {
+		
+	}
+
+}
+
+class Role {
+
+
+}

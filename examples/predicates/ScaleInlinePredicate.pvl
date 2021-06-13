@@ -1,0 +1,37 @@
+//:: cases ScaleInlinePredicate
+//:: tools silicon
+//:: verdict Pass
+
+class C {
+    int x;
+    int y;
+    inline resource r() = Perm(x, write);
+
+    inline resource s() = r() ** Perm(y, 1\2) ** x == y;
+
+    requires [1\2]r();
+    void m() {
+        unfold [1\2]r();
+        assert Perm(x, 1\2);
+    }
+
+    requires [1\4]r();
+    void m2() {
+        unfold [1\2][1\2]r();
+        assert Perm(x, 1\4);
+    }
+
+    requires s();
+    void m3() {
+        fold [1\2]s();
+        assert x == y;
+        assert Perm(y, 1\2) ** Perm(x, write);
+    }
+
+    requires [1\8]s();
+    void m4() {
+        fold [1\4][1\4]s();
+        assert x == y;
+        assert Perm(y, 1\16) ** Perm(x, 1\8);
+    }
+}
