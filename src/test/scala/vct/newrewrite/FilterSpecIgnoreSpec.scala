@@ -20,27 +20,27 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     var programExpectedOutput: Program = null
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.GenerateSimpleInputOrigin()
+      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
         Eval(Plus(Local(new DirectRef[Variable](variable)), Local(new DirectRef[Variable](variable)))),
         Return(Local(new DirectRef[Variable](variable)))
       ))
-      programInput = SimpleProgramGenerator.GenerateProgramWithSingleClassAndSingleMethod(body)
+      programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.GenerateSimpleInputOrigin()
+      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
         Eval(Plus(Local(new LazyRef[Variable](variable)), Local(new LazyRef[Variable](variable)))),
         Return(Local(new LazyRef[Variable](variable)))
       ))
-      programExpectedOutput = SimpleProgramGenerator.GenerateProgramWithSingleClassAndSingleMethod(body)
+      programExpectedOutput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
-    RewriteTestHelper.Test(rewriter, programInput, programExpectedOutput)
+    RewriteTestHelper.test(rewriter, programInput, programExpectedOutput)
   }
 
   it should "remove nodes within filterSpecIgnore" in {
@@ -48,7 +48,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     var programExpectedOutput: Program = null
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.GenerateSimpleInputOrigin()
+      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
@@ -57,19 +57,19 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
         SpecIgnoreEnd(),
         Return(Local(new DirectRef[Variable](variable)))
       ))
-      programInput = SimpleProgramGenerator.GenerateProgramWithSingleClassAndSingleMethod(body)
+      programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.GenerateSimpleInputOrigin()
+      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
         Return(Local(new LazyRef[Variable](variable)))
       ))
-      programExpectedOutput = SimpleProgramGenerator.GenerateProgramWithSingleClassAndSingleMethod(body)
+      programExpectedOutput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
-    RewriteTestHelper.Test(rewriter, programInput, programExpectedOutput)
+    RewriteTestHelper.test(rewriter, programInput, programExpectedOutput)
   }
 
   it should "throw error with two many SpecIgnoreStart" in {
@@ -77,7 +77,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     var programExpectedOutput: Program = null
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.GenerateSimpleInputOrigin()
+      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
@@ -85,7 +85,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
         Eval(Plus(Local(new DirectRef[Variable](variable)), Local(new DirectRef[Variable](variable)))),
         Return(Local(new DirectRef[Variable](variable)))
       ))
-      programInput = SimpleProgramGenerator.GenerateProgramWithSingleClassAndSingleMethod(body)
+      programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
     rewriter.rewrite(programInput)
@@ -97,7 +97,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     var programExpectedOutput: Program = null
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.GenerateSimpleInputOrigin()
+      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
@@ -105,7 +105,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
         SpecIgnoreEnd(),
         Return(Local(new DirectRef[Variable](variable)))
       ))
-      programInput = SimpleProgramGenerator.GenerateProgramWithSingleClassAndSingleMethod(body)
+      programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
     rewriter.rewrite(programInput)
