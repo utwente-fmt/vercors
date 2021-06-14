@@ -629,10 +629,11 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ForStatementList1(x, ",", xs) => convertStat(x) ++ convertStatList(xs)
   }
 
-  def convertParUnitList(tree: ParUnitListContext): Seq[ParallelBlock] = tree match {
-    case ParUnitList0(x) => Seq(convertParUnit(x))
-    case ParUnitList1(x, "and", xs) => convertParUnit(x) +: convertParUnitList(xs)
-  }
+  def convertParUnitList(tree: ParUnitListContext): Seq[ParallelBlock] = ???
+//    tree match {
+//    case ParUnitList0(x) => Seq(convertParUnit(x))
+//    case ParUnitList1(x, "and", xs) => convertParUnit(x) +: convertParUnitList(xs)
+//  }
 
   def convertParUnit(tree: ParUnitContext): ParallelBlock = ???
 //    origin(tree, tree match {

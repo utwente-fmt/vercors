@@ -51,8 +51,9 @@ expr
  ;
 
 iteExpr
- : implicationExpr '?' implicationExpr ':' iteExpr
- | implicationExpr
+// : implicationExpr '?' implicationExpr ':' iteExpr
+// | implicationExpr
+ : implicationExpr ('?' implicationExpr ':' iteExpr)?
  ;
 
 implicationExpr
@@ -75,10 +76,10 @@ eqExpr
  ;
 
 relExpr
- : relExpr '<' addExpr
- | relExpr '<=' addExpr
- | relExpr '>=' addExpr
- | relExpr '>' addExpr
+ : relExpr '<' setExpr
+ | relExpr '<=' setExpr
+ | relExpr '>=' setExpr
+ | relExpr '>' setExpr
  | setExpr
  ;
 
@@ -231,7 +232,9 @@ statement
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;
 barrierBody: '{' contract '}' | contract block;
-parUnitList: parUnit | parUnit 'and' parUnitList;
+
+//parUnitList: parUnit | parUnit 'and' parUnitList;
+parUnitList: parUnit ('and' parUnitList)?;
 
 forStatementList
  : allowedForStatement

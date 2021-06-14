@@ -152,6 +152,11 @@ trait Parser {
           decision.errors.size(),
           getParser().getRuleNames()(getParser().getATN.getDecisionState(decision.decision).ruleIndex)
         )
+//        Output("%s", decision.SLL_MaxLookEvent.input.getText)
+//        val mle = decision.SLL_MaxLookEvent
+//        Output("%s", decision.SLL_MaxLookEvent.input.getText.substring(0, mle.startIndex))
+//        Output("|||")
+//        Output("%s", decision.SLL_MaxLookEvent.input.getText.substring(mle.startIndex, mle.stopIndex))
       })
   }
 }
@@ -301,6 +306,8 @@ class ParserBench {
       // Values overlaps with collectionConstructors, but it doesn't seem to matter
       // typeDims can be refactored by having both alternatives use +, and adding one "empty" alternative. Only saves 63ms though
       // | expr | is both in nonTargetUnit and valPrimary, saves about 200 ambiguities
+      // Shouldn't use both recursive and non-recursive form for parUnitList (see: https://stackoverflow.com/questions/42093553/antlr-does-not-automatically-do-lookahead-matching)
+      //    Seems to reduce the parsing time about half a second
 
       0
     } else {

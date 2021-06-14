@@ -1,0 +1,1206 @@
+// Generated on 2021-05-25 at 10:12:22
+domain Process {
+  
+  function p_is_choice(p1: Process, p2: Process): Bool
+  
+  function p_empty(): Process
+  
+  function p_merge(p1: Process, p2: Process): Process
+  
+  function p_choice(p1: Process, p2: Process): Process
+  
+  function p_seq(p1: Process, p2: Process): Process
+  
+  function p_Send(rank: Int, msg: Int): Process
+  
+  function p_Recv(rank: Int, msg: Int): Process
+  
+  function p_Done(rank: Int, v: Int): Process
+  
+  function p_SigmaRecv(rank: Int, size: Int, v: Int, w: Int, max: Int, n: Int): Process
+  
+  function p_Check(rank: Int, size: Int, v: Int, w: Int, max: Int, n: Int): Process
+  
+  function p_Elect(rank: Int, size: Int, v: Int, max: Int, n: Int): Process
+  
+  function p_Spawn(rank: Int, size: Int, xs: Seq[Int], max: Int): Process
+  
+  function p_Start(size: Int, xs: Seq[Int], max: Int): Process
+  
+  axiom empty_1L {
+    (forall p: Process :: { p_merge(p_empty(), p) } p_merge(p_empty(), p) == p)
+  }
+  
+  axiom empty_2L {
+    (forall p: Process :: { p_seq(p_empty(), p) } p_seq(p_empty(), p) == p)
+  }
+  
+  axiom empty_2R {
+    (forall p: Process :: { p_seq(p, p_empty()) } p_seq(p, p_empty()) == p)
+  }
+  
+  axiom choice_L {
+    (forall p1: Process, p2: Process :: { p_is_choice(p_choice(p1, p2), p1) } p_is_choice(p_choice(p1, p2), p1))
+  }
+  
+  axiom choice_R {
+    (forall p1: Process, p2: Process :: { p_is_choice(p_choice(p1, p2), p2) } p_is_choice(p_choice(p1, p2), p2))
+  }
+  
+  axiom choice_dist {
+    (forall p1: Process, p2: Process, p3: Process :: { p_seq(p_choice(p1, p2), p3) } p_seq(p_choice(p1, p2), p3) == p_choice(p_seq(p1, p3), p_seq(p2, p3)))
+  }
+  
+  axiom seq_assoc {
+    (forall p1: Process, p2: Process, p3: Process :: { p_seq(p_seq(p1, p2), p3) } p_seq(p_seq(p1, p2), p3) == p_seq(p1, p_seq(p2, p3)))
+  }
+  
+  axiom Send_def_2 {
+    (forall p: Process, rank: Int, msg: Int :: { p_seq(p, p_Send(rank, msg)) } p_seq(p, p_Send(rank, msg)) == p_seq(p, p_seq(p_Send(rank, msg), p_empty())))
+  }
+  
+  axiom Recv_def_2 {
+    (forall p: Process, rank: Int, msg: Int :: { p_seq(p, p_Recv(rank, msg)) } p_seq(p, p_Recv(rank, msg)) == p_seq(p, p_seq(p_Recv(rank, msg), p_empty())))
+  }
+  
+  axiom Done_def_2 {
+    (forall p: Process, rank: Int, v: Int :: { p_seq(p, p_Done(rank, v)) } p_seq(p, p_Done(rank, v)) == p_seq(p, p_seq(p_Done(rank, v), p_empty())))
+  }
+  
+  axiom SigmaRecv_def_1 {
+    (forall rank: Int, size: Int, v: Int, w: Int, max: Int, n: Int :: { p_SigmaRecv(rank, size, v, w, max, n) } (0 < w ? p_choice(p_seq(p_Recv((rank - 1) % size, w), p_Check(rank, size, v, w, max, n)), p_SigmaRecv(rank, size, v, w - 1, max, n)) : p_seq(p_Recv((rank - 1) % size, w), p_Check(rank, size, v, w, max, n))) == p_SigmaRecv(rank, size, v, w, max, n))
+  }
+  
+  axiom SigmaRecv_def_2 {
+    (forall p: Process, rank: Int, size: Int, v: Int, w: Int, max: Int, n: Int :: { p_seq(p, p_SigmaRecv(rank, size, v, w, max, n)) } p_seq(p, p_SigmaRecv(rank, size, v, w, max, n)) == p_seq(p, p_seq(p_SigmaRecv(rank, size, v, w, max, n), p_empty())))
+  }
+  
+  axiom Check_def_1 {
+    (forall rank: Int, size: Int, v: Int, w: Int, max: Int, n: Int :: { p_Check(rank, size, v, w, max, n) } p_Elect(rank, size, (v <= w ? w : v), max, n + 1) == p_Check(rank, size, v, w, max, n))
+  }
+  
+  axiom Check_def_2 {
+    (forall p: Process, rank: Int, size: Int, v: Int, w: Int, max: Int, n: Int :: { p_seq(p, p_Check(rank, size, v, w, max, n)) } p_seq(p, p_Check(rank, size, v, w, max, n)) == p_seq(p, p_seq(p_Check(rank, size, v, w, max, n), p_empty())))
+  }
+  
+  axiom Elect_def_1 {
+    (forall rank: Int, size: Int, v: Int, max: Int, n: Int :: { p_Elect(rank, size, v, max, n) } (n < size ? p_seq(p_Send((rank + 1) % size, v), p_SigmaRecv(rank, size, v, max - 1, max, n)) : p_Done(rank, v)) == p_Elect(rank, size, v, max, n))
+  }
+  
+  axiom Elect_def_2 {
+    (forall p: Process, rank: Int, size: Int, v: Int, max: Int, n: Int :: { p_seq(p, p_Elect(rank, size, v, max, n)) } p_seq(p, p_Elect(rank, size, v, max, n)) == p_seq(p, p_seq(p_Elect(rank, size, v, max, n), p_empty())))
+  }
+  
+  axiom Spawn_def_1 {
+    (forall rank: Int, size: Int, xs: Seq[Int], max: Int :: { p_Spawn(rank, size, xs, max) } (rank < size ? p_merge(p_Elect(rank, size, xs[rank], max, 0), p_Spawn(rank + 1, size, xs, max)) : p_empty()) == p_Spawn(rank, size, xs, max))
+  }
+  
+  axiom Spawn_def_2 {
+    (forall p: Process, rank: Int, size: Int, xs: Seq[Int], max: Int :: { p_seq(p, p_Spawn(rank, size, xs, max)) } p_seq(p, p_Spawn(rank, size, xs, max)) == p_seq(p, p_seq(p_Spawn(rank, size, xs, max), p_empty())))
+  }
+  
+  axiom Start_def_1 {
+    (forall size: Int, xs: Seq[Int], max: Int :: { p_Start(size, xs, max) } p_Spawn(0, size, xs, max) == p_Start(size, xs, max))
+  }
+  
+  axiom Start_def_2 {
+    (forall p: Process, size: Int, xs: Seq[Int], max: Int :: { p_seq(p, p_Start(size, xs, max)) } p_seq(p, p_Start(size, xs, max)) == p_seq(p, p_seq(p_Start(size, xs, max), p_empty())))
+  }
+}
+
+domain TYPE {
+  
+  unique function class_Future(): TYPE
+  
+  unique function class_java_DOT_lang_DOT_Object(): TYPE
+  
+  unique function class_Program(): TYPE
+  
+  unique function class_Main(): TYPE
+  
+  unique function class_EncodedGlobalVariables(): TYPE
+  
+  function directSuperclass(t: TYPE): TYPE
+  
+  function type_of(val: Ref): TYPE
+  
+  axiom Future_directSuperclass {
+    directSuperclass(class_Future()) == class_java_DOT_lang_DOT_Object()
+  }
+  
+  axiom Program_directSuperclass {
+    directSuperclass(class_Program()) == class_java_DOT_lang_DOT_Object()
+  }
+  
+  axiom Main_directSuperclass {
+    directSuperclass(class_Main()) == class_java_DOT_lang_DOT_Object()
+  }
+  
+  axiom EncodedGlobalVariables_directSuperclass {
+    directSuperclass(class_EncodedGlobalVariables()) == class_java_DOT_lang_DOT_Object()
+  }
+}
+
+domain frac {
+  
+  function frac_val(a: frac): Perm
+  
+  axiom frac_eq {
+    (forall a: frac, b: frac :: { frac_val(a),frac_val(b) } (frac_val(a) == frac_val(b)) == (a == b))
+  }
+  
+  axiom frac_bound {
+    (forall a: frac :: { frac_val(a) } 0 / 1 < frac_val(a) && frac_val(a) <= 1 / 1)
+  }
+}
+
+domain zfrac {
+  
+  function zfrac_val(a: zfrac): Perm
+  
+  axiom zfrac_eq {
+    (forall a: zfrac, b: zfrac :: { zfrac_val(a),zfrac_val(b) } (zfrac_val(a) == zfrac_val(b)) == (a == b))
+  }
+  
+  axiom zfrac_bound {
+    (forall a: zfrac :: { zfrac_val(a) } 0 / 1 <= zfrac_val(a) && zfrac_val(a) <= 1 / 1)
+  }
+}
+
+//  a field 
+field Future_channel_hist_value: Seq[Seq[Int]]
+
+//  a field 
+field Future_channel_hist_init: Seq[Seq[Int]]
+
+//  a field 
+field Future_channel_hist_act: Seq[Seq[Int]]
+
+//  a field 
+field Future_channel_hist_write: Seq[Seq[Int]]
+
+//  a field 
+field Future_channel_hist_free: Seq[Seq[Int]]
+
+//  a field 
+field Future_channel_hist_hist: Seq[Seq[Int]]
+
+//  a field 
+field Future_channel_hist_action: Seq[Seq[Int]]
+
+//  a field 
+field Future_results_hist_value: Seq[Int]
+
+//  a field 
+field Future_results_hist_init: Seq[Int]
+
+//  a field 
+field Future_results_hist_act: Seq[Int]
+
+//  a field 
+field Future_results_hist_write: Seq[Int]
+
+//  a field 
+field Future_results_hist_free: Seq[Int]
+
+//  a field 
+field Future_results_hist_hist: Seq[Int]
+
+//  a field 
+field Future_results_hist_action: Seq[Int]
+
+//  a field 
+field Program_initialised: Bool
+
+//  a field 
+field Program_size: Int
+
+//  a field 
+field Program_maxvalue: Int
+
+//  a field 
+field Program_f: Ref
+
+//  a field 
+field Main_pr: Ref
+
+//  a field 
+field Main_rank: Int
+
+//  a field 
+field Main_val: Int
+
+//  a field 
+field Main_r1: frac
+
+//  a field 
+field Main_r2: frac
+
+function Program_update_Sequence$Integer$_Integer_Integer(xs: Seq[Int], i: Int, v: Int): Seq[Int]
+  requires 0 <= i && i < |xs|
+  ensures |result| == |xs|
+  ensures result[i] == v
+  ensures (forall j: Int :: { result[j] } { xs[j] } 0 <= j && j < |xs| && j != i ==> result[j] == xs[j])
+{
+  (0 < i ? Seq(xs[0]) ++ Program_update_Sequence$Integer$_Integer_Integer(xs[1..], i - 1, v) : Seq(v) ++ xs[1..])
+}
+
+function Program_maxint_Sequence$Integer$_Integer_Integer(xs: Seq[Int], i: Int, j: Int): Int
+  requires 0 <= i && i <= |xs|
+  requires 0 <= j && j < |xs|
+  requires (forall l: Int :: { xs[l] } 0 <= l && l < i ==> xs[l] <= xs[j])
+  ensures 0 <= result && result < |xs|
+  ensures xs[j] <= xs[result]
+  ensures (forall l: Int :: { xs[l] } i <= l && l < |xs| ==> xs[l] <= xs[result])
+{
+  (i < |xs| ? (xs[j] <= xs[i] ? Program_maxint_Sequence$Integer$_Integer_Integer(xs, i + 1, i) : Program_maxint_Sequence$Integer$_Integer_Integer(xs, i + 1, j)) : j)
+}
+
+function Program_push_Sequence$Sequence$Integer$$_Integer_Integer(diz: Ref, xs: Seq[Seq[Int]], i: Int, val: Int): Seq[Seq[Int]]
+  requires diz != null
+  requires 0 <= i && i < |xs|
+  ensures |result| == |xs|
+  ensures result[i] == xs[i] ++ Seq(val)
+  ensures (forall j: Int :: { result[j] } { xs[j] } 0 <= j && j < |xs| && j != i ==> result[j] == xs[j])
+{
+  (0 < i ? Seq(xs[0]) ++ Program_push_Sequence$Sequence$Integer$$_Integer_Integer(diz, xs[1..], i - 1, val) : Seq(xs[0] ++ Seq(val)) ++ xs[1..])
+}
+
+function Program_pop_Sequence$Sequence$Integer$$_Integer(diz: Ref, xs: Seq[Seq[Int]], i: Int): Seq[Seq[Int]]
+  requires diz != null
+  requires 0 <= i && i < |xs|
+  ensures |result| == |xs|
+  ensures result[i] == xs[i][1..]
+  ensures (forall j: Int :: { result[j] } { xs[j] } 0 <= j && j < |xs| && j != i ==> result[j] == xs[j])
+{
+  (0 < i ? Seq(xs[0]) ++ Program_pop_Sequence$Sequence$Integer$$_Integer(diz, xs[1..], i - 1) : Seq(xs[0][1..]) ++ xs[1..])
+}
+
+function instanceof_TYPE_TYPE(t: TYPE, u: TYPE): Bool
+  ensures result == (t == u || directSuperclass(t) == u)
+
+
+function new_frac(x: Perm): frac
+  requires 0 / 1 < x && x <= 1 / 1
+  ensures frac_val(result) == x
+
+
+function new_zfrac(x: Perm): zfrac
+  requires 0 / 1 <= x && x <= 1 / 1
+  ensures zfrac_val(result) == x
+
+
+predicate Future_hist_do_Send_Fraction_Process(diz: Ref, fr: frac, proc: Process) 
+
+predicate Future_hist_do_Recv_Fraction_Process(diz: Ref, fr: frac, proc: Process) 
+
+predicate Future_hist_do_Done_Fraction_Process(diz: Ref, fr: frac, proc: Process) 
+
+predicate Future_hist_idle_Fraction_Process(diz: Ref, fr: frac, proc: Process) 
+
+predicate Program_lock_held_EncodedGlobalVariables(diz: Ref, globals: Ref) 
+
+predicate Program_lock_invariant_EncodedGlobalVariables(diz: Ref, globals: Ref) {
+  diz != null && (acc(diz.Program_initialised, 1 / 2) && acc(diz.Program_size, 1 / 2) && acc(diz.Program_maxvalue, 1 / 2) && 0 < diz.Program_maxvalue && (diz.Program_initialised ? acc(diz.Program_f, 1 / 2) && diz.Program_f != null : true) && (diz.Program_initialised ? acc(diz.Program_f.Future_channel_hist_value, write) && acc(diz.Program_f.Future_channel_hist_hist, write) && diz.Program_size == |diz.Program_f.Future_channel_hist_value| : true) && (diz.Program_initialised ? acc(diz.Program_f.Future_results_hist_value, write) && acc(diz.Program_f.Future_results_hist_hist, write) && diz.Program_size == |diz.Program_f.Future_results_hist_value| : true) && (diz.Program_initialised ==> (forall i: Int, j: Int :: { diz.Program_f.Future_channel_hist_value[i][j] } 0 <= i && i < diz.Program_size && (0 <= j && j < |diz.Program_f.Future_channel_hist_value[i]|) ==> 0 <= diz.Program_f.Future_channel_hist_value[i][j] && diz.Program_f.Future_channel_hist_value[i][j] < diz.Program_maxvalue)))
+}
+
+predicate Main_joinToken_EncodedGlobalVariables(diz: Ref, globals: Ref) 
+
+predicate Main_idleToken_EncodedGlobalVariables(diz: Ref, globals: Ref) 
+
+method Future_Send_begin_Fraction_Process_Integer_Integer(diz: Ref, fr: frac, proc: Process, rank: Int, msg: Int)
+  requires diz != null
+  requires frac_val(fr) != none
+  requires acc(Future_hist_idle_Fraction_Process(diz, fr, p_seq(p_Send(rank, msg), proc)), write)
+  requires write != none
+  requires acc(diz.Future_channel_hist_value, write)
+  requires acc(diz.Future_channel_hist_hist, write)
+  requires 0 <= rank && rank < |diz.Future_channel_hist_value|
+  ensures frac_val(fr) != none
+  ensures acc(Future_hist_do_Send_Fraction_Process(diz, fr, proc), write)
+  ensures acc(diz.Future_channel_hist_act, write)
+  ensures acc(diz.Future_channel_hist_value, write)
+  ensures acc(diz.Future_channel_hist_write, write)
+  ensures acc(diz.Future_channel_hist_action, write)
+  ensures diz.Future_channel_hist_value == diz.Future_channel_hist_act
+  ensures diz.Future_channel_hist_value == old(diz.Future_channel_hist_value)
+{
+  inhale false
+}
+
+method Future_Send_commit_Fraction_Process_Integer_Integer(diz: Ref, fr: frac, proc: Process, rank: Int, msg: Int)
+  requires diz != null
+  requires frac_val(fr) != none
+  requires acc(Future_hist_do_Send_Fraction_Process(diz, fr, proc), write)
+  requires write != none
+  requires acc(diz.Future_channel_hist_act, write)
+  requires acc(diz.Future_channel_hist_value, write)
+  requires acc(diz.Future_channel_hist_write, write)
+  requires acc(diz.Future_channel_hist_action, write)
+  requires 0 <= rank && rank < |diz.Future_channel_hist_value|
+  requires |diz.Future_channel_hist_value| == |diz.Future_channel_hist_act|
+  requires diz.Future_channel_hist_value[rank] == diz.Future_channel_hist_act[rank] ++ Seq(msg)
+  requires (forall i: Int :: { diz.Future_channel_hist_value[i] } { diz.Future_channel_hist_act[i] } 0 <= i && i < |diz.Future_channel_hist_value| && i != rank ==> diz.Future_channel_hist_value[i] == diz.Future_channel_hist_act[i])
+  ensures frac_val(fr) != none
+  ensures acc(Future_hist_idle_Fraction_Process(diz, fr, proc), write)
+  ensures acc(diz.Future_channel_hist_value, write)
+  ensures acc(diz.Future_channel_hist_hist, write)
+  ensures diz.Future_channel_hist_value == old(diz.Future_channel_hist_value)
+{
+  inhale false
+}
+
+method Future_Recv_begin_Fraction_Process_Integer_Integer(diz: Ref, fr: frac, proc: Process, rank: Int, msg: Int)
+  requires diz != null
+  requires frac_val(fr) != none
+  requires acc(Future_hist_idle_Fraction_Process(diz, fr, p_seq(p_Recv(rank, msg), proc)), write)
+  requires write != none
+  requires acc(diz.Future_channel_hist_value, write)
+  requires acc(diz.Future_channel_hist_hist, write)
+  requires 0 <= rank && rank < |diz.Future_channel_hist_value|
+  ensures frac_val(fr) != none
+  ensures acc(Future_hist_do_Recv_Fraction_Process(diz, fr, proc), write)
+  ensures acc(diz.Future_channel_hist_act, write)
+  ensures acc(diz.Future_channel_hist_value, write)
+  ensures acc(diz.Future_channel_hist_write, write)
+  ensures acc(diz.Future_channel_hist_action, write)
+  ensures diz.Future_channel_hist_value == diz.Future_channel_hist_act
+  ensures diz.Future_channel_hist_value == old(diz.Future_channel_hist_value)
+{
+  inhale false
+}
+
+method Future_Recv_commit_Fraction_Process_Integer_Integer(diz: Ref, fr: frac, proc: Process, rank: Int, msg: Int)
+  requires diz != null
+  requires frac_val(fr) != none
+  requires acc(Future_hist_do_Recv_Fraction_Process(diz, fr, proc), write)
+  requires write != none
+  requires acc(diz.Future_channel_hist_act, write)
+  requires acc(diz.Future_channel_hist_value, write)
+  requires acc(diz.Future_channel_hist_write, write)
+  requires acc(diz.Future_channel_hist_action, write)
+  requires 0 <= rank && rank < |diz.Future_channel_hist_value|
+  requires |diz.Future_channel_hist_value| == |diz.Future_channel_hist_act|
+  requires Seq(msg) ++ diz.Future_channel_hist_value[rank] == diz.Future_channel_hist_act[rank]
+  requires (forall i: Int :: { diz.Future_channel_hist_value[i] } { diz.Future_channel_hist_act[i] } 0 <= i && i < |diz.Future_channel_hist_value| && i != rank ==> diz.Future_channel_hist_value[i] == diz.Future_channel_hist_act[i])
+  ensures frac_val(fr) != none
+  ensures acc(Future_hist_idle_Fraction_Process(diz, fr, proc), write)
+  ensures acc(diz.Future_channel_hist_value, write)
+  ensures acc(diz.Future_channel_hist_hist, write)
+  ensures diz.Future_channel_hist_value == old(diz.Future_channel_hist_value)
+{
+  inhale false
+}
+
+method Future_Done_begin_Fraction_Process_Integer_Integer(diz: Ref, fr: frac, proc: Process, rank: Int, v: Int)
+  requires diz != null
+  requires frac_val(fr) != none
+  requires acc(Future_hist_idle_Fraction_Process(diz, fr, p_seq(p_Done(rank, v), proc)), write)
+  requires write != none
+  requires acc(diz.Future_results_hist_value, write)
+  requires acc(diz.Future_results_hist_hist, write)
+  requires 0 <= rank && rank < |diz.Future_results_hist_value|
+  ensures frac_val(fr) != none
+  ensures acc(Future_hist_do_Done_Fraction_Process(diz, fr, proc), write)
+  ensures acc(diz.Future_results_hist_act, write)
+  ensures acc(diz.Future_results_hist_value, write)
+  ensures acc(diz.Future_results_hist_write, write)
+  ensures acc(diz.Future_results_hist_action, write)
+  ensures diz.Future_results_hist_value == diz.Future_results_hist_act
+  ensures diz.Future_results_hist_value == old(diz.Future_results_hist_value)
+{
+  inhale false
+}
+
+method Future_Done_commit_Fraction_Process_Integer_Integer(diz: Ref, fr: frac, proc: Process, rank: Int, v: Int)
+  requires diz != null
+  requires frac_val(fr) != none
+  requires acc(Future_hist_do_Done_Fraction_Process(diz, fr, proc), write)
+  requires write != none
+  requires acc(diz.Future_results_hist_act, write)
+  requires acc(diz.Future_results_hist_value, write)
+  requires acc(diz.Future_results_hist_write, write)
+  requires acc(diz.Future_results_hist_action, write)
+  requires 0 <= rank && rank < |diz.Future_results_hist_value|
+  requires |diz.Future_results_hist_value| == |diz.Future_results_hist_act|
+  requires diz.Future_results_hist_value[rank] == v
+  requires (forall i: Int :: { diz.Future_results_hist_value[i] } { diz.Future_results_hist_act[i] } 0 <= i && i < |diz.Future_results_hist_value| && i != rank ==> diz.Future_results_hist_value[i] == diz.Future_results_hist_act[i])
+  ensures frac_val(fr) != none
+  ensures acc(Future_hist_idle_Fraction_Process(diz, fr, proc), write)
+  ensures acc(diz.Future_results_hist_value, write)
+  ensures acc(diz.Future_results_hist_hist, write)
+  ensures diz.Future_results_hist_value == old(diz.Future_results_hist_value)
+{
+  inhale false
+}
+
+method Future_Future() returns (sys__result: Ref)
+  ensures sys__result != null
+  ensures type_of(sys__result) == class_Future()
+  ensures acc(sys__result.Future_channel_hist_value, write)
+  ensures acc(sys__result.Future_channel_hist_write, write)
+  ensures acc(sys__result.Future_channel_hist_free, write)
+  ensures sys__result.Future_channel_hist_value == Seq[Seq[Int]]()
+  ensures acc(sys__result.Future_results_hist_value, write)
+  ensures acc(sys__result.Future_results_hist_write, write)
+  ensures acc(sys__result.Future_results_hist_free, write)
+  ensures sys__result.Future_results_hist_value == Seq[Int]()
+{
+  var __flatten_3__3: Seq[Int]
+  var __flatten_1__2: Seq[Seq[Int]]
+  var diz__1: Ref
+  diz__1 := new(Future_channel_hist_value, Future_channel_hist_init, Future_channel_hist_act, Future_channel_hist_write, Future_channel_hist_free, Future_channel_hist_hist, Future_channel_hist_action, Future_results_hist_value, Future_results_hist_init, Future_results_hist_act, Future_results_hist_write, Future_results_hist_free, Future_results_hist_hist, Future_results_hist_action)
+  inhale type_of(diz__1) == class_Future()
+  __flatten_1__2 := Seq[Seq[Int]]()
+  Future_hist_set_channel_Sequence$Sequence$Integer$$(diz__1, __flatten_1__2)
+  __flatten_3__3 := Seq[Int]()
+  Future_hist_set_results_Sequence$Integer$(diz__1, __flatten_3__3)
+  sys__result := diz__1
+  // assert
+  assert sys__result != null && type_of(sys__result) == class_Future() && acc(sys__result.Future_channel_hist_value, write) && acc(sys__result.Future_channel_hist_write, write) && acc(sys__result.Future_channel_hist_free, write) && sys__result.Future_channel_hist_value == Seq[Seq[Int]]() && acc(sys__result.Future_results_hist_value, write) && acc(sys__result.Future_results_hist_write, write) && acc(sys__result.Future_results_hist_free, write) && sys__result.Future_results_hist_value == Seq[Int]()
+  inhale false
+}
+
+method Future_hist_set_channel_Sequence$Sequence$Integer$$(diz: Ref, value: Seq[Seq[Int]])
+  requires diz != null
+  requires acc(diz.Future_channel_hist_value, write)
+  requires acc(diz.Future_channel_hist_write, write)
+  ensures acc(diz.Future_channel_hist_value, write) && diz.Future_channel_hist_value == value
+  ensures acc(diz.Future_channel_hist_write, write)
+{
+  inhale false
+}
+
+method Future_hist_set_results_Sequence$Integer$(diz: Ref, value: Seq[Int])
+  requires diz != null
+  requires acc(diz.Future_results_hist_value, write)
+  requires acc(diz.Future_results_hist_write, write)
+  ensures acc(diz.Future_results_hist_value, write) && diz.Future_results_hist_value == value
+  ensures acc(diz.Future_results_hist_write, write)
+{
+  inhale false
+}
+
+method Future_end_future(diz: Ref)
+  requires diz != null
+  requires acc(diz.Future_channel_hist_value, write)
+  requires acc(diz.Future_channel_hist_hist, write)
+  requires acc(diz.Future_channel_hist_init, write)
+  requires acc(diz.Future_results_hist_value, write)
+  requires acc(diz.Future_results_hist_hist, write)
+  requires acc(diz.Future_results_hist_init, write)
+  requires acc(Future_hist_idle_Fraction_Process(diz, new_frac(write), p_empty()), write)
+  ensures acc(diz.Future_channel_hist_value, write)
+  ensures acc(diz.Future_channel_hist_write, write)
+  ensures acc(diz.Future_channel_hist_free, write)
+  ensures diz.Future_channel_hist_value == old(diz.Future_channel_hist_value)
+  ensures diz.Future_channel_hist_value == old(diz.Future_channel_hist_init)
+  ensures acc(diz.Future_results_hist_value, write)
+  ensures acc(diz.Future_results_hist_write, write)
+  ensures acc(diz.Future_results_hist_free, write)
+  ensures diz.Future_results_hist_value == old(diz.Future_results_hist_value)
+  ensures diz.Future_results_hist_value == old(diz.Future_results_hist_init)
+{
+  inhale false
+}
+
+method Future_split_Fraction_Process_Fraction_Process(diz: Ref, frac1: frac, proc1: Process, frac2: frac, proc2: Process)
+  requires diz != null
+  requires frac_val(frac1) + frac_val(frac2) <= write
+  requires acc(Future_hist_idle_Fraction_Process(diz, new_frac(frac_val(frac1) + frac_val(frac2)), p_merge(proc1, proc2)), write)
+  ensures acc(Future_hist_idle_Fraction_Process(diz, frac1, proc1), write)
+  ensures acc(Future_hist_idle_Fraction_Process(diz, frac2, proc2), write)
+{
+  inhale false
+}
+
+method Future_merge_Fraction_Process_Fraction_Process(diz: Ref, frac1: frac, proc1: Process, frac2: frac, proc2: Process)
+  requires diz != null
+  requires frac_val(frac1) + frac_val(frac2) <= write
+  requires acc(Future_hist_idle_Fraction_Process(diz, frac1, proc1), write)
+  requires acc(Future_hist_idle_Fraction_Process(diz, frac2, proc2), write)
+  ensures acc(Future_hist_idle_Fraction_Process(diz, new_frac(frac_val(frac1) + frac_val(frac2)), p_merge(proc1, proc2)), write)
+{
+  inhale false
+}
+
+method Future_begin_future_1_Integer_Sequence$Integer$_Integer(diz: Ref, size: Int, xs: Seq[Int], max: Int)
+  requires diz != null
+  requires acc(diz.Future_channel_hist_value, write)
+  requires acc(diz.Future_channel_hist_write, write)
+  requires acc(diz.Future_channel_hist_free, write)
+  requires acc(diz.Future_results_hist_value, write)
+  requires acc(diz.Future_results_hist_write, write)
+  requires acc(diz.Future_results_hist_free, write)
+  requires 0 < size
+  requires |diz.Future_channel_hist_value| == size
+  requires |diz.Future_results_hist_value| == size
+  requires |xs| == size
+  requires (forall i: Int, j: Int :: { xs[j],xs[i] } 0 <= i && i < |xs| && (0 <= j && j < |xs| && i != j) ==> xs[i] != xs[j])
+  requires (forall i: Int :: { xs[i] } 0 <= i && i < |xs| ==> 0 <= xs[i] && xs[i] < max)
+  ensures acc(diz.Future_channel_hist_value, write)
+  ensures acc(diz.Future_channel_hist_hist, write)
+  ensures acc(diz.Future_channel_hist_init, write)
+  ensures diz.Future_channel_hist_value == old(diz.Future_channel_hist_value)
+  ensures acc(diz.Future_results_hist_value, write)
+  ensures acc(diz.Future_results_hist_hist, write)
+  ensures acc(diz.Future_results_hist_init, write)
+  ensures diz.Future_results_hist_value == old(diz.Future_results_hist_value)
+  ensures 0 < size
+  ensures |diz.Future_channel_hist_init| == size
+  ensures |diz.Future_results_hist_init| == size
+  ensures |xs| == size
+  ensures (forall i: Int :: { diz.Future_results_hist_init[i] } 0 <= i && i < |diz.Future_results_hist_init| ==> diz.Future_results_hist_init[i] == diz.Future_results_hist_init[Program_maxint_Sequence$Integer$_Integer_Integer(xs, 0, 0)])
+  ensures acc(Future_hist_idle_Fraction_Process(diz, new_frac(write), p_Start(size, xs, max)), write)
+{
+  inhale false
+}
+
+method Program___contract_unsatisfiable__Program_EncodedGlobalVariables_Future_Integer_Integer(diz: Ref, globals: Ref, f: Ref, size: Int, max: Int)
+  requires diz != null
+{
+  inhale true && (0 < max && f != null && (acc(f.Future_channel_hist_value, write) && acc(f.Future_channel_hist_hist, write)) && (acc(f.Future_results_hist_value, write) && acc(f.Future_results_hist_hist, write)) && |f.Future_results_hist_value| == |f.Future_channel_hist_value| && |f.Future_channel_hist_value| == size && (forall i__4: Int, j__5: Int :: { f.Future_channel_hist_value[i__4][j__5] } 0 <= i__4 && i__4 < |f.Future_channel_hist_value| && (0 <= j__5 && j__5 < |f.Future_channel_hist_value[i__4]|) ==> 0 <= f.Future_channel_hist_value[i__4][j__5] && f.Future_channel_hist_value[i__4][j__5] < max))
+  // assert
+  assert false
+  inhale false
+}
+
+method Program_Program_EncodedGlobalVariables_Future_Integer_Integer(globals: Ref, f: Ref, size: Int, max: Int) returns (sys__result: Ref)
+  requires 0 < max
+  requires f != null
+  requires acc(f.Future_channel_hist_value, write)
+  requires acc(f.Future_channel_hist_hist, write)
+  requires acc(f.Future_results_hist_value, write)
+  requires acc(f.Future_results_hist_hist, write)
+  requires |f.Future_results_hist_value| == |f.Future_channel_hist_value|
+  requires |f.Future_channel_hist_value| == size
+  requires (forall i: Int, j: Int :: { f.Future_channel_hist_value[i][j] } 0 <= i && i < |f.Future_channel_hist_value| && (0 <= j && j < |f.Future_channel_hist_value[i]|) ==> 0 <= f.Future_channel_hist_value[i][j] && f.Future_channel_hist_value[i][j] < max)
+  ensures sys__result != null
+  ensures type_of(sys__result) == class_Program()
+  ensures acc(sys__result.Program_f, 1 / 2)
+  ensures sys__result.Program_f == f
+  ensures acc(sys__result.Program_size, 1 / 2)
+  ensures sys__result.Program_size == size
+  ensures acc(sys__result.Program_maxvalue, 1 / 2)
+  ensures sys__result.Program_maxvalue == max
+  ensures acc(sys__result.Program_initialised, 1 / 2)
+  ensures sys__result.Program_initialised
+{
+  var diz__6: Ref
+  diz__6 := new(Program_initialised, Program_size, Program_maxvalue, Program_f)
+  inhale type_of(diz__6) == class_Program()
+  diz__6.Program_f := f
+  diz__6.Program_maxvalue := max
+  diz__6.Program_size := size
+  diz__6.Program_initialised := true
+  fold acc(Program_lock_invariant_EncodedGlobalVariables(diz__6, globals), write)
+  exhale acc(Program_lock_invariant_EncodedGlobalVariables(diz__6, globals), write)
+  sys__result := diz__6
+  // assert
+  assert sys__result != null && type_of(sys__result) == class_Program() && acc(sys__result.Program_f, 1 / 2) && sys__result.Program_f == f && acc(sys__result.Program_size, 1 / 2) && sys__result.Program_size == size && acc(sys__result.Program_maxvalue, 1 / 2) && sys__result.Program_maxvalue == max && acc(sys__result.Program_initialised, 1 / 2) && sys__result.Program_initialised
+  inhale false
+}
+
+method Program___contract_unsatisfiable__lemma_sigmaRecv_choice_EncodedGlobalVariables_Future_Integer_Integer_Integer_Integer_Integer_Fraction(diz: Ref, globals: Ref, f: Ref, rank: Int, v: Int, w: Int, x: Int, n: Int, q: frac)
+  requires diz != null
+{
+  inhale true && (frac_val(q) != none && acc(diz.Program_maxvalue, 1 / 2) && acc(diz.Program_size, 1 / 2) && 0 <= diz.Program_size && f != null && (acc(f.Future_channel_hist_value, 1 / 2) && acc(f.Future_channel_hist_hist, 1 / 2)) && (0 <= rank && rank < diz.Program_size) && (0 <= x && x <= w) && acc(Future_hist_idle_Fraction_Process(f, q, p_SigmaRecv(rank, diz.Program_size, v, w, diz.Program_maxvalue, n)), write))
+  // assert
+  assert false
+  inhale false
+}
+
+method Program_lemma_sigmaRecv_choice_EncodedGlobalVariables_Future_Integer_Integer_Integer_Integer_Integer_Fraction(diz: Ref, globals: Ref, f: Ref, rank: Int, v: Int, w: Int, x: Int, n: Int, q: frac)
+  requires diz != null
+  requires frac_val(q) != none
+  requires acc(diz.Program_maxvalue, 1 / 2)
+  requires acc(diz.Program_size, 1 / 2)
+  requires 0 <= diz.Program_size
+  requires f != null
+  requires acc(f.Future_channel_hist_value, 1 / 2)
+  requires acc(f.Future_channel_hist_hist, 1 / 2)
+  requires 0 <= rank && rank < diz.Program_size
+  requires 0 <= x && x <= w
+  requires acc(Future_hist_idle_Fraction_Process(f, q, p_SigmaRecv(rank, diz.Program_size, v, w, diz.Program_maxvalue, n)), write)
+  ensures frac_val(q) != none
+  ensures acc(diz.Program_maxvalue, 1 / 2)
+  ensures acc(diz.Program_size, 1 / 2)
+  ensures 0 <= diz.Program_size
+  ensures f != null
+  ensures acc(f.Future_channel_hist_value, 1 / 2)
+  ensures acc(f.Future_channel_hist_hist, 1 / 2)
+  ensures 0 <= rank && rank < diz.Program_size
+  ensures diz.Program_maxvalue == old(diz.Program_maxvalue)
+  ensures diz.Program_size == old(diz.Program_size)
+  ensures f.Future_channel_hist_value == old(f.Future_channel_hist_value)
+  ensures acc(Future_hist_idle_Fraction_Process(f, q, p_seq(p_Recv((rank - 1) % diz.Program_size, x), p_Check(rank, diz.Program_size, v, x, diz.Program_maxvalue, n))), write)
+{
+  if (x == w) {
+    if (0 < x) {
+      exhale acc(Future_hist_idle_Fraction_Process(f, q, p_SigmaRecv(rank, diz.Program_size, v, w, diz.Program_maxvalue, n)), write)
+      // assert
+      assert p_is_choice(p_SigmaRecv(rank, diz.Program_size, v, w, diz.Program_maxvalue, n), p_seq(p_Recv((rank - 1) % diz.Program_size, x), p_Check(rank, diz.Program_size, v, w, diz.Program_maxvalue, n)))
+      inhale acc(Future_hist_idle_Fraction_Process(f, q, p_seq(p_Recv((rank - 1) % diz.Program_size, x), p_Check(rank, diz.Program_size, v, w, diz.Program_maxvalue, n))), write)
+    }
+  } else {
+    exhale acc(Future_hist_idle_Fraction_Process(f, q, p_SigmaRecv(rank, diz.Program_size, v, w, diz.Program_maxvalue, n)), write)
+    // assert
+    assert p_is_choice(p_SigmaRecv(rank, diz.Program_size, v, w, diz.Program_maxvalue, n), p_SigmaRecv(rank, diz.Program_size, v, w - 1, diz.Program_maxvalue, n))
+    inhale acc(Future_hist_idle_Fraction_Process(f, q, p_SigmaRecv(rank, diz.Program_size, v, w - 1, diz.Program_maxvalue, n)), write)
+    Program_lemma_sigmaRecv_choice_EncodedGlobalVariables_Future_Integer_Integer_Integer_Integer_Integer_Fraction(diz, globals, f, rank, v, w - 1, x, n, q)
+  }
+}
+
+method Program___contract_unsatisfiable__lemma_fut_elect_EncodedGlobalVariables_Future_Integer_Integer_Integer_Integer_Integer_Fraction(diz: Ref, globals: Ref, f: Ref, rank: Int, size: Int, v: Int, maxvalue: Int, n: Int, q: frac)
+  requires diz != null
+{
+  inhale true && (frac_val(q) != none && n < size && (0 <= rank && rank < size) && acc(Future_hist_idle_Fraction_Process(f, q, p_Elect(rank, size, v, maxvalue, n)), write))
+  // assert
+  assert false
+  inhale false
+}
+
+method Program_lemma_fut_elect_EncodedGlobalVariables_Future_Integer_Integer_Integer_Integer_Integer_Fraction(diz: Ref, globals: Ref, f: Ref, rank: Int, size: Int, v: Int, maxvalue: Int, n: Int, q: frac)
+  requires diz != null
+  requires frac_val(q) != none
+  requires n < size
+  requires 0 <= rank && rank < size
+  requires acc(Future_hist_idle_Fraction_Process(f, q, p_Elect(rank, size, v, maxvalue, n)), write)
+  ensures frac_val(q) != none
+  ensures acc(Future_hist_idle_Fraction_Process(f, q, p_seq(p_Send((rank + 1) % size, v), p_SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n))), write)
+{
+  
+}
+
+method Program___contract_unsatisfiable__mpi_send_EncodedGlobalVariables_Integer_Integer_Fraction_Fraction_Process(diz: Ref, globals: Ref, rank: Int, msg: Int, q1: frac, q2: frac, P: Process)
+  requires diz != null
+{
+  inhale frac_val(q1) != none && frac_val(q2) != none && acc(diz.Program_size, frac_val(q1)) && acc(diz.Program_maxvalue, frac_val(q1)) && (0 <= rank && rank < diz.Program_size) && (0 <= msg && msg < diz.Program_maxvalue) && acc(diz.Program_initialised, frac_val(q1)) && diz.Program_initialised && acc(diz.Program_f, frac_val(q1)) && diz.Program_f != null && acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_seq(p_Send(rank, msg), P)), write)
+  // assert
+  assert false
+  inhale false
+}
+
+method Program_mpi_send_EncodedGlobalVariables_Integer_Integer_Fraction_Fraction_Process(diz: Ref, globals: Ref, rank: Int, msg: Int, q1: frac, q2: frac, P: Process)
+  requires diz != null
+  requires frac_val(q1) != none && frac_val(q2) != none
+  requires acc(diz.Program_size, frac_val(q1))
+  requires acc(diz.Program_maxvalue, frac_val(q1))
+  requires 0 <= rank && rank < diz.Program_size
+  requires 0 <= msg && msg < diz.Program_maxvalue
+  requires acc(diz.Program_initialised, frac_val(q1))
+  requires diz.Program_initialised
+  requires acc(diz.Program_f, frac_val(q1))
+  requires diz.Program_f != null
+  requires acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_seq(p_Send(rank, msg), P)), write)
+  ensures frac_val(q1) != none && frac_val(q2) != none
+  ensures acc(diz.Program_size, frac_val(q1))
+  ensures acc(diz.Program_maxvalue, frac_val(q1))
+  ensures 0 <= rank && rank < diz.Program_size
+  ensures 0 <= msg && msg < diz.Program_maxvalue
+  ensures acc(diz.Program_initialised, frac_val(q1))
+  ensures diz.Program_initialised
+  ensures acc(diz.Program_f, frac_val(q1))
+  ensures diz.Program_f != null
+  ensures acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, P), write)
+  ensures diz.Program_size == old(diz.Program_size)
+  ensures diz.Program_maxvalue == old(diz.Program_maxvalue)
+  ensures diz.Program_f == old(diz.Program_f)
+{
+  var __flatten_7__7: Ref
+  var __flatten_8__8: Seq[Seq[Int]]
+  inhale acc(Program_lock_invariant_EncodedGlobalVariables(diz, globals), write)
+  unfold acc(Program_lock_invariant_EncodedGlobalVariables(diz, globals), write)
+  inhale acc(Program_lock_held_EncodedGlobalVariables(diz, globals), write)
+  Future_Send_begin_Fraction_Process_Integer_Integer(diz.Program_f, q2, P, rank, msg)
+  __flatten_7__7 := diz.Program_f
+  __flatten_8__8 := Program_push_Sequence$Sequence$Integer$$_Integer_Integer(diz, __flatten_7__7.Future_channel_hist_value, rank, msg)
+  Future_hist_set_channel_Sequence$Sequence$Integer$$(diz.Program_f, __flatten_8__8)
+  Future_Send_commit_Fraction_Process_Integer_Integer(diz.Program_f, q2, P, rank, msg)
+  exhale acc(Program_lock_held_EncodedGlobalVariables(diz, globals), write)
+  fold acc(Program_lock_invariant_EncodedGlobalVariables(diz, globals), write)
+  exhale acc(Program_lock_invariant_EncodedGlobalVariables(diz, globals), write)
+}
+
+method Program___contract_unsatisfiable__mpi_recv_EncodedGlobalVariables_Integer_Integer_Integer_Fraction_Fraction(diz: Ref, globals: Ref, rank: Int, v: Int, n: Int, q1: frac, q2: frac) returns (sys__result: Int)
+  requires diz != null
+{
+  inhale frac_val(q1) != none && frac_val(q2) != none && acc(diz.Program_size, frac_val(q1)) && acc(diz.Program_maxvalue, frac_val(q1)) && (0 <= rank && rank < diz.Program_size) && acc(diz.Program_initialised, frac_val(q1)) && diz.Program_initialised && acc(diz.Program_f, frac_val(q1)) && diz.Program_f != null && acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_SigmaRecv(rank, diz.Program_size, v, diz.Program_maxvalue - 1, diz.Program_maxvalue, n)), write)
+  // assert
+  assert false
+  inhale false
+}
+
+method Program_mpi_recv_EncodedGlobalVariables_Integer_Integer_Integer_Fraction_Fraction(diz: Ref, globals: Ref, rank: Int, v: Int, n: Int, q1: frac, q2: frac) returns (sys__result: Int)
+  requires diz != null
+  requires frac_val(q1) != none && frac_val(q2) != none
+  requires acc(diz.Program_size, frac_val(q1))
+  requires acc(diz.Program_maxvalue, frac_val(q1))
+  requires 0 <= rank && rank < diz.Program_size
+  requires acc(diz.Program_initialised, frac_val(q1))
+  requires diz.Program_initialised
+  requires acc(diz.Program_f, frac_val(q1))
+  requires diz.Program_f != null
+  requires acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_SigmaRecv(rank, diz.Program_size, v, diz.Program_maxvalue - 1, diz.Program_maxvalue, n)), write)
+  ensures frac_val(q1) != none && frac_val(q2) != none
+  ensures acc(diz.Program_size, frac_val(q1))
+  ensures acc(diz.Program_maxvalue, frac_val(q1))
+  ensures 0 <= rank && rank < diz.Program_size
+  ensures acc(diz.Program_initialised, frac_val(q1))
+  ensures diz.Program_initialised
+  ensures acc(diz.Program_f, frac_val(q1))
+  ensures diz.Program_f != null
+  ensures 0 <= sys__result && sys__result < diz.Program_maxvalue
+  ensures diz.Program_size == old(diz.Program_size)
+  ensures diz.Program_maxvalue == old(diz.Program_maxvalue)
+  ensures diz.Program_f == old(diz.Program_f)
+  ensures acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Check(rank, diz.Program_size, v, sys__result, diz.Program_maxvalue, n)), write)
+{
+  var stop__9: Bool
+  var res__10: Int
+  var __flatten_11__11: Ref
+  var __flatten_12__12: Ref
+  var __flatten_14__13: Process
+  var __flatten_16__14: Ref
+  var __flatten_17__15: Seq[Seq[Int]]
+  var __flatten_19__16: Process
+  stop__9 := false
+  while (!stop__9)
+    invariant frac_val(q1) != none && frac_val(q2) != none
+    invariant acc(diz.Program_size, frac_val(q1))
+    invariant acc(diz.Program_maxvalue, frac_val(q1))
+    invariant 0 <= rank && rank < diz.Program_size
+    invariant acc(diz.Program_initialised, frac_val(q1))
+    invariant diz.Program_initialised
+    invariant acc(diz.Program_f, frac_val(q1))
+    invariant diz.Program_f != null
+    invariant diz.Program_size == old(diz.Program_size)
+    invariant diz.Program_maxvalue == old(diz.Program_maxvalue)
+    invariant diz.Program_f == old(diz.Program_f)
+    invariant 0 <= rank && rank < diz.Program_size
+    invariant !stop__9 ==> acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_SigmaRecv(rank, diz.Program_size, v, diz.Program_maxvalue - 1, diz.Program_maxvalue, n)), write)
+    invariant stop__9 ==> acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Check(rank, diz.Program_size, v, res__10, diz.Program_maxvalue, n)), write)
+    invariant stop__9 ==> 0 <= res__10 && res__10 < diz.Program_maxvalue 
+  {
+    inhale acc(Program_lock_invariant_EncodedGlobalVariables(diz, globals), write)
+    unfold acc(Program_lock_invariant_EncodedGlobalVariables(diz, globals), write)
+    inhale acc(Program_lock_held_EncodedGlobalVariables(diz, globals), write)
+    __flatten_11__11 := diz.Program_f
+    if (0 < |__flatten_11__11.Future_channel_hist_value[(rank - 1) % diz.Program_size]|) {
+      __flatten_12__12 := diz.Program_f
+      res__10 := __flatten_12__12.Future_channel_hist_value[(rank - 1) % diz.Program_size][0]
+      // assert
+      assert acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_SigmaRecv(rank, diz.Program_size, v, diz.Program_maxvalue - 1, diz.Program_maxvalue, n)), write)
+      Program_lemma_sigmaRecv_choice_EncodedGlobalVariables_Future_Integer_Integer_Integer_Integer_Integer_Fraction(diz, globals, diz.Program_f, rank, v, diz.Program_maxvalue - 1, res__10, n, q2)
+      // assert
+      assert acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_seq(p_Recv((rank - 1) % diz.Program_size, res__10), p_Check(rank, diz.Program_size, v, res__10, diz.Program_maxvalue, n))), write)
+      __flatten_14__13 := p_Check(rank, diz.Program_size, v, res__10, diz.Program_maxvalue, n)
+      Future_Recv_begin_Fraction_Process_Integer_Integer(diz.Program_f, q2, __flatten_14__13, (rank - 1) % diz.Program_size, res__10)
+      __flatten_16__14 := diz.Program_f
+      __flatten_17__15 := Program_pop_Sequence$Sequence$Integer$$_Integer(diz, __flatten_16__14.Future_channel_hist_value, (rank - 1) % diz.Program_size)
+      Future_hist_set_channel_Sequence$Sequence$Integer$$(diz.Program_f, __flatten_17__15)
+      __flatten_19__16 := p_Check(rank, diz.Program_size, v, res__10, diz.Program_maxvalue, n)
+      Future_Recv_commit_Fraction_Process_Integer_Integer(diz.Program_f, q2, __flatten_19__16, (rank - 1) % diz.Program_size, res__10)
+      stop__9 := true
+    }
+    exhale acc(Program_lock_held_EncodedGlobalVariables(diz, globals), write)
+    fold acc(Program_lock_invariant_EncodedGlobalVariables(diz, globals), write)
+    exhale acc(Program_lock_invariant_EncodedGlobalVariables(diz, globals), write)
+  }
+  sys__result := res__10
+  // assert
+  assert frac_val(q1) != none && frac_val(q2) != none && acc(diz.Program_size, frac_val(q1)) && acc(diz.Program_maxvalue, frac_val(q1)) && (0 <= rank && rank < diz.Program_size) && acc(diz.Program_initialised, frac_val(q1)) && diz.Program_initialised && acc(diz.Program_f, frac_val(q1)) && diz.Program_f != null && (0 <= sys__result && sys__result < diz.Program_maxvalue) && diz.Program_size == old(diz.Program_size) && diz.Program_maxvalue == old(diz.Program_maxvalue) && diz.Program_f == old(diz.Program_f) && acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Check(rank, diz.Program_size, v, sys__result, diz.Program_maxvalue, n)), write)
+  inhale false
+}
+
+method Program___contract_unsatisfiable__elect_EncodedGlobalVariables_Integer_Integer_Fraction_Fraction(diz: Ref, globals: Ref, rank: Int, vArg: Int, q1: frac, q2: frac) returns (sys__result: Int)
+  requires diz != null
+{
+  inhale frac_val(q1) != none && frac_val(q2) != none && acc(diz.Program_size, frac_val(q1)) && (0 <= rank && rank < diz.Program_size) && acc(diz.Program_initialised, frac_val(q1)) && diz.Program_initialised && acc(diz.Program_maxvalue, frac_val(q1)) && (0 <= vArg && vArg < diz.Program_maxvalue) && (acc(diz.Program_f, frac_val(q1)) && diz.Program_f != null && acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Elect(rank, diz.Program_size, vArg, diz.Program_maxvalue, 0)), write))
+  // assert
+  assert false
+  inhale false
+}
+
+method Program_elect_EncodedGlobalVariables_Integer_Integer_Fraction_Fraction(diz: Ref, globals: Ref, rank: Int, vArg: Int, q1: frac, q2: frac) returns (sys__result: Int)
+  requires diz != null
+  requires frac_val(q1) != none && frac_val(q2) != none
+  requires acc(diz.Program_size, frac_val(q1))
+  requires 0 <= rank && rank < diz.Program_size
+  requires acc(diz.Program_initialised, frac_val(q1))
+  requires diz.Program_initialised
+  requires acc(diz.Program_maxvalue, frac_val(q1))
+  requires 0 <= vArg && vArg < diz.Program_maxvalue
+  requires acc(diz.Program_f, frac_val(q1))
+  requires diz.Program_f != null
+  requires acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Elect(rank, diz.Program_size, vArg, diz.Program_maxvalue, 0)), write)
+  ensures frac_val(q1) != none && frac_val(q2) != none
+  ensures acc(diz.Program_size, frac_val(q1))
+  ensures 0 <= rank && rank < diz.Program_size
+  ensures acc(diz.Program_initialised, frac_val(q1))
+  ensures diz.Program_initialised
+  ensures acc(diz.Program_maxvalue, frac_val(q1))
+  ensures 0 <= vArg && vArg < diz.Program_maxvalue
+  ensures acc(diz.Program_f, frac_val(q1))
+  ensures diz.Program_f != null
+  ensures acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Done(rank, sys__result)), write)
+  ensures 0 <= sys__result && sys__result < diz.Program_maxvalue
+  ensures diz.Program_size == old(diz.Program_size)
+  ensures diz.Program_maxvalue == old(diz.Program_maxvalue)
+  ensures diz.Program_f == old(diz.Program_f)
+{
+  var R__21: Process
+  var w__20: Int
+  var Q__19: Process
+  var v__17: Int
+  var n__18: Int
+  v__17 := vArg
+  n__18 := 0
+  while (n__18 < diz.Program_size)
+    invariant frac_val(q1) != none && frac_val(q2) != none
+    invariant acc(diz.Program_size, frac_val(q1))
+    invariant 0 <= rank && rank < diz.Program_size
+    invariant acc(diz.Program_initialised, frac_val(q1))
+    invariant diz.Program_initialised
+    invariant acc(diz.Program_maxvalue, frac_val(q1))
+    invariant 0 <= vArg && vArg < diz.Program_maxvalue
+    invariant diz.Program_size == old(diz.Program_size)
+    invariant diz.Program_maxvalue == old(diz.Program_maxvalue)
+    invariant acc(diz.Program_f, frac_val(q1))
+    invariant diz.Program_f != null
+    invariant diz.Program_f == old(diz.Program_f)
+    invariant 0 <= n__18 && n__18 <= diz.Program_size
+    invariant acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Elect(rank, diz.Program_size, v__17, diz.Program_maxvalue, n__18)), write)
+    invariant 0 <= v__17 && v__17 < diz.Program_maxvalue 
+  {
+    Program_lemma_fut_elect_EncodedGlobalVariables_Future_Integer_Integer_Integer_Integer_Integer_Fraction(diz, globals, diz.Program_f, rank, diz.Program_size, v__17, diz.Program_maxvalue, n__18, q2)
+    Q__19 := p_SigmaRecv(rank, diz.Program_size, v__17, diz.Program_maxvalue - 1, diz.Program_maxvalue, n__18)
+    Program_mpi_send_EncodedGlobalVariables_Integer_Integer_Fraction_Fraction_Process(diz, globals, (rank + 1) % diz.Program_size, v__17, q1, q2, Q__19)
+    // assert
+    assert Q__19 == p_SigmaRecv(rank, diz.Program_size, v__17, diz.Program_maxvalue - 1, diz.Program_maxvalue, n__18)
+    // assert
+    assert acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_SigmaRecv(rank, diz.Program_size, v__17, diz.Program_maxvalue - 1, diz.Program_maxvalue, n__18)), write)
+    w__20 := Program_mpi_recv_EncodedGlobalVariables_Integer_Integer_Integer_Fraction_Fraction(diz, globals, rank, v__17, n__18, q1, q2)
+    // assert
+    assert acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Check(rank, diz.Program_size, v__17, w__20, diz.Program_maxvalue, n__18)), write)
+    // assert
+    assert acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Elect(rank, diz.Program_size, (v__17 <= w__20 ? w__20 : v__17), diz.Program_maxvalue, n__18 + 1)), write)
+    if (v__17 <= w__20) {
+      v__17 := w__20
+    }
+    R__21 := p_Elect(rank, diz.Program_size, v__17, diz.Program_maxvalue, n__18 + 1)
+    // assert
+    assert acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, R__21), write)
+    n__18 := n__18 + 1
+    // assert
+    assert acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, R__21), write)
+  }
+  sys__result := v__17
+  // assert
+  assert frac_val(q1) != none && frac_val(q2) != none && acc(diz.Program_size, frac_val(q1)) && (0 <= rank && rank < diz.Program_size) && acc(diz.Program_initialised, frac_val(q1)) && diz.Program_initialised && acc(diz.Program_maxvalue, frac_val(q1)) && (0 <= vArg && vArg < diz.Program_maxvalue) && acc(diz.Program_f, frac_val(q1)) && diz.Program_f != null && acc(Future_hist_idle_Fraction_Process(diz.Program_f, q2, p_Done(rank, sys__result)), write) && (0 <= sys__result && sys__result < diz.Program_maxvalue) && diz.Program_size == old(diz.Program_size) && diz.Program_maxvalue == old(diz.Program_maxvalue) && diz.Program_f == old(diz.Program_f)
+  inhale false
+}
+
+method Main___contract_unsatisfiable__main_EncodedGlobalVariables_Integer_Integer_Sequence$Integer$(globals: Ref, size: Int, max: Int, xs: Seq[Int])
+{
+  inhale 0 < size && 0 < max && |xs| == size && (forall j__22: Int, k__23: Int :: { xs[k__23],xs[j__22] } 0 <= j__22 && j__22 < |xs| && (0 <= k__23 && k__23 < |xs| && j__22 != k__23) ==> xs[j__22] != xs[k__23]) && (forall j__24: Int :: { xs[j__24] } 0 <= j__24 && j__24 < |xs| ==> 0 <= xs[j__24] && xs[j__24] < max) && true
+  // assert
+  assert false
+  inhale false
+}
+
+method Main_main_EncodedGlobalVariables_Integer_Integer_Sequence$Integer$(globals: Ref, size: Int, max: Int, xs: Seq[Int])
+  requires 0 < size
+  requires 0 < max
+  requires |xs| == size
+  requires (forall j: Int, k: Int :: { xs[k],xs[j] } 0 <= j && j < |xs| && (0 <= k && k < |xs| && j != k) ==> xs[j] != xs[k])
+  requires (forall j: Int :: { xs[j] } 0 <= j && j < |xs| ==> 0 <= xs[j] && xs[j] < max)
+  ensures 0 < size
+  ensures 0 < max
+  ensures |xs| == size
+  ensures (forall j: Int, k: Int :: { xs[k],xs[j] } 0 <= j && j < |xs| && (0 <= k && k < |xs| && j != k) ==> xs[j] != xs[k])
+  ensures (forall j: Int :: { xs[j] } 0 <= j && j < |xs| ==> 0 <= xs[j] && xs[j] < max)
+{
+  var f__25: Ref
+  var __flatten_39__26: Seq[Seq[Int]]
+  var __flatten_41__27: Seq[Int]
+  var i__28: Int
+  var __flatten_43__29: Seq[Seq[Int]]
+  var __flatten_45__30: Seq[Int]
+  var pr__37: Ref
+  f__25 := Future_Future()
+  __flatten_39__26 := Seq[Seq[Int]]()
+  Future_hist_set_channel_Sequence$Sequence$Integer$$(f__25, __flatten_39__26)
+  __flatten_41__27 := Seq[Int]()
+  Future_hist_set_results_Sequence$Integer$(f__25, __flatten_41__27)
+  i__28 := 0
+  while (i__28 < size)
+    invariant 0 < size
+    invariant 0 < max
+    invariant |xs| == size
+    invariant (forall j__31: Int, k__32: Int :: { xs[k__32],xs[j__31] } 0 <= j__31 && j__31 < |xs| && (0 <= k__32 && k__32 < |xs| && j__31 != k__32) ==> xs[j__31] != xs[k__32])
+    invariant (forall j__33: Int :: { xs[j__33] } 0 <= j__33 && j__33 < |xs| ==> 0 <= xs[j__33] && xs[j__33] < max)
+    invariant 0 <= i__28 && i__28 <= size
+    invariant acc(f__25.Future_channel_hist_value, write)
+    invariant acc(f__25.Future_channel_hist_write, write)
+    invariant acc(f__25.Future_channel_hist_free, write)
+    invariant acc(f__25.Future_results_hist_value, write)
+    invariant acc(f__25.Future_results_hist_write, write)
+    invariant acc(f__25.Future_results_hist_free, write)
+    invariant |f__25.Future_channel_hist_value| == i__28
+    invariant (forall j__34: Int :: { f__25.Future_channel_hist_value[j__34] } 0 <= j__34 && j__34 < i__28 ==> |f__25.Future_channel_hist_value[j__34]| == 0)
+    invariant |f__25.Future_results_hist_value| == i__28
+    invariant (forall j__35: Int :: { f__25.Future_results_hist_value[j__35] } 0 <= j__35 && j__35 < i__28 ==> f__25.Future_results_hist_value[j__35] == 0) 
+  {
+    __flatten_43__29 := Seq(Seq[Int]())
+    Future_hist_set_channel_Sequence$Sequence$Integer$$(f__25, f__25.Future_channel_hist_value ++ __flatten_43__29)
+    __flatten_45__30 := Seq(0)
+    Future_hist_set_results_Sequence$Integer$(f__25, f__25.Future_results_hist_value ++ __flatten_45__30)
+    i__28 := i__28 + 1
+  }
+  Future_begin_future_1_Integer_Sequence$Integer$_Integer(f__25, size, xs, max)
+  // assert
+  assert acc(Future_hist_idle_Fraction_Process(f__25, new_frac(write), p_Spawn(0, size, xs, max)), write)
+  // assert
+  assert (forall i__36: Int :: { f__25.Future_results_hist_value[i__36] } 0 <= i__36 && i__36 < |f__25.Future_results_hist_value| ==> f__25.Future_results_hist_value[i__36] == f__25.Future_results_hist_value[Program_maxint_Sequence$Integer$_Integer_Integer(xs, 0, 0)])
+  // assert
+  assert false
+  pr__37 := Program_Program_EncodedGlobalVariables_Future_Integer_Integer(globals, f__25, size, max)
+  Main_spawn_EncodedGlobalVariables_Integer_Program_Sequence$Integer$_Fraction_Fraction(globals, 0, pr__37, xs, new_frac(1 / 2), new_frac(write))
+  inhale acc(Program_lock_invariant_EncodedGlobalVariables(pr__37, globals), write)
+  unfold acc(Program_lock_invariant_EncodedGlobalVariables(pr__37, globals), write)
+  inhale acc(Program_lock_held_EncodedGlobalVariables(pr__37, globals), write)
+  pr__37.Program_initialised := false
+  exhale acc(Program_lock_held_EncodedGlobalVariables(pr__37, globals), write)
+  fold acc(Program_lock_invariant_EncodedGlobalVariables(pr__37, globals), write)
+  exhale acc(Program_lock_invariant_EncodedGlobalVariables(pr__37, globals), write)
+  Future_end_future(f__25)
+  // assert
+  assert (forall i__38: Int :: { f__25.Future_results_hist_value[i__38] } 0 <= i__38 && i__38 < |f__25.Future_results_hist_value| ==> f__25.Future_results_hist_value[i__38] == f__25.Future_results_hist_value[Program_maxint_Sequence$Integer$_Integer_Integer(xs, 0, 0)])
+}
+
+method Main___contract_unsatisfiable__spawn_EncodedGlobalVariables_Integer_Program_Sequence$Integer$_Fraction_Fraction(globals: Ref, rank: Int, pr: Ref, xs: Seq[Int], q1: frac, q2: frac)
+{
+  inhale frac_val(q1) != none && frac_val(q2) != none && pr != null && acc(pr.Program_size, frac_val(q1)) && acc(pr.Program_f, frac_val(q1)) && pr.Program_f != null && acc(pr.Program_maxvalue, frac_val(q1)) && acc(pr.Program_initialised, frac_val(q1)) && pr.Program_initialised && (0 <= rank && rank <= pr.Program_size) && |xs| == pr.Program_size && (forall j__39: Int :: { xs[j__39] } 0 <= j__39 && j__39 < |xs| ==> 0 <= xs[j__39] && xs[j__39] < pr.Program_maxvalue) && acc(Future_hist_idle_Fraction_Process(pr.Program_f, q2, p_Spawn(rank, pr.Program_size, xs, pr.Program_maxvalue)), write)
+  // assert
+  assert false
+  inhale false
+}
+
+method Main_spawn_EncodedGlobalVariables_Integer_Program_Sequence$Integer$_Fraction_Fraction(globals: Ref, rank: Int, pr: Ref, xs: Seq[Int], q1: frac, q2: frac)
+  requires frac_val(q1) != none && frac_val(q2) != none
+  requires pr != null
+  requires acc(pr.Program_size, frac_val(q1))
+  requires acc(pr.Program_f, frac_val(q1))
+  requires pr.Program_f != null
+  requires acc(pr.Program_maxvalue, frac_val(q1))
+  requires acc(pr.Program_initialised, frac_val(q1))
+  requires pr.Program_initialised
+  requires 0 <= rank && rank <= pr.Program_size
+  requires |xs| == pr.Program_size
+  requires (forall j: Int :: { xs[j] } 0 <= j && j < |xs| ==> 0 <= xs[j] && xs[j] < pr.Program_maxvalue)
+  requires acc(Future_hist_idle_Fraction_Process(pr.Program_f, q2, p_Spawn(rank, pr.Program_size, xs, pr.Program_maxvalue)), write)
+  ensures frac_val(q1) != none && frac_val(q2) != none
+  ensures pr != null
+  ensures acc(pr.Program_size, frac_val(q1))
+  ensures acc(pr.Program_f, frac_val(q1))
+  ensures pr.Program_f != null
+  ensures acc(pr.Program_maxvalue, frac_val(q1))
+  ensures acc(pr.Program_initialised, frac_val(q1))
+  ensures pr.Program_initialised
+  ensures 0 <= rank && rank <= pr.Program_size
+  ensures |xs| == pr.Program_size
+  ensures (forall j: Int :: { xs[j] } 0 <= j && j < |xs| ==> 0 <= xs[j] && xs[j] < pr.Program_maxvalue)
+  ensures pr == old(pr)
+  ensures pr.Program_size == old(pr.Program_size)
+  ensures pr.Program_maxvalue == old(pr.Program_maxvalue)
+  ensures pr.Program_f == old(pr.Program_f)
+  ensures acc(Future_hist_idle_Fraction_Process(pr.Program_f, q2, p_empty()), write)
+{
+  var m__44: Ref
+  var __flatten_52__40: Process
+  var __flatten_53__41: Process
+  var __flatten_58__42: Process
+  var __flatten_59__43: Process
+  if (rank < pr.Program_size) {
+    m__44 := Main_Main_EncodedGlobalVariables_Program_Integer_Integer_Fraction_Fraction(globals, pr, rank, xs[rank], new_frac(frac_val(q1) / 2), new_frac(frac_val(q2) / 2))
+    // assert
+    assert acc(Future_hist_idle_Fraction_Process(pr.Program_f, q2, p_Spawn(rank, pr.Program_size, xs, pr.Program_maxvalue)), write)
+    // assert
+    assert acc(Future_hist_idle_Fraction_Process(pr.Program_f, q2, p_merge(p_Elect(rank, pr.Program_size, xs[rank], pr.Program_maxvalue, 0), p_Spawn(rank + 1, pr.Program_size, xs, pr.Program_maxvalue))), write)
+    __flatten_52__40 := p_Elect(rank, pr.Program_size, xs[rank], pr.Program_maxvalue, 0)
+    __flatten_53__41 := p_Spawn(rank + 1, pr.Program_size, xs, pr.Program_maxvalue)
+    Future_split_Fraction_Process_Fraction_Process(pr.Program_f, new_frac(frac_val(q2) / 2), __flatten_52__40, new_frac(frac_val(q2) / 2), __flatten_53__41)
+    Main_forkOperator_EncodedGlobalVariables(m__44, globals)
+    Main_spawn_EncodedGlobalVariables_Integer_Program_Sequence$Integer$_Fraction_Fraction(globals, rank + 1, pr, xs, new_frac(frac_val(q1) / 2), new_frac(frac_val(q2) / 2))
+    Main_joinOperator_EncodedGlobalVariables(m__44, globals)
+    __flatten_58__42 := p_empty()
+    __flatten_59__43 := p_empty()
+    Future_merge_Fraction_Process_Fraction_Process(pr.Program_f, new_frac(frac_val(q2) / 2), __flatten_58__42, new_frac(frac_val(q2) / 2), __flatten_59__43)
+  }
+}
+
+method Main___contract_unsatisfiable__Main_EncodedGlobalVariables_Program_Integer_Integer_Fraction_Fraction(diz: Ref, globals: Ref, pr: Ref, rank: Int, val: Int, r1: frac, r2: frac)
+  requires diz != null
+{
+  inhale true && (frac_val(r1) != none && frac_val(r2) != none)
+  // assert
+  assert false
+  inhale false
+}
+
+method Main_Main_EncodedGlobalVariables_Program_Integer_Integer_Fraction_Fraction(globals: Ref, pr: Ref, rank: Int, val: Int, r1: frac, r2: frac) returns (sys__result: Ref)
+  requires frac_val(r1) != none && frac_val(r2) != none
+  ensures sys__result != null
+  ensures type_of(sys__result) == class_Main()
+  ensures acc(Main_idleToken_EncodedGlobalVariables(sys__result, globals), write)
+  ensures acc(sys__result.Main_pr, write)
+  ensures sys__result.Main_pr == pr
+  ensures acc(sys__result.Main_rank, write)
+  ensures sys__result.Main_rank == rank
+  ensures acc(sys__result.Main_val, write)
+  ensures sys__result.Main_val == val
+  ensures acc(sys__result.Main_r1, write)
+  ensures frac_val(sys__result.Main_r1) == frac_val(r1)
+  ensures acc(sys__result.Main_r2, write)
+  ensures frac_val(sys__result.Main_r2) == frac_val(r2)
+{
+  var diz__45: Ref
+  diz__45 := new(Main_pr, Main_rank, Main_val, Main_r1, Main_r2)
+  inhale type_of(diz__45) == class_Main()
+  diz__45.Main_pr := pr
+  diz__45.Main_rank := rank
+  diz__45.Main_val := val
+  diz__45.Main_r1 := r1
+  diz__45.Main_r2 := r2
+  inhale acc(Main_idleToken_EncodedGlobalVariables(diz__45, globals), write)
+  sys__result := diz__45
+  // assert
+  assert sys__result != null && type_of(sys__result) == class_Main() && acc(Main_idleToken_EncodedGlobalVariables(sys__result, globals), write) && acc(sys__result.Main_pr, write) && sys__result.Main_pr == pr && acc(sys__result.Main_rank, write) && sys__result.Main_rank == rank && acc(sys__result.Main_val, write) && sys__result.Main_val == val && acc(sys__result.Main_r1, write) && frac_val(sys__result.Main_r1) == frac_val(r1) && acc(sys__result.Main_r2, write) && frac_val(sys__result.Main_r2) == frac_val(r2)
+  inhale false
+}
+
+method Main_forkOperator_EncodedGlobalVariables(diz: Ref, globals: Ref)
+  requires diz != null
+  requires acc(diz.Main_rank, 1 / 2)
+  requires acc(diz.Main_val, 1 / 2)
+  requires acc(diz.Main_pr, 1 / 2)
+  requires diz.Main_pr != null
+  requires acc(diz.Main_r1, 1 / 2)
+  requires frac_val(diz.Main_r1) != none
+  requires acc(diz.Main_r2, 1 / 2)
+  requires frac_val(diz.Main_r2) != none
+  requires acc(diz.Main_pr.Program_f, frac_val(diz.Main_r1))
+  requires diz.Main_pr.Program_f != null
+  requires acc(diz.Main_pr.Program_size, frac_val(diz.Main_r1))
+  requires acc(diz.Main_pr.Program_maxvalue, frac_val(diz.Main_r1))
+  requires acc(diz.Main_pr.Program_initialised, frac_val(diz.Main_r1))
+  requires diz.Main_pr.Program_initialised
+  requires 0 <= diz.Main_rank && diz.Main_rank < diz.Main_pr.Program_size
+  requires 0 <= diz.Main_val && diz.Main_val < diz.Main_pr.Program_maxvalue
+  requires acc(Future_hist_idle_Fraction_Process(diz.Main_pr.Program_f, diz.Main_r2, p_Elect(diz.Main_rank, diz.Main_pr.Program_size, diz.Main_val, diz.Main_pr.Program_maxvalue, 0)), write)
+  requires acc(Main_idleToken_EncodedGlobalVariables(diz, globals), write)
+  ensures acc(Main_joinToken_EncodedGlobalVariables(diz, globals), write)
+{
+  inhale false
+}
+
+method Main_joinOperator_EncodedGlobalVariables(diz: Ref, globals: Ref)
+  requires diz != null
+  requires acc(Main_joinToken_EncodedGlobalVariables(diz, globals), write)
+  ensures acc(Main_idleToken_EncodedGlobalVariables(diz, globals), write)
+  ensures acc(diz.Main_rank, 1 / 2)
+  ensures acc(diz.Main_val, 1 / 2)
+  ensures acc(diz.Main_pr, 1 / 2)
+  ensures diz.Main_pr != null
+  ensures acc(diz.Main_r1, 1 / 2)
+  ensures frac_val(diz.Main_r1) != none
+  ensures acc(diz.Main_r2, 1 / 2)
+  ensures frac_val(diz.Main_r2) != none
+  ensures acc(diz.Main_pr.Program_f, frac_val(diz.Main_r1))
+  ensures diz.Main_pr.Program_f != null
+  ensures acc(diz.Main_pr.Program_size, frac_val(diz.Main_r1))
+  ensures acc(diz.Main_pr.Program_maxvalue, frac_val(diz.Main_r1))
+  ensures acc(diz.Main_pr.Program_initialised, frac_val(diz.Main_r1))
+  ensures diz.Main_pr.Program_initialised
+  ensures 0 <= diz.Main_rank && diz.Main_rank < diz.Main_pr.Program_size
+  ensures 0 <= diz.Main_val && diz.Main_val < diz.Main_pr.Program_maxvalue
+  ensures acc(Future_hist_idle_Fraction_Process(diz.Main_pr.Program_f, diz.Main_r2, p_empty()), write)
+{
+  inhale false
+}
+
+method Main___contract_unsatisfiable__run_EncodedGlobalVariables(diz: Ref, globals: Ref)
+  requires diz != null
+{
+  inhale true && (acc(diz.Main_rank, 1 / 2) && acc(diz.Main_val, 1 / 2) && acc(diz.Main_pr, 1 / 2) && diz.Main_pr != null && acc(diz.Main_r1, 1 / 2) && frac_val(diz.Main_r1) != none && acc(diz.Main_r2, 1 / 2) && frac_val(diz.Main_r2) != none && acc(diz.Main_pr.Program_f, frac_val(diz.Main_r1)) && diz.Main_pr.Program_f != null && acc(diz.Main_pr.Program_size, frac_val(diz.Main_r1)) && acc(diz.Main_pr.Program_maxvalue, frac_val(diz.Main_r1)) && acc(diz.Main_pr.Program_initialised, frac_val(diz.Main_r1)) && diz.Main_pr.Program_initialised && (0 <= diz.Main_rank && diz.Main_rank < diz.Main_pr.Program_size) && (0 <= diz.Main_val && diz.Main_val < diz.Main_pr.Program_maxvalue) && acc(Future_hist_idle_Fraction_Process(diz.Main_pr.Program_f, diz.Main_r2, p_Elect(diz.Main_rank, diz.Main_pr.Program_size, diz.Main_val, diz.Main_pr.Program_maxvalue, 0)), write))
+  // assert
+  assert false
+  inhale false
+}
+
+method Main_run_EncodedGlobalVariables(diz: Ref, globals: Ref)
+  requires diz != null
+  requires acc(diz.Main_rank, 1 / 2)
+  requires acc(diz.Main_val, 1 / 2)
+  requires acc(diz.Main_pr, 1 / 2)
+  requires diz.Main_pr != null
+  requires acc(diz.Main_r1, 1 / 2)
+  requires frac_val(diz.Main_r1) != none
+  requires acc(diz.Main_r2, 1 / 2)
+  requires frac_val(diz.Main_r2) != none
+  requires acc(diz.Main_pr.Program_f, frac_val(diz.Main_r1))
+  requires diz.Main_pr.Program_f != null
+  requires acc(diz.Main_pr.Program_size, frac_val(diz.Main_r1))
+  requires acc(diz.Main_pr.Program_maxvalue, frac_val(diz.Main_r1))
+  requires acc(diz.Main_pr.Program_initialised, frac_val(diz.Main_r1))
+  requires diz.Main_pr.Program_initialised
+  requires 0 <= diz.Main_rank && diz.Main_rank < diz.Main_pr.Program_size
+  requires 0 <= diz.Main_val && diz.Main_val < diz.Main_pr.Program_maxvalue
+  requires acc(Future_hist_idle_Fraction_Process(diz.Main_pr.Program_f, diz.Main_r2, p_Elect(diz.Main_rank, diz.Main_pr.Program_size, diz.Main_val, diz.Main_pr.Program_maxvalue, 0)), write)
+  ensures acc(diz.Main_rank, 1 / 2)
+  ensures acc(diz.Main_val, 1 / 2)
+  ensures acc(diz.Main_pr, 1 / 2)
+  ensures diz.Main_pr != null
+  ensures acc(diz.Main_r1, 1 / 2)
+  ensures frac_val(diz.Main_r1) != none
+  ensures acc(diz.Main_r2, 1 / 2)
+  ensures frac_val(diz.Main_r2) != none
+  ensures acc(diz.Main_pr.Program_f, frac_val(diz.Main_r1))
+  ensures diz.Main_pr.Program_f != null
+  ensures acc(diz.Main_pr.Program_size, frac_val(diz.Main_r1))
+  ensures acc(diz.Main_pr.Program_maxvalue, frac_val(diz.Main_r1))
+  ensures acc(diz.Main_pr.Program_initialised, frac_val(diz.Main_r1))
+  ensures diz.Main_pr.Program_initialised
+  ensures 0 <= diz.Main_rank && diz.Main_rank < diz.Main_pr.Program_size
+  ensures 0 <= diz.Main_val && diz.Main_val < diz.Main_pr.Program_maxvalue
+  ensures acc(Future_hist_idle_Fraction_Process(diz.Main_pr.Program_f, diz.Main_r2, p_empty()), write)
+{
+  var res__46: Int
+  var __flatten_27__47: Ref
+  var __flatten_28__48: Process
+  var __flatten_30__49: Ref
+  var __flatten_31__50: Ref
+  var __flatten_32__51: Ref
+  var __flatten_33__52: Seq[Int]
+  var __flatten_35__53: Ref
+  var __flatten_36__54: Process
+  res__46 := Program_elect_EncodedGlobalVariables_Integer_Integer_Fraction_Fraction(diz.Main_pr, globals, diz.Main_rank, diz.Main_val, diz.Main_r1, diz.Main_r2)
+  inhale acc(Program_lock_invariant_EncodedGlobalVariables(diz.Main_pr, globals), write)
+  unfold acc(Program_lock_invariant_EncodedGlobalVariables(diz.Main_pr, globals), write)
+  inhale acc(Program_lock_held_EncodedGlobalVariables(diz.Main_pr, globals), write)
+  __flatten_27__47 := diz.Main_pr
+  __flatten_28__48 := p_empty()
+  Future_Done_begin_Fraction_Process_Integer_Integer(__flatten_27__47.Program_f, diz.Main_r2, __flatten_28__48, diz.Main_rank, res__46)
+  __flatten_30__49 := diz.Main_pr
+  __flatten_32__51 := diz.Main_pr
+  __flatten_31__50 := __flatten_32__51.Program_f
+  __flatten_33__52 := Program_update_Sequence$Integer$_Integer_Integer(__flatten_31__50.Future_results_hist_value, diz.Main_rank, res__46)
+  Future_hist_set_results_Sequence$Integer$(__flatten_30__49.Program_f, __flatten_33__52)
+  __flatten_35__53 := diz.Main_pr
+  __flatten_36__54 := p_empty()
+  Future_Done_commit_Fraction_Process_Integer_Integer(__flatten_35__53.Program_f, diz.Main_r2, __flatten_36__54, diz.Main_rank, res__46)
+  exhale acc(Program_lock_held_EncodedGlobalVariables(diz.Main_pr, globals), write)
+  fold acc(Program_lock_invariant_EncodedGlobalVariables(diz.Main_pr, globals), write)
+  exhale acc(Program_lock_invariant_EncodedGlobalVariables(diz.Main_pr, globals), write)
+}
