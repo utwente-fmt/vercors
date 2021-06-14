@@ -61,8 +61,8 @@ class StructureCheck(source : ProgramUnit) {
   checkRoleFieldsTypes(source)
   checkRoleMethodsTypes(source)
   private val otherClasses : Iterable[ASTClass] = getOtherClasses(source)
-  checkOtherClassesFieldsTypes(source)
-  checkOtherClassesMethodsTypes(source)
+  checkOtherClassesFieldsTypes()
+  checkOtherClassesMethodsTypes()
 
   private def checkMainClass(source : ProgramUnit) : Unit = {
     source.get().asScala.find(_.name == mainClassName) match {
