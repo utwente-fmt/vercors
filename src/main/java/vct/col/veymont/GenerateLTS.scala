@@ -9,14 +9,10 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.syntax.PVLSyntax
 import vct.col.ast.util.AbstractRewriter
 import Util._
-import geny.Generator.from
-import hre.lang.System.Output
 import vct.col.veymont.StructureCheck.isExecutableMainMethod
 
 import java.io.{File, FileOutputStream, IOException, PrintWriter}
-import java.util.Scanner
 import scala.annotation.tailrec
-import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.jdk.CollectionConverters._
 
 sealed trait Action
@@ -196,11 +192,9 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     nextState
   }
 
-  def weakSequenceAllowed(s1 : ASTNode, s2: ASTNode) : Boolean = {
-    if(canSwap(s1) && canSwap(s2))
-      getSubjects(Set.empty,s1).intersect(getSubjects(Set.empty,s2)).isEmpty
-    else false
-  }
+  def weakSequenceAllowed(s1 : ASTNode, s2: ASTNode) : Boolean =
+    canSwap(s1) && canSwap(s2) && getSubjects(Set.empty,s1).intersect(getSubjects(Set.empty,s2)).isEmpty
+
 
   def getSubjects(seen : Set[String],s : ASTNode) : Set[String] = {
     s match {
@@ -211,8 +205,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       case p : ParallelRegion => p.blocks.map(_.block).toSet.flatMap(getSubjects(seen,_))
       case m : MethodInvokation => {
         if(m.`object` == null) { //it is a main method
-          Fail("VeyMont Fail: encountered method call %s in LTS generation",m.method)
-          Set.empty
+          throw Failure("VeyMont Fail: encountered method call %s in LTS generation",m.method)
         } else getNamesFromExpression(m).map(_.name)
       }
       case _ : ASTSpecial => Set.empty

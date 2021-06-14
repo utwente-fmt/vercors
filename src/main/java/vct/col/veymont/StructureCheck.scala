@@ -10,7 +10,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTUtils
 import Util._
-import vct.col.veymont.StructureCheck.{fixedMainMethod, fixedMainMethodBody, getRoleOrHelperClass, isResourceType}
+import vct.col.veymont.StructureCheck.{fixedMainFail, fixedMainMethod, fixedMainMethodBody, getRoleOrHelperClass, isResourceType}
 
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
@@ -32,6 +32,7 @@ object StructureCheck {
 
   private val fixedMainMethod : String  = "\nvoid " + mainMethodName + "() {\n" + fixedMainMethodBody + "\n}"
   private val fixedMainMethodBody : String =  "\tMain m = new Main();\n\tm." + runMethodName + "();"
+  private def fixedMainFail: Unit = Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
 
   private def isResourceType(t : Type) : Boolean = t match {
     case p : PrimitiveType => p.sort == PrimitiveSort.Resource
@@ -151,25 +152,25 @@ class StructureCheck(source : ProgramUnit) {
     val mainMethod = mainClass.methods().asScala.find(_.name == mainMethodName).get
     val b = getBlockOrThrow(mainMethod.getBody, "VeyMont Fail: expected BlockStatement for method " + mainMethodName)
     if(b.getLength != 2)
-      Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
+      fixedMainFail
     else {
       b.getStatement(1) match {
         case m : MethodInvokation =>
           if(m.method != runMethodName)
-            Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
+            fixedMainFail
           else m.`object` match {
             case n : NameExpression => //fine
-            case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
+            case _ => fixedMainFail
           }
-        case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
+        case _ => fixedMainFail
       }
       b.getStatement(0) match {
         case v : VariableDeclaration =>
           v.basetype match {
             case c : ClassType =>
               if(c.getName != mainClassName)
-                Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
-            case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
+                fixedMainFail
+            case _ => fixedMainFail
           }
           if(v.get().asScala.size == 1) {
               v.get().asScala.head match {
@@ -178,13 +179,13 @@ class StructureCheck(source : ProgramUnit) {
                   case m : MethodInvokation =>
                     if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name &&
                       m.method == JavaConstructor && m.dispatch.getName == mainClassName))
-                      Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
-                  case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
+                      fixedMainFail
+                  case _ => fixedMainFail
                 }
-              case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
+              case _ => fixedMainFail
             }
-          } else Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
-        case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
+          } else fixedMainFail
+        case _ => fixedMainFail
       }
     }
   }
@@ -335,10 +336,10 @@ class StructureCheck(source : ProgramUnit) {
     expMap.values.sum == (expMap.size - 1) * 2
   }
 
+  /*
   private def checkMainMethodsRecursion() : Unit = {
     mainMethods.foreach(m => checkGuardedRecursion(m.getBody,Set(m.name)))
   }
-
 
   private def checkGuardedRecursion(statement : ASTNode, encounteredMethods : Set[String]) : Unit =
     statement match {
@@ -360,7 +361,7 @@ class StructureCheck(source : ProgramUnit) {
       case a : AssignmentStatement => checkGuardedRecursion(a.expression,encounteredMethods)
       case e : OperatorExpression => e.args.foreach(checkGuardedRecursion(_,encounteredMethods))
       case _ => //fine
-    }
+    } */
 
   private def checkRoleMethodsTypes(source : ProgramUnit) : Unit = {
     roleClasses.foreach(_.methods().forEach(checkRoleMethodTypes(_)))

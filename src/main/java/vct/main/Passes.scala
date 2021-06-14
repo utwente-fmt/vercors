@@ -7,7 +7,7 @@ import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
-import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.features.{Feature}
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
 import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateForkJoinMain, LocalProgConstructors, StructureCheck, TerminationCheck}
@@ -925,6 +925,7 @@ object Passes {
   The program from the input files has to adhere to the syntax of a 'global program'. Syntax violations result in VeyMont Fail messages.
   The decomposition preserves the behaviour of the global program.
   This implies that all functional properties proven (with VerCors) for the global program also hold for the local program.
+  Also, both global programs and their decomposed local programs are deadlock-free by construction.
   Memory and thread safety can be checked by running VerCors on the file produced by VeyMont.
   For more information on VeyMont, please check the VerCors Wiki.
    */

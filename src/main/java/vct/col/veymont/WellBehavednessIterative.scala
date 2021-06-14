@@ -22,7 +22,8 @@ object WellBehavednessIterative {
       Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardTau)",LTSRole)
     else  if(!checkBackward(transitionsInt,tauClosure))
       Fail("VeyMont Fail: Local LTS of %s not well-behaved (Backward)",LTSRole)
-    else {}//all fine
+    else { //all fine
+    }
   }
 
   def getTauClosure(transitions : Map[Int,Set[(String,Int)]]) : Map[Int, Set[Int]] = {
