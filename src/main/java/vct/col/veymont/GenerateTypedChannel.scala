@@ -40,38 +40,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
       }
       case Right(cl) => {
         if(m.kind == Method.Kind.Constructor) {
-          cl.methods().asScala.find(_.kind == Method.Kind.Constructor) match {
-            case None => Fail("VeyMont Fail: Cannot find constructor of class %s!",cl.name)
-            case Some(constr) => {
-              if(!ASTUtils.conjuncts(constr.getContract.post_condition, StandardOperator.Star).asScala.filter {
-                case op: OperatorExpression => op.operator == StandardOperator.Perm && (op.arg(0) match {
-                  case n: NameExpression => cl.fields().asScala.map(_.name).contains(n.name)
-                  case _ => false
-                })
-                case _ => false
-              }.forall(_.asInstanceOf[OperatorExpression].arg(1) match {
-                case r : NameExpression => r.kind == NameExpressionKind.Reserved && r.reserved == ASTReserved.ReadPerm
-                case _ => false
-              })) {
-                Fail("VeyMont Fail: the constructor of class %s must ensure read permission to its fields!",cl.name)
-              }
-              val dummyArgs : Array[ASTNode] = constr.getArgs.map(_.`type` match {
-                case p : PrimitiveType => p.sort match {
-                  case PrimitiveSort.Boolean => create.constant(true)
-                  case PrimitiveSort.Integer => create.constant(0)
-                  case PrimitiveSort.Double => val d : Double = 0.1; create.constant(d)
-                  case _ => throw Failure("VeyMont Fail: Could not generate channel of type %s",cl.name)
-                }
-              })
-              val initValueField = create.invokation(null,create.class_type(cl.name),Method.JavaConstructor,dummyArgs:_*)
-              val initAssign = create.assignment(create.field_name(chanValueFieldName),initValueField)
-              result = create.method_kind(m.kind, m.getReturnType, rewrite(m.getContract),
-                  getTypeName, m.getArgs, create.block((rewrite(
-                  getBlockOrThrow(m.getBody,"VeyMont Fail: BlockStatement expected!")
-                    .getStatements) :+ initAssign):_*))
-
-            }
-          }
+          visitConstructor(m,cl)
         } else if(m.kind == Method.Kind.Predicate) {
           m.getBody match {
             case o : OperatorExpression =>
@@ -92,10 +61,44 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
           val newArgs = m.getArgs.map(rewrite(_))
           val res = create.method_kind(m.kind, rewrite(m.getReturnType), cb.getContract, m.name, newArgs, rewrite(m.getBody))
           result = res
-        }
+        } else Fail("VeyMont Fail: unexpected method %s in channel class %s!",m.name,cl.name)
       }
     }
   }
+
+  private def visitConstructor( m : Method, cl : ASTClass) =
+    cl.methods().asScala.find(_.kind == Method.Kind.Constructor) match {
+      case None => Fail("VeyMont Fail: Cannot find constructor of class %s!",cl.name)
+      case Some(constr) => {
+        if(!ASTUtils.conjuncts(constr.getContract.post_condition, StandardOperator.Star).asScala.filter {
+          case op: OperatorExpression => op.operator == StandardOperator.Perm && (op.arg(0) match {
+            case n: NameExpression => cl.fields().asScala.map(_.name).contains(n.name)
+            case _ => false
+          })
+          case _ => false
+        }.forall(_.asInstanceOf[OperatorExpression].arg(1) match {
+          case r : NameExpression => r.kind == NameExpressionKind.Reserved && r.reserved == ASTReserved.ReadPerm
+          case _ => false
+        })) {
+          Fail("VeyMont Fail: the constructor of class %s must ensure read permission to its fields!",cl.name)
+        }
+        val dummyArgs : Array[ASTNode] = constr.getArgs.map(_.`type` match {
+          case p : PrimitiveType => p.sort match {
+            case PrimitiveSort.Boolean => create.constant(true)
+            case PrimitiveSort.Integer => create.constant(0)
+            case PrimitiveSort.Double => val d : Double = 0.1; create.constant(d)
+            case _ => throw Failure("VeyMont Fail: Could not generate channel of type %s",cl.name)
+          }
+        })
+        val initValueField = create.invokation(null,create.class_type(cl.name),Method.JavaConstructor,dummyArgs:_*)
+        val initAssign = create.assignment(create.field_name(chanValueFieldName),initValueField)
+        result = create.method_kind(m.kind, m.getReturnType, rewrite(m.getContract),
+          getTypeName, m.getArgs, create.block((rewrite(
+            getBlockOrThrow(m.getBody,"VeyMont Fail: BlockStatement expected!")
+              .getStatements) :+ initAssign):_*))
+
+      }
+    }
 
   override def visit(l : LoopStatement) : Unit = sort match {
     case Left(p) => super.visit(l)

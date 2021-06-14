@@ -66,7 +66,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
   }
 
   override def visit(m : MethodInvokation) : Unit = {
-    if(encountered.contains(MethodInvToString(m))) {
+    if(encountered.contains(methodInvToString(m))) {
       methods.find(tup => tup._1.name == m.method) match {
         case Some(tup) => {
           if(tup._2 == mainClassName)
@@ -83,7 +83,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
           Fail("VeyMont Fail: Cannot call Main method '%s' from role or other class! %s", m.method,m.getOrigin)
         } else { //if (mClass != mainClassName || method.kind == Method.Kind.Pure) {
           methodCalled = true
-          encountered += MethodInvToString(m)
+          encountered += methodInvToString(m)
           visit(method)
         // } else {
           //stop checking; recursion is allowed in non-pure main methods
@@ -96,7 +96,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
     }
   }
 
-  def MethodInvToString(mi : MethodInvokation): String = mi.method //(if (mi.`object`==null) "" else mi.`object`.toString) + mi.method
+  def methodInvToString(mi : MethodInvokation): String = mi.method //(if (mi.`object`==null) "" else mi.`object`.toString) + mi.method
 
   override def visit(l : LoopStatement) : Unit =
     if(currentClass != mainClassName)

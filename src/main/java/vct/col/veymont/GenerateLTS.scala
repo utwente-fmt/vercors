@@ -55,7 +55,7 @@ final class LTSState(val nextStatements : List[ASTNode]) {
 
   override def toString: String = nextStatements.map(PVLSyntax.get().print(_).toString).toString
 
-  def getCopy(copy_rw : AbstractRewriter) = new LTSState(copy_rw.rewrite(nextStatements.toArray).toList)
+  def getCopy(copyRewriter : AbstractRewriter) = new LTSState(copyRewriter.rewrite(nextStatements.toArray).toList)
 }
 final class LTSLabel(val condition: Option[ASTNode], val action : Action) {
   override def toString: String = (condition match { case None => "true"; case Some(c) => c.toString}) + " @ " + action.toString
@@ -197,30 +197,15 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   def weakSequenceAllowed(s1 : ASTNode, s2: ASTNode) : Boolean = {
-    if(!canSwap(s1) || !canSwap(s2))
-      false
-    else getSubjects(Set.empty,s1).intersect(getSubjects(Set.empty,s2)).isEmpty
+    if(canSwap(s1) && canSwap(s2))
+      getSubjects(Set.empty,s1).intersect(getSubjects(Set.empty,s2)).isEmpty
+    else false
   }
 
   def getSubjects(seen : Set[String],s : ASTNode) : Set[String] = {
     s match {
       case b : BlockStatement => b.getStatements.toSet.flatMap(getSubjects(seen,_))
-      case a : AssignmentStatement => getGlobalAction(a) match {
-        case SingleRoleAction(node) => node match {
-          case an : AssignmentStatement => an.location match {
-            case d : Dereference => Set(d.obj.asInstanceOf[NameExpression].name)
-            case n : NameExpression => Set(n.name)
-            case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
-          }
-          case m : MethodInvokation => m.`object` match {
-            case n : NameExpression => Set(n.name)
-            case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
-          }
-        }
-        case CommunicationAction(receiver,_, sender, _) =>
-          Set(receiver.name, sender.name)
-        case _ => Set.empty
-      }
+      case a : AssignmentStatement => getSubjectAssignment(a)
       case _ : IfStatement => roleNames.toSet
       case _ : LoopStatement => roleNames.toSet
       case p : ParallelRegion => p.blocks.map(_.block).toSet.flatMap(getSubjects(seen,_))
@@ -232,6 +217,23 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       }
       case _ : ASTSpecial => Set.empty
     }
+  }
+
+  private def getSubjectAssignment(a : AssignmentStatement) : Set[String] = getGlobalAction(a) match {
+    case SingleRoleAction(node) => node match {
+      case an : AssignmentStatement => an.location match {
+        case d : Dereference => Set(d.obj.asInstanceOf[NameExpression].name)
+        case n : NameExpression => Set(n.name)
+        case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
+      }
+      case m : MethodInvokation => m.`object` match {
+        case n : NameExpression => Set(n.name)
+        case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
+      }
+    }
+    case CommunicationAction(receiver,_, sender, _) =>
+      Set(receiver.name, sender.name)
+    case _ => Set.empty
   }
 
   def canSwap(n : ASTNode) : Boolean = n match {
@@ -304,15 +306,15 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   def visit(i: IfStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
-    takeTwoBranches(i.getGuard(0),ASTNodeToList(i.getStatement(0)),if(i.getCount > 1) ASTNodeToList(i.getStatement(1)) else List.empty,currentState,seq)
+    takeTwoBranches(i.getGuard(0),astNodeToList(i.getStatement(0)),if(i.getCount > 1) astNodeToList(i.getStatement(1)) else List.empty,currentState,seq)
 
   def isRecursion(s : ASTNode, recursiveNodes : List[ASTNode]) : Boolean =
     recursiveNodes.exists(n => new LTSState(List(n)) == new LTSState(List(s)))
 
   def visit(l : LoopStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
-      takeTwoBranches(l.getEntryGuard,ASTNodeToList(l.getBody) :+ l,List.empty,currentState,seq)
+      takeTwoBranches(l.getEntryGuard,astNodeToList(l.getBody) :+ l,List.empty,currentState,seq)
 
-  private def ASTNodeToList(n : ASTNode) : List[ASTNode] = n match {
+  private def astNodeToList(n : ASTNode) : List[ASTNode] = n match {
     case b : BlockStatement => b.getStatements.toList
     case a : ASTNode => List(a)
   }
@@ -340,9 +342,12 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       visitStatementSequenceAbstract(currentState,fns)
       })
 
-  private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], othersPreBlock : List[ParallelBlock], othersPostBlock : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
+  private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], othersPreBlock : List[ParallelBlock],
+                                    othersPostBlock : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
     val afterFirstbAction = getCopyBlockWithStats(b,seq)
-    val newPr = create.region(pr.contract,(if (afterFirstbAction.block.isEmpty) othersPreBlock ++ othersPostBlock  else othersPreBlock ++ (afterFirstbAction +: othersPostBlock)):_*)
+    val newPr = create.region(pr.contract,(
+      if (afterFirstbAction.block.isEmpty) othersPreBlock ++ othersPostBlock
+      else othersPreBlock ++ (afterFirstbAction +: othersPostBlock)):_*)
     if(newPr.blocks.forall(_.block.size == 0)) nextSeq else newPr +: nextSeq
   }
 

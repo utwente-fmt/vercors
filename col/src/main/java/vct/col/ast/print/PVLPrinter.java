@@ -1083,17 +1083,13 @@ public class PVLPrinter extends AbstractPrinter{
                 if (nrofargs!=1){
                     Fail("Cell type constructor with %d arguments instead of 1",nrofargs);
                 }
-            //    out.printf("cell<");
                 t.firstarg().accept(this);
-            //    out.printf(">");
                 break;
             case Option:
                 if (nrofargs!=1){
                     Fail("Option type constructor with %d arguments instead of 1",nrofargs);
                 }
-                //out.printf("option<");
                 t.firstarg().accept(this);
-            //    out.printf(">");
                 break;
             case Map:
                 if (nrofargs!=2){
@@ -1186,7 +1182,6 @@ public class PVLPrinter extends AbstractPrinter{
                 } else {
                     Fail("Unexpected DeclarationStatement in iters of ParallelBlock");
                 }
-                //expr.accept(this);
             }
             out.println(")");
         }
