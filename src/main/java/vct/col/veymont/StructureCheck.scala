@@ -169,21 +169,24 @@ class StructureCheck(source : ProgramUnit) {
               fixedMainFail
           case _ => fixedMainFail
         }
-        if(v.get().asScala.size == 1) {
-          v.get().asScala.head match {
-            case d : DeclarationStatement =>
-              d.initJava match {
-                case m : MethodInvokation =>
-                  if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name &&
-                    m.method == JavaConstructor && m.dispatch.getName == mainClassName))
-                    fixedMainFail
-                case _ => fixedMainFail
-              }
-            case _ => fixedMainFail
-          }
-        } else fixedMainFail
+        checkFirstLineConstructorCall(v,b)
       case _ => fixedMainFail
     }
+
+  private def checkFirstLineConstructorCall(v : VariableDeclaration, b : BlockStatement) =
+    if(v.get().asScala.size == 1) {
+      v.get().asScala.head match {
+        case d : DeclarationStatement =>
+          d.initJava match {
+            case m : MethodInvokation =>
+              if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name &&
+                m.method == JavaConstructor && m.dispatch.getName == mainClassName))
+                fixedMainFail
+            case _ => fixedMainFail
+          }
+        case _ => fixedMainFail
+      }
+    } else fixedMainFail
 
   private def checkMainBodySecondLine(b : BlockStatement) =
     b.getStatement(1) match {
