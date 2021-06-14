@@ -123,15 +123,7 @@ newExpr
  : 'new' identifier tuple
  | 'new' nonArrayType newDims
  | nonTarget
- | target
- ;
-
-target
- : target '.' gen_id
- | target '[' expr ']'
- | nonTarget '.' gen_id
- | nonTarget '[' expr ']'
- | targetUnit
+// | target
  ;
 
 nonTarget
@@ -143,6 +135,14 @@ nonTarget
  | nonTarget '[' expr '->' expr ']'
  | nonTarget '->' identifier tuple
  | nonTargetUnit
+ ;
+
+target
+ : target '.' gen_id
+ | target '[' expr ']'
+ | nonTarget '.' gen_id
+ | nonTarget '[' expr ']'
+ | targetUnit
  ;
 
 nonTargetUnit
@@ -159,7 +159,7 @@ nonTargetUnit
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
- | '|' expr '|'
+// | '|' expr '|'
  | '?' identifier
  | NUMBER
  | values
@@ -285,8 +285,9 @@ type
  ;
 
 typeDims
- : quantifiedDim*
- | anonDim*
+ : quantifiedDim+
+ | anonDim+
+ | /* empty */
  ;
 
 newDims

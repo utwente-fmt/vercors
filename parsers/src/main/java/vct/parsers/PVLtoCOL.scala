@@ -250,10 +250,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   def expr(tree: ParserRuleContext): ASTNode = origin(tree, tree match {
     case LangExpr0(exp) => expr(exp)
 
-    case Expr0(label, ":", exp) =>
-      val result = expr(exp)
-      result.addLabel(create label convertID(label))
-      result
+//    case Expr0(label, ":", exp) =>
+//      val result = expr(exp)
+//      result.addLabel(create label convertID(label))
+//      result
     case Expr1(exp, "with", block) =>
       expr(exp) match {
         case ann: BeforeAfterAnnotations =>
@@ -261,19 +261,19 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case _ =>
           fail(tree, "This expression does not allow for with/then annotations.")
       }
-    case Expr2(exp, "then", block) =>
-      expr(exp) match {
-        case ann: BeforeAfterAnnotations =>
-          ann.set_after(convertBlock(block)); ann
-        case _ =>
-          fail(tree, "This expression does not allow for with/then annotations.")
-      }
-    case Expr3("unfolding", exp, "in", inExp) =>
-      create expression(Unfolding, expr(exp), expr(inExp))
-    case Expr4(ite) => expr(ite)
-    case IteExpr0(cond, "?", yes, ":", no) =>
-      create expression(ITE, expr(cond), expr(yes), expr(no))
-    case IteExpr1(impl) => expr(impl)
+//    case Expr2(exp, "then", block) =>
+//      expr(exp) match {
+//        case ann: BeforeAfterAnnotations =>
+//          ann.set_after(convertBlock(block)); ann
+//        case _ =>
+//          fail(tree, "This expression does not allow for with/then annotations.")
+//      }
+//    case Expr3("unfolding", exp, "in", inExp) =>
+//      create expression(Unfolding, expr(exp), expr(inExp))
+//    case Expr4(ite) => expr(ite)
+//    case IteExpr0(cond, "?", yes, ":", no) =>
+//      create expression(ITE, expr(cond), expr(yes), expr(no))
+//    case IteExpr1(impl) => expr(impl)
     case ImplicationExpr0(prop, "==>", concl) =>
       create expression(Implies, expr(prop), expr(concl))
     case ImplicationExpr1(prop, "-*", concl) =>
@@ -312,17 +312,18 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case UnaryExpr2(newExp) => expr(newExp)
     case NewExpr0("new", clsName, args) =>
       create new_object(create class_type(convertID(clsName)), convertExpList(args):_*)
-    case NewExpr1("new", t, dims) =>
-      val baseType = convertType(t)
-      val dimSizes = dims match {
-        case NewDims0(qDims) => qDims.map {
-          case QuantifiedDim0(_, size, _) => expr(size)
-        }.toArray
-      }
-      var arrayType = addDims(baseType, dimSizes.size)
-      create expression(NewArray, arrayType, dimSizes)
-    case NewExpr2(nonTarget) => expr(nonTarget)
-    case NewExpr3(target) => expr(target)
+
+//    case NewExpr1("new", t, dims) =>
+//      val baseType = convertType(t)
+//      val dimSizes = dims match {
+//        case NewDims0(qDims) => qDims.map {
+//          case QuantifiedDim0(_, size, _) => expr(size)
+//        }.toArray
+//      }
+//      var arrayType = addDims(baseType, dimSizes.size)
+//      create expression(NewArray, arrayType, dimSizes)
+//    case NewExpr2(nonTarget) => expr(nonTarget)
+//    case NewExpr3(target) => expr(target)
 
     case Target0(target, ".", prop) =>
       create dereference(expr(target), convertID(prop))
@@ -374,33 +375,33 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create struct_value(create primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2)), null, convertMapValues(mapValues):_*)
     case NonTargetUnit9("tuple", "<", t1, ",", t2, ">", values) =>
       create struct_value(create primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2)), null, convertExpList(values):_*)
-    case NonTargetUnit10(method, argsTuple) =>
-      val args = convertExpList(argsTuple)
-      val methodName = method match { case BuiltinMethod0(name) => name }
-      methodName match {
-        case "Value" => create expression(Value, args:_*)
-        case "HPerm" => create expression(HistoryPerm, args:_*)
-        case "Perm" => create expression(Perm, args:_*)
-        case "PointsTo" => create expression(PointsTo, args:_*)
-        case "Hist" => create expression(History, args:_*)
-        case "\\old" => create expression(Old, args:_*)
-        case "?" => create expression(BindOutput, args:_*)
-        case "idle" => create expression(PVLidleToken, args:_*)
-        case "running" => create expression(PVLjoinToken, args:_*)
-        case "head" => create expression(Head, args:_*)
-        case "tail" => create expression(Tail, args:_*)
-        case "held" => create expression(Held, args:_*)
-        case "Some" => create expression(OptionSome, args:_*)
-      }
-    case NonTargetUnit11(_owner, "(", a, ",", b, ",", c, ")") =>
-      create expression(IterationOwner, expr(a), expr(b), expr(c))
-    case NonTargetUnit12("id", "(", exp, ")") => expr(exp)
-    case NonTargetUnit13("|", seq, "|") => create expression(Size, expr(seq))
-    case NonTargetUnit14("?", id) => create expression(BindOutput, convertIDName(id))
-    case NonTargetUnit15(num) => create constant Integer.parseInt(num)
-    case NonTargetUnit16(seq) => ??(tree)
-    case NonTargetUnit17("(", exp, ")") => expr(exp)
-    case NonTargetUnit18(id) => convertIDName(id)
+//    case NonTargetUnit10(method, argsTuple) =>
+//      val args = convertExpList(argsTuple)
+//      val methodName = method match { case BuiltinMethod0(name) => name }
+//      methodName match {
+//        case "Value" => create expression(Value, args:_*)
+//        case "HPerm" => create expression(HistoryPerm, args:_*)
+//        case "Perm" => create expression(Perm, args:_*)
+//        case "PointsTo" => create expression(PointsTo, args:_*)
+//        case "Hist" => create expression(History, args:_*)
+//        case "\\old" => create expression(Old, args:_*)
+//        case "?" => create expression(BindOutput, args:_*)
+//        case "idle" => create expression(PVLidleToken, args:_*)
+//        case "running" => create expression(PVLjoinToken, args:_*)
+//        case "head" => create expression(Head, args:_*)
+//        case "tail" => create expression(Tail, args:_*)
+//        case "held" => create expression(Held, args:_*)
+//        case "Some" => create expression(OptionSome, args:_*)
+//      }
+//    case NonTargetUnit11(_owner, "(", a, ",", b, ",", c, ")") =>
+//      create expression(IterationOwner, expr(a), expr(b), expr(c))
+//    case NonTargetUnit12("id", "(", exp, ")") => expr(exp)
+//    case NonTargetUnit13("|", seq, "|") => create expression(Size, expr(seq))
+//    case NonTargetUnit14("?", id) => create expression(BindOutput, convertIDName(id))
+//    case NonTargetUnit15(num) => create constant Integer.parseInt(num)
+//    case NonTargetUnit16(seq) => ??(tree)
+//    case NonTargetUnit17("(", exp, ")") => expr(exp)
+//    case NonTargetUnit18(id) => convertIDName(id)
     case DeclInit0("=", exp) => expr(exp)
 
     case CollectionConstructors0(container, _, elemType, _, values) =>
@@ -633,15 +634,16 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ParUnitList1(x, "and", xs) => convertParUnit(x) +: convertParUnitList(xs)
   }
 
-  def convertParUnit(tree: ParUnitContext): ParallelBlock = origin(tree, tree match {
-    case ParUnit0(maybeLabel, _, maybeIters, maybeWaitList, _, contract, block) =>
-      val label = maybeLabel.map(convertID).getOrElse("")
-      val iters = maybeIters.map(convertParIters).getOrElse(Seq())
-      val waitList = maybeWaitList.map(convertParWaitList).getOrElse(Seq())
-      create parallel_block(label, convertContract(contract), iters.toArray, convertBlock(block), waitList.toArray[ASTNode])
-    case ParUnit1(contract, block) =>
-      create parallel_block("", convertContract(contract), Array(), convertBlock(block))
-  })
+  def convertParUnit(tree: ParUnitContext): ParallelBlock = ???
+//    origin(tree, tree match {
+//    case ParUnit0(maybeLabel, _, maybeIters, maybeWaitList, _, contract, block) =>
+//      val label = maybeLabel.map(convertID).getOrElse("")
+//      val iters = maybeIters.map(convertParIters).getOrElse(Seq())
+//      val waitList = maybeWaitList.map(convertParWaitList).getOrElse(Seq())
+//      create parallel_block(label, convertContract(contract), iters.toArray, convertBlock(block), waitList.toArray[ASTNode])
+//    case ParUnit1(contract, block) =>
+//      create parallel_block("", convertContract(contract), Array(), convertBlock(block))
+//  })
 
   def convertParIters(tree: ItersContext): Seq[DeclarationStatement] = tree match {
     case Iters0(x) => Seq(convertParIter(x))

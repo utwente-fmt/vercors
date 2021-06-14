@@ -3,11 +3,12 @@ package vct.main
 import hre.config.{BooleanSetting, Configuration, OptionParser}
 import hre.lang.HREExitException
 import hre.lang.System.{Output, Warning}
-import org.antlr.v4.runtime.{ANTLRErrorListener, CommonTokenStream, Lexer, ParserRuleContext, RecognitionException, Recognizer, TokenStream}
+import org.antlr.v4.runtime.{ANTLRErrorListener, BailErrorStrategy, CharStream, CommonTokenStream, DefaultErrorStrategy, Lexer, ParserRuleContext, RecognitionException, Recognizer, TokenStream}
 import vct.antlr4.generated.{JavaParser, LangJavaLexer, LangPVLLexer, PVLParser}
 import org.antlr.v4.runtime
-import org.antlr.v4.runtime.atn.ATNConfigSet
+import org.antlr.v4.runtime.atn.{ATNConfigSet, PredictionMode}
 import org.antlr.v4.runtime.dfa.DFA
+import org.antlr.v4.runtime.misc.ParseCancellationException
 import vct.parsers.ErrorCounter
 import vct.test.CommandLineTesting.{caseFilters, testDirs, vercors}
 import vct.test.{CommandLineTesting, RecursiveFileVisitor, Task}
@@ -24,11 +25,74 @@ object ParserBench {
 }
 
 trait Parser {
-  def reset()
+  def customSetupAndParse(): ParserRuleContext
 
-  def setInput(p: Path)
+  def createLexer(cs: CharStream): org.antlr.v4.runtime.Lexer
 
-  def S(): ParserRuleContext
+  def setNewParser(): Unit
+
+  def getParser(): org.antlr.v4.runtime.Parser
+
+  def setInput(path: Path): Unit = {
+    setInput(Files.readString(path))
+  }
+
+  var contents: String = null
+  def setInput(contents: String): Unit = {
+    this.contents = contents
+  }
+
+  def parse(): ParserRuleContext = {
+    var parserRuleContext: ParserRuleContext = null
+
+    try {
+      // Stage 1: High-speed parsing for correct documents
+      val p = getParser()
+      p.reset()
+
+      p.setErrorHandler(new BailErrorStrategy())
+      p.getInterpreter().setPredictionMode(PredictionMode.SLL)
+
+      val cs = runtime.CharStreams.fromString(contents)
+      val lexer = createLexer(cs)
+      val tokens = new CommonTokenStream(lexer)
+      p.setInputStream(tokens)
+
+      encounteredError = false
+      parserRuleContext = customSetupAndParse()
+      if (encounteredError) {
+        Output("ERROR DURING PARSING")
+      }
+    } catch {
+      case e: ParseCancellationException => {
+        val p = getParser()
+        p.reset()
+
+        // Reset input stream
+        val cs = runtime.CharStreams.fromString(contents)
+        val lexer = createLexer(cs)
+        val tokens = new CommonTokenStream(lexer)
+        p.setInputStream(tokens)
+
+        // Stage 2: High-accuracy fallback parsing for complex and/or erroneous documents
+        p.setErrorHandler(new DefaultErrorStrategy())
+        p.getInterpreter().setPredictionMode(PredictionMode.LL)
+
+        encounteredError = false
+        parserRuleContext = customSetupAndParse()
+        if (encounteredError) {
+          Output("ERROR DURING PARSING")
+        }
+      }
+    }
+
+    parserRuleContext
+  }
+
+  def resetParser(): Unit = {
+    setNewParser()
+    installErrorListener(getParser())
+  }
 
   var encounteredError = false;
 
@@ -46,65 +110,83 @@ trait Parser {
       override def reportContextSensitivity(parser: runtime.Parser, dfa: DFA, i: Int, i1: Int, i2: Int, atnConfigSet: ATNConfigSet): Unit = {}
     })
   }
+
+  def enableProfiling(): Unit = {
+    getParser().setProfile(true)
+    getParser().getInterpreter().setPredictionMode(PredictionMode.SLL)
+  }
+
+  def debugSOByTime(): Unit = {
+    Output("--- BY TIME ---")
+    val decisionInfo = getParser().getParseInfo().getDecisionInfo()
+    decisionInfo
+      .filter(_.timeInPrediction > 100)
+      .sortWith((a, b) => b.timeInPrediction < a.timeInPrediction) // Reversed
+      .foreach(decision => {
+        Output("Time: %d in %d calls - LL_Lookaheads: %d Max k: %d Ambiguities: %d Errors: %d Rule: %s",
+          decision.timeInPrediction / 1000000,
+          decision.invocations,
+          decision.SLL_TotalLook,
+          decision.SLL_MaxLook,
+          decision.ambiguities.size(),
+          decision.errors.size(),
+          getParser().getRuleNames()(getParser().getATN.getDecisionState(decision.decision).ruleIndex)
+        )
+      })
+  }
+
+  def debugSOByMaxLookahead(): Unit = {
+    Output("--- BY LOOKAHEAD ---")
+    // filter(decision -> decision.SLL_MaxLook > 50).sorted((d1, d2) -> Long.compare(d2.SLL_MaxLook, d1.SLL_MaxLook))
+    val decisionInfo = getParser().getParseInfo().getDecisionInfo()
+    decisionInfo
+      .filter(_.SLL_MaxLook > 50)
+      .sortWith((a, b) => b.SLL_MaxLook < a.SLL_MaxLook) // Reversed
+      .foreach(decision => {
+        Output("Time: %d in %d calls - LL_Lookaheads: %d Max k: %d Ambiguities: %d Errors: %d Rule: %s",
+          decision.timeInPrediction / 1000000,
+          decision.invocations,
+          decision.SLL_TotalLook,
+          decision.SLL_MaxLook,
+          decision.ambiguities.size(),
+          decision.errors.size(),
+          getParser().getRuleNames()(getParser().getATN.getDecisionState(decision.decision).ruleIndex)
+        )
+      })
+  }
 }
 
 class MyJavaParser extends Parser {
-  var l: LangJavaLexer
   var parser: JavaParser = null
-  reset()
+  setNewParser()
 
-  override def setInput(path: Path): Unit = {
-    val fis = new FileInputStream(path.toString)
-    val cs = runtime.CharStreams.fromStream(fis)
-    val lexer = new LangJavaLexer(cs)
-    val tokens = new CommonTokenStream(lexer)
-    parser.setTokenStream(tokens)
-  }
-
-  override def S(): ParserRuleContext = {
+  override def customSetupAndParse(): ParserRuleContext = {
     parser.specLevel = 0
-    encounteredError = false
-
-    val t = parser.compilationUnit()
-
-    if (encounteredError) {
-      Output("ENCOUNTERED ERROR")
-    }
-
-    t
+    parser.compilationUnit()
   }
 
-  override def reset(): Unit = {
+  override def setNewParser(): Unit = {
     parser = new JavaParser(null)
-    installErrorListener(parser)
   }
+
+  override def getParser(): org.antlr.v4.runtime.Parser = parser
+
+  override def createLexer(cs: CharStream): Lexer = new LangJavaLexer(cs)
 }
 
 class MyPVLParser extends Parser {
   var parser: PVLParser = null
-  reset()
+  setNewParser()
 
-  override def setInput(path: Path): Unit = {
-    val fis = new FileInputStream(path.toString)
-    val cs = runtime.CharStreams.fromStream(fis)
-    val lexer = new LangPVLLexer(cs)
-    val tokens = new CommonTokenStream(lexer)
-    parser.setTokenStream(tokens)
-  }
+  override def customSetupAndParse(): ParserRuleContext = parser.program()
 
-  override def S(): ParserRuleContext = {
-    encounteredError = false
-    val t = parser.program()
-    if (encounteredError) {
-      Output("ENCOUNTERED ERROR")
-    }
-    t
-  }
-
-  override def reset(): Unit = {
+  override def setNewParser(): Unit = {
     parser = new PVLParser(null)
-    installErrorListener(parser)
   }
+
+  override def getParser(): org.antlr.v4.runtime.Parser = parser
+
+  override def createLexer(cs: CharStream): Lexer = new LangPVLLexer(cs)
 }
 
 class ParserBench {
@@ -184,11 +266,16 @@ class ParserBench {
     } else if (profile.get()) {
       val m : mutable.Map[String, Duration] = mutable.Map()
 
+      val start = Instant.now()
+
+      parsers("pvl").enableProfiling()
+
       for ((name, kees) <- cases) {
         if (kees.tools.contains("silicon") || kees.tools.contains("carbon")) {
           val selectedFiles = kees.files.asScala.toSeq
             .map(_.toAbsolutePath.toString)
-            .filter(f => f.contains(".java") || f.contains(".pvl"))
+//            .filter(f => f.contains(".java") || f.contains(".pvl"))
+            .filter(f => f.contains(".pvl"))
             .map(Path.of(_))
 
           if (selectedFiles.length == 0) {
@@ -202,6 +289,19 @@ class ParserBench {
           }
         }
       }
+
+      parsers("pvl").debugSOByTime()
+      parsers("pvl").debugSOByMaxLookahead()
+
+      val end = Instant.now()
+      Output("Total parsing time taken: %sms", Duration.between(start, end).toMillis)
+      // 39 secs for pvl before commenting out stuff
+      // 8 secs when commenting the "target" out in "newExpr"
+      // seqAddExpr is a bit messy?
+      // Values overlaps with collectionConstructors, but it doesn't seem to matter
+      // typeDims can be refactored by having both alternatives use +, and adding one "empty" alternative. Only saves 63ms though
+      // | expr | is both in nonTargetUnit and valPrimary, saves about 200 ambiguities
+
       0
     } else {
       Output("No mode specified")
@@ -227,27 +327,20 @@ class ParserBench {
     Duration.between(start, end)
   }
 
-  var reusedParser: JavaParser = null
-
   def myParse(file: Path): Duration = {
-    val start = Instant.now()
-
-    val fis = new FileInputStream(file.toAbsolutePath.toString)
-    val cs = runtime.CharStreams.fromStream(fis)
-    val lexer = new LangJavaLexer(cs)
-    val tokens = new CommonTokenStream(lexer)
-
     Output("%s", getExtension(file).get)
 
     val parser: Parser = parsers(getExtension(file).get)
 
-    if (reuseParser.get()) {
-      parser.reset()
+    if (!reuseParser.get()) {
+      parser.resetParser()
     }
 
-    parser.setTokenStream(tokens)
+    parser.setInput(file)
 
-    val tree = parser.S()
+    val start = Instant.now()
+
+    val tree = parser.parse()
 
     val end = Instant.now()
 
