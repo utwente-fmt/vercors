@@ -82,15 +82,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
         })) {
           Fail("VeyMont Fail: the constructor of class %s must ensure read permission to its fields!",cl.name)
         }
-        val dummyArgs : Array[ASTNode] = constr.getArgs.map(_.`type` match {
-          case p : PrimitiveType => p.sort match {
-            case PrimitiveSort.Boolean => create.constant(true)
-            case PrimitiveSort.Integer => create.constant(0)
-            case PrimitiveSort.Double => val d : Double = 0.1; create.constant(d)
-            case _ => throw Failure("VeyMont Fail: Could not generate channel of type %s",cl.name)
-          }
-        })
-        val initValueField = create.invokation(null,create.class_type(cl.name),Method.JavaConstructor,dummyArgs:_*)
+        val initValueField = create.invokation(null,create.class_type(cl.name),Method.JavaConstructor,getDummyArgs(constr,cl):_*)
         val initAssign = create.assignment(create.field_name(chanValueFieldName),initValueField)
         result = create.method_kind(m.kind, m.getReturnType, rewrite(m.getContract),
           getTypeName, m.getArgs, create.block((rewrite(
@@ -99,6 +91,15 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
 
       }
     }
+
+  private def getDummyArgs(constr : Method, cl : ASTClass) : Array[ASTNode] = constr.getArgs.map(_.`type` match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Boolean => create.constant(true)
+      case PrimitiveSort.Integer => create.constant(0)
+      case PrimitiveSort.Double => val d : Double = 0.1; create.constant(d)
+      case _ => throw Failure("VeyMont Fail: Could not generate channel of type %s",cl.name)
+    }
+  })
 
   override def visit(l : LoopStatement) : Unit = sort match {
     case Left(p) => super.visit(l)

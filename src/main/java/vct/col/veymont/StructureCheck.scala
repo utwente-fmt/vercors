@@ -10,7 +10,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTUtils
 import Util._
-import vct.col.veymont.StructureCheck.{fixedMainFail, fixedMainMethod, fixedMainMethodBody, getRoleOrHelperClass, isResourceType}
+import vct.col.veymont.StructureCheck.{fixedMainFail, fixedMainMethod, fixedMainMethodBody, getRoleOrHelperClass, isRealResource, isResourceType}
 
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
@@ -28,7 +28,7 @@ object StructureCheck {
     m.name != mainMethodName &&
       m.kind != Method.Kind.Constructor &&
       m.kind != Method.Kind.Pure &&
-      !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType))
+      !isRealResource(m)
 
   private val fixedMainMethod : String  = "\nvoid " + mainMethodName + "() {\n" + fixedMainMethodBody + "\n}"
   private val fixedMainMethodBody : String =  "\tMain m = new Main();\n\tm." + runMethodName + "();"
@@ -38,6 +38,7 @@ object StructureCheck {
     case p : PrimitiveType => p.sort == PrimitiveSort.Resource
     case _ => false
   }
+  private def isRealResource(m : Method) = m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)
 
   def isAllowedPrimitive(p : PrimitiveType): Boolean = p.isBoolean || p.isDouble || p.isInteger
 }
@@ -146,7 +147,7 @@ class StructureCheck(source : ProgramUnit) {
       m.name != mainMethodName &&
         m.kind != Method.Kind.Constructor &&
         m.kind != Method.Kind.Pure &&
-        !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)))
+        !isRealResource(m))
 
   private def checkMainMethod() : Unit = {
     val mainMethod = mainClass.methods().asScala.find(_.name == mainMethodName).get
@@ -154,39 +155,43 @@ class StructureCheck(source : ProgramUnit) {
     if(b.getLength != 2)
       fixedMainFail
     else {
-      b.getStatement(1) match {
-        case m : MethodInvokation =>
-          if(m.method != runMethodName)
-            fixedMainFail
-          else m.`object` match {
-            case n : NameExpression => //fine
+      checkMainBody(b)
+    }
+  }
+
+  private def checkMainBody(b : BlockStatement) = {
+    b.getStatement(1) match {
+      case m : MethodInvokation =>
+        if(m.method != runMethodName)
+          fixedMainFail
+        else m.`object` match {
+          case n : NameExpression => //fine
+          case _ => fixedMainFail
+        }
+      case _ => fixedMainFail
+    }
+    b.getStatement(0) match {
+      case v : VariableDeclaration =>
+        v.basetype match {
+          case c : ClassType =>
+            if(c.getName != mainClassName)
+              fixedMainFail
+          case _ => fixedMainFail
+        }
+        if(v.get().asScala.size == 1) {
+          v.get().asScala.head match {
+            case d : DeclarationStatement =>
+              d.initJava match {
+                case m : MethodInvokation =>
+                  if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name &&
+                    m.method == JavaConstructor && m.dispatch.getName == mainClassName))
+                    fixedMainFail
+                case _ => fixedMainFail
+              }
             case _ => fixedMainFail
           }
-        case _ => fixedMainFail
-      }
-      b.getStatement(0) match {
-        case v : VariableDeclaration =>
-          v.basetype match {
-            case c : ClassType =>
-              if(c.getName != mainClassName)
-                fixedMainFail
-            case _ => fixedMainFail
-          }
-          if(v.get().asScala.size == 1) {
-              v.get().asScala.head match {
-              case d : DeclarationStatement =>
-                d.initJava match {
-                  case m : MethodInvokation =>
-                    if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name &&
-                      m.method == JavaConstructor && m.dispatch.getName == mainClassName))
-                      fixedMainFail
-                  case _ => fixedMainFail
-                }
-              case _ => fixedMainFail
-            }
-          } else fixedMainFail
-        case _ => fixedMainFail
-      }
+        } else fixedMainFail
+      case _ => fixedMainFail
     }
   }
 
