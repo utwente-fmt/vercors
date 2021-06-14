@@ -142,7 +142,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
           chans += ChannelRepr(writeChanName)(true, chanType)
           chanType match {
             case p : PrimitiveType => checkChanPrimitiveType(p,writeChanName,sendExpression,a)
-            case cl : ClassType => checkChanClassType(cl,writeChanName,sendExpression,a)
+            case cl : ClassType => checkChanClassType(cl,writeChanName,sendExpression)
           }
         }
         case Tau => result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
