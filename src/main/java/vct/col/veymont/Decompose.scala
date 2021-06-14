@@ -160,7 +160,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, sendExpression)
     } else Fail("VeyMont Fail: channel of type %s not supported", p)
 
-  private def checkChanClassType(cl : ClassType, writeChanName : String, sendExpression : ASTNode, a : AssignmentStatement) =
+  private def checkChanClassType(cl : ClassType, writeChanName : String, sendExpression : ASTNode) =
     roleOrOtherClass.find(c => c.name == cl.getName) match {
       case Some(c) => {
         if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))

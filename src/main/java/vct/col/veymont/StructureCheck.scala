@@ -155,21 +155,12 @@ class StructureCheck(source : ProgramUnit) {
     if(b.getLength != 2)
       fixedMainFail
     else {
-      checkMainBody(b)
+      checkMainBodyFirstLine(b)
+      checkMainBodySecondLine(b)
     }
   }
 
-  private def checkMainBody(b : BlockStatement) = {
-    b.getStatement(1) match {
-      case m : MethodInvokation =>
-        if(m.method != runMethodName)
-          fixedMainFail
-        else m.`object` match {
-          case n : NameExpression => //fine
-          case _ => fixedMainFail
-        }
-      case _ => fixedMainFail
-    }
+  private def checkMainBodyFirstLine(b : BlockStatement) =
     b.getStatement(0) match {
       case v : VariableDeclaration =>
         v.basetype match {
@@ -193,7 +184,18 @@ class StructureCheck(source : ProgramUnit) {
         } else fixedMainFail
       case _ => fixedMainFail
     }
-  }
+
+  private def checkMainBodySecondLine(b : BlockStatement) =
+    b.getStatement(1) match {
+      case m : MethodInvokation =>
+        if(m.method != runMethodName)
+          fixedMainFail
+        else m.`object` match {
+          case n : NameExpression => //fine
+          case _ => fixedMainFail
+        }
+      case _ => fixedMainFail
+    }
 
   private def checkMainMethodsAllowedSyntax(methods : Iterable[Method]) : Unit = {
     methods.foreach(m => getBlockOrThrow(m.getBody,
