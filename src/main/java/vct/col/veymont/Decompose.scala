@@ -92,8 +92,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     cb.ensures(rewrite(post))
     if(m.kind == Method.Kind.Constructor && roleName.nonEmpty) {
       result = create.method_kind(m.kind, m.getReturnType, cb.getContract, getThreadClassName(roleName.get), m.getArgs, rewrite(m.getBody))
-      //  } else if(m.kind == Method.Kind.Pure) {
-      //    result = copy_rw.rewrite(m)
     } else if(m.kind == Method.Kind.Predicate) {
       val body = selectResourceAnnotation(m.getBody)
       checkAnnotation(body,roleNames)

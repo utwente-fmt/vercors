@@ -79,11 +79,9 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
     if(isLoop) {
       contract.appendInvariant(chanPerm)
       contract.appendInvariant(chanNotNull)
-    //  contract.appendInvariant(c.getChanFieldPerm(create))
     } else {
       contract.context(chanPerm)
       contract.context(chanNotNull)
-    //  contract.context(c.getChanFieldPerm(create))
     }
     contract
   }

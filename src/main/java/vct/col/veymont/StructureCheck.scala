@@ -59,7 +59,6 @@ class StructureCheck(source : ProgramUnit) {
     mainClass.methods().asScala.filter(m => m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate).map(_.name)
   private var prevAssertArg : ASTNode = null
   checkMainMethodsAllowedSyntax(mainMethods)
-  //  checkMainMethodsRecursion(source) //no guarded recusion supported by LTS generation
   checkRoleFieldsTypes(source)
   checkRoleMethodsTypes(source)
   private val otherClasses : Iterable[ASTClass] = getOtherClasses(source)
@@ -345,33 +344,6 @@ class StructureCheck(source : ProgramUnit) {
     }
     expMap.values.sum == (expMap.size - 1) * 2
   }
-
-  /*
-  private def checkMainMethodsRecursion() : Unit = {
-    mainMethods.foreach(m => checkGuardedRecursion(m.getBody,Set(m.name)))
-  }
-
-  private def checkGuardedRecursion(statement : ASTNode, encounteredMethods : Set[String]) : Unit =
-    statement match {
-      case b : BlockStatement => if(b.getLength > 0) checkGuardedRecursion(b.getStatement(0), encounteredMethods)
-      case i : MethodInvokation =>
-        if(encounteredMethods.contains(i.method))
-          Fail("VeyMont Fail: recursive call not allowed as first statement of method '%s'! %s", i.method, statement.getOrigin)
-        else mainMethods.find(_.name == i.method) match {
-          case Some(m) => checkGuardedRecursion(m.getBody,encounteredMethods + m.name)
-          case None => //fine, it is a pure main method, role class or other class method (without any recursion)
-        }
-      case i : IfStatement => {
-        checkGuardedRecursion(i.getStatement(0), encounteredMethods)
-        if (i.getCount == 2)
-          checkGuardedRecursion(i.getStatement(1), encounteredMethods)
-      }
-      case l : LoopStatement => checkGuardedRecursion(l.getBody, encounteredMethods)
-      case p : ParallelRegion => p.blocks.foreach(b => checkGuardedRecursion(b.block,encounteredMethods))
-      case a : AssignmentStatement => checkGuardedRecursion(a.expression,encounteredMethods)
-      case e : OperatorExpression => e.args.foreach(checkGuardedRecursion(_,encounteredMethods))
-      case _ => //fine
-    } */
 
   private def checkRoleMethodsTypes(source : ProgramUnit) : Unit = {
     roleClasses.foreach(_.methods().forEach(checkRoleMethodTypes(_)))

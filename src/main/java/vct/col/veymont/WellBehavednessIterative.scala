@@ -22,16 +22,8 @@ object WellBehavednessIterative {
       Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardTau)",LTSRole)
     else  if(!checkBackward(transitionsInt,tauClosure))
       Fail("VeyMont Fail: Local LTS of %s not well-behaved (Backward)",LTSRole)
-    else { //all fine
+    else { //LTS is well-behaved
     }
-  }
-
-  def getTauClosure(transitions : Map[Int,Set[(String,Int)]]) : Map[Int, Set[Int]] = {
-    var tauClosure : Map[Int, Set[Int]] = Map.empty;
-    transitions.keySet.foreach(i => {
-      tauClosure = recTauClosure(i,transitions,tauClosure)
-    })
-    tauClosure
   }
 
   private def whileTauCl(transitions : Map[Int,Set[(String,Int)]], states : List[Int]) : Map[Int,Set[Int]] = {
@@ -48,32 +40,6 @@ object WellBehavednessIterative {
       } else todo = todo.tail
     }
     tauClosure
-  }
-
-  private def recTauCl(j : Int, todo : List[Int], transitions : Map[Int,Set[(String,Int)]], tauClosure : Map[Int, Set[Int]]) : Map[Int,Set[Int]] = {
-    if(todo.isEmpty) {
-      val ks: Set[Int] = transitions(j).filter(tr => tr._1 == Tau.toString).map(_._2)
-      tauClosure + (j -> (ks.flatMap(k => tauClosure(k)) + j))
-    }
-    else {
-      val k = todo.head
-      if(tauClosure.contains(k))
-        recTauCl(j,todo.tail, transitions,tauClosure)
-      else {
-        recTauCl(k,todo.tail :+ j,transitions, tauClosure)
-      }
-    }
-  }
-
-  private def recTauClosure(j : Int, transitions : Map[Int,Set[(String,Int)]], tauClosure : Map[Int, Set[Int]]) : Map[Int,Set[Int]] = {
-    val ks : Set[Int] = transitions.values.flatMap { tr => tr.filter(_._1 == Tau.toString).map(_._2) }.toSet
-    val todo = ks.filter(!tauClosure.contains(_))
-    if(todo.isEmpty)
-      tauClosure + (j -> (ks.flatMap(k => tauClosure(k)) + j))
-    else
-      todo.foldLeft(tauClosure)((t,k) => recTauClosure(k,transitions,t))
-      recTauClosure(todo.head,transitions,tauClosure)
-      recTauClosure(j, transitions, tauClosure)
   }
 
   def checkForwardNonTau(transitions : Map[Int,Set[(String,Int)]], tauClosure : Map[Int, Set[Int]]) : Boolean = {

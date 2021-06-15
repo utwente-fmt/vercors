@@ -81,7 +81,6 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     if(isGlobal) {
       roleNames = StructureCheck.getRoleNames(source)
       generateLTS(StructureCheck.getMainClass(source))
-      print()
     } else {
       val roleClasses = source.get().asScala.filter(n => isThreadClassName(n.name)).map(_.asInstanceOf[ASTClass])
       roleNames = roleClasses.map(c => getRoleName(c.name))
@@ -90,39 +89,8 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         transitions = Map.empty
         roleName = thread.fields().asScala.head.name
         generateLTS(thread)
-        //print() //use this method to print LTS to a file
         WellBehavednessIterative.check(transitions,roleName)
       }
-    }
-  }
-
-  private def print(out : PrintWriter) : Unit = {
-    val states : Seq[LTSState] = (transitions.keys.toList ++ transitions.values.flatMap(_.map(_.destState))).distinct
-    val stateMap : Map[LTSState,Int] = states.zipWithIndex.toMap
-    val nrTrans = transitions.values.map(_.size).sum
-    out.println("des (" + stateMap(initialState) + "," + nrTrans + "," + states.size + ")")
-    transitions foreach { case (src, trset) =>
-      trset.foreach(tr => {
-        out.println("(" + stateMap(src) + ",\"" + tr.label + "\"," + stateMap(tr.destState) + ")")
-      })
-    }
-  }
-
-  private def print() : Unit = {
-    try {
-      val f = if(isGlobal) new File(veymontGlobalLts) else new File(veymontLocalLts)
-      val dir = f.toPath.getParent.toFile
-      if(!dir.isDirectory)
-        dir.mkdir()
-      val b = f.createNewFile()
-      if (!b) {
-        Debug("File %s already exists and is now overwritten", f.toString)
-      }
-      val out = new PrintWriter(new FileOutputStream(f))
-      print(out)
-      out.close()
-    } catch {
-      case e: IOException => Debug(e.getMessage)
     }
   }
 
