@@ -65,16 +65,6 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   private var roleNames : Iterable[String] = null
   private var roleName : String = null
 
-  private val veymontFileName = Configuration.veymont_file.get()
-  private def veymontGlobalLts : String = {
-    require(veymontFileName.endsWith(".pvl"))
-    veymontFileName.slice(0,veymontFileName.length-4) + "LTS.aut"
-  }
-  private def veymontLocalLts : String = {
-    require(veymontFileName.endsWith(".pvl"))
-    veymontFileName.slice(0,veymontFileName.length-4) + roleName + "LTS.aut"
-  }
-
   def generateLTSAndCheckWellBehavedness() : Unit = {
     if(isGlobal) {
       roleNames = StructureCheck.getRoleNames(source)
