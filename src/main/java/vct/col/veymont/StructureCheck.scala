@@ -10,7 +10,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTUtils
 import Util._
-import vct.col.veymont.StructureCheck.{fixedMainFail, fixedMainMethod, fixedMainMethodBody, getRoleOrHelperClass, isRealResource, isResourceType}
+import vct.col.veymont.StructureCheck.{fixedMainFail, fixedMainMethod, getRoleOrHelperClass, isRealResource}
 
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._

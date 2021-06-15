@@ -10,8 +10,6 @@ import vct.col.ast.syntax.PVLSyntax
 import vct.col.ast.util.AbstractRewriter
 import Util._
 import vct.col.veymont.StructureCheck.isExecutableMainMethod
-
-import java.io.{File, FileOutputStream, IOException, PrintWriter}
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 

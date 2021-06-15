@@ -1,12 +1,6 @@
 package vct.col.veymont
 
-import hre.lang.System.Failure
 import org.scalactic.Fail
-
-import java.io.File
-import java.util.Scanner
-import scala.annotation.tailrec
-import scala.collection.mutable
 
 object WellBehavednessIterative {
 
