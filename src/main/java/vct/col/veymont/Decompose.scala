@@ -28,7 +28,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     })
     roleName = None
     source.get().asScala.filter(_.name != mainClassName).foreach(c =>
-      if(isChannelClass(c.name)) {// && cloneClasses.nonEmpty) //annotations for readValue?
+      if(isChannelClass(c.name)) {
         val chanTypes = chans.map(_.chanType match {
           case p : PrimitiveType => Left(p)
           case ct : ClassType => Right(roleOrOtherClass.find(_.name == ct.getName).get)
@@ -38,8 +38,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         chanClassProg.add(c)
         val newChansClasses = chanTypes.map(t => new GenerateTypedChannel(chanClassProg,t).rewriteAll().get(0))
         newChansClasses.foreach(target().add(_))
-     //   if(chans.exists(_.chanType.toString == getTypeChannelClass(c.name))) //only add used channel classes
-     //     target().add(c)
       }
       else if(c.name == barrierClassName)
         target.add(c)
@@ -94,8 +92,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     cb.ensures(rewrite(post))
     if(m.kind == Method.Kind.Constructor && roleName.nonEmpty) {
       result = create.method_kind(m.kind, m.getReturnType, cb.getContract, getThreadClassName(roleName.get), m.getArgs, rewrite(m.getBody))
-      //  } else if(m.kind == Method.Kind.Pure) {
-      //    result = copy_rw.rewrite(m)
     } else if(m.kind == Method.Kind.Predicate) {
       val body = selectResourceAnnotation(m.getBody)
       checkAnnotation(body,roleNames)
@@ -140,27 +136,11 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         }
         case WriteAction(receiver, _, sendExpression) => {
           val chanType = sendExpression.getType
-          val chanName = getChanName(receiver, true, chanType)
-          chans += ChannelRepr(chanName)(true, chanType)
+          val writeChanName = getChanName(receiver, true, chanType)
+          chans += ChannelRepr(writeChanName)(true, chanType)
           chanType match {
-            case p : PrimitiveType =>
-              if(isAllowedPrimitive(p)) {
-                sendExpression match {
-                  case op : OperatorExpression => if(op.operator == StandardOperator.Subscript) Fail("VeyMont Fail: channels for array elements not supported in: %s!",a)
-                  case _ => //skip
-                }
-                result = create.invokation(create.field_name(chanName), null, chanWriteMethodName, sendExpression)
-              } else Fail("VeyMont Fail: channel of type %s not supported", chanType)
-            case cl : ClassType => roleOrOtherClass.find(c => c.name == cl.getName) match {
-              case Some(c) => {
-                if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
-                  Fail("VeyMont Fail: channel of type %s not supported, because fields are not primitive")
-                cloneClasses = cloneClasses + c
-                result = create.invokation(create.field_name(chanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
-              }
-              case None =>
-                Fail("VeyMont Fail: channel of type %s not supported", chanType)
-            }
+            case p : PrimitiveType => checkChanPrimitiveType(p,writeChanName,sendExpression,a)
+            case cl : ClassType => checkChanClassType(cl,writeChanName,sendExpression)
           }
         }
         case Tau => result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
@@ -168,6 +148,27 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       }
     }
   }
+
+  private def checkChanPrimitiveType(p : PrimitiveType, writeChanName : String, sendExpression : ASTNode, a : AssignmentStatement) =
+    if(isAllowedPrimitive(p)) {
+      sendExpression match {
+        case op : OperatorExpression => if(op.operator == StandardOperator.Subscript) Fail("VeyMont Fail: channels for array elements not supported in: %s!",a)
+        case _ => //skip
+      }
+      result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, sendExpression)
+    } else Fail("VeyMont Fail: channel of type %s not supported", p)
+
+  private def checkChanClassType(cl : ClassType, writeChanName : String, sendExpression : ASTNode) =
+    roleOrOtherClass.find(c => c.name == cl.getName) match {
+      case Some(c) => {
+        if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
+          Fail("VeyMont Fail: channel of type %s not supported, because fields are not primitive")
+        cloneClasses = cloneClasses + c
+        result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
+      }
+      case None =>
+        Fail("VeyMont Fail: channel of type %s not supported", cl)
+    }
 
   def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
     val expRole = getNamesFromExpression(a.expression)
