@@ -71,7 +71,7 @@ jobs:
       - run: "sudo dpkg -i *.deb"
       - run: mono --version
       - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=slow,medium--progress --actions-test-output
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=slow,medium --exclude-suite=problem-fail --progress --actions-test-output
 
   problem_fail_tests:
     needs: build
