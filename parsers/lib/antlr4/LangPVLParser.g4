@@ -29,17 +29,17 @@ constructorBody : ';' | block ;
 contract : valContractClause* ;
 
 args
-    : type identifier
-    | type identifier ',' args
+    : type identifier (',' args)?
+//    | type identifier ',' args
     ;
 
 exprList
-    : expr
-    | expr ',' exprList
+    : expr (',' exprList)?
+//    | expr ',' exprList
     ;
 mapPairs
-    : expr '->' expr
-    | expr '->' expr ',' mapPairs
+    : expr '->' expr (',' mapPairs)?
+//    | expr '->' expr ',' mapPairs
     ;
 
 expr
@@ -103,15 +103,15 @@ multExpr
  ;
 
 powExpr
- : powExpr '^^' unaryExpr
+ : powExpr '^^' seqAddExpr
  | seqAddExpr
  ;
 
 seqAddExpr
- : unaryExpr '::' seqAddExpr
+ : unaryExpr ('::' seqAddExpr)?
  | seqAddExpr '++' unaryExpr
  | seqAddExpr '++' '(' unaryExpr ',' unaryExpr ')'
- | unaryExpr
+// | unaryExpr
  ;
 
 unaryExpr
@@ -154,14 +154,16 @@ nonTargetUnit
  | 'false'
  | 'current_thread'
  | '\\result'
- | collectionConstructors
- | 'map' '<' type ',' type '>' mapValues
- | 'tuple' '<' type ',' type '>' values
- | builtinMethod tuple
+
+ | collectionConstructors // About 100 ambiguities
+ | 'map' '<' type ',' type '>' mapValues // -5 ambiguities?
+ | 'tuple' '<' type ',' type '>' values // 0 ambiguities
+// | builtinMethod tuple // 49 ambiguities
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
+
 // | '|' expr '|'
- | '?' identifier
+// | '?' identifier // Duplicate in builtinMethod
  | NUMBER
  | values
  | '(' expr ')'
@@ -315,8 +317,13 @@ typeArgs : '<' exprList '>';
 container : ('seq' | 'set' | 'bag');
 
 identifierList
-    : identifier
-    | identifier ',' identifierList
+    :
+//    identifier
+//    |
+     identifier (',' identifierList)?
     ;
 
-identifier : Identifier | valReserved ;
+identifier
+  : Identifier
+  | valReserved
+  ;

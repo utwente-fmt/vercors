@@ -1130,100 +1130,100 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       res
     case ValPrimary28("{:", pattern, ":}") =>
       create pattern expr(pattern)
-    case ValPrimary29("Reducible", "(", exp, _, opNode, ")") =>
-      val opText = opNode match {
-        case ValReducibleOperator0("+") => "+"
-        case ValReducibleOperator1(id) => convertID(id)
-      }
-      create expression(opText match {
-        case "+" => ReducibleSum
-        case "min" => ReducibleMin
-        case "max" => ReducibleMax
-      }, expr(exp))
-    case ValPrimary30("AbstractState", _, arg1, _, arg2, _) =>
-      create expression(StandardOperator.AbstractState, expr(arg1), expr(arg2))
-    case ValPrimary31("AddsTo", _, arg1, _, arg2, _) =>
-      create expression(StandardOperator.AddsTo, expr(arg1), expr(arg2))
-    case ValPrimary32("APerm", _, loc, _, perm, _) =>
-      create expression(StandardOperator.ActionPerm, expr(loc), expr(perm))
-    case ValPrimary33("ArrayPerm", _, ar, _, fst, _, step, _, cnt, _, perm, _) =>
-      create expression(StandardOperator.ArrayPerm, expr(ar), expr(fst), expr(step), expr(cnt), expr(perm))
-    case ValPrimary34("buildMap", _, map, _, k, _, v, _) =>
-      create expression(StandardOperator.MapBuild, expr(map), expr(k), expr(v))
-    case ValPrimary35("cardMap", _, map, _) =>
-      create expression(StandardOperator.MapCardinality, expr(map))
-    case ValPrimary36("Contribution", _, res, _, con, _) =>
-      create expression(StandardOperator.Contribution, expr(res), expr(con))
-    case ValPrimary37("disjointMap", _, map1, _, map2, _) =>
-      create expression(StandardOperator.MapDisjoint, expr(map1), expr(map2))
-    case ValPrimary38("equalsMap", _, map1, _, map2, _) =>
-      create expression(StandardOperator.MapEquality, expr(map1), expr(map2))
-    case ValPrimary39("Future", _, arg1, _, arg2, _, arg3, _) =>
-      create expression(StandardOperator.Future, expr(arg1), expr(arg2), expr(arg3))
-    case ValPrimary40("getFromMap", _, map, _, k, _) =>
-      create expression(StandardOperator.MapGetByKey, expr(map), expr(k))
-    case ValPrimary41("getFst", _, tup, _) =>
-      create expression(StandardOperator.TupleFst, expr(tup))
-    case ValPrimary42("getOption", _, opt, _) =>
-      create expression(StandardOperator.OptionGet, expr(opt))
-    case ValPrimary43("getSnd", _, tup, _) =>
-      create expression(StandardOperator.TupleSnd, expr(tup))
-    case ValPrimary44("head", _, seq, _) =>
-      create expression(StandardOperator.Head, expr(seq))
-    case ValPrimary45("held", _, lock, _) =>
-      create expression(StandardOperator.Held, expr(lock))
-    case ValPrimary46("Hist", _, arg1, _, arg2, _, arg3, _) =>
-      create expression(StandardOperator.History, expr(arg1), expr(arg2), expr(arg3))
-    case ValPrimary47("HPerm", _, loc, _, perm, _) =>
-      create expression(StandardOperator.HistoryPerm, expr(loc), expr(perm))
-    case ValPrimary48("idle", _, arg, _) =>
-      create expression(StandardOperator.PVLidleToken, expr(arg))
-    case ValPrimary49("isEmpty", _, seq, _) =>
-      create expression(StandardOperator.Empty, expr(seq))
-    case ValPrimary50("itemsMap", _, map, _) =>
-      create expression(StandardOperator.MapItemSet, expr(map))
-    case ValPrimary51("keysMap", _, map, _) =>
-      create expression(StandardOperator.MapKeySet, expr(map))
-    case ValPrimary52("perm", _, loc, _) =>
-      create expression(StandardOperator.CurrentPerm, expr(loc))
-    case ValPrimary53("Perm", _, loc, _, perm, _) =>
-      create expression(StandardOperator.Perm, expr(loc), expr(perm))
-    case ValPrimary54("PointsTo", _, loc, _, perm, _, value, _) =>
-      create expression(StandardOperator.PointsTo, expr(loc), expr(perm), expr(value))
-    case ValPrimary55(_removeAt, _, seq, _, i, _) =>
-      create expression(StandardOperator.RemoveAt, expr(seq), expr(i))
-    case ValPrimary56("removeFromMap", _, map, _, arg, _) =>
-      create expression(StandardOperator.MapRemoveKey, expr(map), expr(arg))
-    case ValPrimary57("running", _, arg, _) =>
-      create expression(StandardOperator.PVLjoinToken, expr(arg))
-    case ValPrimary58("Some", _, arg, _) =>
-      create expression(StandardOperator.OptionSome, expr(arg))
-    case ValPrimary59("tail", _, seq, _) =>
-      create expression(StandardOperator.Tail, expr(seq))
-    case ValPrimary60("Value", _, arg, _) =>
-      create expression(StandardOperator.Value, expr(arg))
-    case ValPrimary61("valuesMap", _, map, _) =>
-      create expression(StandardOperator.MapValueSet, expr(map))
-    case ValPrimary62("seq", "<", t, ">", "{", elems, "}") =>
-      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems):_*)
-    case ValPrimary63("set", "<", t, ">", "{", elems, "}") =>
-      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems):_*)
-    case ValPrimary64("(", seq, "[", "..", end, "]", ")") =>
-      create expression(Take, expr(seq), expr(end))
-    case ValPrimary65("(", seq, "[", start, "..", None, "]", ")") =>
-      create expression(Drop, expr(seq), expr(start))
-    case ValPrimary65("(", seq, "[", start, "..", Some(end), "]", ")") =>
-      create expression(Slice, expr(seq), expr(start), expr(end))
-    case ValPrimary66("(", seq, "[", idx, "->", replacement, "]", ")") =>
-      create expression(SeqUpdate, expr(seq), expr(idx), expr(replacement))
-    case ValPrimary67("(", x, "::", xs, ")") =>
-      create expression(PrependSingle, expr(x), expr(xs))
-    case ValPrimary68("(", xs, "++", ys, ")") =>
-      create expression(Concat, expr(xs), expr(ys))
-    case ValPrimary69("(", x, "\\in", xs, ")") =>
-      create expression(Member, expr(x), expr(xs))
-    case ValPrimary70("getOrElseOption", "(", opt, ",", alt, ")") =>
-      create expression(OptionGetOrElse, expr(opt), expr(alt))
+//    case ValPrimary29("Reducible", "(", exp, _, opNode, ")") =>
+//      val opText = opNode match {
+//        case ValReducibleOperator0("+") => "+"
+//        case ValReducibleOperator1(id) => convertID(id)
+//      }
+//      create expression(opText match {
+//        case "+" => ReducibleSum
+//        case "min" => ReducibleMin
+//        case "max" => ReducibleMax
+//      }, expr(exp))
+//    case ValPrimary30("AbstractState", _, arg1, _, arg2, _) =>
+//      create expression(StandardOperator.AbstractState, expr(arg1), expr(arg2))
+//    case ValPrimary31("AddsTo", _, arg1, _, arg2, _) =>
+//      create expression(StandardOperator.AddsTo, expr(arg1), expr(arg2))
+//    case ValPrimary32("APerm", _, loc, _, perm, _) =>
+//      create expression(StandardOperator.ActionPerm, expr(loc), expr(perm))
+//    case ValPrimary33("ArrayPerm", _, ar, _, fst, _, step, _, cnt, _, perm, _) =>
+//      create expression(StandardOperator.ArrayPerm, expr(ar), expr(fst), expr(step), expr(cnt), expr(perm))
+//    case ValPrimary34("buildMap", _, map, _, k, _, v, _) =>
+//      create expression(StandardOperator.MapBuild, expr(map), expr(k), expr(v))
+//    case ValPrimary35("cardMap", _, map, _) =>
+//      create expression(StandardOperator.MapCardinality, expr(map))
+//    case ValPrimary36("Contribution", _, res, _, con, _) =>
+//      create expression(StandardOperator.Contribution, expr(res), expr(con))
+//    case ValPrimary37("disjointMap", _, map1, _, map2, _) =>
+//      create expression(StandardOperator.MapDisjoint, expr(map1), expr(map2))
+//    case ValPrimary38("equalsMap", _, map1, _, map2, _) =>
+//      create expression(StandardOperator.MapEquality, expr(map1), expr(map2))
+//    case ValPrimary39("Future", _, arg1, _, arg2, _, arg3, _) =>
+//      create expression(StandardOperator.Future, expr(arg1), expr(arg2), expr(arg3))
+//    case ValPrimary40("getFromMap", _, map, _, k, _) =>
+//      create expression(StandardOperator.MapGetByKey, expr(map), expr(k))
+//    case ValPrimary41("getFst", _, tup, _) =>
+//      create expression(StandardOperator.TupleFst, expr(tup))
+//    case ValPrimary42("getOption", _, opt, _) =>
+//      create expression(StandardOperator.OptionGet, expr(opt))
+//    case ValPrimary43("getSnd", _, tup, _) =>
+//      create expression(StandardOperator.TupleSnd, expr(tup))
+//    case ValPrimary44("head", _, seq, _) =>
+//      create expression(StandardOperator.Head, expr(seq))
+//    case ValPrimary45("held", _, lock, _) =>
+//      create expression(StandardOperator.Held, expr(lock))
+//    case ValPrimary46("Hist", _, arg1, _, arg2, _, arg3, _) =>
+//      create expression(StandardOperator.History, expr(arg1), expr(arg2), expr(arg3))
+//    case ValPrimary47("HPerm", _, loc, _, perm, _) =>
+//      create expression(StandardOperator.HistoryPerm, expr(loc), expr(perm))
+//    case ValPrimary48("idle", _, arg, _) =>
+//      create expression(StandardOperator.PVLidleToken, expr(arg))
+//    case ValPrimary49("isEmpty", _, seq, _) =>
+//      create expression(StandardOperator.Empty, expr(seq))
+//    case ValPrimary50("itemsMap", _, map, _) =>
+//      create expression(StandardOperator.MapItemSet, expr(map))
+//    case ValPrimary51("keysMap", _, map, _) =>
+//      create expression(StandardOperator.MapKeySet, expr(map))
+//    case ValPrimary52("perm", _, loc, _) =>
+//      create expression(StandardOperator.CurrentPerm, expr(loc))
+//    case ValPrimary53("Perm", _, loc, _, perm, _) =>
+//      create expression(StandardOperator.Perm, expr(loc), expr(perm))
+//    case ValPrimary54("PointsTo", _, loc, _, perm, _, value, _) =>
+//      create expression(StandardOperator.PointsTo, expr(loc), expr(perm), expr(value))
+//    case ValPrimary55(_removeAt, _, seq, _, i, _) =>
+//      create expression(StandardOperator.RemoveAt, expr(seq), expr(i))
+//    case ValPrimary56("removeFromMap", _, map, _, arg, _) =>
+//      create expression(StandardOperator.MapRemoveKey, expr(map), expr(arg))
+//    case ValPrimary57("running", _, arg, _) =>
+//      create expression(StandardOperator.PVLjoinToken, expr(arg))
+//    case ValPrimary58("Some", _, arg, _) =>
+//      create expression(StandardOperator.OptionSome, expr(arg))
+//    case ValPrimary59("tail", _, seq, _) =>
+//      create expression(StandardOperator.Tail, expr(seq))
+//    case ValPrimary60("Value", _, arg, _) =>
+//      create expression(StandardOperator.Value, expr(arg))
+//    case ValPrimary61("valuesMap", _, map, _) =>
+//      create expression(StandardOperator.MapValueSet, expr(map))
+//    case ValPrimary62("seq", "<", t, ">", "{", elems, "}") =>
+//      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems):_*)
+//    case ValPrimary63("set", "<", t, ">", "{", elems, "}") =>
+//      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems):_*)
+//    case ValPrimary64("(", seq, "[", "..", end, "]", ")") =>
+//      create expression(Take, expr(seq), expr(end))
+//    case ValPrimary65("(", seq, "[", start, "..", None, "]", ")") =>
+//      create expression(Drop, expr(seq), expr(start))
+//    case ValPrimary65("(", seq, "[", start, "..", Some(end), "]", ")") =>
+//      create expression(Slice, expr(seq), expr(start), expr(end))
+//    case ValPrimary66("(", seq, "[", idx, "->", replacement, "]", ")") =>
+//      create expression(SeqUpdate, expr(seq), expr(idx), expr(replacement))
+//    case ValPrimary67("(", x, "::", xs, ")") =>
+//      create expression(PrependSingle, expr(x), expr(xs))
+//    case ValPrimary68("(", xs, "++", ys, ")") =>
+//      create expression(Concat, expr(xs), expr(ys))
+//    case ValPrimary69("(", x, "\\in", xs, ")") =>
+//      create expression(Member, expr(x), expr(xs))
+//    case ValPrimary70("getOrElseOption", "(", opt, ",", alt, ")") =>
+//      create expression(OptionGetOrElse, expr(opt), expr(alt))
   })
 
   def convertValOp(op: ValImpOpContext): StandardOperator = op match {

@@ -132,6 +132,24 @@ trait Parser {
           decision.errors.size(),
           getParser().getRuleNames()(getParser().getATN.getDecisionState(decision.decision).ruleIndex)
         )
+//        Output("%s", decision.SLL_MaxLookEvent.input.getText)
+//        for (a <- decision.ambiguities.asScala) {
+//          Output("-------------------------")
+//          for (ambigAlt <- a.ambigAlts.stream().toArray) {
+//            Output("Alt: %s", getParser().getRuleNames()(ambigAlt))
+//          }
+//          val sb = new StringBuilder()
+//          for (i <- 0 until a.startIndex) {
+//            sb.append(decision.SLL_MaxLookEvent.input.get(i).getText)
+//            sb.append(' ')
+//          }
+//          sb.append("\n|||\n")
+//          for (i <- a.startIndex until a.stopIndex) {
+//            sb.append(decision.SLL_MaxLookEvent.input.get(i).getText)
+//            sb.append(' ')
+//          }
+//          Output("%s", sb)
+//        }
       })
   }
 
@@ -309,6 +327,35 @@ class ParserBench {
       // Shouldn't use both recursive and non-recursive form for parUnitList (see: https://stackoverflow.com/questions/42093553/antlr-does-not-automatically-do-lookahead-matching)
       //    Seems to reduce the parsing time about half a second
       // Same for iteExpr, saves about 2 secs!
+      // Commenting out Reducible until "set < langtype >" in SpecParser shaves off about 400 ms
+      //    (initial: 1400ms, after: 943)
+      //    So seems that overlapping with function calls is problematic
+      //    Though this one seems hard to actually resolve - we _need_ to overlap with the host language in this case...
+      //    So I am leaving this one in for now
+      //    Maybe if you assume that:
+      //    - Each lang has function calls
+      //    - generics can be turned on/off when needed
+      //    Then there doesn't have to be overlap
+      /* The following block also has about 150 ambiguities:
+            | collectionConstructors // About 100 ambiguities
+            | 'map' '<' type ',' type '>' mapValues // -5 ambiguities?
+            | 'tuple' '<' type ',' type '>' values // 0 ambiguities
+            | builtinMethod tuple // 49 ambiguities
+         But it causes quite a few parse errors so it's hard to turn off...?
+       */
+      /*
+        args, exprList, mapPairs also should not be wrongly/duplicatingly tail recursive. Not sure if they matter though
+       */
+      /* rule above seqAddExpr (powExpr) should refer to seqAddExpr. Also, seqAddExpr also has duplicating tail. */
+      /* nonTargetUnit: "'?' identifier" is also in builtinMethod! */
+      /* clazMember is probably slow because it partially overlaps with method (i.e. int a looks similar to int a())
+         refactor by merging field, constructor, and method, and specifying in COL which one you want by not allowing them (i.e. not having an argument list and no contract means a field)
+       */
+      /*
+        Cannot figure out what is the problem with eqExpr. Even refactoring to relExpr ((== | !=) eqExpr)? doesn't help.
+        Maybe we should just switch over to how antlr handles binary grammars, and just enter associativity/precedence?
+       */
+      /* builtinMethod completely overlaps with Spec! */
 
       0
     } else {
