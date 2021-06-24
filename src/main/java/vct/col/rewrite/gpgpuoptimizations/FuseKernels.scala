@@ -324,10 +324,17 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
         .foreach { case (patt, (perms, conditions)) =>
           if (!permPatternsIPost.contains(patt)) { // Do 5.1
             // Precondition     Permissions
+            // TODO OS
+
+
             conditions.foreach { s =>
               cbDepCheck.requires(rewrite(s))
               cbFusedParBlock.requires(rewrite(s))
             }
+
+
+
+
             // Precondition     Functional
             // Outside of the loop
 

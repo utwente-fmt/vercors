@@ -126,14 +126,14 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
 
     //TODO OS match on parallelregion instead of method
     result = opt.interOrIntra match {
-      case Inter => interTiling(m, opt)
       case Intra => intraTiling(m, opt)
+      case Inter => interTiling(m, opt)
     }
 
     addCeilingFunc()
   }
 
-  def interTiling(m: Method, opt: Tiling): Method = {
+  def intraTiling(m: Method, opt: Tiling): Method = {
     //TODO OS write all the ifs written informally
 
 
@@ -432,7 +432,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
     )
   }
 
-  def intraTiling(m: Method, opt: Tiling): Method = {
+  def interTiling(m: Method, opt: Tiling): Method = {
 
     //    super.visit(m)
     //    check m.getBody.isInstanceOf[BlockStatement]
@@ -561,7 +561,7 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
 
     val newParBlock = create.parallel_block(newParLabel, newParContract, newParTid.toArray, newParBody)
     //TODO OS the region contract has to be rewritten according
-    //  to the rules for rewriting the method contract.
+    //  to the rules for rewriting the method contract.c
     val newParRegion = m.getBody.asInstanceOf[BlockStatement].getStatement(0) match {
       case pb: ParallelRegion => create.region(rewrite(pb.fuse), rewrite(region.contract), newParBlock)
       case parinv: ParallelInvariant => {
