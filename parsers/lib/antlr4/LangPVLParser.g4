@@ -9,7 +9,7 @@ program  : programDecl* block? EOF ;
 programDecl : claz|kernel|block|field|methodDecl ;
 
 claz : contract 'class' identifier '{' clazMember* '}' ;
-clazMember : constructor | methodDecl | field;
+clazMember : /* constructor | */ methodDecl | field;
 
 kernel : 'kernel' identifier '{' kernelMember* '}' ;
 kernelMember : kernelField | methodDecl ;
@@ -20,7 +20,7 @@ field : type identifierList ';' ;
 
 modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
 
-methodDecl : contract modifier* type identifier '(' args? ')' methodBody ;
+methodDecl : contract modifier* type? identifier '(' args? ')' methodBody ;
 methodBody : '=' expr ';' | constructorBody ;
 
 constructor : contract identifier '(' args? ')' constructorBody ;
@@ -224,6 +224,7 @@ statement
  | 'atomic' '(' identifierList ')' block
  | invariantList 'while' '(' expr ')' statement
  | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+// | invariantList ('while' '(' expr ')' statement | 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement)
  | block
  | '{*' expr '*}'
  | 'goto' identifier ';'

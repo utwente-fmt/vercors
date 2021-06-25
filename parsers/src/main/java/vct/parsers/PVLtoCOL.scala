@@ -54,9 +54,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ProgramDecl3(field) => ??(tree) // This is global state?
     case ProgramDecl4(method_decl) => ??(tree) // Global method?
 
-    case ClazMember0(constructor) => Seq(convertConstructor(constructor))
-    case ClazMember1(method) => Seq(convertMethod(method))
-    case ClazMember2(field) => convertField(field)
+//    case ClazMember0(constructor) => Seq(convertConstructor(constructor))
+//    case ClazMember1(method) => Seq(convertMethod(method))
+//    case ClazMember2(field) => convertField(field)
 
     case KernelMember0(field) => convertKernelField(field)
     case KernelMember1(method) => Seq(convertMethod(method))
@@ -100,37 +100,38 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       })
   }
 
-  def convertMethod(method: MethodDeclContext): Method = origin(method, method match {
-    case MethodDecl0(contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
-      val returns = convertType(returnType)
-      var (kind, body) = convertBody(bodyNode)
-
-      modifiers.foreach {
-        case Modifier0("pure") =>
-          kind = Kind.Pure
-        case _ =>
-      }
-
-      if(returns.isPrimitive(PrimitiveSort.Resource))
-        kind = Kind.Predicate
-
-      val result = create method_kind(kind, returns, convertContract(contract),
-        convertID(name), maybeArgs.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
-
-      modifiers.map(convertModifier).foreach(mod => {
-        /* These flags have special status in InlinePredicatesRewriter and CurrentThreadRewriter. Probably we should
-         * have exactly one way of setting the property (although inline may have a language-level and specification-
-         * level meaning) */
-        if (mod.isReserved(ASTReserved.Inline)) {
-          result.setFlag(ASTFlags.INLINE, true);
-        } else if(mod.isReserved(ASTReserved.ThreadLocal)) {
-          result.setFlag(ASTFlags.THREAD_LOCAL, true)
-        } else if(!mod.isReserved(ASTReserved.Pure)) { // already covered by scan above
-          result.attach(mod)
-        }
-      })
-      result
-  })
+  def convertMethod(method: MethodDeclContext): Method = ???
+//    origin(method, method match {
+//    case MethodDecl0(contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
+//      val returns = convertType(returnType)
+//      var (kind, body) = convertBody(bodyNode)
+//
+//      modifiers.foreach {
+//        case Modifier0("pure") =>
+//          kind = Kind.Pure
+//        case _ =>
+//      }
+//
+//      if(returns.isPrimitive(PrimitiveSort.Resource))
+//        kind = Kind.Predicate
+//
+//      val result = create method_kind(kind, returns, convertContract(contract),
+//        convertID(name), maybeArgs.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
+//
+//      modifiers.map(convertModifier).foreach(mod => {
+//        /* These flags have special status in InlinePredicatesRewriter and CurrentThreadRewriter. Probably we should
+//         * have exactly one way of setting the property (although inline may have a language-level and specification-
+//         * level meaning) */
+//        if (mod.isReserved(ASTReserved.Inline)) {
+//          result.setFlag(ASTFlags.INLINE, true);
+//        } else if(mod.isReserved(ASTReserved.ThreadLocal)) {
+//          result.setFlag(ASTFlags.THREAD_LOCAL, true)
+//        } else if(!mod.isReserved(ASTReserved.Pure)) { // already covered by scan above
+//          result.attach(mod)
+//        }
+//      })
+//      result
+//  })
 
   def convertModifier(mod: LangModifierContext): NameExpression =
     mod match { case LangModifier0(mod) => convertModifier(mod) }
@@ -557,19 +558,19 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Statement4("notify", exp, _) => create special(ASTSpecial.Kind.Notify, expr(exp))
     case Statement5("fork", exp, _) => create special(ASTSpecial.Kind.Fork, expr(exp))
     case Statement6("join", exp, _) => create special(ASTSpecial.Kind.Join, expr(exp))
-    case Statement7("action", tup, blockNode) =>
-      val args = convertExpList(tup)
-      val argsOK = args.size >= 4 && args.size % 2 == 0
-      if (!argsOK) {
-        fail(tup, "action takes four arguments plus any number of pairs, but %d arguments were supplied.", Int.box(args.size))
-      }
-      val nameMap =
-        (4 until args.size by 2).map(i => {
-          args(i).asInstanceOf[NameExpression].getName -> args(i+1)
-        }).toMap
-      val block = convertBlock(blockNode)
-      create action_block(args(0), args(1), args(2), args(3), nameMap.asJava, block)
-    case Statement8(valStat) => convertValStat(valStat)
+//    case Statement7("action", tup, blockNode) =>
+//      val args = convertExpList(tup)
+//      val argsOK = args.size >= 4 && args.size % 2 == 0
+//      if (!argsOK) {
+//        fail(tup, "action takes four arguments plus any number of pairs, but %d arguments were supplied.", Int.box(args.size))
+//      }
+//      val nameMap =
+//        (4 until args.size by 2).map(i => {
+//          args(i).asInstanceOf[NameExpression].getName -> args(i+1)
+//        }).toMap
+//      val block = convertBlock(blockNode)
+//      create action_block(args(0), args(1), args(2), args(3), nameMap.asJava, block)
+//    case Statement8(valStat) => convertValStat(valStat)
 //    case Statement9("if", "(", cond, ")", thenStat, maybeElseStat) =>
 //      create ifthenelse(expr(cond), flattenIfSingleStatement(convertStat(thenStat)), maybeElseStat.map(convertStat).map(flattenIfSingleStatement).orNull)
 //    case ElseBlock0("else", stat) => flattenIfSingleStatement(convertStat(stat))

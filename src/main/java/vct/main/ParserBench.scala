@@ -356,7 +356,8 @@ class ParserBench {
         Maybe we should just switch over to how antlr handles binary grammars, and just enter associativity/precedence?
        */
       /* builtinMethod completely overlaps with Spec! */
-
+      /* action in statement is duplicate */
+      /* constructor and method overlap */
       0
     } else {
       Output("No mode specified")
