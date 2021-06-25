@@ -1,4 +1,4 @@
-name: Vercors build and test workflow for the slow and medium test suites
+name: Vercors build and test workflow for the slow and medium test suites. Currently disabled as some work is needed to get the slow/medium suites to pass again.
 
 on: 
   push:
