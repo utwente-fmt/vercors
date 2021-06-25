@@ -814,6 +814,26 @@ public class PVLPrinter extends AbstractPrinter{
                 out.printf("()");
                 break;
             }
+            case NewArray:{
+                out.printf("new ");
+                if(e.arg(0) instanceof PrimitiveType) {
+                    PrimitiveType p = ((PrimitiveType)e.arg(0));
+                    if(p.sort == PrimitiveSort.Option && p.args().head() instanceof PrimitiveType) {
+                        PrimitiveType p2 = (PrimitiveType) p.args().head();
+                        if(p2.hasArguments()) {
+                            p2.args().head().accept(this);
+                        }
+                    } else {
+                        e.arg(0).accept(this);
+                    }
+                } else {
+                    e.arg(0).accept(this);
+                }
+                out.print("[");
+                e.arg(1).accept(this);
+                out.printf("]");
+                break;
+            }
             default:{
                 super.visit(e);
             }
@@ -1063,17 +1083,13 @@ public class PVLPrinter extends AbstractPrinter{
                 if (nrofargs!=1){
                     Fail("Cell type constructor with %d arguments instead of 1",nrofargs);
                 }
-                out.printf("cell<");
                 t.firstarg().accept(this);
-                out.printf(">");
                 break;
             case Option:
                 if (nrofargs!=1){
                     Fail("Option type constructor with %d arguments instead of 1",nrofargs);
                 }
-                out.printf("option<");
                 t.firstarg().accept(this);
-                out.printf(">");
                 break;
             case Map:
                 if (nrofargs!=2){
@@ -1148,9 +1164,26 @@ public class PVLPrinter extends AbstractPrinter{
 
         int j = 0;
         for (DeclarationStatement iter : pb.itersJava()) {
-            iter.accept(this);
+            out.print("(");
+            setExpr();
             if (j > 0) out.printf(",");
             j++;
+            ASTNode expr = iter.initJava();
+            nextExpr();
+            iter.getType().accept(this);
+            out.printf(" %s", iter.name());
+            if (expr!=null){
+                out.printf(" = ");
+                nextExpr();
+                if(expr instanceof OperatorExpression && ((OperatorExpression) expr).operator() == StandardOperator.RangeSeq) {
+                    ((OperatorExpression) expr).arg(0).accept(this);
+                    out.print(" .. ");
+                    ((OperatorExpression) expr).arg(1).accept(this);
+                } else {
+                    Fail("Unexpected DeclarationStatement in iters of ParallelBlock");
+                }
+            }
+            out.println(")");
         }
 
         if (pb.depslength() > 0){

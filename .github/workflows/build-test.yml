@@ -10,7 +10,7 @@ on:
     branches:
       - '**'
 jobs:
-  build:
+  build-test:
     runs-on: ubuntu-latest
     environment: Default
     steps:
@@ -25,10 +25,13 @@ jobs:
       - name: Coursier cache
         uses: coursier/cache-action@v5
       - name: Build and package
+        run: sbt debian:packageBin universal:packageBin
+      - name: Run tests
+        run: sbt test || true
+      - name: Clean up intermediate files for caching
         # From the sbt manual, clean up any leftover intermediate files
         # https://www.scala-sbt.org/1.x/docs/GitHub-Actions-with-sbt.html
         run: |
-          sbt debian:packageBin universal:packageBin
           rm -rf "$HOME/.ivy2/local" || true
           find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
           find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
@@ -89,13 +92,18 @@ jobs:
           prerelease: true
           tag: dev-prerelease
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v2
+        with:
+          report_paths: '**/target/test-reports/TEST-*.xml'
       
-  test-linux:
-    needs: build
+  integration-test-linux:
+    needs: build-test
     runs-on: ubuntu-latest
     strategy:
       matrix:
         testID: [0, 1, 2, 3, 4]
+      fail-fast: false
     env:
       maxTestID: 5
     steps:
@@ -121,9 +129,9 @@ jobs:
           path: |
             jacoco*.xml
 
-  test-windows:
+  integration-test-windows:
     runs-on: windows-latest
-    needs: build
+    needs: build-test
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v1
@@ -157,9 +165,9 @@ jobs:
       # This prevents the commas from being interpreted as array separators, a marvelous powershell feature.
       - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon """--exclude-suite=slow,medium,problem-fail,skip-travis""" --progress --actions-test-output
 
-  test-mac:
+  integration-test-mac:
     runs-on: macos-latest
-    needs: build
+    needs: build-test
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v1
@@ -181,8 +189,8 @@ jobs:
 
   sonar:
     needs:
-      - build
-      - test-linux
+      - build-test
+      - integration-test-linux
     runs-on: ubuntu-latest
     environment: Default
     steps:
@@ -209,4 +217,3 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           # Avoid "java not found" error (see: https://community.sonarsource.com/t/cannot-run-sonarsource-sonarcloud-github-action-master-java-not-found/14922/3)
           JAVA_HOME: ''
-

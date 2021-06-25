@@ -279,15 +279,13 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
         for (ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
           if (pre.equals(post)) {
             contextElems.add(pre);
+            printContractElement(pre, "context");
             added = true;
           }
         }
         if (!added) {
           printContractElement(pre, "requires");
         }
-      }
-      for (ASTNode con : contextElems) {
-        printContractElement(con, "context");
       }
       for (ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
         if (!contextElems.contains(post)) {

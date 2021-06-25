@@ -1,0 +1,11 @@
+//:: cases NoMainConstructor
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+
+	void run() {
+	
+	}
+}
