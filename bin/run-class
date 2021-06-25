@@ -14,10 +14,5 @@ if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
     printf "Classpath extracted\n"
 fi
 
-printf "$BIN\n"
-printf "$BIN/.classpath\n"
-cat $BIN/.classpath
-printf "$@\n"
-
 CLASSPATH=$(cat "$BIN/.classpath")
 java -Xss128M -cp $CLASSPATH "$@"
