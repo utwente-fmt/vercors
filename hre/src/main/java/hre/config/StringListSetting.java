@@ -3,8 +3,6 @@ package hre.config;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import static hre.lang.System.Output;
-
 /**
  * This class represents a configuration setting whose value is a list of strings.
  * 
