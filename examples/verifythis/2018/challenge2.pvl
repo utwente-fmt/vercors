@@ -5,7 +5,7 @@
 // Doesn't verify because of a bug:
 // https://github.com/viperproject/silicon/issues/537
 // The failing loop invariant succeeds when verified with silicon master
-//:: verdict Error
+//:: verdict Fail
 
 class ColoredTiles {
 
