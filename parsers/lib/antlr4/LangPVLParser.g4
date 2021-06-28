@@ -20,7 +20,7 @@ field : type identifierList ';' ;
 
 modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
 
-methodDecl : contract modifier* type? identifier '(' args? ')' methodBody ;
+methodDecl : contract modifier* type? identifier '(' args? ')' methodBody;
 methodBody : '=' expr ';' | constructorBody ;
 
 constructor : contract identifier '(' args? ')' constructorBody ;
@@ -150,10 +150,10 @@ nonTargetUnit
  : valPrimary
  | 'this'
  | 'null'
- | 'true'
- | 'false'
+// | 'true'
+// | 'false'
  | 'current_thread'
- | '\\result'
+// | '\\result'
 
  | collectionConstructors // About 100 ambiguities
  | 'map' '<' type ',' type '>' mapValues // -5 ambiguities?
@@ -218,17 +218,22 @@ statement
  | valStatement
  | 'if' '(' expr ')' statement elseBlock?
  | 'barrier' '(' identifier barrierTags? ')' barrierBody
- | contract 'par' parUnitList
+// | contract 'par' parUnitList
  | 'vec' '(' iter ')' block
  | 'invariant' identifier '(' expr ')' block
  | 'atomic' '(' identifierList ')' block
- | invariantList 'while' '(' expr ')' statement
- | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+// | invariantList 'while' '(' expr ')' statement
+// | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+
+ | contract ('while' '(' expr ')' statement
+ | 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+ | 'par' parUnitList)
+
 // | invariantList ('while' '(' expr ')' statement | 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement)
  | block
  | '{*' expr '*}'
  | 'goto' identifier ';'
- | 'label' identifier ';'
+// | 'label' identifier ';'
  | allowedForStatement ';'
  ;
 

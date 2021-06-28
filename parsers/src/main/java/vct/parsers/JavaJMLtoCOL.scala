@@ -991,10 +991,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create expression(MatrixCompare, expr(a), expr(b))
     case ValPrimary26("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary27(label, _, exp) =>
-      val res = expr(exp)
-      res.addLabel(create label(convertID(label)))
-      res
+//    case ValPrimary27(label, _, exp) =>
+//      val res = expr(exp)
+//      res.addLabel(create label(convertID(label)))
+//      res
     case ValPrimary28("{:", pattern, ":}") =>
       create pattern expr(pattern)
 //    case ValPrimary29("Reducible", "(", exp, _, opNode, ")") =>

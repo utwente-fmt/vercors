@@ -554,10 +554,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Statement0("return", Some(value), _) => create.return_statement(expr(value))
     case Statement1("lock", exp, _) => create special(ASTSpecial.Kind.Lock, expr(exp))
     case Statement2("unlock", exp, _) => create special(ASTSpecial.Kind.Unlock, expr(exp))
-    case Statement3("wait", exp, _) => create special(ASTSpecial.Kind.Wait, expr(exp))
-    case Statement4("notify", exp, _) => create special(ASTSpecial.Kind.Notify, expr(exp))
-    case Statement5("fork", exp, _) => create special(ASTSpecial.Kind.Fork, expr(exp))
-    case Statement6("join", exp, _) => create special(ASTSpecial.Kind.Join, expr(exp))
+//    case Statement3("wait", exp, _) => create special(ASTSpecial.Kind.Wait, expr(exp))
+//    case Statement4("notify", exp, _) => create special(ASTSpecial.Kind.Notify, expr(exp))
+//    case Statement5("fork", exp, _) => create special(ASTSpecial.Kind.Fork, expr(exp))
+//    case Statement6("join", exp, _) => create special(ASTSpecial.Kind.Join, expr(exp))
 //    case Statement7("action", tup, blockNode) =>
 //      val args = convertExpList(tup)
 //      val argsOK = args.size >= 4 && args.size % 2 == 0
@@ -888,10 +888,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create expression(MatrixCompare, expr(a), expr(b))
     case ValPrimary26("\\mrep", "(", m, ")") =>
       create expression(MatrixRepeat, expr(m))
-    case ValPrimary27(label, _, exp) =>
-      val res = expr(exp)
-      res.addLabel(create label(convertID(label)))
-      res
+//    case ValPrimary27(label, _, exp) =>
+//      val res = expr(exp)
+//      res.addLabel(create label(convertID(label)))
+//      res
     case ValPrimary28("{:", pattern, ":}") =>
       create pattern expr(pattern)
 //    case ValPrimary29("Reducible", "(", exp, _, opNode, ")") =>
