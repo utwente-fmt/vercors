@@ -6,10 +6,7 @@ import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpression;
-import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.generic.ASTNode;
@@ -96,6 +93,14 @@ public class ASTUtils {
   
   public static ASTNode replace(ASTNode a, ASTNode b, ASTNode tree) {
     AbstractRewriter rw = new AbstractRewriter((ProgramUnit)null) {
+      public void visit(Dereference d) {
+        if(d.equals(a)) {
+          result = b;
+        } else  {
+          super.visit(d);
+        }
+      }
+
       public void visit(NameExpression e) {
         if(e.equals(a)) {
           result = b;

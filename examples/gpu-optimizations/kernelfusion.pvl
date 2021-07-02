@@ -1,53 +1,22 @@
 class HostSyncRemedyOpt1{
+    requires a != null;
+    requires b != null;
+    context_everywhere a.length == 16;
+    context_everywhere 19 == b.length;
+    void method(int[] a, int[] b) {
+        gpuopt fuse 1 1;
+        par
 
-  context_everywhere a != null && b != null && c != null;
-  context_everywhere a.length == b.length && a.length == c.length;
-  context (\forall* int i; i >= 0 && i < a.length; Perm(a[i], 1));
-  requires (\forall* int i; i >= 0 && i < a.length; Perm(b[i], 1));
-  ensures (\forall* int i; i >= 0 && i < a.length; Perm(b[i], 1\2));
-  context (\forall* int i; i >= 0 && i < a.length; Perm(c[i], 1));
-  ensures (\forall int i; i >= 0 && i < a.length; a[i] == b[i]);
-  void host_Sync_Remedy_Optimized(int[] a, int[] b, int[] c){
-    gpuopt fuse 1 1;
-    par kernel1 (int tid = 0 .. a.length)
-    requires tid != (a.length-1) ==> Perm(a[tid+1], 1\2);
-    requires tid == (a.length-1) ==> Perm(a[0], 1\2);
-    requires Perm(b[tid], 1);
-    context Perm(c[tid], 1);
-    ensures Perm(a[tid], 1\2);
-    ensures Perm(b[tid], 1\2);
-    ensures a[tid] == c[tid];
-    {
-        if(tid != a.length-1){
-          b[tid] = a[tid+1];
-        } else{
-          b[tid] = a[0];
-        }
+        kernel1 (int tid = 0 .. a.length)
+        context Perm(a[tid], 3\4);
+        context Perm(b[tid], 3\4);
+        context tid < a.length-1 ==> Perm(a[tid+1], 1);
+        context tid == a.length-1 ==> Perm(a[0], 1);
+        {}
 
-        barrier(kernel1)
-          requires tid != (a.length-1) ==> Perm(a[tid+1], 1\2);
-          requires tid == (a.length-1) ==> Perm(a[0], 1\2);
-          requires Perm(b[tid], 1);
-          requires tid != (a.length-1) ==> b[tid] == a[tid+1];
-          requires tid == (a.length-1) ==> b[tid] == a[0];
-          context Perm(c[tid], 1);
-          ensures Perm(a[tid], 1\2);
-          ensures Perm(b[tid], 1\2);
-          {}
-
-        c[tid] = a[tid];
-    }
-
-
-    par kernel2 (int tid = 0 .. a.length)
-    context Perm(b[tid], 1\2);
-    context Perm(a[tid], 1);
-    ensures b[tid] == a[tid];
-    {
-        a[tid] = b[tid];
-    }
-
-
+        par kernel2 (int tid = 0 .. a.length)
+        context tid < a.length-1 ==> Perm(a[tid+1], 1);
+        context tid > 0 ==> Perm(b[tid-1], 1);
+        {}
   }
-
 }
