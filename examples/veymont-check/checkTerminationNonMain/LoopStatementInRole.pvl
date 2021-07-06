@@ -1,0 +1,38 @@
+//:: cases LoopStatementInRole
+//:: suite session-check
+//:: tools session
+//:: verdict Pass
+class Main {
+
+	Role a;
+
+	Main() {
+		a = new Role(5);
+	}
+	
+	void run() {
+		
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+	
+	void doWhile() {
+		int i = 0;
+		while(i < 5) {
+			i--;
+		}
+	}
+
+}

@@ -48,6 +48,7 @@ class Main {
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
   private val stop_after = new StringListSetting
   private val strictInternalConditions = new BooleanSetting(false)
+  private var inputPaths = Array.empty[String]
 
   private val silver = new StringSetting("silver")
 
@@ -99,7 +100,7 @@ class Main {
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
-    clops.parse(args)
+    clops.parse(args) ++ (if (Configuration.veymont_file.get() != null) Configuration.getVeyMontFiles.map(_.getAbsolutePath()) else Array.empty[String])
   }
 
   private def setupLogging(): Unit = {
@@ -152,7 +153,8 @@ class Main {
     if(Seq(
       CommandLineTesting.enabled,
       silver.used,
-      pass_list.asScala.nonEmpty
+      pass_list.asScala.nonEmpty,
+      Configuration.veymont_file.used()
     ).forall(!_)) {
       Fail("no back-end or passes specified")
     }
@@ -163,10 +165,34 @@ class Main {
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
     }
+
+    val vFile = Configuration.veymont_file.get()
+    if(vFile != null) {
+      val nonPVL = inputPaths.filter(!_.endsWith(".pvl"))
+      if(nonPVL.nonEmpty)
+        Fail("VeyMont cannot use non-PVL files %s",nonPVL.mkString(", "))
+      if(!vFile.endsWith(".pvl"))
+        Fail("VeyMont cannot output to non-PVL file %s",vFile)
+    }
   }
 
   private def parseInputs(inputPaths: Array[String]): Program =
     Program(inputPaths.map(Paths.get(_)).flatMap(Parsers.parse))
+
+  private def collectPassesForVeyMont : Seq[AbstractPass] = Seq(
+    BY_KEY("VeyMontStructCheck"),
+    BY_KEY("VeyMontTerminationCheck"),
+  //  BY_KEY("VeyMontGlobalLTS"),
+    BY_KEY("VeyMontDecompose"),
+    BY_KEY("VeyMontLocalLTS"),
+    BY_KEY("removeTaus"),
+    BY_KEY("removeEmptyBlocks"),
+    BY_KEY("VeyMontBarrier"),
+    BY_KEY("VeyMontLocalProgConstr"),
+    BY_KEY("VeyMontAddChannelPerms"),
+    BY_KEY("VeyMontAddStartThreads"),
+    BY_KEY("printPVL"),
+  )
 
   object ChainPart {
     def inflate(parts: Seq[ChainPart]): Seq[Seq[String]] =
@@ -364,6 +390,7 @@ class Main {
       }).toSeq
     }
     else if (silver.used) collectPassesForSilver
+    else if (Configuration.veymont_file.used()) collectPassesForVeyMont
     else { Fail("no back-end or passes specified"); ??? }
   }
 
@@ -400,6 +427,10 @@ class Main {
       }
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
+
+      if (debugAfter.has(pass.key)) report.getOutput.dump()
+      if (show_after.contains(pass.key)) show(pass)
+      if (stop_after.contains(pass.key)) Fail("exit after pass %s", pass)
 
       report = BY_KEY("checkTypesJava").apply_pass(report, Array())
 
@@ -442,9 +473,6 @@ class Main {
         }
       }
 
-      if (debugAfter.has(pass.key)) report.getOutput.dump()
-      if (show_after.contains(pass.key)) show(pass)
-      if (stop_after.contains(pass.key)) Fail("exit after pass %s", pass)
     }
 
     Verdict("The final verdict is Pass")
@@ -457,7 +485,7 @@ class Main {
     try {
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info)
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info)
-      val inputPaths = parseOptions(args)
+      inputPaths = parseOptions(args)
       setupLogging()
       checkOptions()
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()

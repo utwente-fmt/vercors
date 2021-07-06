@@ -1,0 +1,22 @@
+//:: cases WrongRunType
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a;
+	
+	Main() {
+		a = new Role();
+	}
+	
+	int run() {
+		
+	}
+
+}
+
+class Role {
+
+
+}

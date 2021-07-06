@@ -1,0 +1,49 @@
+//:: cases SynchronousChannel
+//:: suite session-generate
+//:: tools silicon
+//:: verdict Pass
+class IntegerChannel {
+
+    boolean transfering;
+    
+    int exchangeValue;
+    
+    resource lock_invariant() = 
+		Perm(transfering, 1) 
+		** Perm(exchangeValue,1)
+		;
+    
+    IntegerChannel() {
+		transfering = true;
+    }
+ 
+    void writeValue(int v) {
+		lock this;
+		loop_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
+		loop_invariant held(this);
+		while (!transfering) {
+			wait this;
+        }
+        transfering = false;
+        exchangeValue = v;
+        notify this;
+        unlock this;
+    }
+ 
+    int readValue() {
+		lock this;
+		loop_invariant Perm(transfering, 1) ** Perm(exchangeValue,1);
+		loop_invariant held(this);
+        while (transfering) {
+			wait this;
+        }
+        int v = exchangeValue;
+        transfering = true;
+        notify this;
+        unlock this;
+        return v;
+    } 
+}
+
+
+

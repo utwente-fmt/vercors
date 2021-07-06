@@ -245,7 +245,7 @@ public class KernelRewriter extends AbstractRewriter {
         Type t=global.getType();
         if (t.isPrimitive(PrimitiveSort.Array)){
           ASTNode tmp=create.expression(StandardOperator.EQ,
-              create.dereference(create.field_name(global.name()),"length"),
+              create.array_length_dereference(create.field_name(global.name())),
               rewrite(t.secondarg())
           );
           kernel_main_invariant.add(tmp);
@@ -265,7 +265,7 @@ public class KernelRewriter extends AbstractRewriter {
         Type t=local.getType();
         if (t.isPrimitive(PrimitiveSort.Array)){
           ASTNode tmp=create.expression(StandardOperator.EQ,
-              create.dereference(create.field_name(local.name()),"length"),
+              create.array_length_dereference(create.field_name(local.name())),
               rewrite(t.secondarg())
           );
           kernel_main_invariant.add(tmp);
