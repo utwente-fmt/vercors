@@ -86,8 +86,6 @@ public class SilverBackend {
     }
 
     Properties settings=new Properties();
-    if (tool.startsWith("silicon")){
-    }
     ViperControl control=new ViperControl(log);
     try {
       // Call into Viper to verify!

@@ -644,8 +644,7 @@ public class PVLPrinter extends AbstractPrinter{
         if (m.getKind()==Method.Kind.Pure){
             out.printf("pure ");
         }
-        if (m.getKind()==Method.Kind.Constructor){
-        } else {
+        if (m.getKind()!=Method.Kind.Constructor){
             result_type.accept(this);
             out.printf(" ");
         }
