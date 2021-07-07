@@ -74,3 +74,4 @@ Copyright (c) 2008 - 2019 Formal Methods and Tools, University of Twente
 All rights reserved.
 
 The license to VerCors is a mozilla open source license as described in LICENSE.TXT in the root of this project. It is a free to use, share-alike license. Should this license be too restrictive for your purpose, please let us know by creating an issue in our bug tracker. Direct contributors (people who send us pull-requests or edit this repository directly) are expected to agree with any license that the University of Twente might decide. If you do not agree with future license changes, please instead fork this repository as allowed under the conditions of LICENSE.TXT.
+
