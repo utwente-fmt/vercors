@@ -256,7 +256,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(ab.process());
     dispatch(ab.action());
     // TODO: enable visiting map elements.
-    //dispatch(ab.map().values().to);
     dispatch(ab.block());
   }
   

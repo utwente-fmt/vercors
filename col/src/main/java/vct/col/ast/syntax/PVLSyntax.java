@@ -39,7 +39,6 @@ public class PVLSyntax extends Syntax {
       syntax.addOperator(NewArray,-1,"new ","[","]");
       syntax.addOperator(Subscript,145,"","[","]"); // TODO: check if relative order to Select is OK!
         syntax.addInfix(Implies,"==>",30);
-      //syntax.addInfix(IFF,"<==>",30);
       syntax.addLeftFix(Wand,"-*",30);
       syntax.addFunction(Perm,"Perm");
       syntax.addFunction(HistoryPerm,"HPerm");
@@ -53,7 +52,6 @@ public class PVLSyntax extends Syntax {
 
       syntax.addFunction(PointsTo,"PointsTo");
       syntax.addFunction(IterationOwner,"\\owner");
-      //syntax.addFunction(ArrayPerm,"ArrayPerm");
       syntax.addFunction(Old,"\\old");
 
       syntax.addFunction(OptionSome, "Some");
@@ -96,10 +94,6 @@ public class PVLSyntax extends Syntax {
       syntax.addInfix(LTE,"<=",90);
       syntax.addInfix(GT,">",90);
       syntax.addInfix(GTE,">=",90);
-      /*
-      syntax.addInfix(Instance," instanceof ",90);
-      //  8 equality  == !=
-       * */
       syntax.addInfix(EQ,"==",80);
       syntax.addInfix(NEQ,"!=",80);
         syntax.addLeftFix(And,"&&",40);
@@ -118,7 +112,6 @@ public class PVLSyntax extends Syntax {
         syntax.addPrimitiveType(PrimitiveSort.Integer,"int");
       syntax.addPrimitiveType(PrimitiveSort.ZFraction,"zfrac");
       syntax.addPrimitiveType(PrimitiveSort.Fraction,"frac");
-      //syntax.addPrimitiveType(Long,"long");
       syntax.addPrimitiveType(PrimitiveSort.Void,"void");
       syntax.addPrimitiveType(PrimitiveSort.Resource,"resource");
       syntax.addPrimitiveType(PrimitiveSort.Boolean,"boolean");

@@ -190,30 +190,6 @@ public class SequenceUtils {
     }
 
     public static ASTNode accessUsingType(ASTFactory<?> create, Type sequenceType, ASTNode seq, ASTNode index) {
-//        SequenceInfo info = getTypeInfo(sequenceType);
-//        if(info == null) return null;
-//
-//        ASTNode result = seq;
-//
-//        if(info.isOpt()) {
-//            result = create.expression(StandardOperator.OptionGet, result);
-//        }
-//
-//        switch(info.getSequenceSort()) {
-//            case Array:
-//            case Sequence:
-//                result = create.expression(StandardOperator.Subscript, result, index);
-//                break;
-//            default:
-//                throw new UnsupportedOperationException("unimplemented");
-//        }
-//
-//        if(info.isCell()) {
-//            result = create.dereference(result, "item");
-//        }
-//
-//        return result;
-
         // TODO: Rewrite all sequence access to be specific, as above.
         // Currently, StandardOperator.Subscript is treated as the generic sequence subscript before the RewriteArrayRef
         // stage, after which it is rewritten to a specific, correct expression. This should just be the correct

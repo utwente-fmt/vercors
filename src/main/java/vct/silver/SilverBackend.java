@@ -56,7 +56,6 @@ public class SilverBackend {
   }
 
   public static <Program> PassReport TestSilicon(PassReport given, String tool, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> verifier) {
-    //hre.System.Output("verifying with %s backend",silver_module.get());
     ProgramUnit arg=given.getOutput();
     PassReport report=new PassReport(arg);
     report.add(new PassAddVisitor(given));
@@ -65,7 +64,6 @@ public class SilverBackend {
     TaskBegin verification=log.begin("Viper verification");
 
     hre.lang.System.Progress("verifying with %s %s backend", "builtin", tool);
-    //verifier.set_detail(Configuration.detailed_errors.get());
     VerCorsViperAPI vercors=VerCorsViperAPI.get();
     Program program = vercors.prog.convert(verifier,arg);
     log.phase(verification,"Backend AST conversion");
@@ -89,7 +87,6 @@ public class SilverBackend {
 
     Properties settings=new Properties();
     if (tool.startsWith("silicon")){
-      //settings.setProperty("smt.soft_timeout",silicon_z3_timeout.get()+"");
     }
     ViperControl control=new ViperControl(log);
     try {

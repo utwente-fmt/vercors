@@ -66,49 +66,16 @@ public class ParallelBlockEncoder extends AbstractRewriter {
 
     DeclarationStatement iters[] = pb.itersJava().toArray(new DeclarationStatement[0]);
     DeclarationStatement iter_decls[] = new DeclarationStatement[iters.length];
-    //iter_decls_prime = new DeclarationStatement[pb.iters.length];
     ArrayList<ASTNode> guard_list=new ArrayList<ASTNode>();
     for (int i = 0; i < iter_decls.length; i++) {
       iter_decls[i] = create.field_decl(iters[i].name(), iters[i].getType());
-      //iter_decls_prime[i]=create.field_decl(pb.iters[i].name+"__prime", pb.iters[i].getType());
       ASTNode member = create.local_name(iters[i].name());
       member.setType(iters[i].getType());
       ASTNode tmp = create.expression(StandardOperator.Member, member, iters[i].initJava());
       guard_list.add(tmp);
     }
     ASTNode iters_guard=create.fold(StandardOperator.And,guard_list);
-    /*
-    sigma_prime=new Substitution(source(),prime);
-    iters_guard_prime_before=create.fold(StandardOperator.And,guard_prime_list_before);
-    iters_guard_prime_after=create.fold(StandardOperator.And,guard_prime_list_after);
-    
-    for(ASTNode clause:ASTUtils.conjuncts(c.pre_condition, StandardOperator.Star)){
-      check_cb.requires(clause);
-      if (clause.getType().isBoolean()){
-        main_cb.requires(create.forall(copy_rw.rewrite(iters_guard), rewrite(clause) , iter_decls));
-      } else {
-        main_cb.requires(create.starall(copy_rw.rewrite(iters_guard), rewrite(clause) , iter_decls));
-      }
-    }
-    
-    for(ASTNode clause:ASTUtils.conjuncts(c.post_condition, StandardOperator.Star)){
-      check_cb.ensures(clause);
-      if (clause.getType().isBoolean()){
-        main_cb.ensures(create.forall(copy_rw.rewrite(iters_guard), rewrite(clause) , iter_decls));
-      } else {
-        main_cb.ensures(create.starall(copy_rw.rewrite(iters_guard), rewrite(clause) , iter_decls));
-      }
-    }
-    currentTargetClass.add(create.final_method_decl()(
-        create.primitive_type(Sort.Void),
-        check_cb.getContract(),
-        check_name,
-        gen_pars(check_vars),
-        rewrite(pb.block)
-    ));
-    Contract res=main_cb.getContract();
-    */
-    
+
     ASTNode res=do_block(new ForEachLoop(iter_decls, iters_guard, pb.block()).setContract(pb.contract()), true);
     
     blocks.pop();
@@ -665,10 +632,8 @@ public class ParallelBlockEncoder extends AbstractRewriter {
     for(ASTNode parBound : parBoundsStack)
       parBound.accept(bodyVarScanner);
     Map<String, Type> bodyVars = bodyVarScanner.freeNamesJava();
-    //Hashtable<String,Type> iters=new Hashtable<String,Type>();
     Map<String, Type> mainVars = new HashMap<>(bodyVars);
     for(DeclarationStatement decl:s.decls){
-      //iters.put(decl.name,decl.getType());
       mainVars.remove(decl.name());
     }
 

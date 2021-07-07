@@ -462,7 +462,6 @@ public class SilverClassReduction extends AbstractRewriter {
       } else {
         ASTNode condition=create.invokation(null, null, "instanceof_TYPE_TYPE",
             create.domain_call("TYPE","type_of",object),
-            //create.invokation(null,null,"type_of",object));
             create.domain_call("TYPE","class_"+t));
 
         /* PB: this is incorrect, but dereference(_, ILLEGAL_CAST) is also incorrect... */

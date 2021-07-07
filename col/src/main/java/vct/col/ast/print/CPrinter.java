@@ -31,7 +31,6 @@ public class CPrinter extends AbstractPrinter {
 			nextExpr();
 			lbl.accept(this);
 			out.printf(":");
-			// out.printf("[");
 		}
 	}
 	
@@ -94,7 +93,7 @@ public class CPrinter extends AbstractPrinter {
 	}
 	public void visit(Method m){
 	  Contract c=m.getContract();
-	  if (c!=null) visit(c); //c.accept(this);
+	  if (c!=null) visit(c);
 		nextExpr();
 		m.getReturnType().accept(this);
 		out.printf(" %s(",m.getName());

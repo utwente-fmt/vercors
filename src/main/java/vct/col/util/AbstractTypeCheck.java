@@ -1090,10 +1090,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
 
         if (tt[1].supertypeof(source(), tt[0])) {
-          //Warning("ITE type %s",tt[1]);
           e.setType(tt[1]);
         } else if (tt[0].supertypeof(source(), tt[1])) {
-          //Warning("ITE type %s",tt[0]);
           e.setType(tt[0]);
         }
         if (tt[0].isPrimitive(PrimitiveSort.ZFraction) || tt[0].isPrimitive(PrimitiveSort.Fraction)) {
@@ -1649,37 +1647,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
       }
     }
-//    if (v.type()==null){
-//      Abort("Build without type argument");
-//    }
-//    Type t=v.type();
-//    v.setType(t);
-//    if (t instanceof ClassType && !((ClassType) t).getFullName().equals("VCTArray")){
-//      Abort("constructor encoded as struct value");
-//    } else {
-//      if (t.hasArguments()){
-//        Fail("type without arguments: %s in %s",t,v);
-//      }
-//      t=(Type)t.firstarg();
-//
-//      if(t.isPrimitive(PrimitiveSort.Cell)) {
-//        t = (Type) t.firstarg();
-//      }
-//
-//      for (int i = 0; i < v.valuesLength(); i++) {
-//        Type tt[1]=v.value(i).getType();
-//        if (tt[1]==null){
-//          Fail("untyped build argument %d",i);
-//        }
-//        if(t.equals(tt[1]) || t.supertypeof(source(), tt[1]) || (t instanceof ClassType && ((ClassType) t).getFullName().equals("Ref"))) {
-//          if(t.isPrimitive(PrimitiveSort.Option)) {
-//            v.value(i).setType(t);
-//          }
-//        } else {
-//          Abort("cannot use %s to initialize %s", tt[1], t);
-//        }
-//      }
-//    }
   }
 
   private void check_location(ASTNode arg,String what) {
@@ -1884,7 +1851,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   @Override
   public void visit(BindingExpression e){
     super.visit(e);
-    //result=create.binder(e.binder, rewrite(e.getDeclarations()), rewrite(e.select), rewrite(e.main));
     Type t;
     if (e.select()!=null){
       t=e.select().getType();

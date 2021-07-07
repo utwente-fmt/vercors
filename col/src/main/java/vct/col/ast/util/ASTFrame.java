@@ -159,27 +159,10 @@ public abstract class ASTFrame<T> {
 
 
   public void enter_before(ASTNode node){
-    /* Might be needed or not:
-    variables.enter();
-    if (node.getParent() instanceof MethodInvokation){
-      MethodInvokation mi=(MethodInvokation)node.getParent();
-      Contract c=null;
-      if (mi.getDefinition()!=null){
-        c=mi.getDefinition().getContract();
-      }
-      if (c!=null){
-        for(DeclarationStatement decl:c.given){
-          variables.add(decl.getName(),new VariableInfo(decl,NameExpressionKind.Argument));
-        }
-        scan_labels(c.pre_condition);
-      }
-    }
-    */
+
   }
   public void leave_before(ASTNode node){
-    /* must match enter! 
-    variables.leave();
-    */
+
   }
   public void enter_after(ASTNode node){
     if (scope!=null) scope.enter_after(node);
@@ -233,18 +216,7 @@ public abstract class ASTFrame<T> {
       }
     }
  
-/*
-    @Override
-    public void visit( node){
-      switch(action){
-      case ENTER:
-        break;
-      case LEAVE:
-        break;
-      }
-    }
-  */
-    
+
     @Override
     public void visit(MethodInvokation node){
       switch(action){
@@ -604,7 +576,6 @@ public abstract class ASTFrame<T> {
 
   
   private void scan_labels(ASTNode node) {
-    //if (node instanceof MethodInvokation){
       for(NameExpression label:node.getLabels()){
         variables.add(label.getName(),new VariableInfo(node, NameExpressionKind.Label));
       }
@@ -615,7 +586,6 @@ public abstract class ASTFrame<T> {
           variables.add(label.getName(),new VariableInfo(node, NameExpressionKind.Label));
         }
       }
-    //}
     if (node instanceof OperatorExpression){
       for (ASTNode arg : ((OperatorExpression)node).argsJava()) {
         scan_labels(arg);

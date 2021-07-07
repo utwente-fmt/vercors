@@ -20,7 +20,6 @@ public class FlattenBeforeAfter extends AbstractRewriter {
     for(ASTNode item:s){
       ASTNode tmp=rewrite(item);
       if ((tmp instanceof BeforeAfterAnnotations) && !(tmp instanceof MethodInvokation)){
-        //Warning("moving %s",tmp.getClass());
         BeforeAfterAnnotations baa=(BeforeAfterAnnotations) tmp;
         BlockStatement before=baa.get_before();
         BlockStatement after=baa.get_after();

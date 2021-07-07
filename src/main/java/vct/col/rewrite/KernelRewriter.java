@@ -567,7 +567,6 @@ public class KernelRewriter extends AbstractRewriter {
               ));
             }
           }
-          //cb.requires(create.fold(StandardOperator.Star, barrier_pre.get(i)));
           if (barrier_pre.get(i)!=null) for(ASTNode claim:barrier_pre.get(i)){
               if (!claim.getType().isBoolean()){
                 if (Configuration.auto_barrier.get()){
@@ -623,7 +622,6 @@ public class KernelRewriter extends AbstractRewriter {
 
   @Override
   public void visit(LoopStatement s) {
-    //checkPermission(s);
     LoopStatement res=new LoopStatement();
     ASTNode tmp;
     tmp=s.getInitBlock();
@@ -642,7 +640,6 @@ public class KernelRewriter extends AbstractRewriter {
       Set<Integer> preds=new HashSet<Integer>();
       find_predecessors(preds,s.getBody());
       for(Integer i : preds){
-        //Warning("    %d",i);
         inv1=create.expression(StandardOperator.Or,inv1,
               create.expression(StandardOperator.EQ,
                   create.local_name("__last_barrier"),
