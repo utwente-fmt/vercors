@@ -409,9 +409,6 @@ public abstract class ASTFrame<T> {
         if (node.getParent() instanceof MethodInvokation){
           MethodInvokation s=(MethodInvokation)node.getParent();
           Method def=s.getDefinition();
-          //if (def==null) {
-          //  Warning("definition of method invokation is unknown, expect type errors.");
-          //}
           add_contract_vars(def);
         }
         BlockStatement block=(BlockStatement)node;

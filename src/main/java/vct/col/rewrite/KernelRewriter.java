@@ -134,11 +134,6 @@ public class KernelRewriter extends AbstractRewriter {
     if (Configuration.auto_barrier.get()){
       currentBlock.add(create_barrier_call(no.intValue()));
       //Disabled these hints because old in barrier refers to before barrier... 
-      //for(ASTNode clause : ASTUtils.conjuncts(pb.contract.post_condition,StandardOperator.Star)){
-      //  if (clause.getType().isBoolean()){
-      //    currentBlock.add(create.expression(StandardOperator.Assert, rewrite(clause)));
-      //  }
-      //}
     } else {
       Stack<ASTNode> resource_stack=new Stack<ASTNode>();
       // check and keep resources.

@@ -57,14 +57,8 @@ public class VectorEncode extends AbstractRewriter {
   
   private HashSet<Pair<Op,Type>> ops=new HashSet<>();
   private HashMap<String, Type> locals;
-  
-  //static ProgramUnit vector_lib;
-  //static {
-  //  File file=new File(new File(Configuration.getHome().toFile(),"config"),"vectorlib.pvl");
-  //  vector_lib=Parsers.getParser("pvl").parse(file);
-  //}
 
-  public VectorEncode(ProgramUnit source) {
+    public VectorEncode(ProgramUnit source) {
     super(source);
   }
   

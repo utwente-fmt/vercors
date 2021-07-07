@@ -1125,18 +1125,6 @@ public class JavaPrinter extends AbstractPrinter {
     } else {
       super.visit(s);
     }
-    //if (s.get_before()!=null){
-    //  out.printf("/*@ ");
-    //  out.printf("with ");
-    //  s.get_before().accept(this);
-    //  out.printf(" */");
-    //}
-    //if (s.get_after()!=null){
-    //  out.printf("/*@ ");
-    //  out.printf("then ");
-    //  s.get_after().accept(this);
-    //  out.printf(" */");
-    //}    
   }
 
 

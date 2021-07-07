@@ -63,29 +63,11 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       Fail("parallel block without a contract");
     }
     blocks.push(pb);
-    
-    /*
-    count++;
-    String main_name="parallel_block_main_"+count;
-    String check_name="parallel_block_check_"+count;
-    String local_suffix="_local_"+count;
-    Hashtable<String,Type> main_vars=free_vars(pb);
-    Debug("free main vars: %s",main_vars);
-    Hashtable<String,Type> check_vars=new Hashtable(main_vars);
-    ContractBuilder main_cb=new ContractBuilder();
-    ContractBuilder check_cb=new ContractBuilder();
-    Hashtable<NameExpression,ASTNode> map=new Hashtable();
-    Substitution sigma=new Substitution(source(),map);
-    */
+
     DeclarationStatement iters[] = pb.itersJava().toArray(new DeclarationStatement[0]);
     DeclarationStatement iter_decls[] = new DeclarationStatement[iters.length];
     //iter_decls_prime = new DeclarationStatement[pb.iters.length];
     ArrayList<ASTNode> guard_list=new ArrayList<ASTNode>();
-    /*
-    ArrayList<ASTNode> guard_prime_list_before=new ArrayList();
-    ArrayList<ASTNode> guard_prime_list_after=new ArrayList();
-    Hashtable<NameExpression,ASTNode> prime=new Hashtable();
-    */
     for (int i = 0; i < iter_decls.length; i++) {
       iter_decls[i] = create.field_decl(iters[i].name(), iters[i].getType());
       //iter_decls_prime[i]=create.field_decl(pb.iters[i].name+"__prime", pb.iters[i].getType());
@@ -93,20 +75,6 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       member.setType(iters[i].getType());
       ASTNode tmp = create.expression(StandardOperator.Member, member, iters[i].initJava());
       guard_list.add(tmp);
-      /*
-      check_cb.requires(tmp);
-      check_cb.ensures(tmp);
-      OperatorExpression range=(OperatorExpression)pb.iters[i].getInit();
-      tmp=create.expression(StandardOperator.RangeSeq,range.getArg(0),create.unresolved_name(pb.iters[i].name));
-      tmp=create.expression(StandardOperator.Member,create.unresolved_name(pb.iters[i].name+"__prime"),tmp);
-      guard_prime_list_before.add(tmp);
-      tmp=create.expression(StandardOperator.Plus,create.unresolved_name(pb.iters[i].name),create.constant(1));
-      tmp=create.expression(StandardOperator.RangeSeq,tmp,range.getArg(1));
-      tmp=create.expression(StandardOperator.Member,create.unresolved_name(pb.iters[i].name+"__prime"),tmp);
-      guard_prime_list_after.add(tmp);
-      check_vars.put(pb.iters[i].name,pb.iters[i].getType());
-      prime.put(create.local_name(pb.iters[i].name),create.local_name(pb.iters[i].name+"__prime"));
-      */
     }
     ASTNode iters_guard=create.fold(StandardOperator.And,guard_list);
     /*
@@ -957,9 +925,6 @@ public class ParallelBlockEncoder extends AbstractRewriter {
 
         cb.requires(create.fold(StandardOperator.And, parBoundsStack));
         // lower bound is already guaranteed by guard check.
-        //cb.requires(create.expression(StandardOperator.LTE,
-        //    create.constant(dr),create.argument_name(var_name)
-        //));
         for(ASTNode g:send_entry.guards){
           cb.requires(shift.rewrite(g));
         }

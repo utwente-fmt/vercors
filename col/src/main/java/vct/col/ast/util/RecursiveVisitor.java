@@ -230,12 +230,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
 
   @Override
   public void visit(Method m) {
-//    dispatch(m.getContract());
-//    if (c!=null){
-//      dispatch(c.pre_condition);
-//      dispatch(c.post_condition);
-//    }
-    dispatch(m.getReturnType());
+      dispatch(m.getReturnType());
     dispatch(m.getArgs());
     dispatch(m.signals);
     Contract c=m.getContract();

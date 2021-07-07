@@ -37,11 +37,7 @@ public class FlattenBeforeAfter extends AbstractRewriter {
           res.add(n);
         }
       } else {
-        //if (tmp instanceof ASTSpecial){
-        //  Warning("skipping %s containsing %s",((ASTSpecial)tmp).kind,((ASTSpecial)tmp).args[0].getClass());
-        //}
-        //Warning("skipping %s",tmp.getClass());
-        res.add(tmp);
+          res.add(tmp);
       }
     }
     result=res;

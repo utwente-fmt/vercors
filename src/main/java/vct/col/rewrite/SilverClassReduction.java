@@ -440,9 +440,7 @@ public class SilverClassReduction extends AbstractRewriter {
       ClassType t=(ClassType)e.arg(0);
       ASTClass cl=source().find(t);
       ArrayList<ASTNode>args=new ArrayList<ASTNode>();
-      //NameExpression f=create.field_name("A__x");
-      //f.setSite(ref_class);
-      for(DeclarationStatement field:cl.dynamicFields()){
+        for(DeclarationStatement field:cl.dynamicFields()){
         args.add(create.dereference(create.class_type("Ref"), cl.name() + "_" + field.name()));
       }
       result=create.expression(StandardOperator.NewSilver,args.toArray(new ASTNode[0]));

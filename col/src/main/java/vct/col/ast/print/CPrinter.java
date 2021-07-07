@@ -53,10 +53,7 @@ public class CPrinter extends AbstractPrinter {
 	}
 	
 	public void visit(ASTClass cl){
-		//if (cl.getDynamicCount()>0) {
-		//	Fail("dynamic entries are illegal in C");
-		//}
-    for(ASTNode item:cl.dynamicMembers()){
+		for(ASTNode item:cl.dynamicMembers()){
       item.accept(this);
     }
     for(ASTNode item:cl.staticMembers()){
@@ -161,17 +158,7 @@ public class CPrinter extends AbstractPrinter {
 	    super.visit(l);
 	  }
 	}
-	
-/*
- 	public void visit(ConstantExpression ce){
-    if (ce.value instanceof StringValue){
-      out.print("\""+org.apache.commons.lang3.StringEscapeUtils.escapeJava(ce.toString())+"\"");
-    } else {
-      out.print(ce.toString());
-    }
-  }
-*/
-	
+
 	public void visit(ReturnStatement s){
 		if (s.getExpression()==null){
 			out.printf("return");
