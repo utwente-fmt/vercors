@@ -6,7 +6,6 @@ on:
     branches:
       - master
       - dev
-      - issue-509-slow-tests
 
 jobs:
   build:
@@ -73,27 +72,3 @@ jobs:
       - run: vercors --silicon examples/manual/fibonacci.pvl
       - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=slow,medium --exclude-suite=problem-fail --progress --actions-test-output
 
-  problem_fail_tests:
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        testID: [0, 1]
-      fail-fast: false
-    env:
-      maxTestID: 2
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-java@v1
-        with:
-          java-version: "11"
-          java-package: jre
-      - name: Download VerCors binary
-        uses: actions/download-artifact@v2
-        with:
-          name: vercors-debian-package
-      - run: ls
-      - run: "sudo dpkg -i *.deb"
-      - run: mono --version
-      - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }}  vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=problem-fail --progress --actions-test-output || true
