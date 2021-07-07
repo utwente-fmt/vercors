@@ -18,6 +18,8 @@ jobs:
       # running when for example new commits are pushed.
       - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Cache SBT dependencies modules
         uses: actions/cache@v2
         with:
