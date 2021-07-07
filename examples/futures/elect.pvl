@@ -2,6 +2,7 @@
 //:: case LeaderElect
 //:: tool silicon
 //:: option --check-history
+//:: verdict Pass
 
 class `Future` {
 
