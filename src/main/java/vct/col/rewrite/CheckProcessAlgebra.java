@@ -122,7 +122,42 @@ public class CheckProcessAlgebra extends AbstractRewriter {
       }
     }
     super.visit(cl);
-
+    /* this block creates _old vars and begin/end methods which are nto needed for checking histories.
+    ASTClass res=(ASTClass)result;
+    for(NameExpression n:hist_set){
+      String name=n.getName();
+      VariableInfo info=variables.lookup(name);
+      Type t=((DeclarationStatement)info.reference).getType();
+      res.add(create.field_decl(n.getName()+"_old",copy_rw.rewrite(t)));
+    }
+    for(Method m:cl.dynamicMethods()){
+      if (!m.getReturnType().isPrimitive(Sort.Process)) continue;
+      if (m.getBody()!=null) continue;
+      // m defines an action.
+      create.enter();
+      create.setOrigin(m.getOrigin());
+      ContractBuilder begin_cb=new ContractBuilder();
+      ArrayList<DeclarationStatement> begin_args=new ArrayList();
+      ContractBuilder commit_cb=new ContractBuilder();
+      ArrayList<DeclarationStatement> commit_args=new ArrayList();
+      res.add(create.method_decl(
+          create.primitive_type(Sort.Void),
+          begin_cb.getContract(),
+          m.name+"_begin",
+          begin_args.toArray(new DeclarationStatement[0]),
+          null
+      ));
+      res.add(create.method_decl(
+          create.primitive_type(Sort.Void),
+          commit_cb.getContract(),
+          m.name+"_commit",
+          commit_args.toArray(new DeclarationStatement[0]),
+          null
+      ));
+      create.leave();
+    }
+    result=res;
+    */
   }
   
   @Override
