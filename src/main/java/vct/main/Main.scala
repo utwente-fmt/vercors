@@ -226,9 +226,9 @@ class Main {
   val silverPassOrder: Seq[ChainPart] = Seq(
     "removeIgnoredElements",
     "splitCompositeDeclarations",
-    "stringClassToPrimitive",
     "resolveTypeExpressions",
     "loadExternalClasses",
+    "stringClassToPrimitive",
     "standardize",
     "interpretMethodAnnotations",
     "wrapTopLevelDeclarations",

@@ -7,6 +7,7 @@ import java.util.stream.Stream;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.jdk.CollectionConverters;
+import scala.reflect.internal.Trees;
 import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -1972,7 +1973,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
   public void visit(ReturnStatement s){
     super.visit(s);
-    // TODO: check expression against method type.
+    if (s.getExpression() != null) {
+      check_loc_val(current_method().getReturnType(), s.getExpression(), "Method return type (%s) and type of returned value (%s) do not match.");
+    }
   }
   public void visit(ASTClass c){
     super.visit(c);

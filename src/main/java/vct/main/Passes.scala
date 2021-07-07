@@ -168,6 +168,7 @@ object Passes {
         features.ArgumentAssignment,
         features.PureImperativeMethods,
         features.Synchronized,
+        features.StringClass,
       ),
       removes=Set(features.NotJavaResolved),
       introduces=Feature.DEFAULT_INTRODUCE + features.Constructors + features.NotJavaEncoded,

@@ -220,6 +220,12 @@ public class ContractBuilder {
     signals.add(signalsClause);
   }
 
+  public void signals(SignalsClause[] signalsClauses) {
+    for (SignalsClause sc : signalsClauses) {
+      signals(sc);
+    }
+  }
+
   public void requires(Iterable<ASTNode> collection) {
     for(ASTNode item:collection){
       requires(item); 
