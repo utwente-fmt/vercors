@@ -223,39 +223,8 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
             }
           }
         }
-        // Precondition for functional properties
-        ASTUtils.conjuncts(contractINonPerm.pre_condition, Star, And, Wrap).forEach { preNonPerm =>
-          if (ASTUtils.find_name(preNonPerm, nonsharedVar) && !shared.exists(ASTUtils.find_name(preNonPerm, _))) {
-            cbFusedParBlock.requires(rewrite(preNonPerm))
-          }
-        }
-        ASTUtils.conjuncts(contractIPlusOneNonPerm.pre_condition, Star, And, Wrap).forEach { preNonPerm =>
-          if (ASTUtils.find_name(preNonPerm, nonsharedVar) && !shared.exists(ASTUtils.find_name(preNonPerm, _))) {
-            cbFusedParBlock.requires(rewrite(preNonPerm))
-          }
-        }
-      }
 
-      //TODO OS you can simplify this by moving shared.foreach to an shared.exists in the condition
-      // Also helps against duplication
-      //      shared.foreach { sharedVar =>
-      //        ASTUtils.conjuncts(contractIPerm.pre_condition, Star, And, Wrap).forEach { stmt =>
-      //          if (ASTUtils.find_name(stmt, sharedVar) && ASTUtils.find_name(stmt, newTid.name)) {
-      //            cbFusedParBlock.requires(rewrite(stmt))
-      //          }
-      //        }
-      //      }
-
-
-//      ASTUtils.conjuncts(contractINonPerm.pre_condition, Star, And, Wrap).forEach { preNonPerm =>
-//        if (shared.exists(ASTUtils.find_name(preNonPerm, _))) {
-//          cbFusedParBlock.requires(rewrite(preNonPerm))
-//        }
-//      }
-
-      // 2.1.1
-      nonshared.foreach { nonsharedVar =>
-        var foundAny = false
+        foundAny = false
         ASTUtils.conjuncts(contractIPerm.post_condition, Star, And, Wrap).forEach { stmt =>
           if (ASTUtils.find_name(stmt, nonsharedVar)) {
             cbFusedParBlock.ensures(rewrite(stmt))
@@ -269,20 +238,8 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
             }
           }
         }
-      }
 
-      // Postcondition for non-shared functional properties
-      ASTUtils.conjuncts(contractINonPerm.post_condition, Star, And, Wrap).forEach { postNonPerm =>
-        if (nonshared.exists(ASTUtils.find_name(postNonPerm, _)) && !shared.exists(ASTUtils.find_name(postNonPerm, _))) {
-          cbFusedParBlock.ensures(rewrite(postNonPerm))
-        }
       }
-      ASTUtils.conjuncts(contractIPlusOneNonPerm.post_condition, Star, And, Wrap).forEach { postNonPerm =>
-        if (nonshared.exists(ASTUtils.find_name(postNonPerm, _)) && !shared.exists(ASTUtils.find_name(postNonPerm, _))) {
-          cbFusedParBlock.ensures(rewrite(postNonPerm))
-        }
-      }
-
       val getPermPatterns = (i: ASTNode) => {
         ASTUtils.conjuncts(i, Star, And, Wrap).asScala.toSeq
           .filter(pre => shared.exists(ASTUtils.find_name(pre, _)))
@@ -599,7 +556,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           val arrayName = o.first.asInstanceOf[OperatorExpression].first.asInstanceOf[NameExpression].name // a
           val location = interpretExpression(o.first.asInstanceOf[OperatorExpression].second, newTid) // f(tid)
 
-          (i, m) => m(arrayName)(location(i)) ++= mutable.Seq((perm, tree))
+          (i, m) => if (m.contains(arrayName)) m(arrayName)(location(i)) ++= mutable.Seq((perm, tree))
       }
     case rest =>
       Fail("Permission precondition does not match the expected format\n%s", rest)

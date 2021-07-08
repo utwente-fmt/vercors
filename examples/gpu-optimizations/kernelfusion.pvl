@@ -1,6 +1,6 @@
 class Case13 {
-    requires a != null;
-    requires b != null;
+    context_everywhere a != null;
+    context_everywhere b != null;
     context_everywhere a.length == 16;
     context_everywhere 19 == b.length;
     void method(int[] a, int[] b) {
@@ -8,11 +8,10 @@ class Case13 {
         par
         kernel1 (int tid = 0 .. a.length)
         requires Perm(a[tid], 1\2);
-        requires tid < a.length-1 ==> Perm(a[tid+1], 1\4);
-        requires tid == a.length-1 ==> Perm(a[0], 1\4);
+        requires tid < a.length-1 ==> Perm(a[tid+1], 1\2);
+        requires tid == a.length-1 ==> Perm(a[0], 1\2);
         requires a[tid] == 0;
-        ensures Perm(a[tid], 3\4);
-        context a != null;
+        ensures Perm(a[tid], 1);
         ensures a[tid] == 1;
         {}
 
@@ -22,6 +21,8 @@ class Case13 {
         requires tid == a.length-1 ==> Perm(a[0], 1\4);
         ensures Perm(a[tid], 3\4);
         requires a[tid] == 1;
+        context Perm(b[tid], 1\1000);
+        ensures b[tid] != 0;
         {}
   }
 }
