@@ -1,6 +1,6 @@
 package vct.col.veymont
 
-import hre.lang.System.{Fail}
+import hre.lang.System.Fail
 import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
@@ -10,7 +10,8 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTUtils
 import Util._
-import vct.col.veymont.StructureCheck.{getRoleOrHelperClass, isResourceType}
+import vct.col.veymont.StructureCheck.{fixedMainFail, fixedMainMethod, getRoleOrHelperClass, isRealResource}
+
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 
@@ -23,12 +24,21 @@ object StructureCheck {
       .get.getBody.asInstanceOf[BlockStatement].getStatements.map(_.asInstanceOf[AssignmentStatement]) //getRoleObjects
       .map(_.location.asInstanceOf[NameExpression].name) //getRoleNames
 
-  def isExecutableMainMethod(m : Method) : Boolean = m.name != mainMethodName && m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType))
+  def isExecutableMainMethod(m : Method) : Boolean =
+    m.name != mainMethodName &&
+      m.kind != Method.Kind.Constructor &&
+      m.kind != Method.Kind.Pure &&
+      !isRealResource(m)
+
+  private val fixedMainMethodBody : String =  "\tMain m = new Main();\n\tm." + runMethodName + "();"
+  private val fixedMainMethod : String  = "\nvoid " + mainMethodName + "() {\n" + fixedMainMethodBody + "\n}"
+  private def fixedMainFail(): Unit = Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!",fixedMainMethodBody,mainMethodName)
 
   private def isResourceType(t : Type) : Boolean = t match {
     case p : PrimitiveType => p.sort == PrimitiveSort.Resource
     case _ => false
   }
+  private def isRealResource(m : Method) = m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)
 
   def isAllowedPrimitive(p : PrimitiveType): Boolean = p.isBoolean || p.isDouble || p.isInteger
 }
@@ -38,7 +48,7 @@ class StructureCheck(source : ProgramUnit) {
   private val mainClass : ASTClass = StructureCheck.getMainClass(source)
   checkMainConstructor()
   private val roleObjects : Iterable[AssignmentStatement] = getRoleObjects
-  checkRoleNames
+  checkRoleNames()
   checkMainMethod()
   private val roleNames : Iterable[String] = getRoleNames
   private val roleClasses : Iterable[ASTClass] = getRoleClasses
@@ -49,12 +59,11 @@ class StructureCheck(source : ProgramUnit) {
     mainClass.methods().asScala.filter(m => m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate).map(_.name)
   private var prevAssertArg : ASTNode = null
   checkMainMethodsAllowedSyntax(mainMethods)
-  //  checkMainMethodsRecursion(source) //no guarded recusion supported by LTS generation
   checkRoleFieldsTypes(source)
   checkRoleMethodsTypes(source)
   private val otherClasses : Iterable[ASTClass] = getOtherClasses(source)
-  checkOtherClassesFieldsTypes(source)
-  checkOtherClassesMethodsTypes(source)
+  checkOtherClassesFieldsTypes()
+  checkOtherClassesMethodsTypes()
 
   private def checkMainClass(source : ProgramUnit) : Unit = {
     source.get().asScala.find(_.name == mainClassName) match {
@@ -69,6 +78,7 @@ class StructureCheck(source : ProgramUnit) {
             Fail("VeyMont Fail: The constructor of class 'Main' cannot have any arguments!")
           } else if(constrs.head.name != mainClassName) {
             Fail("VeyMont Fail: Method without type provided, or constructor with other name than 'Main'")
+          } else { //all fine
           }
         }
         mcl.methods().asScala.find(_.name == runMethodName) match {
@@ -78,15 +88,19 @@ class StructureCheck(source : ProgramUnit) {
               Fail("VeyMont Fail: the method '%s' of class 'Main' cannot have any arguments!", runMethodName)
             else if (!isVoidType(run.getReturnType))
               Fail("VeyMont Fail: The return type of method '%s' has to be void!", runMethodName)
+            else { //all fine
+            }
           }
         }
         mcl.methods().asScala.find(_.name == mainMethodName) match {
-          case None => Fail("VeyMont Fail: The class 'Main' must have the following method: \nvoid " + mainMethodName + "() {\n\tMain m = new Main();\n\tm." + runMethodName + "();\n}")
+          case None => Fail("VeyMont Fail: The class 'Main' must have the following method: " + fixedMainMethod)
           case Some(mainMethod) =>
             if(mainMethod.getArgs.length != 0)
               Fail("VeyMont Fail: the method '%s' of class 'Main' cannot have any arguments!",mainMethodName)
             else if(!isVoidType(mainMethod.getReturnType))
               Fail("VeyMont Fail: The return type of method '%s' has to be void!", mainMethodName)
+            else { //all fine
+            }
         }
     }
   }
@@ -122,53 +136,68 @@ class StructureCheck(source : ProgramUnit) {
     }
   }
 
-  private def checkRoleNames =
+  private def checkRoleNames(): Unit =
     if(getRoleNames.toSet != mainClass.fields().asScala.map(_.name).toSet) {
       Fail("VeyMont Fail: the fields of class 'Main' must be all assigned in constructor 'Main'")
     }
 
   private def getMainMethodsNonPureNonResourcePredicate : Iterable[Method] =
-    mainClass.methods().asScala.filter(m => m.name != mainMethodName && m.kind != Method.Kind.Constructor && m.kind != Method.Kind.Pure
-      && !(m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)))
+    mainClass.methods().asScala.filter(m =>
+      m.name != mainMethodName &&
+        m.kind != Method.Kind.Constructor &&
+        m.kind != Method.Kind.Pure &&
+        !isRealResource(m))
 
   private def checkMainMethod() : Unit = {
     val mainMethod = mainClass.methods().asScala.find(_.name == mainMethodName).get
     val b = getBlockOrThrow(mainMethod.getBody, "VeyMont Fail: expected BlockStatement for method " + mainMethodName)
     if(b.getLength != 2)
-      Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
+      fixedMainFail()
     else {
-      b.getStatement(1) match {
-        case m : MethodInvokation =>
-          if(m.method != runMethodName)
-            Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-          else m.`object` match {
-            case n : NameExpression => //fine
-            case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-          }
-        case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-      }
-      b.getStatement(0) match {
-        case v : VariableDeclaration =>
-          v.basetype match {
-            case c : ClassType => if(c.getName != mainClassName) Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-            case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-          }
-          if(v.get().asScala.size == 1) {
-              v.get().asScala.head match {
-              case d : DeclarationStatement =>
-                d.initJava match {
-                  case m : MethodInvokation =>
-                    if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name && m.method == JavaConstructor && m.dispatch.getName == mainClassName))
-                      Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-                  case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-                }
-              case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-            }
-          } else Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-        case _ => Fail("VeyMont Fail: Didn't find expected statements\n %s\n in method %s!","\tMain m = new Main();\n\tm." + runMethodName + "();",mainMethodName)
-      }
+      checkMainBodyFirstLine(b)
+      checkMainBodySecondLine(b)
     }
   }
+
+  private def checkMainBodyFirstLine(b : BlockStatement): Unit =
+    b.getStatement(0) match {
+      case v : VariableDeclaration =>
+        v.basetype match {
+          case c : ClassType =>
+            if(c.getName != mainClassName)
+              fixedMainFail()
+          case _ => fixedMainFail()
+        }
+        if(v.get().asScala.size == 1) {
+          checkFirstLineConstructorCall(v,b)
+        } else fixedMainFail()
+      case _ => fixedMainFail()
+    }
+
+  private def checkFirstLineConstructorCall(v : VariableDeclaration, b : BlockStatement): Unit =
+    v.get().asScala.head match {
+      case d : DeclarationStatement =>
+        d.initJava match {
+          case m : MethodInvokation =>
+            if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name &&
+              m.method == JavaConstructor && m.dispatch.getName == mainClassName))
+              fixedMainFail()
+          case _ => fixedMainFail()
+        }
+      case _ => fixedMainFail()
+    }
+
+  private def checkMainBodySecondLine(b : BlockStatement): Unit =
+    b.getStatement(1) match {
+      case m : MethodInvokation =>
+        if(m.method != runMethodName)
+          fixedMainFail()
+        else m.`object` match {
+          case n : NameExpression => //fine
+          case _ => fixedMainFail()
+        }
+      case _ => fixedMainFail()
+    }
 
   private def checkMainMethodsAllowedSyntax(methods : Iterable[Method]) : Unit = {
     methods.foreach(m => getBlockOrThrow(m.getBody,
@@ -258,7 +287,7 @@ class StructureCheck(source : ProgramUnit) {
       }
       case as : ASTSpecial =>
         if(as.kind == ASTSpecial.Kind.Assert) {
-          if(as.args.size != 1) {
+          if(as.args.length != 1) {
             Fail("VeyMont Fail: Assert can only have one argument!")
           } else prevAssertArg = as.args.head
         } else Fail("VeyMont Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
@@ -316,43 +345,16 @@ class StructureCheck(source : ProgramUnit) {
     expMap.values.sum == (expMap.size - 1) * 2
   }
 
-  private def checkMainMethodsRecursion(source : ProgramUnit) : Unit = {
-    mainMethods.foreach(m => checkGuardedRecursion(m.getBody,Set(m.name)))
-  }
-
-
-  private def checkGuardedRecursion(statement : ASTNode, encounteredMethods : Set[String]) : Unit =
-    statement match {
-      case b : BlockStatement => if(b.getLength > 0) checkGuardedRecursion(b.getStatement(0), encounteredMethods)
-      case i : MethodInvokation =>
-        if(encounteredMethods.contains(i.method))
-          Fail("VeyMont Fail: recursive call not allowed as first statement of method '%s'! %s", i.method, statement.getOrigin)
-        else mainMethods.find(_.name == i.method) match {
-          case Some(m) => checkGuardedRecursion(m.getBody,encounteredMethods + m.name)
-          case None => //fine, it is a pure main method, role class or other class method (without any recursion)
-        }
-      case i : IfStatement => {
-        checkGuardedRecursion(i.getStatement(0), encounteredMethods)
-        if (i.getCount == 2)
-          checkGuardedRecursion(i.getStatement(1), encounteredMethods)
-      }
-      case l : LoopStatement => checkGuardedRecursion(l.getBody, encounteredMethods)
-      case p : ParallelRegion => p.blocks.foreach(b => checkGuardedRecursion(b.block,encounteredMethods))
-      case a : AssignmentStatement => checkGuardedRecursion(a.expression,encounteredMethods)
-      case e : OperatorExpression => e.args.foreach(checkGuardedRecursion(_,encounteredMethods))
-      case _ => //fine
-    }
-
   private def checkRoleMethodsTypes(source : ProgramUnit) : Unit = {
     roleClasses.foreach(_.methods().forEach(checkRoleMethodTypes(_)))
   }
 
   private def checkRoleMethodTypes(roleMethod : Method) : Unit = {
-    if(!isNonRoleOrPrimitive(roleMethod.getReturnType,true,false)) {
+    if(!isNonRoleOrPrimitive(roleMethod.getReturnType,isVoid = true,allowRoles = false)) {
       Fail("VeyMont Fail: return type of method %s is a role or other unexpected type",roleMethod.name)
     }
     roleMethod.getArgs.foreach(arg => {
-      if(!isNonRoleOrPrimitive(arg.`type`,false,roleMethod.kind == Method.Kind.Pure)) {
+      if(!isNonRoleOrPrimitive(arg.`type`,isVoid = false,allowRoles = roleMethod.kind == Method.Kind.Pure)) {
         Fail("VeyMont Fail: the type of argument %s of method %s is a role or other unexpected type",arg.name,roleMethod.name)
       }
     })
@@ -360,7 +362,7 @@ class StructureCheck(source : ProgramUnit) {
 
   private def checkRoleFieldsTypes(source : ProgramUnit) : Unit = {
     roleClasses.foreach(role => role.fields().asScala.foreach(field => {
-     if(!isNonRoleOrPrimitive(field.`type`,false,false))
+     if(!isNonRoleOrPrimitive(field.`type`,isVoid = false,allowRoles = false))
        Fail("VeyMont Fail: type '%s' of field '%s' of role '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
@@ -420,14 +422,14 @@ class StructureCheck(source : ProgramUnit) {
       case c : ASTClass if isRoleOrHelperClassName(c.name) && !roleClassNames.exists(_ == c.name) => c
     }
 
-  private def checkOtherClassesFieldsTypes(source : ProgramUnit) : Unit = {
+  private def checkOtherClassesFieldsTypes() : Unit = {
     otherClasses.foreach(role => role.fields().asScala.foreach(field => {
-      if(!isNonRoleOrPrimitive(field.`type`,false,false))
+      if(!isNonRoleOrPrimitive(field.`type`,isVoid = false,allowRoles = false))
         Fail("VeyMont Fail: type '%s' of field '%s' of non-role class '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
 
-  private def checkOtherClassesMethodsTypes(source: ProgramUnit) : Unit = {
+  private def checkOtherClassesMethodsTypes() : Unit = {
     otherClasses.foreach(_.methods().forEach(checkRoleMethodTypes(_)))
   }
 

@@ -13,7 +13,6 @@ import java.util.Stack;
  */
 public class TrackingOutput {
   private PrintWriter output;
-//  private boolean show;
 
   private static class Frame {
     public int line,col;

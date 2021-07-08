@@ -88,9 +88,9 @@ public class SilverBackend {
     }
 
     Properties settings=new Properties();
-    if (tool.startsWith("silicon")){
-      //settings.setProperty("smt.soft_timeout",silicon_z3_timeout.get()+"");
-    }
+    /*if (tool.startsWith("silicon")){
+      settings.setProperty("smt.soft_timeout",silicon_z3_timeout.get()+"");
+    }*/
     ViperControl control=new ViperControl(log);
     try {
       // Call into Viper to verify!

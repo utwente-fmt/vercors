@@ -126,6 +126,7 @@ public class Configuration {
                         "The decomposition preserves the behaviour of the global program. " +
                         "This implies that all functional properties proven (with VerCors) for the global program also hold for the local program. " +
                         "Memory and thread safety can be checked by running VerCors on the file produced by VeyMont. " +
+                        "Also, both global programs and their decomposed local programs are deadlock-free by construction." +
                         "For more information on VeyMont, please check the VerCors Wiki."),"veymont");
     }
 

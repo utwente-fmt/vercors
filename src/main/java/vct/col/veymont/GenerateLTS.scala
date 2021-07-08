@@ -9,14 +9,8 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.syntax.PVLSyntax
 import vct.col.ast.util.AbstractRewriter
 import Util._
-import geny.Generator.from
-import hre.lang.System.Output
 import vct.col.veymont.StructureCheck.isExecutableMainMethod
-
-import java.io.{File, FileOutputStream, IOException, PrintWriter}
-import java.util.Scanner
 import scala.annotation.tailrec
-import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.jdk.CollectionConverters._
 
 sealed trait Action
@@ -55,7 +49,7 @@ final class LTSState(val nextStatements : List[ASTNode]) {
 
   override def toString: String = nextStatements.map(PVLSyntax.get().print(_).toString).toString
 
-  def getCopy(copy_rw : AbstractRewriter) = new LTSState(copy_rw.rewrite(nextStatements.toArray).toList)
+  def getCopy(copyRewriter : AbstractRewriter) = new LTSState(copyRewriter.rewrite(nextStatements.toArray).toList)
 }
 final class LTSLabel(val condition: Option[ASTNode], val action : Action) {
   override def toString: String = (condition match { case None => "true"; case Some(c) => c.toString}) + " @ " + action.toString
@@ -71,21 +65,10 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   private var roleNames : Iterable[String] = null
   private var roleName : String = null
 
-  private val veymontFileName = Configuration.veymont_file.get()
-  private def veymontGlobalLts : String = {
-    require(veymontFileName.endsWith(".pvl"))
-    veymontFileName.slice(0,veymontFileName.length-4) + "LTS.aut"
-  }
-  private def veymontLocalLts : String = {
-    require(veymontFileName.endsWith(".pvl"))
-    veymontFileName.slice(0,veymontFileName.length-4) + roleName + "LTS.aut"
-  }
-
   def generateLTSAndCheckWellBehavedness() : Unit = {
     if(isGlobal) {
       roleNames = StructureCheck.getRoleNames(source)
       generateLTS(StructureCheck.getMainClass(source))
-      print()
     } else {
       val roleClasses = source.get().asScala.filter(n => isThreadClassName(n.name)).map(_.asInstanceOf[ASTClass])
       roleNames = roleClasses.map(c => getRoleName(c.name))
@@ -94,39 +77,8 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         transitions = Map.empty
         roleName = thread.fields().asScala.head.name
         generateLTS(thread)
-        //print() //use this method to print LTS to a file
         WellBehavednessIterative.check(transitions,roleName)
       }
-    }
-  }
-
-  private def print(out : PrintWriter) : Unit = {
-    val states : Seq[LTSState] = (transitions.keys.toList ++ transitions.values.flatMap(_.map(_.destState))).distinct
-    val stateMap : Map[LTSState,Int] = states.zipWithIndex.toMap
-    val nrTrans = transitions.values.map(_.size).sum
-    out.println("des (" + stateMap(initialState) + "," + nrTrans + "," + states.size + ")")
-    transitions foreach { case (src, trset) =>
-      trset.foreach(tr => {
-        out.println("(" + stateMap(src) + ",\"" + tr.label + "\"," + stateMap(tr.destState) + ")")
-      })
-    }
-  }
-
-  private def print() : Unit = {
-    try {
-      val f = if(isGlobal) new File(veymontGlobalLts) else new File(veymontLocalLts)
-      val dir = f.toPath.getParent.toFile
-      if(!dir.isDirectory)
-        dir.mkdir()
-      val b = f.createNewFile()
-      if (!b) {
-        Debug("File %s already exists and is now overwritten", f.toString)
-      }
-      val out = new PrintWriter(new FileOutputStream(f))
-      print(out)
-      out.close()
-    } catch {
-      case e: IOException => Debug(e.getMessage)
     }
   }
 
@@ -196,42 +148,41 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
     nextState
   }
 
-  def weakSequenceAllowed(s1 : ASTNode, s2: ASTNode) : Boolean = {
-    if(!canSwap(s1) || !canSwap(s2))
-      false
-    else getSubjects(Set.empty,s1).intersect(getSubjects(Set.empty,s2)).isEmpty
-  }
+  def weakSequenceAllowed(s1 : ASTNode, s2: ASTNode) : Boolean =
+    canSwap(s1) && canSwap(s2) && getSubjects(Set.empty,s1).intersect(getSubjects(Set.empty,s2)).isEmpty
+
 
   def getSubjects(seen : Set[String],s : ASTNode) : Set[String] = {
     s match {
       case b : BlockStatement => b.getStatements.toSet.flatMap(getSubjects(seen,_))
-      case a : AssignmentStatement => getGlobalAction(a) match {
-        case SingleRoleAction(node) => node match {
-          case an : AssignmentStatement => an.location match {
-            case d : Dereference => Set(d.obj.asInstanceOf[NameExpression].name)
-            case n : NameExpression => Set(n.name)
-            case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
-          }
-          case m : MethodInvokation => m.`object` match {
-            case n : NameExpression => Set(n.name)
-            case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
-          }
-        }
-        case CommunicationAction(receiver,_, sender, _) =>
-          Set(receiver.name, sender.name)
-        case _ => Set.empty
-      }
+      case a : AssignmentStatement => getSubjectAssignment(a)
       case _ : IfStatement => roleNames.toSet
       case _ : LoopStatement => roleNames.toSet
       case p : ParallelRegion => p.blocks.map(_.block).toSet.flatMap(getSubjects(seen,_))
       case m : MethodInvokation => {
         if(m.`object` == null) { //it is a main method
-          Fail("VeyMont Fail: encountered method call %s in LTS generation",m.method)
-          Set.empty
+          throw Failure("VeyMont Fail: encountered method call %s in LTS generation",m.method)
         } else getNamesFromExpression(m).map(_.name)
       }
       case _ : ASTSpecial => Set.empty
     }
+  }
+
+  private def getSubjectAssignment(a : AssignmentStatement) : Set[String] = getGlobalAction(a) match {
+    case SingleRoleAction(node) => node match {
+      case an : AssignmentStatement => an.location match {
+        case d : Dereference => Set(d.obj.asInstanceOf[NameExpression].name)
+        case n : NameExpression => Set(n.name)
+        case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
+      }
+      case m : MethodInvokation => m.`object` match {
+        case n : NameExpression => Set(n.name)
+        case _ => throw Failure("VeyMont Fail: cannot determine subject of  assignment " + a.toString)
+      }
+    }
+    case CommunicationAction(receiver,_, sender, _) =>
+      Set(receiver.name, sender.name)
+    case _ => Set.empty
   }
 
   def canSwap(n : ASTNode) : Boolean = n match {
@@ -304,15 +255,15 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   }
 
   def visit(i: IfStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
-    takeTwoBranches(i.getGuard(0),ASTNodeToList(i.getStatement(0)),if(i.getCount > 1) ASTNodeToList(i.getStatement(1)) else List.empty,currentState,seq)
+    takeTwoBranches(i.getGuard(0),astNodeToList(i.getStatement(0)),if(i.getCount > 1) astNodeToList(i.getStatement(1)) else List.empty,currentState,seq)
 
   def isRecursion(s : ASTNode, recursiveNodes : List[ASTNode]) : Boolean =
     recursiveNodes.exists(n => new LTSState(List(n)) == new LTSState(List(s)))
 
   def visit(l : LoopStatement, currentState : LTSState, seq : List[ASTNode]) : Unit =
-      takeTwoBranches(l.getEntryGuard,ASTNodeToList(l.getBody) :+ l,List.empty,currentState,seq)
+      takeTwoBranches(l.getEntryGuard,astNodeToList(l.getBody) :+ l,List.empty,currentState,seq)
 
-  private def ASTNodeToList(n : ASTNode) : List[ASTNode] = n match {
+  private def astNodeToList(n : ASTNode) : List[ASTNode] = n match {
     case b : BlockStatement => b.getStatements.toList
     case a : ASTNode => List(a)
   }
@@ -340,9 +291,12 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
       visitStatementSequenceAbstract(currentState,fns)
       })
 
-  private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], othersPreBlock : List[ParallelBlock], othersPostBlock : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
+  private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], othersPreBlock : List[ParallelBlock],
+                                    othersPostBlock : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
     val afterFirstbAction = getCopyBlockWithStats(b,seq)
-    val newPr = create.region(pr.contract,(if (afterFirstbAction.block.isEmpty) othersPreBlock ++ othersPostBlock  else othersPreBlock ++ (afterFirstbAction +: othersPostBlock)):_*)
+    val newPr = create.region(pr.contract,(
+      if (afterFirstbAction.block.isEmpty) othersPreBlock ++ othersPostBlock
+      else othersPreBlock ++ (afterFirstbAction +: othersPostBlock)):_*)
     if(newPr.blocks.forall(_.block.size == 0)) nextSeq else newPr +: nextSeq
   }
 
