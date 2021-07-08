@@ -122,6 +122,6 @@ class ClassTypeSpec extends FlatSpec with Matchers {
     var inttype = new PrimitiveType(PrimitiveSort.Integer)
     var booltype = new PrimitiveType(PrimitiveSort.Boolean)
     var classtype = new ClassType(nameparts, Array[ASTNode](inttype, booltype))
-    classtype.toString should be ("java.lang.TestClass<Integer,Boolean>")
+    classtype.toString should be ("java.lang.TestClass<Integer_Boolean>")
   }
 }

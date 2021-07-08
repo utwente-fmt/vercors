@@ -325,7 +325,13 @@ public class ASTFactory<E> implements FrameControl {
     res.accept_if(post);
     return res;
   }
-  
+
+  /** Create a length dereference for array objects
+   */
+  public Dereference array_length_dereference(ASTNode object) {
+    return dereference(object, Dereference.ArrayLength());
+  }
+
   /**
    * Enter a new stack frame of the origin stack.
    */
@@ -760,7 +766,6 @@ public class ASTFactory<E> implements FrameControl {
    * Create an instantiation of a new object and invoke a constructor on it.
    */
   public MethodInvokation new_object(ClassType type,ASTNode ... args){
-    //return expression(StandardOperator.Build,type,args);
     return invokation(null,type,Method.JavaConstructor, args);
   }
   

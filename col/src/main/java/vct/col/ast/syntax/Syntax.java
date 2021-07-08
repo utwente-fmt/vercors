@@ -256,13 +256,7 @@ public class Syntax {
     syntax2reserved.put(string,word);
   }
 
-/*  
-  public Iterable<String> reserved(){
-    return reserved2syntax.keySet();
-  }
-*/
-  
-  public boolean is_reserved(String text) {
+    public boolean is_reserved(String text) {
     return syntax2reserved.containsKey(text);
   }
 

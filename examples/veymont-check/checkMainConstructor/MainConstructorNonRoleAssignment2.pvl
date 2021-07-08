@@ -1,0 +1,21 @@
+//:: cases MainConstructorNonRoleAssignment2
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+
+	Main() {
+		int i = 5;
+	}
+
+	void run() {
+	
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+

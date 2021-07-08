@@ -1,0 +1,31 @@
+//:: cases WaitStatement
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a;
+
+	Main() {
+		a = new Role(5);
+	}
+	
+	void run() {
+		wait this;
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+
+}

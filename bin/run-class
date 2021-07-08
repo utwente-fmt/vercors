@@ -5,10 +5,12 @@ set -e
 # proceeds to run a class from the arguments. Other scripts in this directory
 # refer to this script to run classes from the vercors project.
 
-BIN=$(dirname $0)
+SCRIPT=$(realpath $0)
+BIN=$(dirname $SCRIPT)
+ROOT=$(dirname $BIN)
 if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
     printf "Extracting classpath from SBT. This might take a moment.\n"
-    sbt --error "Global / printMainClasspath" > "$BIN/.classpath"
+    (cd $ROOT && sbt --error "Global / printMainClasspath" > "$BIN/.classpath")
     printf "Classpath extracted\n"
 fi
 

@@ -47,7 +47,6 @@ public class AddSimpleTriggers extends AbstractRewriter {
     ASTNode[] nodes = res.toArray(new ASTNode[res.size()]);
     HashSet<HashSet<ASTNode>> sets = powerSet(0, nodes);
     sets = validSets(sets, declarations);
-    // sets = minimumSets(sets, nodes);
     for (HashSet<ASTNode> set : sets) {
       triggerSets.add(set.toArray(new ASTNode[set.size()]));
     }

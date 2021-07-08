@@ -25,7 +25,6 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.JavaSyntax;
-import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 import hre.util.LambdaHelper;
 
@@ -55,7 +54,6 @@ public class JavaPrinter extends AbstractPrinter {
       nextExpr();
       lbl.accept(this);
       out.printf(":");
-      //out.printf("[");
     }
     if (node.annotated()) for(ASTNode ann:node.annotations()) {
       if (ann==null){
@@ -304,12 +302,10 @@ public class JavaPrinter extends AbstractPrinter {
     case Goto:
       out.print("goto ");
       s.args[0].accept(this);
-      //out.println(";");
       break;
     case Label:
       out.print("label ");
       s.args[0].accept(this);
-      //out.println(";");
       break;
     case With:
       out.print("WITH");
@@ -617,7 +613,6 @@ public class JavaPrinter extends AbstractPrinter {
     for(ASTNode item:cl){
       if (item.isStatic()){
         if (item instanceof DeclarationStatement) out.printf("static ");
-        // else out.println("/* static */");
       }
       item.accept(this);
       out.println("");
@@ -632,67 +627,7 @@ public class JavaPrinter extends AbstractPrinter {
     if (contract!=null){
       out.lnprintf("/*@");
       out.incrIndent();
-      for (DeclarationStatement d:contract.given){
-        out.printf("given ");
-        d.accept(this);
-        out.lnprintf("");
-      }
-      for(ASTNode e:ASTUtils.conjuncts(contract.invariant,StandardOperator.Star)){
-        out.printf("loop_invariant ");
-        nextExpr();
-        e.accept(this);
-        out.lnprintf(";");
-      }
-      for(ASTNode e:ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star)){
-        out.printf("requires ");
-        nextExpr();
-        e.accept(this);
-        out.lnprintf(";");
-      }
-      for (DeclarationStatement d:contract.yields){
-        out.printf("yields ");
-        d.accept(this);
-        out.lnprintf("");
-      }
-      for(ASTNode e:ASTUtils.conjuncts(contract.post_condition,StandardOperator.Star)){
-        out.printf("ensures ");
-        nextExpr();
-        e.accept(this);
-        out.lnprintf(";");
-      }
-      for (SignalsClause sc : contract.signals){
-        sc.accept(this);
-      }
-      if (contract.modifies!=null){
-        out.printf("modifies ");
-        if (contract.modifies.length==0){
-          out.lnprintf("\\nothing;");
-        } else {
-          nextExpr();
-          contract.modifies[0].accept(this);
-          for(int i=1;i<contract.modifies.length;i++){
-            out.printf(", ");
-            nextExpr();
-            contract.modifies[i].accept(this);
-          }
-          out.lnprintf(";");
-        }
-      }
-      if (contract.accesses!=null){
-        out.printf("accessible ");
-        if (contract.accesses.length==0){
-          out.lnprintf("\\nothing;");
-        } else {
-          nextExpr();
-          contract.accesses[0].accept(this);
-          for(int i=1;i<contract.accesses.length;i++){
-            out.printf(", ");
-            nextExpr();
-            contract.accesses[i].accept(this);
-          }
-          out.lnprintf(";");
-        }
-      }
+      super.visit(contract);
       out.decrIndent();
       out.lnprintf("@*/");
     }
@@ -849,37 +784,6 @@ public class JavaPrinter extends AbstractPrinter {
   }
 
   public void visit(IfStatement s){
-    /* CaseSet conflicts with send/recv in ghost mode! 
-    if (s.isValidFlag(ASTNode.GHOST) && s.getFlag(ASTNode.GHOST)){
-      int N=s.getCount();
-      out.printf ("/*@ CaseSet[");
-      for(int i=0;i<N;i++){
-        if (i>0) out.printf ("  @         ");
-        out.printf("(");
-        nextExpr();
-        s.getGuard(i).accept(this);
-        out.printf(",");
-        ASTNode n=s.getStatement(i);
-        if (n instanceof BlockStatement){
-          BlockStatement block=(BlockStatement)n;
-          int M=block.getLength();
-          for(int j=0;j<M;j++){
-            if(j>0) out.printf(";");
-            nextExpr();
-            block.getStatement(j).accept(this);
-          }
-        } else {
-          Abort("statement in caseset is not a block at %s",n.getOrigin());
-        }
-        out.printf(")");
-        if(i==N-1){
-          out.lnprintf("];");
-        } else {
-          out.lnprintf(",");
-        }
-      }
-      out.lnprintf("  @ * /");
-    } else {*/
       int N=s.getCount();
       out.printf("if (");
       nextExpr();
@@ -906,7 +810,6 @@ public class JavaPrinter extends AbstractPrinter {
           out.lnprintf(";");
         }        
       }
-    //}
   }
 
   private boolean self_terminating(ASTNode s) {
@@ -1186,18 +1089,6 @@ public class JavaPrinter extends AbstractPrinter {
     } else {
       super.visit(s);
     }
-    //if (s.get_before()!=null){
-    //  out.printf("/*@ ");
-    //  out.printf("with ");
-    //  s.get_before().accept(this);
-    //  out.printf(" */");
-    //}
-    //if (s.get_after()!=null){
-    //  out.printf("/*@ ");
-    //  out.printf("then ");
-    //  s.get_after().accept(this);
-    //  out.printf(" */");
-    //}    
   }
 
 
@@ -1422,7 +1313,6 @@ public class JavaPrinter extends AbstractPrinter {
   }
   
   public void visit(ConstantExpression ce){
-    //if (!in_expr) Abort("constant %s outside of expression for %s",ce,ce.getOrigin());
     if (ce.value() instanceof StringValue){
       out.print("\""+StringEscapeUtils.escapeJava(ce.toString())+"\"");
     } else {
@@ -1439,17 +1329,17 @@ public class JavaPrinter extends AbstractPrinter {
       sep=",";
       if (dd instanceof DeclarationStatement){
         DeclarationStatement d = (DeclarationStatement)dd;
-        d.getType().accept(this);
+        out.print(d.name());
         ASTNode init = d.initJava();
         if (init!=null){
-          out.print("=");
+          out.print(" = ");
+          setExpr();
           init.accept(this);
         }
       } else {
         out.print("TODO");
       }
     }
-    out.println(";");
   }
   
   @Override

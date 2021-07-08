@@ -56,11 +56,11 @@ lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, 
 // suddenly it can't find the dependencies anymore! Smart move, sbt.
 // If Viper ever moves to maven central or some other proper dependency mechanism,
 // this can probably be removed.
-scalaVersion in carbon_ref := (scalaVersion in silver_ref).value
-scalaVersion in silicon_ref := (scalaVersion in silver_ref).value
-scalaVersion in ProjectRef(silver_url, "common") := (scalaVersion in silver_ref).value
-scalaVersion in ProjectRef(carbon_url, "common") := (scalaVersion in silver_ref).value
-scalaVersion in ProjectRef(silicon_url, "common") := (scalaVersion in silver_ref).value
+carbon_ref / scalaVersion := (silver_ref / scalaVersion).value
+silicon_ref / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(silver_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(carbon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(silicon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 
@@ -84,22 +84,26 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.2",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
-    // libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
 
-    scalacOptions in ThisBuild += "-deprecation",
-    scalacOptions in ThisBuild += "-feature",
-    scalacOptions in ThisBuild += "-unchecked",
-    scalacOptions in ThisBuild ++= Seq("-Ypatmat-exhaust-depth", "off"),
+    ThisBuild / scalacOptions ++= Seq(
+      "-deprecation",
+      "-feature",
+      "-unchecked",
+      "-Ypatmat-exhaust-depth",
+      "off"
+    ),
 
-    javacOptions in Compile += "-Xlint:deprecation",
-    javacOptions in Compile += "-Xlint:unchecked",
-    javacOptions in Compile += "-deprecation",
+    Compile / javacOptions ++= Seq(
+      "-Xlint:deprecation",
+      "-Xlint:unchecked",
+      "-deprecation"
+    ),
 
-    javaOptions in (Compile, run) += "-J-Xss128M",
+    Compile / run / javacOptions += "-J-Xss128M",
     /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
     separated by "--". We instead want to accept only VerCors arguments, so we force "--" into the arguments. */
-    javaOptions in Universal ++= Seq("-J-Xss128M", "--"),
+    Universal / javacOptions ++= Seq("-J-Xss128M", "--"),
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
@@ -117,27 +121,27 @@ lazy val vercors: Project = (project in file("."))
 
     /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
     the classpath. That way the resources are not packed into the jar. */
-    unmanagedClasspath in Compile += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
 
     // Disable documentation generation
-    sources in (Compile, doc) := Seq(),
+    Compile / doc / sources := Seq(),
 
-    mappings in Universal += file("README.md") -> "README.md",
-    mappings in Universal ++= directory("examples"),
+    Universal / mappings ++= Seq(file("README.md") -> "README.md")
+      ++ directory("examples")
+      // Copy the resources not in the jar and add them to the classpath.
+      ++ directory(sourceDirectory.value / "main" / "universal" / "res"),
 
-    // Copy the resources not in the jar and add them to the classpath.
-    mappings in Universal ++= directory(sourceDirectory.value / "main" / "universal" / "res"),
     scriptClasspath := scriptClasspath.value :+ "../res",
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
-    discoveredMainClasses in Compile := Seq(),
-    mainClass in Compile := Some("vct.main.Main"),
+    Compile / discoveredMainClasses := Seq(),
+    Compile / mainClass := Some("vct.main.Main"),
 
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
     // repository that contains all classes and resources relevant for testing.
     // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
     // allows them to access the Sil test suite.
-    publishArtifact in(Test, packageBin) := true,
+    Test / packageBin / publishArtifact := true,
 
     cleanFiles += baseDirectory.value / "bin" / ".classpath",
   )

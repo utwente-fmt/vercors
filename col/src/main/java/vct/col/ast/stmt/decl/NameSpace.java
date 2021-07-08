@@ -139,7 +139,6 @@ public class NameSpace extends ASTDeclaration implements ASTSequence<NameSpace> 
     } else if (item==null) {
     } else {
       hre.lang.System.Warning("cannot insert %s into name space.",item);
-      //Abort("cannot insert %s into name space.",item.getClass());
     }
     return this;
   }

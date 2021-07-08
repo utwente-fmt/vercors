@@ -81,13 +81,11 @@ public class GhostLifter extends AbstractRewriter {
         if (s.location() instanceof NameExpression){
           NameExpression name=(NameExpression)s.location();
           //TODO: make kind checking work
-          //if (name.getKind()==NameExpressionKind.Label){
             if (arg_map.containsKey(name.getName())){
               Fail("%s is assigned twice",name.getName());
             }
             arg_map.put(name.getName(), rewrite(s.expression()));
             continue;
-          //}
         }
       }
       before.add(rewrite(n));
@@ -98,13 +96,11 @@ public class GhostLifter extends AbstractRewriter {
         if (s.expression() instanceof NameExpression){
           NameExpression name=(NameExpression)s.expression();
           //TODO: make kind checking work
-          //if (name.getKind()==NameExpressionKind.Label){
             if (arg_map.containsKey(name.getName())){
               Fail("%s is assigned twice",name.getName());
             }
             arg_map.put(name.getName(), rewrite(s.location()));
             continue;
-          //}
         }
       }
       after.add(rewrite(n));

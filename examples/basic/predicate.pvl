@@ -1,0 +1,7 @@
+//:: case OnlyPredicate
+//:: verdict Pass
+//:: tools silicon carbon
+
+class Pred {
+    resource f() = true;
+}
