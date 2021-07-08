@@ -1,10 +1,10 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: cases ForkPVL
+//:: cases ForkPVLPass
 //:: tools silicon
-//:: verdict Pass Test.run Test.test1
-//:: verdict Fail Test.test2 Test.test3
+//:: verdict Pass 
 
 class Test {
+  
+  Test() {}
 
 
   requires true;
@@ -27,20 +27,5 @@ class Test {
     join t1;
     assert idle(t1);    
   }
-
-  void test2(){
-    Test t1=new Test();
-    fork t1;
-    fork t1;
-    
-  }
-
-  void test3(){
-    Test t1=new Test();
-    join t1;    
-  }
-
 }
-
-
 
