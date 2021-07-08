@@ -3,21 +3,19 @@ package vct.main
 import hre.config.Configuration
 
 import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
-import java.util
 import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
-import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.features.{Feature}
 import vct.col.rewrite._
-import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
+import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
+import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateForkJoinMain, LocalProgConstructors, StructureCheck, TerminationCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, KernelInvocationToMethodInvocation, RewriteWithThen, StripUnusedExtern}
+import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters._
 
 object Passes {
   val DIAGNOSTIC: Seq[AbstractPass] = Seq(
@@ -35,10 +33,10 @@ object Passes {
     }, introduces=Set(), permits=Feature.ALL),
     SimplePass("printPVL", "print AST in PVL syntax", arg => {
       try {
-        val f = new File(Configuration.session_file.get());
+        val f = new File(Configuration.veymont_file.get());
         val b = f.createNewFile();
         if(!b) {
-          Debug("File %s already exists and is now overwritten", Configuration.session_file.get());
+          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get());
         }
         val out = new PrintWriter(new FileOutputStream(f));
         PVLSyntax.get().print(out,arg);
@@ -170,6 +168,7 @@ object Passes {
         features.ArgumentAssignment,
         features.PureImperativeMethods,
         features.Synchronized,
+        features.StringClass,
       ),
       removes=Set(features.NotJavaResolved),
       introduces=Feature.DEFAULT_INTRODUCE + features.Constructors + features.NotJavaEncoded,
@@ -441,11 +440,6 @@ object Passes {
       ),
       removes=Set(features.NoLockInvariantProof),
     ),
-    SimplePass(
-      "kernelInvocationToMethodInvocation", "Translate CUDA kernel invocation to regular method invocations",
-      KernelInvocationToMethodInvocation(_).rewriteAll(),
-      removes=Set(features.KernelInvocations),
-    )
   )
 
   val ONE_SHOT_FEATURE = Seq(
@@ -480,9 +474,9 @@ object Passes {
     ),
     SimplePass("inline",
       "inlineInlineMethods",
-      new InlinePredicatesRewriter(_).rewriteAll,
+      new InlinePredicatesAndFunctions(_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.Lemma - features.MethodAnnotations + features.TopLevelImplementedMethod + features.TopLevelMethod,
-      removes=Set(features.InlinePredicate)),
+      removes=Set(features.InlinePredicate, features.InlineFunction)),
     ErrorMapPass(
       "encodeMagicWands", "Encode magic wand proofs with abstract predicates",
       new WandEncoder(_, _).rewriteAll,
@@ -657,7 +651,15 @@ object Passes {
         features.NotJavaResolved,
         features.NotStandardized,
       ),
-      removes=Set(features.TypeExpressions),
+      removes=Set(features.TypeExpressions, features.KernelInvocations),
+      introduces=Feature.DEFAULT_INTRODUCE ++ Set(
+        features.ParallelBlocks,
+        features.GivenYields,
+        features.MemberOfRange,
+        features.QuantifierWithoutTriggers,
+        features.NestedQuantifiers,
+        features.BeforeAfter,
+      )
     ),
     SimplePass(
       "stringClassToPrimitive", "Translate the java String class to its internal type",
@@ -767,10 +769,6 @@ object Passes {
       removes=Set(features.MemberOfRange),
       introduces=Feature.EXPR_ONLY_INTRODUCE,
     ),
-    SimplePass("optimizeForChalice", "Optimize expressions for Chalice", arg => {
-      val trs = RewriteSystems.getRewriteSystem("chalice_optimize")
-      trs.normalize(arg)
-    }),
     ErrorMapPass("returnTypeToOutParameter",
       "Replace return value by out parameter.",
       new CreateReturnParameter(_, _).rewriteAll,
@@ -786,7 +784,6 @@ object Passes {
         features.NestedQuantifiers,
         features.InlineQuantifierPattern,
       )),
-    SimplePass("preprocessForChalice", "Pre processing for chalice", new ChalicePreProcess(_).rewriteAll),
   )
 
   val SIMPLIFYING: Seq[AbstractPass] = Seq(
@@ -800,6 +797,7 @@ object Passes {
         val trs = RewriteSystems.getRewriteSystem("simplify_quant_pass1")
         var res = trs.normalize(arg)
         res = RewriteSystems.getRewriteSystem("simplify_quant_pass2").normalize(res)
+        res = new SimplifyQuantifiedRelations(res).rewriteAll()
         res
       },
       permits=Feature.EXPR_ONLY_PERMIT,
@@ -813,7 +811,6 @@ object Passes {
       removes=Set(features.Summation),
       introduces=Feature.EXPR_ONLY_INTRODUCE + features.MemberOfRange,
     ),
-    SimplePass("simplifyQuantifiedIntegerRelations", "simplify quantified relational expressions", new SimplifyQuantifiedRelations(_).rewriteAll),
     SimplePass("reduceQuantifierNesting",
       "Removes nesting of quantifiers in chains of forall/starall and implies",
       new OptimizeQuantifiers(_).rewriteAll,
@@ -888,17 +885,11 @@ object Passes {
   )
 
   val OLD_OR_UNUSED: Seq[AbstractPass] = Seq(
-    SimplePass("encodePredicatesForChalice", "encode required and ensured permission as ghost arguments", new ExplicitPermissionEncoding(_).rewriteAll),
     SimplePass("dsinherit", "rewrite contracts to reflect inheritance, predicate chaining", arg => new DynamicStaticInheritance(arg).rewriteOrdered),
-    SimplePass("deriveModifies", "Derive modifies clauses for all contracts", arg => {
-      new DeriveModifies().annotate(arg)
-      arg
-    }),
     Pass("applyRewriteSystem", "Apply a term rewrite system", (arg, args) => {
       val trs = RewriteSystems.getRewriteSystem(args(0))
       trs.normalize(arg)
     }),
-    SimplePass("removeConstructorsForChalice", "???", new ConstructorRewriter(_).rewriteAll),
     Pass("generateQuantifierTriggersOld", "Add triggers to quantifiers if possible", (arg, args) => {
       var res = arg
       val `val` = Integer.valueOf(args(0))
@@ -930,6 +921,40 @@ object Passes {
     }),
   )
 
+  /*
+  VeyMont decomposes the global program from the input files into several local programs that can be executed in parallel.
+  The program from the input files has to adhere to the syntax of a 'global program'. Syntax violations result in VeyMont Fail messages.
+  The decomposition preserves the behaviour of the global program.
+  This implies that all functional properties proven (with VerCors) for the global program also hold for the local program.
+  Also, both global programs and their decomposed local programs are deadlock-free by construction.
+  Memory and thread safety can be checked by running VerCors on the file produced by VeyMont.
+  For more information on VeyMont, please check the VerCors Wiki.
+   */
+  val VEYMONT: Seq[AbstractPass] = Seq(
+    SimplePass("VeyMontStructCheck", "check that provided program conforms to VeyMont global program syntax restriction",
+      arg => { new StructureCheck(arg); arg }),
+    SimplePass("VeyMontTerminationCheck", "check absence non-terminating statements",
+      arg => { new TerminationCheck(arg); arg}),
+  //  SimplePass("VeyMontGlobalLTS", "generate LTS of global program",
+  //    arg => { new GenerateLTS(arg,true).generateLTSAndPrint(); arg }),
+    SimplePass("VeyMontDecompose", "generate local program classes from given global program",
+      new Decompose(_).addThreadClasses()),
+    SimplePass("VeyMontLocalLTS", "generate LTSs of local programs and check well-behavedness",
+      arg => { new GenerateLTS(arg,false).generateLTSAndCheckWellBehavedness(); arg }),
+    SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
+      new RemoveTaus(_).rewriteAll()),
+    SimplePass("removeEmptyBlocks", "remove empty blocks of parallel regions",
+      new RemoveEmptyBlocks(_).rewriteAll),
+    SimplePass("VeyMontBarrier", "generate barrier annotations",
+      new GenerateBarrier(_).rewriteAll),
+    SimplePass("VeyMontLocalProgConstr", "add constructors to the local program classes",
+      new LocalProgConstructors(_).addChansToConstructors()),
+    SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
+      new ChannelPerms(_).rewriteAll),
+    SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
+      new GenerateForkJoinMain(_).addStartThreadClass()),
+  )
+
   val BY_KEY: Map[String, AbstractPass] = (
     DIAGNOSTIC ++
     OO ++
@@ -941,5 +966,6 @@ object Passes {
     BACKEND_COMPAT ++
     SIMPLIFYING ++
     BACKENDS ++
+    VEYMONT ++
     OLD_OR_UNUSED).map(pass => (pass.key, pass)).toMap
 }

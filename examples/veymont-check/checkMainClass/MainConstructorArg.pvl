@@ -1,0 +1,11 @@
+//:: cases MainConstructorArg
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+
+	Main(int i) {
+	
+	}
+}

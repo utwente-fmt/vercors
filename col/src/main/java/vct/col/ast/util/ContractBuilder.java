@@ -93,6 +93,12 @@ public class ContractBuilder {
   public void yields(DeclarationStatement ... decls){
     for(DeclarationStatement d:decls) yields.add(d);
   }
+
+  public void clearGivenYields() {
+    given.clear();
+    yields.clear();
+  }
+
   public void ensures(ASTNode condition){
     ensures(condition,true);
   }
@@ -214,6 +220,12 @@ public class ContractBuilder {
     signals.add(signalsClause);
   }
 
+  public void signals(SignalsClause[] signalsClauses) {
+    for (SignalsClause sc : signalsClauses) {
+      signals(sc);
+    }
+  }
+
   public void requires(Iterable<ASTNode> collection) {
     for(ASTNode item:collection){
       requires(item); 
@@ -234,6 +246,5 @@ public class ContractBuilder {
     requires(e);
     ensures(e);
   }
-
 }
 

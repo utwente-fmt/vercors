@@ -1,0 +1,59 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases SimpleIfElse
+//:: suite session-generate
+//:: tools session
+//:: verdict Pass
+
+class Role {
+	
+	int x, left;
+	
+	ensures Perm(x, write) ** Perm(left, write);
+	ensures x == v;
+	Role (int v) {
+		x = v;
+	}
+	
+}
+
+
+class Main {
+	
+	Role a, b, c;
+	
+	ensures Perm(a,read) ** Perm(b,read) ** Perm(c,read);
+	ensures Perm(a.x, write) ** Perm(a.left, write);
+	ensures Perm(b.x, write) ** Perm(b.left, write);
+	ensures Perm(c.x, write) ** Perm(c.left, write);
+	ensures a.x == 0 && b.x == 8 && c.x == 4;
+	Main() {
+		a = new Role(0);
+		b = new Role(8);
+		c = new Role(4);
+	}
+
+	context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
+	context Perm(a.x, write) ** Perm(a.left, write);
+	context Perm(b.x, write) ** Perm(b.left, write);
+	context Perm(c.x, write) ** Perm(c.left, write);
+	requires a.x == 0 && b.x == 8 && c.x == 4;
+	ensures a.x == b.x && b.x == c.x; 
+	void run() {
+		
+		if(a.left != a.x && b.left != b.x && c.left != c.x) {
+			a.x = a.x + 1;
+		}
+		if(a.left != 2 && b.left != 3 && c.left != 4) {
+			b.x = 5;
+		} else {
+		    c.x = 7;
+		}
+	}
+
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+	
+}
+

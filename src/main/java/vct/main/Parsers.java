@@ -3,6 +3,7 @@ package vct.main;
 import hre.config.IntegerSetting;
 
 import java.io.File;
+import java.nio.file.Path;
 
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.parsers.Parser;
@@ -38,20 +39,21 @@ public class Parsers {
     return null;
   }
   
-  public static ProgramUnit parseFile(String name){
-    int dot=name.lastIndexOf('.');
-    if (dot<0) {
-      Fail("cannot deduce language of %s",name);
+  public static ProgramUnit parseFile(Path filePath) {
+    String name = filePath.toString();
+    int dot = name.lastIndexOf('.');
+    if (dot < 0) {
+      Fail("cannot deduce language of %s", filePath);
     }
-    String lang=name.substring(dot+1);
-    Progress("Parsing %s file %s",lang,name);
+    String lang = name.substring(dot + 1);
+    Progress("Parsing %s file %s", lang, filePath);
     Parser parser = Parsers.getParser(lang);
     if (parser == null) {
       Abort("Cannot detect language for extension \".%s\"", lang);
       return null;
     } else {
-      ProgramUnit unit=Parsers.getParser(lang).parse(new File(name));
-      Progress("Read %s succesfully",name);
+      ProgramUnit unit = Parsers.getParser(lang).parse(filePath.toFile());
+      Progress("Read %s successfully", name);
       return unit;
     }
   }

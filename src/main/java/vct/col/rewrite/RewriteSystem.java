@@ -119,7 +119,6 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
         return a.isName(dref.name());
       }
       return ref.get().match(a);
-      //throw new HREError("non-linear left-hand side");
     }
   }
 
@@ -616,7 +615,6 @@ public class RewriteSystem {
       if(d instanceof DeclarationStatement){
         DeclarationStatement decl=(DeclarationStatement)d;
         String name = decl.name();
-        //Warning("variable %s",name);
         vars.add(name);
       }
     }
@@ -626,7 +624,6 @@ public class RewriteSystem {
       }
       if (d instanceof Axiom){
         Axiom axiom=(Axiom)d;
-        //Warning("axiom %s",axiom.name);
         if (!axiom.rule().isa(StandardOperator.EQ)){
           Fail("not a == rule");
         }

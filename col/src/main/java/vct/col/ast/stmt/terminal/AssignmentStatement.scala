@@ -17,6 +17,6 @@ case class AssignmentStatement(val location:ASTNode, val expression:ASTNode) ext
   override def accept_simple[T](v:ASTVisitor[T]) = v.visit(this)
   override def accept_simple[T](m:ASTMapping[T]) = m.map(this)
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("location", "expression")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("location", "expression")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

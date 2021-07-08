@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 
 import javax.swing.JFrame;
@@ -22,7 +23,7 @@ public class FileContext {
   private ArrayList<Integer> offset=new ArrayList<Integer>();
   private final FileSwingContext gui;
   
-  public FileContext(String file,boolean use_gui){
+  public FileContext(Path filePath, boolean use_gui){
     if (use_gui) {
       gui=new FileSwingContext();  
     } else {
@@ -30,7 +31,7 @@ public class FileContext {
     }
     try {
       
-      BufferedReader in=new BufferedReader(new FileReader(file));
+      BufferedReader in=new BufferedReader(new FileReader(filePath.toFile()));
       String line;
       int pos=0;
       while((line=in.readLine())!=null){
@@ -45,7 +46,6 @@ public class FileContext {
             Debug("Couldn't insert initial text into text pane.");
           }
       }
-      //gui.paneScrollPane.scrollRectToVisible(aRect);
       in.close();
       if (use_gui) SwingUtilities.invokeLater(new Runnable() {
         public void run() {
@@ -61,7 +61,7 @@ public class FileContext {
         }
       });
     } catch (IOException e){
-      Abort("Could not create context for %s: %s",file,e);
+      Abort("Could not create context for %s: %s",filePath,e);
     }
     
   }
@@ -152,16 +152,4 @@ public class FileContext {
     }
   }
   
-  /* Code related to scrolling to a given location..
-      Rectangle s=gui.textPane.getBounds();
-      Rectangle r=gui.textPane.getVisibleRect();
-      Rectangle p=null;
-      try {
-        p = gui.textPane.modelToView(4000);
-        gui.textPane.scrollRectToVisible(p);
-      } catch (BadLocationException e) {
-        // TODO Auto-generated catch block
-      }
-   */
-
 }

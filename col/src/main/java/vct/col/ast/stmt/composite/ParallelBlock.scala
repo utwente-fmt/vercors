@@ -2,7 +2,7 @@ package vct.col.ast.stmt.composite
 
 import vct.col.ast.generic.ASTNode
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast.stmt.decl.{Contract, DeclarationStatement}
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
@@ -35,6 +35,6 @@ case class ParallelBlock (val label:String, val contract:Contract, val iters:Lis
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("iters", "contract", "deps", "block")
-  override def debugTreePropertyFields(): Iterable[String] = Seq("label")
+  override def debugTreeChildrenFields: Iterable[String] = Seq("iters", "contract", "deps", "block")
+  override def debugTreePropertyFields: Iterable[String] = Seq("label")
 }

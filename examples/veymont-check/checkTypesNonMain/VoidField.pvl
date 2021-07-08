@@ -1,0 +1,31 @@
+//:: cases VoidField
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role();
+		b = new Role();
+		c = new Role();
+	}
+	
+	void run() {
+	
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	void x;
+	
+}
+

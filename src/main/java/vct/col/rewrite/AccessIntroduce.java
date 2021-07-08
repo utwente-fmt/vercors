@@ -33,7 +33,6 @@ public class AccessIntroduce extends AbstractRewriter {
     }
     case Subscript:{
       super.visit(e);
-      //result=create.expression(StandardOperator.Get,result);
       break;
     }
     default:

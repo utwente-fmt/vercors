@@ -6,7 +6,7 @@ import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class TryWithResources(private[this] val resources: ArrayBuffer[DeclarationStatement],
                        val main: BlockStatement,

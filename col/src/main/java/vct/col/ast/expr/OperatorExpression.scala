@@ -1,6 +1,6 @@
 package vct.col.ast.expr
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import hre.ast.FileOrigin
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.Hole
@@ -59,6 +59,6 @@ case class OperatorExpression(val operator:StandardOperator, val args:List[ASTNo
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def isa(op:StandardOperator) = op == operator
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("args")
-  override def debugTreePropertyFields(): Iterable[String] = Seq("operator")
+  override def debugTreeChildrenFields: Iterable[String] = Seq("args")
+  override def debugTreePropertyFields: Iterable[String] = Seq("operator")
 }

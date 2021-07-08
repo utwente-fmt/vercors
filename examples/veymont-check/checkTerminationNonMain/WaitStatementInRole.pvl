@@ -1,0 +1,35 @@
+//:: cases WaitStatementInRole
+//:: suite session-check
+//:: tools session
+//:: verdict Pass
+class Main {
+
+	Role a;
+
+	Main() {
+		a = new Role(5);
+	}
+	
+	void run() {
+		
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+	
+	void doWait() {
+		wait this;
+	}
+
+}

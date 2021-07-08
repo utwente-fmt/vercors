@@ -1,21 +1,11 @@
 package hre.config;
 
-import hre.io.Message;
-import hre.io.MessageProcess;
 import hre.io.MessageProcessEnvironment;
-import hre.io.Paths;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static hre.lang.System.*;
 
@@ -105,9 +95,9 @@ public class Configuration {
     public static final BooleanSetting ansi = new BooleanSetting(false);
 
     /**
-     * The option for session type generation
+     * The option for veymont decomposition
      */
-    public static final StringSetting session_file=new StringSetting(null);
+    public static final StringSetting veymont_file =new StringSetting(null);
 
     /**
      * Add the VCT library options to the given option parser.
@@ -130,7 +120,14 @@ public class Configuration {
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
         clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
-        clops.add(session_file.getAssign("generate threads from session type"),"session");
+        clops.add(veymont_file.getAssign(
+                "VeyMont decomposes the global program from the input files into several local programs that can be executed in parallel. " +
+                        "The program from the input files has to adhere to the syntax of a 'global program'. Syntax violations result in VeyMont Fail messages. " +
+                        "The decomposition preserves the behaviour of the global program. " +
+                        "This implies that all functional properties proven (with VerCors) for the global program also hold for the local program. " +
+                        "Memory and thread safety can be checked by running VerCors on the file produced by VeyMont. " +
+                        "Also, both global programs and their decomposed local programs are deadlock-free by construction." +
+                        "For more information on VeyMont, please check the VerCors Wiki."),"veymont");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);
@@ -174,6 +171,12 @@ public class Configuration {
         return getFileOrAbort("/include");
     }
 
+    public static File[] getVeyMontFiles()  {
+        File bar = getFileOrAbort("/include/barrier.pvl");
+        File chan = getFileOrAbort("/include/channel.pvl");
+        return new File[] {bar,chan};
+    }
+
     public static File getSelfTestPath(String test) {
         return getFileOrAbort("/selftest/" + test);
     }
@@ -195,41 +198,19 @@ public class Configuration {
         return getZ3Path();
     }
 
-    public static File getDafnyZ3Path() {
-        return getZ3Path();
-    }
-
-    public static File getChaliceZ3Path() {
-        return getZ3Path();
-    }
-
     public static File getBoogiePath() {
-        File base = getFileOrAbort("/deps/boogie/2.4.1.10503");
+        File base = getFileOrAbort("/deps/boogie/1.0.0.0-carbon");
 
-        if (getOS() == OS.WINDOWS) {
-            return join(base, "Boogie.exe");
-        } else {
-            return join(base, "Boogie");
-        }
-    }
-
-    public static File getChalicePath() {
-        File base = getFileOrAbort("/deps/chalice/2013-12-17/");
-
-        if(getOS() == OS.WINDOWS) {
-            return join(base, "windows", "bin");
-        } else {
-            return join(base, "unix", "bin");
-        }
-    }
-
-    public static File getDafnyPath() {
-        File base = getFileOrAbort("/deps/dafny/1.9.6/");
-
-        if (getOS() == OS.WINDOWS) {
-            return join(base, "windows");
-        } else {
-            return join(base, "unix");
+        switch (getOS()) {
+            case WINDOWS:
+                return join(base,"Windows", "Boogie.exe");
+            case UNIX:
+                return join(base, "Linux", "Boogie");
+            case MAC:
+                return join(base, "Darwin", "Boogie");
+            default:
+                Abort("Could not find boogie for unknown architecture");
+                return null;
         }
     }
 
@@ -246,23 +227,6 @@ public class Configuration {
         env.setEnvironmentVar("BOOGIE_Z3_EXE", getBoogieZ3Path().getAbsolutePath());
         env.addPath(getBoogiePath().getAbsolutePath());
         env.addPath(getBoogieZ3Path().getAbsolutePath());
-        return env;
-    }
-
-    public static MessageProcessEnvironment getDafny() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("dafny");
-        env.setTemporaryWorkingDirectory();
-        env.addPath(getDafnyPath().getAbsolutePath());
-        env.addPath(getDafnyZ3Path().getParentFile().getAbsolutePath());
-        return env;
-    }
-
-    public static MessageProcessEnvironment getChalice() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("chalice");
-        env.setTemporaryWorkingDirectory();
-        env.addPath(getChalicePath().getAbsolutePath());
-        env.addPath(getBoogiePath().getAbsolutePath());
-        env.addPath(getChaliceZ3Path().getAbsolutePath());
         return env;
     }
 
@@ -313,58 +277,6 @@ public class Configuration {
         env.addArg("-cp", System.getProperty("java.class.path"));
         env.addArg("viper.api.SiliconVerifier");
         return env;
-    }
-
-    public static String getMonoVersion() {
-        // Start the process
-        Process process;
-        try {
-            process = Runtime.getRuntime().exec(new String[]{"mono", "--version"});
-        } catch (IOException e) {
-            return null;
-        }
-
-        // Wait until it terminates, or fail if it times out or if interrupted
-        try {
-            if (!process.waitFor(10, TimeUnit.MILLISECONDS)) {
-                return null;
-            }
-        } catch (InterruptedException e) {
-            // Re-set the flag; thread ends here.
-            Thread.currentThread().interrupt();
-            return null;
-        }
-
-        // Try to find a version string in the output
-        String output = new BufferedReader(new InputStreamReader(process.getInputStream())).lines().collect(Collectors.joining("\n"));
-        Pattern pattern = Pattern.compile("version (\\d+(\\.\\d+)*)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(output);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-
-        return null;
-    }
-
-    public static void checkCarbonRequirements() {
-        if (getOS() == OS.MAC || getOS() == OS.UNIX) {
-            // Prefer mono 5.x or mono 6.0
-            String monoVersion = Configuration.getMonoVersion();
-            if (monoVersion == null) {
-                Warning("Could not detect mono version. Only mono 5 and mono 6.0 is known to work.");
-            } else if (!(monoVersion.startsWith("5.") || monoVersion.startsWith("6.0"))) {
-                Warning("Mono version %s detected, which has not been tested. Mono 5 and mono 6.0 are known to work." +
-                        " Mono 4 and any version beyond and including mono 6.1 are untested.", monoVersion);
-            }
-        }
-
-        /*
-            Document:
-                The following error on linux:
-                  System.MissingFieldException: Field not found: Microsoft.Boogie.OutputPrinter Microsoft.Boogie.ExecutionEngine.printer Due to: Could not find field in class
-                was be resolved by installing the development libraries for mono. So on debian that is "mono-devel", probably
-                similarly named on ubuntu too.
-        */
     }
 
     public static OS getOS() {

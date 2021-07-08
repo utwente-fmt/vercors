@@ -1,6 +1,0 @@
-#!/bin/bash
-
-OS=`uname -s`
-
-exec $0.$OS "$@"
-

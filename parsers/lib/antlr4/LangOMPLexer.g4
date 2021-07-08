@@ -10,7 +10,7 @@ OMP_PRAGMA
 
 mode OMP;
 OMP_PRAGMA_END
-    : '\n' -> mode(DEFAULT_MODE), skip;
+    : ('\n' | '\r\n') -> mode(DEFAULT_MODE), skip;
 
 OMP_WHITESPACE
     : OMP_WS -> skip;

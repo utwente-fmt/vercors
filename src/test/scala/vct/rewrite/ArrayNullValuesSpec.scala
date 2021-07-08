@@ -10,7 +10,7 @@ import vct.col.util.AbstractTypeCheck
 
 class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=new AbstractTypeCheck(null, new ProgramUnit())) {
   def INT_TYPE = create primitive_type PrimitiveSort.Integer
-  def SEQ_TYPE = create class_type "seq"
+  def SEQ_TYPE = create primitive_type(PrimitiveSort.Sequence, INT_TYPE)
   def BOOL_TYPE = create primitive_type PrimitiveSort.Boolean
 
   def OPT_INT_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Option,

@@ -1,5 +1,6 @@
 package vct.col.ast.type;
 
+import hre.util.ScalaHelper;
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
 import vct.col.ast.expr.OperatorExpression;
@@ -13,7 +14,6 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.TypeMapping;
-import scala.collection.JavaConverters.*;
 
 import static hre.lang.System.Abort;
 import static hre.lang.System.Debug;
@@ -189,7 +189,6 @@ public final class PrimitiveType extends Type {
     }
     if (t instanceof PrimitiveType){
       PrimitiveType pt=(PrimitiveType)t;
-      //Warning("testing (%s/%s)",this.sort,pt.sort);
       if (equals(pt)) return true;
       switch(this.sort){
       case Void:
@@ -382,11 +381,11 @@ public final class PrimitiveType extends Type {
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("args"));
+    return ScalaHelper.toIterable("args");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("sort"));
+    return ScalaHelper.toIterable("sort");
   }
 }

@@ -17,7 +17,7 @@ import vct.col.ast.stmt.terminal.{AssignmentStatement, ReturnStatement}
 import vct.col.rewrite.{AddTypeADT, IntroExcVar, PVLEncoder}
 import vct.parsers.rewrite.InferADTTypes
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -170,10 +170,21 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       }
     }
 
-    if(isPure(m) && isInline(m))
-      addFeature(InlinePredicate, m)
-    if(isPure(m) && m.getBody.isInstanceOf[BlockStatement])
-      addFeature(PureImperativeMethods, m)
+    if(isPure(m)) {
+      if(isInline(m)) {
+        if (m.getReturnType.isPrimitive(PrimitiveSort.Resource)) {
+          addFeature(InlinePredicate, m)
+        } else if (!m.getReturnType.isPrimitive(PrimitiveSort.Process)) {
+          addFeature(InlineFunction, m)
+        }
+      }
+      if(m.getBody.isInstanceOf[BlockStatement])
+        addFeature(PureImperativeMethods, m)
+    }
+
+    if(m.kind == Method.Kind.Pure && m.getReturnType.isPrimitive(PrimitiveSort.Resource))
+      addFeature(NotStandardized, m)
+
     if(m.kind == Method.Kind.Constructor)
       addFeature(Constructors, m)
     if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && !isPure(m))
@@ -457,7 +468,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(par: OMPForSimd): Unit = { super.visit(par); addFeature(OpenMP, par) }
   override def visit(fr: OMPFor): Unit = { super.visit(fr); addFeature(OpenMP, fr) }
 
-  override def visit(s: stmt.composite.ParallelAtomic): Unit = { super.visit(s); addFeature(ParallelAtomic, s) }
+  override def visit(s: stmt.composite.ParallelAtomic): Unit = {
+    super.visit(s)
+    visitBeforeAfter(s)
+    addFeature(ParallelAtomic, s)
+  }
   override def visit(s: ParallelBarrier): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
   override def visit(s: ParallelBlock): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
   override def visit(s: ParallelInvariant): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
@@ -608,6 +623,7 @@ object Feature {
     GivenYields,
     StaticFields,
     InlinePredicate,
+    InlineFunction,
     KernelClass,
     AddrOf,
     OpenMP,
@@ -736,6 +752,7 @@ object Feature {
     GivenYields,
     StaticFields,
     InlinePredicate,
+    InlineFunction,
     KernelClass,
     AddrOf,
     OpenMP,
@@ -836,6 +853,7 @@ case object ADTOperator extends ScannableFeature
 case object GivenYields extends ScannableFeature
 case object StaticFields extends ScannableFeature
 case object InlinePredicate extends ScannableFeature
+case object InlineFunction extends ScannableFeature
 case object KernelClass extends ScannableFeature
 case object AddrOf extends ScannableFeature
 case object OpenMP extends ScannableFeature

@@ -5,7 +5,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{NameSpace, ProgramUnit}
 import vct.col.ast.util.{ExternalClassLoader, TypeMapping}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
  * Subclass of ASTNode meant for holding all type expressions.
