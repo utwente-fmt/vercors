@@ -1,9 +1,7 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: case TestFuturePerms
+//:: case TestFuturePermsPass
 //:: tool silicon
 //:: option --check-history
-//:: verdict Pass any
-//:: verdict Fail Test.bad1 Test.bad2 Test.bad3 Test.bad4 Test.bad5 Test.bad6 Test.bad7
+//:: verdict Pass
 
 class `Future` {
   int x;
@@ -27,42 +25,6 @@ class Test {
     f.x = 1;
   }
   
-  requires HPerm(f.x,1);
-  void bad1(`Future` f){
-    f.x = 1;
-  }
-  
-  requires Perm(f.x,1);
-  void bad2(`Future` f){
-    assert HPerm(f.x,1);
-  }
-  
-  requires Perm(f.x,1);
-  void bad3(`Future` f){
-    assert APerm(f.x,1);
-  }
-  
-  requires HPerm(f.x,1);
-  void bad4(`Future` f){
-    assert Perm(f.x,1);
-  }
-  
-  requires HPerm(f.x,1);
-  void bad5(`Future` f){
-    assert APerm(f.x,1);
-  }
-  
-  requires APerm(f.x,1);
-  void bad6(`Future` f){
-    assert Perm(f.x,1);
-  }
-  
-  requires APerm(f.x,1);
-  void bad7(`Future` f){
-    assert HPerm(f.x,1);
-  }
-
-
   requires Perm(f.x,1);
   requires t==f.x+1;
   ensures HPerm(f.x,1) ** Future(f,1,f.step()) ** AbstractState(f,x==t);
