@@ -11,6 +11,8 @@ import java.nio.file.{FileVisitOption, Files, Paths}
 import scala.collection.mutable
 import scala.io.Source
 import scala.jdk.CollectionConverters._
+import org.jacoco.cli;
+import org.jacoco.agent;
 
 sealed trait CaseFilter {
   def addOptions(parser: OptionParser): Unit
@@ -193,7 +195,8 @@ object CommandLineTesting {
           // Tests are instrumented at runtime by the jacoco java vm agent
           val jacocoArg = if (enableCoverage.get()) {
             val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_$name.exec"
-            Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=destfile=$jacocoOutputFilePath,includes=vct.*")
+            val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*,excludes=vct.antlr4.generated.*"
+            Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=$options")
           } else {
             null
           }

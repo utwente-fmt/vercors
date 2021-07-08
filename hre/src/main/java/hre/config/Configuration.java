@@ -6,6 +6,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static hre.lang.System.*;
 
@@ -218,7 +221,17 @@ public class Configuration {
      * Computes the path of the jacoco agent included with VerCors. The agent is used for instrumenting an actual java process.
      */
     public static File getJacocoAgentPath() {
-        return getFileOrAbort("/deps/jacoco/jacocoagent.jar");
+        List<String> pathsCandidates = Arrays.stream(System.getProperty("java.class.path")
+                .split(String.valueOf(File.pathSeparatorChar)))
+                .filter(cp -> cp.contains("org.jacoco.agent"))
+                .collect(Collectors.toList());
+
+        if (pathsCandidates.size() > 1) {
+            throw Failure("Multiple candidates found for jacoco agent in classpath");
+        } else if (pathsCandidates.size() == 0) {
+            throw Failure("Jacoco agent not found in classpath");
+        }
+        return new File(pathsCandidates.get(0));
     }
 
     /**
@@ -226,8 +239,19 @@ public class Configuration {
      * files from .exec traces, as produced by the jacoco agent.
      */
     public static MessageProcessEnvironment getJacocoCli() throws IOException {
+        List<String> pathsCandidates = Arrays.stream(System.getProperty("java.class.path")
+                .split(String.valueOf(File.pathSeparatorChar)))
+                .filter(cp -> cp.contains("org.jacoco.cli"))
+                .collect(Collectors.toList());
+
+        if (pathsCandidates.size() > 1) {
+            throw Failure("Multiple candidates found for Jacoco CLI in classpath");
+        } else if (pathsCandidates.size() == 0) {
+            throw Failure("Jacoco CLI not found in classpath");
+        }
+
         MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
-        File jacocoCliPath = getFileOrAbort("/deps/jacoco/jacococli.jar");
+        File jacocoCliPath = new File(pathsCandidates.get(0));
         env.addArg("-jar", jacocoCliPath.getAbsolutePath());
         return env;
     }
