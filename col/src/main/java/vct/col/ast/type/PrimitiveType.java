@@ -189,7 +189,6 @@ public final class PrimitiveType extends Type {
     }
     if (t instanceof PrimitiveType){
       PrimitiveType pt=(PrimitiveType)t;
-      //Warning("testing (%s/%s)",this.sort,pt.sort);
       if (equals(pt)) return true;
       switch(this.sort){
       case Void:

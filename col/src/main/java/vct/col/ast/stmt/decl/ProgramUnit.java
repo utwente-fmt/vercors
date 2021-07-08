@@ -90,22 +90,7 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
   private HashMap<ClassName,Method> adt_map=new HashMap<ClassName,Method>();
   
   private HashMap<ClassName,Method> proc_map=new HashMap<ClassName,Method>();
-  
-  /*
-  public void addClass(ClassName name,ASTClass cl){
-    classes.put(name,cl);
-    cl.attach(this,name);
-  }
-  
-  public void addClass(String name[],ASTClass cl){
-    addClass(new ClassName(name),cl);
-  }
 
-  public void addClass(ClassType type,ASTClass cl){
-    addClass(type.getNameFull(),cl);
-  }
-  */
-  
   /**
    * Create an empty program unit.
    */

@@ -80,12 +80,9 @@ public class CSyntax extends Syntax{
     
     syntax.addPrimitiveType(PrimitiveSort.Double,"double");
     syntax.addPrimitiveType(PrimitiveSort.Integer,"int");
-    //syntax.addPrimitiveType(Fraction,"frac");
     syntax.addPrimitiveType(PrimitiveSort.Long,"long");
     syntax.addPrimitiveType(PrimitiveSort.Void,"void");
-    //syntax.addPrimitiveType(Resource,"resource");
     syntax.addPrimitiveType(PrimitiveSort.Boolean,"bool");
-    //syntax.addPrimitiveType(Class,"classtype");
     syntax.addPrimitiveType(PrimitiveSort.Char,"char");
     syntax.addPrimitiveType(PrimitiveSort.Float,"float");
     

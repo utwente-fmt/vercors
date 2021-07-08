@@ -65,7 +65,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
     }
     Origin o=node.getOrigin();
     if (o==null){
-      //throw new Error("found "+node.getClass()+" without origin");
       o=missing;
     }
     out.enter(node.getOrigin());
@@ -153,7 +152,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
   }
 
   public void visit(MethodInvokation e){
-    //boolean statement=!in_expr;
     setExpr();
     if (e.object()!=null) {
       // TODO: manage precedence properly.

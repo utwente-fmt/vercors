@@ -7,6 +7,7 @@ import java.util.stream.Stream;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.jdk.CollectionConverters;
+import scala.reflect.internal.Trees;
 import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -217,18 +218,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Objects.requireNonNull(cl, () -> String.format("could not find class %s used in %s", object_type.getFullName(), e));
       m=cl.find(e.method(), object_type, type, JavaASTClassLoader.INSTANCE(), currentNamespace);
       if (m==null) {
-        /*
-        String parts[]=e.method.split("_");
-        if (parts.length==3 && parts[1].equals("get")){
-          // TODO: check if parts[0] is a predicate.
-          DeclarationStatement field=cl.find_field(parts[2]);
-          if (field!=null) {
-            Warning("assuming %s is implicit getter function",e.method);
-            e.setType(field.getType());
-          }
-          return;
-        }
-        */
         String tmp="";
         if (N>0){
           tmp=type[0].toString();
@@ -330,115 +319,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       }
     }
 
-    /*
-    //m=source().find_procedure(e.method);
-    if (m!=null){
-      e.setDefinition(m);
-      Type t=m.getReturnType();
-      e.setType(t);
-      int N=m.getArity();
-      if (e.getArity()!=N){
-        Fail("different number of arguments for %s (%d instead of %d)",m.name,e.getArity(),N);
-      }
-      for(int i=0;i<N;i++){
-        Type ti=m.getArgType(i);
-        ASTNode arg=e.getArg(i);
-        if (!ti.supertypeof(source(), arg.getType())){
-          Fail("argument type %d incompatible",i);
-        }
-        if (ti.isPrimitive(PrimitiveType.Sort.Fraction)||
-            ti.isPrimitive(PrimitiveType.Sort.ZFraction)){
-          force_frac(arg);
-        }
-      }
-      return;
-    }
-
-    if (e.object==null){
-      if (e.dispatch!=null){
-        // This is a constructor invokation.
-        ClassType t=e.dispatch;
-        ASTClass cl=source().find(t.getNameFull());
-        if (cl==null){
-          Fail("class %s not found",t);
-        }
-        ASTNode args[]=e.getArgs();
-        Type c_args[]=new Type[args.length];
-        for(int i=0;i<args.length;i++){
-          c_args[i]=args[i].getType();
-          if(c_args[i]==null){
-            Fail("argument %d is not typed",i);
-          }
-        }
-        m=cl.get_constructor(source(),c_args);
-        if(m==null){
-          Fail("Could not find constructor");
-        }
-        e.setType(t);
-        e.setDefinition(m);
-        if (e.get_before()!=null) {
-          enter_before(e);
-          e.get_before().accept(this);
-          leave_before(e);
-        }
-        if (e.get_after()!=null) {
-          enter_after(e);
-          e.get_after().accept(this);
-          leave_after(e);
-        }
-        return;
-      }
-      Abort("unresolved method invokation (%s) at "+e.getOrigin(),e.method);
-    }
-    if (e.object.getType()==null) Abort("object has no type at %s",e.object.getOrigin());
-    if (!(e.object.getType() instanceof ClassType)) Abort("invokation on non-class");
-    ClassType object_type=(ClassType)e.object.getType();
-    int N=e.getArity();
-    for(int i=0;i<N;i++){
-      if (e.getArg(i).labels()>0) {
-        for(int j=i+1;j<N;j++){
-          if (e.getArg(j).labels()==0) Fail("positional argument following named argument");
-        }
-        N=i;
-        break;
-      }
-    }
-    Type type[]=new Type[N];
-    for(int i=0;i<N;i++){
-      type[i]=e.getArg(i).getType();
-      if (type[i]==null) Abort("argument %d has no type.",i);
-    }
-    ASTClass cl=source().find(object_type.getNameFull());
-    if (cl==null) Fail("could not find class %s",object_type.getFullName());
-    m=cl.find(e.method,object_type,type);
-    while(m==null && cl.super_classes.length>0){
-      cl=source().find(cl.super_classes[0].getNameFull());
-      m=cl.find(e.method,object_type,type);
-    }
-    if (m==null){
-      m=source().find_adt(e.method);
-    }
-    if (m==null) {
-      String parts[]=e.method.split("_");
-      if (parts.length==3 && parts[1].equals("get")){
-        // TODO: check if parts[0] is a predicate.
-        DeclarationStatement field=cl.find_field(parts[2]);
-        if (field!=null) {
-          Warning("assuming %s is implicit getter function",e.method);
-          e.setType(field.getType());
-        }
-        return;
-      }
-      String tmp="";
-      if (N>0){
-        tmp=type[0].toString();
-        for(int i=1;i<N;i++){
-          tmp=tmp+","+type[i].toString();
-        }
-      }
-      Fail("could not find method %s(%s) in class %s at %s",e.method,tmp,object_type.getFullName(),e.getOrigin());
-    }
-        */
     switch(m.kind){
     case Constructor:
       if (e.dispatch()!=null){
@@ -1176,9 +1056,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         break;
       case Values: {
         Type t = e.arg(0).getType();
-//      if (!t.isPrimitive(PrimitiveSort.Array)){
-//
-//      }
         if (t.isPrimitive(PrimitiveSort.Option)) {
           t = (Type) t.firstarg();
         }
@@ -1214,10 +1091,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
 
         if (tt[1].supertypeof(source(), tt[0])) {
-          //Warning("ITE type %s",tt[1]);
           e.setType(tt[1]);
         } else if (tt[0].supertypeof(source(), tt[1])) {
-          //Warning("ITE type %s",tt[0]);
           e.setType(tt[0]);
         }
         if (tt[0].isPrimitive(PrimitiveSort.ZFraction) || tt[0].isPrimitive(PrimitiveSort.Fraction)) {
@@ -1773,37 +1648,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
       }
     }
-//    if (v.type()==null){
-//      Abort("Build without type argument");
-//    }
-//    Type t=v.type();
-//    v.setType(t);
-//    if (t instanceof ClassType && !((ClassType) t).getFullName().equals("VCTArray")){
-//      Abort("constructor encoded as struct value");
-//    } else {
-//      if (t.hasArguments()){
-//        Fail("type without arguments: %s in %s",t,v);
-//      }
-//      t=(Type)t.firstarg();
-//
-//      if(t.isPrimitive(PrimitiveSort.Cell)) {
-//        t = (Type) t.firstarg();
-//      }
-//
-//      for (int i = 0; i < v.valuesLength(); i++) {
-//        Type tt[1]=v.value(i).getType();
-//        if (tt[1]==null){
-//          Fail("untyped build argument %d",i);
-//        }
-//        if(t.equals(tt[1]) || t.supertypeof(source(), tt[1]) || (t instanceof ClassType && ((ClassType) t).getFullName().equals("Ref"))) {
-//          if(t.isPrimitive(PrimitiveSort.Option)) {
-//            v.value(i).setType(t);
-//          }
-//        } else {
-//          Abort("cannot use %s to initialize %s", tt[1], t);
-//        }
-//      }
-//    }
   }
 
   private void check_location(ASTNode arg,String what) {
@@ -1972,7 +1816,9 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
   public void visit(ReturnStatement s){
     super.visit(s);
-    // TODO: check expression against method type.
+    if (s.getExpression() != null) {
+      check_loc_val(current_method().getReturnType(), s.getExpression(), "Method return type (%s) and type of returned value (%s) do not match.");
+    }
   }
   public void visit(ASTClass c){
     super.visit(c);
@@ -2008,7 +1854,6 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   @Override
   public void visit(BindingExpression e){
     super.visit(e);
-    //result=create.binder(e.binder, rewrite(e.getDeclarations()), rewrite(e.select), rewrite(e.main));
     Type t;
     if (e.select()!=null){
       t=e.select().getType();
