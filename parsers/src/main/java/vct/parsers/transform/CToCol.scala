@@ -435,8 +435,8 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case PrimaryExpression0(inner) => convert(inner)
     case PrimaryExpression1(name) => name match {
       case ClangIdentifier0(specInSpec) => convert(specInSpec)
-      case ClangIdentifier1(name) => CLocal(name)
-      case ClangIdentifier2(_) => CLocal(convert(name))
+      case ClangIdentifier1(name) => Local(new UnresolvedRef(name))
+      case ClangIdentifier2(_) => Local(new UnresolvedRef(convert(name)))
     }
     case PrimaryExpression2(const) => Integer.parseInt(const)
     case PrimaryExpression3(_) => ??(expr)

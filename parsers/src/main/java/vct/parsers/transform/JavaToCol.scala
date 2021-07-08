@@ -907,11 +907,11 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   }
 
   def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration] = decl match {
-    case ValEmbedClassDeclarationBlock0(_, decls, _) => decls.flatMap(convert(_))
-    case ValEmbedClassDeclarationBlock1(decls) => decls.flatMap(convert(_))
+    case ValEmbedClassDeclarationBlock0(_, decls, _) => decls.flatMap(convert(_, x => x))
+    case ValEmbedClassDeclarationBlock1(decls) => decls.flatMap(convert(_, x => x))
   }
 
-  def convert[T](implicit decl: ValClassDeclarationContext, transform: ClassDeclaration => T = x => x): Seq[T] = decl match {
+  def convert[T](implicit decl: ValClassDeclarationContext, transform: ClassDeclaration => T): Seq[T] = decl match {
     case ValClassDeclaration0(modifiers, _, name, _, args, _, definition) =>
       Seq(withModifiers(modifiers, mods => {
         transform(new InstancePredicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
@@ -921,13 +921,13 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValClassDeclaration1(contract, modifiers, _, t, name, _, args, _, definition) =>
       Seq(withContract(contract, c => {
         withModifiers(modifiers, m => {
-          new InstanceFunction(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
+          transform(new InstanceFunction(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
             c.consumeApplicableContract(), m.consume(m.inline))(
             blameProvider(decl))(
-            SourceNameOrigin(convert(name), origin(decl)))
+            SourceNameOrigin(convert(name), origin(decl))))
         })
       }))
-    case ValClassDeclaration2(_, decl) => convert(decl)
+    case ValClassDeclaration2(_, decl) => convert(decl).map(transform)
   }
 
   def convert(implicit decl: ValModelDeclarationContext): ModelDeclaration = decl match {

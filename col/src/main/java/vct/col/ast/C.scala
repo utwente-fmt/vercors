@@ -73,8 +73,8 @@ case class CGlobalDeclaration(decl: CDeclaration)(implicit val o: Origin)
 
 sealed trait CStatement extends ExtraStatement
 case class CDeclarationStatement(decl: CDeclaration)(implicit val o: Origin) extends CStatement with NoCheck
-case class CLabeledStatement(label: LabelDecl, statement: Statement)(implicit val o: Origin) extends CStatement with NoCheck
-case class CGoto(label: Ref[LabelDecl])(implicit val o: Origin) extends CStatement with NoCheck
+case class CLabeledStatement(label: String, statement: Statement)(implicit val o: Origin) extends CStatement with NoCheck
+case class CGoto(label: String)(implicit val o: Origin) extends CStatement with NoCheck
 
 case class GpgpuLocalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin)
   extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with CStatement
@@ -86,13 +86,13 @@ sealed trait CExpr extends ExtraExpr
 case class CInvocation(applicable: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
   override def t: Type = TSkip()
 }
-case class CStructAccess(struct: Expr, field: Ref[Declaration])(implicit val o: Origin) extends CExpr with NoCheck {
+case class CStructAccess(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
   override def t: Type = TSkip()
 }
-case class CStructDeref(struct: Expr, field: Ref[Declaration])(implicit val o: Origin) extends CExpr with NoCheck {
+case class CStructDeref(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
   override def t: Type = TSkip()
 }
-case class GpgpuCudaKernelInvocation(kernel: Ref[CAbstractGlobalDeclaration], blocks: Expr, threads: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
+case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
   override def t: Type = TSkip()
 }
 

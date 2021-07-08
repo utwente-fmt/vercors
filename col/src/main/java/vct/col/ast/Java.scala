@@ -25,15 +25,16 @@ sealed trait JavaGlobalDeclaration extends ExtraGlobalDeclaration
 case class JavaNamespace(pkg: Option[JavaName], imports: Seq[JavaImport], decls: Seq[GlobalDeclaration])(implicit val o: Origin)
   extends JavaGlobalDeclaration with NoCheck
 
+sealed trait JavaClassOrInterface
 case class JavaClass(name: String, modifiers: Seq[JavaModifier], typeParams: Seq[Variable],
                      ext: Type, imp: Seq[Type],
                      decls: Seq[ClassDeclaration])
                     (implicit val o: Origin)
-  extends JavaGlobalDeclaration with NoCheck
+  extends JavaGlobalDeclaration with NoCheck with JavaClassOrInterface
 case class JavaInterface(name: String, modifiers: Seq[JavaModifier], typeParams: Seq[Variable],
                          ext: Seq[Type], decls: Seq[ClassDeclaration])
                         (implicit val o: Origin)
-  extends JavaGlobalDeclaration with NoCheck
+  extends JavaGlobalDeclaration with NoCheck with JavaClassOrInterface
 
 sealed trait JavaClassDeclaration extends ExtraClassDeclaration
 case class JavaSharedInitialization(isStatic: Boolean, initialization: Statement)(implicit val o: Origin)
@@ -71,16 +72,27 @@ case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: O
   override def superTypeOf(other: Type): Boolean = ???
 }
 
-sealed trait JavaExpr extends ExtraExpr {
-  override def t: Type = TSkip()
+sealed trait JavaExpr extends ExtraExpr
+case class JavaLiteralArray(exprs: Seq[Expr])(implicit val o: Origin) extends JavaExpr with NoCheck {
+  override def t: Type = ???
 }
 
-case class JavaLiteralArray(exprs: Seq[Expr])(implicit val o: Origin) extends JavaExpr with NoCheck
 case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: String, arguments: Seq[Expr])
-                         (val blame: PreconditionBlame)(implicit val o: Origin) extends JavaExpr with NoCheck
+                         (val blame: PreconditionBlame)(implicit val o: Origin) extends JavaExpr with NoCheck {
+  var ref: Option[JavaMethod] = None
+  override def t: Type = ref.get.returnType
+}
+
 case class JavaNewClass(args: Seq[Expr], typeArgs: Seq[Type], name: Type)
-                       (val blame: PreconditionBlame)(implicit val o: Origin) extends JavaExpr with NoCheck
+                       (val blame: PreconditionBlame)(implicit val o: Origin) extends JavaExpr with NoCheck {
+  override def t: Type = name
+}
 case class JavaNewLiteralArray(baseType: Type, dims: Int, initializer: Expr)(implicit val o: Origin)
-  extends JavaExpr with NoCheck
+  extends JavaExpr with NoCheck {
+  override def t: Type = ???
+}
+
 case class JavaNewDefaultArray(baseType: Type, specifiedDims: Seq[Expr], moreDims: Int)(implicit val o: Origin)
-  extends JavaExpr with NoCheck
+  extends JavaExpr with NoCheck {
+  override def t: Type = ???
+}
