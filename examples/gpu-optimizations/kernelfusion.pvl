@@ -1,4 +1,4 @@
-class HostSyncRemedyOpt1{
+class Case13 {
     requires a != null;
     requires b != null;
     context_everywhere a.length == 16;
@@ -6,17 +6,22 @@ class HostSyncRemedyOpt1{
     void method(int[] a, int[] b) {
         gpuopt fuse 1 1;
         par
-
         kernel1 (int tid = 0 .. a.length)
-        context Perm(a[tid], 3\4);
-        context Perm(b[tid], 3\4);
-        context tid < a.length-1 ==> Perm(a[tid+1], 1);
-        context tid == a.length-1 ==> Perm(a[0], 1);
+        requires Perm(a[tid], 1\2);
+        requires tid < a.length-1 ==> Perm(a[tid+1], 1\4);
+        requires tid == a.length-1 ==> Perm(a[0], 1\4);
+        requires a[tid] == 0;
+        ensures Perm(a[tid], 3\4);
+        context a != null;
+        ensures a[tid] == 1;
         {}
 
         par kernel2 (int tid = 0 .. a.length)
-        context tid < a.length-1 ==> Perm(a[tid+1], 1);
-        context tid > 0 ==> Perm(b[tid-1], 1);
+        requires Perm(a[tid], 1\2);
+        requires tid < a.length-1 ==> Perm(a[tid+1], 1\4);
+        requires tid == a.length-1 ==> Perm(a[0], 1\4);
+        ensures Perm(a[tid], 3\4);
+        requires a[tid] == 1;
         {}
   }
 }
