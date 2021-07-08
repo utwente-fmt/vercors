@@ -122,11 +122,6 @@ class KernelBodyRewriter extends AbstractRewriter {
         kcb.given(rewrite(c.given));
         kcb.yields(rewrite(c.yields));
         BlockStatement body = (BlockStatement) rewrite(m.getBody());
-        //body.prepend(create.field_decl("opencl_tid",create.primitive_type(Sort.Integer),
-        //    plus(mult(create.local_name("opencl_gid"),create.local_name("opencl_gsize")),create.local_name("opencl_lid"))));
-        //icb.given(create.field_decl("opencl_tid",create.primitive_type(Sort.Integer)));
-        //icb.requires(create.expression(StandardOperator.EQ,
-        //    create.local_name("opencl_tid"),plus(mult(create.local_name("opencl_gid"),create.local_name("opencl_gsize")),create.local_name("opencl_lid"))));
         DeclarationStatement[] iters = new DeclarationStatement[]{inner_decl};
         body = create.block(create.region(null, create.parallel_block("group_block", icb.getContract(), iters, body)));
         iters = new DeclarationStatement[]{outer_decl};

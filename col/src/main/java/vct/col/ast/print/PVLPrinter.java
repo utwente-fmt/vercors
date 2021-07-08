@@ -45,7 +45,6 @@ public class PVLPrinter extends AbstractPrinter{
             nextExpr();
             lbl.accept(this);
             out.printf(":");
-            //out.printf("[");
         }
         if (node.annotated()) for(ASTNode ann:node.annotations()) {
             if (ann==null){
@@ -296,12 +295,10 @@ public class PVLPrinter extends AbstractPrinter{
             case Goto:
                 out.print("goto ");
                 s.args[0].accept(this);
-                //out.println(";");
                 break;
             case Label:
                 out.print("label ");
                 s.args[0].accept(this);
-                //out.println(";");
                 break;
             case With:
                 out.print("WITH");
@@ -568,7 +565,6 @@ public class PVLPrinter extends AbstractPrinter{
             }
             if (item.isStatic()){
                 if (item instanceof DeclarationStatement) out.printf("static ");
-                // else out.println("/* static */");
             }
             item.accept(this);
             out.println("");
@@ -648,9 +644,7 @@ public class PVLPrinter extends AbstractPrinter{
         if (m.getKind()==Method.Kind.Pure){
             out.printf("pure ");
         }
-        if (m.getKind()==Method.Kind.Constructor){
-            // out.printf("/*constructor*/ ");
-        } else {
+        if (m.getKind()!=Method.Kind.Constructor){
             result_type.accept(this);
             out.printf(" ");
         }
@@ -728,7 +722,6 @@ public class PVLPrinter extends AbstractPrinter{
                 out.lnprintf(";");
             }
         }
-        //}
     }
 
     private boolean self_terminating(ASTNode s) {

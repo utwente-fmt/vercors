@@ -766,7 +766,6 @@ public class ASTFactory<E> implements FrameControl {
    * Create an instantiation of a new object and invoke a constructor on it.
    */
   public MethodInvokation new_object(ClassType type,ASTNode ... args){
-    //return expression(StandardOperator.Build,type,args);
     return invokation(null,type,Method.JavaConstructor, args);
   }
   
