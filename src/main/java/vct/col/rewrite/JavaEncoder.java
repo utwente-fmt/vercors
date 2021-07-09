@@ -363,6 +363,7 @@ public class JavaEncoder extends AbstractRewriter {
           currentTargetClass.add(res);         
         } else {
           Method dynamicMethod = create.method_kind(kind, returns, signals, initial_contract, name, args, varArgs, null);
+          dynamicMethod.setFlag(ASTFlags.FINAL, true);
           dynamicMethod.copyAnnotations(m, copy_rw);
           currentTargetClass.add(dynamicMethod);
 
