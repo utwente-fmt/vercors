@@ -57,14 +57,8 @@ public class VectorEncode extends AbstractRewriter {
   
   private HashSet<Pair<Op,Type>> ops=new HashSet<>();
   private HashMap<String, Type> locals;
-  
-  //static ProgramUnit vector_lib;
-  //static {
-  //  File file=new File(new File(Configuration.getHome().toFile(),"config"),"vectorlib.pvl");
-  //  vector_lib=Parsers.getParser("pvl").parse(file);
-  //}
 
-  public VectorEncode(ProgramUnit source) {
+    public VectorEncode(ProgramUnit source) {
     super(source);
   }
   
@@ -91,7 +85,7 @@ public class VectorEncode extends AbstractRewriter {
       cb.context(create.expression(StandardOperator.LTE,create.constant(0),create.local_name("from")));
       cb.context(create.expression(StandardOperator.LTE,create.local_name("from"),create.local_name("upto")));
       cb.context(create.expression(StandardOperator.LTE,create.local_name("upto"),
-          create.dereference(create.local_name("ar"), "length")));
+          create.array_length_dereference(create.local_name("ar"))));
       ASTNode range=create.expression(StandardOperator.And,
           create.expression(StandardOperator.LTE,create.local_name("from"),create.local_name("i")),
           create.expression(StandardOperator.LT,create.local_name("i"),create.local_name("upto"))

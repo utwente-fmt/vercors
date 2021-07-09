@@ -77,11 +77,11 @@ public enum ASTReserved {
    */
   FullPerm,
   /**
-   * Full Write Permission
+   * Read Permission
    */
   ReadPerm,
   /**
-   * Full Write Permission
+   * Zero Permission
    */
   NoPerm,
   /**

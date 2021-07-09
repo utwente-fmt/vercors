@@ -171,8 +171,13 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     }
 
     if(isPure(m)) {
-      if(isInline(m))
-        addFeature(InlinePredicate, m)
+      if(isInline(m)) {
+        if (m.getReturnType.isPrimitive(PrimitiveSort.Resource)) {
+          addFeature(InlinePredicate, m)
+        } else if (!m.getReturnType.isPrimitive(PrimitiveSort.Process)) {
+          addFeature(InlineFunction, m)
+        }
+      }
       if(m.getBody.isInstanceOf[BlockStatement])
         addFeature(PureImperativeMethods, m)
     }
@@ -618,6 +623,7 @@ object Feature {
     GivenYields,
     StaticFields,
     InlinePredicate,
+    InlineFunction,
     KernelClass,
     AddrOf,
     OpenMP,
@@ -746,6 +752,7 @@ object Feature {
     GivenYields,
     StaticFields,
     InlinePredicate,
+    InlineFunction,
     KernelClass,
     AddrOf,
     OpenMP,
@@ -846,6 +853,7 @@ case object ADTOperator extends ScannableFeature
 case object GivenYields extends ScannableFeature
 case object StaticFields extends ScannableFeature
 case object InlinePredicate extends ScannableFeature
+case object InlineFunction extends ScannableFeature
 case object KernelClass extends ScannableFeature
 case object AddrOf extends ScannableFeature
 case object OpenMP extends ScannableFeature

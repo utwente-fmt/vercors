@@ -134,11 +134,6 @@ public class KernelRewriter extends AbstractRewriter {
     if (Configuration.auto_barrier.get()){
       currentBlock.add(create_barrier_call(no.intValue()));
       //Disabled these hints because old in barrier refers to before barrier... 
-      //for(ASTNode clause : ASTUtils.conjuncts(pb.contract.post_condition,StandardOperator.Star)){
-      //  if (clause.getType().isBoolean()){
-      //    currentBlock.add(create.expression(StandardOperator.Assert, rewrite(clause)));
-      //  }
-      //}
     } else {
       Stack<ASTNode> resource_stack=new Stack<ASTNode>();
       // check and keep resources.
@@ -245,7 +240,7 @@ public class KernelRewriter extends AbstractRewriter {
         Type t=global.getType();
         if (t.isPrimitive(PrimitiveSort.Array)){
           ASTNode tmp=create.expression(StandardOperator.EQ,
-              create.dereference(create.field_name(global.name()),"length"),
+              create.array_length_dereference(create.field_name(global.name())),
               rewrite(t.secondarg())
           );
           kernel_main_invariant.add(tmp);
@@ -265,7 +260,7 @@ public class KernelRewriter extends AbstractRewriter {
         Type t=local.getType();
         if (t.isPrimitive(PrimitiveSort.Array)){
           ASTNode tmp=create.expression(StandardOperator.EQ,
-              create.dereference(create.field_name(local.name()),"length"),
+              create.array_length_dereference(create.field_name(local.name())),
               rewrite(t.secondarg())
           );
           kernel_main_invariant.add(tmp);
@@ -572,7 +567,6 @@ public class KernelRewriter extends AbstractRewriter {
               ));
             }
           }
-          //cb.requires(create.fold(StandardOperator.Star, barrier_pre.get(i)));
           if (barrier_pre.get(i)!=null) for(ASTNode claim:barrier_pre.get(i)){
               if (!claim.getType().isBoolean()){
                 if (Configuration.auto_barrier.get()){
@@ -628,7 +622,6 @@ public class KernelRewriter extends AbstractRewriter {
 
   @Override
   public void visit(LoopStatement s) {
-    //checkPermission(s);
     LoopStatement res=new LoopStatement();
     ASTNode tmp;
     tmp=s.getInitBlock();
@@ -647,7 +640,6 @@ public class KernelRewriter extends AbstractRewriter {
       Set<Integer> preds=new HashSet<Integer>();
       find_predecessors(preds,s.getBody());
       for(Integer i : preds){
-        //Warning("    %d",i);
         inv1=create.expression(StandardOperator.Or,inv1,
               create.expression(StandardOperator.EQ,
                   create.local_name("__last_barrier"),

@@ -121,7 +121,7 @@ public class OptionParser {
   private class HelpOption extends AbstractOption {
 
     public HelpOption() {
-      super(false,false,"print help message");
+      super(false,false,"Prints all options of VerCors");
     }
 
     public void pass(){
@@ -133,12 +133,5 @@ public class OptionParser {
     }
   }
 
-  public void add_removed(final String message,Object ... options) {
-    add(new AbstractOption(false,false,message){
-      public void pass(){
-        Fail("%s",message);
-      }
-    },options);
-  }
 }
 

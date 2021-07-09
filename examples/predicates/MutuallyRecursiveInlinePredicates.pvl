@@ -1,0 +1,12 @@
+//:: cases MutuallyRecursiveInlinePredicates
+//:: tools silicon
+//:: verdict Error
+
+class C {
+    inline resource p() = q() ** true;
+    inline resource q() = true ** p();
+
+    void p() {
+        assert p();
+    }
+}

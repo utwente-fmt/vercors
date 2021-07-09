@@ -1,0 +1,73 @@
+//:: cases CyclicBarrier
+//:: suite session-generate
+//:: tools silicon
+//:: verdict Pass
+class Barrier {
+
+	int k,n;
+	boolean outgoing;
+	
+	resource lock_invariant() = 
+		Perm(k,1) ** Perm(n,read) ** Perm(outgoing,1)
+		** 0 <= k ** k < n
+		** (outgoing ? 1 <= k : 0 <= k)
+		** n > 1
+		;
+		
+	requires nrThreads > 1;
+	Barrier(int nrThreads) {
+		n = nrThreads;
+		k = 0;
+		outgoing = false;
+	}
+		
+	void await() {
+		lock this;
+		
+		loop_invariant held(this)
+		** Perm(k,1) ** Perm(n,read) ** Perm(outgoing,1)
+		** k < n
+		** (outgoing ? 1 <= k : 0 <= k)
+		** n > 1
+		;
+		while (outgoing)
+		{
+			wait this;
+		}
+		
+		k++;
+		if (k == n) {
+			outgoing = true;
+			k--;
+			loop_invariant Perm(n, read);
+            loop_invariant 1<=i && i<= n;
+            loop_invariant held(this);
+            for (int i=1; i<n; i++) {
+                notify this;
+			}
+		} else {
+			loop_invariant held(this)
+			** Perm(k,1) ** Perm(n,read) ** Perm(outgoing,1)
+			** k < n
+			** (outgoing ? 1 <= k : 0 <= k)
+			** n > 1
+			;
+			while (!outgoing)
+			{
+				wait this;
+			}
+			k--;
+			if (k == 0) {
+				outgoing = false;
+				loop_invariant Perm(n, read);
+				loop_invariant 1<=i && i<= n;
+				loop_invariant held(this);
+				for (int i=1; i<n; i++) {
+					notify this;
+				}
+			}
+		}
+		unlock this;
+	}
+
+}

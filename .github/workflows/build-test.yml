@@ -18,6 +18,8 @@ jobs:
       # running when for example new commits are pushed.
       - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Cache SBT dependencies modules
         uses: actions/cache@v2
         with:
@@ -36,6 +38,7 @@ jobs:
           ls $JAVA_HOME
           ls $JAVA_HOME/bin
       - run: sbt debian:packageBin
+      - run: sbt test || true
       - name: Archive VerCors .deb
         uses: actions/upload-artifact@v2
         with:
@@ -86,13 +89,18 @@ jobs:
           prerelease: true
           tag: dev-prerelease
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v2
+        with:
+          report_paths: '**/target/test-reports/TEST-*.xml'
       
-  test:
+  integration_test:
     needs: build
     runs-on: ubuntu-latest
     strategy:
       matrix:
         testID: [0, 1, 2, 3, 4]
+      fail-fast: false
     env:
       maxTestID: 5
     steps:
@@ -110,4 +118,3 @@ jobs:
       - run: mono --version
       - run: vercors --silicon examples/manual/fibonacci.pvl
       - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
-

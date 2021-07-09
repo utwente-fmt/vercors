@@ -55,17 +55,13 @@ public class VerCorsTypeFactory implements
   
   @Override
   public Type Ref() {
-    //enter(null);
     Type res=create.class_type("Ref");
-    //leave();
     return res;
   }
 
   @Override
   public Type Set(Type t) {
-    //enter(null);
     Type res=create.primitive_type(PrimitiveSort.Set,t);
-    //leave();
     return res;
   }
 

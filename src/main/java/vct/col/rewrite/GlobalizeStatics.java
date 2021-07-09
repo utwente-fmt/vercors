@@ -1,6 +1,7 @@
 package vct.col.rewrite;
 
 import hre.ast.MessageOrigin;
+import vct.col.ast.expr.Dereference$;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.AxiomaticDataType;
@@ -106,23 +107,6 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
     if (v.type() instanceof ClassType){
       Abort("illegal use of struct value for constructor call");
     }
-    /*
-    switch(e.getOperator()){
-    case Build:{
-      if (e.getArg(0) instanceof ClassType){
-        // Constructor call encoded as Build.
-        ASTNode args[]=rewrite(null,e.getArguments());
-        args[0]=args[1];
-        if (processing_static){
-          args[1]=create.reserved_name(ASTReserved.This);
-        } else {
-          args[1]=create.local_name("global");
-        }
-        result=create.expression(StandardOperator.Build, args);
-        return;
-      }
-    }
-    }*/
     super.visit(v);
   }
   
@@ -169,7 +153,7 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
   }
 
   public void visit(Dereference e){
-    if (e.field().equals("length")){
+    if (e.field().equals(Dereference.ArrayLength())){
       super.visit(e);
       return;
     }
