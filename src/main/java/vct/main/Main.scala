@@ -15,9 +15,11 @@ import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
 import hre.util.Notifier
-import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.features.{Feature, NeedsMinimization, RainbowVisitor}
+import vct.col.rewrite.MinimizeSilverPass
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
+
 import scala.jdk.CollectionConverters._
 import java.nio.file.Paths
 
@@ -62,6 +64,7 @@ class Main {
   private val abruptTerminationViaExceptions = new BooleanSetting(false)
   private val trigger_generation = new IntegerSetting(0)
   private val learn = new BooleanSetting(false)
+  private val minimizeTargets = new StringListSetting()
 
   private def parseOptions(args: Array[String]) = {
     val clops = new OptionParser
@@ -96,6 +99,7 @@ class Main {
     clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions")
     clops.add(trigger_generation.getOptionalAssign("Try to simplify universal quantifiers and generate triggers for them."), "triggers")
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
+    clops.add(minimizeTargets.getAppendOption("One or more targets for minimization. Syntaxes: 1) com.example.MyClass#myMethod 2) mySilverMethod"), "minimize");
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
     clops.parse(args) ++ (if (Configuration.veymont_file.get() != null) Configuration.getVeyMontFiles.map(_.getAbsolutePath()) else Array.empty[String])
@@ -298,6 +302,7 @@ class Main {
     "scaleAllPredicateApplications",
     "collectInnerDeclarations",
     "collectDeclarations",
+    "minimize",
   )
 
   def validChain(chain: Seq[AbstractPass], featuresIn: Set[Feature]): Boolean = {
@@ -393,6 +398,11 @@ class Main {
     if(check_axioms.get()) features += vct.col.features.NeedsAxiomCheck
     if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
+    val minimizeTargetNames = minimizeTargets.asScala.toSeq
+    if(minimizeTargetNames.length > 0) {
+      features += NeedsMinimization
+      MinimizeSilverPass.silverMinimizeTargets = minimizeTargetNames.toSet
+    }
 
     computeGoal(features).get
   }

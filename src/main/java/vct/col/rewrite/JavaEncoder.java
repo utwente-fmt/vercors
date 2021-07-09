@@ -359,12 +359,17 @@ public class JavaEncoder extends AbstractRewriter {
           Method res=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
           res.setFlag(ASTFlags.FINAL, true);
           res.copyMissingFlags(m);
+          res.copyAnnotations(m, copy_rw);
           currentTargetClass.add(res);         
         } else {
-          Method abstractMethod = create.method_kind(kind, returns, signals, initial_contract, name, args, varArgs, null);
-          abstractMethod.setFlag(ASTFlags.FINAL, true);
-          currentTargetClass.add(abstractMethod);
+          Method dynamicMethod = create.method_kind(kind, returns, signals, initial_contract, name, args, varArgs, null);
+          dynamicMethod.setFlag(ASTFlags.FINAL, true);
+          dynamicMethod.copyAnnotations(m, copy_rw);
+          currentTargetClass.add(dynamicMethod);
 
+          // For the inner method (i.e. method with a static contract) we do not copy over the attributes.
+          // I (Bob) think this is fine because the inner (statically dispatched method) only exists as a proof obligation,
+          // so it should remain as a plain (in vercors terms) method.
           args=copy_rw.rewrite(args);
           internal_mode=true;
           ASTNode body=rewrite(m.getBody());
@@ -384,8 +389,14 @@ public class JavaEncoder extends AbstractRewriter {
           Method res=create.method_kind(kind, returns, null, name, args, varArgs, body);
           res.setFlag(ASTFlags.FINAL, true);
           res.copyMissingFlags(m);
+          res.copyAnnotations(m, copy_rw);
           currentTargetClass.add(res);
         } else {
+          Method dynamicPredicate = create.method_kind(kind, returns, null, name, args, varArgs, null);
+          dynamicPredicate.copyAnnotations(m, copy_rw);
+          currentTargetClass.add(dynamicPredicate);
+
+          // Annotations are not copied for the statically dispatched predicate. See above.
           Method abstractMethod = create.method_kind(kind, returns, null, name, args, varArgs, null);
           abstractMethod.setFlag(ASTFlags.FINAL, true);
           currentTargetClass.add(abstractMethod);
@@ -413,10 +424,14 @@ public class JavaEncoder extends AbstractRewriter {
       default:{
         ASTNode body=rewrite(m.getBody());
         result=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
+        result.copyMissingFlags(m);
+        result.copyAnnotations(m, copy_rw);
       }}
     } else {
       ASTNode body=rewrite(m.getBody());
       result=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
+      result.copyMissingFlags(m);
+      result.copyAnnotations(m, copy_rw);
     }
   }
   

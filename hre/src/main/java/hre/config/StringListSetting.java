@@ -2,6 +2,7 @@ package hre.config;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.stream.Stream;
 
 /**
  * This class represents a configuration setting whose value is a list of strings.
@@ -47,6 +48,10 @@ public class StringListSetting implements Iterable<String> {
   @Override
   public Iterator<String> iterator() {
     return list.iterator();
+  }
+
+  public Stream<String> stream() {
+    return list.stream();
   }
   
   /**
