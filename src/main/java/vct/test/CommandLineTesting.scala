@@ -160,51 +160,52 @@ object CommandLineTesting {
     visitor.testsuite.asScala.filter({case (_, kees) => caseFilters.forall(_.isPossible(kees))}).toMap
   }
 
+  def jacocoJavaAgentArgs(tool: String, caseName: String): Seq[String] = {
+    val jacocoOutputDir = Paths.get(tempCoverageReportPath.get()).toFile
+    val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_$caseName.exec"
+    // Options are of format opt1=val1,op2=val2.
+    // Only include our own code, exclude generated parser code.
+    val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*,excludes=vct.antlr4.generated.*"
+    Seq(s"-javaagent:${Configuration.getJacocoAgentPath()}=$options")
+  }
+
+  def filterEnabledBackends(tools: Set[String]): Set[String] =
+    tools.filter(!backendFilterOption.used() || backendFilter.contains(_))
+
   def getTasks: Map[String, Task] = {
-    var result = mutable.HashMap[String, Task]()
+    val result = mutable.HashMap[String, Task]()
 
     if(builtinTest.get()) {
       result ++= builtinTests
     }
 
-    // Only load this if it's actually needed, don't want to crash on constructing a faulty path if the path is not used
-    lazy val jacocoOutputDir = Paths.get(tempCoverageReportPath.get()).toFile
-
     for ((name, kees) <- getCases) {
-      for (tool <- kees.tools.asScala) {
-        if (!backendFilterOption.used() || backendFilter.contains(tool)) {
-          var args = mutable.ArrayBuffer[String]()
-          args += "--progress"
-          args += "--" + tool
-          args += "--strict-internal"
-          args ++= kees.options.asScala
-          args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
+      for (tool <- filterEnabledBackends(kees.tools.asScala.toSet)) {
+        val args = mutable.ArrayBuffer[String]()
+        args += "--progress"
+        args += "--" + tool
+        args += "--strict-internal"
+        args ++= kees.options.asScala
+        args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
 
-          var conditions = mutable.ArrayBuffer[TaskCondition]()
-          if (kees.verdict != null) {
-            conditions += ExpectVerdict(kees.verdict)
-          } else {
-            conditions += ExpectVerdict(Verdict.Pass)
-          }
-          if (kees.pass_non_fail) {
-            conditions += PassNonFail(kees.fail_methods.asScala.toSeq)
-          }
-          conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
-          conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
-
-          // Tests are instrumented at runtime by the jacoco java vm agent
-          val jacocoArg = if (enableCoverage.get()) {
-            val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_$name.exec"
-            val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*,excludes=vct.antlr4.generated.*"
-            Array(s"-javaagent:${Configuration.getJacocoAgentPath()}=$options")
-          } else {
-            null
-          }
-
-          val vercorsProcess = Configuration.getThisVerCors(jacocoArg).withArgs(args.toSeq: _*)
-
-          result += (s"$name-$tool" -> Task(vercorsProcess, conditions.toSeq))
+        var conditions = mutable.ArrayBuffer[TaskCondition]()
+        if (kees.verdict != null) {
+          conditions += ExpectVerdict(kees.verdict)
+        } else {
+          conditions += ExpectVerdict(Verdict.Pass)
         }
+        if (kees.pass_non_fail) {
+          conditions += PassNonFail(kees.fail_methods.asScala.toSeq)
+        }
+        conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
+        conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
+
+        // Tests are instrumented at runtime by the jacoco java vm agent
+        val jacocoArg = if (enableCoverage.get()) { jacocoJavaAgentArgs(tool, name) } else { Seq() }
+
+        val vercorsProcess = Configuration.getThisVerCors(jacocoArg.asJava).withArgs(args.toSeq: _*)
+
+        result += (s"$name-$tool" -> Task(vercorsProcess, conditions.toSeq))
       }
     }
 
