@@ -7,10 +7,10 @@ import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
-import vct.col.features.{Feature}
+import vct.col.features.{Feature, NeedsMinimization}
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateForkJoinMain, LocalProgConstructors, StructureCheck, TerminationCheck}
+import vct.col.veymont.{ChannelPerms, Decompose, GenerateBarrier, GenerateForkJoinMain, GenerateLTS, LocalProgConstructors, RemoveTaus, StructureCheck, TerminationCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
@@ -108,6 +108,7 @@ object Passes {
       override def permits: Set[Feature] = Feature.ALL
     },
     SimplePass("compileToJava", "Compile PVL classes to Java classes", new PVLCompiler(_).rewriteAll),
+    MinimizeSilverPass,
   )
 
   val OO: Seq[AbstractPass] = Seq(

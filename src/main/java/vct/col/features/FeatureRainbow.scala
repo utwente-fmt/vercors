@@ -820,6 +820,7 @@ object Feature {
     NeedsAxiomCheck,
     NeedsDefinedCheck,
     NeedsHistoryCheck,
+    NeedsMinimization
   )
 }
 
@@ -912,3 +913,4 @@ case object NeedsSatCheck extends GateFeature
 case object NeedsAxiomCheck extends GateFeature
 case object NeedsDefinedCheck extends GateFeature
 case object NeedsHistoryCheck extends GateFeature
+case object NeedsMinimization extends GateFeature

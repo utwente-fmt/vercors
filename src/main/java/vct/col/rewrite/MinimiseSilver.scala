@@ -1,12 +1,14 @@
 package vct.col.rewrite
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
-import vct.col.ast.util.{AbstractRewriter, AbstractVisitor, RecursiveVisitor}
+import vct.col.ast.util.{AbstractRewriter, RecursiveVisitor}
 import vct.col.ast.expr.{Dereference, MethodInvokation}
-import hre.lang.System.{Output, Warning, Debug}
+import hre.lang.System.{Debug, Warning}
 import vct.col.ast.`type`.ASTReserved
-import vct.col.util.{AbstractTypeCheck, SimpleTypeCheck}
+import vct.col.features.NeedsMinimization
+import vct.col.util.SimpleTypeCheck
+import vct.main.SimplePass
 
 import scala.collection.mutable
 
@@ -18,6 +20,18 @@ import scala.collection.mutable
 // - VCTOption elision (if null is used nowhere, or only appears in != null clauses)
 //  - Might have to make this one opt-in since I'm not sure we can syntactically detect if this is feasible...
 // - VCTArray -> Seq would be nice, but that seems to complicated... maybe opt-in or in very specific cases?
+
+// Class to keep track of all names present, and whether they represent methods, functions, predicates, or fields.
+case class Entities(methods: Set[String], functions: Set[String], predicates: Set[String], fields: Set[String]) {
+  def ++(other: Entities): Entities = {
+    Entities(methods ++ other.methods,
+      functions ++ other.functions,
+      predicates ++ other.predicates,
+      fields ++ other.fields)
+  }
+
+  def size: Int = methods.size + functions.size + predicates.size + fields.size
+}
 
 class AbstractMethods(source: ProgramUnit, keepMethods: Set[String]) extends AbstractRewriter(source) {
   override def visit(m: Method): Unit = {
@@ -31,14 +45,19 @@ class AbstractMethods(source: ProgramUnit, keepMethods: Set[String]) extends Abs
 
 object RemoveUnused {
   def minimise(pu: ProgramUnit, rootEntities: Entities): (ProgramUnit, Boolean) = {
+    // Get all entities that are actually used in the program
     val entities = CollectUsed.collectUsed(pu)
+    // Merged with the root entities, those are the entities we need to keep
     val keep = rootEntities ++ entities
+    // Remove any methods that we don't necessarily want to keep
     val removeMethods = new RemoveUnused(pu, keep)
     val newPu = removeMethods.rewriteAll()
+    // Typecheck to put the types back, as rewriting destroys typing info.
     new SimpleTypeCheck(null, newPu).check()
     (newPu, removeMethods.madeChange)
   }
 }
+
 class RemoveUnused(source: ProgramUnit, keep: Entities) extends AbstractRewriter(source) {
   var madeChange = false
 
@@ -79,6 +98,10 @@ object CollectUsed {
   def collectUsed(pu: ProgramUnit): Entities = new CollectUsed(pu).getEntities
 }
 
+/**
+  * Collects all methods, functions, predicates, and fields that are actually used within a program.
+  * This means they are referenced in some expression.
+  */
 class CollectUsed(source: ProgramUnit) extends AbstractRewriter(source) {
   var total: Entities = Entities(Set(), Set(), Set(), Set())
 
@@ -155,16 +178,22 @@ object CollectRetainEntities {
 
 /**
   * Collects all names in `names` that fit any of the supported categories into the Entities type.
+  * Names are also collected if they are marked with the "MinimiseTarget" annotation, which can be inserted through
+  * command line flags for specific nodes.
   * Assumes all values in `names` are unique in the AST.
   */
 class CollectRetainEntities(source: ProgramUnit, names: Set[String]) extends RecursiveVisitor(source) {
+  // Contains all names that have not been matched against a method, function, predicate or field.
   val leftoverNames: mutable.Set[String] = names.to(mutable.Set)
 
+  // If a name is found to be a certain type, it is added to the corresponding set
   val methods = mutable.Set[String]()
   val functions = mutable.Set[String]()
   val predicates = mutable.Set[String]()
   val fields = mutable.Set[String]()
 
+  // true if we are in the "Ref" class, which contains _all_ fields in the program.
+  // At this point, fields should not exist outside this class.
   var inRef = false
 
   private def getEntities: Entities = Entities(methods.toSet, functions.toSet, predicates.toSet, fields.toSet)
@@ -203,17 +232,6 @@ class CollectRetainEntities(source: ProgramUnit, names: Set[String]) extends Rec
   }
 }
 
-case class Entities(methods: Set[String], functions: Set[String], predicates: Set[String], fields: Set[String]) {
-  def ++(other: Entities): Entities = {
-    Entities(methods ++ other.methods,
-      functions ++ other.functions,
-      predicates ++ other.predicates,
-      fields ++ other.fields)
-  }
-
-  def size: Int = methods.size + functions.size + predicates.size + fields.size
-}
-
 class MinimiseSilver(source: ProgramUnit, retainNames: Set[String]) {
   def this(source: ProgramUnit, retainMethods: java.util.List[String]) =
     this(source, retainMethods.asScala.toSet)
@@ -248,4 +266,18 @@ class MinimiseSilver(source: ProgramUnit, retainNames: Set[String]) {
 
     program
   }
+}
+
+object MinimizeSilverPass extends SimplePass(
+    "minimize",
+    "Minimizes the program with regard to some focused entities",
+    null,
+    removes=Set(NeedsMinimization)) {
+
+  // Would prefer to use the "args" argument to pass in the information about the minimization targets,
+  // instead of this global hack. But lets do that in a next PR...
+  override def apply(p: ProgramUnit, args: Array[String]): ProgramUnit =
+    new MinimiseSilver(p, silverMinimizeTargets).minimise()
+
+  var silverMinimizeTargets: Set[String] = Set()
 }
