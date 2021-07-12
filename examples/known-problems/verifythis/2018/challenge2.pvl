@@ -3,7 +3,10 @@
 //:: cases ColoredTiles
 //:: tools silicon
 //:: suite medium problem-fail
-//:: verdict Pass
+// Doesn't verify because of a bug:
+// https://github.com/viperproject/silicon/issues/537
+// The failing loop invariant succeeds when verified with silicon master
+//:: verdict Fail
 
 class ColoredTiles {
 

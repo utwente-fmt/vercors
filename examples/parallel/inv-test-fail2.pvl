@@ -1,13 +1,13 @@
-//:: cases InvariantBlockTestOk
+//:: cases InvariantBlockTestFail2
 //:: tools silicon
-//:: verdict Pass
+//:: verdict Fail
 
 class Main {
   int x,y,z;
 
   context Perm(x,write)**Perm(y,write)**Perm(z,write);
   ensures x + y == z;
-  void good(){
+  void problem2(){
     x=0;
     y=1;
     z=1;
@@ -17,7 +17,7 @@ class Main {
       atomic(inv){
         int tmp=x;
         x=y;
-        y=tmp;
+        y=tmp+1;
       }
     }
   }

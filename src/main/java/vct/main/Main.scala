@@ -18,6 +18,8 @@ import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
+
+import java.net.URLClassLoader
 import scala.jdk.CollectionConverters._
 import java.nio.file.Paths
 
