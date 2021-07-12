@@ -235,7 +235,7 @@ object CommandLineTesting {
     // to be included.
     getClassPathElements().asScala
       .map(Paths.get(_))
-      .filter(cp => cp.getFileName.toString.contains("vercors") || !cp.getFileName.toString.endsWith(".jar"))
+//      .filter(cp => cp.getFileName.toString.contains("vercors") || !cp.getFileName.toString.endsWith(".jar"))
       .foreach(cp => {
         Output("Used for jacoco class path: %s", cp)
         jacocoCli.addArg("--classfiles", cp.toAbsolutePath.toString)
