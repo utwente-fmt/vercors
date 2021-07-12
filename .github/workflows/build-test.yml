@@ -122,7 +122,7 @@ jobs:
       - run: "sudo dpkg -i *.deb"
       - run: vercors --silicon examples/manual/fibonacci.pvl
       - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
-      - run: ls jacoco*
+      - run: ls -alh jacoco*
       - name: Archive Java Code Coverage (jacoco_n_m.xml)
         uses: actions/upload-artifact@v2
         with:
