@@ -229,17 +229,9 @@ object CommandLineTesting {
     })
 
     // Indicate class path
-    // Jacoco can't handle duplicate classes, and somehow there are a few duplicate classes in our transitive dependencies.
-    // To work around this we prevent inclusion of any .jar files in the classpath, as those are often transitive dependencies
-    // However, we also want to include vercors if it is in a jar file, so we allow any classpaths containing "vercors"
-    // to be included.
-    getClassPathElements().asScala
-      .map(Paths.get(_))
-//      .filter(cp => cp.getFileName.toString.contains("vercors") || !cp.getFileName.toString.endsWith(".jar"))
-      .foreach(cp => {
-        Output("Used for jacoco class path: %s", cp)
-        jacocoCli.addArg("--classfiles", cp.toAbsolutePath.toString)
-      })
+    // There used to be a problem where jacoco couldn't handly duplicate class names, so we had to filter out some
+    // class path elements. But that seems to be fixed, so now we just use the full classpath.
+    getClassPathElements().asScala.foreach(jacocoCli.addArg("--classfiles", _))
 
     jacocoCli.addArg("--xml", Paths.get(coverageReportFile.get()).toFile.getAbsolutePath)
     if (coverageHtmlReportFile.used && coverageHtmlReportFile.get() != null) {
