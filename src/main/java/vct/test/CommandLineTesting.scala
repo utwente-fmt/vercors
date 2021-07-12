@@ -234,7 +234,7 @@ object CommandLineTesting {
       // (And therefore this will break as soon as vercors code ends up in a jar file)
       if (!cp.endsWith(".jar")) {
         jacocoCli.addArg("--classfiles", cp)
-        Debug("Used for jacoco class path: %s", cp)
+        Output("Used for jacoco class path: %s", cp)
       }
     })
 
@@ -243,12 +243,12 @@ object CommandLineTesting {
       jacocoCli.addArg("--html", Paths.get(coverageHtmlReportFile.get()).toFile.getAbsolutePath)
     }
 
-    Output("Aggegrating coverages...")
+    Output("Aggregating coverages...")
     val task = Task(jacocoCli, Seq())
     task.call
-    Debug("Jacoco tool output")
+    Output("Jacoco tool output")
     for (msg <- task.log) {
-      Debug(msg.getFormat, msg.getArgs:_*)
+      Output(msg.getFormat, msg.getArgs:_*)
     }
 
     removeTempJacocoDir()
