@@ -12,6 +12,8 @@ import java.nio.file.{FileVisitOption, Files, Paths}
 import scala.collection.mutable
 import scala.io.Source
 import scala.jdk.CollectionConverters._
+
+// These need to be included to ensure jacoco is included in the classpath, so it can be used for the test suite.
 import org.jacoco.cli
 import org.jacoco.agent;
 

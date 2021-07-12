@@ -122,8 +122,6 @@ jobs:
       - run: "sudo dpkg -i *.deb"
       - run: vercors --silicon examples/manual/fibonacci.pvl
       - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
-      - run: ls -alh jacoco*
-      - run: ls -alh /usr/share/vercors/lib/../res
       - name: Archive Java Code Coverage (jacoco_n_m.xml)
         uses: actions/upload-artifact@v2
         with:
@@ -211,8 +209,6 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: vercors-jacoco-xml
-      - name: Debug ls
-        run: ls -alh jacoco*
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         env:
