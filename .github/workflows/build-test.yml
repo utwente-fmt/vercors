@@ -210,6 +210,8 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: vercors-jacoco-xml
+      - name: Debug ls
+        run: ls -alh jacoco*
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         env:
