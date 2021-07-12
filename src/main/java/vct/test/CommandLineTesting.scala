@@ -144,7 +144,7 @@ object CommandLineTesting {
     testDirs.forEach(dir =>
       Files.walkFileTree(Paths.get(dir), Set(FileVisitOption.FOLLOW_LINKS).asJava, Integer.MAX_VALUE, visitor))
 
-    var will_fail = visitor.delayed_fail
+    var will_fail = visitor.delayedFail
 
     if (!visitor.unmarked.isEmpty) {
       Warning("There are unmarked files:")

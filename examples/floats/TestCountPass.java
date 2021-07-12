@@ -1,8 +1,6 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: cases TestCount
+//:: cases TestCountPass
 //:: tools silicon
-//:: verdict Pass TestCount.test_count_1 TestCount.test_count_2
-//:: verdict Fail TestCount.test_count_E1
+//:: verdict Pass
 
 class TestCount {
 
@@ -38,14 +36,5 @@ class TestCount {
     //@ assert \sum({ 0 .. 4 },\vcmp(xs,\vrep(1))) == 1;
   }
   
-  public void test_count_E1(){
-    //@ ghost seq<int> xs = seq<int>{ 1, 2 , 2 , 1 };
-    //@ assert \sum({ 0 .. 0 },\vcmp(xs,\vrep(1))) == 0;
-    //@ assert \sum({ 0 .. 1 },\vcmp(xs,\vrep(1))) == 1;
-    //@ assert \sum({ 0 .. 2 },\vcmp(xs,\vrep(1))) == 1;
-    //@ assert \sum({ 0 .. 3 },\vcmp(xs,\vrep(1))) == 1;
-    //@ assert \sum({ 0 .. 4 },\vcmp(xs,\vrep(1))) == 1;
-  }
-
 }
 
