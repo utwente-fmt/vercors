@@ -1,5 +1,3 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
 //:: cases GapBuffer
 //:: tools silicon
 //:: suite medium
@@ -10,13 +8,18 @@ class GapBuffer {
 	int l;
 	int r;
 	
+    requires 0 <= n && n < |xs|;
 	static pure int Get(seq<int> xs, int n) = xs[n];
 	
 	requires n <= |xs|;
+    ensures n >= 0 ==> |\result| == |xs| - n && (\forall int i = 0 .. |\result|; \result[i] == xs[i + n]);
+    ensures n < 0 ==> |\result| == |xs|;
 	static pure seq<int> Skip(seq<int> xs, int n) =
 		0 < n ? Skip(tail(xs), n - 1) : xs;
 		
 	requires n <= |xs|;
+    ensures n >= 0 ==> |\result| == n && (\forall int i = 0 .. |\result|; \result[i] == xs[i]);
+    ensures n < 0 ==> |\result| == 0;
 	static pure seq<int> Take(seq<int> xs, int n) =
 		0 < n ? seq<int> { head(xs) } + Take(tail(xs), n - 1) : seq<int> { };
 
@@ -125,6 +128,11 @@ class GapBuffer {
 	context Perm(l, 1\3);
 	requires Represents(contents);
 	ensures Represents(newcontents);
+    // Given the next 3 clauses, silicon terminates, but cannot prove correctness:
+    ensures l >= 0;
+    ensures |contents| >= l;
+    ensures |newcontents| >= l;
+    
 	ensures (\forall int i; 0 <= i && i < l; newcontents[i] == contents[i]);
 	ensures 0 == \old(l) ==> (\forall int i; l <= i && i < |contents|; newcontents[i] == contents[i]);
 	ensures 0 < \old(l) ==> (\forall int i; l <= i && i < |contents| - 1; newcontents[i] == contents[i + 1]);
@@ -143,6 +151,8 @@ class GapBuffer {
 
 			assert (\forall int i; l <= i && i < |newcontents|; newcontents[i] == Get(Skip(contents, l + 1), i - l));	
 		}
+
+        // assert |contents| == |newcontents|;
 		
 		fold Represents(newcontents);
 	}
