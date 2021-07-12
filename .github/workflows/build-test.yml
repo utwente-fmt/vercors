@@ -167,7 +167,7 @@ jobs:
       # - One layer gets peeled of by the .bat script
       # - Another layer gets peeled of by powershell
       # This prevents the commas from being interpreted as array separators, a marvelous powershell feature.
-      - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon """--exclude-suite=slow,medium,problem-fail,skip-travis""" --progress --actions-test-output
+      - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon """--exclude-suite=slow,medium,problem-fail""" --progress --actions-test-output
 
   integration-test-mac:
     runs-on: macos-latest
@@ -189,7 +189,7 @@ jobs:
       # By stripping the first component of the path when extracting this directory this is not a problem
       # --directory extracts to a given directory, ensuring the current directory is not cluttered.
       - run: tar --strip-components=1 --directory vercorszip -xf vercors.zip
-      - run: vercorszip/bin/vercors --test=examples/basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
+      - run: vercorszip/bin/vercors --test=examples/basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail --progress --actions-test-output
 
   sonar:
     needs:
