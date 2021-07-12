@@ -235,6 +235,8 @@ object CommandLineTesting {
       if (!cp.endsWith(".jar")) {
         jacocoCli.addArg("--classfiles", cp)
         Output("Used for jacoco class path: %s", cp)
+      } else {
+        Output("Not used for jacoco class path: %s", cp)
       }
     })
 
