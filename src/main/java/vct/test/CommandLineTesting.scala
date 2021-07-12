@@ -1,5 +1,6 @@
 package vct.test
 
+import hre.config.Configuration.getClassPathElements
 import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Debug, Output, Progress, Warning}
@@ -11,7 +12,7 @@ import java.nio.file.{FileVisitOption, Files, Paths}
 import scala.collection.mutable
 import scala.io.Source
 import scala.jdk.CollectionConverters._
-import org.jacoco.cli;
+import org.jacoco.cli
 import org.jacoco.agent;
 
 sealed trait CaseFilter {
@@ -228,17 +229,17 @@ object CommandLineTesting {
     })
 
     // Indicate class path
-    System.getProperty("java.class.path").split(File.pathSeparatorChar).foreach((cp: String) => {
-      // Jacoco can't handle duplicate classes, and somehow there are a few duplicate classes in our transitive dependencies.
-      // To work around this we prevent inclusion of any .jar files in the classpath, as those are often transitive dependencies
-      // (And therefore this will break as soon as vercors code ends up in a jar file)
-      if (!cp.endsWith(".jar")) {
-        jacocoCli.addArg("--classfiles", cp)
+    // Jacoco can't handle duplicate classes, and somehow there are a few duplicate classes in our transitive dependencies.
+    // To work around this we prevent inclusion of any .jar files in the classpath, as those are often transitive dependencies
+    // However, we also want to include vercors if it is in a jar file, so we allow any classpaths containing "vercors"
+    // to be included.
+    getClassPathElements().asScala
+      .map(Paths.get(_))
+      .filter(cp => cp.getFileName.toString.contains("vercors") || !cp.getFileName.toString.endsWith(".jar"))
+      .foreach(cp => {
         Output("Used for jacoco class path: %s", cp)
-      } else {
-        Output("Not used for jacoco class path: %s", cp)
-      }
-    })
+        jacocoCli.addArg("--classfiles", cp.toAbsolutePath.toString)
+      })
 
     jacocoCli.addArg("--xml", Paths.get(coverageReportFile.get()).toFile.getAbsolutePath)
     if (coverageHtmlReportFile.used && coverageHtmlReportFile.get() != null) {
