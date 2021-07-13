@@ -150,6 +150,8 @@ class ColDescription {
       bases(name.value) = inits.collect {
         case Init(Type.Name(name), _, _) => name
       }
+    case Defn.Object(_, _, Template(_, _, _, stats)) =>
+      stats.foreach(collectBases(_))
     case _ =>
   }
 
@@ -167,6 +169,8 @@ class ColDescription {
         case Init(Type.Name("NodeFamily"), _, _) => ()
       }.nonEmpty)
         families += name.value
+    case Defn.Object(_, _, Template(_, _, _, stats)) =>
+      stats.foreach(collectFamily(_))
     case _ =>
   }
 
