@@ -46,9 +46,9 @@ class Main {
 
   private val pass_list = new StringListSetting
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
-  private val stop_after = new StringListSetting
-  private val onlyTransform = new BooleanSetting(false)
-  private val onlyTypeCheck = new BooleanSetting(false)
+  private val stopAfter = new StringListSetting
+  private val stopBeforeBackend = new BooleanSetting(false)
+  private val stopAfterTypecheck = new BooleanSetting(false)
   private val strictInternalConditions = new BooleanSetting(false)
   private var inputPaths = Array.empty[String]
 
@@ -91,9 +91,9 @@ class Main {
     clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before")
     clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after")
     clops.add(notifySetting.getEnable("Send a system notification upon completion"), "notify")
-    clops.add(stop_after.getAppendOption("Stop after given passes"), "stop-after")
-    clops.add(onlyTransform.getEnable("Only do parsing, typechecking, and AST transformations. Do not do verification with the backend."), "only-transform")
-    clops.add(onlyTypeCheck.getEnable("Only do parsing and typechecking. Do not apply AST transformations, not verification with the backend."), "only-typecheck")
+    clops.add(stopAfter.getAppendOption("Stop after given passes"), "stop-after")
+    clops.add(stopBeforeBackend.getEnable("Only do parsing, typechecking, and AST transformations. Do not do verification with the backend."), "stop-before-backend")
+    clops.add(stopAfterTypecheck.getEnable("Only do parsing and typechecking. Do not apply AST transformations, nor verification with the backend."), "stop-after-typecheck")
     clops.add(strictInternalConditions.getEnable("Enable strict internal checks for AST conditions (expert option)"), "strict-internal")
     clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"), "global-with-field")
     clops.add(no_context.getEnable("disable printing the context of errors"), "no-context")
@@ -163,8 +163,8 @@ class Main {
       Fail("no back-end or passes specified")
     }
 
-    if (onlyTransform.get() && onlyTypeCheck.get()) {
-      Fail("The --only-transform and --only-typecheck flags are mutually exclusive.")
+    if (stopBeforeBackend.get() && stopAfterTypecheck.get()) {
+      Fail("The --stop-before-backend and --stop-after-typecheck flags are mutually exclusive.")
     }
 
     if (silver.used) silver.get match {
@@ -406,13 +406,13 @@ class Main {
     if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
-    val passes = if (onlyTypeCheck.get()) {
+    val passes = if (stopAfterTypecheck.get()) {
       Seq()
     } else {
       computeGoal(features).get
     }
 
-    if (onlyTransform.get()) {
+    if (stopBeforeBackend.get()) {
       // We drop the last pass, which happens to be the silicon/carbon pass
       passes.init
     } else {
@@ -468,7 +468,7 @@ class Main {
 
       if (debugAfter.has(pass.key)) report.getOutput.dump()
       if (show_after.contains(pass.key)) show(pass)
-      if (stop_after.contains(pass.key)) Fail("exit after pass %s", pass)
+      if (stopAfter.contains(pass.key)) Fail("exit after pass %s", pass)
 
       report = BY_KEY("checkTypesJava").apply_pass(report, Array())
 
