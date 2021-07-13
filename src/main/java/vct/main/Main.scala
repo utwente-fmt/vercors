@@ -47,6 +47,8 @@ class Main {
   private val pass_list = new StringListSetting
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
   private val stop_after = new StringListSetting
+  private val onlyTransform = new BooleanSetting(false)
+  private val onlyTypeCheck = new BooleanSetting(false)
   private val strictInternalConditions = new BooleanSetting(false)
   private var inputPaths = Array.empty[String]
 
@@ -90,6 +92,8 @@ class Main {
     clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after")
     clops.add(notifySetting.getEnable("Send a system notification upon completion"), "notify")
     clops.add(stop_after.getAppendOption("Stop after given passes"), "stop-after")
+    clops.add(onlyTransform.getEnable("Only do parsing, typechecking, and AST transformations. Do not do verification with the backend."), "only-transform")
+    clops.add(onlyTypeCheck.getEnable("Only do parsing and typechecking. Do not apply AST transformations, not verification with the backend."), "only-typecheck")
     clops.add(strictInternalConditions.getEnable("Enable strict internal checks for AST conditions (expert option)"), "strict-internal")
     clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"), "global-with-field")
     clops.add(no_context.getEnable("disable printing the context of errors"), "no-context")
@@ -157,6 +161,10 @@ class Main {
       Configuration.veymont_file.used()
     ).forall(!_)) {
       Fail("no back-end or passes specified")
+    }
+
+    if (onlyTransform.get() && onlyTypeCheck.get()) {
+      Fail("The --only-transform and --only-typecheck flags are mutually exclusive.")
     }
 
     if (silver.used) silver.get match {
@@ -345,11 +353,13 @@ class Main {
   }
 
   def computeGoal(featuresIn: Set[Feature]): Option[Seq[AbstractPass]] = {
-    // Expand all choices
-    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)) :+ (silver.get() match {
+    val toolPass = silver.get() match {
       case "carbon" => BY_KEY("applyCarbon")
       case "silicon" => BY_KEY("applySilicon")
-    }))
+    }
+
+    // Expand all choices
+    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)) :+ toolPass)
 
     // Filter out passes that don't remove anything (even before the chain is valid)
     val filteredChains = chains.map(filterNopPasses(_, featuresIn))
@@ -396,7 +406,18 @@ class Main {
     if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
-    computeGoal(features).get
+    val passes = if (onlyTypeCheck.get()) {
+      Seq()
+    } else {
+      computeGoal(features).get
+    }
+
+    if (onlyTransform.get()) {
+      // We drop the last pass, which happens to be the silicon/carbon pass
+      passes.init
+    } else {
+      passes
+    }
   }
 
   private def getPasses: Seq[AbstractPass] = {
