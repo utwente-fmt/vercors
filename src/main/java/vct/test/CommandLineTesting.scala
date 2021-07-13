@@ -168,7 +168,7 @@ object CommandLineTesting {
     val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_$caseName.exec"
     // Options are of format opt1=val1,op2=val2.
     // Only include our own code, exclude generated parser code.
-    val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*,excludes=vct.antlr4.generated.*"
+    val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*:viper.api.*,excludes=vct.antlr4.generated.*"
     Seq(s"-javaagent:${Configuration.getJacocoAgentPath()}=$options")
   }
 
