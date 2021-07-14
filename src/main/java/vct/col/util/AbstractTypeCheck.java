@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import hre.lang.HREError;
+import hre.lang.HREExitException;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.jdk.CollectionConverters;
@@ -920,11 +921,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         MethodInvokation innerMi = getMethodInvokationInsideScale(operatorArgs[0]);
         if (!(innerMi instanceof MethodInvokation)) {
           operatorArgs[0].getOrigin().report("error", "Cannot unfold non-predicate expression");
-          Fail("Type error");
+          throw new HREExitException(1);
         }
         if (innerMi.getDefinition().getBody() == null) {
           operatorArgs[0].getOrigin().report("error", "Cannot unfold abstract predicate");
-          Fail("Type error");
+          throw new HREExitException(1);
         }
         break;
       }
@@ -1990,11 +1991,11 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
         if (innerMi.getDefinition().getBody() == null) {
           arg.getOrigin().report("error", "Cannot [%s] abstract predicate", s.kind);
-          Fail("Type error");
+          new HREExitException(1);
         }
       } else {
         arg.getOrigin().report("error", "Argument of [%s] must be a (scaled) predicate invokation", s.kind);
-        Fail("Type error");
+        new HREExitException(1);
       }
       s.setType(new PrimitiveType(PrimitiveSort.Void));
       break;
