@@ -917,12 +917,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       case Unfolding: {
         if (!tt[0].isResource()) Fail("Cannot unfold type %s", tt[0]);
         e.setType(tt[1]);
-        if (!(operatorArgs[0] instanceof MethodInvokation)) {
+        MethodInvokation innerMi = getMethodInvokationInsideScale(operatorArgs[0]);
+        if (!(innerMi instanceof MethodInvokation)) {
           operatorArgs[0].getOrigin().report("error", "Cannot unfold non-predicate expression");
           Fail("Type error");
         }
-        MethodInvokation mi = (MethodInvokation) operatorArgs[0];
-        if (mi.getDefinition().getBody() == null) {
+        if (innerMi.getDefinition().getBody() == null) {
           operatorArgs[0].getOrigin().report("error", "Cannot unfold abstract predicate");
           Fail("Type error");
         }
@@ -1979,23 +1979,22 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Fold:
     case Unfold:
     case Open:
-    case Close:
-    {
-      ASTNode arg=s.args[0];
-      if (!(arg instanceof MethodInvokation) && !(arg.isa(StandardOperator.Scale))){
-        Fail("At %s: argument of [%s] must be a (scaled) predicate invokation",arg.getOrigin(),s.kind);
-      }
-      if (arg instanceof MethodInvokation){
-        MethodInvokation prop=(MethodInvokation)arg;
-        if (prop.getDefinition().kind != Method.Kind.Predicate &&
-                !(prop.getDefinition().kind == Method.Kind.Pure &&
-                  prop.getDefinition().getReturnType().isPrimitive(PrimitiveSort.Resource))) {
-          Fail("At %s: argument of [%s] must be predicate and not %s",arg.getOrigin(),s.kind,prop.getDefinition().kind);
+    case Close: {
+      ASTNode arg = s.args[0];
+      MethodInvokation innerMi = getMethodInvokationInsideScale(arg);
+      if (innerMi != null) {
+        if (innerMi.getDefinition().kind != Method.Kind.Predicate &&
+                !(innerMi.getDefinition().kind == Method.Kind.Pure &&
+                        innerMi.getDefinition().getReturnType().isPrimitive(PrimitiveSort.Resource))) {
+          arg.getOrigin().report("error", "Argument of [%s] must be predicate and not %s", s.kind, innerMi.getDefinition().kind);
         }
-        if (prop.getDefinition().getBody() == null) {
-          arg.getOrigin().report("error", "Cannot unfold abstract predicate");
+        if (innerMi.getDefinition().getBody() == null) {
+          arg.getOrigin().report("error", "Cannot [%s] abstract predicate", s.kind);
           Fail("Type error");
         }
+      } else {
+        arg.getOrigin().report("error", "Argument of [%s] must be a (scaled) predicate invokation", s.kind);
+        Fail("Type error");
       }
       s.setType(new PrimitiveType(PrimitiveSort.Void));
       break;
@@ -2053,5 +2052,20 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   public void visit(InlineQuantifierPattern pattern) {
     pattern.inner().apply(this);
     pattern.setType(pattern.inner().getType());
+  }
+
+  public static MethodInvokation getMethodInvokationInsideScale(ASTNode node) {
+    if (node instanceof MethodInvokation) {
+      return (MethodInvokation) node;
+    } else if (node instanceof OperatorExpression) {
+      OperatorExpression operatorExpression = (OperatorExpression) node;
+      if (operatorExpression.isa(StandardOperator.Scale)) {
+        return getMethodInvokationInsideScale(operatorExpression.arg(1));
+      } else {
+        return null;
+      }
+    } else {
+      return null;
+    }
   }
 }
