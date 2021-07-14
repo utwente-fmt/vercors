@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import hre.lang.HREError;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.jdk.CollectionConverters;
@@ -916,6 +917,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       case Unfolding: {
         if (!tt[0].isResource()) Fail("Cannot unfold type %s", tt[0]);
         e.setType(tt[1]);
+        if (!(operatorArgs[0] instanceof MethodInvokation)) {
+          operatorArgs[0].getOrigin().report("error", "Cannot unfold non-predicate expression");
+          Fail("Type error");
+        }
+        MethodInvokation mi = (MethodInvokation) operatorArgs[0];
+        if (mi.getDefinition().getBody() == null) {
+          operatorArgs[0].getOrigin().report("error", "Cannot unfold abstract predicate");
+          Fail("Type error");
+        }
         break;
       }
       case Held: {
@@ -1981,6 +1991,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
                 !(prop.getDefinition().kind == Method.Kind.Pure &&
                   prop.getDefinition().getReturnType().isPrimitive(PrimitiveSort.Resource))) {
           Fail("At %s: argument of [%s] must be predicate and not %s",arg.getOrigin(),s.kind,prop.getDefinition().kind);
+        }
+        if (prop.getDefinition().getBody() == null) {
+          arg.getOrigin().report("error", "Cannot unfold abstract predicate");
+          Fail("Type error");
         }
       }
       s.setType(new PrimitiveType(PrimitiveSort.Void));

@@ -1,0 +1,13 @@
+//:: cases FunctionProblemFixed1
+//:: tools silicon
+//:: verdict Error
+
+class problem {
+
+  resource p();
+  
+  requires p();
+  void m(){
+    unfold p();
+  }
+}
