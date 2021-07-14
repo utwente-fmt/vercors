@@ -1,13 +1,11 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases SummationReduction
-//:: suite problem-fail
 //:: tools silicon
 //:: verdict Pass
 
-float res;
+int res;
 
 /*@
-  given seq<float> ar_values;
+  given seq<int> ar_values;
   context \pointer(ar, N, 1\2);
   context Perm(res,write);
   context ar_values == \values(ar, 0, N);
@@ -16,8 +14,8 @@ float res;
 
   ensures  res==(\sum int k ; 0 <= k && k < N ; ar_values[k] );
 @*/
-void do_sum(int N,float ar[N]){
-  res=(float)0;
+void do_sum(int N,int ar[N]){
+  res=0;
   for(int i=0;i<N;i++)
     /*@
       context ar != NULL;
