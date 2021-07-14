@@ -2,6 +2,11 @@
 //:: case OpenMPSectionReducedFail1
 //:: tools silicon
 //:: verdict Fail
+//:: option --stop-before-backend
+//:: suite problem-partial
+
+// Sometimes this test times out non-deterministically. See https://github.com/utwente-fmt/vercors/issues/514
+
 /*
  * Demonstrates how two loops that must be fused to be
  * data race free can be specified and verified.
