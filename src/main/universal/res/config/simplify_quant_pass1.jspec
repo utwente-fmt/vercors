@@ -8,6 +8,7 @@ class simplify_quant_pass1 {
   int i,j,k;
   rational p1,p2;
   int tid;
+  frac f1, f2, f3, f4;
 
   axiom aunitr { e1+0 == e1 }
   axiom aunitl { 0+e1 == e1 }
@@ -160,7 +161,7 @@ class simplify_quant_pass1 {
 //  }
 
   axiom perm_any {
-    Perm(ar[*],e1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],e1))
+    Perm(ar[*],f1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],f1))
   }
 
   axiom array_perm {
