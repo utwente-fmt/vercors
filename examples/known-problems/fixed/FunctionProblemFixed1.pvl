@@ -2,6 +2,13 @@
 //:: tools silicon
 //:: verdict Error
 
+/**
+ * This was previously a problem, but is now fixed, and the error is properly reported:
+ * This file triggers the Silver warning:
+ *  abstract predicates cannot be (un)folded
+ * this error is however not reported by VerCors.
+ */
+
 class problem {
 
   resource p();

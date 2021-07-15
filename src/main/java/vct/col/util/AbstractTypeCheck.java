@@ -919,7 +919,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!tt[0].isResource()) Fail("Cannot unfold type %s", tt[0]);
         e.setType(tt[1]);
         MethodInvokation innerMi = getMethodInvokationInsideScale(operatorArgs[0]);
-        if (!(innerMi instanceof MethodInvokation)) {
+        if (innerMi == null) {
           operatorArgs[0].getOrigin().report("error", "Cannot unfold non-predicate expression");
           throw new HREExitException(1);
         }
