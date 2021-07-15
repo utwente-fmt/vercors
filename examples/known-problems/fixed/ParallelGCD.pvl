@@ -1,6 +1,7 @@
 //:: case ParallelGCD
 //:: tool silicon
 //:: option --check-history
+//:: verdict Pass
 
 class `Future` {
   int x, y;
