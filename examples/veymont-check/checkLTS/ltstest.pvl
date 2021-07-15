@@ -1,5 +1,5 @@
 //:: cases LTSMethodCallTest
-//:: suite veymont
+//:: suite veymont veymont-check
 //:: option --veymont tmp.pvl
 //:: verdict Pass
 //:: tool silicon
