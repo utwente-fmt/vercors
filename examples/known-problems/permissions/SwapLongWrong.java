@@ -2,7 +2,7 @@
 //:: cases SwapLong
 //:: suite problem-fail
 //:: tools silicon
-//:: verdict Pass
+//:: verdict Fail
 
 // Issue with Long things in VerCors
 
@@ -22,5 +22,16 @@ public class SwapLong {
     F = G;
     G = tmp;
   }
+
+  /*@ 
+    requires Perm(F,1) ** Perm(G,1);
+    ensures Perm(F,1) ** Perm(G,1);
+    ensures F == \old(F) && G == \old(G);
+  @*/
+  void wrong()
+  {
+    n();
+  }
+
 }
 
