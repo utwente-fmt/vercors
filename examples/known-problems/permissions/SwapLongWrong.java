@@ -1,5 +1,5 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: cases SwapLong
+//:: cases SwapLongWrong
 //:: suite problem-fail
 //:: tools silicon
 //:: verdict Fail
