@@ -409,9 +409,9 @@ class simplify_quant_pass1 {
     }
 
     axiom split2 {
-       (\forall* int i;b1;PointsTo(e2,e3,e4))
+       (\forall* int i;b1;PointsTo(e2,f1,e4))
          ==
-       (\forall* int i;b1;Perm(e2,e3)) ** (\forall int i;b1;e2==e4)
+       (\forall* int i;b1;Perm(e2,f1)) ** (\forall int i;b1;e2==e4)
     }
 
     /* // SJ: unfortunately, this introduces an existential quantifier which is not always a good thing...
