@@ -179,9 +179,12 @@ class StructureCheck(source : ProgramUnit) {
       case d : DeclarationStatement =>
         d.initJava match {
           case m : MethodInvokation =>
-            if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name &&
-              m.method == JavaConstructor && m.dispatch.getName == mainClassName))
+            if(!(m.method == JavaConstructor && m.dispatch.getName == mainClassName))
               fixedMainFail()
+            else b.getStatement(1) match {
+              case m2 : MethodInvokation => if(d.name != m2.`object`.asInstanceOf[NameExpression].name) fixedMainFail()
+              case _ => fixedMainFail()
+            }
           case _ => fixedMainFail()
         }
       case _ => fixedMainFail()
