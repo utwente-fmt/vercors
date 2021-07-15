@@ -1,7 +1,8 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases LTSMethodCallTest
-//:: tools session
+//:: suite veymont
+//:: option --veymont tmp.pvl
 //:: verdict Pass
+//:: tool silicon
 
 class Role {
 	
