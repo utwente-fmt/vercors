@@ -15,10 +15,6 @@ class simplify_quant_pass1 {
   axiom munitr { e1*1 == e1 }
   axiom munitl { 1*e1 == e1 }
 
-  // Using an int for the second argument of a perm is not allowed.
-  // Hence, we divide by 1 to turn it into a frac again.
-  axiom perm_fix_frac { Perm(g1, e1) == Perm(g1, e1 \ 1) }
-
   axiom I2 {
     0 * e1 == 0
   }
@@ -451,9 +447,14 @@ class simplify_quant_pass1 {
     (\let int canary = i; i == 0 ? read : read)
   }
 
+  // This rewrite rule causes some issues: https://github.com/viperproject/silicon/issues/539
   axiom resource_independent_read_quant {
     (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, read)!tid))
     ==
     (e1<e2) ==> Perm(g1, read)
   }
+
+  // Using an int for the second argument of a perm is not allowed.
+  // Hence, we divide by 1 to turn it into a frac again.
+  axiom perm_fix_frac { Perm(g1, e1) == Perm(g1, e1 \ 1) }
 }
