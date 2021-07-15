@@ -15,9 +15,14 @@ class simplify_quant_pass1 {
   axiom munitr { e1*1 == e1 }
   axiom munitl { 1*e1 == e1 }
 
+  // Using an int for the second argument of a perm is not allowed.
+  // Hence, we divide by 1 to turn it into a frac again.
+  axiom perm_fix_frac { Perm(g1, e1) == Perm(g1, e1 \ 1) }
+
   axiom I2 {
     0 * e1 == 0
   }
+
   axiom I3 {
     e1 * 0 == 0
   }
