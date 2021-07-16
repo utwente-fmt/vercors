@@ -7,7 +7,7 @@ class ControlFlowCatchReturn {
     //@ ensures \result != null ==> \result == xs;
     //@ ensures \result != null ==> (\forall int j = 0 .. \result.length; xs[j] == 1);
     //@ ensures \result == null ==> (\exists int j = 0 .. xs.length; xs[j] == 0);
-    int[]  m(int[] xs) {
+    int[] m(int[] xs) {
         int i = 0;
 
         //@ loop_invariant 0 <= i && i <= xs.length;

@@ -9,9 +9,13 @@ case class NameExpression(name: String, reserved: ASTReserved, var kind: NameExp
   var site: ASTNode = null
 
   override def accept_simple[R, A](map: ASTMapping1[R, A], arg: A) = map.map(this, arg)
+
   override def accept_simple[T](visitor: ASTVisitor[T]) = visitor.visit(this)
+
   override def accept_simple[T](map: ASTMapping[T]) = map.map(this)
+
   override def debugTreeChildrenFields = Seq()
+
   override def debugTreePropertyFields = Seq("name", "kind", "reserved")
 
   def this(name: ASTReserved) =
@@ -25,15 +29,19 @@ case class NameExpression(name: String, reserved: ASTReserved, var kind: NameExp
   def this(kind: NameExpressionKind, word: ASTReserved, name: String) =
     this(name, word, kind)
 
+  def getKind: NameExpressionKind = kind
+
   def setKind(kind: NameExpressionKind): Unit = {
     if (kind eq NameExpressionKind.Reserved) hre.lang.System.Abort("cannot just declared a word reserved")
     this.kind = kind
   }
 
-  def getKind: NameExpressionKind = kind
   def getSite: ASTNode = site
+
   def setSite(site: ASTNode): Unit = this.site = site
+
   def getName: String = name
+
   override def toString: String = name
 
   override def equals(o: Any): Boolean = o match {

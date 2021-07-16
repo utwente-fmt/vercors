@@ -3,34 +3,34 @@
 
 public class Thread {
 
-  //@ public resource joinToken(frac p);
+    //@ public resource joinToken(frac p);
 
-  //@ public resource preFork(frac p);
+    //@ public resource preFork(frac p);
 
-  //@ public resource postJoin(frac p);
-  
-  public Thread(){
-    //@ assume false;
-  }
-  
-  /*@
-    requires preFork(1);
-    ensures  postJoin(1);
-  @*/
-  public void run();
+    //@ public resource postJoin(frac p);
 
-  /*@
-    requires preFork(1);
-    ensures  joinToken(1);
-  @*/
-  public final void start();
-  
-  /*@
-    given frac p;
-    requires joinToken(p);
-    ensures  postJoin(p);
-  @*/
-  public final void join();
+    public Thread() {
+        //@ assume false;
+    }
+
+    /*@
+      requires preFork(1);
+      ensures  postJoin(1);
+    @*/
+    public void run();
+
+    /*@
+      requires preFork(1);
+      ensures  joinToken(1);
+    @*/
+    public final void start();
+
+    /*@
+      given frac p;
+      requires joinToken(p);
+      ensures  postJoin(p);
+    @*/
+    public final void join();
 
 }
 

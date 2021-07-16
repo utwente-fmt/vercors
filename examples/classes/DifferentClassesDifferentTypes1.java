@@ -3,8 +3,11 @@
 //:: tools silicon
 //:: verdict Pass
 
-class A {}
-class B {}
+class A {
+}
+
+class B {
+}
 
 class DifferentClassesDifferentTypes1 {
     void foo() {

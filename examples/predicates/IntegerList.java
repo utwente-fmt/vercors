@@ -26,15 +26,15 @@ public class IntegerList {
         requires state();
         pure IntegerList get_next() = \unfolding state() \in next;
     @*/
-    
+
     /*@
         given int mmin;
         requires mmin <= val ** next->state() ** next->check_min(mmin);
         ensures state() ** check_min(mmin);
     @*/
-    public IntegerList(int val, IntegerList next){
-        this.val=val;
-        this.next=next;
+    public IntegerList(int val, IntegerList next) {
+        this.val = val;
+        this.next = next;
         //@ ghost this.min = mmin;
         //@ fold state();
     }
@@ -43,13 +43,13 @@ public class IntegerList {
         requires next !=null ** next.state() ** next.get_min() <= val;
         ensures \result!=null ** \result.state() ** \result.check_min(\old(next.get_min()));
     @*/
-    public static IntegerList cons(int val, IntegerList next){
+    public static IntegerList cons(int val, IntegerList next) {
         /*@
             unfold next.state();
             ghost int tmp=next.min;
             fold next.state();
         @*/
-		IntegerList res = new IntegerList(val, next) /*@ with { mmin = tmp; } @*/;
+        IntegerList res = new IntegerList(val, next) /*@ with { mmin = tmp; } @*/;
         return res;
     }
 
@@ -58,8 +58,8 @@ public class IntegerList {
         requires mmin <= val;
         ensures \result != null ** \result.state() ** \result.check_min(mmin);
     @*/
-    public static IntegerList single(int val){
-		IntegerList res = new IntegerList(val, null) /*@ with { mmin=mmin ; } */;
+    public static IntegerList single(int val) {
+        IntegerList res = new IntegerList(val, null) /*@ with { mmin=mmin ; } */;
         return res;
     }
 
@@ -67,14 +67,14 @@ public class IntegerList {
         main();
     }*/
 
-    static void main(){
+    static void main() {
         IntegerList list = single(3) /*@ with { mmin = 1 ; } */;
         /*  spec_ignore @* / System.out.printf("List is %s%n",list);*/
-        list = cons(2,list);
+        list = cons(2, list);
         /*  spec_ignore @* / System.out.printf("List is %s%n",list);*/
-        list = cons(1,list);
+        list = cons(1, list);
         /*  spec_ignore @* / System.out.printf("List is %s%n",list);*/
-        list = cons(0,list);
+        list = cons(0, list);
         /*  spec_ignore @* / System.out.printf("List is %s%n",list);*/
     }
 

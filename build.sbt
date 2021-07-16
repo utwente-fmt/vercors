@@ -1,10 +1,6 @@
-import NativePackagerHelper._
-import sys.process._
+import com.typesafe.sbt.SbtNativePackager.autoImport.NativePackagerHelper._
+
 import java.io.File.pathSeparator
-import java.nio.file.{Files, Path, Paths}
-import java.net.URL
-import java.util.Comparator
-import sbt.internal._
 
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
@@ -14,11 +10,9 @@ enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
 enablePlugins(DebianPlugin)
 
-/* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
- re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#v.21.01-release")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.21.01-release")
-val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.21.01-release")
+lazy val silver_ref = ProjectRef(silver_url, "silver")
+lazy val carbon_ref = ProjectRef(carbon_url, "carbon")
+lazy val silicon_ref = ProjectRef(silicon_url, "silicon")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -29,6 +23,7 @@ the relevant project. Instead, we replace those dependencies by a reference to t
 buildDependencies in Global := {
   val log = sLog.value
   val oldDeps = (buildDependencies in Global).value
+
   def fixDep(dep: ClasspathDep[ProjectRef]): ClasspathDep[ProjectRef] = dep.project.project match {
     case "silver" =>
       ResolvedClasspathDependency(ProjectRef(silver_url, "silver"), dep.configuration)
@@ -39,40 +34,15 @@ buildDependencies in Global := {
     case _ =>
       dep
   }
-  val newDeps = for((proj, deps) <- oldDeps.classpath) yield (proj, deps map fixDep)
+
+  val newDeps = for ((proj, deps) <- oldDeps.classpath) yield (proj, deps map fixDep)
   BuildDependencies(newDeps, oldDeps.aggregate)
 }
-
-lazy val silver_ref = ProjectRef(silver_url, "silver")
-lazy val carbon_ref = ProjectRef(carbon_url, "carbon")
-lazy val silicon_ref = ProjectRef(silicon_url, "silicon")
 lazy val hre = project in file("hre")
 lazy val col = (project in file("col")).dependsOn(hre)
 lazy val parsers = (project in file("parsers")).dependsOn(hre, col)
 lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, carbon_ref, silicon_ref)
-
-// We fix the scalaVersion of all viper components to be silver's scalaVersion, because
-// it seems that in some cases the scalaVersion of the other components is lost.
-// SBT then assumes the version we want for those components is 2.10, and then
-// suddenly it can't find the dependencies anymore! Smart move, sbt.
-// If Viper ever moves to maven central or some other proper dependency mechanism,
-// this can probably be removed.
-carbon_ref / scalaVersion := (silver_ref / scalaVersion).value
-silicon_ref / scalaVersion := (silver_ref / scalaVersion).value
-ProjectRef(silver_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
-ProjectRef(carbon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
-ProjectRef(silicon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
-
-// Disable doc generation in all viper projects
-carbon_ref / packageDoc / publishArtifact := false
-silver_ref / packageDoc / publishArtifact := false
-silicon_ref / packageDoc / publishArtifact := false
-ProjectRef(silver_url, "common") / packageDoc / publishArtifact := false
-ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
-ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
-
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
-
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
   .aggregate(hre, col, viper_api, parsers)
@@ -100,7 +70,7 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.jacoco" % "org.jacoco.cli" % "0.8.7" classifier "nodeps",
     libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
-      ThisBuild / scalacOptions ++= Seq(
+    ThisBuild / scalacOptions ++= Seq(
       "-deprecation",
       "-feature",
       "-unchecked",
@@ -158,12 +128,37 @@ lazy val vercors: Project = (project in file("."))
 
     cleanFiles += baseDirectory.value / "bin" / ".classpath",
   )
+/* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
+ re-import the project into their IDE, as the location of the viper projects below will change. */
+val silver_url = uri("git:https://github.com/viperproject/silver.git#v.21.01-release")
+
+// We fix the scalaVersion of all viper components to be silver's scalaVersion, because
+// it seems that in some cases the scalaVersion of the other components is lost.
+// SBT then assumes the version we want for those components is 2.10, and then
+// suddenly it can't find the dependencies anymore! Smart move, sbt.
+// If Viper ever moves to maven central or some other proper dependency mechanism,
+// this can probably be removed.
+carbon_ref / scalaVersion := (silver_ref / scalaVersion).value
+silicon_ref / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(silver_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(carbon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(silicon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
+
+// Disable doc generation in all viper projects
+carbon_ref / packageDoc / publishArtifact := false
+silver_ref / packageDoc / publishArtifact := false
+silicon_ref / packageDoc / publishArtifact := false
+ProjectRef(silver_url, "common") / packageDoc / publishArtifact := false
+ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
+ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.21.01-release")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.21.01-release")
 
 Global / printMainClasspath := {
-    val paths = (vercors / Compile / fullClasspath).value
-    val joinedPaths = paths
-        .map(_.data)
-        .mkString(pathSeparator)
-    println(joinedPaths)
+  val paths = (vercors / Compile / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
 }
 

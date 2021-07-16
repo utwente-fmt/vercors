@@ -8,11 +8,11 @@
 */
 public class Unsat {
 
-  /*@
-    requires 1==0;
-  @*/
-  public void bad(){
-  }
+    /*@
+      requires 1==0;
+    @*/
+    public void bad() {
+    }
 
 }
 

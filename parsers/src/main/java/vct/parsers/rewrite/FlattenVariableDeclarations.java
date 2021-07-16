@@ -8,19 +8,19 @@ import vct.col.ast.util.AbstractRewriter;
 
 public class FlattenVariableDeclarations extends AbstractRewriter {
 
-  public FlattenVariableDeclarations(ProgramUnit source) {
-    super(source);
-  }
-  
-  @Override
-  public void visit(VariableDeclaration decl) {
-    for(DeclarationStatement tmp:decl.flatten()){
-      if (decl.isValidFlag(ASTFlags.STATIC)){
-        tmp.setStatic(decl.isStatic());
-      }
-      current_sequence().add(tmp);
+    public FlattenVariableDeclarations(ProgramUnit source) {
+        super(source);
     }
-    result=null;
-  }
+
+    @Override
+    public void visit(VariableDeclaration decl) {
+        for (DeclarationStatement tmp : decl.flatten()) {
+            if (decl.isValidFlag(ASTFlags.STATIC)) {
+                tmp.setStatic(decl.isStatic());
+            }
+            current_sequence().add(tmp);
+        }
+        result = null;
+    }
 
 }

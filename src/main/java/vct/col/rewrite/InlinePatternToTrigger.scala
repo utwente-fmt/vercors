@@ -5,7 +5,6 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(source) {
@@ -26,7 +25,7 @@ class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(sourc
     val triggers = (Option(quantifier.triggers) match {
       case None => Array[Array[ASTNode]]()
       case Some(_) => rewrite(quantifier.javaTriggers)
-    }) ++ (if(patternStack.nonEmpty) Array(patternStack.toArray) else Array.empty[Array[ASTNode]])
+    }) ++ (if (patternStack.nonEmpty) Array(patternStack.toArray) else Array.empty[Array[ASTNode]])
 
     quantifier match {
       case comprehension: SetComprehension =>

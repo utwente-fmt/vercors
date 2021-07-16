@@ -4,20 +4,20 @@
 
 class Incr {
 
-  /*
-    @ ensures \result==\old(x)+1;
-  */
-  public int incr(int x){
-    return x+1;
-  }
+    int y;
 
-  int y;
+    /*
+      @ ensures \result==\old(x)+1;
+    */
+    public int incr(int x) {
+        return x + 1;
+    }
 
-  /*
-    @ context Perm(y, write);
-    @ ensures y == \old(y)+1;
-  */
-  public void incry(){
-    y = y + 1;
-  }
+    /*
+      @ context Perm(y, write);
+      @ ensures y == \old(y)+1;
+    */
+    public void incry() {
+        y = y + 1;
+    }
 }

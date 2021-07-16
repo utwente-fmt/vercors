@@ -1,18 +1,18 @@
 package vct.parsers
 
+import hre.lang.System.Warning
 import org.antlr.v4.runtime.tree.TerminalNode
-import org.antlr.v4.runtime.{CommonToken, CommonTokenStream, ParserRuleContext}
+import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.JavaParser
 import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
-import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, Switch, TryCatchBlock, TryWithResources}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit, SignalsClause}
+import vct.col.ast.expr.{NameExpression, NameExpressionKind, StandardOperator}
+import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.composite._
+import vct.col.ast.stmt.decl._
 import vct.col.ast.util.ContractBuilder
-import hre.lang.System.Warning
 
 import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
@@ -31,15 +31,15 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case CompilationUnit0(maybePackage, imports, decls, _) =>
       val result = new ProgramUnit()
       val namespace = origin(tree, maybePackage match {
-        case None => create namespace(NameSpace.NONAME)
+        case None => create namespace (NameSpace.NONAME)
         case Some(PackageDeclaration0(Seq(annotation, _*), _, _, _)) =>
           ??(annotation) // package declaration annotations are not supported.
         case Some(PackageDeclaration0(Seq(), "package", name, _)) =>
-          create namespace(convertQualifiedName(name):_*)
+          create namespace (convertQualifiedName(name): _*)
       })
       imports.foreach {
         case ImportDeclaration0("import", static, name, importAll, _) =>
-          namespace.add_import(static.isDefined, importAll.isDefined, convertQualifiedName(name):_*)
+          namespace.add_import(static.isDefined, importAll.isDefined, convertQualifiedName(name): _*)
       }
       decls.foreach(convertDecl(_).foreach(namespace.add(_)))
       result.add(namespace)
@@ -52,7 +52,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   }
 
   def convertID(id: ParserRuleContext): String = id match {
-    case JavaIdentifier0(ValReserved1(s)) => s.substring(1, s.length-1)
+    case JavaIdentifier0(ValReserved1(s)) => s.substring(1, s.length - 1)
     case JavaIdentifier0(reserved) =>
       fail(reserved, "This identifier is reserved, and may not be declared inside specifications.")
     case JavaIdentifier1(s) => s
@@ -65,7 +65,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertIDName(id: ParserRuleContext): NameExpression = origin(id, id match {
     case JavaIdentifier0(reserved) => convertValReserved(reserved)
-    case JavaIdentifier1(s) => create unresolved_name(s)
+    case JavaIdentifier1(s) => create unresolved_name (s)
     case JavaIdentifier2(reserved) => convertOverlappingValReservedName(reserved)
     case LangId0(id) => convertIDName(id)
   })
@@ -73,7 +73,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   def convertDecl(decl: LangDeclContext): ASTDeclaration = decl match {
     case LangDecl0(mods, member) =>
       val decls = convertDecl(member)
-      if(decls.size == 1) {
+      if (decls.size == 1) {
         mods.map(convertModifier).foreach(_.foreach(mod => decls.head.attach(mod)))
         decls.head
       } else {
@@ -105,7 +105,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       val decls = convertDecl(member)
       val contract = getContract(convertValContract(maybeContract))
       decls.foreach(decl => {
-        mods.map(convertModifier).foreach(mods => mods.foreach (mod => decl.attach(mod)))
+        mods.map(convertModifier).foreach(mods => mods.foreach(mod => decl.attach(mod)))
         decl match {
           case method: Method => method.setContract(contract)
           case other if maybeContract.isDefined =>
@@ -120,7 +120,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       Seq(convertValDecl(valDecl))
     case InterfaceBodyDeclaration0(mods, member) =>
       val decls = convertDecl(member)
-      decls.foreach(decl => mods.map(convertModifier).foreach(mods => mods.foreach (mod => decl.attach(mod))))
+      decls.foreach(decl => mods.map(convertModifier).foreach(mods => mods.foreach(mod => decl.attach(mod))))
       decls
 
     case MemberDeclaration0(fwd) => convertDecl(fwd)
@@ -134,7 +134,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case MemberDeclaration8(fwd) => convertDecl(fwd)
 
     case MethodDeclaration0(retType, name, paramsNode, maybeDims, maybeThrows, maybeBody) =>
-      val dims = maybeDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
+      val dims = maybeDims match {
+        case None => 0;
+        case Some(Dims0(dims)) => dims.size
+      }
       val returns = convertType(retType, dims)
       val signals = convertThrows(maybeThrows)
       val (params, varargs) = convertParams(paramsNode)
@@ -161,10 +164,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       ??(typeParams) // generics are unsupported
 
     case FieldDeclaration0(t, declarators, _) =>
-      for((name, dims, init) <- convertDeclarators(declarators))
+      for ((name, dims, init) <- convertDeclarators(declarators))
         yield create field_decl(name, convertType(t, dims), init.orNull)
     case ConstDeclaration0(baseType, decls, _) =>
-      for((name, dims, init) <- convertDeclarators(decls))
+      for ((name, dims, init) <- convertDeclarators(decls))
         yield create field_decl(name, convertType(baseType, dims), init.orNull)
     case LocalVariableDeclaration0(modsNode, t, decls) =>
       val mods = modsNode.map(convertModifier)
@@ -230,7 +233,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   })
 
   def convertModifier(langMod: LangModifierContext): NameExpression =
-    langMod match { case LangModifier0(mod) => convertModifier(mod) }
+    langMod match {
+      case LangModifier0(mod) => convertModifier(mod)
+    }
 
   def convertClass(decl: InterfaceDeclarationContext): ASTClass = origin(decl, decl match {
     case InterfaceDeclaration0(_, _, Some(typeParams), _, _) =>
@@ -286,12 +291,14 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   }
 
   def tCell(t: Type) = create.primitive_type(PrimitiveSort.Cell, t)
+
   def tArray(t: Type) = create.primitive_type(PrimitiveSort.Array, t)
+
   def tOpt(t: Type) = create.primitive_type(PrimitiveSort.Option, t)
 
   def addDims(t: Type, dimCount: Int): Type = {
     var result = t
-    for(_ <- 0 until dimCount) {
+    for (_ <- 0 until dimCount) {
       result = tOpt(tArray(tCell(result)))
     }
     result
@@ -319,7 +326,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
 
     case PrimitiveType0(name) =>
-      create primitive_type(name match {
+      create primitive_type (name match {
         case "boolean" => PrimitiveSort.Boolean
         case "char" => PrimitiveSort.Char
         case "byte" => PrimitiveSort.Byte
@@ -333,13 +340,13 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ClassOrInterfaceType0(id, generics) =>
       val args = generics.map(convertTypeList).getOrElse(Seq())
       val name = convertID(id)
-      if(name.equals("seq")) {
+      if (name.equals("seq")) {
         args match {
           case Seq(subType) => create primitive_type(PrimitiveSort.Sequence, subType)
           case _ => fail(tree, "Built-in type seq takes exactly one type argument")
         }
       } else {
-        create class_type(name, args:_*)
+        create class_type(name, args: _*)
       }
 
     case ClassOrInterfaceType1(baseType, _, innerType, generics) =>
@@ -348,7 +355,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case TypeArgument0(t) => convertType(t)
     case wildcard: TypeArgument1Context => ??(wildcard) // generics are unsupported
 
-    case CreatedName0(classType) => create class_type(convertClassType(classType).toArray)
+    case CreatedName0(classType) => create class_type (convertClassType(classType).toArray)
     case CreatedName1(primitiveType) => convertType(primitiveType)
   })
 
@@ -413,7 +420,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertBlock(block: BlockContext): BlockStatement = origin(block, block match {
     case Block0(_, stats, _) =>
-      create block(stats.flatMap(convertStat):_*)
+      create block (stats.flatMap(convertStat): _*)
   })
 
   def addCatchClauses(tryBlock: TryCatchBlock, catchClauses: Seq[CatchClauseContext]): Unit = {
@@ -450,7 +457,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   def convertStatWithContract(stat: StatementContext, maybeContracts: Seq[Option[ValEmbedContractContext]]): ASTNode = origin(stat, stat match {
     case Statement3(maybeContract2, "for", "(", ForControl1(maybeInit, _, maybeCond, _, maybeUpdate), ")", maybeContract3, body) =>
       val allContracts = (maybeContracts ++ Seq(maybeContract2, maybeContract3)).map(convertValContract)
-      val contract = getContract(allContracts:_*)
+      val contract = getContract(allContracts: _*)
       val loop = create for_loop(
         maybeInit.map(convertStat).orNull,
         maybeCond.map(expr).orNull,
@@ -461,7 +468,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       loop
     case Statement4(maybeContract2, "while", cond, maybeContract3, body) =>
       val allContracts = (maybeContracts ++ Seq(maybeContract2, maybeContract3)).map(convertValContract)
-      val contract = getContract(allContracts:_*)
+      val contract = getContract(allContracts: _*)
       val loop = create while_loop(expr(cond), convertStat(body))
       loop.setContract(contract)
       loop
@@ -511,18 +518,18 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Statement11("return", maybeValue, _) =>
       maybeValue match {
         case None => create.return_statement()
-        case Some(value) => create return_statement(expr(value))
+        case Some(value) => create return_statement (expr(value))
       }
     case Statement12("throw", exc, _) =>
       create special(ASTSpecial.Kind.Throw, expr(exc))
     case Statement13("break", maybeLabel, _) =>
       maybeLabel match {
-        case None => create special(ASTSpecial.Kind.Break)
+        case None => create special (ASTSpecial.Kind.Break)
         case Some(lbl) => create special(ASTSpecial.Kind.Break, convertIDName(lbl))
       }
     case Statement14("continue", maybeLabel, _) =>
       maybeLabel match {
-        case None => create special(ASTSpecial.Kind.Continue)
+        case None => create special (ASTSpecial.Kind.Continue)
         case Some(lbl) => create special(ASTSpecial.Kind.Continue, convertIDName(lbl))
       }
     case Statement15(";") =>
@@ -598,10 +605,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   def getArrayInitializer(initializer: ParserRuleContext, dims: Int, baseType: Type): ASTNode = initializer match {
     case ArrayInitializer0("{", "}") =>
       create expression(OptionSome,
-        create struct_value(tArray(tCell(addDims(baseType, dims-1))), null))
+        create struct_value(tArray(tCell(addDims(baseType, dims - 1))), null))
     case ArrayInitializer1("{", initializers, _, "}") =>
       create expression(OptionSome,
-        create struct_value(tArray(tCell(addDims(baseType, dims-1))), null, getArrayInitializerList(initializers, dims-1, baseType):_*))
+        create struct_value(tArray(tCell(addDims(baseType, dims - 1))), null, getArrayInitializerList(initializers, dims - 1, baseType): _*))
 
     case VariableInitializer0(arrayInitializer) => getArrayInitializer(arrayInitializer, dims, baseType)
     case VariableInitializer1(exp) => expr(exp)
@@ -619,25 +626,25 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create dereference(expr(obj), convertID(field))
     case Expression3(obj, ".", "this") =>
       ??(tree)
-      /* This is used to refer to a specific "this", within the context of an inner class (which is defined wrt an
-      * outer class instance, unless it is defined as static). We should start supporting this if we end up
-      * implementing inner classes. */
+    /* This is used to refer to a specific "this", within the context of an inner class (which is defined wrt an
+    * outer class instance, unless it is defined as static). We should start supporting this if we end up
+    * implementing inner classes. */
     case Expression4(obj, ".", "new", typeArgs, creator) =>
       ??(tree)
-      /* This is again used in inner classes, where you instantiate an inner class with respect to a specific instance
-       * of the outer class. Normally it is instantiated with respect to the current ("this") instance of the outer
-       * class. */
+    /* This is again used in inner classes, where you instantiate an inner class with respect to a specific instance
+     * of the outer class. Normally it is instantiated with respect to the current ("this") instance of the outer
+     * class. */
     case Expression5(obj, ".", "super", suffix) =>
       ??(tree)
-      /*
-      Two cases, either suffix = arguments:
-        Then this is an invocation of a constructor, whereby classname.super is called a
-        qualified superclass constructor
-      Or suffix = '.' identifier arguments:
-        then classname.super is the qualifying type of the method call <identifier arguments>
+    /*
+    Two cases, either suffix = arguments:
+      Then this is an invocation of a constructor, whereby classname.super is called a
+      qualified superclass constructor
+    Or suffix = '.' identifier arguments:
+      then classname.super is the qualifying type of the method call <identifier arguments>
 
-      inheritance is unsupported
-      */
+    inheritance is unsupported
+    */
     case Expression6(objNode, ".", invokation) =>
       ??(tree)
     case Expression7(seq, "[", idx, "]") =>
@@ -645,8 +652,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Expression8(objNode, "->", predicate, args) =>
       val obj = expr(objNode)
       create expression(Implies,
-          create expression(NEQ, obj, create reserved_name ASTReserved.Null),
-        create invokation(obj, null, convertID(predicate), exprList(args):_*)
+        create expression(NEQ, obj, create reserved_name ASTReserved.Null),
+        create invokation(obj, null, convertID(predicate), exprList(args): _*)
       )
     case Expression9(_, _, _, Some(predicateEntryType), _, _) =>
       // the predicate entry type is set as dispatch of an invokation
@@ -656,7 +663,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       maybeWithThen match {
         case None =>
         case Some(block) =>
-          res.set_after(create block(convertValWithThen(block):_*))
+          res.set_after(create block (convertValWithThen(block): _*))
       }
       res
     case Expression10("new", Creator0(typeArgs, _, _), _) =>
@@ -670,15 +677,18 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         getArrayInitializer(initializer, dims.size, baseType)
       case (t, CreatorRest0(ArrayCreatorRest1(specDims, maybeAnonDims))) =>
         failIfDefined(maybeWithThen, "with/then arguments cannot be applied to an array constructor")
-        val anonDims = maybeAnonDims match { case None => 0; case Some(Dims0(dims)) => dims.size }
+        val anonDims = maybeAnonDims match {
+          case None => 0;
+          case Some(Dims0(dims)) => dims.size
+        }
         val knownDims = exprList(specDims)
         create expression(NewArray, convertType(t, knownDims.size + anonDims), knownDims.toArray)
       case (t, CreatorRest1(ClassCreatorRest0(arguments, maybeBody))) =>
-        val res = create new_object(convertType(t).asInstanceOf[ClassType], exprList(arguments):_*)
+        val res = create new_object(convertType(t).asInstanceOf[ClassType], exprList(arguments): _*)
         maybeWithThen match {
           case None =>
           case Some(block) =>
-            res.set_after(create block(convertValWithThen(block):_*))
+            res.set_after(create block (convertValWithThen(block): _*))
         }
         res
     }
@@ -701,9 +711,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case shiftExpr: Expression17Context =>
       val left = shiftExpr.children.get(0).asInstanceOf[ParserRuleContext]
       val right = shiftExpr.children.get(shiftExpr.children.size() - 1).asInstanceOf[ParserRuleContext]
-      if(shiftExpr.children.size() == 5) { // >>>
+      if (shiftExpr.children.size() == 5) { // >>>
         create expression(UnsignedRightShift, expr(left), expr(right))
-      } else if(shiftExpr.children.get(1).asInstanceOf[TerminalNode].getText == "<") { // <<
+      } else if (shiftExpr.children.get(1).asInstanceOf[TerminalNode].getText == "<") { // <<
         create expression(LeftShift, expr(left), expr(right))
       } else {
         create expression(RightShift, expr(left), expr(right))
@@ -764,7 +774,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     // See also CMLtoCOL PrimaryExpression2
     case Primary3(Literal3(s)) => create constant s
     case Primary3(Literal4(s)) => create constant s.equals("true")
-    case Primary3(Literal5("null")) => create reserved_name(ASTReserved.Null)
+    case Primary3(Literal5("null")) => create reserved_name (ASTReserved.Null)
     case Primary4(name) => convertIDName(name)
     case Primary5(_, Some(predicateEntryType), _, _) =>
       ??(predicateEntryType)
@@ -773,7 +783,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       maybeWithThen match {
         case None =>
         case Some(block) =>
-          res.set_after(create block(convertValWithThen(block):_*))
+          res.set_after(create block (convertValWithThen(block): _*))
       }
       res
     case Primary6(t, ".", "class") =>
@@ -808,9 +818,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertValClause(clause: ValContractClauseContext) = (builder: ContractBuilder) => clause match {
     case ValContractClause0(_modifies, names, _) =>
-      builder.modifies(convertValExpList(names):_*)
+      builder.modifies(convertValExpList(names): _*)
     case ValContractClause1(_accessible, names, _) =>
-      builder.accesses(convertValExpList(names):_*)
+      builder.accesses(convertValExpList(names): _*)
     case ValContractClause2(_requires, exp, _) =>
       builder.requires(expr(exp))
     case ValContractClause3(_ensures, exp, _) =>
@@ -833,7 +843,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {
     case ValBlock0("{", statements, "}") =>
-      create block(statements.map(convertValStat):_*)
+      create block (statements.map(convertValStat): _*)
   })
 
   def convertValStat(stat: ValEmbedStatementBlockContext): Seq[ASTNode] = origin(stat, stat match {
@@ -850,7 +860,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertValStat(stat: ValStatementContext): ASTNode = origin(stat, stat match {
     case ValStatement0(_create, block) =>
-      create lemma(convertValBlock(block))
+      create lemma (convertValBlock(block))
     case ValStatement1(_qed, exp, _) =>
       create special(ASTSpecial.Kind.QED, expr(exp))
     case ValStatement2(_apply, exp, _) =>
@@ -908,22 +918,22 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValStatement28(_spec_ignore, "{") =>
       create special ASTSpecial.Kind.SpecIgnoreStart
     case ValStatement29(_action, arg1, _, arg2, _, arg3, _, arg4, map, _) =>
-      if(map.nonEmpty) {
+      if (map.nonEmpty) {
         ??(map.head)
       }
-      create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
+      create special(ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
-      create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()).map {
+      create csl_atomic(create block (convertValStat(stat): _*), resList.map(convertValExpList).getOrElse(Seq()).map {
         case name: NameExpression if name.getKind == NameExpressionKind.Unresolved =>
           create label name.getName
         case other => other
-      }:_*)
+      }: _*)
   })
 
   def valExpr(exp: ValPrimaryContext): ASTNode = origin(exp, exp match {
     case ValPrimary0(t, "{", maybeExps, "}") =>
       val exps = maybeExps.map(convertValExpList).getOrElse(Seq())
-      create struct_value(convertType(t), null, exps:_*)
+      create struct_value(convertType(t), null, exps: _*)
     case ValPrimary1("[", factor, "]", exp) =>
       create expression(Scale, expr(factor), expr(exp))
     case ValPrimary2("|", seq, "|") =>
@@ -944,8 +954,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       val name = convertID(id)
       val decl = create field_decl(name, convertType(t))
       val guard = create expression(StandardOperator.And,
-        create expression(LTE, expr(fr), create unresolved_name(name)),
-        create expression(StandardOperator.LT, create unresolved_name(name), expr(to))
+        create expression(LTE, expr(fr), create unresolved_name (name)),
+        create expression(StandardOperator.LT, create unresolved_name (name), expr(to))
       )
       binderName match {
         case "\\forall*" => create starall(guard, expr(main), decl)
@@ -993,7 +1003,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create expression(MatrixRepeat, expr(m))
     case ValPrimary27(label, _, exp) =>
       val res = expr(exp)
-      res.addLabel(create label(convertID(label)))
+      res.addLabel(create label (convertID(label)))
       res
     case ValPrimary28("{:", pattern, ":}") =>
       create pattern expr(pattern)
@@ -1072,9 +1082,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValPrimary61("valuesMap", _, map, _) =>
       create expression(StandardOperator.MapValueSet, expr(map))
     case ValPrimary62("seq", "<", t, ">", "{", elems, "}") =>
-      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems):_*)
+      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems): _*)
     case ValPrimary63("set", "<", t, ">", "{", elems, "}") =>
-      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems):_*)
+      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems): _*)
     case ValPrimary64("(", seq, "[", "..", end, "]", ")") =>
       create expression(Take, expr(seq), expr(end))
     case ValPrimary65("(", seq, "[", start, "..", None, "]", ")") =>
@@ -1110,7 +1120,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case ValReserved0(_) =>
       fail(reserved, "This identifier is reserved and cannot be declared or used.")
     case ValReserved1(s) =>
-      create unresolved_name(s.substring(1, s.length-1))
+      create unresolved_name (s.substring(1, s.length - 1))
     case ValReserved2("\\result") =>
       create reserved_name ASTReserved.Result
     case ValReserved3("\\current_thread") =>
@@ -1138,6 +1148,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   /**
    * This method allows a language grammar to step into the reserved identifiers where they overlap with the underlying
    * language, to allow their use there. They should be forbidden inside specifications.
+   *
    * @param reserved the reserved identifier
    * @return the string representation of the identifier
    */
@@ -1162,7 +1173,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertValContract(contract: Option[ValEmbedContractContext]) = (builder: ContractBuilder) => contract match {
     case Some(ValEmbedContract0(blocks)) =>
-      for(block <- blocks) {
+      for (block <- blocks) {
         convertValContractBlock(block)(builder)
       }
     case None =>
@@ -1171,19 +1182,19 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertValContractBlock(contract: ValEmbedContractBlockContext) = (builder: ContractBuilder) => contract match {
     case ValEmbedContractBlock0(_startSpec, clauses, _endSpec) =>
-      for(clause <- clauses) {
+      for (clause <- clauses) {
         convertValClause(clause)(builder)
       }
     case ValEmbedContractBlock1(clauses) =>
-      for(clause <- clauses) {
+      for (clause <- clauses) {
         convertValClause(clause)(builder)
       }
   }
 
   def convertValType(t: ValTypeContext): Type = origin(t, t match {
     case ValType0(s) => s match {
-      case "resource" => create primitive_type(PrimitiveSort.Resource)
-      case "process" => create primitive_type(PrimitiveSort.Process)
+      case "resource" => create primitive_type (PrimitiveSort.Resource)
+      case "process" => create primitive_type (PrimitiveSort.Process)
       case "frac" => create primitive_type PrimitiveSort.Fraction
       case "zfrac" => create primitive_type PrimitiveSort.ZFraction
       case "rational" => create primitive_type PrimitiveSort.Rational
@@ -1213,9 +1224,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertValModifier(modifier: ValModifierContext): NameExpression = origin(modifier, modifier match {
     case ValModifier0(s) => s match {
-      case "pure" => create reserved_name(ASTReserved.Pure)
-      case "inline" => create reserved_name(ASTReserved.Inline)
-      case "thread_local" => create reserved_name(ASTReserved.ThreadLocal)
+      case "pure" => create reserved_name (ASTReserved.Pure)
+      case "inline" => create reserved_name (ASTReserved.Inline)
+      case "thread_local" => create reserved_name (ASTReserved.ThreadLocal)
     }
     case ValModifier1(langMod) => convertModifier(langMod)
   })
@@ -1229,7 +1240,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
 
   def convertValDecl(decl: ValDeclarationContext): ASTDeclaration = origin(decl, decl match {
     case ValDeclaration0(clauses, mods, t, name, _, args, _, body) =>
-      val contract = getContract(clauses.map(convertValClause):_*)
+      val contract = getContract(clauses.map(convertValClause): _*)
       val func = create function_decl(
         convertType(t),
         contract,
@@ -1246,10 +1257,10 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
     case ValDeclaration2(clauses, "ghost", langDecl) =>
       val decl = convertDecl(langDecl)
-      if(clauses.nonEmpty) {
+      if (clauses.nonEmpty) {
         decl match {
           case method: Method =>
-            method.setContract(getContract(clauses.map(convertValClause):_*))
+            method.setContract(getContract(clauses.map(convertValClause): _*))
             method
           case _ =>
             fail(langDecl, "This constructor cannot have contract declarations")

@@ -4,7 +4,7 @@
 
 class CatchContinue {
     //@ requires n >= 0;
-    void m (int n) {
+    void m(int n) {
         int i = 0;
         int[] xs = new int[n];
 
@@ -18,7 +18,7 @@ class CatchContinue {
                 i++;
                 if (currentI % 2 != 0) {
                     throw new Exception();
-                } 
+                }
                 xs[currentI] = 0;
             } catch (Exception e) {
                 continue;

@@ -9,12 +9,12 @@ class FinallyNestedTry {
     int x;
 
     boolean randomBoolean();
-    
+
     //@ signals (ArithmeticException e) Perm(x, write) ** (x == 31 || x == 32);
     //@ signals (ArrayStoreException e) Perm(x, write) ** (x == 111 || x == 112);
     //@ context_everywhere Perm(x, write);
     //@ ensures x == 32;
-    int  m() {
+    int m() {
         x = 0;
 
         boolean throwB1 = randomBoolean();
@@ -34,7 +34,7 @@ class FinallyNestedTry {
                 if (throwB2) {
                     throw new Exception();
                 }
-                
+
                 x += 20;
             } catch (Exception e) {
                 x += 100;

@@ -12,15 +12,15 @@
 
 class C {
 
-  //@ requires \typeof(this) == C;
-  void m1(){
-    //@ assert this instanceof C;
-    //@ assert \typeof(this) == C;
-  }
-  
-  //@ requires this instanceof C;
-  void m2(){
-    //@ assert this instanceof C;
-  }
+    //@ requires \typeof(this) == C;
+    void m1() {
+        //@ assert this instanceof C;
+        //@ assert \typeof(this) == C;
+    }
+
+    //@ requires this instanceof C;
+    void m2() {
+        //@ assert this instanceof C;
+    }
 
 }

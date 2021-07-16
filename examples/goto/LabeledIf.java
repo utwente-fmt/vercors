@@ -5,6 +5,8 @@
 
 class C {
     void m() {
-        l: if (true) { }
+        l:
+        if (true) {
+        }
     }
 }

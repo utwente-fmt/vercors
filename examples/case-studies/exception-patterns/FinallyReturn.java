@@ -4,11 +4,11 @@
 
 class FinallyReturn {
     //@ ensures \result == 3;
-    int  m() {
+    int m() {
         int x = 0;
 
         try {
-            x += 1;   
+            x += 1;
         } finally {
             x += 2;
             return x;

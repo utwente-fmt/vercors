@@ -1,13 +1,11 @@
 package vct.test
 
-import java.util.concurrent.Callable
-import java.util.regex.Pattern
 import hre.io.{Message, MessageProcessEnvironment}
-import hre.lang.System.Output
 import hre.util.TestReport.Verdict
 
+import java.util.concurrent.Callable
+import java.util.regex.Pattern
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 
 case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) extends Callable[Seq[FailReason]] {
   val TIME_PATTERN: Pattern = Pattern.compile("^(\\s*\\[[^\\]]*\\])*\\s*([a-zA-Z_ ]+) took\\s*([0-9]+)\\s*ms$")
@@ -45,11 +43,11 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
           val line = msg.getArg(0).asInstanceOf[String]
 
           val lineMatcher = TIME_PATTERN.matcher(line)
-          if(lineMatcher.find()) {
+          if (lineMatcher.find()) {
             times.put(lineMatcher.group(2), Integer.parseInt(lineMatcher.group(3)))
           }
 
-          if(line.contains("The final verdict is Pass")) {
+          if (line.contains("The final verdict is Pass")) {
             verdict = verdict match {
               case Verdict.Inconclusive | Verdict.Pass =>
                 Verdict.Pass
@@ -57,7 +55,7 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
             }
           }
 
-          if(line.contains("The final verdict is Fail")) {
+          if (line.contains("The final verdict is Fail")) {
             verdict = verdict match {
               case Verdict.Inconclusive | Verdict.Fail =>
                 Verdict.Fail
@@ -65,7 +63,7 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
             }
           }
 
-          if(line.contains("The final verdict is Error")) {
+          if (line.contains("The final verdict is Error")) {
             verdict = verdict match {
               case Verdict.Inconclusive | Verdict.Error =>
                 Verdict.Error
@@ -73,7 +71,7 @@ case class Task(env: MessageProcessEnvironment, conditions: Seq[TaskCondition]) 
             }
           }
 
-          if(line.startsWith("method verdict")) {
+          if (line.startsWith("method verdict")) {
             val parts = line.split(" ")
             parts(3) match {
               case "PASS" =>
@@ -97,8 +95,8 @@ case class MustSay(line: String) extends TaskCondition {
   override def check(t: Task): Seq[FailReason] = {
     if (t.log.exists(msg => (
       (msg.getFormat.equals("stdout: %s") || msg.getFormat.equals("stderr: %s"))
-      && msg.getArg(0).asInstanceOf[String].contains(line)
-    ))) {
+        && msg.getArg(0).asInstanceOf[String].contains(line)
+      ))) {
       Seq()
     } else {
       Seq(DoesNotSay(line))
@@ -139,12 +137,21 @@ case class PassNonFail(fail_methods: Seq[String]) extends TaskCondition {
 }
 
 sealed trait FailReason
+
 object NullMessage extends FailReason
+
 object ProcessKilled extends FailReason
+
 case class InternalError(description: String) extends FailReason
+
 object MissingVerdict extends FailReason
+
 case class InconsistentVerdict(olderVerdict: Verdict, newerVerdict: Verdict) extends FailReason
+
 case class WrongVerdict(expect: Verdict, got: Verdict) extends FailReason
+
 case class MethodPass(method: String) extends FailReason
+
 case class MethodFail(method: String) extends FailReason
+
 case class DoesNotSay(line: String) extends FailReason

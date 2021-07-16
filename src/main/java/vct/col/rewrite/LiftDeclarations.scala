@@ -4,18 +4,18 @@ import vct.col.ast.`type`.ASTReserved
 import vct.col.ast.expr.{MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.BlockStatement
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.ReturnStatement
 import vct.col.ast.util.{AbstractRewriter, SequenceUtils}
 
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
 
 class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
   var inContract: Boolean = false
 
   override def visit(decl: DeclarationStatement): Unit = {
-    if(inContract) {
+    if (inContract) {
       // More accurately we should skip declarations in binding expressions
       super.visit(decl)
     } else {
@@ -41,7 +41,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
       copy_rw.rewrite(invokation.`object`),
       rewrite(invokation.dispatch),
       invokation.method,
-      rewrite(invokation.getArgs):_*
+      rewrite(invokation.getArgs): _*
     )
   }
 
@@ -49,7 +49,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
     var body: ListBuffer[ASTNode] = ListBuffer()
     var args: ListBuffer[DeclarationStatement] = ListBuffer()
 
-    for(arg <- method.getArgs) {
+    for (arg <- method.getArgs) {
       args += create.field_decl(arg.getOrigin, "__arg_" + arg.name, arg.`type`)
       body += create.field_decl(
         arg.getOrigin,
@@ -57,7 +57,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
         SequenceUtils.optArrayCell(create, arg.`type`),
         create.expression(StandardOperator.OptionSome,
           create.struct_value(SequenceUtils.arrayCell(create, arg.`type`), null,
-            create.unresolved_name("__arg_"+arg.name)))
+            create.unresolved_name("__arg_" + arg.name)))
       )
     }
 
@@ -73,7 +73,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
         None
     }
 
-    for(arg <- method.getArgs) {
+    for (arg <- method.getArgs) {
       body += create.special(arg.getOrigin, ASTSpecial.Kind.Exhale,
         create.expression(StandardOperator.Perm,
           SequenceUtils.access(create, create.unresolved_name(arg.name), constant(0)),
@@ -82,7 +82,7 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
       )
     }
 
-    if(lastReturn.nonEmpty) {
+    if (lastReturn.nonEmpty) {
       body += rewrite(lastReturn.get)
     }
 
@@ -95,20 +95,20 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
       newContract,
       method.getName,
       args.asJava,
-      create.block((body.toSeq):_*)
+      create.block((body.toSeq): _*)
     )
   }
 
   override def visit(name: NameExpression): Unit = {
-    if(name.getKind == NameExpressionKind.Argument) {
-      if(inContract) {
+    if (name.getKind == NameExpressionKind.Argument) {
+      if (inContract) {
         // Within contracts
         result = create.argument_name("__arg_" + name.getName)
       } else {
         // Otherwise, re-resolve the name to the masking argument
         result = SequenceUtils.access(create, create.unresolved_name(name.getName), create.constant(0))
       }
-    } else if(!inContract && name.getKind != NameExpressionKind.Reserved && name.getKind != NameExpressionKind.Label) {
+    } else if (!inContract && name.getKind != NameExpressionKind.Reserved && name.getKind != NameExpressionKind.Label) {
       result = SequenceUtils.access(create, name, create.constant(0))
     } else {
       super.visit(name)

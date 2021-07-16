@@ -16,6 +16,15 @@ object AddZeroConstructor {
 }
 
 case class AddZeroConstructor(override val source: ProgramUnit) extends AbstractRewriter(source) {
+  override def visit(cls: ASTClass): Unit = {
+    super.visit(cls)
+    val res = result.asInstanceOf[ASTClass]
+
+    if (!AddZeroConstructor.hasConstructor(cls)) {
+      res.add_dynamic(zeroConstructor(cls))
+    }
+  }
+
   private def zeroConstructor(cls: ASTClass): Method = {
     create.enter()
     create.setOrigin(new BranchOrigin("auto-generated parameterless constructor", cls.getOrigin))
@@ -23,9 +32,9 @@ case class AddZeroConstructor(override val source: ProgramUnit) extends Abstract
     val cb = new ContractBuilder
     val body = create.block()
 
-    for(field <- cls.dynamicFields.asScala) {
+    for (field <- cls.dynamicFields.asScala) {
       val init = field.`type`.zero
-      val fieldNode = create.dereference (create.diz(), field.name)
+      val fieldNode = create.dereference(create.diz(), field.name)
       body.addStatement(create assignment(fieldNode, init))
       cb.ensures(create.expression(StandardOperator.PointsTo, fieldNode, create.fullPermission(), init))
     }
@@ -42,14 +51,5 @@ case class AddZeroConstructor(override val source: ProgramUnit) extends Abstract
     create.leave()
 
     res
-  }
-
-  override def visit(cls: ASTClass): Unit = {
-    super.visit(cls)
-    val res = result.asInstanceOf[ASTClass]
-
-    if(!AddZeroConstructor.hasConstructor(cls)) {
-      res.add_dynamic(zeroConstructor(cls))
-    }
   }
 }

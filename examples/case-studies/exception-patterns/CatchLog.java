@@ -5,7 +5,7 @@
 class MethodCallCatchLog {
     void log(String msg);
 
-    void m () {
+    void m() {
         try {
             throw new Exception();
         } catch (Exception e) {

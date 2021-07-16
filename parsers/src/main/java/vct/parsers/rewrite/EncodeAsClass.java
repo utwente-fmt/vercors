@@ -13,48 +13,48 @@ import vct.col.ast.util.AbstractRewriter;
 
 public class EncodeAsClass extends AbstractRewriter {
 
-  public EncodeAsClass(ProgramUnit source) {
-    super(source);
-    cl=new ASTClass("Ref",ASTClass.ClassKind.Plain);
-    cl.setOrigin(new MessageOrigin("EncodeAsClass"));
-    cl.setFlag(ASTFlags.FINAL,true);
-  }
+    private ASTClass cl;
 
-  private ASTClass cl;
+    public EncodeAsClass(ProgramUnit source) {
+        super(source);
+        cl = new ASTClass("Ref", ASTClass.ClassKind.Plain);
+        cl.setOrigin(new MessageOrigin("EncodeAsClass"));
+        cl.setFlag(ASTFlags.FINAL, true);
+    }
 
-  public ProgramUnit rewriteAll() {
-    for(ASTDeclaration n:source().get()){
-        ASTNode tmp=rewrite(n);
-        if (tmp!=null){
-          cl.add_dynamic(tmp);
+    public ProgramUnit rewriteAll() {
+        for (ASTDeclaration n : source().get()) {
+            ASTNode tmp = rewrite(n);
+            if (tmp != null) {
+                cl.add_dynamic(tmp);
+            }
+        }
+        target().add(cl);
+        return target();
+    }
+
+    public void visit(ASTClass cls) {
+        super.visit(cls);
+        target().add(result);
+        result = null;
+    }
+
+    public void visit(NameExpression name) {
+        if (name.kind() == NameExpressionKind.Local && name.site().isValidFlag(ASTFlags.STATIC) && name.site().isStatic()) {
+            result = create.dereference(create.diz(), name.name());
+        } else {
+            super.visit(name);
         }
     }
-    target().add(cl);
-    return target();
-  }
 
-  public void visit(ASTClass cls) {
-    super.visit(cls);
-    target().add(result);
-    result = null;
-  }
-
-  public void visit(NameExpression name) {
-    if(name.kind() == NameExpressionKind.Local && name.site().isValidFlag(ASTFlags.STATIC) && name.site().isStatic()) {
-      result = create.dereference(create.diz(), name.name());
-    } else {
-      super.visit(name);
+    public void visit(MethodInvokation invok) {
+        if (invok.object() == null) {
+            MethodInvokation res = create.invokation(create.diz(), null, invok.method(), rewrite(invok.getArgs()));
+            res.set_before(rewrite(invok.get_before()));
+            res.set_after(rewrite(invok.get_after()));
+            result = res;
+        } else {
+            super.visit(invok);
+        }
     }
-  }
-
-  public void visit(MethodInvokation invok) {
-    if(invok.object() == null) {
-      MethodInvokation res = create.invokation(create.diz(), null, invok.method(), rewrite(invok.getArgs()));
-      res.set_before(rewrite(invok.get_before()));
-      res.set_after(rewrite(invok.get_after()));
-      result = res;
-    } else {
-      super.visit(invok);
-    }
-  }
 }

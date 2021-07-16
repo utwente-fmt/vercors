@@ -6,7 +6,7 @@ class CatchWhile {
     boolean randomBoolean();
 
     //@ requires n >= 0;
-    void m (int n) {
+    void m(int n) {
         boolean[] xs = new boolean[n];
         boolean throwB = randomBoolean();
 

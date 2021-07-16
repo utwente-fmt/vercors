@@ -3,7 +3,7 @@
 
 class History {
 
-  int x;
+    int x;
   
   /*@
   modifies x;
@@ -28,6 +28,6 @@ class History {
   ensures single(m)*single(n)==single(m+n);
   ghost void single_axiom(int m,int n);
   @*/
-  
+
 }
 

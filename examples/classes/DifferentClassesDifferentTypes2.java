@@ -3,8 +3,11 @@
 //:: tools silicon
 //:: verdict Fail
 
-class A {}
-class B {}
+class A {
+}
+
+class B {
+}
 
 class DifferentClassesDifferentTypes2 {
     void foo() {

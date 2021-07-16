@@ -10,31 +10,6 @@ import vct.col.ast.util.AbstractRewriter
 import scala.jdk.CollectionConverters._
 
 class RewriteWithThen(source: ProgramUnit) extends AbstractRewriter(source) {
-  private def process_with_then[T <: ASTNode with BeforeAfterAnnotations](dst: T, src: T)= {
-    // Keep the before statements
-    for (n <- src.get_before.asScala) {
-      dst.get_before.add(rewrite(n))
-    }
-
-    // Sort the after statements by with / then
-    for (n <- src.get_after.asScala) n match {
-      case special: ASTSpecial => special.kind match {
-        case Kind.Label =>
-          dst.labeled(special.args(0).asInstanceOf[NameExpression].getName)
-        case Kind.With => for(withMapping <- special.args(0).asInstanceOf[BlockStatement].asScala) {
-          dst.get_before().add(rewrite(withMapping))
-        }
-        case Kind.Then => for(thenMapping <- special.args(0).asInstanceOf[BlockStatement].asScala) {
-          dst.get_after().add(rewrite(thenMapping))
-        }
-        case _ => ???
-      }
-      case nonSpecial => dst.get_after().add(rewrite(nonSpecial))
-    }
-
-    dst
-  }
-
   override def visit(invokation: MethodInvokation): Unit = {
     super.visit(invokation)
     result.asInstanceOf[MethodInvokation].clearBefore
@@ -61,5 +36,30 @@ class RewriteWithThen(source: ProgramUnit) extends AbstractRewriter(source) {
     result.asInstanceOf[BeforeAfterAnnotations].set_before(create.block())
     result.asInstanceOf[BeforeAfterAnnotations].set_after(create.block())
     process_with_then(result.asInstanceOf[ParallelAtomic], atomic)
+  }
+
+  private def process_with_then[T <: ASTNode with BeforeAfterAnnotations](dst: T, src: T) = {
+    // Keep the before statements
+    for (n <- src.get_before.asScala) {
+      dst.get_before.add(rewrite(n))
+    }
+
+    // Sort the after statements by with / then
+    for (n <- src.get_after.asScala) n match {
+      case special: ASTSpecial => special.kind match {
+        case Kind.Label =>
+          dst.labeled(special.args(0).asInstanceOf[NameExpression].getName)
+        case Kind.With => for (withMapping <- special.args(0).asInstanceOf[BlockStatement].asScala) {
+          dst.get_before().add(rewrite(withMapping))
+        }
+        case Kind.Then => for (thenMapping <- special.args(0).asInstanceOf[BlockStatement].asScala) {
+          dst.get_after().add(rewrite(thenMapping))
+        }
+        case _ => ???
+      }
+      case nonSpecial => dst.get_after().add(rewrite(nonSpecial))
+    }
+
+    dst
   }
 }

@@ -5,7 +5,7 @@
 class CatchIf {
     boolean randomBoolean();
 
-    void m () {
+    void m() {
         int x = 0;
         boolean throwB = randomBoolean();
         boolean ifB = randomBoolean();

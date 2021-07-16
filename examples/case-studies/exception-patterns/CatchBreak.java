@@ -4,7 +4,7 @@
 
 class CatchBreak {
     //@ context_everywhere xs != null ** Perm(xs[*], write);
-    void m (int[] xs) {
+    void m(int[] xs) {
         int i = 0;
 
         //@ loop_invariant 0 <= i && i <= xs.length;

@@ -8,11 +8,7 @@ import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.composite.TryCatchBlock;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.ReturnStatement;
-import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.ClassType;
-import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.type.PrimitiveType;
-import vct.col.ast.type.Type;
+import vct.col.ast.type.*;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.util.FeatureScanner;
@@ -30,12 +26,10 @@ import java.util.Set;
  * using exceptions.
  */
 public class BreakReturnToExceptions extends AbstractRewriter {
+    private static final String FIELD_VALUE = "value";
     private Set<String> breakLabels = new HashSet<>();
     private Set<String> exceptionTypes = new HashSet<>();
     private int uniqueCounter = 0;
-
-    private static final String FIELD_VALUE = "value";
-
     /**
      * At this point method overloading is not yet resolved. Therefore, to be safe, we append
      * uniqueMethodIdCounter to any name that must be derived from the current method. As it is
@@ -100,7 +94,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
                     create.primitive_type(PrimitiveSort.Void),
                     cb.getContract(),
                     name,
-                    new DeclarationStatement[] {
+                    new DeclarationStatement[]{
                             create.field_decl("returnValue", arg)
                     },
                     null
@@ -149,7 +143,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
             for (NameExpression label : usedLabels) {
                 tryCatchBlock.addCatchClauseArray(
                         getUniqueName("ucv"),
-                        new Type[] { getExceptionType("break", label.getName()) },
+                        new Type[]{getExceptionType("break", label.getName())},
                         create.block());
             }
 
@@ -192,7 +186,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
                 ASTNode getReturnValueExpr = create.dereference(create.local_name(catchVarName), FIELD_VALUE);
                 returnStatement = create.return_statement(getReturnValueExpr);
             }
-            tryCatchBlock.addCatchClauseArray(catchVarName, new Type[] { returnExceptionType }, create.block(returnStatement));
+            tryCatchBlock.addCatchClauseArray(catchVarName, new Type[]{returnExceptionType}, create.block(returnStatement));
             resultMethod.setBody(create.block(tryCatchBlock));
         }
 
@@ -226,7 +220,7 @@ public class BreakReturnToExceptions extends AbstractRewriter {
         ASTNode expr = returnStatement.getExpression();
 
         MethodInvokation exceptionObject;
-        if (expr != null){
+        if (expr != null) {
             exceptionObject = create.new_object(returnExceptionType, rewrite(expr));
         } else {
             exceptionObject = create.new_object(returnExceptionType);

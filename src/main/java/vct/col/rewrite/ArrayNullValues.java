@@ -22,7 +22,7 @@ public class ArrayNullValues extends AbstractRewriter {
 
     @Override
     public void visit(NameExpression exp) {
-        if(exp.isReserved(ASTReserved.Null) && exp.getType().isPrimitive(PrimitiveSort.Option)) {
+        if (exp.isReserved(ASTReserved.Null) && exp.getType().isPrimitive(PrimitiveSort.Option)) {
             result = create.expression(StandardOperator.Cast, exp.getType(), create.reserved_name(ASTReserved.OptionNone));
         } else {
             super.visit(exp);
@@ -31,7 +31,7 @@ public class ArrayNullValues extends AbstractRewriter {
 
     @Override
     public void visit(OperatorExpression exp) {
-        switch(exp.operator()) {
+        switch (exp.operator()) {
             case UPlus:
             case UMinus:
             case Exp:
@@ -59,7 +59,7 @@ public class ArrayNullValues extends AbstractRewriter {
 
             case EQ:
             case NEQ:
-                if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
+                if (exp.getType().isPrimitive(PrimitiveSort.Option)) {
                     exp.arg(0).setType(exp.getType());
                     exp.arg(1).setType(exp.getType());
                 }
@@ -72,7 +72,7 @@ public class ArrayNullValues extends AbstractRewriter {
                 break;
 
             case ITE:
-                if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
+                if (exp.getType().isPrimitive(PrimitiveSort.Option)) {
                     exp.arg(1).setType(exp.getType());
                     exp.arg(2).setType(exp.getType());
                 }
@@ -88,7 +88,7 @@ public class ArrayNullValues extends AbstractRewriter {
                 break;
 
             case Assign:
-                if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
+                if (exp.getType().isPrimitive(PrimitiveSort.Option)) {
                     exp.arg(1).setType(exp.getType());
                 }
                 break;
@@ -135,7 +135,7 @@ public class ArrayNullValues extends AbstractRewriter {
                 break;
 
             case Old:
-                if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
+                if (exp.getType().isPrimitive(PrimitiveSort.Option)) {
                     exp.arg(0).setType(exp.getType());
                 }
                 break;
@@ -171,7 +171,7 @@ public class ArrayNullValues extends AbstractRewriter {
             case BindOutput:
                 break;
             case Wrap:
-                if(exp.getType().isPrimitive(PrimitiveSort.Option)) {
+                if (exp.getType().isPrimitive(PrimitiveSort.Option)) {
                     exp.arg(0).setType(exp.getType());
                 }
                 break;

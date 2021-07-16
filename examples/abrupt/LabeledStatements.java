@@ -7,11 +7,12 @@ class MyClass {
     boolean p();
 
     void ex1() {
-        LABEL: try {
+        LABEL:
+        try {
             // Some code.
-        } catch(Exception e) {
+        } catch (Exception e) {
             boolean pp = p();
-            if(pp) {
+            if (pp) {
                 break LABEL;
             }
             // Remaining code.
@@ -20,7 +21,8 @@ class MyClass {
 
     void ex2() {
         boolean pp = p();
-        LABEL: if (pp) {
+        LABEL:
+        if (pp) {
             pp = p();
             if (pp) {
                 break LABEL;

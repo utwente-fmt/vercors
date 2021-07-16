@@ -12,7 +12,7 @@ public class SetComprehension extends BindingExpression {
     private Map<NameExpression, ASTNode> variables;
 
     /**
-     *  @param result_type
+     * @param result_type
      * @param decls
      * @param selector
      * @param main

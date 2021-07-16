@@ -1,40 +1,36 @@
 package vct.col.ast.util
 
+import vct.col.ast.`type`.Type
+import vct.col.ast.expr.NameExpressionKind._
+import vct.col.ast.expr._
+import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.composite._
+import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement}
+import vct.col.ast.stmt.terminal.AssignmentStatement
+
 import java.util
-import java.util.Objects
 import scala.annotation.varargs
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
-import vct.col.ast.expr._
-import vct.col.ast.stmt.composite.BlockStatement
-import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement}
-import vct.col.ast.stmt.composite.ForEachLoop
-import vct.col.ast.stmt.composite.LoopStatement
-import vct.col.ast.stmt.composite.ParallelBlock
-import vct.col.ast.`type`.Type
-import NameExpressionKind._
-import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.VectorBlock
-import vct.col.ast.stmt.terminal.AssignmentStatement
 
 object NameScanner {
-  private def scanned(nodes: Iterable[ASTNode]): NameScanner = {
-    val scanner = new NameScanner
-    nodes.foreach(_.accept(scanner))
-    scanner
-  }
+  @varargs
+  def freeVars(theNodes: ASTNode*): util.Map[String, Type] = freeVars(theNodes.asJava)
 
   def freeVars[R <: ASTNode](nodes: util.List[R]): util.Map[String, Type] =
     scanned(nodes.asScala).freeNamesJava
-
-  @varargs
-  def freeVars(theNodes: ASTNode*): util.Map[String, Type] = freeVars(theNodes.asJava)
 
   def accesses(arg: ASTNode): Set[String] =
     scanned(Seq(arg)).accesses
 
   def writes(arg: ASTNode): Set[String] =
     scanned(Seq(arg)).writes
+
+  private def scanned(nodes: Iterable[ASTNode]): NameScanner = {
+    val scanner = new NameScanner
+    nodes.foreach(_.accept(scanner))
+    scanner
+  }
 
   def reads(arg: ASTNode): Set[String] =
     scanned(Seq(arg)).reads
@@ -48,115 +44,38 @@ object NameScanner {
 
 class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
-  case class Entry(name: String, typ: Type, var writtenTo: Boolean)
-
   val frameStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
-
   /**
-    * Given/yields must be stacks as well, in case with/then blocks are nested
-    */
+   * Given/yields must be stacks as well, in case with/then blocks are nested
+   */
   val givenStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
-
   val yieldsStack: mutable.Stack[mutable.Set[DeclarationStatement]] = mutable.Stack()
-
   /**
-    * There might be external code that depends on insertion order. Therefore use LinkedHashMap
-    */
+   * There might be external code that depends on insertion order. Therefore use LinkedHashMap
+   */
   val freeNames: mutable.Map[String, Entry] = mutable.LinkedHashMap()
   val labels: mutable.Set[String] = mutable.Set()
-
   /**
-    * Here all initBlocks of LoopStatements are saved. This can be used when visiting BlockStatements to not
-    * pop the frameStack, as declarations within initBlocks need to be visible in the rest of the LoopStatement.
-    */
+   * Here all initBlocks of LoopStatements are saved. This can be used when visiting BlockStatements to not
+   * pop the frameStack, as declarations within initBlocks need to be visible in the rest of the LoopStatement.
+   */
   val initBlocks: mutable.Set[BlockStatement] = mutable.Set()
 
-  // Ensure there is at least one frame at the start
-  pushFrame()
-
   /**
-    * Finds the first declaration in the framestack that has name `name`
-    */
-  private def getDecl(name: String): Option[DeclarationStatement] = frameStack
-    .map(_.find(_.name == name))
-    .collectFirst { case Some(decl) => decl }
-
-  private def getGivenDecl(name: String): Option[DeclarationStatement] = givenStack
-    .map(_.find(_.name == name))
-    .collectFirst { case Some(decl) => decl }
-
-  private def getYieldsDecl(name: String): Option[DeclarationStatement] = yieldsStack
-    .map(_.find(_.name == name))
-    .collectFirst { case Some(decl) => decl }
-
-  /**
-    * True if there is a declaration in frameStack with the same name.
-    */
-  private def hasDecl(name: String): Boolean = getDecl(name).isDefined
-
-  /**
-    * Puts a _new_ variable name into the freeNames list
-    */
-  private def put(name: String, typ: Type): Unit = {
-    if (hasDecl(name)) {
-      Abort("Cannot put a free var when it has a decl")
-    }
-
-    freeNames.get(name) match {
-      case Some(_) =>
-        // Disallow putting the same free var again, to prevent the writtenTo flag to be accidentally reset
-        Abort("Name %s is already marked as free", name);
-      case None =>
-        freeNames.put(name, Entry(name, typ, writtenTo = false));
-    }
-  }
-
-  /** If the name is in `additionalNames`, or there is a regular declaration with the same name, the types must match
-    * If there is a free variable with the same name, the types must match
-    * If there is no decl nor a free variable, we found a new free variable, which is added to the `freeNames` list
-    *
-    * @param additionalNames can be used to pass in given or yields scopes.
-    * @return true if `name` is the name of a free variable.
-    */
-  private def checkName(name: String, typ: Type, additionalNames: String => Option[DeclarationStatement]): Boolean =
-    (additionalNames(name) orElse getDecl(name), freeNames.get(name)) match {
-      case (Some(decl), _) =>
-        if (typ != null && decl.`type` != typ) {
-          Fail("type mismatch %s != %s", typ, decl.`type`)
-        }
-        false
-      case (None, Some(entry)) =>
-        if (typ != null && entry.typ != typ) {
-          Fail("type mismatch %s != %s", typ, entry.typ)
-        }
-        true
-      case _ =>
-        put(name, typ)
-        true
-    }
-
-  private def setWrite(name: String): Unit =
-    freeNames.get(name) match {
-      case Some(value) => value.writtenTo = true
-      case None => Abort("Cannot set write for non-existent variable %s", name)
-    }
-
-  private def pushFrame(): Unit = frameStack.push(mutable.Set())
-
-  private def popFrame(): Unit = frameStack.pop()
-
-  /**
-    * Returns free names as a java map with insertion order retained
-    */
+   * Returns free names as a java map with insertion order retained
+   */
   def freeNamesJava: util.Map[String, Type] = {
     val map = new util.LinkedHashMap[String, Type]()
     freeNames.foreach(mapEntry => map.put(mapEntry._1, mapEntry._2.typ))
     map
   }
 
+  // Ensure there is at least one frame at the start
+  pushFrame()
+
   /**
-    * All variable names that are read from or written to
-    */
+   * All variable names that are read from or written to
+   */
   def accesses: Set[String] = freeNames.keySet.toSet
 
   def writes: Set[String] = freeNames.filter(p => p._2.writtenTo).keySet.toSet
@@ -177,6 +96,63 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
       Abort("missing case %s %s in name scanner", e.getKind, e.getName)
   }
 
+  private def getYieldsDecl(name: String): Option[DeclarationStatement] = yieldsStack
+    .map(_.find(_.name == name))
+    .collectFirst { case Some(decl) => decl }
+
+  /** If the name is in `additionalNames`, or there is a regular declaration with the same name, the types must match
+   * If there is a free variable with the same name, the types must match
+   * If there is no decl nor a free variable, we found a new free variable, which is added to the `freeNames` list
+   *
+   * @param additionalNames can be used to pass in given or yields scopes.
+   * @return true if `name` is the name of a free variable.
+   */
+  private def checkName(name: String, typ: Type, additionalNames: String => Option[DeclarationStatement]): Boolean =
+    (additionalNames(name) orElse getDecl(name), freeNames.get(name)) match {
+      case (Some(decl), _) =>
+        if (typ != null && decl.`type` != typ) {
+          Fail("type mismatch %s != %s", typ, decl.`type`)
+        }
+        false
+      case (None, Some(entry)) =>
+        if (typ != null && entry.typ != typ) {
+          Fail("type mismatch %s != %s", typ, entry.typ)
+        }
+        true
+      case _ =>
+        put(name, typ)
+        true
+    }
+
+  /**
+   * Puts a _new_ variable name into the freeNames list
+   */
+  private def put(name: String, typ: Type): Unit = {
+    if (hasDecl(name)) {
+      Abort("Cannot put a free var when it has a decl")
+    }
+
+    freeNames.get(name) match {
+      case Some(_) =>
+        // Disallow putting the same free var again, to prevent the writtenTo flag to be accidentally reset
+        Abort("Name %s is already marked as free", name);
+      case None =>
+        freeNames.put(name, Entry(name, typ, writtenTo = false));
+    }
+  }
+
+  /**
+   * True if there is a declaration in frameStack with the same name.
+   */
+  private def hasDecl(name: String): Boolean = getDecl(name).isDefined
+
+  /**
+   * Finds the first declaration in the framestack that has name `name`
+   */
+  private def getDecl(name: String): Option[DeclarationStatement] = frameStack
+    .map(_.find(_.name == name))
+    .collectFirst { case Some(decl) => decl }
+
   override def visit(assignment: AssignmentStatement): Unit = {
     assignment.location match {
       case name: NameExpression =>
@@ -188,6 +164,16 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
     assignment.expression.accept(this)
   }
+
+  private def getGivenDecl(name: String): Option[DeclarationStatement] = givenStack
+    .map(_.find(_.name == name))
+    .collectFirst { case Some(decl) => decl }
+
+  private def setWrite(name: String): Unit =
+    freeNames.get(name) match {
+      case Some(value) => value.writtenTo = true
+      case None => Abort("Cannot set write for non-existent variable %s", name)
+    }
 
   override def visit(d: DeclarationStatement): Unit = {
     // Discovered a new declaration
@@ -253,6 +239,10 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     if (!isInitBlock) popFrame()
   }
 
+  private def pushFrame(): Unit = frameStack.push(mutable.Set())
+
+  private def popFrame(): Unit = frameStack.pop()
+
   override def visit(e: OperatorExpression): Unit = if ((e.operator eq StandardOperator.StructDeref) || (e.operator eq StandardOperator.StructSelect)) {
     e.first.accept(this)
   }
@@ -297,4 +287,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
     super.visit(special)
   }
+
+  case class Entry(name: String, typ: Type, var writtenTo: Boolean)
 }

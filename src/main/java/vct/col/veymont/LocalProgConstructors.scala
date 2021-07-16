@@ -12,18 +12,19 @@ import vct.col.veymont.Util.{getBlockOrThrow, isChannelClass, isThreadClassName}
 import scala.jdk.CollectionConverters._
 
 /**
-  * Adds the channels to Thread constructors
-  * @param source
-  */
-class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+ * Adds the channels to Thread constructors
+ *
+ * @param source
+ */
+class LocalProgConstructors(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
-  var chanMap = Map.empty[String,Set[ChannelRepr]]
+  var chanMap = Map.empty[String, Set[ChannelRepr]]
 
-  def addChansToConstructors() : ProgramUnit = {
-    for(entry <- source.get().asScala) {
+  def addChansToConstructors(): ProgramUnit = {
+    for (entry <- source.get().asScala) {
       entry match {
-        case c : ASTClass => {
-          if(isThreadClassName(c.name)) {
+        case c: ASTClass => {
+          if (isThreadClassName(c.name)) {
             chanMap += (c.name -> getChansFromFields(c))
           }
         }
@@ -33,28 +34,28 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
     rewriteAll
   }
 
-  private def getChansFromFields(c : ASTClass) : Set[ChannelRepr] = {
+  private def getChansFromFields(c: ASTClass): Set[ChannelRepr] = {
     val role = c.fields().asScala.head.name //role is first field
-    c.fields().asScala.filter(f => isChannelClass(f.`type`.toString)).map(f => ChannelRepr(f.name)(f.name.startsWith(role),f.`type`)).toSet
+    c.fields().asScala.filter(f => isChannelClass(f.`type`.toString)).map(f => ChannelRepr(f.name)(f.name.startsWith(role), f.`type`)).toSet
   }
 
-  override def visit(m : Method) : Unit = {
-    if(m.kind == Method.Kind.Constructor && isThreadClassName(m.name)) {
+  override def visit(m: Method): Unit = {
+    if (m.kind == Method.Kind.Constructor && isThreadClassName(m.name)) {
       create.enter()
       create.setOrigin(new MessageOrigin("Generated constructor " + m.name))
       val chans = chanMap.get(m.name).get
-      val chanArgs : Set[DeclarationStatement] = chans.map(chan => create.field_decl(chan.getArgChanName,chan.chanType))
+      val chanArgs: Set[DeclarationStatement] = chans.map(chan => create.field_decl(chan.getArgChanName, chan.chanType))
       val newContract = getRoleConstructorContract(chans)
-      rewrite(m.getContract,newContract)
-      val chanDecls : Array[ASTNode] = chans.map(chan =>
+      rewrite(m.getContract, newContract)
+      val chanDecls: Array[ASTNode] = chans.map(chan =>
         create.assignment(create.field_name(chan.channel),
-                          create.argument_name(chan.getArgChanName))).toArray
-      val threadDecl : Array[ASTNode] = getBlockOrThrow(m.getBody,
+          create.argument_name(chan.getArgChanName))).toArray
+      val threadDecl: Array[ASTNode] = getBlockOrThrow(m.getBody,
         "Constructor " + m.name + " must have a BlockStatement body").getStatements
       val allStats = rewrite(threadDecl) ++ chanDecls
-      val args : Array[DeclarationStatement] = rewrite(m.getArgs) ++ chanArgs.toArray[DeclarationStatement]
-      val body : BlockStatement = create.block(allStats:_*)
-      val myNewMethod = create.method_kind(m.kind,m.getReturnType,newContract.getContract,m.name,args,body)
+      val args: Array[DeclarationStatement] = rewrite(m.getArgs) ++ chanArgs.toArray[DeclarationStatement]
+      val body: BlockStatement = create.block(allStats: _*)
+      val myNewMethod = create.method_kind(m.kind, m.getReturnType, newContract.getContract, m.name, args, body)
       create.leave()
       result = myNewMethod
     } else {
@@ -62,7 +63,7 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
     }
   }
 
-  private def getRoleConstructorContract(chans : Set[ChannelRepr]) : ContractBuilder = {
+  private def getRoleConstructorContract(chans: Set[ChannelRepr]): ContractBuilder = {
     val contract = new ContractBuilder()
     val reqNotNull = chans.map(chan =>
       create.expression(StandardOperator.NEQ,
@@ -81,7 +82,6 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
     ensArgEq.foreach(contract.ensures(_))
     contract
   }
-
 
 
 }

@@ -9,12 +9,7 @@ import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.CatchClause;
 import vct.col.ast.stmt.composite.IfStatement;
 import vct.col.ast.stmt.composite.TryCatchBlock;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.Contract;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.stmt.decl.SignalsClause;
+import vct.col.ast.stmt.decl.*;
 import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.ClassType;
@@ -35,27 +30,24 @@ import static vct.col.rewrite.IntroExcVar.excVar;
 
 public class EncodeTryThrowSignals extends AbstractRewriter {
 
-    public EncodeTryThrowSignals(ProgramUnit source) {
-        super(source);
-    }
-
     HashMap<ASTNode, String> entryLabels = new HashMap<>();
     HashMap<ASTNode, String> postLabels = new HashMap<>();
     HashMap<ASTNode, String> oldExcVarName = new HashMap<>();
-
     int counter;
-
     /**
      * Holds the most recently encountered label. Since we traverse in a post-order, this variable
      * always holds the label of the next finally or catch clause that a throw should jump to.
      */
     ArrayList<String> handlerLabelStack = new ArrayList<>();
-
     /**
      * Holds the name of the variable in the current signals clause. If not in a signals clause, should be null.
      * Used to replace the variable when it is encountered with the excVar variable.
      */
     String currentExceptionVarName = null;
+
+    public EncodeTryThrowSignals(ProgramUnit source) {
+        super(source);
+    }
 
     public void pushNearestHandler(String nearestHandlerLabel) {
         handlerLabelStack.add(nearestHandlerLabel);
@@ -223,13 +215,13 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         currentBlock.add(create.ifthenelse(
                 create.expression(StandardOperator.Not,
-                    create.invokation(null, null,"instanceof",
-                            create.invokation(create.class_type(ADT_NAME), null, TYPE_OF, create.local_name(excVar)),
-                            create.invokation(create.class_type(ADT_NAME),null,"class_" + catchType.toString())
-                            )
-                    ),
+                        create.invokation(null, null, "instanceof",
+                                create.invokation(create.class_type(ADT_NAME), null, TYPE_OF, create.local_name(excVar)),
+                                create.invokation(create.class_type(ADT_NAME), null, "class_" + catchType.toString())
+                        )
+                ),
                 create.gotoStatement(fallbackHandler)
-                ));
+        ));
 
         DeclarationStatement argument = create.field_decl(catchClause.name(), rewrite(catchType));
         currentBlock.add(argument);
@@ -241,13 +233,13 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         currentBlock.append(create.special(ASTSpecial.Kind.Assert, create.expression(StandardOperator.EQ,
                 create.local_name(excVar),
                 create.reserved_name(ASTReserved.Null)
-                )));
+        )));
         // Then set excVar to the exception value as on entry of the try catch block.
         // This enables nesting of try-catch-finallies, as they overwrite exceptions otherwise
         currentBlock.append(create.assignment(
                 create.local_name(excVar),
                 create.local_name(oldExcVarName.get(tryCatchBlock))
-                ));
+        ));
 
         String targetLabel;
         if (tryCatchBlock.after() != null) {
@@ -359,14 +351,14 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
             ASTNode newPostCondition = create.expression(StandardOperator.Implies,
                     create.expression(StandardOperator.EQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
                     contract.post_condition
-                    );
+            );
 
             ASTNode flattenedSignals = flattenSignals(generateSignals(method.signals, contract.signals));
 
             ASTNode excVarTypeConstrain = create.expression(StandardOperator.Implies,
                     create.expression(StandardOperator.NEQ, create.local_name(excVar), create.reserved_name(ASTReserved.Null)),
                     constrainExcPostcondition(method.signals, contract.signals)
-                    );
+            );
 
             resultMethod.setContract(new Contract(
                     contract.given,
@@ -388,8 +380,8 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
                     create.expression(StandardOperator.EQ,
                             create.local_name(excVar),
                             create.reserved_name(ASTReserved.Null)
-                            )
-                    ));
+                    )
+            ));
         }
     }
 
@@ -418,9 +410,9 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         return constraint;
     }
 
-    public void visit(NameExpression e){
+    public void visit(NameExpression e) {
         if (currentExceptionVarName != null && e.getName().equals(currentExceptionVarName)) {
-            result=create.local_name(excVar);
+            result = create.local_name(excVar);
         } else {
             super.visit(e);
         }
@@ -445,7 +437,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
         return Stream.concat(
                 throwsTypes.stream()
-                    .map(t -> new SignalsClause("e", copy_rw.rewrite(t), create.constant(true))),
+                        .map(t -> new SignalsClause("e", copy_rw.rewrite(t), create.constant(true))),
                 Arrays.stream(contractSignals)
         ).toArray(n -> new SignalsClause[n]);
     }
@@ -474,7 +466,7 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
         return create.expression(StandardOperator.Implies,
                 AddTypeADT.exprInstanceof(create, copy_rw, create.local_name(excVar), (ClassType) signals.type()),
                 condition
-                );
+        );
     }
 
     public void visit(MethodInvokation invokation) {
@@ -537,11 +529,11 @@ public class EncodeTryThrowSignals extends AbstractRewriter {
 
     public IfStatement createExceptionCheck(String handlerLabel) {
         return create.ifthenelse(
-                    create.expression(StandardOperator.NEQ,
-                            create.local_name(excVar),
-                            create.reserved_name(ASTReserved.Null)
-                    ),
-                    create.gotoStatement(handlerLabel)
-            );
+                create.expression(StandardOperator.NEQ,
+                        create.local_name(excVar),
+                        create.reserved_name(ASTReserved.Null)
+                ),
+                create.gotoStatement(handlerLabel)
+        );
     }
 }

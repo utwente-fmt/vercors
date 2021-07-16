@@ -10,26 +10,26 @@
 //begin(all)
 final class AtomicInteger {
 
-  int dummy;
+    int dummy;
 
-  int val;
-  
-  int get(){
-    return val;
-  }
-  
-  void set(int v){
-    val=v;
-  }
-  
-  boolean cas(int e,int v){
-    if(val==e){
-      val=v;
-      return true;
-    } else {
-      return false;
+    int val;
+
+    int get() {
+        return val;
     }
-  }
+
+    void set(int v) {
+        val = v;
+    }
+
+    boolean cas(int e, int v) {
+        if (val == e) {
+            val = v;
+            return true;
+        } else {
+            return false;
+        }
+    }
 
 }
 
@@ -44,15 +44,13 @@ final class Subject {
 
 final class Thread {
 
-  Thread(){
-    //@ assume false;
-  }
+    int T;
+    int L;
+    Lock locks[];
 
-  int T;
-  
-  int L;
-
-  Lock locks[];
+    Thread() {
+        //@ assume false;
+    }
 
   /*@
     inline resource MyMyAPerm(loc<AtomicInteger> ref,frac p)=
@@ -82,24 +80,24 @@ thread_local resource lockset(bag<int> S)=
   );
     // end(lockset)
   @*/
-  
-  /*@
-    given bag<int> S;
-    requires common();
-    requires 0 <= lock_id < L;
-    requires lockset(S);
-    ensures  common();
-    ensures  0 <= lock_id < L;
-    ensures  \result ==> lockset(S+bag<int>{lock_id});
-    ensures  \result && (lock_id \memberof S)==0 ==>
-                locks[lock_id].subject.inv();
-    ensures  (lock_id \memberof S)>0 ==> \result;
-    ensures  !\result ==> lockset(S);
-  @*/
-  boolean trylock(int lock_id){
-    boolean res;
-    //@ unfold lockset(S);
-    res=locks[lock_id].trylock();
+
+    /*@
+      given bag<int> S;
+      requires common();
+      requires 0 <= lock_id < L;
+      requires lockset(S);
+      ensures  common();
+      ensures  0 <= lock_id < L;
+      ensures  \result ==> lockset(S+bag<int>{lock_id});
+      ensures  \result && (lock_id \memberof S)==0 ==>
+                  locks[lock_id].subject.inv();
+      ensures  (lock_id \memberof S)>0 ==> \result;
+      ensures  !\result ==> lockset(S);
+    @*/
+    boolean trylock(int lock_id) {
+        boolean res;
+        //@ unfold lockset(S);
+        res = locks[lock_id].trylock();
     /*@ ghost
       if (res) {
         fold lockset(S+bag<int>{lock_id});
@@ -107,10 +105,9 @@ thread_local resource lockset(bag<int> S)=
         fold lockset(S);
       }
     @*/
-    return res;
-  }
+        return res;
+    }
 }
-
 
 
 final class Lock {
@@ -124,10 +121,10 @@ final class Lock {
     
     ghost Subject subject;
   @*/
-  
-  AtomicInteger count;
-  
-  AtomicInteger owner;
+
+    AtomicInteger count;
+
+    AtomicInteger owner;
 
   /*@
     inline resource common()=
@@ -170,12 +167,18 @@ resource csl_invariant()= Value(T) ** T > 0 **
   @*/
 
 
-  /*@
-    ensures \result==\current_thread;
-  @*/
-  public /*@ thread_local pure @*/ static int currentThread();
+    //end(all)
+    Lock() {
+        //@ assume false;
+    }
 
-// begin(tryacquire)
+    /*@
+      ensures \result==\current_thread;
+    @*/
+    public /*@ thread_local pure @*/ static int currentThread();
+// end(tryacquire)
+
+    // begin(tryacquire)
   /*@
   requires common() ** lockset_part();
   ensures  common() ** lockset_part() ** (!\result ==>
@@ -185,56 +188,56 @@ resource csl_invariant()= Value(T) ** T > 0 **
   ** (\old(held[\current_thread]) > 0 ==> \result)
   ** (\old(held[\current_thread])==0 && \result ==> subject.inv());
   @*/
-  boolean trylock(){
-    int c, tmp, myid; boolean res;
-    myid=currentThread();
-    c=count.get();
-    if (c==0) {
-      res=count.cas(0,1)/*@ then { if (\result) {
+    boolean trylock() {
+        int c, tmp, myid;
+        boolean res;
+        myid = currentThread();
+        c = count.get();
+        if (c == 0) {
+            res = count.cas(0, 1)/*@ then { if (\result) {
         holder=\current_thread;
         held[\current_thread]=1;
       }} @*/;
-      if (res) { owner.set(myid); }
-      return res;
-    } else {
-      tmp=owner.get();
-      if (tmp!=myid) { return false; }
-      count.set(c+1)/*@ then {
+            if (res) {
+                owner.set(myid);
+            }
+            return res;
+        } else {
+            tmp = owner.get();
+            if (tmp != myid) {
+                return false;
+            }
+            count.set(c + 1)/*@ then {
         held[\current_thread]=held[\current_thread]+1;
       } @*/;
-      return true;
+            return true;
+        }
     }
-  }
-// end(tryacquire)
 
-/*@  
-  requires common() ** lockset_part() ** held[\current_thread]>0;
-  requires held[\current_thread]==1 ==> subject.inv();
-  ensures  common() ** lockset_part() **
-    held[\current_thread] == \old(held[\current_thread])-1;
-  @*/
-  void release(){
-    int c;
-    c=count.get()/*@
+    /*@
+      requires common() ** lockset_part() ** held[\current_thread]>0;
+      requires held[\current_thread]==1 ==> subject.inv();
+      ensures  common() ** lockset_part() **
+        held[\current_thread] == \old(held[\current_thread])-1;
+      @*/
+    void release() {
+        int c;
+        c = count.get()/*@
       with {
         csl_subject this;
       }
     @*/;
-    c=c-1;
-    if (c==0) {
-      owner.set(-1);
-    }
-    count.set(c)/*@ then {
+        c = c - 1;
+        if (c == 0) {
+            owner.set(-1);
+        }
+        count.set(c)/*@ then {
         held[\current_thread]=c;
         if (c==0) {
           holder=-1;
         }
     } @*/;
-  }
-//end(all)
-  Lock(){
-    //@ assume false;
-  }
+    }
 //begin(all)
 }
 //end(all)

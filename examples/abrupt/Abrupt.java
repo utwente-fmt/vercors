@@ -9,7 +9,8 @@ final class MyClass {
     int foo() {
         int x = 0;
 
-        my_if: if (p()) {
+        my_if:
+        if (p()) {
             x = 1;
             break my_if;
             x = 2;
@@ -25,8 +26,11 @@ final class MyClass {
             x = 5;
             pp = p();
             //@ loop_invariant x == 5 || x == 40;
-            myLoop2: myLoop3: myLoop4: while(pp) {
-                switch(3) {
+            myLoop2:
+            myLoop3:
+            myLoop4:
+            while (pp) {
+                switch (3) {
                     default:
                         x = 4;
                         break myLoop3;

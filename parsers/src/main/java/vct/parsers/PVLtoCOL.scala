@@ -1,7 +1,5 @@
 package vct.parsers
 
-import java.util.{ArrayList => JavaArrayList}
-import hre.lang.System._
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.PVLParser
 import vct.antlr4.generated.PVLParser._
@@ -9,7 +7,7 @@ import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.ast.`type`.ASTReserved._
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
+import vct.col.ast.expr._
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
@@ -18,6 +16,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.util.ContractBuilder
 import vct.parsers.rewrite.InferADTTypes
 
+import java.util.{ArrayList => JavaArrayList}
 import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
@@ -111,7 +110,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case _ =>
       }
 
-      if(returns.isPrimitive(PrimitiveSort.Resource))
+      if (returns.isPrimitive(PrimitiveSort.Resource))
         kind = Kind.Predicate
 
       val result = create method_kind(kind, returns, convertContract(contract),
@@ -123,23 +122,13 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
          * level meaning) */
         if (mod.isReserved(ASTReserved.Inline)) {
           result.setFlag(ASTFlags.INLINE, true);
-        } else if(mod.isReserved(ASTReserved.ThreadLocal)) {
+        } else if (mod.isReserved(ASTReserved.ThreadLocal)) {
           result.setFlag(ASTFlags.THREAD_LOCAL, true)
-        } else if(!mod.isReserved(ASTReserved.Pure)) { // already covered by scan above
+        } else if (!mod.isReserved(ASTReserved.Pure)) { // already covered by scan above
           result.attach(mod)
         }
       })
       result
-  })
-
-  def convertModifier(mod: LangModifierContext): NameExpression =
-    mod match { case LangModifier0(mod) => convertModifier(mod) }
-
-  def convertModifier(mod: ModifierContext): NameExpression = origin(mod, mod match {
-    case Modifier0("static") => create reserved_name ASTReserved.Static
-    case Modifier0("thread_local") => create reserved_name ASTReserved.ThreadLocal
-    case Modifier0("inline") => create reserved_name ASTReserved.Inline
-    case Modifier0("pure") => create reserved_name ASTReserved.Pure
   })
 
   def convertConstructor(method: ConstructorContext): Method = origin(method, method match {
@@ -152,9 +141,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertContract(contract: ParserRuleContext): Contract = origin(contract, contract match {
     case Contract0(clauses) =>
-      getContract(clauses.map(convertValClause):_*)
+      getContract(clauses.map(convertValClause): _*)
     case InvariantList0(invariants) =>
-      getContract(invariants.map(convertInvariant):_*)
+      getContract(invariants.map(convertInvariant): _*)
     case valClause: ValContractClauseContext =>
       getContract(convertValClause(valClause))
     case invClause: InvariantContext =>
@@ -186,7 +175,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertID(identifier: IdentifierContext): String = identifier match {
     case Identifier0(name) => name
-    case Identifier1(ValReserved1(s)) => s.substring(1, s.length-1)
+    case Identifier1(ValReserved1(s)) => s.substring(1, s.length - 1)
     case Identifier1(reserved) =>
       fail(reserved, "This identifier is reserved and cannot be declared.")
   }
@@ -216,13 +205,14 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   }
 
   def convertMapValues(args: MapValuesContext): Seq[ASTNode] = args match {
-    case MapValues0("{", maybeMapPairs,"}") => convertMapPairs(maybeMapPairs)
+    case MapValues0("{", maybeMapPairs, "}") => convertMapPairs(maybeMapPairs)
   }
 
   def convertMapPairs(args: Option[MapPairsContext]): Seq[ASTNode] = args match {
     case Some(args) => convertMapPairs(args)
     case None => Seq()
   }
+
   def convertMapPairs(args: MapPairsContext): Seq[ASTNode] = args match {
     case MapPairs0(key, "->", value) => Seq(expr(key), expr(value))
     case MapPairs1(key, "->", value, ",", pairList) =>
@@ -311,7 +301,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case UnaryExpr1("-", exp) => create expression(UMinus, expr(exp))
     case UnaryExpr2(newExp) => expr(newExp)
     case NewExpr0("new", clsName, args) =>
-      create new_object(create class_type(convertID(clsName)), convertExpList(args):_*)
+      create new_object(create class_type (convertID(clsName)), convertExpList(args): _*)
     case NewExpr1("new", t, dims) =>
       val baseType = convertType(t)
       val dimSizes = dims match {
@@ -339,9 +329,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case NonTarget1(obj, args) =>
       expr(obj) match {
         case name: NameExpression =>
-          create invokation(null, null, name.getName, convertExpList(args):_*)
+          create invokation(null, null, name.getName, convertExpList(args): _*)
         case deref: Dereference =>
-          create invokation(deref.obj, null, deref.field, convertExpList(args):_*)
+          create invokation(deref.obj, null, deref.field, convertExpList(args): _*)
         case _ =>
           fail(obj, "Cannot apply method invokation to this expression.")
       }
@@ -358,8 +348,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case NonTarget6(objNode, "->", method, args) =>
       val obj = expr(objNode)
       create expression(Implies,
-        create expression(NEQ, obj, create reserved_name(Null)),
-        create invokation(obj, null, convertID(method), convertExpList(args):_*))
+        create expression(NEQ, obj, create reserved_name (Null)),
+        create invokation(obj, null, convertID(method), convertExpList(args): _*))
     case NonTarget7(unit) => expr(unit)
 
     case NonTargetUnit0(valPrimary) => valExpr(valPrimary)
@@ -371,26 +361,28 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case NonTargetUnit6("\\result") => create reserved_name Result
     case NonTargetUnit7(collection) => expr(collection)
     case NonTargetUnit8("map", "<", t1, ",", t2, ">", mapValues) =>
-      create struct_value(create primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2)), null, convertMapValues(mapValues):_*)
+      create struct_value(create primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2)), null, convertMapValues(mapValues): _*)
     case NonTargetUnit9("tuple", "<", t1, ",", t2, ">", values) =>
-      create struct_value(create primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2)), null, convertExpList(values):_*)
+      create struct_value(create primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2)), null, convertExpList(values): _*)
     case NonTargetUnit10(method, argsTuple) =>
       val args = convertExpList(argsTuple)
-      val methodName = method match { case BuiltinMethod0(name) => name }
+      val methodName = method match {
+        case BuiltinMethod0(name) => name
+      }
       methodName match {
-        case "Value" => create expression(Value, args:_*)
-        case "HPerm" => create expression(HistoryPerm, args:_*)
-        case "Perm" => create expression(Perm, args:_*)
-        case "PointsTo" => create expression(PointsTo, args:_*)
-        case "Hist" => create expression(History, args:_*)
-        case "\\old" => create expression(Old, args:_*)
-        case "?" => create expression(BindOutput, args:_*)
-        case "idle" => create expression(PVLidleToken, args:_*)
-        case "running" => create expression(PVLjoinToken, args:_*)
-        case "head" => create expression(Head, args:_*)
-        case "tail" => create expression(Tail, args:_*)
-        case "held" => create expression(Held, args:_*)
-        case "Some" => create expression(OptionSome, args:_*)
+        case "Value" => create expression(Value, args: _*)
+        case "HPerm" => create expression(HistoryPerm, args: _*)
+        case "Perm" => create expression(Perm, args: _*)
+        case "PointsTo" => create expression(PointsTo, args: _*)
+        case "Hist" => create expression(History, args: _*)
+        case "\\old" => create expression(Old, args: _*)
+        case "?" => create expression(BindOutput, args: _*)
+        case "idle" => create expression(PVLidleToken, args: _*)
+        case "running" => create expression(PVLjoinToken, args: _*)
+        case "head" => create expression(Head, args: _*)
+        case "tail" => create expression(Tail, args: _*)
+        case "held" => create expression(Held, args: _*)
+        case "Some" => create expression(OptionSome, args: _*)
       }
     case NonTargetUnit11(_owner, "(", a, ",", b, ",", c, ")") =>
       create expression(IterationOwner, expr(a), expr(b), expr(c))
@@ -411,12 +403,12 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
           case Container0("bag") => PrimitiveSort.Bag
         }, convertType(elemType)),
         null,
-        convertExpList(values):_*
+        convertExpList(values): _*
       )
     case CollectionConstructors1("[", exps, "]") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Sequence, InferADTTypes.typeVariable
-      ), null, convertExpList(exps):_*)
+      ), null, convertExpList(exps): _*)
     case CollectionConstructors2("[t:", t, "]") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Sequence, convertType(t)),
@@ -424,10 +416,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case CollectionConstructors3("{", exps, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Set, InferADTTypes.typeVariable
-      ), null, convertExpList(exps):_*)
+      ), null, convertExpList(exps): _*)
     case CollectionConstructors4("{", exp1, "..", exp2, "}") =>
       create.expression(StandardOperator.RangeSeq,
-                        expr(exp1), expr(exp2))
+        expr(exp1), expr(exp2))
     case CollectionConstructors5("{t:", t, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Set, convertType(t)),
@@ -435,26 +427,26 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case CollectionConstructors6("b{", exps, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Bag, InferADTTypes.typeVariable
-      ), null, convertExpList(exps):_*)
+      ), null, convertExpList(exps): _*)
     case CollectionConstructors7("b{t:", t, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Bag, convertType(t)),
         null)
     case CollectionConstructors8("set", _, elemType, _, _, main, _, selectors, _, guard, _) => {
       create setComp(
-        create primitive_type (PrimitiveSort.Set, convertType(elemType)), // Type
+        create primitive_type(PrimitiveSort.Set, convertType(elemType)), // Type
         expr(guard), // The guard expression
         expr(main), // The main/resulting expression
         getVarBounds(selectors).asJava, // Selector
-        getVariableDecls(selectors).toArray  // Declaration of variables
+        getVariableDecls(selectors).toArray // Declaration of variables
       )
     }
   })
 
   def getVariableDecls(ctx: SetCompSelectorsContext): Seq[DeclarationStatement] = ctx match {
-    case SetCompSelectors0(t, id) => Seq(create field_decl(convertID( id), convertType(t)))
-    case SetCompSelectors1(t, id, "<-", _) => Seq(create field_decl(convertID( id), convertType(t)))
-    case SetCompSelectors2(t, id, "<-", _) => Seq(create field_decl(convertID( id), convertType(t)))
+    case SetCompSelectors0(t, id) => Seq(create field_decl(convertID(id), convertType(t)))
+    case SetCompSelectors1(t, id, "<-", _) => Seq(create field_decl(convertID(id), convertType(t)))
+    case SetCompSelectors2(t, id, "<-", _) => Seq(create field_decl(convertID(id), convertType(t)))
     case SetCompSelectors3(t, id, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
     case SetCompSelectors4(t, id, "<-", _, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
     case SetCompSelectors5(t, id, "<-", _, ",", selectors) => create.field_decl(convertID(id), convertType(t)) +: getVariableDecls(selectors)
@@ -479,13 +471,12 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case SetCompSelectors5(t, id, "<-", collection, ",", selectors) => Map(convertIDName(id) -> expr(collection)) ++ getVarBounds(selectors)
   }
 
-
   def addDims(t: Type, dimCount: Int): Type = {
     if (dimCount == 0) {
       t
     } else {
       var result = create.primitive_type(PrimitiveSort.Cell, t)
-      for(i <- 0 until dimCount) {
+      for (i <- 0 until dimCount) {
         result = create.primitive_type(PrimitiveSort.Array, result)
       }
       create.primitive_type(PrimitiveSort.Option, result)
@@ -542,7 +533,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertBlock(block: ParserRuleContext): BlockStatement = block match {
     case Block0(_, statements, _) =>
-      create block(statements.flatMap(convertStat):_*)
+      create block (statements.flatMap(convertStat): _*)
   }
 
   def convertStat(stat: ParserRuleContext): Seq[ASTNode] = origin(stat, Seq[ASTNode](stat match {
@@ -562,7 +553,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       }
       val nameMap =
         (4 until args.size by 2).map(i => {
-          args(i).asInstanceOf[NameExpression].getName -> args(i+1)
+          args(i).asInstanceOf[NameExpression].getName -> args(i + 1)
         }).toMap
       val block = convertBlock(blockNode)
       create action_block(args(0), args(1), args(2), args(3), nameMap.asJava, block)
@@ -592,14 +583,14 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Statement13("invariant", label, "(", resource, ")", block) =>
       create invariant_block(convertID(label), expr(resource), convertBlock(block))
     case Statement14("atomic", "(", invariants, ")", block) =>
-      create parallel_atomic(convertBlock(block), convertIDList(invariants):_*)
+      create parallel_atomic(convertBlock(block), convertIDList(invariants): _*)
     case Statement15(invariants, "while", "(", cond, ")", body) =>
       create while_loop(expr(cond), flattenIfSingleStatement(convertStat(body)), convertContract(invariants))
     case Statement16(invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
       create for_loop(
-        maybeInit.map(convertStatList).map(create block(_:_*)).orNull,
+        maybeInit.map(convertStatList).map(create block (_: _*)).orNull,
         maybeCond.map(expr).getOrElse(create constant true),
-        maybeUpdate.map(convertStatList).map(create block(_:_*)).orNull,
+        maybeUpdate.map(convertStatList).map(create block (_: _*)).orNull,
         flattenIfSingleStatement(convertStat(body)),
         convertContract(invariants)
       )
@@ -614,7 +605,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case AllowedForStatement0(tNode, decls) =>
       val t = convertType(tNode)
       val result = new VariableDeclaration(t)
-      convertDeclList(decls).foreach{
+      convertDeclList(decls).foreach {
         case (name, init) =>
           result.add(DeclarationStatement(name, VariableDeclaration.common_type, init))
       }
@@ -668,7 +659,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create invokation(null, null, convertID(name), (maybeArgs match {
         case None => Seq()
         case Some(WaitForArgs0(_, args, _)) => convertIdArgs(args)
-      }):_*)
+      }): _*)
   })
 
   def convertIdArgs(tree: IdArgListContext): Seq[ASTNode] = (tree match {
@@ -676,7 +667,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case IdArgList1(x, ",", xs) => x +: convertIdArgs(xs)
   }).map {
     case IdArg0(id) => convertIDName(id)
-    case IdArg1("*") => create reserved_name(Any)
+    case IdArg1("*") => create reserved_name (Any)
   }
 
   /* === Start of duplicated code block ===
@@ -699,9 +690,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertValClause(clause: ValContractClauseContext) = (builder: ContractBuilder) => clause match {
     case ValContractClause0(_modifies, names, _) =>
-      builder.modifies(convertValExpList(names):_*)
+      builder.modifies(convertValExpList(names): _*)
     case ValContractClause1(_accessible, names, _) =>
-      builder.accesses(convertValExpList(names):_*)
+      builder.accesses(convertValExpList(names): _*)
     case ValContractClause2(_requires, exp, _) =>
       builder.requires(expr(exp))
     case ValContractClause3(_ensures, exp, _) =>
@@ -724,7 +715,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {
     case ValBlock0("{", statements, "}") =>
-      create block(statements.map(convertValStat):_*)
+      create block (statements.map(convertValStat): _*)
   })
 
   def convertValStat(stat: ValEmbedStatementBlockContext): Seq[ASTNode] = origin(stat, stat match {
@@ -741,7 +732,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertValStat(stat: ValStatementContext): ASTNode = origin(stat, stat match {
     case ValStatement0(_create, block) =>
-      create lemma(convertValBlock(block))
+      create lemma (convertValBlock(block))
     case ValStatement1(_qed, exp, _) =>
       create special(ASTSpecial.Kind.QED, expr(exp))
     case ValStatement2(_apply, exp, _) =>
@@ -799,22 +790,22 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValStatement28(_spec_ignore, "{") =>
       create special ASTSpecial.Kind.SpecIgnoreStart
     case ValStatement29(_action, arg1, _, arg2, _, arg3, _, arg4, map, _) =>
-      if(map.nonEmpty) {
+      if (map.nonEmpty) {
         ??(map.head)
       }
-      create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
+      create special(ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
-      create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()).map {
+      create csl_atomic(create block (convertValStat(stat): _*), resList.map(convertValExpList).getOrElse(Seq()).map {
         case name: NameExpression if name.getKind == NameExpressionKind.Unresolved =>
           create label name.getName
         case other => other
-      }:_*)
+      }: _*)
   })
 
   def valExpr(exp: ValPrimaryContext): ASTNode = origin(exp, exp match {
     case ValPrimary0(t, "{", maybeExps, "}") =>
       val exps = maybeExps.map(convertValExpList).getOrElse(Seq())
-      create struct_value(convertType(t), null, exps:_*)
+      create struct_value(convertType(t), null, exps: _*)
     case ValPrimary1("[", factor, "]", exp) =>
       create expression(Scale, expr(factor), expr(exp))
     case ValPrimary2("|", seq, "|") =>
@@ -835,8 +826,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       val name = convertID(id)
       val decl = create field_decl(name, convertType(t))
       val guard = create expression(StandardOperator.And,
-        create expression(StandardOperator.LTE, expr(fr), create unresolved_name(name)),
-        create expression(StandardOperator.LT, create unresolved_name(name), expr(to))
+        create expression(StandardOperator.LTE, expr(fr), create unresolved_name (name)),
+        create expression(StandardOperator.LT, create unresolved_name (name), expr(to))
       )
       binderName match {
         case "\\forall*" => create starall(guard, expr(main), decl)
@@ -884,7 +875,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create expression(MatrixRepeat, expr(m))
     case ValPrimary27(label, _, exp) =>
       val res = expr(exp)
-      res.addLabel(create label(convertID(label)))
+      res.addLabel(create label (convertID(label)))
       res
     case ValPrimary28("{:", pattern, ":}") =>
       create pattern expr(pattern)
@@ -963,9 +954,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValPrimary61("valuesMap", _, map, _) =>
       create expression(StandardOperator.MapValueSet, expr(map))
     case ValPrimary62("seq", "<", t, ">", "{", elems, "}") =>
-      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems):_*)
+      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems): _*)
     case ValPrimary63("set", "<", t, ">", "{", elems, "}") =>
-      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems):_*)
+      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems): _*)
     case ValPrimary64("(", seq, "[", "..", end, "]", ")") =>
       create expression(Take, expr(seq), expr(end))
     case ValPrimary65("(", seq, "[", start, "..", None, "]", ")") =>
@@ -1001,7 +992,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValReserved0(_) =>
       fail(reserved, "This identifier is reserved and cannot be declared or used.")
     case ValReserved1(s) =>
-      create unresolved_name(s.substring(1, s.length-1))
+      create unresolved_name (s.substring(1, s.length - 1))
     case ValReserved2("\\result") =>
       create reserved_name ASTReserved.Result
     case ValReserved3("\\current_thread") =>
@@ -1026,9 +1017,13 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       ??(reserved)
   })
 
+  def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =
+    create unresolved_name convertOverlappingValReservedID(reserved)
+
   /**
    * This method allows a language grammar to step into the reserved identifiers where they overlap with the underlying
    * language, to allow their use there. They should be forbidden inside specifications.
+   *
    * @param reserved the reserved identifier
    * @return the string representation of the identifier
    */
@@ -1048,12 +1043,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValReserved12(s) => s
   }
 
-  def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =
-    create unresolved_name convertOverlappingValReservedID(reserved)
-
   def convertValContract(contract: Option[ValEmbedContractContext]) = (builder: ContractBuilder) => contract match {
     case Some(ValEmbedContract0(blocks)) =>
-      for(block <- blocks) {
+      for (block <- blocks) {
         convertValContractBlock(block)(builder)
       }
     case None =>
@@ -1062,19 +1054,19 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
 
   def convertValContractBlock(contract: ValEmbedContractBlockContext) = (builder: ContractBuilder) => contract match {
     case ValEmbedContractBlock0(_startSpec, clauses, _endSpec) =>
-      for(clause <- clauses) {
+      for (clause <- clauses) {
         convertValClause(clause)(builder)
       }
     case ValEmbedContractBlock1(clauses) =>
-      for(clause <- clauses) {
+      for (clause <- clauses) {
         convertValClause(clause)(builder)
       }
   }
 
   def convertValType(t: ValTypeContext): Type = origin(t, t match {
     case ValType0(s) => s match {
-      case "resource" => create primitive_type(PrimitiveSort.Resource)
-      case "process" => create primitive_type(PrimitiveSort.Process)
+      case "resource" => create primitive_type (PrimitiveSort.Resource)
+      case "process" => create primitive_type (PrimitiveSort.Process)
       case "frac" => create primitive_type PrimitiveSort.Fraction
       case "zfrac" => create primitive_type PrimitiveSort.ZFraction
       case "rational" => create primitive_type PrimitiveSort.Rational
@@ -1102,15 +1094,6 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValArgList1(arg, _, args) => convertValArg(arg) +: convertValArgList(args)
   })
 
-  def convertValModifier(modifier: ValModifierContext): NameExpression = origin(modifier, modifier match {
-    case ValModifier0(s) => s match {
-      case "pure" => create reserved_name(ASTReserved.Pure)
-      case "inline" => create reserved_name(ASTReserved.Inline)
-      case "thread_local" => create reserved_name(ASTReserved.ThreadLocal)
-    }
-    case ValModifier1(langMod) => convertModifier(langMod)
-  })
-
   def convertValModifiers(modifiers: ValEmbedModifiersContext): Seq[NameExpression] = origin(modifiers, modifiers match {
     case ValEmbedModifiers0(_, mods, _) =>
       mods.map(convertValModifier)
@@ -1118,9 +1101,30 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       mods.map(convertValModifier)
   })
 
+  def convertValModifier(modifier: ValModifierContext): NameExpression = origin(modifier, modifier match {
+    case ValModifier0(s) => s match {
+      case "pure" => create reserved_name (ASTReserved.Pure)
+      case "inline" => create reserved_name (ASTReserved.Inline)
+      case "thread_local" => create reserved_name (ASTReserved.ThreadLocal)
+    }
+    case ValModifier1(langMod) => convertModifier(langMod)
+  })
+
+  def convertModifier(mod: LangModifierContext): NameExpression =
+    mod match {
+      case LangModifier0(mod) => convertModifier(mod)
+    }
+
+  def convertModifier(mod: ModifierContext): NameExpression = origin(mod, mod match {
+    case Modifier0("static") => create reserved_name ASTReserved.Static
+    case Modifier0("thread_local") => create reserved_name ASTReserved.ThreadLocal
+    case Modifier0("inline") => create reserved_name ASTReserved.Inline
+    case Modifier0("pure") => create reserved_name ASTReserved.Pure
+  })
+
   def convertValDecl(decl: ValDeclarationContext): ASTDeclaration = origin(decl, decl match {
     case ValDeclaration0(clauses, mods, t, name, _, args, _, body) =>
-      val contract = getContract(clauses.map(convertValClause):_*)
+      val contract = getContract(clauses.map(convertValClause): _*)
       val func = create function_decl(
         convertType(t),
         contract,
@@ -1137,10 +1141,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create axiom(convertID(name), create expression(StandardOperator.EQ, expr(left), expr(right)))
     case ValDeclaration2(clauses, "ghost", langDecl) =>
       val decl = convertDecl(langDecl)
-      if(clauses.nonEmpty) {
+      if (clauses.nonEmpty) {
         decl match {
           case method: Method =>
-            method.setContract(getContract(clauses.map(convertValClause):_*))
+            method.setContract(getContract(clauses.map(convertValClause): _*))
             method
           case _ =>
             fail(langDecl, "This constructor cannot have contract declarations")

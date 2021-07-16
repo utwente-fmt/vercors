@@ -4,7 +4,7 @@
 
 class FinallyContinue {
     //@ requires n >= 0;
-    void  m(int n) {
+    void m(int n) {
         int i = 0;
         boolean[] xs = new boolean[n];
 

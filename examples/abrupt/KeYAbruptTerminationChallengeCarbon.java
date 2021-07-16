@@ -26,11 +26,11 @@ class AbruptTermination {
             loop_invariant (\forall int j; 0<=j && j<i; ia[j] >= 0 && ia[j] == \old(ia[j]));
             loop_invariant (\forall int j; i<=j && j<ia.length; ia[j] == \old(ia[j])); // Extra invariant needed
          */
-        for (int i = 0 ; i < ia.length; i++) {
+        for (int i = 0; i < ia.length; i++) {
             //@ assert ia == \old(ia);
             if (ia[i] < 0) {
-                ia[i] = -ia[i] ;
-                break ;
+                ia[i] = -ia[i];
+                break;
             }
         }
         //@ assert ia == \old(ia);

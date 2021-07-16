@@ -10,9 +10,12 @@ case class KernelInvocation(method: String, blockCount: ASTNode, threadCount: AS
   def javaArgs: Array[ASTNode] = args.toArray
 
   override def accept_simple[T](visitor: ASTVisitor[T]): Unit = visitor.visit(this)
+
   override def accept_simple[T](map: ASTMapping[T]): T = map.map(this)
+
   override def accept_simple[R, A](map: ASTMapping1[R, A], arg: A): R = map.map(this, arg)
 
   override def debugTreeChildrenFields: Iterable[String] = Seq()
+
   override def debugTreePropertyFields: Iterable[String] = Seq("method", "blockCount", "threadCount", "args")
 }

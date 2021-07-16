@@ -14,10 +14,10 @@ object LocalVariableChecker {
 }
 
 /**
-  * Checks if local variables are not misused. This means:
-  * - Only one parallel block can write to a var, or all can read
-  * - Vars used in invariants must be effectively final
-  */
+ * Checks if local variables are not misused. This means:
+ * - Only one parallel block can write to a var, or all can read
+ * - Vars used in invariants must be effectively final
+ */
 class LocalVariableChecker(arg: ProgramUnit) extends RecursiveVisitor[Unit](arg) {
   val accessSets: mutable.Map[ASTNode, Set[String]] = mutable.Map[ASTNode, Set[String]]()
   val writeSets: mutable.Map[ASTNode, Set[String]] = mutable.Map[ASTNode, Set[String]]()

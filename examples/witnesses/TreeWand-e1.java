@@ -19,9 +19,9 @@
 */
 
 class Tree {
-  public int data;
-  public Tree left;
-  public Tree right;
+    public int data;
+    public Tree left;
+    public Tree right;
   
   /*@ public resource state()=Perm(data,100)**
       Perm(left,100)**Perm(right,100)**(left->state())**(right->state());
@@ -67,22 +67,22 @@ class Tree {
     public boolean sorted(Tree t)=t==null || sorted_list(t.contents());
   @*/
 
-  //@ requires top!=null ** top.state();
-  //@ ensures  contains(\result,tail(\old(top.contents())));
-  //@ ensures  \old(sorted(top)) ==> sorted(\result);
-  public Tree del_min(Tree top){
-    //@ seq<int> orig_contents=top.contents();
-    //@ seq<int> target_contents=tail(top.contents());
-    //@ unfold top.state();
-    if (top.left == null) {
-      return top.right;
-    } else {
-      Tree cur, left;
-      cur = top;
-      left = top.left;
-      //@ seq<int> cur_contents=orig_contents;
-      //@ assert cur_contents == left.contents() + seq<int>{top.data} + tolist(top.right);
-      //@ unfold left.state();
+    //@ requires top!=null ** top.state();
+    //@ ensures  contains(\result,tail(\old(top.contents())));
+    //@ ensures  \old(sorted(top)) ==> sorted(\result);
+    public Tree del_min(Tree top) {
+        //@ seq<int> orig_contents=top.contents();
+        //@ seq<int> target_contents=tail(top.contents());
+        //@ unfold top.state();
+        if (top.left == null) {
+            return top.right;
+        } else {
+            Tree cur, left;
+            cur = top;
+            left = top.left;
+            //@ seq<int> cur_contents=orig_contents;
+            //@ assert cur_contents == left.contents() + seq<int>{top.data} + tolist(top.right);
+            //@ unfold left.state();
       /*@
       loop_invariant Perm(cur.left,100) ** Perm(cur.data,100) ** Perm(cur.right,100);
       loop_invariant cur.left==left ** cur.right->state() ;
@@ -91,14 +91,13 @@ class Tree {
       loop_invariant cur_contents == (tolist(left.left) + seq<int>{left.data} + tolist(left.right))
                                       + seq<int>{cur.data} + tolist(cur.right);
       loop_invariant wand:(cur.state_contains(tail(cur_contents)) -* top.state_contains(target_contents)); @*/
-      while (left.left != null) /*@ with {
+            while (left.left != null) /*@ with {
         create {} wand:(top.state_contains(target_contents) -* top.state_contains(target_contents));#\label{proof 1}#
-      } @*/
-      { /*@ Tree prev = cur;
+      } @*/ { /*@ Tree prev = cur;
             seq<int> prev_contents = cur_contents; */
-        cur = left;
-        left = cur.left;
-        //@ assert left != null;
+                cur = left;
+                left = cur.left;
+                //@ assert left != null;
         /*@
         unfold left.state();
         assert left.left != null;
@@ -119,16 +118,16 @@ class Tree {
           qed    wand:(cur.state_contains(tail(cur_contents)) -* top.state_contains(target_contents));
         } #\label{proof 2 end}#
         @*/
-        
-        //@ assert left.left != null;
-      }
-      //@ assert false;
-      cur.left = left.left;
-      //@ fold cur.state();
-      //@ assert cur.contents()==tail(cur_contents);
-      //@ apply wand:(cur.state_contains(tail(cur_contents)) -* top.state_contains(target_contents));
-      return top;
+
+                //@ assert left.left != null;
+            }
+            //@ assert false;
+            cur.left = left.left;
+            //@ fold cur.state();
+            //@ assert cur.contents()==tail(cur_contents);
+            //@ apply wand:(cur.state_contains(tail(cur_contents)) -* top.state_contains(target_contents));
+            return top;
+        }
     }
-  }
 }
 

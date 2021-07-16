@@ -41,7 +41,7 @@ public class ContinueToBreak extends AbstractRewriter {
         }
     }
 
-    public void visit(Method method){
+    public void visit(Method method) {
         super.visit(method);
         if (continueLabels.size() != 0) {
             Warning("Not all continue labels were used. This indicates a logic error");
@@ -50,7 +50,7 @@ public class ContinueToBreak extends AbstractRewriter {
 
     public void visit(ASTSpecial special) {
         // If it is a break/continue without a label add the current label. Otherwise just copy over the thing.
-        if(special.kind != ASTSpecial.Kind.Continue) {
+        if (special.kind != ASTSpecial.Kind.Continue) {
             super.visit(special);
             return;
         }

@@ -2,20 +2,20 @@
 //:: cases TreeRecursive
 //:: tools silicon
 //:: verdict Pass
+
 /**
-  
-  The command line to verify with the VerCors Tool is:
-  
-  vct --silicon TreeRecursive.java
-  
-  The expected result is Pass.
-*/
+ * The command line to verify with the VerCors Tool is:
+ * <p>
+ * vct --silicon TreeRecursive.java
+ * <p>
+ * The expected result is Pass.
+ */
 
 public class Tree {
 
-  public int data;
-  public Tree left;
-  public Tree right;
+    public int data;
+    public Tree left;
+    public Tree right;
 
   /*@
     final public resource state()=Perm(data,1) **
@@ -35,22 +35,22 @@ public class Tree {
       }
     }
   */
-  
-  /*@
-    requires t!=null ** t.state();
-    ensures  \result->state();
-    ensures  contents(\result)==tail(\old(contents(t)));
-  @*/
-  public Tree del_min(Tree t){
-    //@ unfold t.state();
-    if (t.left==null) {
-      //@ assert contents(t.left) == seq<int>{};
-      return t.right;
-    } else {
-      t.left=del_min(t.left);
-      //@ fold t.state();
-      return t;
+
+    /*@
+      requires t!=null ** t.state();
+      ensures  \result->state();
+      ensures  contents(\result)==tail(\old(contents(t)));
+    @*/
+    public Tree del_min(Tree t) {
+        //@ unfold t.state();
+        if (t.left == null) {
+            //@ assert contents(t.left) == seq<int>{};
+            return t.right;
+        } else {
+            t.left = del_min(t.left);
+            //@ fold t.state();
+            return t;
+        }
     }
-  }
 }
 

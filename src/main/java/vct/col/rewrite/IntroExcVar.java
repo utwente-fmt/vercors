@@ -33,6 +33,19 @@ public class IntroExcVar extends AbstractRewriter {
         super(source);
     }
 
+    /**
+     * True if n uses exceptional control flow internally. This is not about exceptions escaping methods.
+     */
+    public static boolean usesExceptionalControlFlow(ASTNode n) {
+        FeatureScanner scanner = new FeatureScanner();
+        n.accept(scanner);
+        return scanner.usesFinally()
+                || scanner.usesCatch()
+                || scanner.usesSpecial(ASTSpecial.Kind.Throw)
+                || scanner.usesThrowingMethodCalls()
+                || scanner.hasThrowingMethods();
+    }
+
     public void visit(Method method) {
         inExceptionalMethod = ((method.getContract() != null) && method.canThrowSpec()) || usesExceptionalControlFlow(method);
 
@@ -60,19 +73,6 @@ public class IntroExcVar extends AbstractRewriter {
             body.prepend(create.assignment(create.local_name(excVar), create.reserved_name(ASTReserved.Null)));
             body.prepend(create.field_decl(excVar, create.class_type(ClassType.javaLangObjectName())));
         }
-    }
-
-    /**
-     * True if n uses exceptional control flow internally. This is not about exceptions escaping methods.
-     */
-    public static boolean usesExceptionalControlFlow(ASTNode n) {
-        FeatureScanner scanner = new FeatureScanner();
-        n.accept(scanner);
-        return scanner.usesFinally()
-                || scanner.usesCatch()
-                || scanner.usesSpecial(ASTSpecial.Kind.Throw)
-                || scanner.usesThrowingMethodCalls()
-                || scanner.hasThrowingMethods();
     }
 
     public void visit(TryCatchBlock tryCatchBlock) {

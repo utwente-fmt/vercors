@@ -7,14 +7,18 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder, FieldAccessCollector}
 
+import scala.collection.mutable
 import scala.jdk.CollectionConverters._
-import scala.collection.{JavaConverters, mutable}
 
 object GenerateADTFunctions {
   val getRemoveFromSeqName: mutable.Map[Type, String] = mutable.Map()
   val getSetCompName: mutable.Map[SetComprehension, String] = mutable.Map()
 
   val namesUsed: mutable.Set[String] = mutable.Set()
+
+  def getRemoveFromSeqFunction(t: Type): String = {
+    getRemoveFromSeqName getOrElseUpdate(t, getUniqueName("remove_by_index_" + t.toString))
+  }
 
   def getUniqueName(str: String): String = {
     var result = str.replaceAll("[^a-zA-Z0-9$_']", "_")
@@ -23,10 +27,6 @@ object GenerateADTFunctions {
     }
     namesUsed += result
     result
-  }
-
-  def getRemoveFromSeqFunction(t: Type): String = {
-    getRemoveFromSeqName getOrElseUpdate(t, getUniqueName("remove_by_index_" + t.toString))
   }
 
   def getSetCompFunction(sc: SetComprehension): String = {
@@ -53,32 +53,6 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     create.leave()
 
     res
-  }
-
-  override def visit(binding: BindingExpression): Unit = {
-    binding.binder match {
-      case Binder.SetComp =>
-        // Get Arguments
-        var boundedVariables = binding.asInstanceOf[SetComprehension].variables
-        val args = binding.asInstanceOf[SetComprehension].variables.values().asScala
-
-        result = create.invokation(null,
-          null,
-          GenerateADTFunctions.getSetCompFunction(binding.asInstanceOf[SetComprehension]),
-          rewrite(args.toArray): _*);
-      case _ =>
-        super.visit(binding)
-    }
-  }
-
-  override def visit(operator: OperatorExpression): Unit = {
-    operator.operator match {
-      case StandardOperator.RemoveAt =>
-        val sequenceType = operator.arg(0).getType
-        result = create.invokation(null, null, GenerateADTFunctions.getRemoveFromSeqFunction(sequenceType), rewrite(operator.args.toArray): _*)
-      case _ =>
-        super.visit(operator)
-    }
   }
 
   def generateSetComprehensionFunction(setComprehension: SetComprehension, functionName: String): ASTNode = {
@@ -149,7 +123,6 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     function
   }
 
-
   def removeFromSequenceByIndex(sequenceType: Type, functionName: String): ASTNode = {
     val contract = new ContractBuilder
     val result = create.reserved_name(ASTReserved.Result, sequenceType)
@@ -205,11 +178,36 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     valueInRange(name(indexName), constant(0), size(name(sequenceName)), inclusive)
   }
 
-
   def valueInRange(value: ASTNode, lowerbound: ASTNode, upperbound: ASTNode, inclusive: Boolean = false): ASTNode = {
     val left = lte(lowerbound, value)
     val right = if (inclusive) lte(value, upperbound) else less(value, upperbound)
 
     and(left, right)
+  }
+
+  override def visit(binding: BindingExpression): Unit = {
+    binding.binder match {
+      case Binder.SetComp =>
+        // Get Arguments
+        var boundedVariables = binding.asInstanceOf[SetComprehension].variables
+        val args = binding.asInstanceOf[SetComprehension].variables.values().asScala
+
+        result = create.invokation(null,
+          null,
+          GenerateADTFunctions.getSetCompFunction(binding.asInstanceOf[SetComprehension]),
+          rewrite(args.toArray): _*);
+      case _ =>
+        super.visit(binding)
+    }
+  }
+
+  override def visit(operator: OperatorExpression): Unit = {
+    operator.operator match {
+      case StandardOperator.RemoveAt =>
+        val sequenceType = operator.arg(0).getType
+        result = create.invokation(null, null, GenerateADTFunctions.getRemoveFromSeqFunction(sequenceType), rewrite(operator.args.toArray): _*)
+      case _ =>
+        super.visit(operator)
+    }
   }
 }

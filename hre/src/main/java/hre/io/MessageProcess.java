@@ -10,7 +10,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static hre.lang.System.Debug;
-import static hre.lang.System.Warning;
 
 /**
  * Provides communication with a interactive external process.
@@ -55,7 +54,7 @@ public class MessageProcess {
         new Thread(() -> {
             try {
                 /* This time is a little bit under the max no-output time of our CI */
-                if(!process.waitFor(8, TimeUnit.MINUTES)) {
+                if (!process.waitFor(8, TimeUnit.MINUTES)) {
                     processOutputLineQueue.add(new Message("killed"));
                     process.destroyForcibly();
                 }

@@ -7,12 +7,12 @@ class CatchThrowE {
     Exception chosenE;
 
     boolean randomBoolean();
-    
+
     //@ context_everywhere Perm(x, write);
     //@ context_everywhere Perm(chosenE, write);
     //@ signals (Exception e) Perm(x, write) ** Perm(chosenE, write) ** x == 5 ** e == chosenE;
     //@ ensures x == 3;
-    void  m() throws Exception {
+    void m() throws Exception {
         boolean throwB = randomBoolean();
 
         try {

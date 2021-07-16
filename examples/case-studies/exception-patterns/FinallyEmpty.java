@@ -3,9 +3,9 @@
 //:: verdict Pass
 
 class FinallyEmpty {
-    void m () {
+    void m() {
         try {
-            
+
         } finally {
 
         }

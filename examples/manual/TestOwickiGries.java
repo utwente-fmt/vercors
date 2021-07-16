@@ -2,10 +2,10 @@
 //:: cases OwickiGriesMain
 //:: tools
 class TestOwickiGries {
-  public static void main(String args[]){
-    OwickiGries og=new OwickiGries();
-    System.err.printf("og.x == %d%n",og.x);
-    og.main();
-    System.err.printf("og.x == %d%n",og.x);
-  }  
+    public static void main(String args[]) {
+        OwickiGries og = new OwickiGries();
+        System.err.printf("og.x == %d%n", og.x);
+        og.main();
+        System.err.printf("og.x == %d%n", og.x);
+    }
 }

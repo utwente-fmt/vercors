@@ -1,6 +1,5 @@
 package vct.rewrite
 
-import vct.col.ast._
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
 import vct.col.ast.expr.StandardOperator
 import vct.col.ast.generic.ASTNode
@@ -8,28 +7,37 @@ import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.rewrite.ArrayNullValues
 import vct.col.util.AbstractTypeCheck
 
-class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=new AbstractTypeCheck(null, new ProgramUnit())) {
-  def INT_TYPE = create primitive_type PrimitiveSort.Integer
-  def SEQ_TYPE = create primitive_type(PrimitiveSort.Sequence, INT_TYPE)
+class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before = new AbstractTypeCheck(null, new ProgramUnit())) {
   def BOOL_TYPE = create primitive_type PrimitiveSort.Boolean
 
-  def OPT_INT_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Option,
-    create.primitive_type(PrimitiveSort.Array,
-      create.primitive_type(PrimitiveSort.Cell, INT_TYPE)))
+  def SEQ_ARRAY_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Array,
+    create.primitive_type(PrimitiveSort.Cell, OPT_SEQ_ARRAY_TYPE))
+
+  def CASTED_NONE_SEQ_ARRAY = create expression(StandardOperator.Cast, OPT_SEQ_ARRAY_TYPE, NONE)
+
+  def OPT_SEQ_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Option, SEQ_ARRAY_TYPE)
 
   def SEQ_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Array,
     create.primitive_type(PrimitiveSort.Cell, SEQ_TYPE))
 
-  def OPT_SEQ_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Option, SEQ_ARRAY_TYPE)
+  def SEQ_TYPE = create primitive_type(PrimitiveSort.Sequence, INT_TYPE)
 
-  def SEQ_ARRAY_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Array,
-      create.primitive_type(PrimitiveSort.Cell, OPT_SEQ_ARRAY_TYPE))
+  def INT_TYPE = create primitive_type PrimitiveSort.Integer
 
+  def NONE = create reserved_name ASTReserved.OptionNone
+
+  def wrappingOperator(operator: StandardOperator): Unit = {
+    var comparison = (right: ASTNode) => create.expression(StandardOperator.EQ,
+      create.expression(StandardOperator.NewArray, OPT_INT_ARRAY_TYPE, create constant 5),
+      create.expression(operator, right)
+    )
+
+    comparison(NULL) should rewriteTo(comparison(CASTED_NONE_INT_ARRAY))
+  }
 
   def NULL = create reserved_name ASTReserved.Null
-  def NONE = create reserved_name ASTReserved.OptionNone
+
   def CASTED_NONE_INT_ARRAY = create expression(StandardOperator.Cast, OPT_INT_ARRAY_TYPE, NONE)
-  def CASTED_NONE_SEQ_ARRAY = create expression(StandardOperator.Cast, OPT_SEQ_ARRAY_TYPE, NONE)
 
   "The ArrayNullValues pass" should "not rewrite arbitrary null values" in {
     // The desired behaviour is that the type check pass strips the garbage assigned type, so the pass does not rewrite
@@ -59,14 +67,9 @@ class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=
     comparison(NULL) should rewriteTo(comparison(CASTED_NONE_INT_ARRAY))
   }
 
-  def wrappingOperator(operator: StandardOperator): Unit = {
-    var comparison = (right: ASTNode) => create.expression(StandardOperator.EQ,
-      create.expression(StandardOperator.NewArray, OPT_INT_ARRAY_TYPE, create constant 5),
-      create.expression(operator, right)
-    )
-
-    comparison(NULL) should rewriteTo(comparison(CASTED_NONE_INT_ARRAY))
-  }
+  def OPT_INT_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Option,
+    create.primitive_type(PrimitiveSort.Array,
+      create.primitive_type(PrimitiveSort.Cell, INT_TYPE)))
 
   it should "propagate typing in \\old expressions" in {
     wrappingOperator(StandardOperator.Old)

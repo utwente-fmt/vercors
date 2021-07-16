@@ -10,7 +10,8 @@ class C {
     void m1() {
         i = 0;
         //@ loop_invariant Perm(i, write) ** 0 <= i ** i <= 5;
-        l: while (i < 5) {
+        l:
+        while (i < 5) {
             i += 1;
         }
         //@ assert i == 5;
@@ -21,7 +22,9 @@ class C {
     void m2() {
         i = 100;
         //@ loop_invariant Perm(i, write) ** 100 <= i ** i <=110;
-        l1: l2: while (i < 110) {
+        l1:
+        l2:
+        while (i < 110) {
             i += 1;
         }
         //@ assert i == 110;
@@ -32,7 +35,8 @@ class C {
     void m3() {
         i = 200;
         //@ loop_invariant Perm(i, write);
-        l1: l2:
+        l1:
+        l2:
         //@ loop_invariant i <= 230;
         while (i < 230) {
             i += 1;

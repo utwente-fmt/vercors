@@ -1,8 +1,6 @@
 package vct.parsers
 
-import scala.annotation.nowarn
-
-import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
+import org.antlr.v4.runtime.CommonTokenStream
 import vct.antlr4.generated.CParser
 import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
@@ -12,12 +10,12 @@ import vct.col.ast.expr.{NameExpression, NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.langspecific.c._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
-import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationStatement, Method, ProgramUnit, SignalsClause}
-import vct.col.ast.util.ContractBuilder
-import vct.col.ast.util.SequenceUtils
+import vct.col.ast.stmt.decl._
+import vct.col.ast.util.{ContractBuilder, SequenceUtils}
 
-import scala.collection.mutable
 import java.util
+import scala.annotation.nowarn
+import scala.collection.mutable
 
 object CMLtoCOL {
   def convert(tree: CompilationUnitContext, fileName: String, tokens: CommonTokenStream, parser: CParser): ProgramUnit = {
@@ -28,8 +26,7 @@ object CMLtoCOL {
 // Maybe we can turn this off in the future.
 @nowarn("msg=not.*?exhaustive")
 class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
-  extends ToCOL(fileName, tokens, parser)
-{
+  extends ToCOL(fileName, tokens, parser) {
   def convertProgram(tree: CompilationUnitContext): ProgramUnit = tree match {
     case CompilationUnit0(None, _) =>
       new ProgramUnit()
@@ -52,7 +49,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   def convertDecl(decl: LangDeclContext): ASTDeclaration = decl match {
     case LangDecl0(funcDecl) =>
       val xs = convertDecl(funcDecl)
-      if(xs.size == 1) {
+      if (xs.size == 1) {
         xs.head
       } else {
         ??(decl)
@@ -76,7 +73,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       specs.add(declSpecs)
       val rawT = convertDeclaratorType(decl)(convertPointer(maybePtr)(getOrFail(declSpecs, specs.getType)))
 
-      if(!rawT.isInstanceOf[CFunctionType]) {
+      if (!rawT.isInstanceOf[CFunctionType]) {
         fail(decl, "This declarator specifies something that is not a function at the top level.")
       }
 
@@ -86,7 +83,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val contract = getContract(convertValContract(maybeContract))
       val decls = t.params.map(param => getOrFail(decl, param.asDecl, "Parameter type or name missing"))
       val varargs = decls.nonEmpty && decls.last.`type`.isPrimitive(PrimitiveSort.CVarArgs)
-      val res = create method_kind (Method.Kind.Plain, t.returnType, contract, name, decls.toArray, varargs, body)
+      val res = create method_kind(Method.Kind.Plain, t.returnType, contract, name, decls.toArray, varargs, body)
       res.setStatic(true)
       specs.valModifiers.foreach(res.attach(_))
       Seq(res)
@@ -108,17 +105,19 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   def tCell(t: Type) = create.primitive_type(PrimitiveSort.Cell, t)
+
   def tArray(t: Type) = create.primitive_type(PrimitiveSort.Array, t)
+
   def tOpt(t: Type) = create.primitive_type(PrimitiveSort.Option, t)
 
   def addDims(t: Type, dimCount: Int): Type = {
     var result = t
 
-    if(result.isPrimitive(PrimitiveSort.Option)) {
+    if (result.isPrimitive(PrimitiveSort.Option)) {
       result = result.firstarg.asInstanceOf[Type]
     }
 
-    for(_ <- 0 until dimCount) {
+    for (_ <- 0 until dimCount) {
       result = tArray(tCell(result))
     }
 
@@ -242,250 +241,6 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case InitDeclaratorList1(xs, ",", x) => getDeclList(xs) :+ x
   }
 
-  /**
-    * Wrangle the bag of words before a declaration into an intermediate data structure
-    */
-  class DeclSpecs {
-    sealed trait TypeSpec
-    case class PrimitiveTypeSpec(primitive: String) extends TypeSpec
-    // Unsupported: case class AtomicTypeSpec(obj: Any) extends TypeSpec
-    case class StructOrUnionTypeSpec(tree: StructOrUnionSpecifierContext) extends TypeSpec
-    // Unsupported: case class EnumTypeSpec(obj: Any) extends TypeSpec
-    case class TypedefNameTypeSpec(name: String) extends TypeSpec
-    case class ValTypeSpec(t: Type) extends TypeSpec
-
-    object TypeSpecOrdering extends Ordering[TypeSpec] {
-      override def compare(x: TypeSpec, y: TypeSpec): Int = (x, y) match {
-        case (_, _) if x eq y => 0
-        // Not supported, so the ordering doesn't matter currently anyway
-        case (TypedefNameTypeSpec(l), TypedefNameTypeSpec(r)) => l.compare(r)
-        case (PrimitiveTypeSpec(l), PrimitiveTypeSpec(r)) => l.compare(r)
-        // Rest of the ordering, randomly chosen: Primitive < Typedef < ValType < StructOrUnion
-        case (PrimitiveTypeSpec(_), _) => -1
-        case (_, PrimitiveTypeSpec(_)) => 1
-        case (TypedefNameTypeSpec(_), _) => -1
-        case (_, TypedefNameTypeSpec(_)) => 1
-        // Not clear how to even order these for arbitrary COL types or arbitrary structOrUnions
-        // But: could be extended for non-anonymous structs
-        case (_, _) => 0
-      }
-    }
-
-    val primitiveTypeSets: Map[Seq[TypeSpec], PrimitiveSort] = Map(
-      Seq(PrimitiveTypeSpec("void"))
-        -> PrimitiveSort.Void,
-      Seq(PrimitiveTypeSpec("char"))
-        -> PrimitiveSort.Char,
-      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("char"))
-        -> PrimitiveSort.Char,
-      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("char"))
-        -> PrimitiveSort.Char,
-      Seq(PrimitiveTypeSpec("short"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("short"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("short"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("signed"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("unsigned"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("long"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
-        -> PrimitiveSort.Integer,
-      Seq(PrimitiveTypeSpec("float"))
-        -> PrimitiveSort.Float,
-      Seq(PrimitiveTypeSpec("double"))
-        -> PrimitiveSort.Float,
-      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"))
-        -> PrimitiveSort.Float,
-      Seq(PrimitiveTypeSpec("_Bool"))
-        -> PrimitiveSort.Boolean,
-
-      // Unsupported: complex numbers
-      //Set(PrimitiveTypeSpec("float"), PrimitiveTypeSpec("_Complex"))
-      //  -> PrimitiveSort.Complex,
-      //Set(PrimitiveTypeSpec("double"), PrimitiveTypeSpec("_Complex"))
-      //  -> PrimitiveSort.Complex,
-      //Set(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"), PrimitiveTypeSpec("_Complex"))
-      //  -> PrimitiveSort.Complex,
-//    ).map{ case (typespecs, sort) => (typespecs.sortWith{ case (l, r) => l.primitive < r.primitive}, sort) }.toMap
-    ).map{ case (typeSpecs, sort) => (typeSpecs.sorted(TypeSpecOrdering), sort) }.toMap
-
-    sealed trait TypeQual
-    object ConstTypeQual extends TypeQual
-    object RestrictTypeQual extends TypeQual
-    object VolatileTypeQual extends TypeQual
-    object AtomicTypeQual extends TypeQual
-
-    sealed trait FuncSpec
-    object InlineFuncSpec extends FuncSpec
-    object NoReturnFuncSpec extends FuncSpec
-
-    sealed trait StorageClass
-    object Typedef extends StorageClass
-    object ExternSC extends StorageClass
-    object Static extends StorageClass
-    object ThreadLocal extends StorageClass
-    object Auto extends StorageClass
-    object Register extends StorageClass
-
-    object ThreadLocalStatic extends StorageClass
-    object ThreadLocalExtern extends StorageClass
-
-    private val _typeSpec: mutable.ArrayBuffer[TypeSpec] = mutable.ArrayBuffer()
-    private val _typeQual: mutable.Set[TypeQual] = mutable.Set()
-    private val _funcSpec: mutable.Set[FuncSpec] = mutable.Set()
-    private var _storageClass: Option[StorageClass] = None
-    var valModifiers: mutable.Seq[NameExpression] = mutable.Seq()
-    var isKernel: Boolean = false
-
-    def typeSpec: Seq[TypeSpec] = _typeSpec.toSeq
-    def typeQual: Set[TypeQual] = _typeQual.toSet
-    def funcSpec: Set[FuncSpec] = _funcSpec.toSet
-    def storageClass: Option[StorageClass] = _storageClass
-
-    def add(tree: DeclarationSpecifiersContext): Unit = tree match {
-      case DeclarationSpecifiers0(specs) =>
-        specs.foreach(add)
-    }
-
-    def add(tree: DeclarationSpecifierContext): Unit = tree match {
-      case DeclarationSpecifier0(storageClass) => add(storageClass)
-      case DeclarationSpecifier1(typeSpecifier) => add(typeSpecifier)
-      case DeclarationSpecifier2(typeQualifier) => add(typeQualifier)
-      case DeclarationSpecifier3(functionSpecifier) => add(functionSpecifier)
-      case DeclarationSpecifier4(alignmentSpecifier) => ??(alignmentSpecifier)
-      case DeclarationSpecifier5(_) => isKernel = true
-      case DeclarationSpecifier6(valModifiersNode) =>
-        valModifiers ++= convertValModifiers(valModifiersNode)
-    }
-
-    def getStorageClass(tree: StorageClassSpecifierContext): StorageClass = tree match {
-      case StorageClassSpecifier0("typedef") => Typedef
-      case StorageClassSpecifier1("extern") => ExternSC
-      case StorageClassSpecifier2("static") => Static
-      case StorageClassSpecifier3("_Thread_local") => ThreadLocal
-      case StorageClassSpecifier4("auto") => Auto
-      case StorageClassSpecifier5("register") => Register
-    }
-
-    def add(tree: StorageClassSpecifierContext): Unit = {
-      val cls = getStorageClass(tree)
-      _storageClass = Some(_storageClass match {
-        case None => cls
-        case Some(ThreadLocal) if cls == ExternSC => ThreadLocalExtern
-        case Some(ThreadLocal) if cls == Static => ThreadLocalStatic
-        case Some(ExternSC) if cls == ThreadLocal => ThreadLocalExtern
-        case Some(Static) if cls == ThreadLocal => ThreadLocalStatic
-        case Some(other) => fail(tree, "Encountered storage class %s before, so cannot also declare as %s", other, cls)
-      })
-    }
-
-    def add(tree: TypeSpecifierContext): Unit = tree match {
-      case TypeSpecifier0(primitive) => _typeSpec += PrimitiveTypeSpec(primitive)
-      case TypeSpecifier1("__extension__", _, _, _) => ??(tree)
-      case TypeSpecifier2(valType) => _typeSpec += ValTypeSpec(convertValType(valType))
-      case TypeSpecifier3(atomic) => ??(atomic)
-      case TypeSpecifier4(structOrUnion) => _typeSpec += StructOrUnionTypeSpec(structOrUnion)
-      case TypeSpecifier5(enum) => ??(enum)
-      case TypeSpecifier6(TypedefName0(id)) => _typeSpec += TypedefNameTypeSpec(convertID(id))
-      case TypeSpecifier7("__typeof__", _, _, _) => ??(tree)
-    }
-
-    def add(tree: TypeQualifierContext): Unit = {
-      _typeQual += (tree match {
-        case TypeQualifier0("const") => ConstTypeQual
-        case TypeQualifier1("restrict") => RestrictTypeQual
-        case TypeQualifier2("volatile") => VolatileTypeQual
-        case TypeQualifier3("_Atomic") => AtomicTypeQual
-      })
-    }
-
-    def add(tree: FunctionSpecifierContext): Unit = {
-      _funcSpec += (tree match {
-        case FunctionSpecifier0(standardSpecifier) => standardSpecifier match {
-          case "inline" => InlineFuncSpec
-          case "_Noreturn" => NoReturnFuncSpec
-          case "__inline__" => ??(tree)
-          case "__stdcall" => ??(tree)
-          case _ => ???
-        }
-        case FunctionSpecifier1(gccAttr) => ??(gccAttr)
-        case FunctionSpecifier2("__declspec", _, _, _) => ??(tree)
-      })
-    }
-
-    def getType: Either[String, Type] = {
-      if (typeQual.nonEmpty) {
-        return Left("Type qualifiers such as const are not supported.")
-      }
-      if (funcSpec.nonEmpty) {
-        return Left("Function specifiers such as inline are not supported.")
-      }
-
-      if(typeSpec.size == 1) {
-        typeSpec.head match {
-          case ValTypeSpec(t) => return Right(t)
-          case _ =>
-        }
-      }
-
-      val primitive = primitiveTypeSets.get(typeSpec.sorted(TypeSpecOrdering)) match {
-        case None =>
-          return Left("Type specifiers other than primitive types are not supported")
-        case Some(t) =>
-          create primitive_type t
-      }
-
-      val sc = storageClass match {
-        case None => primitive
-        case Some(Static) => create.__static(primitive)
-        case Some(ExternSC) => create.__extern(primitive)
-        case Some(sc) => return Left(s"Storage class ${sc.getClass.getSimpleName} not supported")
-      }
-
-      Right(if(isKernel) {
-        create.__kernel(sc)
-      } else {
-        sc
-      })
-    }
-  }
-
   def convertID(id: LangIdContext): String = id match {
     case LangId0(id) => convertID(id)
   }
@@ -495,7 +250,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   def convertID(id: ClangIdentifierContext): String = id match {
-    case ClangIdentifier0(ValReserved1(s)) => s.substring(1, s.length-1)
+    case ClangIdentifier0(ValReserved1(s)) => s.substring(1, s.length - 1)
     case ClangIdentifier0(reservedInSpec) =>
       fail(reservedInSpec, "This identifier is reserved, and may not be declared inside specifications.")
     case ClangIdentifier1(normalId) =>
@@ -517,9 +272,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertStat(statement: CompoundStatementContext): ASTNode = origin(statement, statement match {
     case CompoundStatement0("{", maybeBlock, "}") =>
-      create block(maybeBlock.map(convertStatList).getOrElse(Seq()):_*)
+      create block (maybeBlock.map(convertStatList).getOrElse(Seq()): _*)
     case CompoundStatement1(ompPragma, "{", maybeContract, maybeBlock, "}") =>
-      val block = origin(statement, create block(maybeBlock.map(convertStatList).getOrElse(Seq()):_*))
+      val block = origin(statement, create block (maybeBlock.map(convertStatList).getOrElse(Seq()): _*))
       convertOmpBlock(ompPragma, block, getContract(convertValContract(maybeContract)))
   })
 
@@ -634,7 +389,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case IterationStatement3(maybeContract1, maybeOmp, "for", _, init, maybeCond, _, maybeUpdate, _, maybeContract2, body) =>
       val contract = getContract(convertValContract(maybeContract1), convertValContract(maybeContract2))
       val loop = create for_loop(
-        create block(convertDecl(init):_*),
+        create block (convertDecl(init): _*),
         maybeCond.map(expr).orNull,
         maybeUpdate.map(expr).orNull,
         convertStat(body),
@@ -648,13 +403,13 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertStat(jump: JumpStatementContext): ASTNode = jump match {
     case JumpStatement0("goto", label, _) =>
-      create special(ASTSpecial.Kind.Goto, create label(convertID(label)))
+      create special(ASTSpecial.Kind.Goto, create label (convertID(label)))
     case JumpStatement1("continue", _) =>
       create special ASTSpecial.Kind.Continue
     case JumpStatement2("break", _) =>
       create special ASTSpecial.Kind.Break
     case JumpStatement3("return", maybeExp, _) =>
-      create return_statement(maybeExp.map(expr).toSeq:_*)
+      create return_statement (maybeExp.map(expr).toSeq: _*)
     case JumpStatement4("goto", _, _) =>
       ??(jump) // GCC extended goto's unsupported
   }
@@ -669,8 +424,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertInitializerList(xs: InitializerListContext, t: Type): ASTNode = {
     val seqInfo = SequenceUtils.getTypeInfoOrFail(t, "Array initializer is only applicable to array type")
-    val value = create struct_value(seqInfo.getSequenceType, null, convertInitializerListToSeq(xs, seqInfo.getElementType):_*)
-    if(seqInfo.isOpt) {
+    val value = create struct_value(seqInfo.getSequenceType, null, convertInitializerListToSeq(xs, seqInfo.getElementType): _*)
+    if (seqInfo.isOpt) {
       create expression(StandardOperator.OptionSome, value)
     } else {
       value
@@ -854,12 +609,12 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val args = maybeArgs.map(exprList).getOrElse(Seq())
       val methodExpr = expr(method)
 
-      if(!methodExpr.isInstanceOf[NameExpression]) {
+      if (!methodExpr.isInstanceOf[NameExpression]) {
         ??(method)
       }
 
       val methodName = methodExpr.asInstanceOf[NameExpression].getName
-      create invokation(null, null, methodName, args:_*)
+      create invokation(null, null, methodName, args: _*)
     case PostfixExpression3(obj, ".", field) =>
       create expression(StructSelect, expr(obj), convertIDName(field))
     case PostfixExpression4(obj, "->", field) =>
@@ -877,7 +632,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case PostfixExpression10(_, _, _, _, _, _, _, _) =>
       ??(exp)
     case PostfixExpression11(GpgpuCudaKernelInvocation0(name, _, blockCount, _, threadCount, _, _, arguments, _, maybeWithThen)) =>
-      val invocation = create.kernelInvocation(convertID(name), expr(blockCount), expr(threadCount), exprList(arguments):_*)
+      val invocation = create.kernelInvocation(convertID(name), expr(blockCount), expr(threadCount), exprList(arguments): _*)
       maybeWithThen.toSeq.flatMap(convertValWithThen).foreach(invocation.get_after.addStatement(_))
       invocation
   })
@@ -909,18 +664,6 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ArgumentExpressionList1(xs, ",", x) => exprList(xs) :+ expr(x)
   }
 
-  def convertType(t: LangTypeContext): Type = t match {
-    case LangType0(t) => convertType(t)
-  }
-
-  def convertType(t: TypeSpecifierContext): Type = {
-    val specs = new DeclSpecs
-    specs.add(t)
-    getOrFail(t, specs.getType)
-  }
-
-  def convertModifier(mod: LangModifierContext): NameExpression = ???
-
   /* === Start of duplicated code block ===
    * Below here are the conversion methods for specification constructs. Because they are generated via a language-
    * specific parser, each language has a different set of classes for the ANTLR nodes of specifications. They are
@@ -941,9 +684,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertValClause(clause: ValContractClauseContext) = (builder: ContractBuilder) => clause match {
     case ValContractClause0(_modifies, names, _) =>
-      builder.modifies(convertValExpList(names):_*)
+      builder.modifies(convertValExpList(names): _*)
     case ValContractClause1(_accessible, names, _) =>
-      builder.accesses(convertValExpList(names):_*)
+      builder.accesses(convertValExpList(names): _*)
     case ValContractClause2(_requires, exp, _) =>
       builder.requires(expr(exp))
     case ValContractClause3(_ensures, exp, _) =>
@@ -966,7 +709,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertValBlock(block: ValBlockContext): BlockStatement = origin(block, block match {
     case ValBlock0("{", statements, "}") =>
-      create block(statements.map(convertValStat):_*)
+      create block (statements.map(convertValStat): _*)
   })
 
   def convertValStat(stat: ValEmbedStatementBlockContext): Seq[ASTNode] = origin(stat, stat match {
@@ -983,7 +726,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertValStat(stat: ValStatementContext): ASTNode = origin(stat, stat match {
     case ValStatement0(_create, block) =>
-      create lemma(convertValBlock(block))
+      create lemma (convertValBlock(block))
     case ValStatement1(_qed, exp, _) =>
       create special(ASTSpecial.Kind.QED, expr(exp))
     case ValStatement2(_apply, exp, _) =>
@@ -1041,22 +784,22 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValStatement28(_spec_ignore, "{") =>
       create special ASTSpecial.Kind.SpecIgnoreStart
     case ValStatement29(_action, arg1, _, arg2, _, arg3, _, arg4, map, _) =>
-      if(map.nonEmpty) {
+      if (map.nonEmpty) {
         ??(map.head)
       }
-      create special (ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
+      create special(ASTSpecial.Kind.ActionHeader, expr(arg1), expr(arg2), expr(arg3), expr(arg4))
     case ValStatement30(_atomic, _, resList, _, stat) =>
-      create csl_atomic(create block(convertValStat(stat):_*), resList.map(convertValExpList).getOrElse(Seq()).map {
+      create csl_atomic(create block (convertValStat(stat): _*), resList.map(convertValExpList).getOrElse(Seq()).map {
         case name: NameExpression if name.getKind == NameExpressionKind.Unresolved =>
           create label name.getName
         case other => other
-      }:_*)
+      }: _*)
   })
 
   def valExpr(exp: ValPrimaryContext): ASTNode = origin(exp, exp match {
     case ValPrimary0(t, "{", maybeExps, "}") =>
       val exps = maybeExps.map(convertValExpList).getOrElse(Seq())
-      create struct_value(convertType(t), null, exps:_*)
+      create struct_value(convertType(t), null, exps: _*)
     case ValPrimary1("[", factor, "]", exp) =>
       create expression(Scale, expr(factor), expr(exp))
     case ValPrimary2("|", seq, "|") =>
@@ -1077,8 +820,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val name = convertID(id)
       val decl = create field_decl(name, convertType(t))
       val guard = create expression(StandardOperator.And,
-        create expression(LTE, expr(fr), create unresolved_name(name)),
-        create expression(StandardOperator.LT, create unresolved_name(name), expr(to))
+        create expression(LTE, expr(fr), create unresolved_name (name)),
+        create expression(StandardOperator.LT, create unresolved_name (name), expr(to))
       )
       binderName match {
         case "\\forall*" => create starall(guard, expr(main), decl)
@@ -1126,7 +869,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create expression(MatrixRepeat, expr(m))
     case ValPrimary27(label, _, exp) =>
       val res = expr(exp)
-      res.addLabel(create label(convertID(label)))
+      res.addLabel(create label (convertID(label)))
       res
     case ValPrimary28("{:", pattern, ":}") =>
       create pattern expr(pattern)
@@ -1205,9 +948,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValPrimary61("valuesMap", _, map, _) =>
       create expression(StandardOperator.MapValueSet, expr(map))
     case ValPrimary62("seq", "<", t, ">", "{", elems, "}") =>
-      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems):_*)
+      create struct_value(create.primitive_type(PrimitiveSort.Sequence, convertType(t)), null, convertValExpList(elems): _*)
     case ValPrimary63("set", "<", t, ">", "{", elems, "}") =>
-      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems):_*)
+      create struct_value(create.primitive_type(PrimitiveSort.Set, convertType(t)), null, convertValExpList(elems): _*)
     case ValPrimary64("(", seq, "[", "..", end, "]", ")") =>
       create expression(Take, expr(seq), expr(end))
     case ValPrimary65("(", seq, "[", start, "..", None, "]", ")") =>
@@ -1243,7 +986,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValReserved0(_) =>
       fail(reserved, "This identifier is reserved and cannot be declared or used.")
     case ValReserved1(s) =>
-      create unresolved_name(s.substring(1, s.length-1))
+      create unresolved_name (s.substring(1, s.length - 1))
     case ValReserved2("\\result") =>
       create reserved_name ASTReserved.Result
     case ValReserved3("\\current_thread") =>
@@ -1271,6 +1014,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   /**
    * This method allows a language grammar to step into the reserved identifiers where they overlap with the underlying
    * language, to allow their use there. They should be forbidden inside specifications.
+   *
    * @param reserved the reserved identifier
    * @return the string representation of the identifier
    */
@@ -1295,7 +1039,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertValContract(contract: Option[ValEmbedContractContext]) = (builder: ContractBuilder) => contract match {
     case Some(ValEmbedContract0(blocks)) =>
-      for(block <- blocks) {
+      for (block <- blocks) {
         convertValContractBlock(block)(builder)
       }
     case None =>
@@ -1304,19 +1048,19 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertValContractBlock(contract: ValEmbedContractBlockContext) = (builder: ContractBuilder) => contract match {
     case ValEmbedContractBlock0(_startSpec, clauses, _endSpec) =>
-      for(clause <- clauses) {
+      for (clause <- clauses) {
         convertValClause(clause)(builder)
       }
     case ValEmbedContractBlock1(clauses) =>
-      for(clause <- clauses) {
+      for (clause <- clauses) {
         convertValClause(clause)(builder)
       }
   }
 
   def convertValType(t: ValTypeContext): Type = origin(t, t match {
     case ValType0(s) => s match {
-      case "resource" => create primitive_type(PrimitiveSort.Resource)
-      case "process" => create primitive_type(PrimitiveSort.Process)
+      case "resource" => create primitive_type (PrimitiveSort.Resource)
+      case "process" => create primitive_type (PrimitiveSort.Process)
       case "frac" => create primitive_type PrimitiveSort.Fraction
       case "zfrac" => create primitive_type PrimitiveSort.ZFraction
       case "rational" => create primitive_type PrimitiveSort.Rational
@@ -1334,6 +1078,16 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create primitive_type(PrimitiveSort.Pointer, convertType(subType))
   })
 
+  def convertType(t: LangTypeContext): Type = t match {
+    case LangType0(t) => convertType(t)
+  }
+
+  def convertType(t: TypeSpecifierContext): Type = {
+    val specs = new DeclSpecs
+    specs.add(t)
+    getOrFail(t, specs.getType)
+  }
+
   def convertValArg(arg: ValArgContext): DeclarationStatement = origin(arg, arg match {
     case ValArg0(t, id) =>
       create field_decl(convertID(id), convertType(t))
@@ -1344,15 +1098,6 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case ValArgList1(arg, _, args) => convertValArg(arg) +: convertValArgList(args)
   })
 
-  def convertValModifier(modifier: ValModifierContext): NameExpression = origin(modifier, modifier match {
-    case ValModifier0(s) => s match {
-      case "pure" => create reserved_name(ASTReserved.Pure)
-      case "inline" => create reserved_name(ASTReserved.Inline)
-      case "thread_local" => create reserved_name(ASTReserved.ThreadLocal)
-    }
-    case ValModifier1(langMod) => convertModifier(langMod)
-  })
-
   def convertValModifiers(modifiers: ValEmbedModifiersContext): Seq[NameExpression] = origin(modifiers, modifiers match {
     case ValEmbedModifiers0(_, mods, _) =>
       mods.map(convertValModifier)
@@ -1360,9 +1105,20 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       mods.map(convertValModifier)
   })
 
+  def convertValModifier(modifier: ValModifierContext): NameExpression = origin(modifier, modifier match {
+    case ValModifier0(s) => s match {
+      case "pure" => create reserved_name (ASTReserved.Pure)
+      case "inline" => create reserved_name (ASTReserved.Inline)
+      case "thread_local" => create reserved_name (ASTReserved.ThreadLocal)
+    }
+    case ValModifier1(langMod) => convertModifier(langMod)
+  })
+
+  def convertModifier(mod: LangModifierContext): NameExpression = ???
+
   def convertValDecl(decl: ValDeclarationContext): ASTDeclaration = origin(decl, decl match {
     case ValDeclaration0(clauses, mods, t, name, _, args, _, body) =>
-      val contract = getContract(clauses.map(convertValClause):_*)
+      val contract = getContract(clauses.map(convertValClause): _*)
       val func = create function_decl(
         convertType(t),
         contract,
@@ -1379,10 +1135,10 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
     case ValDeclaration2(clauses, "ghost", langDecl) =>
       val decl = convertDecl(langDecl)
-      if(clauses.nonEmpty) {
+      if (clauses.nonEmpty) {
         decl match {
           case method: Method =>
-            method.setContract(getContract(clauses.map(convertValClause):_*))
+            method.setContract(getContract(clauses.map(convertValClause): _*))
             method
           case _ =>
             fail(langDecl, "This constructor cannot have contract declarations")
@@ -1411,6 +1167,269 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertValWithThen(withThen: ValEmbedWithThenContext): Seq[ASTNode] = withThen match {
     case ValEmbedWithThen0(blocks) => blocks.flatMap(convertValWithThen)
+  }
+
+  /**
+   * Wrangle the bag of words before a declaration into an intermediate data structure
+   */
+  class DeclSpecs {
+    val primitiveTypeSets: Map[Seq[TypeSpec], PrimitiveSort] = Map(
+      Seq(PrimitiveTypeSpec("void"))
+        -> PrimitiveSort.Void,
+      Seq(PrimitiveTypeSpec("char"))
+        -> PrimitiveSort.Char,
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("char"))
+        -> PrimitiveSort.Char,
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("char"))
+        -> PrimitiveSort.Char,
+      Seq(PrimitiveTypeSpec("short"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("short"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("short"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("signed"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("unsigned"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("long"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+        -> PrimitiveSort.Integer,
+      Seq(PrimitiveTypeSpec("float"))
+        -> PrimitiveSort.Float,
+      Seq(PrimitiveTypeSpec("double"))
+        -> PrimitiveSort.Float,
+      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"))
+        -> PrimitiveSort.Float,
+      Seq(PrimitiveTypeSpec("_Bool"))
+        -> PrimitiveSort.Boolean,
+
+      // Unsupported: complex numbers
+      //Set(PrimitiveTypeSpec("float"), PrimitiveTypeSpec("_Complex"))
+      //  -> PrimitiveSort.Complex,
+      //Set(PrimitiveTypeSpec("double"), PrimitiveTypeSpec("_Complex"))
+      //  -> PrimitiveSort.Complex,
+      //Set(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"), PrimitiveTypeSpec("_Complex"))
+      //  -> PrimitiveSort.Complex,
+      //    ).map{ case (typespecs, sort) => (typespecs.sortWith{ case (l, r) => l.primitive < r.primitive}, sort) }.toMap
+    ).map { case (typeSpecs, sort) => (typeSpecs.sorted(TypeSpecOrdering), sort) }.toMap
+    private val _typeSpec: mutable.ArrayBuffer[TypeSpec] = mutable.ArrayBuffer()
+    private val _typeQual: mutable.Set[TypeQual] = mutable.Set()
+    private val _funcSpec: mutable.Set[FuncSpec] = mutable.Set()
+    var valModifiers: mutable.Seq[NameExpression] = mutable.Seq()
+    var isKernel: Boolean = false
+    private var _storageClass: Option[StorageClass] = None
+
+    def add(tree: DeclarationSpecifiersContext): Unit = tree match {
+      case DeclarationSpecifiers0(specs) =>
+        specs.foreach(add)
+    }
+
+    def add(tree: DeclarationSpecifierContext): Unit = tree match {
+      case DeclarationSpecifier0(storageClass) => add(storageClass)
+      case DeclarationSpecifier1(typeSpecifier) => add(typeSpecifier)
+      case DeclarationSpecifier2(typeQualifier) => add(typeQualifier)
+      case DeclarationSpecifier3(functionSpecifier) => add(functionSpecifier)
+      case DeclarationSpecifier4(alignmentSpecifier) => ??(alignmentSpecifier)
+      case DeclarationSpecifier5(_) => isKernel = true
+      case DeclarationSpecifier6(valModifiersNode) =>
+        valModifiers ++= convertValModifiers(valModifiersNode)
+    }
+
+    def add(tree: StorageClassSpecifierContext): Unit = {
+      val cls = getStorageClass(tree)
+      _storageClass = Some(_storageClass match {
+        case None => cls
+        case Some(ThreadLocal) if cls == ExternSC => ThreadLocalExtern
+        case Some(ThreadLocal) if cls == Static => ThreadLocalStatic
+        case Some(ExternSC) if cls == ThreadLocal => ThreadLocalExtern
+        case Some(Static) if cls == ThreadLocal => ThreadLocalStatic
+        case Some(other) => fail(tree, "Encountered storage class %s before, so cannot also declare as %s", other, cls)
+      })
+    }
+
+    def getStorageClass(tree: StorageClassSpecifierContext): StorageClass = tree match {
+      case StorageClassSpecifier0("typedef") => Typedef
+      case StorageClassSpecifier1("extern") => ExternSC
+      case StorageClassSpecifier2("static") => Static
+      case StorageClassSpecifier3("_Thread_local") => ThreadLocal
+      case StorageClassSpecifier4("auto") => Auto
+      case StorageClassSpecifier5("register") => Register
+    }
+
+    def add(tree: TypeSpecifierContext): Unit = tree match {
+      case TypeSpecifier0(primitive) => _typeSpec += PrimitiveTypeSpec(primitive)
+      case TypeSpecifier1("__extension__", _, _, _) => ??(tree)
+      case TypeSpecifier2(valType) => _typeSpec += ValTypeSpec(convertValType(valType))
+      case TypeSpecifier3(atomic) => ??(atomic)
+      case TypeSpecifier4(structOrUnion) => _typeSpec += StructOrUnionTypeSpec(structOrUnion)
+      case TypeSpecifier5(enum) => ??(enum)
+      case TypeSpecifier6(TypedefName0(id)) => _typeSpec += TypedefNameTypeSpec(convertID(id))
+      case TypeSpecifier7("__typeof__", _, _, _) => ??(tree)
+    }
+
+    def add(tree: TypeQualifierContext): Unit = {
+      _typeQual += (tree match {
+        case TypeQualifier0("const") => ConstTypeQual
+        case TypeQualifier1("restrict") => RestrictTypeQual
+        case TypeQualifier2("volatile") => VolatileTypeQual
+        case TypeQualifier3("_Atomic") => AtomicTypeQual
+      })
+    }
+
+    def add(tree: FunctionSpecifierContext): Unit = {
+      _funcSpec += (tree match {
+        case FunctionSpecifier0(standardSpecifier) => standardSpecifier match {
+          case "inline" => InlineFuncSpec
+          case "_Noreturn" => NoReturnFuncSpec
+          case "__inline__" => ??(tree)
+          case "__stdcall" => ??(tree)
+          case _ => ???
+        }
+        case FunctionSpecifier1(gccAttr) => ??(gccAttr)
+        case FunctionSpecifier2("__declspec", _, _, _) => ??(tree)
+      })
+    }
+
+    def getType: Either[String, Type] = {
+      if (typeQual.nonEmpty) {
+        return Left("Type qualifiers such as const are not supported.")
+      }
+      if (funcSpec.nonEmpty) {
+        return Left("Function specifiers such as inline are not supported.")
+      }
+
+      if (typeSpec.size == 1) {
+        typeSpec.head match {
+          case ValTypeSpec(t) => return Right(t)
+          case _ =>
+        }
+      }
+
+      val primitive = primitiveTypeSets.get(typeSpec.sorted(TypeSpecOrdering)) match {
+        case None =>
+          return Left("Type specifiers other than primitive types are not supported")
+        case Some(t) =>
+          create primitive_type t
+      }
+
+      val sc = storageClass match {
+        case None => primitive
+        case Some(Static) => create.__static(primitive)
+        case Some(ExternSC) => create.__extern(primitive)
+        case Some(sc) => return Left(s"Storage class ${sc.getClass.getSimpleName} not supported")
+      }
+
+      Right(if (isKernel) {
+        create.__kernel(sc)
+      } else {
+        sc
+      })
+    }
+
+    def typeSpec: Seq[TypeSpec] = _typeSpec.toSeq
+
+    def typeQual: Set[TypeQual] = _typeQual.toSet
+
+    def funcSpec: Set[FuncSpec] = _funcSpec.toSet
+
+    def storageClass: Option[StorageClass] = _storageClass
+
+    sealed trait TypeSpec
+
+    sealed trait TypeQual
+
+    sealed trait FuncSpec
+
+    sealed trait StorageClass
+
+    case class PrimitiveTypeSpec(primitive: String) extends TypeSpec
+
+    // Unsupported: case class AtomicTypeSpec(obj: Any) extends TypeSpec
+    case class StructOrUnionTypeSpec(tree: StructOrUnionSpecifierContext) extends TypeSpec
+
+    // Unsupported: case class EnumTypeSpec(obj: Any) extends TypeSpec
+    case class TypedefNameTypeSpec(name: String) extends TypeSpec
+
+    case class ValTypeSpec(t: Type) extends TypeSpec
+
+    object TypeSpecOrdering extends Ordering[TypeSpec] {
+      override def compare(x: TypeSpec, y: TypeSpec): Int = (x, y) match {
+        case (_, _) if x eq y => 0
+        // Not supported, so the ordering doesn't matter currently anyway
+        case (TypedefNameTypeSpec(l), TypedefNameTypeSpec(r)) => l.compare(r)
+        case (PrimitiveTypeSpec(l), PrimitiveTypeSpec(r)) => l.compare(r)
+        // Rest of the ordering, randomly chosen: Primitive < Typedef < ValType < StructOrUnion
+        case (PrimitiveTypeSpec(_), _) => -1
+        case (_, PrimitiveTypeSpec(_)) => 1
+        case (TypedefNameTypeSpec(_), _) => -1
+        case (_, TypedefNameTypeSpec(_)) => 1
+        // Not clear how to even order these for arbitrary COL types or arbitrary structOrUnions
+        // But: could be extended for non-anonymous structs
+        case (_, _) => 0
+      }
+    }
+
+    object ConstTypeQual extends TypeQual
+
+    object RestrictTypeQual extends TypeQual
+
+    object VolatileTypeQual extends TypeQual
+
+    object AtomicTypeQual extends TypeQual
+
+    object InlineFuncSpec extends FuncSpec
+
+    object NoReturnFuncSpec extends FuncSpec
+
+    object Typedef extends StorageClass
+
+    object ExternSC extends StorageClass
+
+    object Static extends StorageClass
+
+    object ThreadLocal extends StorageClass
+
+    object Auto extends StorageClass
+
+    object Register extends StorageClass
+
+    object ThreadLocalStatic extends StorageClass
+
+    object ThreadLocalExtern extends StorageClass
   }
   /* === End of duplicated code block === */
 }

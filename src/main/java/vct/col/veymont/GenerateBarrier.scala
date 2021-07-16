@@ -12,7 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
-  override def visit(m : Method) : Unit = {
+  override def visit(m: Method): Unit = {
     m.getParent match {
       case clazz: ASTClass if isThreadClassName(clazz.name) =>
         if (m.kind == Method.Kind.Constructor) {
@@ -38,44 +38,44 @@ class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter
     }
   }
 
-  override def visit(s : IfStatement) : Unit = {
-    val stats : Seq[BlockStatement] = (0 until s.getCount).map(s.getStatement)
-      .map(getBlockOrThrow(_,"VeyMont Fail: expected BlockStatement in IfStatementCase"))
-      .map(b => create.block(prependBarrier(b): _*))
-    result = create.ifthenelse(rewrite(s.getGuard(0)),stats:_*)
+  private def getBarrierAnnotations: List[OperatorExpression] = {
+    List(create.expression(StandardOperator.Perm, create.field_name(barrierFieldName), create.reserved_name(ASTReserved.ReadPerm))
+      , create.expression(StandardOperator.NEQ, create.field_name(barrierFieldName), create.reserved_name(ASTReserved.Null)))
   }
 
-  override def visit(l : LoopStatement) : Unit = {
-    val b = getBlockOrThrow(l.getBody,"VeyMont Fail: expected BlockStatement in LoopStatement")
+  override def visit(s: IfStatement): Unit = {
+    val stats: Seq[BlockStatement] = (0 until s.getCount).map(s.getStatement)
+      .map(getBlockOrThrow(_, "VeyMont Fail: expected BlockStatement in IfStatementCase"))
+      .map(b => create.block(prependBarrier(b): _*))
+    result = create.ifthenelse(rewrite(s.getGuard(0)), stats: _*)
+  }
+
+  override def visit(l: LoopStatement): Unit = {
+    val b = getBlockOrThrow(l.getBody, "VeyMont Fail: expected BlockStatement in LoopStatement")
     val newContract = new ContractBuilder()
     getBarrierAnnotations.foreach(newContract.appendInvariant(_))
-    rewrite(l.getContract,newContract)
-    result = create.while_loop(rewrite(l.getEntryGuard),create.block(prependBarrier(b):_*),newContract.getContract)
+    rewrite(l.getContract, newContract)
+    result = create.while_loop(rewrite(l.getEntryGuard), create.block(prependBarrier(b): _*), newContract.getContract)
   }
 
-  override def visit(b : BlockStatement) : Unit = {
+  private def prependBarrier(b: BlockStatement): Array[ASTNode] = getBarrierInvocation +: rewrite(b.getStatements)
+
+  override def visit(b: BlockStatement): Unit = {
     val nrLoops = b.getStatements.count(_.isInstanceOf[LoopStatement])
-    if(nrLoops > 0) {
+    if (nrLoops > 0) {
       val newStats = ArrayBuffer.empty[ASTNode]
-      for(stat <- b.getStatements) {
+      for (stat <- b.getStatements) {
         newStats.append(rewrite(stat))
-        if(stat.isInstanceOf[LoopStatement]) {
+        if (stat.isInstanceOf[LoopStatement]) {
           newStats.append(getBarrierInvocation)
         }
       }
-      result = create.block(newStats.toList:_*)
+      result = create.block(newStats.toList: _*)
     } else {
       super.visit(b)
     }
   }
 
-  private def getBarrierInvocation : MethodInvokation = create.invokation(create.field_name(barrierFieldName), null, barrierAwait)
-
-  private def prependBarrier(b : BlockStatement) : Array[ASTNode] = getBarrierInvocation +: rewrite(b.getStatements)
-
-  private def getBarrierAnnotations : List[OperatorExpression] = {
-    List(create.expression(StandardOperator.Perm,create.field_name(barrierFieldName),create.reserved_name(ASTReserved.ReadPerm))
-    ,create.expression(StandardOperator.NEQ,create.field_name(barrierFieldName),create.reserved_name(ASTReserved.Null)))
-  }
+  private def getBarrierInvocation: MethodInvokation = create.invokation(create.field_name(barrierFieldName), null, barrierAwait)
 
 }

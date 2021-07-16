@@ -7,12 +7,12 @@ import vct.col.ast.type.RecordType;
 
 public interface TypeVisitor {
 
-  public void visit(PrimitiveType t);
-  
-  public void visit(ClassType t);
+    public void visit(PrimitiveType t);
 
-  public void visit(RecordType t);
-  
-  public void visit(FunctionType t);
+    public void visit(ClassType t);
+
+    public void visit(RecordType t);
+
+    public void visit(FunctionType t);
 
 }

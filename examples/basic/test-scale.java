@@ -15,13 +15,13 @@ class C {
     pure int bad_order();
   @*/
 
-  /*@
-    requires P();
-    requires good_order()>0;
-    requires bad_order()>0;
-  @*/
-  void main(){
-  }
-  
+    /*@
+      requires P();
+      requires good_order()>0;
+      requires bad_order()>0;
+    @*/
+    void main() {
+    }
+
 }
 

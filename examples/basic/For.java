@@ -12,8 +12,7 @@ public class For {
 
         /*@ loop_invariant total == i * (i-1) / 2;
           @*/
-        for(int i = 1; i != n+1; i++)
-        {
+        for (int i = 1; i != n + 1; i++) {
             total = total + i;
         }
 
