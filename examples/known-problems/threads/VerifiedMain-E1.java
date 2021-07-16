@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases IncrThread-E1
-//:: suite skip-travis
+//:: suite problem-fail
 //:: tool silicon
 //:: verdict Fail
 

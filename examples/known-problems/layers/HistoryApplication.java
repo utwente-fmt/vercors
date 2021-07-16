@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases LFQhistoryApplication
-//:: suite skip-travis
+//:: suite problem-fail
 //:: tools silicon
 //:: options --check-history
 

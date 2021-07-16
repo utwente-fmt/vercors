@@ -1,7 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases VerifyThis19Three
 //:: tools silicon
-//:: suite medium
+//:: suite medium problem-fail
 //:: verdict Pass
 
 class Challenge3 {

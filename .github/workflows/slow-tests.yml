@@ -1,0 +1,69 @@
+name: Slow tests
+# Only run the workflow when a commit has been made to dev.
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: Default
+    steps:
+      # This should automatically cancel any previous workflows that are still
+      # running when for example new commits are pushed.
+      - uses: technote-space/auto-cancel-redundant-workflow@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+      # Currently sbt and fakeroot are installed by default
+      - name: Coursier cache
+        uses: coursier/cache-action@v5
+      - name: Build and package
+        run: sbt debian:packageBin universal:packageBin
+      - name: Clean up intermediate files for caching
+        # From the sbt manual, clean up any leftover intermediate files
+        # https://www.scala-sbt.org/1.x/docs/GitHub-Actions-with-sbt.html
+        run: |
+          rm -rf "$HOME/.ivy2/local" || true
+          find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
+          find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
+          find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
+          find $HOME/.sbt                              -name "*.lock"
+
+      - name: Archive VerCors .deb
+        uses: actions/upload-artifact@v2
+        with:
+          name: vercors-debian-package
+          retention-days: 1
+          path: |
+            target/*.deb
+
+  slow-tests-linux:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        testID: [0, 1]
+      fail-fast: false
+    env:
+      maxTestID: 2
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+          java-package: jre
+      - name: Download VerCors binary
+        uses: actions/download-artifact@v2
+        with:
+          name: vercors-debian-package
+      - run: ls
+      - run: "sudo dpkg -i *.deb"
+      - run: mono --version
+      - run: vercors --silicon examples/manual/fibonacci.pvl
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=1 --tool carbon --tool silicon --include-suite=slow,medium --exclude-suite=problem-fail --progress --actions-test-output
+

@@ -1,6 +1,6 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases OnlyInstanceof
-//:: suite skip-travis
+//:: suite problem-fail
 //:: tools silicon
 //:: verdict Pass
 

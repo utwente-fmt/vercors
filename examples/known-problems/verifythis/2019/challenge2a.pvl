@@ -1,7 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases VerifyThis19TwoA
 //:: tools silicon
-//:: suite medium
+//:: suite medium problem-fail
 //:: verdict Pass
 
 // ./unix/bin/vct --silicon --encoded ./examples/verifythis2019/challenge2.vpr ./examples/verifythis2019/challenge2.pvl 
