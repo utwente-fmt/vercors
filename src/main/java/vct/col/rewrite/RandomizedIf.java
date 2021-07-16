@@ -21,7 +21,8 @@ public class RandomizedIf extends AbstractRewriter {
   public void visit(ASTClass cl){
     DeclarationStatement args[]=new DeclarationStatement[0];
     Method if_any_method=create.method_decl(create.primitive_type(PrimitiveSort.Boolean), null, "if_any_random", args, null);
-    
+    if_any_method.setFlag(ASTFlags.FINAL, true);
+
     if (if_any_method.getOrigin() == null) {
     	if_any_method.setOrigin(new MessageOrigin("Default origin"));
     }
@@ -66,7 +67,7 @@ public class RandomizedIf extends AbstractRewriter {
       IfStatement res=new IfStatement();
       currentBlock.addStatement(
           create.assignment(create.local_name("if_any_bool"),
-          create.invokation(null,null,"if_any_random"))
+          create.invokation(create.reserved_name(ASTReserved.This),null,"if_any_random"))
       );
       res.addClause(create.local_name("if_any_bool"), rewrite(s.getStatement(0)));
       res.addClause(IfStatement.elseGuard(), rewrite(s.getStatement(1)));
