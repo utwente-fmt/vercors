@@ -8,21 +8,21 @@ import vct.col.ast.util.RecursiveVisitor;
 
 public class InlineMarking extends RecursiveVisitor<Object> {
 
-  private Origin location;
-  
-  public InlineMarking(ProgramUnit share,Origin location) {
-    super(share);
-    this.location=location;
-  }
-  
-  @Override
-  public void enter(ASTNode n){
-    super.enter(n);
-    Origin o=n.getOrigin();
-    if (o!=null){
-      n.clearOrigin();
-      n.setOrigin(new InlineOrigin(location,o));
+    private Origin location;
+
+    public InlineMarking(ProgramUnit share, Origin location) {
+        super(share);
+        this.location = location;
     }
-  }
+
+    @Override
+    public void enter(ASTNode n) {
+        super.enter(n);
+        Origin o = n.getOrigin();
+        if (o != null) {
+            n.clearOrigin();
+            n.setOrigin(new InlineOrigin(location, o));
+        }
+    }
 
 }

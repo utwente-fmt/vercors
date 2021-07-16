@@ -8,14 +8,14 @@
 */
 public class Refute {
 
-  /*@
-    requires true;
-  @*/
-  public void bad(){
-    if (false) {
-      //@ refute false;
+    /*@
+      requires true;
+    @*/
+    public void bad() {
+        if (false) {
+            //@ refute false;
+        }
     }
-  }
 
 }
 

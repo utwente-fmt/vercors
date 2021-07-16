@@ -1,10 +1,10 @@
 name: Vercors build and test workflow
 # Only run the workflow when pushed to master, dev, or on pull requests.
-on: 
+on:
   push:
     branches:
       - '**'
-    tags-ignore: 
+    tags-ignore:
       - dev-prerelease
   pull_request:
     branches:
@@ -98,13 +98,13 @@ jobs:
         uses: mikepenz/action-junit-report@v2
         with:
           report_paths: '**/target/test-reports/TEST-*.xml'
-      
+
   integration-test-linux:
     needs: build-test
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        testID: [0, 1, 2, 3, 4]
+        testID: [ 0, 1, 2, 3, 4 ]
       fail-fast: false
     env:
       maxTestID: 5

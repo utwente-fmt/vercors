@@ -1,9 +1,7 @@
 package hre.config;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 
 import static hre.lang.System.Abort;
 
@@ -21,6 +19,22 @@ public class ChoiceSetting {
         this(settings, null);
     }
 
+    public SetOption getSetOption(String help) {
+        return new SetOption(help);
+    }
+
+    public ExplicitOption getExplicitOption(String item, String help) {
+        return new ExplicitOption(item, help);
+    }
+
+    public String get() {
+        return setting;
+    }
+
+    public boolean is(String value) {
+        return value.equals(setting);
+    }
+
     private class SetOption extends AbstractOption {
         SetOption(String help) {
             super(true, true, help);
@@ -28,7 +42,7 @@ public class ChoiceSetting {
 
         @Override
         public void pass(String value) {
-            if(allowedSettings.contains(value)) {
+            if (allowedSettings.contains(value)) {
                 setting = value;
             } else {
                 Abort("%s is not a valid value for this option. Choices are: %s", value, String.join(", ", allowedSettings));
@@ -48,21 +62,5 @@ public class ChoiceSetting {
         public void pass() {
             setting = item;
         }
-    }
-
-    public SetOption getSetOption(String help) {
-        return new SetOption(help);
-    }
-
-    public ExplicitOption getExplicitOption(String item, String help) {
-        return new ExplicitOption(item, help);
-    }
-
-    public String get() {
-        return setting;
-    }
-
-    public boolean is(String value) {
-        return value.equals(setting);
     }
 }

@@ -1,20 +1,19 @@
 package vct.parsers.rewrite;
 
-import java.util.ArrayList;
-
 import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
-import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.util.AbstractRewriter;
-import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.Method;
 import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTUtils;
+import vct.col.ast.util.AbstractRewriter;
+import vct.col.ast.util.ContractBuilder;
+
+import java.util.ArrayList;
 
 class KernelBodyRewriter extends AbstractRewriter {
 

@@ -18,14 +18,14 @@ case class ActionHeaderToBlock(override val source: ProgramUnit) extends Abstrac
           case Seq(k, v) =>
             k.toString -> rewrite(v)
         }.toMap
-        val block = create.block(tail.map(rewrite(_)):_*)
+        val block = create.block(tail.map(rewrite(_)): _*)
         result = create action_block(history, fraction, process, action, map.asJava, block)
       case _ =>
         super.visit(block)
     }
 
   override def visit(spec: ASTSpecial): Unit = {
-    if(spec.isSpecial(ASTSpecial.Kind.ActionHeader)) {
+    if (spec.isSpecial(ASTSpecial.Kind.ActionHeader)) {
       spec.getOrigin.report("error", "Action blocks denoted with a header may only have the header at the start of a block")
       throw new Error()
     } else {

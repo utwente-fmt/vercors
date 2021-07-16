@@ -4,30 +4,30 @@
 //:: verdict Pass
 
 /**
-  This example shows how a binary tree with internal <code>Node</code>s
-  and <code>Leaf</code>s can be specified if access is by means of casting
-  rather than through a visitor pattern.
-*/
+ * This example shows how a binary tree with internal <code>Node</code>s
+ * and <code>Leaf</code>s can be specified if access is by means of casting
+ * rather than through a visitor pattern.
+ */
 class Node {
-  int key;
-  Object left;
-  Object right;
-  
-  //@ requires Test.state(left) ** Test.state(right);
-  //@ ensures Test.state(this);
-  public Node(int key,Object left,Object right){
-    this.key=key;
-    this.left=left;
-    this.right=right;
-    //@ assert this instanceof Node;
-    //@ assert !(this instanceof Leaf);
-    //@ fold Test.state_rec(this);
-  }
-  
+    int key;
+    Object left;
+    Object right;
+
+    //@ requires Test.state(left) ** Test.state(right);
+    //@ ensures Test.state(this);
+    public Node(int key, Object left, Object right) {
+        this.key = key;
+        this.left = left;
+        this.right = right;
+        //@ assert this instanceof Node;
+        //@ assert !(this instanceof Leaf);
+        //@ fold Test.state_rec(this);
+    }
+
 }
 
 class Leaf {
-  int other;
+    int other;
 }
 
 
@@ -47,27 +47,27 @@ class Test {
 @*/
 
 
-  /*@
-    requires state(tt);
-  @*/
-  int find(Object tt,int key){
-    Object t=tt;
+    /*@
+      requires state(tt);
+    @*/
+    int find(Object tt, int key) {
+        Object t = tt;
     /*@
       loop_invariant state(t);
     @*/
-    while(t instanceof Node){
-      Node n=(Node)t;
-      //@ unfold state_rec(n);
-      if (key < n.key){
-        t=n.left;
-      } else {
-        t=n.right;
-      }
+        while (t instanceof Node) {
+            Node n = (Node) t;
+            //@ unfold state_rec(n);
+            if (key < n.key) {
+                t = n.left;
+            } else {
+                t = n.right;
+            }
+        }
+        //@ unfold state_rec(t);
+        Leaf l = (Leaf) t;
+        return l.other;
     }
-    //@ unfold state_rec(t);
-    Leaf l=(Leaf)t;
-    return l.other;
-  }
 
 }
 

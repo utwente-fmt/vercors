@@ -1,18 +1,18 @@
 package vct.java
 
-import java.io.File
-import java.nio.file.{Path, Paths}
 import hre.ast.{FileOrigin, MessageOrigin}
-import vct.col.ast.`type`.{ClassType, PrimitiveSort, Type}
+import vct.col.ast.`type`.{PrimitiveSort, Type}
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, NameSpace}
 import vct.col.ast.util.{ASTFactory, ClassName, ExternalClassLoader, SequenceUtils}
 import vct.parsers.ColJavaParser
 import vct.parsers.rewrite.RemoveBodies
 
+import java.io.File
 import java.lang.reflect.{Modifier, Parameter}
+import java.nio.file.Path
 import scala.annotation.tailrec
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 /**
  * The default and only external class loader. Attempts to load a class relative to the path of the importing file, and
@@ -30,16 +30,21 @@ object JavaASTClassLoader extends ExternalClassLoader {
   private val REFLECTION_CACHE = mutable.Map[Seq[String], Option[ASTClass]]()
   private val FILE_CACHE = mutable.Map[(Path, Seq[String]), Option[ASTClass]]()
 
+  def load(name: Seq[String], ns: Option[NameSpace] = None): Option[ASTClass] = {
+    loadByFile(name, ns)
+      .orElse(loadByReflection(name, ns))
+  }
+
   private def potentialImportsOfNamespace(name: String, ns: NameSpace): Seq[Seq[String]] = {
     // First try package-local
     (ns.getDeclName.name.filter(_.nonEmpty) :+ name).toSeq +:
-    // Otherwise by import order
-    ns.imports.asScala.filter(
-      // either by a.b.* import, or the last name must match (a.b.Class)
-      `import` => `import`.all || `import`.name.last == name
-    ).map(
-      `import` => (if (`import`.all) `import`.name.filter(_.nonEmpty) :+ name else `import`.name.filter(_.nonEmpty)).toSeq
-    ).toSeq
+      // Otherwise by import order
+      ns.imports.asScala.filter(
+        // either by a.b.* import, or the last name must match (a.b.Class)
+        `import` => `import`.all || `import`.name.last == name
+      ).map(
+        `import` => (if (`import`.all) `import`.name.filter(_.nonEmpty) :+ name else `import`.name.filter(_.nonEmpty)).toSeq
+      ).toSeq
   }
 
   private def loadFile(basePath: Path, parts: Seq[String]): Option[ASTClass] = FILE_CACHE.getOrElseUpdate((basePath, parts), {
@@ -50,7 +55,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
       val pu = parser.parse(f)
       val strippedPU = new RemoveBodies(pu).rewriteAll()
       // Make sure the class name matches by finding it
-      Option(strippedPU.find(new ClassName(parts:_*)))
+      Option(strippedPU.find(new ClassName(parts: _*)))
     } catch {
       case _: hre.lang.Failure => None
     }
@@ -61,11 +66,11 @@ object JavaASTClassLoader extends ExternalClassLoader {
       // If we're going by file: require a namespace, as we can't guess how many directories to go up etc.
       case Some(ns) if ns.getOrigin != null && ns.getOrigin.isInstanceOf[FileOrigin] =>
         var basePath = ns.getOrigin.asInstanceOf[FileOrigin].getPath.toAbsolutePath.getParent
-        for(_ <- ns.getDeclName.name.filter(_.nonEmpty /* pls */)) {
+        for (_ <- ns.getDeclName.name.filter(_.nonEmpty /* pls */)) {
           basePath = basePath.getParent
         }
 
-        if(name.size == 1) {
+        if (name.size == 1) {
           // If it's one name and it's not defined, it must be imported or package-local
           potentialImportsOfNamespace(name.head, ns)
             .to(LazyList).flatMap(loadFile(basePath, _)).headOption
@@ -88,7 +93,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
     case java.lang.Double.TYPE => create primitive_type PrimitiveSort.Double
     case java.lang.Void.TYPE => create primitive_type PrimitiveSort.Void
     case arr if arr.isArray => SequenceUtils.optArrayCell(create, jvmTypeToCOL(create)(arr.getComponentType))
-    case cls => create class_type(cls.getCanonicalName.split('.'))
+    case cls => create class_type (cls.getCanonicalName.split('.'))
   }
 
   private def jvmParameterToCOL(create: ASTFactory[_])(p: Parameter): DeclarationStatement =
@@ -163,7 +168,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
   })
 
   private def loadByReflection(name: Seq[String], ns: Option[NameSpace]): Option[ASTClass] = {
-    if(name.size == 1) {
+    if (name.size == 1) {
       ns match {
         case Some(ns) =>
           potentialImportsOfNamespace(name.head, ns)
@@ -174,10 +179,5 @@ object JavaASTClassLoader extends ExternalClassLoader {
     } else {
       loadReflectively(name)
     }
-  }
-
-  def load(name: Seq[String], ns: Option[NameSpace] = None): Option[ASTClass] = {
-    loadByFile(name, ns)
-      .orElse(loadByReflection(name, ns))
   }
 }

@@ -11,26 +11,26 @@
 public class Main {
 
 
-  public void direct(){
-    SimpleThreadInstance i=new SimpleThreadInstance(7);
-    //@ assert i.input==7;
-    i.run();
-    //@ assert i.input==7;
-    //@ open i.postJoin@SimpleThreadInstance();
-    //@ unfold i.postJoin@SimpleThreadInstance();
-    //@ assert i.output==8;
-  }
-  
-  public void forkjoin(){
-    SimpleThreadInstance i=new SimpleThreadInstance(7);
-    //@ assert i.input==7;
-    i.start();
-    i.joinWith();
-    //@ assert i.input==7;
-    //@ open i.postJoin@SimpleThreadInstance();
-    //@ unfold i.postJoin@SimpleThreadInstance();
-    //@ assert i.output==8;
-  }
+    public void direct() {
+        SimpleThreadInstance i = new SimpleThreadInstance(7);
+        //@ assert i.input==7;
+        i.run();
+        //@ assert i.input==7;
+        //@ open i.postJoin@SimpleThreadInstance();
+        //@ unfold i.postJoin@SimpleThreadInstance();
+        //@ assert i.output==8;
+    }
+
+    public void forkjoin() {
+        SimpleThreadInstance i = new SimpleThreadInstance(7);
+        //@ assert i.input==7;
+        i.start();
+        i.joinWith();
+        //@ assert i.input==7;
+        //@ open i.postJoin@SimpleThreadInstance();
+        //@ unfold i.postJoin@SimpleThreadInstance();
+        //@ assert i.output==8;
+    }
 
 }
 

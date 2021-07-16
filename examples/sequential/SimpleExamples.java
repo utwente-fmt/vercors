@@ -8,11 +8,11 @@
 
 public class SimpleExamples {
 
-  /*@ ensures \result == x + 1 ; @*/
-  public static int incr(int x) {
-    int y = x + 1;
-    return y;
-  }
+    /*@ ensures \result == x + 1 ; @*/
+    public static int incr(int x) {
+        int y = x + 1;
+        return y;
+    }
 
 }
 

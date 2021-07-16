@@ -17,8 +17,8 @@ public class SatCheckRewriter extends AbstractRewriter {
     }
 
     public void visit(ASTClass cls) {
-        for(Method method : cls.dynamicMethods()) {
-            if(method.getReturnType().isPrimitive(PrimitiveSort.Process)) {
+        for (Method method : cls.dynamicMethods()) {
+            if (method.getReturnType().isPrimitive(PrimitiveSort.Process)) {
                 result = copy_rw.rewrite(cls);
                 return;
             }
@@ -103,7 +103,7 @@ public class SatCheckRewriter extends AbstractRewriter {
             assert_method.copyMissingFlags(m);
             blockStatement.setParent(assert_method);
 
-            if(currentTargetClass == null) {
+            if (currentTargetClass == null) {
                 assert_method.setStatic(true);
                 target().add(assert_method);
             } else {

@@ -8,13 +8,13 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.RecursiveVisitor;
 
 public class AstToId extends RecursiveVisitor<String> {
+    private AstToId() {
+        super((ProgramUnit) null);
+    }
+
     public static String toId(ASTNode node) {
         AstToId astToId = new AstToId();
         return node.apply(astToId);
-    }
-
-    private AstToId() {
-        super((ProgramUnit) null);
     }
 
     public void visit(Dereference e) {

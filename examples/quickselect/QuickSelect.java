@@ -8,16 +8,17 @@ import static quickselect.RandomBetween.random_between;
 import static quickselect.ArrayPrinter.printArray;
 
 /**
-* Quickselect is an algorithm to find the `k-th` smallest element, and it has an expected runtime of `O(n)`. It uses constant memory and in-place updates in the function 'partition', partially sorting the array during execution.
-* Sequential version.
-* @Author Henk Mulder.
-*/
+ * Quickselect is an algorithm to find the `k-th` smallest element, and it has an expected runtime of `O(n)`. It uses constant memory and in-place updates in the function 'partition', partially sorting the array during execution.
+ * Sequential version.
+ *
+ * @Author Henk Mulder.
+ */
 public class QuickSelect {
 
     //@ requires low<=high;
     //@ ensures low<=\result && \result<=high;
     static int random_between(int low, int high);
-    
+
     //@ context a != null;
     //@ context Perm(a[*], 1\2);
     static void printArray(int[] a, int l, int h);
@@ -56,7 +57,7 @@ public class QuickSelect {
         //@ loop_invariant (\exists int i; l<=i && i<=h; a[i] == pivot);
         //@ loop_invariant (\forall int i; 0<=i && i<low; (\forall int j; low<=j && j<a.length; \old(a[i]) <= \old(a[j]))) ==> (\forall int k; 0<=k && k<low; (\forall int m; low<=m && m<a.length; a[k] <= a[m]));
         //@ loop_invariant (\forall int i; 0<=i && i<=high; (\forall int j; high<j && j<a.length; \old(a[i]) <= \old(a[j]))) ==> (\forall int k; 0<=k && k<=high; (\forall int m; high<m && m<a.length; a[k] <= a[m]));
-        while(true){
+        while (true) {
             //@ loop_invariant low<=l && l<=high;
             //@ loop_invariant low<=h && h<=high;
             //@ loop_invariant (\forall int i; low<=i && i<l; a[i]<pivot);
@@ -65,8 +66,8 @@ public class QuickSelect {
             //@ loop_invariant (\exists int i; l<=i && i<=h; a[i] == pivot);
             //@ loop_invariant (\forall int i; 0<=i && i<low; (\forall int j; low<=j && j<a.length; \old(a[i]) <= \old(a[j]))) ==> (\forall int k; 0<=k && k<low; (\forall int m; low<=m && m<a.length; a[k] <= a[m]));
             //@ loop_invariant (\forall int i; 0<=i && i<=high; (\forall int j; high<j && j<a.length; \old(a[i]) <= \old(a[j]))) ==> (\forall int k; 0<=k && k<=high; (\forall int m; high<m && m<a.length; a[k] <= a[m]));
-            while(a[l] < pivot && l<h){
-                l = l+1;
+            while (a[l] < pivot && l < h) {
+                l = l + 1;
             }
             //@ loop_invariant low<=l && l<=high;
             //@ loop_invariant a[l]>=pivot || l>=h;
@@ -78,17 +79,17 @@ public class QuickSelect {
             //@ loop_invariant (\exists int i; l<=i && i<=h; a[i] == pivot);
             //@ loop_invariant (\forall int i; 0<=i && i<low; (\forall int j; low<=j && j<a.length; \old(a[i]) <= \old(a[j]))) ==> (\forall int k; 0<=k && k<low; (\forall int m; low<=m && m<a.length; a[k] <= a[m]));
             //@ loop_invariant (\forall int i; 0<=i && i<=high; (\forall int j; high<j && j<a.length; \old(a[i]) <= \old(a[j]))) ==> (\forall int k; 0<=k && k<=high; (\forall int m; high<m && m<a.length; a[k] <= a[m]));
-            while(a[h] > pivot && h>l){
-                h = h-1;
+            while (a[h] > pivot && h > l) {
+                h = h - 1;
             }
-            if(l>=h) {
+            if (l >= h) {
                 return l;
-            }else{
+            } else {
                 swap(a, l, h);
-                if(a[l] < pivot) {
-                    l = l+1;
+                if (a[l] < pivot) {
+                    l = l + 1;
                 } else {
-                    h = h-1;
+                    h = h - 1;
                 }
             }
         }
@@ -101,9 +102,9 @@ public class QuickSelect {
     //@ ensures (\exists int i; 0<=i && i<list.length; list[i] == \result);
     //@ ensures (\forall int i; 0<=i && i<=k; list[i] <= \result);
     //@ ensures (\forall int i; k<= i && i<list.length; \result <= list[i]);
-    public static int select(int[] list, int k){
+    public static int select(int[] list, int k) {
         int left = 0;
-        int right = list.length-1;
+        int right = list.length - 1;
         int pivotIndex = k;
         int pivot = list[pivotIndex];
         //@ loop_invariant 0<=left && left<list.length;
@@ -117,10 +118,10 @@ public class QuickSelect {
             pivotIndex = partition(list, left, right, pivot);
             if (k == pivotIndex) {
                 return list[k];
-            }           else  {
+            } else {
                 if (k < pivotIndex) {
                     right = pivotIndex - 1;
-                }else{
+                } else {
                     left = pivotIndex + 1;
                 }
             }
@@ -128,23 +129,23 @@ public class QuickSelect {
             pivotIndex = random_between(left, right);
         }
         return list[left];
-    } 
-    
+    }
+
     //@ requires false;
     public static void main(String[] args) {
         int[] nums = new int[20];
-        for(int i=0; i<nums.length; i++){
-            nums[i] = (int)(100*Math.random());
+        for (int i = 0; i < nums.length; i++) {
+            nums[i] = (int) (100 * Math.random());
         }
-        int k = (int)(nums.length*Math.random());
+        int k = (int) (nums.length * Math.random());
         String ks = "th";
-        if(k==0) ks = "st";
-        if(k==1) ks = "nd";
-        System.out.println(String.format("Find the %d%s smallest number in", k+1, ks));
-        printArray(nums, 0, nums.length-1);
+        if (k == 0) ks = "st";
+        if (k == 1) ks = "nd";
+        System.out.println(String.format("Find the %d%s smallest number in", k + 1, ks));
+        printArray(nums, 0, nums.length - 1);
         System.out.println("...");
         int kth = select(nums, k);
         printArray(nums, k, k);
     }
-    
+
 }

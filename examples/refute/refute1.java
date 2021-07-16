@@ -8,12 +8,12 @@
 */
 public class Refute {
 
-  /*@
-    requires true;
-  @*/
-  public void good(){
-    //@ refute false;
-  }
+    /*@
+      requires true;
+    @*/
+    public void good() {
+        //@ refute false;
+    }
 
 }
 

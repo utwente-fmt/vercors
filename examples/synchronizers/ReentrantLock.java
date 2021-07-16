@@ -11,7 +11,7 @@
  command: vct --chalice --explicit ReentrantLock.java
  */
 
-public class ReentLock{
+public class ReentLock {
 
     //shared resource
     private int data;
@@ -25,7 +25,7 @@ public class ReentLock{
     // for simplicity we take resource_invariant=Perm(data,p)
     //@ resource inv(zfrac p)= Perm(data,p) ** Perm(count,p);
 
-    private int        count;
+    private int count;
 
     //@ resource state(int id , int held) = (held > 0 )==> Perm(count,100);
 
@@ -49,7 +49,7 @@ public class ReentLock{
      ensures \result ==> (cehp:handle(r,n)) ** (cepp:inv(part(r,n,max))) ** cesp:inv(part(0,x,max)-part(0,n,max));
      ensures !\result ==> (cehn:handle(r,l)) ** (cepn:inv(part(r,l,max))) ** cesn:inv(part(0,n,max)-part(0,x,max));
      */
-    boolean compareAndSet(int x,int n);
+    boolean compareAndSet(int x, int n);
 
     /*
      requires Perm(owner,100) * Perm(holds,100) * P ; where P is what is needed for lock constructor
@@ -72,7 +72,7 @@ public class ReentLock{
     //@ ensures les: state(tid,held+1);
     //@ ensures (held == 0) ==> Perm(data,100) ;
     //@ ensures leh: handle(1,tid);
-    public void dolock(int tid){
+    public void dolock(int tid) {
         boolean res = false;
 
         //@ int role = 1, S=0, M=1;
@@ -86,17 +86,17 @@ public class ReentLock{
 
         int curr = get() /*@ with { max = M; r=role; l = last; grh = lrh;  grp = tgrp; } then { tgeh = geh; tgep = gep; } */;
         // check re-entrant
-        if ( tid == curr ) {
+        if (tid == curr) {
             //@ assume (held > 0);
             //@ unfold lrs:state(tid,held);
             //@ assume (held == count);
 
-            count = count+1;
+            count = count + 1;
 
             //@ leh=tgeh;
         }
         // check first-entrant
-        if( tid != curr){
+        if (tid != curr) {
             //@ assume (held == 0);
 
             boolean succ = false;
@@ -110,13 +110,13 @@ public class ReentLock{
             while (!succ) /*@ with{ invhn = tgeh; invpn = tgep; invpp = tgep;  invsn = tcrs; }
                            then { tces = invsp; tcepp = invpp; leh = invhp;   } @*/ {
 
-               //@     fold tcra:trans(role,0,tid);
-                succ = compareAndSet(0,tid) /*@ with{ max = 1; r = role; l = curr; crh = invhn; crp = invpn; cra = tcra; crs = invsn; }
-                                        then{ invhn = cehn; invpn = cepn; invsn = cesn; invhp = cehp; invpp = cepp; invsp = cesp;  } @*/ ;
+                //@     fold tcra:trans(role,0,tid);
+                succ = compareAndSet(0, tid) /*@ with{ max = 1; r = role; l = curr; crh = invhn; crp = invpn; cra = tcra; crs = invsn; }
+                                        then{ invhn = cehn; invpn = cepn; invsn = cesn; invhp = cehp; invpp = cepp; invsp = cesp;  } @*/;
             }
             //@ unfold tces: inv(part(S,0,1)-part(S,tid,1));
             //@ assume (held == count);
-            count = count+1;
+            count = count + 1;
         }
         //@ fold les:state(tid,held+1);
         return;
@@ -132,7 +132,7 @@ public class ReentLock{
     //@ ensures held == 1 ==> ueuh: handle(1,0);
     //@ ensures held > 1 ==> (uelh: handle(1,tid)) ** Perm(data,100);
     //@ ensures ues:state(tid,held-1);
-    public void unlock(int tid){
+    public void unlock(int tid) {
         //@ int role = 1, S=0, M=1;
         //@ int last = tid;
 
@@ -145,12 +145,12 @@ public class ReentLock{
         // this should be a global invariant
         //@ assume( curr==tid );
 
-        if ( curr == tid) {
+        if (curr == tid) {
 
             //@ unfold urs:state(tid,held);
             //@ assume (count == held);
             if (count == 1) {
-                count = count-1;
+                count = count - 1;
                 //@ fold ues:state(tid,count);
                 //@ witness tsrp:inv(*);
                 //@ witness tsrs:inv(*);
@@ -159,10 +159,9 @@ public class ReentLock{
                 //@ witness tsra:trans(*,*,*);
                 //@ fold tsra:trans(role,curr,0);
                 set(0) /*@ with{ max = M; r = role; l = curr; srh = tgeh; srp = tsrp; sra = tsra; srs = tsrs; } then { ueuh = seh; } @*/;
-            }
-            else{
+            } else {
                 if (count > 1) {
-                    count = count-1;
+                    count = count - 1;
                     //@ fold ues:state(tid,held-1);
                     //@ uelh = tgeh;
                 }

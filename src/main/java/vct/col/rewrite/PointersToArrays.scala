@@ -11,17 +11,17 @@ import scala.jdk.CollectionConverters._
 
 class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
   def visitType(t: Type): Type = {
-    if(t.isPrimitive(PrimitiveSort.Pointer)) {
+    if (t.isPrimitive(PrimitiveSort.Pointer)) {
       create.primitive_type(PrimitiveSort.Option,
         create.primitive_type(PrimitiveSort.Array,
           create.primitive_type(PrimitiveSort.Cell,
             visitType(t.firstarg.asInstanceOf[Type]))))
-    } else if(t.isInstanceOf[PrimitiveType]) {
+    } else if (t.isInstanceOf[PrimitiveType]) {
       create.primitive_type(t.asInstanceOf[PrimitiveType].sort, t.args.map((node: ASTNode) =>
         node match {
           case t: Type => visitType(t)
           case other => other
-        }):_*)
+        }): _*)
     } else {
       t
     }
@@ -56,7 +56,7 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
     val args = rewrite(expr.args.asJava)
     result = expr.operator match {
       case StandardOperator.AddrOf =>
-        if(args.get(0).isa(StandardOperator.Subscript)) {
+        if (args.get(0).isa(StandardOperator.Subscript)) {
           val subscript = args.get(0).asInstanceOf[OperatorExpression]
           create.expression(StandardOperator.Drop, subscript.arg(0), subscript.arg(1))
         } else {
@@ -82,12 +82,12 @@ class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(reserved: NameExpression): Unit = {
-    if(reserved.kind != NameExpressionKind.Reserved) {
+    if (reserved.kind != NameExpressionKind.Reserved) {
       super.visit(reserved)
     } else {
       reserved.reserved match {
         case ASTReserved.Null if reserved.getType.isPrimitive(PrimitiveSort.Pointer) =>
-          result = create reserved_name(ASTReserved.OptionNone)
+          result = create reserved_name (ASTReserved.OptionNone)
         case _ =>
           super.visit(reserved)
       }

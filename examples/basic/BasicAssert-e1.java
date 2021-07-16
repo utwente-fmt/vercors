@@ -4,15 +4,14 @@
 //:: verdict Fail
 class Ref {
 
-  boolean test;
+    boolean test;
 
-  /*@
-    requires b ** Perm(r.test,1\2);
-  @*/
-  void t1(boolean b, int d,Ref r)
-  {
-    r.test = b;
-    //@ assert b == (r.test);
-  }
+    /*@
+      requires b ** Perm(r.test,1\2);
+    @*/
+    void t1(boolean b, int d, Ref r) {
+        r.test = b;
+        //@ assert b == (r.test);
+    }
 
 }

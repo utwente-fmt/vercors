@@ -3,8 +3,8 @@ package vct.col.rewrite
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.expr.{NameExpression, NameExpressionKind}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, AxiomaticDataType, Method, NameSpace, ProgramUnit}
-import vct.col.ast.util.{AbstractRewriter, RecursiveVisitor}
+import vct.col.ast.stmt.decl._
+import vct.col.ast.util.AbstractRewriter
 import vct.java.JavaASTClassLoader
 
 import scala.jdk.CollectionConverters._
@@ -15,9 +15,12 @@ object JavaResolver {
 
 case class JavaResolver(override val source: ProgramUnit) extends AbstractRewriter(source) {
   var currentNamespace: Option[NameSpace] = None
+  var predef: Set[Seq[String]] = Set(Seq("_AnyTypeForSimplificationRules"))
+  var scanned: Set[ASTClass] = Set()
+  var toScan: Set[ASTClass] = Set()
 
   override def visit(ns: NameSpace): Unit = {
-    if(currentNamespace.isEmpty) {
+    if (currentNamespace.isEmpty) {
       currentNamespace = Some(ns)
 
       ns.asScala.map(rewrite(_)).foreach(target.add(_))
@@ -29,13 +32,8 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
     }
   }
 
-  private def currentPackageName: Seq[String] = currentNamespace match {
-    case None => Seq()
-    case Some(ns) => ns.getDeclName.name.toIndexedSeq.filter(_.nonEmpty)
-  }
-
   override def visit(cls: ASTClass): Unit =
-    if(cls.kind == ASTClass.ClassKind.Plain) {
+    if (cls.kind == ASTClass.ClassKind.Plain) {
       val res = create ast_class(
         (currentPackageName ++ cls.getName.split('.')).mkString(JavaResolver.DOT),
         ASTClass.ClassKind.Plain,
@@ -50,6 +48,11 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
       super.visit(cls)
     }
 
+  private def currentPackageName: Seq[String] = currentNamespace match {
+    case None => Seq()
+    case Some(ns) => ns.getDeclName.name.toIndexedSeq.filter(_.nonEmpty)
+  }
+
   override def visit(m: Method): Unit = {
     if ((m.kind eq Method.Kind.Constructor) && !(m.getName == current_class().getName.split('.').last)) {
       m.getOrigin.report("error",
@@ -63,6 +66,29 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
   override def visit(t: ClassType): Unit = {
     val names = require(t.names)
     result = create class_type(names.mkString(JavaResolver.DOT), rewrite(t.argsJava))
+  }
+
+  private def require(name: Seq[String]): Seq[String] = loadClass(name) match {
+    case None => Fail("Could not find class: %s", name); ???
+    case Some(fqcn) => fqcn
+  }
+
+  private def loadClass(name: Seq[String]): Option[Seq[String]] = {
+    if (predef.contains(name)) {
+      Some(name)
+    } else if (currentNamespace.nonEmpty && predef.contains(currentPackageName ++ name)) {
+      Some(currentPackageName ++ name)
+    } else {
+      val cls = JavaASTClassLoader.load(name, currentNamespace) match {
+        case Some(cls) => cls
+        case None => return None
+      }
+
+      if (!scanned.contains(cls))
+        toScan += cls
+
+      Some(cls.getName.split('.').toIndexedSeq)
+    }
   }
 
   override def visit(name: NameExpression): Unit = name.kind match {
@@ -83,47 +109,6 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
     case _ => super.visit(name)
   }
 
-  private def require(name: Seq[String]): Seq[String] = loadClass(name) match {
-    case None => Fail("Could not find class: %s", name); ???
-    case Some(fqcn) => fqcn
-  }
-
-  private def loadClass(name: Seq[String]): Option[Seq[String]] = {
-    if(predef.contains(name)) {
-      Some(name)
-    } else if(currentNamespace.nonEmpty && predef.contains(currentPackageName ++ name)) {
-      Some(currentPackageName ++ name)
-    } else {
-      val cls = JavaASTClassLoader.load(name, currentNamespace) match {
-        case Some(cls) => cls
-        case None => return None
-      }
-
-      if(!scanned.contains(cls))
-        toScan += cls
-
-      Some(cls.getName.split('.').toIndexedSeq)
-    }
-  }
-
-  var predef: Set[Seq[String]] = Set(Seq("_AnyTypeForSimplificationRules"))
-  var scanned: Set[ASTClass] = Set()
-  var toScan: Set[ASTClass] = Set()
-
-  private def collectPredef(node: ASTNode, ns: Option[NameSpace] = None): Unit = node match {
-    case cls: ASTClass =>
-      predef += (ns.map(_.getDeclName.name.toSeq.filter(_.nonEmpty)).getOrElse(Seq.empty[String]) ++ cls.getFullName.toSeq)
-    case adt: AxiomaticDataType =>
-      predef += Seq(adt.name)
-    case nameSpace: NameSpace =>
-      if(ns.isEmpty) {
-        nameSpace.asScala.foreach(collectPredef(_, Some(nameSpace)))
-      } else {
-        Fail("Layered namespaces are not supported")
-      }
-    case _ =>
-  }
-
   override def rewriteAll(): ProgramUnit = {
     source.asScala.foreach(collectPredef(_))
     source.asScala.map(rewrite(_)).foreach {
@@ -131,7 +116,7 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
       case other => target.add(other)
     }
 
-    while(toScan.nonEmpty) {
+    while (toScan.nonEmpty) {
       val next = toScan.head
       target().add(rewrite(next))
       toScan -= next
@@ -139,5 +124,19 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
     }
 
     target
+  }
+
+  private def collectPredef(node: ASTNode, ns: Option[NameSpace] = None): Unit = node match {
+    case cls: ASTClass =>
+      predef += (ns.map(_.getDeclName.name.toSeq.filter(_.nonEmpty)).getOrElse(Seq.empty[String]) ++ cls.getFullName.toSeq)
+    case adt: AxiomaticDataType =>
+      predef += Seq(adt.name)
+    case nameSpace: NameSpace =>
+      if (ns.isEmpty) {
+        nameSpace.asScala.foreach(collectPredef(_, Some(nameSpace)))
+      } else {
+        Fail("Layered namespaces are not supported")
+      }
+    case _ =>
   }
 }

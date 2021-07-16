@@ -54,9 +54,9 @@ public class UnfoldSwitch extends AbstractRewriter {
 
             // Collect all labels into equality expressions
             List<ASTNode> ifGuards = switchCase.cases.stream()
-                        .filter(Objects::nonNull)
-                        .map(caseExpr -> eq(name(exprName), caseExpr))
-                        .collect(Collectors.toList());
+                    .filter(Objects::nonNull)
+                    .map(caseExpr -> eq(name(exprName), caseExpr))
+                    .collect(Collectors.toList());
 
             // If there were other labels besides default
             // add if to the chain that jumps to the case statements
@@ -83,7 +83,7 @@ public class UnfoldSwitch extends AbstractRewriter {
         // Jump to default is always the last action, or the only one if there are no value labels
         ASTNode totalIfChain;
         ASTNode defaultJump = create.gotoStatement(defaultCaseLabel);
-        if (!ifChain.isEmpty())  {
+        if (!ifChain.isEmpty()) {
             ifChain.get(ifChain.size() - 1).addClause(IfStatement.elseGuard(), defaultJump);
             totalIfChain = create.fold(ifChain);
         } else {

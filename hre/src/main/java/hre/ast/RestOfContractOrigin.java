@@ -1,8 +1,5 @@
 package hre.ast;
 
-import hre.ast.BranchOrigin;
-import hre.ast.Origin;
-
 /**
  * Sometimes, there can be an error in the contract. When this error goes off, the error supposed
  * to be cause by the synthetic "assert false" is not triggered. Therefore, it looks like it is absent because

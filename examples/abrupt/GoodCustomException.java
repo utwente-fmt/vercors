@@ -3,7 +3,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-final class GoodException extends Exception { }
+final class GoodException extends Exception {
+}
 
 final class MyClass {
     void bar() throws GoodException {

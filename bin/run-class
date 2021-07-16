@@ -9,9 +9,9 @@ SCRIPT=$(realpath $0)
 BIN=$(dirname $SCRIPT)
 ROOT=$(dirname $BIN)
 if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
-    printf "Extracting classpath from SBT. This might take a moment.\n"
-    (cd $ROOT && sbt --error "Global / printMainClasspath" > "$BIN/.classpath")
-    printf "Classpath extracted\n"
+  printf "Extracting classpath from SBT. This might take a moment.\n"
+  (cd $ROOT && sbt --error "Global / printMainClasspath" >"$BIN/.classpath")
+  printf "Classpath extracted\n"
 fi
 
 CLASSPATH=$(cat "$BIN/.classpath")

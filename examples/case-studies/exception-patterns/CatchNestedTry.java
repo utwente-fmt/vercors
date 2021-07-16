@@ -4,8 +4,8 @@
 
 class CatchNestedTry {
     boolean randomBoolean();
-    
-    int  m() {
+
+    int m() {
         int x = 0;
         boolean throwB1 = randomBoolean();
         boolean throwB2 = randomBoolean();
@@ -24,7 +24,7 @@ class CatchNestedTry {
                 if (throwB2) {
                     throw new Exception();
                 }
-                
+
                 x += 20;
             } catch (Exception e2) {
                 x += 100;

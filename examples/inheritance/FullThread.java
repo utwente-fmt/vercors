@@ -3,37 +3,36 @@
 
 public class Thread {
 
-  //@ public resource joinToken(frac p);
+    //@ public resource joinToken(frac p);
 
-  //@ public resource preFork(frac p);
+    //@ public resource preFork(frac p);
 
-  //@ public resource postJoin(frac p);
-  
-  
-  public Thread(){
-    //@ assume false;
-  }
-  
-  /*@
-    requires pre:preFork(write);
-    ensures  post:postJoin(write);
-  @*/
-  public void run();
+    //@ public resource postJoin(frac p);
 
-  /*@
-    given frac p;
-    requires pre:preFork(p);
-    ensures  tok:joinToken(p);
-  @*/
-  public final void start();
-  
-  /*@
-    given frac p;
-    requires tok:joinToken(p);
-    ensures  post:postJoin(p);
-  @*/
-  public final void joinWith();
 
+    public Thread() {
+        //@ assume false;
+    }
+
+    /*@
+      requires pre:preFork(write);
+      ensures  post:postJoin(write);
+    @*/
+    public void run();
+
+    /*@
+      given frac p;
+      requires pre:preFork(p);
+      ensures  tok:joinToken(p);
+    @*/
+    public final void start();
+
+    /*@
+      given frac p;
+      requires tok:joinToken(p);
+      ensures  post:postJoin(p);
+    @*/
+    public final void joinWith();
 
 
 }

@@ -3,6 +3,7 @@ package vct.col.ast.langspecific.c
 import vct.col.ast.`type`.Type
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping}
+
 import scala.jdk.CollectionConverters._
 
 case class ParamSpec(t: Option[Type], name: Option[String]) {
@@ -22,7 +23,7 @@ case class ParamSpec(t: Option[Type], name: Option[String]) {
  * Furthermore, both the types of parameters and the names of parameters are optional. In fact, the only requirement
  * is that you specify one of the two, and function implementations must have at least the parameter name.
  *
- * @param params the names and/or types to the function
+ * @param params     the names and/or types to the function
  * @param returnType the return type of the function (possibly void)
  */
 case class CFunctionType(params: Seq[ParamSpec], returnType: Type) extends Type {
@@ -33,11 +34,15 @@ case class CFunctionType(params: Seq[ParamSpec], returnType: Type) extends Type 
 
   def paramsJava: java.util.List[ParamSpec] = params.asJava
 
-  override protected def accept_simple[T](map: TypeMapping[T]): T = map.map(this)
   override def accept_simple[T](visitor: ASTVisitor[T]): Unit = visitor.visit(this)
+
   override def accept_simple[T](map: ASTMapping[T]): T = map.map(this)
+
   override def accept_simple[R, A](map: ASTMapping1[R, A], arg: A): R = map.map(this, arg)
 
   override def debugTreeChildrenFields: Iterable[String] = Seq()
+
   override def debugTreePropertyFields: Iterable[String] = Seq("params", "returnType")
+
+  override protected def accept_simple[T](map: TypeMapping[T]): T = map.map(this)
 }

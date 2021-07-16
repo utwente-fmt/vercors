@@ -4,11 +4,11 @@
 
 class CatchSwitch {
     boolean randomBoolean();
-    
+
     //@ ensures start <= \result && \result < end;
     int pickBetween(int start, int end);
 
-    void m () {
+    void m() {
         boolean throwB = randomBoolean();
         int picked = pickBetween(0, 3);
         int switchResult = 0;

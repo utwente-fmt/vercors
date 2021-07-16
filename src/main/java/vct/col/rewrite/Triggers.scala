@@ -3,8 +3,8 @@ package vct.col.rewrite
 import hre.lang.System.Warning
 import vct.col.ast.`type`.ASTReserved
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.expr._
+import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
@@ -14,6 +14,7 @@ case class UnrecognizedExpression(node: ASTNode) extends Exception
 object Triggers {
   /**
    * Collect potentially admissible patterns from an expression
+   *
    * @param node the expression to collect
    * @return A set of viable patterns, and whether the node itself may be contained in a pattern
    */
@@ -33,13 +34,13 @@ object Triggers {
     case MethodInvokation(_, _, method, args) =>
       val childPatterns = args.map(collectPatterns)
       val childOK = childPatterns.forall(_._2)
-      val myPattern = if(childOK) Set(node) else Set()
+      val myPattern = if (childOK) Set(node) else Set()
       (childPatterns.map(_._1).foldLeft(Set[ASTNode]())(_ ++ _) ++ myPattern, childOK)
     case OperatorExpression(op, args) =>
-      if(Set(Scale, /*sequence*/ Subscript, Member, Size).contains(op)) {
+      if (Set(Scale, /*sequence*/ Subscript, Member, Size).contains(op)) {
         val childPatterns = args.map(collectPatterns)
         val childOK = childPatterns.forall(_._2)
-        val myPattern = if(childOK) Set(node) else Set()
+        val myPattern = if (childOK) Set(node) else Set()
         (childPatterns.foldLeft(Set[ASTNode]())(_ ++ _._1) ++ myPattern, childOK)
       } else {
         (args.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
@@ -77,7 +78,7 @@ object Triggers {
     })
 
   def powerset[T](x: Set[T]): Seq[Set[T]] = {
-    if(x.isEmpty) {
+    if (x.isEmpty) {
       Seq(Set())
     } else {
       val tail = powerset(x.tail)
@@ -131,8 +132,8 @@ object Triggers {
 }
 
 /**
-  * Tries to add triggers to binding expressions that have none using some heuristics.
-  */
+ * Tries to add triggers to binding expressions that have none using some heuristics.
+ */
 case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {

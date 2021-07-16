@@ -9,16 +9,16 @@
 */
 public class Refute {
 
-  int x;
+    int x;
 
-  /*@
-    requires Perm(x,write) ** x==2;
-    ensures  Perm(x,write) ** x==3;
-  @*/
-  public void good2(){
-    //@ assert x==3;
-    //@ refute x==3;
-  }
+    /*@
+      requires Perm(x,write) ** x==2;
+      ensures  Perm(x,write) ** x==3;
+    @*/
+    public void good2() {
+        //@ assert x==3;
+        //@ refute x==3;
+    }
 
 }
 

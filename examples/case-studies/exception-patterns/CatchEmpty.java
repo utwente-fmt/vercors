@@ -3,11 +3,11 @@
 //:: verdict Pass
 
 class CatchEmpty {
-    void m () {
+    void m() {
         try {
             throw new Exception();
         } catch (Exception e) {
-            
+
         }
     }
 }

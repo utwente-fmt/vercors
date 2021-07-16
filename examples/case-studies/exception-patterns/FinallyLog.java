@@ -4,9 +4,10 @@
 
 class FinallyLog {
     void log(String msg);
+
     String getMessage();
 
-    void m () {
+    void m() {
         try {
 
         } finally {

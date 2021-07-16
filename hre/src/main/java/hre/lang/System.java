@@ -14,46 +14,15 @@ import java.util.Map;
  * This class provides a way of providing feedback.
  */
 public class System {
-    public enum LogLevel {
-        Silent(0, null),
-
-        Abort(1, "[abort] "),                   // Internal VerCors Error
-        Result(2, ""),                          // The final verdict
-        Warning(3, "[warning] "),               // Warnings
-        Info(4, ""),                            // User info
-        Progress(5, "[progress] "),             // Progress info
-        Debug(6, "[debug] "),                   // VerCors development info
-
-        All(Integer.MAX_VALUE, "[filtered] ");  // Only visible when verbosity is set to all
-
-        private final int order;
-        private final String shorthand;
-
-        LogLevel(int order, String shorthand) {
-            this.order = order;
-            this.shorthand = shorthand;
-        }
-
-        public int getOrder() {
-            return order;
-        }
-
-        public String getShorthand() {
-            return shorthand;
-        }
-    }
-
     private static Map<Appendable, LogLevel> outputStreams = new HashMap<>();
     private static Map<Appendable, LogLevel> errorStreams = new HashMap<>();
-
     private static HashSet<String> debugFilterByClassName = new HashSet<>();
     private static HashSet<String> debugfilterByLine = new HashSet<>();
-
     // Here for performance reasons: kept in sync with whether any attached output/error stream has logging level
     // debug or more verbose.
     private static boolean DEBUGGER_ATTACHED = false;
-
     private static HashSet<LogWriter> activeLogWriters = new HashSet<>();
+    private static boolean needLineClear = false;
 
     public static void setOutputStream(Appendable a, LogLevel level) {
         if (level.getOrder() >= LogLevel.Debug.getOrder()) {
@@ -69,51 +38,6 @@ public class System {
         }
 
         errorStreams.put(a, level);
-    }
-
-    private static class LogWriter extends Writer {
-        private String buffer = "";
-        private LogLevel level;
-        private Map<Appendable, LogLevel> outputs;
-
-        LogWriter(LogLevel level, Map<Appendable, LogLevel> outputs) {
-            this.level = level;
-            this.outputs = outputs;
-        }
-
-        @Override
-        public void write(char[] chars, int start, int end) throws IOException {
-            buffer += new String(chars, start, end);
-            writeLines();
-        }
-
-        private void writeLines() {
-            String[] lines = buffer.split("\\r?\\n", -1);
-            buffer = lines[lines.length - 1];
-
-            for (int i = 0; i < lines.length - 1; i++) {
-                System.log(level, outputs, "%s", lines[i]);
-            }
-        }
-
-        @Override
-        public void flush() throws IOException {
-            // Refuse, as flushing in this context may cause an additional unwanted newline.
-        }
-
-        @Override
-        public void close() throws IOException {
-            doFlush();
-            activeLogWriters.remove(this);
-        }
-
-        private void doFlush() {
-            if (!buffer.equals("")) {
-                String toLog = buffer;
-                buffer = "";
-                System.log(level, outputs, "%s", toLog);
-            }
-        }
     }
 
     private static PrintWriter getLogLevelWriter(LogLevel level, Map<Appendable, LogLevel> outputs) {
@@ -148,8 +72,6 @@ public class System {
         debugfilterByLine.add(classLineCombo);
     }
 
-    private static boolean needLineClear = false;
-
     private static void log(LogLevel level, Map<Appendable, LogLevel> outputs, String format, Object... args) {
         // Only format the string (expensive) when the message is actually outputted
         String message = null;
@@ -164,14 +86,14 @@ public class System {
                         message = level.getShorthand() + String.format(format, args);
                     }
 
-                    if(needLineClear) {
+                    if (needLineClear) {
                         entry.getKey().append("\033[0K");
                         needLineClear = false;
                     }
 
                     entry.getKey().append(message);
 
-                    if(level == LogLevel.Progress && Configuration.ansi.get()) {
+                    if (level == LogLevel.Progress && Configuration.ansi.get()) {
                         entry.getKey().append("\r");
                         needLineClear = true;
                     } else {
@@ -232,12 +154,11 @@ public class System {
         log(LogLevel.Result, outputStreams, format, args);
     }
 
-
     /**
      * Emit a debug message if the class calling this method is tagged for debugging.
      */
     public static void Debug(String format, Object... args) {
-        if(DEBUGGER_ATTACHED) {
+        if (DEBUGGER_ATTACHED) {
             // Stack trace computation is expensive, so guard behind boolean.
             StackTraceElement callSite = getCallSite();
 
@@ -290,5 +211,79 @@ public class System {
         log(LogLevel.Debug, outputStreams, "At %s:%d:", callSite.getFileName(), callSite.getLineNumber());
         log(LogLevel.Result, outputStreams, format, args);
         return new Failure(String.format(format, args));
+    }
+
+    public enum LogLevel {
+        Silent(0, null),
+
+        Abort(1, "[abort] "),                   // Internal VerCors Error
+        Result(2, ""),                          // The final verdict
+        Warning(3, "[warning] "),               // Warnings
+        Info(4, ""),                            // User info
+        Progress(5, "[progress] "),             // Progress info
+        Debug(6, "[debug] "),                   // VerCors development info
+
+        All(Integer.MAX_VALUE, "[filtered] ");  // Only visible when verbosity is set to all
+
+        private final int order;
+        private final String shorthand;
+
+        LogLevel(int order, String shorthand) {
+            this.order = order;
+            this.shorthand = shorthand;
+        }
+
+        public int getOrder() {
+            return order;
+        }
+
+        public String getShorthand() {
+            return shorthand;
+        }
+    }
+
+    private static class LogWriter extends Writer {
+        private String buffer = "";
+        private LogLevel level;
+        private Map<Appendable, LogLevel> outputs;
+
+        LogWriter(LogLevel level, Map<Appendable, LogLevel> outputs) {
+            this.level = level;
+            this.outputs = outputs;
+        }
+
+        @Override
+        public void write(char[] chars, int start, int end) throws IOException {
+            buffer += new String(chars, start, end);
+            writeLines();
+        }
+
+        private void writeLines() {
+            String[] lines = buffer.split("\\r?\\n", -1);
+            buffer = lines[lines.length - 1];
+
+            for (int i = 0; i < lines.length - 1; i++) {
+                System.log(level, outputs, "%s", lines[i]);
+            }
+        }
+
+        @Override
+        public void flush() throws IOException {
+            // Refuse, as flushing in this context may cause an additional unwanted newline.
+        }
+
+        @Override
+        public void close() throws IOException {
+            doFlush();
+            activeLogWriters.remove(this);
+        }
+
+        private void doFlush() {
+            if (!buffer.equals("")) {
+                String toLog = buffer;
+                buffer = "";
+                System.log(level, outputs, "%s", toLog);
+            }
+        }
     }
 }

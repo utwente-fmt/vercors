@@ -8,19 +8,19 @@
 */
 public class Sat {
 
-  // satisfiable is good.
+    // satisfiable is good.
   /*@
     requires true;
   @*/
-  public void good(){
-  }
+    public void good() {
+    }
 
-  // intentionally requiring false is acceptable too.
+    // intentionally requiring false is acceptable too.
   /*@
     requires false;
   @*/
-  public void good2(){
-  }
+    public void good2() {
+    }
 
 }
 

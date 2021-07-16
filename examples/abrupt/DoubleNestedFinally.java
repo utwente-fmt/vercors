@@ -19,7 +19,9 @@ class C {
                 }
                 x = 3;
             }
-        } catch (IOException e) { x += 10; }
+        } catch (IOException e) {
+            x += 10;
+        }
         assert x == 13;
     }
 }

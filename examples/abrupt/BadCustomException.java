@@ -3,7 +3,8 @@
 //:: tools silicon
 //:: verdict Error
 
-final class BadException {}
+final class BadException {
+}
 
 final class MyClass {
     void bar() throws BadException {

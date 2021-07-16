@@ -18,13 +18,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class BreakReturnToGoto extends AbstractRewriter {
-    public BreakReturnToGoto(ProgramUnit source) {
-        super(source);
-    }
-
-    private Set<NameExpression> breakLabels = new HashSet<>();
-    private Set<NameExpression> continueLabels = new HashSet<>();
-
     /*
      * Later an out parameter will be added called sys__result where the return value will be stored.
      * (Or maybe with a different backend, not at all)
@@ -33,6 +26,12 @@ public class BreakReturnToGoto extends AbstractRewriter {
      * Then the backend pass can decide how exactly that value is returned.
      */
     public static final String localReturnVarName = "sys__local__result";
+    private Set<NameExpression> breakLabels = new HashSet<>();
+    private Set<NameExpression> continueLabels = new HashSet<>();
+
+    public BreakReturnToGoto(ProgramUnit source) {
+        super(source);
+    }
 
     public NameExpression generateBreakLabel(NameExpression label) {
         return create.label("__break_" + label.getName());
@@ -180,21 +179,21 @@ public class BreakReturnToGoto extends AbstractRewriter {
     }
 
     public void visit(ReturnStatement returnStatement) {
-        BlockStatement res=create.block();
+        BlockStatement res = create.block();
 
-        for(ASTNode n : returnStatement.get_before()) {
+        for (ASTNode n : returnStatement.get_before()) {
             res.add(rewrite(n));
         }
 
-        if (returnStatement.getExpression() != null){
+        if (returnStatement.getExpression() != null) {
             res.add(create.assignment(create.local_name(localReturnVarName), rewrite(returnStatement.getExpression())));
         }
 
-        for(ASTNode n : returnStatement.get_after()) {
+        for (ASTNode n : returnStatement.get_after()) {
             res.add(rewrite(n));
         }
 
-        if (current_method().getContract() != null){
+        if (current_method().getContract() != null) {
             Substitution subst = new Substitution(source())
                     .subst(create.reserved_name(ASTReserved.Result), create.unresolved_name(localReturnVarName));
             res.add(create.special(ASTSpecial.Kind.Assert, subst.rewrite(current_method().getContract().post_condition)));

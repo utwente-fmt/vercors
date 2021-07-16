@@ -3,8 +3,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-class MyClass {	
-	void foo() {
-		new Exception();
-	}
+class MyClass {
+    void foo() {
+        new Exception();
+    }
 }

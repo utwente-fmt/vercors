@@ -9,7 +9,7 @@ class QualifiedNames {
         Exception e = new java.lang.Exception();
     }
 
-    void bar () {
+    void bar() {
         java.lang.Exception e = new Exception();
     }
 }

@@ -3,45 +3,12 @@ package hre.util
 import hre.config.Configuration
 
 import java.io.{ByteArrayInputStream, File}
-import sys.process._
-import hre.lang.System.Warning
-
-import scala.jdk.CollectionConverters._
 import java.nio.file.{Files, Paths}
 import java.util.regex.Pattern
+import scala.jdk.CollectionConverters._
+import scala.sys.process._
 
 object Notifier {
-  def notify(title: String, message: String): Boolean = Configuration.getOS() match {
-    case Configuration.OS.WINDOWS => notifyWindows10(title, message)
-    case Configuration.OS.MAC => notifyMacOS(title, message)
-    case Configuration.OS.UNIX => notifyLibnotify(title, message)
-    case _ => false
-  }
-
-  def notifyLibnotify(title: String, message: String): Boolean = {
-    if (commandExists("notify-send")) {
-      val cmd = Seq("notify-send", title, message)
-      cmd ! ProcessLogger(_ => (), _ => ()) match {
-        case 0 => true
-        case _ => false
-      }
-    } else {
-      false
-    }
-  }
-
-  def notifyMacOS(title: String, message: String): Boolean = {
-    if (commandExists("osascript")) {
-      val cmd = Seq("osascript", "-e", s"""display notification "$message" with title "$title"""")
-      cmd ! ProcessLogger(_ => (), _ => ()) match {
-        case 0 => true
-        case _ => false
-      }
-    } else {
-      false
-    }
-  }
-
   val powershellNotificationScript =
     """
       |$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
@@ -71,6 +38,46 @@ object Notifier {
       |$notify.Show($ToastXml)
       |""".stripMargin
 
+  def notify(title: String, message: String): Boolean = Configuration.getOS() match {
+    case Configuration.OS.WINDOWS => notifyWindows10(title, message)
+    case Configuration.OS.MAC => notifyMacOS(title, message)
+    case Configuration.OS.UNIX => notifyLibnotify(title, message)
+    case _ => false
+  }
+
+  def notifyLibnotify(title: String, message: String): Boolean = {
+    if (commandExists("notify-send")) {
+      val cmd = Seq("notify-send", title, message)
+      cmd ! ProcessLogger(_ => (), _ => ()) match {
+        case 0 => true
+        case _ => false
+      }
+    } else {
+      false
+    }
+  }
+
+  def commandExists(cmd: String): Boolean = {
+    System.getenv().asScala.getOrElse("PATH", "")
+      .split(File.pathSeparator)
+      .exists(path => {
+        val p = Paths.get(path).resolve(cmd)
+        Files.exists(p) && !Files.isDirectory(p) && Files.isExecutable(p)
+      })
+  }
+
+  def notifyMacOS(title: String, message: String): Boolean = {
+    if (commandExists("osascript")) {
+      val cmd = Seq("osascript", "-e", s"""display notification "$message" with title "$title"""")
+      cmd ! ProcessLogger(_ => (), _ => ()) match {
+        case 0 => true
+        case _ => false
+      }
+    } else {
+      false
+    }
+  }
+
   def notifyWindows10(title: String, message: String): Boolean = {
     // Only allow safe characters
     val ok = (x: String) => Pattern.matches("[a-zA-Z ]*", x)
@@ -84,14 +91,5 @@ object Notifier {
     val cmd = Seq("powershell", "-Command", "-")
     val p2 = cmd #< is
     p2.!(ProcessLogger(_ => (), _ => ())) == 0
-  }
-
-  def commandExists(cmd: String): Boolean = {
-    System.getenv().asScala.getOrElse("PATH", "")
-      .split(File.pathSeparator)
-      .exists(path => {
-        val p = Paths.get(path).resolve(cmd)
-        Files.exists(p) && !Files.isDirectory(p) && Files.isExecutable(p)
-      })
   }
 }

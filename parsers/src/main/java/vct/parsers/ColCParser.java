@@ -1,17 +1,19 @@
 package vct.parsers;
 
-import static hre.lang.System.*;
-
-import java.io.*;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 import hre.config.Configuration;
-import hre.lang.HREExitException;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import scala.NotImplementedError;
 import vct.col.ast.stmt.decl.ProgramUnit;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import static hre.lang.System.*;
 
 /**
  * Parse specified code and convert the contents to COL.
@@ -21,7 +23,7 @@ public class ColCParser extends ColIParser {
     public ProgramUnit parse(CharStream input, String file_name) {
         throw new NotImplementedError(
                 "Cannot parse a C file from a CharStream: " +
-                "the preprocessor requires a byte stream.");
+                        "the preprocessor requires a byte stream.");
     }
 
     @Override
@@ -34,7 +36,7 @@ public class ColCParser extends ColIParser {
 
             Path filePath = Paths.get(file_name).toAbsolutePath().getParent();
 
-            if(filePath != null) {
+            if (filePath != null) {
                 // Not quite correct, because this allows <> includes to see local files as well as "" includes.
                 command.append(" -I").append(filePath.toString());
             }
@@ -56,13 +58,13 @@ public class ColCParser extends ColIParser {
                     byte[] buf = new byte[4096];
                     int read = stream.read(buf);
 
-                    while(read != -1) {
+                    while (read != -1) {
                         process.getOutputStream().write(buf, 0, read);
                         read = stream.read(buf);
                     }
 
                     process.getOutputStream().close();
-                } catch(IOException e) {
+                } catch (IOException e) {
                     DebugException(e);
                 }
             }).start();

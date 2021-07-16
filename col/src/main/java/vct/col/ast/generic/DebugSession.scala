@@ -1,22 +1,40 @@
 package vct.col.ast.generic
 
-import java.lang.reflect.Field
-import java.util
-
 import hre.lang.System.Output
 
+import java.lang.reflect.Field
+import java.util
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-
 import scala.jdk.CollectionConverters._
 
 case class DebugSession() {
   val seen: mutable.HashSet[AnyRef] = mutable.HashSet()
 
+  def dumpNode(indent: Int, obj: DebugNode, prefix: String = ""): Unit = {
+    if (seen.contains(obj)) {
+      Output(indent_str(indent) + prefix + "(cycle: " + obj.getClass.getSimpleName + ")")
+      return
+    }
+
+    seen.add(obj)
+
+    Output(indent_str(indent) + prefix + firstLine(obj))
+
+    for (property <- obj.debugTreeChildrenFields) {
+      val value = getField(obj, property)
+      if (!shouldBeShortcut(value)) {
+        dump(indent + 1, value, property + ": ")
+      }
+    }
+
+    seen.remove(obj)
+  }
+
   private def indent_str(indent: Int): String = {
     var line = ""
 
-    for(_ <- 0 until indent) {
+    for (_ <- 0 until indent) {
       line += "  "
     }
 
@@ -26,7 +44,7 @@ case class DebugSession() {
   private def getReflectionField(obj: AnyRef, fieldName: String): Field = {
     var cls: Class[_] = obj.getClass
 
-    while(cls != null) {
+    while (cls != null) {
       try {
         return cls.getDeclaredField(fieldName)
       } catch {
@@ -59,8 +77,8 @@ case class DebugSession() {
   }
 
   private def isOnlyShortcut(node: DebugNode): Boolean = {
-    for(property <- node.debugTreeChildrenFields) {
-      if(!shouldBeShortcut(getField(node, property))) {
+    for (property <- node.debugTreeChildrenFields) {
+      if (!shouldBeShortcut(getField(node, property))) {
         return false
       }
     }
@@ -123,44 +141,24 @@ case class DebugSession() {
   private def firstLine(obj: DebugNode): String = {
     var firstLine = obj.getClass.getSimpleName
 
-    for(property <- obj.debugTreePropertyFields) {
+    for (property <- obj.debugTreePropertyFields) {
       firstLine += " " + property + "="
       val value = getField(obj, property)
-      if(value == null) {
+      if (value == null) {
         firstLine += "null"
       } else {
         firstLine += value.toString.replace("\n", "\\n")
       }
     }
 
-    for(property <- obj.debugTreeChildrenFields) {
+    for (property <- obj.debugTreeChildrenFields) {
       val value = getField(obj, property)
-      if(shouldBeShortcut(value)) {
+      if (shouldBeShortcut(value)) {
         firstLine += " " + property + "="
         firstLine += getShortcut(value)
       }
     }
 
     firstLine
-  }
-
-  def dumpNode(indent: Int, obj: DebugNode, prefix: String = ""): Unit = {
-    if(seen.contains(obj)) {
-      Output(indent_str(indent) + prefix + "(cycle: " + obj.getClass.getSimpleName + ")")
-      return
-    }
-
-    seen.add(obj)
-
-    Output(indent_str(indent) + prefix + firstLine(obj))
-
-    for(property <- obj.debugTreeChildrenFields) {
-      val value = getField(obj, property)
-      if(!shouldBeShortcut(value)) {
-        dump(indent+1, value, property+": ")
-      }
-    }
-
-    seen.remove(obj)
   }
 }

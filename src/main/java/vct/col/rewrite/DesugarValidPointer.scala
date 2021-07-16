@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
-import vct.col.ast.expr.{Dereference, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, SequenceUtils}
@@ -32,7 +32,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
     val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
     val seqInfo = SequenceUtils.expectArrayType(t, "Expected an array type here, but got %s")
 
-    if(!seqInfo.isOpt || !seqInfo.isCell) {
+    if (!seqInfo.isOpt || !seqInfo.isCell) {
       Fail("Expected a pointer type here, but got %s", t)
     }
 
@@ -46,7 +46,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
       create.expression(StandardOperator.Perm,
         create.pattern(create.expression(StandardOperator.Subscript, value, name("__i"))),
         perm),
-      List(new DeclarationStatement("__i", create.primitive_type(PrimitiveSort.Integer))):_*
+      List(new DeclarationStatement("__i", create.primitive_type(PrimitiveSort.Integer))): _*
     )
 
     conditions.reduce(star)
@@ -56,7 +56,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
     val conditions: mutable.ListBuffer[ASTNode] = mutable.ListBuffer()
     val seqInfo = SequenceUtils.expectArrayType(t, "Expected an array type here, but got %s")
 
-    if(!seqInfo.isOpt || !seqInfo.isCell) {
+    if (!seqInfo.isOpt || !seqInfo.isCell) {
       Fail("Expected a pointer type here, but got %s", t)
     }
 

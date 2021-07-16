@@ -9,14 +9,15 @@
 */
 public class Refute {
 
-  int x;
-  /*@
-    requires Perm(x,write) ** x==2;
-    ensures  Perm(x,write) ** x==3;
-  @*/
-  public void bad2(){
-    //@ refute x==3;
-  }
+    int x;
+
+    /*@
+      requires Perm(x,write) ** x==2;
+      ensures  Perm(x,write) ** x==3;
+    @*/
+    public void bad2() {
+        //@ refute x==3;
+    }
 
 }
 

@@ -12,16 +12,17 @@ public class C {
     //@ ensures \old(input_i) != 0 ==> \result == \old(input_i) + 3;
     public int foo(int input_i) {
         int i = input_i;
-        l1: {
-            try{
-                if (i==0) {
+        l1:
+        {
+            try {
+                if (i == 0) {
                     break l1;
                 }
                 i = i + 1;
             } catch (Exception e) {
                 // Nothing
                 //@ assert false; // Is not executed
-            } finally{
+            } finally {
                 i = i + 1;
             }
         }

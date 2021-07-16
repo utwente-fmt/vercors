@@ -9,7 +9,7 @@ public class MultiDimArray {
     }
 
     public static void main(String[] args) {
-        int[][][] a = new int[][][] {
+        int[][][] a = new int[][][]{
                 null,
                 {null},
                 {{1, 2}}
@@ -25,7 +25,7 @@ public class MultiDimArray {
         x[0] = cond ? null : null;
         x[0] = cond ? null : x[0];
 
-        if(x[0] == null) {
+        if (x[0] == null) {
             return;
         }
     }

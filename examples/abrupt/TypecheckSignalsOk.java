@@ -6,10 +6,10 @@
 import java.io.*;
 
 final class Ok {
+    int x;
+
     //@ signals (RuntimeException e) true;
     void m1();
-
-    int x;
 
     void m2() {
         try {

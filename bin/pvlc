@@ -4,16 +4,16 @@ set -e
 BIN=$(dirname $0)
 
 JAVA_FILES=""
-for f in "$@" ; do
+for f in "$@"; do
   case "$f" in
-    *.pvl)
-      echo "compiling $f"
-      $BIN/run-class vct.main.Main --passes=compileToJava,printJavaToFile "$f"
-      tmp=`echo $f | sed 's/pvl/java/'`
-      JAVA_FILES="$JAVA_FILES $tmp"
+  *.pvl)
+    echo "compiling $f"
+    $BIN/run-class vct.main.Main --passes=compileToJava,printJavaToFile "$f"
+    tmp=$(echo $f | sed 's/pvl/java/')
+    JAVA_FILES="$JAVA_FILES $tmp"
     ;;
-    *)
-      JAVA_FILES="$JAVA_FILES $f"
+  *)
+    JAVA_FILES="$JAVA_FILES $f"
     ;;
   esac
 done

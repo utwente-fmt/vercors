@@ -3,7 +3,7 @@
 //:: verdict Pass
 
 class CatchStackTrace {
-    void m () {
+    void m() {
         try {
             throw new Exception();
         } catch (Exception e) {

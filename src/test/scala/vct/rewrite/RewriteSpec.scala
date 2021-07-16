@@ -5,15 +5,15 @@ import org.scalatest.{FlatSpec, Matchers}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.{ASTFactory, ASTFrame, ASTVisitor, AbstractRewriter}
 
-case class RewriteSpec(rewriter: AbstractRewriter, before: ASTVisitor[_<:ASTNode]*) extends FlatSpec with Matchers {
+case class RewriteSpec(rewriter: AbstractRewriter, before: ASTVisitor[_ <: ASTNode]*) extends FlatSpec with Matchers {
   protected var create = new ASTFactory
 
   def rewrite(node: ASTNode): ASTNode = {
     var input = node
 
-    for(pass <- before) {
+    for (pass <- before) {
       input.accept(pass)
-      if(pass.isInstanceOf[AbstractRewriter]) {
+      if (pass.isInstanceOf[AbstractRewriter]) {
         input = pass.asInstanceOf[ASTFrame[ASTNode]].getResult
       }
     }

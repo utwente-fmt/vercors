@@ -13,6 +13,7 @@ final class MyClass {
     void write_char(int c);
 
     void return_the_carriage();
+
     void tabulate();
 
     //@ context Perm(i, 1);
@@ -23,7 +24,8 @@ final class MyClass {
         int x = read_char();
         //@ assert old_i + 1 == i;
         //@ ghost boolean saw_slash = false;
-        char_processed: {
+        char_processed:
+        {
             if (x == SLASH) {
                 //@ ghost saw_slash = true;
                 x = read_char();

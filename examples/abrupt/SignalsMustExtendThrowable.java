@@ -5,5 +5,6 @@
 
 final class C {
     //@ signals (C e) true;
-    void m() { }
+    void m() {
+    }
 }

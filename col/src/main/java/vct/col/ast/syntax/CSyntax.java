@@ -2,117 +2,118 @@ package vct.col.ast.syntax;
 
 import hre.ast.TrackingOutput;
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.print.CPrinter;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.print.CPrinter;
+
 import static vct.col.ast.expr.StandardOperator.*;
 
-public class CSyntax extends Syntax{
-  private static Syntax c_syntax;
-  private static Syntax cml_syntax;
-  
-  public CSyntax(String dialect) {
-    super(dialect);
-  }
+public class CSyntax extends Syntax {
+    private static Syntax c_syntax;
+    private static Syntax cml_syntax;
 
-  public static void setCommon(Syntax syntax){
-    syntax.addOperator(Subscript,160,"","[","]");
-    syntax.addLeftFix(StructSelect,".",160);
-    syntax.addLeftFix(StructDeref,"->",160);
-    
-    syntax.addPostfix(PostIncr, "++", 160);
-    syntax.addPostfix(PostDecr, "--", 160);
-    syntax.addPrefix(PreIncr, "++", 160);
-    syntax.addPrefix(PreDecr, "--", 160);
-    
-    syntax.addPrefix(UMinus, "-", 150);
-    syntax.addPrefix(UPlus, "+", 150);
-    syntax.addPrefix(Not,"!",150);
-    syntax.addPrefix(AddrOf,"&",150);
-    syntax.addPrefix(Indirection,"*",150);
-
-    syntax.addLeftFix(Mult,"*",130);
-    syntax.addLeftFix(FloorDiv,"/",130);
-    syntax.addLeftFix(Div,"\\",130);
-    syntax.addLeftFix(Mod,"%",130);
-    
-    syntax.addLeftFix(Plus,"+",120);
-    syntax.addLeftFix(Minus,"-",120);
-    
-    syntax.addInfix(LeftShift,"<<", 110);
-    syntax.addInfix(RightShift,">>", 110);
-
-    syntax.addInfix(LT,"<",100);
-    syntax.addInfix(LTE,"<=",100);
-    syntax.addInfix(GT,">",100);
-    syntax.addInfix(GTE,">=",100);
-    
-    syntax.addInfix(EQ,"==",90);
-    syntax.addInfix(NEQ,"!=",90);
-    
-    syntax.addInfix(BitAnd,"&",80);
-    
-    syntax.addInfix(BitXor,"^",70);
-
-    syntax.addInfix(BitOr,"|",60);
-
-    syntax.addLeftFix(And, "&&", 50);
-    
-    syntax.addLeftFix(Or, "||", 40);
-    
-    syntax.addOperator(ITE,30,"","?",":","");
-    syntax.addRightFix(Assign,"=",30);
-    syntax.addRightFix(AddAssign,"+=",30);
-    syntax.addRightFix(SubAssign,"-=",30);
-    syntax.addRightFix(MulAssign,"*=",30);
-    syntax.addRightFix(FloorDivAssign,"/=",30);
-    syntax.addRightFix(RemAssign,"%=",30);
-    syntax.addRightFix(AndAssign,"&=",30);
-    syntax.addRightFix(XorAssign,"^=",30);
-    syntax.addRightFix(OrAssign,"|=",30);
-    syntax.addRightFix(ShlAssign,"<<=",30);
-    syntax.addRightFix(ShrAssign,">>=",30);
-
-    syntax.addFunction(SizeOf, "sizeof");
-    syntax.addFunction(ValidPointer, "\\pointer");
-    syntax.addFunction(ValidPointerIndex, "\\pointer_index");
-    syntax.addFunction(Values, "\\values");
-    
-    syntax.addPrimitiveType(PrimitiveSort.Double,"double");
-    syntax.addPrimitiveType(PrimitiveSort.Integer,"int");
-    syntax.addPrimitiveType(PrimitiveSort.Long,"long");
-    syntax.addPrimitiveType(PrimitiveSort.Void,"void");
-    syntax.addPrimitiveType(PrimitiveSort.Boolean,"bool");
-    syntax.addPrimitiveType(PrimitiveSort.Char,"char");
-    syntax.addPrimitiveType(PrimitiveSort.Float,"float");
-    
-    syntax.addReserved(ASTReserved.Null, "NULL");
-    
-  }
-
-  public static Syntax getC() {
-    if (c_syntax==null){
-      c_syntax=new CSyntax("C");
-      setCommon(c_syntax);
+    public CSyntax(String dialect) {
+        super(dialect);
     }
-    return c_syntax;
-  }
-  
-  public static Syntax getCML() {
-    if (cml_syntax==null){
-      cml_syntax=new CSyntax("C + CML");
-      setCommon(cml_syntax);
-      VerCorsSyntax.add(cml_syntax);
-    }
-    return cml_syntax;
-  }
 
-  @Override
-  public CPrinter print(TrackingOutput out, ASTNode n) {
-    CPrinter p=new CPrinter(out);
-    if (n!=null) n.accept(p);
-    return p;
-  } 
+    public static void setCommon(Syntax syntax) {
+        syntax.addOperator(Subscript, 160, "", "[", "]");
+        syntax.addLeftFix(StructSelect, ".", 160);
+        syntax.addLeftFix(StructDeref, "->", 160);
+
+        syntax.addPostfix(PostIncr, "++", 160);
+        syntax.addPostfix(PostDecr, "--", 160);
+        syntax.addPrefix(PreIncr, "++", 160);
+        syntax.addPrefix(PreDecr, "--", 160);
+
+        syntax.addPrefix(UMinus, "-", 150);
+        syntax.addPrefix(UPlus, "+", 150);
+        syntax.addPrefix(Not, "!", 150);
+        syntax.addPrefix(AddrOf, "&", 150);
+        syntax.addPrefix(Indirection, "*", 150);
+
+        syntax.addLeftFix(Mult, "*", 130);
+        syntax.addLeftFix(FloorDiv, "/", 130);
+        syntax.addLeftFix(Div, "\\", 130);
+        syntax.addLeftFix(Mod, "%", 130);
+
+        syntax.addLeftFix(Plus, "+", 120);
+        syntax.addLeftFix(Minus, "-", 120);
+
+        syntax.addInfix(LeftShift, "<<", 110);
+        syntax.addInfix(RightShift, ">>", 110);
+
+        syntax.addInfix(LT, "<", 100);
+        syntax.addInfix(LTE, "<=", 100);
+        syntax.addInfix(GT, ">", 100);
+        syntax.addInfix(GTE, ">=", 100);
+
+        syntax.addInfix(EQ, "==", 90);
+        syntax.addInfix(NEQ, "!=", 90);
+
+        syntax.addInfix(BitAnd, "&", 80);
+
+        syntax.addInfix(BitXor, "^", 70);
+
+        syntax.addInfix(BitOr, "|", 60);
+
+        syntax.addLeftFix(And, "&&", 50);
+
+        syntax.addLeftFix(Or, "||", 40);
+
+        syntax.addOperator(ITE, 30, "", "?", ":", "");
+        syntax.addRightFix(Assign, "=", 30);
+        syntax.addRightFix(AddAssign, "+=", 30);
+        syntax.addRightFix(SubAssign, "-=", 30);
+        syntax.addRightFix(MulAssign, "*=", 30);
+        syntax.addRightFix(FloorDivAssign, "/=", 30);
+        syntax.addRightFix(RemAssign, "%=", 30);
+        syntax.addRightFix(AndAssign, "&=", 30);
+        syntax.addRightFix(XorAssign, "^=", 30);
+        syntax.addRightFix(OrAssign, "|=", 30);
+        syntax.addRightFix(ShlAssign, "<<=", 30);
+        syntax.addRightFix(ShrAssign, ">>=", 30);
+
+        syntax.addFunction(SizeOf, "sizeof");
+        syntax.addFunction(ValidPointer, "\\pointer");
+        syntax.addFunction(ValidPointerIndex, "\\pointer_index");
+        syntax.addFunction(Values, "\\values");
+
+        syntax.addPrimitiveType(PrimitiveSort.Double, "double");
+        syntax.addPrimitiveType(PrimitiveSort.Integer, "int");
+        syntax.addPrimitiveType(PrimitiveSort.Long, "long");
+        syntax.addPrimitiveType(PrimitiveSort.Void, "void");
+        syntax.addPrimitiveType(PrimitiveSort.Boolean, "bool");
+        syntax.addPrimitiveType(PrimitiveSort.Char, "char");
+        syntax.addPrimitiveType(PrimitiveSort.Float, "float");
+
+        syntax.addReserved(ASTReserved.Null, "NULL");
+
+    }
+
+    public static Syntax getC() {
+        if (c_syntax == null) {
+            c_syntax = new CSyntax("C");
+            setCommon(c_syntax);
+        }
+        return c_syntax;
+    }
+
+    public static Syntax getCML() {
+        if (cml_syntax == null) {
+            cml_syntax = new CSyntax("C + CML");
+            setCommon(cml_syntax);
+            VerCorsSyntax.add(cml_syntax);
+        }
+        return cml_syntax;
+    }
+
+    @Override
+    public CPrinter print(TrackingOutput out, ASTNode n) {
+        CPrinter p = new CPrinter(out);
+        if (n != null) n.accept(p);
+        return p;
+    }
 
 }
 
