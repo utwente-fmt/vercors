@@ -1,6 +1,6 @@
 //:: case SimpleLtid
 //:: tools silicon
-//:: suite problem-fail
+//:: verdict Pass
 
 #include <cuda.h>
 
