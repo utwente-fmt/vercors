@@ -6,7 +6,6 @@ on:
     branches:
       - master
       - dev
-      - issue-509-slow-tests
 
 jobs:
   build:
