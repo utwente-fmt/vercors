@@ -101,6 +101,16 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort: Either[Pr
     }
   })
 
+  private def getTypeName: String = (sort match {
+    case Left(s) => s.sort.toString
+    case Right(cl) => cl.getName
+  }) + channelClassName
+
+  private def getFieldPerms(astClass: ASTClass, varNode: ASTNode): OperatorExpression =
+    astClass.fields().asScala.map(f =>
+      create.expression(StandardOperator.Perm, create.dereference(varNode, f.name), create.reserved_name(ASTReserved.ReadPerm)))
+      .reduce((p1, p2) => create.expression(StandardOperator.Star, p1, p2))
+
   override def visit(l: LoopStatement): Unit = sort match {
     case Left(p) => super.visit(l)
     case Right(cl) => {
@@ -112,11 +122,6 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort: Either[Pr
     }
   }
 
-  private def getFieldPerms(astClass: ASTClass, varNode: ASTNode): OperatorExpression =
-    astClass.fields().asScala.map(f =>
-      create.expression(StandardOperator.Perm, create.dereference(varNode, f.name), create.reserved_name(ASTReserved.ReadPerm)))
-      .reduce((p1, p2) => create.expression(StandardOperator.Star, p1, p2))
-
   override def visit(c: ASTClass): Unit = {
     val res = create.new_class(getTypeName, null, null)
     for (item <- c.asScala) {
@@ -124,9 +129,4 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort: Either[Pr
     }
     result = res
   }
-
-  private def getTypeName: String = (sort match {
-    case Left(s) => s.sort.toString
-    case Right(cl) => cl.getName
-  }) + channelClassName
 }

@@ -147,6 +147,7 @@ public class SilverClassReduction extends AbstractRewriter {
     {
         constructor_this.push(false);
     }
+
     public SilverClassReduction(ProgramUnit source) {
         super(source);
         create.setOrigin(new MessageOrigin("collected class Ref"));

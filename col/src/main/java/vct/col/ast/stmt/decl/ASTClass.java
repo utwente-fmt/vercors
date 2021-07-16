@@ -55,6 +55,7 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
      */
     private ArrayList<ASTNode> entries = new ArrayList<ASTNode>();
     private Contract contract;
+
     /**
      * Create a root class from a given block statement.
      */
@@ -71,6 +72,7 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
         implemented_classes = new ClassType[0];
         parameters = new DeclarationStatement[0];
     }
+
     /**
      * Create a nested class.
      */
@@ -87,6 +89,7 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
         implemented_classes = new ClassType[0];
         parameters = new DeclarationStatement[0];
     }
+
     /**
      * Create a new named class from two block statements
      * Do not forget to set the parent later!

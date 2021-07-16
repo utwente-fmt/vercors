@@ -9,6 +9,7 @@ public class Worker extends Thread {
 
     int input;
     int output;
+
     /*@
       ensures preFork(1) ** Value(this.input) ** this.input==input;
     @*/

@@ -51,6 +51,7 @@ public class Syntax {
     private Map<String, StandardOperator> function_map = new HashMap<String, StandardOperator>();
     private Map<ASTReserved, String> reserved2syntax = new HashMap<ASTReserved, String>();
     private Map<String, ASTReserved> syntax2reserved = new HashMap<String, ASTReserved>();
+
     public Syntax(String language) {
         this.language = language;
     }

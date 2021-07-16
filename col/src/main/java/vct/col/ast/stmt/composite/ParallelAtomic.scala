@@ -28,13 +28,15 @@ case class ParallelAtomic(val block: ASTNode, val synclist: List[ASTNode]) exten
   override def debugTreePropertyFields: Iterable[String] = Seq()
 
   override def set_before(block: BlockStatement): BeforeAfterAnnotations = {
-    before = block; this
+    before = block;
+    this
   }
 
   override def get_before: BlockStatement = before
 
   override def set_after(block: BlockStatement): BeforeAfterAnnotations = {
-    after = block; this
+    after = block;
+    this
   }
 
   override def get_after: BlockStatement = after

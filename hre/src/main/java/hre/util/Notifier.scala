@@ -57,6 +57,15 @@ object Notifier {
     }
   }
 
+  def commandExists(cmd: String): Boolean = {
+    System.getenv().asScala.getOrElse("PATH", "")
+      .split(File.pathSeparator)
+      .exists(path => {
+        val p = Paths.get(path).resolve(cmd)
+        Files.exists(p) && !Files.isDirectory(p) && Files.isExecutable(p)
+      })
+  }
+
   def notifyMacOS(title: String, message: String): Boolean = {
     if (commandExists("osascript")) {
       val cmd = Seq("osascript", "-e", s"""display notification "$message" with title "$title"""")
@@ -67,15 +76,6 @@ object Notifier {
     } else {
       false
     }
-  }
-
-  def commandExists(cmd: String): Boolean = {
-    System.getenv().asScala.getOrElse("PATH", "")
-      .split(File.pathSeparator)
-      .exists(path => {
-        val p = Paths.get(path).resolve(cmd)
-        Files.exists(p) && !Files.isDirectory(p) && Files.isExecutable(p)
-      })
   }
 
   def notifyWindows10(title: String, message: String): Boolean = {

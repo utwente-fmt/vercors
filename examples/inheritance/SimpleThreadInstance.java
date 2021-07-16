@@ -10,6 +10,7 @@ public class SimpleThreadInstance extends SimpleThread {
 
     //@ public resource postJoin()=Value(input)**PointsTo(output,write,input+1);
     int output;
+
     /*@
       ensures preFork() ** Value(this.input) ** this.input==input;
     @*/

@@ -31,6 +31,7 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
     protected ASTClass global_class;
     protected String prefix;
     protected boolean processing_static;
+
     public GlobalizeStatics(ProgramUnit source) {
         super(source);
         global_class = create(new MessageOrigin("filtered globals")).ast_class("Global", ClassKind.Plain, null, null, null);

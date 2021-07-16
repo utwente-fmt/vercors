@@ -48,6 +48,11 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
       super.visit(cls)
     }
 
+  private def currentPackageName: Seq[String] = currentNamespace match {
+    case None => Seq()
+    case Some(ns) => ns.getDeclName.name.toIndexedSeq.filter(_.nonEmpty)
+  }
+
   override def visit(m: Method): Unit = {
     if ((m.kind eq Method.Kind.Constructor) && !(m.getName == current_class().getName.split('.').last)) {
       m.getOrigin.report("error",
@@ -68,24 +73,6 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
     case Some(fqcn) => fqcn
   }
 
-  override def visit(name: NameExpression): Unit = name.kind match {
-    case NameExpressionKind.Unresolved =>
-      variables.lookup(name.name) match {
-        case null =>
-          loadClass(Seq(name.name)) match {
-            case None =>
-              // This leaves an unresolved name in the AST
-              super.visit(name)
-            case Some(cls) =>
-              result = create class_type cls.mkString(JavaResolver.DOT)
-          }
-        case res =>
-          name.setKind(res.kind)
-          super.visit(name)
-      }
-    case _ => super.visit(name)
-  }
-
   private def loadClass(name: Seq[String]): Option[Seq[String]] = {
     if (predef.contains(name)) {
       Some(name)
@@ -104,9 +91,22 @@ case class JavaResolver(override val source: ProgramUnit) extends AbstractRewrit
     }
   }
 
-  private def currentPackageName: Seq[String] = currentNamespace match {
-    case None => Seq()
-    case Some(ns) => ns.getDeclName.name.toIndexedSeq.filter(_.nonEmpty)
+  override def visit(name: NameExpression): Unit = name.kind match {
+    case NameExpressionKind.Unresolved =>
+      variables.lookup(name.name) match {
+        case null =>
+          loadClass(Seq(name.name)) match {
+            case None =>
+              // This leaves an unresolved name in the AST
+              super.visit(name)
+            case Some(cls) =>
+              result = create class_type cls.mkString(JavaResolver.DOT)
+          }
+        case res =>
+          name.setKind(res.kind)
+          super.visit(name)
+      }
+    case _ => super.visit(name)
   }
 
   override def rewriteAll(): ProgramUnit = {

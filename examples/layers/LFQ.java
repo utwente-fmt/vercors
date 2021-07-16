@@ -58,6 +58,7 @@ final class Queue {
     //@ ghost Node begin;
     AtomicNode head;
     AtomicNode tail;
+
     /*@
       ensures Value(begin) ** Value(`head`) ** Value(`tail`);
     @*/

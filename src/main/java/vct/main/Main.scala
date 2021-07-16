@@ -411,7 +411,8 @@ class Main {
     else if (silver.used) collectPassesForSilver
     else if (Configuration.veymont_file.used()) collectPassesForVeyMont
     else {
-      Fail("no back-end or passes specified"); ???
+      Fail("no back-end or passes specified");
+      ???
     }
   }
 

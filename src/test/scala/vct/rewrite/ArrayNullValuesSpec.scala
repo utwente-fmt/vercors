@@ -13,8 +13,6 @@ class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before 
   def SEQ_ARRAY_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Array,
     create.primitive_type(PrimitiveSort.Cell, OPT_SEQ_ARRAY_TYPE))
 
-  def CASTED_NONE_SEQ_ARRAY = create expression(StandardOperator.Cast, OPT_SEQ_ARRAY_TYPE, NONE)
-
   def OPT_SEQ_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Option, SEQ_ARRAY_TYPE)
 
   def SEQ_ARRAY_TYPE = create.primitive_type(PrimitiveSort.Array,
@@ -23,6 +21,8 @@ class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before 
   def SEQ_TYPE = create primitive_type(PrimitiveSort.Sequence, INT_TYPE)
 
   def INT_TYPE = create primitive_type PrimitiveSort.Integer
+
+  def CASTED_NONE_SEQ_ARRAY = create expression(StandardOperator.Cast, OPT_SEQ_ARRAY_TYPE, NONE)
 
   def NONE = create reserved_name ASTReserved.OptionNone
 

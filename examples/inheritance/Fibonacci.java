@@ -16,6 +16,7 @@ public class Fibonacci extends Thread {
 
     //@ public resource postJoin(frac p)=Value(input)**Perm(number,p);
     int number;
+
     /*@
       ensures pre:preFork(write) ** Value(this.input) ** this.input==input;
     @*/

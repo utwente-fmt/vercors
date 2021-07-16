@@ -29,6 +29,13 @@ case class ThreadPool[T <: Callable[S], S](threadCount: Int, tasks: Seq[T]) {
     threads.foreach(_.start())
   }
 
+  private def replaceWork(work: T, result: S): Option[T] = this.synchronized {
+    runningWork -= work
+    val newWork = fetchWork()
+    taskResult.push((work, result, runningWork.clone().toSeq, taskQueue.size))
+    newWork
+  }
+
   private def fetchWork(): Option[T] = this.synchronized {
     if (taskQueue.isEmpty) {
       None
@@ -37,13 +44,6 @@ case class ThreadPool[T <: Callable[S], S](threadCount: Int, tasks: Seq[T]) {
       runningWork += result
       Some(result)
     }
-  }
-
-  private def replaceWork(work: T, result: S): Option[T] = this.synchronized {
-    runningWork -= work
-    val newWork = fetchWork()
-    taskResult.push((work, result, runningWork.clone().toSeq, taskQueue.size))
-    newWork
   }
 
   /** Present the results of the tasks as a stream out of order: returns task, task result, currently running tasks and

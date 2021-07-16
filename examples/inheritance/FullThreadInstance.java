@@ -8,6 +8,7 @@ public class Instance extends Thread {
 
     //@ public resource postJoin(frac p)=Value(input)**PointsTo(output,p,input+1);
     int output;
+
     /*@
       ensures pre:preFork(write) ** Value(this.input) ** this.input==input;
     @*/

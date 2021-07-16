@@ -36,9 +36,10 @@ class SilverStatementFactory[O] extends StatementFactory[O, Type, Exp, Stmt] wit
   }
 
   override def new_object(o: O, v: Exp, names: List[String], types: List[Type]): Stmt = {
-    val vs = (names.asScala zip types.asScala).map { a => a match {
-      case (n, t) => Field(n, t)(NoPosition, new OriginInfo(o))
-    }
+    val vs = (names.asScala zip types.asScala).map { a =>
+      a match {
+        case (n, t) => Field(n, t)(NoPosition, new OriginInfo(o))
+      }
     }
     NewStmt(v.asInstanceOf[LocalVar], vs.toSeq)(NoPosition, new OriginInfo(o))
   }

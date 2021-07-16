@@ -35,9 +35,11 @@ public class Method extends ASTDeclaration {
     ;
     private Hashtable<String, Contract> spec = new Hashtable<String, Contract>();
     private ASTNode body;
+
     public Method(String name, Type return_type, Type[] signals, Contract contract, DeclarationStatement args[], boolean varArgs, ASTNode body) {
         this(Kind.Plain, name, return_type, signals, contract, args, varArgs, body);
     }
+
     public Method(Kind kind,
                   String name,
                   Type return_type,

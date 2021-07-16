@@ -192,6 +192,10 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     popFrame()
   }
 
+  private def pushFrame(): Unit = frameStack.push(mutable.Set())
+
+  private def popFrame(): Unit = frameStack.pop()
+
   override def visit(e: BindingExpression): Unit = {
     pushFrame()
 
@@ -238,10 +242,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
     if (!isInitBlock) popFrame()
   }
-
-  private def pushFrame(): Unit = frameStack.push(mutable.Set())
-
-  private def popFrame(): Unit = frameStack.pop()
 
   override def visit(e: OperatorExpression): Unit = if ((e.operator eq StandardOperator.StructDeref) || (e.operator eq StandardOperator.StructSelect)) {
     e.first.accept(this)

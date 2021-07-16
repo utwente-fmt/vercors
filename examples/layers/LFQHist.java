@@ -99,6 +99,7 @@ final class Queue {
     //@ ghost Node begin;
     AtomicNode head;
     AtomicNode tail;
+
     /*@ given `History` hist;
        requires HPerm(hist.q,1) ** hist.q==seq<int>{};
        ensures Value(this.hist) ** this.hist == hist

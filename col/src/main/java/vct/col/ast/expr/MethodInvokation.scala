@@ -57,12 +57,12 @@ case class MethodInvokation(`object`: ASTNode, dispatch: ClassType, method: Stri
    */
   def canThrow = getDefinition.canThrow
 
-  def getDefinition = definition
-
-  def setDefinition(m: Method) = definition = m
-
   /**
    * @see [[vct.col.ast.stmt.decl.Method.canThrowSpec]]
    */
   def canThrowSpec = getDefinition.canThrowSpec
+
+  def getDefinition = definition
+
+  def setDefinition(m: Method) = definition = m
 }

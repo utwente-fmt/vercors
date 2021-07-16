@@ -14,11 +14,13 @@ import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
  */
 case class ConstantExpression(val value: Value) extends ASTNode with VisitorHelper {
   def this(v: Value, t: Type) = {
-    this(v); setType(t)
+    this(v);
+    setType(t)
   }
 
   def this(v: Value, t: Type, origin: Origin) = {
-    this(v, t); setOrigin(origin)
+    this(v, t);
+    setOrigin(origin)
   }
 
   def this(i: Int) = this(new IntegerValue(i), new PrimitiveType(PrimitiveSort.Integer))
@@ -32,23 +34,28 @@ case class ConstantExpression(val value: Value) extends ASTNode with VisitorHelp
   def this(d: Double) = this(new DoubleValue(d), new PrimitiveType(PrimitiveSort.Double))
 
   def this(i: Int, origin: Origin) = {
-    this(i); setOrigin(origin)
+    this(i);
+    setOrigin(origin)
   }
 
   def this(b: Boolean, origin: Origin) = {
-    this(b); setOrigin(origin)
+    this(b);
+    setOrigin(origin)
   }
 
   def this(s: String, origin: Origin) = {
-    this(s); setOrigin(origin)
+    this(s);
+    setOrigin(origin)
   }
 
   def this(l: Long, origin: Origin) = {
-    this(l); setOrigin(origin)
+    this(l);
+    setOrigin(origin)
   }
 
   def this(d: Double, origin: Origin) = {
-    this(d); setOrigin(origin)
+    this(d);
+    setOrigin(origin)
   }
 
   override def accept_simple[T, A](m: ASTMapping1[T, A], arg: A) = m.map(this, arg)

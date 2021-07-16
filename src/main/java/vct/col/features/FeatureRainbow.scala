@@ -3,16 +3,16 @@ package vct.col.features
 import hre.ast.MessageOrigin
 import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
 import vct.col.ast.`type`._
-import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.expr._
+import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.langspecific.c._
-import vct.col.ast.{expr, stmt}
 import vct.col.ast.stmt.composite._
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
 import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{RecursiveVisitor, SequenceUtils}
+import vct.col.ast.{expr, stmt}
 import vct.col.rewrite.{AddTypeADT, IntroExcVar, PVLEncoder}
 import vct.parsers.rewrite.InferADTTypes
 
@@ -256,6 +256,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       addFeature(UnresolvedTypeInference, t)
   }
 
+  def addFeature(feature: Feature, blame: ASTNode): Unit = {
+    features += feature
+    blames.getOrElseUpdate(feature, ArrayBuffer()) += blame
+  }
+
   override def visit(loop: LoopStatement): Unit = {
     super.visit(loop)
     visitBeforeAfter(loop)
@@ -357,11 +362,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     bindingExpressionDepth -= 1
   }
 
-  def addFeature(feature: Feature, blame: ASTNode): Unit = {
-    features += feature
-    blames.getOrElseUpdate(feature, ArrayBuffer()) += blame
-  }
-
   override def visit(assign: AssignmentStatement): Unit = {
     super.visit(assign)
     assign.location match {
@@ -449,27 +449,33 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   }
 
   override def visit(par: OMPParallel): Unit = {
-    super.visit(par); addFeature(OpenMP, par)
+    super.visit(par);
+    addFeature(OpenMP, par)
   }
 
   override def visit(par: OMPParallelFor): Unit = {
-    super.visit(par); addFeature(OpenMP, par)
+    super.visit(par);
+    addFeature(OpenMP, par)
   }
 
   override def visit(sections: OMPSections): Unit = {
-    super.visit(sections); addFeature(OpenMP, sections)
+    super.visit(sections);
+    addFeature(OpenMP, sections)
   }
 
   override def visit(section: OMPSection): Unit = {
-    super.visit(section); addFeature(OpenMP, section)
+    super.visit(section);
+    addFeature(OpenMP, section)
   }
 
   override def visit(par: OMPForSimd): Unit = {
-    super.visit(par); addFeature(OpenMP, par)
+    super.visit(par);
+    addFeature(OpenMP, par)
   }
 
   override def visit(fr: OMPFor): Unit = {
-    super.visit(fr); addFeature(OpenMP, fr)
+    super.visit(fr);
+    addFeature(OpenMP, fr)
   }
 
   override def visit(s: stmt.composite.ParallelAtomic): Unit = {
@@ -479,15 +485,18 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   }
 
   override def visit(s: ParallelBarrier): Unit = {
-    super.visit(s); addFeature(ParallelBlocks, s)
+    super.visit(s);
+    addFeature(ParallelBlocks, s)
   }
 
   override def visit(s: ParallelBlock): Unit = {
-    super.visit(s); addFeature(ParallelBlocks, s)
+    super.visit(s);
+    addFeature(ParallelBlocks, s)
   }
 
   override def visit(s: ParallelInvariant): Unit = {
-    super.visit(s); addFeature(ParallelBlocks, s)
+    super.visit(s);
+    addFeature(ParallelBlocks, s)
   }
 
   override def visit(s: ParallelRegion): Unit = {
@@ -499,7 +508,8 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   }
 
   override def visit(s: ForEachLoop): Unit = {
-    super.visit(s); addFeature(ParallelBlocks, s)
+    super.visit(s);
+    addFeature(ParallelBlocks, s)
   }
 
   override def visit(t: PrimitiveType): Unit = {

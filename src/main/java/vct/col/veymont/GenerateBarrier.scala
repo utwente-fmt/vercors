@@ -60,6 +60,8 @@ class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter
 
   private def prependBarrier(b: BlockStatement): Array[ASTNode] = getBarrierInvocation +: rewrite(b.getStatements)
 
+  private def getBarrierInvocation: MethodInvokation = create.invokation(create.field_name(barrierFieldName), null, barrierAwait)
+
   override def visit(b: BlockStatement): Unit = {
     val nrLoops = b.getStatements.count(_.isInstanceOf[LoopStatement])
     if (nrLoops > 0) {
@@ -75,7 +77,5 @@ class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter
       super.visit(b)
     }
   }
-
-  private def getBarrierInvocation: MethodInvokation = create.invokation(create.field_name(barrierFieldName), null, barrierAwait)
 
 }

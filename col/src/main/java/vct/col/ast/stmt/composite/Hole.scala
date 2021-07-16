@@ -13,7 +13,8 @@ class Hole(private[this] val nodes: ThreadLocal[ASTNode]) extends ASTNode with V
   override def accept_simple[T](m: ASTMapping[T]) = handle_standard(() => m.map(this))
 
   override def `match`(ast: ASTNode) = {
-    nodes.set(ast); true
+    nodes.set(ast);
+    true
   }
 
   override def debugTreeChildrenFields: Iterable[String] = Seq("nodes")
