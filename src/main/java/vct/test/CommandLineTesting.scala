@@ -1,5 +1,6 @@
 package vct.test
 
+import hre.config.Configuration.getClassPathElements
 import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Debug, Output, Progress, Warning}
@@ -11,7 +12,9 @@ import java.nio.file.{FileVisitOption, Files, Paths}
 import scala.collection.mutable
 import scala.io.Source
 import scala.jdk.CollectionConverters._
-import org.jacoco.cli;
+
+// These need to be included to ensure jacoco is included in the classpath, so it can be used for the test suite.
+import org.jacoco.cli
 import org.jacoco.agent;
 
 sealed trait CaseFilter {
@@ -165,7 +168,7 @@ object CommandLineTesting {
     val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_$caseName.exec"
     // Options are of format opt1=val1,op2=val2.
     // Only include our own code, exclude generated parser code.
-    val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*,excludes=vct.antlr4.generated.*"
+    val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*:viper.api.*,excludes=vct.antlr4.generated.*"
     Seq(s"-javaagent:${Configuration.getJacocoAgentPath()}=$options")
   }
 
@@ -228,27 +231,21 @@ object CommandLineTesting {
     })
 
     // Indicate class path
-    System.getProperty("java.class.path").split(File.pathSeparatorChar).foreach((cp: String) => {
-      // Jacoco can't handle duplicate classes, and somehow there are a few duplicate classes in our transitive dependencies.
-      // To work around this we prevent inclusion of any .jar files in the classpath, as those are often transitive dependencies
-      // (And therefore this will break as soon as vercors code ends up in a jar file)
-      if (!cp.endsWith(".jar")) {
-        jacocoCli.addArg("--classfiles", cp)
-        Debug("Used for jacoco class path: %s", cp)
-      }
-    })
+    // There used to be a problem where jacoco couldn't handly duplicate class names, so we had to filter out some
+    // class path elements. But that seems to be fixed, so now we just use the full classpath.
+    getClassPathElements().asScala.foreach(jacocoCli.addArg("--classfiles", _))
 
     jacocoCli.addArg("--xml", Paths.get(coverageReportFile.get()).toFile.getAbsolutePath)
     if (coverageHtmlReportFile.used && coverageHtmlReportFile.get() != null) {
       jacocoCli.addArg("--html", Paths.get(coverageHtmlReportFile.get()).toFile.getAbsolutePath)
     }
 
-    Output("Aggegrating coverages...")
+    Output("Aggregating coverages...")
     val task = Task(jacocoCli, Seq())
     task.call
-    Debug("Jacoco tool output")
+    Output("Jacoco tool output")
     for (msg <- task.log) {
-      Debug(msg.getFormat, msg.getArgs:_*)
+      Output(msg.getFormat, msg.getArgs:_*)
     }
 
     removeTempJacocoDir()
