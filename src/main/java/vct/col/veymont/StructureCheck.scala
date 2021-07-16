@@ -73,6 +73,8 @@ class StructureCheck(source: ProgramUnit) {
     getMainConstructor.getBody.asInstanceOf[BlockStatement].getStatements.map(_.asInstanceOf[AssignmentStatement])
   }
 
+  private def getMainConstructor: Method = mainClass.methods().asScala.find(_.kind == Kind.Constructor).get
+
   private def checkMainClass(source: ProgramUnit): Unit = {
     source.get().asScala.find(_.name == mainClassName) match {
       case None => Fail("VeyMont Fail: class 'Main' is required!")
@@ -140,8 +142,6 @@ class StructureCheck(source: ProgramUnit) {
       case _ => Fail("VeyMont Fail: constructor of 'Main' can only assign role classes")
     }
   }
-
-  private def getMainConstructor: Method = mainClass.methods().asScala.find(_.kind == Kind.Constructor).get
 
   private def checkRoleNames(): Unit =
     if (getRoleNames.toSet != mainClass.fields().asScala.map(_.name).toSet) {

@@ -53,9 +53,9 @@ final class LTSState(val nextStatements: List[ASTNode]) {
     case _ => false
   }
 
-  override def toString: String = nextStatements.map(PVLSyntax.get().print(_).toString).toString
-
   override def hashCode(): Int = this.toString.hashCode()
+
+  override def toString: String = nextStatements.map(PVLSyntax.get().print(_).toString).toString
 
   def getCopy(copyRewriter: AbstractRewriter) = new LTSState(copyRewriter.rewrite(nextStatements.toArray).toList)
 }

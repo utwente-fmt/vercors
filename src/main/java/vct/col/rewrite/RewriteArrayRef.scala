@@ -21,6 +21,10 @@ object RewriteArrayRef {
     constructorName getOrElseUpdate((t, definedDimensions), getUniqueName("array_new_" + t.toString))
   }
 
+  def getArrayValues(t: Type): String = {
+    valuesName getOrElseUpdate(t, getUniqueName("array_values_" + t.toString))
+  }
+
   def getUniqueName(str: String): String = {
     var result = str.replaceAll("[^a-zA-Z0-9$_']", "_")
     while (namesUsed contains result) {
@@ -28,10 +32,6 @@ object RewriteArrayRef {
     }
     namesUsed += result
     result
-  }
-
-  def getArrayValues(t: Type): String = {
-    valuesName getOrElseUpdate(t, getUniqueName("array_values_" + t.toString))
   }
 
   def getSubArray(t: Type): String = {

@@ -38,6 +38,14 @@ object VControl {
     Reachable.gonogo.profile(get_origin(node.info), task)
   }
 
+  def get_origin[O](info: viper.silver.ast.Info): O = {
+    if (info.isInstanceOf[OriginInfo[O]@unchecked]) {
+      info.asInstanceOf[OriginInfo[O]].loc;
+    } else {
+      null.asInstanceOf[O];
+    }
+  }
+
   def gonogo(fun: viper.silver.ast.Function): Boolean = {
     time = System.currentTimeMillis();
     val res = Reachable.gonogo.function(get_origin(fun.info), fun.name)
@@ -62,14 +70,6 @@ object VControl {
     val res = Reachable.gonogo.predicate(get_origin(fun.info), fun.name)
     Reachable.gonogo.progress("predicate %s: %s", fun.name, if (res) "Go" else "Skip");
     res
-  }
-
-  def get_origin[O](info: viper.silver.ast.Info): O = {
-    if (info.isInstanceOf[OriginInfo[O]@unchecked]) {
-      info.asInstanceOf[OriginInfo[O]].loc;
-    } else {
-      null.asInstanceOf[O];
-    }
   }
 
   def report(fun: viper.silver.ast.Predicate, result: Boolean) = {

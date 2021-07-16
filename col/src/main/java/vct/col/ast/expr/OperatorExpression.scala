@@ -24,6 +24,9 @@ case class OperatorExpression(val operator: StandardOperator, val args: List[AST
   /** Yields the first argument, equivalent to `arg(1)`. */
   def second = arg(1)
 
+  /** Yields the third argument, equivalent to `arg(2)`. */
+  def third = arg(2)
+
   /** Yields the `i`-th argument, or throws an exception if there is no such argument. */
   def arg(i: Int) = argOption(i) match {
     case None => throw new Error("the operator $operator does not have an argument $i.")
@@ -32,9 +35,6 @@ case class OperatorExpression(val operator: StandardOperator, val args: List[AST
 
   /** Either yields the `i`-th argument, or `None` if there is no such argument. */
   def argOption(i: Int) = args.lift(i)
-
-  /** Yields the third argument, equivalent to `arg(2)`. */
-  def third = arg(2)
 
   /** Yields the number of arguments. Beware, `argslength` takes linear time, not constant time. */
   def argslength = args.length

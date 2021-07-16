@@ -218,8 +218,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
 
   override def visit(n: NameExpression): Unit = if (roleName.isEmpty) super.visit(n) else rewriteExpression(n)
 
-  override def visit(d: Dereference): Unit = if (roleName.isEmpty) super.visit(d) else rewriteExpression(d)
-
   private def rewriteExpression(e: ASTNode): Unit =
     if (isSingleRoleNameExpressionOfRole(e, roleNames))
       result = copy_rw.rewrite(e)
@@ -229,6 +227,8 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     val expRoles = getNamesFromExpression(e).filter(n => roleNames.exists(_ == n.name))
     expRoles.isEmpty || (expRoles.size == 1 && expRoles.head.name == roleName.get)
   }
+
+  override def visit(d: Dereference): Unit = if (roleName.isEmpty) super.visit(d) else rewriteExpression(d)
 
   def isSingleRoleNameExpression(e: ASTNode, roleNames: Iterable[String]): Boolean = {
     val expRoles = getNamesFromExpression(e).filter(n => roleNames.exists(_ == n.name))

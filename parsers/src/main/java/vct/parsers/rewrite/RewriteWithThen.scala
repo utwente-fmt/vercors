@@ -24,6 +24,13 @@ class RewriteWithThen(source: ProgramUnit) extends AbstractRewriter(source) {
     process_with_then(result.asInstanceOf[OperatorExpression], op)
   }
 
+  override def visit(loop: LoopStatement): Unit = {
+    super.visit(loop)
+    result.asInstanceOf[BeforeAfterAnnotations].set_before(null)
+    result.asInstanceOf[BeforeAfterAnnotations].set_after(null)
+    process_with_then(result.asInstanceOf[LoopStatement], loop)
+  }
+
   private def process_with_then[T <: ASTNode with BeforeAfterAnnotations](dst: T, src: T) = {
     // Keep the before statements
     for (n <- src.get_before.asScala) {
@@ -47,13 +54,6 @@ class RewriteWithThen(source: ProgramUnit) extends AbstractRewriter(source) {
     }
 
     dst
-  }
-
-  override def visit(loop: LoopStatement): Unit = {
-    super.visit(loop)
-    result.asInstanceOf[BeforeAfterAnnotations].set_before(null)
-    result.asInstanceOf[BeforeAfterAnnotations].set_after(null)
-    process_with_then(result.asInstanceOf[LoopStatement], loop)
   }
 
   override def visit(atomic: ParallelAtomic): Unit = {

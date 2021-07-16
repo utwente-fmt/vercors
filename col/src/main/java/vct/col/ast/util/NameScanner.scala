@@ -20,17 +20,17 @@ object NameScanner {
   def freeVars[R <: ASTNode](nodes: util.List[R]): util.Map[String, Type] =
     scanned(nodes.asScala).freeNamesJava
 
-  def accesses(arg: ASTNode): Set[String] =
-    scanned(Seq(arg)).accesses
-
-  def writes(arg: ASTNode): Set[String] =
-    scanned(Seq(arg)).writes
-
   private def scanned(nodes: Iterable[ASTNode]): NameScanner = {
     val scanner = new NameScanner
     nodes.foreach(_.accept(scanner))
     scanner
   }
+
+  def accesses(arg: ASTNode): Set[String] =
+    scanned(Seq(arg)).accesses
+
+  def writes(arg: ASTNode): Set[String] =
+    scanned(Seq(arg)).writes
 
   def reads(arg: ASTNode): Set[String] =
     scanned(Seq(arg)).reads
@@ -100,6 +100,18 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     .map(_.find(_.name == name))
     .collectFirst { case Some(decl) => decl }
 
+  override def visit(assignment: AssignmentStatement): Unit = {
+    assignment.location match {
+      case name: NameExpression =>
+        if (checkName(name.name, name.getType, getGivenDecl)) {
+          setWrite(name.name)
+        }
+      case _ =>
+    }
+
+    assignment.expression.accept(this)
+  }
+
   /** If the name is in `additionalNames`, or there is a regular declaration with the same name, the types must match
    * If there is a free variable with the same name, the types must match
    * If there is no decl nor a free variable, we found a new free variable, which is added to the `freeNames` list
@@ -153,18 +165,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
     .map(_.find(_.name == name))
     .collectFirst { case Some(decl) => decl }
 
-  override def visit(assignment: AssignmentStatement): Unit = {
-    assignment.location match {
-      case name: NameExpression =>
-        if (checkName(name.name, name.getType, getGivenDecl)) {
-          setWrite(name.name)
-        }
-      case _ =>
-    }
-
-    assignment.expression.accept(this)
-  }
-
   private def getGivenDecl(name: String): Option[DeclarationStatement] = givenStack
     .map(_.find(_.name == name))
     .collectFirst { case Some(decl) => decl }
@@ -191,10 +191,6 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
     popFrame()
   }
-
-  private def pushFrame(): Unit = frameStack.push(mutable.Set())
-
-  private def popFrame(): Unit = frameStack.pop()
 
   override def visit(e: BindingExpression): Unit = {
     pushFrame()
@@ -223,6 +219,10 @@ class NameScanner extends RecursiveVisitor[AnyRef](null, null) {
 
     popFrame()
   }
+
+  private def pushFrame(): Unit = frameStack.push(mutable.Set())
+
+  private def popFrame(): Unit = frameStack.pop()
 
   override def visit(pb: VectorBlock): Unit = {
     pushFrame()

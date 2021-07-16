@@ -88,11 +88,11 @@ case class ClassType(names: List[String], params: List[ASTNode]) extends Type(pa
     case _ => false
   }
 
-  override def hashCode: Int = this.getFullName.hashCode
-
   def getFullName: String = getFullName(".")
 
   def getFullName(separator: String): String = names mkString separator
+
+  override def hashCode: Int = this.getFullName.hashCode
 
   override def toString: String = this.getFullName + super.toString
 

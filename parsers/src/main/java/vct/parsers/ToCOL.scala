@@ -44,6 +44,21 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: org.an
     case Right(good) => good
   }
 
+  def fail(tree: ParserRuleContext, format: String, args: Object*): Nothing = {
+    val message = String.format(format, args: _*)
+    fileOrigin(tree).report("error", message)
+    throw new HREExitException(1)
+  }
+
+  private def fileOrigin(tree: ParserRuleContext): FileOrigin = {
+    val startLine = tree.start.getLine
+    val startCol = tree.start.getCharPositionInLine + 1
+    val endLine = tree.stop.getLine
+    val endCol = tree.stop.getCharPositionInLine + tree.stop.getStopIndex - tree.stop.getStartIndex + 1
+
+    new FileOrigin(Paths.get(fileName), startLine, startCol, endLine, endCol)
+  }
+
   def getOrFail[B](node: ParserRuleContext, thing: Option[B], message: String): B = thing match {
     case None => fail(node, message)
     case Some(b) => b
@@ -62,20 +77,5 @@ abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: org.an
     fail(tree,
       "This construct (%s) is syntactically valid, but not supported by VerCors.",
       tree.getClass.getSimpleName)
-  }
-
-  def fail(tree: ParserRuleContext, format: String, args: Object*): Nothing = {
-    val message = String.format(format, args: _*)
-    fileOrigin(tree).report("error", message)
-    throw new HREExitException(1)
-  }
-
-  private def fileOrigin(tree: ParserRuleContext): FileOrigin = {
-    val startLine = tree.start.getLine
-    val startCol = tree.start.getCharPositionInLine + 1
-    val endLine = tree.stop.getLine
-    val endCol = tree.stop.getCharPositionInLine + tree.stop.getStopIndex - tree.stop.getStartIndex + 1
-
-    new FileOrigin(Paths.get(fileName), startLine, startCol, endLine, endCol)
   }
 }

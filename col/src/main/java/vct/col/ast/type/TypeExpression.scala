@@ -33,13 +33,13 @@ case class TypeExpression(val operator: TypeOperator, val types: List[Type]) ext
   override def isNumeric: Boolean =
     if (isLeaky) firstType.isNumeric else false
 
+  override def supertypeof(context: ProgramUnit, t: Type): Boolean =
+    if (isLeaky) firstType.supertypeof(context, t) else false
+
   private def isLeaky: Boolean = TypeExpression.LEAKY_OPERATORS.contains(operator)
 
   /** Gives the heading type in the type list */
   def firstType = types.head
-
-  override def supertypeof(context: ProgramUnit, t: Type): Boolean =
-    if (isLeaky) firstType.supertypeof(context, t) else false
 
   override def accept_simple[T, A](m: ASTMapping1[T, A], arg: A) = m.map(this, arg)
 

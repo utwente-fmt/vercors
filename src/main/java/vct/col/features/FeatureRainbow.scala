@@ -256,11 +256,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       addFeature(UnresolvedTypeInference, t)
   }
 
-  def addFeature(feature: Feature, blame: ASTNode): Unit = {
-    features += feature
-    blames.getOrElseUpdate(feature, ArrayBuffer()) += blame
-  }
-
   override def visit(loop: LoopStatement): Unit = {
     super.visit(loop)
     visitBeforeAfter(loop)
@@ -400,32 +395,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     }
   }
 
-  def visitBeforeAfter[T <: ASTNode with BeforeAfterAnnotations](node: T): Unit = {
-    if (node.get_after() != null && node.get_after().asScala.nonEmpty) {
-      addFeature(BeforeAfter, node)
-      node.get_after().asScala.foreach {
-        case special: ASTSpecial => special.kind match {
-          case ASTSpecial.Kind.With | ASTSpecial.Kind.Then | ASTSpecial.Kind.Label =>
-            addFeature(ImproperlySortedBeforeAfter, node)
-          case _ =>
-        }
-        case _ =>
-      }
-    }
-
-    if (node.get_before() != null && node.get_before().asScala.nonEmpty) {
-      addFeature(BeforeAfter, node)
-      node.get_before().asScala.foreach {
-        case special: ASTSpecial => special.kind match {
-          case ASTSpecial.Kind.With | ASTSpecial.Kind.Then | ASTSpecial.Kind.Label =>
-            addFeature(ImproperlySortedBeforeAfter, node)
-          case _ =>
-        }
-        case _ =>
-      }
-    }
-  }
-
   override def visit(deref: expr.Dereference): Unit = {
     super.visit(deref)
     addFeature(Dereference, deref)
@@ -482,6 +451,32 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(s)
     visitBeforeAfter(s)
     addFeature(ParallelAtomic, s)
+  }
+
+  def visitBeforeAfter[T <: ASTNode with BeforeAfterAnnotations](node: T): Unit = {
+    if (node.get_after() != null && node.get_after().asScala.nonEmpty) {
+      addFeature(BeforeAfter, node)
+      node.get_after().asScala.foreach {
+        case special: ASTSpecial => special.kind match {
+          case ASTSpecial.Kind.With | ASTSpecial.Kind.Then | ASTSpecial.Kind.Label =>
+            addFeature(ImproperlySortedBeforeAfter, node)
+          case _ =>
+        }
+        case _ =>
+      }
+    }
+
+    if (node.get_before() != null && node.get_before().asScala.nonEmpty) {
+      addFeature(BeforeAfter, node)
+      node.get_before().asScala.foreach {
+        case special: ASTSpecial => special.kind match {
+          case ASTSpecial.Kind.With | ASTSpecial.Kind.Then | ASTSpecial.Kind.Label =>
+            addFeature(ImproperlySortedBeforeAfter, node)
+          case _ =>
+        }
+        case _ =>
+      }
+    }
   }
 
   override def visit(s: ParallelBarrier): Unit = {
@@ -552,6 +547,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
           other.accept(this)
         }
     }
+  }
+
+  def addFeature(feature: Feature, blame: ASTNode): Unit = {
+    features += feature
+    blames.getOrElseUpdate(feature, ArrayBuffer()) += blame
   }
 
   override def visit(decl: DeclarationStatement): Unit = {

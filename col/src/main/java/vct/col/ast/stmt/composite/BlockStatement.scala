@@ -22,6 +22,23 @@ class BlockStatement extends ASTNode with ASTSequence[BlockStatement] with Visit
   def addStatement(stmt: ASTNode): BlockStatement = add(stmt)
 
   /**
+   * Adds "{@code node}" to (the back of) this statement block.
+   *
+   * @return The resulting statement block (after adding `node`).
+   */
+  override def add(node: ASTNode): BlockStatement = {
+    add(Option(node))
+    this
+  }
+
+  /** If `element` contains an AST node, that node is added to
+   * (the back of) this statement block (otherwise nothing is added). */
+  def add(element: Option[ASTNode]): Unit = element match {
+    case Some(node) => node.setParent(this); statements += node
+    case None => ()
+  }
+
+  /**
    * Appends a given AST node "`node`", representing a statement, to this block of
    * statements by applying chaining (see the method `chain`).
    *
@@ -45,23 +62,6 @@ class BlockStatement extends ASTNode with ASTSequence[BlockStatement] with Visit
    * `forEach` method provided by the [[Iterable]] interface, only `forEachStmt`
    * works nicer with Scala code). */
   def forEachStmt(f: ASTNode => Unit) = statements.foreach(f)
-
-  /**
-   * Adds "{@code node}" to (the back of) this statement block.
-   *
-   * @return The resulting statement block (after adding `node`).
-   */
-  override def add(node: ASTNode): BlockStatement = {
-    add(Option(node))
-    this
-  }
-
-  /** If `element` contains an AST node, that node is added to
-   * (the back of) this statement block (otherwise nothing is added). */
-  def add(element: Option[ASTNode]): Unit = element match {
-    case Some(node) => node.setParent(this); statements += node
-    case None => ()
-  }
 
   /** Identical to `get(i)`. */
   def getStatement(i: Int) = get(i)

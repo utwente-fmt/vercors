@@ -21,6 +21,33 @@ abstract class ExpressionNode extends ASTNode with BeforeAfterAnnotations {
   /** Clears the value of `before` */
   def clearBefore = set_before(None)
 
+  /** Clears the value of `after` */
+  def clearAfter = set_after(None)
+
+  /** Assigns the given `block` to `after` */
+  def set_after(block: Option[BlockStatement]) = {
+    after = block
+    configureBlock(after, "after block")
+  }
+
+  /** Gives the value of `before` if it holds a statement, otherwise a default statement is returned */
+  def get_before = before match {
+    case None => resetBefore
+    case Some(block) => block
+  }
+
+  /** Assigns a default value to `before` and thereby resetting it
+   *
+   * @return the default block statement assigned to `before` */
+  def resetBefore = {
+    var block = new BlockStatement()
+    set_before(block)
+    block
+  }
+
+  /** Assigns the given `block` to `before` */
+  def set_before(block: BlockStatement) = set_before(Option(block))
+
   /** Assigns the given `block` to `before` */
   def set_before(block: Option[BlockStatement]) = {
     before = block
@@ -42,27 +69,6 @@ abstract class ExpressionNode extends ASTNode with BeforeAfterAnnotations {
     }
   }
 
-  /** Clears the value of `after` */
-  def clearAfter = set_after(None)
-
-  /** Gives the value of `before` if it holds a statement, otherwise a default statement is returned */
-  def get_before = before match {
-    case None => resetBefore
-    case Some(block) => block
-  }
-
-  /** Assigns a default value to `before` and thereby resetting it
-   *
-   * @return the default block statement assigned to `before` */
-  def resetBefore = {
-    var block = new BlockStatement()
-    set_before(block)
-    block
-  }
-
-  /** Assigns the given `block` to `before` */
-  def set_before(block: BlockStatement) = set_before(Option(block))
-
   /** Gives the value of `after` if it holds a statement, otherwise a default statement is returned */
   def get_after = after match {
     case None => resetAfter
@@ -80,10 +86,4 @@ abstract class ExpressionNode extends ASTNode with BeforeAfterAnnotations {
 
   /** Assigns the given `block` to `after` */
   def set_after(block: BlockStatement) = set_after(Option(block))
-
-  /** Assigns the given `block` to `after` */
-  def set_after(block: Option[BlockStatement]) = {
-    after = block
-    configureBlock(after, "after block")
-  }
 }
