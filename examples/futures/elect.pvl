@@ -1,8 +1,11 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case LeaderElect
 //:: tool silicon
-//:: option --check-history
+//:: options --check-history --stop-before-backend
+//:: suite problem-partial
 //:: verdict Pass
+
+// This files verification results are unstable. See https://github.com/utwente-fmt/vercors/issues/514
 
 class `Future` {
 

@@ -1,15 +1,8 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
 //:: cases ArrayProblemFull
-//:: suite problem-fail
 //:: tools silicon
 //:: verdict Pass
 
-// :: cases ArrayProblemGood
-// :: suite problem-pass
-// :: tools silicon
-// :: verdict Pass
-// :: options --skip problem
+// Used to be failing because of https://github.com/viperproject/silicon/issues/512, but fixed by now
 
 class Problem {
 
@@ -68,7 +61,7 @@ class Problem {
     assert xs==seq<int>{1,2};  
   }
   
-  void problem(){
+  void working_too_too(){
     int[] array=new int[2];
     array[0]=1;
     array[1]=2;
@@ -81,7 +74,7 @@ class Problem {
     
     assert (\forall int i ; 0 <= i && i < 2 ; xs[i]==array[i]);
     
-    assert xs==seq<int>{1,2};  
+    assert xs==seq<int>{1,2};
   }
 
 }

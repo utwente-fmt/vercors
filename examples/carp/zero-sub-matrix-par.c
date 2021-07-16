@@ -1,7 +1,5 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases ZeroSubMatrixPar-C
 //:: tools silicon
-//:: suite problem-fail
 //:: verdict Pass
 
 /*@
@@ -33,7 +31,7 @@ void zero(int M,int N,int step,int matrix[M][step]){
     for(int j=0;j<N;j++)
     /*@
       requires matrix != NULL;
-      context Perm(matrix[i],1/N);
+      context Perm(matrix[i],1\N);
       context Perm(matrix[i][j], write);
       ensures matrix[i][j] == 0;
     @*/
