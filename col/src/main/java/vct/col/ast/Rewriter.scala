@@ -1,8 +1,17 @@
 package vct.col.ast
 
+import vct.col.ast.RewriteHelpers._
+
 class Rewriter extends AbstractRewriter {
   override def dispatch(stat: Statement): Statement = rewriteDefault(stat)
-  override def dispatch(e: Expr): Expr = rewriteDefault(e)
+  override def dispatch(e: Expr): Expr = {
+    e match {
+      case node: Constant.BooleanValue =>
+        new Constant.BooleanValue(node.value)(node.o)
+      case _ =>
+        rewriteDefault(e)
+    }
+  }
   override def dispatch(t: Type): Type = rewriteDefault(t)
   override def dispatch(decl: Declaration): Unit = rewriteDefault(decl)
 
