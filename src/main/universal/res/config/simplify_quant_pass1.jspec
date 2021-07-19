@@ -1,5 +1,3 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
 class simplify_quant_pass1 {
   _AnyTypeForSimplificationRules g1,g2,g3,g4,g5;
   int e1,e2,e3,e4,e5,e6,e7,e8;
@@ -8,6 +6,7 @@ class simplify_quant_pass1 {
   int i,j,k;
   rational p1,p2;
   int tid;
+  frac f1;
 
   axiom aunitr { e1+0 == e1 }
   axiom aunitl { 0+e1 == e1 }
@@ -432,23 +431,45 @@ class simplify_quant_pass1 {
     (e1 < e2) ==> (\forall* int i; (i \memberof {e3 .. e4}); Perm(e5, (p1 * (e2 - e1))\p2))
   }
 
-  // We keep the expression around, because it must trigger an error when it is not well formed, but we don't use it
-  // We're counting on the backend to not optimize it away if it contains an error
-  axiom read_spreads_l {
-    read * i
+  // The next read-permission rules are a bit tricky because the semantics for wildcard/read in viper is a bit limited.
+  // Some discussion:
+  // - https://github.com/viperproject/silicon/issues/539
+  // - https://github.com/viperproject/silicon/issues/569
+  axiom read_spreads_l_i {
+    Perm(g1, read * i)
     ==
-    (\let int canary = i; i == 0 ? read : read)
+    i > 0 ==> Perm(g1, read)
   }
 
-  axiom read_spreads_r {
-    i * read
+  axiom read_spreads_r_i {
+    Perm(g1, i * read)
     ==
-    (\let int canary = i; i == 0 ? read : read)
+    i > 0 ==> Perm(g1, read)
   }
 
+  axiom read_spreads_l_f {
+    Perm(g1, read * f1)
+    ==
+    f1 > 0 ==> Perm(g1, read)
+  }
+
+  axiom read_spreads_r_f {
+    Perm(g1, f1 * read)
+    ==
+    f1 > 0 ==> Perm(g1, read)
+  }
+
+  // This rule is needed to subvert viper's injectivity rule for quantified permissions
+  // See: http://viper.ethz.ch/tutorial/?page=1&section=#receiver-expressions-and-injectivity
   axiom resource_independent_read_quant {
-    (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, read)!tid))
+    (\forall* int tid; (tid \memberof {(e1!tid)..(e2!tid)}); (Perm(g1, read)!tid))
     ==
     (e1<e2) ==> Perm(g1, read)
+  }
+
+  axiom compress_implies {
+    (b1 ==> (b1 ==> r1))
+    ==
+    (b1 ==> r1)
   }
 }
