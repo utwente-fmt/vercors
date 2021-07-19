@@ -15,11 +15,34 @@ class C {
   // Useful for random choice
   int p();
 
-  ensures \result == (\exists int i = 0..|xs|; xs[i]);
-  boolean foldOr(seq<boolean> xs) =
-    |xs| > 0 
-      ? head(xs) || foldOr(tail(xs))
+  requires xs != null;
+  requires Perm(xs[*], read);
+  requires 0 <= i && i <= xs.length;
+  ensures \result == (\exists int j = i..xs.length; xs[j]);
+  static boolean foldOr(boolean[] xs, int i) =
+    i < xs.length
+      ? xs[i] || foldOr(xs, i + 1)
       : false;
+
+  given frac P;
+  requires 0 < P && P < write;
+  requires bools != null;
+  context Perm(bools[*], P);
+  requires 0 <= i && i <= definitelyTrueIndex;
+  requires 0 <= definitelyTrueIndex && definitelyTrueIndex < bools.length;
+  requires bools[definitelyTrueIndex];
+  ensures foldOr(bools, i);
+  static void lemma(boolean[] bools, int definitelyTrueIndex, int i) {
+    if (bools[i]) {
+        return;
+    } else {
+        if (i < definitelyTrueIndex) {
+            lemma(bools, definitelyTrueIndex, i + 1) with { P = P \ 2; };
+        } else {
+            assert false;
+        }
+    }
+  }
 
   requires Perm(contrib, write);
   requires Perm(b, write);
@@ -27,20 +50,17 @@ class C {
   void foo(int N) {
     b = false;
     contrib = new boolean[N];
-    assert b == foldOr(\values(contrib, 0, N));
+    assert b == foldOr(contrib, 0);
 
-    assert Perm(contrib, read);
-    assert (\forall* int i = 0..N; Perm(contrib, read));
-
-    invariant inv(Perm(contrib, read)
+    invariant inv(Perm(contrib, 1\(N+1))
         ** contrib.length == N
         ** (\forall* int i = 0..N; Perm(contrib[i], 1\2))
         ** Perm(b, write)
-        ** b == foldOr(\values(contrib, 0, N))
+        ** b == foldOr(contrib, 0)
         ) {
       par(int tid = 0..N)
         context N > 0;
-        context Perm(contrib, read) ** contrib != null;
+        context Perm(contrib, 1\(N+1)) ** contrib != null;
         context Perm(contrib[tid], 1\2);
       {
         // First, we set the bool with a 50% chance
@@ -51,6 +71,7 @@ class C {
           atomic(inv) {
             b = true;
             contrib[tid] = true;
+            lemma(contrib, tid, 0) with { P = 1\(2 * (N+1)); };
           }
         }
 
@@ -58,28 +79,32 @@ class C {
           // The stars have aligned!
           // Try evil unset also!
           atomic(inv) {
-            boolean evilCondition = true;
+            // boolean evilCondition = true;
 
-            // Check if we are the only one that set it since last time
-            loop_invariant 0 <= k && k <= N;
-            loop_invariant Perm(contrib, read) ** contrib != null ** contrib.length == N;
-            loop_invariant (\forall* int i = 0..N; Perm(contrib[i], 1\100));
-            loop_invariant evilCondition == (\forall int j = 0 .. k; j == tid ? contrib[j] : !contrib[j]);
-            for (int k = 0; k < N; k++) {
-              if (k == tid) {
-                evilCondition = evilCondition && contrib[k];
-              } else {
-                evilCondition = evilCondition && !contrib[k];
-              }
-            }
+            // // Check if we are the only one that set it since last time
+            // loop_invariant 0 <= k && k <= N;
+            // loop_invariant Perm(contrib, read) ** contrib != null ** contrib.length == N;
+            // loop_invariant (\forall* int i = 0..N; Perm(contrib[i], 1\100));
+            // loop_invariant evilCondition == (\forall int j = 0 .. k; j == tid ? contrib[j] : !contrib[j]);
+            // for (int k = 0; k < N; k++) {
+            //   if (k == tid) {
+            //     evilCondition = evilCondition && contrib[k];
+            //   } else {
+            //     evilCondition = evilCondition && !contrib[k];
+            //   }
+            // }
 
-            // If so, we hide our action!!!!!
-            if (evilCondition) {
-              b = false;
-              contrib[tid] = false;
-            }
+            // // If so, we hide our action!!!!!
+            // if (evilCondition) {
+            //   b = false;
+            //   contrib[tid] = false;
+            // }
+
+            // assert 0 < perm(this.contrib);
           }
         }
+
+        assert 0 < perm(this.contrib);
       }
     }
 
