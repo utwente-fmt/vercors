@@ -8,6 +8,7 @@ class simplify_quant_pass1 {
   int i,j,k;
   rational p1,p2;
   int tid;
+  frac f1;
 
   axiom aunitr { e1+0 == e1 }
   axiom aunitl { 0+e1 == e1 }
@@ -18,6 +19,7 @@ class simplify_quant_pass1 {
   axiom I2 {
     0 * e1 == 0
   }
+
   axiom I3 {
     e1 * 0 == 0
   }
@@ -159,7 +161,7 @@ class simplify_quant_pass1 {
 //  }
 
   axiom perm_any {
-    Perm(ar[*],e1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],e1))
+    Perm(ar[*],f1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],f1))
   }
 
   axiom array_perm {
@@ -407,9 +409,9 @@ class simplify_quant_pass1 {
     }
 
     axiom split2 {
-       (\forall* int i;b1;PointsTo(e2,e3,e4))
+       (\forall* int i;b1;PointsTo(e2,f1,e4))
          ==
-       (\forall* int i;b1;Perm(e2,e3)) ** (\forall int i;b1;e2==e4)
+       (\forall* int i;b1;Perm(e2,f1)) ** (\forall int i;b1;e2==e4)
     }
 
     /* // SJ: unfortunately, this introduces an existential quantifier which is not always a good thing...
@@ -446,9 +448,14 @@ class simplify_quant_pass1 {
     (\let int canary = i; i == 0 ? read : read)
   }
 
+  // This rewrite rule causes some issues: https://github.com/viperproject/silicon/issues/539
   axiom resource_independent_read_quant {
     (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, read)!tid))
     ==
     (e1<e2) ==> Perm(g1, read)
   }
+
+  // Using an int for the second argument of a perm is not allowed.
+  // Hence, we divide by 1 to turn it into a frac again.
+  axiom perm_fix_frac { Perm(g1, e1) == Perm(g1, e1 \ 1) }
 }
