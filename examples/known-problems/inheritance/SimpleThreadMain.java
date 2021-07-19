@@ -1,6 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases SimpleThread
-//:: suite skip-travis
+//:: suite problem-fail
 //:: tools chalice silicon
 //:: verdict Pass
 

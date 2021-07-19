@@ -1,7 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases TreeStack
 //:: tools silicon
-//:: suite medium
+//:: suite medium problem-fail
 //:: verdict Pass
 
 /*
