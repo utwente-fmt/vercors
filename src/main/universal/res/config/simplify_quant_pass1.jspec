@@ -160,11 +160,11 @@ class simplify_quant_pass1 {
 //  }
 
   axiom perm_any_int {
-    Perm(ar[*],e1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],e1))
+    Perm(ar[*],f1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],f1))
   }
 
   axiom perm_any_bool {
-    Perm(ar_b[*],e1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar_b.length ; Perm(ar_b[i_fresh],e1))
+    Perm(ar_b[*],f1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar_b.length ; Perm(ar_b[i_fresh],f1))
   }
 
   axiom array_perm {
