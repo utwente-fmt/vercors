@@ -440,37 +440,37 @@ class simplify_quant_pass1 {
   // Some discussion:
   // - https://github.com/viperproject/silicon/issues/539
   // - https://github.com/viperproject/silicon/issues/569
-  axiom read_spreads_l_i {
-    Perm(g1, read * i)
-    ==
-    i > 0 ==> Perm(g1, read)
-  }
+  // axiom read_spreads_l_i {
+  //   Perm(g1, read * i)
+  //   ==
+  //   i > 0 ==> Perm(g1, read)
+  // }
 
-  axiom read_spreads_r_i {
-    Perm(g1, i * read)
-    ==
-    i > 0 ==> Perm(g1, read)
-  }
+  // axiom read_spreads_r_i {
+  //   Perm(g1, i * read)
+  //   ==
+  //   i > 0 ==> Perm(g1, read)
+  // }
 
-  axiom read_spreads_l_f {
-    Perm(g1, read * f1)
-    ==
-    f1 > 0 ==> Perm(g1, read)
-  }
+  // axiom read_spreads_l_f {
+  //   Perm(g1, read * f1)
+  //   ==
+  //   f1 > 0 ==> Perm(g1, read)
+  // }
 
-  axiom read_spreads_r_f {
-    Perm(g1, f1 * read)
-    ==
-    f1 > 0 ==> Perm(g1, read)
-  }
+  // axiom read_spreads_r_f {
+  //   Perm(g1, f1 * read)
+  //   ==
+  //   f1 > 0 ==> Perm(g1, read)
+  // }
 
-  // This rule is needed to subvert viper's injectivity rule for quantified permissions
-  // See: http://viper.ethz.ch/tutorial/?page=1&section=#receiver-expressions-and-injectivity
-  axiom resource_independent_read_quant {
-    (\forall* int tid; (tid \memberof {(e1!tid)..(e2!tid)}); (Perm(g1, read)!tid))
-    ==
-    (e1<e2) ==> Perm(g1, read)
-  }
+  // // This rule is needed to subvert viper's injectivity rule for quantified permissions
+  // // See: http://viper.ethz.ch/tutorial/?page=1&section=#receiver-expressions-and-injectivity
+  // axiom resource_independent_read_quant {
+  //   (\forall* int tid; (tid \memberof {(e1!tid)..(e2!tid)}); (Perm(g1, read)!tid))
+  //   ==
+  //   (e1<e2) ==> Perm(g1, read)
+  // }
 
   axiom compress_implies {
     (b1 ==> (b1 ==> r1))
