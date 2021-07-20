@@ -1,6 +1,6 @@
 //:: cases GapBuffer
 //:: tools silicon
-//:: suite medium
+//:: suite medium problem-fail
 //:: verdict Pass
 
 class GapBuffer {

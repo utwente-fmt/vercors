@@ -1717,8 +1717,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Warning("Encountered an integer division ('/') '%s' where a fraction was expected, did you mean a fraction division ('\\') here?", arg);
     }
 
-    if(arg.getType().isPrimitive(PrimitiveSort.Integer)) {
-      arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
+    if (arg instanceof ConstantExpression && arg.getType().isPrimitive(PrimitiveSort.Integer)) {
+      if (arg.equals(0)) {
+        arg.setType(new PrimitiveType(PrimitiveSort.ZFraction));
+      } else {
+        arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
+      }
     }
 
     if(arg instanceof OperatorExpression) {
