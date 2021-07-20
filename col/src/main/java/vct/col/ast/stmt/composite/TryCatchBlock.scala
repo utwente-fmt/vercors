@@ -2,7 +2,6 @@ package vct.col.ast.stmt.composite
 
 import vct.col.ast.`type`.Type
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
 import scala.jdk.CollectionConverters._
