@@ -2,7 +2,6 @@ package vct.col.ast.stmt.composite;
 
 import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.generic.DebugNode;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
@@ -11,7 +10,6 @@ import vct.col.ast.util.ASTVisitor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 
 import static hre.lang.System.Debug;
 

@@ -2,13 +2,11 @@ package vct.col.ast.stmt.decl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 
 import hre.lang.HREError;
 import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;

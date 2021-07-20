@@ -3,7 +3,6 @@ package vct.col.ast.stmt.decl;
 import java.util.*;
 
 import hre.util.ScalaHelper;
-import scala.collection.JavaConverters;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.generic.DebugNode;

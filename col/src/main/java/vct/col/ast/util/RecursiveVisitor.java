@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;

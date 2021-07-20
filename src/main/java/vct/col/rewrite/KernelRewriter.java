@@ -21,7 +21,6 @@ import vct.col.ast.stmt.composite.ParallelBarrier;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.Type;
-import vct.col.ast.util.ASTUtils;
 import vct.col.util.ControlFlowAnalyzer;
 
 public class KernelRewriter extends AbstractRewriter {

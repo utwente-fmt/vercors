@@ -11,13 +11,10 @@ import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.util.AbstractRewriter;
-import vct.test.ThreadPool;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Stack;
-
-import static hre.lang.System.Output;
 
 public class InlinePredicatesAndFunctions extends AbstractRewriter {
 

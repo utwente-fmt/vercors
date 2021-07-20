@@ -2,9 +2,6 @@ package vct.col.ast.type;
 
 import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
-import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -19,9 +16,6 @@ import static hre.lang.System.Abort;
 import static hre.lang.System.Debug;
 import static hre.lang.System.Fail;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 
 public final class PrimitiveType extends Type {
