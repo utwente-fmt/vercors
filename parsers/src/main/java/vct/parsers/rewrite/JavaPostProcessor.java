@@ -9,16 +9,9 @@ import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpression;
-import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
-import vct.col.ast.syntax.JavaDialect;
-import vct.col.ast.syntax.JavaSyntax;
 
 /**
  * Rewrite a Java AST, produced by parsing, to conform to the COL AST standard.  

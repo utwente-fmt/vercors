@@ -9,7 +9,6 @@ import java.util.*;
 
 import hre.util.ScalaHelper;
 import scala.Option;
-import scala.collection.JavaConverters;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.util.*;
 import vct.col.ast.generic.ASTNode;

@@ -3,7 +3,6 @@ package vct.col.ast.stmt.composite;
 import hre.ast.MessageOrigin;
 import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -12,9 +11,6 @@ import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.util.ASTVisitor;
-
-import java.util.Arrays;
-import java.util.Collections;
 
 import static hre.lang.System.Debug;
 

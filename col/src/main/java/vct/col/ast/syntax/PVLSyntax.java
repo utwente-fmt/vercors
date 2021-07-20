@@ -3,13 +3,10 @@ package vct.col.ast.syntax;
 
 import hre.ast.TrackingOutput;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.print.JavaPrinter;
 import vct.col.ast.print.PVLPrinter;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.Parenthesize;
-
-import java.io.PrintWriter;
 
 import static vct.col.ast.expr.StandardOperator.*;
 import static vct.col.ast.type.ASTReserved.*;

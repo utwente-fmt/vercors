@@ -10,7 +10,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static hre.lang.System.Debug;
-import static hre.lang.System.Warning;
 
 /**
  * Provides communication with a interactive external process.

@@ -4,8 +4,6 @@ import scala.jdk.javaapi.CollectionConverters;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import scala.Option;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
