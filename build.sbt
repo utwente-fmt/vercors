@@ -6,6 +6,7 @@ import java.net.URL
 import java.util.Comparator
 import sbt.internal._
 
+
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
 
@@ -62,6 +63,14 @@ ProjectRef(silver_url, "common") / scalaVersion := (silver_ref / scalaVersion).v
 ProjectRef(carbon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 ProjectRef(silicon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 
+// Disable doc generation in all viper projects
+carbon_ref / packageDoc / publishArtifact := false
+silver_ref / packageDoc / publishArtifact := false
+silicon_ref / packageDoc / publishArtifact := false
+ProjectRef(silver_url, "common") / packageDoc / publishArtifact := false
+ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
+ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
+
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 
 lazy val vercors: Project = (project in file("."))
@@ -86,7 +95,12 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
 
-    ThisBuild / scalacOptions ++= Seq(
+    // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
+    // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.
+    libraryDependencies += "org.jacoco" % "org.jacoco.cli" % "0.8.7" classifier "nodeps",
+    libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
+
+      ThisBuild / scalacOptions ++= Seq(
       "-deprecation",
       "-feature",
       "-unchecked",
@@ -100,10 +114,8 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation"
     ),
 
-    Compile / run / javacOptions += "-J-Xss128M",
-    /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
-    separated by "--". We instead want to accept only VerCors arguments, so we force "--" into the arguments. */
-    Universal / javacOptions ++= Seq("-J-Xss128M", "--"),
+    javacOptions += "-J-Xss128M",
+    Universal / javacOptions ++= Seq("-J-Xss128M"),
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
@@ -124,6 +136,7 @@ lazy val vercors: Project = (project in file("."))
     Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
 
     // Disable documentation generation
+    Compile / packageDoc / publishArtifact := false,
     Compile / doc / sources := Seq(),
 
     Universal / mappings ++= Seq(file("README.md") -> "README.md")

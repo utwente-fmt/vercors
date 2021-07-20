@@ -6,6 +6,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static hre.lang.System.*;
 
@@ -214,6 +217,58 @@ public class Configuration {
         }
     }
 
+    /**
+     * Returns the java class path, with its elements separated by colons
+     */
+    public static String getClassPath() {
+        return System.getProperty("java.class.path");
+    }
+
+    /**
+     * Returns all elements of the classpath of the currently running program.
+     */
+    public static List<String> getClassPathElements() {
+        return Arrays.asList(getClassPath()
+                .split(String.valueOf(File.pathSeparatorChar)));
+    }
+
+    /**
+     * Computes the path of the jacoco agent included with VerCors. The agent is used for instrumenting an actual java process.
+     */
+    public static File getJacocoAgentPath() {
+        List<String> pathsCandidates = getClassPathElements().stream()
+                .filter(cp -> cp.contains("org.jacoco.agent"))
+                .collect(Collectors.toList());
+
+        if (pathsCandidates.size() > 1) {
+            throw Failure("Multiple candidates found for jacoco agent in classpath");
+        } else if (pathsCandidates.isEmpty()) {
+            throw Failure("Jacoco agent not found in classpath");
+        }
+        return new File(pathsCandidates.get(0));
+    }
+
+    /**
+     * Create a process for the Jacoco CLI client included with VerCors. The CLI client can produce html reports and xml
+     * files from .exec traces, as produced by the jacoco agent.
+     */
+    public static MessageProcessEnvironment getJacocoCli() throws IOException {
+        List<String> pathsCandidates = getClassPathElements().stream()
+                .filter(cp -> cp.contains("org.jacoco.cli"))
+                .collect(Collectors.toList());
+
+        if (pathsCandidates.size() > 1) {
+            throw Failure("Multiple candidates found for Jacoco CLI in classpath");
+        } else if (pathsCandidates.isEmpty()) {
+            throw Failure("Jacoco CLI not found in classpath");
+        }
+
+        MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
+        File jacocoCliPath = new File(pathsCandidates.get(0));
+        env.addArg("-jar", jacocoCliPath.getAbsolutePath());
+        return env;
+    }
+
     public static MessageProcessEnvironment getZ3() throws IOException {
         MessageProcessEnvironment env = new MessageProcessEnvironment("z3");
         env.setTemporaryWorkingDirectory();
@@ -244,7 +299,7 @@ public class Configuration {
         }
     }
 
-    public static MessageProcessEnvironment getThisVerCors() throws IOException {
+    public static MessageProcessEnvironment getThisVerCors(List<String> javaArgs) throws IOException {
         MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
         env.setTemporaryWorkingDirectory();
         // We need the current path, as vercors e.g. needs clang on the path.
@@ -253,7 +308,14 @@ public class Configuration {
             env.addPath(thisPathPart);
         }
         env.addArg("-Xss128M");
-        env.addArg("-cp", System.getProperty("java.class.path"));
+        env.addArg("-cp", getClassPath());
+
+        if (javaArgs != null) {
+            for (String javaArg : javaArgs) {
+                env.addArg(javaArg);
+            }
+        }
+
         env.addArg("vct.main.Main");
         if(System.getenv("TEMP") != null) {
             env.setEnvironmentVar("TEMP", System.getenv("TEMP"));
@@ -265,7 +327,7 @@ public class Configuration {
         MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
         env.setTemporaryWorkingDirectory();
         env.addArg("-Xss128M");
-        env.addArg("-cp", System.getProperty("java.class.path"));
+        env.addArg("-cp", getClassPath());
         env.addArg("viper.api.CarbonVerifier");
         return env;
     }
@@ -274,7 +336,7 @@ public class Configuration {
         MessageProcessEnvironment env = new MessageProcessEnvironment(getThisJava().getAbsolutePath());
         env.setTemporaryWorkingDirectory();
         env.addArg("-Xss128M");
-        env.addArg("-cp", System.getProperty("java.class.path"));
+        env.addArg("-cp", getClassPath());
         env.addArg("viper.api.SiliconVerifier");
         return env;
     }

@@ -4,6 +4,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import hre.lang.HREError;
+import hre.lang.HREExitException;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.jdk.CollectionConverters;
@@ -916,6 +918,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       case Unfolding: {
         if (!tt[0].isResource()) Fail("Cannot unfold type %s", tt[0]);
         e.setType(tt[1]);
+        MethodInvokation innerMi = getMethodInvokationInsideScale(operatorArgs[0]);
+        if (innerMi == null) {
+          operatorArgs[0].getOrigin().report("error", "Cannot unfold non-predicate expression");
+          throw new HREExitException(1);
+        }
+        if (innerMi.getDefinition().getBody() == null) {
+          operatorArgs[0].getOrigin().report("error", "Cannot unfold abstract predicate");
+          throw new HREExitException(1);
+        }
         break;
       }
       case Held: {
@@ -1706,8 +1717,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Warning("Encountered an integer division ('/') '%s' where a fraction was expected, did you mean a fraction division ('\\') here?", arg);
     }
 
-    if(arg.getType().isPrimitive(PrimitiveSort.Integer)) {
-      arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
+    if (arg instanceof ConstantExpression && arg.getType().isPrimitive(PrimitiveSort.Integer)) {
+      if (arg.equals(0)) {
+        arg.setType(new PrimitiveType(PrimitiveSort.ZFraction));
+      } else {
+        arg.setType(new PrimitiveType(PrimitiveSort.Fraction));
+      }
     }
 
     if(arg instanceof OperatorExpression) {
@@ -1969,19 +1984,22 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     case Fold:
     case Unfold:
     case Open:
-    case Close:
-    {
-      ASTNode arg=s.args[0];
-      if (!(arg instanceof MethodInvokation) && !(arg.isa(StandardOperator.Scale))){
-        Fail("At %s: argument of [%s] must be a (scaled) predicate invokation",arg.getOrigin(),s.kind);
-      }
-      if (arg instanceof MethodInvokation){
-        MethodInvokation prop=(MethodInvokation)arg;
-        if (prop.getDefinition().kind != Method.Kind.Predicate &&
-                !(prop.getDefinition().kind == Method.Kind.Pure &&
-                  prop.getDefinition().getReturnType().isPrimitive(PrimitiveSort.Resource))) {
-          Fail("At %s: argument of [%s] must be predicate and not %s",arg.getOrigin(),s.kind,prop.getDefinition().kind);
+    case Close: {
+      ASTNode arg = s.args[0];
+      MethodInvokation innerMi = getMethodInvokationInsideScale(arg);
+      if (innerMi != null) {
+        if (innerMi.getDefinition().kind != Method.Kind.Predicate &&
+                !(innerMi.getDefinition().kind == Method.Kind.Pure &&
+                        innerMi.getDefinition().getReturnType().isPrimitive(PrimitiveSort.Resource))) {
+          arg.getOrigin().report("error", "Argument of [%s] must be predicate and not %s", s.kind, innerMi.getDefinition().kind);
         }
+        if (innerMi.getDefinition().getBody() == null) {
+          arg.getOrigin().report("error", "Cannot [%s] abstract predicate", s.kind);
+          throw new HREExitException(1);
+        }
+      } else {
+        arg.getOrigin().report("error", "Argument of [%s] must be a (scaled) predicate invokation", s.kind);
+        throw new HREExitException(1);
       }
       s.setType(new PrimitiveType(PrimitiveSort.Void));
       break;
@@ -2039,5 +2057,20 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   public void visit(InlineQuantifierPattern pattern) {
     pattern.inner().apply(this);
     pattern.setType(pattern.inner().getType());
+  }
+
+  public static MethodInvokation getMethodInvokationInsideScale(ASTNode node) {
+    if (node instanceof MethodInvokation) {
+      return (MethodInvokation) node;
+    } else if (node instanceof OperatorExpression) {
+      OperatorExpression operatorExpression = (OperatorExpression) node;
+      if (operatorExpression.isa(StandardOperator.Scale)) {
+        return getMethodInvokationInsideScale(operatorExpression.arg(1));
+      } else {
+        return null;
+      }
+    } else {
+      return null;
+    }
   }
 }

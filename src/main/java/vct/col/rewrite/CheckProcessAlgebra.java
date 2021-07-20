@@ -361,7 +361,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         }
         for(ASTNode n:m0.getArgs()) args.add(n);
         for(ASTNode n:m1.getArgs()) args.add(n);
-        ASTNode guess=create.invokation(null,null,merged,args.toArray(new ASTNode[0]));
+        ASTNode guess=create.invokation(create.reserved_name(ASTReserved.This),null,merged,args.toArray(new ASTNode[0]));
         return create.expression(StandardOperator.Mult,p0,guess); 
       }
       case ITE:{
