@@ -193,11 +193,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: Default
     steps:
+      - run: git checkout dev
+      - run: git checkout ast
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - run: git checkout dev
-      - run: git checkout ast
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
