@@ -17,7 +17,6 @@ class InferADTTypes(source: ProgramUnit) extends AbstractRewriter(source, true) 
 
 
   override def visit(v: StructValue): Unit = {
-    val collections = List(PrimitiveSort.Sequence, PrimitiveSort.Set, PrimitiveSort.Bag)
 
     if((v.`type`.isPrimitive(PrimitiveSort.Sequence) || v.`type`.isPrimitive(PrimitiveSort.Set) || v.`type`.isPrimitive(PrimitiveSort.Bag)) &&
       v.`type`.args.nonEmpty &&

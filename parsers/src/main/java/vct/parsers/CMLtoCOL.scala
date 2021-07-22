@@ -28,7 +28,7 @@ object CMLtoCOL {
 // Maybe we can turn this off in the future.
 @nowarn("msg=not.*?exhaustive")
 class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
-  extends ToCOL(fileName, tokens, parser)
+  extends ToCOL(fileName)
 {
   def convertProgram(tree: CompilationUnitContext): ProgramUnit = tree match {
     case CompilationUnit0(None, _) =>
