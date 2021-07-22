@@ -5,12 +5,12 @@ import java.io.InputStream;
 
 public interface Container {
 
-  public boolean contains(String name);
+  boolean contains(String name);
   
-  public InputStream read(String name) throws IOException;
+  InputStream read(String name) throws IOException;
   
-  public long size(String name);
+  long size(String name);
 
-  public String findFile(String name);
+  String findFile(String name);
   
 }
