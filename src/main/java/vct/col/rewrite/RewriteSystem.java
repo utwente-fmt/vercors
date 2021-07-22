@@ -596,17 +596,6 @@ public class RewriteSystem {
   }
   
   public RewriteSystem(ProgramUnit pu,String sys){
-    normalize=new AbstractRewriter(pu){
-      @Override
-      public void post_visit(ASTNode node){
-        Ref<ASTNode> ref=new Ref<ASTNode>(result);
-        boolean again=step(ref);
-        super.post_visit(node);
-        if(again){
-          result=rewrite(ref.get());
-        }
-      }
-    };
     HashSet<String> vars=new HashSet<String>();
     for(ASTNode d:pu.find(sys)){
       if(d instanceof DeclarationStatement){
