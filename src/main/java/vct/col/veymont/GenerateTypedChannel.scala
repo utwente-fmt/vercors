@@ -102,7 +102,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
   })
 
   override def visit(l : LoopStatement) : Unit = sort match {
-    case Left(p) => super.visit(l)
+    case Left(_) => super.visit(l)
     case Right(cl) => {
       val cb = new ContractBuilder()
       rewrite(l.getContract,cb)

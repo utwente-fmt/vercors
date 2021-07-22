@@ -1,6 +1,5 @@
 package vct.col.veymont
 
-import hre.config.Configuration
 import vct.col.ast.expr._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite._
@@ -105,7 +104,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   def getNrLastWeakFirstStatements(seq : List[ASTNode], seen : List[ASTNode]) : Int =
     seq match {
       case Nil => 0
-      case (x :: Nil) => 1
+      case (_ :: Nil) => 1
       case s1 :: s2 :: xs =>
         if (weakSequenceAllowed(s1, s2) && seen.forall(s0 => weakSequenceAllowed(s0, s2))) {
           1 + getNrLastWeakFirstStatements(s2 :: xs, s1 +: seen)

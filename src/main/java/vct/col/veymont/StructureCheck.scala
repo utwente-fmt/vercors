@@ -193,7 +193,7 @@ class StructureCheck(source : ProgramUnit) {
         if(m.method != runMethodName)
           fixedMainFail()
         else m.`object` match {
-          case n : NameExpression => //fine
+          case _ : NameExpression => //fine
           case _ => fixedMainFail()
         }
       case _ => fixedMainFail()

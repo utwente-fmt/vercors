@@ -128,7 +128,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     } else {
       getLocalAction(a, roleName.get) match {
         case SingleRoleAction(_) => result = copy_rw.rewrite(a)
-        case ReadAction(receiver, sender, receiveExpression) => {
+        case ReadAction(_, sender, receiveExpression) => {
           val chanType = receiveExpression.getType
           val chanName = getChanName(sender, false, chanType)
           chans += ChannelRepr(chanName)(false, chanType)
@@ -203,7 +203,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       super.visit(m)
     } else {
       m.getParent match {
-        case b: BlockStatement => //it is a statement
+        case _: BlockStatement => //it is a statement
           if (isSingleRoleNameExpressionOfRole(m, roleNames))
             result = copy_rw.rewrite(m)
           else result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
