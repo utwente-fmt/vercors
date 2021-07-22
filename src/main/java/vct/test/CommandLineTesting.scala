@@ -190,7 +190,7 @@ object CommandLineTesting {
         args ++= kees.options.asScala
         args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
 
-        var conditions = mutable.ArrayBuffer[TaskCondition]()
+        val conditions = mutable.ArrayBuffer[TaskCondition]()
         if (kees.verdict != null) {
           conditions += ExpectVerdict(kees.verdict)
         } else {
