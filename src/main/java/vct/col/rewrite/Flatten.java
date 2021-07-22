@@ -225,14 +225,13 @@ public class Flatten extends AbstractRewriter {
 
   @Override
   public void visit(ParallelBlock pb){
-    ParallelBlock res=create.parallel_block(
+    result= create.parallel_block(
             pb.label(),
             rewrite(pb.contract()),
             copy_pure.rewrite(pb.itersJava()),
             rewrite(pb.block()),
             rewrite(pb.deps())
     );
-    result=res;
   }
 
   @Override
@@ -436,7 +435,6 @@ public class Flatten extends AbstractRewriter {
       boolean derefItem = false;
 
       if(arg.isPrimitive(PrimitiveSort.Cell)) {
-        arg = (Type) arg.firstarg();
         derefItem = true;
       }
 
