@@ -98,7 +98,6 @@ object CommandLineTesting {
   private lazy val z3 = Configuration.getZ3
   private lazy val carbon = Configuration.getCarbon
   private lazy val silicon = Configuration.getSilicon
-  private lazy val vercors = Configuration.getThisVerCors(null)
 
   private def selfTest(name: String): String =
     Configuration.getSelfTestPath(name).getAbsolutePath
