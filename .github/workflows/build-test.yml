@@ -194,7 +194,9 @@ jobs:
     environment: Default
     steps:
       - run: git checkout dev
+      - run: git checkout -
       - run: git checkout ast
+      - run: git checkout -
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
