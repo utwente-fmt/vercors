@@ -133,8 +133,6 @@ jobs:
     needs: build-test
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
@@ -196,6 +194,10 @@ jobs:
     environment: Default
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - run: git checkout dev
+      - run: git checkout ast
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
