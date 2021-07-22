@@ -4,7 +4,6 @@ import hre.config.Configuration
 
 import java.io.{ByteArrayInputStream, File}
 import sys.process._
-import hre.lang.System.Warning
 
 import scala.jdk.CollectionConverters._
 import java.nio.file.{Files, Paths}
