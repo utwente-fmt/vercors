@@ -10,7 +10,7 @@ import static hre.lang.System.Verdict;
  */
 public class TestReport {
 
-  public static enum Verdict { Pass, Fail, Inconclusive, Error };
+  public enum Verdict { Pass, Fail, Inconclusive, Error };
   
   private Verdict verdict=Verdict.Pass;
   private Exception e;
