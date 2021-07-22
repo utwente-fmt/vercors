@@ -195,7 +195,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          #fetch-depth is needed to checkout the git history otherwise only the last commit is downloaded. The git history is used by analyses of sonar.
           fetch-depth: 0
+      # The target branches are used in a pull request analysis which is why dev and ast are downloaded.
+      # The command "git checkout -" checkout the previous branch.
       - run: git checkout dev
       - run: git checkout -
       - run: git checkout ast
