@@ -18,7 +18,6 @@ import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
@@ -401,10 +400,6 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     return names;
   }
   
-  private <F extends ASTNode> ArrayList<E> do_names(F args[]){
-	return do_names(Arrays.asList(args));
-  }
-
   @Override
   public S map(Constraining c) {
     throw new HREError("Constraining is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");

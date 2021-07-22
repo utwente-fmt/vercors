@@ -1,9 +1,7 @@
 package viper.api
 
 import java.io.{File, FileOutputStream, OutputStreamWriter}
-import hre.lang.System.Warning
-import viper.silicon.SiliconFrontend
-import viper.silver.ast.{And, BinExp, DomainFuncApp, Exp, LocalVarDecl, Node, Or, Seqn, Typed}
+import viper.silver.ast.{And, DomainFuncApp, LocalVarDecl, Node, Or, Seqn, Typed}
 import viper.silver.frontend.{SilFrontend, SilFrontendConfig}
 import viper.silver.verifier.{AbstractError, NoVerifier, Verifier}
 
