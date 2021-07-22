@@ -525,8 +525,7 @@ class MatchSubstitution extends AbstractRewriter {
       }
       Substitution sigma=new Substitution(source(),map);
       ASTNode tmp=rewrite(e.main());
-      ASTNode res=sigma.rewrite(tmp);
-      result=res;
+      result= sigma.rewrite(tmp);
     } else {
       result=create.binder(e.binder(),rewrite(e.result_type()),decls,rewrite(e.javaTriggers()),rewrite(e.select()),rewrite(e.main()));
     }
@@ -581,8 +580,6 @@ public class RewriteSystem {
   private ArrayList<RewriteRule> rules=new ArrayList<RewriteRule>();
   
   private ArrayList<Method> methods=new ArrayList<Method>();
-  
-  private AbstractRewriter normalize;
   
   public boolean step(Ref<ASTNode> term){
     for(RewriteRule rule:rules){
@@ -643,9 +640,5 @@ public class RewriteSystem {
       Fail("Fatal");
     }
 
-  }
-
-  public ASTNode normalize(ASTNode tmp) {
-    return normalize.rewrite(tmp);
   }
 }

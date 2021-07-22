@@ -117,7 +117,6 @@ public class Standardize extends AbstractRewriter {
   public void visit(OperatorExpression e){
     switch (e.operator()) {
       case Empty: {
-        Type seqElementType = e.arg(0).getType();
         ASTNode seq = e.arg(0).apply(this);
         result = eq(constant(0), size(seq));
         break;
