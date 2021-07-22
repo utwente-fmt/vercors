@@ -1,7 +1,6 @@
 package hre.config;
 
 import java.util.HashMap;
-import java.util.HashSet;
 
 public class CollectSetting {
     private HashMap<String, Integer> settings = new HashMap<>();

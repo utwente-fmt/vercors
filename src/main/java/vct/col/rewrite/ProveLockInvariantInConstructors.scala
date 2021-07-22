@@ -2,7 +2,6 @@ package vct.col.rewrite
 
 import hre.ast.BranchOrigin
 import vct.col.ast.`type`.Type
-import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 

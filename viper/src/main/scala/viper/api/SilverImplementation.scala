@@ -6,17 +6,10 @@ import scala.jdk.CollectionConverters._
 import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
 import java.util.Properties
-import java.util.SortedMap
-
-import scala.math.BigInt.int2bigInt
-import viper.silver.ast.SeqAppend
 import java.nio.file.Path
 
 import hre.ast.OriginFactory
-import viper.silver.parser.PLocalVarDecl
-
-import scala.collection.mutable.WrappedArray
-import hre.lang.System.{Output, Warning}
+import hre.lang.System.{Warning}
 
 class SilverImplementation[O](o:OriginFactory[O])
   extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,

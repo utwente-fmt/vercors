@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
-import vct.col.ast.expr.{Dereference, OperatorExpression, StandardOperator}
+import vct.col.ast.expr.{OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, SequenceUtils}

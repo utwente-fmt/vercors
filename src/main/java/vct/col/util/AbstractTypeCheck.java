@@ -4,13 +4,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import hre.lang.HREError;
 import hre.lang.HREExitException;
 import scala.Option;
-import scala.collection.JavaConverters;
-import scala.jdk.CollectionConverters;
-import scala.reflect.internal.Trees;
-import vct.col.ast.expr.NameExpressionKind;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;

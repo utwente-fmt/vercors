@@ -5,7 +5,6 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(source) {

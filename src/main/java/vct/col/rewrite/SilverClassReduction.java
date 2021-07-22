@@ -19,10 +19,6 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.*;
 import hre.config.Configuration;
 
-import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.util.UndefinedMapping;
-import viper.carbon.boogie.Decl;
-
 /**
  * This rewriter converts a program with classes into
  * a program with records.

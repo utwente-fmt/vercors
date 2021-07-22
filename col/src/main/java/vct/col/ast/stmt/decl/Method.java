@@ -7,7 +7,6 @@ import hre.ast.Origin;
 import hre.util.ScalaHelper;
 import scala.Option;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.generic.ASTList;
