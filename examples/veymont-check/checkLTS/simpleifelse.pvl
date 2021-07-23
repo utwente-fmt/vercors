@@ -1,7 +1,6 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases SimpleIfElse
-//:: suite session-generate
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
 //:: verdict Pass
 
 class Role {
@@ -39,10 +38,11 @@ class Main {
 	requires a.x == 0 && b.x == 8 && c.x == 4;
 	ensures a.x == b.x && b.x == c.x; 
 	void run() {
-		
+		assert (a.left != a.x) == (b.left != b.x) && (b.left != b.x) == (c.left != c.x);
 		if(a.left != a.x && b.left != b.x && c.left != c.x) {
 			a.x = a.x + 1;
 		}
+		assert (a.left != 2) == (b.left != 3) && (b.left != 3) == (c.left != 4);
 		if(a.left != 2 && b.left != 3 && c.left != 4) {
 			b.x = 5;
 		} else {

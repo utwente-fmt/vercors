@@ -1,6 +1,6 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases LTSMethodCallTest
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
 //:: verdict Pass
 
 class Role {

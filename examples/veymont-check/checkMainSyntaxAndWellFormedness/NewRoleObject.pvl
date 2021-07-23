@@ -1,7 +1,7 @@
 //:: cases NewRoleObject
-//:: suite session-check
-//:: tools session
-//:: verdict Pass
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
 class Main {
 
 	Role a,b;

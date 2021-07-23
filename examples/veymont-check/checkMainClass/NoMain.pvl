@@ -1,6 +1,6 @@
 //:: cases NoMain
-//:: suite session-check
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
 //:: verdict Error
 class SomeClass {
 

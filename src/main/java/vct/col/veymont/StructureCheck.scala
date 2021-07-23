@@ -179,9 +179,12 @@ class StructureCheck(source : ProgramUnit) {
       case d : DeclarationStatement =>
         d.initJava match {
           case m : MethodInvokation =>
-            if(!(d.name == b.getStatement(1).asInstanceOf[MethodInvokation].`object`.asInstanceOf[NameExpression].name &&
-              m.method == JavaConstructor && m.dispatch.getName == mainClassName))
+            if(!(m.method == JavaConstructor && m.dispatch.getName == mainClassName))
               fixedMainFail()
+            else b.getStatement(1) match {
+              case m2 : MethodInvokation => if(d.name != m2.`object`.asInstanceOf[NameExpression].name) fixedMainFail()
+              case _ => fixedMainFail()
+            }
           case _ => fixedMainFail()
         }
       case _ => fixedMainFail()
@@ -201,7 +204,7 @@ class StructureCheck(source : ProgramUnit) {
 
   private def checkMainMethodsAllowedSyntax(methods : Iterable[Method]) : Unit = {
     methods.foreach(m => getBlockOrThrow(m.getBody,
-      "VeyMont Fail: a Plain method in class Main must have a BlockStatement body!"))
+      "VeyMont Fail: a Plain method in class Main must have a BlockStatement body! " + m.getOrigin.toString))
     methods.foreach(m => checkMainStatement(m.getBody))
   }
 
@@ -210,26 +213,26 @@ class StructureCheck(source : ProgramUnit) {
       case b : BlockStatement => b.getStatements.foreach(checkMainStatement)
       case a: AssignmentStatement =>
         a.location match {
-          case n : NameExpression => if(roleNames.exists(_ == n.name)) Fail("VeyMont Fail: cannot assign role anywhere else then in Main constructor")
+          case n : NameExpression => if(roleNames.exists(_ == n.name)) Fail("VeyMont Fail: cannot assign role anywhere else then in Main constructor! %s", a.getOrigin)
           case _ => //fine, continue check of a.location below
         }
         getNameFromNode(a.location).map(_.name) match {
-          case Some(n) => if (!roleNames.exists(_ == n)) Fail("VeyMont Fail: the assignment %s has a non-role name in its location.", a.toString)
-          case None => Fail("VeyMont Fail: the assignment %s in a method of class 'Main' must have one role in its location.", a.toString)
+          case Some(n) => if (!roleNames.exists(_ == n)) Fail("VeyMont Fail: the assignment %s has a non-role name in its location!", a.toString, a.getOrigin)
+          case None => Fail("VeyMont Fail: the assignment %s in a method of class 'Main' must have one role in its location! %s", a.toString, a.getOrigin)
         }
         val expNames = getNamesFromExpression(a.expression).map(_.name).filter(a => roleNames.exists(_ == a))
         if(expNames.size > 1) {
-          Fail("VeyMont Fail: the assignment %s in a method of class 'Main' cannot have multiple roles in its expression.",a.toString)
+          Fail("VeyMont Fail: the assignment %s in a method of class 'Main' cannot have multiple roles in its expression! %s",a.toString, a.getOrigin)
         }
         val mi = getMethodInvocationsFromExpression(a.expression)
         if(mi.exists(m => m.method == Method.JavaConstructor && (m.dispatch.getName == mainClassName || roleClassNames.exists(_ == m.dispatch.getName))))
           Fail("VeyMont Fail: Cannot assign a new Main or role object in statement %s! %s", a.toString,a.getOrigin)
-        if(mi.exists(_.definition.kind == Method.Kind.Pure))
-          Fail("VeyMont Fail: Cannot call pure method in assignment expression! ")
+        if(mi.exists(m => m.method != Method.JavaConstructor && m.definition.kind == Method.Kind.Pure))
+          Fail("VeyMont Fail: Cannot call pure method in assignment expression! %s",a.getOrigin)
         mi.foreach(mii => getNameFromNode(mii.`object`)match {
-          case Some(n) => if(!roleNames.exists(_ == n.name)) Fail("VeyMont Fail: can only call role methods in assignment expression %s!", a.expression.toString)
-          case None => if(mii.definition.kind != Method.Kind.Pure)
-                        Fail("VeyMont Fail: cannot call non-pure methods from Main in assignment expression %s!", a.expression.toString)
+          case Some(n) => if(!roleNames.exists(_ == n.name)) Fail("VeyMont Fail: can only call role methods in assignment expression %s! %s", a.expression.toString, a.getOrigin)
+          case None => if(mii.method != Method.JavaConstructor && mii.definition.kind != Method.Kind.Pure)
+                        Fail("VeyMont Fail: cannot call non-pure methods from Main in assignment expression %s! %s", a.expression.toString, a.getOrigin)
         })
       case i: IfStatement => {
         if (i.getCount == 1 || i.getCount == 2) {
@@ -254,16 +257,16 @@ class StructureCheck(source : ProgramUnit) {
         if (p.blocks.exists(_.block.isEmpty))
           Fail("VeyMont Fail: empty parallel block is not allowed! %s",p.getOrigin)
         if(p.blocks.exists(_.iters.nonEmpty))
-          Fail("VeyMont Fail: Parallel block with iterator not allowed!")
+          Fail("VeyMont Fail: Parallel block with iterator not allowed! %s",p.getOrigin)
         p.blocks.foreach(b => checkMainStatement(b.block))
       }
       case m : MethodInvokation => {
         if (m.method == mainClassName)
-          Fail("This should have been detected by typechecker: cannot call method '%s'!", mainClassName)
+          Fail("This should have been detected by typechecker: cannot call method '%s'! %s", mainClassName,m.getOrigin)
         else if (m.method == Method.JavaConstructor && m.dispatch.getName == mainClassName)
-          Fail("VeyMont Fail: cannot call constructor '%s'!", mainClassName)
+          Fail("VeyMont Fail: cannot call constructor '%s'! %s", mainClassName, m.getOrigin)
         else if (m.method == Method.JavaConstructor && roleClassNames.exists(_ == m.dispatch.getName))
-          Fail("VeyMont Fail: cannot call role constructor '%s'", m.dispatch.getName)
+          Fail("VeyMont Fail: cannot call role constructor '%s'! %s", m.dispatch.getName,m.getOrigin)
         else if (nonPlainMainMethodNames.exists(_ == m.method))
           Fail("VeyMont Fail: cannot have a method call statement for pure/predicate method '%s'! %s", m.method, m.getOrigin)
         else {
@@ -290,8 +293,8 @@ class StructureCheck(source : ProgramUnit) {
           if(as.args.length != 1) {
             Fail("VeyMont Fail: Assert can only have one argument!")
           } else prevAssertArg = as.args.head
-        } else Fail("VeyMont Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
-      case _ => Fail("VeyMont Fail: Syntax not allowed; statement is not a session statement! " + s.getOrigin)
+        } else Fail("VeyMont Fail: Syntax not allowed; statement %s is not a session statement! %s", as.toString, s.getOrigin)
+      case _ => Fail("VeyMont Fail: Syntax not allowed; statement %s is not a session statement! %s", s.toString, s.getOrigin)
     }
     if(!s.isInstanceOf[ASTSpecial]) //it is no ASTSpeicial, so no assert
       prevAssertArg = null
@@ -351,11 +354,11 @@ class StructureCheck(source : ProgramUnit) {
 
   private def checkRoleMethodTypes(roleMethod : Method) : Unit = {
     if(!isNonRoleOrPrimitive(roleMethod.getReturnType,isVoid = true,allowRoles = false)) {
-      Fail("VeyMont Fail: return type of method %s is a role or other unexpected type",roleMethod.name)
+      Fail("VeyMont Fail: return type of method %s is a role or other unexpected type! %s",roleMethod.name, roleMethod.getOrigin)
     }
     roleMethod.getArgs.foreach(arg => {
       if(!isNonRoleOrPrimitive(arg.`type`,isVoid = false,allowRoles = roleMethod.kind == Method.Kind.Pure)) {
-        Fail("VeyMont Fail: the type of argument %s of method %s is a role or other unexpected type",arg.name,roleMethod.name)
+        Fail("VeyMont Fail: the type of argument %s of method %s is a role or other unexpected type! %s",arg.name,roleMethod.name, roleMethod.getOrigin)
       }
     })
   }
@@ -363,7 +366,7 @@ class StructureCheck(source : ProgramUnit) {
   private def checkRoleFieldsTypes(source : ProgramUnit) : Unit = {
     roleClasses.foreach(role => role.fields().asScala.foreach(field => {
      if(!isNonRoleOrPrimitive(field.`type`,isVoid = false,allowRoles = false))
-       Fail("VeyMont Fail: type '%s' of field '%s' of role '%s' is not allowed", field.`type`.toString, field.name, role.name)
+       Fail("VeyMont Fail: type '%s' of field '%s' of role class '%s' is not allowed", field.`type`.toString, field.name, role.name)
     }))
   }
 

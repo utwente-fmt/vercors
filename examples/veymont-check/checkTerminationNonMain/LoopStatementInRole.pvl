@@ -1,6 +1,6 @@
 //:: cases LoopStatementInRole
-//:: suite session-check
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
 //:: verdict Pass
 class Main {
 

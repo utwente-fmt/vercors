@@ -31,10 +31,10 @@ final case class CommunicationAction(receiver : NameExpression, receiverField : 
 }
 
 final case class ReadAction(receiver : NameExpression, sender : NameExpression, receiveExpression : ASTNode) extends LocalAction {
-  override def toString: String = sender + " " + receiver + " Read " + toLineString(receiveExpression)
+  override def toString: String = sender.toString + " " + receiver.toString + " Read " + toLineString(receiveExpression)
 }
 final case class WriteAction(receiver : NameExpression, sender : String, sendExpression : ASTNode) extends LocalAction {
-  override def toString: String = sender + " " + receiver + " Write " + toLineString(sendExpression)
+  override def toString: String = sender + " " + receiver.toString + " Write " + toLineString(sendExpression)
 }
 case object Tau extends LocalAction {
   override def toString: String = "Tau"
