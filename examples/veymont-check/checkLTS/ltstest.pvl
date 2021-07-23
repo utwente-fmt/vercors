@@ -2,7 +2,6 @@
 //:: suite veymont veymont-check
 //:: option --veymont tmp.pvl
 //:: verdict Pass
-//:: tool silicon
 
 class Role {
 	
