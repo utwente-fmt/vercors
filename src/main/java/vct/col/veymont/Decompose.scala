@@ -8,8 +8,9 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.veymont.StructureCheck.isAllowedPrimitive
+import vct.col.veymont.StructureCheck.{getRoleObjects, isAllowedPrimitive}
 import vct.col.veymont.Util._
+
 import scala.jdk.CollectionConverters._
 
 class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
@@ -17,6 +18,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   private val roleNames : Iterable[String] = StructureCheck.getRoleNames(source)
   private val mainClass = StructureCheck.getMainClass(source)
   private val roleOrOtherClass = StructureCheck.getRoleOrHelperClass(source)
+  private val roleClassNames : Iterable[String] = StructureCheck.getRoleClassNames(source)
   private var roleName : Option[String] = None
 
   private var chans = Set.empty[ChannelRepr]
@@ -91,7 +93,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     cb.requires(rewrite(pre))
     cb.ensures(rewrite(post))
     if(m.kind == Method.Kind.Constructor && roleName.nonEmpty) {
-      result = create.method_kind(m.kind, m.getReturnType, cb.getContract(c == null), getThreadClassName(roleName.get), m.getArgs, rewrite(m.getBody))
+      result = create.method_kind(m.kind, m.getReturnType, cb.getContract(c == null), getThreadClassName(roleName.get), filterRoleArgs(m), rewrite(m.getBody))
     } else if(m.kind == Method.Kind.Predicate) {
       val body = selectResourceAnnotation(m.getBody)
       checkAnnotation(body,roleNames)
@@ -101,6 +103,15 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       val newMethod = create.method_kind(m.kind,m.getReturnType,cbc,m.name,m.getArgs,rewrite(m.getBody))
       result = newMethod
     }
+  }
+
+  private def filterRoleArgs(constr : Method) : Array[DeclarationStatement] = {
+    val roleAssign = getRoleObjects(constr).find(_.location.asInstanceOf[NameExpression].name == roleName.get).get
+    val roleArgs = roleAssign.expression.asInstanceOf[MethodInvokation].args
+    constr.getArgs.filter(arg => roleArgs.exists(_ match {
+      case a : NameExpression => arg.name == a.name
+      case _ => false
+    }))
   }
 
   override def visit(l : LoopStatement) : Unit = {
@@ -178,7 +189,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     val expRole = getNamesFromExpression(a.expression)
     getNameFromNode(a.location) match {
       case Some(locRole) => {
-        if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName))
+        if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName || isRoleConstructorCall(a.expression)))
           SingleRoleAction(a)
         else if(locRole.name == roleName && expRole.size == 1 && expRole.head.name != roleName)
           ReadAction(locRole,expRole.head,a.location)
@@ -190,6 +201,11 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       }
       case None => ErrorAction
     }
+  }
+
+  private def isRoleConstructorCall(exp : ASTNode) : Boolean = exp match {
+    case m : MethodInvokation => m.method == Method.JavaConstructor && roleClassNames.exists(_ == m.dispatch.getName)
+    case _ => false
   }
 
   override def visit(e : OperatorExpression) : Unit = {

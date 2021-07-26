@@ -21,7 +21,7 @@ class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter
           getBarrierAnnotations.foreach(newContract.ensures(_))
           rewrite(m.getContract, newContract)
           val b = getBlockOrThrow(m.getBody, "VeyMont Fail: expected BlockStatement in Method " + m.name)
-          val newArgs = rewrite(m.getArgs) :+ create.field_decl(getArgName(barrierFieldName), getBarrierClass)
+          val newArgs = create.field_decl(getArgName(barrierFieldName), getBarrierClass) +: rewrite(m.getArgs)
           val barAssign = create.assignment(create.field_name(barrierFieldName), create.argument_name(getArgName(barrierFieldName)))
           val newBody = create.block(rewrite(b.getStatements) :+ barAssign: _*)
           result = create.method_kind(m.kind, m.getReturnType, newContract.getContract, m.name, newArgs, newBody)

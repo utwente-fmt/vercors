@@ -52,7 +52,7 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
       val threadDecl : Array[ASTNode] = getBlockOrThrow(m.getBody,
         "Constructor " + m.name + " must have a BlockStatement body").getStatements
       val allStats = rewrite(threadDecl) ++ chanDecls
-      val args : Array[DeclarationStatement] = rewrite(m.getArgs) ++ chanArgs.toArray[DeclarationStatement]
+      val args : Array[DeclarationStatement] = chanArgs.toArray[DeclarationStatement] ++ rewrite(m.getArgs)
       val body : BlockStatement = create.block(allStats:_*)
       val myNewMethod = create.method_kind(m.kind,m.getReturnType,newContract.getContract,m.name,args,body)
       create.leave()

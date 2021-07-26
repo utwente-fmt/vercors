@@ -21,26 +21,37 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
   }
 
   private def getStartThreadClass(threads : Set[ASTClass]) = {
-    val mainClass = create.new_class(localMainClassName,null,null)
-    val chansVars = threads.flatMap(getConstrChanArgs).map(getChanVar).toArray
+    val mainFJClass = create.new_class(localMainClassName,null,null)
+    val threadsConstr = threads.map(_.methods().asScala.find(_.kind== Kind.Constructor).get)
+    val chansVars = threadsConstr.flatMap(getConstrChanArgs).map(getChanVar).toArray
     val barrierVar = getBarrierVar(threads.size)
-    val threadVars = threads.map(t => getThreadVar(t,getConstrChanArgs(t).map(a => unArgName(a.name)))).toArray
+    val threadVars = threads.map(t => getThreadVar(t)).toArray
     val threadForks = threads.map(t => getThreadRunning(t.name, true)).toArray
     val threadJoins = threads.map(t => getThreadRunning(t.name, false)).toArray
+    val mainFJArgs = threadsConstr.map(getConstrRoleArgs).reduce((a,b) => a ++ b) : Array[DeclarationStatement]
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
       (barrierVar +: (chansVars ++ threadVars ++ threadForks ++ threadJoins)):_*)
     val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),new ContractBuilder().getContract,
-      localMainClassName,Array.empty[DeclarationStatement],body)
-    mainClass.add_static(mainMethod)
-    mainClass
+      localMainClassName,mainFJArgs,body)
+    mainFJClass.add_static(mainMethod)
+    mainFJClass
   }
 
   private def getBarrierVar(nrThreads : Int) : DeclarationStatement =
     create.field_decl(new MessageOrigin("Generated Barrier variable"),barrierFieldName,getBarrierClass,
       create.invokation(null,getBarrierClass,Method.JavaConstructor,create.constant(nrThreads)))
 
-  private def getConstrChanArgs(thread : ASTClass) : Array[DeclarationStatement] =
-    thread.methods().asScala.find(_.kind== Kind.Constructor).get.getArgs.tail
+  private def getConstrChanArgs(constr : Method) : Array[DeclarationStatement] =
+    constr.getArgs.filter(_.`type` match {
+      case cl : ClassType => isChannelClass(cl.getName)
+      case _ => false
+    })
+
+  private def getConstrRoleArgs(constr : Method) : Array[DeclarationStatement] =
+    constr.getArgs.filter(_.`type` match {
+      case cl : ClassType => !isChannelClass(cl.getName) && cl.getName != barrierClassName
+      case _ => true
+    })
 
   private def getChanVar(chanArg : DeclarationStatement) : DeclarationStatement = {
     val chanType = create.class_type(chanArg.`type`.toString)
@@ -48,10 +59,13 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
       create.invokation(null,chanType,Method.JavaConstructor))
   }
 
-  private def getThreadVar(thread : ASTClass, chans : Iterable[String]) : DeclarationStatement = {
-    val barArg = create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name), barrierFieldName)
-    val chanArgs = chans.map(chan => create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name),chan)).toArray
-    val args : Array[NameExpression] = barArg +: chanArgs
+  private def getThreadVar(thread : ASTClass) : DeclarationStatement = {
+    val constr = thread.methods().asScala.find(_.kind== Kind.Constructor).get
+    val chans = getConstrChanArgs(constr).map(a => unArgName(a.name)) : Array[String]
+    val chanArgs = chans.map(chan => create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name),chan))
+    val barArg = create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name), barrierFieldName) : NameExpression
+    val roleArgs = getConstrRoleArgs(constr).map(a => create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name),a.name)) : Array[NameExpression]
+    val args : Array[NameExpression] = chanArgs  ++ (barArg +: roleArgs) : Array[NameExpression]
     create.field_decl(new MessageOrigin("Generated Thread variable"),getRoleName(thread.name),new ClassType(thread.name),
       create.invokation(null,new ClassType(thread.name),Method.JavaConstructor,args:_*))
   }

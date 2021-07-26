@@ -20,22 +20,22 @@ class Main {
 	
 	Role a, b, c;
 	
+	requires vb - vc == vc - va;
 	ensures Perm(a,read) ** Perm(b,read) ** Perm(c,read);
 	ensures Perm(a.x, write) ** Perm(a.left, write);
 	ensures Perm(b.x, write) ** Perm(b.left, write);
 	ensures Perm(c.x, write) ** Perm(c.left, write);
-	ensures a.x == 0 && b.x == 8 && c.x == 4;
-	Main() {
-		a = new Role(0);
-		b = new Role(8);
-		c = new Role(4);
+	ensures b.x - c.x == c.x - a.x;
+	Main(int va, int vb, int vc) {
+		a = new Role(va);
+		b = new Role(vb);
+		c = new Role(vc);
 	}
 
 	context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
 	context Perm(a.x, write) ** Perm(a.left, write);
 	context Perm(b.x, write) ** Perm(b.left, write);
 	context Perm(c.x, write) ** Perm(c.left, write);
-//	requires a.x == 0 && b.x == 8 && c.x == 4;
 	requires b.x - c.x == c.x - a.x;
 	ensures a.x == b.x && b.x == c.x; 
 	void run() {
@@ -92,9 +92,10 @@ class Main {
 			}
 		}
 	}
-
-	void main() {
-		Main m = new Main();
+    
+    requires vb - vc == vc - va;
+	void main(int va, int vb, int vc) {
+		Main m = new Main(va,vb,vc);
 		m.run();
 	}
 	
