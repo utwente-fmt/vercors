@@ -150,6 +150,12 @@ lazy val vercors: Project = (project in file("."))
     Compile / discoveredMainClasses := Seq(),
     Compile / mainClass := Some("vct.main.Main"),
 
+    // Add options to run scripts produced by sbt-native-packager. See: https://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/customize.html#via-build-sbt
+    Universal / javaOptions ++= Seq (
+      // Needed because vercors needs a pretty big stack for some files with deep expressions.
+      "-J-Xss128m"
+    ),
+
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
     // repository that contains all classes and resources relevant for testing.
     // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
