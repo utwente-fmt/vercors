@@ -189,12 +189,6 @@ jobs:
   integration-test-veymont:
     needs: build-test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        testID: [0, 1, 2, 3, 4]
-      fail-fast: false
-    env:
-      maxTestID: 5
     steps:
       # Need to check out the repo for the "examples" directory and the veymont 2stage testing script
       - uses: actions/checkout@v2
