@@ -2,6 +2,7 @@
 //:: cases LeaderElectRing
 //:: tools veymont
 //:: verdict Pass
+//:: suite problem-fail
 
 class Node {
 	

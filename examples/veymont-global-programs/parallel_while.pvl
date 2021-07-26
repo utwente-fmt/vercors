@@ -2,6 +2,7 @@
 //:: cases ParallelWhile
 //:: tools veymont
 //:: verdict Pass
+//:: suite problem-fail
 
 class Role {
 	
