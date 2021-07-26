@@ -96,7 +96,7 @@ jobs:
         uses: mikepenz/action-junit-report@v2
         with:
           report_paths: '**/target/test-reports/TEST-*.xml'
-      
+
   integration-test-linux:
     needs: build-test
     runs-on: ubuntu-latest
@@ -185,6 +185,29 @@ jobs:
       # --directory extracts to a given directory, ensuring the current directory is not cluttered.
       - run: tar --strip-components=1 --directory vercorszip -xf vercors.zip
       - run: vercorszip/bin/vercors --test=examples/basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail --progress --actions-test-output
+
+  integration-test-veymont:
+    needs: build-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        testID: [0, 1, 2, 3, 4]
+      fail-fast: false
+    env:
+      maxTestID: 5
+    steps:
+      # Need to check out the repo for the "examples" directory and the veymont 2stage testing script
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+          java-package: jre
+      - name: Download VerCors binary
+        uses: actions/download-artifact@v2
+        with:
+          name: vercors-debian-package
+      - run: "sudo dpkg -i *.deb"
+      - run: ./util/veymontTesting/veymont-2stage-tests.sh
 
   sonar:
     needs:
