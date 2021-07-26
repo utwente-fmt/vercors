@@ -13,7 +13,7 @@ class Main {
 	}
 	
 	void run() {
-		a.x = 1;
+		a.x = new Other();
 	}
 	
 	void main() {

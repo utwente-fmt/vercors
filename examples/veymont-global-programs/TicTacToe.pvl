@@ -1,5 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases TicTacToeInt TicTacToeMatrix
+//:: cases TicTacToeInt
 //:: tools veymont
 //:: verdict Pass
 
