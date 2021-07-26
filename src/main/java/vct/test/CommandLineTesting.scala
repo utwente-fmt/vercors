@@ -186,8 +186,14 @@ object CommandLineTesting {
       for (tool <- filterEnabledBackends(kees.tools.asScala.toSet)) {
         val args = mutable.ArrayBuffer[String]()
         args += "--progress"
-        args += "--" + tool
-        args += "--strict-internal"
+        if (tool != "veymont") {
+          // Temporary workaround to disable the tool flag when running a veymont test.
+          // This should be removed when we add a proper tool mode for veymont
+          args += "--" + tool
+          // VeyMont was not built with the feature system in mind, so we have to disable it when veymont is executed
+          // in the test suite.
+          args += "--strict-internal"
+        }
         args ++= kees.options.asScala
         args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
 

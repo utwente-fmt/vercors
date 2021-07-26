@@ -119,7 +119,7 @@ jobs:
           name: vercors-debian-package
       - run: "sudo dpkg -i *.deb"
       - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=2 --tool carbon --tool silicon --tool veymont --exclude-suite=slow,medium,problem-fail --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
       - name: Archive Java Code Coverage (jacoco_n_m.xml)
         uses: actions/upload-artifact@v2
         with:
