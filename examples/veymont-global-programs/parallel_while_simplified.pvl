@@ -1,8 +1,6 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases ParallelWhileSimplified
-//:: tools veymont
 //:: verdict Pass
-//:: suite problem-fail
 
 class Role {
 	
