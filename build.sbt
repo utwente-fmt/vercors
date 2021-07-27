@@ -114,9 +114,6 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation"
     ),
 
-    javacOptions += "-J-Xss128M",
-    Universal / javacOptions ++= Seq("-J-Xss128M"),
-
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
         Git.currentBranch
