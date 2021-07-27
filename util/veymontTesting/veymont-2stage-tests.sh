@@ -24,7 +24,7 @@ cd ../../examples/veymont-global-programs
 allCases=$(grep -r cases | cut -d " " -f 3 | sort -u)
 
 echo "##### Detected cases for 2-stage tests: #####"
-echo "$allCases"
+printf "$allCases\n"
 
 failingReport="##### Failing 2-stage cases #####"
 # This is the final return code to be returned
@@ -37,7 +37,7 @@ do
   echo "##### Case: $kees #####"
   # Find all files that have the case $kees
   # Replacing newlines with spaces to make sure all the filenames are on one line
-  files=$(grep -r $kees -l | tr "\n" " ")
+  files=$(grep -r "\\<$kees\\>" -l | tr "\n" " ")
 
   veymontCmd="$vercorsPath --veymont ${kees}_output.pvl $files"
   echo "-- Running VeyMont: $veymontCmd"
