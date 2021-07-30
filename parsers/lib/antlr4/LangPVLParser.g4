@@ -123,16 +123,20 @@ newExpr
  : 'new' identifier tuple
  | 'new' nonArrayType newDims
  | nonTarget
- | target
+// | target
  ;
 
-target
- : target '.' gen_id
- | target '[' expr ']'
- | nonTarget '.' gen_id
- | nonTarget '[' expr ']'
- | targetUnit
- ;
+// target
+//  : target '.' gen_id
+//  | target '[' expr ']'
+//  | nonTarget '.' gen_id
+//  | nonTarget '[' expr ']'
+//  | targetUnit
+//  ;
+
+//targetUnit
+// : identifier
+// ;
 
 nonTarget
  : nonTarget '.' gen_id
@@ -176,10 +180,6 @@ collectionConstructors
  | 'b{' exprList '}'
  | 'b{t:' type '}'
  | 'set' '<' type '>' '{' expr '|' setCompSelectors ';' expr '}'
- ;
-
-targetUnit
- : identifier
  ;
 
 builtinMethod
@@ -242,7 +242,7 @@ allowedForStatement
  : type declList
  | expr
  | identifier ('++'|'--')
- | target '=' expr
+ | nonTarget '=' expr
  ;
 
 declList
