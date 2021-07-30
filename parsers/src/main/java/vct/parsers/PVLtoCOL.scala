@@ -322,17 +322,6 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       var arrayType = addDims(baseType, dimSizes.size)
       create expression(NewArray, arrayType, dimSizes)
     case NewExpr2(nonTarget) => expr(nonTarget)
-//    case NewExpr3(target) => expr(target)
-
-//    case Target0(target, ".", prop) =>
-//      create dereference(expr(target), convertID(prop))
-//    case Target1(seq, "[", idx, "]") =>
-//      create expression(Subscript, expr(seq), expr(idx))
-//    case Target2(nonTarget, ".", prop) =>
-//      create dereference(expr(nonTarget), convertID(prop))
-//    case Target3(seq, "[", idx, "]") =>
-//      create expression(Subscript, expr(seq), expr(idx))
-//    case Target4(TargetUnit0(id)) => convertIDName(id)
 
     case NonTarget0(nonTarget, ".", prop) =>
       create dereference(expr(nonTarget), convertID(prop))
@@ -622,9 +611,19 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case AllowedForStatement1(exp) => expr(exp)
     case AllowedForStatement2(id, "++") => create expression(PostIncr, convertIDName(id))
     case AllowedForStatement2(id, "--") => create expression(PostDecr, convertIDName(id))
-    case AllowedForStatement3(target, "=", exp) =>
+    case tree@AllowedForStatement3(target, "=", exp) => if (isTargetExpr(target)) {
       create assignment(expr(target), expr(exp))
+    } else {
+      fail(target, "Left hand side of assignment statement can only be a target expression")
+    }
   }))
+
+  def isTargetExpr(target: NonTargetContext): Boolean = target match {
+    case _: NonTarget0Context => true // x.f dereference is target
+    case _: NonTarget3Context => true // x[i] indexing is target
+    case NonTarget7(NonTargetUnit18(_)) => true // Plain identifier "x" is target
+    case _ => false // Otherwise, not a target
+  }
 
   def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {
     case ForStatementList0(x) => convertStat(x)

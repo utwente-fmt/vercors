@@ -220,7 +220,7 @@ class ParserBench {
 
   private val parsers = Map("java" -> new MyJavaParser(), "pvl" -> new MyPVLParser())
 
-  private lazy val vercors = Configuration.getThisVerCors
+  private lazy val vercors = Configuration.getThisVerCors(Seq().asJava)
 
   def getExtension(p: Path): Option[String] = {
     val s = p.toString
@@ -246,8 +246,7 @@ class ParserBench {
     val dir = "examples"
     val visitor = new RecursiveFileVisitor
     Files.walkFileTree(Paths.get(dir), Set(FileVisitOption.FOLLOW_LINKS).asJava, Integer.MAX_VALUE, visitor)
-    var will_fail = visitor.delayed_fail
-    if (will_fail) {
+    if (visitor.delayedFail) {
       Output("Because of warnings above, the test suite will not run.")
       throw new HREExitException(1)
     }
@@ -319,7 +318,7 @@ class ParserBench {
       val end = Instant.now()
       Output("Total parsing time taken: %sms", Duration.between(start, end).toMillis)
       // 39 secs for pvl before commenting out stuff
-      // 8 secs when commenting the "target" out in "newExpr"
+      // DONE: 8 secs when commenting the "target" out in "newExpr"
       // seqAddExpr is a bit messy?
       // Values overlaps with collectionConstructors, but it doesn't seem to matter
       // typeDims can be refactored by having both alternatives use +, and adding one "empty" alternative. Only saves 63ms though

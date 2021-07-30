@@ -1,0 +1,11 @@
+//:: cases NoAssignToNonTarget.pvl
+//:: verdict Error
+//:: tool silicon
+//:: option --stop-after-typecheck
+
+class C {
+    int bar() { return 0; }
+    void foo() {
+        bar() = 3;
+    }
+}
