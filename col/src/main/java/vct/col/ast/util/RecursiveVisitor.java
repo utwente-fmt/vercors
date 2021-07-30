@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
@@ -230,12 +228,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
 
   @Override
   public void visit(Method m) {
-//    dispatch(m.getContract());
-//    if (c!=null){
-//      dispatch(c.pre_condition);
-//      dispatch(c.post_condition);
-//    }
-    dispatch(m.getReturnType());
+      dispatch(m.getReturnType());
     dispatch(m.getArgs());
     dispatch(m.signals);
     Contract c=m.getContract();
@@ -261,7 +254,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(ab.process());
     dispatch(ab.action());
     // TODO: enable visiting map elements.
-    //dispatch(ab.map().values().to);
     dispatch(ab.block());
   }
   

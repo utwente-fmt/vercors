@@ -11,7 +11,6 @@ import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.type.*;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.AxiomaticDataType;
-import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.expr.Dereference;
 import vct.col.ast.stmt.decl.Method.Kind;
@@ -102,7 +101,7 @@ public class JavaEncoder extends AbstractRewriter {
   
   @Override
   public void visit(Dereference d){
-    if(d.field().equals("length") || d.field().equals("item")) {
+    if(d.field().equals(Dereference.ArrayLength()) || d.field().equals("item")) {
       super.visit(d);
       return;
     }

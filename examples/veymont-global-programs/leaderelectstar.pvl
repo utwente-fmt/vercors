@@ -1,0 +1,109 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases LeaderElectStar
+//:: verdict Pass
+
+class EndPoint {
+	
+	int rank, maxVal, c, n;
+	
+	ensures Perm(rank, read) ** Perm(maxVal, 1) ** Perm(c, 1);
+	ensures rank == v && maxVal == v && c < v;
+	ensures Perm(n,1) ** n == 0;
+	EndPoint (int v);
+	
+	context Perm(maxVal, 1) ** Perm(c, 1\2) ** Perm(n,1);
+	ensures c > \old(maxVal) ? maxVal == c : maxVal == \old(maxVal);
+	ensures n == \old(n) + 1;
+	void updateMax();
+	
+}
+
+class StarPoint {
+
+	int rank, maxVal, a, b, d, n;
+	
+	ensures Perm(rank, read) ** Perm(maxVal, 1) ** Perm(a, 1) ** Perm(b, 1) ** Perm(d, 1);
+	ensures rank == v && maxVal == v && a < v && b < v && d < v;
+	ensures Perm(n,1) ** n == 0;
+	StarPoint (int v);
+	
+	context Perm(maxVal, 1) ** Perm(a, 1\2) ** Perm(b, 1\2) ** Perm(d, 1\2) ** Perm(n,1);
+	ensures maxVal == maxVal(a,b,d,\old(maxVal));
+	ensures n == \old(n) + 1;
+	void updateMax();
+	
+	ensures \result >= a && \result >= b && \result >= c && \result >= d;
+	ensures \result == a || \result == b || \result == c || \result == d;
+	pure int maxVal(int a, int b, int c, int d);
+}
+
+class Main {
+
+	EndPoint a, b, d;
+	StarPoint c;
+
+	ensures Perm(a,read) ** Perm(a.rank, read) ** Perm(a.maxVal, 1) ** Perm(a.c, 1) ** Perm(a.n,1);
+	ensures Perm(b,read) ** Perm(b.rank, read) ** Perm(b.maxVal, 1) ** Perm(b.c, 1) ** Perm(b.n,1);
+	ensures Perm(d,read) ** Perm(d.rank, read) ** Perm(d.maxVal, 1) ** Perm(d.c, 1) ** Perm(d.n,1);
+	ensures Perm(c,read) ** Perm(c.rank, read) ** Perm(c.maxVal, 1) ** Perm(c.a, 1) ** Perm(c.b, 1) **  Perm(c.d,1) ** Perm(c.n,1);
+	ensures a.rank != b.rank && a.rank != c.rank && a.rank != d.rank && b.rank != c.rank && b.rank != d.rank && c.rank != d.rank;
+	ensures a.maxVal != a.c && b.maxVal != b.c && d.maxVal != d.c && c.maxVal != c.a && c.maxVal != c.b && c.maxVal != c.d;
+	ensures a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
+	ensures c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n;
+	Main() {
+		a = new EndPoint(0);
+		b = new EndPoint(8);
+		c = new StarPoint(4);
+		d = new EndPoint(5);
+	}
+	
+	context Perm(a,read) ** Perm(a.rank, read) ** Perm(a.maxVal, 1) ** Perm(a.c, 1) ** Perm(a.n,1);
+	context Perm(b,read) ** Perm(b.rank, read) ** Perm(b.maxVal, 1) ** Perm(b.c, 1) ** Perm(b.n,1);
+	context Perm(d,read) ** Perm(d.rank, read) ** Perm(d.maxVal, 1) ** Perm(d.c, 1) ** Perm(d.n,1);
+	context Perm(c,read) ** Perm(c.rank, read) ** Perm(c.maxVal, 1) ** Perm(c.a, 1) ** Perm(c.b, 1) ** Perm(c.d, 1) ** Perm(c.n,1);
+	context a.rank != b.rank && a.rank != c.rank && a.rank != d.rank && b.rank != c.rank && b.rank != d.rank && c.rank != d.rank;
+	requires c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n;
+	requires a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
+	ensures c.maxVal == a.maxVal && c.maxVal == b.maxVal && c.maxVal == d.maxVal;
+	ensures c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank);
+	ensures c.maxVal == a.rank || c.maxVal == b.rank || c.maxVal == c.rank || c.maxVal == d.rank;
+	void run() {
+		loop_invariant Perm(a,read) ** Perm(a.rank, read) ** Perm(a.maxVal, 1) ** Perm(a.c, 1) ** Perm(a.n,1);
+		loop_invariant Perm(b,read) ** Perm(b.rank, read) ** Perm(b.maxVal, 1) ** Perm(b.c, 1) ** Perm(b.n,1);
+		loop_invariant Perm(d,read) ** Perm(d.rank, read) ** Perm(d.maxVal, 1) ** Perm(d.c, 1) ** Perm(d.n,1);
+		loop_invariant Perm(c,read) ** Perm(c.rank, read) ** Perm(c.maxVal, 1) ** Perm(c.a, 1) ** Perm(c.b, 1) ** Perm(c.d, 1) ** Perm(c.n,1);
+		loop_invariant a.rank != b.rank && a.rank != c.rank && a.rank != d.rank && b.rank != c.rank && b.rank != d.rank && c.rank != d.rank;
+		loop_invariant 0 <= c.n && c.n <= 2;
+		loop_invariant a.n == c.n && b.n == c.n && d.n == c.n;
+		loop_invariant c.n == 0 ==> (a.maxVal == a.rank && b.maxVal == b.rank &&  c.maxVal == c.rank &&  d.maxVal == d.rank);
+		loop_invariant c.n == 1 ==> (c.rank > a.rank ? a.maxVal == c.rank : a.maxVal == a.rank);
+		loop_invariant c.n == 1 ==> (c.rank > b.rank ? b.maxVal == c.rank : b.maxVal == b.rank);
+		loop_invariant c.n == 1 ==> (c.rank > d.rank ? d.maxVal == c.rank : d.maxVal == d.rank);
+		loop_invariant c.n >= 1 ==> c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank);
+		loop_invariant c.n == 2 ==> a.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank);
+		loop_invariant c.n == 2 ==> b.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank);
+		loop_invariant c.n == 2 ==> d.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank);
+		loop_invariant (a.n < 2) == (b.n < 2);
+		loop_invariant (b.n < 2) == (d.n < 2);
+		loop_invariant (d.n < 2) == (c.n < 2);
+		while(a.n < 2 && b.n < 2 && c.n < 2 && d.n < 2) {
+			a.c = c.maxVal;
+			b.c = c.maxVal;
+			d.c = c.maxVal;
+			c.a = a.maxVal;
+			c.b = b.maxVal;
+			c.d = d.maxVal;
+			a.updateMax();
+			b.updateMax();
+			c.updateMax();
+			d.updateMax();
+		}
+	}
+
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+

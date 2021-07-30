@@ -4,8 +4,6 @@ import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.features.Feature
 import vct.logging.{ErrorMapping, PassAddVisitor, PassReport}
 
-import scala.annotation.varargs
-
 abstract class AbstractPass(val key: String, val description: String) {
   def removes: Set[Feature]
   def introduces: Set[Feature]

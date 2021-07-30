@@ -2,24 +2,23 @@ package vct.col.features
 
 import hre.ast.MessageOrigin
 import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
-import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, TypeExpression, TypeOperator, TypeVariable}
-import vct.col.ast.stmt
-import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, ForEachLoop, IfStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion, TryCatchBlock}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTFlags, ASTSpecial, AxiomaticDataType, Contract, DeclarationStatement, Method, NameSpace, ProgramUnit, VariableDeclaration}
-import vct.col.ast.expr.{Binder, BindingExpression, KernelInvocation, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
-import vct.col.ast.expr
+import vct.col.ast.`type`._
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
-import vct.col.ast.util.{AbstractVisitor, RecursiveVisitor, SequenceUtils}
+import vct.col.ast.expr._
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.langspecific.c.{OMPFor, OMPForSimd, OMPParallel, OMPParallelFor, OMPSection, OMPSections}
+import vct.col.ast.langspecific.c._
+import vct.col.ast.{expr, stmt}
+import vct.col.ast.stmt.composite._
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
-import vct.col.ast.stmt.terminal.{AssignmentStatement, ReturnStatement}
+import vct.col.ast.stmt.decl._
+import vct.col.ast.stmt.terminal.AssignmentStatement
+import vct.col.ast.util.{RecursiveVisitor, SequenceUtils}
 import vct.col.rewrite.{AddTypeADT, IntroExcVar, PVLEncoder}
 import vct.parsers.rewrite.InferADTTypes
 
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters._
 
 class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true) {
   val features: mutable.Set[Feature] = mutable.Set()
@@ -171,8 +170,13 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     }
 
     if(isPure(m)) {
-      if(isInline(m))
-        addFeature(InlinePredicate, m)
+      if(isInline(m)) {
+        if (m.getReturnType.isPrimitive(PrimitiveSort.Resource)) {
+          addFeature(InlinePredicate, m)
+        } else if (!m.getReturnType.isPrimitive(PrimitiveSort.Process)) {
+          addFeature(InlineFunction, m)
+        }
+      }
       if(m.getBody.isInstanceOf[BlockStatement])
         addFeature(PureImperativeMethods, m)
     }
@@ -618,6 +622,7 @@ object Feature {
     GivenYields,
     StaticFields,
     InlinePredicate,
+    InlineFunction,
     KernelClass,
     AddrOf,
     OpenMP,
@@ -746,6 +751,7 @@ object Feature {
     GivenYields,
     StaticFields,
     InlinePredicate,
+    InlineFunction,
     KernelClass,
     AddrOf,
     OpenMP,
@@ -846,6 +852,7 @@ case object ADTOperator extends ScannableFeature
 case object GivenYields extends ScannableFeature
 case object StaticFields extends ScannableFeature
 case object InlinePredicate extends ScannableFeature
+case object InlineFunction extends ScannableFeature
 case object KernelClass extends ScannableFeature
 case object AddrOf extends ScannableFeature
 case object OpenMP extends ScannableFeature

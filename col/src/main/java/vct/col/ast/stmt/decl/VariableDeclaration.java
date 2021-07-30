@@ -5,7 +5,6 @@ import hre.ast.MessageOrigin;
 import java.util.*;
 
 import hre.util.ScalaHelper;
-import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;

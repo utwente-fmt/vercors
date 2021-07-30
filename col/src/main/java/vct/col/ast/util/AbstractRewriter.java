@@ -4,8 +4,6 @@ import scala.jdk.javaapi.CollectionConverters;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import scala.Option;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -316,7 +314,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   @Override
   public void visit(ASTClass c) {
-    //checkPermission(c);
     String name=c.getName();
     if (name==null) {
       Abort("illegal class without name");
@@ -344,7 +341,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   @Override
   public void visit(BlockStatement s) {
-    //checkPermission(s);
     Debug("rewriting block");
     BlockStatement tmp=currentBlock;
     currentBlock=new BlockStatement();
@@ -364,7 +360,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
 
   public void visit(ClassType t){
-    //checkPermission(t);
     ClassType res = new ClassType(t.getNameFull(), rewrite(t.argsJava()));
     res.setOrigin(t.getOrigin());
     result=res;
@@ -378,13 +373,11 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   
   @Override
   public void visit(ConstantExpression e) {
-    //checkPermission(e);
     result=new ConstantExpression(e.value(),e.getType(),e.getOrigin());
   }
   
   @Override
   public void visit(DeclarationStatement s) {
-    //checkPermission(s);
     Type t=s.getType();
     ASTNode tmp=t.apply(this);
     if (tmp instanceof Type){
@@ -420,7 +413,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   @Override
   public void visit(IfStatement s) {
-    //checkPermission(s);
     IfStatement res=new IfStatement();
     res.setOrigin(s.getOrigin());
     int N=s.getCount();
@@ -445,7 +437,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   
   @Override
   public void visit(LoopStatement s) {
-    //checkPermission(s);
     LoopStatement res=new LoopStatement();
     ASTNode tmp;
     tmp=s.getInitBlock();
@@ -467,7 +458,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   @Override
   public void visit(Method m) {
-    //checkPermission(m);
     String name=m.getName();
     if (currentContractBuilder==null) currentContractBuilder=new ContractBuilder();
     DeclarationStatement args[]=rewrite(m.getArgs());
@@ -498,7 +488,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   @Override
   public void visit(NameExpression e) {
-    //checkPermission(e);
     NameExpression res=new NameExpression(e.getKind(),e.reserved(),e.getName());
     res.setOrigin(e.getOrigin());
     result=res;
@@ -506,7 +495,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   @Override
   public void visit(OperatorExpression e) {
-    //checkPermission(e);
     StandardOperator op=e.operator();
     
     List<ASTNode> args = new LinkedList<ASTNode>();
@@ -516,14 +504,12 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     }
     
     OperatorExpression res = create.expression(op, args);
-    //res.setOrigin(e.getOrigin());
     res.set_before(rewrite(e.get_before()));
     res.set_after(rewrite(e.get_after()));
     result=res;
   }
 
   public void visit(PrimitiveType t){
-    //checkPermission(t);
     PrimitiveType res=new PrimitiveType(t.sort,rewrite(t.argsJava()));
     if (t.getOrigin()!=null){
       res.setOrigin(t);
@@ -534,13 +520,11 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
 
   public void visit(RecordType t){
-    //checkPermission(t);
     throw new Error("missing case in rewriter: "+t.getClass());
   }
 
   @Override
   public void visit(ReturnStatement s) {
-    //checkPermission(s);
     ASTNode val=s.getExpression();
     if(val!=null) val=val.apply(this);
     ReturnStatement res=new ReturnStatement(val);
@@ -550,7 +534,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   }
   @Override
   public void visit(StandardProcedure p) {
-    //checkPermission(p);
     StandardProcedure res = new StandardProcedure(p.operator());
     res.setOrigin(p.getOrigin());
     result=res;

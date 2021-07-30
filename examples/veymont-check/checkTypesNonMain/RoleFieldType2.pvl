@@ -1,0 +1,36 @@
+//:: cases RoleFieldType2
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Pass
+//:: tool veymont
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role();
+		b = new Role();
+		c = new Role();
+	}
+	
+	void run() {
+		a.x = new Other();
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	Other x;
+	
+}
+
+class Other {
+
+}
+

@@ -176,6 +176,7 @@ collectionConstructors
  | '[' exprList ']'
  | '[t:' type ']'
  | '{' exprList '}'
+ | '{' expr '..' expr '}'
  | '{t:' type '}'
  | 'b{' exprList '}'
  | 'b{t:' type '}'

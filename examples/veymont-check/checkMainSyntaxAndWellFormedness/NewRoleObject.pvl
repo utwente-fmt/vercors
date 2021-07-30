@@ -1,0 +1,33 @@
+//:: cases NewRoleObject
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+class Main {
+
+	Role a,b;
+	
+	Main() {
+		a = new Role();
+		b = new Role();
+	}
+	
+	void run() {
+		a.some = new Role();
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	Role some;
+}
+
+class Other {
+
+}

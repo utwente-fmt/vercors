@@ -1,0 +1,27 @@
+//:: cases MainConstructorAssignmenWrongType
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+class Main {
+
+	int i;
+
+	Main() {
+		i = new Foo();
+	}
+
+	void run() {
+	
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+
+class Foo {
+
+}
+

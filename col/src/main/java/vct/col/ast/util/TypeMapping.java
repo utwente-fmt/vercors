@@ -1,7 +1,6 @@
 package vct.col.ast.util;
 
 import vct.col.ast.langspecific.c.CFunctionType;
-import vct.col.ast.type.TypeExpression;
 import vct.col.ast.type.*;
 
 public interface TypeMapping<R> {

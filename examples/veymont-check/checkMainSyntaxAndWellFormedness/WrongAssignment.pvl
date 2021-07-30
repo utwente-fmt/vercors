@@ -1,0 +1,34 @@
+//:: cases WrongAssignment
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+class Main {
+
+	Role a,b,c;
+
+	Main() {
+		a = new Role(5);
+		b = new Role(6);
+		c = new Role(7);
+	}
+	
+	void run() {
+		a.x = b.x + c.x;
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+
+class Role {
+
+	int x;
+	
+	Role(int v) {
+		x = v;
+	}
+
+}

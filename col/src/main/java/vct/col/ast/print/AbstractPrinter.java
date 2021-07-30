@@ -65,7 +65,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
     }
     Origin o=node.getOrigin();
     if (o==null){
-      //throw new Error("found "+node.getClass()+" without origin");
       o=missing;
     }
     out.enter(node.getOrigin());
@@ -153,7 +152,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
   }
 
   public void visit(MethodInvokation e){
-    //boolean statement=!in_expr;
     setExpr();
     if (e.object()!=null) {
       // TODO: manage precedence properly.
@@ -279,15 +277,13 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
         for (ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
           if (pre.equals(post)) {
             contextElems.add(pre);
+            printContractElement(pre, "context");
             added = true;
           }
         }
         if (!added) {
           printContractElement(pre, "requires");
         }
-      }
-      for (ASTNode con : contextElems) {
-        printContractElement(con, "context");
       }
       for (ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
         if (!contextElems.contains(post)) {

@@ -87,7 +87,6 @@ object JavaASTClassLoader extends ExternalClassLoader {
     case java.lang.Float.TYPE => create primitive_type PrimitiveSort.Float
     case java.lang.Double.TYPE => create primitive_type PrimitiveSort.Double
     case java.lang.Void.TYPE => create primitive_type PrimitiveSort.Void
-    case str if str.getCanonicalName == "java.lang.String" => create primitive_type PrimitiveSort.String
     case arr if arr.isArray => SequenceUtils.optArrayCell(create, jvmTypeToCOL(create)(arr.getComponentType))
     case cls => create class_type(cls.getCanonicalName.split('.'))
   }

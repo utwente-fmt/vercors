@@ -45,7 +45,6 @@ public class PVLPrinter extends AbstractPrinter{
             nextExpr();
             lbl.accept(this);
             out.printf(":");
-            //out.printf("[");
         }
         if (node.annotated()) for(ASTNode ann:node.annotations()) {
             if (ann==null){
@@ -296,12 +295,10 @@ public class PVLPrinter extends AbstractPrinter{
             case Goto:
                 out.print("goto ");
                 s.args[0].accept(this);
-                //out.println(";");
                 break;
             case Label:
                 out.print("label ");
                 s.args[0].accept(this);
-                //out.println(";");
                 break;
             case With:
                 out.print("WITH");
@@ -568,7 +565,6 @@ public class PVLPrinter extends AbstractPrinter{
             }
             if (item.isStatic()){
                 if (item instanceof DeclarationStatement) out.printf("static ");
-                // else out.println("/* static */");
             }
             item.accept(this);
             out.println("");
@@ -648,9 +644,7 @@ public class PVLPrinter extends AbstractPrinter{
         if (m.getKind()==Method.Kind.Pure){
             out.printf("pure ");
         }
-        if (m.getKind()==Method.Kind.Constructor){
-            // out.printf("/*constructor*/ ");
-        } else {
+        if (m.getKind()!=Method.Kind.Constructor){
             result_type.accept(this);
             out.printf(" ");
         }
@@ -728,7 +722,6 @@ public class PVLPrinter extends AbstractPrinter{
                 out.lnprintf(";");
             }
         }
-        //}
     }
 
     private boolean self_terminating(ASTNode s) {
@@ -812,6 +805,26 @@ public class PVLPrinter extends AbstractPrinter{
                 out.printf("new ");
                 e.arg(0).accept(this);
                 out.printf("()");
+                break;
+            }
+            case NewArray:{
+                out.printf("new ");
+                if(e.arg(0) instanceof PrimitiveType) {
+                    PrimitiveType p = ((PrimitiveType)e.arg(0));
+                    if(p.sort == PrimitiveSort.Option && p.args().head() instanceof PrimitiveType) {
+                        PrimitiveType p2 = (PrimitiveType) p.args().head();
+                        if(p2.hasArguments()) {
+                            p2.args().head().accept(this);
+                        }
+                    } else {
+                        e.arg(0).accept(this);
+                    }
+                } else {
+                    e.arg(0).accept(this);
+                }
+                out.print("[");
+                e.arg(1).accept(this);
+                out.printf("]");
                 break;
             }
             default:{
@@ -1063,17 +1076,13 @@ public class PVLPrinter extends AbstractPrinter{
                 if (nrofargs!=1){
                     Fail("Cell type constructor with %d arguments instead of 1",nrofargs);
                 }
-                out.printf("cell<");
                 t.firstarg().accept(this);
-                out.printf(">");
                 break;
             case Option:
                 if (nrofargs!=1){
                     Fail("Option type constructor with %d arguments instead of 1",nrofargs);
                 }
-                out.printf("option<");
                 t.firstarg().accept(this);
-                out.printf(">");
                 break;
             case Map:
                 if (nrofargs!=2){
@@ -1148,9 +1157,26 @@ public class PVLPrinter extends AbstractPrinter{
 
         int j = 0;
         for (DeclarationStatement iter : pb.itersJava()) {
-            iter.accept(this);
+            out.print("(");
+            setExpr();
             if (j > 0) out.printf(",");
             j++;
+            ASTNode expr = iter.initJava();
+            nextExpr();
+            iter.getType().accept(this);
+            out.printf(" %s", iter.name());
+            if (expr!=null){
+                out.printf(" = ");
+                nextExpr();
+                if(expr instanceof OperatorExpression && ((OperatorExpression) expr).operator() == StandardOperator.RangeSeq) {
+                    ((OperatorExpression) expr).arg(0).accept(this);
+                    out.print(" .. ");
+                    ((OperatorExpression) expr).arg(1).accept(this);
+                } else {
+                    Fail("Unexpected DeclarationStatement in iters of ParallelBlock");
+                }
+            }
+            out.println(")");
         }
 
         if (pb.depslength() > 0){
