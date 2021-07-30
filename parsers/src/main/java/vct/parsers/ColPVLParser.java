@@ -2,9 +2,8 @@ package vct.parsers;
 
 import hre.lang.HREExitException;
 import hre.tools.TimeKeeper;
-import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.atn.PredictionMode;
-import org.antlr.v4.runtime.misc.ParseCancellationException;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CommonTokenStream;
 import vct.antlr4.generated.LangPVLLexer;
 import vct.antlr4.generated.PVLParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
@@ -29,28 +28,7 @@ public class ColPVLParser extends Parser {
             PVLParser parser = new PVLParser(tokens);
             parser.removeErrorListeners();
             parser.addErrorListener(ec);
-
-
-
-            PVLParser.ProgramContext tree;
-
-            parser.getInterpreter().setPredictionMode(PredictionMode.SLL);
-            parser.removeErrorListeners();
-            parser.setErrorHandler(new BailErrorStrategy());
-            try {
-                tree = parser.program();
-            } catch (ParseCancellationException ex) {
-                tokens.reset();
-                parser.reset();
-
-                parser.addErrorListener(ConsoleErrorListener.INSTANCE);
-                parser.setErrorHandler(new DefaultErrorStrategy());
-                parser.getInterpreter().setPredictionMode(PredictionMode.LL);
-                tree = parser.program();
-            }
-
-
-
+            PVLParser.ProgramContext tree = parser.program();
             Progress("parsing pass took %dms", tk.show());
             ec.report();
             Debug("parser got: %s", tree.toStringTree(parser));
