@@ -9,7 +9,7 @@ program  : programDecl* block? EOF ;
 programDecl : claz|kernel|block|field|methodDecl ;
 
 claz : contract 'class' identifier '{' clazMember* '}' ;
-clazMember : constructor | methodDecl | field;
+clazMember : /* constructor | */ methodDecl | field;
 
 kernel : 'kernel' identifier '{' kernelMember* '}' ;
 kernelMember : kernelField | methodDecl ;
@@ -20,7 +20,7 @@ field : type identifierList ';' ;
 
 modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
 
-methodDecl : contract modifier* type identifier '(' args? ')' methodBody ;
+methodDecl : contract modifier* type? identifier '(' args? ')' methodBody;
 methodBody : '=' expr ';' | constructorBody ;
 
 constructor : contract identifier '(' args? ')' constructorBody ;
@@ -29,17 +29,17 @@ constructorBody : ';' | block ;
 contract : valContractClause* ;
 
 args
-    : type identifier
-    | type identifier ',' args
+    : type identifier (',' args)?
+//    | type identifier ',' args
     ;
 
 exprList
-    : expr
-    | expr ',' exprList
+    : expr (',' exprList)?
+//    | expr ',' exprList
     ;
 mapPairs
-    : expr '->' expr
-    | expr '->' expr ',' mapPairs
+    : expr '->' expr (',' mapPairs)?
+//    | expr '->' expr ',' mapPairs
     ;
 
 expr
@@ -51,8 +51,9 @@ expr
  ;
 
 iteExpr
- : implicationExpr '?' implicationExpr ':' iteExpr
- | implicationExpr
+// : implicationExpr '?' implicationExpr ':' iteExpr
+// | implicationExpr
+ : implicationExpr ('?' implicationExpr ':' iteExpr)?
  ;
 
 implicationExpr
@@ -75,10 +76,10 @@ eqExpr
  ;
 
 relExpr
- : relExpr '<' addExpr
- | relExpr '<=' addExpr
- | relExpr '>=' addExpr
- | relExpr '>' addExpr
+ : relExpr '<' setExpr
+ | relExpr '<=' setExpr
+ | relExpr '>=' setExpr
+ | relExpr '>' setExpr
  | setExpr
  ;
 
@@ -102,15 +103,15 @@ multExpr
  ;
 
 powExpr
- : powExpr '^^' unaryExpr
+ : powExpr '^^' seqAddExpr
  | seqAddExpr
  ;
 
 seqAddExpr
- : unaryExpr '::' seqAddExpr
+ : unaryExpr ('::' seqAddExpr)?
  | seqAddExpr '++' unaryExpr
  | seqAddExpr '++' '(' unaryExpr ',' unaryExpr ')'
- | unaryExpr
+// | unaryExpr
  ;
 
 unaryExpr
@@ -123,15 +124,7 @@ newExpr
  : 'new' identifier tuple
  | 'new' nonArrayType newDims
  | nonTarget
- | target
- ;
-
-target
- : target '.' gen_id
- | target '[' expr ']'
- | nonTarget '.' gen_id
- | nonTarget '[' expr ']'
- | targetUnit
+// | target
  ;
 
 nonTarget
@@ -145,22 +138,32 @@ nonTarget
  | nonTargetUnit
  ;
 
+target
+ : target '.' gen_id
+ | target '[' expr ']'
+ | nonTarget '.' gen_id
+ | nonTarget '[' expr ']'
+ | targetUnit
+ ;
+
 nonTargetUnit
  : valPrimary
  | 'this'
  | 'null'
- | 'true'
- | 'false'
+// | 'true'
+// | 'false'
  | 'current_thread'
- | '\\result'
- | collectionConstructors
- | 'map' '<' type ',' type '>' mapValues
- | 'tuple' '<' type ',' type '>' values
- | builtinMethod tuple
+// | '\\result'
+
+ | collectionConstructors // About 100 ambiguities
+ | 'map' '<' type ',' type '>' mapValues // -5 ambiguities?
+ | 'tuple' '<' type ',' type '>' values // 0 ambiguities
+// | builtinMethod tuple // 49 ambiguities
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
- | '|' expr '|'
- | '?' identifier
+
+// | '|' expr '|'
+// | '?' identifier // Duplicate in builtinMethod
  | NUMBER
  | values
  | '(' expr ')'
@@ -215,23 +218,31 @@ statement
  | valStatement
  | 'if' '(' expr ')' statement elseBlock?
  | 'barrier' '(' identifier barrierTags? ')' barrierBody
- | contract 'par' parUnitList
+// | contract 'par' parUnitList
  | 'vec' '(' iter ')' block
  | 'invariant' identifier '(' expr ')' block
  | 'atomic' '(' identifierList ')' block
- | invariantList 'while' '(' expr ')' statement
- | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+// | invariantList 'while' '(' expr ')' statement
+// | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+
+ | contract ('while' '(' expr ')' statement
+ | 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+ | 'par' parUnitList)
+
+// | invariantList ('while' '(' expr ')' statement | 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement)
  | block
  | '{*' expr '*}'
  | 'goto' identifier ';'
- | 'label' identifier ';'
+// | 'label' identifier ';'
  | allowedForStatement ';'
  ;
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;
 barrierBody: '{' contract '}' | contract block;
-parUnitList: parUnit | parUnit 'and' parUnitList;
+
+//parUnitList: parUnit | parUnit 'and' parUnitList;
+parUnitList: parUnit ('and' parUnitList)?;
 
 forStatementList
  : allowedForStatement
@@ -285,8 +296,9 @@ type
  ;
 
 typeDims
- : quantifiedDim*
- | anonDim*
+ : quantifiedDim+
+ | anonDim+
+ | /* empty */
  ;
 
 newDims
@@ -311,8 +323,13 @@ typeArgs : '<' exprList '>';
 container : ('seq' | 'set' | 'bag');
 
 identifierList
-    : identifier
-    | identifier ',' identifierList
+    :
+//    identifier
+//    |
+     identifier (',' identifierList)?
     ;
 
-identifier : Identifier | valReserved ;
+identifier
+  : Identifier
+  | valReserved
+  ;
