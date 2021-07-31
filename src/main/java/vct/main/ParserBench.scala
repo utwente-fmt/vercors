@@ -363,12 +363,9 @@ class ParserBench {
       /* 'action' overlap between valStatement and statement saves about 100ms */
       /* 'atomic' overlap between valStatement and statement saves another 100ms */
       /* label appears in both statement and valStatement, but doesn't matter for parsing */
-      /*
-        For nonTargetUnit:
-        - langID : langExpr is not a problem (in valPrimary)
-        - removing true, false, and \result shaves off 300ms
-       */
-      0
+      /* For nonTargetUnit: langID: langExpr is not a problem (in valPrimary) */
+      /* DONE: removing true, false, and \result from nonTargetUnit shaves off 300ms */
+        0
     } else {
       Output("No mode specified")
       1

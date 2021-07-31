@@ -354,16 +354,13 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case NonTargetUnit0(valPrimary) => valExpr(valPrimary)
     case NonTargetUnit1("this") => create reserved_name This
     case NonTargetUnit2("null") => create reserved_name Null
-    case NonTargetUnit3("true") => create constant true
-    case NonTargetUnit4("false") => create constant false
-    case NonTargetUnit5("current_thread") => create reserved_name CurrentThread
-    case NonTargetUnit6("\\result") => create reserved_name Result
-    case NonTargetUnit7(collection) => expr(collection)
-    case NonTargetUnit8("map", "<", t1, ",", t2, ">", mapValues) =>
+    case NonTargetUnit3("current_thread") => create reserved_name CurrentThread
+    case NonTargetUnit4(collection) => expr(collection)
+    case NonTargetUnit5("map", "<", t1, ",", t2, ">", mapValues) =>
       create struct_value(create primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2)), null, convertMapValues(mapValues):_*)
-    case NonTargetUnit9("tuple", "<", t1, ",", t2, ">", values) =>
+    case NonTargetUnit6("tuple", "<", t1, ",", t2, ">", values) =>
       create struct_value(create primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2)), null, convertExpList(values):_*)
-    case NonTargetUnit10(method, argsTuple) =>
+    case NonTargetUnit7(method, argsTuple) =>
       val args = convertExpList(argsTuple)
       val methodName = method match { case BuiltinMethod0(name) => name }
       methodName match {
@@ -381,14 +378,14 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case "held" => create expression(Held, args:_*)
         case "Some" => create expression(OptionSome, args:_*)
       }
-    case NonTargetUnit11(_owner, "(", a, ",", b, ",", c, ")") =>
+    case NonTargetUnit8(_owner, "(", a, ",", b, ",", c, ")") =>
       create expression(IterationOwner, expr(a), expr(b), expr(c))
-    case NonTargetUnit12("id", "(", exp, ")") => expr(exp)
-    case NonTargetUnit13("?", id) => create expression(BindOutput, convertIDName(id))
-    case NonTargetUnit14(num) => create constant Integer.parseInt(num)
-    case NonTargetUnit15(seq) => ??(tree)
-    case NonTargetUnit16("(", exp, ")") => expr(exp)
-    case NonTargetUnit17(id) => convertIDName(id)
+    case NonTargetUnit9("id", "(", exp, ")") => expr(exp)
+    case NonTargetUnit10("?", id) => create expression(BindOutput, convertIDName(id))
+    case NonTargetUnit11(num) => create constant Integer.parseInt(num)
+    case NonTargetUnit12(seq) => ??(tree)
+    case NonTargetUnit13("(", exp, ")") => expr(exp)
+    case NonTargetUnit14(id) => convertIDName(id)
     case DeclInit0("=", exp) => expr(exp)
 
     case CollectionConstructors0(container, _, elemType, _, values) =>
@@ -621,7 +618,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   def isTargetExpr(target: NonTargetContext): Boolean = target match {
     case _: NonTarget0Context => true // x.f dereference is target
     case _: NonTarget3Context => true // x[i] indexing is target
-    case NonTarget7(NonTargetUnit17(_)) => true // Plain identifier "x" is target
+    case NonTarget7(NonTargetUnit14(_)) => true // Plain identifier "x" is target
     case _ => false // Otherwise, not a target
   }
 
