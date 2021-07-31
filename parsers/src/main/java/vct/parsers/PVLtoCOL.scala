@@ -484,13 +484,14 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   def convertType(t: ParserRuleContext): Type = origin(t, t match {
     case LangType0(t) => convertType(t)
 
-    case Type0(t, dims) =>
-      val dimCount = dims match {
+    case Type0(t, Some(dims)) =>
+      val dimCount: Int = dims match {
         case TypeDims0(dims) => dims.size
         case TypeDims1(dims) => dims.size
       }
-      var result = addDims(convertType(t), dimCount)
-      result
+      addDims(convertType(t), dimCount)
+    case Type0(t, None) =>
+      addDims(convertType(t), 0)
 
     case NonArrayType0(container, "<", innerType, ">") =>
       val kind = container match {

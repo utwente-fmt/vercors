@@ -323,7 +323,7 @@ class ParserBench {
       // - Not sure what I meant by that. Contains several operators but looks fine besides that.
       // DONE: Values overlaps with collectionConstructors, but it doesn't seem to matter
       // - This is an opportunity for refactoring the collections section in the parser, though.
-      // typeDims can be refactored by having both alternatives use +, and adding one "empty" alternative. Only saves 63ms though
+      // DONE: typeDims can be refactored by having both alternatives use +, and adding one "empty" alternative. Only saves 63ms though
       // | expr | is both in nonTargetUnit and valPrimary, saves about 200 ambiguities
       // Shouldn't use both recursive and non-recursive form for parUnitList (see: https://stackoverflow.com/questions/42093553/antlr-does-not-automatically-do-lookahead-matching)
       //    Seems to reduce the parsing time about half a second

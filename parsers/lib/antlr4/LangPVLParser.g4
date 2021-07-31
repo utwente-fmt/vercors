@@ -269,12 +269,12 @@ nonArrayType
  ;
 
 type
- : nonArrayType typeDims
+ : nonArrayType typeDims?
  ;
 
 typeDims
- : quantifiedDim*
- | anonDim*
+ : quantifiedDim+
+ | anonDim+
  ;
 
 newDims
