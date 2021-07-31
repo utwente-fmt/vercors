@@ -218,7 +218,8 @@ statement
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;
 barrierBody: '{' contract '}' | contract block;
-parUnitList: parUnit | parUnit 'and' parUnitList;
+parUnitList: parUnit parUnitListTail?;
+parUnitListTail: 'and' parUnitList;
 
 forStatementList
  : allowedForStatement

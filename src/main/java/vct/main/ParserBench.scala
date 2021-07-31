@@ -319,14 +319,14 @@ class ParserBench {
       Output("Total parsing time taken: %sms", Duration.between(start, end).toMillis)
       // 39 secs for pvl before commenting out stuff
       // DONE: 8 secs when commenting the "target" out in "newExpr"
-      // DONE: seqAddExpr is a bit messy?
+      // NOT APPLIED: seqAddExpr is a bit messy?
       // - Not sure what I meant by that. Contains several operators but looks fine besides that.
-      // DONE: Values overlaps with collectionConstructors, but it doesn't seem to matter
+      // LATER REFACTOR: Values overlaps with collectionConstructors, but it doesn't seem to matter
       // - This is an opportunity for refactoring the collections section in the parser, though.
       // DONE: typeDims can be refactored by having both alternatives use +, and adding one "empty" alternative. Only saves 63ms though
       // DONE: | expr | is both in nonTargetUnit and valPrimary, saves about 200 ambiguities
-      // Shouldn't use both recursive and non-recursive form for parUnitList (see: https://stackoverflow.com/questions/42093553/antlr-does-not-automatically-do-lookahead-matching)
-      //    Seems to reduce the parsing time about half a second
+      // DONE: Shouldn't use both recursive and non-recursive form for parUnitList (see: https://stackoverflow.com/questions/42093553/antlr-does-not-automatically-do-lookahead-matching)
+      // - Seems to reduce the parsing time about half a second
       // Same for iteExpr, saves about 2 secs!
       // Commenting out Reducible until "set < langtype >" in SpecParser shaves off about 400 ms
       //    (initial: 1400ms, after: 943)
