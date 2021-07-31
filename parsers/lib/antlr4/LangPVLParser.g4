@@ -150,7 +150,6 @@ nonTargetUnit
  | builtinMethod tuple
  | '\\owner' '(' expr ',' expr ',' expr ')'
  | 'id' '(' expr ')'
- | '|' expr '|'
  | '?' identifier
  | NUMBER
  | values

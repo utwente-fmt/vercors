@@ -384,12 +384,11 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case NonTargetUnit11(_owner, "(", a, ",", b, ",", c, ")") =>
       create expression(IterationOwner, expr(a), expr(b), expr(c))
     case NonTargetUnit12("id", "(", exp, ")") => expr(exp)
-    case NonTargetUnit13("|", seq, "|") => create expression(Size, expr(seq))
-    case NonTargetUnit14("?", id) => create expression(BindOutput, convertIDName(id))
-    case NonTargetUnit15(num) => create constant Integer.parseInt(num)
-    case NonTargetUnit16(seq) => ??(tree)
-    case NonTargetUnit17("(", exp, ")") => expr(exp)
-    case NonTargetUnit18(id) => convertIDName(id)
+    case NonTargetUnit13("?", id) => create expression(BindOutput, convertIDName(id))
+    case NonTargetUnit14(num) => create constant Integer.parseInt(num)
+    case NonTargetUnit15(seq) => ??(tree)
+    case NonTargetUnit16("(", exp, ")") => expr(exp)
+    case NonTargetUnit17(id) => convertIDName(id)
     case DeclInit0("=", exp) => expr(exp)
 
     case CollectionConstructors0(container, _, elemType, _, values) =>
@@ -622,7 +621,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   def isTargetExpr(target: NonTargetContext): Boolean = target match {
     case _: NonTarget0Context => true // x.f dereference is target
     case _: NonTarget3Context => true // x[i] indexing is target
-    case NonTarget7(NonTargetUnit18(_)) => true // Plain identifier "x" is target
+    case NonTarget7(NonTargetUnit17(_)) => true // Plain identifier "x" is target
     case _ => false // Otherwise, not a target
   }
 
