@@ -50,10 +50,8 @@ expr
  | iteExpr
  ;
 
-iteExpr
- : implicationExpr '?' implicationExpr ':' iteExpr
- | implicationExpr
- ;
+iteExpr : implicationExpr iteExprTail?;
+iteExprTail : '?' implicationExpr ':' iteExpr;
 
 implicationExpr
  : implicationExpr '==>' andOrExpr

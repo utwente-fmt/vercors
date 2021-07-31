@@ -271,9 +271,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Expr3("unfolding", exp, "in", inExp) =>
       create expression(Unfolding, expr(exp), expr(inExp))
     case Expr4(ite) => expr(ite)
-    case IteExpr0(cond, "?", yes, ":", no) =>
+    case IteExpr0(impl, None) => expr(impl)
+    case IteExpr0(cond, Some(IteExprTail0("?", yes, ":", no))) =>
       create expression(ITE, expr(cond), expr(yes), expr(no))
-    case IteExpr1(impl) => expr(impl)
     case ImplicationExpr0(prop, "==>", concl) =>
       create expression(Implies, expr(prop), expr(concl))
     case ImplicationExpr1(prop, "-*", concl) =>

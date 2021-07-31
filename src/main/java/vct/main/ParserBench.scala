@@ -327,7 +327,7 @@ class ParserBench {
       // DONE: | expr | is both in nonTargetUnit and valPrimary, saves about 200 ambiguities
       // DONE: Shouldn't use both recursive and non-recursive form for parUnitList (see: https://stackoverflow.com/questions/42093553/antlr-does-not-automatically-do-lookahead-matching)
       // - Seems to reduce the parsing time about half a second
-      // Same for iteExpr, saves about 2 secs!
+      // DONE: Same for iteExpr, saves about 2 secs!
       // Commenting out Reducible until "set < langtype >" in SpecParser shaves off about 400 ms
       //    (initial: 1400ms, after: 943)
       //    So seems that overlapping with function calls is problematic
