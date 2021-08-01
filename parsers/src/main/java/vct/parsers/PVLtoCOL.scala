@@ -354,13 +354,15 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case NonTargetUnit0(valPrimary) => valExpr(valPrimary)
     case NonTargetUnit1("this") => create reserved_name This
     case NonTargetUnit2("null") => create reserved_name Null
-    case NonTargetUnit3("current_thread") => create reserved_name CurrentThread
-    case NonTargetUnit4(collection) => expr(collection)
-    case NonTargetUnit5("map", "<", t1, ",", t2, ">", mapValues) =>
+    case NonTargetUnit3("true") => create constant true
+    case NonTargetUnit4("false") => create constant false
+    case NonTargetUnit5("current_thread") => create reserved_name CurrentThread
+    case NonTargetUnit6(collection) => expr(collection)
+    case NonTargetUnit7("map", "<", t1, ",", t2, ">", mapValues) =>
       create struct_value(create primitive_type(PrimitiveSort.Map, convertType(t1), convertType(t2)), null, convertMapValues(mapValues):_*)
-    case NonTargetUnit6("tuple", "<", t1, ",", t2, ">", values) =>
+    case NonTargetUnit8("tuple", "<", t1, ",", t2, ">", values) =>
       create struct_value(create primitive_type(PrimitiveSort.Tuple, convertType(t1), convertType(t2)), null, convertExpList(values):_*)
-    case NonTargetUnit7(method, argsTuple) =>
+    case NonTargetUnit9(method, argsTuple) =>
       val args = convertExpList(argsTuple)
       val methodName = method match { case BuiltinMethod0(name) => name }
       methodName match {
@@ -378,14 +380,14 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         case "held" => create expression(Held, args:_*)
         case "Some" => create expression(OptionSome, args:_*)
       }
-    case NonTargetUnit8(_owner, "(", a, ",", b, ",", c, ")") =>
+    case NonTargetUnit10(_owner, "(", a, ",", b, ",", c, ")") =>
       create expression(IterationOwner, expr(a), expr(b), expr(c))
-    case NonTargetUnit9("id", "(", exp, ")") => expr(exp)
-    case NonTargetUnit10("?", id) => create expression(BindOutput, convertIDName(id))
-    case NonTargetUnit11(num) => create constant Integer.parseInt(num)
-    case NonTargetUnit12(seq) => ??(tree)
-    case NonTargetUnit13("(", exp, ")") => expr(exp)
-    case NonTargetUnit14(id) => convertIDName(id)
+    case NonTargetUnit11("id", "(", exp, ")") => expr(exp)
+    case NonTargetUnit12("?", id) => create expression(BindOutput, convertIDName(id))
+    case NonTargetUnit13(num) => create constant Integer.parseInt(num)
+    case NonTargetUnit14(seq) => ??(tree)
+    case NonTargetUnit15("(", exp, ")") => expr(exp)
+    case NonTargetUnit16(id) => convertIDName(id)
     case DeclInit0("=", exp) => expr(exp)
 
     case CollectionConstructors0(container, _, elemType, _, values) =>
@@ -618,7 +620,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   def isTargetExpr(target: NonTargetContext): Boolean = target match {
     case _: NonTarget0Context => true // x.f dereference is target
     case _: NonTarget3Context => true // x[i] indexing is target
-    case NonTarget7(NonTargetUnit14(_)) => true // Plain identifier "x" is target
+    // Plain identifier "x" is target.
+    // "IdentifierContext" is included in case any alternatives are added to NonTargetUnit, then this line doesn't break silently.
+    case NonTarget7(NonTargetUnit16(_ : IdentifierContext)) => true
     case _ => false // Otherwise, not a target
   }
 
@@ -1016,10 +1020,6 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create reserved_name ASTReserved.LocalThreadId
     case ValReserved10("\\gtid") =>
       create reserved_name ASTReserved.GlobalThreadId
-    case ValReserved11("true") =>
-      ??(reserved)
-    case ValReserved12("false") =>
-      ??(reserved)
   })
 
   /**
@@ -1040,8 +1040,6 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ValReserved8(s) => s
     case ValReserved9("\\ltid") => fail(reserved, "This identifier is invalid in the current language")
     case ValReserved10("\\gtid") => fail(reserved, "This identifier is invalid in the current language")
-    case ValReserved11(s) => s
-    case ValReserved12(s) => s
   }
 
   def convertOverlappingValReservedName(reserved: ValReservedContext): NameExpression =

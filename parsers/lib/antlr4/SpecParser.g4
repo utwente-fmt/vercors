@@ -194,8 +194,6 @@ valReserved
  | 'empty' // The empty process in the context of Models
  | '\\ltid'
  | '\\gtid'
- | 'true'
- | 'false'
  ;
 
 valType

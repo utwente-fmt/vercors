@@ -138,6 +138,8 @@ nonTargetUnit
  : valPrimary
  | 'this'
  | 'null'
+ | 'true'
+ | 'false'
  | 'current_thread'
  | collectionConstructors
  | 'map' '<' type ',' type '>' mapValues
