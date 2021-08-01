@@ -328,16 +328,16 @@ class ParserBench {
       // DONE: Shouldn't use both recursive and non-recursive form for parUnitList (see: https://stackoverflow.com/questions/42093553/antlr-does-not-automatically-do-lookahead-matching)
       // - Seems to reduce the parsing time about half a second
       // DONE: Same for iteExpr, saves about 2 secs!
-      // Commenting out Reducible until "set < langtype >" in SpecParser shaves off about 400 ms
-      //    (initial: 1400ms, after: 943)
-      //    So seems that overlapping with function calls is problematic
-      //    Though this one seems hard to actually resolve - we _need_ to overlap with the host language in this case...
-      //    So I am leaving this one in for now
-      //    Maybe if you assume that:
-      //    - Each lang has function calls
-      //    - generics can be turned on/off when needed
-      //    Then there doesn't have to be overlap
-      /* The following block also has about 150 ambiguities:
+      // LATER REFACTOR: Commenting out Reducible until "set < langtype >" in SpecParser shaves off about 400 ms
+      // - (initial: 1400ms, after: 943)
+      // - So seems that overlapping with function calls is problematic
+      // - Though this one seems hard to actually resolve - we _need_ to overlap with the host language in this case...
+      // - So I am leaving this one in for now
+      // - Maybe if you assume that:
+      //   - Each lang has function calls
+      //   - generics can be turned on/off when needed
+      // - Then there doesn't have to be overlap
+      /* LATER REFACTOR: The following block also has about 150 ambiguities:
             | collectionConstructors // About 100 ambiguities
             | 'map' '<' type ',' type '>' mapValues // -5 ambiguities?
             | 'tuple' '<' type ',' type '>' values // 0 ambiguities

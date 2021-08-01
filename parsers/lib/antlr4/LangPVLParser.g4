@@ -100,7 +100,7 @@ multExpr
  ;
 
 powExpr
- : powExpr '^^' unaryExpr
+ : powExpr '^^' seqAddExpr
  | seqAddExpr
  ;
 
