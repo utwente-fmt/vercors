@@ -1,0 +1,13 @@
+//:: cases NonInvariantContractDisallowed
+//:: verdict Error
+//:: tool silicon
+//:: option --stop-after-typecheck
+
+class C {
+    void foo() {
+        requires true;
+        while (true) {
+
+        }
+    }
+}

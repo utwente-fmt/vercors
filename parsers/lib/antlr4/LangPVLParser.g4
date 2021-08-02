@@ -205,17 +205,21 @@ statement
  | valStatement
  | 'if' '(' expr ')' statement elseBlock?
  | 'barrier' '(' identifier barrierTags? ')' barrierBody
- | contract 'par' parUnitList
  | 'vec' '(' iter ')' block
  | 'invariant' identifier '(' expr ')' block
  | 'atomic' '(' identifierList ')' block
- | invariantList 'while' '(' expr ')' statement
- | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+ | contract contractStatement
  | block
  | '{*' expr '*}'
  | 'goto' identifier ';'
  | 'label' identifier ';'
  | allowedForStatement ';'
+ ;
+
+contractStatement
+ : 'par' parUnitList
+ | 'while' '(' expr ')' statement
+ | 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
  ;
 
 elseBlock: 'else' statement;

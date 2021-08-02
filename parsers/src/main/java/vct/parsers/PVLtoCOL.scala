@@ -166,6 +166,13 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       getContract(convertInvariant(invClause))
   })
 
+  def isLoopInvariant(contract: ContractContext): Boolean = contract match {
+    case Contract0(clauses) => clauses.forall(_ match {
+      case _: ValContractClause8Context => true
+      case _ => false
+    })
+  }
+
   def convertArgs(args: ArgsContext): Seq[DeclarationStatement] = args match {
     case Args0(t, name) =>
       Seq(create.field_decl(convertID(name), convertType(t)))
@@ -574,34 +581,41 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       }
       val tagsJavaList = new JavaArrayList[String](tags.asJava)
       create barrier(convertID(name), contract, tagsJavaList, maybeBody.orNull)
-    case Statement11(contract, "par", parUnitList) =>
+    case Statement11("vec", "(", iter, ")", block) =>
+      create vector_block(convertParIter(iter), convertBlock(block))
+    case Statement12("invariant", label, "(", resource, ")", block) =>
+      create invariant_block(convertID(label), expr(resource), convertBlock(block))
+    case Statement13("atomic", "(", invariants, ")", block) =>
+      create parallel_atomic(convertBlock(block), convertIDList(invariants):_*)
+    case Statement14(contract, ContractStatement0("par", parUnitList)) =>
       val parUnits = convertParUnitList(parUnitList)
       val javaParUnits = new JavaArrayList[ParallelBlock](parUnits.asJava)
       create region(convertContract(contract), javaParUnits)
-    case Statement12("vec", "(", iter, ")", block) =>
-      create vector_block(convertParIter(iter), convertBlock(block))
-    case Statement13("invariant", label, "(", resource, ")", block) =>
-      create invariant_block(convertID(label), expr(resource), convertBlock(block))
-    case Statement14("atomic", "(", invariants, ")", block) =>
-      create parallel_atomic(convertBlock(block), convertIDList(invariants):_*)
-    case Statement15(invariants, "while", "(", cond, ")", body) =>
-      create while_loop(expr(cond), flattenIfSingleStatement(convertStat(body)), convertContract(invariants))
-    case Statement16(invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
+    case Statement14(contract, ContractStatement1("while", "(", cond, ")", body)) =>
+      if (!isLoopInvariant(contract)) {
+        fail(stat, "Only loop invariant contract allowed for while statement")
+      }
+      create while_loop(expr(cond), flattenIfSingleStatement(convertStat(body)), convertContract(contract))
+    case Statement14(contract, ContractStatement2("for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body)) =>
+      if (!isLoopInvariant(contract)) {
+        fail(stat, "Only loop invariant contract allowed for for statement")
+      }
       create for_loop(
         maybeInit.map(convertStatList).map(create block(_:_*)).orNull,
         maybeCond.map(expr).getOrElse(create constant true),
         maybeUpdate.map(convertStatList).map(create block(_:_*)).orNull,
         flattenIfSingleStatement(convertStat(body)),
-        convertContract(invariants)
+        convertContract(contract)
       )
-    case Statement17(block) => convertBlock(block)
-    case Statement18("{*", exp, "*}") =>
+    case Statement14(contract, contractStatement) => ???
+    case Statement15(block) => convertBlock(block)
+    case Statement16("{*", exp, "*}") =>
       create special(ASTSpecial.Kind.HoarePredicate, expr(exp))
-    case Statement19("goto", label, _) =>
+    case Statement17("goto", label, _) =>
       create special(ASTSpecial.Kind.Goto, convertIDName(label))
-    case Statement20("label", label, _) =>
+    case Statement18("label", label, _) =>
       create special(ASTSpecial.Kind.Label, convertIDName(label))
-    case Statement21(stat, _) => flattenIfSingleStatement(convertStat(stat))
+    case Statement19(stat, _) => flattenIfSingleStatement(convertStat(stat))
     case AllowedForStatement0(tNode, decls) =>
       val t = convertType(tNode)
       val result = new VariableDeclaration(t)
