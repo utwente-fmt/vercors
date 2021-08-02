@@ -9,7 +9,7 @@ program  : programDecl* block? EOF ;
 programDecl : claz|kernel|block|field|methodDecl ;
 
 claz : contract 'class' identifier '{' clazMember* '}' ;
-clazMember : constructor | methodDecl | field;
+clazMember : methodDecl | field;
 
 kernel : 'kernel' identifier '{' kernelMember* '}' ;
 kernelMember : kernelField | methodDecl ;
@@ -20,11 +20,12 @@ field : type identifierList ';' ;
 
 modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
 
-methodDecl : contract modifier* type identifier '(' args? ')' methodBody ;
-methodBody : '=' expr ';' | constructorBody ;
-
-constructor : contract identifier '(' args? ')' constructorBody ;
-constructorBody : ';' | block ;
+// Method declaration and constructor are combined into one here
+methodDecl : contract modifier* type? identifier '(' args? ')' methodBody ;
+methodBody
+ : '=' expr ';'
+ | ';'
+ | block ;
 
 contract : valContractClause* ;
 

@@ -54,9 +54,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ProgramDecl3(field) => ??(tree) // This is global state?
     case ProgramDecl4(method_decl) => ??(tree) // Global method?
 
-    case ClazMember0(constructor) => Seq(convertConstructor(constructor))
-    case ClazMember1(method) => Seq(convertMethod(method))
-    case ClazMember2(field) => convertField(field)
+    case ClazMember0(method) => Seq(convertConstructor(method).getOrElse(convertMethod(method)))
+    case ClazMember1(field) => convertField(field)
 
     case KernelMember0(field) => convertKernelField(field)
     case KernelMember1(method) => Seq(convertMethod(method))
@@ -101,7 +100,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   }
 
   def convertMethod(method: MethodDeclContext): Method = origin(method, method match {
-    case MethodDecl0(contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
+    case MethodDecl0(contract, modifiers, Some(returnType), name, "(", maybeArgs, ")", bodyNode) =>
       val returns = convertType(returnType)
       var (kind, body) = convertBody(bodyNode)
 
@@ -130,6 +129,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         }
       })
       result
+    case MethodDecl0(_, _, None, _, _, _, _, _) =>
+      fail(method, "Expected method with return type")
   })
 
   def convertModifier(mod: LangModifierContext): NameExpression =
@@ -142,13 +143,17 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Modifier0("pure") => create reserved_name ASTReserved.Pure
   })
 
-  def convertConstructor(method: ConstructorContext): Method = origin(method, method match {
-    case Constructor0(contract, name, "(", args, ")", bodyNode) =>
+  def convertConstructor(method: MethodDeclContext): Option[Method] = method match {
+    case MethodDecl0(contract, Seq(), None, name, "(", args, ")", bodyNode) =>
       val returns = create primitive_type PrimitiveSort.Void
-      val (_, body) = convertBody(bodyNode)
-      create method_kind(Kind.Constructor, returns, convertContract(contract),
-        convertID(name), args.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
-  })
+      convertBody(bodyNode) match {
+        case (Kind.Plain, body) =>
+          Some(origin(method, create method_kind(Kind.Constructor, returns, convertContract(contract),
+            convertID(name), args.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)))
+        case _ => None
+      }
+    case _ => None
+  }
 
   def convertContract(contract: ParserRuleContext): Contract = origin(contract, contract match {
     case Contract0(clauses) =>
@@ -171,11 +176,9 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   def convertBody(body: ParserRuleContext): (Kind, Option[ASTNode]) = body match {
     case MethodBody0("=", exp, _) =>
       (Kind.Pure, Some(expr(exp)))
-    case MethodBody1(inner) => convertBody(inner)
-
-    case ConstructorBody0(_) =>
+    case MethodBody1(_) =>
       (Kind.Plain, None)
-    case ConstructorBody1(block) =>
+    case MethodBody2(block) =>
       (Kind.Plain, Some(convertBlock(block)))
   }
 
