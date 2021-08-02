@@ -34,6 +34,8 @@ primaryExpression
     /* valPrimary has to be before even identifier, so we consume `reserved arguments` instead of greedily matching
      * the identifier first. */
     :   {specLevel>0}? valPrimary
+    |   {specLevel>0}? 'true'
+    |   {specLevel>0}? 'false'
     |   clangIdentifier
     |   Constant
     |   StringLiteral+

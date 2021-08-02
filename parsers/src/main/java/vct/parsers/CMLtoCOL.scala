@@ -885,22 +885,26 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   def expr(exp: PrimaryExpressionContext): ASTNode = origin(exp, exp match {
     case PrimaryExpression0(valPrimary) =>
       valExpr(valPrimary)
-    case PrimaryExpression1(id) => convertIDName(id)
-    case PrimaryExpression2(const) =>
+    case PrimaryExpression1("true") =>
+      create constant true
+    case PrimaryExpression2("false") =>
+      create constant false
+    case PrimaryExpression3(id) => convertIDName(id)
+    case PrimaryExpression4(const) =>
       // Floats are also tokenized as this const, so we should distinguish here
       create constant const.toInt
-    case PrimaryExpression3(strings) =>
+    case PrimaryExpression5(strings) =>
       // Pretty sure this completely ignores escape sequences, but we don't support strings anyway...
       // See also JavaJMLtoCOL Literal3
       create constant strings.mkString("")
-    case PrimaryExpression4("(", exp, ")") => expr(exp)
-    case PrimaryExpression5(genericSelection) =>
+    case PrimaryExpression6("(", exp, ")") => expr(exp)
+    case PrimaryExpression7(genericSelection) =>
       ??(genericSelection)
-    case PrimaryExpression6(_, _, _, _) =>
+    case PrimaryExpression8(_, _, _, _) =>
       ??(exp)
-    case PrimaryExpression7("__builtin_va_arg", _, _, _, _, _) =>
+    case PrimaryExpression9("__builtin_va_arg", _, _, _, _, _) =>
       ??(exp)
-    case PrimaryExpression8("__builtin_offsetof", _, _, _, _, _) =>
+    case PrimaryExpression10("__builtin_offsetof", _, _, _, _, _) =>
       ??(exp)
   })
 
