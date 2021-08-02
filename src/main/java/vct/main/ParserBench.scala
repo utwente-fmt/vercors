@@ -357,11 +357,13 @@ class ParserBench {
         Maybe we should just switch over to how antlr handles binary grammars, and just enter associativity/precedence?
        */
       /* builtinMethod completely overlaps with Spec! */
-      /* action in statement is duplicate */
       /* DONE: constructor and method overlap: from 1200 to 90 */
       /* DONE: contract & invariantList overlap, reduces from 1100 to 309 */
-      /* 'action' overlap between valStatement and statement saves about 100ms */
-      /* 'atomic' overlap between valStatement and statement saves another 100ms */
+      /* UNTRUE: 'action' overlap between valStatement and statement saves about 100ms
+         - I think not having powersave mode on + videocalling influenced this measurement
+         - Also, makes sense since there are only very few action statements in the test suite.
+      */
+      /* DOUBTFUL: 'atomic' overlap between valStatement and statement saves another 100ms */
       /* label appears in both statement and valStatement, but doesn't matter for parsing */
       /* IRRELEVANT: For nonTargetUnit: langID: langExpr is not a problem (in valPrimary) */
       /* DONE: removing true, false, and \result from nonTargetUnit shaves off 300ms */
