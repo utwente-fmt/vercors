@@ -153,12 +153,12 @@ trait Parser {
       })
   }
 
-  def debugSOByMaxLookahead(): Unit = {
+  def debugSOByMaxLookahead(maxK: Int): Unit = {
     Output("--- BY LOOKAHEAD ---")
     // filter(decision -> decision.SLL_MaxLook > 50).sorted((d1, d2) -> Long.compare(d2.SLL_MaxLook, d1.SLL_MaxLook))
     val decisionInfo = getParser().getParseInfo().getDecisionInfo()
     decisionInfo
-      .filter(_.SLL_MaxLook > 50)
+      .filter(_.SLL_MaxLook > maxK)
       .sortWith((a, b) => b.SLL_MaxLook < a.SLL_MaxLook) // Reversed
       .foreach(decision => {
         Output("Time: %d in %d calls - LL_Lookaheads: %d Max k: %d Ambiguities: %d Errors: %d Rule: %s",
@@ -179,12 +179,12 @@ trait Parser {
   }
 }
 
-class MyJavaParser extends Parser {
+class MyJavaParser(enableSpec: Boolean = false) extends Parser {
   var parser: JavaParser = null
   setNewParser()
 
   override def customSetupAndParse(): ParserRuleContext = {
-    parser.specLevel = 0
+    parser.specLevel = if (enableSpec) 1 else 0
     parser.compilationUnit()
   }
 
@@ -196,6 +196,8 @@ class MyJavaParser extends Parser {
 
   override def createLexer(cs: CharStream): Lexer = new LangJavaLexer(cs)
 }
+
+class MyJspecParser extends MyJavaParser(true) { }
 
 class MyPVLParser extends Parser {
   var parser: PVLParser = null
@@ -217,8 +219,10 @@ class ParserBench {
   private val combinedRuns = new BooleanSetting(false)
   private val profile = new BooleanSetting(false)
   private val reuseParser = new BooleanSetting(false)
+  private val parsePvl = new BooleanSetting(false)
+  private val parseJspec = new BooleanSetting(false)
 
-  private val parsers = Map("java" -> new MyJavaParser(), "pvl" -> new MyPVLParser())
+  private val parsers = Map("java" -> new MyJavaParser(), "pvl" -> new MyPVLParser(), "jspec" -> new MyJspecParser())
 
   private lazy val vercors = Configuration.getThisVerCors(Seq().asJava)
 
@@ -240,69 +244,35 @@ class ParserBench {
     clops.add(combinedRuns.getEnable(""), "combined")
     clops.add(profile.getEnable(""), "profile")
     clops.add(reuseParser.getEnable(""), "reuse-parser")
+    clops.add(parsePvl.getEnable(""), "parse-pvl")
+    clops.add(parseJspec.getEnable(""), "parse-jspec")
 
     clops.parse(args)
 
-    val dir = "examples"
-    val visitor = new RecursiveFileVisitor
-    Files.walkFileTree(Paths.get(dir), Set(FileVisitOption.FOLLOW_LINKS).asJava, Integer.MAX_VALUE, visitor)
-    if (visitor.delayedFail) {
-      Output("Because of warnings above, the test suite will not run.")
-      throw new HREExitException(1)
-    }
-
-    val cases = visitor.testsuite.asScala
-
-    if (separateRuns.get()) {
-      Output("Separate")
-
-      val m : mutable.Map[String, Duration] = mutable.Map()
-      for ((name, kees) <- cases) {
-        val d = parse(kees.files.asScala.toSeq.map(_.toAbsolutePath.toString).filter(_.contains(".java")))
-        Output("%s Took: %dms", name, d.toMillis)
-        m.put(name, d)
-      }
-
-      Output("name,num_files,bytes,separate_run_millis")
-      for ((name, d) <- m) {
-        Output("%s,%d,%d,%d",
-          name,
-          cases.get(name).get.files.size(),
-          cases.get(name).get.files.asScala.map(countBytes(_)).sum,
-          d.toMillis)
-      }
-
-      0
-    } else if (combinedRuns.get()) {
-      Output("Combined")
-
-      val files = cases.flatMap(_._2.files.asScala.toSeq
-        .map(_.toAbsolutePath.toString)
-      ).toSeq
-      Output("%s", files)
-
-      val d = parse(files)
-      Output("Parsing all took: %dms", d.toMillis)
-
-      0
-    } else if (profile.get()) {
+    if (profile.get()) {
       val m : mutable.Map[String, Duration] = mutable.Map()
 
       val start = Instant.now()
 
-      parsers("pvl").enableProfiling()
+      if (parsePvl.get()) {
+        parsers("pvl").enableProfiling()
 
-      for ((name, kees) <- cases) {
-        if (kees.tools.contains("silicon") || kees.tools.contains("carbon")) {
-          val selectedFiles = kees.files.asScala.toSeq
-            .map(_.toAbsolutePath.toString)
-//            .filter(f => f.contains(".java") || f.contains(".pvl"))
-            .filter(f => f.contains(".pvl"))
-            .map(Path.of(_))
+        val dir = "examples"
+        val visitor = new RecursiveFileVisitor
+        Files.walkFileTree(Paths.get(dir), Set(FileVisitOption.FOLLOW_LINKS).asJava, Integer.MAX_VALUE, visitor)
+        if (visitor.delayedFail) {
+          Output("Because of warnings above, the test suite will not run.")
+          throw new HREExitException(1)
+        }
+        val cases = visitor.testsuite.asScala
 
-          if (selectedFiles.length == 0) {
-            //          Output("----- Skipping: %s", name)
-          } else {
+        for ((name, kees) <- cases) {
+          if (kees.tools.contains("silicon") || kees.tools.contains("carbon")) {
+            val selectedFiles = kees.files.asScala.toSeq
+              .map(_.toAbsolutePath.toString)
+              .filter(f => f.contains(".pvl"))
+              .map(Path.of(_))
+
             for (file <- selectedFiles) {
               val d = myParse(file)
               Output("%s Took: %dms", name, d.toMillis)
@@ -310,64 +280,42 @@ class ParserBench {
             }
           }
         }
-      }
 
-      parsers("pvl").debugSOByTime()
-      parsers("pvl").debugSOByMaxLookahead()
+        parsers("pvl").debugSOByTime()
+        parsers("pvl").debugSOByMaxLookahead(50)
 
-      val end = Instant.now()
-      Output("Total parsing time taken: %sms", Duration.between(start, end).toMillis)
-      // 39 secs for pvl before commenting out stuff
-      // DONE: 8 secs when commenting the "target" out in "newExpr"
-      // NOT APPLIED: seqAddExpr is a bit messy?
-      // - Not sure what I meant by that. Contains several operators but looks fine besides that.
-      // LATER REFACTOR: Values overlaps with collectionConstructors, but it doesn't seem to matter
-      // - This is an opportunity for refactoring the collections section in the parser, though.
-      // DONE: typeDims can be refactored by having both alternatives use +, and adding one "empty" alternative. Only saves 63ms though
-      // DONE: | expr | is both in nonTargetUnit and valPrimary, saves about 200 ambiguities
-      // DONE: Shouldn't use both recursive and non-recursive form for parUnitList (see: https://stackoverflow.com/questions/42093553/antlr-does-not-automatically-do-lookahead-matching)
-      // - Seems to reduce the parsing time about half a second
-      // DONE: Same for iteExpr, saves about 2 secs!
-      // LATER REFACTOR: Commenting out Reducible until "set < langtype >" in SpecParser shaves off about 400 ms
-      // - (initial: 1400ms, after: 943)
-      // - So seems that overlapping with function calls is problematic
-      // - Though this one seems hard to actually resolve - we _need_ to overlap with the host language in this case...
-      // - So I am leaving this one in for now
-      // - Maybe if you assume that:
-      //   - Each lang has function calls
-      //   - generics can be turned on/off when needed
-      // - Then there doesn't have to be overlap
-      /* LATER REFACTOR: The following block also has about 150 ambiguities:
-            | collectionConstructors // About 100 ambiguities
-            | 'map' '<' type ',' type '>' mapValues // -5 ambiguities?
-            | 'tuple' '<' type ',' type '>' values // 0 ambiguities
-            | builtinMethod tuple // 49 ambiguities
-         But it causes quite a few parse errors so it's hard to turn off...?
-       */
-      /*
-        args, exprList, mapPairs also should not be wrongly/duplicatingly tail recursive. Not sure if they matter though
-       */
-      /* DONE: rule above seqAddExpr (powExpr) should refer to seqAddExpr. Also, seqAddExpr also has duplicating tail. */
-      /* IRRELEVANT: nonTargetUnit: "'?' identifier" is also in builtinMethod! */
-      /* clazMember is probably slow because it partially overlaps with method (i.e. int a looks similar to int a())
-         refactor by merging field, constructor, and method, and specifying in COL which one you want by not allowing them (i.e. not having an argument list and no contract means a field)
-       */
-      /*
-        Cannot figure out what is the problem with eqExpr. Even refactoring to relExpr ((== | !=) eqExpr)? doesn't help.
-        Maybe we should just switch over to how antlr handles binary grammars, and just enter associativity/precedence?
-       */
-      /* builtinMethod completely overlaps with Spec! */
-      /* DONE: constructor and method overlap: from 1200 to 90 */
-      /* DONE: contract & invariantList overlap, reduces from 1100 to 309 */
-      /* UNTRUE: 'action' overlap between valStatement and statement saves about 100ms
-         - I think not having powersave mode on + videocalling influenced this measurement
-         - Also, makes sense since there are only very few action statements in the test suite.
-      */
-      /* DOUBTFUL: 'atomic' overlap between valStatement and statement saves another 100ms */
-      /* label appears in both statement and valStatement, but doesn't matter for parsing */
-      /* IRRELEVANT: For nonTargetUnit: langID: langExpr is not a problem (in valPrimary) */
-      /* DONE: removing true, false, and \result from nonTargetUnit shaves off 300ms */
+        val end = Instant.now()
+        Output("Total parsing time taken: %sms", Duration.between(start, end).toMillis)
         0
+      } else if (parseJspec.get()) {
+        val base = "src/main/universal/res/config"
+        val files = Seq(
+          "silver_optimize.jspec",
+          "simplify_expr.jspec",
+          "simplify_quant_pass1.jspec",
+          "simplify_quant_pass2.jspec",
+          "summation.jspec"
+        )
+
+        parsers("jspec").enableProfiling()
+
+        for (jspecFile <- files) {
+          val path = Paths.get(base, jspecFile)
+          val d = myParse(path)
+          Output("%s Took: %dms", jspecFile, d.toMillis)
+          m.put(jspecFile, d)
+        }
+
+        parsers("jspec").debugSOByTime()
+        parsers("jspec").debugSOByMaxLookahead(0)
+
+        val end = Instant.now()
+        Output("Total parsing time taken: %sms", Duration.between(start, end).toMillis)
+        0
+      } else {
+        Output("No filetype specified")
+        1
+      }
     } else {
       Output("No mode specified")
       1
