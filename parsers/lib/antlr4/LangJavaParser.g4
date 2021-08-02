@@ -640,12 +640,13 @@ primary
     |   'this'
     |   'super'
     |   literal
-    |   javaIdentifier
-    |   javaIdentifier predicateEntryType? arguments valEmbedWithThen?
+    |   javaIdentifier callTail?
     |   type '.' 'class'
     |   'void' '.' 'class'
     |   nonWildcardTypeArguments constructorCall
 	;
+
+callTail : javaIdentifier predicateEntryType? arguments valEmbedWithThen?;
 
 constructorCall
     :   explicitGenericInvocationSuffix

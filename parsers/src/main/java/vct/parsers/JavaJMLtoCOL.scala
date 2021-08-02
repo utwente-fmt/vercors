@@ -765,10 +765,9 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Primary3(Literal3(s)) => create constant s
     case Primary3(Literal4(s)) => create constant s.equals("true")
     case Primary3(Literal5("null")) => create reserved_name(ASTReserved.Null)
-    case Primary4(name) => convertIDName(name)
-    case Primary5(_, Some(predicateEntryType), _, _) =>
-      ??(predicateEntryType)
-    case Primary5(method, None, args, maybeWithThen) =>
+    case Primary4(name, None) => convertIDName(name)
+    case Primary4(name, Some(CallTail0(_, Some(predicateEntryType), _, _))) => ???
+    case Primary4(name, Some(CallTail0(method, None, args, maybeWithThen))) =>
       val res = create invokation(null, null, convertID(method), exprList(args).asJava)
       maybeWithThen match {
         case None =>
@@ -776,11 +775,11 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
           res.set_after(create block(convertValWithThen(block):_*))
       }
       res
-    case Primary6(t, ".", "class") =>
+    case Primary5(t, ".", "class") =>
       ??(tree) // reflection is unsupported
-    case Primary7("void", ".", "class") =>
+    case Primary6("void", ".", "class") =>
       ??(tree) // reflection is unsupported
-    case _: Primary8Context => ??(tree) // generic invocation?
+    case _: Primary7Context => ??(tree) // generic invocation?
 
     case VariableDeclaratorInit0(_, exp) => expr(exp)
     case VariableInitializer0(arr) => ??(arr)
