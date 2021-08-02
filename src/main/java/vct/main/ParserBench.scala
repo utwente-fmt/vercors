@@ -347,7 +347,7 @@ class ParserBench {
       /*
         args, exprList, mapPairs also should not be wrongly/duplicatingly tail recursive. Not sure if they matter though
        */
-      /* rule above seqAddExpr (powExpr) should refer to seqAddExpr. Also, seqAddExpr also has duplicating tail. */
+      /* DONE: rule above seqAddExpr (powExpr) should refer to seqAddExpr. Also, seqAddExpr also has duplicating tail. */
       /* nonTargetUnit: "'?' identifier" is also in builtinMethod! */
       /* clazMember is probably slow because it partially overlaps with method (i.e. int a looks similar to int a())
          refactor by merging field, constructor, and method, and specifying in COL which one you want by not allowing them (i.e. not having an argument list and no contract means a field)

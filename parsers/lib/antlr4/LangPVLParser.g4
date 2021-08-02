@@ -105,10 +105,15 @@ powExpr
  ;
 
 seqAddExpr
- : unaryExpr '::' seqAddExpr
- | seqAddExpr '++' unaryExpr
- | seqAddExpr '++' '(' unaryExpr ',' unaryExpr ')'
- | unaryExpr
+ : unaryExpr seqPrependExpr?
+ | seqAddExpr '++' seqAppendExpr
+ ;
+
+seqPrependExpr : '::' seqAddExpr;
+
+seqAppendExpr
+ : unaryExpr
+ | '(' unaryExpr ',' unaryExpr ')'
  ;
 
 unaryExpr

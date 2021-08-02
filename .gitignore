@@ -19,6 +19,9 @@ vct-tool.jar
 .bsp/
 null/
 
+# SBT garbage temp files
+.attach_pid*
+
 # Mac specific OS files
 .DS_Store
 
