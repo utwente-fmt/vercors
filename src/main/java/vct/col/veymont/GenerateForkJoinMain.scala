@@ -16,12 +16,13 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val threads = source.asScala.collect {
       case c: ASTClass if isThreadClassName(c.name) => c
     }
-    target.add(getStartThreadClass(threads.toSet))
+    target.add(getStartThreadClass(threads.toSet,StructureCheck.getMainClass(source)))
     rewriteAll()
   }
 
-  private def getStartThreadClass(threads : Set[ASTClass]) = {
+  private def getStartThreadClass(threads : Set[ASTClass],mainClass : ASTClass) = {
     val mainFJClass = create.new_class(localMainClassName,null,null)
+    val mainFJContract = mainClass.methods().asScala.find(_.name == Util.mainMethodName).get.getContract
     val threadsConstr = threads.map(_.methods().asScala.find(_.kind== Kind.Constructor).get)
     val chansVars = threadsConstr.flatMap(getConstrChanArgs).map(getChanVar).toArray
     val barrierVar = getBarrierVar(threads.size)
@@ -31,10 +32,15 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val mainFJArgs = threadsConstr.map(getConstrRoleArgs).reduce((a,b) => a ++ b) : Array[DeclarationStatement]
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
       (barrierVar +: (chansVars ++ threadVars ++ threadForks ++ threadJoins)):_*)
-    val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),new ContractBuilder().getContract,
-      localMainClassName,mainFJArgs,body)
+    val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),rewrite(mainFJContract),
+      localMainMethodName,mainFJArgs,body)
     mainFJClass.add_static(mainMethod)
     mainFJClass
+  }
+
+  override def visit(c : ASTClass) = {
+    if(c.name != Util.mainClassName) //remove Main class
+      super.visit(c)
   }
 
   private def getBarrierVar(nrThreads : Int) : DeclarationStatement =

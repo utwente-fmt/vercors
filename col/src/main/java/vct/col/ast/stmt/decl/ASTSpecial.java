@@ -60,6 +60,7 @@ public class ASTSpecial extends ASTDeclaration {
     SpecIgnoreEnd,
     Wait,
     Notify,
+    NotifyAll,
     Fork,
     Join,
     StaticEntry(0),

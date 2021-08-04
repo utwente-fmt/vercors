@@ -13,7 +13,9 @@ object Util {
 
   val mainClassName: String = "Main"
   val localMainClassName : String = "MainFJ"
+  val localMainMethodName : String = "mainFJ"
   val runMethodName: String = "run"
+  val javaForkRunMethodName = "compute"
   val mainMethodName: String = "main"
   private val threadName: String = "Thread"
   val chanName: String = "Chan"

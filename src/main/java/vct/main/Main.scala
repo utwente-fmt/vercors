@@ -176,11 +176,11 @@ class Main {
 
     val vFile = Configuration.veymont_file.get()
     if(vFile != null) {
-      val nonPVL = inputPaths.filter(!_.endsWith(".pvl"))
+      val nonPVL = inputPaths.filter(p => !p.endsWith(".pvl") && !p.endsWith(Configuration.javaChannelFile) && !p.endsWith(Configuration.javaBarrierFile))
       if(nonPVL.nonEmpty)
         Fail("VeyMont cannot use non-PVL files %s",nonPVL.mkString(", "))
-      if(!vFile.endsWith(".pvl"))
-        Fail("VeyMont cannot output to non-PVL file %s",vFile)
+      if(!(vFile.endsWith(".pvl") || vFile.endsWith(".java")))
+        Fail("VeyMont can only output to file %s, it only accepts files ending with '.pvl' or '.java'",vFile)
     }
   }
 
@@ -209,14 +209,14 @@ class Main {
     BY_KEY("VeyMontTerminationCheck"),
   //  BY_KEY("VeyMontGlobalLTS"),
     BY_KEY("VeyMontDecompose"),
-    BY_KEY("VeyMontLocalLTS"),
+  //  BY_KEY("VeyMontLocalLTS"),
     BY_KEY("removeTaus"),
     BY_KEY("removeEmptyBlocks"),
     BY_KEY("VeyMontBarrier"),
     BY_KEY("VeyMontLocalProgConstr"),
     BY_KEY("VeyMontAddChannelPerms"),
     BY_KEY("VeyMontAddStartThreads"),
-    BY_KEY("printPVL"),
+    BY_KEY("printVeyMontOutput"),
   )
 
   object ChainPart {

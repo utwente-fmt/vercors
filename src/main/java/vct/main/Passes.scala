@@ -3,14 +3,14 @@ package vct.main
 import hre.config.Configuration
 
 import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
-import hre.lang.System.{Abort, Debug}
+import hre.lang.System.{Abort, Debug, Fail}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
-import vct.col.features.{Feature}
+import vct.col.features.Feature
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateForkJoinMain, LocalProgConstructors, StructureCheck, TerminationCheck}
+import vct.col.veymont.{ChannelPerms, Decompose, GenerateBarrier, GenerateForkJoinMain, GenerateLTS, JavaForkJoin, LocalProgConstructors, RemoveTaus, StructureCheck, TerminationCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
@@ -31,7 +31,7 @@ object Passes {
       out.close()
       arg
     }, introduces=Set(), permits=Feature.ALL),
-    SimplePass("printPVL", "print AST in PVL syntax", arg => {
+    SimplePass("printVeyMontOutput", "print AST produced by VeyMont in PVL or Java syntax", arg => {
       try {
         val f = new File(Configuration.veymont_file.get());
         val b = f.createNewFile();
@@ -39,7 +39,13 @@ object Passes {
           Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get());
         }
         val out = new PrintWriter(new FileOutputStream(f));
-        PVLSyntax.get().print(out,arg);
+        if(Configuration.veymont_file.get().endsWith(".pvl"))
+          PVLSyntax.get().print(out,arg)
+        else if(Configuration.veymont_file.get().endsWith(".java")) {
+          out.println("import java.util.concurrent.*;")
+          JavaSyntax.getJava(JavaDialect.JavaVerCors).print(out, new JavaForkJoin(arg).rewriteAll())
+        }
+        else Fail("VeyMont Fail: VeyMont cannot write output to file %s",Configuration.veymont_file.get())
         out.close();
       } catch {
         case e: IOException => Debug(e.getMessage);

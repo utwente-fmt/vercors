@@ -174,10 +174,15 @@ public class Configuration {
         return getFileOrAbort("/include");
     }
 
+    public static final String pvlBarrierFile =  "/include/barrier.pvl";
+    public static final String pvlChannelFile = "/include/channel.pvl";
+    public static final String javaBarrierFile =  "/include/Barrier.java";
+    public static final String javaChannelFile = "/include/IntegerChannel.java";
+
     public static File[] getVeyMontFiles()  {
-        File bar = getFileOrAbort("/include/barrier.pvl");
-        File chan = getFileOrAbort("/include/channel.pvl");
-        return new File[] {bar,chan};
+        if(veymont_file.get().endsWith(".pvl"))
+            return new File[] {getFileOrAbort(pvlBarrierFile), getFileOrAbort(pvlChannelFile)};
+        else return new File[] {getFileOrAbort(javaBarrierFile), getFileOrAbort(javaChannelFile)};
     }
 
     public static File getSelfTestPath(String test) {

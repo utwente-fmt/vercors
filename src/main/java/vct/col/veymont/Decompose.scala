@@ -29,8 +29,10 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       target().add(createThreadClass(role))
     })
     roleName = None
-    source.get().asScala.filter(_.name != mainClassName).foreach(c =>
-      if(isChannelClass(c.name)) {
+    source.get().asScala.foreach(c =>
+      if(c.name == mainClassName)
+        target().add(c)
+      else if(isChannelClass(c.name)) {
         val chanTypes = chans.map(_.chanType match {
           case p : PrimitiveType => Left(p)
           case ct : ClassType => Right(roleOrOtherClass.find(_.name == ct.getName).get)

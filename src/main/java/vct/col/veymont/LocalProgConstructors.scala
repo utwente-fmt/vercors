@@ -5,7 +5,7 @@ import vct.col.ast.`type`.ASTReserved
 import vct.col.ast.expr.StandardOperator
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.BlockStatement
-import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, NameSpace, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.veymont.Util.{getBlockOrThrow, isChannelClass, isThreadClassName}
 
@@ -21,17 +21,25 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
 
   def addChansToConstructors() : ProgramUnit = {
     for(entry <- source.get().asScala) {
-      entry match {
-        case c : ASTClass => {
-          if(isThreadClassName(c.name)) {
-            chanMap += (c.name -> getChansFromFields(c))
-          }
-        }
-        case _ => Fail("VeyMont Fail: global program can only have classes at top-level!")
-      }
+      findChansInClass(entry)
     }
     rewriteAll
   }
+
+  private def findChansInClass(entry : ASTNode): Unit =
+    entry match {
+      case c: ASTClass => {
+        if (isThreadClassName(c.name)) {
+          chanMap += (c.name -> getChansFromFields(c))
+        }
+      }
+      case n: NameSpace => {
+        for (nentry <- n.iterator().asScala) {
+          findChansInClass(nentry)
+        }
+      }
+      case _ => Fail("VeyMont Fail: global program can only have classes at top-level!")
+    }
 
   private def getChansFromFields(c : ASTClass) : Set[ChannelRepr] = {
     val role = c.fields().asScala.head.name //role is first field
