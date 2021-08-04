@@ -646,7 +646,7 @@ primary
     |   nonWildcardTypeArguments constructorCall
 	;
 
-callTail : javaIdentifier predicateEntryType? arguments valEmbedWithThen?;
+callTail : predicateEntryType? arguments valEmbedWithThen?;
 
 constructorCall
     :   explicitGenericInvocationSuffix

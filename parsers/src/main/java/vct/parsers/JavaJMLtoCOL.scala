@@ -766,8 +766,8 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
     case Primary3(Literal4(s)) => create constant s.equals("true")
     case Primary3(Literal5("null")) => create reserved_name(ASTReserved.Null)
     case Primary4(name, None) => convertIDName(name)
-    case Primary4(name, Some(CallTail0(_, Some(predicateEntryType), _, _))) => ???
-    case Primary4(name, Some(CallTail0(method, None, args, maybeWithThen))) =>
+    case Primary4(_, Some(CallTail0(Some(predicateEntryType), _, _))) => ???
+    case Primary4(method, Some(CallTail0(None, args, maybeWithThen))) =>
       val res = create invokation(null, null, convertID(method), exprList(args).asJava)
       maybeWithThen match {
         case None =>
