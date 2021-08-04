@@ -207,7 +207,7 @@ valType
 
 valDeclaration
  : valContractClause* valModifier* langType langId '(' valArgList? ')' valPredicateDef
- | 'axiom' langId '{' langExpr '==' langExpr '}'
+ | 'axiom' langId '{' langExpr '}' // Only intended use is "axiom xyz { f(a) == g(a) }", i.e. with top-level ==
  | valContractClause* 'ghost' langDecl
  ;
 

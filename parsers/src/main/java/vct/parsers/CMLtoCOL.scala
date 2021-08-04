@@ -1,14 +1,13 @@
 package vct.parsers
 
 import scala.annotation.nowarn
-
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.CParser
 import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{NameExpression, NameExpressionKind, StandardOperator}
+import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.langspecific.c._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
@@ -1373,8 +1372,17 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       )
       mods.foreach(mod => func.attach(convertValModifier(mod)))
       func
-    case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
-      create axiom(convertID(name), create expression(EQ, expr(left), expr(right)))
+    case ValDeclaration1("axiom", name, _, body, _) =>
+      expr(body) match {
+        case opExpr: OperatorExpression =>
+          if (opExpr.isa(StandardOperator.EQ)) {
+            create axiom(convertID(name), create expression(StandardOperator.EQ, opExpr.arg(0), opExpr.arg(1)))
+          } else {
+            fail(body, "Body of axiom must be of form \"a == b\"")
+          }
+        case _ =>
+          fail(body, "Body of axiom must be of form \"a == b\"")
+      }
     case ValDeclaration2(clauses, "ghost", langDecl) =>
       val decl = convertDecl(langDecl)
       if(clauses.nonEmpty) {

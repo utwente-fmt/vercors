@@ -9,7 +9,7 @@ import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.ast.`type`.ASTReserved._
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, Type}
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, StandardOperator}
+import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
 import vct.col.ast.stmt.composite.{BlockStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
@@ -1144,8 +1144,17 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       )
       mods.foreach(mod => func.attach(convertValModifier(mod)))
       func
-    case ValDeclaration1("axiom", name, _, left, "==", right, _) =>
-      create axiom(convertID(name), create expression(StandardOperator.EQ, expr(left), expr(right)))
+    case ValDeclaration1("axiom", name, _, body, _) =>
+      expr(body) match {
+        case opExpr: OperatorExpression =>
+          if (opExpr.isa(StandardOperator.EQ)) {
+            create axiom(convertID(name), create expression(StandardOperator.EQ, opExpr.arg(0), opExpr.arg(1)))
+          } else {
+            fail(body, "Body of axiom must be of form \"a == b\"")
+          }
+        case _ =>
+          fail(body, "Body of axiom must be of form \"a == b\"")
+      }
     case ValDeclaration2(clauses, "ghost", langDecl) =>
       val decl = convertDecl(langDecl)
       if(clauses.nonEmpty) {
