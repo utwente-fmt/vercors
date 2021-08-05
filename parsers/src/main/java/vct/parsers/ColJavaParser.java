@@ -23,34 +23,46 @@ public class ColJavaParser extends Parser {
   }
   
   @Override
-  public ProgramUnit parse(CharStream input, String file_name) {
+  public ProgramUnit parse(CharStream input, String fileName) {
       try {
         TimeKeeper tk=new TimeKeeper();
 
-        ProgramUnit pu;
         Lexer lexer = new LangJavaLexer(input);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        JavaParser parser = new JavaParser(tokens);
-        ErrorCounter ec = errorCounter(parser, lexer, file_name);
-        if(this.topLevelSpecs) {
-          parser.specLevel = 1;
-        }
+        CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+        JavaParser parser = new JavaParser(tokenStream);
+        ErrorCounter ec = errorCounter(parser, lexer, fileName);
 
-        JavaParser.CompilationUnitContext tree = parser.compilationUnit();
+        JavaParser.CompilationUnitContext tree = (JavaParser.CompilationUnitContext) parseLLSLL(
+                ec,
+                parser,
+                () -> {
+                  // Parser might be run twice in case of SLL errors, so specLevel must definitely be reset.
+                  // Otherwise it might remain "1" because of the previous run accidentally
+                  if (this.topLevelSpecs) {
+                    parser.specLevel = 1;
+                  } else {
+                    parser.specLevel = 0;
+                  }
+
+                  return parser.compilationUnit();
+                },
+                false
+        );
+
         ec.report();
-        Progress("first parsing pass took %dms",tk.show());
+        Progress("parsing pass took %dms",tk.show());
 
-        pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
-        Progress("AST conversion took %dms",tk.show());
+        ProgramUnit pu=JavaJMLtoCOL.convert(tree,fileName,tokenStream,parser);
+        Progress("AST conversion pass took %dms",tk.show());
         Debug("program after Java parsing:%n%s",pu);
 
         return pu;
       } catch (Exception e) {
         DebugException(e);
-        Abort("Exception %s while parsing %s",e.getClass(),file_name);
+        Abort("Exception %s while parsing %s",e.getClass(),fileName);
       } catch (Throwable e){
         DebugException(e);
-        Warning("Exception %s while parsing %s",e.getClass(),file_name);
+        Warning("Exception %s while parsing %s",e.getClass(),fileName);
         throw e;
       }
     return null;

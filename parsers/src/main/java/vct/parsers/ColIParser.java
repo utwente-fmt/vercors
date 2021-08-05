@@ -14,20 +14,29 @@ import static hre.lang.System.*;
  */
 public class ColIParser extends Parser {
   @Override
-  public ProgramUnit parse(CharStream input, String file_name) {
+  public ProgramUnit parse(CharStream input, String fileName) {
     TimeKeeper tk=new TimeKeeper();
 
     LangCLexer lexer = new LangCLexer(input);
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     CParser parser = new CParser(tokens);
-    ErrorCounter ec = errorCounter(parser, lexer, file_name);
+    ErrorCounter ec = errorCounter(parser, lexer, fileName);
 
-    CParser.CompilationUnitContext tree = parser.compilationUnit();
+    CParser.CompilationUnitContext tree = (CParser.CompilationUnitContext) parseLLSLL(
+            ec,
+            parser,
+            () -> {
+              // Reset the specLevel in case the parser is reused for the second parse
+              parser.specLevel = 0;
+              return parser.compilationUnit();
+            },
+            false
+    );
     Progress("first parsing pass took %dms",tk.show());
     ec.report();
     Debug("parser got: %s",tree.toStringTree(parser));
 
-    ProgramUnit pu= CMLtoCOL.convert(tree,file_name,tokens,parser);
+    ProgramUnit pu= CMLtoCOL.convert(tree,fileName,tokens,parser);
     pu.setLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations, false);
     Progress("AST conversion took %dms",tk.show());
     Debug("after conversion %s",pu);

@@ -17,21 +17,21 @@ import vct.col.ast.stmt.decl.ProgramUnit;
  */
 public class ColCParser extends ColIParser {
     @Override
-    public ProgramUnit parse(CharStream input, String file_name) {
+    public ProgramUnit parse(CharStream input, String fileName) {
         throw new NotImplementedError(
                 "Cannot parse a C file from a CharStream: " +
                 "the preprocessor requires a byte stream.");
     }
 
     @Override
-    public ProgramUnit parse(InputStream stream, String file_name) {
+    public ProgramUnit parse(InputStream stream, String fileName) {
         try {
             Runtime runtime = Runtime.getRuntime();
 
             StringBuilder command = new StringBuilder(Configuration.cpp_command.get());
             command.append(" -nostdinc -nocudainc -nocudalib --cuda-host-only -isystem ").append(Configuration.getCIncludePath().getAbsolutePath());
 
-            Path filePath = Paths.get(file_name).toAbsolutePath().getParent();
+            Path filePath = Paths.get(fileName).toAbsolutePath().getParent();
 
             if(filePath != null) {
                 // Not quite correct, because this allows <> includes to see local files as well as "" includes.
@@ -79,10 +79,10 @@ public class ColCParser extends ColIParser {
             });
             t.setDaemon(true);
             t.start();
-            return super.parse(CharStreams.fromStream(process.getInputStream()), file_name);
+            return super.parse(CharStreams.fromStream(process.getInputStream()), fileName);
         } catch (Exception e) {
             DebugException(e);
-            Abort("Exception %s while parsing %s", e.getClass(), file_name);
+            Abort("Exception %s while parsing %s", e.getClass(), fileName);
         }
         return null;
     }
