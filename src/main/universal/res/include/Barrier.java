@@ -3,6 +3,15 @@ public class Barrier {
     private boolean outgoing;
 
     /*@
+    resource lock_invariant() =
+		Perm(k,1) ** Perm(n,read) ** Perm(outgoing,1)
+		** 0 <= k ** k < n
+		** (outgoing ? 1 <= k : 0 <= k)
+		** n > 1
+		;
+    @*/
+
+    /*@
         requires nrThreads > 1;
     @*/
     public Barrier(int nrThreads) {

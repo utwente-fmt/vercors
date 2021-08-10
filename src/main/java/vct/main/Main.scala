@@ -217,6 +217,7 @@ class Main {
     BY_KEY("VeyMontAddChannelPerms"),
     BY_KEY("VeyMontAddStartThreads"),
     BY_KEY("printVeyMontOutput"),
+    BY_KEY("UndoJavaParallelEncoding")
   )
 
   object ChainPart {

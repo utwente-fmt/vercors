@@ -6,6 +6,13 @@ public class IntegerChannel {
 
     private int exchangeValue;
 
+    /*@
+    resource lock_invariant() =
+		Perm(transfering, 1)
+		** Perm(exchangeValue,1)
+		;
+    @*/
+
     public IntegerChannel() {
         transfering = true;
     }

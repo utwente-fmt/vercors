@@ -959,6 +959,8 @@ object Passes {
       new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
       new GenerateForkJoinMain(_).addStartThreadClass()),
+    SimplePass("UndoJavaParallelEncoding", "Translate VeyMont code generated from parallel regions back into parallel regions",
+      new UndoJavaParallelEncoding(_).rewriteAll())
   )
 
   val BY_KEY: Map[String, AbstractPass] = (
