@@ -6,7 +6,9 @@ import hre.ast.TrackingTree;
 import hre.lang.HREError;
 
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
@@ -55,15 +57,28 @@ public class JavaPrinter extends AbstractPrinter {
       lbl.accept(this);
       out.printf(":");
     }
+    printAnnotations(node,false);
+  }
+
+  private void printAnnotations(ASTNode node, boolean printJavaModifier) {
     if (node.annotated()) for(ASTNode ann:node.annotations()) {
       if (ann==null){
         out.printf(" <null annotation> ");
       } else {
-        nextExpr();
-        ann.accept(this);
-        out.printf(" ");
+        if(printJavaModifier && isJavModifier(ann) || !printJavaModifier && !isJavModifier(ann)) {
+          nextExpr();
+          ann.accept(this);
+          out.printf(" ");
+        }
       }
     }
+  }
+
+  private boolean isJavModifier(ASTNode a) {
+    if(a instanceof NameExpression) {
+      NameExpression n = (NameExpression) a;
+      return n.isReserved(ASTReserved.Private) || n.isReserved(ASTReserved.Protected) || n.isReserved(ASTReserved.Public);
+    } else return false;
   }
   
   @Override
@@ -615,10 +630,11 @@ public class JavaPrinter extends AbstractPrinter {
       }
       out.print(">");
     }
-    if (cl.super_classes.length>0) {
+    List<ClassType> sup = Arrays.stream(cl.super_classes).filter(classEl -> !classEl.getName().equals("Object")).collect(Collectors.toList());
+    if (sup.size()>0) {
       out.printf("  extends %s",cl.super_classes[0]);
       for(int i=1;i<cl.super_classes.length;i++){
-        out.printf(", %s",cl.super_classes[i]);
+        out.printf(", %s",sup.get(i));
       }
       out.lnprintf("");
     }
@@ -682,6 +698,7 @@ public class JavaPrinter extends AbstractPrinter {
     String name=m.getName();
     Contract contract=m.getContract();
     boolean predicate=m.getKind()==Method.Kind.Predicate;
+    boolean resource = result_type instanceof PrimitiveType && ((PrimitiveType) result_type).sort == PrimitiveSort.Resource;
     if (predicate){
       if (contract!=null) {
         out.lnprintf("//ignoring contract of predicate");
@@ -694,6 +711,7 @@ public class JavaPrinter extends AbstractPrinter {
     if (contract!=null && dialect!=JavaDialect.JavaVeriFast && !predicate && !contract.isEmpty()){
       visit(contract);
     }
+    printAnnotations(m,true);
     for(int i=1;i<0xF000;i<<=1){
       if (m.isValidFlag(i)){
         if (m.getFlag(i)){
@@ -732,11 +750,11 @@ public class JavaPrinter extends AbstractPrinter {
     }
     if (m.getKind()==Method.Kind.Constructor){
     } else {
+      if(resource) {
+        out.printf("/*@");
+      }
       result_type.accept(this);
       out.printf(" ");
-    }
-    if (m.getKind()==Method.Kind.Pure) {
-       out.printf("/*@ pure */ ");
     }
     out.printf("%s(",name);
     if (N>0) {
@@ -786,7 +804,7 @@ public class JavaPrinter extends AbstractPrinter {
       body.accept(this);
       out.lnprintf(";");
     }
-    if (predicate){
+    if (predicate || resource){
       out.decrIndent();
       out.lnprintf("*/");
     }
@@ -1314,7 +1332,7 @@ public class JavaPrinter extends AbstractPrinter {
   @Override
   public void visit(ParallelRegion region){
     if (region.contract() != null) {
-      out.println("// parallel");
+      out.println("parallel");
       region.contract().accept(this);
       out.println("{");
     } else {

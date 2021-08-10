@@ -15,7 +15,11 @@ object Util {
   val localMainClassName : String = "MainFJ"
   val localMainMethodName : String = "mainFJ"
   val runMethodName: String = "run"
-  val javaForkRunMethodName = "compute"
+  val javaRunMethodName = "compute"
+  val javaForkMethodName = "fork"
+  val javaWaitMethodName = "wait"
+  val javaNotifyMethodName = "notify"
+  val javaNotifyAllMethodName = "notifyAll"
   val mainMethodName: String = "main"
   private val threadName: String = "Thread"
   val chanName: String = "Chan"
@@ -29,6 +33,9 @@ object Util {
   val chanSentFieldName = "sent"
   val chanRecvdFieldName = "recvd"
   val chanValueFieldName = "exchangeValue"
+  val recursiveActionClass : ClassType = ClassType(List("RecursiveAction"),List.empty)
+  val parClassName : String = "Par"
+  val javaThreadInvoke : String = "invoke"
 
   def getThreadClassName(roleName: String): String = roleName.toUpperCase() + threadName
 
@@ -57,6 +64,8 @@ object Util {
   def getArgName(name: String): String = name + "Arg"
 
   def unArgName(arg: String): String = arg.slice(0, arg.length - 3)
+
+  def isParClassName(name : String) = name.startsWith(parClassName)
 
   def getChansFromBlockStatement(block: ASTNode): Set[MethodInvokation] =
     getBlockOrThrow(block,"VeyMont Fail: expected BlockStatement").getStatements.toSet[ASTNode].flatMap(s => s match {
