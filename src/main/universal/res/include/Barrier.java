@@ -1,11 +1,12 @@
-public class Barrier {
+public final class Barrier {
     private int k,n;
     private boolean outgoing;
 
     /*@
     resource lock_invariant() =
 		Perm(k,1) ** Perm(n,read) ** Perm(outgoing,1)
-		** 0 <= k ** k < n
+		** 0 <= k
+		** k < n
 		** (outgoing ? 1 <= k : 0 <= k)
 		** n > 1
 		;
@@ -42,7 +43,14 @@ public class Barrier {
         if (k == n) {
             outgoing = true;
             k--;
-            notifyAll();
+            /*@
+            loop_invariant Perm(n, read);
+            loop_invariant 1<=i && i<= n;
+            loop_invariant held(this);
+             */
+            for (int i=1; i<n; i++) {
+                notify();
+            }
         } else {
             /*@
             loop_invariant held(this)
@@ -63,7 +71,14 @@ public class Barrier {
             k--;
             if (k == 0) {
                 outgoing = false;
-                notifyAll();
+                /*@
+                loop_invariant Perm(n, read);
+                loop_invariant 1<=i && i<= n;
+                loop_invariant held(this);
+                 */
+                for (int i=1; i<n; i++) {
+                    notify();
+                }
             }
         }
     }

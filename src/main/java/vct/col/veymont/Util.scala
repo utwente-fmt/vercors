@@ -19,7 +19,6 @@ object Util {
   val javaForkMethodName = "fork"
   val javaWaitMethodName = "wait"
   val javaNotifyMethodName = "notify"
-  val javaNotifyAllMethodName = "notifyAll"
   val mainMethodName: String = "main"
   private val threadName: String = "Thread"
   val chanName: String = "Chan"

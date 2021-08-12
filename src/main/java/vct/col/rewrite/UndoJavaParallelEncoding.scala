@@ -8,7 +8,7 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.ReturnStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.veymont.Util
-import vct.col.veymont.Util.{getBlockOrThrow, isParClassName, javaForkMethodName, javaNotifyAllMethodName, javaNotifyMethodName, javaRunMethodName, javaThreadInvoke, javaWaitMethodName, localMainClassName, parClassName}
+import vct.col.veymont.Util.{getBlockOrThrow, isParClassName, javaForkMethodName, javaNotifyMethodName, javaRunMethodName, javaThreadInvoke, javaWaitMethodName, localMainClassName, parClassName}
 
 import scala.jdk.CollectionConverters._
 
@@ -69,8 +69,6 @@ class UndoJavaParallelEncoding(override val source: ProgramUnit) extends Abstrac
       result = create.special(ASTSpecial.Kind.Fork,m.`object`)
     } else if(m.method == javaWaitMethodName) {
       result = create.special(ASTSpecial.Kind.Wait,create.reserved_name(ASTReserved.This))
-    } else if(m.method == javaNotifyAllMethodName) {
-      result = create.special(ASTSpecial.Kind.NotifyAll)
     } else if(m.method == javaNotifyMethodName) {
       result = create.special(ASTSpecial.Kind.Notify)
     } else super.visit(m)
@@ -97,6 +95,12 @@ class UndoJavaParallelEncoding(override val source: ProgramUnit) extends Abstrac
 
   override def visit(tc : TryCatchBlock) : Unit = {
     result = rewrite(tc.main)
+  }
+
+  override def visit(s : ASTSpecial) = {
+    if(s.args.length == 0)
+      result = create.special(s.kind,create.reserved_name(ASTReserved.This))
+    else super.visit(s)
   }
 
 }

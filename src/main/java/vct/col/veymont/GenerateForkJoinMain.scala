@@ -20,7 +20,9 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     rewriteAll()
   }
 
-  private def getStartThreadClass(threads : Set[ASTClass],mainClass : ASTClass) = {
+  private def getStartThreadClass(threads : Set[ASTClass],mainClass : ASTClass) : ASTClass = {
+    create.enter()
+    create.setOrigin(new MessageOrigin("Generated Class MainJF"))
     val mainFJClass = create.new_class(localMainClassName,null,null)
     val mainFJContract = mainClass.methods().asScala.find(_.name == Util.mainMethodName).get.getContract
     val threadsConstr = threads.map(_.methods().asScala.find(_.kind== Kind.Constructor).get)
@@ -35,6 +37,7 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),rewrite(mainFJContract),
       localMainMethodName,mainFJArgs,body)
     mainFJClass.add_static(mainMethod)
+    create.leave()
     mainFJClass
   }
 

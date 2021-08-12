@@ -1,6 +1,6 @@
 
 
-public class IntegerChannel {
+public final class IntegerChannel {
 
     private boolean transfering;
 
@@ -31,7 +31,7 @@ public class IntegerChannel {
         }
         transfering = false;
         exchangeValue = v;
-        notifyAll();
+        notify();
     }
 
     public synchronized int readValue() {
@@ -47,7 +47,7 @@ public class IntegerChannel {
             }
         }
         transfering = true;
-        notifyAll();
+        notify();
         return exchangeValue;
     }
 }

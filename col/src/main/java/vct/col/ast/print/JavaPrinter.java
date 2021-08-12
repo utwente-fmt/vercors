@@ -194,19 +194,6 @@ public class JavaPrinter extends AbstractPrinter {
   }
   @Override
   public void visit(ASTSpecial s){
-    String syn=syntax.get_annotation(s.kind);
-    if (syn!=null){
-      out.print(syn);
-      setExpr();
-      String sep=" ";
-      for(ASTNode n:s.args){
-        out.print(sep);
-        sep=",";
-        n.accept(this);
-      }
-      out.println(";");
-      return;
-    }
     ASTSpecial e=s;
     switch(s.kind){
     case Refute:{
@@ -342,7 +329,7 @@ public class JavaPrinter extends AbstractPrinter {
       out.println(";");
       break;
     case Assert:
-      out.print("assert ");
+      out.print("//@ assert ");
       setExpr();
       s.args[0].accept(this);
       out.println(";");
@@ -377,15 +364,6 @@ public class JavaPrinter extends AbstractPrinter {
       out.print("notify()");
       out.println(";");
       break;
-    case NotifyAll:
-        setExpr();
-        if(s.args.length > 0) {
-          s.args[0].accept(this);
-          out.print(".");
-        }
-        out.print("notifyAll()");
-        out.println(";");
-        break;
     case Import:
       out.print("import ");
       setExpr();
