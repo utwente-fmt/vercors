@@ -1,6 +1,7 @@
 //:: cases WaitStatementInRole
-//:: suite session-check
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: tool veymont
 //:: verdict Pass
 class Main {
 

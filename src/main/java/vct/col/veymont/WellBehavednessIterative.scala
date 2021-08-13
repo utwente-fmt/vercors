@@ -63,7 +63,7 @@ object WellBehavednessIterative {
     transitions.keys.forall(i =>
       // For all (i, tau*, j1) and (j1, label1, k1):
       tauClosure(i).forall(j1 =>
-        transitions(j1).forall{ case (label1, k1) =>
+        transitions.getOrElse(j1,Set.empty).forall{ case (label1, k1) =>
           // There exist (i, label2, j2) and (j2, tau*, k2):
           label1 == BarrierWait.toString || transitions(i).exists{ case (label2, j2) =>
             tauClosure(j2).exists(k2 =>
