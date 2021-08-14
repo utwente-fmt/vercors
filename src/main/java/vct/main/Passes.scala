@@ -379,7 +379,7 @@ object Passes {
   val PARALLEL: Seq[AbstractPass] = Seq(
     ErrorMapPass(
       "inlineAtomicMethods", "Encode CSL atomic regions with methods",
-      new CSLencoder(_).rewriteAll,
+      new CSLencoder(_,_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.ImproperlySortedBeforeAfter ++ Feature.OPTION_GATES,
       removes=Set(features.JavaAtomic),
       introduces=Feature.DEFAULT_INTRODUCE + features.ParallelAtomic + features.Goto,
