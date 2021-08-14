@@ -391,15 +391,7 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   public S map(VectorBlock vb) {
     return null;
   }
-  
-  private <F extends ASTNode> ArrayList<E> do_names(List<F> args){
-    ArrayList<E> names = new ArrayList<E>();
-    for (ASTNode n : args) {
-      names.add(n.apply(expr));
-    }
-    return names;
-  }
-  
+
   @Override
   public S map(Constraining c) {
     throw new HREError("Constraining is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");

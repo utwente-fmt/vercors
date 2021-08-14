@@ -55,9 +55,7 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
       expr_level=0;
     }
   }
-  
-  private static final Origin missing=new MessageOrigin("unknown location");
-  
+
   public void pre_visit(ASTNode node){
     super.pre_visit(node);
     if (in_expr) {
