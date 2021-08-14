@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
 /*This method is explicitly provide because Intellij has a bug regarding resolving methods of parameters in Scala classes */
-trait IntellijExplicitGetter {
+trait IntellijExplicitGetterASTNode {
   def main():BlockStatement;
 }
 
@@ -17,7 +17,7 @@ class TryWithResources(private[this] val resources: ArrayBuffer[DeclarationState
                        val main: BlockStatement,
                        val after: Option[BlockStatement],
                        private[this] val catchClauses: ArrayBuffer[CatchClause])
-extends ASTNode with IntellijExplicitGetter
+extends ASTNode with IntellijExplicitGetterASTNode
 {
   def this(main: BlockStatement, after: BlockStatement) =
     this(ArrayBuffer(), main, Option(after), ArrayBuffer())

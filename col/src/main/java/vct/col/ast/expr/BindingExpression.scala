@@ -6,11 +6,11 @@ import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 
 /*This method is explicitly provide because Intellij has a bug regarding resolving methods of parameters in Scala classes */
-trait IntellijExplicitGetter {
+trait IntellijExplicitGetterBindingExpression {
   def main():ASTNode;
 }
 
-case class BindingExpression(binder: Binder, result_type: Type, decls: Seq[DeclarationStatement], triggers: Seq[Seq[ASTNode]], select: ASTNode, main: ASTNode) extends ExpressionNode with IntellijExplicitGetter {
+case class BindingExpression(binder: Binder, result_type: Type, decls: Seq[DeclarationStatement], triggers: Seq[Seq[ASTNode]], select: ASTNode, main: ASTNode) extends ExpressionNode with IntellijExplicitGetterBindingExpression {
   def this(binder: Binder, result_type: Type, decls: Array[DeclarationStatement], triggers: Array[Array[ASTNode]], select: ASTNode, main: ASTNode) =
     this(binder, result_type, decls.clone.toSeq, if(triggers==null) null else triggers.map(_.clone.toSeq).toSeq, select, main)
 
