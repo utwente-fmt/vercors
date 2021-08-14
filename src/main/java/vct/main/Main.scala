@@ -8,8 +8,7 @@ import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration,
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, SpecificationFormat}
-import vct.col.util.FeatureScanner
+import vct.col.ast.stmt.decl.ProgramUnit
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
@@ -19,7 +18,6 @@ import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
-import java.net.URLClassLoader
 import scala.jdk.CollectionConverters._
 import java.nio.file.Paths
 
@@ -192,7 +190,7 @@ class Main {
 
     tk.show
     for (pathName <- inputPaths) {
-      val path = Paths.get(pathName);
+      val path = Paths.get(pathName)
       if (!no_context.get) FileOrigin.add(path, gui_context.get)
       report.getOutput.add(Parsers.parseFile(path))
     }
@@ -200,7 +198,6 @@ class Main {
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
 
     if (sequential_spec.get)
-      report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
   }
 
 

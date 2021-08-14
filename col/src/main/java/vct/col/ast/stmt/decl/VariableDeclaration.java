@@ -8,8 +8,6 @@ import hre.util.ScalaHelper;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTDeclaration;
-import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.type.ClassType;
 import vct.col.ast.type.Type;
 import vct.col.ast.util.ASTVisitor;

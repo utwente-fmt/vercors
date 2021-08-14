@@ -63,10 +63,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
     if (in_expr) {
       expr_level++;
     }
-    Origin o=node.getOrigin();
-    if (o==null){
-      o=missing;
-    }
     out.enter(node.getOrigin());
   }
 

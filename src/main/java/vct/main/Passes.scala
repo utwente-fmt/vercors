@@ -7,7 +7,7 @@ import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
-import vct.col.features.{Feature}
+import vct.col.features.Feature
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
 import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateForkJoinMain, LocalProgConstructors, StructureCheck, TerminationCheck}
@@ -33,14 +33,14 @@ object Passes {
     }, introduces=Set(), permits=Feature.ALL),
     SimplePass("printPVL", "print AST in PVL syntax", arg => {
       try {
-        val f = new File(Configuration.veymont_file.get());
-        val b = f.createNewFile();
+        val f = new File(Configuration.veymont_file.get())
+        val b = f.createNewFile()
         if(!b) {
-          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get());
+          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get())
         }
-        val out = new PrintWriter(new FileOutputStream(f));
-        PVLSyntax.get().print(out,arg);
-        out.close();
+        val out = new PrintWriter(new FileOutputStream(f))
+        PVLSyntax.get().print(out,arg)
+        out.close()
       } catch {
         case e: IOException => Debug(e.getMessage);
       }

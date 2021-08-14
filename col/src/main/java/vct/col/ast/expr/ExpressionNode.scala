@@ -2,7 +2,7 @@ package vct.col.ast.expr
 
 import hre.ast.MessageOrigin
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.composite.BlockStatement
 
 abstract class ExpressionNode extends ASTNode with BeforeAfterAnnotations {
   /** 
@@ -60,7 +60,7 @@ abstract class ExpressionNode extends ASTNode with BeforeAfterAnnotations {
   /** Assigns a default value to `before` and thereby resetting it
    *  @return the default block statement assigned to `before` */
   def resetBefore = {
-    var block = new BlockStatement()
+    val block = new BlockStatement()
     set_before(block)
     block
   }
@@ -68,7 +68,7 @@ abstract class ExpressionNode extends ASTNode with BeforeAfterAnnotations {
   /** Assigns a default value to `after` and thereby resetting it
    *  @return the default block statement assigned to `after` */
   def resetAfter = {
-    var block = new BlockStatement()
+    val block = new BlockStatement()
     set_after(block)
     block
   }

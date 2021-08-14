@@ -19,5 +19,5 @@ public enum NameExpressionKind {
   /** for the ?x binder of VeriFast. */
   Output,
   /** name of an ADT */
-  ADT;
+  ADT
 }
