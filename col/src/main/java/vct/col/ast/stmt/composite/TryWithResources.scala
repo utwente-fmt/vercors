@@ -8,11 +8,16 @@ import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
+/*This method is explicitly provide because Intellij has a bug regarding resolving methods of parameters in Scala classes */
+trait IntellijExplicitGetter {
+  def main():BlockStatement;
+}
+
 class TryWithResources(private[this] val resources: ArrayBuffer[DeclarationStatement],
                        val main: BlockStatement,
                        val after: Option[BlockStatement],
                        private[this] val catchClauses: ArrayBuffer[CatchClause])
-extends ASTNode
+extends ASTNode with IntellijExplicitGetter
 {
   def this(main: BlockStatement, after: BlockStatement) =
     this(ArrayBuffer(), main, Option(after), ArrayBuffer())

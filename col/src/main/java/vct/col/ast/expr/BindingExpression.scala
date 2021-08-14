@@ -5,7 +5,12 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 
-case class BindingExpression(binder: Binder, result_type: Type, decls: Seq[DeclarationStatement], triggers: Seq[Seq[ASTNode]], select: ASTNode, main: ASTNode) extends ExpressionNode {
+/*This method is explicitly provide because Intellij has a bug regarding resolving methods of parameters in Scala classes */
+trait IntellijExplicitGetter {
+  def main():ASTNode;
+}
+
+case class BindingExpression(binder: Binder, result_type: Type, decls: Seq[DeclarationStatement], triggers: Seq[Seq[ASTNode]], select: ASTNode, main: ASTNode) extends ExpressionNode with IntellijExplicitGetter {
   def this(binder: Binder, result_type: Type, decls: Array[DeclarationStatement], triggers: Array[Array[ASTNode]], select: ASTNode, main: ASTNode) =
     this(binder, result_type, decls.clone.toSeq, if(triggers==null) null else triggers.map(_.clone.toSeq).toSeq, select, main)
 
@@ -22,4 +27,5 @@ case class BindingExpression(binder: Binder, result_type: Type, decls: Seq[Decla
   override def accept_simple[T](visitor: ASTVisitor[T]) = visitor.visit(this)
   override def accept_simple[T](map: ASTMapping[T]) = map.map(this)
   override def accept_simple[R, A](map: ASTMapping1[R, A], arg: A) = map.map(this, arg)
+
 }
