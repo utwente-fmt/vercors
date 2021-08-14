@@ -11,7 +11,7 @@ import vct.col.veymont.Util.{chanReadMethodName, chanValueFieldName, chanWriteMe
 
 import scala.jdk.CollectionConverters._
 
-class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveType,ASTClass]) extends AbstractRewriter(null, true) {
+class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveType,ASTClass]) extends AbstractRewriter(source) {
 
   override def visit(t : PrimitiveType) : Unit = {
     if(t.sort == PrimitiveSort.Integer) {

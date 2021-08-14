@@ -104,7 +104,6 @@ public class AddSimpleTriggers extends AbstractRewriter {
       }
       
       public void visit(BindingExpression e) {
-        return;
       }
     };
     main.accept(scanner);

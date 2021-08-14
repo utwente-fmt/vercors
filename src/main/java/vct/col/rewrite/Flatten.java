@@ -211,7 +211,6 @@ public class Flatten extends AbstractRewriter {
       }
     default:
       super.visit(e);
-      return;
     }
   }
 

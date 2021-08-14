@@ -59,8 +59,8 @@ class StructureCheck(source : ProgramUnit) {
     mainClass.methods().asScala.filter(m => m.kind == Method.Kind.Pure || m.kind == Method.Kind.Predicate).map(_.name)
   private var prevAssertArg : ASTNode = null
   checkMainMethodsAllowedSyntax(mainMethods)
-  checkRoleFieldsTypes(source)
-  checkRoleMethodsTypes(source)
+  checkRoleFieldsTypes()
+  checkRoleMethodsTypes()
   private val otherClasses : Iterable[ASTClass] = getOtherClasses(source)
   checkOtherClassesFieldsTypes()
   checkOtherClassesMethodsTypes()
@@ -348,7 +348,7 @@ class StructureCheck(source : ProgramUnit) {
     expMap.values.sum == (expMap.size - 1) * 2
   }
 
-  private def checkRoleMethodsTypes(source : ProgramUnit) : Unit = {
+  private def checkRoleMethodsTypes(): Unit = {
     roleClasses.foreach(_.methods().forEach(checkRoleMethodTypes(_)))
   }
 
@@ -363,7 +363,7 @@ class StructureCheck(source : ProgramUnit) {
     })
   }
 
-  private def checkRoleFieldsTypes(source : ProgramUnit) : Unit = {
+  private def checkRoleFieldsTypes(): Unit = {
     roleClasses.foreach(role => role.fields().asScala.foreach(field => {
      if(!isNonRoleOrPrimitive(field.`type`,isVoid = false,allowRoles = false))
        Fail("VeyMont Fail: type '%s' of field '%s' of role class '%s' is not allowed", field.`type`.toString, field.name, role.name)

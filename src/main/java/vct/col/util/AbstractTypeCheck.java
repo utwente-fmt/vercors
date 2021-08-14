@@ -50,7 +50,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
 
   public AbstractTypeCheck(PassReport report, ProgramUnit arg){
-    super(arg,true);
+    super(arg);
     this.report = report;
   }
 

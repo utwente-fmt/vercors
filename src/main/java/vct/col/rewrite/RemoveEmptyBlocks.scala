@@ -4,7 +4,7 @@ import vct.col.ast.stmt.composite.{ParallelBlock, ParallelRegion}
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.AbstractRewriter
 
-class RemoveEmptyBlocks(override val source : ProgramUnit)  extends AbstractRewriter(null, true){
+class RemoveEmptyBlocks(override val source : ProgramUnit)  extends AbstractRewriter(source){
 
   override def visit(pr : ParallelRegion) = {
     val nonEmptyBlocks : List[ParallelBlock] = pr.blocks.filter(_.block.getStatements.nonEmpty);

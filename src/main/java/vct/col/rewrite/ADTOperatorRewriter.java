@@ -19,7 +19,7 @@ import vct.col.ast.util.AbstractRewriter;
 public class ADTOperatorRewriter extends AbstractRewriter {
 
     public ADTOperatorRewriter(ProgramUnit source) {
-        super(source, true);
+        super(source);
     }
 
 

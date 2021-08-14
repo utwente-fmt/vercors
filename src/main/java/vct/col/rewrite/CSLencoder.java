@@ -11,11 +11,10 @@ import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.util.AbstractRewriter;
-import vct.logging.ErrorMapping;
 
 public class CSLencoder extends AbstractRewriter {
  
-  public CSLencoder(ProgramUnit source, ErrorMapping map) {
+  public CSLencoder(ProgramUnit source) {
     super(source);
   }
   

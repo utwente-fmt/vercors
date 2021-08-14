@@ -12,7 +12,7 @@ import vct.col.veymont.StructureCheck.isAllowedPrimitive
 import vct.col.veymont.Util._
 import scala.jdk.CollectionConverters._
 
-class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
+class Decompose(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   private val roleNames : Iterable[String] = StructureCheck.getRoleNames(source)
   private val mainClass = StructureCheck.getMainClass(source)

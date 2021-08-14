@@ -57,7 +57,7 @@ final class LTSTransition(val label : LTSLabel, val destState : LTSState) {
   override def toString: String = label.toString + " -> " + destState.toString
 }
 
-class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends AbstractRewriter(null, true){
+class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends AbstractRewriter(source){
 
   private var initialState : LTSState = null
   private var transitions = Map.empty[LTSState,Set[LTSTransition]]

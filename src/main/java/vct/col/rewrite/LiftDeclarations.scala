@@ -46,8 +46,8 @@ class LiftDeclarations(arg: ProgramUnit) extends AbstractRewriter(arg) {
   }
 
   override def visit(method: Method): Unit = {
-    var body: ListBuffer[ASTNode] = ListBuffer()
-    var args: ListBuffer[DeclarationStatement] = ListBuffer()
+    val body: ListBuffer[ASTNode] = ListBuffer()
+    val args: ListBuffer[DeclarationStatement] = ListBuffer()
 
     for(arg <- method.getArgs) {
       args += create.field_decl(arg.getOrigin, "__arg_" + arg.name, arg.`type`)
