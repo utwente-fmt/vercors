@@ -13,7 +13,7 @@ object InferADTTypes {
 /**
  *
  */
-class InferADTTypes(source: ProgramUnit) extends AbstractRewriter(source, true) {
+class InferADTTypes(source: ProgramUnit) extends AbstractRewriter(source) {
 
 
   override def visit(v: StructValue): Unit = {
