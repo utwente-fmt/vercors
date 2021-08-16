@@ -1,0 +1,19 @@
+name: Mirroring
+
+on:  
+  schedule:
+    - cron: '0 0 * * *'  # every day at midnight
+
+
+jobs:
+  to_gitlab:
+    runs-on: ubuntu-18.04
+    steps:                            
+    - uses: actions/checkout@v1
+    - uses: pixta-dev/repository-mirroring-action@v1
+      with:
+        target_repo_url:
+          git@gitlab.utwente.nl:fmt/vercors/vercors-back-up.git          
+        ssh_private_key:               
+          ${{ secrets.VERCORS_GITLAB_OMER }}
+
