@@ -11,7 +11,6 @@ import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
 import vct.col.veymont._
 import vct.experiments.learn.{NonLinCountVisitor, Oracle, SpecialCountVisitor}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.main._
 import vct.parsers.rewrite._
 
 import java.io._
@@ -38,14 +37,14 @@ object Passes {
     }, introduces = Set(), permits = Feature.ALL),
     SimplePass("printPVL", "print AST in PVL syntax", arg => {
       try {
-        val f = new File(Configuration.veymont_file.get());
-        val b = f.createNewFile();
+        val f = new File(Configuration.veymont_file.get())
+        val b = f.createNewFile()
         if (!b) {
-          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get());
+          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get())
         }
-        val out = new PrintWriter(new FileOutputStream(f));
-        PVLSyntax.get().print(out, arg);
-        out.close();
+        val out = new PrintWriter(new FileOutputStream(f))
+        PVLSyntax.get().print(out, arg)
+        out.close()
       } catch {
         case e: IOException => Debug(e.getMessage);
       }
@@ -57,7 +56,7 @@ object Passes {
       val introduces: Set[Feature] = Set.empty
 
       override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
-        new JavaTypeCheck(report, arg).check();
+        new JavaTypeCheck(report, arg).check()
         arg // Sneakily changing this to make abrupt tests pass for now
       }
     },
@@ -75,7 +74,7 @@ object Passes {
       val introduces: Set[Feature] = Set.empty
 
       override def apply(report: PassReport, arg: ProgramUnit, args: Array[String]): ProgramUnit = {
-        new JavaTypeCheck(report, arg).check();
+        new JavaTypeCheck(report, arg).check()
         arg
       }
     },

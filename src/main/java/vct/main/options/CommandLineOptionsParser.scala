@@ -40,7 +40,7 @@ class OptionsParser extends OptionsParserTrait{
       throw new HREExitException(0)
     }
 
-    if (CommandLineOptions.help_passes.get) {
+    if (CommandLineOptions.helpPasses.get) {
       Output("The following passes are available:")
       Passes.BY_KEY.foreach {
         case (key, pass) => Output(" %-12s : %s", key, pass.description)
@@ -51,7 +51,7 @@ class OptionsParser extends OptionsParserTrait{
     if(Seq(
       CommandLineTesting.enabled,
       CommandLineOptions.silver.used,
-      CommandLineOptions.pass_list.asScala.nonEmpty,
+      CommandLineOptions.passList.asScala.nonEmpty,
       Configuration.veymont_file.used()
     ).forall(!_)) {
       Fail("no back-end or passes specified")

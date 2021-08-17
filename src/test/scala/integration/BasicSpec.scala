@@ -2,9 +2,10 @@ package integration
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import vct.main.Main
+import vct.main.options.OptionsParser
+import vct.main.passes.PassesGenerator
+import vct.main.{FileParser, LoggingSetup, PassesExecutioner, Program}
 
-import java.nio.file.Path
 import java.util
 
 
@@ -33,11 +34,17 @@ class BasicSpec extends AnyFlatSpec with Matchers {
     arguments.add("--strict-internal")
     arguments.add("--check-history")
     arguments.add(file)
-    val main = new Main()
+    val loggingSetup = new LoggingSetup
+    val passesExecutioner = new PassesExecutioner
+    val passesGenerator = new PassesGenerator
+    val fileParser = new FileParser
+    val optionsParser = new OptionsParser
+    val program = new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser)
+
     val argumentArray = new Array[String](arguments.size)
     arguments.toArray(argumentArray)
 
-    main.run(argumentArray)
+    program.run(argumentArray)
   }
 
 }

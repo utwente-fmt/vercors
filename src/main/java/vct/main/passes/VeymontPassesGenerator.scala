@@ -2,8 +2,8 @@ package vct.main.passes
 
 import vct.main.passes.Passes.BY_KEY
 
-class VeymontPassesGenerator {
-  private def collectPassesForVeyMont : Seq[AbstractPass] = Seq(
+class VeymontPassesGenerator extends PassesGeneratorTrait {
+  def getPasses : Seq[AbstractPass] = Seq(
     BY_KEY("VeyMontStructCheck"),
     BY_KEY("VeyMontTerminationCheck"),
     //  BY_KEY("VeyMontGlobalLTS"),

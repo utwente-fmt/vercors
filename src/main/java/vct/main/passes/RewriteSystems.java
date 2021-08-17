@@ -12,7 +12,7 @@ import hre.config.Configuration;
 
 public class RewriteSystems {
 
-  static Map<File,ProgramUnit> systems=new ConcurrentHashMap<File,ProgramUnit>();
+  static Map<File,ProgramUnit> systems= new ConcurrentHashMap<>();
   
   public static RewriteSystem getRewriteSystem(String name){
     File f=new File(name+".jspec");

@@ -1,56 +1,54 @@
 package vct.main
 
-import hre.ast.FileOrigin
 import hre.lang.System.{Abort, Fail, Output, Progress, Verdict}
-import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
+import hre.tools.TimeKeeper
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.logging.PassReport
 import vct.main.options.CommandLineOptions
 import vct.main.passes.Passes.BY_KEY
-import vct.main.passes.{AbstractPass, Parsers}
-import vct.silver.ErrorDisplayVisitor
+import vct.main.passes.AbstractPass
 
 import java.io.{FileOutputStream, PrintWriter}
-import java.nio.file.Paths
 
 trait PassesExecutionerTrait{
-  def doPasses(passes: Seq[AbstractPass]): Unit
+  def doPasses(passes: Seq[AbstractPass], report: PassReport, timeKeeper: TimeKeeper): Unit
 }
 
 class PassesExecutioner extends PassesExecutionerTrait {
 
-  def doPasses(passes: Seq[AbstractPass]): Unit = {
+  def doPasses(passes: Seq[AbstractPass], report: PassReport, timeKeeper: TimeKeeper): Unit = {
+    var currentReport = report
     for((pass, i) <- passes.zipWithIndex) {
-      if (debugBefore.has(pass.key)) report.getOutput.dump()
-      if (show_before.contains(pass.key)) show(pass)
+      if (CommandLineOptions.debugBefore.has(pass.key)) currentReport.getOutput.dump()
+      if (CommandLineOptions.showBefore.contains(pass.key)) show(pass,currentReport)
 
-      val featuresIn = if(strictInternalConditions.get()) {
-        Feature.scan(report.getInput)
+      val featuresIn = if(CommandLineOptions.strictInternalConditions.get()) {
+        Feature.scan(currentReport.getInput)
       } else { Set.empty }
 
-      tk.show
-      report = pass.apply_pass(report, Array())
+      timeKeeper.show
+      currentReport = pass.apply_pass(currentReport, Array())
 
-      if(report.getFatal > 0) {
+      if(currentReport.getFatal > 0) {
         Verdict("The final verdict is Fail")
         return
       }
 
-      Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
+      Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(timeKeeper.show))
 
-      if (debugAfter.has(pass.key)) report.getOutput.dump()
-      if (show_after.contains(pass.key)) show(pass)
-      if (stopAfter.contains(pass.key)) Fail("exit after pass %s", pass)
+      if (CommandLineOptions.debugAfter.has(pass.key)) currentReport.getOutput.dump()
+      if (CommandLineOptions.showAfter.contains(pass.key)) show(pass,currentReport)
+      if (CommandLineOptions.stopAfter.contains(pass.key)) Fail("exit after pass %s", pass)
 
-      report = BY_KEY("checkTypesJava").apply_pass(report, Array())
+      currentReport = BY_KEY("checkTypesJava").apply_pass(currentReport, Array())
 
-      if(report.getFatal > 0) {
+      if(currentReport.getFatal > 0) {
         Verdict("The final verdict is Fail")
         return
       }
 
-      if(strictInternalConditions.get()) {
-        val scanner = new RainbowVisitor(report.getOutput)
+      if(CommandLineOptions.strictInternalConditions.get()) {
+        val scanner = new RainbowVisitor(currentReport.getOutput)
         scanner.source().accept(scanner)
         val featuresOut = scanner.features.toSet
 
@@ -88,8 +86,8 @@ class PassesExecutioner extends PassesExecutionerTrait {
     Verdict("The final verdict is Pass")
   }
 
-  private def show(pass: AbstractPass): Unit = {
-    val name = CommandLineOptions.show_file.get
+  private def show(pass: AbstractPass, report: PassReport): Unit = {
+    val name = CommandLineOptions.showFile.get
     if (name != null) {
       val file = String.format(name, pass.key)
       val out = new PrintWriter(new FileOutputStream(file))

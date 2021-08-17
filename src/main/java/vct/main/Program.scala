@@ -4,7 +4,6 @@ import hre.lang.HREExitException
 import hre.lang.System.{DebugException, Progress, Verdict, Warning}
 import hre.tools.TimeKeeper
 import hre.util.Notifier
-import vct.logging.PassReport
 import vct.main.options.{CommandLineOptions, OptionsParserTrait}
 import vct.main.passes.PassesGeneratorTrait
 import vct.test.CommandLineTesting
@@ -12,13 +11,9 @@ import vct.test.CommandLineTesting
 class Program(loggingSetup: LoggingSetupTrait, passesExecutioner: PassesExecutionerTrait, passesGenerator: PassesGeneratorTrait,
               fileParser: FileParserTrait, optionsParser: OptionsParserTrait) {
 
-
   def run(args: Array[String]): Int = {
-    var report: PassReport = null
-    var tk: TimeKeeper = null
     var exit = 0
     val wallStart = System.currentTimeMillis
-    tk = new TimeKeeper
     try {
       loggingSetup.setupLoggingBeforeOptions()
       optionsParser.parseOptions(args)
@@ -26,9 +21,10 @@ class Program(loggingSetup: LoggingSetupTrait, passesExecutioner: PassesExecutio
       optionsParser.checkOptions()
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
-        fileParser.parseInputs(CommandLineOptions.inputPaths)
+        val timeKeeper: TimeKeeper = new TimeKeeper
+        val report = fileParser.parseInputs(CommandLineOptions.inputPaths,timeKeeper)
         val passes = passesGenerator.getPasses
-        passesExecutioner.doPasses(passes)
+        passesExecutioner.doPasses(passes,report,timeKeeper)
       }
     } catch {
       case e: HREExitException =>

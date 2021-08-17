@@ -2,12 +2,13 @@ package vct.main.passes
 
 import hre.lang.System.Debug
 import vct.col.features.Feature
+import vct.main.options.CommandLineOptions
 import vct.main.passes.Passes.BY_KEY
 
-class SilverPassesGenerator {
+class SilverPassesGenerator extends PassesGeneratorTrait {
 
-  def collectPassesForSilver: Seq[AbstractPass] = {
-    report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
+  def getPasses: Seq[AbstractPass] = {
+    val report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
 
     var features = Feature.scan(report.getOutput) ++ Set(
       // These are "gated" features: they are (too) hard to detect normally.
@@ -31,18 +32,18 @@ class SilverPassesGenerator {
       features += vct.col.features.UnusedExtern
 
     // options are encoded as gated features
-    if(sat_check.get()) features += vct.col.features.NeedsSatCheck
-    if(check_axioms.get()) features += vct.col.features.NeedsAxiomCheck
-    if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
-    if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
+    if(CommandLineOptions.satCheck.get()) features += vct.col.features.NeedsSatCheck
+    if(CommandLineOptions.checkAxioms.get()) features += vct.col.features.NeedsAxiomCheck
+    if(CommandLineOptions.checkDefined.get()) features += vct.col.features.NeedsDefinedCheck
+    if(CommandLineOptions.checkHistory.get()) features += vct.col.features.NeedsHistoryCheck
 
-    val passes = if (stopAfterTypecheck.get()) {
+    val passes = if (CommandLineOptions.stopAfterTypecheck.get()) {
       Seq()
     } else {
       computeGoal(features).get
     }
 
-    if (stopBeforeBackend.get()) {
+    if (CommandLineOptions.stopBeforeBackend.get()) {
       // We drop the last pass, which happens to be the silicon/carbon pass
       passes.init
     } else {
@@ -93,7 +94,7 @@ class SilverPassesGenerator {
   }
 
   def computeGoal(featuresIn: Set[Feature]): Option[Seq[AbstractPass]] = {
-    val toolPass = silver.get() match {
+    val toolPass = CommandLineOptions.silver.get() match {
       case "carbon" => BY_KEY("applyCarbon")
       case "silicon" => BY_KEY("applySilicon")
     }
@@ -115,6 +116,20 @@ class SilverPassesGenerator {
       None
     }
   }
+
+  object ChainPart {
+    def inflate(parts: Seq[ChainPart]): Seq[Seq[String]] =
+      parts.headOption match {
+        case None => Seq(Seq())
+        case Some(pass: Do) => inflate(parts.tail).map(pass.key +: _)
+        case Some(Choose(alts@_* /* collect varargs into alts */)) =>
+          val tail = inflate(parts.tail)
+          alts.map(inflate).flatMap(branch => branch.flatMap(choice => tail.map(choice ++ _)))
+      }
+  }
+  sealed trait ChainPart
+  implicit class Do(val key: String) extends ChainPart
+  case class Choose(choices: Seq[ChainPart]*) extends ChainPart
 
   val silverPassOrder: Seq[ChainPart] = Seq(
     "removeIgnoredElements",
