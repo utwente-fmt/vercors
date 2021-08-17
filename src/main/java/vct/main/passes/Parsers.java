@@ -1,4 +1,4 @@
-package vct.main;
+package vct.main.passes;
 
 import java.nio.file.Path;
 

@@ -1,4 +1,4 @@
-package vct.main
+package vct.main.passes
 
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.features.Feature

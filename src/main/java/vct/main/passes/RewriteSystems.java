@@ -1,4 +1,4 @@
-package vct.main;
+package vct.main.passes;
 
 import java.io.File;
 import java.util.Map;
@@ -23,7 +23,7 @@ public class RewriteSystems {
     if (unit==null) synchronized(systems){
       unit=systems.get(f);
       if (unit==null){
-        unit=Parsers.getParser("jspec").parse(f);
+        unit= Parsers.getParser("jspec").parse(f);
         unit=new JavaResolver(unit).rewriteAll();
         new AbstractTypeCheck(null, unit).check();
         systems.put(f, unit);

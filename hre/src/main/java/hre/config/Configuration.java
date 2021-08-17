@@ -106,7 +106,7 @@ public class Configuration {
      * Add the VCT library options to the given option parser.
      * @param clops Option parser.
      */
-    public static void add_options(OptionParser clops){
+    public static void addOptions(OptionParser clops){
         clops.add(keep_temp_files.getEnable("keep temporary files"),"keep");
         clops.add(detailed_errors.getEnable("produce detailed error messages"),"detail");
         clops.add(backend_file.getAssign("filename for storing the back-end input"),"encoded");
