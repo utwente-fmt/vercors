@@ -23,7 +23,7 @@ class Program(loggingSetup: LoggingSetupTrait, passesExecutioner: PassesExecutio
       else {
         val timeKeeper: TimeKeeper = new TimeKeeper
         val report = fileParser.parseInputs(CommandLineOptions.inputPaths,timeKeeper)
-        val passes = passesGenerator.getPasses
+        val passes = passesGenerator.getPasses(report)
         passesExecutioner.doPasses(passes,report,timeKeeper)
       }
     } catch {

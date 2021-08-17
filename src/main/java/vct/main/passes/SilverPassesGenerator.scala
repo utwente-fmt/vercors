@@ -2,15 +2,16 @@ package vct.main.passes
 
 import hre.lang.System.Debug
 import vct.col.features.Feature
+import vct.logging.PassReport
 import vct.main.options.CommandLineOptions
 import vct.main.passes.Passes.BY_KEY
 
 class SilverPassesGenerator extends PassesGeneratorTrait {
 
-  def getPasses: Seq[AbstractPass] = {
-    val report = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
+  def getPasses(report: PassReport): Seq[AbstractPass] = {
+    val typeCheckReport = Passes.BY_KEY("checkTypesJava").apply_pass(report, Array())
 
-    var features = Feature.scan(report.getOutput) ++ Set(
+    var features = Feature.scan(typeCheckReport.getOutput) ++ Set(
       // These are "gated" features: they are (too) hard to detect normally.
       vct.col.features.NotFlattened,
       vct.col.features.BeforeSilverDomains,

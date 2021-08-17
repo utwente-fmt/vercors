@@ -1,9 +1,10 @@
 package vct.main.passes
 
+import vct.logging.PassReport
 import vct.main.passes.Passes.BY_KEY
 
 class VeymontPassesGenerator extends PassesGeneratorTrait {
-  def getPasses : Seq[AbstractPass] = Seq(
+  def getPasses(report: PassReport): Seq[AbstractPass] = Seq(
     BY_KEY("VeyMontStructCheck"),
     BY_KEY("VeyMontTerminationCheck"),
     //  BY_KEY("VeyMontGlobalLTS"),

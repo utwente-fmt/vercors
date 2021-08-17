@@ -2,18 +2,19 @@ package vct.main.passes
 
 import hre.config.Configuration
 import hre.lang.System.Fail
+import vct.logging.PassReport
 import vct.main.options.CommandLineOptions
 import vct.main.passes.Passes.BY_KEY
 
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 trait PassesGeneratorTrait {
-  def getPasses: Seq[AbstractPass]
+  def getPasses(report: PassReport): Seq[AbstractPass]
 }
 
 class PassesGenerator extends PassesGeneratorTrait {
 
-  def getPasses: Seq[AbstractPass] = {
+  def getPasses(report: PassReport): Seq[AbstractPass] = {
     val silverPassesGenerator = new SilverPassesGenerator()
     val veymontPassesGenerator = new VeymontPassesGenerator()
 
@@ -23,9 +24,9 @@ class PassesGenerator extends PassesGeneratorTrait {
         case Some(pass) => pass
       }).toSeq
     }else if (CommandLineOptions.silver.used) {
-      silverPassesGenerator.getPasses
+      silverPassesGenerator.getPasses(report)
     }else if (Configuration.veymont_file.used()) {
-      veymontPassesGenerator.getPasses
+      veymontPassesGenerator.getPasses(report)
     } else {
       Fail("no back-end or passes specified"); ???
     }
