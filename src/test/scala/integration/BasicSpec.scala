@@ -1,50 +1,111 @@
 package integration
 
+import hre.util.TestReport.Verdict
+import integration.helper.{IntegrationTestConfiguration, IntegrationTestHelper}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import vct.main.options.OptionsParser
-import vct.main.passes.PassesGenerator
-import vct.main.{FileParser, LoggingSetup, PassesExecutioner, Program}
-
-import java.util
 
 
 class BasicSpec extends AnyFlatSpec with Matchers {
 
-  "VerCors" should "add to variables" in {
-    val a = 2
-    val b = 3
-    val expectedResult = 5
-    val result = a+b
-    assert(result==expectedResult)
-  }
   //todo
-  //split main
-  //stderr out should be allowed for testing
+  //DONE split main
+  //DONE stderr out should be allowed for testing
   //listen in system
-  //make generic class for testing
-  //make integrationTestConfiguration
-  //create one place for all the settings (Maybe split it in multiple objects
+  //DONE make generic class for testing
+  //DONE make integrationTestConfiguration
+  //NAH create one place for all the settings (Maybe split it in multiple objects)
+  //Generate tests automatically
+  //Fix Veymont
+  //create something for Veymont
 
-  "VerCors" should "run basic/AddAssignJava.java" in {
-    val file = "examples/basic/AddAssignJava.java"
-    val arguments = new util.ArrayList[String]
-    arguments.add("--progress")
-    arguments.add("--silicon")
-    arguments.add("--strict-internal")
-    arguments.add("--check-history")
-    arguments.add(file)
-    val loggingSetup = new LoggingSetup
-    val passesExecutioner = new PassesExecutioner
-    val passesGenerator = new PassesGenerator
-    val fileParser = new FileParser
-    val optionsParser = new OptionsParser
-    val program = new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser)
+  val folder = "examples/basic/"
 
-    val argumentArray = new Array[String](arguments.size)
-    arguments.toArray(argumentArray)
-
-    program.run(argumentArray)
+  "VerCors" should folder + "AddAssignJava.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder + "AddAssignJava.java"
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
   }
 
+  it should folder+"array-item-access.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"array-item-access.pvl"
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should folder+"ArrayAsObject.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"ArrayAsObject.java"
+    configuration.verdict = Verdict.Error
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should folder+"BasicArray.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"BasicArray.java"
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should folder+"BasicAssert.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"BasicAssert.java"
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should folder+"BasicAssert-e1.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"BasicAssert-e1.java"
+    configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should folder+"BooleanOperators.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"BooleanOperators.java"
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should folder+"Boxing.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"Boxing.java"
+    configuration.verdict = Verdict.Error
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should folder+"bracket-issues.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"bracket-issues.pvl"
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+  //This one did not have a verdict?
+  it should folder+"CollectionTest.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"CollectionTest.pvl"
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should folder+"constructor-name.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.file = folder+"constructor-name.pvl"
+    configuration.verdict = Verdict.Error
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
 }

@@ -22,9 +22,10 @@ class OptionsParser extends OptionsParserTrait{
     CommandLineOptions.addOptions(parser)
     CommandLineTesting.addOptions(parser)
     Configuration.addOptions(parser)
-    val files = parser.parse(args) //These are the arguments which did not match anything. They should be the files.
+    var files = parser.parse(args) //These are the arguments which did not match anything. They should be the files.
     if (Configuration.veymont_file.get() != null) {
-      files ++ Configuration.getVeyMontFiles.map(_.getAbsolutePath())
+      val veymontFiles = Configuration.getVeyMontFiles.map(_.getAbsolutePath())
+      files = files ++ veymontFiles
     }
     CommandLineOptions.inputPaths = files
   }

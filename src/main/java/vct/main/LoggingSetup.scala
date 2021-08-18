@@ -16,7 +16,7 @@ class LoggingSetup extends LoggingSetupTrait {
     hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info)
   }
 
-  def setupLogging(): Unit = {
+  def setupLoggingWithoutForbiddenPrintStream(): Unit ={
     import hre.lang.System.LogLevel
 
     var level = CommandLineOptions.logLevel.get match {
@@ -40,6 +40,10 @@ class LoggingSetup extends LoggingSetupTrait {
 
     hre.lang.System.setOutputStream(System.out, level)
     hre.lang.System.setErrorStream(System.err, level)
+  }
+
+  def setupLogging(): Unit = {
+    setupLoggingWithoutForbiddenPrintStream()
     System.setErr(new ForbiddenPrintStream(System.err))
     System.setOut(new ForbiddenPrintStream(System.out))
   }
