@@ -4,6 +4,7 @@ import java.util.*;
 
 import hre.io.Message;
 import hre.io.MessageProcess;
+import hre.lang.LogLevel;
 
 /**
  * @author Remco Swenker
@@ -91,8 +92,8 @@ public class SMTinter {
 		return new SMTresult(ans, satisfied, noAnswer);
 	}
 	public static void main(String[] args){
-		hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info);
-		hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info);
+		hre.lang.System.setOutputStream(System.out, LogLevel.Info);
+		hre.lang.System.setErrorStream(System.err, LogLevel.Info);
 
 		SMTinter eennieuwe = new SMTinter();
 	}

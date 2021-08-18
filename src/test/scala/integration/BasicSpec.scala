@@ -18,6 +18,10 @@ class BasicSpec extends AnyFlatSpec with Matchers {
   //Generate tests automatically
   //Fix Veymont
   //create something for Veymont
+  //stop-after-typecheck deze word niet gebruikt
+  //https://www.scalatest.org/scaladoc/3.0.5/org/scalatest/Checkpoints.html
+  // --debug vct.main.Main text aanpassen in program.
+  //Could not find file komt vaak voor. Maar is wel een Pass.
 
   val folder = "examples/basic/"
 

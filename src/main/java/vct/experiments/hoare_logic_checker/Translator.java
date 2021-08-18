@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.util.*;
 
+import hre.lang.LogLevel;
 import vct.col.ast.stmt.composite.IfStatement;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
@@ -92,7 +93,7 @@ public class Translator {
 		}else{
 			throw new Error("I do not understand: "+state.toString());
 		}
-		PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
+		PrintWriter out = hre.lang.System.getLogLevelOutputWriter(LogLevel.Info);
 		outputToString = new PrefixPrintWriter(out);
 		variablelenLijst = new ArrayList<String>();
 		hoareTriple = new ArrayList<String>();
@@ -584,7 +585,7 @@ public class Translator {
 	     * Executed when the abstract scanner finds a method.
 	     */
 		public void visit(Method m){
-			PrefixPrintWriter out=new PrefixPrintWriter(hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info));
+			PrefixPrintWriter out=new PrefixPrintWriter(hre.lang.System.getLogLevelOutputWriter(LogLevel.Info));
 			ASTNode body=m.getBody();
 			Contract c=m.getContract();
 			out.printf("starting%n");
@@ -850,7 +851,7 @@ public class Translator {
 
 		@Override
 		public void visit(Method m) {
-			PrintWriter out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
+			PrintWriter out = hre.lang.System.getLogLevelOutputWriter(LogLevel.Info);
 
 			outputToString = new PrefixPrintWriter(out);
 			variablelenLijst = new ArrayList<String>();

@@ -1,7 +1,8 @@
 package vct.col.features
 
 import hre.ast.MessageOrigin
-import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
+import hre.lang.LogLevel
+import hre.lang.System.{Output, getLogLevelOutputWriter}
 import vct.col.ast.`type`._
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.expr._

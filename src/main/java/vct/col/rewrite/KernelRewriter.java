@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 import java.util.*;
 
 import hre.config.Configuration;
+import hre.lang.LogLevel;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
@@ -571,7 +572,7 @@ public class KernelRewriter extends AbstractRewriter {
                 if (Configuration.auto_barrier.get()){
                   Fail("%s: resource in requires clause while using auto barriers.",claim.getOrigin());
                 }
-                PrintWriter outputWriter = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
+                PrintWriter outputWriter = hre.lang.System.getLogLevelOutputWriter(LogLevel.Info);
                 outputWriter.print("skipping:");
                 vct.col.ast.util.Configuration.getDiagSyntax().print(outputWriter, claim);
                 outputWriter.print("%n");

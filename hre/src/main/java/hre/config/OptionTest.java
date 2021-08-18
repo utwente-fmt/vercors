@@ -1,5 +1,7 @@
 package hre.config;
 
+import hre.lang.LogLevel;
+
 import static hre.lang.System.*;
 
 public class OptionTest {

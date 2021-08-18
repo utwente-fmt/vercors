@@ -1,5 +1,6 @@
 package vct.main
 
+import hre.lang.SystemNonStatic
 import vct.main.options.OptionsParser
 import vct.main.passes.PassesGenerator
 
@@ -9,7 +10,8 @@ object Main {
   var passesGenerator = new PassesGenerator
   var fileParser = new FileParser
   var optionsParser = new OptionsParser
-  var program = new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser)
+  var system = new SystemNonStatic
+  var program = new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser,system)
 
   def main(args: Array[String]): Unit = System.exit(program.run(args))
 }

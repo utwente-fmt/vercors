@@ -1,5 +1,6 @@
 package vct.main
 
+import hre.lang.LogLevel
 import hre.lang.System.{Abort, Fail, Output, Progress, Verdict}
 import hre.tools.TimeKeeper
 import vct.col.features.{Feature, RainbowVisitor}
@@ -95,7 +96,7 @@ class PassesExecutioner extends PassesExecutionerTrait {
       out.close()
     }
     else {
-      val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+      val out = hre.lang.System.getLogLevelOutputWriter(LogLevel.Info)
       vct.col.ast.util.Configuration.getDiagSyntax.print(out, report.getOutput)
       out.close()
     }

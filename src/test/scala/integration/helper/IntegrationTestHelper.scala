@@ -1,6 +1,8 @@
 package integration.helper
 
+import hre.lang.{ISystem, SystemNonStatic}
 import hre.util.TestReport.Verdict
+import org.scalatest.Assertions.{assertResult, fail}
 import vct.main.{FileParser, PassesExecutioner, Program}
 import vct.main.options.OptionsParser
 import vct.main.passes.PassesGenerator
@@ -12,15 +14,18 @@ object IntegrationTestHelper {
 
   def test(configuration: IntegrationTestConfiguration): Unit ={
     val arguments = createArguments(configuration)
-    val program = createProgram()
+    val system = createSystem(configuration)
+    val program = createProgram(system)
+
     val exitCode = program.run(arguments)
-    checkExitCode(configuration,exitCode)
+
+    checkEndConditions(configuration,exitCode,system)
   }
 
   def createArguments(configuration: IntegrationTestConfiguration): Array[String] ={
     val arguments = new util.ArrayList[String]
-    arguments.add("--progress")
-    arguments.add("--check-history")
+    //arguments.add("--progress")
+    //arguments.add("--debug vct.main.Program")
 
     if(configuration.toolSilicon){
       arguments.add("--silicon")
@@ -59,22 +64,35 @@ object IntegrationTestHelper {
     argumentArray
   }
 
-  def createProgram(): Program ={
+  def createSystem(configuration: IntegrationTestConfiguration): SystemListener ={
+    var message = ""
+    configuration.verdict match {
+      case Verdict.Error => message = "The final verdict is Error"
+      case Verdict.Pass => message = "The final verdict is Pass"
+      case Verdict.Inconclusive => fail("Verdict inconclusive is not supported")
+      case Verdict.Fail => message = "The final verdict is Fail"
+    }
+    new SystemListener(message)
+  }
+
+  def createProgram(system: ISystem): Program ={
     val loggingSetup = new TestLoggingSetup
     val passesExecutioner = new PassesExecutioner
     val passesGenerator = new PassesGenerator
     val fileParser = new FileParser
     val optionsParser = new OptionsParser
-    new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser)
+    new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser,system)
   }
 
-  def checkExitCode(configuration: IntegrationTestConfiguration,exitCode: Int): Unit ={
+  def checkEndConditions(configuration: IntegrationTestConfiguration, exitCode: Int, systemListener: SystemListener): Unit ={
+    assert(systemListener.getFoundExpectedMessage(),"Did not find verdict message "+ systemListener.getExpectedVerdictMessage + " in output.")
     configuration.verdict match {
-      case Verdict.Error => assert(exitCode==1)
-      case Verdict.Pass => assert(exitCode==0)
-      case Verdict.Inconclusive => assert(exitCode==1)
-      case Verdict.Fail => assert(exitCode==0)
+      case Verdict.Error => assertResult(exitCode,"For verdict error exitcode should be 1"){1}
+      case Verdict.Pass => assertResult(exitCode,"For verdict pass exitcode should be 0"){0}
+      case Verdict.Inconclusive => fail("Verdict inconclusive is not supported")
+      case Verdict.Fail => assertResult(exitCode,"For verdict fail exitcode should be 0"){0}
     }
+
   }
 
 }

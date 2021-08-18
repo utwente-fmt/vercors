@@ -1,6 +1,8 @@
 package vct.main.passes
 
 import hre.config.Configuration
+import hre.lang
+import hre.lang.LogLevel
 import hre.lang.System.{Abort, Debug}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
@@ -24,13 +26,13 @@ object Passes {
 
   val DIAGNOSTIC: Seq[AbstractPass] = Seq(
     SimplePass("printJava", "print AST in java syntax", arg => {
-      val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+      val out = hre.lang.System.getLogLevelOutputWriter(LogLevel.Info)
       JavaSyntax.getJava(JavaDialect.JavaVerCors).print(out, arg)
       out.close()
       arg
     }, introduces = Set(), permits = Feature.ALL),
     SimplePass("printC", "print AST in C syntax", arg => {
-      val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
+      val out = hre.lang.System.getLogLevelOutputWriter(lang.LogLevel.Info)
       vct.col.ast.print.CPrinter.dump(out, arg)
       out.close()
       arg
