@@ -5,13 +5,17 @@ import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Debug, Output, Progress, Warning}
 import hre.util.TestReport.Verdict
+import org.scalatest.Entry
 import vct.col.features.Feature
 
 import java.io._
 import java.nio.file.{FileVisitOption, Files, Paths}
+import java.util
+import scala.collection.convert.ImplicitConversions.`map AsJavaMap`
 import scala.collection.mutable
 import scala.io.Source
 import scala.jdk.CollectionConverters._
+import scala.math.Ordering.StringOrdering
 
 // These need to be included to ensure jacoco is included in the classpath, so it can be used for the test suite.
 import org.jacoco.cli
@@ -204,6 +208,83 @@ object CommandLineTesting {
     // Tests are instrumented at runtime by the jacoco java vm agent
     val jacocoArg = if (enableCoverage.get()) { jacocoJavaAgentArgs(tool, name) } else { Seq() }
 
+    if(true){
+      //Output(args.toString())
+      //Output(conditions.toString())
+    }else{
+      if(conditions.length != 1){
+        Output("Error")
+        throw new Error()
+      }
+      val betterFiles = new util.ArrayList[String]
+      kees.files forEach(file =>
+        betterFiles.add(file.toString.replace("\\","/"))
+        )
+
+      val firstFile = betterFiles.iterator().next()
+      var output = "pass"
+      var tool = "silicon"
+      val condition = conditions(0)
+
+      if(condition.toString == "ExpectVerdict(Error)"){
+        output = "error"
+      }else if(condition.toString == "ExpectVerdict(Pass)"){
+        output = "pass"
+      }else if(condition.toString == "ExpectVerdict(Fail)"){
+        output = "fail"
+      }
+
+      if(args.contains("--carbon")){
+        tool = "carbon"
+      }
+      if(args.contains("--veymont")){
+        tool = "veymont"
+      }
+
+      Output("  it should \""+output+" with "+tool+" and "+ firstFile +"\" in {")
+      Output("    val configuration = IntegrationTestConfiguration()")
+      Output("    configuration.files = "+betterFiles.toArray().mkString("Array(\"", "\", \"", "\")"))
+
+
+      if(condition.toString == "ExpectVerdict(Error)"){
+        Output("    configuration.verdict = Verdict.Error")
+      }else if(condition.toString == "ExpectVerdict(Pass)"){
+        Output("    configuration.verdict = Verdict.Pass")
+      }else if(condition.toString == "ExpectVerdict(Fail)"){
+        Output("    configuration.verdict = Verdict.Fail")
+      }else{
+        Output("Error")
+        throw new Error()
+      }
+      if(args.contains("--silicon")){
+        Output("    configuration.toolSilicon = true")
+      }
+      if(args.contains("--carbon")){
+        Output("    configuration.toolCarbon= true")
+      }
+      if(args.contains("--veymont")){
+        Output("    configuration.toolVeymont = true")
+      }
+      if(args.contains("--disable-sat")){
+        Output("    configuration.disableSat = true")
+      }
+      if(args.contains("--check-history")){
+        Output("    configuration.checkHistory = true")
+      }
+      if(args.contains("--check-defined")){
+        Output("    configuration.checkDefined = true")
+      }
+      if(args.contains("--check-axioms")){
+        Output("    configuration.checkAxioms = true")
+      }
+      if(args.contains("--stop-before-backend")){
+        Output("    configuration.stopBeforeBackend = true")
+      }
+      Output("    IntegrationTestHelper.test(configuration)")
+      Output("  }")
+      Output("")
+    }
+
     val vercorsProcess = Configuration.getThisVerCors(jacocoArg.asJava).withArgs(args.toSeq: _*)
 
     Task(vercorsProcess, conditions.toSeq)
@@ -215,8 +296,10 @@ object CommandLineTesting {
     if(builtinTest.get()) {
       result ++= builtinTests
     }
-
-    for ((name, kees) <- getCases) {
+    val cases = getCases
+    Output(cases("BasicArray").files.toArray().mkString("Array(", ", ", ")"))
+    val sortedCases = cases.toSeq.sortBy(_._2.files.toString)
+    for ((name, kees) <- sortedCases) {
       for (tool <- filterEnabledBackends(kees.tools.asScala.toSet)) {
         result += (s"$name-$tool" -> createTask(name, kees, tool))
       }

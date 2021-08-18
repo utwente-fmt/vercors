@@ -6,6 +6,7 @@ import vct.main.options.OptionsParser
 import vct.main.passes.PassesGenerator
 
 import java.util
+import scala.jdk.javaapi.CollectionConverters.asJavaCollection
 
 object IntegrationTestHelper {
 
@@ -35,8 +36,23 @@ object IntegrationTestHelper {
       // in the test suite.
       arguments.add("--strict-internal")
     }
+    if(configuration.disableSat){
+      arguments.add("--disable-sat")
+    }
+    if(configuration.checkHistory){
+      arguments.add("--check-history")
+    }
+    if(configuration.checkDefined){
+      arguments.add("--check-defined")
+    }
+    if(configuration.checkAxioms){
+      arguments.add("--check-axioms")
+    }
+    if(configuration.stopBeforeBackend){
+      arguments.add("--stop-before-backend")
+    }
 
-    arguments.add(configuration.file)
+    arguments.addAll(asJavaCollection(configuration.files))
 
     val argumentArray = new Array[String](arguments.size)
     arguments.toArray(argumentArray)

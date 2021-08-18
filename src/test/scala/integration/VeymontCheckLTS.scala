@@ -11,7 +11,7 @@ class VeymontCheckLTS extends AnyFlatSpec with Matchers {
 
   "VerCors" should folder + "simplemethodcall.pvl" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder + "simplemethodcall.pvl"
+    configuration.files = Array(folder + "simplemethodcall.pvl")
     configuration.verdict = Verdict.Pass
     configuration.toolVeymont = true
     IntegrationTestHelper.test(configuration)

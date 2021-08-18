@@ -23,7 +23,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   "VerCors" should folder + "AddAssignJava.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder + "AddAssignJava.java"
+    configuration.files = Array(folder + "AddAssignJava.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -31,7 +31,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"array-item-access.pvl" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"array-item-access.pvl"
+    configuration.files = Array(folder+"array-item-access.pvl")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -39,7 +39,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"ArrayAsObject.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"ArrayAsObject.java"
+    configuration.files = Array(folder+"ArrayAsObject.java")
     configuration.verdict = Verdict.Error
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -47,7 +47,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"BasicArray.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"BasicArray.java"
+    configuration.files = Array(folder+"BasicArray.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -55,7 +55,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"BasicAssert.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"BasicAssert.java"
+    configuration.files = Array(folder+"BasicAssert.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -63,7 +63,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"BasicAssert-e1.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"BasicAssert-e1.java"
+    configuration.files = Array(folder+"BasicAssert-e1.java")
     configuration.verdict = Verdict.Fail
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -71,7 +71,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"BooleanOperators.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"BooleanOperators.java"
+    configuration.files = Array(folder+"BooleanOperators.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -79,7 +79,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"Boxing.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"Boxing.java"
+    configuration.files = Array(folder+"Boxing.java")
     configuration.verdict = Verdict.Error
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -87,7 +87,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"bracket-issues.pvl" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"bracket-issues.pvl"
+    configuration.files = Array(folder+"bracket-issues.pvl")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -95,7 +95,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
   //This one did not have a verdict?
   it should folder+"CollectionTest.pvl" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"CollectionTest.pvl"
+    configuration.files = Array(folder+"CollectionTest.pvl")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -103,7 +103,7 @@ class BasicSpec extends AnyFlatSpec with Matchers {
 
   it should folder+"constructor-name.pvl" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.file = folder+"constructor-name.pvl"
+    configuration.files = Array(folder+"constructor-name.pvl")
     configuration.verdict = Verdict.Error
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
