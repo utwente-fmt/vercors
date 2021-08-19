@@ -15,15 +15,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import static hre.lang.System.Warning;
+import static hre.lang.System.*;
 
 public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
   public static final String OPTION_START = "//::";
-  public static final Set<String> TESTCASE_EXTENSIONS = new HashSet<>(Arrays.asList("c", "java", "pvl", "sil"));
+  public static final Set<String> TESTCASE_EXTENSIONS = new HashSet<>(Arrays.asList("c", "java", "pvl", "sil", "cu"));
 
   public final HashMap<String, Case> testsuite = new HashMap<String, Case>();
   public HashSet<Path> unmarked = new HashSet<Path>();
-  public boolean delayed_fail = false;
+  public boolean delayedFail = false;
 
   public static String extension(Path path) {
     Path file = path.getFileName();
@@ -71,7 +71,7 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
             Case tc = testsuite.get(test);
             if (!tc.tools.isEmpty()) {
               Warning("%s: tools for test %s already set.", file, test);
-              delayed_fail = true;
+              delayedFail = true;
             }
             for (int i = 1; i < cmds.length; i++) {
               tc.tools.add(cmds[i]);
@@ -81,6 +81,12 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
         case "verdict":
           for (String test : cases) {
             Case tc = testsuite.get(test);
+
+            if (cmds.length != 2) {
+              Warning("In file %s \"verdict\" has trailing words. The verdict keyword can only be followed by Pass, Fail, or Error", file.toAbsolutePath());
+              delayedFail = true;
+            }
+
             switch(cmds[1]) {
               case "Pass":
                 tc.verdict = TestReport.Verdict.Pass;
@@ -93,7 +99,7 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
                 break;
               default:
                 Warning("Invalid verdict %s", cmds[1]);
-                delayed_fail = true;
+                delayedFail = true;
             }
           }
           break;

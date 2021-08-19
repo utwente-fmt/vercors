@@ -2,11 +2,16 @@ package vct.col.ast.stmt.composite
 
 import vct.col.ast.`type`.Type
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
+
+
+/*This method is explicitly provide because Intellij has a bug regarding resolving methods of parameters in Scala classes */
+trait IntellijExplicitGetterTryCatchBlock {
+  def main():BlockStatement;
+}
 
 /**
  * AST node that represents a try-catch-finally block.
@@ -16,13 +21,13 @@ import scala.collection.mutable.ArrayBuffer
  * @param after The body of the "finally" clause.
  * @param catchClauses An (ordered) list of "catch" clauses.
  */
-class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[this] val catchClauses:ArrayBuffer[CatchClause]) extends ASTNode with VisitorHelper {
+class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[this] val catchClauses:ArrayBuffer[CatchClause]) extends ASTNode with VisitorHelper with IntellijExplicitGetterTryCatchBlock {
   /** Initialises a try-catch-finally block without any catch-clauses. */
   def this(main:BlockStatement, after:BlockStatement) = this(main, after, new ArrayBuffer[CatchClause]())
   
   /** Yields the catch-clauses attached to this try-catch-block as a Java iterator. */
   def catchesJava = catchClauses.toIterable.asJava
-  def catches: Seq[CatchClause] = catchClauses
+  def catches: Seq[CatchClause] = catchClauses.toSeq
   
   /**
    * Adds a catch clause (i.e. an exception handler) to the try-catch-block AST node,
@@ -44,6 +49,6 @@ class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[t
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("main", "catchClauses", "after")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("main", "catchClauses", "after")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

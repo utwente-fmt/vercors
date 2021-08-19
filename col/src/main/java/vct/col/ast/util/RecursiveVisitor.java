@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.decl.GPUOpt;
 import vct.col.ast.stmt.composite.Switch.Case;
@@ -148,7 +146,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(KernelInvocation e) {
     e.blockCount().accept(this);
     e.threadCount().accept(this);
-    dispatch(e.args());
+    dispatch(e.javaArgs());
   }
 
   private void dispatch(Contract c){
@@ -166,14 +164,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   
   private <R extends ASTNode> void dispatch(List<R> nodes) {
     for (R node : nodes) {
-      if (node != null) {
-        node.accept(this);
-      }
-    }
-  }
-
-  private <R extends ASTNode> void dispatch(Seq<R> nodes) {
-    for (R node : JavaConverters.seqAsJavaList(nodes)) {
       if (node != null) {
         node.accept(this);
       }
@@ -247,12 +237,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
 
   @Override
   public void visit(Method m) {
-//    dispatch(m.getContract());
-//    if (c!=null){
-//      dispatch(c.pre_condition);
-//      dispatch(c.post_condition);
-//    }
-    dispatch(m.getReturnType());
+      dispatch(m.getReturnType());
     dispatch(m.getArgs());
     dispatch(m.signals);
     Contract c=m.getContract();
@@ -279,7 +264,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(ab.process());
     dispatch(ab.action());
     // TODO: enable visiting map elements.
-    //dispatch(ab.map().values().to);
     dispatch(ab.block());
   }
   
@@ -440,7 +424,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(CFunctionType t) {
     dispatch(t.returnType());
 
-    for(ParamSpec param : JavaConverters.seqAsJavaList(t.params())) {
+    for(ParamSpec param : t.paramsJava()) {
       if(param.t().isDefined()) {
         dispatch(param.t().get());
       }

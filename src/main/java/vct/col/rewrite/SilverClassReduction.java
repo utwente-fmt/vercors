@@ -19,10 +19,6 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.*;
 import hre.config.Configuration;
 
-import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.util.UndefinedMapping;
-import viper.carbon.boogie.Decl;
-
 /**
  * This rewriter converts a program with classes into
  * a program with records.
@@ -440,9 +436,7 @@ public class SilverClassReduction extends AbstractRewriter {
       ClassType t=(ClassType)e.arg(0);
       ASTClass cl=source().find(t);
       ArrayList<ASTNode>args=new ArrayList<ASTNode>();
-      //NameExpression f=create.field_name("A__x");
-      //f.setSite(ref_class);
-      for(DeclarationStatement field:cl.dynamicFields()){
+        for(DeclarationStatement field:cl.dynamicFields()){
         args.add(create.dereference(create.class_type("Ref"), cl.name() + "_" + field.name()));
       }
       result=create.expression(StandardOperator.NewSilver,args.toArray(new ASTNode[0]));
@@ -464,7 +458,6 @@ public class SilverClassReduction extends AbstractRewriter {
       } else {
         ASTNode condition=create.invokation(null, null, "instanceof_TYPE_TYPE",
             create.domain_call("TYPE","type_of",object),
-            //create.invokation(null,null,"type_of",object));
             create.domain_call("TYPE","class_"+t));
 
         /* PB: this is incorrect, but dereference(_, ILLEGAL_CAST) is also incorrect... */

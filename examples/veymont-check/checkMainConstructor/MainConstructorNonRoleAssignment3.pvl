@@ -1,0 +1,27 @@
+//:: cases MainConstructorNonRoleAssignment3
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+class Main {
+
+	int i;
+
+	Main() {
+		i = Main.foo();
+	}
+
+	void run() {
+	
+	}
+	
+	static int foo() { 
+		return 5;
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+

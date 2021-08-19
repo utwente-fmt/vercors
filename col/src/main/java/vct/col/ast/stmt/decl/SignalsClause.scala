@@ -11,8 +11,8 @@ case class SignalsClause(val name: String, val `type`: Type, val condition: ASTN
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("type", "condition")
-  override def debugTreePropertyFields(): Iterable[String] = Seq("name")
+  override def debugTreeChildrenFields: Iterable[String] = Seq("type", "condition")
+  override def debugTreePropertyFields: Iterable[String] = Seq("name")
 
   /**
     * Turns the signals clause into a separate decl statement. Useful for use with ASTFrame, where a DeclarationStatement

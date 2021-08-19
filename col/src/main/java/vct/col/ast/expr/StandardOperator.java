@@ -75,7 +75,7 @@ public enum StandardOperator {
   /** Multiply with */
   MulAssign(2),
   /** Divide by */
-  DivAssign(2),
+  FloorDivAssign(2),
   /** Assign modulo */
   RemAssign(2),
   /** Add to */

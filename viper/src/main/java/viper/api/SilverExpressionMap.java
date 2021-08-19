@@ -124,9 +124,6 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         if (e.arg(1).getType().isBoolean()) {
           return create.and(o, e1, e2);
         }
-//        } else if (e.arg(1).getType().isPrimitive(PrimitiveSort.Byte)) {
-//          break;
-//        }
         // fall through
       }
 
@@ -134,9 +131,6 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         if (e.arg(1).getType().isBoolean()) {
           return create.neq(o, e1, e2);
         }
-//        } else if (e.arg(1).getType().isPrimitive(PrimitiveSort.Byte)) {
-//          break;
-//        }
         // fall through
       }
 
@@ -144,9 +138,6 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         if (e.arg(1).getType().isBoolean()) {
           return create.or(o, e1, e2);
         }
-//        } else if (e.arg(1).getType().isPrimitive(PrimitiveSort.Byte)) {
-//
-//        }
         // fall through
       }
       case Size:

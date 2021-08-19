@@ -9,7 +9,7 @@ program  : programDecl* block? EOF ;
 programDecl : claz|kernel|block|field|methodDecl ;
 
 claz : contract 'class' identifier '{' clazMember* '}' ;
-clazMember : methodDecl | constructor | field;
+clazMember : constructor | methodDecl | field;
 
 kernel : 'kernel' identifier '{' kernelMember* '}' ;
 kernelMember : kernelField | methodDecl ;
@@ -172,6 +172,7 @@ collectionConstructors
  | '[' exprList ']'
  | '[t:' type ']'
  | '{' exprList '}'
+ | '{' expr '..' expr '}'
  | '{t:' type '}'
  | 'b{' exprList '}'
  | 'b{t:' type '}'

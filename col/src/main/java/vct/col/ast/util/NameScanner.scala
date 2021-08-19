@@ -4,7 +4,7 @@ import java.util
 import java.util.Objects
 import scala.annotation.varargs
 import scala.collection.mutable
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast.expr._
 import vct.col.ast.stmt.composite.BlockStatement
 import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement}

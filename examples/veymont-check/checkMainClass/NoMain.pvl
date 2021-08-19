@@ -1,0 +1,12 @@
+//:: cases NoMain
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: tool veymont
+//:: verdict Error
+class SomeClass {
+
+	void aMethod(int a) {
+		a = 5;
+	}
+
+}

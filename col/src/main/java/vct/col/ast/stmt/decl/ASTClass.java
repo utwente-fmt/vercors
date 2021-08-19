@@ -7,8 +7,8 @@ import hre.util.Function;
 
 import java.util.*;
 
+import hre.util.ScalaHelper;
 import scala.Option;
-import scala.collection.JavaConverters;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.util.*;
 import vct.col.ast.generic.ASTNode;
@@ -35,12 +35,12 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
 
   @Override
   public scala.collection.Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("parameters", "super_classes", "implemented_classes", "entries"));
+    return ScalaHelper.toIterable("parameters", "super_classes", "implemented_classes", "entries");
   }
 
   @Override
   public scala.collection.Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("kind"));
+    return ScalaHelper.toIterable("kind");
   }
 
   /**

@@ -9,7 +9,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{DeclarationStatement, Method, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class PointersToArrays(source: ProgramUnit) extends AbstractRewriter(source) {
   def visitType(t: Type): Type = {

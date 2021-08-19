@@ -2,7 +2,7 @@ package vct.col.ast.stmt.decl;
 
 import java.util.*;
 
-import scala.collection.JavaConverters;
+import hre.util.ScalaHelper;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.generic.DebugNode;
@@ -89,22 +89,7 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
   private HashMap<ClassName,Method> adt_map=new HashMap<ClassName,Method>();
   
   private HashMap<ClassName,Method> proc_map=new HashMap<ClassName,Method>();
-  
-  /*
-  public void addClass(ClassName name,ASTClass cl){
-    classes.put(name,cl);
-    cl.attach(this,name);
-  }
-  
-  public void addClass(String name[],ASTClass cl){
-    addClass(new ClassName(name),cl);
-  }
 
-  public void addClass(ClassType type,ASTClass cl){
-    addClass(type.getNameFull(),cl);
-  }
-  */
-  
   /**
    * Create an empty program unit.
    */
@@ -311,11 +296,11 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
 
   @Override
   public scala.collection.Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("library", "program", "classes", "decl_map", "adt_map", "proc_map"));
+    return ScalaHelper.toIterable("library", "program", "classes", "decl_map", "adt_map", "proc_map");
   }
 
   @Override
   public scala.collection.Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("format"));
+    return ScalaHelper.toIterable("format");
   }
 }

@@ -10,9 +10,7 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
-import vct.col.ast.util.ContractBuilder;
 import vct.logging.ErrorMapping;
 
 public class CSLencoder extends AbstractRewriter {
@@ -51,29 +49,6 @@ public class CSLencoder extends AbstractRewriter {
   
   @Override
   public void visit(Method m){
-    /*
-    if(m.kind==Method.Kind.Constructor && has_csl_inv((ASTClass)m.getParent())){
-      Method.Kind kind=Method.Kind.Constructor;
-      ContractBuilder cb=new ContractBuilder();
-      rewrite(m.getContract(),cb);
-      cb.ensures(create.invokation(create.diz(),null,"csl_invariant"));
-      String name = m.name();
-      DeclarationStatement args[]=rewrite(m.getArgs());
-      BlockStatement body;
-      if (m.getBody()!=null){
-        body=(BlockStatement)rewrite(m.getBody());
-        body.addStatement(create.special(ASTSpecial.Kind.Fold,
-            create.invokation(create.diz(),null,"csl_invariant")
-        ));   
-      } else {
-        body=null;
-      }
-      Contract contract=cb.getContract();
-      Type returns=rewrite(m.getReturnType());
-      result=create.method_kind(kind, returns, contract, name, args, m.usesVarArgs(), body);
-    } else {
-      super.visit(m);
-    }*/
     // TODO PB: disabling this is unsound, but this logic cannot be combined with JavaEncoder: it was already disabled accidentally.
     super.visit(m);
   }

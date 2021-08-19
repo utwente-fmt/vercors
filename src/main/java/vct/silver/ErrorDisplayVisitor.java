@@ -2,8 +2,6 @@ package vct.silver;
 
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
-import static hre.lang.System.Debug;
-import static hre.lang.System.Progress;
 
 import vct.logging.ExceptionMessage;
 import vct.logging.MessageVisitor;
@@ -12,6 +10,8 @@ import vct.logging.TaskEnd;
 import vct.logging.TaskPhase;
 import vct.logging.VerCorsError;
 import vct.logging.VerificationResult;
+
+import static hre.lang.System.*;
 
 public class ErrorDisplayVisitor implements MessageVisitor {
 
@@ -58,8 +58,11 @@ public class ErrorDisplayVisitor implements MessageVisitor {
       error.main.report("error","%s:%s",error.code,error.sub);
     }
     for(Origin o:error.aux){
-      if (o != null)
-      o.report("auxiliary","caused by");
+      if (o != null) {
+        o.report("auxiliary","caused by");
+      } else {
+        Warning("Auxiliary warning in the form of null");
+      }
     }
   }
 

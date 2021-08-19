@@ -1,5 +1,7 @@
 package vct.parsers
 
+import scala.annotation.nowarn
+
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.CParser
 import vct.antlr4.generated.CParser._
@@ -14,7 +16,6 @@ import vct.col.ast.stmt.decl.{ASTDeclaration, ASTSpecial, Contract, DeclarationS
 import vct.col.ast.util.ContractBuilder
 import vct.col.ast.util.SequenceUtils
 
-import scala.collection.immutable.{Bag, HashedBagConfiguration}
 import scala.collection.mutable
 import java.util
 
@@ -24,6 +25,8 @@ object CMLtoCOL {
   }
 }
 
+// Maybe we can turn this off in the future.
+@nowarn("msg=not.*?exhaustive")
 class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   extends ToCOL(fileName, tokens, parser)
 {
@@ -251,74 +254,87 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     case class TypedefNameTypeSpec(name: String) extends TypeSpec
     case class ValTypeSpec(t: Type) extends TypeSpec
 
-    // Scala magic that can be safely ignored: needed to use bags ("multisets")
-    private implicit val m1: HashedBagConfiguration[PrimitiveTypeSpec] = Bag.configuration.compact[PrimitiveTypeSpec]
-    private implicit val m2: HashedBagConfiguration[TypeSpec] = Bag.configuration.compact[TypeSpec]
-    private implicit val m3: mutable.HashedBagConfiguration[TypeSpec] = mutable.Bag.configuration.compact[TypeSpec]
+    object TypeSpecOrdering extends Ordering[TypeSpec] {
+      override def compare(x: TypeSpec, y: TypeSpec): Int = (x, y) match {
+        case (_, _) if x eq y => 0
+        // Not supported, so the ordering doesn't matter currently anyway
+        case (TypedefNameTypeSpec(l), TypedefNameTypeSpec(r)) => l.compare(r)
+        case (PrimitiveTypeSpec(l), PrimitiveTypeSpec(r)) => l.compare(r)
+        // Rest of the ordering, randomly chosen: Primitive < Typedef < ValType < StructOrUnion
+        case (PrimitiveTypeSpec(_), _) => -1
+        case (_, PrimitiveTypeSpec(_)) => 1
+        case (TypedefNameTypeSpec(_), _) => -1
+        case (_, TypedefNameTypeSpec(_)) => 1
+        // Not clear how to even order these for arbitrary COL types or arbitrary structOrUnions
+        // But: could be extended for non-anonymous structs
+        case (_, _) => 0
+      }
+    }
 
-    val primitiveTypeSets: Map[Bag[TypeSpec], PrimitiveSort] = Map(
-      Bag[TypeSpec](PrimitiveTypeSpec("void"))
+    val primitiveTypeSets: Map[Seq[TypeSpec], PrimitiveSort] = Map(
+      Seq(PrimitiveTypeSpec("void"))
         -> PrimitiveSort.Void,
-      Bag[TypeSpec](PrimitiveTypeSpec("char"))
+      Seq(PrimitiveTypeSpec("char"))
         -> PrimitiveSort.Char,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("char"))
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("char"))
         -> PrimitiveSort.Char,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("char"))
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("char"))
         -> PrimitiveSort.Char,
-      Bag[TypeSpec](PrimitiveTypeSpec("short"))
+      Seq(PrimitiveTypeSpec("short"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("short"))
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("short"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("short"))
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("short"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("short"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"))
+      Seq(PrimitiveTypeSpec("signed"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"))
+      Seq(PrimitiveTypeSpec("unsigned"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("long"))
+      Seq(PrimitiveTypeSpec("long"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"))
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"))
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
+      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("signed"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
+      Seq(PrimitiveTypeSpec("unsigned"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("long"), PrimitiveTypeSpec("int"))
         -> PrimitiveSort.Integer,
-      Bag[TypeSpec](PrimitiveTypeSpec("float"))
+      Seq(PrimitiveTypeSpec("float"))
         -> PrimitiveSort.Float,
-      Bag[TypeSpec](PrimitiveTypeSpec("double"))
+      Seq(PrimitiveTypeSpec("double"))
         -> PrimitiveSort.Float,
-      Bag[TypeSpec](PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"))
+      Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"))
         -> PrimitiveSort.Float,
-      Bag[TypeSpec](PrimitiveTypeSpec("_Bool"))
+      Seq(PrimitiveTypeSpec("_Bool"))
         -> PrimitiveSort.Boolean,
+
       // Unsupported: complex numbers
       //Set(PrimitiveTypeSpec("float"), PrimitiveTypeSpec("_Complex"))
       //  -> PrimitiveSort.Complex,
@@ -326,7 +342,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       //  -> PrimitiveSort.Complex,
       //Set(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"), PrimitiveTypeSpec("_Complex"))
       //  -> PrimitiveSort.Complex,
-    )
+//    ).map{ case (typespecs, sort) => (typespecs.sortWith{ case (l, r) => l.primitive < r.primitive}, sort) }.toMap
+    ).map{ case (typeSpecs, sort) => (typeSpecs.sorted(TypeSpecOrdering), sort) }.toMap
 
     sealed trait TypeQual
     object ConstTypeQual extends TypeQual
@@ -349,14 +366,14 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
     object ThreadLocalStatic extends StorageClass
     object ThreadLocalExtern extends StorageClass
 
-    private val _typeSpec: mutable.Bag[TypeSpec] = mutable.Bag()
+    private val _typeSpec: mutable.ArrayBuffer[TypeSpec] = mutable.ArrayBuffer()
     private val _typeQual: mutable.Set[TypeQual] = mutable.Set()
     private val _funcSpec: mutable.Set[FuncSpec] = mutable.Set()
     private var _storageClass: Option[StorageClass] = None
     var valModifiers: mutable.Seq[NameExpression] = mutable.Seq()
     var isKernel: Boolean = false
 
-    def typeSpec: Bag[TypeSpec] = Bag(_typeSpec.toSeq:_*)
+    def typeSpec: Seq[TypeSpec] = _typeSpec.toSeq
     def typeQual: Set[TypeQual] = _typeQual.toSet
     def funcSpec: Set[FuncSpec] = _funcSpec.toSet
     def storageClass: Option[StorageClass] = _storageClass
@@ -447,7 +464,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
         }
       }
 
-      val primitive = primitiveTypeSets.get(typeSpec) match {
+      val primitive = primitiveTypeSets.get(typeSpec.sorted(TypeSpecOrdering)) match {
         case None =>
           return Left("Type specifiers other than primitive types are not supported")
         case Some(t) =>
@@ -580,7 +597,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
 
   def convertStat(exp: ExpressionStatementContext): ASTNode = exp match {
     case ExpressionStatement0(None, _) =>
-      create block()
+      create.block()
     case ExpressionStatement0(Some(exp), _) =>
       expr(exp)
   }
@@ -694,7 +711,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       val operator = op match {
         case "=" => StandardOperator.Assign
         case "*=" => MulAssign
-        case "/=" => StandardOperator.DivAssign
+        case "/=" => StandardOperator.FloorDivAssign
         case "%=" => RemAssign
         case "+=" => AddAssign
         case "-=" => SubAssign

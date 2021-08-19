@@ -65,7 +65,7 @@ public class CSyntax extends Syntax{
     syntax.addRightFix(AddAssign,"+=",30);
     syntax.addRightFix(SubAssign,"-=",30);
     syntax.addRightFix(MulAssign,"*=",30);
-    syntax.addRightFix(DivAssign,"/=",30);
+    syntax.addRightFix(FloorDivAssign,"/=",30);
     syntax.addRightFix(RemAssign,"%=",30);
     syntax.addRightFix(AndAssign,"&=",30);
     syntax.addRightFix(XorAssign,"^=",30);
@@ -80,12 +80,9 @@ public class CSyntax extends Syntax{
     
     syntax.addPrimitiveType(PrimitiveSort.Double,"double");
     syntax.addPrimitiveType(PrimitiveSort.Integer,"int");
-    //syntax.addPrimitiveType(Fraction,"frac");
     syntax.addPrimitiveType(PrimitiveSort.Long,"long");
     syntax.addPrimitiveType(PrimitiveSort.Void,"void");
-    //syntax.addPrimitiveType(Resource,"resource");
     syntax.addPrimitiveType(PrimitiveSort.Boolean,"bool");
-    //syntax.addPrimitiveType(Class,"classtype");
     syntax.addPrimitiveType(PrimitiveSort.Char,"char");
     syntax.addPrimitiveType(PrimitiveSort.Float,"float");
     

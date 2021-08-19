@@ -2,8 +2,9 @@ package vct.col.ast.stmt.composite
 
 import vct.col.ast.generic.ASTNode
 
-import scala.collection.JavaConverters._
 import vct.col.ast.stmt.decl.{Contract, GPUOpt, KernelFusion}
+import scala.jdk.CollectionConverters._
+import vct.col.ast.stmt.decl.Contract
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
 case class ParallelRegion(val fuse:KernelFusion, val contract:Contract, val blocks:List[ParallelBlock]) extends ASTNode with VisitorHelper {
@@ -22,6 +23,6 @@ case class ParallelRegion(val fuse:KernelFusion, val contract:Contract, val bloc
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("contract", "blocks")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("contract", "blocks")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

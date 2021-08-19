@@ -1,21 +1,24 @@
 package vct.test
 
-import java.io.{BufferedWriter, File, FileNotFoundException, FileOutputStream, FileWriter, OutputStreamWriter}
-import java.nio.file.{FileVisitOption, Files, Paths}
-import java.util.concurrent.{Executors, Future}
-
+import hre.config.Configuration.getClassPathElements
 import hre.config._
 import hre.lang.HREExitException
-import hre.lang.System.{Output, Progress, Warning}
+import hre.lang.System.{Debug, Output, Progress, Warning}
 import hre.util.TestReport.Verdict
 import vct.col.features.Feature
 
-import scala.collection.JavaConverters._
+import java.io._
+import java.nio.file.{FileVisitOption, Files, Paths}
 import scala.collection.mutable
 import scala.io.Source
+import scala.jdk.CollectionConverters._
+
+// These need to be included to ensure jacoco is included in the classpath, so it can be used for the test suite.
+import org.jacoco.cli
+import org.jacoco.agent;
 
 sealed trait CaseFilter {
-  def addOptions(parser: OptionParser)
+  def addOptions(parser: OptionParser): Unit
   def isPossible(kees: Case): Boolean
 }
 
@@ -35,8 +38,9 @@ object ExcludeSuite extends CaseFilter {
 
   override def addOptions(parser: OptionParser): Unit = parser.add(option, "exclude-suite")
 
-  override def isPossible(kees: Case): Boolean =
+  override def isPossible(kees: Case): Boolean = {
     !option.used() || excludes.asScala.forall(!kees.suites.contains(_))
+  }
 }
 
 object Language extends CaseFilter {
@@ -65,11 +69,20 @@ object CommandLineTesting {
     "execute test suites from the command line. " +
     "Each test suite is a folder which is scanned for valid test inputs")
 
-  private val saveDir = new StringSetting(null)
-  private val saveDirOption = saveDir.getAssign("save intermediate files to given directory")
-
   private val workers = new IntegerSetting(1);
   private val workersOption = workers.getAssign("set the number of parallel test workers")
+
+  private val enableCoverage = new BooleanSetting(false)
+  private val enableCoverageOption = enableCoverage.getEnable("Enable coverage instrumenting on the test workers")
+
+  private val tempCoverageReportPath = new StringSetting("temp_jacoco_output")
+  private val tempCoverageReportPathOption = tempCoverageReportPath.getAssign("Indicate folder where coverage reports of test workers are stored")
+
+  private val coverageReportFile = new StringSetting("jacoco.xml")
+  private val coverageReportFileOption = coverageReportFile.getAssign("Path of where to write the coverage report output file, in xml")
+
+  private val coverageHtmlReportFile = new StringSetting(null)
+  private val coverageHtmlReportFileOption = coverageHtmlReportFile.getAssign("Creates a new directory containing coverage report in html")
 
   private val actionsTestOutput = new BooleanSetting(false)
   private val actionsTestOutputOption = actionsTestOutput.getEnable("output the full output of failing test cases as a foldable section in github actions")
@@ -83,12 +96,9 @@ object CommandLineTesting {
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
   private lazy val z3 = Configuration.getZ3
-  private lazy val boogie = Configuration.getBoogie
-  private lazy val chalice = Configuration.getChalice
-  private lazy val dafny = Configuration.getDafny
   private lazy val carbon = Configuration.getCarbon
   private lazy val silicon = Configuration.getSilicon
-  private lazy val vercors = Configuration.getThisVerCors
+  private lazy val vercors = Configuration.getThisVerCors(null)
 
   private def selfTest(name: String): String =
     Configuration.getSelfTestPath(name).getAbsolutePath
@@ -100,25 +110,6 @@ object CommandLineTesting {
     )),
     "!z3-unsat" -> Task(z3.withArgs("-smt2", selfTest("test-unsat.smt")), Seq(
       MustSay("unsat"),
-    )),
-    "!boogie-pass" -> Task(boogie.withArgs(selfTest("test-pass.bpl")), Seq(
-      MustSay("Boogie program verifier finished with 1 verified, 0 errors")
-    )),
-    "!boogie-fail" -> Task(boogie.withArgs(selfTest("test-fail.bpl")), Seq(
-      MustSay("Boogie program verifier finished with 0 verified, 1 error")
-    )),
-    "!chalice-pass" -> Task(chalice.withArgs(selfTest("test-pass.chalice")), Seq(
-      MustSay("Boogie program verifier finished with 3 verified, 0 errors")
-    )),
-    "!chalice-fail" -> Task(chalice.withArgs(selfTest("test-fail.chalice")), Seq(
-      MustSay("Boogie program verifier finished with 2 verified, 1 error")
-    )),
-    "!dafny-pass" -> Task(dafny.withArgs("/compile:0", selfTest("test-pass.dfy")), Seq(
-      MustSay("Dafny program verifier finished with 2 verified, 0 errors")
-    )),
-    "!dafny-fail" -> Task(dafny.withArgs("/compile:0", selfTest("test-fail.dfy")), Seq(
-      MustSay("Dafny program verifier finished with 1 verified, 1 error"),
-      ExpectVerdict(Verdict.Error)
     )),
     "!carbon-pass" -> Task(carbon.withArgs(selfTest("test-pass.sil")), Seq(
       MustSay("No errors found.")
@@ -141,8 +132,11 @@ object CommandLineTesting {
     parser.add(backendFilterOption, "tool")
     parser.add(testDirsOption, "test")
     parser.add(builtinTestOption, "test-builtin")
-    parser.add(saveDirOption, "save-intermediate")
     parser.add(workersOption, "test-workers")
+    parser.add(enableCoverageOption, "enable-test-coverage")
+    parser.add(tempCoverageReportPathOption, "coverage-temp-dir")
+    parser.add(coverageReportFileOption, "coverage-output-file")
+    parser.add(coverageHtmlReportFileOption, "coverage-html-dir")
     parser.add(testFailFastOption, "test-fail-fast")
     parser.add(testFailIdeaConfigsOption, "test-fail-idea-configs")
     parser.add(actionsTestOutputOption, "actions-test-output")
@@ -153,7 +147,7 @@ object CommandLineTesting {
     testDirs.forEach(dir =>
       Files.walkFileTree(Paths.get(dir), Set(FileVisitOption.FOLLOW_LINKS).asJava, Integer.MAX_VALUE, visitor))
 
-    var will_fail = visitor.delayed_fail
+    var will_fail = visitor.delayedFail
 
     if (!visitor.unmarked.isEmpty) {
       Warning("There are unmarked files:")
@@ -169,44 +163,123 @@ object CommandLineTesting {
     visitor.testsuite.asScala.filter({case (_, kees) => caseFilters.forall(_.isPossible(kees))}).toMap
   }
 
+  def jacocoJavaAgentArgs(tool: String, caseName: String): Seq[String] = {
+    val jacocoOutputDir = Paths.get(tempCoverageReportPath.get()).toFile
+    val jacocoOutputFilePath = s"${jacocoOutputDir.getAbsolutePath}/jacoco_case_${tool}_$caseName.exec"
+    // Options are of format opt1=val1,op2=val2.
+    // Only include our own code, exclude generated parser code.
+    val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*:viper.api.*,excludes=vct.antlr4.generated.*"
+    Seq(s"-javaagent:${Configuration.getJacocoAgentPath()}=$options")
+  }
+
+  def filterEnabledBackends(tools: Set[String]): Set[String] =
+    tools.filter(!backendFilterOption.used() || backendFilter.contains(_))
+
+  def createTask(name: String, kees: Case, tool: String) = {
+    val args = mutable.ArrayBuffer[String]()
+    args += "--progress"
+    if (tool != "veymont") {
+      // Temporary workaround to disable the tool flag when running a veymont test.
+      // This should be removed when we add a proper tool mode for veymont
+      args += "--" + tool
+      // VeyMont was not built with the feature system in mind, so we have to disable it when veymont is executed
+      // in the test suite.
+      args += "--strict-internal"
+    }
+    args ++= kees.options.asScala
+    args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
+
+    val conditions = mutable.ArrayBuffer[TaskCondition]()
+    if (kees.verdict != null) {
+      conditions += ExpectVerdict(kees.verdict)
+    } else {
+      conditions += ExpectVerdict(Verdict.Pass)
+    }
+    if (kees.pass_non_fail) {
+      conditions += PassNonFail(kees.fail_methods.asScala.toSeq)
+    }
+    conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
+    conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
+
+    // Tests are instrumented at runtime by the jacoco java vm agent
+    val jacocoArg = if (enableCoverage.get()) { jacocoJavaAgentArgs(tool, name) } else { Seq() }
+
+    val vercorsProcess = Configuration.getThisVerCors(jacocoArg.asJava).withArgs(args.toSeq: _*)
+
+    Task(vercorsProcess, conditions.toSeq)
+  }
+
   def getTasks: Map[String, Task] = {
-    var result = mutable.HashMap[String, Task]()
+    val result = mutable.HashMap[String, Task]()
 
     if(builtinTest.get()) {
       result ++= builtinTests
     }
 
     for ((name, kees) <- getCases) {
-      for (tool <- kees.tools.asScala) {
-        if (!backendFilterOption.used() || backendFilter.contains(tool)) {
-          var args = mutable.ArrayBuffer[String]()
-          args += "--progress"
-          args += "--" + tool
-          args += "--strict-internal"
-          args ++= kees.options.asScala
-          args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
-
-          var conditions = mutable.ArrayBuffer[TaskCondition]()
-          if (kees.verdict != null) {
-            conditions += ExpectVerdict(kees.verdict)
-          } else {
-            conditions += ExpectVerdict(Verdict.Pass)
-          }
-          if (kees.pass_non_fail) {
-            conditions += PassNonFail(kees.fail_methods.asScala.toSeq)
-          }
-          conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
-          conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
-
-          result += (s"$name-$tool" -> Task(vercors.withArgs(args:_*), conditions))
-        }
+      for (tool <- filterEnabledBackends(kees.tools.asScala.toSet)) {
+        result += (s"$name-$tool" -> createTask(name, kees, tool))
       }
     }
 
     result.toMap
   }
 
+  /**
+    * Aggregates several jacoco ".exec" files into one xml report.
+    */
+  def generateJacocoXML(): Unit = {
+    val jacocoCli = Configuration.getJacocoCli
+    jacocoCli.addArg("report")
+
+    // Add all coverage files
+    val jacocoOutputDir = Paths.get(tempCoverageReportPath.get())
+    Files.list(jacocoOutputDir).forEach((execFilePath) => {
+      if (!execFilePath.endsWith(".exec"))
+        jacocoCli.addArg(execFilePath.toAbsolutePath().toString)
+      Debug("Adding: %s", execFilePath.toAbsolutePath().toString)
+    })
+
+    // Indicate class path
+    // There used to be a problem where jacoco couldn't handly duplicate class names, so we had to filter out some
+    // class path elements. But that seems to be fixed, so now we just use the full classpath.
+    getClassPathElements().asScala.foreach(jacocoCli.addArg("--classfiles", _))
+
+    jacocoCli.addArg("--xml", Paths.get(coverageReportFile.get()).toFile.getAbsolutePath)
+    if (coverageHtmlReportFile.used && coverageHtmlReportFile.get() != null) {
+      jacocoCli.addArg("--html", Paths.get(coverageHtmlReportFile.get()).toFile.getAbsolutePath)
+    }
+
+    Output("Aggregating coverages...")
+    val task = Task(jacocoCli, Seq())
+    task.call
+    Output("Jacoco tool output")
+    for (msg <- task.log) {
+      Output(msg.getFormat, msg.getArgs:_*)
+    }
+
+    removeTempJacocoDir()
+  }
+
+  def removeTempJacocoDir(): Unit = {
+    // Clean up coverage files
+    val jacocoOutputDir = Paths.get(tempCoverageReportPath.get())
+    Files.list(jacocoOutputDir).forEach((execFilePath) => {
+      execFilePath.toFile.delete
+    })
+    jacocoOutputDir.toFile.delete
+  }
+
   def runTests(): Unit = {
+    if (enableCoverage.get) {
+      // Ensure jacoco output dir exists and remove old reports
+      val jacocoOutputDir = Paths.get(tempCoverageReportPath.get()).toFile
+      if (jacocoOutputDir.exists) {
+        removeTempJacocoDir()
+      }
+      jacocoOutputDir.mkdir
+    }
+
     val allTasks = getTasks
 
     if(testFailIdeaConfigs.get()) {
@@ -290,7 +363,7 @@ object CommandLineTesting {
         Output("Fail: %s", taskKey)
 
         if(testFailIdeaConfigs.get) {
-          val dropArgs = Configuration.getThisVerCors.getArgs.size
+          val dropArgs = Configuration.getThisVerCors(null).getArgs.size
           val args = task.env.getArgs.asScala.drop(dropArgs) ++ Seq("--encoded", "tmp/output.sil")
           val config =
             <component name="ProjectRunConfigurationManager">
@@ -350,11 +423,16 @@ object CommandLineTesting {
     Output("Verification times:")
 
     for (taskKey <- taskKeys) {
-      val time = allTasks(taskKey).times.get("entire run")
+      val task = allTasks(taskKey)
+      val time = task.times.get("entire run")
       Output("%-40s: %s", taskKey, time match {
         case None => "unknown"
         case Some(ms) => String.format("%dms", Int.box(ms))
       })
+    }
+
+    if (enableCoverage.get) {
+      generateJacocoXML()
     }
 
     if(testFailFast.get()) {
@@ -366,6 +444,9 @@ object CommandLineTesting {
 
     if (fails.nonEmpty) {
       hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails.size), Int.box(tasks.size))
+      for(fail <- fails){
+        Output(fail);
+      }
       throw new HREExitException(1)
     } else {
       hre.lang.System.Verdict("All %d tests passed", Int.box(tasks.size))

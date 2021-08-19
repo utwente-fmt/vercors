@@ -1,0 +1,115 @@
+//:: case MonotonicBoolBroken
+//:: tool silicon
+//:: verdict Pass
+//:: option --stop-before-backend
+//:: suite problem-partial
+
+// This example is in problem-partial because it has some permission arithmetic such as 1\(N+1) which
+// causes it to take (nondeterministically) long to verify. Maybe in the future after some viper + z3 upgrades,
+// and if we've gotten smarter about permission sharing, this test can be put in the normal suite.
+
+// This file demonstrates that monotonicBool.pvl is _not_ truly a monotonic bool, and shows
+// how to break it. Notice that this is possible because in PVL there is no such thing as ghost state.
+// In C/Java, this approach is only possible of contrib is not a ghost array. Still, this implies
+// if the runtime checking for monotonicity is implemented with an invariant like this, it could be
+// circumvented!!
+
+class C {
+  boolean b;
+  boolean[] contrib;
+
+  // Useful for random choice
+  int p();
+
+  requires xs != null;
+  requires (\forall* int j = 0 .. xs.length; Perm({: xs[j] :}, read));
+  requires 0 <= i && i <= xs.length;
+  ensures \result == (\exists int j = i..xs.length; xs[j]);
+  static boolean foldOr(boolean[] xs, int i) =
+    i < xs.length
+      ? xs[i] || foldOr(xs, i + 1)
+      : false;
+
+  given frac P;
+  requires 0 < P && P < write;
+  requires bools != null;
+  context (\forall* int j = 0 .. bools.length; Perm({: bools[j] :}, P));
+  requires 0 <= i && i <= definitelyTrueIndex;
+  requires 0 <= definitelyTrueIndex && definitelyTrueIndex < bools.length;
+  requires bools[definitelyTrueIndex];
+  ensures foldOr(bools, i);
+  static void lemma(boolean[] bools, int definitelyTrueIndex, int i) {
+    if (bools[i]) {
+        return;
+    } else {
+        if (i < definitelyTrueIndex) {
+            lemma(bools, definitelyTrueIndex, i + 1) with { P = P \ 2; };
+        } else {
+            assert false;
+        }
+    }
+  }
+
+  requires Perm(contrib, write);
+  requires Perm(b, write);
+  requires N > 0;
+  void foo(int N) {
+    b = false;
+    contrib = new boolean[N];
+    assert b == foldOr(contrib, 0);
+
+    invariant inv(Perm(contrib, 1\(N+1)) ** 0 < perm(this.contrib)
+        ** contrib.length == N
+        ** (\forall* int i = 0..N; Perm({: contrib[i] :}, 1\2))
+        ** Perm(b, write)
+        ** b == foldOr(contrib, 0)
+        ) {
+      par(int tid = 0..N)
+        context N > 0;
+        context Perm(contrib, 1\(N+1)) ** contrib != null;
+        context Perm(contrib[tid], 1\2);
+      {
+        // First, we set the bool with a 50% chance
+        // Then, if nobody else set it in the meantime, we undo our set with a very small chance!!
+
+        if (p() % 2 == 0) {
+          // Models: atomic_set(b);
+          atomic(inv) {
+            b = true;
+            contrib[tid] = true;
+            lemma(contrib, tid, 0) with { P = 1\(2 * (N+1)); };
+          }
+        }
+
+        if (p() == 666) {
+          // The stars have aligned!
+          // Try evil unset also!
+          atomic(inv) {
+            boolean evilCondition = true;
+
+            // Check if we are the only one that set it since last time
+            loop_invariant 0 <= k && k <= N;
+            loop_invariant Perm(contrib, 2\(N+1)) ** contrib != null ** contrib.length == N;
+            loop_invariant (\forall* int i = 0..N; Perm({: contrib[i] :}, 1\3));
+            loop_invariant evilCondition == (\forall int j = 0 .. k; j == tid ? contrib[j] : !contrib[j]);
+            for (int k = 0; k < N; k++) {
+              if (k == tid) {
+                evilCondition = evilCondition && contrib[k];
+              } else {
+                evilCondition = evilCondition && !contrib[k];
+              }
+            }
+
+            // If so, we hide our action!!!!!
+            if (evilCondition) {
+              b = false;
+              contrib[tid] = false;
+            }
+          }
+        }
+      }
+    }
+
+    assert b == (\exists int i = 0..N; contrib[i]);
+  }
+}

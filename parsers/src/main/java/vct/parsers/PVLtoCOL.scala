@@ -1,7 +1,6 @@
 package vct.parsers
 
 import java.util.{ArrayList => JavaArrayList}
-
 import hre.lang.System._
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.PVLParser
@@ -19,7 +18,8 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.util.ContractBuilder
 import vct.parsers.rewrite.InferADTTypes
 
-import scala.collection.JavaConverters._
+import scala.annotation.nowarn
+import scala.jdk.CollectionConverters._
 
 object PVLtoCOL {
   def convert(tree: ProgramContext, fileName: String, tokens: CommonTokenStream, parser: PVLParser): ProgramUnit = {
@@ -27,6 +27,8 @@ object PVLtoCOL {
   }
 }
 
+// Maybe we can turn this off in the future.
+@nowarn("msg=not.*?exhaustive")
 case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLParser)
   extends ToCOL(fileName, tokens, parser) {
   def convertProgram(tree: ProgramContext): ProgramUnit = {
@@ -52,8 +54,8 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case ProgramDecl3(field) => ??(tree) // This is global state?
     case ProgramDecl4(method_decl) => ??(tree) // Global method?
 
-    case ClazMember0(method) => Seq(convertMethod(method))
-    case ClazMember1(constructor) => Seq(convertConstructor(constructor))
+    case ClazMember0(constructor) => Seq(convertConstructor(constructor))
+    case ClazMember1(method) => Seq(convertMethod(method))
     case ClazMember2(field) => convertField(field)
 
     case KernelMember0(field) => convertKernelField(field)
@@ -434,19 +436,22 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       create struct_value(create primitive_type(
         PrimitiveSort.Set, InferADTTypes.typeVariable
       ), null, convertExpList(exps):_*)
-    case CollectionConstructors4("{t:", t, "}") =>
+    case CollectionConstructors4("{", exp1, "..", exp2, "}") =>
+      create.expression(StandardOperator.RangeSeq,
+                        expr(exp1), expr(exp2))
+    case CollectionConstructors5("{t:", t, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Set, convertType(t)),
         null)
-    case CollectionConstructors5("b{", exps, "}") =>
+    case CollectionConstructors6("b{", exps, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Bag, InferADTTypes.typeVariable
       ), null, convertExpList(exps):_*)
-    case CollectionConstructors6("b{t:", t, "}") =>
+    case CollectionConstructors7("b{t:", t, "}") =>
       create struct_value(create primitive_type(
         PrimitiveSort.Bag, convertType(t)),
         null)
-    case CollectionConstructors7("set", _, elemType, _, _, main, _, selectors, _, guard, _) => {
+    case CollectionConstructors8("set", _, elemType, _, _, main, _, selectors, _, guard, _) => {
       create setComp(
         create primitive_type (PrimitiveSort.Set, convertType(elemType)), // Type
         expr(guard), // The guard expression

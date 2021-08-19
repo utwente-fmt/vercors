@@ -34,6 +34,7 @@ public class PropagateInvariants extends AbstractRewriter {
       builder.context(rewrite(c.invariant));
       builder.requires(rewrite(c.pre_condition));
       builder.ensures(rewrite(c.post_condition));
+      builder.signals(rewrite(c.signals));
 
       invariants.push(c.invariant);
 

@@ -13,6 +13,9 @@ class simplify_expr {
   boolean b1,b2;
   int e1;
 
+  axiom idandl { (b1 && true) == b1 }
+  axiom idandr { (true && b2) == b2 }
+
   axiom single_b { (\forall int i; b1 ; (i == (e1!i)) ==> b2 )
                ==
                  (\let int i=e1 ; b1 ==> b2 ) }

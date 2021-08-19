@@ -1,3 +1,4 @@
+# General Java folders
 .metadata/
 .project
 .classpath
@@ -15,13 +16,15 @@ doc/
 tmp
 tmp.*
 vct-tool.jar
-*~
+.bsp/
+null/
 
 # Mac specific OS files
 .DS_Store
 
 # Vim swap file
 *.swp
+*~
 
 # Haskell/Cabal rules
 dist

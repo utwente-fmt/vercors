@@ -42,6 +42,6 @@ class IfStatement extends ASTNode with VisitorHelper {
   override def accept_simple[T](v:ASTVisitor[T]) = handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("cases")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("cases")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

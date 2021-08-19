@@ -1,0 +1,24 @@
+//:: cases InvariantBlockTestFail1
+//:: tools silicon
+//:: verdict Fail
+
+class Main {
+  int x,y,z;
+
+  context Perm(x,write)**Perm(y,write)**Perm(z,write);
+  ensures x + y == z;
+  void problem1(){
+    x=0;
+    y=1;
+    z=2;
+    int t;
+    invariant inv(Perm(x,1\2)**Perm(y,1\2)**Perm(z,1\2)** x+y==z){
+      t=x+z;
+      atomic(inv){
+        int tmp=x;
+        x=y;
+        y=tmp;
+      }
+    }
+  }
+}

@@ -1,10 +1,6 @@
 package vct.test
 
 import java.util.concurrent.{Callable, LinkedBlockingDeque}
-
-import hre.lang.System.Output
-
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -33,7 +29,7 @@ case class ThreadPool[T <: Callable[S], S](threadCount: Int, tasks: Seq[T]) {
   private def replaceWork(work: T, result: S): Option[T] = this.synchronized {
     runningWork -= work
     val newWork = fetchWork()
-    taskResult.push((work, result, runningWork.clone(), taskQueue.size))
+    taskResult.push((work, result, runningWork.clone().toSeq, taskQueue.size))
     newWork
   }
 
@@ -51,6 +47,6 @@ case class ThreadPool[T <: Callable[S], S](threadCount: Int, tasks: Seq[T]) {
 
   /** Present the results of the tasks as a stream out of order: returns task, task result, currently running tasks and
     * remaining number of queued tasks */
-  def results(): Stream[(T, S, Seq[T], Int)] =
-    tasks.indices.toStream.map(_ => taskResult.take())
+  def results(): LazyList[(T, S, Seq[T], Int)] =
+    tasks.indices.to(LazyList).map(_ => taskResult.take())
 }

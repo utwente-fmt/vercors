@@ -1,17 +1,6 @@
 package viper.api
 
 import viper.silver.ast._
-import scala.collection.JavaConverters._
-import scala.collection.JavaConverters._
-import viper.silver.verifier.{Failure, Success, AbortedExceptionally, VerificationError}
-import java.util.List
-import java.util.Properties
-import java.util.SortedMap
-import scala.math.BigInt.int2bigInt
-import viper.silver.ast.SeqAppend
-import java.nio.file.Path
-import viper.silver.parser.PLocalVarDecl
-import scala.collection.mutable.WrappedArray
 
 class Prog {
   val domains = new java.util.ArrayList[Domain]()

@@ -4,21 +4,13 @@ package vct.parsers;
 
 import static hre.lang.System.*;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-
 import hre.tools.TimeKeeper;
 import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 
 import vct.antlr4.generated.*;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.parsers.rewrite.*;
-import vct.col.ast.syntax.JavaDialect;
-import vct.col.ast.syntax.JavaSyntax;
 
 /**
  * Parse specified code and convert the contents to COL. 

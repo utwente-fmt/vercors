@@ -39,7 +39,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
     var value = input
 
     conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
-    conditions += lte(size, create.dereference(value, "length"))
+    conditions += lte(size, create.array_length_dereference(value))
 
     conditions += create.starall(
       and(lte(constant(0), name("__i")), less(name("__i"), size)),
@@ -62,7 +62,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
 
     var value = input
     conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
-    conditions += less(index, create.dereference(value, "length"))
+    conditions += less(index, create.array_length_dereference(value))
 
     conditions += create.expression(StandardOperator.Perm,
       create.expression(StandardOperator.Subscript, value, index),

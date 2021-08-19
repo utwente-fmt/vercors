@@ -2,12 +2,11 @@ package vct.col.ast.stmt.decl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 
 import hre.lang.HREError;
+import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -23,12 +22,12 @@ public class NameSpace extends ASTDeclaration implements ASTSequence<NameSpace> 
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Arrays.asList("imports", "space"));
+    return ScalaHelper.toIterable("imports", "space");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("full_name"));
+    return ScalaHelper.toIterable("full_name");
   }
 
   public static class Import {
@@ -138,7 +137,6 @@ public class NameSpace extends ASTDeclaration implements ASTSequence<NameSpace> 
     } else if (item==null) {
     } else {
       hre.lang.System.Warning("cannot insert %s into name space.",item);
-      //Abort("cannot insert %s into name space.",item.getClass());
     }
     return this;
   }

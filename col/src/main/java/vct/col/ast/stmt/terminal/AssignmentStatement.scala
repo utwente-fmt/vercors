@@ -1,7 +1,6 @@
 package vct.col.ast.stmt.terminal
 
 import hre.ast.MessageOrigin
-import vct.col.ast._
 import vct.col.ast.expr.NameExpression
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
@@ -17,6 +16,6 @@ case class AssignmentStatement(val location:ASTNode, val expression:ASTNode) ext
   override def accept_simple[T](v:ASTVisitor[T]) = v.visit(this)
   override def accept_simple[T](m:ASTMapping[T]) = m.map(this)
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("location", "expression")
-  override def debugTreePropertyFields(): Iterable[String] = Seq()
+  override def debugTreeChildrenFields: Iterable[String] = Seq("location", "expression")
+  override def debugTreePropertyFields: Iterable[String] = Seq()
 }

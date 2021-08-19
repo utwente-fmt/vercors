@@ -14,7 +14,8 @@ import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTSpecial, DeclarationS
 import vct.col.ast.util.ContractBuilder
 import hre.lang.System.Warning
 
-import scala.collection.JavaConverters._
+import scala.annotation.nowarn
+import scala.jdk.CollectionConverters._
 
 object JavaJMLtoCOL {
   def convert(tree: CompilationUnitContext, fileName: String, tokens: CommonTokenStream, parser: JavaParser): ProgramUnit = {
@@ -22,6 +23,8 @@ object JavaJMLtoCOL {
   }
 }
 
+// Maybe we can turn this off in the future.
+@nowarn("msg=not.*?exhaustive")
 case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: JavaParser)
   extends ToCOL(fileName, tokens, parser) {
   def convertUnit(tree: CompilationUnitContext): ProgramUnit = tree match {
@@ -176,7 +179,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
   })
 
   def convertThrows(maybeThrows: Option[ThrowyContext]): Seq[Type] = maybeThrows match {
-    case None => Array[Type]()
+    case None => Seq()
     case Some(Throwy0(_, qualifiedNameList)) => convertTypeList(qualifiedNameList)
   }
 
@@ -507,7 +510,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       create syncBlock(expr(obj), convertBlock(body))
     case Statement11("return", maybeValue, _) =>
       maybeValue match {
-        case None => create return_statement()
+        case None => create.return_statement()
         case Some(value) => create return_statement(expr(value))
       }
     case Statement12("throw", exc, _) =>
@@ -523,7 +526,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case Some(lbl) => create special(ASTSpecial.Kind.Continue, convertIDName(lbl))
       }
     case Statement15(";") =>
-      create block() //nop
+      create.block() // Nop
     case Statement16(exp, _) =>
       expr(exp)
     case Statement17(None, label, ":", stat) =>
@@ -740,7 +743,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
         case "+=" => create expression(AddAssign, expr(left), expr(right))
         case "-=" => create expression(SubAssign, expr(left), expr(right))
         case "*=" => create expression(MulAssign, expr(left), expr(right))
-        case "/=" => create expression(DivAssign, expr(left), expr(right))
+        case "/=" => create expression(FloorDivAssign, expr(left), expr(right))
         case "&=" => create expression(AndAssign, expr(left), expr(right))
         case "|=" => create expression(OrAssign, expr(left), expr(right))
         case "^=" => create expression(XorAssign, expr(left), expr(right))

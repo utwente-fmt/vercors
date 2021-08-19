@@ -2,24 +2,23 @@ package vct.col.features
 
 import hre.ast.MessageOrigin
 import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
-import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, TypeExpression, TypeOperator, TypeVariable}
-import vct.col.ast.stmt
-import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, ForEachLoop, IfStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion, TryCatchBlock}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTFlags, ASTSpecial, AxiomaticDataType, Contract, DeclarationStatement, Method, NameSpace, ProgramUnit, VariableDeclaration}
-import vct.col.ast.expr.{Binder, BindingExpression, KernelInvocation, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
-import vct.col.ast.expr
+import vct.col.ast.`type`._
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
-import vct.col.ast.util.{AbstractVisitor, RecursiveVisitor, SequenceUtils}
+import vct.col.ast.expr._
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.langspecific.c.{OMPFor, OMPForSimd, OMPParallel, OMPParallelFor, OMPSection, OMPSections}
+import vct.col.ast.langspecific.c._
+import vct.col.ast.{expr, stmt}
+import vct.col.ast.stmt.composite._
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
-import vct.col.ast.stmt.terminal.{AssignmentStatement, ReturnStatement}
+import vct.col.ast.stmt.decl._
+import vct.col.ast.stmt.terminal.AssignmentStatement
+import vct.col.ast.util.{RecursiveVisitor, SequenceUtils}
 import vct.col.rewrite.{AddTypeADT, IntroExcVar, PVLEncoder}
 import vct.parsers.rewrite.InferADTTypes
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters._
 
 class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true) {
   val features: mutable.Set[Feature] = mutable.Set()
@@ -170,10 +169,21 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
       }
     }
 
-    if(isPure(m) && isInline(m))
-      addFeature(InlinePredicate, m)
-    if(isPure(m) && m.getBody.isInstanceOf[BlockStatement])
-      addFeature(PureImperativeMethods, m)
+    if(isPure(m)) {
+      if(isInline(m)) {
+        if (m.getReturnType.isPrimitive(PrimitiveSort.Resource)) {
+          addFeature(InlinePredicate, m)
+        } else if (!m.getReturnType.isPrimitive(PrimitiveSort.Process)) {
+          addFeature(InlineFunction, m)
+        }
+      }
+      if(m.getBody.isInstanceOf[BlockStatement])
+        addFeature(PureImperativeMethods, m)
+    }
+
+    if(m.kind == Method.Kind.Pure && m.getReturnType.isPrimitive(PrimitiveSort.Resource))
+      addFeature(NotStandardized, m)
+
     if(m.kind == Method.Kind.Constructor)
       addFeature(Constructors, m)
     if(!m.getReturnType.isPrimitive(PrimitiveSort.Void) && !isPure(m))
@@ -352,7 +362,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
           addFeature(MemberOfRange, op)
         }
       case StandardOperator.PostDecr | StandardOperator.PostIncr | StandardOperator.PreDecr | StandardOperator.PreIncr |
-           StandardOperator.MulAssign | StandardOperator.DivAssign | StandardOperator.RemAssign |
+           StandardOperator.MulAssign | StandardOperator.FloorDivAssign | StandardOperator.RemAssign |
            StandardOperator.AddAssign | StandardOperator.SubAssign | StandardOperator.ShlAssign |
            StandardOperator.ShrAssign | StandardOperator.SShrAssign | StandardOperator.AndAssign |
            StandardOperator.XorAssign | StandardOperator.OrAssign | StandardOperator.Assign =>
@@ -457,7 +467,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
   override def visit(par: OMPForSimd): Unit = { super.visit(par); addFeature(OpenMP, par) }
   override def visit(fr: OMPFor): Unit = { super.visit(fr); addFeature(OpenMP, fr) }
 
-  override def visit(s: stmt.composite.ParallelAtomic): Unit = { super.visit(s); addFeature(ParallelAtomic, s) }
+  override def visit(s: stmt.composite.ParallelAtomic): Unit = {
+    super.visit(s)
+    visitBeforeAfter(s)
+    addFeature(ParallelAtomic, s)
+  }
   override def visit(s: ParallelBarrier): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
   override def visit(s: ParallelBlock): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
   override def visit(s: ParallelInvariant): Unit = { super.visit(s); addFeature(ParallelBlocks, s) }
@@ -608,6 +622,7 @@ object Feature {
     GivenYields,
     StaticFields,
     InlinePredicate,
+    InlineFunction,
     KernelClass,
     AddrOf,
     OpenMP,
@@ -736,6 +751,7 @@ object Feature {
     GivenYields,
     StaticFields,
     InlinePredicate,
+    InlineFunction,
     KernelClass,
     AddrOf,
     OpenMP,
@@ -836,6 +852,7 @@ case object ADTOperator extends ScannableFeature
 case object GivenYields extends ScannableFeature
 case object StaticFields extends ScannableFeature
 case object InlinePredicate extends ScannableFeature
+case object InlineFunction extends ScannableFeature
 case object KernelClass extends ScannableFeature
 case object AddrOf extends ScannableFeature
 case object OpenMP extends ScannableFeature

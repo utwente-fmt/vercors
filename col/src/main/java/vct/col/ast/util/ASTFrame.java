@@ -7,6 +7,10 @@ import vct.col.ast.expr.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.PrimitiveType;
+import vct.col.ast.type.TypeExpression;
+import vct.col.ast.type.TypeOperator;
 
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicReference;
@@ -155,27 +159,10 @@ public abstract class ASTFrame<T> {
 
 
   public void enter_before(ASTNode node){
-    /* Might be needed or not:
-    variables.enter();
-    if (node.getParent() instanceof MethodInvokation){
-      MethodInvokation mi=(MethodInvokation)node.getParent();
-      Contract c=null;
-      if (mi.getDefinition()!=null){
-        c=mi.getDefinition().getContract();
-      }
-      if (c!=null){
-        for(DeclarationStatement decl:c.given){
-          variables.add(decl.getName(),new VariableInfo(decl,NameExpressionKind.Argument));
-        }
-        scan_labels(c.pre_condition);
-      }
-    }
-    */
+
   }
   public void leave_before(ASTNode node){
-    /* must match enter! 
-    variables.leave();
-    */
+
   }
   public void enter_after(ASTNode node){
     if (scope!=null) scope.enter_after(node);
@@ -229,18 +216,7 @@ public abstract class ASTFrame<T> {
       }
     }
  
-/*
-    @Override
-    public void visit( node){
-      switch(action){
-      case ENTER:
-        break;
-      case LEAVE:
-        break;
-      }
-    }
-  */
-    
+
     @Override
     public void visit(MethodInvokation node){
       switch(action){
@@ -379,6 +355,13 @@ public abstract class ASTFrame<T> {
         for (DeclarationStatement decl:(node).getArgs()) {
           variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Argument));
         }
+        if(node.getReturnType() instanceof TypeExpression && ((TypeExpression) node.getReturnType()).operator() == TypeOperator.Kernel) {
+          for(String kernelArgument : new String[]{"opencl_lid", "opencl_gid", "opencl_gcount", "opencl_gsize"}) {
+            variables.add(kernelArgument, new VariableInfo(
+                    new DeclarationStatement(kernelArgument, new PrimitiveType(PrimitiveSort.Integer)),
+                    NameExpressionKind.Argument));
+          }
+        }
         add_contract_vars(node);
         break;
       case LEAVE:
@@ -398,9 +381,6 @@ public abstract class ASTFrame<T> {
         if (node.getParent() instanceof MethodInvokation){
           MethodInvokation s=(MethodInvokation)node.getParent();
           Method def=s.getDefinition();
-          //if (def==null) {
-          //  Warning("definition of method invokation is unknown, expect type errors.");
-          //}
           add_contract_vars(def);
         }
         BlockStatement block=(BlockStatement)node;
@@ -596,7 +576,6 @@ public abstract class ASTFrame<T> {
 
   
   private void scan_labels(ASTNode node) {
-    //if (node instanceof MethodInvokation){
       for(NameExpression label:node.getLabels()){
         variables.add(label.getName(),new VariableInfo(node, NameExpressionKind.Label));
       }
@@ -607,7 +586,6 @@ public abstract class ASTFrame<T> {
           variables.add(label.getName(),new VariableInfo(node, NameExpressionKind.Label));
         }
       }
-    //}
     if (node instanceof OperatorExpression){
       for (ASTNode arg : ((OperatorExpression)node).argsJava()) {
         scan_labels(arg);
