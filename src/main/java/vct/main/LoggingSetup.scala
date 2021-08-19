@@ -1,9 +1,9 @@
 package vct.main
 
+import hre.config.Configuration
 import hre.io.ForbiddenPrintStream
 import hre.lang
 import hre.lang.LogLevel
-import vct.main.options.CommandLineOptions
 
 import scala.jdk.CollectionConverters.MapHasAsScala
 
@@ -21,7 +21,7 @@ class LoggingSetup extends LoggingSetupTrait {
   def setupLoggingWithoutForbiddenPrintStream(): Unit ={
     import hre.lang.LogLevel
 
-    var level = CommandLineOptions.logLevel.get match {
+    var level = Configuration.currentConfiguration.logLevel.get match {
       case "silent" => LogLevel.Silent
       case "abort" => LogLevel.Abort
       case "result" => LogLevel.Result
@@ -32,10 +32,10 @@ class LoggingSetup extends LoggingSetupTrait {
       case "all" => LogLevel.All
     }
 
-    if (!CommandLineOptions.debugFilters.get.isEmpty && level.getOrder < lang.LogLevel.Debug.getOrder)
+    if (!Configuration.currentConfiguration.debugFilters.get.isEmpty && level.getOrder < lang.LogLevel.Debug.getOrder)
       level = lang.LogLevel.Debug
 
-    for (filter <- CommandLineOptions.debugFilters.get.asScala.keys) {
+    for (filter <- Configuration.currentConfiguration.debugFilters.get.asScala.keys) {
       if (filter.contains(":") /* With line number */ ) hre.lang.System.addDebugFilterByLine(filter)
       else hre.lang.System.addDebugFilterByClassName(filter)
     }

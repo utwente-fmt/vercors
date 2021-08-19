@@ -39,10 +39,10 @@ object Passes {
     }, introduces = Set(), permits = Feature.ALL),
     SimplePass("printPVL", "print AST in PVL syntax", arg => {
       try {
-        val f = new File(Configuration.veymont_file.get())
+        val f = new File(Configuration.currentConfiguration.veymont_file.get())
         val b = f.createNewFile()
         if (!b) {
-          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get())
+          Debug("File %s already exists and is now overwritten", Configuration.currentConfiguration.veymont_file.get())
         }
         val out = new PrintWriter(new FileOutputStream(f))
         PVLSyntax.get().print(out, arg)

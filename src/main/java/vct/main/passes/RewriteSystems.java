@@ -4,11 +4,11 @@ import java.io.File;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import hre.util.FileHelper;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.rewrite.JavaResolver;
 import vct.col.rewrite.RewriteSystem;
 import vct.col.util.AbstractTypeCheck;
-import hre.config.Configuration;
 
 public class RewriteSystems {
 
@@ -17,7 +17,7 @@ public class RewriteSystems {
   public static RewriteSystem getRewriteSystem(String name){
     File f=new File(name+".jspec");
     if (!f.exists()){
-      f=Configuration.getConfigFile(name + ".jspec");
+      f= FileHelper.getConfigFile(name + ".jspec");
     }
     ProgramUnit unit=systems.get(f);
     if (unit==null) synchronized(systems){

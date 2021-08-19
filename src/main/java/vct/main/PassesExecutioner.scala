@@ -1,11 +1,11 @@
 package vct.main
 
+import hre.config.Configuration
 import hre.lang.LogLevel
 import hre.lang.System.{Abort, Fail, Output, Progress, Verdict}
 import hre.tools.TimeKeeper
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.logging.PassReport
-import vct.main.options.CommandLineOptions
 import vct.main.passes.Passes.BY_KEY
 import vct.main.passes.AbstractPass
 
@@ -20,10 +20,10 @@ class PassesExecutioner extends PassesExecutionerTrait {
   def doPasses(passes: Seq[AbstractPass], report: PassReport, timeKeeper: TimeKeeper): Unit = {
     var currentReport = report
     for((pass, i) <- passes.zipWithIndex) {
-      if (CommandLineOptions.debugBefore.has(pass.key)) currentReport.getOutput.dump()
-      if (CommandLineOptions.showBefore.contains(pass.key)) show(pass,currentReport)
+      if (Configuration.currentConfiguration.debugBefore.has(pass.key)) currentReport.getOutput.dump()
+      if (Configuration.currentConfiguration.showBefore.contains(pass.key)) show(pass,currentReport)
 
-      val featuresIn = if(CommandLineOptions.strictInternalConditions.get()) {
+      val featuresIn = if(Configuration.currentConfiguration.strictInternalConditions.get()) {
         Feature.scan(currentReport.getInput)
       } else { Set.empty }
 
@@ -37,9 +37,9 @@ class PassesExecutioner extends PassesExecutionerTrait {
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(timeKeeper.show))
 
-      if (CommandLineOptions.debugAfter.has(pass.key)) currentReport.getOutput.dump()
-      if (CommandLineOptions.showAfter.contains(pass.key)) show(pass,currentReport)
-      if (CommandLineOptions.stopAfter.contains(pass.key)) Fail("exit after pass %s", pass)
+      if (Configuration.currentConfiguration.debugAfter.has(pass.key)) currentReport.getOutput.dump()
+      if (Configuration.currentConfiguration.showAfter.contains(pass.key)) show(pass,currentReport)
+      if (Configuration.currentConfiguration.stopAfter.contains(pass.key)) Fail("exit after pass %s", pass)
 
       currentReport = BY_KEY("checkTypesJava").apply_pass(currentReport, Array())
 
@@ -48,7 +48,7 @@ class PassesExecutioner extends PassesExecutionerTrait {
         return
       }
 
-      if(CommandLineOptions.strictInternalConditions.get()) {
+      if(Configuration.currentConfiguration.strictInternalConditions.get()) {
         val scanner = new RainbowVisitor(currentReport.getOutput)
         scanner.source().accept(scanner)
         val featuresOut = scanner.features.toSet
@@ -88,7 +88,7 @@ class PassesExecutioner extends PassesExecutionerTrait {
   }
 
   private def show(pass: AbstractPass, report: PassReport): Unit = {
-    val name = CommandLineOptions.showFile.get
+    val name = Configuration.currentConfiguration.showFile.get
     if (name != null) {
       val file = String.format(name, pass.key)
       val out = new PrintWriter(new FileOutputStream(file))

@@ -1,21 +1,19 @@
 package vct.test
 
-import hre.config.Configuration.getClassPathElements
 import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Debug, Output, Progress, Warning}
+import hre.util.FileHelper.getClassPathElements
+import hre.util.{BackendProcessGenerator, FileHelper}
 import hre.util.TestReport.Verdict
-import org.scalatest.Entry
 import vct.col.features.Feature
 
 import java.io._
 import java.nio.file.{FileVisitOption, Files, Paths}
 import java.util
-import scala.collection.convert.ImplicitConversions.`map AsJavaMap`
 import scala.collection.mutable
 import scala.io.Source
 import scala.jdk.CollectionConverters._
-import scala.math.Ordering.StringOrdering
 
 // These need to be included to ensure jacoco is included in the classpath, so it can be used for the test suite.
 import org.jacoco.cli
@@ -99,13 +97,13 @@ object CommandLineTesting {
 
   // The tools are marked lazy, so they are only loaded when in use by at least one example. Erroring out on missing
   // dependencies that we don't use would be silly.
-  private lazy val z3 = Configuration.getZ3
-  private lazy val carbon = Configuration.getCarbon
-  private lazy val silicon = Configuration.getSilicon
-  private lazy val vercors = Configuration.getThisVerCors(null)
+  private lazy val z3 = BackendProcessGenerator.getZ3
+  private lazy val carbon = BackendProcessGenerator.getCarbon
+  private lazy val silicon = BackendProcessGenerator.getSilicon
+  private lazy val vercors = BackendProcessGenerator.getThisVerCors(null)
 
   private def selfTest(name: String): String =
-    Configuration.getSelfTestPath(name).getAbsolutePath
+    FileHelper.getSelfTestPath(name).getAbsolutePath
 
   private val builtinTests = Map(
     "!z3-sat" -> Task(z3.withArgs("-smt2", selfTest("test-sat.smt")), Seq(
@@ -173,7 +171,7 @@ object CommandLineTesting {
     // Options are of format opt1=val1,op2=val2.
     // Only include our own code, exclude generated parser code.
     val options = s"destfile=$jacocoOutputFilePath,includes=vct.*:hre.*:col.*:viper.api.*,excludes=vct.antlr4.generated.*"
-    Seq(s"-javaagent:${Configuration.getJacocoAgentPath()}=$options")
+    Seq(s"-javaagent:${FileHelper.getJacocoAgentPath()}=$options")
   }
 
   def filterEnabledBackends(tools: Set[String]): Set[String] =
@@ -285,7 +283,7 @@ object CommandLineTesting {
       Output("")
     }
 
-    val vercorsProcess = Configuration.getThisVerCors(jacocoArg.asJava).withArgs(args.toSeq: _*)
+    val vercorsProcess = BackendProcessGenerator.getThisVerCors(jacocoArg.asJava).withArgs(args.toSeq: _*)
 
     Task(vercorsProcess, conditions.toSeq)
   }
@@ -312,7 +310,7 @@ object CommandLineTesting {
     * Aggregates several jacoco ".exec" files into one xml report.
     */
   def generateJacocoXML(): Unit = {
-    val jacocoCli = Configuration.getJacocoCli
+    val jacocoCli = BackendProcessGenerator.getJacocoCli
     jacocoCli.addArg("report")
 
     // Add all coverage files
@@ -446,7 +444,7 @@ object CommandLineTesting {
         Output("Fail: %s", taskKey)
 
         if(testFailIdeaConfigs.get) {
-          val dropArgs = Configuration.getThisVerCors(null).getArgs.size
+          val dropArgs = BackendProcessGenerator.getThisVerCors(null).getArgs.size
           val args = task.env.getArgs.asScala.drop(dropArgs) ++ Seq("--encoded", "tmp/output.sil")
           val config =
             <component name="ProjectRunConfigurationManager">

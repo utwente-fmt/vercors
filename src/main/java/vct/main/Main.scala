@@ -1,5 +1,6 @@
 package vct.main
 
+import hre.config.ConfigurationNonStatic
 import hre.lang.SystemNonStatic
 import vct.main.options.OptionsParser
 import vct.main.passes.PassesGenerator
@@ -11,7 +12,7 @@ object Main {
   var fileParser = new FileParser
   var optionsParser = new OptionsParser
   var system = new SystemNonStatic
-  var program = new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser,system)
-
+  var configuration = new ConfigurationNonStatic
+  var program = new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser,system,configuration)
   def main(args: Array[String]): Unit = System.exit(program.run(args))
 }

@@ -3,6 +3,7 @@ package vct.main.options
 import hre.config.{Configuration, OptionParser}
 import hre.lang.HREExitException
 import hre.lang.System.{Fail, Output}
+import hre.util.FileHelper
 import vct.main.BuildInfo
 import vct.main.passes.Passes
 import vct.test.CommandLineTesting
@@ -19,19 +20,18 @@ class OptionsParser extends OptionsParserTrait{
   def parseOptions(args: Array[String]): Unit = {
     val parser = new OptionParser()
     parser.add(parser.getHelpOption, Char.box('h'), "help")
-    CommandLineOptions.addOptions(parser)
+    Configuration.currentConfiguration.addOptions(parser)
     CommandLineTesting.addOptions(parser)
-    Configuration.addOptions(parser)
     var files = parser.parse(args) //These are the arguments which did not match anything. They should be the files.
-    if (Configuration.veymont_file.get() != null) {
-      val veymontFiles = Configuration.getVeyMontFiles.map(_.getAbsolutePath())
+    if (Configuration.currentConfiguration.veymont_file.get() != null) {
+      val veymontFiles = FileHelper.getVeyMontFiles.map(_.getAbsolutePath())
       files = files ++ veymontFiles
     }
-    CommandLineOptions.inputPaths = files
+    Configuration.currentConfiguration.inputPaths = files
   }
 
   def checkOptions(): Unit = {
-    if (CommandLineOptions.version.get) {
+    if (Configuration.currentConfiguration.version.get) {
       Output("%s %s", BuildInfo.name, BuildInfo.version)
       Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion, BuildInfo.scalaVersion, Instant.ofEpochMilli(BuildInfo.builtAtMillis))
       if (BuildInfo.currentBranch != "master")
@@ -41,7 +41,7 @@ class OptionsParser extends OptionsParserTrait{
       throw new HREExitException(0)
     }
 
-    if (CommandLineOptions.helpPasses.get) {
+    if (Configuration.currentConfiguration.helpPasses.get) {
       Output("The following passes are available:")
       Passes.BY_KEY.foreach {
         case (key, pass) => Output(" %-12s : %s", key, pass.description)
@@ -51,27 +51,27 @@ class OptionsParser extends OptionsParserTrait{
 
     if(Seq(
       CommandLineTesting.enabled,
-      CommandLineOptions.silver.used,
-      CommandLineOptions.passList.asScala.nonEmpty,
-      Configuration.veymont_file.used()
+      Configuration.currentConfiguration.silver.used,
+      Configuration.currentConfiguration.passList.asScala.nonEmpty,
+      Configuration.currentConfiguration.veymont_file.used()
     ).forall(!_)) {
       Fail("no back-end or passes specified")
     }
 
-    if (CommandLineOptions.stopBeforeBackend.get() && CommandLineOptions.stopAfterTypecheck.get()) {
+    if (Configuration.currentConfiguration.stopBeforeBackend.get() && Configuration.currentConfiguration.stopAfterTypecheck.get()) {
       Fail("The --stop-before-backend and --stop-after-typecheck flags are mutually exclusive.")
     }
 
-    if (CommandLineOptions.silver.used) CommandLineOptions.silver.get match {
+    if (Configuration.currentConfiguration.silver.used) Configuration.currentConfiguration.silver.get match {
       case "silicon" => // Nothing to check for
       case "carbon" => // Nothing to check for
       case _ =>
-        Fail("unknown silver backend: %s", CommandLineOptions.silver.get)
+        Fail("unknown silver backend: %s", Configuration.currentConfiguration.silver.get)
     }
 
-    val vFile = Configuration.veymont_file.get()
+    val vFile = Configuration.currentConfiguration.veymont_file.get()
     if(vFile != null) {
-      val nonPVL = CommandLineOptions.inputPaths.filter(!_.endsWith(".pvl"))
+      val nonPVL = Configuration.currentConfiguration.inputPaths.filter(!_.endsWith(".pvl"))
       if(nonPVL.nonEmpty)
         Fail("VeyMont cannot use non-PVL files %s",nonPVL.mkString(", "))
       if(!vFile.endsWith(".pvl"))

@@ -1,9 +1,9 @@
 package vct.main.passes
 
+import hre.config.Configuration
 import hre.lang.System.Debug
 import vct.col.features.Feature
 import vct.logging.PassReport
-import vct.main.options.CommandLineOptions
 import vct.main.passes.Passes.BY_KEY
 
 class SilverPassesGenerator extends PassesGeneratorTrait {
@@ -33,18 +33,18 @@ class SilverPassesGenerator extends PassesGeneratorTrait {
       features += vct.col.features.UnusedExtern
 
     // options are encoded as gated features
-    if(CommandLineOptions.satCheck.get()) features += vct.col.features.NeedsSatCheck
-    if(CommandLineOptions.checkAxioms.get()) features += vct.col.features.NeedsAxiomCheck
-    if(CommandLineOptions.checkDefined.get()) features += vct.col.features.NeedsDefinedCheck
-    if(CommandLineOptions.checkHistory.get()) features += vct.col.features.NeedsHistoryCheck
+    if(Configuration.currentConfiguration.satCheck.get()) features += vct.col.features.NeedsSatCheck
+    if(Configuration.currentConfiguration.checkAxioms.get()) features += vct.col.features.NeedsAxiomCheck
+    if(Configuration.currentConfiguration.checkDefined.get()) features += vct.col.features.NeedsDefinedCheck
+    if(Configuration.currentConfiguration.checkHistory.get()) features += vct.col.features.NeedsHistoryCheck
 
-    val passes = if (CommandLineOptions.stopAfterTypecheck.get()) {
+    val passes = if (Configuration.currentConfiguration.stopAfterTypecheck.get()) {
       Seq()
     } else {
       computeGoal(features).get
     }
 
-    if (CommandLineOptions.stopBeforeBackend.get()) {
+    if (Configuration.currentConfiguration.stopBeforeBackend.get()) {
       // We drop the last pass, which happens to be the silicon/carbon pass
       passes.init
     } else {
@@ -95,7 +95,7 @@ class SilverPassesGenerator extends PassesGeneratorTrait {
   }
 
   def computeGoal(featuresIn: Set[Feature]): Option[Seq[AbstractPass]] = {
-    val toolPass = CommandLineOptions.silver.get() match {
+    val toolPass = Configuration.currentConfiguration.silver.get() match {
       case "carbon" => BY_KEY("applyCarbon")
       case "silicon" => BY_KEY("applySilicon")
     }

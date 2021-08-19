@@ -1,10 +1,11 @@
 package integration.helper
 
-import hre.lang.{ISystem, SystemNonStatic}
+import hre.config.{Configuration, ConfigurationNonStatic}
+import hre.lang.ISystem
 import hre.util.TestReport.Verdict
 import org.scalatest.Assertions.{assertResult, fail}
 import vct.main.{FileParser, PassesExecutioner, Program}
-import vct.main.options.{CommandLineOptions, OptionsParser}
+import vct.main.options.OptionsParser
 import vct.main.passes.PassesGenerator
 
 import java.util
@@ -82,7 +83,8 @@ object IntegrationTestHelper {
     val passesGenerator = new PassesGenerator
     val fileParser = new FileParser
     val optionsParser = new OptionsParser
-    new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser,system)
+    val configuration = new ConfigurationNonStatic
+    new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser,system,configuration)
   }
 
   def checkEndConditions(configuration: IntegrationTestConfiguration, exitCode: Int, systemListener: SystemListener): Unit ={
@@ -96,13 +98,7 @@ object IntegrationTestHelper {
   }
 
   def resetStaticConfiguration(): Unit ={
-    var iterator = CommandLineOptions.passList.iterator()
-    while (iterator.hasNext){
-      System.out.println(iterator.next())
-    }
-    System.out.println(CommandLineOptions.checkAxioms.get())
-    System.out.println(CommandLineOptions.checkDefined.get())
-    System.out.println(CommandLineOptions.checkHistory.get())
+
   }
 
 }

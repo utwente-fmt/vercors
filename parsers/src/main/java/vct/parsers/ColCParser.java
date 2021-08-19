@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import hre.config.Configuration;
+import hre.util.FileHelper;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import scala.NotImplementedError;
@@ -28,8 +29,8 @@ public class ColCParser extends ColIParser {
         try {
             Runtime runtime = Runtime.getRuntime();
 
-            StringBuilder command = new StringBuilder(Configuration.cpp_command.get());
-            command.append(" -nostdinc -nocudainc -nocudalib --cuda-host-only -isystem ").append(Configuration.getCIncludePath().getAbsolutePath());
+            StringBuilder command = new StringBuilder(Configuration.currentConfiguration().cpp_command().get());
+            command.append(" -nostdinc -nocudainc -nocudalib --cuda-host-only -isystem ").append(FileHelper.getCIncludePath().getAbsolutePath());
 
             Path filePath = Paths.get(file_name).toAbsolutePath().getParent();
 
@@ -38,10 +39,10 @@ public class ColCParser extends ColIParser {
                 command.append(" -I").append(filePath.toString());
             }
 
-            for (String p : Configuration.cpp_include_path) {
+            for (String p : Configuration.currentConfiguration().cpp_include_path()) {
                 command.append(" -I").append(p);
             }
-            for (String p : Configuration.cpp_defines) {
+            for (String p : Configuration.currentConfiguration().cpp_defines()) {
                 command.append(" -D").append(p);
             }
             command.append(" -");

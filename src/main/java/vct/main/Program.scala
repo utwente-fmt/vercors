@@ -1,18 +1,21 @@
 package vct.main
 
+import hre.config.{Configuration, ConfigurationNonStatic}
 import hre.lang.{HREExitException, ISystem}
 import hre.lang.System.{DebugException, Progress, Verdict, Warning, setCurrentSystem}
 import hre.tools.TimeKeeper
 import hre.util.Notifier
-import vct.main.options.{CommandLineOptions, OptionsParserTrait}
+import vct.main.options.OptionsParserTrait
 import vct.main.passes.PassesGeneratorTrait
 import vct.test.CommandLineTesting
 
 class Program(loggingSetup: LoggingSetupTrait, passesExecutioner: PassesExecutionerTrait, passesGenerator: PassesGeneratorTrait,
-              fileParser: FileParserTrait, optionsParser: OptionsParserTrait, system: ISystem) {
+              fileParser: FileParserTrait, optionsParser: OptionsParserTrait, system: ISystem, configuration: ConfigurationNonStatic) {
 
   def run(args: Array[String]): Int = {
     setCurrentSystem(system)
+    //For the integration tests Program is called multiple times. This resets the configuration to the default.
+    Configuration.currentConfiguration=configuration
     var exit = 0
     val wallStart = System.currentTimeMillis
     try {
@@ -23,7 +26,7 @@ class Program(loggingSetup: LoggingSetupTrait, passesExecutioner: PassesExecutio
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
         val timeKeeper: TimeKeeper = new TimeKeeper
-        val report = fileParser.parseInputs(CommandLineOptions.inputPaths,timeKeeper)
+        val report = fileParser.parseInputs(Configuration.currentConfiguration.inputPaths,timeKeeper)
         val passes = passesGenerator.getPasses(report)
         passesExecutioner.doPasses(passes,report,timeKeeper)
       }
@@ -40,7 +43,7 @@ class Program(loggingSetup: LoggingSetupTrait, passesExecutioner: PassesExecutio
         Verdict("The final verdict is Error")
     } finally {
       Progress("entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
-      if(CommandLineOptions.notifySetting.get()) {
+      if(Configuration.currentConfiguration.notifySetting.get()) {
         Notifier.notify("VerCors", "Verification is complete")
       }
     }

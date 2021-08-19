@@ -31,7 +31,7 @@ public class ViperControl implements VerificationControl<Origin> {
         int tmp=count+1;
         if (count>0 && (tmp&count)==0){
           Progress("Verifying %s at %s is taking %d+ ms",
-            current_task,current_origin,count*Configuration.profiling.get());
+            current_task,current_origin,count*Configuration.currentConfiguration().profiling().get());
         }
         count=tmp;
       } else {
@@ -51,9 +51,9 @@ public class ViperControl implements VerificationControl<Origin> {
   
   public ViperControl(MessageFactory report){
     this.report=report;
-    if (Configuration.profiling_option.used()){
+    if (Configuration.currentConfiguration().profiling_option().used()){
       scheduler = Executors.newScheduledThreadPool(1);
-      int N=Configuration.profiling.get();
+      int N=Configuration.currentConfiguration().profiling().get();
       future=scheduler.scheduleAtFixedRate(task, N, N, TimeUnit.MILLISECONDS);
     } else {
       scheduler=null;
@@ -75,7 +75,7 @@ public class ViperControl implements VerificationControl<Origin> {
   @Override
   public boolean method(Origin origin, String name) {
     origin2method.put(origin, name);
-    for(String suffix:Configuration.skip){
+    for(String suffix:Configuration.currentConfiguration().skip()){
       if (name.endsWith(suffix)) return false;
     }
     // TODO log this event
@@ -113,7 +113,7 @@ public class ViperControl implements VerificationControl<Origin> {
   
   @Override
   public void profile(Origin o,String task){
-    if (Configuration.profiling_option.used()){
+    if (Configuration.currentConfiguration().profiling_option().used()){
       current_origin=o;
       current_task=task;
     }
@@ -127,6 +127,6 @@ public class ViperControl implements VerificationControl<Origin> {
   }
   
   public boolean detail(){
-    return Configuration.detailed_errors.get();
+    return Configuration.currentConfiguration().detailed_errors().get();
   }
 }

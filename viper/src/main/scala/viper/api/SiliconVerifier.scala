@@ -20,7 +20,7 @@ class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) 
       "--z3ConfigArgs", z3KeyValues,
     )
 
-    if(Configuration.debugBackend.get()) {
+    if(Configuration.currentConfiguration.debugBackend.get()) {
       siliconConfig ++= Seq("--logLevel", "ALL")
     }
 

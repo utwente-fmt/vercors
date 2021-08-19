@@ -140,7 +140,7 @@ public class SystemNonStatic implements ISystem {
 
                     entry.getKey().append(message);
 
-                    if(level == LogLevel.Progress && Configuration.ansi.get()) {
+                    if(level == LogLevel.Progress && Configuration.currentConfiguration().ansi().get()) {
                         entry.getKey().append("\r");
                         needLineClear = true;
                     } else {

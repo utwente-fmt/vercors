@@ -1,6 +1,7 @@
 package vct.silver;
 
 import hre.ast.HREOrigins;
+import hre.util.FileHelper;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import hre.ast.AssertOrigin;
 import hre.ast.RestOfContractOrigin;
@@ -69,7 +70,7 @@ public class SilverBackend {
     VerCorsViperAPI vercors=VerCorsViperAPI.get();
     Program program = vercors.prog.convert(verifier,arg);
     log.phase(verification,"Backend AST conversion");
-    String fname= Configuration.backend_file.get();
+    String fname= Configuration.currentConfiguration().backend_file().get();
     if (fname!=null){
       PrintWriter pw=null;
       try {
@@ -95,7 +96,7 @@ public class SilverBackend {
     try {
       // Call into Viper to verify!
       List<? extends ViperError<Origin>> rawErrors = verifier.verify(
-              Configuration.getZ3Path().toPath(),
+              FileHelper.getZ3Path().toPath(),
               settings,
               program,
               control

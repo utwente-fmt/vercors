@@ -1,11 +1,11 @@
 package vct.main
 
 import hre.ast.FileOrigin
+import hre.config.Configuration
 import hre.lang.System.Progress
 import hre.tools.TimeKeeper
 import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
 import vct.logging.PassReport
-import vct.main.options.CommandLineOptions
 import vct.main.passes.Parsers
 import vct.silver.ErrorDisplayVisitor
 
@@ -25,15 +25,15 @@ class FileParser extends FileParserTrait {
 
     for (pathName <- inputPaths) {
       val path = Paths.get(pathName)
-      if (!CommandLineOptions.noContext.get) {
-        FileOrigin.add(path, CommandLineOptions.guiContext.get)
+      if (!Configuration.currentConfiguration.noContext.get) {
+        FileOrigin.add(path, Configuration.currentConfiguration.guiContext.get)
       }
       report.getOutput.add(Parsers.parseFile(path))
     }
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(timeKeeper.show))
 
-    if (CommandLineOptions.sequentialSpec.get) {
+    if (Configuration.currentConfiguration.sequentialSpec.get) {
       report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
     }
     report
