@@ -4,7 +4,7 @@ import hre.lang.{ISystem, SystemNonStatic}
 import hre.util.TestReport.Verdict
 import org.scalatest.Assertions.{assertResult, fail}
 import vct.main.{FileParser, PassesExecutioner, Program}
-import vct.main.options.OptionsParser
+import vct.main.options.{CommandLineOptions, OptionsParser}
 import vct.main.passes.PassesGenerator
 
 import java.util
@@ -13,6 +13,7 @@ import scala.jdk.javaapi.CollectionConverters.asJavaCollection
 object IntegrationTestHelper {
 
   def test(configuration: IntegrationTestConfiguration): Unit ={
+    resetStaticConfiguration()
     val arguments = createArguments(configuration)
     val system = createSystem(configuration)
     val program = createProgram(system)
@@ -92,7 +93,16 @@ object IntegrationTestHelper {
       case Verdict.Inconclusive => fail("Verdict inconclusive is not supported")
       case Verdict.Fail => assertResult(0,"For verdict fail exitcode should be 0"){exitCode}
     }
+  }
 
+  def resetStaticConfiguration(): Unit ={
+    var iterator = CommandLineOptions.passList.iterator()
+    while (iterator.hasNext){
+      System.out.println(iterator.next())
+    }
+    System.out.println(CommandLineOptions.checkAxioms.get())
+    System.out.println(CommandLineOptions.checkDefined.get())
+    System.out.println(CommandLineOptions.checkHistory.get())
   }
 
 }
