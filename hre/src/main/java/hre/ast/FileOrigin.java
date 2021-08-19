@@ -1,6 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package hre.ast;
 
+import hre.config.Configuration;
 import hre.lang.HREError;
 import static hre.lang.System.*;
 
@@ -14,7 +15,6 @@ import java.util.Hashtable;
  */
 public class FileOrigin extends Origin {
 
-  private static Hashtable<Path, FileContext> fileContexts = new Hashtable<>();
 
   public int linesBefore=2;
   public int linesAfter=2;
@@ -24,14 +24,14 @@ public class FileOrigin extends Origin {
 
   private void do_mark(String result) {
     Path filePath = getPath();
-    FileContext fc = fileContexts.get(filePath);
+    FileContext fc = Configuration.currentConfiguration().fileContexts().get(filePath);
     if (fc == null) return;
     fc.mark(this, result);
   }
 
   public void printContext(int before,int after){
     Path filePath = getPath();
-    FileContext fc = fileContexts.get(filePath);
+    FileContext fc = Configuration.currentConfiguration().fileContexts().get(filePath);
     if (fc == null){
       Output("=========================================");
       Output("error at %s: ", this);
@@ -43,7 +43,7 @@ public class FileOrigin extends Origin {
   }
   
   public static void add(Path filePath, boolean gui) {
-    fileContexts.put(filePath, new FileContext(filePath, gui));
+    Configuration.currentConfiguration().fileContexts().put(filePath, new FileContext(filePath, gui));
   }
 
   public synchronized void report(String level, Iterable<String> message) {

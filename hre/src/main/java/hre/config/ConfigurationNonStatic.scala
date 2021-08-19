@@ -1,6 +1,11 @@
 package hre.config
 
+import hre.ast.FileContext
 import hre.config
+
+import java.nio.file.Path
+import java.util
+import java.util.Hashtable
 
 class ConfigurationNonStatic {
 
@@ -118,6 +123,8 @@ class ConfigurationNonStatic {
   val profiling_option: Option =profiling.getOptionalAssign("Enable profiling")
 
   val skip=new StringListSetting()
+
+  val fileContexts: util.Hashtable[Path, FileContext] = new util.Hashtable[Path, FileContext]
 
   /**
     * Add the VCT library options to the given option parser.
