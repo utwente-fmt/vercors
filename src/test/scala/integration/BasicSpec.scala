@@ -26,5 +26,6 @@ class BasicSpec extends AnyFlatSpec with Matchers {
   //create something for Veymont
   //skip problem-fail
   //make all test pass
+  //java_DOT_lang_DOT_Object komt niet voor als je hem individueel draait
 
 }
