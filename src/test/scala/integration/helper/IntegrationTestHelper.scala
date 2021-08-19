@@ -87,10 +87,10 @@ object IntegrationTestHelper {
   def checkEndConditions(configuration: IntegrationTestConfiguration, exitCode: Int, systemListener: SystemListener): Unit ={
     assert(systemListener.getFoundExpectedMessage(),"Did not find verdict message "+ systemListener.getExpectedVerdictMessage + " in output.")
     configuration.verdict match {
-      case Verdict.Error => assertResult(exitCode,"For verdict error exitcode should be 1"){1}
-      case Verdict.Pass => assertResult(exitCode,"For verdict pass exitcode should be 0"){0}
+      case Verdict.Error => assertResult(1,"For verdict error exitcode should be 1"){exitCode}
+      case Verdict.Pass => assertResult(0,"For verdict pass exitcode should be 0"){exitCode}
       case Verdict.Inconclusive => fail("Verdict inconclusive is not supported")
-      case Verdict.Fail => assertResult(exitCode,"For verdict fail exitcode should be 0"){0}
+      case Verdict.Fail => assertResult(0,"For verdict fail exitcode should be 0"){exitCode}
     }
 
   }

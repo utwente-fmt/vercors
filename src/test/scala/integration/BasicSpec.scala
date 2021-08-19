@@ -8,108 +8,23 @@ import org.scalatest.matchers.should.Matchers
 
 class BasicSpec extends AnyFlatSpec with Matchers {
 
+  //later
+  // --debug vct.main.Main text aanpassen in program.
+  //stop-after-typecheck deze word niet gebruikt
+  //Could not find file komt vaak voor. Maar is wel een Pass.
+
   //todo
   //DONE split main
   //DONE stderr out should be allowed for testing
-  //listen in system
+  //DONE listen in system
   //DONE make generic class for testing
   //DONE make integrationTestConfiguration
   //NAH create one place for all the settings (Maybe split it in multiple objects)
-  //Generate tests automatically
-  //Fix Veymont
-  //create something for Veymont
-  //stop-after-typecheck deze word niet gebruikt
+  //DONE Generate tests automatically
+  //DONE Fix Veymont
   //https://www.scalatest.org/scaladoc/3.0.5/org/scalatest/Checkpoints.html
-  // --debug vct.main.Main text aanpassen in program.
-  //Could not find file komt vaak voor. Maar is wel een Pass.
+  //create something for Veymont
+  //skip problem-fail
+  //make all test pass
 
-  val folder = "examples/basic/"
-
-  "VerCors" should folder + "AddAssignJava.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder + "AddAssignJava.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"array-item-access.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"array-item-access.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"ArrayAsObject.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"ArrayAsObject.java")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"BasicArray.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"BasicArray.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"BasicAssert.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"BasicAssert.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"BasicAssert-e1.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"BasicAssert-e1.java")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"BooleanOperators.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"BooleanOperators.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"Boxing.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"Boxing.java")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"bracket-issues.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"bracket-issues.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-  //This one did not have a verdict?
-  it should folder+"CollectionTest.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"CollectionTest.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should folder+"constructor-name.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array(folder+"constructor-name.pvl")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
 }
