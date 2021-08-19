@@ -951,33 +951,6 @@ object Passes {
         features.Extern,
       )
     },
-    new AbstractPass("checkProperties", "check the propeties  with Silicon") {
-      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = {
-        val report = vct.silver.SilverBackend.TestSilicon(arg, "silicon")
-
-        if(report.getFatal > 0) {
-          if (Configuration.gpu_optimizations.contains(GPUOptFlags.fusion.toString)) {
-            Warning("Data dependency")
-          }
-        }
-
-        report
-      }
-      override def removes: Set[Feature] = Set()
-      override def introduces: Set[Feature] = Set()
-      override def permits: Set[Feature] = Set(
-        features.Dereference,
-        features.Null,
-        features.ComplexSubscript,
-        features.TopLevelImplementedMethod,
-        features.TopLevelMethod,
-        features.DeclarationsNotLifted,
-        features.Goto,
-        features.NoExcVar,
-        features.NoTypeADT,
-        features.Extern,
-      )
-    },
   )
 
   val OLD_OR_UNUSED: Seq[AbstractPass] = Seq(

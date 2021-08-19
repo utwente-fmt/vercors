@@ -1,28 +1,36 @@
-class Case13 {
-    context_everywhere a != null;
-    context_everywhere b != null;
-    context_everywhere a.length == 16;
-    context_everywhere 19 == b.length;
-    void method(int[] a, int[] b) {
-        gpuopt fuse 1 1;
-        par
-        kernel1 (int tid = 0 .. a.length)
-        requires Perm(a[tid], 1\2);
-        requires tid < a.length-1 ==> Perm(a[tid+1], 1\2);
-        requires tid == a.length-1 ==> Perm(a[0], 1\2);
-        requires a[tid] == 0;
-        ensures Perm(a[tid], 1);
-        ensures a[tid] == 1;
-        {}
+class KernelFusionOrig6 {
 
-        par kernel2 (int tid = 0 .. a.length)
-        requires Perm(a[tid], 1\2);
-        requires tid < a.length-1 ==> Perm(a[tid+1], 1\4);
-        requires tid == a.length-1 ==> Perm(a[0], 1\4);
-        ensures Perm(a[tid], 3\4);
-        requires a[tid] == 1;
-        context Perm(b[tid], 1\1000);
-        ensures b[tid] != 0;
-        {}
+  context_everywhere a != null && b != null && c != null;
+  context_everywhere a.length == 2048;
+  context_everywhere a.length == b.length && a.length == c.length;
+  context (\forall* int i; i >= 0 && i < a.length; Perm(a[i], 1));
+  context (\forall* int i; i >= 0 && i < a.length; Perm(b[i], 1));
+  context (\forall* int i; i >= 0 && i < a.length; Perm(c[i], 1));
+
+  void Kernel_Fusion_Orig(int[] a, int[] b, int[] c){
+    gpuopt fuse 1 1;
+    par kernel1 (int tid = 0 .. a.length)
+    context Perm(a[tid], 5\6);
+    context Perm(b[tid], 1);
+    ensures b[tid] == a[tid];
+    {
+        b[tid] = a[tid];
+    }
+
+
+    par kernel2 (int tid = 0 .. a.length)
+    context Perm(c[tid], 1);
+    context tid != a.length-1 ==> Perm(a[tid+1], 1\3);
+    context tid == a.length-1 ==> Perm(a[0], 1\3);
+    ensures tid != a.length-1 ==> c[tid] == a[tid+1];
+    ensures tid == a.length-1 ==> c[tid] == a[0];
+    {
+        if (tid != a.length-1) {
+            c[tid] = a[tid+1];
+        } else {
+            c[tid] = a[0];
+        }
+    }
+
   }
 }

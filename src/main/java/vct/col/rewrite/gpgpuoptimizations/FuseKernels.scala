@@ -1,7 +1,5 @@
 package vct.col.rewrite.gpgpuoptimizations
 
-import scala.util.control.Breaks._
-import hre.lang.System.Output
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
 import vct.col.ast.`type`.PrimitiveSort._
 import vct.col.ast.expr.StandardOperator._
@@ -12,8 +10,8 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBarrie
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner, RecursiveVisitor, SequenceUtils}
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+
 import scala.collection.mutable
 import scala.language.postfixOps
 
@@ -24,6 +22,10 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
   //TODO OS can we use the method ASTNode as a key
   val methodsWithFusion: mutable.Map[String, mutable.Buffer[Method]] = mutable.Map.empty.withDefaultValue(mutable.Buffer.empty)
 
+  var pbLabel: Option[String] = None
+  var pbNewPermsForBarrier: mutable.Map[ASTNode, ASTNode] = mutable.Map.empty[ASTNode, ASTNode]
+  var inBarrierContract = false
+  var inBodyRewrite = false
 
   override def visit(m: Method): Unit = {
     inMethod = true
@@ -38,7 +40,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       super.visit(s)
       return
     }
-    var nf = 0
+    var nf = 0 // #fusions
     var parBlocks = Seq.empty[ParallelRegion]
     val newBlock = create.block()
     for (st <- s.getStatements) {
@@ -79,6 +81,74 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
 
   }
 
+  override def visit(pb: ParallelBarrier): Unit = {
+    val cbPB = new ContractBuilder
+    val tmp = inBarrierContract
+    inBarrierContract = true
+    rewrite(pb.contract, cbPB)
+    inBarrierContract = tmp
+    result = create.barrier(pbLabel.getOrElse(pb.label), cbPB.getContract(), pb.invs, rewrite(pb.body))
+  }
+
+  override def visit(e: OperatorExpression): Unit = {
+    if (inBodyRewrite && inBarrierContract) {
+      e.operator match {
+        case Perm if pbNewPermsForBarrier.contains(e.first) =>
+          create.expression(Perm, rewrite(e.first), rewrite(pbNewPermsForBarrier(e.first)))
+        case _ => super.visit(e)
+      }
+    } else
+    e.operator match {
+      case Perm =>
+        val permission = e.second match {
+          case ConstantExpression(value)
+            if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
+            create.expression(Div, constant(1), constant(1))
+          case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
+            create.expression(Div, constant(1), constant(1))
+          case o: OperatorExpression if o.operator == Plus =>
+            val fst = o.first match {
+              case ConstantExpression(value)
+                if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
+                create.expression(Div, constant(1), constant(1))
+              case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
+                create.expression(Div, constant(1), constant(1))
+              case _ => rewrite(o.first)
+            }
+            val snd = o.second match {
+              case ConstantExpression(value)
+                if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
+                create.expression(Div, constant(1), constant(1))
+              case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
+                create.expression(Div, constant(1), constant(1))
+              case _ => rewrite(o.second)
+            }
+            plus(fst, snd)
+          case o: OperatorExpression if o.operator == Minus =>
+            val fst = o.first match {
+              case ConstantExpression(value)
+                if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
+                create.expression(Div, constant(1), constant(1))
+              case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
+                create.expression(Div, constant(1), constant(1))
+              case _ => rewrite(o.first)
+            }
+            val snd = o.second match {
+              case ConstantExpression(value)
+                if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
+                create.expression(Div, constant(1), constant(1))
+              case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
+                create.expression(Div, constant(1), constant(1))
+              case _ => rewrite(o.second)
+            }
+            minus(fst, snd)
+          case _ => rewrite(e.second)
+        }
+        result = create.expression(Perm, rewrite(e.first), permission)
+      case _ => super.visit(e)
+    }
+  }
+
   private def fuseParBlocks(parBlocks: Seq[ParallelRegion]) = {
 
     //TODO OS check whether each region only has one block
@@ -107,7 +177,6 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
     var depCheckMethod: Method = null
     var kernelZeroToI = parBlocks.head
     for (i <- 0 to parBlocks.length - 2) {
-      val newParBody = create.block()
 
       val kernelIPlusOne = parBlocks(i + 1)
 
@@ -187,19 +256,34 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
         .map(sharedVar => (sharedVar,
           findConcreteValue(
             name(sharedVar),
-            star(current_method().getContract().pre_condition, current_method().getContract().invariant))
+            star(current_method().getContract().pre_condition, current_method().getContract().invariant)
+          ).getOrElse {
+              Fail("Could not find concrete value for the length of %s", name(sharedVar))
+              0
+            }
         )
         )
         .toMap
-      Output(arrayToLength.toString())
 
       val rangeOfTid = kernelIPlusOne.blocks.head.iters.head.init.get.asInstanceOf[OperatorExpression]
 
-      val T = getConstantInteger(rangeOfTid.second).getOrElse(findConcreteValue(rangeOfTid.second, star(current_method().getContract().pre_condition, current_method().getContract().invariant)))
-      -getConstantInteger(rangeOfTid.first).getOrElse(findConcreteValue(rangeOfTid.first, star(current_method().getContract().pre_condition, current_method().getContract().invariant)))
-      Output(T.toString)
-      val sharedVarToSVI = SV(contractIPerm.pre_condition, arrayToLength, T, newTid)
-      val sharedVarToSVIPlusOne = SV(contractIPlusOnePerm.pre_condition, arrayToLength, T, newTid)
+      val TUpper = getConstantInteger(rangeOfTid.second).getOrElse(
+        findConcreteValue(rangeOfTid.second, star(current_method().getContract().pre_condition, current_method().getContract().invariant)).getOrElse {
+          Fail("Could not find concrete value for %s", rangeOfTid.second)
+          0
+        }
+      )
+
+      val TLower = getConstantInteger(rangeOfTid.first).getOrElse(findConcreteValue(rangeOfTid.first, star(current_method().getContract().pre_condition, current_method().getContract().invariant))
+        .getOrElse {
+          Fail("Could not find concrete value for %s", rangeOfTid.second)
+          0
+        }
+      )
+      val T = TUpper - TLower
+
+//      val sharedVarToSVI = SV(contractIPerm.pre_condition, arrayToLength, T, newTid)
+//      val sharedVarToSVIPlusOne = SV(contractIPlusOnePerm.pre_condition, arrayToLength, T, newTid)
 
       /////////////////////////////
       /// Data dependency check ///
@@ -286,10 +370,10 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       val DP = mutable.Set.empty[String]
 
       permPatternsIPlusOnePre
-        .foreach { case (sharedVarTmp, (patts, perms, conditions)) =>
+        .foreach { case (sharedVarTmp, (pattsPreIPlusOne, perms, conditions)) =>
 
-          val pattsIPlusOne = patts.filter(ASTUtils.find_name(_, newTid.name))
-          val pattsI = permPatternsIPost(sharedVarTmp)._1.filter(ASTUtils.find_name(_, newTid.name))
+          val pattsIPlusOne = pattsPreIPlusOne.filter(ASTUtils.find_name(_, newTid.name)).toSet
+          val pattsI = permPatternsIPost(sharedVarTmp)._1.filter(ASTUtils.find_name(_, newTid.name)).toSet
 
 
           val setOfDifferentPatterns = (pattsIPlusOne diff pattsI) union (pattsI diff pattsIPlusOne)
@@ -325,10 +409,14 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
               permPatternsIPost(sharedVarTmp)._2.forall(interpretPermission(_) < 1)) { // .1.2
               val permsPattsAnnI = permPatternsIPre(sharedVarTmp)
               val C_i = permsPattsAnnI._1.count(ASTUtils.find_name(_, newTid.name))
-              val C_iplusone = pattsIPlusOne.length
+              val C_iplusone = pattsIPlusOne.size
               val C = C_i + C_iplusone
 
               val newPerm = create.expression(Div, constant(1), constant(C))
+              // For kernel i+1, change the permissions for these barrier
+              pattsPreIPlusOne.foreach(pbNewPermsForBarrier(_) = newPerm)
+              // For kernel i, change the permissions for these barrier
+              permsPattsAnnI._1.foreach(pbNewPermsForBarrier(_) = newPerm)
 
               val annIPlusOne = conditions
               val annI = permsPattsAnnI._3
@@ -340,7 +428,6 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
               val C_iplusonepost = permPatternsIPlusOnePost(sharedVarTmp)._1.count(ASTUtils.find_name(_, newTid.name))
               val Cpost = C_ipost + C_iplusonepost
               val newPostPerm = create.expression(Div, constant(1), constant(Cpost))
-
               permPatternsIPost(sharedVarTmp)._3.foreach {
                 ann => cbFusedParBlock.ensures(replacePerm(newPostPerm, ann))
               }
@@ -390,29 +477,68 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
             }
 
           } else { // .2
-            patts.indices.foreach {
-              i =>
-                val pattiplusone = patts(i)
-                val permiplusone = perms(i)
-                val anniplusone = conditions(i)
+            permPatternsIPre(sharedVarTmp)._3.foreach { pre =>
+              cbFusedParBlock.requires(copy_rw.rewrite(pre))
+            }
+            if (permPatternsIPost(sharedVarTmp)._2.map(interpretPermission).sum < permPatternsIPlusOnePre(sharedVarTmp)._2.map(interpretPermission).sum) {
+              val Diff = minus(permPatternsIPlusOnePre(sharedVarTmp)._2.reduce(plus), permPatternsIPost(sharedVarTmp)._2.reduce(plus))
 
-                val pattToPermIPost = permPatternsIPost(sharedVarTmp)._1.indices.map { i =>
-                  (permPatternsIPost(sharedVarTmp)._1(i),
-                    (permPatternsIPost(sharedVarTmp)._2(i),
-                    permPatternsIPost(sharedVarTmp)._3(i)))
-                }.toMap
 
-                val maxPerm:ASTNode = if (interpretPermission(permiplusone) <= interpretPermission(pattToPermIPost(pattiplusone)._1))
-                  pattToPermIPost(pattiplusone)._1
-                  else
-                  permiplusone
 
-                cbFusedParBlock.requires(replacePerm(maxPerm, pattToPermIPost(pattiplusone)._2))
+              permPatternsIPlusOnePre(sharedVarTmp)._3.foreach { stmt =>
+                cbFusedParBlock.requires(replacePerm(Diff, stmt))
+              }
             }
 
-            permPatternsIPlusOnePost(sharedVarTmp)._3.foreach {
-              ann => cbFusedParBlock.ensures(copy_rw.rewrite(ann))
+            val pattsIPost = permPatternsIPost(sharedVarTmp).zipped
+              .groupBy(_._1)
+              .map {case (key, value) =>
+                val newValue = value.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
+                  case (prev, (_, currentPerm, currentAnn)) =>
+                    (prev._1 :+ currentPerm, prev._2 :+ currentAnn)
+                }
+                (key, newValue)
+              }.toMap
+
+
+            val pattsIPlusOnePost = permPatternsIPlusOnePre(sharedVarTmp).zipped
+              .groupBy(_._1)
+              .map {case (key, value) =>
+                val newValue = value.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
+                  case (prev, (_, currentPerm, currentAnn)) =>
+                    (prev._1 :+ currentPerm, prev._2 :+ currentAnn)
+                }
+                (key, newValue)
+              }.toMap
+
+            pattsIPlusOnePost.foreach { case (currentPatt, (currentPerms, currentAnns)) =>
+              if (pattsIPost.contains(currentPatt)) {
+                val ipostperms = pattsIPost(currentPatt)._1.map(interpretPermission).sum
+                val ipostplusoneperms = currentPerms.map(interpretPermission).sum
+                if (ipostplusoneperms < ipostperms) {
+                  currentAnns.foreach(
+                    ann => cbFusedParBlock.ensures(
+                      replacePerm(pattsIPost(currentPatt)._1.reduce(plus), ann)
+                    )
+                  )
+                } else {
+                  currentAnns.foreach(ann => cbFusedParBlock.ensures(copy_rw.rewrite(ann)))
+                }
+              } else {
+                currentAnns.foreach(ann => cbFusedParBlock.ensures(copy_rw.rewrite(ann)))
+              }
             }
+            val a = 1+1
+//            val L = permPatternsIPlusOnePre(sharedVarTmp).zipped.filter {
+//              case (pattern,_,_) => ASTUtils.find_name(pattern, newTid.name)
+//            }._2.reduce(plus)
+//            val C_iplusonepost = permPatternsIPlusOnePost(sharedVarTmp)._1.count(ASTUtils.find_name(_, newTid.name))
+//            val newPostPerm = create.expression(Div, L, constant(C_iplusonepost))
+//
+//
+//            permPatternsIPlusOnePost(sharedVarTmp)._3.foreach {
+//              ann => cbFusedParBlock.ensures(replacePerm(newPostPerm, ann))
+//            }
           }
         }
 
@@ -428,7 +554,12 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           forall(nonshared.contains)) { // all non-shared
           cbFusedParBlock.requires(rewrite(preNonPerm))
         } else if (DP.forall(dp => !ASTUtils.find_name(preNonPerm, dp))) {
-          cbFusedParBlock.requires(rewrite(preNonPerm))
+          val varsInPostI = NameScanner.freeVars(preNonPerm).asScala.keySet.filter(!_.equals(newTid.name))
+
+          val writeOrRead = new WriteOrRead(varsInPostI.toSet)
+          kernelZeroToI.blocks.head.block.accept(writeOrRead)
+          if (writeOrRead.varToWritten.isEmpty)
+            cbFusedParBlock.requires(rewrite(preNonPerm))
         }
       }
 
@@ -437,7 +568,13 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           forall(nonshared.contains)) { // all non-shared
           cbFusedParBlock.ensures(rewrite(postNonPerm))
         } else if (DP.forall(dp => !ASTUtils.find_name(postNonPerm, dp))) {
-          cbFusedParBlock.ensures(rewrite(postNonPerm))
+          /////
+          val varsInPostI = NameScanner.freeVars(postNonPerm).asScala.keySet.filter(!_.equals(newTid.name))
+
+          val writeOrRead = new WriteOrRead(varsInPostI.toSet)
+          kernelIPlusOne.blocks.head.block.accept(writeOrRead)
+          if (writeOrRead.varToWritten.isEmpty)
+            cbFusedParBlock.ensures(rewrite(postNonPerm))
         }
       }
 
@@ -449,6 +586,9 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       ///////////////////
       /// Fuse bodies ///
       ///////////////////
+      val newParBody = create.block()
+      inBodyRewrite = true
+
       pbLabel = Some(newLabel)
       val fuseBody = (pr: ParallelRegion) => {
         Seq(pr).map(p => ASTUtils.replace(name(p.blocks.head.iters.head.name), newTid, p).asInstanceOf[ParallelRegion])
@@ -461,20 +601,35 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
                 b.forEachStmt(st => newBlock.add(rewrite(st)))
               case elseNode => newBlock.add(rewrite(elseNode))
             }
-            if (pbi._2 < parBlocks.length - 1) {
-              ASTUtils.conjuncts(pbi._1.blocks.head.contract.post_condition, Star, And, Wrap).forEach { stmt =>
-                newBlock.add(create special(ASTSpecial.Kind.Assert, rewrite(stmt)))
-              }
-            }
+//            if (pbi._2 < parBlocks.length - 1) {
+//              ASTUtils.conjuncts(pbi._1.blocks.head.contract.post_condition, Star, And, Wrap).forEach { stmt =>
+//                newBlock.add(create special(ASTSpecial.Kind.Assert, rewrite(stmt)))
+//              }
+//            }
             newBlock
           }
       }
 
       fuseBody(kernelZeroToI).foreach(_.forEachStmt(l => newParBody.add(copy_rw.rewrite(l))))
       pbLabel = None
-      pbNewPerms = create.constant(true)
+      pbNewPermsForBarrier = mutable.Map.empty[ASTNode, ASTNode]
+
+      if (DP.isEmpty) { // 3.2.1
+        val postI = ASTUtils.replace(name(kernelZeroToI.blocks.head.iters.head.name), newTid, kernelZeroToI.blocks.head.contract.post_condition)
+        ASTUtils.conjuncts(postI,  Star, And, Wrap).forEach { stmt =>
+          newParBody.add(create special(ASTSpecial.Kind.Assert, rewrite(stmt)))
+        }
+      } else { // 3.2.2
+        val cbNewBarrier = new ContractBuilder()
+        cbNewBarrier.requires(ASTUtils.replace(name(kernelZeroToI.blocks.head.iters.head.name), newTid, kernelZeroToI.contract.post_condition))
+        cbNewBarrier.ensures(ASTUtils.replace(name(kernelIPlusOne.blocks.head.iters.head.name), newTid, kernelIPlusOne.contract.pre_condition))
+        val newBarrier = create.barrier(null, cbNewBarrier.getContract(false), null, null)
+        newParBody.add(newBarrier)
+      }
+
       fuseBody(kernelIPlusOne).foreach(_.forEachStmt(l => newParBody.add(copy_rw.rewrite(l))))
 
+      inBodyRewrite = false
       ///////////////////////////
       /// Create fused kernel ///
       ///////////////////////////
@@ -488,8 +643,6 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       )
       kernelZeroToI = create.region(null, null, newParBlock)
     }
-
-    Output("Dependency Check Method\n\n%s\n\n", depCheckMethod)
 
     kernelZeroToI
   }
@@ -532,6 +685,53 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
     res
   }
 
+  def getTerms(tree: ASTNode, minus: Boolean = false): Seq[ASTNode] = {
+    tree match {
+      case o: OperatorExpression if o.operator == Plus => {
+        if (!minus)
+          getTerms(o.first, minus) ++ getTerms(o.second, minus)
+        else
+          getTerms(create.expression(UMinus, o.first), !minus) ++ getTerms(create.expression(UMinus, o.second), !minus)
+      }
+      case o: OperatorExpression if o.operator == Minus => {
+        getTerms(o.first, minus) ++ getTerms(o.second, !minus)
+      }
+      case o: OperatorExpression if o.operator == UMinus =>
+        getTerms(o.first, !minus)
+      case o: OperatorExpression if o.operator == Wrap => getTerms(o.first, minus)
+      case _ =>
+        if (minus)
+          Seq(create.expression(UMinus, tree))
+        //ensures Perm( b [ vct_fused_tid ] , 1 \ 2 + (1 \ 1 - 1 \ 2) - (1 \ 2 + (1 - 1 \ 2) - (1 \ 2 + (1 - 1 \ 2) - (0 \ 1 + (1 - 1 \ 2))) + 0 \ 1) );
+
+
+        else
+          Seq(tree)
+    }
+
+  }
+
+  //////////////////////////////
+  /// Interpreter functions ///
+  //////////////////////////////
+  def interpretPermission(perm: ASTNode): scala.Float = {
+    perm match {
+      case n: NameExpression if n.isReserved(ASTReserved.FullPerm) => 1
+      case n: NameExpression if n.isReserved(ASTReserved.NoPerm) => 0
+      case o: OperatorExpression if o.operator == Div => interpretPermission(o.first) / interpretPermission(o.second)
+      case o: OperatorExpression if o.operator == Plus => interpretPermission(o.first) + interpretPermission(o.second)
+      case o: OperatorExpression if o.operator == Minus => interpretPermission(o.first) - interpretPermission(o.second)
+      case o: OperatorExpression if o.operator == UMinus => -1 * interpretPermission(o.first)
+      case o: OperatorExpression if o.operator == Wrap => interpretPermission(o.first)
+      case c: ConstantExpression if c.value.isInstanceOf[IntegerValue] => c.value.asInstanceOf[IntegerValue].value
+      case anyelse =>
+        Fail("Could not interpret %s as a concrete permission.", anyelse)
+        return -1
+    }
+  }
+
+  //TODO OS change interpretFunction to also do the substitution for the lengths of the arrays instead of assuming tree
+  // is already normalized.
   def interpretFunction(tree: ASTNode, newTid: NameExpression): (Int, mutable.Map[String, mutable.Seq[mutable.Seq[(ASTNode, ASTNode)]]]) => Unit = tree match {
     case o: OperatorExpression =>
       o.operator match {
@@ -594,12 +794,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       }
   }
 
-  /**
-   *
-   * @param variable The name of an array
-   * @param preconds Preconditions of a method
-   */
-  def findConcreteValue(variable: ASTNode, preconds: ASTNode): Int = {
+  def findConcreteValue(variable: ASTNode, preconds: ASTNode): Option[Int] = {
     ASTUtils.conjuncts(preconds, Star, And, Wrap).forEach {
       case o: OperatorExpression if o.operator == EQ =>
         if ((o.first.isInstanceOf[Dereference] &&
@@ -608,30 +803,23 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           ||
           o.first.equals(variable)
         ) {
-          return getConstantInteger(o.second).getOrElse {
-            Fail("The righthand side of the equation (%s) is not a constant", o.second)
-            0
-          }
+          val opt = getConstantInteger(o.second)
+          if (opt.isDefined) return opt
         } else if ((o.second.isInstanceOf[Dereference] &&
           o.second.asInstanceOf[Dereference].obj.equals(variable) &&
           o.second.asInstanceOf[Dereference].field.equals("length"))
           ||
           o.second.equals(variable)
         ) {
-          return getConstantInteger(o.first).getOrElse {
-            Fail("The lefthand side of the equation (%s) is not a constant", o.second)
-            0
-          }
+          val opt = getConstantInteger(o.first)
+          if (opt.isDefined) return opt
         }
       case o: OperatorExpression if o.operator == NewArray && o.first.equals(variable) =>
-        return getConstantInteger(o.second).getOrElse {
-          Fail("The size of the array (%s) is not constant", o.second)
-          0
-        }
+        val opt = getConstantInteger(o.second)
+        if (opt.isDefined) return opt
       case _ =>
     }
-    Fail("Could not find concrete value for %s", variable)
-    0 // Needed to make Scala happy
+    None // Needed to make Scala happy
   }
 
   def isConstantInteger(node: ASTNode): Boolean = node.isInstanceOf[ConstantExpression] && node.asInstanceOf[ConstantExpression].value.isInstanceOf[IntegerValue]
@@ -643,136 +831,9 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       None
   }
 
-
-  def getTerms(tree: ASTNode, minus: Boolean = false): Seq[ASTNode] = {
-    tree match {
-      case o: OperatorExpression if o.operator == Plus => {
-        if (!minus)
-          getTerms(o.first, minus) ++ getTerms(o.second, minus)
-        else
-          getTerms(create.expression(UMinus, o.first), !minus) ++ getTerms(create.expression(UMinus, o.second), !minus)
-      }
-      case o: OperatorExpression if o.operator == Minus => {
-        getTerms(o.first, minus) ++ getTerms(o.second, !minus)
-      }
-      case o: OperatorExpression if o.operator == UMinus =>
-        getTerms(o.first, !minus)
-      case o: OperatorExpression if o.operator == Wrap => getTerms(o.first, minus)
-      case _ =>
-        if (minus)
-          Seq(create.expression(UMinus, tree))
-        //ensures Perm( b [ vct_fused_tid ] , 1 \ 2 + (1 \ 1 - 1 \ 2) - (1 \ 2 + (1 - 1 \ 2) - (1 \ 2 + (1 - 1 \ 2) - (0 \ 1 + (1 - 1 \ 2))) + 0 \ 1) );
-
-
-        else
-          Seq(tree)
-    }
-
-  }
-
-  var pbLabel: Option[String] = None
-  var pbNewPerms: ASTNode = create.constant(true)
-
-  override def visit(pb: ParallelBarrier): Unit = {
-    val cbPB = new ContractBuilder
-    rewrite(pb.contract, cbPB)
-    if (!pbNewPerms.equals(create.constant(true))) {
-      cbPB.requires(rewrite(pbNewPerms))
-      cbPB.ensures(rewrite(pbNewPerms))
-    }
-    result = create.barrier(pbLabel.getOrElse(pb.label), cbPB.getContract(), pb.invs, rewrite(pb.body))
-  }
-
-  def replacePerm(newPerm: ASTNode, tree: ASTNode): ASTNode = {
-    val rw = new AbstractRewriter(null.asInstanceOf[ProgramUnit]) {
-      override def visit(e: OperatorExpression): Unit = {
-        if (e.operator == Perm)
-          result = create.expression(Perm, rewrite(e.first), rewrite(newPerm))
-        else super.visit(e)
-      }
-    }
-    rw.rewrite(tree)
-  }
-
-  override def visit(e: OperatorExpression): Unit = {
-    e.operator match {
-      case Perm =>
-        val permission = e.second match {
-          case ConstantExpression(value)
-            if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
-            create.expression(Div, constant(1), constant(1))
-          case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
-            create.expression(Div, constant(1), constant(1))
-          case o: OperatorExpression if o.operator == Plus =>
-            val fst = o.first match {
-              case ConstantExpression(value)
-                if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
-                create.expression(Div, constant(1), constant(1))
-              case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
-                create.expression(Div, constant(1), constant(1))
-              case _ => rewrite(o.first)
-            }
-            val snd = o.second match {
-              case ConstantExpression(value)
-                if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
-                create.expression(Div, constant(1), constant(1))
-              case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
-                create.expression(Div, constant(1), constant(1))
-              case _ => rewrite(o.second)
-            }
-            plus(fst, snd)
-          case o: OperatorExpression if o.operator == Minus =>
-            val fst = o.first match {
-              case ConstantExpression(value)
-                if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
-                create.expression(Div, constant(1), constant(1))
-              case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
-                create.expression(Div, constant(1), constant(1))
-              case _ => rewrite(o.first)
-            }
-            val snd = o.second match {
-              case ConstantExpression(value)
-                if value.isInstanceOf[IntegerValue] && value.asInstanceOf[IntegerValue].value == 1 =>
-                create.expression(Div, constant(1), constant(1))
-              case NameExpression(name, reserved, kind) if reserved == ASTReserved.FullPerm =>
-                create.expression(Div, constant(1), constant(1))
-              case _ => rewrite(o.second)
-            }
-            minus(fst, snd)
-          case _ => rewrite(e.second)
-        }
-        result = create.expression(Perm, rewrite(e.first), permission)
-      case _ => super.visit(e)
-    }
-  }
-
-  def interpretPermission(perm: ASTNode): scala.Float = {
-    perm match {
-      case n: NameExpression if n.isReserved(ASTReserved.FullPerm) => 1
-      case n: NameExpression if n.isReserved(ASTReserved.NoPerm) => 0
-      case o: OperatorExpression if o.operator == Div => interpretPermission(o.first) / interpretPermission(o.second)
-      case o: OperatorExpression if o.operator == Plus => interpretPermission(o.first) + interpretPermission(o.second)
-      case o: OperatorExpression if o.operator == Minus => interpretPermission(o.first) - interpretPermission(o.second)
-      case o: OperatorExpression if o.operator == UMinus => -1 * interpretPermission(o.second)
-      case o: OperatorExpression if o.operator == Wrap => interpretPermission(o.first)
-      case c: ConstantExpression if c.value.isInstanceOf[IntegerValue] => c.value.asInstanceOf[IntegerValue].value
-      case anyelse =>
-        Fail("Could not interpret %s as a concrete permission.", anyelse)
-        return -1
-    }
-  }
-
-  //  def isWritePerm(perm: ASTNode): Boolean = {
-  //      perm match {
-  //        case ConstantExpression(value) => value.asInstanceOf[IntegerValue].value == 1
-  //        case as: ASTReserved => as == ASTReserved.FullPerm
-  //        case o: OperatorExpression if o.operator == Div => o.first.equals(constant(1)) && o.first.equals(o.second)
-  //        case _ => false
-  //      }
-  //  }
-  //
-  //  def isReadPerm(perm: ASTNode): Boolean = !isWritePerm(perm)
-
+  //////////////////////////////
+  /// Rewriters and Visitors ///
+  //////////////////////////////
   case class CollectPerms() extends AbstractRewriter(null: ProgramUnit) {
     var perm: Option[OperatorExpression] = None
 
@@ -820,6 +881,28 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       }
       super.visit(e)
     }
+  }
+
+  def replacePerm(newPerm: ASTNode, tree: ASTNode): ASTNode = {
+    val rw = new AbstractRewriter(null.asInstanceOf[ProgramUnit]) {
+      override def visit(e: OperatorExpression): Unit = {
+        if (e.operator == Perm)
+          result = create.expression(Perm, rewrite(e.first), rewrite(newPerm))
+        else super.visit(e)
+      }
+    }
+    rw.rewrite(tree)
+  }
+
+  def replacePerm(pattsToPerms: mutable.Map[ASTNode, ASTNode], tree: ASTNode): ASTNode = {
+    val rw = new AbstractRewriter(null.asInstanceOf[ProgramUnit]) {
+      override def visit(e: OperatorExpression): Unit = {
+        if (e.operator == Perm && pattsToPerms.contains(e.first))
+          result = create.expression(Perm, rewrite(e.first), pattsToPerms(e.first))
+        else super.visit(e)
+      }
+    }
+    rw.rewrite(tree)
   }
 
 }

@@ -212,9 +212,6 @@ class Main {
     if (Configuration.gpu_optimizations.contains(GPUOptFlags.fusion.toString)) {
       passes ++= Seq(Passes.BY_KEY("fuseKernels"))
       passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
-      passes ++= collectPassesForSilver.dropRight(1)
-      passes ++= Seq(Passes.BY_KEY("checkProperties"))
-      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
     }
     if (Configuration.gpu_optimizations.contains(GPUOptFlags.iterMerge.toString)) {
       passes ++= Seq(Passes.BY_KEY("mergeLoopIterations"))
