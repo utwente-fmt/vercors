@@ -11,8 +11,6 @@ import vct.col.ast.util.{AbstractRewriter, ContractBuilder, SequenceUtils}
 import scala.collection.mutable
 
 class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
-
-
   val constructorName: mutable.Map[(Type, Int), String] = mutable.Map()
   val valuesName: mutable.Map[Type, String] = mutable.Map()
   val subName: mutable.Map[Type, String] = mutable.Map()

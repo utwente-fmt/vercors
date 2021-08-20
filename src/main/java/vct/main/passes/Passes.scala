@@ -24,6 +24,15 @@ object Passes {
   //This variable is used in countASTByNodeType and learnSlowNodes
   val counters = new util.HashMap[String, SpecialCountVisitor]
 
+  var rewriteArrayRef = new RewriteArrayRef(null)
+  def createDesugarArrayOps(programUnit: ProgramUnit): ProgramUnit ={
+    rewriteArrayRef = new RewriteArrayRef(programUnit)
+    rewriteArrayRef.rewriteAll
+  }
+  def createFlatten(programUnit: ProgramUnit): ProgramUnit ={
+    new Flatten(programUnit,rewriteArrayRef).rewriteAll
+  }
+
   val DIAGNOSTIC: Seq[AbstractPass] = Seq(
     SimplePass("printJava", "print AST in java syntax", arg => {
       val out = hre.lang.System.getLogLevelOutputWriter(LogLevel.Info)
@@ -246,7 +255,7 @@ object Passes {
     ),
     SimplePass("desugarArrayOps",
       "rewrite arrays to sequences of cells",
-      new RewriteArrayRef(_).rewriteAll,
+      createDesugarArrayOps,
       permits = Feature.DEFAULT_PERMIT - features.ADTFunctions + features.TopLevelImplementedMethod,
       removes = Set(features.ArrayOps),
       introduces = Feature.NO_POLY_INTRODUCE + features.TopLevelImplementedMethod + features.TopLevelMethod + features.NestedQuantifiers -- Set(
@@ -706,7 +715,7 @@ object Passes {
       removes = Set(features.ArgumentAssignment)),
     SimplePass("flattenNestedExpressions",
       "remove nesting of expression",
-      new Flatten(_).rewriteAll,
+      new Flatten(_,rewriteArrayRef).rewriteAll,
       permits = Feature.DEFAULT_PERMIT + features.TopLevelImplementedMethod + features.TopLevelMethod - features.ArrayOps,
       removes = Set(features.NotFlattened),
       introduces = Feature.NO_POLY_INTRODUCE -- Set(

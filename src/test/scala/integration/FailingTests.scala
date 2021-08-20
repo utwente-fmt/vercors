@@ -7,7 +7,7 @@ import org.scalatest.matchers.should.Matchers
 
 class FailingTests extends AnyFlatSpec with Matchers {
 
-  it should "pass with array-item-access.pvl after MultiDimArray.java" in {
+  "VerCors" should "pass with array-item-access.pvl after MultiDimArray.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/basic/MultiDimArray.java")
     configuration.verdict = Verdict.Pass
