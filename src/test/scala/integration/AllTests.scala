@@ -1855,7 +1855,8 @@ class AllTests extends AnyFlatSpec with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "fail with silicon and examples/openmp/sections-reduced-fail.c" in {
+  //this one takes a long time.
+  ignore should "fail with silicon and examples/openmp/sections-reduced-fail.c" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/openmp/sections-reduced-fail.c")
     configuration.verdict = Verdict.Fail

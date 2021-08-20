@@ -36,6 +36,7 @@ class Program(loggingSetup: LoggingSetupTrait, passesExecutioner: PassesExecutio
         if(exit != 0)
           Verdict("The final verdict is Error")
       case e: Throwable =>
+        exit = 1
         DebugException(e)
         Warning("An unexpected error occured in VerCors! "
           + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. "

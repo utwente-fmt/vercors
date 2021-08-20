@@ -29,4 +29,20 @@ class FailingTests extends AnyFlatSpec with Matchers {
     IntegrationTestHelper.test(configuration2)
   }
 
+  it should "pass with silicon and examples/openmp/sections-reduced.c" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/openmp/sections-reduced.c")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "error with veymont and examples/veymont-check/checkMainConstructor/MainConstructorBlock.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/veymont-check/checkMainConstructor/MainConstructorBlock.pvl")
+    configuration.verdict = Verdict.Error
+    configuration.toolVeymont = true
+    IntegrationTestHelper.test(configuration)
+  }
+
 }
