@@ -80,7 +80,6 @@ public class JavaTypeCheck extends AbstractTypeCheck {
     super.visit(sc);
     inSignals = false;
 
-    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
     if (!isThrowableType(sc.type())) {
       reportFail("Signals type must extend Throwable",
               VerCorsError.ErrorCode.TypeError, VerCorsError.SubCode.ExtendsThrowable,
@@ -112,7 +111,6 @@ public class JavaTypeCheck extends AbstractTypeCheck {
 
     // Types of catch clauses cannot overlap
     ArrayList<ClassType> encounteredCatchTypes = new ArrayList<>();
-    ClassType throwableType = new ClassType(ClassType.javaLangThrowableName());
 
     for (CatchClause cc : tcb.catchesJava()) {
       enter(cc);

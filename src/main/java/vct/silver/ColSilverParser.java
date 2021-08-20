@@ -34,8 +34,7 @@ public class ColSilverParser extends Parser {
         return parseFile(file);
     }
 
-    public static <T, E, S, Decl, DFunc, DAxiom, Program>
-    ProgramUnit parseFile(File f) {
+    public static ProgramUnit parseFile(File f) {
         ViperAPI<Origin, ?, ?, ?, ?, ?, ?> viper =
                 SilverBackend.getVerifier("parser");
         return parseFile(f, viper);

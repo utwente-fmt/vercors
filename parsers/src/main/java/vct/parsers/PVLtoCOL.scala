@@ -30,7 +30,7 @@ object PVLtoCOL {
 // Maybe we can turn this off in the future.
 @nowarn("msg=not.*?exhaustive")
 case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLParser)
-  extends ToCOL(fileName, tokens, parser) {
+  extends ToCOL(fileName) {
   def convertProgram(tree: ProgramContext): ProgramUnit = {
     val output = new ProgramUnit()
 

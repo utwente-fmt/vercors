@@ -28,7 +28,7 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
 
   private AtomicInteger count=new AtomicInteger();
   
-  public static enum Mode { AxiomVerification, ProgramVerification };
+  public static enum Mode { AxiomVerification, ProgramVerification }
   public final Mode mode;
   
   public CheckHistoryAlgebra(ProgramUnit source, Mode mode, ErrorMapping map) {
@@ -238,7 +238,6 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
         args[1]=create.field_decl("proc",adt_type);
         hist_class.add(create.predicate("hist_idle", null, args));
         result=hist_class;
-        return;
       }}
     } else {
       super.visit(cl);
@@ -465,7 +464,6 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
   }
   protected void add_lemma_to_adt(Method m) {
     Contract c=m.getContract();
-    int N=m.getArity();
     ASTNode eq=c.post_condition;
     if (!eq.isa(EQ)){
       Abort("cannot generate axiom for %s", Configuration.getDiagSyntax().print(eq));
@@ -474,10 +472,6 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     ASTNode rhs=((OperatorExpression)c.post_condition).arg(1);
     lhs=rebuild(lhs,create.local_name("p"));
     rhs=create.domain_call("Process","p_seq",rewrite(rhs),create.local_name("p"));
-    ASTNode [] arg_names = new ASTNode[N];
-    for(int i=0;i<N;i++){
-      arg_names[i]=create.local_name(m.getArgument(i));
-    }
     eq=create.binder(
           Binder.Forall,
           create.primitive_type(PrimitiveSort.Boolean),
@@ -752,7 +746,6 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
     args.add(frac);
     args.add(p_expr);
     BlockStatement res=create.block();
-    ArrayList<NameExpression> names=new ArrayList<NameExpression>();
     Contract ac=act.getDefinition().getContract();
     for(ASTNode n:act.getArgs()){
       args.add(rewrite(n));
@@ -763,7 +756,6 @@ public class CheckHistoryAlgebra extends AbstractRewriter {
 
       String name = "f_" + AstToId.toId(n) + counter++;
       String fieldName = ((FieldAccess) n).name();
-      names.add(create.local_name(name));
       args.add(create.local_name(name));
       res.add(create.field_decl(name, create.primitive_type(PrimitiveSort.ZFraction)));
       CheckProcessAlgebra.ensureFreshZfracPresent(source(), target(), create);

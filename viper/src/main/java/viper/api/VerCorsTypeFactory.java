@@ -6,7 +6,6 @@ import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.Type;
 import vct.col.ast.type.TypeVariable;
 import vct.col.ast.util.ASTFactory;
-import viper.api.TypeFactory;
 
 public class VerCorsTypeFactory implements
     TypeFactory<Type> {
@@ -24,8 +23,7 @@ public class VerCorsTypeFactory implements
 
   @Override
   public Type Bool() {
-    Type res=create.primitive_type(PrimitiveSort.Boolean);
-    return res;
+    return create.primitive_type(PrimitiveSort.Boolean);
   }
   
   @Override
@@ -49,20 +47,17 @@ public class VerCorsTypeFactory implements
 
   @Override
   public Type Perm() {
-    Type res=create.primitive_type(PrimitiveSort.Rational);
-    return res;
+    return create.primitive_type(PrimitiveSort.Rational);
   }
   
   @Override
   public Type Ref() {
-    Type res=create.class_type("Ref");
-    return res;
+    return create.class_type("Ref");
   }
 
   @Override
   public Type Set(Type t) {
-    Type res=create.primitive_type(PrimitiveSort.Set,t);
-    return res;
+    return create.primitive_type(PrimitiveSort.Set,t);
   }
 
   @Override

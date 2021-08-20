@@ -4,7 +4,7 @@ import hre.config.Configuration.getClassPathElements
 import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Debug, Output, Progress, Warning}
-import hre.util.TestReport.Verdict
+import hre.util.Verdict
 import vct.col.features.Feature
 
 import java.io._

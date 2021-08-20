@@ -97,7 +97,7 @@ public class System {
         }
 
         @Override
-        public void flush() throws IOException {
+        public void flush() {
             // Refuse, as flushing in this context may cause an additional unwanted newline.
         }
 
