@@ -10,7 +10,9 @@ import vct.col.ast.util.{AbstractRewriter, ContractBuilder, SequenceUtils}
 
 import scala.collection.mutable
 
-object RewriteArrayRef {
+class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
+
+
   val constructorName: mutable.Map[(Type, Int), String] = mutable.Map()
   val valuesName: mutable.Map[Type, String] = mutable.Map()
   val subName: mutable.Map[Type, String] = mutable.Map()
@@ -37,29 +39,27 @@ object RewriteArrayRef {
   def getSubArray(t: Type): String = {
     subName getOrElseUpdate(t, getUniqueName("sub_array_" + t.toString))
   }
-}
 
-class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
   override def rewriteAll(): ProgramUnit = {
     val res = super.rewriteAll()
 
     create.enter()
     create.setOrigin(new MessageOrigin("Array Constructors"))
-    for (((t, definedDimensions), name) <- RewriteArrayRef.constructorName) {
+    for (((t, definedDimensions), name) <- constructorName) {
       res.add(arrayConstructorFor(t, definedDimensions, name))
     }
     create.leave()
 
     create.enter()
     create.setOrigin(new MessageOrigin("Array Values Functions"))
-    for ((t, name) <- RewriteArrayRef.valuesName) {
+    for ((t, name) <- valuesName) {
       res.add(arrayValuesFor(t, name))
     }
     create.leave()
 
     create.enter()
     create.setOrigin(new MessageOrigin("Generated Subarray Functions"))
-    for((t, name) <- RewriteArrayRef.subName) {
+    for((t, name) <- subName) {
       res.add(subArrayFor(t, name))
     }
     create.leave()
@@ -83,7 +83,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
       case StandardOperator.NewArray =>
         result = create.invokation(
           null, null,
-          RewriteArrayRef.getArrayConstructor(operator.arg(0).asInstanceOf[Type], operator.args.length - 1),
+          getArrayConstructor(operator.arg(0).asInstanceOf[Type], operator.args.length - 1),
           rewrite(operator.args.tail.toArray):_*)
       case StandardOperator.Subscript =>
         var baseType: Type = operator.arg(0).getType
@@ -111,7 +111,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
         this.result = result
       case StandardOperator.Values =>
         val array = operator.arg(0)
-        result = create.invokation(null, null, RewriteArrayRef.getArrayValues(array.getType), rewrite(operator.args.toArray):_*)
+        result = create.invokation(null, null, getArrayValues(array.getType), rewrite(operator.args.toArray):_*)
       case StandardOperator.Drop =>
         val seqInfo = SequenceUtils.getInfoOrFail(operator.arg(0), "Expected a sequence type but got %s")
         if(seqInfo.getSequenceSort == PrimitiveSort.Array) {
@@ -123,7 +123,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
           if(seqInfo.isOpt) {
             properArray = create.expression(StandardOperator.OptionGet, properArray)
           }
-          result = create.invokation(null, null, RewriteArrayRef.getSubArray(seqInfo.getCompleteType), array, dropCount, create.expression(StandardOperator.Length, properArray))
+          result = create.invokation(null, null, getSubArray(seqInfo.getCompleteType), array, dropCount, create.expression(StandardOperator.Length, properArray))
         } else {
           super.visit(operator)
         }
@@ -159,7 +159,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
   override def visit(struct_value: StructValue): Unit = {
     struct_value.`type` match {
       case t: PrimitiveType if Set(PrimitiveSort.Option, PrimitiveSort.Array).contains(t.sort) =>
-        RewriteArrayRef.getArrayConstructor(struct_value.getType, 1)
+        getArrayConstructor(struct_value.getType, 1)
       case _ =>
     }
 
