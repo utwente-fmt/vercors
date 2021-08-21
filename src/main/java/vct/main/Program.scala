@@ -5,12 +5,12 @@ import hre.lang.{HREExitException, ISystem}
 import hre.lang.System.{DebugException, Progress, Verdict, Warning, setCurrentSystem}
 import hre.tools.TimeKeeper
 import hre.util.Notifier
-import vct.main.options.OptionsParserTrait
+import vct.main.options.CommandLineOptionsParserTrait
 import vct.main.passes.PassesGeneratorTrait
 import vct.test.CommandLineTesting
 
 class Program(loggingSetup: LoggingSetupTrait, passesExecutioner: PassesExecutionerTrait, passesGenerator: PassesGeneratorTrait,
-              fileParser: FileParserTrait, optionsParser: OptionsParserTrait, system: ISystem, configuration: ConfigurationNonStatic) {
+              fileParser: FileParserTrait, optionsParser: CommandLineOptionsParserTrait, system: ISystem, configuration: ConfigurationNonStatic) {
 
   def run(args: Array[String]): Int = {
     setCurrentSystem(system)

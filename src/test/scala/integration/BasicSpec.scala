@@ -24,13 +24,16 @@ class BasicSpec extends AnyFlatSpec with Matchers {
   //DONE Fix Veymont
   //DONE: skip problem-fail
   //DONE:java_DOT_lang_DOT_Object komt niet voor als je hem individueel draait
-  //make all test pass
-  //section-reduced.c bestand ofzo.
+  //make all test pass                                  Maandag mee verder
+  //Hij kan CommandLineTesting niet vinden voor sbt.    Vraag Bob.
+  //section-reduced.c bestand ofzo.                     Maandag mee verder
 
   //present All Output in junit report.
   //beter junit report action https://github.com/marketplace/actions/xunit-viewer
   //https://github.com/marketplace/actions/test-reporter
   //https://github.com/marketplace?type=actions&query=JUnit+Report+
+  //https://stackoverflow.com/questions/64539269/add-logging-to-scalatest-xml-report
+  //https://github.com/scalatest/scalatest/issues/1183
 
   //Meeting having a discussion. Examples is the worst kind of documentation. Lets copy some examples to the wiki but
   //400 is unreadable. Examples is the illusion of documentation.
