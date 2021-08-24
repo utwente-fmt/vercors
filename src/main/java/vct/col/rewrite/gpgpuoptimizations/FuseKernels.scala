@@ -3,10 +3,10 @@ package vct.col.rewrite.gpgpuoptimizations
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
 import vct.col.ast.`type`.PrimitiveSort._
 import vct.col.ast.expr.StandardOperator._
-import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression}
+import vct.col.ast.expr.{Dereference, NameExpression, OperatorExpression}
 import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelRegion}
+import vct.col.ast.stmt.composite.{BlockStatement, ParallelBarrier, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner, RecursiveVisitor, SequenceUtils}
@@ -17,15 +17,11 @@ import scala.language.postfixOps
 
 class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
-  var inMethod = false
-  // Original Method name -> Dependency Check methods
-  //TODO OS can we use the method ASTNode as a key
-  val methodsWithFusion: mutable.Map[String, mutable.Buffer[Method]] = mutable.Map.empty.withDefaultValue(mutable.Buffer.empty)
-
   var pbLabel: Option[String] = None
   var pbNewPermsForBarrier: mutable.Map[ASTNode, ASTNode] = mutable.Map.empty[ASTNode, ASTNode]
   var inBarrierContract = false
   var inBodyRewrite = false
+  var inMethod = false
 
   override def visit(m: Method): Unit = {
     inMethod = true
@@ -50,7 +46,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           if (f == 0) {
             Warning("Number of fusions is zero, no optimization applied.", pr.fuse.getOrigin)
           } else {
-            nf = math.max(nf - 1, f)
+            nf = math.max(nf - 1, f - 1)
             parBlocks ++= Seq(pr)
           }
         }
@@ -75,7 +71,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       }
     }
     if (nf != 0) {
-      //      Fail("There are not enough kernels to fuse as specified in one of the gpuopt annotations")
+            Fail("There are not enough kernels to fuse as specified in one of the gpuopt annotations")
     }
     result = newBlock
 
@@ -403,8 +399,6 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
                   cbFusedParBlock.ensures(copy_rw.rewrite(post))
                 }
               }
-
-
             } else if (perms.forall(interpretPermission(_) < 1) &&
               permPatternsIPost(sharedVarTmp)._2.forall(interpretPermission(_) < 1)) { // .1.2
               val permsPattsAnnI = permPatternsIPre(sharedVarTmp)

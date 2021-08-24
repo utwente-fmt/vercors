@@ -294,7 +294,7 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
   private def getNewPrBeforeNextSeq(b : ParallelBlock, seq : List[ASTNode], othersPreBlock : List[ParallelBlock],
                                     othersPostBlock : List[ParallelBlock], pr : ParallelRegion, nextSeq : List[ASTNode]) : List[ASTNode] = {
     val afterFirstbAction = getCopyBlockWithStats(b,seq)
-    val newPr = create.region(pr.contract,(
+    val newPr = create.region(rewrite(pr.fuse), pr.contract,(
       if (afterFirstbAction.block.isEmpty) othersPreBlock ++ othersPostBlock
       else othersPreBlock ++ (afterFirstbAction +: othersPostBlock)):_*)
     if(newPr.blocks.forall(_.block.size == 0)) nextSeq else newPr +: nextSeq

@@ -13,7 +13,7 @@ case class FindUpdateStatement(override val source: ProgramUnit, itervar: ASTNod
   var updateStmnt: Option[(StandardOperator, ASTNode)] = None
 
   override def visit(o: OperatorExpression): Unit = {
-    if (!o.first.equals(itervar) || !Set(AddAssign, PostIncr, PostDecr, SubAssign, MulAssign, DivAssign).contains(o.operator)) {
+    if (!o.first.equals(itervar) || !Set(AddAssign, PostIncr, PostDecr, SubAssign, MulAssign, FloorDivAssign).contains(o.operator)) {
       super.visit(o)
       return
     } else if (updateStmnt.isDefined) {
@@ -33,7 +33,7 @@ case class FindUpdateStatement(override val source: ProgramUnit, itervar: ASTNod
         updateStmnt = Some(Minus, o.second)
       case MulAssign =>
         updateStmnt = Some(Mult, o.second)
-      case DivAssign =>
+      case StandardOperator.FloorDivAssign =>
         updateStmnt = Some(Div, o.second)
       case _ =>
     }

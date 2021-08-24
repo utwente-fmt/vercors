@@ -1,7 +1,5 @@
 package vct.col.ast.print;
 
-import scala.collection.Iterator;
-
 import hre.ast.TrackingOutput;
 import hre.ast.TrackingTree;
 import hre.lang.HREError;
@@ -21,6 +19,7 @@ import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.PVLSyntax;
 import vct.col.ast.type.*;
+import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.ClassName;
 import vct.col.ast.util.SequenceUtils;
 
@@ -598,7 +597,7 @@ public class PVLPrinter extends AbstractPrinter{
                 e.accept(this);
                 out.lnprintf(";");
             }
-            for(ASTNode e:ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star)){
+            for(ASTNode e: ASTUtils.conjuncts(contract.pre_condition,StandardOperator.Star)){
                 out.printf("requires ");
                 nextExpr();
                 e.accept(this);
@@ -1046,7 +1045,7 @@ public class PVLPrinter extends AbstractPrinter{
         else {
             Warning("Could not find name of " + o.getClass());
         }
-        Iterator<ASTNode> argsit = o.args().iterator();
+        Iterator<ASTNode> argsit = o.argsJava().iterator();
         print_tuple(" ", "", "", o.argsJava().toArray(new ASTNode[0]));
         out.lnprintf(";");
     }

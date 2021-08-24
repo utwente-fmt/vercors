@@ -236,19 +236,6 @@ class Main {
     passes
   }
 
-  private def collectPassesForBoogie: Seq[AbstractPass] = {
-    var passes = Seq(
-      BY_KEY("loadExternalClasses"), // inspect class path for retreiving signatures of called methods. Will add files necessary to understand the Java code.
-      BY_KEY("standardize"), // a rewriter s.t. only a subset of col will have to be supported
-      BY_KEY("checkTypes"), // type check col. Add annotations (the types) to the ast.
-      BY_KEY("desugarArrayOps"), // array generation and various array-related rewrites
-      BY_KEY("checkTypes"),
-      BY_KEY("flattenNestedExpressions"), // expressions that contain method calls (possibly having side-effects) are put into separate statements.
-      BY_KEY("inlineAssignmentToStatement"), // '(x = y ==> assign(x,y);). Has not been merged with standardize because flatten needs to be done first.
-      BY_KEY("finalizeArguments"), // declare new variables to never have to change the arguments (which isn't allowed in silver)
-      BY_KEY("collectDeclarations"), // silver requires that local variables are declared at the top of methods (and loop-bodies?) so they're all moved to the top
-    )
-
   private def collectPassesForVeyMont : Seq[AbstractPass] = Seq(
     BY_KEY("VeyMontStructCheck"),
     BY_KEY("VeyMontTerminationCheck"),

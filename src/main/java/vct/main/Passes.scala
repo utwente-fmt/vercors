@@ -22,7 +22,6 @@ import vct.col.util.{JavaTypeCheck, LocalVariableChecker, SimpleTypeCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
-import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, KernelInvocationToMethodInvocation, RewriteWithThen, StripUnusedExtern}
 import viper.silver.verifier.NullPartialVerificationError.f
 
 import scala.jdk.CollectionConverters._

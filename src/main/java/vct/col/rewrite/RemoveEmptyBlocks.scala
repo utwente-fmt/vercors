@@ -9,7 +9,7 @@ class RemoveEmptyBlocks(override val source : ProgramUnit)  extends AbstractRewr
   override def visit(pr : ParallelRegion) = {
     val nonEmptyBlocks : List[ParallelBlock] = pr.blocks.filter(_.block.getStatements.nonEmpty);
     if(nonEmptyBlocks.nonEmpty) {
-        result = create.region(pr.getOrigin,pr.contract,nonEmptyBlocks:_*)
+        result = create.region(pr.getOrigin,pr.fuse, pr.contract,nonEmptyBlocks:_*)
     }
   }
 
