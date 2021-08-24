@@ -24,8 +24,9 @@ class BasicSpec extends AnyFlatSpec with Matchers {
   //DONE Fix Veymont
   //DONE: skip problem-fail
   //DONE:java_DOT_lang_DOT_Object komt niet voor als je hem individueel draait
+  //DONE: section-reduced.c bestand ofzo.
   //make all test pass
-  //section-reduced.c bestand ofzo.
+  //get it working in CI.
 
   //present All Output in junit report.
   //beter junit report action https://github.com/marketplace/actions/xunit-viewer
@@ -40,4 +41,22 @@ class BasicSpec extends AnyFlatSpec with Matchers {
   //Remove CommandLine code
 
 
+  //Doel meeting. Pre code review/ presentatie
+  //Presenteer de gegenereerde testen.
+  //Dependence injectie opsplitsing van main
+  //presenteer IntegrationTestHelper
+  //Oplossing voor side effects
+  //  van object naar class
+  //  System
+  //  Configuration
+
+  //toekomst
+  //  cache     Nee
+  //  splitsen  Nee(aparte suites configureren.)
+  //  1 pull request of meerdere
+  //  add tekst configuration to examples.
+  //  report in github verbeteren.
+  //  add support voor veymont
+  //  sbt test naar apart sbt test.
+  //  remove commandlinecode(mijn code gebruikt --test-before-validation) en uit github aciton.
 }
