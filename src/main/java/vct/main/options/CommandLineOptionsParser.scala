@@ -11,11 +11,11 @@ import vct.test.CommandLineTesting
 import java.time.Instant
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
-trait OptionsParserTrait{
+trait CommandLineOptionsParserTrait{
   def parseOptions(args: Array[String]): Unit
   def checkOptions(): Unit
 }
-class OptionsParser extends OptionsParserTrait{
+class CommandLineOptionsParser extends CommandLineOptionsParserTrait{
 
   def parseOptions(args: Array[String]): Unit = {
     val parser = new OptionParser()

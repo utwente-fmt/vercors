@@ -6,7 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class BasicSpec extends AnyFlatSpec with Matchers {
+class TodoList extends AnyFlatSpec with Matchers {
 
   //later
   // --debug vct.main.Main text aanpassen in program.
@@ -25,22 +25,27 @@ class BasicSpec extends AnyFlatSpec with Matchers {
   //DONE: skip problem-fail
   //DONE:java_DOT_lang_DOT_Object komt niet voor als je hem individueel draait
   //DONE: section-reduced.c bestand ofzo.
-  //make all test pass
-  //get it working in CI.
+  //DONE: present All Output in junit report.
+  //DONE: https://www.scalatest.org/scaladoc/3.0.5/org/scalatest/Checkpoints.html
 
-  //present All Output in junit report.
+  //make all test pass                                  Maandag mee verder
+  //Hij kan CommandLineTesting niet vinden voor sbt.    Vraag Bob.
+  // sections-reduced.c bestand ofzo.   Deze is gewoon traag.
+
   //beter junit report action https://github.com/marketplace/actions/xunit-viewer
   //https://github.com/marketplace/actions/test-reporter
   //https://github.com/marketplace?type=actions&query=JUnit+Report+
-
-  //Meeting having a discussion. Examples is the worst kind of documentation. Lets copy some examples to the wiki but
-  //400 is unreadable. Examples is the illusion of documentation.
-  //https://www.scalatest.org/scaladoc/3.0.5/org/scalatest/Checkpoints.html
+  //https://stackoverflow.com/questions/64539269/add-logging-to-scalatest-xml-report
+  //https://github.com/scalatest/scalatest/issues/1183
   //create something for Veymont
-
   //Remove CommandLine code
+  //readme aanpassen met informatie.
+  //Issues aanmaken.
+  //document van Sophie bekijken.
 
 
+
+  //Notes meeting Bob
   //Doel meeting. Pre code review/ presentatie
   //Presenteer de gegenereerde testen.
   //Dependence injectie opsplitsing van main
@@ -51,12 +56,14 @@ class BasicSpec extends AnyFlatSpec with Matchers {
   //  Configuration
 
   //toekomst
-  //  cache     Nee
-  //  splitsen  Nee(aparte suites configureren.)
-  //  1 pull request of meerdere
-  //  add tekst configuration to examples.
-  //  report in github verbeteren.
-  //  add support voor veymont
+  //  1 pull request of meerdere    (Ja, geef aan wat er nodig is.) (Basic test suite wel uitsplitsen. Uitvoeren op Mac en Windows)
+  //  add tekst configuration to examples. (issue)
+  //  foutmelding github.
+
+  //  report in github verbeteren.  https://github.com/marketplace/actions/test-reporter
   //  sbt test naar apart sbt test.
-  //  remove commandlinecode(mijn code gebruikt --test-before-validation) en uit github aciton.
+  //  add support voor veymont
+  //  splitsen  Nee(aparte suites configureren.)  (Mogelijk in aparte classen.)
+  //  remove commandlinecode(Deze willen we houden --stop-before-backend) en uit github action.
+  //  Specifiekere error berichten bekijken.
 }

@@ -130,7 +130,8 @@ lazy val vercors: Project = (project in file("."))
 
     /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
     the classpath. That way the resources are not packed into the jar. */
-    Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res" ),
+    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res" ),
 
     // Disable documentation generation
     Compile / packageDoc / publishArtifact := false,

@@ -12,7 +12,8 @@ case class IntegrationTestConfiguration(
                                          var checkHistory: Boolean = false,
                                          var checkDefined: Boolean = false,
                                          var checkAxioms: Boolean = false,
-                                         var stopBeforeBackend: Boolean = false
+                                         var stopBeforeBackend: Boolean = false,
+                                         var progress: Boolean = false,
                                        ) {
 
 }
