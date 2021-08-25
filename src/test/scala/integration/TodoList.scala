@@ -30,18 +30,22 @@ class TodoList extends AnyFlatSpec with Matchers {
 
   //make all test pass                                  Maandag mee verder
   //Hij kan CommandLineTesting niet vinden voor sbt.    Vraag Bob.
-  // sections-reduced.c bestand ofzo.   Deze is gewoon traag.
+  //sections-reduced.c bestand ofzo.   Deze is gewoon traag.
 
-  //beter junit report action https://github.com/marketplace/actions/xunit-viewer
+  //readme aanpassen met informatie.
+  //document van Sophie bekijken.
+  //verwijder alle documenten om te testen of er examples zijn die niet gebruikt worden.
+  //maak een basic suite
+
+
+  //LATER: beter junit report action https://github.com/marketplace/actions/xunit-viewer
   //https://github.com/marketplace/actions/test-reporter
   //https://github.com/marketplace?type=actions&query=JUnit+Report+
   //https://stackoverflow.com/questions/64539269/add-logging-to-scalatest-xml-report
   //https://github.com/scalatest/scalatest/issues/1183
-  //create something for Veymont
-  //Remove CommandLine code
-  //readme aanpassen met informatie.
-  //Issues aanmaken.
-  //document van Sophie bekijken.
+  //LATER: create something for Veymont
+  //LATER: Remove CommandLine code
+  //DONE: Issues aanmaken.
 
 
 
@@ -56,14 +60,14 @@ class TodoList extends AnyFlatSpec with Matchers {
   //  Configuration
 
   //toekomst
-  //  1 pull request of meerdere    (Ja, geef aan wat er nodig is.) (Basic test suite wel uitsplitsen. Uitvoeren op Mac en Windows)
-  //  add tekst configuration to examples. (issue)
-  //  foutmelding github.
+  //NOTE:  1 pull request of meerdere    (Ja, geef aan wat er nodig is.) (Basic test suite wel uitsplitsen. Uitvoeren op Mac en Windows)
+  //NOTE:  add tekst configuration to examples. (issue)
+  //NOTE:  foutmelding github.
 
-  //  report in github verbeteren.  https://github.com/marketplace/actions/test-reporter
-  //  sbt test naar apart sbt test.
-  //  add support voor veymont
-  //  splitsen  Nee(aparte suites configureren.)  (Mogelijk in aparte classen.)
-  //  remove commandlinecode(Deze willen we houden --stop-before-backend) en uit github action.
-  //  Specifiekere error berichten bekijken.
+  //LATER:  report in github verbeteren.  https://github.com/marketplace/actions/test-reporter
+  //LATER:  sbt test naar apart sbt test.
+  //LATER:  add support voor veymont
+  //LATER:  splitsen  Nee(aparte suites configureren.)  (Mogelijk in aparte classen.)
+  //LATER:  remove commandlinecode(Deze willen we houden --stop-before-backend) en uit github action.
+  //LATER:  Specifiekere error berichten bekijken.
 }

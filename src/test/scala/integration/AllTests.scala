@@ -7,10 +7,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-/*
+/*+
   These tests have been generated based on the old test framework. For new test I would recommend splitting it up in
   different classes and giving more descriptive names.
  */
+@Ignore
 class AllTests extends AnyFlatSpec with Matchers {
 
   "VerCors" should "pass with silicon and examples/abrupt/Abrupt.java" in {
@@ -26,6 +27,7 @@ class AllTests extends AnyFlatSpec with Matchers {
     configuration.files = Array("examples/abrupt/BadCustomException.java")
     configuration.verdict = Verdict.Error
     configuration.toolSilicon = true
+    configuration.progress = true
     IntegrationTestHelper.test(configuration)
   }
 

@@ -8,7 +8,7 @@ import org.scalatest.tagobjects.Slow
 
 class FailingTests extends AnyFlatSpec with Matchers {
   //This test may take a long time to verify
-  it should "fail with silicon and examples/openmp/sections-reduced-fail.c" taggedAs Slow in {
+  ignore should "fail with silicon and examples/openmp/sections-reduced-fail.c" taggedAs Slow in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/openmp/sections-reduced-fail.c")
     configuration.verdict = Verdict.Fail

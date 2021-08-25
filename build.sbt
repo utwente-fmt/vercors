@@ -114,6 +114,12 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation"
     ),
 
+    Test / javacOptions ++= Seq(
+      "-Xlint:deprecation",
+      "-Xlint:unchecked",
+      "-deprecation"
+    ),
+
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
         Git.currentBranch
@@ -135,7 +141,9 @@ lazy val vercors: Project = (project in file("."))
 
     // Disable documentation generation
     Compile / packageDoc / publishArtifact := false,
+    Test / packageDoc / publishArtifact := false,
     Compile / doc / sources := Seq(),
+    Test / doc / sources := Seq(),
 
     Universal / mappings ++= Seq(file("README.md") -> "README.md")
       ++ directory("examples")
