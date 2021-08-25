@@ -72,6 +72,7 @@ ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
 
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
+lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors executable")
 
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
@@ -172,10 +173,19 @@ lazy val vercors: Project = (project in file("."))
   )
 
 Global / printMainClasspath := {
-    val paths = (vercors / Compile / fullClasspath).value
-    val joinedPaths = paths
-        .map(_.data)
-        .mkString(pathSeparator)
-    println(joinedPaths)
+  val paths = (vercors / Compile / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
 }
+
+Global / printTestClasspath := {
+  val paths = (vercors / Test / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
+}
+
 

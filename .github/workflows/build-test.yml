@@ -26,7 +26,11 @@ jobs:
         uses: coursier/cache-action@v5
       - name: Build and package
         run: sbt debian:packageBin universal:packageBin
-      - name: Run tests
+      - name: paths Main
+        run: sbt test || true
+      - name: paths printMainClasspath
+        run: sbt test || true
+      - name: Run printTestClasspath
         run: sbt test || true
       - name: Clean up intermediate files for caching
         # From the sbt manual, clean up any leftover intermediate files

@@ -3,8 +3,10 @@ package integration
 import hre.util.TestReport.Verdict
 import integration.helper.{IntegrationTestConfiguration, IntegrationTestHelper}
 import org.scalatest.Ignore
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.{Millis, Span}
 
 
 /*+
@@ -12,7 +14,9 @@ import org.scalatest.matchers.should.Matchers
   different classes and giving more descriptive names.
  */
 
-class BasicTests extends AnyFlatSpec with Matchers {
+class BasicTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
+
+  override def timeLimit: Span = Span(5000,Millis)
 
   it should "pass with silicon and examples/basic/AddAssignJava.java" in {
     val configuration = IntegrationTestConfiguration()
@@ -383,4 +387,5 @@ class BasicTests extends AnyFlatSpec with Matchers {
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
+
 }
