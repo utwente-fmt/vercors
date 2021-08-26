@@ -5,10 +5,8 @@ import integration.helper.{IntegrationTestConfiguration, IntegrationTestHelper}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.Slow
-import viper.silver.ast.Int
 
 import java.io.File
-import java.net.URLClassLoader
 
 class FailingTests extends AnyFlatSpec with Matchers {
   //This test may take a long time to verify

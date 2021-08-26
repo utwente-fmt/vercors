@@ -28,9 +28,9 @@ class TodoList extends AnyFlatSpec with Matchers {
   //DONE: present All Output in junit report.
   //DONE: https://www.scalatest.org/scaladoc/3.0.5/org/scalatest/Checkpoints.html
 
-  //make all test pass                                  Maandag mee verder
-  //Hij kan CommandLineTesting niet vinden voor sbt.    Vraag Bob.
-  //sections-reduced.c bestand ofzo.   Deze is gewoon traag.
+  //DONE: make all test pass                                  Maandag mee verder
+  //DONE: Hij kan CommandLineTesting niet vinden voor sbt.    Vraag Bob.
+  //DONE: sections-reduced.c bestand ofzo.   Deze is gewoon traag.
 
   //readme aanpassen met informatie.
   //document van Sophie bekijken.

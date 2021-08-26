@@ -3,16 +3,20 @@ package integration
 import hre.util.TestReport.Verdict
 import integration.helper.{IntegrationTestConfiguration, IntegrationTestHelper}
 import org.scalatest.Ignore
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.{Millis, Span}
 
 
 /*+
   These tests have been generated based on the old test framework. For new test I would recommend splitting it up in
   different classes and giving more descriptive names.
  */
-@Ignore
-class AllTests extends AnyFlatSpec with Matchers {
+
+class AllTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
+
+  override def timeLimit: Span = Span(5000,Millis)
 
   "VerCors" should "pass with silicon and examples/abrupt/Abrupt.java" in {
     val configuration = IntegrationTestConfiguration()

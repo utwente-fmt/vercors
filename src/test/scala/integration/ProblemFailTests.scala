@@ -8,6 +8,10 @@ import org.scalatest.matchers.should.Matchers
 
 @Ignore
 class ProblemFailTests extends AnyFlatSpec with Matchers {
+  /*
+  It is unclear whether the verdict in problemFail test are the expected verdict or what actually happens.
+  https://github.com/utwente-fmt/vercors/issues/686
+   */
 
   it should "error with silicon and examples/known-problems/basic/double-declare.pvl" in {
     val configuration = IntegrationTestConfiguration()
