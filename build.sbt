@@ -7,7 +7,7 @@ import java.util.Comparator
 import sbt.internal._
 
 
-ThisBuild / turbo := true // en wat is daar het praktisch nut van?
+//ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
 
 enablePlugins(BuildInfoPlugin)
@@ -73,6 +73,7 @@ ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
 
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors executable")
+lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in runtime")
 
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
@@ -115,7 +116,7 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation"
     ),
 
-    Test / javacOptions ++= Seq(
+    Runtime / javacOptions ++= Seq(
       "-Xlint:deprecation",
       "-Xlint:unchecked",
       "-deprecation"
@@ -138,13 +139,14 @@ lazy val vercors: Project = (project in file("."))
     /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
     the classpath. That way the resources are not packed into the jar. */
     Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res" ),
-    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res" ),
+    Runtime / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res" ),
 
     // Disable documentation generation
     Compile / packageDoc / publishArtifact := false,
-    Test / packageDoc / publishArtifact := false,
     Compile / doc / sources := Seq(),
-    Test / doc / sources := Seq(),
+
+    Test / parallelExecution := false,
+    Runtime / fork := true,
 
     Universal / mappings ++= Seq(file("README.md") -> "README.md")
       ++ directory("examples")
@@ -173,7 +175,7 @@ lazy val vercors: Project = (project in file("."))
   )
 
 Global / printMainClasspath := {
-  val paths = (vercors / Compile / fullClasspath).value
+  val paths = (Compile / fullClasspath).value
   val joinedPaths = paths
     .map(_.data)
     .mkString(pathSeparator)
@@ -181,11 +183,18 @@ Global / printMainClasspath := {
 }
 
 Global / printTestClasspath := {
-  val paths = (vercors / Test / fullClasspath).value
+  val paths = (Test / fullClasspath).value
   val joinedPaths = paths
     .map(_.data)
     .mkString(pathSeparator)
   println(joinedPaths)
 }
 
+Global / printRuntimeClasspath := {
+  val paths = (Runtime / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
+}
 
