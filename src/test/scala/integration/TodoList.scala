@@ -31,11 +31,18 @@ class TodoList extends AnyFlatSpec with Matchers {
   //DONE: make all test pass                                  Maandag mee verder
   //DONE: Hij kan CommandLineTesting niet vinden voor sbt.    Vraag Bob.
   //DONE: sections-reduced.c bestand ofzo.   Deze is gewoon traag.
+  //DONE: maak een basic suite
 
+  //verwijder alle documenten om te testen of er examples zijn die niet gebruikt worden.
+  //Main even fixen
+  //Ga door de pull request heen
+  //Merge dev in deze branch
+  //Splits All tests naar AllSlowTest
+  //maak github action  Een met slow tests en een met alle tests.
+  //  mac doet alles behalve AllTests en AllSLowTests
+  //  windows doet alles behalve AllTests en AllSLowTests
   //readme aanpassen met informatie.
   //document van Sophie bekijken.
-  //verwijder alle documenten om te testen of er examples zijn die niet gebruikt worden.
-  //maak een basic suite
 
 
   //LATER: beter junit report action https://github.com/marketplace/actions/xunit-viewer
