@@ -8,9 +8,6 @@ import vct.main.passes.PassesGenerator
 import java.io.File
 
 object Main {
-
-
-
   def main(args: Array[String]): Unit = {
     val classpath = System.getProperty("java.class.path")
     val classpathEntries = classpath.split(File.pathSeparator)

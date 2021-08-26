@@ -9,6 +9,7 @@ import sbt.internal._
 
 //ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / fork := true
 
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
@@ -79,6 +80,7 @@ lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
   .aggregate(hre, col, viper_api, parsers)
   .settings(
+    fork := true,
     name := "Vercors",
     organization := "University of Twente",
     version := "1.4.0-SNAPSHOT",
@@ -122,6 +124,12 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation"
     ),
 
+    Test / javacOptions ++= Seq(
+      "-Xlint:deprecation",
+      "-Xlint:unchecked",
+      "-deprecation"
+    ),
+
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
         Git.currentBranch
@@ -140,13 +148,13 @@ lazy val vercors: Project = (project in file("."))
     the classpath. That way the resources are not packed into the jar. */
     Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res" ),
     Runtime / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res" ),
+    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res" ),
 
     // Disable documentation generation
     Compile / packageDoc / publishArtifact := false,
     Compile / doc / sources := Seq(),
 
     Test / parallelExecution := false,
-    Runtime / fork := true,
 
     Universal / mappings ++= Seq(file("README.md") -> "README.md")
       ++ directory("examples")

@@ -27,10 +27,19 @@ class FailingTests extends AnyFlatSpec with Matchers {
 
     System.out.println("Start classpath")
     for (entry <- classpathEntries) {
+      System.out.println(entry)
     }
     System.out.println("end classpath")
     val t = Int
-    assert(false,classpathEntries)
+    //assert(false,classpathEntries)
+  }
+
+  it should "pass with silicon and examples/basic/AddAssignJava.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/basic/AddAssignJava.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
   }
 
 }
