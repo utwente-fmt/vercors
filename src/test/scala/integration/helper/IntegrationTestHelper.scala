@@ -10,13 +10,18 @@ import vct.main.{FileParser, PassesExecutioner, Program}
 import vct.main.options.CommandLineOptionsParser
 import vct.main.passes.PassesGenerator
 
+import java.io.File
 import java.util
 import scala.jdk.javaapi.CollectionConverters.asJavaCollection
 
 object IntegrationTestHelper {
 
   def test(configuration: IntegrationTestConfiguration): Unit ={
-    val checkPoint = new Checkpoint
+    for(path <- configuration.files){
+      val file = new File(path)
+      file.delete()
+    }
+    /*val checkPoint = new Checkpoint
     val system = createSystem(configuration,checkPoint)
     val streamListener = createStreamListener(system)
     val arguments = createArguments(configuration)
@@ -24,7 +29,7 @@ object IntegrationTestHelper {
 
     val exitCode = program.run(arguments)
 
-    checkEndConditions(configuration,exitCode,system,checkPoint,streamListener)
+    checkEndConditions(configuration,exitCode,system,checkPoint,streamListener)*/
   }
 
   private def createStreamListener(system: ISystem) = {

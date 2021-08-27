@@ -1,0 +1,24 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ExpHoareLogic
+//:: tools
+class exp {
+  requires a >= 0 && n >= 0; 
+  ensures  \result == a^^n; 
+  int main(int a, int n){ 
+    int k; int z; 
+    k = 0; 
+    {* a >= 0 && n >= 0 && k == 0 *} 
+    z = 1; 
+    {* a >= 0 && n >= 0 && k == 0 && z == 1 *} 
+    loop_invariant z == a^^k && k <= n && a >= 0; 
+    while (k != n){ 
+      {* z == a^^k && k <= n && a >= 0 && k != n *} 
+      z = z * a; 
+      {* z == a^^(k+1) && k + 1 <= n  && a >= 0 *} 
+      k = k + 1; 
+      {* z == a^^k && k <= n *} 
+    } 
+    {* z == a^^k && k <= n && a >= 0 && k == n *} 
+    return z;
+  }
+}

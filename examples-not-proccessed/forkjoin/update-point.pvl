@@ -1,0 +1,61 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases UpdatePoint
+//:: tools chalice
+//:: verdict Pass
+
+
+/* 
+  Note that the silicon and chalice tool chains use
+  different ways of specifying fork/join patterns.
+  Therefore this specification cannot be verified
+  with Silicon.
+*/
+
+class Point {
+  int x;
+  int y;
+}
+
+class X {
+  Point p;
+  
+  requires Perm(this.p,33) ** Perm(this.p.x,100);
+  ensures Perm(this.p,33) ** PointsTo(this.p.x,100,\old(this.p.x)+1);
+  void run() {
+    Point q = this.p;
+    q.x = q.x+1 ;
+  }
+}
+
+class Y {
+  Point p;
+
+  requires Perm(this.p,33) ** Perm(this.p.y,100);
+  ensures Perm(this.p,33) ** PointsTo(this.p.y,100,\old(this.p.y)+1);
+  void run() {
+    Point q = this.p;
+    q.y = q.y+1 ;
+  }
+}
+
+class Main {
+
+  void main(){
+    Point p = new Point();
+    p.x = 2;
+    p.y = 6;
+
+    X obj1 = new X();
+    obj1.p = p;
+    fork obj1;
+    
+    Y obj2 = new Y();
+    obj2.p = p;
+    fork obj2;
+
+    join obj1;
+    join obj2;
+    assert PointsTo(p.x,100,3) ** PointsTo(p.y,100,7);
+  }
+}
+
