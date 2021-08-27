@@ -24,11 +24,13 @@ jobs:
       # Currently sbt and fakeroot are installed by default
       - name: Coursier cache
         uses: coursier/cache-action@v5
-      - name: Enter sbt Console
+      - name: run scalatest
         run: sbt "testOnly integration.BasicTests" || true
-      - uses: actions/upload-artifact@v2  # upload test results
-        if: success() || failure()        # run this step even if previous step failed
+        uses: dorny/test-reporter@v1
+        if: success() || failure()    # run this step even if previous step failed
         with:
-          name: test-results
-          path: '**/target/test-reports/TEST-*.xml'
+          name: Scalatests report            # Name of the check run which will be created
+          path: '**/target/test-reports/TEST-*.xml'    # Path to test results
+          reporter: java-junit
+
 
