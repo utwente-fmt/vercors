@@ -117,9 +117,7 @@ jobs:
       - name: Coursier cache
         uses: coursier/cache-action@v5
       - name: Enter sbt Console
-        run: sbt || true
-      - name: Run BasicTests
-        run: testOnly integration.BasicTests || true
+        run: sbt "testOnly integration.BasicTests" || true
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v2
         with:
