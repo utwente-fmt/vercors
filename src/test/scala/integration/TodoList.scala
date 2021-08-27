@@ -34,7 +34,7 @@ class TodoList extends AnyFlatSpec with Matchers {
   //verwijder alle documenten om te testen of er examples zijn die niet gebruikt worden.
   //DONE: Main even fixen
   //DONE: Fix ArrayNullValues
-  //Merge dev in deze branch
+  //DONE: Merge dev in deze branch
   //Ga door de pull request heen
   //Splits All tests naar AllSlowTest
   //maak github action  Een met slow tests en een met alle tests.
