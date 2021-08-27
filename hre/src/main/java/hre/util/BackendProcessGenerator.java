@@ -39,15 +39,6 @@ public class BackendProcessGenerator {
         return env;
     }
 
-    public static MessageProcessEnvironment getBoogie() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("boogie");
-        env.setTemporaryWorkingDirectory();
-        env.setEnvironmentVar("BOOGIE_Z3_EXE", FileHelper.getBoogieZ3Path().getAbsolutePath());
-        env.addPath(FileHelper.getBoogiePath().getAbsolutePath());
-        env.addPath(FileHelper.getBoogieZ3Path().getAbsolutePath());
-        return env;
-    }
-
     public static MessageProcessEnvironment getThisVerCors(List<String> javaArgs) throws IOException {
         MessageProcessEnvironment env = new MessageProcessEnvironment(FileHelper.getThisJava().getAbsolutePath());
         env.setTemporaryWorkingDirectory();

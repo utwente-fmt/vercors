@@ -4,7 +4,7 @@ import hre.ast.FileOrigin
 import hre.config.Configuration
 import hre.lang.System.Progress
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
+import vct.col.ast.stmt.decl.ProgramUnit
 import vct.logging.PassReport
 import vct.main.passes.Parsers
 import vct.silver.ErrorDisplayVisitor
@@ -33,9 +33,6 @@ class FileParser extends FileParserTrait {
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(timeKeeper.show))
 
-    if (Configuration.currentConfiguration.sequentialSpec.get) {
-      report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
-    }
     report
   }
 }

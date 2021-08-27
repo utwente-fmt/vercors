@@ -2,7 +2,7 @@ package integration.helper
 
 import hre.config.ConfigurationNonStatic
 import hre.lang.{ISystem, LogLevel}
-import hre.util.TestReport.Verdict
+import hre.util.Verdict
 import org.scalatest.Assertions.{assert, assertResult, fail}
 import org.scalatest.Checkpoints.Checkpoint
 import org.scalatest.exceptions.TestFailedException
@@ -17,11 +17,11 @@ import scala.jdk.javaapi.CollectionConverters.asJavaCollection
 object IntegrationTestHelper {
 
   def test(configuration: IntegrationTestConfiguration): Unit ={
-    for(path <- configuration.files){
+    /*for(path <- configuration.files){
       val file = new File(path)
       file.delete()
-    }
-    /*val checkPoint = new Checkpoint
+    }*/
+    val checkPoint = new Checkpoint
     val system = createSystem(configuration,checkPoint)
     val streamListener = createStreamListener(system)
     val arguments = createArguments(configuration)
@@ -29,7 +29,7 @@ object IntegrationTestHelper {
 
     val exitCode = program.run(arguments)
 
-    checkEndConditions(configuration,exitCode,system,checkPoint,streamListener)*/
+    checkEndConditions(configuration,exitCode,system,checkPoint,streamListener)
   }
 
   private def createStreamListener(system: ISystem) = {

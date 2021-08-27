@@ -12,7 +12,7 @@ import vct.col.veymont.StructureCheck.isAllowedPrimitive
 import vct.col.veymont.Util._
 import scala.jdk.CollectionConverters._
 
-class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
+class Decompose(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   private val roleNames : Iterable[String] = StructureCheck.getRoleNames(source)
   private val mainClass = StructureCheck.getMainClass(source)
@@ -132,7 +132,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     } else {
       getLocalAction(a, roleName.get) match {
         case SingleRoleAction(_) => result = copy_rw.rewrite(a)
-        case ReadAction(receiver, sender, receiveExpression) => {
+        case ReadAction(_, sender, receiveExpression) => {
           val chanType = receiveExpression.getType
           val chanName = getChanName(sender, false, chanType)
           chans += ChannelRepr(chanName)(false, chanType)
@@ -207,7 +207,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       super.visit(m)
     } else {
       m.getParent match {
-        case b: BlockStatement => //it is a statement
+        case _: BlockStatement => //it is a statement
           if (isSingleRoleNameExpressionOfRole(m, roleNames))
             result = copy_rw.rewrite(m)
           else result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)

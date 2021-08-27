@@ -1,6 +1,6 @@
 package vct.test;
 
-import hre.util.TestReport;
+import hre.util.Verdict;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -89,13 +89,13 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
 
             switch(cmds[1]) {
               case "Pass":
-                tc.verdict = TestReport.Verdict.Pass;
+                tc.verdict = Verdict.Pass;
                 break;
               case "Fail":
-                tc.verdict = TestReport.Verdict.Fail;
+                tc.verdict = Verdict.Fail;
                 break;
               case "Error":
-                tc.verdict = TestReport.Verdict.Error;
+                tc.verdict = Verdict.Error;
                 break;
               default:
                 Warning("Invalid verdict %s", cmds[1]);
@@ -138,7 +138,7 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
             for (String test : cases) {
               Case tc = testsuite.get(test);
               tc.fail_methods.add(cmds[i]);
-              tc.verdict = TestReport.Verdict.Fail;
+              tc.verdict = Verdict.Fail;
             }
           }
           break;

@@ -1,9 +1,8 @@
 package vct.col.ast.`type`
 
-import hre.lang.System.Abort
 import vct.col.ast.generic.DebugNode
 import vct.col.ast.stmt.decl.ProgramUnit
-import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping, VisitorHelper}
+import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping}
 import vct.col.ast.util.VisitorHelper
 
 /** A single type entry of a record type (only used in `RecordType`). */

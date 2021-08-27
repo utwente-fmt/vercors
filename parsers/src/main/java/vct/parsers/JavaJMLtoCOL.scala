@@ -26,7 +26,7 @@ object JavaJMLtoCOL {
 // Maybe we can turn this off in the future.
 @nowarn("msg=not.*?exhaustive")
 case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: JavaParser)
-  extends ToCOL(fileName, tokens, parser) {
+  extends ToCOL(fileName) {
   def convertUnit(tree: CompilationUnitContext): ProgramUnit = tree match {
     case CompilationUnit0(maybePackage, imports, decls, _) =>
       val result = new ProgramUnit()

@@ -1,6 +1,6 @@
 package integration.helper
 
-import hre.util.TestReport.Verdict
+import hre.util.Verdict
 
 case class IntegrationTestConfiguration(
                                          var files: Array[String] = Array(),

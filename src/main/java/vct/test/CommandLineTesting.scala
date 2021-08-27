@@ -3,9 +3,8 @@ package vct.test
 import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Debug, Output, Progress, Warning}
+import hre.util.{BackendProcessGenerator, FileHelper, Verdict}
 import hre.util.FileHelper.getClassPathElements
-import hre.util.{BackendProcessGenerator, FileHelper}
-import hre.util.TestReport.Verdict
 import vct.col.features.Feature
 
 import java.io._

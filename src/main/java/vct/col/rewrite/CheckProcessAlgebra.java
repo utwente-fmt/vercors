@@ -223,11 +223,6 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         m_body=normalize_body(m_body);
         create_body(body,m_body);
         create.leave();
-        int N=m.getArity();
-        ASTNode [] arg_names = new ASTNode[N];
-        for(int i=0;i<N;i++){
-          arg_names[i]=create.local_name(m.getArgument(i));
-        }
       }
       result=create.method_decl(create.primitive_type(PrimitiveSort.Void), cb.getContract(), m.name(), args, body);
     }

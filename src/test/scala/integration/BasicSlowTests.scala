@@ -1,6 +1,6 @@
 package integration
 
-import hre.util.TestReport.Verdict
+import hre.util.Verdict
 import integration.helper.{IntegrationTestConfiguration, IntegrationTestHelper}
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
@@ -17,6 +17,14 @@ import org.scalatest.time.{Millis, Span}
 class BasicSlowTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
 
   override def timeLimit: Span = Span(60000,Millis)
+
+  it should "pass with silicon and examples/basic/AddAssignJava.java" taggedAs Slow in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/basic/AddAssignJava.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
 
   it should "pass with silicon and examples/basic/MultiDimArray.java" taggedAs Slow in {
     val configuration = IntegrationTestConfiguration()

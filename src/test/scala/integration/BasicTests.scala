@@ -1,6 +1,6 @@
 package integration
 
-import hre.util.TestReport.Verdict
+import hre.util.Verdict
 import integration.helper.{IntegrationTestConfiguration, IntegrationTestHelper}
 import org.scalatest.Ignore
 import org.scalatest.concurrent.TimeLimitedTests
@@ -17,14 +17,6 @@ import org.scalatest.time.{Millis, Span}
 class BasicTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
 
   override def timeLimit: Span = Span(5000,Millis)
-
-  it should "pass with silicon and examples/basic/AddAssignJava.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/AddAssignJava.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
 
   it should "error with silicon and examples/basic/ArrayAsObject.java" in {
     val configuration = IntegrationTestConfiguration()

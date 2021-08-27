@@ -1,7 +1,5 @@
 package integration
 
-import hre.util.TestReport.Verdict
-import integration.helper.{IntegrationTestConfiguration, IntegrationTestHelper}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -43,7 +41,7 @@ class TodoList extends AnyFlatSpec with Matchers {
   //  mac doet alles behalve AllTests en AllSLowTests
   //  windows doet alles behalve AllTests en AllSLowTests
   //readme aanpassen met informatie.
-
+  //restore IntegrationTestHelper
 
   //NIET: document van Sophie bekijken.
   //LATER: beter junit report action https://github.com/marketplace/actions/xunit-viewer

@@ -8,7 +8,7 @@ import vct.col.ast.langspecific.c._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
-import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
+import vct.col.ast.util.AbstractRewriter
 import vct.col.util.FeatureScanner
 
 class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
@@ -25,7 +25,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       val labels = (blocks zip blocks.indices.map("omp_" + _.toString)).toMap
       val deps = getDeps
 
-      create region(contract, blocks.map((block) => {
+      create region(contract, blocks.map(block => {
         block.toParBlock(
           labels(block),
           deps.filter(_.next == block).map(_.asCOLDep(labels)).toArray)
@@ -200,7 +200,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       case None => throw Failure("For loop not representable as parallel block")
     }
 
-    val len = create constant (lenValue)
+    val len = create constant lenValue
 
     /* inner is a vector block of `len` threads
        outer is a PPLParallel of `(end - start) / len` threads */
@@ -239,7 +239,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       case OMPSection(block) => compose(translate(block))
       case _ => throw Failure("omp sections block may only contain omp section blocks")
     }.reduce(PPLPar)
-    case OMPParallel(block, options, contract) => compose(translate(block))
+    case OMPParallel(block, _, _) => compose(translate(block))
     case _ => throw Failure("??")
   }
 
@@ -268,19 +268,19 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(sections: OMPSections): Unit = {
-    throw Failure("omp sections block is only allowed in omp parallel block");
+    throw Failure("omp sections block is only allowed in omp parallel block")
   }
 
   override def visit(section: OMPSection): Unit = {
-    throw Failure("omp section block is only allowed in omp sections block");
+    throw Failure("omp section block is only allowed in omp sections block")
   }
 
   override def visit(par: OMPForSimd): Unit = {
-    throw Failure("omp for simd cannot be at the top level");
+    throw Failure("omp for simd cannot be at the top level")
   }
 
   override def visit(fr: OMPFor): Unit = {
-    throw Failure("omp for cannot be at the top level");
+    throw Failure("omp for cannot be at the top level")
   }
 
   def tryParallel(loop: LoopStatement): Option[(Seq[DeclarationStatement], ASTNode, Contract)] = {
