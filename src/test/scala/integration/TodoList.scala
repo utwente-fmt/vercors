@@ -31,17 +31,17 @@ class TodoList extends AnyFlatSpec with Matchers {
   //DONE: sections-reduced.c bestand ofzo.   Deze is gewoon traag.
   //DONE: maak een basic suite
 
-  //verwijder alle documenten om te testen of er examples zijn die niet gebruikt worden.
+  //DONE: verwijder alle documenten om te testen of er examples zijn die niet gebruikt worden.
   //DONE: Main even fixen
   //DONE: Fix ArrayNullValues
   //DONE: Merge dev in deze branch
-  //Ga door de pull request heen
   //Splits All tests naar AllSlowTest
   //maak github action  Een met slow tests en een met alle tests.
   //  mac doet alles behalve AllTests en AllSLowTests
   //  windows doet alles behalve AllTests en AllSLowTests
   //readme aanpassen met informatie.
-  //restore IntegrationTestHelper
+  //Ga door de pull request heen
+  //DONE: restore IntegrationTestHelper
 
   //NIET: document van Sophie bekijken.
   //LATER: beter junit report action https://github.com/marketplace/actions/xunit-viewer

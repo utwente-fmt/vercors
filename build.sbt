@@ -1,9 +1,5 @@
 import NativePackagerHelper._
-import sys.process._
 import java.io.File.pathSeparator
-import java.nio.file.{Files, Path, Paths}
-import java.net.URL
-import java.util.Comparator
 import sbt.internal._
 
 

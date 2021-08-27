@@ -17,10 +17,6 @@ import scala.jdk.javaapi.CollectionConverters.asJavaCollection
 object IntegrationTestHelper {
 
   def test(configuration: IntegrationTestConfiguration): Unit ={
-    /*for(path <- configuration.files){
-      val file = new File(path)
-      file.delete()
-    }*/
     val checkPoint = new Checkpoint
     val system = createSystem(configuration,checkPoint)
     val streamListener = createStreamListener(system)

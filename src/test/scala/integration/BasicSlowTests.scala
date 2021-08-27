@@ -2,6 +2,7 @@ package integration
 
 import hre.util.Verdict
 import integration.helper.{IntegrationTestConfiguration, IntegrationTestHelper}
+import org.scalatest.Ignore
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
