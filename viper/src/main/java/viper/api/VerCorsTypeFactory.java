@@ -43,6 +43,16 @@ public class VerCorsTypeFactory implements
   }
 
   @Override
+  public Type Float() {
+    return create.primitive_type(PrimitiveSort.Float);
+  }
+
+  @Override
+  public Type Double() {
+    return create.primitive_type(PrimitiveSort.Double);
+  }
+
+  @Override
   public Type List(Type t) {
     return create.primitive_type(PrimitiveSort.Sequence,t);
   }

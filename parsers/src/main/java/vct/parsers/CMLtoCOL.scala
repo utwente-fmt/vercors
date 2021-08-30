@@ -1,7 +1,6 @@
 package vct.parsers
 
 import scala.annotation.nowarn
-
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext}
 import vct.antlr4.generated.CParser
 import vct.antlr4.generated.CParser._
@@ -243,8 +242,8 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
   }
 
   /**
-    * Wrangle the bag of words before a declaration into an intermediate data structure
-    */
+   * Wrangle the bag of words before a declaration into an intermediate data structure
+   */
   class DeclSpecs {
     sealed trait TypeSpec
     case class PrimitiveTypeSpec(primitive: String) extends TypeSpec
@@ -329,7 +328,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       Seq(PrimitiveTypeSpec("float"))
         -> PrimitiveSort.Float,
       Seq(PrimitiveTypeSpec("double"))
-        -> PrimitiveSort.Float,
+        -> PrimitiveSort.Double,
       Seq(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"))
         -> PrimitiveSort.Float,
       Seq(PrimitiveTypeSpec("_Bool"))
@@ -342,7 +341,7 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       //  -> PrimitiveSort.Complex,
       //Set(PrimitiveTypeSpec("long"), PrimitiveTypeSpec("double"), PrimitiveTypeSpec("_Complex"))
       //  -> PrimitiveSort.Complex,
-//    ).map{ case (typespecs, sort) => (typespecs.sortWith{ case (l, r) => l.primitive < r.primitive}, sort) }.toMap
+      //    ).map{ case (typespecs, sort) => (typespecs.sortWith{ case (l, r) => l.primitive < r.primitive}, sort) }.toMap
     ).map{ case (typeSpecs, sort) => (typeSpecs.sorted(TypeSpecOrdering), sort) }.toMap
 
     sealed trait TypeQual
@@ -887,8 +886,22 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       valExpr(valPrimary)
     case PrimaryExpression1(id) => convertIDName(id)
     case PrimaryExpression2(const) =>
-      // Floats are also tokenized as this const, so we should distinguish here
-      create constant const.toInt
+      //Character constants (such as 'a') are not handled yet
+      val floatRegex = "(^([0-9]*\\.[0-9]+|[0-9]+\\.)([eE][+-]?[0-9]+)?[flFL]?$" +
+        "|^[0-9]+[eE][+-]?[0-9]+[flFL]?$" +
+        "|^0[xX]([0-9a-fA-F]*\\.[0-9a-fA-F]+|[0-9a-fA-F]+\\.)[pP][+-]?[0-9]+[flFL]?$" +
+        "|^0[xX][0-9a-fA-F]+[pP][+-]?[0-9]+[flFL]?$)"
+      if (const.matches(floatRegex)) {
+        // 'f' suffix means float constant, no suffix means double constant, and l suffix means long double
+        // which is not supported yet.
+        if (const.endsWith("f") || const.endsWith("F")) {
+          create constant const.toFloat
+        } else {
+          create constant const.toDouble
+        }
+      } else {
+        create constant const.toInt
+      }
     case PrimaryExpression3(strings) =>
       // Pretty sure this completely ignores escape sequences, but we don't support strings anyway...
       // See also JavaJMLtoCOL Literal3

@@ -201,11 +201,6 @@ public class SilverClassReduction extends AbstractRewriter {
       ref_items.add((Type)rewrite(t.firstarg()));
       result=ref_type;
       break;
-    case Double:
-    case Float:
-      floats=true;
-      result=create.class_type("VCTFloat");
-      break;
     case Option:
     {
       options=true;
@@ -447,11 +442,7 @@ public class SilverClassReduction extends AbstractRewriter {
       ASTNode object=rewrite(e.arg(1));
       Type t=(Type)e.arg(0);
       if (t.isPrimitive(PrimitiveSort.Float)) {
-        if (t0.isPrimitive(PrimitiveSort.Integer)) {
-          result = create.domain_call("VCTFloat", "ffromint", object);
-        } else {
-          Fail("cannot convert %s to float yet.", t0);
-        }
+        Fail("cannot convert %s to float yet.", t0);
       } else if(t.isPrimitive(PrimitiveSort.Option)) {
         // Type marker, ignore.
         result = rewrite(e.arg(1));
@@ -498,11 +489,6 @@ public class SilverClassReduction extends AbstractRewriter {
     case NEQ:
     case GT:
     case GTE: {
-      if(e.operator() == StandardOperator.Plus && e.getType() != null && e.getType().isPrimitive(PrimitiveSort.Float)){
-        result = create.domain_call("VCTFloat", "fadd", rewrite(e.argsJava()));
-        return;
-      }
-
       ASTNode left = e.arg(0), right = e.arg(1);
 
       if(left.getType() != null && left.getType().isFraction()) {
@@ -784,7 +770,6 @@ public class SilverClassReduction extends AbstractRewriter {
           case "MatrixExpression":
           case "VectorIndex":
           case "VectorExpression":
-          case "VCTFloat":
             if (floats) res.add(n);
             break;
           case "VCTArray":

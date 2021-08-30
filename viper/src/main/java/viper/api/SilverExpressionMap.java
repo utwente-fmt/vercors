@@ -11,10 +11,7 @@ import static hre.lang.System.Abort;
 
 import hre.util.Triple;
 import vct.col.ast.expr.*;
-import vct.col.ast.expr.constant.BooleanValue;
-import vct.col.ast.expr.constant.ConstantExpression;
-import vct.col.ast.expr.constant.IntegerValue;
-import vct.col.ast.expr.constant.StructValue;
+import vct.col.ast.expr.constant.*;
 import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.util.ASTMapping;
@@ -72,6 +69,10 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       } else {
         return create.Constant(e.getOrigin(), v);
       }
+    } else if (e.value() instanceof FloatValue) {
+      return create.Constant(e.getOrigin(), ((FloatValue) e.value()).value());
+    } else if (e.value() instanceof DoubleValue) {
+      return create.Constant(e.getOrigin(), ((DoubleValue) e.value()).value());
     } else if (e.value() instanceof BooleanValue) {
       return create.Constant(e.getOrigin(), ((BooleanValue) e.value()).value());
     } else {

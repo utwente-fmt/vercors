@@ -98,6 +98,10 @@ public class SilverTypeMap<T> implements TypeMapping<T> {
       /* End of hacky types. */
       case Integer:
         return create.Int();
+      case Float:
+        return create.Float();
+      case Double:
+        return create.Double();
       case Boolean:
         return create.Bool();
       case ZFraction:

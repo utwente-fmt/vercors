@@ -19,12 +19,14 @@ case class ConstantExpression(val value:Value) extends ASTNode with VisitorHelpe
   def this(b:Boolean) = this(new BooleanValue(b), new PrimitiveType(PrimitiveSort.Boolean))
   def this(s:String) = this(new StringValue(s), new PrimitiveType(PrimitiveSort.String))
   def this(l:Long) = this(new LongValue(l), new PrimitiveType(PrimitiveSort.Long))
+  def this(f:Float) = this(new FloatValue(f), new PrimitiveType(PrimitiveSort.Float))
 	def this(d:Double) = this(new DoubleValue(d), new PrimitiveType(PrimitiveSort.Double))
 
   def this(i:Int, origin:Origin) = { this(i); setOrigin(origin) }
   def this(b:Boolean, origin:Origin) = { this(b); setOrigin(origin) }
   def this(s:String, origin:Origin) = { this(s); setOrigin(origin) }
   def this(l:Long, origin:Origin) = { this(l); setOrigin(origin) }
+  def this(f:Float, origin: Origin) = { this(f); setOrigin(origin) }
   def this(d:Double, origin:Origin) = { this(d); setOrigin(origin) }
 
   override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)

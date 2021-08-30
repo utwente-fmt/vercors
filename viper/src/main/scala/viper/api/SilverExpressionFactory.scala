@@ -5,15 +5,16 @@ import viper.silver.ast._
 import scala.jdk.CollectionConverters._
 import scala.jdk.CollectionConverters._
 import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
+
 import java.util.List
 import java.util.Properties
 import java.util.SortedMap
-
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
-import java.nio.file.Path
 
+import java.nio.file.Path
 import hre.util
+import viper.silver.ast.utility.{BVFactory, FloatFactory, RoundingMode}
 import viper.silver.parser.PLocalVarDecl
 
 import scala.collection.mutable.WrappedArray
@@ -22,6 +23,22 @@ import scala.collection.mutable.WrappedArray
 class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with FactoryUtils[O] {
    
   override def Constant(o:O, i:Int): Exp = IntLit(i)(NoPosition,new OriginInfo(o))
+  override def Constant(o:O, f:Float): Exp = {
+    val floatFactory = FloatFactory(24, 8, RoundingMode.RNE)
+    val bv32Factory = BVFactory(32)
+    val bv32FromInt = bv32Factory.from_int("intToBV32")  // the value of the "name" strings can be anything
+    val floatFromBV = floatFactory.from_bv("BVToFloat")
+    val rawIntBits = java.lang.Float.floatToRawIntBits(f)
+    BackendFuncApp(floatFromBV, Seq(BackendFuncApp(bv32FromInt, Seq(IntLit(rawIntBits)(NoPosition,new OriginInfo(o))))(NoPosition,new OriginInfo(o))))(NoPosition,new OriginInfo(o))
+  }
+  override def Constant(o:O, d:Double): Exp = {
+    val doubleFactory = FloatFactory(52, 12, RoundingMode.RNE)
+    val bv64Factory = BVFactory(64)
+    val bv64FromInt = bv64Factory.from_int("toBV64")
+    val doubleFromBV = doubleFactory.from_bv("BVToDouble")
+    val rawIntBits = java.lang.Double.doubleToRawLongBits(d)
+    BackendFuncApp(doubleFromBV, Seq(BackendFuncApp(bv64FromInt, Seq(IntLit(rawIntBits)(NoPosition,new OriginInfo(o))))(NoPosition,new OriginInfo(o))))(NoPosition,new OriginInfo(o))
+  }
   override def Constant(o:O, b:Boolean): Exp =
     if(b) TrueLit()(NoPosition,new OriginInfo(o)) else FalseLit()(NoPosition,new OriginInfo(o))
  

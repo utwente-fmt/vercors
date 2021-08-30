@@ -37,7 +37,7 @@ import static vct.col.ast.type.ASTReserved.Null;
  * </pre>
  * 
  * @author Stefan Blom
- * @param E The type of object from which this factory can extract origins.
+ * @param <E> The type of object from which this factory can extract origins.
  */
 public class ASTFactory<E> implements FrameControl {
   
@@ -262,14 +262,17 @@ public class ASTFactory<E> implements FrameControl {
   public ConstantExpression constant(boolean b) {
     return constant(origin_stack.get(),b);
   }
-  public ConstantExpression constant(double i) {
-    return constant(origin_stack.get(),i);
+  public ConstantExpression constant(float f) {
+    return constant(origin_stack.get(),f);
+  }
+  public ConstantExpression constant(double d) {
+    return constant(origin_stack.get(),d);
   }
   public ConstantExpression constant(int i) {
     return constant(origin_stack.get(),i);
   }
-  public ConstantExpression constant(long i) {
-    return constant(origin_stack.get(),i);
+  public ConstantExpression constant(long l) {
+    return constant(origin_stack.get(),l);
   }
   /**
    * Create a new boolean constant.
@@ -280,10 +283,18 @@ public class ASTFactory<E> implements FrameControl {
     return res;    
   }
   /**
+   * Create a new float constant.
+   */
+  public ConstantExpression constant(Origin origin, float f) {
+    ConstantExpression res=new ConstantExpression(f,origin);
+    res.accept_if(post);
+    return res;
+  }
+  /**
    * Create a new double constant.
    */
-  public ConstantExpression constant(Origin origin, double i) {
-    ConstantExpression res=new ConstantExpression(i,origin);
+  public ConstantExpression constant(Origin origin, double d) {
+    ConstantExpression res=new ConstantExpression(d,origin);
     res.accept_if(post);
     return res;    
   }
@@ -299,8 +310,8 @@ public class ASTFactory<E> implements FrameControl {
   /**
    * Create a new long constant.
    */
-  public ConstantExpression constant(Origin origin, long i) {
-    ConstantExpression res=new ConstantExpression(i,origin);
+  public ConstantExpression constant(Origin origin, long l) {
+    ConstantExpression res=new ConstantExpression(l,origin);
     res.accept_if(post);
     return res;    
   }

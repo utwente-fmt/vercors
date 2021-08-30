@@ -13,7 +13,13 @@ public interface TypeFactory<T> {
 
   /** Create an integer type. */
   public T Int();
-  
+
+  /** Create an integer type. */
+  public T Float();
+
+  /** Create an integer type. */
+  public T Double();
+
   /** Create a boolean type. */
   public T Bool();
   

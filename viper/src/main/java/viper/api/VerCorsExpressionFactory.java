@@ -134,6 +134,21 @@ public class VerCorsExpressionFactory implements
     return res;
   }
 
+  @Override
+  public ASTNode Constant(Origin o, float f) {
+    enter(o);
+    ASTNode res=create.constant(f);
+    leave();
+    return res;
+  }
+
+  @Override
+  public ASTNode Constant(Origin o, double d) {
+    enter(o);
+    ASTNode res=create.constant(d);
+    leave();
+    return res;
+  }
 
   @Override
   public ASTNode current_perm(Origin o, ASTNode expr){

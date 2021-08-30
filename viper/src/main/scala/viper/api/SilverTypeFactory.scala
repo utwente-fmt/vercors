@@ -1,11 +1,15 @@
 package viper.api
 
 import viper.silver.ast._
+import viper.silver.ast.utility.RoundingMode
+
 import scala.jdk.CollectionConverters._
 
 class SilverTypeFactory extends TypeFactory[Type] {
   
   override def Int() : Type = viper.silver.ast.Int
+  override def Float(): Type = viper.silver.ast.utility.FloatFactory(24, 8, RoundingMode.RNE).typ
+  override def Double(): Type = viper.silver.ast.utility.FloatFactory(52, 12, RoundingMode.RNE).typ
   override def Bool(): Type = viper.silver.ast.Bool
   override def Perm(): Type = viper.silver.ast.Perm
   override def Ref() : Type = viper.silver.ast.Ref
