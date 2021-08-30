@@ -30,7 +30,7 @@ jobs:
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests report            # Name of the check run which will be created
+          name: TestReport vct           # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 
@@ -54,7 +54,7 @@ jobs:
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests slow report            # Name of the check run which will be created
+          name: TestReport basic and veymont            # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 
@@ -78,7 +78,7 @@ jobs:
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests slow report            # Name of the check run which will be created
+          name: TestReport Generated1            # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 
@@ -96,13 +96,15 @@ jobs:
       # Currently sbt and fakeroot are installed by default
       - name: Coursier cache
         uses: coursier/cache-action@v5
+      - name: Compile
+        run: sbt compile
       - name: run scalatest
         run: sbt "testOnly integration.Generated2Tests" || true
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests slow report            # Name of the check run which will be created
+          name: TestReport Generated2            # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 
@@ -120,13 +122,15 @@ jobs:
       # Currently sbt and fakeroot are installed by default
       - name: Coursier cache
         uses: coursier/cache-action@v5
+      - name: Compile
+        run: sbt compile
       - name: run scalatest
         run: sbt "testOnly integration.GeneratedSlow1Tests" || true
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests slow report            # Name of the check run which will be created
+          name: TestReport Generated slow 1            # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 
@@ -144,13 +148,15 @@ jobs:
       # Currently sbt and fakeroot are installed by default
       - name: Coursier cache
         uses: coursier/cache-action@v5
+      - name: Compile
+        run: sbt compile
       - name: run scalatest
         run: sbt "testOnly integration.GeneratedSlow2Tests" || true
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests slow report            # Name of the check run which will be created
+          name: TestReport Generated slow 2            # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 
@@ -168,13 +174,15 @@ jobs:
       # Currently sbt and fakeroot are installed by default
       - name: Coursier cache
         uses: coursier/cache-action@v5
+      - name: Compile
+        run: sbt compile
       - name: run scalatest
         run: sbt "testOnly integration.GeneratedSlow3Tests" || true
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests slow report            # Name of the check run which will be created
+          name: TestReport Generated slow 3            # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 
@@ -192,13 +200,15 @@ jobs:
       # Currently sbt and fakeroot are installed by default
       - name: Coursier cache
         uses: coursier/cache-action@v5
+      - name: Compile
+        run: sbt compile
       - name: run scalatest
         run: sbt "testOnly integration.GeneratedSlow4Tests" || true
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests slow report            # Name of the check run which will be created
+          name: TestReport Generated slow 4            # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 
@@ -216,13 +226,15 @@ jobs:
       # Currently sbt and fakeroot are installed by default
       - name: Coursier cache
         uses: coursier/cache-action@v5
+      - name: Compile
+        run: sbt compile
       - name: run scalatest
         run: sbt "testOnly integration.GeneratedSlow5Tests" || true
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()    # run this step even if previous step failed
         with:
-          name: Scalatests slow report            # Name of the check run which will be created
+          name: TestReport Generated slow 5            # Name of the check run which will be created
           path: '**/target/test-reports/TEST-*.xml'    # Path to test results
           reporter: java-junit
 

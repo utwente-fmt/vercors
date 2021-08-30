@@ -43,14 +43,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "fail with silicon and examples/abrupt/ContinueBreakFail.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/abrupt/ContinueBreakFail.java")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/abrupt/ContinueBreakPass.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/abrupt/ContinueBreakPass.java")
@@ -58,8 +50,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
-
-
 
   it should "pass with silicon and examples/abrupt/Finally.java" in {
     val configuration = IntegrationTestConfiguration()
@@ -173,14 +163,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/clang/c-example-impl.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/clang/c-example-impl.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "error with silicon and examples/classes/InnerClass.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/classes/InnerClass.java")
@@ -224,14 +206,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
   it should "fail with silicon and examples/dafny/DafnyIncrE1.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/dafny/DafnyIncrE1.java")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "fail with silicon and examples/demo/demo1.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/demo/demo1.pvl")
     configuration.verdict = Verdict.Fail
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
