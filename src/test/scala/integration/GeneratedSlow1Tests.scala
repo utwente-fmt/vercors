@@ -8,322 +8,316 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Span}
 
 
+/*+
+  These tests have been generated based on the old test framework. For new test I would recommend splitting it up in
+  different classes and giving more descriptive names.
+ */
 
-class BasicTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
+class GeneratedSlow1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
 
-  override def timeLimit: Span = Span(5000,Millis)
+  override def timeLimit: Span = Span(60000,Millis)
 
-  it should "error with silicon and examples/basic/ArrayAsObject.java" in {
+  "VerCors" should "pass with silicon and examples/abrupt/Abrupt.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ArrayAsObject.java")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/BasicArray.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/BasicArray.java")
+    configuration.files = Array("examples/abrupt/Abrupt.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "fail with silicon and examples/basic/BasicAssert-e1.java" in {
+  it should "pass with silicon and examples/abrupt/DoubleNestedFinally.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/BasicAssert-e1.java")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/BasicAssert.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/BasicAssert.java")
+    configuration.files = Array("examples/abrupt/DoubleNestedFinally.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/basic/BooleanOperators.java" in {
+  it should "pass with silicon and examples/abrupt/ExceptionAbortsAssignment.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/BooleanOperators.java")
+    configuration.files = Array("examples/abrupt/ExceptionAbortsAssignment.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "error with silicon and examples/basic/Boxing.java" in {
+  it should "pass with silicon and examples/abrupt/ExceptionsAndAbrupt.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/Boxing.java")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/CollectionTest.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/CollectionTest.pvl")
+    configuration.files = Array("examples/abrupt/ExceptionsAndAbrupt.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/basic/ContractSatisfiableIntentional.java" in {
+  it should "pass with silicon and examples/abrupt/GoodCustomException.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ContractSatisfiableIntentional.java")
+    configuration.files = Array("examples/abrupt/GoodCustomException.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/basic/ContractSatisfiableIntentional.pvl" in {
+  it should "pass with carbon and examples/abrupt/KeYAbruptTerminationChallengeCarbon.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ContractSatisfiableIntentional.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "fail with silicon and examples/basic/ContractSatisfiableUnintentional.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ContractSatisfiableUnintentional.java")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "fail with silicon and examples/basic/ContractSatisfiableUnintentional.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ContractSatisfiableUnintentional.pvl")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/For.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/For.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/InlineFunctions.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/InlineFunctions.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/InvokationInGuard.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/InvokationInGuard.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/MethodCallNegation.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/MethodCallNegation.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/NewClassGhost.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/NewClassGhost.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/ReturnNull.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ReturnNull.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/TernaryOperator.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/TernaryOperator.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/TurnOffContractSatisfiable.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/TurnOffContractSatisfiable.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    configuration.disableSat = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/bracket-issues.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/bracket-issues.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "error with silicon and examples/basic/constructor-name.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/constructor-name.pvl")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/for.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/for.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/frac1.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/frac1.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/frac2.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/frac2.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/fraction-comparison.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/fraction-comparison.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/given-in-par.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/given-in-par.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/postfix-increment.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/postfix-increment.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "error with silicon and examples/basic/preceding-garbage.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/preceding-garbage.pvl")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/predicate.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/predicate.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with carbon and examples/basic/predicate.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/predicate.pvl")
+    configuration.files = Array("examples/abrupt/KeYAbruptTerminationChallengeCarbon.java")
     configuration.verdict = Verdict.Pass
     configuration.toolCarbon= true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "error with silicon and examples/basic/pure.pvl" in {
+  it should "fail with silicon and examples/abrupt/KeYAbruptTerminationChallengeSilicon.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/pure.pvl")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "error with silicon and examples/basic/seq-immutable.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/seq-immutable.pvl")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/seq-item-access.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/seq-item-access.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/seq-length.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/seq-length.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/seq-seq-length.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/seq-seq-length.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/test-1.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/test-1.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "fail with silicon and examples/basic/test-scale.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/test-scale.java")
+    configuration.files = Array("examples/abrupt/KeYAbruptTerminationChallengeSilicon.java")
     configuration.verdict = Verdict.Fail
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "error with silicon and examples/basic/trailing-garbage.pvl" in {
+  it should "pass with silicon and examples/abrupt/KnuthTabulate.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/trailing-garbage.pvl")
-    configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/yield.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/yield.pvl")
+    configuration.files = Array("examples/abrupt/KnuthTabulate.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
+  it should "pass with silicon and examples/abrupt/LabeledStatements.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/LabeledStatements.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/NestedTryCatchFinally.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/NestedTryCatchFinally.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/OnlyCatch.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/OnlyCatch.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/OnlyThrows.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/OnlyThrows.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/OverloadedReturn.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/OverloadedReturn.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/ReturnFinally.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/ReturnFinally.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "fail with silicon and examples/abrupt/SignalsMustPropagate.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/SignalsMustPropagate.java")
+    configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/SignalsThrowNoThrows.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/SignalsThrowNoThrows.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/SwitchVarious.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/SwitchVarious.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/Synchronized.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/Synchronized.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/ThrowsAndThrow.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/ThrowsAndThrow.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/TypecheckSignalsOk.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/TypecheckSignalsOk.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/TypecheckTryCatch.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/TypecheckTryCatch.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/WhileFinally.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/WhileFinally.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/abrupt/WhileInFinally.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/abrupt/WhileInFinally.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/BinarySearch.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/BinarySearch.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/DutchNationalFlag.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/DutchNationalFlag.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/JavaArrayExamples.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/JavaArrayExamples.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/Transpose.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/Transpose.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/array-example.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/array-example.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "fail with silicon and examples/arrays/backward-dep-e1.c" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/backward-dep-e1.c")
+    configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/basic-examples.c" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/basic-examples.c")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "fail with silicon and examples/arrays/forward-dep-e1.c" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/forward-dep-e1.c")
+    configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/forward-dep-noauto.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/forward-dep-noauto.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/forward-dep.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/forward-dep.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/kernel-example-v2.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/kernel-example-v2.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/kernel-example-v3.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/kernel-example-v3.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/kernel-example.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/kernel-example.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/arrays/vector-add.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/vector-add.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "fail with silicon and examples/arrays/zero-array-ic-e1.c" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/arrays/zero-array-ic-e1.c")
+    configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
 }
