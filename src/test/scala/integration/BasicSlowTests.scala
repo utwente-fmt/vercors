@@ -47,5 +47,45 @@ class BasicSlowTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
+  it should "pass with silicon and examples/basic/BasicArray.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/basic/BasicArray.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/basic/InvokationInGuard.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/basic/InvokationInGuard.java")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/basic/seq-item-access.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/basic/seq-item-access.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/basic/test-1.c" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/basic/test-1.c")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "fail with silicon and examples/basic/test-scale.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/basic/test-scale.java")
+    configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
 
 }

@@ -21,14 +21,6 @@ class BasicTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/basic/BasicArray.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/BasicArray.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "fail with silicon and examples/basic/BasicAssert-e1.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/basic/BasicAssert-e1.java")
@@ -112,14 +104,6 @@ class BasicTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
   it should "pass with silicon and examples/basic/InlineFunctions.pvl" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/basic/InlineFunctions.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/InvokationInGuard.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/InvokationInGuard.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -270,14 +254,6 @@ class BasicTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/basic/seq-item-access.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/seq-item-access.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/basic/seq-length.pvl" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/basic/seq-length.pvl")
@@ -290,22 +266,6 @@ class BasicTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/basic/seq-seq-length.pvl")
     configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/basic/test-1.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/test-1.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "fail with silicon and examples/basic/test-scale.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/test-scale.java")
-    configuration.verdict = Verdict.Fail
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }

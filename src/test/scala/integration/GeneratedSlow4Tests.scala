@@ -17,15 +17,6 @@ class GeneratedSlow4Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
 
   override def timeLimit: Span = Span(60000,Millis)
 
-  it should "pass with silicon and examples/histories/History.pvl and examples/histories/HistoryLoop.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/histories/History.pvl", "examples/histories/HistoryLoop.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    configuration.checkHistory = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/histories/History.pvl with check defined" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/histories/History.pvl")
@@ -44,68 +35,9 @@ class GeneratedSlow4Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/histories/HistoryAppl.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/histories/HistoryAppl.java", "examples/histories/HistoryJava.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    configuration.checkHistory = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/histories/TestHist.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/histories/TestHist.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    configuration.checkHistory = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/layers/LFQ.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/layers/LFQ.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/layers/LFQHist.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/layers/LFQHist.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    configuration.checkHistory = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/lists/linkedlist.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/lists/linkedlist.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/manual/OwickiGries.pvl" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/manual/OwickiGries.pvl", "examples/manual/Worker.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/manual/array.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/manual/array.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/manual/fibonacci.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/manual/fibonacci.pvl")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -167,14 +99,6 @@ class GeneratedSlow4Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/maps/maps.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/maps/maps.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/maps/maps_example_from_dafny.pvl" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/maps/maps_example_from_dafny.pvl")
@@ -182,44 +106,9 @@ class GeneratedSlow4Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
-
-  it should "fail with silicon and examples/openmp/sections-reduced-fail.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/openmp/sections-reduced-fail.c")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    configuration.progress = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-
-  it should "pass with silicon and examples/openmp/add-spec.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/openmp/add-spec.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/openmp/copy-spec.c" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/openmp/copy-spec.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/openmp/parallel-example1.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/openmp/parallel-example1.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/openmp/sections-reduced.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/openmp/sections-reduced.c")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -257,14 +146,6 @@ class GeneratedSlow4Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/parallel/array_par.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/parallel/array_par.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/parallel/block-par.pvl" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/parallel/block-par.pvl")
@@ -285,30 +166,6 @@ class GeneratedSlow4Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/parallel/inv-test-fail2.pvl")
     configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/parallel/inv-test.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/parallel/inv-test.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/parallel/monotonicBool.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/parallel/monotonicBool.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/parallel/zero_mixed_array_2.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/parallel/zero_mixed_array_2.pvl", "examples/parallel/zero-many.pvl", "examples/parallel/zero_array_ic.pvl", "examples/parallel/zero_matrix_ic.pvl")
-    configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }

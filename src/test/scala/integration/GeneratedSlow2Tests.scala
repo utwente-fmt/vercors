@@ -41,46 +41,6 @@ class GeneratedSlow2Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "fail with silicon and examples/carp/forward-host.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/carp/forward-host.pvl")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/carp/forward-loop.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/carp/forward-loop.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/carp/histogram-submatrix.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/carp/histogram-submatrix.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/carp/summation-kernel-0.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/carp/summation-kernel-0.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/carp/summation-kernel-1.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/carp/summation-kernel-1.pvl")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/carp/zero-kernel.pvl" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/carp/zero-kernel.pvl")
@@ -100,30 +60,6 @@ class GeneratedSlow2Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
   it should "pass with silicon and examples/carp/zero-sub-array.c" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/carp/zero-sub-array.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/carp/zero-sub-matrix.c" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/carp/zero-sub-matrix.c")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/case-studies/exception-patterns/CatchBreak.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/case-studies/exception-patterns/CatchBreak.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/case-studies/exception-patterns/CatchContinue.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/case-studies/exception-patterns/CatchContinue.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -156,14 +92,6 @@ class GeneratedSlow2Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
   it should "pass with silicon and examples/case-studies/exception-patterns/CatchNestedTry.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/case-studies/exception-patterns/CatchNestedTry.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/case-studies/exception-patterns/CatchReturn.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/case-studies/exception-patterns/CatchReturn.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -212,14 +140,6 @@ class GeneratedSlow2Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
   it should "pass with silicon and examples/case-studies/exception-patterns/CatchWhile.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/case-studies/exception-patterns/CatchWhile.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/case-studies/exception-patterns/FinallyContinue.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/case-studies/exception-patterns/FinallyContinue.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
@@ -289,4 +209,11 @@ class GeneratedSlow2Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     IntegrationTestHelper.test(configuration)
   }
 
+  it should "fail with silicon and examples/forkjoin/forkfail.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/forkjoin/forkfail.pvl")
+    configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
 }
