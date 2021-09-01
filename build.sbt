@@ -166,7 +166,7 @@ lazy val vercors: Project = (project in file("."))
     // Add options to run scripts produced by sbt-native-packager. See: https://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/customize.html#via-build-sbt
     Universal / javaOptions ++= Seq (
       // Needed because vercors needs a pretty big stack for some files with deep expressions.
-      "-Xss256M"
+      "-Xss1024M"
     ),
 
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
