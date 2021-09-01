@@ -63,13 +63,13 @@ case class JavaLocalDeclaration(modifiers: Seq[JavaModifier], t: Type, decls: Se
 
 sealed trait JavaType extends ExtraType
 case class JavaTUnion(names: Seq[JavaName])(implicit val o: Origin) extends JavaType {
-  override def superTypeOf(other: Type): Boolean = ???
+  override def superTypeOfImpl(other: Type): Boolean = ???
 }
 case class JavaTArray(element: Type, dimensions: Int)(implicit val o: Origin) extends JavaType {
-  override def superTypeOf(other: Type): Boolean = ???
+  override def superTypeOfImpl(other: Type): Boolean = ???
 }
 case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: Origin) extends JavaType {
-  override def superTypeOf(other: Type): Boolean = ???
+  override def superTypeOfImpl(other: Type): Boolean = ???
 }
 
 sealed trait JavaExpr extends ExtraExpr

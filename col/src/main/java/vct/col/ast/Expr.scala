@@ -81,12 +81,22 @@ case class Void()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TVoid()
 }
 
+case class ContextSensitiveNodeNotResolved(expr: Expr, message: String) extends ASTStateError {
+  override def text: String =
+    "A node was encountered of which the type is context-sensitive, but its context is not yet resolved. " +
+    f"The node says: $message"
+}
+
 case class AmbiguousThis()(implicit val o: Origin) extends Expr with NoCheck {
-  override def t: Type = TSkip()
+  var ref: Option[Class] = None
+  override def t: Type = TClass(new DirectRef(ref.getOrElse(
+    throw ContextSensitiveNodeNotResolved(this, "'this' encountered, but the surrounding class is not resolved."))))
 }
 
 case class AmbiguousResult()(implicit val o: Origin) extends Expr with NoCheck {
-  override def t: Type = TSkip()
+  var ref: Option[ContractApplicable] = None
+  override def t: Type = ref.getOrElse(
+    throw ContextSensitiveNodeNotResolved(this, "'\\result' encountered, but its attached method is not resolved.")).returnType
 }
 
 case class CurrentThreadId()(implicit val o: Origin) extends Expr with NoCheck {

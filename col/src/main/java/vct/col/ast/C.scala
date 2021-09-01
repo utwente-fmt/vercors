@@ -84,16 +84,16 @@ case class GpgpuAtomic(impl: Statement, before: Statement, after: Statement)(imp
 
 sealed trait CExpr extends ExtraExpr
 case class CInvocation(applicable: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
-  override def t: Type = TSkip()
+  override def t: Type = ???
 }
 case class CStructAccess(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
-  override def t: Type = TSkip()
+  override def t: Type = ???
 }
 case class CStructDeref(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
-  override def t: Type = TSkip()
+  override def t: Type = ???
 }
 case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
-  override def t: Type = TSkip()
+  override def t: Type = ???
 }
 
 sealed trait CType extends ExtraType
