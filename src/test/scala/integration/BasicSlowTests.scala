@@ -87,5 +87,12 @@ class BasicSlowTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
+  it should "fail with silicon and examples/basic/BasicAssert-e1.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/basic/BasicAssert-e1.java")
+    configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
 
 }
