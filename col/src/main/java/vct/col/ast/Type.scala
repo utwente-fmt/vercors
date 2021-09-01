@@ -88,6 +88,8 @@ case class TResource()(implicit val o: Origin = DiagnosticOrigin) extends Type {
     Set[Type](TResource(), TBool()).contains(other)
 }
 case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TFloat()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TRational()(implicit val o: Origin = DiagnosticOrigin) extends Type {
   override def superTypeOfImpl(other: Type): Boolean =
     Set[Type](TRational(), TInt(), TFraction(), TZFraction()).contains(other)

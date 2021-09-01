@@ -1,7 +1,9 @@
 package vct.col.ast
 
 case class JavaName(names: Seq[String])(implicit val o: Origin)
-  extends NodeFamily with NoCheck
+  extends NodeFamily with NoCheck {
+  var ref: Option[JavaClass] = None
+}
 case class JavaImport(isStatic: Boolean, name: JavaName, star: Boolean)(implicit val o: Origin)
   extends NodeFamily with NoCheck
 
@@ -30,7 +32,17 @@ case class JavaClass(name: String, modifiers: Seq[JavaModifier], typeParams: Seq
                      ext: Type, imp: Seq[Type],
                      decls: Seq[ClassDeclaration])
                     (implicit val o: Origin)
-  extends JavaGlobalDeclaration with NoCheck with JavaClassOrInterface
+  extends JavaGlobalDeclaration with NoCheck with JavaClassOrInterface {
+  def superTypeOf(other: JavaClass): Boolean =
+    other == this ||
+      superTypeOf(other.ext) ||
+      other.imp.exists(superTypeOf)
+
+  def superTypeOf(other: Type): Boolean = other match {
+    case otherClassType @ JavaTClass(_) => superTypeOf(otherClassType.ref.get)
+    case _ => false
+  }
+}
 case class JavaInterface(name: String, modifiers: Seq[JavaModifier], typeParams: Seq[Variable],
                          ext: Seq[Type], decls: Seq[ClassDeclaration])
                         (implicit val o: Origin)
@@ -63,18 +75,32 @@ case class JavaLocalDeclaration(modifiers: Seq[JavaModifier], t: Type, decls: Se
 
 sealed trait JavaType extends ExtraType
 case class JavaTUnion(names: Seq[JavaName])(implicit val o: Origin) extends JavaType {
-  override def superTypeOfImpl(other: Type): Boolean = ???
+  override def superTypeOfImpl(other: Type): Boolean =
+    names.exists(_.ref.get.superTypeOf(other))
 }
 case class JavaTArray(element: Type, dimensions: Int)(implicit val o: Origin) extends JavaType {
-  override def superTypeOfImpl(other: Type): Boolean = ???
+  def lookalike: Type =
+    (0 until dimensions).foldLeft(element)((t, _) => TArray(element))
+
+  override def superTypeOfImpl(other: Type): Boolean =
+    lookalike.superTypeOfImpl(other)
+
+  override def subTypeOfImpl(other: Type): Boolean =
+    other.superTypeOfImpl(lookalike)
 }
+
 case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: Origin) extends JavaType {
-  override def superTypeOfImpl(other: Type): Boolean = ???
+  var ref: Option[JavaClass] = None
+
+  override def superTypeOfImpl(other: Type): Boolean =
+    ref.get.superTypeOf(other)
 }
 
 sealed trait JavaExpr extends ExtraExpr
 case class JavaLiteralArray(exprs: Seq[Expr])(implicit val o: Origin) extends JavaExpr with NoCheck {
-  override def t: Type = ???
+  var typeContext: Option[Type] = None
+
+  override def t: Type = typeContext.get
 }
 
 case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: String, arguments: Seq[Expr])
@@ -89,10 +115,10 @@ case class JavaNewClass(args: Seq[Expr], typeArgs: Seq[Type], name: Type)
 }
 case class JavaNewLiteralArray(baseType: Type, dims: Int, initializer: Expr)(implicit val o: Origin)
   extends JavaExpr with NoCheck {
-  override def t: Type = ???
+  override def t: Type = (0 until dims).foldLeft(baseType)((t, _) => TArray(t))
 }
 
 case class JavaNewDefaultArray(baseType: Type, specifiedDims: Seq[Expr], moreDims: Int)(implicit val o: Origin)
   extends JavaExpr with NoCheck {
-  override def t: Type = ???
+  override def t: Type = (0 until (specifiedDims.size + moreDims)).foldLeft(baseType)((t, _) => TArray(t))
 }
