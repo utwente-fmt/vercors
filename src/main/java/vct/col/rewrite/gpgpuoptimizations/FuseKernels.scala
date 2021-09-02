@@ -364,7 +364,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       val permPatternsIPost = getPermPatterns(contractIPerm.post_condition)
 
       val DP = mutable.Set.empty[String]
-      var nonoverlapping = mutable.Set.empty[String]
+      val nonoverlapping = mutable.Set.empty[String]
 
       permPatternsIPlusOnePre
         .foreach { case (sharedVarTmp, (pattsPreIPlusOne, perms, conditions)) =>
@@ -522,19 +522,11 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
                   currentAnns.foreach(ann => cbFusedParBlock.ensures(copy_rw.rewrite(ann)))
                 }
               } else {
+                // Given this is the case for "both kernels have the exact same patterns", this case should never happen.
+                // But in the spirit of defensive programming, it should remain here.
                 currentAnns.foreach(ann => cbFusedParBlock.ensures(copy_rw.rewrite(ann)))
               }
             }
-            //            val L = permPatternsIPlusOnePre(sharedVarTmp).zipped.filter {
-            //              case (pattern,_,_) => ASTUtils.find_name(pattern, newTid.name)
-            //            }._2.reduce(plus)
-            //            val C_iplusonepost = permPatternsIPlusOnePost(sharedVarTmp)._1.count(ASTUtils.find_name(_, newTid.name))
-            //            val newPostPerm = create.expression(Div, L, constant(C_iplusonepost))
-            //
-            //
-            //            permPatternsIPlusOnePost(sharedVarTmp)._3.foreach {
-            //              ann => cbFusedParBlock.ensures(replacePerm(newPostPerm, ann))
-            //            }
           }
         }
 
@@ -556,6 +548,19 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
           kernelZeroToI.blocks.head.block.accept(writeOrRead)
           if (writeOrRead.varToWritten.isEmpty)
             cbFusedParBlock.requires(rewrite(preNonPerm))
+          else {
+            val tmp = NameScanner.freeVars(preNonPerm).asScala.keySet.filter(v => !v.equals(newTid.name) || nonshared.contains(v)).map { sharedVarTmp =>
+              if (nonoverlapping.contains(sharedVarTmp)) {
+                Some(preNonPerm)
+              } else {
+                None
+              }
+            }.filter(_.isDefined)
+
+            if (tmp.nonEmpty) {
+              tmp.foreach(stmt => cbFusedParBlock.requires(rewrite(stmt.get)))
+            }
+          }
         }
       }
 
