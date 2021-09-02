@@ -431,6 +431,7 @@ class GeneratedSlow1Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     configuration.files = Array("examples/clang/c-example-use.c")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
+    configuration.progress = true
     IntegrationTestHelper.test(configuration)
   }
 

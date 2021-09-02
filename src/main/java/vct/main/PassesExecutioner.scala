@@ -19,7 +19,6 @@ class PassesExecutioner extends PassesExecutionerTrait {
 
   def doPasses(passes: Seq[AbstractPass], report: PassReport, timeKeeper: TimeKeeper): Unit = {
     var currentReport = report
-    var timeKeeper2 = new TimeKeeper()
     for((pass, i) <- passes.zipWithIndex) {
       if (Configuration.currentConfiguration.debugBefore.has(pass.key)) currentReport.getOutput.dump()
       if (Configuration.currentConfiguration.showBefore.contains(pass.key)) show(pass,currentReport)
@@ -37,7 +36,6 @@ class PassesExecutioner extends PassesExecutionerTrait {
       }
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(timeKeeper.show))
-      Progress("[%02d%%] %s completely took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(timeKeeper2.show))
 
       if (Configuration.currentConfiguration.debugAfter.has(pass.key)) currentReport.getOutput.dump()
       if (Configuration.currentConfiguration.showAfter.contains(pass.key)) show(pass,currentReport)

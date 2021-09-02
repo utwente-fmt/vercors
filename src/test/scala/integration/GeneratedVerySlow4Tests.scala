@@ -94,7 +94,6 @@ class GeneratedVerySlow4Tests extends AnyFlatSpec with Matchers {
     configuration.files = Array("examples/openmp/sections-reduced-fail.c")
     configuration.verdict = Verdict.Fail
     configuration.toolSilicon = true
-    configuration.progress = true
     IntegrationTestHelper.test(configuration)
   }
 

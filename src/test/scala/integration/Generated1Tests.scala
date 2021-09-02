@@ -23,7 +23,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     configuration.files = Array("examples/abrupt/BadCustomException.java")
     configuration.verdict = Verdict.Error
     configuration.toolSilicon = true
-    configuration.progress = true
     IntegrationTestHelper.test(configuration)
   }
 
