@@ -115,14 +115,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/abrupt/WhileBreakFinally.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/abrupt/WhileBreakFinally.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/case-studies/exception-patterns/FinallyEmpty.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/case-studies/exception-patterns/FinallyEmpty.java")
@@ -143,14 +135,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/classes/InnerClass.java")
     configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/classes/NewException.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/classes/NewException.java")
-    configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
@@ -299,14 +283,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "fail with silicon and examples/fixed-known-problems/rewriterIssue4.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/fixed-known-problems/rewriterIssue4.pvl")
-    configuration.verdict = Verdict.Fail
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/forkjoin/forkpass.pvl" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/forkjoin/forkpass.pvl")
@@ -407,14 +383,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/manual/TestFork.pvl")
     configuration.verdict = Verdict.Error
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/manual/induction-lemma.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/manual/induction-lemma.pvl")
-    configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
@@ -598,14 +566,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
   it should "pass with silicon and examples/sequential/SimpleExamples.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/sequential/SimpleExamples.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
-  it should "pass with silicon and examples/sequential/nested-loops.pvl" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/sequential/nested-loops.pvl")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
