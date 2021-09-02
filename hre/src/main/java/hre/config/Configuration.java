@@ -185,6 +185,10 @@ public class Configuration {
         else return new File[] {getFileOrAbort(javaBarrierFile), getFileOrAbort(javaChannelFile)};
     }
 
+    public static File getVercorsJREBasePath() {
+        return getFileOrAbort("/jre");
+    }
+
     public static File getSelfTestPath(String test) {
         return getFileOrAbort("/selftest/" + test);
     }

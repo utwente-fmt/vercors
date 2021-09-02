@@ -851,6 +851,13 @@ object Passes {
         features.QuantifierWithoutTriggers,
       )
     ),
+    SimplePass(
+      "RemoveRecursiveActionClass", "remove super class RecursiveAction, by converting java methods to ASTSpecials",
+      new RemoveRecursiveActionClass(_).rewriteAll(),
+      removes = Set(features.RecursiveActionInheritance),
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelImplementedMethod + features.TopLevelMethod + features.PVLSugar + features.NullAsOptionValue + features.NotJavaEncoded + features.NeedsSatCheck,
+      introduces = Feature.DEFAULT_INTRODUCE - features.NotFlattened - features.ArrayOps + features.PVLSugar
+    ),
   )
 
   val BACKENDS: Seq[AbstractPass] = Seq(
@@ -959,8 +966,6 @@ object Passes {
       new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
       new GenerateForkJoinMain(_).addStartThreadClass()),
-    SimplePass("UndoJavaParallelEncoding", "Translate VeyMont code generated from parallel regions back into parallel regions",
-      new UndoJavaParallelEncoding(_).rewriteAll())
   )
 
   val BY_KEY: Map[String, AbstractPass] = (

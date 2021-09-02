@@ -17,8 +17,10 @@ object Util {
   val runMethodName: String = "run"
   val javaRunMethodName = "compute"
   val javaForkMethodName = "fork"
-  val javaWaitMethodName = "wait"
-  val javaNotifyMethodName = "notify"
+  val javaJoinMethodName = "join"
+  val javaThreadInvoke : String = "invoke"
+  val javaRecursiveActionClass : ClassType = ClassType(List("RecursiveAction"),List.empty)
+  val parClassName : String = "Par"
   val mainMethodName: String = "main"
   private val threadName: String = "Thread"
   val chanName: String = "Chan"
@@ -32,9 +34,6 @@ object Util {
   val chanSentFieldName = "sent"
   val chanRecvdFieldName = "recvd"
   val chanValueFieldName = "exchangeValue"
-  val recursiveActionClass : ClassType = ClassType(List("RecursiveAction"),List.empty)
-  val parClassName : String = "Par"
-  val javaThreadInvoke : String = "invoke"
 
   def getThreadClassName(roleName: String): String = roleName.toUpperCase() + threadName
 

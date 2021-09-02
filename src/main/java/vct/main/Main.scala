@@ -218,9 +218,7 @@ class Main {
       BY_KEY("VeyMontLocalProgConstr"),
       BY_KEY("VeyMontAddChannelPerms"),
       BY_KEY("VeyMontAddStartThreads"),
-      BY_KEY("printVeyMontOutput"),
-      BY_KEY("UndoJavaParallelEncoding")
-    ) ++ collectPassesForSilver
+      BY_KEY("printVeyMontOutput"))
   }
 
   object ChainPart {
@@ -249,6 +247,7 @@ class Main {
     "removeUnusedExternMethods",
     "encodeLockInvariantProof",
     "synchronizedToTryFinally",
+    "RemoveRecursiveActionClass",
     "encodeForkLockWait",
     "specifyImplicitLoopLabels",
     "switchToIfChain",
@@ -413,6 +412,7 @@ class Main {
     val passes = if (stopAfterTypecheck.get()) {
       Seq()
     } else {
+      computeGoal(features).get
       computeGoal(features).get
     }
 

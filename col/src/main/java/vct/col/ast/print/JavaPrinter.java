@@ -576,6 +576,8 @@ public class JavaPrinter extends AbstractPrinter {
 
   public void visit(ASTClass cl){
     visit(cl.getContract());
+    if(cl.isValidFlag(ASTFlags.FINAL) && cl.getFlag(ASTFlags.FINAL))
+      out.printf("final ");
     switch(cl.kind){
     case Plain:
       out.printf("class %s",cl.getName());
@@ -723,13 +725,13 @@ public class JavaPrinter extends AbstractPrinter {
     if (m.isValidFlag(ASTFlags.FINAL) && m.getFlag(ASTFlags.FINAL)){
       out.printf("final ");
     }
-    if (m.getKind()==Method.Kind.Pure){
-      out.printf("/*@pure@*/ ");
+    if (m.getKind()==Method.Kind.Pure && !resource){
+      out.printf("/*@ pure */");
     }
     if (m.getKind()==Method.Kind.Constructor){
     } else {
       if(resource) {
-        out.printf("/*@");
+        out.printf("/*@ ");
       }
       result_type.accept(this);
       out.printf(" ");
@@ -772,7 +774,7 @@ public class JavaPrinter extends AbstractPrinter {
     }
     ASTNode body=m.getBody();
     if (body==null) {
-      out.lnprintf(";");
+      out.lnprintf("{}");
     } else if (body instanceof BlockStatement) {
       body.accept(this);
       out.lnprintf("");
@@ -921,6 +923,13 @@ public class JavaPrinter extends AbstractPrinter {
         out.printf("new ");
         e.arg(0).accept(this);
         out.printf("()");
+        break;
+      }
+      case ITE:{
+        out.printf("(");
+        nextExpr();
+        super.visit(e);
+        out.printf(")");
         break;
       }
       default:{

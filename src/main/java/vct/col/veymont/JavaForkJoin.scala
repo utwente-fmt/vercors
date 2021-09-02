@@ -8,7 +8,7 @@ import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, P
 import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.veymont.Util.{getBlockOrThrow, getNameFromNode, getNamesFromExpression, recursiveActionClass}
+import vct.col.veymont.Util.{getBlockOrThrow, getNameFromNode, getNamesFromExpression, javaRecursiveActionClass}
 
 import scala.jdk.CollectionConverters._
 
@@ -20,7 +20,7 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(n
   override def visit(c : ASTClass) : Unit = {
     if(Util.isThreadClassName(c.getName)) {
       classFields = c.fields().asScala
-      val thread = create.ast_class(c.name, c.kind,c.parameters,recursiveActionClass +: c.super_classes,c.implemented_classes)
+      val thread = create.ast_class(c.name, c.kind,c.parameters,javaRecursiveActionClass +: c.super_classes,c.implemented_classes)
       for(item <- c.asScala) {
         thread.add(rewrite(item))
       }
@@ -71,7 +71,7 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(n
   def getForkFromParallelBlock(pb : ParallelBlock): MethodInvokation = {
     val parClassName = Util.parClassName + parNr
     parNr = parNr+1
-    val parClass = create.ast_class(parClassName,ASTClass.ClassKind.Plain,Array.empty,Array(recursiveActionClass),Array.empty)
+    val parClass = create.ast_class(parClassName,ASTClass.ClassKind.Plain,Array.empty,Array(javaRecursiveActionClass),Array.empty)
     val void = create.primitive_type(PrimitiveSort.Void)
     val parBlockVars = classFields.filter(f => getParBlockVars(pb.block).exists(_.name == f.name))//.map(rewrite(_))
     val parClassConstrArgs = parBlockVars.map(v => create.field_decl(v.name + "Arg",v.`type`))
