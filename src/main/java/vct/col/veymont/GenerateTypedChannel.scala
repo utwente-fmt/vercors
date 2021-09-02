@@ -41,7 +41,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
       case Right(cl) => {
         if(m.kind == Method.Kind.Constructor) {
           visitConstructor(m,cl)
-        } else if(m.kind == Method.Kind.Predicate) {
+        } else if(m.kind == Method.Kind.Predicate || m.kind == Method.Kind.Pure) {
           m.getBody match {
             case o : OperatorExpression =>
               result = create.method_kind(m.kind, m.getReturnType, rewrite(m.getContract), m.name, m.getArgs,
@@ -113,7 +113,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
   }
 
   override def visit(c : ASTClass) : Unit = {
-    val res = create.new_class(getTypeName, null, null)
+    val res = create.ast_class(getTypeName,c.kind,c.parameters,c.super_classes,c.implemented_classes)
     for (item <- c.asScala) {
       res.add(rewrite(item))
     }

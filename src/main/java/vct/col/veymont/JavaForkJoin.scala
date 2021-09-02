@@ -2,12 +2,13 @@ package vct.col.veymont
 
 import hre.ast.{MessageOrigin, Origin}
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType}
+import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.expr.{MethodInvokation, NameExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelBlock, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, ASTSpecial, DeclarationStatement, Method, NameSpace, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
-import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
+import vct.col.ast.util.{ASTFactory, AbstractRewriter, ContractBuilder}
 import vct.col.veymont.Util.{getBlockOrThrow, getNameFromNode, getNamesFromExpression, javaRecursiveActionClass}
 
 import scala.jdk.CollectionConverters._
@@ -30,18 +31,9 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(n
       //def main(args: Array[String]): Unit =  { MainFJ(0, 8, 4)
       val arrayArgs = Array(create.field_decl("args",create.primitive_type(PrimitiveSort.Array,create.primitive_type(PrimitiveSort.String))))
       val body = new BlockStatement
-      val mainFJArgTypes = c.methods().asScala.find(_.name == Util.localMainMethodName).get.getArgs.map(_.`type`)
-      if(mainFJArgTypes.forall {
-        case p: PrimitiveType => p.sort == PrimitiveSort.Boolean || p.sort == PrimitiveSort.Integer || p.sort == PrimitiveSort.Double
-        case _ => false
-      }) {
-        val initArgs = mainFJArgTypes.map(p => p.asInstanceOf[PrimitiveType].sort match {
-          case PrimitiveSort.Boolean => create.constant(true)
-          case PrimitiveSort.Integer => create.constant(0) //create.invokation(null,null,"Integer.parseInt",create.expression(StandardOperator.Subscript,create.argument_name("args"),create.constant(0)))
-          case PrimitiveSort.Double => create.constant(0.0)
-        })
-        val initBody = create.invokation(null,null,Util.localMainMethodName,initArgs:_*)
-        body.add(initBody)
+      getDefaultArgs(c.methods().asScala.find(_.name == Util.localMainMethodName).get) match {
+        case Some(initArgs) => body.add(create.invokation(null,null,Util.localMainMethodName,initArgs:_*))
+        case None => //do nothing
       }
       val mainargsmethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),new ContractBuilder().getContract,"main",arrayArgs, body)
       mainargsmethod.setFlag(ASTFlags.PUBLIC,true)
@@ -49,6 +41,20 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(n
       result = c
     }
     else super.visit(c)
+  }
+
+  def getDefaultArgs(m : Method) : Option[Array[ConstantExpression]] = {
+    val methodArgTypes = m.getArgs.map(_.`type`)
+    if (methodArgTypes.forall {
+      case p: PrimitiveType => p.sort == PrimitiveSort.Boolean || p.sort == PrimitiveSort.Integer || p.sort == PrimitiveSort.Double
+      case _ => false
+    }) {
+      Some(methodArgTypes.map(p => p.asInstanceOf[PrimitiveType].sort match {
+        case PrimitiveSort.Boolean => create.constant(true)
+        case PrimitiveSort.Integer => create.constant(0) //create.invokation(null,null,"Integer.parseInt",create.expression(StandardOperator.Subscript,create.argument_name("args"),create.constant(0)))
+        case PrimitiveSort.Double => create.constant(0.0)
+      }))
+    } else None
   }
 
   override def visit(m : Method) : Unit = {

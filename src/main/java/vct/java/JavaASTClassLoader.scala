@@ -174,7 +174,8 @@ object JavaASTClassLoader extends ExternalClassLoader {
           potentialImportsOfNamespace(name.head, ns)
             .to(LazyList).flatMap(loadReflectively).headOption
             .orElse(loadReflectively(Seq("java", "lang") :+ name.head))
-        case _ => None
+        case None =>
+          loadReflectively(Seq("java", "lang") :+ name.head)
       }
     } else {
       loadReflectively(name)

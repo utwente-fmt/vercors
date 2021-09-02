@@ -29,7 +29,11 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       target().add(createThreadClass(role))
     })
     roleName = None
-    source.get().asScala.foreach(c =>
+    source.get().asScala.foreach{sourceEl =>
+      val c = sourceEl match {
+        case ns : NameSpace => ns.get(0)
+        case other => other
+      }
       if(c.name == mainClassName)
         target().add(c)
       else if(isChannelClass(c.name)) {
@@ -39,7 +43,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
           case o => throw Failure("VeyMont Fail: Unexpected channel type: %s",o)
         })
         val chanClassProg = new ProgramUnit()
-        chanClassProg.add(c)
+        chanClassProg.add(sourceEl)
         val newChansClasses = chanTypes.map(t => new GenerateTypedChannel(chanClassProg,t).rewriteAll().get(0))
         newChansClasses.foreach(target().add(_))
       }
@@ -48,7 +52,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       else if(cloneClasses.exists(_.name == c.name))
         target().add(rewrite(addClone(c.asInstanceOf[ASTClass])))
       else
-        target().add(rewrite(c)))
+        target().add(rewrite(c))}
     target()
   }
 
@@ -75,14 +79,45 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         create.enter()
         create.setOrigin(new MessageOrigin("Generated clone method in class " + c.name))
         val contract = new ContractBuilder()
-        c.fields().forEach(f => contract.context(create.expression(StandardOperator.Perm,create.field_name(f.name),create.reserved_name(ASTReserved.ReadPerm))))
+        val classFieldNames = c.fields().asScala.map(f => create.field_name(f.name))
+        classFieldNames.foreach(f => contract.context(create.expression(StandardOperator.Perm,f,create.reserved_name(ASTReserved.ReadPerm))))
         c.fields().forEach(f => contract.ensures(create.expression(StandardOperator.Perm,create.dereference(create.reserved_name(ASTReserved.Result),f.name),create.constant(1))))
-        val m = create.method_decl(create.class_type(c.name,Array.empty[DeclarationStatement]:_*),contract.getContract,cloneMethod,Array.empty[DeclarationStatement] ,null)
+        val classType = create.class_type(c.name,Array.empty[DeclarationStatement]:_*)
+        val body = new BlockStatement()
+        getConstrFieldArgs(classFieldNames,c) match {
+          case Some(args) =>
+            val ret = create.return_statement(create.new_object(classType,classFieldNames.toArray:_*))
+            body.add(ret)
+          case None => //do nothing; body of clone is empty
+        }
+        val m = create.method_decl(classType,contract.getContract,cloneMethod,Array.empty[DeclarationStatement] ,body)
+        m.attach(create.reserved_name(ASTReserved.Protected))
         c.add_dynamic(m)
         create.leave()
         c
       }
     }
+  }
+
+  private def getConstrFieldArgs(classFieldNames : Iterable[NameExpression], channelClass : ASTClass) : Option[Array[NameExpression]] = {
+    val constrMethod = channelClass.methods().asScala.find(_.kind == Method.Kind.Constructor).get
+    val constrStats = getBlockOrThrow(constrMethod.getBody,"Constructor of  class " + channelClass.name + " must have a BlockStatement as body").getStatements
+    val assignStats : Array[AssignmentStatement] = constrStats.collect{
+      case a : AssignmentStatement if (a.location match {
+        case NameExpression(name, _, _) => classFieldNames.exists(_.name == name)
+        case _ => false
+      }) => a
+    }
+    val constrArgFields = constrMethod.getArgs.map(arg => assignStats.find(_.expression match {
+      case ne : NameExpression => arg.name == ne.name
+      case _ => false
+    }) match {
+      case Some(a) => Some(a.location.asInstanceOf[NameExpression])
+      case None => None
+    })
+    if(constrArgFields.forall(_.isDefined))
+      Some(constrArgFields.map(_.get))
+    else None
   }
 
   override def visit(m : Method) : Unit = { //assume ony pre and postconditions

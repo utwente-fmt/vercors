@@ -77,7 +77,7 @@ public class JavaPrinter extends AbstractPrinter {
   private boolean isJavModifier(ASTNode a) {
     if(a instanceof NameExpression) {
       NameExpression n = (NameExpression) a;
-      return n.isReserved(ASTReserved.Private) || n.isReserved(ASTReserved.Protected) || n.isReserved(ASTReserved.Public);
+      return n.isReserved(ASTReserved.Private) || n.isReserved(ASTReserved.Protected) || n.isReserved(ASTReserved.Public) || n.isReserved(ASTReserved.Synchronized);
     } else return false;
   }
   
@@ -679,7 +679,7 @@ public class JavaPrinter extends AbstractPrinter {
     Contract contract=m.getContract();
     boolean predicate=m.getKind()==Method.Kind.Predicate;
     boolean resource = result_type instanceof PrimitiveType && ((PrimitiveType) result_type).sort == PrimitiveSort.Resource;
-    if (predicate){
+    if (predicate && !resource){
       if (contract!=null) {
         out.lnprintf("//ignoring contract of predicate");
         Debug("ignoring contract of predicate");
@@ -690,6 +690,9 @@ public class JavaPrinter extends AbstractPrinter {
     }
     if (contract!=null && dialect!=JavaDialect.JavaVeriFast && !predicate && !contract.isEmpty()){
       visit(contract);
+    }
+    if(resource) {
+      out.printf("/*@ ");
     }
     printAnnotations(m,true);
     for(int i=1;i<0xF000;i<<=1){
@@ -730,9 +733,6 @@ public class JavaPrinter extends AbstractPrinter {
     }
     if (m.getKind()==Method.Kind.Constructor){
     } else {
-      if(resource) {
-        out.printf("/*@ ");
-      }
       result_type.accept(this);
       out.printf(" ");
     }
@@ -778,15 +778,21 @@ public class JavaPrinter extends AbstractPrinter {
     } else if (body instanceof BlockStatement) {
       body.accept(this);
       out.lnprintf("");
-    } else {
+    } else if(predicate || resource) {
       out.printf("=");
-      nextExpr();
       body.accept(this);
-      out.lnprintf(";");
-    }
-    if (predicate || resource){
+      out.println(";");
       out.decrIndent();
       out.lnprintf("*/");
+    } else {
+      out.println("{");
+      if(body instanceof OperatorExpression) {
+        out.println("return ");
+      }
+      nextExpr();
+      body.accept(this);
+      out.println(";");
+      out.println("}");
     }
   }
 

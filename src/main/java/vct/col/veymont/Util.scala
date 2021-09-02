@@ -1,11 +1,15 @@
 package vct.col.veymont
 
 import hre.lang.System.Failure
-import vct.col.ast.`type`.ClassType
+import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType}
+import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
+import vct.col.ast.stmt.decl.Method
 import vct.col.ast.stmt.terminal.AssignmentStatement
+import vct.col.ast.util.ASTFactory
+
 import scala.annotation.tailrec
 import scala.sys.error
 
