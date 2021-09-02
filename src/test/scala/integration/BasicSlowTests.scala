@@ -13,7 +13,7 @@ import org.scalatest.time.{Millis, Span}
 
 class BasicSlowTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
 
-  override def timeLimit: Span = Span(120000,Millis)
+  override def timeLimit: Span = Span(90000,Millis)
 
   it should "pass with silicon and examples/basic/AddAssignJava.java" taggedAs Slow in {
     val configuration = IntegrationTestConfiguration()
