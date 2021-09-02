@@ -17,7 +17,7 @@ class GeneratedSlow2Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
 
   override def timeLimit: Span = Span(60000,Millis)
 
-  it should "pass with silicon and examples/dafny/DafnyIncr.java" in {
+  "VerCors" should "pass with silicon and examples/dafny/DafnyIncr.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/dafny/DafnyIncr.java")
     configuration.verdict = Verdict.Pass
@@ -464,6 +464,14 @@ class GeneratedSlow2Tests extends AnyFlatSpec with TimeLimitedTests with Matcher
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/fixed-known-problems/rewriterIssue4.pvl")
     configuration.verdict = Verdict.Fail
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
+
+  it should "pass with silicon and examples/case-studies/exception-patterns/FinallyEmpty.java" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/case-studies/exception-patterns/FinallyEmpty.java")
+    configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }

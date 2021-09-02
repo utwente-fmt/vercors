@@ -24,13 +24,13 @@ public class StripUnusedExtern extends AbstractRewriter {
     super(source);
   }
   
-  private static HashMap<String, DeclarationStatement> vars=new HashMap<String, DeclarationStatement>();
+  private HashMap<String, DeclarationStatement> vars=new HashMap<String, DeclarationStatement>();
   
-  private static HashMap<String, Method> externs=new HashMap<String, Method>();
+  private HashMap<String, Method> externs=new HashMap<String, Method>();
 
-  private static HashSet<String> used_externs=new HashSet<String>();
+  private HashSet<String> used_externs=new HashSet<String>();
   
-  private static HashSet<String> defined_names=new HashSet<String>();
+  private HashSet<String> defined_names=new HashSet<String>();
   
   private class Scanner extends RecursiveVisitor<Object> {
 

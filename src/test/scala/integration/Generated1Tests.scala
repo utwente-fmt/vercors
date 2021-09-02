@@ -114,14 +114,6 @@ class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/case-studies/exception-patterns/FinallyEmpty.java" in {
-    val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/case-studies/exception-patterns/FinallyEmpty.java")
-    configuration.verdict = Verdict.Pass
-    configuration.toolSilicon = true
-    IntegrationTestHelper.test(configuration)
-  }
-
   it should "pass with silicon and examples/case-studies/exception-patterns/FinallyLog.java" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/case-studies/exception-patterns/FinallyLog.java")
