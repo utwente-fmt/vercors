@@ -11,6 +11,8 @@ import vct.col.rewrite.RewriteSystem;
 import vct.col.util.AbstractTypeCheck;
 
 public class RewriteSystems {
+  //To ensure this class can not be instantiated.
+  private RewriteSystems(){}
 
   static Map<File,ProgramUnit> systems= new ConcurrentHashMap<>();
   

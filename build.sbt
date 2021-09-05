@@ -3,7 +3,6 @@ import java.io.File.pathSeparator
 import sbt.internal._
 
 
-//ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
 ThisBuild / fork := true
 
@@ -166,7 +165,7 @@ lazy val vercors: Project = (project in file("."))
     // Add options to run scripts produced by sbt-native-packager. See: https://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/customize.html#via-build-sbt
     Universal / javaOptions ++= Seq (
       // Needed because vercors needs a pretty big stack for some files with deep expressions.
-      "-J-Xss126M"
+      "-J-Xss128M"
     ),
 
     Runtime / javaOptions ++= Seq (

@@ -7,6 +7,10 @@ import java.io.PrintWriter;
  */
 public class System {
 
+    //To ensure this class can not be instantiated.
+    private System(){
+    }
+
     private static ISystem currentSystem;
 
     // This method is for dependence injection. It should only be used in Main and in testing

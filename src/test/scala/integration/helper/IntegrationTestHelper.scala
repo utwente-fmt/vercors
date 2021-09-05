@@ -10,7 +10,6 @@ import vct.main.{FileParser, PassesExecutioner, Program}
 import vct.main.options.CommandLineOptionsParser
 import vct.main.passes.PassesGenerator
 
-import java.io.File
 import java.util
 import scala.jdk.javaapi.CollectionConverters.asJavaCollection
 
@@ -26,6 +25,17 @@ object IntegrationTestHelper {
     val exitCode = program.run(arguments)
 
     checkEndConditions(configuration,exitCode,system,checkPoint,streamListener)
+  }
+
+  def createSystem(configuration: IntegrationTestConfiguration,cp: Checkpoint): SystemListener ={
+    var message = ""
+    configuration.verdict match {
+      case Verdict.Error => message = "The final verdict is Error"
+      case Verdict.Pass => message = "The final verdict is Pass"
+      case Verdict.Inconclusive => cp(() => {fail("Verdict inconclusive is not supported")})
+      case Verdict.Fail => message = "The final verdict is Fail"
+    }
+    new SystemListener(message)
   }
 
   private def createStreamListener(system: ISystem) = {
@@ -78,17 +88,6 @@ object IntegrationTestHelper {
     argumentArray
   }
 
-  def createSystem(configuration: IntegrationTestConfiguration,cp: Checkpoint): SystemListener ={
-    var message = ""
-    configuration.verdict match {
-      case Verdict.Error => message = "The final verdict is Error"
-      case Verdict.Pass => message = "The final verdict is Pass"
-      case Verdict.Inconclusive => cp(() => {fail("Verdict inconclusive is not supported")})
-      case Verdict.Fail => message = "The final verdict is Fail"
-    }
-    new SystemListener(message)
-  }
-
   def createProgram(system: ISystem): Program ={
     val loggingSetup = new TestLoggingSetup
     val passesExecutioner = new PassesExecutioner
@@ -119,11 +118,6 @@ object IntegrationTestHelper {
         cp.apply({assert(false,logMessage)})
         cp.reportAll()
     }
-
-  }
-
-  def resetStaticConfiguration(): Unit ={
-
   }
 
 }

@@ -11,6 +11,10 @@ import java.util.stream.Collectors;
 import static hre.lang.System.*;
 
 public class FileHelper {
+
+    //To ensure this class can not be instantiated.
+    private FileHelper(){}
+
     private static File getFile(String file) {
         try {
             Debug("getting resource %s", file);
@@ -68,10 +72,6 @@ public class FileHelper {
             default:
                 return join(base, "Linux", "x86_64", "bin", "z3");
         }
-    }
-
-    public static File getBoogieZ3Path() {
-        return getZ3Path();
     }
 
     public static File getBoogiePath() {

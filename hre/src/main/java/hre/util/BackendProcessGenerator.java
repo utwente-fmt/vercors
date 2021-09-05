@@ -1,6 +1,5 @@
 package hre.util;
 
-import hre.config.Configuration;
 import hre.io.MessageProcessEnvironment;
 
 import java.io.File;
@@ -11,6 +10,13 @@ import java.util.stream.Collectors;
 import static hre.lang.System.Failure;
 
 public class BackendProcessGenerator {
+
+    //To ensure this class can not be instantiated.
+    private BackendProcessGenerator(){
+    }
+
+    private static final String memoryArgument = "-Xss128M";
+
     /**
      * Create a process for the Jacoco CLI client included with VerCors. The CLI client can produce html reports and xml
      * files from .exec traces, as produced by the jacoco agent.
@@ -47,7 +53,7 @@ public class BackendProcessGenerator {
         for(String thisPathPart : thisPath) {
             env.addPath(thisPathPart);
         }
-        env.addArg("-Xss128M");
+        env.addArg(memoryArgument);
         env.addArg("-cp", FileHelper.getClassPath());
 
         if (javaArgs != null) {
@@ -66,7 +72,7 @@ public class BackendProcessGenerator {
     public static MessageProcessEnvironment getCarbon() throws IOException {
         MessageProcessEnvironment env = new MessageProcessEnvironment(FileHelper.getThisJava().getAbsolutePath());
         env.setTemporaryWorkingDirectory();
-        env.addArg("-Xss128M");
+        env.addArg(memoryArgument);
         env.addArg("-cp", FileHelper.getClassPath());
         env.addArg("viper.api.CarbonVerifier");
         return env;
@@ -75,7 +81,7 @@ public class BackendProcessGenerator {
     public static MessageProcessEnvironment getSilicon() throws IOException {
         MessageProcessEnvironment env = new MessageProcessEnvironment(FileHelper.getThisJava().getAbsolutePath());
         env.setTemporaryWorkingDirectory();
-        env.addArg("-Xss128M");
+        env.addArg(memoryArgument);
         env.addArg("-cp", FileHelper.getClassPath());
         env.addArg("viper.api.SiliconVerifier");
         return env;

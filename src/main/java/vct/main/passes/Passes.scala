@@ -74,7 +74,8 @@ object Passes {
     SimplePass("checkAssignInPar",
       "Ascertain that parallel regions do not have multiple threads assigning to the same local",
       arg => {
-        LocalVariableChecker.check(arg); arg
+        LocalVariableChecker.check(arg);
+        arg
       },
       permits = Feature.DEFAULT_PERMIT + features.TopLevelImplementedMethod + features.TopLevelMethod,
       removes = Set(features.ParallelLocalAssignmentNotChecked),
@@ -310,7 +311,8 @@ object Passes {
     SimplePass("switchToIfChain",
       "Unfold switch to chain of if-statements that jump to sections.",
       new UnfoldSwitch(_).rewriteAll(),
-      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue + features.TopLevelImplementedMethod + features.TopLevelMethod ++ Feature.OPTION_GATES + features.ArgumentAssignment, // TODO (Bob): Also suspicious
+      permits = Feature.DEFAULT_PERMIT - features.ImplicitLabels + features.NotJavaEncoded + features.NullAsOptionValue +
+        features.TopLevelImplementedMethod + features.TopLevelMethod ++ Feature.OPTION_GATES + features.ArgumentAssignment, // TODO (Bob): Also suspicious
       removes = Set(features.Switch),
       introduces = Feature.DEFAULT_INTRODUCE + features.Goto,
     ),
@@ -960,11 +962,13 @@ object Passes {
   val VEYMONT: Seq[AbstractPass] = Seq(
     SimplePass("VeyMontStructCheck", "check that provided program conforms to VeyMont global program syntax restriction",
       arg => {
-        new StructureCheck(arg); arg
+        new StructureCheck(arg);
+        arg
       }),
     SimplePass("VeyMontTerminationCheck", "check absence non-terminating statements",
       arg => {
-        new TerminationCheck(arg); arg
+        new TerminationCheck(arg);
+        arg
       }),
     //  SimplePass("VeyMontGlobalLTS", "generate LTS of global program",
     //    arg => { new GenerateLTS(arg,true).generateLTSAndPrint(); arg }),
@@ -972,7 +976,8 @@ object Passes {
       new Decompose(_).addThreadClasses()),
     SimplePass("VeyMontLocalLTS", "generate LTSs of local programs and check well-behavedness",
       arg => {
-        new GenerateLTS(arg, false).generateLTSAndCheckWellBehavedness(); arg
+        new GenerateLTS(arg, false).generateLTSAndCheckWellBehavedness();
+        arg
       }),
     SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
       new RemoveTaus(_).rewriteAll()),

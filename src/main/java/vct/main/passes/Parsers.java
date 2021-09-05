@@ -13,6 +13,9 @@ import vct.silver.ColSilverParser;
 import static hre.lang.System.*;
 
 public class Parsers {
+  //To ensure this class can not be instantiated.
+  private Parsers(){}
+
   public static Parser getParser(String extension){
     switch(extension){
       case "cl":

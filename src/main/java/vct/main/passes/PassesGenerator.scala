@@ -19,7 +19,8 @@ class PassesGenerator extends PassesGeneratorTrait {
 
     if (Configuration.currentConfiguration.passListOption.used) {
       Configuration.currentConfiguration.passList.asScala.map(key => BY_KEY.get(key) match {
-        case None => Fail("Unknown pass: %s", key); ???
+        case None => Fail("Unknown pass: %s", key);
+          ???
         case Some(pass) => pass
       }).toSeq
     }else if (Configuration.currentConfiguration.silver.used) {
@@ -27,7 +28,8 @@ class PassesGenerator extends PassesGeneratorTrait {
     }else if (Configuration.currentConfiguration.veymont_file.used()) {
       veymontPassesGenerator.getPasses(report)
     } else {
-      Fail("no back-end or passes specified"); ???
+      Fail("no back-end or passes specified");
+      ???
     }
   }
 
