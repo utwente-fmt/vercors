@@ -13,9 +13,7 @@ import org.scalatest.time.{Millis, Span}
   different classes and giving more descriptive names.
  */
 
-class GeneratedSlow1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
-
-  override def timeLimit: Span = Span(60000,Millis)
+class GeneratedSlow1Tests extends AnyFlatSpec with Matchers {
 
   "VerCors" should "pass with silicon and examples/abrupt/Abrupt.java" in {
     val configuration = IntegrationTestConfiguration()

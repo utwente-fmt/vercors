@@ -14,9 +14,8 @@ import org.scalatest.time.{Millis, Span}
   different classes and giving more descriptive names.
  */
 
-class Generated1Tests extends AnyFlatSpec with TimeLimitedTests with Matchers {
+class Generated1Tests extends AnyFlatSpec with Matchers {
 
-  override def timeLimit: Span = Span(10000,Millis)
 
   it should "error with silicon and examples/abrupt/BadCustomException.java" in {
     val configuration = IntegrationTestConfiguration()

@@ -9,9 +9,8 @@ import org.scalatest.time.{Millis, Span}
 
 
 
-class BasicTests extends AnyFlatSpec with TimeLimitedTests with Matchers {
+class BasicTests extends AnyFlatSpec with Matchers {
 
-  override def timeLimit: Span = Span(10000,Millis)
 
   it should "error with silicon and examples/basic/ArrayAsObject.java" in {
     val configuration = IntegrationTestConfiguration()
