@@ -1,6 +1,8 @@
 package vct.col.ast
 
 class Rewriter extends AbstractRewriter {
+  override def dispatch(program: Program): Program = rewriteDefault(program)
+
   override def dispatch(stat: Statement): Statement = rewriteDefault(stat)
   override def dispatch(e: Expr): Expr = rewriteDefault(e)
   override def dispatch(t: Type): Type = rewriteDefault(t)
@@ -10,6 +12,7 @@ class Rewriter extends AbstractRewriter {
 
   override def dispatch(parBlock: ParBlock): ParBlock = rewriteDefault(parBlock)
   override def dispatch(catchClause: CatchClause): CatchClause = rewriteDefault(catchClause)
+  override def dispatch(node: SignalsClause): SignalsClause = ???
   override def dispatch(fieldFlag: FieldFlag): FieldFlag = rewriteDefault(fieldFlag)
   override def dispatch(iterVariable: IterVariable): IterVariable = rewriteDefault(iterVariable)
 
@@ -22,4 +25,8 @@ class Rewriter extends AbstractRewriter {
   override def dispatch(node: CPointer): CPointer = rewriteDefault(node)
   override def dispatch(node: CInit): CInit = rewriteDefault(node)
   override def dispatch(node: CDeclaration): CDeclaration = rewriteDefault(node)
+
+  override def dispatch(node: JavaModifier): JavaModifier = rewriteDefault(node)
+  override def dispatch(node: JavaImport): JavaImport = rewriteDefault(node)
+  override def dispatch(node: JavaName): JavaName = rewriteDefault(node)
 }

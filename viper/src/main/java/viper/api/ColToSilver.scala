@@ -80,7 +80,7 @@ case class ColToSilver(program: col.Program) {
     }
 
   def transform(): silver.Program = {
-    program.decls.foreach(collect)
+    program.declarations.foreach(collect)
     silver.Program(domains.toSeq, fields.values.toSeq, functions.toSeq, predicates.toSeq, methods.toSeq, extensions=Seq())()
   }
 

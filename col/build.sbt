@@ -17,23 +17,21 @@ generateHelpersTask := {
 
     src / "Silver.scala",
     src / "C.scala",
+    src / "Java.scala",
   )
 
-  /*
   val compile = FileFunction.cached(streams.value.cacheDirectory / "antlr4", FilesInfo.hash, FilesInfo.hash)(changedSet => {
     println(changedSet)
-    if(changedSet.intersect(files.toSet).nonEmpty || true) {
-      GenerateHelpers.generate()
-      Set(gen / "AbstractRewriter.scala", gen / "RewriteHelpers.scala")
+    if(changedSet.intersect(files.toSet).nonEmpty) {
+      ColHelper().generate(files, gen).toSet
     } else {
       Set()
     }
   })
 
   compile(files.toSet).toSeq
-   */
 
-  ColHelper().generate(files, gen)
+  // ColHelper().generate(files, gen)
 }
 
 sourceGenerators in Compile += generateHelpersTask

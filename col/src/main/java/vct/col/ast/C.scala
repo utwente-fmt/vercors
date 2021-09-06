@@ -25,7 +25,9 @@ case class CDouble()(implicit val o: Origin) extends CTypeSpecifier
 case class CSigned()(implicit val o: Origin) extends CTypeSpecifier
 case class CUnsigned()(implicit val o: Origin) extends CTypeSpecifier
 case class CBool()(implicit val o: Origin) extends CTypeSpecifier
-case class CTypedefName(name: String)(implicit val o: Origin) extends CTypeSpecifier
+case class CTypedefName(name: String)(implicit val o: Origin) extends CTypeSpecifier {
+  var ref: Option[CRef] = None
+}
 case class CSpecificationType(t: Type)(implicit val o: Origin) extends CTypeSpecifier
 
 case class CTypeQualifierDeclarationSpecifier(typeQual: CTypeQualifier)(implicit val o: Origin)
@@ -76,19 +78,11 @@ case class CGlobalDeclaration(decl: CDeclaration)(implicit val o: Origin)
   extends CAbstractGlobalDeclaration with NoCheck
 
 sealed trait CStatement extends ExtraStatement
+// TODO nothing in the tree of nodes under CDeclarationStatement is actually a Declaration, what to do?
 case class CDeclarationStatement(decl: CDeclaration)(implicit val o: Origin) extends CStatement with NoCheck
 case class CLabeledStatement(label: String, statement: Statement)(implicit val o: Origin) extends CStatement with NoCheck
-case class CGoto(label: String)(implicit val o: Origin) extends CStatement with NoCheck
-
-sealed trait CRef {
-  def t: Type
-}
-
-case class CRefDeclaration(decl: CDeclaration, initIndex: Int) extends CRef {
-  override def t: Type = CPrimitiveType.ofDeclarator(decl.specs, decl.inits(initIndex).decl)
-}
-case class CRefFunctionDefinition(decl: CFunctionDefinition) extends CRef {
-  override def t: Type = CPrimitiveType.ofDeclarator(decl.specs, decl.declarator)
+case class CGoto(label: String)(implicit val o: Origin) extends CStatement with NoCheck {
+  var ref: Option[CLabeledStatement] = None
 }
 
 case class GpgpuLocalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin)
@@ -98,6 +92,10 @@ case class GpgpuGlobalBarrier(requires: Expr, ensures: Expr)(implicit val o: Ori
 case class GpgpuAtomic(impl: Statement, before: Statement, after: Statement)(implicit val o: Origin) extends CStatement with NoCheck
 
 sealed trait CExpr extends ExtraExpr
+case class CLocal(name: String)(implicit val o: Origin) extends CExpr with NoCheck {
+  var ref: Option[CRef] = None
+  override def t: Type = ref.get.t
+}
 case class CInvocation(applicable: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
   var ref: Option[CRef] = None
   override def t: Type = ref.get.t
@@ -165,17 +163,25 @@ object CPrimitiveType {
 }
 
 case class CPrimitiveType(specifiers: Seq[CDeclarationSpecifier])(implicit val o: Origin = DiagnosticOrigin) extends CType {
-  def lookalike: Type = specifiers match {
+  /**
+   * Lookalike must be distinct from CPrimitiveType. Otherwise, superTypeOf will loop.
+   */
+  @tailrec
+  final def lookalike: Type = specifiers match {
     case Seq(CVoid()) => TVoid()
     case Seq(CChar()) => TChar()
     case t if NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
     case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
     case Seq(CBool()) => TBool()
+    case Seq(defn @ CTypedefName(_)) => defn.ref.get.t match {
+      case t @ CPrimitiveType(_) => t.lookalike
+      case other => other
+    }
   }
 
   override def superTypeOfImpl(other: Type): Boolean =
-    lookalike.superTypeOfImpl(other)
+    lookalike.superTypeOf(other)
 
   override def subTypeOfImpl(other: Type): Boolean =
-    other.superTypeOfImpl(lookalike)
+    other.superTypeOf(lookalike)
 }

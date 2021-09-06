@@ -7,7 +7,7 @@ import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
 import hre.util.Notifier
-import vct.col.ast.Program
+import vct.col.ast.{DiagnosticOrigin, Program}
 import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.experiments.learn.SpecialCountVisitor
@@ -184,7 +184,7 @@ class Main {
   }
 
   private def parseInputs(inputPaths: Array[String]): Program =
-    Program(inputPaths.map(Paths.get(_)).flatMap(Parsers.parse))
+    Program(inputPaths.map(Paths.get(_)).flatMap(Parsers.parse))(DiagnosticOrigin)
 
   object ChainPart {
     def inflate(parts: Seq[ChainPart]): Seq[Seq[String]] =

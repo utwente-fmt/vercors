@@ -81,8 +81,11 @@ class ColDescription {
       q"rewriter.collectInScope(rewriter.${DECLARATION_KINDS(declKind)}){$term.foreach(rewriter.dispatch)}"
     case Type.Apply(Type.Name(collectionType), List(arg)) if Set("Seq", "Set", "Option").contains(collectionType) =>
       q"$term.map(element => ${rewriteDefault(q"element", arg)})"
+
     case Type.Tuple(List(t1, t2)) =>
       q"(${rewriteDefault(q"$term._1", t1)}, ${rewriteDefault(q"$term._2", t2)})"
+    case Type.Tuple(List(t1, t2, t3)) =>
+      q"(${rewriteDefault(q"$term._1", t1)}, ${rewriteDefault(q"$term._2", t2)}, ${rewriteDefault(q"$term._3", t3)})"
 
     case Type.Name(declKind) if DECLARATION_KINDS.contains(declKind) =>
       q"rewriter.collectOneInScope(rewriter.${DECLARATION_KINDS(declKind)}){rewriter.dispatch($term)}"

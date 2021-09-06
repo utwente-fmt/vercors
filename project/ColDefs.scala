@@ -35,13 +35,6 @@ object ColDefs {
   val SCOPE_CONTEXT: Type.Name = Type.Name("ScopeContext")
 
   /**
-   * The type that is the root of the AST. It must be a case class consisting of only the field decls: Seq[GlobalDeclaration].
-   */
-  val PROGRAM: String = "Program"
-  val PROGRAM_TYPE: Type.Name = Type.Name(PROGRAM)
-  val PROGRAM_TERM: Term.Name = Term.Name(PROGRAM)
-
-  /**
    * The fields that occupy blame and the origin of the node respectively.
    */
   val BLAME: String = "blame"
