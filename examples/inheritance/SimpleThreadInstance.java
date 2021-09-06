@@ -11,11 +11,11 @@ public class SimpleThreadInstance extends SimpleThread {
     //@ fold preFork@SimpleThreadInstance();
   }
 
-  //@ public resource joinToken()=true;
+  //@ resource joinToken()=true;
 
-  //@ public resource preFork()=Value(input)**Perm(output,write);
+  //@ resource preFork()=Value(input)**Perm(output,write);
 
-  //@ public resource postJoin()=Value(input)**PointsTo(output,write,input+1);
+  //@ resource postJoin()=Value(input)**PointsTo(output,write,input+1);
   
 
   int input;

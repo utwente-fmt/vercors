@@ -20,9 +20,9 @@ public class Fibonacci extends Thread {
     //@ fold pre:this.preFork@Fibonacci(write);
   }
 
-  //@ public resource preFork(frac p)=Value(input)**PointsTo(number,p,input);
+  //@ resource preFork(frac p)=Value(input)**PointsTo(number,p,input);
   
-  //@ public resource postJoin(frac p)=Value(input)**Perm(number,p);
+  //@ resource postJoin(frac p)=Value(input)**Perm(number,p);
   
   int input;
   int number;

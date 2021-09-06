@@ -17,8 +17,8 @@ generateHelpersTask := {
 
     src / "Silver.scala",
     src / "C.scala",
+    src / "Java.scala",
   )
-
 
   val compile = FileFunction.cached(streams.value.cacheDirectory / "removeThisToGenerate-src_managed", FilesInfo.hash)(changedSet => {
     println(changedSet)

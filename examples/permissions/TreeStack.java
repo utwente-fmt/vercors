@@ -18,7 +18,7 @@ final public class Tree {
   public Tree right;
 
   /*@
-    public resource state()=Perm(data,1)**
+    resource state()=Perm(data,1)**
 	Perm(left,1)**Perm(right,1)**
 	left->state()**right->state();
   @*/
@@ -90,7 +90,7 @@ final class Stack {
   public Stack tail;
   
   /*@
-    public resource state()=
+    resource state()=
         Perm(ref,1)**Perm(tail,1)**Perm(root,1)**tail->state()**ref!=null **
         Perm(ref.data,1)**Perm(ref.left,1)**Perm(ref.right,1)**ref.right->state()
         ** ((tail!=null)==>(ref==tail.get_ref_left() ** root==tail.get_root()))

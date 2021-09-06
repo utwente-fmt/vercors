@@ -1,5 +1,6 @@
 package vct.parsers.transform
 
+import hre.util.FuncTools
 import org.antlr.v4.runtime.ParserRuleContext
 import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
@@ -45,6 +46,11 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       case "transient" => JavaTransient()
       case "volatile" => JavaVolatile()
     }
+    case Modifier2(mods) => withModifiers(mods, m => {
+      if(m.consume(m.pure)) JavaPure()
+      else if(m.consume(m.inline)) JavaInline()
+      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
+    })
   }
 
   def convert(implicit modifier: ClassOrInterfaceModifierContext): JavaModifier = modifier match {
@@ -108,12 +114,12 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case MemberDeclaration0(MethodDeclaration0(returnType, name, params, dims, signals, body)) =>
       Seq(JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil),
-        convert(body), c.consumeApplicableContract()))
+        convert(body), c.consumeApplicableContract())(blameProvider(decl)))
     case MemberDeclaration1(GenericMethodDeclaration0(typeParams, MethodDeclaration0(
       returnType, name, params, dims, signals, body))) =>
       Seq(JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
-        convert(body), c.consumeApplicableContract()))
+        convert(body), c.consumeApplicableContract())(blameProvider(decl)))
     case MemberDeclaration2(FieldDeclaration0(t, decls, _)) =>
       // Ignore the contract collector, so that complains about being non-empty
       Seq(JavaFields(mods, convert(t), convert(decls)))
@@ -137,12 +143,12 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case InterfaceMemberDeclaration1(InterfaceMethodDeclaration0(t, name, params, dims, signals, _)) =>
       // JLS SE 7 - 9.4
       Seq(JavaMethod(Seq(JavaPublic(), JavaAbstract()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
-        convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil), None, c.consumeApplicableContract()))
+        convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil), None, c.consumeApplicableContract())(blameProvider(decl)))
     case InterfaceMemberDeclaration2(GenericInterfaceMethodDeclaration0(typeParams, InterfaceMethodDeclaration0(
       t, name, params, dims, signals, _))) =>
       Seq(JavaMethod(Seq(JavaPublic(), JavaAbstract()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
-        None, c.consumeApplicableContract()))
+        None, c.consumeApplicableContract())(blameProvider(decl)))
     case InterfaceMemberDeclaration3(interface) => fail(interface, "Inner interfaces are not supported.")
     case InterfaceMemberDeclaration4(annotation) => fail(annotation, "Annotations are not supported.")
     case InterfaceMemberDeclaration5(cls) => fail(cls, "Inner classes are not supported.")
@@ -185,8 +191,10 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   }
 
   def convert(implicit param: FormalParameterContext): Variable = param match {
-    case FormalParameter0(_, t, name) =>
-      new Variable(convert(t))(SourceNameOrigin(convert(name), origin(param)))
+    case FormalParameter0(_, tNode, nameDims) =>
+      val (name, dims) = convert(nameDims)
+      val t = FuncTools.repeat(TArray(_), dims, convert(tNode))
+      new Variable(t)(SourceNameOrigin(name, origin(param)))
   }
 
   def convert(implicit dims: DimsContext): Int = dims match {
@@ -230,7 +238,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   }
 
   def convert(implicit stat: BlockContext): Statement = stat match {
-    case Block0(_, stats, _) => Block(stats.map(convert(_)))
+    case Block0(_, stats, _) => Scope(Nil, Block(stats.map(convert(_))))
   }
 
   def convert(implicit stat: BlockStatementContext): Statement = stat match {
@@ -266,13 +274,13 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
         control match {
           case ForControl0(foreach) => ??(foreach)
           case ForControl1(init, _, cond, _, update) =>
-            Loop(
+            Scope(Nil, Loop(
               init.map(convert(_)).getOrElse(Block(Nil)),
               cond.map(convert(_)).getOrElse(true),
               update.map(convert(_)).getOrElse(Block(Nil)),
               Star.fold(c.consume(c.loop_invariant)),
               convert(body)
-            )
+            ))
         }
       })
 
@@ -282,7 +290,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       }
     case Statement4(contract1, label, _, cond, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
-        Loop(Block(Nil), convert(cond), Block(Nil), Star.fold(c.consume(c.loop_invariant)), convert(body))
+        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), Star.fold(c.consume(c.loop_invariant)), convert(body)))
       })
 
       label match {
@@ -467,7 +475,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   def convert(implicit expr: ExpressionContext): Expr = expr match {
     case Expression0(inner) => convert(inner)
     case Expression1(inner) => convert(inner)
-    case Expression2(obj, _, field) => Deref(convert(obj), new UnresolvedRef(convert(field)))
+    case Expression2(obj, _, field) => JavaDeref(convert(obj), convert(field))
     case Expression3(innerOrOuterClass, _, _) => ??(expr)
     case Expression4(pinnedOuterClassObj, _, _, _, _) => ??(expr)
     case Expression5(_, _, _, _) => ??(expr)
@@ -548,24 +556,23 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     }
     case Expression27(cond, _, whenTrue, _, whenFalse) =>
       Select(convert(cond), convert(whenTrue), convert(whenFalse))
-    case _: Expression28Context => ??? // Extractor should be in the new ANTLR fork update
-//    case Expression28(left, op, right) =>
-//      val target = convert(left)
-//      val value = convert(right)
-//      PreAssignExpression(target, op match {
-//        case "=" => value
-//        case "+=" => Plus(target, value)
-//        case "-=" => Minus(target, value)
-//        case "*=" => Mult(target,  value)
-//        case "/=" => FloorDiv(target,  value)(blameProvider(expr))
-//        case "&=" => BitAnd(target, value)
-//        case "|=" => BitOr(target, value)
-//        case "^=" => BitXor(target, value)
-//        case ">>=" => BitShr(target, value)
-//        case ">>>=" => BitUShr(target, value)
-//        case "<<=" => BitShl(target, value)
-//        case "%=" => Mod(target, value)(blameProvider(expr))
-//      })
+    case Expression28(left, AssignOp0(op), right) =>
+      val target = convert(left)
+      val value = convert(right)
+      PreAssignExpression(target, op match {
+        case "=" => value
+        case "+=" => Plus(target, value)
+        case "-=" => Minus(target, value)
+        case "*=" => Mult(target,  value)
+        case "/=" => FloorDiv(target,  value)(blameProvider(expr))
+        case "&=" => BitAnd(target, value)
+        case "|=" => BitOr(target, value)
+        case "^=" => BitXor(target, value)
+        case ">>=" => BitShr(target, value)
+        case ">>>=" => BitUShr(target, value)
+        case "<<=" => BitShl(target, value)
+        case "%=" => Mod(target, value)(blameProvider(expr))
+      })
   }
 
   def convert(implicit invocation: ExplicitGenericInvocationSuffixContext,
@@ -604,7 +611,11 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case Primary1(_) => AmbiguousThis()
     case Primary2(_) => ??(expr)
     case Primary3(literal) => convert(literal)
-    case Primary4(name) => Local(new UnresolvedRef(convert(name)))
+    case Primary4(name) => name match {
+      case JavaIdentifier0(specInSpec) => convert(specInSpec)
+      case JavaIdentifier1(name) => JavaLocal(name)
+      case JavaIdentifier2(_) => JavaLocal(convert(name))
+    }
     case Primary5(name, familyType, args, withThen) =>
       failIfDefined(familyType, "Predicate families are unsupported (for now)")
       val (before, after) = withThen.map(convert(_)).getOrElse((Nil, Nil))
@@ -627,9 +638,9 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case Literal5(_) => Null()
   }
 
-  def convert(implicit id: VariableDeclaratorIdContext): String = id match {
-    case VariableDeclaratorId0(_, Some(dims)) => ??(dims)
-    case VariableDeclaratorId0(name, None) => convert(name)
+  def convert(implicit id: VariableDeclaratorIdContext): (String, Int) = id match {
+    case VariableDeclaratorId0(name, Some(dims)) => (convert(name), convert(dims))
+    case VariableDeclaratorId0(name, None) => (convert(name), 0)
   }
 
   def convert(implicit id: JavaIdentifierContext): String = id match {
@@ -642,7 +653,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case JavaIdentifier1(id) => id
     case JavaIdentifier2(specOutOfSpec) =>
       val text = specOutOfSpec.getText
-      if(text.matches("[a-zA-Z]+")) text
+      if(text.matches("[a-zA-Z_]+")) text
       else fail(specOutOfSpec, f"This identifier is not allowed in Java.")
   }
 
@@ -746,7 +757,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(contract)))
-      collector.signals += ((contract, (variable, convert(exp))))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
   }
 
   def convert(mod: ValEmbedModifierContext, collector: ModifierCollector): Unit = mod match {
@@ -803,7 +814,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   }
 
   def convert(implicit mulOp: ValMulOpContext, left: Expr, right: Expr): Expr = mulOp match {
-    case ValMulOp0("\\\\") => Div(left, right)(blameProvider(mulOp))
+    case ValMulOp0(_) => Div(left, right)(blameProvider(mulOp))
   }
 
   def convert(implicit block: ValEmbedStatementBlockContext): Block = block match {
@@ -898,7 +909,29 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       convert(inner)
   }
 
-  def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration] = ???
+  def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration] = decl match {
+    case ValEmbedClassDeclarationBlock0(_, decls, _) => decls.flatMap(convert(_, x => x))
+    case ValEmbedClassDeclarationBlock1(decls) => decls.flatMap(convert(_, x => x))
+  }
+
+  def convert[T](implicit decl: ValClassDeclarationContext, transform: ClassDeclaration => T): Seq[T] = decl match {
+    case ValClassDeclaration0(modifiers, _, name, _, args, _, definition) =>
+      Seq(withModifiers(modifiers, mods => {
+        transform(new InstancePredicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
+          mods.consume(mods.threadLocal), mods.consume(mods.inline))(
+          SourceNameOrigin(convert(name), origin(decl))))
+      }))
+    case ValClassDeclaration1(contract, modifiers, _, t, name, _, args, _, definition) =>
+      Seq(withContract(contract, c => {
+        withModifiers(modifiers, m => {
+          transform(new InstanceFunction(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
+            c.consumeApplicableContract(), m.consume(m.inline))(
+            blameProvider(decl))(
+            SourceNameOrigin(convert(name), origin(decl))))
+        })
+      }))
+    case ValClassDeclaration2(_, decl) => convert(decl).map(transform)
+  }
 
   def convert(implicit decl: ValModelDeclarationContext): ModelDeclaration = decl match {
     case ValModelDeclaration0(t, name, _) =>
@@ -1044,9 +1077,9 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValReserved0(name) => fail(res,
       f"This identifier is reserved, and cannot be declared or used in specifications. " +
         f"You might want to escape the identifier with backticks: `$name`")
-    case ValReserved1(id) => Local(new UnresolvedRef(id.substring(1, id.length-1)))
-    case ValReserved2(_) => ???
-    case ValReserved3(_) => ???
+    case ValReserved1(id) => JavaLocal(id.substring(1, id.length-1))
+    case ValReserved2(_) => AmbiguousResult()
+    case ValReserved3(_) => CurrentThreadId()
     case ValReserved4(_) => NoPerm()
     case ValReserved5(_) => WritePerm()
     case ValReserved6(_) => ReadPerm()

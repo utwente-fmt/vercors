@@ -37,6 +37,8 @@ object Ref {
 trait Ref[+T <: Declaration] {
   def decl: T
 
+  def tryResolve(resolver: String => Declaration): Unit = {}
+
   override def equals(obj: Any): Boolean = obj match {
     case other: Ref[_] => decl == other.decl
   }
@@ -72,6 +74,8 @@ case class NotResolved(ref: UnresolvedRef[Declaration], expected: ClassTag[_]) e
 
 class UnresolvedRef[+T <: Declaration](val name: String)(implicit tag: ClassTag[T]) extends Ref[T] {
   private var resolvedDecl: Option[Declaration] = None
+
+  override def tryResolve(resolver: String => Declaration): Unit = resolve(resolver(name))
 
   def resolve(decl: Declaration): Unit = resolvedDecl = Some(decl)
 
@@ -147,8 +151,10 @@ class ParInvariantDecl()(implicit val o: Origin) extends Declaration with NoChec
 
 class SimplificationRule(val from: Expr, val to: Expr)(implicit val o: Origin) extends GlobalDeclaration with NoCheck
 
-class AxiomaticDataType(val declarations: Seq[ADTDeclaration], val typeArgs: Seq[Variable])(implicit val o: Origin)
-  extends GlobalDeclaration with NoCheck
+class AxiomaticDataType(val decls: Seq[ADTDeclaration], val typeArgs: Seq[Variable])(implicit val o: Origin)
+  extends GlobalDeclaration with NoCheck with Declarator {
+  override def declarations: Seq[Declaration] = decls ++ typeArgs
+}
 
 sealed trait ADTDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.adtScopes.top += this
@@ -158,12 +164,13 @@ case class ADTAxiom(axiom: Expr)(implicit val o: Origin) extends ADTDeclaration 
 }
 
 
-sealed trait Applicable extends Declaration {
+sealed trait Applicable extends Declaration with Declarator {
   def args: Seq[Variable]
   def returnType: Type
   def body: Option[Node]
-
   def inline: Boolean
+
+  override def declarations: Seq[Declaration] = args
 }
 
 sealed trait AbstractPredicate extends Applicable {
@@ -174,20 +181,25 @@ sealed trait AbstractPredicate extends Applicable {
   override def check(context: CheckContext): Seq[CheckError] = body.toSeq.flatMap(_.checkSubType(TResource()))
 }
 
+case class SignalsClause(binding: Variable, assn: Expr)(implicit val o: Origin) extends Check(assn.checkSubType(TResource())) with NodeFamily with Declarator {
+  override def declarations: Seq[Declaration] = Seq(binding)
+}
+
 case class ApplicableContract(requires: Expr, ensures: Expr, contextEverywhere: Expr,
-                              signals: Seq[(Variable, Expr)], givenArgs: Seq[Variable], yieldsArgs: Seq[Variable])
+                              signals: Seq[SignalsClause], givenArgs: Seq[Variable], yieldsArgs: Seq[Variable])
                              (implicit val o: Origin)
   extends NodeFamily {
   override def check(context: CheckContext): Seq[CheckError] =
     requires.checkSubType(TResource()) ++
       ensures.checkSubType(TResource()) ++
-      contextEverywhere.checkSubType(TResource()) ++
-      signals.flatMap(_._2.checkSubType(TResource()))
+      contextEverywhere.checkSubType(TResource())
 }
 
 sealed trait ContractApplicable extends Applicable {
   def contract: ApplicableContract
   def blame: PostconditionBlame
+  override def declarations: Seq[Declaration] =
+    super.declarations ++ contract.givenArgs ++ contract.yieldsArgs
 }
 
 sealed trait AbstractFunction extends ContractApplicable {
@@ -199,6 +211,8 @@ sealed trait AbstractMethod extends ContractApplicable {
   override def body: Option[Statement]
   def outArgs: Seq[Variable]
   def pure: Boolean
+
+  override def declarations: Seq[Declaration] = super.declarations ++ outArgs
 
   override def check(context: CheckContext): Seq[CheckError] =
     body.toSeq.flatMap(_.transSubnodes.flatMap {
@@ -252,9 +266,8 @@ sealed trait Field extends ClassDeclaration {
 }
 
 class InstanceField(val t: Type, val flags: Set[FieldFlag])(implicit val o: Origin) extends Field with NoCheck
-class StaticField(val t: Type, val flags: Set[FieldFlag])(implicit val o: Origin) extends Field with NoCheck
 
-class Class(val declarations: Seq[ClassDeclaration])(implicit val o: Origin) extends GlobalDeclaration with NoCheck
+class Class(val declarations: Seq[ClassDeclaration])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator
 
 sealed trait ModelDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.modelScopes.top += this
@@ -283,4 +296,4 @@ class ModelAction(val args: Seq[Variable],
     requires.checkSubType(TBool()) ++ ensures.checkSubType(TBool())
 }
 
-class Model(val declarations: Seq[ModelDeclaration])(implicit val o: Origin) extends GlobalDeclaration with NoCheck
+class Model(val declarations: Seq[ModelDeclaration])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator

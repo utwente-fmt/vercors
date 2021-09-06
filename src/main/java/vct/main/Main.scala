@@ -7,18 +7,20 @@ import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
 import hre.util.Notifier
-import vct.col.ast.Program
+import vct.col.ast.{DiagnosticOrigin, Program}
 import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.main.Passes.BY_KEY
 import vct.parsers.Parsers
+import vct.result.VerificationResult
+import vct.result.VerificationResult.Ok
 import vct.silver.ErrorDisplayVisitor
 import vct.test.CommandLineTesting
 
 import java.io._
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 import java.time.Instant
 import java.util
 import scala.jdk.CollectionConverters._
@@ -27,6 +29,22 @@ object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
   def main(args: Array[String]): Unit = System.exit(new Main().run(args))
+
+  /*def main(args: Array[String]): Unit = {
+    Files.walk(Paths.get("examples")).forEach(file => {
+      if(Files.isRegularFile(file)) {
+        try {
+          Parsers.parse(file)
+          throw Ok
+        } catch {
+          case result: VerificationResult => println(s"${result.text} $file")
+          case other =>
+            println(file)
+            other.printStackTrace()
+        }
+      }
+    })
+  }*/
 }
 
 class Main {
@@ -127,8 +145,8 @@ class Main {
 
     hre.lang.System.setOutputStream(System.out, level)
     hre.lang.System.setErrorStream(System.err, level)
-    System.setErr(new ForbiddenPrintStream(System.err))
-    System.setOut(new ForbiddenPrintStream(System.out))
+//    System.setErr(new ForbiddenPrintStream(System.err))
+//    System.setOut(new ForbiddenPrintStream(System.out))
   }
 
   private def checkOptions(): Unit = {
@@ -177,7 +195,7 @@ class Main {
   }
 
   private def parseInputs(inputPaths: Array[String]): Program =
-    Program(inputPaths.map(Paths.get(_)).flatMap(Parsers.parse))
+    Program(inputPaths.map(Paths.get(_)).flatMap(Parsers.parse))(DiagnosticOrigin)
 
   private def collectPassesForVeyMont : Seq[AbstractPass] = Seq(
     BY_KEY("VeyMontStructCheck"),

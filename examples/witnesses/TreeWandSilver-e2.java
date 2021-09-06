@@ -16,7 +16,7 @@ final class Tree {
   public Tree left;
   public Tree right;
   
-  /*@ public resource state()=Perm(data,write)**
+  /*@ resource state()=Perm(data,write)**
       Perm(left,write)**Perm(right,write)**left->state()**right->state();
   @*/
 

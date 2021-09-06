@@ -2,11 +2,11 @@
 //:: cases SimpleThread
 public class SimpleThread {
 
-  //@ public resource joinToken();
+  //@ resource joinToken();
 
-  //@ public resource preFork()=true;
+  //@ resource preFork()=true;
 
-  //@ public resource postJoin()=true;
+  //@ resource postJoin()=true;
   
   /*@
     requires preFork();

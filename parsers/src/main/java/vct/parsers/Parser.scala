@@ -24,10 +24,10 @@ abstract class Parser {
     }
   }
 
-  protected def errorCounter(parser: runtime.Parser, lexer: runtime.Lexer): ErrorCounter = {
+  protected def errorCounter(parser: runtime.Parser, lexer: runtime.Lexer, originProvider: OriginProvider): ThrowingErrorListener = {
     parser.removeErrorListeners()
     lexer.removeErrorListeners()
-    val ec = new ErrorCounter(???)
+    val ec = ThrowingErrorListener(originProvider)
     parser.addErrorListener(ec)
     lexer.addErrorListener(ec)
     ec

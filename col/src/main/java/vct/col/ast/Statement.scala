@@ -16,12 +16,16 @@ case class Switch(expr: Expr, body: Statement)(implicit val o: Origin) extends S
 case class Loop(init: Statement, cond: Expr, update: Statement, invariant: Expr, body: Statement)(implicit val o: Origin)
   extends Check(cond.checkSubType(TBool()), invariant.checkSubType(TResource())) with Statement
 
-case class CatchClause(decl: Variable, body: Statement)(implicit val o: Origin) extends NodeFamily with NoCheck
+case class CatchClause(decl: Variable, body: Statement)(implicit val o: Origin) extends NodeFamily with NoCheck with Declarator {
+  override def declarations: Seq[Declaration] = Seq(decl)
+}
 case class TryCatchFinally(body: Statement, after: Statement, catches: Seq[CatchClause])(implicit val o: Origin) extends Statement with NoCheck
 
 case class Synchronized(obj: Expr, body: Statement)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with Statement
 
-case class ParInvariant(decl: ParInvariantDecl, inv: Expr, content: Statement)(implicit val o: Origin) extends Check(inv.checkSubType(TResource())) with Statement
+case class ParInvariant(decl: ParInvariantDecl, inv: Expr, content: Statement)(implicit val o: Origin) extends Check(inv.checkSubType(TResource())) with Statement with Declarator {
+  override def declarations: Seq[Declaration] = Seq(decl)
+}
 case class ParAtomic(inv: Ref[ParInvariantDecl], content: Statement)(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =
     context.inScope(inv)
@@ -34,10 +38,14 @@ case class ParBarrier(block: Ref[ParBlockDecl], invs: Seq[Ref[ParInvariantDecl]]
       invs.flatMap(context.inScope)
 }
 case class ParRegion(requires: Expr, ensures: Expr, blocks: Seq[ParBlock])(implicit val o: Origin)
-  extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with Statement
+  extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with Statement with Declarator {
+  override def declarations: Seq[Declaration] = blocks.map(_.decl)
+}
 case class IterVariable(variable: Variable, from: Expr, to: Expr)(implicit val o: Origin) extends Check(from.checkSubType(TInt()), to.checkSubType(TInt())) with NodeFamily
 case class ParBlock(decl: ParBlockDecl, after: Seq[Ref[ParBlockDecl]], iters: Seq[IterVariable], requires: Expr, ensures: Expr, content: Statement)(implicit val o: Origin)
-  extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with NodeFamily
+  extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with NodeFamily with Declarator {
+  override def declarations: Seq[Declaration] = iters.map(_.variable)
+}
 
 case class Throw(e: Expr)(implicit val o: Origin) extends Check(e.checkSubType(TClass.THROWABLE)) with Statement
 

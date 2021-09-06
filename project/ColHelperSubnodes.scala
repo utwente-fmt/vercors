@@ -12,12 +12,16 @@ case class ColHelperSubnodes(info: ColDescription) {
       case Type.Apply(Type.Name(otherCollection), List(arg)) if Set("Set", "Option").contains(otherCollection) =>
         subnodePatternByType(arg).map(elem =>
           arg => q"$arg.toSeq.flatMap(element => ${elem(q"element")})")
-      case Type.Tuple(List(t1, t2)) =>
-        (subnodePatternByType(t1), subnodePatternByType(t2)) match {
-          case (None, None) => None
-          case (Some(f), None) => Some(arg => f(q"$arg._1"))
-          case (None, Some(f)) => Some(arg => f(q"$arg._2"))
-          case (Some(f), Some(g)) => Some(arg => q"${f(q"$arg._1")} ++ ${g(q"$arg._2")}")
+      case Type.Tuple(ts) =>
+        val pats = ts.map(subnodePatternByType)
+        val accessPats: Seq[Option[Term => Term]] = for((pat, idx) <- pats.zipWithIndex)
+          yield pat match {
+            case Some(f) => Some((arg: Term) => f(Term.Select(arg, Term.Name(s"_${idx+1}"))))
+            case None => None
+          }
+        accessPats.collect { case Some(f) => f } match {
+          case Nil => None
+          case x :: xs => Some(arg => xs.foldLeft(x(arg))((init, next) => q"$init ++ ${next(arg)}"))
         }
       case Type.Name(typ) if info.supports("NodeFamily")(typ) || info.supports(DECLARATION)(typ) =>
         Some(node => q"Seq($node)")

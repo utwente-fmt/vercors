@@ -191,7 +191,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
 
   def convert(implicit block: CompoundStatementContext): Statement = block match {
     case CompoundStatement0(_, stats, _) =>
-      Block(stats.map(convert(_)) getOrElse Nil)
+      Scope(Nil, Block(stats.map(convert(_)) getOrElse Nil))
     case CompoundStatement1(ompPragma, _, contract, stats, _) =>
       ???
   }
@@ -249,16 +249,16 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
 
   def convert(implicit stat: IterationStatementContext): Statement = stat match {
     case IterationStatement0(contract1, _, _, cond, _, contract2, body) => withContract(contract1, contract2, c => {
-      Loop(Block(Nil), convert(cond), Block(Nil), col.Star.fold(c.consume(c.loop_invariant)), convert(body))
+      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
     })
     case IterationStatement1(_, _, _, _, _, _, _) => ??(stat)
     case IterationStatement2(contract1, maybePragma, _, _, init, _, cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Loop(evalOrNop(init), cond.map(convert(_)) getOrElse true, evalOrNop(update), col.Star.fold(c.consume(c.loop_invariant)), convert(body))
+        Scope(Nil, Loop(evalOrNop(init), cond.map(convert(_)) getOrElse true, evalOrNop(update), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
       })
     case IterationStatement3(contract1, maybePragma, _, _, init, cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Loop(CDeclarationStatement(convert(init)), cond.map(convert(_)) getOrElse true, evalOrNop(update), col.Star.fold(c.consume(c.loop_invariant)), convert(body))
+        Scope(Nil, Loop(CDeclarationStatement(convert(init)), cond.map(convert(_)) getOrElse true, evalOrNop(update), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
       })
   }
 
@@ -379,7 +379,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
       case MultiplicativeOp0(_) => Mult(convert(left), convert(right))
       case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blameProvider(expr))
       case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right))(blameProvider(expr))
-      case MultiplicativeOp3(_) => ??(op)
+      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blameProvider(expr))
     }
   }
 
@@ -462,7 +462,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ClangIdentifier1(id) => id
     case ClangIdentifier2(specOutOfSpec) =>
       val text = specOutOfSpec.getText
-      if(text.matches("[a-zA-Z]+")) text
+      if(text.matches("[a-zA-Z_]+")) text
       else fail(specOutOfSpec, f"This identifier is not allowed in C.")
   }
 
@@ -562,7 +562,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(contract)))
-      collector.signals += ((contract, (variable, convert(exp))))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
   }
 
   def convert(mod: ValEmbedModifierContext, collector: ModifierCollector): Unit = mod match {
@@ -854,7 +854,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ValReserved0(name) => fail(res,
       f"This identifier is reserved, and cannot be declared or used in specifications. " +
         f"You might want to escape the identifier with backticks: `$name`")
-    case ValReserved1(id) => Local(new UnresolvedRef(id.substring(1, id.length-1)))
+    case ValReserved1(id) => CLocal(id.substring(1, id.length-1))
     case ValReserved2(_) => ???
     case ValReserved3(_) => ???
     case ValReserved4(_) => NoPerm()

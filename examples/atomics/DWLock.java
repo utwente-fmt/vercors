@@ -26,10 +26,10 @@ class DWLock{
     
     // LOCK = 1 , UNLOCK = 0
     /*@
-        public resource resource_pred(int x) = true;
-        public resource value(int x) = x==0 ==> Perm(data,100);
+        resource resource_pred(int x) = true;
+        resource value(int x) = x==0 ==> Perm(data,100);
      
-        public resource resource_invariant() = Perm(data,100);
+        resource resource_invariant() = Perm(data,100);
      */
     
     //@ resource state(int x) = true;
