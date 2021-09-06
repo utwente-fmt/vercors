@@ -343,7 +343,8 @@ object CommandLineTesting {
     Output("Verification times:")
 
     for (taskKey <- taskKeys) {
-      val time = allTasks(taskKey).times.get("entire run")
+      val task = allTasks(taskKey)
+      val time = task.times.get("entire run")
       Output("%-40s: %s", taskKey, time match {
         case None => "unknown"
         case Some(ms) => String.format("%dms", Int.box(ms))
@@ -359,6 +360,9 @@ object CommandLineTesting {
 
     if (fails.nonEmpty) {
       hre.lang.System.Verdict("%d out of %d run tests failed", Int.box(fails.size), Int.box(tasks.size))
+      for(fail <- fails){
+        Output(fail);
+      }
       throw new HREExitException(1)
     } else {
       hre.lang.System.Verdict("All %d tests passed", Int.box(tasks.size))

@@ -18,6 +18,6 @@ class TypeSpec extends AnyFlatSpec with Matchers {
     var inttype = new PrimitiveType(PrimitiveSort.Integer)
     var booltype = new PrimitiveType(PrimitiveSort.Boolean)
     var tupletype = new TypeMock(List[ASTNode](inttype, booltype))
-    tupletype.toString should be ("<Integer,Boolean>")
+    tupletype.toString should be ("<Integer_Boolean>")
   }
 }

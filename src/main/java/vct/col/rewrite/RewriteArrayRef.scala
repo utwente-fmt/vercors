@@ -133,7 +133,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(dereference: Dereference): Unit = {
-    if(dereference.field == "length") {
+    if(dereference.field == Dereference.ArrayLength) {
       var objType = dereference.obj.getType
 
       if(objType.isPrimitive(PrimitiveSort.Cell)) {

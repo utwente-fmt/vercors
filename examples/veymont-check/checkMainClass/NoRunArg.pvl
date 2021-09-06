@@ -1,0 +1,17 @@
+//:: cases NoRunArg
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a;
+
+	Main() {
+		a = new Role(5);
+	}
+	
+	void run(int x) {
+		
+	}
+}
+

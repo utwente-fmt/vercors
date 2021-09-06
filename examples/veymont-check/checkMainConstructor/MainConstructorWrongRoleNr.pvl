@@ -1,0 +1,28 @@
+//:: cases MainConstructorWrongRoleNr
+//:: suite session-check
+//:: tools session
+//:: verdict Error
+class Main {
+
+	Role a,b;
+
+	Main() {
+		a = new Role();
+	}
+
+	void run() {
+	
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	int i;
+}
+

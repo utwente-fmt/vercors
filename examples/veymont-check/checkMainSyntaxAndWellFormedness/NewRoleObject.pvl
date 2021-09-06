@@ -1,0 +1,32 @@
+//:: cases NewRoleObject
+//:: suite session-check
+//:: tools session
+//:: verdict Pass
+class Main {
+
+	Role a,b;
+	
+	Main() {
+		a = new Role();
+		b = new Role();
+	}
+	
+	void run() {
+		a.some = new Role();
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	Role some;
+}
+
+class Other {
+
+}
