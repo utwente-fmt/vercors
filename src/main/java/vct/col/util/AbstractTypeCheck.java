@@ -833,6 +833,16 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
         break;
       }
+      case IntegerToFloat: {
+        if (!tt[0].isInteger()) Fail("type of argument is %s rather than integer", tt[0]);
+        e.setType(new PrimitiveType(PrimitiveSort.Float));
+        break;
+      }
+      case IntegerToDouble: {
+        if (!tt[0].isInteger()) Fail("type of argument is %s rather than integer", tt[0]);
+        e.setType(new PrimitiveType(PrimitiveSort.Double));
+        break;
+      }
       case Or: {
         if (tt[0].isPrimitive(PrimitiveSort.Process)) {
           if (!tt[1].isPrimitive(PrimitiveSort.Process)) {
@@ -1698,6 +1708,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
       } else if(t1.isPrimitive(PrimitiveSort.Integer) && e.arg(0) instanceof ConstantExpression && !e.arg(0).isConstant(0)){
         e.setType(new PrimitiveType(PrimitiveSort.Fraction));
+      } else if (t1.isPrimitive(PrimitiveSort.Float) || t1.isPrimitive(PrimitiveSort.Double)) {
+        e.setType(t1);
       } else {
         e.setType(new PrimitiveType(PrimitiveSort.ZFraction));
       }

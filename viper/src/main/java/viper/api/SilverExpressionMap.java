@@ -169,48 +169,101 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         return create.index(o, e1, e2);
     case SubSet: create.and(o, create.any_set_subset(o, e1, e2), create.lt(o, create.size(o, e1), create.size(o, e2)));
     case SubSetEq: return create.any_set_subset(o, e1, e2);
-    case GT: return create.gt(o,e1,e2);
-    case LT: return create.lt(o,e1,e2);
-    case GTE: return create.gte(o,e1,e2);
-    case LTE: return create.lte(o,e1,e2);
-    case EQ: return create.eq(o,e1,e2);
-    case NEQ: return create.neq(o,e1,e2);
+    case GT: {
+      if (e.first().getType().isFloat() || e.first().getType().isDouble()) {
+        return create.fp_gt(o, e1, e2);
+      } else {
+        return create.gt(o, e1, e2);
+      }
+    }
+    case LT: {
+      if (e.first().getType().isFloat() || e.first().getType().isDouble()) {
+        return create.fp_lt(o, e1, e2);
+      } else {
+        return create.lt(o, e1, e2);
+      }
+    }
+    case GTE: {
+      if (e.first().getType().isFloat() || e.first().getType().isDouble()) {
+        return create.fp_gte(o, e1, e2);
+      } else {
+        return create.gte(o, e1, e2);
+      }
+    }
+    case LTE: {
+      if (e.first().getType().isFloat() || e.first().getType().isDouble()) {
+        return create.fp_lte(o, e1, e2);
+      } else {
+        return create.lte(o, e1, e2);
+      }
+    }
+    case EQ: {
+      if (e.first().getType().isFloat() || e.first().getType().isDouble()) {
+        return create.fp_eq(o, e1, e2);
+      } else {
+        return create.eq(o, e1, e2);
+      }
+    }
+    case NEQ: {
+      if (e.first().getType().isFloat() || e.first().getType().isDouble()) {
+        return create.fp_neq(o, e1, e2);
+      } else {
+        return create.neq(o, e1, e2);
+      }
+    }
     case Mult:{
       if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)){
-        return create.any_set_intersection(o,e1,e2);
+        return create.any_set_intersection(o, e1, e2);
+      } else if (e.getType().isFloat() || e.getType().isDouble()) {
+        return create.fp_mult(o, e1, e2);
       } else {
-        return create.mult(o,e1,e2);
+        return create.mult(o, e1, e2);
       }
     }
     case FloorDiv:
       return create.floor_div(o, e1, e2);
-    case Div:
-      return create.frac(o, e1, e2);
-    case Mod: return create.mod(o,e1,e2);
+    case Div: {
+      if (e.getType().isFloat() || e.getType().isDouble()) {
+        return create.fp_div(o, e1, e2);
+      } else {
+        return create.frac(o, e1, e2);
+      }
+    }
+    case Mod: return create.mod(o, e1, e2);
     case Plus:{
       if (e.getType().isPrimitive(PrimitiveSort.Sequence)){
-        return create.append(o,e1,e2);
+        return create.append(o, e1, e2);
       } else if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)){
-        return create.union(o,e1,e2);
+        return create.union(o, e1, e2);
       } else if(e.getType().isPrimitive(PrimitiveSort.Rational)) {
         return create.perm_add(o, e1, e2);
+      } else if (e.getType().isFloat() || e.getType().isDouble()) {
+        return create.fp_add(o, e1, e2);
       } else {
-        return create.add(o,e1,e2);
+        return create.add(o, e1, e2);
       }
     }
     case Minus: {
       if (e.getType().isPrimitive(PrimitiveSort.Set) || e.getType().isPrimitive(PrimitiveSort.Bag)){
-        return create.any_set_minus(o,e1,e2);
+        return create.any_set_minus(o, e1, e2);
+      } else if (e.getType().isFloat() || e.getType().isDouble()) {
+        return create.fp_sub(o, e1, e2);
       } else {
-        return create.sub(o,e1,e2);
+        return create.sub(o, e1, e2);
       }
     }
-    case UMinus: return create.neg(o,e1);
+    case UMinus: {
+      if (e.getType().isFloat() || e.getType().isDouble()) {
+        return create.fp_neg(o, e1);
+      } else {
+        return create.neg(o, e1);
+      }
+    }
     case Scale:{
-      return create.scale_access(o,e2, e1);
+      return create.scale_access(o, e2, e1);
     }
     case Concat:
-      return create.append(o, e1,e2);
+      return create.append(o, e1, e2);
     default:
         throw new HREError("cannot map operator %s", e.operator());
     }

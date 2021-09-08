@@ -411,6 +411,62 @@ public class VerCorsExpressionFactory implements
     return res;
   }
 
+  // Since COL has no special operators for floating point operations, these functions refer to the standard functions.
+  @Override
+  public ASTNode fp_neg(Origin o, ASTNode e1) {
+    return neg(o, e1);
+  }
+
+  @Override
+  public ASTNode fp_add(Origin o, ASTNode e1, ASTNode e2) {
+    return add(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_sub(Origin o, ASTNode e1, ASTNode e2) {
+    return sub(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_mult(Origin o, ASTNode e1, ASTNode e2) {
+    return mult(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_div(Origin o, ASTNode e1, ASTNode e2) {
+    return div(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_eq(Origin o, ASTNode e1, ASTNode e2) {
+    return eq(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_neq(Origin o, ASTNode e1, ASTNode e2) {
+    return neq(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_lte(Origin o, ASTNode e1, ASTNode e2) {
+    return lte(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_gte(Origin o, ASTNode e1, ASTNode e2) {
+    return gte(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_lt(Origin o, ASTNode e1, ASTNode e2) {
+    return lt(o, e1, e2);
+  }
+
+  @Override
+  public ASTNode fp_gt(Origin o, ASTNode e1, ASTNode e2) {
+    return gt(o, e1, e2);
+  }
+  
   @Override
   public ASTNode no_perm(Origin o) {
     enter(o);

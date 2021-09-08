@@ -890,6 +890,7 @@ case object Finally extends ScannableFeature
 case object NoExcVar extends ScannableFeature
 case object Synchronized extends ScannableFeature
 case object ImplicitConstructorInvokation extends ScannableFeature
+case object ImplicitTypeCast extends ScannableFeature
 case object NoLockInvariantProof extends ScannableFeature
 case object NotJavaResolved extends ScannableFeature
 case object StringClass extends ScannableFeature

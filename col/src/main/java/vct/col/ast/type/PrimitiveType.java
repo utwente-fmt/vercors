@@ -79,6 +79,9 @@ public final class PrimitiveType extends Type {
   public boolean isResource() {
     return sort==PrimitiveSort.Resource || sort==PrimitiveSort.Boolean;
   }
+  public boolean isFloat() {
+    return sort==PrimitiveSort.Float;
+  }
   public boolean isDouble() {
     return sort==PrimitiveSort.Double;
   }

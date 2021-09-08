@@ -117,6 +117,17 @@ public interface ExpressionFactory<O,T,E> {
   public E sub(O o, E e1, E e2);
   public E neg(O o, E e1);
 
+  E fp_neg(O o, E e1);
+  E fp_add(O o, E e1, E e2);
+  E fp_sub(O o, E e1, E e2);
+  E fp_mult(O o, E e1, E e2);
+  E fp_div(O o, E e1, E e2);
+  E fp_eq(O o, E e1, E e2);
+  E fp_neq(O o, E e1, E e2);
+  E fp_lte(O o, E e1, E e2);
+  E fp_gte(O o, E e1, E e2);
+  E fp_lt(O o, E e1, E e2);
+  E fp_gt(O o, E e1, E e2);
   
   public E and(O o, E e1, E e2);
   public E or(O o, E e1, E e2);

@@ -240,6 +240,7 @@ class Main {
     "loadExternalClasses",
     "stringClassToPrimitive",
     "standardize",
+    "rewriteImplicitTypeCasts",
     "interpretMethodAnnotations",
     "wrapTopLevelDeclarations",
     "removeUnusedExternMethods",

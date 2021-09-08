@@ -544,6 +544,12 @@ object Passes {
       ),
       removes=Set(features.NotStandardized),
     ),
+    SimplePass("rewriteImplicitTypeCasts",
+      "Make implicit type casts explicit using special COL operators",
+      new RewriteImplicitFloatTypeCast(_).rewriteAll(),
+      permits=Feature.ALL,
+      removes=Set(features.ImplicitTypeCast)
+    ),
     SimplePass("encodeVectorBlocks",
       "Encode vector blocks using the vector library",
       new VectorEncode(_).rewriteAll,

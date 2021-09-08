@@ -44,6 +44,7 @@ abstract class Type(val args:List[ASTNode]) extends ASTNode {
   def isFraction = false
   def isBoolean = false
   def isInteger = false
+  def isFloat = false
   def isDouble = false
   def isVoid = false
   def isNull = false
