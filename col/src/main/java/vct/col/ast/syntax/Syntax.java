@@ -67,27 +67,13 @@ public class Syntax {
   public String get_annotation(ASTSpecial.Kind kind){
     return annotation_print.get(kind);
   }
-  
-  public boolean is_annotation(String string){
-    return annotation_parse.get(string)!=null;
-  }
-  
-  public ASTSpecial.Kind get_annotation(String string,int argc){
-    Map<Integer,ASTSpecial.Kind> parse=annotation_parse.get(string);
-    if (parse==null) return null;
-    ASTSpecial.Kind res=parse.get(-1);
-    if(res==null){
-      res=parse.get(argc);
-    }
-    return res;
-  }
-  
+
   public final String language;
   
   public Syntax(String language){
     this.language=language;
   }
-  public static enum Associativity{Left,Right,None};
+  public enum Associativity{Left,Right,None}
 
   private Map<StandardOperator,Integer> precedence_map = new EnumMap<StandardOperator, Integer>(StandardOperator.class);
   private Map<StandardOperator,String[]> syntax_map = new EnumMap<StandardOperator, String[]>(StandardOperator.class);
@@ -100,30 +86,7 @@ public class Syntax {
   
   private Map<ASTReserved,String> reserved2syntax = new HashMap<ASTReserved, String>();
   private Map<String,ASTReserved> syntax2reserved = new HashMap<String, ASTReserved>();
-  
-  /**
-   * Get a pattern that can be matched against an ANTLR 4.x parse tree.
-   * @param op
-   * @return
-   */
-  public String[] getPattern(StandardOperator op){
-    return pattern_map.get(op);
-  }
-  
-  /**
-   * Convert a string to an operator.
-   * @param op String representation of an operator. 
-   * @return The standard operator the string represents, if it has been defined,
-   *         and null otherwise.
-   */
-  public StandardOperator parseOperator(String op){
-    return operator_map.get(op);
-  }
-  
-  public StandardOperator parseFunction(String op){
-    return function_map.get(op);
-  }
-  
+
   /** Is the standard function op an operator in this language? */
   public boolean isOperator(StandardOperator op){
     return precedence_map.get(op)!=null;
@@ -196,11 +159,7 @@ public class Syntax {
     String pattern[]={null,syntax,null};
     pattern_map.put(op, pattern);
   }
-  
-  public void addList(StandardOperator op,final String ... full_syntax){
-    syntax_map.put(op,full_syntax);
-  }
-  
+
   /** Add a standard operation that is represented with function call syntax */
   public void addFunction(StandardOperator op,final String syntax){
     int N=op.arity();
@@ -256,15 +215,6 @@ public class Syntax {
     syntax2reserved.put(string,word);
   }
 
-/*  
-  public Iterable<String> reserved(){
-    return reserved2syntax.keySet();
-  }
-*/
-  
-  public boolean is_reserved(String text) {
-    return syntax2reserved.containsKey(text);
-  }
 
   public ASTReserved reserved(String text) {
     return syntax2reserved.get(text);

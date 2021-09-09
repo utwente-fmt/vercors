@@ -3,12 +3,15 @@ package viper.api
 import hre.ast.OriginFactory
 import hre.lang.System.Warning
 import hre.util.Triple
-import viper.silver.ast.{SeqAppend, _}
-import viper.silver.plugin.PluginAwareReporter
 
 import java.util.List
-import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
+import viper.silver.ast.{SeqAppend, _}
+import viper.silver.plugin.PluginAwareReporter
+import viper.silver.ast._
+
+import scala.annotation.nowarn
+
 
 class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
     DomainFunc,DomainAxiom,Prog] with FactoryUtils[O]{
@@ -250,7 +253,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
        }
        
        // TODO implement these
-       case LocalVarDeclStmt(e) =>
+       case LocalVarDeclStmt(_) =>
          throw new Error("'local-var-decl-stmt' not implemented");
 
        case Apply(_) =>
@@ -342,7 +345,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
            x:Trigger => map_expr(v,x.exps)
          }).asJava
          ve.forall(o,map_decls(v,vars),trigs,map_expr(v,e))
-       case Exists(vars,triggers,e) =>
+       case Exists(vars,_,e) =>
          // The triggers are ignored
          ve.exists(o,map_decls(v,vars),map_expr(v,e))
        case EmptyMultiset(t) =>
@@ -418,7 +421,7 @@ object Parser extends {
   private var silicon: viper.silver.verifier.NoVerifier = new viper.silver.verifier.NoVerifier
 
   def parse_sil(name:String) = {
-    configureVerifier(Nil);
+    configureVerifier(Nil)
     init(silicon)
     reset(java.nio.file.Paths.get(name))
     parsing()
@@ -426,7 +429,7 @@ object Parser extends {
     translation()
     _program match {
       case Some(Program(domains,fields,functions,predicates,methods,_)) =>
-        val prog=new Prog();
+        val prog=new Prog()
         prog.domains.addAll(domains.asJava)
         prog.fields.addAll(fields.asJava)
         prog.functions.addAll(functions.asJava)

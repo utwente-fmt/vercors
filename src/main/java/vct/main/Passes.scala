@@ -33,14 +33,14 @@ object Passes {
     }, introduces=Set(), permits=Feature.ALL),
     SimplePass("printPVL", "print AST in PVL syntax", arg => {
       try {
-        val f = new File(Configuration.veymont_file.get());
-        val b = f.createNewFile();
+        val f = new File(Configuration.veymont_file.get())
+        val b = f.createNewFile()
         if(!b) {
-          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get());
+          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get())
         }
-        val out = new PrintWriter(new FileOutputStream(f));
-        PVLSyntax.get().print(out,arg);
-        out.close();
+        val out = new PrintWriter(new FileOutputStream(f))
+        PVLSyntax.get().print(out,arg)
+        out.close()
       } catch {
         case e: IOException => Debug(e.getMessage);
       }
@@ -168,6 +168,7 @@ object Passes {
         features.ArgumentAssignment,
         features.PureImperativeMethods,
         features.Synchronized,
+        features.StringClass,
       ),
       removes=Set(features.NotJavaResolved),
       introduces=Feature.DEFAULT_INTRODUCE + features.Constructors + features.NotJavaEncoded,
@@ -378,7 +379,7 @@ object Passes {
   val PARALLEL: Seq[AbstractPass] = Seq(
     ErrorMapPass(
       "inlineAtomicMethods", "Encode CSL atomic regions with methods",
-      new CSLencoder(_, _).rewriteAll,
+      new CSLencoder(_,_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.ImproperlySortedBeforeAfter ++ Feature.OPTION_GATES,
       removes=Set(features.JavaAtomic),
       introduces=Feature.DEFAULT_INTRODUCE + features.ParallelAtomic + features.Goto,
@@ -925,6 +926,7 @@ object Passes {
   The program from the input files has to adhere to the syntax of a 'global program'. Syntax violations result in VeyMont Fail messages.
   The decomposition preserves the behaviour of the global program.
   This implies that all functional properties proven (with VerCors) for the global program also hold for the local program.
+  Also, both global programs and their decomposed local programs are deadlock-free by construction.
   Memory and thread safety can be checked by running VerCors on the file produced by VeyMont.
   For more information on VeyMont, please check the VerCors Wiki.
    */

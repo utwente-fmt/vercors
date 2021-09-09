@@ -7,7 +7,6 @@ import hre.ast.Origin;
 import hre.util.ScalaHelper;
 import scala.Option;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.generic.ASTList;
@@ -48,12 +47,12 @@ public class Method extends ASTDeclaration {
   }
 
   /** Enumeration of kinds of methods. */
-  public static enum Kind{
+  public enum Kind{
     Constructor,
     Predicate,
     Pure,
     Plain
-  };
+  }
  
   private final Type return_type;
   private DeclarationStatement[] args;
@@ -296,11 +295,6 @@ public class Method extends ASTDeclaration {
     }
     Abort("missing case in isRecursive: %s",node.getClass());
     return true;
-  }
-
-  public boolean isOverloaded() {
-    ASTClass cl=(ASTClass)getParent();
-    return cl.isOverloaded(name());
   }
 
   /**

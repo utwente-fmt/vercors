@@ -1,7 +1,6 @@
 package vct.col.ast.stmt.terminal
 
 import hre.ast.MessageOrigin
-import vct.col.ast._
 import vct.col.ast.expr.NameExpression
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}

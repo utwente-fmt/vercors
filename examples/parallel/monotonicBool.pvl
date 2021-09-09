@@ -2,19 +2,10 @@
 //:: tool silicon
 //:: verdict Pass
 
-// fails due to https://github.com/viperproject/silicon/issues/512
-//:: suite problem-fail
-
 // This file contains an attempt at constructing and verifying a monotonic bool.
 // It would seem that it is truly a monotonic bool, since if one of
 // the threads write false to b the program does not verify.
 // However, approach is unfortunately not correct; see monotonicBoolBroken.pvl in the same folder for details.
-
-// This test uses its own toSeq function, but use of the built-in \values(xs, 0, n) is desired.
-// Unfortunately, on viper 20.01 \values doesn't work properly because \values uses read permissions.
-// (When this file is verified with viper master, as of 2020-08-26, it verifies)
-// When viper is upgraded to the version after 20.07, this test can be refactored to use \values.
-// Also: the foldOr should probably also be a builtin or something
 
 class C {
   boolean b;
@@ -24,28 +15,33 @@ class C {
   boolean p(int tid);
 
   requires xs != null;
-  requires i >= 0;
-  requires (\forall* int j = 0..xs.length; Perm(xs[j], read));
-  ensures i < xs.length ==> |\result| == (xs.length - i);
-  ensures i < xs.length ==> 
-    (\forall int j = i..xs.length; \result[j-i] == xs[j]);
-  ensures i >= xs.length ==> |\result| == 0;
-  seq<boolean> toSeqImpl(boolean[] xs, int i) =
-    i < xs.length 
-      ? seq<boolean>{ xs[i] } + toSeqImpl(xs, i + 1)
-      : seq<boolean>{};
-
-  requires xs != null;
-  requires (\forall* int i = 0..xs.length; Perm(xs[i], read));
-  ensures |\result| == xs.length;
-  ensures (\forall int i = 0..xs.length; \result[i] == xs[i]);
-  seq<boolean> toSeq(boolean[] xs) = toSeqImpl(xs, 0);
-
-  ensures \result == (\exists int i = 0..|xs|; xs[i]);
-  boolean foldOr(seq<boolean> xs) =
-    |xs| > 0 
-      ? head(xs) || foldOr(tail(xs))
+  requires Perm(xs[*], read);
+  requires 0 <= i && i <= xs.length;
+  ensures \result == (\exists int j = i..xs.length; xs[j]);
+  static boolean foldOr(boolean[] xs, int i) =
+    i < xs.length
+      ? xs[i] || foldOr(xs, i + 1)
       : false;
+
+  given frac P;
+  requires 0 < P && P < write;
+  requires bools != null;
+  context Perm(bools[*], P);
+  requires 0 <= i && i <= definitelyTrueIndex;
+  requires 0 <= definitelyTrueIndex && definitelyTrueIndex < bools.length;
+  requires bools[definitelyTrueIndex];
+  ensures foldOr(bools, i);
+  static void lemma(boolean[] bools, int definitelyTrueIndex, int i) {
+    if (bools[i]) {
+        return;
+    } else {
+        if (i < definitelyTrueIndex) {
+            lemma(bools, definitelyTrueIndex, i + 1) with { P = P \ 2; };
+        } else {
+            assert false;
+        }
+    }
+  }
 
   requires Perm(contrib, write);
   requires Perm(b, write);
@@ -53,20 +49,19 @@ class C {
   void foo(int N) {
     b = false;
     contrib = new boolean[N];
-    assert b == foldOr(toSeq(contrib));
+    assert b == foldOr(contrib, 0);
 
-    assert Perm(contrib, read);
-    assert (\forall* int i = 0..N; Perm(contrib, read));
-
-    invariant inv(Perm(contrib, read) 
+    invariant inv(
+        N > 0
+        ** Perm(contrib, 1\(N+1))
         ** contrib.length == N
         ** (\forall* int i = 0..N; Perm(contrib[i], 1\2))
         ** Perm(b, write)
-        ** b == foldOr(toSeq(contrib))
+        ** b == foldOr(contrib, 0)
         ) {
       par(int tid = 0..N)
         context N > 0;
-        context Perm(contrib, read) ** contrib != null;
+        context Perm(contrib, 1\(N+1)) ** contrib != null;
         context Perm(contrib[tid], 1\2);
       {
         if (p(tid)) {
@@ -74,11 +69,13 @@ class C {
           atomic(inv) {
             b = true;
             contrib[tid] = true;
+            lemma(contrib, tid, 0) with { P = 1\(2 * (N+1)); };
             // Fails:
             // b = false;
             // contrib[tid] = false;
           }
         }
+        assert 0 < perm(this.contrib);
       }
     }
 

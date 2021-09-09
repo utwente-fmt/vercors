@@ -1,10 +1,10 @@
 package viper.api
 
-import hre.util
 import viper.silver.ast._
-
-import java.util.List
 import scala.jdk.CollectionConverters._
+import java.util.List
+import hre.util
+
 
 class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with FactoryUtils[O] {
   

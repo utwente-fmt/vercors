@@ -7,7 +7,6 @@ import scala.collection.Iterable;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTDeclaration;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.ClassName;
 
@@ -35,7 +34,7 @@ public class ASTSpecial extends ASTDeclaration {
     return ScalaHelper.toIterable("kind");
   }
 
-  public static enum Kind {
+  public enum Kind {
     Expression,
     With,
     Then,
@@ -137,7 +136,7 @@ public class ASTSpecial extends ASTDeclaration {
     public int arity(){ return arity; }
 
 
-  };
+  }
 
   public final Kind kind;
   

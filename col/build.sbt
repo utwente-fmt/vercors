@@ -1,6 +1,9 @@
 name := "col"
 libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.1"
+
+// Disable documentation generation
 sources in (Compile, doc) := Seq()
+publishArtifact in (Compile, packageDoc) := false
 
 lazy val generateHelpersTask = taskKey[Seq[File]]("Generate helpers for the COL AST")
 

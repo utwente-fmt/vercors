@@ -1,6 +1,5 @@
 package vct.mock
 
-import vct.col.ast._
 import vct.col.ast.`type`.Type
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.ProgramUnit

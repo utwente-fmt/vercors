@@ -9,7 +9,7 @@ import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.veymont.Util._
 import scala.jdk.CollectionConverters._
 
-class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRewriter(source) {
 
 
   def addStartThreadClass() : ProgramUnit = {

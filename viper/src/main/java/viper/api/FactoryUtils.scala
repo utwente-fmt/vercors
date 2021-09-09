@@ -1,10 +1,9 @@
 package viper.api
 
-import hre.util.Triple
 import viper.silver.ast._
-
-import java.util.List
 import scala.jdk.CollectionConverters._
+import java.util.List
+import hre.util.Triple
 
 trait FactoryUtils[O] {
   def to_decls(o:O, map:List[Triple[O,String,Type]]) : Seq[LocalVarDecl] = {

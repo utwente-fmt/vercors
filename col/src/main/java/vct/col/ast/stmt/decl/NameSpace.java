@@ -2,19 +2,15 @@ package vct.col.ast.stmt.decl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 
 import hre.lang.HREError;
 import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
-import vct.col.ast.stmt.decl.ASTDeclaration;
-import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.ClassName;
 
@@ -136,10 +132,8 @@ public class NameSpace extends ASTDeclaration implements ASTSequence<NameSpace> 
       for(DeclarationStatement d:((VariableDeclaration)item).flatten()){
         space.add(d);
       }
-    } else if (item==null) {
-    } else {
+    } else if (item!=null) {
       hre.lang.System.Warning("cannot insert %s into name space.",item);
-      //Abort("cannot insert %s into name space.",item.getClass());
     }
     return this;
   }

@@ -3,8 +3,8 @@ package vct.col.rewrite
 import vct.col.ast.`type`.ClassType
 import vct.col.ast.expr.{NameExpression, NameExpressionKind}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, AxiomaticDataType, Method, NameSpace, ProgramUnit}
-import vct.col.ast.util.{AbstractRewriter, RecursiveVisitor}
+import vct.col.ast.stmt.decl.{ASTClass, AxiomaticDataType, Method, NameSpace, ProgramUnit}
+import vct.col.ast.util.AbstractRewriter
 import vct.java.JavaASTClassLoader
 
 import scala.jdk.CollectionConverters._
