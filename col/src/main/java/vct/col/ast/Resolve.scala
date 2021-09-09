@@ -62,6 +62,21 @@ case object Referrable {
     find(ctx, name, node) {
       case ref @ RefDeclaration(field: ModelField) if ref.name == name => field
     }
+
+  def findJavaMethod(decls: Seq[ClassDeclaration], name: String, args: Seq[Expr]): JavaMethod = {
+    decls.collect {
+      case method @ JavaMethod(_, _, _, methodName, _, _, _, _, _) if methodName == name => method
+    }.filter(method => {
+      method.parameters.size == args.size &&
+        method.parameters.zip(args).forall {
+          case (param, v) => param.t.superTypeOf(v.t)
+        }
+    }) match {
+      case Nil => ???
+      case Seq(method) => method
+      case _more => ???
+    }
+  }
 }
 
 /**
@@ -212,6 +227,7 @@ object ResolveTypes {
         ref match {
           case RefDeclaration(cls @ JavaClass(className, _, _, _, _, _))
             if className == name => return Some(cls)
+          case _ =>
         }
       }
     }
@@ -238,7 +254,7 @@ object ResolveTypes {
     case ref @ CTypedefName(name) =>
       ref.ref = Some(findCRef(name, ctx).getOrElse(throw NoSuchName(name, ref)))
     case newNs: JavaNamespace =>
-      newNs.subnodes.foreach(resolve(_, ctx, Some(newNs)))
+      newNs.subnodes.foreach(resolve(_, newNs.declarations.map(RefDeclaration).flatMap(_.expand) +: ctx, Some(newNs)))
     case other => other.subnodes.foreach(resolve(_, ctx, ns))
   }
 }
@@ -345,6 +361,17 @@ object ResolveReferences {
               JavaRefField(fields, idx)
           }.getOrElse(throw NoSuchName(field, deref)))
       }
+    case inv @ JavaInvocation(obj, typeParams, name, args) => inv.ref = Some(obj match {
+      case Some(obj) =>
+        obj.t match {
+          case cls: JavaTClass =>
+            Referrable.findJavaMethod(cls.ref.get.decls, name, args)
+          case JavaTClassValue(ref) =>
+            Referrable.findJavaMethod(ref.decl.decls, name, args)
+        }
+      case None =>
+        Referrable.findJavaMethod(ctx.flatten.collect { case RefDeclaration(c: ClassDeclaration) => c }, name, args)
+    })
 
     case process: ModelProcess =>
       (process.modifies ++ process.accessible).foreach(_.tryResolve(Referrable.findModelField(ctx, _, process)))

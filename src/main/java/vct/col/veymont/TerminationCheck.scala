@@ -12,7 +12,7 @@ object TerminationCheck {
   private val deadlockWarning = " might not terminate, deadlock-freedom cannot be guaranteed! "
 }
 
-class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisitor(null, true) {
+class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisitor(source) {
 
   private var encountered = Set.empty[String]
   private var methodCalled = false
@@ -39,8 +39,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
             methodCalled = false
           else
             encountered = Set.empty
-        //  if (!(c.name == mainClassName && m.kind != Method.Kind.Pure)) //recursion is allowed in non-pure main methods
-            encountered += m.name
+          encountered += m.name
           currentClass = c.name
           if(m.getBody != null) //abstract methods terminate anyway
             m.getBody.accept(this) //check method calls in all (main, role, and other class) method bodies
@@ -66,7 +65,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
   }
 
   override def visit(m : MethodInvokation) : Unit = {
-    if(encountered.contains(MethodInvToString(m))) {
+    if(encountered.contains(m.method)) {
       methods.find(tup => tup._1.name == m.method) match {
         case Some(tup) => {
           if(tup._2 == mainClassName)
@@ -81,12 +80,10 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
         val mClass = tup._2
         if(mClass == mainClassName && currentClass != mainClassName) {
           Fail("VeyMont Fail: Cannot call Main method '%s' from role or other class! %s", m.method,m.getOrigin)
-        } else { //if (mClass != mainClassName || method.kind == Method.Kind.Pure) {
+        } else {
           methodCalled = true
-          encountered += MethodInvToString(m)
+          encountered += m.method
           visit(method)
-        // } else {
-          //stop checking; recursion is allowed in non-pure main methods
         }
       }
       case None => {
@@ -95,8 +92,6 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
       }
     }
   }
-
-  def MethodInvToString(mi : MethodInvokation): String = mi.method //(if (mi.`object`==null) "" else mi.`object`.toString) + mi.method
 
   override def visit(l : LoopStatement) : Unit =
     if(currentClass != mainClassName)

@@ -4,13 +4,10 @@ package vct.col.ast.stmt.decl;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 
 import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.expr.constant.ConstantExpression;

@@ -12,7 +12,7 @@ import vct.col.veymont.StructureCheck.isAllowedPrimitive
 import vct.col.veymont.Util._
 import scala.jdk.CollectionConverters._
 
-class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
+class Decompose(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   private val roleNames : Iterable[String] = StructureCheck.getRoleNames(source)
   private val mainClass = StructureCheck.getMainClass(source)
@@ -28,7 +28,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     })
     roleName = None
     source.get().asScala.filter(_.name != mainClassName).foreach(c =>
-      if(isChannelClass(c.name)) {// && cloneClasses.nonEmpty) //annotations for readValue?
+      if(isChannelClass(c.name)) {
         val chanTypes = chans.map(_.chanType match {
           case p : PrimitiveType => Left(p)
           case ct : ClassType => Right(roleOrOtherClass.find(_.name == ct.getName).get)
@@ -38,8 +38,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         chanClassProg.add(c)
         val newChansClasses = chanTypes.map(t => new GenerateTypedChannel(chanClassProg,t).rewriteAll().get(0))
         newChansClasses.foreach(target().add(_))
-     //   if(chans.exists(_.chanType.toString == getTypeChannelClass(c.name))) //only add used channel classes
-     //     target().add(c)
       }
       else if(c.name == barrierClassName)
         target.add(c)
@@ -93,25 +91,27 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     cb.requires(rewrite(pre))
     cb.ensures(rewrite(post))
     if(m.kind == Method.Kind.Constructor && roleName.nonEmpty) {
-      result = create.method_kind(m.kind, m.getReturnType, cb.getContract, getThreadClassName(roleName.get), m.getArgs, rewrite(m.getBody))
-      //  } else if(m.kind == Method.Kind.Pure) {
-      //    result = copy_rw.rewrite(m)
+      result = create.method_kind(m.kind, m.getReturnType, cb.getContract(c == null), getThreadClassName(roleName.get), m.getArgs, rewrite(m.getBody))
     } else if(m.kind == Method.Kind.Predicate) {
       val body = selectResourceAnnotation(m.getBody)
       checkAnnotation(body,roleNames)
-      result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(body))
+      result = create.method_kind(m.kind,m.getReturnType,cb.getContract(c == null),m.name,m.getArgs,rewrite(body))
     } else {
-      result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(m.getBody))
+      val cbc = cb.getContract(c == null)
+      val newMethod = create.method_kind(m.kind,m.getReturnType,cbc,m.name,m.getArgs,rewrite(m.getBody))
+      result = newMethod
     }
   }
 
-  override def visit(l : LoopStatement) : Unit = { //it is while loop
+  override def visit(l : LoopStatement) : Unit = {
     val c = l.getContract
     val cb = new ContractBuilder()
     val invar = selectResourceAnnotation(c.invariant)
     checkAnnotation(invar, roleNames)
     cb.appendInvariant(rewrite(invar))
-    result = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract)
+    if(l.getInitBlock != null || l.getUpdateBlock != null) //could also use the Flatten pass before this pass such that we only have while loops here
+      result = create.for_loop(rewrite(l.getInitBlock), rewrite(l.getEntryGuard),rewrite(l.getUpdateBlock),rewrite(l.getBody),cb.getContract(c == null))
+    else result = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract(c == null))
   }
 
   override def visit(pb : ParallelBlock) : Unit = {
@@ -132,7 +132,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     } else {
       getLocalAction(a, roleName.get) match {
         case SingleRoleAction(_) => result = copy_rw.rewrite(a)
-        case ReadAction(receiver, sender, receiveExpression) => {
+        case ReadAction(_, sender, receiveExpression) => {
           val chanType = receiveExpression.getType
           val chanName = getChanName(sender, false, chanType)
           chans += ChannelRepr(chanName)(false, chanType)
@@ -140,27 +140,11 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         }
         case WriteAction(receiver, _, sendExpression) => {
           val chanType = sendExpression.getType
-          val chanName = getChanName(receiver, true, chanType)
-          chans += ChannelRepr(chanName)(true, chanType)
+          val writeChanName = getChanName(receiver, true, chanType)
+          chans += ChannelRepr(writeChanName)(true, chanType)
           chanType match {
-            case p : PrimitiveType =>
-              if(isAllowedPrimitive(p)) {
-                sendExpression match {
-                  case op : OperatorExpression => if(op.operator == StandardOperator.Subscript) Fail("VeyMont Fail: channels for array elements not supported in: %s!",a)
-                  case _ => //skip
-                }
-                result = create.invokation(create.field_name(chanName), null, chanWriteMethodName, sendExpression)
-              } else Fail("VeyMont Fail: channel of type %s not supported", chanType)
-            case cl : ClassType => roleOrOtherClass.find(c => c.name == cl.getName) match {
-              case Some(c) => {
-                if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
-                  Fail("VeyMont Fail: channel of type %s not supported, because fields are not primitive")
-                cloneClasses = cloneClasses + c
-                result = create.invokation(create.field_name(chanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
-              }
-              case None =>
-                Fail("VeyMont Fail: channel of type %s not supported", chanType)
-            }
+            case p : PrimitiveType => checkChanPrimitiveType(p,writeChanName,sendExpression,a)
+            case cl : ClassType => checkChanClassType(cl,writeChanName,sendExpression)
           }
         }
         case Tau => result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
@@ -168,6 +152,27 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       }
     }
   }
+
+  private def checkChanPrimitiveType(p : PrimitiveType, writeChanName : String, sendExpression : ASTNode, a : AssignmentStatement) =
+    if(isAllowedPrimitive(p)) {
+      sendExpression match {
+        case op : OperatorExpression => if(op.operator == StandardOperator.Subscript) Fail("VeyMont Fail: channels for array elements not supported in: %s!",a)
+        case _ => //skip
+      }
+      result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, sendExpression)
+    } else Fail("VeyMont Fail: channel of type %s not supported", p)
+
+  private def checkChanClassType(cl : ClassType, writeChanName : String, sendExpression : ASTNode) =
+    roleOrOtherClass.find(c => c.name == cl.getName) match {
+      case Some(c) => {
+        if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
+          Fail("VeyMont Fail: channel of type %s not supported, because fields are not primitive")
+        cloneClasses = cloneClasses + c
+        result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
+      }
+      case None =>
+        Fail("VeyMont Fail: channel of type %s not supported", cl)
+    }
 
   def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
     val expRole = getNamesFromExpression(a.expression)
@@ -202,7 +207,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       super.visit(m)
     } else {
       m.getParent match {
-        case b: BlockStatement => //it is a statement
+        case _: BlockStatement => //it is a statement
           if (isSingleRoleNameExpressionOfRole(m, roleNames))
             result = copy_rw.rewrite(m)
           else result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)

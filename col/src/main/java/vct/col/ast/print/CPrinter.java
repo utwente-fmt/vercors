@@ -31,7 +31,6 @@ public class CPrinter extends AbstractPrinter {
 			nextExpr();
 			lbl.accept(this);
 			out.printf(":");
-			// out.printf("[");
 		}
 	}
 	
@@ -53,10 +52,7 @@ public class CPrinter extends AbstractPrinter {
 	}
 	
 	public void visit(ASTClass cl){
-		//if (cl.getDynamicCount()>0) {
-		//	Fail("dynamic entries are illegal in C");
-		//}
-    for(ASTNode item:cl.dynamicMembers()){
+		for(ASTNode item:cl.dynamicMembers()){
       item.accept(this);
     }
     for(ASTNode item:cl.staticMembers()){
@@ -97,7 +93,7 @@ public class CPrinter extends AbstractPrinter {
 	}
 	public void visit(Method m){
 	  Contract c=m.getContract();
-	  if (c!=null) visit(c); //c.accept(this);
+	  if (c!=null) visit(c);
 		nextExpr();
 		m.getReturnType().accept(this);
 		out.printf(" %s(",m.getName());
@@ -161,17 +157,7 @@ public class CPrinter extends AbstractPrinter {
 	    super.visit(l);
 	  }
 	}
-	
-/*
- 	public void visit(ConstantExpression ce){
-    if (ce.value instanceof StringValue){
-      out.print("\""+org.apache.commons.lang3.StringEscapeUtils.escapeJava(ce.toString())+"\"");
-    } else {
-      out.print(ce.toString());
-    }
-  }
-*/
-	
+
 	public void visit(ReturnStatement s){
 		if (s.getExpression()==null){
 			out.printf("return");
@@ -201,14 +187,6 @@ public class CPrinter extends AbstractPrinter {
     out.printf("}");
 	}
 
-	public static TrackingTree dump_expr(PrintWriter out, ASTNode node) {
-		TrackingOutput track_out = new TrackingOutput(out, false);
-		CPrinter printer = new CPrinter(track_out);
-		printer.setExpr();
-		node.accept(printer);
-		return track_out.close();
-	}
-
 	public static TrackingTree dump(PrintWriter out, ProgramUnit program) {
 		hre.lang.System.Debug("Dumping C code...");
 		try {
@@ -223,12 +201,4 @@ public class CPrinter extends AbstractPrinter {
 			throw new Error("abort");
 		}
 	}
-
-	public static void dump(PrintWriter out, ASTNode cl) {
-		TrackingOutput track_out = new TrackingOutput(out, false);
-		CPrinter printer = new CPrinter(track_out);
-		cl.accept(printer);
-		track_out.close();
-	}
-
 }

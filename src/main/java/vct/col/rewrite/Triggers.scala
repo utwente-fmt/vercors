@@ -26,11 +26,11 @@ object Triggers {
       case _ =>
         throw UnrecognizedExpression(node)
     }
-    case NameExpression(name, _, _) =>
+    case NameExpression(_, _, _) =>
       (Set(), true)
-    case ConstantExpression(value) =>
+    case ConstantExpression(_) =>
       (Set(), false)
-    case MethodInvokation(_, _, method, args) =>
+    case MethodInvokation(_, _, _, args) =>
       val childPatterns = args.map(collectPatterns)
       val childOK = childPatterns.forall(_._2)
       val myPattern = if(childOK) Set(node) else Set()
@@ -44,7 +44,7 @@ object Triggers {
       } else {
         (args.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
       }
-    case Dereference(obj, field) =>
+    case Dereference(obj, _) =>
       collectPatterns(obj) match {
         case (pats, false) =>
           (pats, false)

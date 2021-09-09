@@ -1,6 +1,6 @@
 package vct.test;
 
-import hre.util.TestReport;
+import hre.util.Verdict;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import static hre.lang.System.Warning;
+import static hre.lang.System.*;
 
 public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
   public static final String OPTION_START = "//::";
@@ -23,7 +23,7 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
 
   public final HashMap<String, Case> testsuite = new HashMap<String, Case>();
   public HashSet<Path> unmarked = new HashSet<Path>();
-  public boolean delayed_fail = false;
+  public boolean delayedFail = false;
 
   public static String extension(Path path) {
     Path file = path.getFileName();
@@ -71,7 +71,7 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
             Case tc = testsuite.get(test);
             if (!tc.tools.isEmpty()) {
               Warning("%s: tools for test %s already set.", file, test);
-              delayed_fail = true;
+              delayedFail = true;
             }
             for (int i = 1; i < cmds.length; i++) {
               tc.tools.add(cmds[i]);
@@ -81,19 +81,25 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
         case "verdict":
           for (String test : cases) {
             Case tc = testsuite.get(test);
+
+            if (cmds.length != 2) {
+              Warning("In file %s \"verdict\" has trailing words. The verdict keyword can only be followed by Pass, Fail, or Error", file.toAbsolutePath());
+              delayedFail = true;
+            }
+
             switch(cmds[1]) {
               case "Pass":
-                tc.verdict = TestReport.Verdict.Pass;
+                tc.verdict = Verdict.Pass;
                 break;
               case "Fail":
-                tc.verdict = TestReport.Verdict.Fail;
+                tc.verdict = Verdict.Fail;
                 break;
               case "Error":
-                tc.verdict = TestReport.Verdict.Error;
+                tc.verdict = Verdict.Error;
                 break;
               default:
                 Warning("Invalid verdict %s", cmds[1]);
-                delayed_fail = true;
+                delayedFail = true;
             }
           }
           break;
@@ -132,7 +138,7 @@ public class RecursiveFileVisitor extends SimpleFileVisitor<Path> {
             for (String test : cases) {
               Case tc = testsuite.get(test);
               tc.fail_methods.add(cmds[i]);
-              tc.verdict = TestReport.Verdict.Fail;
+              tc.verdict = Verdict.Fail;
             }
           }
           break;

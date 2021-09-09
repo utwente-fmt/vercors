@@ -1,7 +1,6 @@
 package vct.col.rewrite;
 
 import hre.ast.MessageOrigin;
-import vct.col.ast.expr.Dereference$;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.AxiomaticDataType;
@@ -22,9 +21,9 @@ import java.util.Objects;
  * This base class will do all of the rewriting, except the creation
  * of the name global that refers to the global entries. The class
  * {@link GlobalizeStaticsParameter} adds a parameter global to all
- * non-static methods. The class {@link GlobalizeStaticsField} adds
- * a field global to every class.
- * 
+ * non-static methods. The class  GlobalizeStaticsField used to add
+ * a field global to every class however it was never called.
+ *
  * An advantage of adding a field is that it allows non-static predicates
  * to refer to static variables without adding an argument.
  * A disadvantage is that it requires generating contracts to make it work.
@@ -107,23 +106,6 @@ public abstract class GlobalizeStatics extends AbstractRewriter {
     if (v.type() instanceof ClassType){
       Abort("illegal use of struct value for constructor call");
     }
-    /*
-    switch(e.getOperator()){
-    case Build:{
-      if (e.getArg(0) instanceof ClassType){
-        // Constructor call encoded as Build.
-        ASTNode args[]=rewrite(null,e.getArguments());
-        args[0]=args[1];
-        if (processing_static){
-          args[1]=create.reserved_name(ASTReserved.This);
-        } else {
-          args[1]=create.local_name("global");
-        }
-        result=create.expression(StandardOperator.Build, args);
-        return;
-      }
-    }
-    }*/
     super.visit(v);
   }
   

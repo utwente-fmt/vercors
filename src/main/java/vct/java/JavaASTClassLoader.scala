@@ -1,9 +1,9 @@
 package vct.java
 
 import java.io.File
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 import hre.ast.{FileOrigin, MessageOrigin}
-import vct.col.ast.`type`.{ClassType, PrimitiveSort, Type}
+import vct.col.ast.`type`.{PrimitiveSort, Type}
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, NameSpace}
 import vct.col.ast.util.{ASTFactory, ClassName, ExternalClassLoader, SequenceUtils}
 import vct.col.rewrite.RemoveBodies
@@ -87,7 +87,6 @@ object JavaASTClassLoader extends ExternalClassLoader {
     case java.lang.Float.TYPE => create primitive_type PrimitiveSort.Float
     case java.lang.Double.TYPE => create primitive_type PrimitiveSort.Double
     case java.lang.Void.TYPE => create primitive_type PrimitiveSort.Void
-    case str if str.getCanonicalName == "java.lang.String" => create primitive_type PrimitiveSort.String
     case arr if arr.isArray => SequenceUtils.optArrayCell(create, jvmTypeToCOL(create)(arr.getComponentType))
     case cls => create class_type(cls.getCanonicalName.split('.'))
   }

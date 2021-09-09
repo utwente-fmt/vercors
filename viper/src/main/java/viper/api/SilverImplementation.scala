@@ -1,13 +1,15 @@
 package viper.api
 
-import hre.ast.OriginFactory
-import hre.lang.System.Warning
 import viper.silver.ast._
-import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 
-import java.nio.file.Path
-import java.util.{List, Properties}
 import scala.jdk.CollectionConverters._
+import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
+import java.util.List
+import java.util.Properties
+import java.nio.file.Path
+
+import hre.ast.OriginFactory
+import hre.lang.System.{Warning}
 
 class SilverImplementation[O](o:OriginFactory[O])
   extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,
@@ -25,9 +27,7 @@ class SilverImplementation[O](o:OriginFactory[O])
     pw.write(program.toString())
   }
   
-  private def getOrigin(e : Object) : O = e.asInstanceOf[Infoed].info.asInstanceOf[O]
-  
- 
+
   private def show(text: String, obj: Any): Unit = {
     println(s"$text (${obj.getClass.getSimpleName}): $obj")
   }

@@ -1,7 +1,5 @@
 package hre.ast;
 
-import hre.ast.BranchOrigin;
-import hre.ast.Origin;
 
 /**
  * Sometimes, there can be an error in the contract. When this error goes off, the error supposed

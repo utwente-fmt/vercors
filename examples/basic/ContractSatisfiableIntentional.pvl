@@ -1,0 +1,12 @@
+//:: cases ContractSatisfiableIntentionalPVL
+//:: tools silicon
+//:: verdict Pass
+
+class MyClass {
+  // User indicates no checking is desired for this function
+  requires false;
+  void foo() {
+    // Should not be triggered
+    assert 1 == 2;
+  }
+}

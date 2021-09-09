@@ -5,18 +5,16 @@ import vct.col.ast.expr.{NameExpression, StandardOperator}
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.veymont.Util.{chanWriteMethodName, getChansFromBlockStatement, isChanName, isThreadClassName}
+import vct.col.veymont.Util.{chanWriteMethodName, getBlockOrThrow, getChansFromBlockStatement, isChanName, isThreadClassName}
 
-class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(null, true) {
+class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(source) {
 
   override def visit(m : Method) : Unit = {
     m.getParent match {
       case c : ASTClass => {
         if(isThreadClassName(c.name) && m.kind != Method.Kind.Pure && m.kind != Method.Kind.Predicate) {
-          val chans : Set[ChannelRepr] = m.getBody match {
-            case b : BlockStatement => getChans(b)
-            case _ => throw Failure("VeyMont Fail: Body of method %s in class %s is not a BlockStatement",m.name,c.name)
-          }
+          val chans : Set[ChannelRepr] =
+            getChans(getBlockOrThrow(m.getBody,"VeyMont Fail: Body of method " + m.name + " in class " + c.name + " is not a BlockStatement"))
           if(chans.nonEmpty) {
             result = create.method_decl(m.getReturnType, extendContract(chans, m.getContract(), false), m.name, m.getArgs, rewrite(m.getBody))
           } else {
@@ -81,11 +79,9 @@ class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(
     if(isLoop) {
       contract.appendInvariant(chanPerm)
       contract.appendInvariant(chanNotNull)
-    //  contract.appendInvariant(c.getChanFieldPerm(create))
     } else {
       contract.context(chanPerm)
       contract.context(chanNotNull)
-    //  contract.context(c.getChanFieldPerm(create))
     }
     contract
   }

@@ -7,9 +7,7 @@ import java.util.ArrayList;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.util.AbstractRewriter;
-import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.expr.NameExpression;
-import vct.col.ast.type.Type;
 import vct.col.ast.stmt.decl.*;
 
 public class AnnotationInterpreter extends AbstractRewriter {

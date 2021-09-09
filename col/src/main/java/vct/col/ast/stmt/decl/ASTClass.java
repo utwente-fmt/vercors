@@ -9,7 +9,6 @@ import java.util.*;
 
 import hre.util.ScalaHelper;
 import scala.Option;
-import scala.collection.JavaConverters;
 import vct.col.ast.stmt.decl.Method.Kind;
 import vct.col.ast.util.*;
 import vct.col.ast.generic.ASTNode;
@@ -46,17 +45,17 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
 
   /**
    * Enumeration of the kinds of classes that are considered.
-   * 
+   *
    * @author sccblom
    */
-  public static enum ClassKind {
+  public enum ClassKind {
     Interface,
     Abstract,
     Plain,
     Kernel,
     Record
-  };
-  
+  }
+
   /** contains the kind of class. */
   public final ClassKind kind;
   /** contains the class parameter declarations. */
@@ -114,23 +113,6 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     implemented_classes=new ClassType[0];
     parameters=new DeclarationStatement[0];
   }
-  /** Return a static child, which is created if necessary. */
-  public ASTClass getStaticClass(String name,ClassKind kind){
-    int N=entries.size();
-    for(int i=0;i<N;i++){
-      if (get(i) instanceof ASTClass){
-        ASTClass cl=(ASTClass)entries.get(i);
-        if (cl.name().equals(name)) {
-          if (cl.isStatic()) throw new Error("class "+name+" already exists as a dynamic entry");
-          return cl;
-        }
-      }
-    }
-    ASTClass res=new ASTClass(name,this,true,kind);
-    res.setOrigin(new MessageOrigin("get static class"));
-    add_static(res);
-    return res;
-  }
 
   /** Create a new named class from two block statements
    *  Do not forget to set the parent later! 
@@ -155,9 +137,6 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     return name();
   }
   
-  public ASTClass getParentClass(){
-    return parent_class;
-  }
   public void setParentClass(ASTClass parent){
     this.parent_class=parent;
   }
@@ -502,9 +481,6 @@ public class ASTClass extends ASTDeclaration implements ASTSequence<ASTClass> {
     return entries.get(i);
   }
   
-  public boolean has_constructor(ProgramUnit context,Type[] c_args) {
-    return get_constructor(context,c_args)!=null;
-  }
   public Method get_constructor(ProgramUnit context,Type[] c_args) {
     outer:for(Method m:dynamicMethods()){
       if (m.kind==Kind.Constructor && c_args.length==m.getArity()){
