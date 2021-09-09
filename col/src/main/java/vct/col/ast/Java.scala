@@ -88,19 +88,6 @@ case class JavaTUnion(names: Seq[JavaName])(implicit val o: Origin) extends Java
   override def superTypeOfImpl(other: Type): Boolean =
     names.exists(_.ref.get.superTypeOf(other))
 }
-case class JavaTArray(element: Type, dimensions: Int)(implicit val o: Origin) extends JavaType {
-  /**
-   * Lookalike must be distinct from CPrimitiveType. Otherwise, superTypeOf will loop.
-   */
-  def lookalike: Type =
-    FuncTools.repeat(TArray(_), dimensions, element)
-
-  override def superTypeOfImpl(other: Type): Boolean =
-    lookalike.superTypeOf(other)
-
-  override def subTypeOfImpl(other: Type): Boolean =
-    other.superTypeOf(lookalike)
-}
 
 case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: Origin) extends JavaType {
   var ref: Option[JavaClass] = None

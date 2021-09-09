@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-class Case {
+public class Case {
   public HashSet<String> tools=new HashSet<String>();
   public ArrayList<String> options=new ArrayList<String>();
   public HashSet<Path> files=new HashSet<Path>();

@@ -16,8 +16,8 @@ object AstComparer {
    */
   def astProgramEquals(left: Program, right: Program): Unit ={
     val succession: mutable.Map[Declaration, Declaration] = mutable.Map[Declaration, Declaration]()
-    val leftGlobalDeclarations = left.decls
-    val rightGlobalDeclarations = right.decls
+    val leftGlobalDeclarations = left.declarations
+    val rightGlobalDeclarations = right.declarations
     if (leftGlobalDeclarations.size != rightGlobalDeclarations.size) {
       throw AstUnequalException("Mismatched globalDeclaration length",left,right)
     }

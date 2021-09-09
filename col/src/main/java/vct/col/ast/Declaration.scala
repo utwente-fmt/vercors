@@ -15,6 +15,8 @@ sealed abstract class Declaration extends Node {
   }
 
   def declareDefault(scope: ScopeContext): Unit
+
+  def ref: Ref[this.type] = new DirectRef[this.type](this)
 }
 
 object Ref {
@@ -121,6 +123,12 @@ class ScopeContext {
 
     result.head
   }
+
+  def succ(decl: Declaration): LazyRef[Declaration] =
+    new LazyRef[Declaration](successionMap(decl))
+
+  def typedSucc[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): LazyRef[T] =
+    new LazyRef[T](successionMap(decl))
 }
 
 sealed abstract class GlobalDeclaration extends Declaration {

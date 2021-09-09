@@ -111,10 +111,12 @@ case class TPointer(element: Type)(implicit val o: Origin = DiagnosticOrigin) ex
 case class TMap(key: Type, value: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(key, value)) with CollectionType
 case class TProcess()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 object TClass {
-//  val OBJECT: TClass = TClass(new DirectRef(null))(null) // FIXME
+//  val OBJECT: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
+//  val THROWABLE: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
+//  val RUNNABLE: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
   val OBJECT: TInt = TInt()(DiagnosticOrigin)
-  val THROWABLE: TClass = TClass(new DirectRef(null))(null) // FIXME
-  val RUNNABLE: TClass = TClass(new DirectRef(null))(null) // FIXME
+  val THROWABLE: TInt = TInt()(DiagnosticOrigin)
+  val RUNNABLE: TInt = TInt()(DiagnosticOrigin)
 }
 case class TModel(model: Ref[Model])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TClass(cls: Ref[Class])(implicit val o: Origin = DiagnosticOrigin) extends Type {

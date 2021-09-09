@@ -368,8 +368,8 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
 
   def convert(implicit t: TypeContext): Type = t match {
     case Type0(inner) => convert(inner)
-    case Type1(element, dims) => JavaTArray(convert(element), dims.map(convert(_)).getOrElse(0))
-    case Type2(element, dims) => JavaTArray(convert(element), dims.map(convert(_)).getOrElse(0))
+    case Type1(element, dims) => FuncTools.repeat(TArray(_), dims.map(convert(_)).getOrElse(0), convert(element))
+    case Type2(element, dims) => FuncTools.repeat(TArray(_), dims.map(convert(_)).getOrElse(0), convert(element))
   }
 
   def convert(implicit t: ClassOrInterfaceTypeContext): JavaTClass = t match {

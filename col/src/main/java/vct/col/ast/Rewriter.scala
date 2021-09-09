@@ -21,7 +21,7 @@ class Rewriter extends AbstractRewriter {
 
   override def dispatch(parBlock: ParBlock): ParBlock = rewriteDefault(parBlock)
   override def dispatch(catchClause: CatchClause): CatchClause = rewriteDefault(catchClause)
-  override def dispatch(node: SignalsClause): SignalsClause = ???
+  override def dispatch(node: SignalsClause): SignalsClause = rewriteDefault(node)
   override def dispatch(fieldFlag: FieldFlag): FieldFlag = rewriteDefault(fieldFlag)
   override def dispatch(iterVariable: IterVariable): IterVariable = rewriteDefault(iterVariable)
 

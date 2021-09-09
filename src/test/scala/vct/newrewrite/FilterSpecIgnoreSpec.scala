@@ -88,7 +88,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
       programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
-    rewriter.rewrite(programInput)
+    rewriter.dispatch(programInput)
     throw new NotImplementedError()
   }
 
@@ -108,7 +108,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
       programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
-    rewriter.rewrite(programInput)
+    rewriter.dispatch(programInput)
     throw new NotImplementedError()
   }
 
