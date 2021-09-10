@@ -12,7 +12,7 @@ import vct.col.veymont.StructureCheck.isAllowedPrimitive
 import vct.col.veymont.Util._
 import scala.jdk.CollectionConverters._
 
-class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
+class Decompose(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   private val roleNames : Iterable[String] = StructureCheck.getRoleNames(source)
   private val mainClass = StructureCheck.getMainClass(source)
@@ -91,23 +91,27 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     cb.requires(rewrite(pre))
     cb.ensures(rewrite(post))
     if(m.kind == Method.Kind.Constructor && roleName.nonEmpty) {
-      result = create.method_kind(m.kind, m.getReturnType, cb.getContract, getThreadClassName(roleName.get), m.getArgs, rewrite(m.getBody))
+      result = create.method_kind(m.kind, m.getReturnType, cb.getContract(c == null), getThreadClassName(roleName.get), m.getArgs, rewrite(m.getBody))
     } else if(m.kind == Method.Kind.Predicate) {
       val body = selectResourceAnnotation(m.getBody)
       checkAnnotation(body,roleNames)
-      result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(body))
+      result = create.method_kind(m.kind,m.getReturnType,cb.getContract(c == null),m.name,m.getArgs,rewrite(body))
     } else {
-      result = create.method_kind(m.kind,m.getReturnType,cb.getContract,m.name,m.getArgs,rewrite(m.getBody))
+      val cbc = cb.getContract(c == null)
+      val newMethod = create.method_kind(m.kind,m.getReturnType,cbc,m.name,m.getArgs,rewrite(m.getBody))
+      result = newMethod
     }
   }
 
-  override def visit(l : LoopStatement) : Unit = { //it is while loop
+  override def visit(l : LoopStatement) : Unit = {
     val c = l.getContract
     val cb = new ContractBuilder()
     val invar = selectResourceAnnotation(c.invariant)
     checkAnnotation(invar, roleNames)
     cb.appendInvariant(rewrite(invar))
-    result = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract)
+    if(l.getInitBlock != null || l.getUpdateBlock != null) //could also use the Flatten pass before this pass such that we only have while loops here
+      result = create.for_loop(rewrite(l.getInitBlock), rewrite(l.getEntryGuard),rewrite(l.getUpdateBlock),rewrite(l.getBody),cb.getContract(c == null))
+    else result = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract(c == null))
   }
 
   override def visit(pb : ParallelBlock) : Unit = {
@@ -128,7 +132,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     } else {
       getLocalAction(a, roleName.get) match {
         case SingleRoleAction(_) => result = copy_rw.rewrite(a)
-        case ReadAction(receiver, sender, receiveExpression) => {
+        case ReadAction(_, sender, receiveExpression) => {
           val chanType = receiveExpression.getType
           val chanName = getChanName(sender, false, chanType)
           chans += ChannelRepr(chanName)(false, chanType)
@@ -203,7 +207,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       super.visit(m)
     } else {
       m.getParent match {
-        case b: BlockStatement => //it is a statement
+        case _: BlockStatement => //it is a statement
           if (isSingleRoleNameExpressionOfRole(m, roleNames))
             result = copy_rw.rewrite(m)
           else result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)

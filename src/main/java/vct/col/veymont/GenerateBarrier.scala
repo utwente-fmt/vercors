@@ -10,7 +10,7 @@ import vct.col.veymont.Util._
 
 import scala.collection.mutable.ArrayBuffer
 
-class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
+class GenerateBarrier(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   override def visit(m : Method) : Unit = {
     m.getParent match {

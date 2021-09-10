@@ -7,7 +7,7 @@ import vct.col.ast.stmt.decl.{ASTClass, Contract, Method, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
 import vct.col.veymont.Util.{chanWriteMethodName, getBlockOrThrow, getChansFromBlockStatement, isChanName, isThreadClassName}
 
-class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(null, true) {
+class ChannelPerms(override val source : ProgramUnit)  extends AbstractRewriter(source) {
 
   override def visit(m : Method) : Unit = {
     m.getParent match {

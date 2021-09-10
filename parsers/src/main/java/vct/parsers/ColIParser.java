@@ -2,17 +2,10 @@ package vct.parsers;
 
 import hre.tools.TimeKeeper;
 import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import vct.antlr4.generated.LangCLexer;
 import vct.antlr4.generated.CParser;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.syntax.JavaDialect;
-import vct.col.ast.syntax.JavaSyntax;
-import vct.parsers.rewrite.*;
-import vct.col.ast.syntax.CSyntax;
-
-import java.io.*;
 
 import static hre.lang.System.*;
 

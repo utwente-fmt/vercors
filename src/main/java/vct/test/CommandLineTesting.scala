@@ -4,7 +4,7 @@ import hre.config.Configuration.getClassPathElements
 import hre.config._
 import hre.lang.HREExitException
 import hre.lang.System.{Debug, Output, Progress, Warning}
-import hre.util.TestReport.Verdict
+import hre.util.Verdict
 import vct.col.features.Feature
 
 import java.io._
@@ -175,6 +175,40 @@ object CommandLineTesting {
   def filterEnabledBackends(tools: Set[String]): Set[String] =
     tools.filter(!backendFilterOption.used() || backendFilter.contains(_))
 
+  def createTask(name: String, kees: Case, tool: String) = {
+    val args = mutable.ArrayBuffer[String]()
+    args += "--progress"
+    if (tool != "veymont") {
+      // Temporary workaround to disable the tool flag when running a veymont test.
+      // This should be removed when we add a proper tool mode for veymont
+      args += "--" + tool
+      // VeyMont was not built with the feature system in mind, so we have to disable it when veymont is executed
+      // in the test suite.
+      args += "--strict-internal"
+    }
+    args ++= kees.options.asScala
+    args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
+
+    val conditions = mutable.ArrayBuffer[TaskCondition]()
+    if (kees.verdict != null) {
+      conditions += ExpectVerdict(kees.verdict)
+    } else {
+      conditions += ExpectVerdict(Verdict.Pass)
+    }
+    if (kees.pass_non_fail) {
+      conditions += PassNonFail(kees.fail_methods.asScala.toSeq)
+    }
+    conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
+    conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
+
+    // Tests are instrumented at runtime by the jacoco java vm agent
+    val jacocoArg = if (enableCoverage.get()) { jacocoJavaAgentArgs(tool, name) } else { Seq() }
+
+    val vercorsProcess = Configuration.getThisVerCors(jacocoArg.asJava).withArgs(args.toSeq: _*)
+
+    Task(vercorsProcess, conditions.toSeq)
+  }
+
   def getTasks: Map[String, Task] = {
     val result = mutable.HashMap[String, Task]()
 
@@ -184,31 +218,7 @@ object CommandLineTesting {
 
     for ((name, kees) <- getCases) {
       for (tool <- filterEnabledBackends(kees.tools.asScala.toSet)) {
-        val args = mutable.ArrayBuffer[String]()
-        args += "--progress"
-        args += "--" + tool
-        args += "--strict-internal"
-        args ++= kees.options.asScala
-        args ++= kees.files.asScala.map(_.toAbsolutePath.toString)
-
-        var conditions = mutable.ArrayBuffer[TaskCondition]()
-        if (kees.verdict != null) {
-          conditions += ExpectVerdict(kees.verdict)
-        } else {
-          conditions += ExpectVerdict(Verdict.Pass)
-        }
-        if (kees.pass_non_fail) {
-          conditions += PassNonFail(kees.fail_methods.asScala.toSeq)
-        }
-        conditions ++= kees.pass_methods.asScala.map(name => PassMethod(name))
-        conditions ++= kees.fail_methods.asScala.map(name => FailMethod(name))
-
-        // Tests are instrumented at runtime by the jacoco java vm agent
-        val jacocoArg = if (enableCoverage.get()) { jacocoJavaAgentArgs(tool, name) } else { Seq() }
-
-        val vercorsProcess = Configuration.getThisVerCors(jacocoArg.asJava).withArgs(args.toSeq: _*)
-
-        result += (s"$name-$tool" -> Task(vercorsProcess, conditions.toSeq))
+        result += (s"$name-$tool" -> createTask(name, kees, tool))
       }
     }
 

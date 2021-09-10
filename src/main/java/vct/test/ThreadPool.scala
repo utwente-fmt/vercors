@@ -1,10 +1,6 @@
 package vct.test
 
 import java.util.concurrent.{Callable, LinkedBlockingDeque}
-
-import hre.lang.System.Output
-
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 /**

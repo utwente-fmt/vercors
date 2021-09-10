@@ -8,8 +8,7 @@ import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration,
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, SpecificationFormat}
-import vct.col.util.FeatureScanner
+import vct.col.ast.stmt.decl.ProgramUnit
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
@@ -19,7 +18,6 @@ import vct.col.features.{Feature, RainbowVisitor}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
-import java.net.URLClassLoader
 import scala.jdk.CollectionConverters._
 import java.nio.file.Paths
 
@@ -58,7 +56,6 @@ class Main {
   private val check_axioms = new BooleanSetting(false)
   private val check_history = new BooleanSetting(false)
   private val separate_checks = new BooleanSetting(false)
-  private val sequential_spec = new BooleanSetting(false)
   private val global_with_field = new BooleanSetting(false)
   private val no_context = new BooleanSetting(false)
   private val gui_context = new BooleanSetting(false)
@@ -83,7 +80,6 @@ class Main {
     clops.add(check_history.getEnable("Check if the program correctly implements the process-algebraic specification."), "check-history")
     clops.add(separate_checks.getEnable("validate classes separately"), "separate")
     clops.add(help_passes.getEnable("print help on available passes"), "help-passes")
-    clops.add(sequential_spec.getEnable("sequential specification instead of concurrent"), "sequential")
     clops.add(pass_list_option, "passes")
     clops.add(show_before.getAppendOption("Show source code before given passes"), "show-before")
     clops.add(show_after.getAppendOption("Show source code after given passes"), "show-after")
@@ -192,15 +188,13 @@ class Main {
 
     tk.show
     for (pathName <- inputPaths) {
-      val path = Paths.get(pathName);
+      val path = Paths.get(pathName)
       if (!no_context.get) FileOrigin.add(path, gui_context.get)
       report.getOutput.add(Parsers.parseFile(path))
     }
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
 
-    if (sequential_spec.get)
-      report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
   }
 
 

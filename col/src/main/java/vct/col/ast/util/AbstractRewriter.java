@@ -4,8 +4,6 @@ import scala.jdk.javaapi.CollectionConverters;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import scala.Option;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -34,7 +32,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
 
   public final AbstractRewriter copy_rw;
   
-  private AbstractRewriter(Thread t){
+  private AbstractRewriter(){
     copy_rw=null;
     create=new ASTFactory<Object>(null);    
   }
@@ -43,25 +41,26 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     super(shared);
     AbstractRewriter tmp=tl.get();
     if(tmp==null){
-      tmp=new AbstractRewriter(Thread.currentThread());
+      tmp=new AbstractRewriter();
       tl.set(tmp);
     }
     copy_rw=tmp;
     create=new ASTFactory<Object>(copy_rw);
   }
 
-  public AbstractRewriter(ProgramUnit source,ProgramUnit target,boolean do_scope){
-    super(source,target,do_scope);
+  public AbstractRewriter(ProgramUnit source, ProgramUnit target){
+    super(source,target);
     AbstractRewriter tmp=tl.get();
     if(tmp==null){
-      tmp=new AbstractRewriter(Thread.currentThread());
+      tmp=new AbstractRewriter();
       tl.set(tmp);
     }
     copy_rw=tmp;
     create=new ASTFactory<Object>(copy_rw);    
   }
-  public AbstractRewriter(ProgramUnit source,ProgramUnit target){
-    this(source,target,false);
+
+  public AbstractRewriter(ProgramUnit source){
+    this(source,new ProgramUnit(source));
   }
 
   /**
@@ -106,14 +105,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     return create;
   }
   
-  public AbstractRewriter(ProgramUnit source){
-    this(source,new ProgramUnit(source),false);
-  }
-  
-  public AbstractRewriter(ProgramUnit source,boolean do_scope){
-    this(source,new ProgramUnit(source),do_scope);
-  }
-  
+
   public void pre_visit(ASTNode n){
     super.pre_visit(n);
     for(NameExpression lbl:n.getLabels()){
@@ -365,7 +357,6 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     ClassType res = new ClassType(t.getNameFull(), rewrite(t.argsJava()));
     res.setOrigin(t.getOrigin());
     result=res;
-    return;    
   }
   
   @Override
@@ -393,7 +384,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     if (init!=null) init=init.apply(this);
     DeclarationStatement res=new DeclarationStatement(name,t,init);
     res.setOrigin(s.getOrigin());
-    result=res; return ;
+    result=res;
   }
 
   public void visit(FunctionType t) {
@@ -425,7 +416,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
       body=body.apply(this);
       res.addClause(guard,body);
     }
-    result=res; return ;
+    result=res;
   }
 
   @Override
@@ -455,7 +446,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     res.set_before(rewrite(s.get_before()));
     res.set_after(rewrite(s.get_after()));
     res.setOrigin(s.getOrigin());
-    result=res; return ;
+    result=res;
   }
 
   @Override

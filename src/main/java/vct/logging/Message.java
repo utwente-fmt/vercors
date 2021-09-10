@@ -2,12 +2,12 @@ package vct.logging;
 
 public interface Message {
 
-  public Thread getThread();
+  Thread getThread();
   
-  public long nanoTime();
+  long nanoTime();
 
-  public void accept(MessageVisitor visitor);
+  void accept(MessageVisitor visitor);
 
-  public boolean isFatal();
+  boolean isFatal();
  
 }

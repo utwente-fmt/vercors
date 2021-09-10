@@ -8,7 +8,7 @@ object WellBehavednessIterative {
     val destStates : Set[LTSState] = transitions.values.flatMap(_.map(_.destState)).toSet
     val states : Set[LTSState] = transitions.keys.toSet ++ destStates
     val stateMap : Map[LTSState,Int] = states.zipWithIndex.toMap
-    val transitionsInt : Map[Int,Set[(String,Int)]] = transitions.map(tr => (stateMap(tr._1) -> tr._2.map(t => (t.label.action.toString,stateMap(t.destState)))))
+    val transitionsInt : Map[Int,Set[(String,Int)]] = transitions.map(tr => stateMap(tr._1) -> tr._2.map(t => (t.label.action.toString,stateMap(t.destState))))
     val tauClosure = whileTauCl(transitionsInt,stateMap.values.toList)
     if(!checkForwardNonTau(transitionsInt,tauClosure))
       Fail("VeyMont Fail: Local LTS of %s not well-behaved (ForwardNonTau)",LTSRole)
@@ -45,7 +45,7 @@ object WellBehavednessIterative {
           label1 == Tau.toString || tauClosure(j1).exists(k1 =>
             transitions(j2).exists{case (label2,k2) =>
               label2 == label1 && k1 == k2})
-        })}};
+        })}}
   }
 
   def checkForwardTau(transitions : Map[Int,Set[(String,Int)]], tauClosure : Map[Int, Set[Int]]) : Boolean = {
@@ -63,7 +63,7 @@ object WellBehavednessIterative {
     transitions.keys.forall(i =>
       // For all (i, tau*, j1) and (j1, label1, k1):
       tauClosure(i).forall(j1 =>
-        transitions(j1).forall{ case (label1, k1) =>
+        transitions.getOrElse(j1,Set.empty).forall{ case (label1, k1) =>
           // There exist (i, label2, j2) and (j2, tau*, k2):
           label1 == BarrierWait.toString || transitions(i).exists{ case (label2, j2) =>
             tauClosure(j2).exists(k2 =>

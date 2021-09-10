@@ -2,10 +2,8 @@
 package vct.col.ast.print;
 
 import hre.ast.TrackingOutput;
-import hre.ast.TrackingTree;
 import hre.lang.HREError;
 
-import java.io.PrintWriter;
 import java.util.List;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -27,8 +25,6 @@ import vct.col.ast.syntax.JavaDialect;
 import vct.col.ast.syntax.JavaSyntax;
 import vct.col.ast.util.ClassName;
 import hre.util.LambdaHelper;
-
-import static hre.lang.System.DebugException;
 
 /** 
  * This class contains a pretty printer for Java code.
@@ -866,11 +862,8 @@ public class JavaPrinter extends AbstractPrinter {
   private void visitVeriFast(OperatorExpression e){
     switch(e.operator()){
     case PointsTo:{
-      if (e.arg(1) instanceof ConstantExpression
-      && ((ConstantExpression)e.arg(1)).equals(1)
-      ){
-        // [1] is implicit.
-      } else {
+      if (!(e.arg(1) instanceof ConstantExpression)||
+              !(e.arg(1)).equals(1)) {
         out.printf("[");
         e.arg(1).accept(this);
         out.printf("]");
@@ -1091,37 +1084,6 @@ public class JavaPrinter extends AbstractPrinter {
     }
   }
 
-
-  public static TrackingTree dump_expr(PrintWriter out, JavaDialect dialect, ASTNode node){
-    TrackingOutput track_out=new TrackingOutput(out,false);
-    JavaPrinter printer=new JavaPrinter(track_out, dialect);
-    printer.setExpr();
-    node.accept(printer);
-    return track_out.close();
-  }
-
-  public static TrackingTree dump(PrintWriter out,JavaDialect dialect,ProgramUnit program){
-    hre.lang.System.Debug("Dumping Java code...");
-    try {
-      TrackingOutput track_out=new TrackingOutput(out,false);
-      JavaPrinter printer=new JavaPrinter(track_out, dialect);
-      for(ASTDeclaration item : program.get()){
-          item.accept(printer);
-      }
-      return track_out.close();
-    } catch (Exception e) {
-      DebugException(e);
-      throw new Error("abort");
-    }
-  }
-
-  public static void dump(PrintWriter out,JavaDialect dialect, ASTNode cl) {
-    TrackingOutput track_out=new TrackingOutput(out,false);
-    JavaPrinter printer=new JavaPrinter(track_out,dialect);
-    cl.accept(printer);
-    track_out.close();    
-  }
-
   public void visit(Dereference e){
     e.obj().accept(this);
     out.printf(".%s", e.field());
@@ -1236,7 +1198,7 @@ public class JavaPrinter extends AbstractPrinter {
       sep = ",";
       nextExpr();
       item.apply(this);
-    };
+    }
     
     out.printf(")");
     pa.block().accept(this);

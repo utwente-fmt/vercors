@@ -1,6 +1,5 @@
 package vct.rewrite
 
-import vct.col.ast._
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
 import vct.col.ast.expr.StandardOperator
 import vct.col.ast.generic.ASTNode

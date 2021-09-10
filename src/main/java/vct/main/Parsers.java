@@ -1,8 +1,5 @@
 package vct.main;
 
-import hre.config.IntegerSetting;
-
-import java.io.File;
 import java.nio.file.Path;
 
 import vct.col.ast.stmt.decl.ProgramUnit;

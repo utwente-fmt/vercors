@@ -12,30 +12,30 @@ import java.util.Map;
 public interface TypeFactory<T> {
 
   /** Create an integer type. */
-  public T Int();
+  T Int();
   
   /** Create a boolean type. */
-  public T Bool();
+  T Bool();
   
   /** Create a fractional permission type. */
-  public T Perm();
+  T Perm();
   
   /** Create a reference type. */
-  public T Ref();
+  T Ref();
   
   /** Create a list type. */
-  public T List(T t);
+  T List(T t);
   
   /** Create a bag or multi-set type. */
-  public T Bag(T t);
+  T Bag(T t);
   
   /** Create a set type. */
-  public T Set(T t);
+  T Set(T t);
   
   /** Create a domain type. */
-  public T domain_type(String name,Map<String,T> args);
+  T domain_type(String name, Map<String, T> args);
   
   /** Create a type variable. */
-  public T type_var(String name);
+  T type_var(String name);
 
 }

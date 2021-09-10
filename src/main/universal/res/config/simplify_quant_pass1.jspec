@@ -1,5 +1,3 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
 class simplify_quant_pass1 {
   _AnyTypeForSimplificationRules g1,g2,g3,g4,g5;
   int e1,e2,e3,e4,e5,e6,e7,e8;
@@ -152,6 +150,7 @@ class simplify_quant_pass1 {
 */
 
   int ar[];
+  boolean ar_b[];
 
 
 //  axiom deindex2 {
@@ -160,8 +159,12 @@ class simplify_quant_pass1 {
 //    (\forall* int i; e1 ; Perm(ar[ e4*e3 + e5 ], e6 ))
 //  }
 
-  axiom perm_any {
+  axiom perm_any_int {
     Perm(ar[*],f1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],f1))
+  }
+
+  axiom perm_any_bool {
+    Perm(ar_b[*],f1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar_b.length ; Perm(ar_b[i_fresh],f1))
   }
 
   axiom array_perm {
@@ -434,25 +437,10 @@ class simplify_quant_pass1 {
     (e1 < e2) ==> (\forall* int i; (i \memberof {e3 .. e4}); Perm(e5, (p1 * (e2 - e1))\p2))
   }
 
-  // We keep the expression around, because it must trigger an error when it is not well formed, but we don't use it
-  // We're counting on the backend to not optimize it away if it contains an error
-  axiom read_spreads_l {
-    read * i
+  axiom compress_implies {
+    (b1 ==> (b1 ==> r1))
     ==
-    (\let int canary = i; i == 0 ? read : read)
-  }
-
-  axiom read_spreads_r {
-    i * read
-    ==
-    (\let int canary = i; i == 0 ? read : read)
-  }
-
-  // This rewrite rule causes some issues: https://github.com/viperproject/silicon/issues/539
-  axiom resource_independent_read_quant {
-    (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, read)!tid))
-    ==
-    (e1<e2) ==> Perm(g1, read)
+    (b1 ==> r1)
   }
 
   // Using an int for the second argument of a perm is not allowed.

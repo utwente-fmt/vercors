@@ -197,10 +197,6 @@ public class Configuration {
         }
     }
 
-    public static File getBoogieZ3Path() {
-        return getZ3Path();
-    }
-
     public static File getBoogiePath() {
         File base = getFileOrAbort("/deps/boogie/1.0.0.0-carbon");
 
@@ -273,15 +269,6 @@ public class Configuration {
         MessageProcessEnvironment env = new MessageProcessEnvironment("z3");
         env.setTemporaryWorkingDirectory();
         env.addPath(getZ3Path().getAbsolutePath());
-        return env;
-    }
-
-    public static MessageProcessEnvironment getBoogie() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("boogie");
-        env.setTemporaryWorkingDirectory();
-        env.setEnvironmentVar("BOOGIE_Z3_EXE", getBoogieZ3Path().getAbsolutePath());
-        env.addPath(getBoogiePath().getAbsolutePath());
-        env.addPath(getBoogieZ3Path().getAbsolutePath());
         return env;
     }
 
