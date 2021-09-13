@@ -1,11 +1,9 @@
-package vct.rewrite
+package vct.newrewrite
 
-import org.scalatest.flatspec.AnyFlatSpec
-import vct.col.ast.{Block, Continue, DiagnosticOrigin, Label, LabelDecl, Loop, Program, Star}
-import vct.col.ast.Constant._
 import org.scalatest._
-import matchers._
-import vct.col.ast.AstBuildHelpers.DeclarationBuildHelpers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers._
+import vct.col.ast.{DiagnosticOrigin, LabelDecl}
 
 class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
   implicit val o = DiagnosticOrigin
