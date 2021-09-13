@@ -79,10 +79,10 @@ case class Lock(obj: Expr)(implicit val o: Origin) extends Check(obj.checkSubTyp
 case class Unlock(obj: Expr)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with Statement
 
 case class Fold(pred: Expr)(implicit val o: Origin) extends Statement {
-  override def check(context: CheckContext): Seq[CheckError] = ???
+  override def check(context: CheckContext): Seq[CheckError] = pred.checkSubType(TResource())
 }
 case class Unfold(pred: Expr)(implicit val o: Origin) extends Statement {
-  override def check(context: CheckContext): Seq[CheckError] = ???
+  override def check(context: CheckContext): Seq[CheckError] = pred.checkSubType(TResource())
 }
 
 case class WandCreate(statements: Seq[Statement])(implicit val o: Origin) extends Statement with NoCheck

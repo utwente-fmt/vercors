@@ -108,6 +108,10 @@ class ScopeContext {
   val parInvariantScopes: mutable.Stack[ArrayBuffer[ParInvariantDecl]] = mutable.Stack()
   val modelScopes: mutable.Stack[ArrayBuffer[ModelDeclaration]] = mutable.Stack()
 
+  val javaLocalScopes: mutable.Stack[ArrayBuffer[JavaLocalDeclaration]] = mutable.Stack()
+  val cLocalScopes: mutable.Stack[ArrayBuffer[CDeclaration]] = mutable.Stack()
+  val cParams: mutable.Stack[ArrayBuffer[CParam]] = mutable.Stack()
+
   def collectInScope[T](scope: mutable.Stack[ArrayBuffer[T]])(f: => Unit): Seq[T] = {
     scope.push(ArrayBuffer())
     f
@@ -130,6 +134,8 @@ class ScopeContext {
   def typedSucc[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): LazyRef[T] =
     new LazyRef[T](successionMap(decl))
 }
+
+abstract class ExtraDeclarationKind extends Declaration
 
 sealed abstract class GlobalDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.globalScopes.top += this

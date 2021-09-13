@@ -184,6 +184,11 @@ case class Deref(obj: Expr, ref: Ref[Field])(implicit val o: Origin) extends Exp
   override def check(context: CheckContext): Seq[CheckError] =
     context.inScope(ref)
 }
+case class ModelDeref(obj: Expr, ref: Ref[ModelField])(implicit val o: Origin) extends Expr {
+  override def t: Type = ref.decl.t
+  override def check(context: CheckContext): Seq[CheckError] =
+    context.inScope(ref)
+}
 case class DerefPointer(pointer: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = pointer.t.asPointer.get.element
   override def check(context: CheckContext): Seq[CheckError] =
@@ -193,10 +198,9 @@ case class AddrOf(e: Expr)(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TPointer(e.t)
 }
 
-sealed trait Invocation extends Expr {
-  def ref: Ref[ContractApplicable]
+sealed trait Apply extends Expr {
+  def ref: Ref[Applicable]
   def args: Seq[Expr]
-  def blame: PreconditionBlame
 
   override def t: Type = ref.decl.returnType
 
@@ -204,6 +208,15 @@ sealed trait Invocation extends Expr {
     ref.decl.args.zip(args).flatMap {
       case (arg, value) => value.checkSubType(arg.t)
     }
+}
+
+case class PredicateApply(ref: Ref[Predicate], args: Seq[Expr])(implicit val o: Origin) extends Apply
+case class InstancePredicateApply(obj: Expr, ref: Ref[InstancePredicate], args: Seq[Expr])(implicit val o: Origin) extends Apply
+
+case class ADTFunctionInvocation(ref: Ref[ADTFunction], args: Seq[Expr])(implicit val o: Origin) extends Apply
+
+sealed trait Invocation extends Apply {
+  def blame: PreconditionBlame
 }
 
 case class ProcedureInvocation(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]])

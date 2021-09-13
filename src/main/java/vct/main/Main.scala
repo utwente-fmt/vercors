@@ -190,7 +190,7 @@ class Main {
     for (pathName <- inputPaths) {
       val path = Paths.get(pathName)
       if (!no_context.get) FileOrigin.add(path, gui_context.get)
-      report.getOutput.add(Parsers.parseFile(path))
+//      report.getOutput.add(Parsers.parseFile(path))
     }
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))

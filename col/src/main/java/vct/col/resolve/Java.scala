@@ -1,0 +1,108 @@
+package vct.col.resolve
+
+import hre.util.FuncTools
+import vct.col.ast.{DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaImport, JavaMethod, JavaNamespace, JavaStatic, JavaTClass, Origin, TClass, TNotAValue, Variable}
+import vct.result.VerificationResult
+
+case object Java {
+  private implicit val o: Origin = DiagnosticOrigin
+
+  def findLoadedJavaTypeName(potentialFQName: Seq[String], ctx: TypeResolutionContext): Option[JavaTypeNameTarget] = {
+    ctx.stack.last.foreach {
+      case RefJavaNamespace(JavaNamespace(pkg, _, decls)) =>
+        for(decl <- decls) {
+          Referrable.from(decl).foreach {
+            case target: JavaTypeNameTarget =>
+              if(pkg.map(_.names).getOrElse(Nil) :+ target.name == potentialFQName) {
+                return Some(target)
+              }
+            case _ =>
+          }
+        }
+      case _ =>
+    }
+
+    None
+  }
+
+  def findJavaTypeName(names: Seq[String], ctx: TypeResolutionContext): Option[JavaTypeNameTarget] = {
+    val namespace = ctx.namespace.getOrElse(throw VerificationResult.Unreachable("A JavaClass declared outside a JavaNamespace is invalid."))
+    val potentialFQNames: Seq[Seq[String]] = names match {
+      case Seq(singleName) =>
+        val inThisPackage = namespace.pkg match {
+          case Some(pkg) => pkg.names :+ singleName
+          case None => Seq(singleName)
+        }
+        val fromImport = namespace.imports.collect {
+          case JavaImport(false, name, /*star = */ true) => name.names :+ singleName
+          case JavaImport(false, name, /*star = */ false) if name.names.last == singleName => name.names
+        }
+        val fromPredef = Seq("java", "lang", singleName)
+        fromImport :+ inThisPackage :+ fromPredef
+      case moreNames => Seq(moreNames)
+    }
+
+    FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName(_, ctx))
+  }
+
+  def findJavaName(name: String, ctx: ReferenceResolutionContext): Option[JavaNameTarget] =
+    ctx.stack.flatten.collectFirst {
+      case target: JavaNameTarget if target.name == name => target
+    }
+
+  def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext): Option[JavaDerefTarget] =
+    obj.t match {
+      case t @ TNotAValue() => t.decl.get match {
+        case RefUnloadedJavaNamespace(pkg) =>
+          Some(findJavaTypeName(pkg :+ name, TypeResolutionContext(ctx.stack, ctx.currentJavaNamespace))
+            .getOrElse(RefUnloadedJavaNamespace(pkg :+ name)))
+        case RefJavaClass(decl) =>
+          decl.decls.flatMap(Referrable.from).collectFirst {
+            case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.contains(JavaStatic()) => ref
+          }
+        case _ => throw HasNoFields(obj)
+      }
+      case t @ JavaTClass(_) => t.ref.get match {
+        case RefAxiomaticDataType(decl) => throw HasNoFields(obj)
+        case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
+          case ref @ RefModelField(_) if ref.name == name => ref
+        }
+        case RefJavaClass(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
+          case ref @ RefJavaField(_, _) if ref.name == name && !ref.decls.modifiers.contains(JavaStatic()) => ref
+        }
+      }
+      case _ => throw HasNoFields(obj)
+    }
+
+  private def compat(args: Seq[Expr], params: Seq[Variable]): Boolean =
+    args.size == params.size && params.zip(args).forall {
+      case (v, e) => v.t.superTypeOf(e.t)
+    }
+
+  def findMethodInClass(cls: JavaClassOrInterface, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
+    cls.decls.flatMap(Referrable.from).collectFirst {
+      case ref @ RefJavaMethod(decl) if ref.name == method && compat(args, decl.parameters) => ref
+      case ref @ RefInstanceMethod(decl) if ref.name == method && compat(args, decl.args) => ref
+      case ref @ RefInstanceFunction(decl) if ref.name == method && compat(args, decl.args) => ref
+      case ref @ RefInstancePredicate(decl) if ref.name == method && compat(args, decl.args) => ref
+    }
+
+  def findMethod(obj: Expr, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
+    obj.t match {
+      case t @ JavaTClass(_) =>
+        t.ref.get match {
+          case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
+            case ref: RefADTFunction if ref.name == method => ref
+          }
+          case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
+            case ref: RefModelAction if ref.name == method => ref
+            case ref: RefModelProcess if ref.name == method => ref
+          }
+          case RefJavaClass(decl) => findMethodInClass(decl, method, args)
+        }
+      case _ => throw NotApplicable(obj) // FIXME
+    }
+
+  def findMethod(ctx: ReferenceResolutionContext, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
+    findMethodInClass(ctx.currentJavaClass.get, method, args)
+}

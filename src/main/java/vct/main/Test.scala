@@ -1,7 +1,8 @@
 package vct.main
 
-import vct.col.ast._
+import vct.col.ast.{CheckError, DiagnosticOrigin, IncomparableTypes, OutOfScopeError, Program, TypeError, TypeErrorText}
 import vct.col.newrewrite.JavaSpecificToCol
+import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.parsers.Parsers
 import vct.result.VerificationResult
 import vct.test.CommandLineTesting
@@ -33,8 +34,8 @@ case object Test {
   def tryParse(path: Path): Unit = try {
     println(path)
     var program = Program(Parsers.parse(path))(DiagnosticOrigin)
-    ResolveTypes.resolve(program, ctx = Nil, ns = None)
-    val errors = ResolveReferences.resolveAndCheck(program, ctx=Nil, ns=None, checkCtx=CheckContext(), returnType=None)
+    ResolveTypes.resolve(program)
+    val errors = ResolveReferences.resolve(program)
     printErrorsOr(errors) {
       program = JavaSpecificToCol().dispatch(program)
       printErrorsOr(program.check){}
@@ -42,6 +43,6 @@ case object Test {
   } catch {
     case res: VerificationResult =>
       println(res.text)
-      throw res
+//      throw res
   }
 }

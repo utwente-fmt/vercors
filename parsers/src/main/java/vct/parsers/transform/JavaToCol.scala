@@ -254,7 +254,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
 
   def convert(implicit decl: LocalVariableDeclarationContext): Statement = decl match {
     case LocalVariableDeclaration0(mods, t, decls) =>
-      JavaLocalDeclaration(mods.map(convert(_)), convert(t), convert(decls))
+      JavaLocalDeclarationStatement(JavaLocalDeclaration(mods.map(convert(_)), convert(t), convert(decls)))
   }
 
   def convert(implicit stat: ElseBlockContext): Statement = stat match {
@@ -354,7 +354,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
 
   def convert(implicit ts: CatchTypeContext): JavaTUnion = ts match {
     case CatchType0(name) => JavaTUnion(Seq(convert(name)))
-    case CatchType1(name, _, names) => JavaTUnion(convert(name) +: convert(names).names)
+    case CatchType1(name, _, names) => JavaTUnion(convert(name) +: convert(names).types)
   }
 
   def convert(implicit ts: NonWildcardTypeArgumentsContext): Seq[Type] = ts match {
@@ -977,11 +977,11 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValPrimary1(_, scale, _, resource) => Scale(convert(scale), convert(resource))
     case ValPrimary2(_, xs, _) => Size(convert(xs))
     case ValPrimary3(_, predicate, _, body) => Unfolding(convert(predicate), convert(body))
-    case ValPrimary4(_, expr, _, indep, _) => ???
+    case ValPrimary4(_, expr, _, indep, _) => ??(e)
     case ValPrimary5(_, x, _, xs, _) => AmbiguousMember(convert(x), convert(xs))
     case ValPrimary6(_, from, _, to, _) => Range(convert(from), convert(to))
-    case ValPrimary7(_) => ???
-    case ValPrimary8(_) => ???
+    case ValPrimary7(_) => ??(e)
+    case ValPrimary8(_) => ??(e)
     case ValPrimary9(_, binder, t, id, _, from, _, to, _, body, _) =>
       val name = convert(id)
       val variable = new Variable(convert(t))(SourceNameOrigin(name, origin(id)))
@@ -1017,32 +1017,32 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       PermPointerIndex(convert(pointer), convert(index), convert(perm))
     case ValPrimary20(_, _, array, _, from, _, to, _) =>
       Values(convert(array), convert(from), convert(to))
-    case ValPrimary21(_, _, _, _, _, _) => ???
-    case ValPrimary22(_, _, _, _, _, _) => ???
-    case ValPrimary23(_, _, _, _) => ???
-    case ValPrimary24(_, _, _, _, _, _) => ???
-    case ValPrimary25(_, _, _, _, _, _) => ???
-    case ValPrimary26(_, _, _, _) => ???
-    case ValPrimary27(_, _, _) => ??? // FIXME PB: consider just dropping this syntax (used in -*)
+    case ValPrimary21(_, _, _, _, _, _) => ??(e)
+    case ValPrimary22(_, _, _, _, _, _) => ??(e)
+    case ValPrimary23(_, _, _, _) => ??(e)
+    case ValPrimary24(_, _, _, _, _, _) => ??(e)
+    case ValPrimary25(_, _, _, _, _, _) => ??(e)
+    case ValPrimary26(_, _, _, _) => ??(e)
+    case ValPrimary27(_, _, _) => ??(e) // FIXME PB: consider just dropping this syntax (used in -*)
     case ValPrimary28(_, trigger, _) => InlinePattern(convert(trigger))
-    case ValPrimary29(_, _, expr, _, reducibleOp, _) => ???
-    case ValPrimary30(_, _, future, _, state, _) => ???
-    case ValPrimary31(_, _, _, _, _, _) => ??? // FIXME PB: unused
+    case ValPrimary29(_, _, expr, _, reducibleOp, _) => ??(e)
+    case ValPrimary30(_, _, future, _, state, _) => ??(e)
+    case ValPrimary31(_, _, _, _, _, _) => ??(e) // FIXME PB: unused
     case ValPrimary32(_, _, loc, _, perm, _) => ActionPerm(convert(loc), convert(perm))
-    case ValPrimary33(_, _, _, _, _, _, _, _, _, _, _, _) => ??? // FIXME PB: unused
+    case ValPrimary33(_, _, _, _, _, _, _, _, _, _, _, _) => ??(e) // FIXME PB: unused
     case ValPrimary34(_, _, map, _, key, _, value, _) => MapCons(convert(map), convert(key), convert(value))
     case ValPrimary35(_, _, map, _) => MapSize(convert(map))
-    case ValPrimary36(_, _, _, _, _, _) => ???
+    case ValPrimary36(_, _, _, _, _, _) => ??(e)
     case ValPrimary37(_, _, map1, _, map2, _) => MapDisjoint(convert(map1), convert(map2))
     case ValPrimary38(_, _, map1, _, map2, _) => MapEq(convert(map1), convert(map2))
-    case ValPrimary39(_, _, future, _, perm, _, process, _) => ???
+    case ValPrimary39(_, _, future, _, perm, _, process, _) => ??(e)
     case ValPrimary40(_, _, map, _, key, _) => MapGet(convert(map), convert(key))
     case ValPrimary41(_, _, tup, _) => TupGet(convert(tup), 0)
     case ValPrimary42(_, _, opt, _) => OptGet(convert(opt))
     case ValPrimary43(_, _, tup, _) => TupGet(convert(tup), 1)
     case ValPrimary44(_, _, xs, _) => Head(convert(xs))
     case ValPrimary45(_, _, obj, _) => Held(convert(obj))
-    case ValPrimary46(_, _, model, _, perm, _, state, _) => ??? // FIXME PB: remove in favour of Future -> Model?
+    case ValPrimary46(_, _, model, _, perm, _, state, _) => ??(e) // FIXME PB: remove in favour of Future -> Model?
     case ValPrimary47(_, _, loc, _, perm, _) => ModelPerm(convert(loc), convert(perm))
     case ValPrimary48(_, _, thread, _) => IdleToken(convert(thread))
     case ValPrimary49(_, _, xs, _) => Empty(convert(xs))

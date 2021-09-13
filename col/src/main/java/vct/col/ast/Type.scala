@@ -1,7 +1,13 @@
 package vct.col.ast
 
+import vct.col.resolve.Referrable
+
 sealed trait Type extends NodeFamily {
-  def superTypeOf(other: Type): Boolean = superTypeOfImpl(other) || other.subTypeOfImpl(this)
+  def superTypeOf(other: Type): Boolean =
+    mimics.superTypeOfImpl(other.mimics) ||
+      other.mimics.subTypeOfImpl(mimics)
+
+  def mimics: Type = this
 
   protected def superTypeOfImpl(other: Type): Boolean
   protected def subTypeOfImpl(other: Type): Boolean = false
@@ -74,8 +80,24 @@ sealed abstract class CovariantType(subTypes: => Seq[Type]) extends Type {
 // Immutable collection with a defined size
 sealed trait CollectionType
 
+object TNotAValue {
+  def apply(decl: Referrable): TNotAValue = {
+    val res = TNotAValue()
+    res.decl = Some(decl)
+    res
+  }
+}
+
+case class TNotAValue()(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  var decl: Option[Referrable] = None
+  override protected def superTypeOfImpl(other: Type): Boolean = false
+}
+
 case class TAny()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = true
+  override def superTypeOfImpl(other: Type): Boolean = other match {
+    case TNotAValue() => false
+    case _ => true
+  }
 }
 
 case class TVoid()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
@@ -122,6 +144,9 @@ case class TModel(model: Ref[Model])(implicit val o: Origin = DiagnosticOrigin) 
 case class TClass(cls: Ref[Class])(implicit val o: Origin = DiagnosticOrigin) extends Type {
   override def superTypeOfImpl(other: Type): Boolean = false // FIXME
 }
+// PB: Potentially axiomatic datatypes could be covariant in its type arguments, but that will probably be a huge mess to
+// translate into silver.
+case class TAxiomatic(adt: Ref[AxiomaticDataType], args: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 
 // the type type is covariant in its type (yes)
 case class TType(t: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(t))

@@ -27,6 +27,9 @@ object ColDefs {
     "LabelDecl" -> q"labelScopes",
     "ParBlockDecl" -> q"parBlockScopes",
     "ParInvariantDecl" -> q"parInvariantScopes",
+    "CDeclaration" -> q"cLocalScopes",
+    "CParam" -> q"cParams",
+    "JavaLocalDeclaration" -> q"javaLocalScopes",
   )
 
   /**
