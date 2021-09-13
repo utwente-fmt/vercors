@@ -1,41 +1,37 @@
 package vct.col.newrewrite
 
+import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.ast.AstBuildHelpers._
 
-import scala.collection.mutable
+case class ImplicitLabelOrigin(inner: Origin) extends Origin {
+  override def preferredName: String = "implicitLabel"
+  override def messageInContext(message: String): String = inner.messageInContext(message)
+}
 
 case class SpecifyImplicitLabels() extends Rewriter {
-  val labelStack = new mutable.Stack[LabelDecl]()
+  val labelStack = new ScopedStack[LabelDecl]()
+
+  def isBreakable(s: Statement) = s match {
+    case _: Loop => true
+    case _: Switch => true
+    case _ => false
+  }
 
   override def dispatch(stat: Statement): Statement = stat match {
-    case block@Block(Seq(Label(labelDecl), _: Loop)) =>
-      labelStack.push(labelDecl)
-      val res = rewriteDefault(block)
-      labelStack.pop()
-      res
-    case block@Block(Seq(Label(labelDecl), _: Switch)) =>
-      labelStack.push(labelDecl)
-      val res = rewriteDefault(block)
-      labelStack.pop()
-      res
-    case loop: Loop =>
-      implicit val o = loop.o
-      val labelDecl = new LabelDecl()(SourceNameOrigin("loop", o))
+    case block@Block(Seq(oldLabel@Label(_), s: Statement)) if isBreakable(s) =>
+      val newLabel = oldLabel.rewrite()
+      val newS = labelStack.having(newLabel.decl) {
+        rewriteDefault(s)
+      }
+      block.rewrite(statements = Seq(newLabel, newS))
+    case s: Statement if isBreakable(s) =>
+      implicit val o = s.o
+      val labelDecl = new LabelDecl()(ImplicitLabelOrigin(o))
       val labelStatement = Label(labelDecl)
-      labelStack.push(labelDecl)
-      val res = Block(Seq(labelStatement, rewriteDefault(loop)))
-      labelStack.pop()
-      res
-    case switch: Switch =>
-      implicit val o = switch.o
-      val labelDecl = new LabelDecl()(SourceNameOrigin("switch", o))
-      val labelStatement = Label(labelDecl)
-      labelStack.push(labelDecl)
-      val res = Block(Seq(labelStatement, rewriteDefault(switch)))
-      labelStack.pop()
-      res
+      labelStack.having(labelDecl) {
+        Block(Seq(labelStatement, rewriteDefault(s)))
+      }
     case c@Continue(None) =>
       c.rewrite(Some(labelStack.top.ref))
     case b@Break(None) =>
