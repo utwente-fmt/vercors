@@ -21,6 +21,8 @@ case object ResolveTypes {
   }
 
   def enterContext(node: Node, ctx: TypeResolutionContext): TypeResolutionContext = node match {
+    case Program(decls) =>
+      ctx.replace(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns @ JavaNamespace(_, _, decls) =>
       ctx.replace(stack=decls.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))
     case _ => ctx
