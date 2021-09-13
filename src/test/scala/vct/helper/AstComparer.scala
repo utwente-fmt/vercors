@@ -86,6 +86,8 @@ object AstComparer {
         for ((leftListItem, rightListItem) <- leftList.zip(rightList)) {
           astValueEquals(leftListItem,rightListItem,succession)
         }
+      case (Some(left), Some(right)) =>
+        astValueEquals(left, right, succession)
       case (left, right) =>
         if (left != right)
           throw AstUnequalException("Unequal values",left,right)
