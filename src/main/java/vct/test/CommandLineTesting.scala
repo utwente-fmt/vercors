@@ -64,7 +64,7 @@ object CommandLineTesting {
   private val builtinTest = new BooleanSetting(false)
   private val builtinTestOption = builtinTest.getEnable("execute the builtin tests")
 
-  private val testDirs = new StringListSetting()
+  private val testDirs = new StringListSetting("examples")
   private val testDirsOption = testDirs.getAppendOption(
     "execute test suites from the command line. " +
     "Each test suite is a folder which is scanned for valid test inputs")

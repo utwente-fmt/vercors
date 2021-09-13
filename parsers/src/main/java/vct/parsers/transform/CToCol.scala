@@ -218,7 +218,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
 
   def convert(implicit stat: LabeledStatementContext): Statement = stat match {
     case LabeledStatement0(label, _, inner) =>
-      CLabeledStatement(convert(label), convert(inner))
+      CLabeledStatement(new LabelDecl()(SourceNameOrigin(convert(label), originProvider(stat))), convert(inner))
     case LabeledStatement1(_, _, _, _) => ??(stat)
     case LabeledStatement2(_, _, _) => ??(stat)
   }

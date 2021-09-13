@@ -505,8 +505,8 @@ catchClause
     ;
 
 catchType
-    :   qualifiedName // PB: JLS7§4.3: qualifiedName should be classType (to include type arguments)
-    |   qualifiedName '|' catchType
+    :   classOrInterfaceType
+    |   classOrInterfaceType '|' catchType
     ;
 
 finallyBlock

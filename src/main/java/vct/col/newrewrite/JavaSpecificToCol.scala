@@ -5,19 +5,20 @@ import vct.col.ast.Constant._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.ast.util.SuccessionMap
+import vct.col.resolve.{Java, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
 
 import scala.collection.mutable
 
 case class JavaSpecificToCol() extends Rewriter {
   val namespace: ScopedStack[JavaNamespace] = ScopedStack()
-  val javaInstanceClassSuccessor: SuccessionMap[JavaClass, Class] = SuccessionMap()
-  val javaStaticsClassSuccessor: SuccessionMap[JavaClass, Class] = SuccessionMap()
-  val javaStaticsFunctionSuccessor: SuccessionMap[JavaClass, Function] = SuccessionMap()
+  val javaInstanceClassSuccessor: SuccessionMap[JavaClassOrInterface, Class] = SuccessionMap()
+  val javaStaticsClassSuccessor: SuccessionMap[JavaClassOrInterface, Class] = SuccessionMap()
+  val javaStaticsFunctionSuccessor: SuccessionMap[JavaClassOrInterface, Function] = SuccessionMap()
 
   val javaFieldsSuccessor: SuccessionMap[(JavaFields, Int), InstanceField] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration, Int), Variable] = SuccessionMap()
 
-  val javaDefaultConstructor: mutable.Map[JavaClass, JavaConstructor] = mutable.Map()
+  val javaDefaultConstructor: mutable.Map[JavaClassOrInterface, JavaConstructor] = mutable.Map()
 
   val currentThis: ScopedStack[Expr] = ScopedStack()
   val currentJavaClass: ScopedStack[JavaClass] = ScopedStack()
@@ -27,7 +28,7 @@ case class JavaSpecificToCol() extends Rewriter {
     case fields: JavaFields => fields.modifiers.contains(JavaStatic()(DiagnosticOrigin))
     case method: JavaMethod => method.modifiers.contains(JavaStatic()(DiagnosticOrigin))
     case _: JavaConstructor => false
-    case decl: JavaSpecDeclaration => decl.isStatic
+    case _: ClassDeclaration => false // FIXME we should have a way of translating static specification-type declarations
   }
 
   def makeJavaClass(decls: Seq[ClassDeclaration], ref: Ref[Class])(implicit o: Origin): Unit = {
@@ -117,8 +118,9 @@ case class JavaSpecificToCol() extends Rewriter {
           body = body.map(dispatch),
           contract = dispatch(contract),
         )(null).succeedDefault(this, method)
-      case JavaSpecDeclaration(_, specDecl) => dispatch(specDecl)
-      case _ =>
+      case _: JavaSharedInitialization =>
+      case _: JavaFields =>
+      case other => dispatch(other)
     }
   }
 
@@ -169,8 +171,8 @@ case class JavaSpecificToCol() extends Rewriter {
   override def dispatch(stat: Statement): Statement = stat match {
     case scope @ Scope(locals, body) =>
       def scanScope(node: Node): Unit = node match {
-        case Scope(_, _) => Nil
-        case locals @ JavaLocalDeclaration(mods, t, decls) =>
+        case Scope(_, _) =>
+        case JavaLocalDeclarationStatement(locals @ JavaLocalDeclaration(mods, t, decls)) =>
           implicit val o: Origin = node.o
           decls.zipWithIndex.foreach {
             case ((_, dims, _), idx) =>
@@ -186,7 +188,7 @@ case class JavaSpecificToCol() extends Rewriter {
         scanScope(body)
       })
 
-    case locals @ JavaLocalDeclaration(_, _, decls) =>
+    case JavaLocalDeclarationStatement(locals @ JavaLocalDeclaration(_, _, decls)) =>
       implicit val o: Origin = locals.o
       Block(for(((_, _, init), i) <- decls.zipWithIndex if init.nonEmpty)
         yield Assign(Local(javaLocalsSuccessor.ref((locals, i))), dispatch(init.get))
@@ -200,49 +202,87 @@ case class JavaSpecificToCol() extends Rewriter {
 
     case local @ JavaLocal(_) =>
       implicit val o: Origin = local.o
+
       local.ref.get match {
-        case RefDeclaration(decl) =>
-          Local(typedSucc[Variable](decl))
-        case JavaRefField(fields, declIndex) =>
-          Deref(currentThis.head, javaFieldsSuccessor.ref((fields, declIndex)))
-        case JavaRefLocal(locals, declIndex) =>
-          Local(javaLocalsSuccessor.ref((locals, declIndex)))
+        case RefAxiomaticDataType(decl) => ???
+        case RefVariable(decl) => Local(typedSucc[Variable](decl))
+        case RefUnloadedJavaNamespace(names) => ???
+        case RefJavaClass(decl) => ???
+        case RefJavaField(decls, idx) =>
+          if(decls.modifiers.contains(JavaStatic())) {
+            Deref(
+              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil)(null),
+              ref = javaFieldsSuccessor.ref((decls, idx)),
+            )
+          } else {
+            Deref(currentThis.head, javaFieldsSuccessor.ref((decls, idx)))
+          }
+        case RefJavaLocalDeclaration(decls, idx) =>
+          Local(javaLocalsSuccessor.ref((decls, idx)))
       }
 
     case deref @ JavaDeref(obj, _) =>
       implicit val o: Origin = deref.o
       deref.ref.get match {
-        case JavaRefField(fields, declIndex) =>
-          Deref(dispatch(obj), javaFieldsSuccessor.ref((fields, declIndex)))
-        case JavaDerefRefNamespace(names) =>
-          ???
-        case JavaDerefRefClass(cls) =>
-          FunctionInvocation(javaStaticsFunctionSuccessor.ref(cls), Nil)(null)
+        case RefAxiomaticDataType(decl) => ???
+        case RefModel(decl) => ???
+        case RefJavaClass(decl) => ???
+        case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))
+        case RefUnloadedJavaNamespace(names) => ???
+        case RefJavaField(decls, idx) =>
+          Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))
       }
 
     case JavaLiteralArray(_) => ???
 
     case inv @ JavaInvocation(obj, typeParams, _, args) =>
       implicit val o: Origin = inv.o
-      if(inv.ref.get.modifiers.contains(JavaStatic()(DiagnosticOrigin)))
-        MethodInvocation(FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil)(null),
-          typedSucc[InstanceMethod](inv.ref.get), args.map(dispatch), Nil)(null)
-      else MethodInvocation(
-        obj.map(dispatch).getOrElse(currentThis.head),
-        typedSucc[InstanceMethod](inv.ref.get),
-        args.map(dispatch),
-        Nil)(null)
+      inv.ref.get match {
+        case RefFunction(decl) =>
+          FunctionInvocation(typedSucc[Function](decl), args.map(dispatch))(null)
+        case RefProcedure(decl) =>
+          ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil)(null)
+        case RefPredicate(decl) =>
+          PredicateApply(typedSucc[Predicate](decl), args.map(dispatch))
+        case RefInstanceFunction(decl) =>
+          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceFunction](decl), args.map(dispatch))(null)
+        case RefInstanceMethod(decl) =>
+          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil)(null)
+        case RefInstancePredicate(decl) =>
+          InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstancePredicate](decl), args.map(dispatch))
+        case RefADTFunction(decl) =>
+          ADTFunctionInvocation(typedSucc[ADTFunction](decl), args.map(dispatch))
+        case RefModelProcess(decl) =>
+          ???
+        case RefModelAction(decl) =>
+          ???
+        case RefJavaMethod(decl) =>
+          if(decl.modifiers.contains(JavaStatic())) {
+            MethodInvocation(
+              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil)(null),
+              ref = typedSucc[InstanceMethod](decl),
+              args = args.map(dispatch), outArgs = Nil)(null)
+          } else {
+            MethodInvocation(
+              obj = obj.map(dispatch).getOrElse(currentThis.head),
+              ref = typedSucc[InstanceMethod](decl),
+              args = args.map(dispatch), outArgs = Nil)(null)
+          }
+      }
 
     case inv @ JavaNewClass(args, typeParams, t @ JavaTClass(_)) =>
       implicit val o: Origin = inv.o
-      val cons = t.ref.get.decls.collect {
-        case cons: JavaConstructor => cons
-      }.find(cons =>
-        cons.parameters.size == args.size &&
-        cons.parameters.zip(args).forall { case (arg, v) => arg.t.superTypeOf(v.t) }
-      ).orElse(javaDefaultConstructor.get(t.ref.get)).get
+      t.ref.get match {
+        case RefAxiomaticDataType(decl) => ???
+        case RefModel(decl) => ???
+        case RefJavaClass(decl) =>
+          val cons = decl.decls.collect {
+            case cons: JavaConstructor if cons.parameters.size == args.size => cons
+          }.find(_.parameters.zip(args).forall { case (arg, v) => arg.t.superTypeOf(v.t) })
+            .getOrElse(javaDefaultConstructor(decl))
 
-      ProcedureInvocation(typedSucc[Procedure](cons), args.map(dispatch), Nil)(null)
+          ProcedureInvocation(typedSucc[Procedure](cons), args.map(dispatch), Nil)(null)
+      }
 
     case JavaNewLiteralArray(_, _, _) => ???
 
@@ -252,12 +292,18 @@ case class JavaSpecificToCol() extends Rewriter {
   }
 
   override def dispatch(t: Type): Type = t match {
-    case JavaTUnion(_) => ???
+    case JavaTUnion(names) =>
+      if(names.size == 1) {
+        dispatch(names.head)
+      } else {
+        ???
+      }
     case tClass @ JavaTClass(_) =>
-      TClass(javaInstanceClassSuccessor.ref(tClass.ref.get))
-    case JavaTClassValue(ref) =>
-      TClass(javaStaticsClassSuccessor.ref(ref.decl))
-    case JavaTNamespace(_) => ???
+      tClass.ref.get match {
+        case RefAxiomaticDataType(decl) => TAxiomatic(typedSucc[AxiomaticDataType](decl), Nil)
+        case RefModel(decl) => TModel(typedSucc[Model](decl))
+        case RefJavaClass(decl) => TClass(javaInstanceClassSuccessor.ref(decl))
+      }
     case other => rewriteDefault(other)
   }
 }

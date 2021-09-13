@@ -14,7 +14,6 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{RecursiveVisitor, SequenceUtils}
 import vct.col.rewrite.{AddTypeADT, IntroExcVar, PVLEncoder}
-import vct.parsers.rewrite.InferADTTypes
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
