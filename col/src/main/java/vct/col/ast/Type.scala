@@ -110,7 +110,12 @@ case class TResource()(implicit val o: Origin = DiagnosticOrigin) extends Type {
     Set[Type](TResource(), TBool()).contains(other)
 }
 
-case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override protected def superTypeOfImpl(other: Type): Boolean = other match {
+    case TInt() | TBoundedInt(_, _) => true
+    case _ => false
+  }
+}
 case class TBoundedInt(gte: BigInt, lt: BigInt)(implicit val o: Origin = DiagnosticOrigin) extends Type {
   override def superTypeOfImpl(other: Type): Boolean = other match {
     case TBoundedInt(otherGte, otherLt) => gte <= otherGte && otherLt <= lt
