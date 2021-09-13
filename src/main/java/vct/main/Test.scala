@@ -15,6 +15,8 @@ case object Test {
     CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).foreach(c => {
       c.files.asScala.filter(f => f.toString.endsWith(".java") || f.toString.endsWith(".c")).foreach(tryParse)
     })
+
+//    tryParse(Path.of("examples/known-problems/threads/SpecifiedThread.java"))
   }
 
   def printErrorsOr(errors: Seq[CheckError])(otherwise: => Unit): Unit = {

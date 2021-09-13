@@ -96,7 +96,7 @@ class ColDescription {
 
     case Type.Apply(Type.Name("Ref"), List(arg)) =>
       q"new LazyRef[$arg](rewriter.successionMap($term.decl))"
-    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") =>
+    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") =>
       term
 
     case _ =>

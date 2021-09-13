@@ -82,7 +82,7 @@ case class JavaMethod(modifiers: Seq[JavaModifier], returnType: Type, dims: Int,
                       signals: Seq[JavaName], body: Option[Statement], contract: ApplicableContract)
                      (val blame: PostconditionBlame)(implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck with Declarator {
-  override def declarations: Seq[Declaration] = parameters ++ typeParameters
+  override def declarations: Seq[Declaration] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
 }
 
 case class JavaLocalDeclaration(modifiers: Seq[JavaModifier], t: Type, decls: Seq[(String, Int, Option[Expr])])

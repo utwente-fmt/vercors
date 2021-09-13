@@ -64,7 +64,13 @@ object Constant {
     case _ => None
   }
 
-  implicit class IntegerValue(val value: Int)(implicit val o: Origin) extends Constant[Int] with IntExpr with NoCheck
+  implicit def integer(value: Int)(implicit o: Origin): IntegerValue =
+    new IntegerValue(value)
+
+  // TODO: the code generation doesnt see IntegerValue <: Constant[_] <: Expr, hence the Expr marker here.
+  implicit class IntegerValue(val value: BigInt)(implicit val o: Origin) extends Constant[BigInt] with Expr with NoCheck {
+    override def t: Type = TBoundedInt(value, value + 1)
+  }
   implicit class BooleanValue(val value: Boolean)(implicit val o: Origin) extends Constant[Boolean] with BoolExpr with NoCheck
 }
 

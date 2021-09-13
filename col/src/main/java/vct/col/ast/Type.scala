@@ -109,18 +109,36 @@ case class TResource()(implicit val o: Origin = DiagnosticOrigin) extends Type {
   override def superTypeOfImpl(other: Type): Boolean =
     Set[Type](TResource(), TBool()).contains(other)
 }
+
 case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TBoundedInt(gte: BigInt, lt: BigInt)(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override def superTypeOfImpl(other: Type): Boolean = other match {
+    case TBoundedInt(otherGte, otherLt) => gte <= otherGte && otherLt <= lt
+    case _ => false
+  }
+}
 case class TFloat()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TRational()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean =
-    Set[Type](TRational(), TInt(), TFraction(), TZFraction()).contains(other)
+  override def superTypeOfImpl(other: Type): Boolean = other match {
+    case TRational() | TInt() | TFraction() | TZFraction() | TBoundedInt(_, _) => true
+    case _ => false
+  }
 }
-case class TFraction()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override protected def superTypeOfImpl(other: Type): Boolean = other match {
+    case TFraction() => true
+    case TBoundedInt(gte, lt) if gte > 0 && lt <= 2 => true // At most [1, 2) ∩ ℤ = {1}
+    case _ => false
+  }
+}
 case class TZFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean =
-    Set[Type](TZFraction(), TFraction()).contains(other)
+  override def superTypeOfImpl(other: Type): Boolean = other match {
+    case TFraction() | TZFraction() => true
+    case TBoundedInt(gte, lt) if gte >= 0 && lt <= 2 => true // At most [0, 2) ∩ ℤ = {0, 1}
+  }
 }
+
+case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TString()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TRef()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TOption(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(element))
