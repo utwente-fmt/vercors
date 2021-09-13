@@ -1,27 +1,25 @@
 package vct.main
 
+import java.io._
+import java.time.Instant
+import java.util
 import hre.ast.FileOrigin
 import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
-import hre.io.ForbiddenPrintStream
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import hre.util.Notifier
-import vct.col.ast.Program
-import vct.col.ast.stmt.decl.{ProgramUnit, SpecificationFormat}
-import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.ast.stmt.decl.ProgramUnit
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
-import vct.main.Passes.BY_KEY
-import vct.parsers.Parsers
 import vct.silver.ErrorDisplayVisitor
+import hre.io.ForbiddenPrintStream
+import hre.util.Notifier
+import vct.col.features.{Feature, RainbowVisitor}
+import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
-import java.io._
-import java.nio.file.Paths
-import java.time.Instant
-import java.util
 import scala.jdk.CollectionConverters._
+import java.nio.file.Paths
 
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
@@ -46,7 +44,9 @@ class Main {
 
   private val pass_list = new StringListSetting
   private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
-  private val stop_after = new StringListSetting
+  private val stopAfter = new StringListSetting
+  private val stopBeforeBackend = new BooleanSetting(false)
+  private val stopAfterTypecheck = new BooleanSetting(false)
   private val strictInternalConditions = new BooleanSetting(false)
   private var inputPaths = Array.empty[String]
 
@@ -56,7 +56,6 @@ class Main {
   private val check_axioms = new BooleanSetting(false)
   private val check_history = new BooleanSetting(false)
   private val separate_checks = new BooleanSetting(false)
-  private val sequential_spec = new BooleanSetting(false)
   private val global_with_field = new BooleanSetting(false)
   private val no_context = new BooleanSetting(false)
   private val gui_context = new BooleanSetting(false)
@@ -81,7 +80,6 @@ class Main {
     clops.add(check_history.getEnable("Check if the program correctly implements the process-algebraic specification."), "check-history")
     clops.add(separate_checks.getEnable("validate classes separately"), "separate")
     clops.add(help_passes.getEnable("print help on available passes"), "help-passes")
-    clops.add(sequential_spec.getEnable("sequential specification instead of concurrent"), "sequential")
     clops.add(pass_list_option, "passes")
     clops.add(show_before.getAppendOption("Show source code before given passes"), "show-before")
     clops.add(show_after.getAppendOption("Show source code after given passes"), "show-after")
@@ -89,7 +87,9 @@ class Main {
     clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before")
     clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after")
     clops.add(notifySetting.getEnable("Send a system notification upon completion"), "notify")
-    clops.add(stop_after.getAppendOption("Stop after given passes"), "stop-after")
+    clops.add(stopAfter.getAppendOption("Stop after given passes"), "stop-after")
+    clops.add(stopBeforeBackend.getEnable("Only do parsing, typechecking, and AST transformations. Do not do verification with the backend."), "stop-before-backend")
+    clops.add(stopAfterTypecheck.getEnable("Only do parsing and typechecking. Do not apply AST transformations, nor verification with the backend."), "stop-after-typecheck")
     clops.add(strictInternalConditions.getEnable("Enable strict internal checks for AST conditions (expert option)"), "strict-internal")
     clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"), "global-with-field")
     clops.add(no_context.getEnable("disable printing the context of errors"), "no-context")
@@ -159,6 +159,10 @@ class Main {
       Fail("no back-end or passes specified")
     }
 
+    if (stopBeforeBackend.get() && stopAfterTypecheck.get()) {
+      Fail("The --stop-before-backend and --stop-after-typecheck flags are mutually exclusive.")
+    }
+
     if (silver.used) silver.get match {
       case "silicon" => // Nothing to check for
       case "carbon" => // Nothing to check for
@@ -176,8 +180,23 @@ class Main {
     }
   }
 
-  private def parseInputs(inputPaths: Array[String]): Program =
-    Program(inputPaths.map(Paths.get(_)).flatMap(Parsers.parse))
+  private def parseInputs(inputPaths: Array[String]): Unit = {
+    Progress("parsing inputs...")
+    report = new PassReport(new ProgramUnit)
+    report.setOutput(report.getInput)
+    report.add(new ErrorDisplayVisitor)
+
+    tk.show
+    for (pathName <- inputPaths) {
+      val path = Paths.get(pathName)
+      if (!no_context.get) FileOrigin.add(path, gui_context.get)
+//      report.getOutput.add(Parsers.parseFile(path))
+    }
+
+    Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
+
+  }
+
 
   private def collectPassesForVeyMont : Seq[AbstractPass] = Seq(
     BY_KEY("VeyMontStructCheck"),
@@ -211,9 +230,9 @@ class Main {
   val silverPassOrder: Seq[ChainPart] = Seq(
     "removeIgnoredElements",
     "splitCompositeDeclarations",
-    "stringClassToPrimitive",
     "resolveTypeExpressions",
     "loadExternalClasses",
+    "stringClassToPrimitive",
     "standardize",
     "interpretMethodAnnotations",
     "wrapTopLevelDeclarations",
@@ -328,11 +347,13 @@ class Main {
   }
 
   def computeGoal(featuresIn: Set[Feature]): Option[Seq[AbstractPass]] = {
-    // Expand all choices
-    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)) :+ (silver.get() match {
+    val toolPass = silver.get() match {
       case "carbon" => BY_KEY("applyCarbon")
       case "silicon" => BY_KEY("applySilicon")
-    }))
+    }
+
+    // Expand all choices
+    val chains = ChainPart.inflate(silverPassOrder).map(_.map(BY_KEY(_)) :+ toolPass)
 
     // Filter out passes that don't remove anything (even before the chain is valid)
     val filteredChains = chains.map(filterNopPasses(_, featuresIn))
@@ -379,7 +400,18 @@ class Main {
     if(check_defined.get()) features += vct.col.features.NeedsDefinedCheck
     if(check_history.get()) features += vct.col.features.NeedsHistoryCheck
 
-    computeGoal(features).get
+    val passes = if (stopAfterTypecheck.get()) {
+      Seq()
+    } else {
+      computeGoal(features).get
+    }
+
+    if (stopBeforeBackend.get()) {
+      // We drop the last pass, which happens to be the silicon/carbon pass
+      passes.init
+    } else {
+      passes
+    }
   }
 
   private def getPasses: Seq[AbstractPass] = {
@@ -430,7 +462,7 @@ class Main {
 
       if (debugAfter.has(pass.key)) report.getOutput.dump()
       if (show_after.contains(pass.key)) show(pass)
-      if (stop_after.contains(pass.key)) Fail("exit after pass %s", pass)
+      if (stopAfter.contains(pass.key)) Fail("exit after pass %s", pass)
 
       report = BY_KEY("checkTypesJava").apply_pass(report, Array())
 

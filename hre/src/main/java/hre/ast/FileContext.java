@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 
@@ -46,7 +45,6 @@ public class FileContext {
             Debug("Couldn't insert initial text into text pane.");
           }
       }
-      //gui.paneScrollPane.scrollRectToVisible(aRect);
       in.close();
       if (use_gui) SwingUtilities.invokeLater(new Runnable() {
         public void run() {
@@ -153,16 +151,4 @@ public class FileContext {
     }
   }
   
-  /* Code related to scrolling to a given location..
-      Rectangle s=gui.textPane.getBounds();
-      Rectangle r=gui.textPane.getVisibleRect();
-      Rectangle p=null;
-      try {
-        p = gui.textPane.modelToView(4000);
-        gui.textPane.scrollRectToVisible(p);
-      } catch (BadLocationException e) {
-        // TODO Auto-generated catch block
-      }
-   */
-
 }

@@ -2,9 +2,6 @@ package vct.col.rewrite;
 
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.expr.StandardOperator;
-import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.util.AbstractRewriter;
 
 import static vct.col.ast.type.PrimitiveSort.Map;
 
@@ -22,7 +19,7 @@ import vct.col.ast.util.AbstractRewriter;
 public class ADTOperatorRewriter extends AbstractRewriter {
 
     public ADTOperatorRewriter(ProgramUnit source) {
-        super(source, true);
+        super(source);
     }
 
 

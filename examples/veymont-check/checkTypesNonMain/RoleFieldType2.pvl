@@ -1,7 +1,8 @@
 //:: cases RoleFieldType2
-//:: suite session-check
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
 //:: verdict Pass
+//:: tool veymont
 class Main {
 
 	Role a,b,c;
@@ -13,7 +14,7 @@ class Main {
 	}
 	
 	void run() {
-		a.x = 1;
+		a.x = new Other();
 	}
 	
 	void main() {

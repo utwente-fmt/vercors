@@ -2,6 +2,7 @@ package vct.parsers.transform
 
 import org.antlr.v4.runtime.ParserRuleContext
 import vct.col.ast._
+import vct.parsers.ParseError
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -10,7 +11,7 @@ abstract class ToCol(val originProvider: OriginProvider) {
   class ContractCollector() {
     val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
     val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
-    val signals: mutable.ArrayBuffer[(ParserRuleContext, (Variable, Expr))] = mutable.ArrayBuffer()
+    val signals: mutable.ArrayBuffer[(ParserRuleContext, SignalsClause)] = mutable.ArrayBuffer()
 
     val requires: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
     val ensures: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()

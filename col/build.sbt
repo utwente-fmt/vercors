@@ -1,6 +1,9 @@
 name := "col"
 libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.1"
+
+// Disable documentation generation
 sources in (Compile, doc) := Seq()
+publishArtifact in (Compile, packageDoc) := false
 
 lazy val generateHelpersTask = taskKey[Seq[File]]("Generate helpers for the COL AST")
 
@@ -17,23 +20,19 @@ generateHelpersTask := {
 
     src / "Silver.scala",
     src / "C.scala",
+    src / "Java.scala",
   )
 
-  /*
-  val compile = FileFunction.cached(streams.value.cacheDirectory / "antlr4", FilesInfo.hash, FilesInfo.hash)(changedSet => {
+  val compile = FileFunction.cached(streams.value.cacheDirectory / "removeThisToGenerate-src_managed", FilesInfo.hash)(changedSet => {
     println(changedSet)
-    if(changedSet.intersect(files.toSet).nonEmpty || true) {
-      GenerateHelpers.generate()
-      Set(gen / "AbstractRewriter.scala", gen / "RewriteHelpers.scala")
+    if(changedSet.nonEmpty) {
+      ColHelper().generate(files, gen).toSet
     } else {
       Set()
     }
   })
 
   compile(files.toSet).toSeq
-   */
-
-  ColHelper().generate(files, gen)
 }
 
 sourceGenerators in Compile += generateHelpersTask

@@ -2,9 +2,11 @@ package vct.col.ast
 
 import vct.result.VerificationResult.SystemError
 
-case class Program(decls: Seq[GlobalDeclaration]) {
+case class Program(declarations: Seq[GlobalDeclaration])(implicit val o: Origin) extends NodeFamily with Declarator {
   def check: Seq[CheckError] =
-    decls.flatMap(_.checkTrans(CheckContext(scopes=Seq(decls.toSet))))
+    checkTrans(CheckContext())
+
+  override def check(context: CheckContext): Seq[CheckError] = Nil
 }
 
 trait Node {
@@ -17,7 +19,8 @@ trait Node {
   /* Check children first, so that the check of nodes higher in the tree may depend on the type and correctness of
     subnodes */
   def checkTrans(context: CheckContext): Seq[CheckError] = {
-    val childrenErrors = subnodes.flatMap(_.check(enterCheckContext(context)))
+    val innerContext = enterCheckContext(context)
+    val childrenErrors = subnodes.flatMap(_.check(innerContext))
 
     if(childrenErrors.nonEmpty) {
       childrenErrors
@@ -38,4 +41,10 @@ trait Node {
  */
 trait NodeFamily extends Node
 
-trait ASTStateError extends SystemError
+trait Declarator extends Node {
+  def declarations: Seq[Declaration]
+  override def enterCheckContext(context: CheckContext): CheckContext =
+    context.withScope(declarations.toSet)
+}
+
+abstract class ASTStateError extends SystemError

@@ -14,115 +14,115 @@ import vct.col.ast.type.*;
 
 public interface ASTVisitor<T> {
   
-  public T getResult();
+  T getResult();
   
-  public void pre_visit(ASTNode n);
+  void pre_visit(ASTNode n);
   
-  public void post_visit(ASTNode n);
+  void post_visit(ASTNode n);
   
-  public void visit(StandardProcedure p);
+  void visit(StandardProcedure p);
   
-  public void visit(StructValue v);
+  void visit(StructValue v);
   
-  public void visit(ConstantExpression e);
+  void visit(ConstantExpression e);
   
-  public void visit(OperatorExpression e);
+  void visit(OperatorExpression e);
   
-  public void visit(NameExpression e);
+  void visit(NameExpression e);
   
-  public void visit(ClassType t);
+  void visit(ClassType t);
   
-  public void visit(FunctionType t);
+  void visit(FunctionType t);
   
-  public void visit(PrimitiveType t);
+  void visit(PrimitiveType t);
   
-  public void visit(RecordType t);
+  void visit(RecordType t);
   
-  public void visit(MethodInvokation e);
+  void visit(MethodInvokation e);
 
-  public void visit(BlockStatement s);
+  void visit(BlockStatement s);
   
-  public void visit(IfStatement s);
+  void visit(IfStatement s);
   
-  public void visit(ReturnStatement s);
+  void visit(ReturnStatement s);
   
-  public void visit(AssignmentStatement s);
+  void visit(AssignmentStatement s);
 
-  public void visit(DeclarationStatement s);
+  void visit(DeclarationStatement s);
   
-  public void visit(LoopStatement s);
+  void visit(LoopStatement s);
   
-  public void visit(ForEachLoop s);
+  void visit(ForEachLoop s);
   
-  public void visit(Method m);
+  void visit(Method m);
 
-  public void visit(ASTClass c);
+  void visit(ASTClass c);
 
-  public void visit(BindingExpression e);
+  void visit(BindingExpression e);
 
-  public void visit(Dereference e);
+  void visit(Dereference e);
 
-  public void visit(Lemma lemma);
+  void visit(Lemma lemma);
 
-  public void visit(ParallelBarrier parallelBarrier);
+  void visit(ParallelBarrier parallelBarrier);
 
-  public void visit(ParallelBlock parallelBlock);
+  void visit(ParallelBlock parallelBlock);
 
-  public void visit(Contract contract);
+  void visit(Contract contract);
 
-  public void visit(ASTSpecial special);
+  void visit(ASTSpecial special);
 
-  public void visit(VariableDeclaration variableDeclaration);
+  void visit(VariableDeclaration variableDeclaration);
 
-  public void visit(TupleType tupleType);
+  void visit(TupleType tupleType);
 
-  public void visit(AxiomaticDataType adt);
+  void visit(AxiomaticDataType adt);
 
-  public void visit(Axiom axiom);
+  void visit(Axiom axiom);
 
-  public void visit(Hole hole);
+  void visit(Hole hole);
 
-  public void visit(ActionBlock actionBlock);
+  void visit(ActionBlock actionBlock);
 
-  public void visit(TypeExpression t);
+  void visit(TypeExpression t);
 
-  public void visit(ParallelAtomic parallelAtomic);
+  void visit(ParallelAtomic parallelAtomic);
 
-  public void visit(NameSpace nameSpace);
+  void visit(NameSpace nameSpace);
 
-  public void visit(TryCatchBlock tcb);
+  void visit(TryCatchBlock tcb);
 
-  public void visit(FieldAccess a);
+  void visit(FieldAccess a);
 
-  public void visit(ParallelInvariant inv);
+  void visit(ParallelInvariant inv);
   
-  public void visit(ParallelRegion region);
+  void visit(ParallelRegion region);
 
-  public void visit(TypeVariable v);
+  void visit(TypeVariable v);
 
-  public void visit(VectorBlock vb);
+  void visit(VectorBlock vb);
   
-  public void visit(Constraining c);
+  void visit(Constraining c);
 
-  public void visit(Switch s);
+  void visit(Switch s);
 
-  public void visit(TryWithResources t);
+  void visit(TryWithResources t);
 
-  public void visit(Synchronized sync);
+  void visit(Synchronized sync);
 
-  public void visit(CFunctionType t);
+  void visit(CFunctionType t);
 
-  public void visit(OMPParallel parallel);
-  public void visit(OMPSection section);
-  public void visit(OMPSections sections);
-  public void visit(OMPFor loop);
-  public void visit(OMPParallelFor loop);
-  public void visit(OMPForSimd loop);
+  void visit(OMPParallel parallel);
+  void visit(OMPSection section);
+  void visit(OMPSections sections);
+  void visit(OMPFor loop);
+  void visit(OMPParallelFor loop);
+  void visit(OMPForSimd loop);
 
-  public void visit(InlineQuantifierPattern pattern);
-  public void visit(CatchClause cc);
-  public void visit(SignalsClause sc);
-  public void visit(KernelInvocation ki);
+  void visit(InlineQuantifierPattern pattern);
+  void visit(CatchClause cc);
+  void visit(SignalsClause sc);
+  void visit(KernelInvocation ki);
 }
 
 

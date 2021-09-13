@@ -1,50 +1,61 @@
 package vct.parsers.transform
 
-import org.antlr.v4.runtime.{CommonTokenStream, Lexer, ParserRuleContext}
+import org.antlr.v4.runtime.{CommonTokenStream, Lexer, ParserRuleContext, Token}
 import vct.col.ast._
 
 import java.nio.file.Path
 
 trait OriginProvider {
-  def apply(node: ParserRuleContext): Origin
+  def apply(ctx: ParserRuleContext): Origin = this(ctx.start, ctx.stop)
+  def apply(start: Token, stop: Token): Origin
 }
 
 trait BlameProvider {
-  def apply(node: ParserRuleContext): Scapegoat
+  def apply(ctx: ParserRuleContext): Scapegoat = this(ctx.start, ctx.stop)
+  def apply(start: Token, stop: Token): Scapegoat
 }
 
 case class FileOriginProvider(path: Path) extends OriginProvider with BlameProvider {
-  override def apply(ctx: ParserRuleContext): FileOrigin = {
-    val startLine = ctx.start.getLine - 1
-    val startCol = ctx.start.getCharPositionInLine
-    val endLine = ctx.stop.getLine - 1
-    val endCol = ctx.stop.getCharPositionInLine + ctx.stop.getStopIndex - ctx.stop.getStartIndex + 1
+  override def apply(start: Token, stop: Token): FileOrigin = {
+    val startLine = start.getLine - 1
+    val startCol = start.getCharPositionInLine
+    val endLine = stop.getLine - 1
+    val endCol = stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
 
     FileOrigin(path, startLine, startCol, endLine, endCol)
   }
+
+  override def apply(ctx: ParserRuleContext): FileOrigin = this(ctx.start, ctx.stop)
 }
 
 case class InterpretedFileOriginProvider(tokens: CommonTokenStream, originalPath: Path, interpretedPath: Path) extends OriginProvider with BlameProvider {
-  override def apply(ctx: ParserRuleContext): InputOrigin = {
-    val startLine = ctx.start.getLine - 1
-    val startCol = ctx.start.getCharPositionInLine
-    val endLine = ctx.stop.getLine - 1
-    val endCol = ctx.stop.getCharPositionInLine + ctx.stop.getStopIndex - ctx.stop.getStartIndex + 1
-
-    // Search backward from the starting token for a line marker: the source the line was interpreted from.
-    // See also: https://gcc.gnu.org/onlinedocs/gcc-3.4.6/cpp/Preprocessor-Output.html
-    for(tokIdx <- ctx.start.getTokenIndex-1 to 0 by -1) {
-      val token = tokens.get(tokIdx)
-      if(token.getChannel == 2) {
-        val lineDirectiveLine = Integer.parseInt(token.getText.split(' ')(1))
-        val tokenLine = token.getLine
+  private def getLineOffset(token: Token): Option[Int] = {
+    for(tokIdx <- token.getTokenIndex-1 to 0 by -1) {
+      val markerToken = tokens.get(tokIdx)
+      if(markerToken.getChannel == 2) {
+        val lineDirectiveLine = Integer.parseInt(markerToken.getText.split(' ')(1))
+        val tokenLine = markerToken.getLine
         // FIXME PB: check for off-by-one stuff
-        val interpretedOffset = lineDirectiveLine - tokenLine - 1
-
-        return InterpretedOrigin(interpretedPath, startLine, startCol, endLine, endCol, originalPath, startLine+interpretedOffset, endLine+interpretedOffset)
+        return Some(lineDirectiveLine - tokenLine - 1)
       }
     }
 
-    FileOrigin(interpretedPath, startLine, startCol, endLine, endCol)
+    None
   }
+
+  override def apply(start: Token, stop: Token): InputOrigin = {
+    val startLine = start.getLine - 1
+    val startCol = start.getCharPositionInLine
+    val endLine = stop.getLine - 1
+    val endCol = stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
+
+    (getLineOffset(start), getLineOffset(stop)) match {
+      case (Some(startOffset), Some(endOffset)) =>
+        InterpretedOrigin(interpretedPath, startLine, startCol, endLine, endCol, originalPath,
+          startLine+startOffset, endLine+endOffset)
+      case _ => FileOrigin(interpretedPath, startLine, startCol, endLine, endCol)
+    }
+  }
+
+  override def apply(ctx: ParserRuleContext): InputOrigin = this(ctx.start, ctx.stop)
 }

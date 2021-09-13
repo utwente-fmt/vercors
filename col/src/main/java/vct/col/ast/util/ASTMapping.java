@@ -13,112 +13,112 @@ import vct.col.ast.type.*;
 
 public interface ASTMapping<R> {
   
-  public void pre_map(ASTNode n);
+  void pre_map(ASTNode n);
   
-  public R post_map(ASTNode n,R res);
+  R post_map(ASTNode n,R res);
   
-  public R map(StandardProcedure p);
+  R map(StandardProcedure p);
   
-  public R map(StructValue v);
+  R map(StructValue v);
   
-  public R map(ConstantExpression e);
+  R map(ConstantExpression e);
   
-  public R map(OperatorExpression e);
+  R map(OperatorExpression e);
   
-  public R map(NameExpression e);
+  R map(NameExpression e);
   
-  public R map(ClassType t);
+  R map(ClassType t);
   
-  public R map(FunctionType t);
+  R map(FunctionType t);
   
-  public R map(PrimitiveType t);
+  R map(PrimitiveType t);
   
-  public R map(RecordType t);
+  R map(RecordType t);
   
-  public R map(MethodInvokation e);
+  R map(MethodInvokation e);
 
-  public R map(BlockStatement s);
+  R map(BlockStatement s);
   
-  public R map(IfStatement s);
+  R map(IfStatement s);
   
-  public R map(ReturnStatement s);
+  R map(ReturnStatement s);
   
-  public R map(AssignmentStatement s);
+  R map(AssignmentStatement s);
 
-  public R map(DeclarationStatement s);
+  R map(DeclarationStatement s);
   
-  public R map(LoopStatement s);
+  R map(LoopStatement s);
   
-  public R map(ForEachLoop s);
+  R map(ForEachLoop s);
   
-  public R map(Method m);
+  R map(Method m);
 
-  public R map(ASTClass c);
+  R map(ASTClass c);
 
-  public R map(BindingExpression e);
+  R map(BindingExpression e);
 
-  public R map(Dereference e);
+  R map(Dereference e);
 
-  public R map(Lemma lemma);
+  R map(Lemma lemma);
 
-  public R map(ParallelBarrier parallelBarrier);
+  R map(ParallelBarrier parallelBarrier);
 
-  public R map(ParallelBlock parallelBlock);
+  R map(ParallelBlock parallelBlock);
 
-  public R map(Contract contract);
+  R map(Contract contract);
 
-  public R map(ASTSpecial special);
+  R map(ASTSpecial special);
 
-  public R map(VariableDeclaration variableDeclaration);
+  R map(VariableDeclaration variableDeclaration);
 
-  public R map(TupleType tupleType);
+  R map(TupleType tupleType);
 
-  public R map(AxiomaticDataType adt);
+  R map(AxiomaticDataType adt);
 
-  public R map(Axiom axiom);
+  R map(Axiom axiom);
 
-  public R map(Hole hole);
+  R map(Hole hole);
 
-  public R map(ActionBlock actionBlock);
+  R map(ActionBlock actionBlock);
 
-  public R map(TypeExpression t);
+  R map(TypeExpression t);
 
-  public R map(ParallelAtomic parallelAtomic);
+  R map(ParallelAtomic parallelAtomic);
 
-  public R map(NameSpace ns);
+  R map(NameSpace ns);
 
-  public R map(TryCatchBlock tcb);
+  R map(TryCatchBlock tcb);
 
-  public R map(FieldAccess a);
+  R map(FieldAccess a);
 
-  public R map(ParallelInvariant inv);
+  R map(ParallelInvariant inv);
   
-  public R map(ParallelRegion region);
+  R map(ParallelRegion region);
 
-  public R map(TypeVariable v);
+  R map(TypeVariable v);
 
-  public R map(VectorBlock vb);
+  R map(VectorBlock vb);
 
-  public R map(Constraining c);
+  R map(Constraining c);
 
-  public R map(Switch s);
+  R map(Switch s);
 
-  public R map(TryWithResources t);
+  R map(TryWithResources t);
 
-  public R map(Synchronized sync);
+  R map(Synchronized sync);
 
-  public R map(CFunctionType t);
+  R map(CFunctionType t);
 
-  public R map(OMPParallel parallel);
-  public R map(OMPSection section);
-  public R map(OMPSections sections);
-  public R map(OMPFor loop);
-  public R map(OMPParallelFor loop);
-  public R map(OMPForSimd loop);
+  R map(OMPParallel parallel);
+  R map(OMPSection section);
+  R map(OMPSections sections);
+  R map(OMPFor loop);
+  R map(OMPParallelFor loop);
+  R map(OMPForSimd loop);
 
-  public R map(InlineQuantifierPattern pattern);
-  public R map(CatchClause cc);
-  public R map(SignalsClause sc);
+  R map(InlineQuantifierPattern pattern);
+  R map(CatchClause cc);
+  R map(SignalsClause sc);
 
-  public R map(KernelInvocation ki);
+  R map(KernelInvocation ki);
 }

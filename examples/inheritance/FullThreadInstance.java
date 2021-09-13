@@ -11,9 +11,9 @@ public class Instance extends Thread {
     //@ fold pre:this.preFork@Instance(write);
   }
 
-  //@ public resource preFork(frac p)=Value(input)**Perm(output,p);
+  //@ resource preFork(frac p)=Value(input)**Perm(output,p);
 
-  //@ public resource postJoin(frac p)=Value(input)**PointsTo(output,p,input+1);
+  //@ resource postJoin(frac p)=Value(input)**PointsTo(output,p,input+1);
   
 
   int input;

@@ -222,11 +222,6 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         m_body=normalize_body(m_body);
         create_body(body,m_body);
         create.leave();
-        int N=m.getArity();
-        ASTNode [] arg_names = new ASTNode[N];
-        for(int i=0;i<N;i++){
-          arg_names[i]=create.local_name(m.getArgument(i));
-        }
       }
       result=create.method_decl(create.primitive_type(PrimitiveSort.Void), cb.getContract(), m.name(), args, body);
     }
@@ -361,7 +356,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         }
         for(ASTNode n:m0.getArgs()) args.add(n);
         for(ASTNode n:m1.getArgs()) args.add(n);
-        ASTNode guess=create.invokation(null,null,merged,args.toArray(new ASTNode[0]));
+        ASTNode guess=create.invokation(create.reserved_name(ASTReserved.This),null,merged,args.toArray(new ASTNode[0]));
         return create.expression(StandardOperator.Mult,p0,guess); 
       }
       case ITE:{

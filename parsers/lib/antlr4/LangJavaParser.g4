@@ -505,8 +505,8 @@ catchClause
     ;
 
 catchType
-    :   qualifiedName
-    |   qualifiedName '|' catchType
+    :   classOrInterfaceType
+    |   classOrInterfaceType '|' catchType
     ;
 
 finallyBlock
@@ -630,7 +630,7 @@ shiftOp
     |   '>' '>'
     ;
 assignOp
-    :   '='
+    :   ('='
     |   '+='
     |   '-='
     |   '*='
@@ -641,7 +641,7 @@ assignOp
     |   '>>='
     |   '>>>='
     |   '<<='
-    |   '%='
+    |   '%=')
     ;
 
 primary

@@ -1,7 +1,17 @@
 package vct.col.ast
 
+import vct.col.resolve.Referrable
+
 sealed trait Type extends NodeFamily {
-  def superTypeOf(other: Type): Boolean
+  def superTypeOf(other: Type): Boolean =
+    mimics.superTypeOfImpl(other.mimics) ||
+      other.mimics.subTypeOfImpl(mimics)
+
+  def mimics: Type = this
+
+  protected def superTypeOfImpl(other: Type): Boolean
+  protected def subTypeOfImpl(other: Type): Boolean = false
+
   override def check(context: CheckContext): Seq[CheckError] = Nil
 
   private def optMatch[In, Out](arg: In)(matchFunc: PartialFunction[In, Out]): Option[Out] =
@@ -47,8 +57,8 @@ object Type {
 }
 
 sealed trait LeafType extends Type {
-  override def superTypeOf(other: Type): Boolean =
-    other == TSkip() || other == this
+  override def superTypeOfImpl(other: Type): Boolean =
+    other == this
 }
 
 // A Seq[Cat] is a Seq[Animal] because a Cat is an Animal. Seq is then covariant in its element type. This is nice to
@@ -56,47 +66,60 @@ sealed trait LeafType extends Type {
 sealed abstract class CovariantType(subTypes: => Seq[Type]) extends Type {
   private def types: Seq[Type] = subTypes
 
-  override def superTypeOf(other: Type): Boolean =
-    other == TSkip() || (other match {
+  override def superTypeOfImpl(other: Type): Boolean =
+    other match {
       case other: this.type =>
         types.size == other.types.size &&
           types.zip(other.types).forall {
             case (t, otherT) => t.superTypeOf(otherT)
           }
       case _ => false
-    })
+    }
 }
 
 // Immutable collection with a defined size
 sealed trait CollectionType
 
-case class TAny()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOf(other: Type): Boolean = true
+object TNotAValue {
+  def apply(decl: Referrable): TNotAValue = {
+    val res = TNotAValue()
+    res.decl = Some(decl)
+    res
+  }
 }
 
-// The (unsound) type that is a superclass and subclass of everything.
-case class TSkip()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOf(other: Type): Boolean = true
+case class TNotAValue()(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  var decl: Option[Referrable] = None
+  override protected def superTypeOfImpl(other: Type): Boolean = false
+}
+
+case class TAny()(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override def superTypeOfImpl(other: Type): Boolean = other match {
+    case TNotAValue() => false
+    case _ => true
+  }
 }
 
 case class TVoid()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TNull()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOf(other: Type): Boolean = ???
+  override def superTypeOfImpl(other: Type): Boolean = ???
 }
 case class TBool()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TResource()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOf(other: Type): Boolean =
-    Set[Type](TSkip(), TResource(), TBool()).contains(other)
+  override def superTypeOfImpl(other: Type): Boolean =
+    Set[Type](TResource(), TBool()).contains(other)
 }
 case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TFloat()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TRational()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOf(other: Type): Boolean =
-    Set[Type](TSkip(), TRational(), TInt(), TFraction(), TZFraction()).contains(other)
+  override def superTypeOfImpl(other: Type): Boolean =
+    Set[Type](TRational(), TInt(), TFraction(), TZFraction()).contains(other)
 }
 case class TFraction()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TZFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOf(other: Type): Boolean =
-    Set[Type](TSkip(), TZFraction(), TFraction()).contains(other)
+  override def superTypeOfImpl(other: Type): Boolean =
+    Set[Type](TZFraction(), TFraction()).contains(other)
 }
 case class TString()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TRef()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
@@ -110,14 +133,20 @@ case class TPointer(element: Type)(implicit val o: Origin = DiagnosticOrigin) ex
 case class TMap(key: Type, value: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(key, value)) with CollectionType
 case class TProcess()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 object TClass {
-  val OBJECT: TClass = TClass(new DirectRef(null))(null) // FIXME
-  val THROWABLE: TClass = TClass(new DirectRef(null))(null) // FIXME
-  val RUNNABLE: TClass = TClass(new DirectRef(null))(null) // FIXME
+//  val OBJECT: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
+//  val THROWABLE: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
+//  val RUNNABLE: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
+  val OBJECT: TInt = TInt()(DiagnosticOrigin)
+  val THROWABLE: TInt = TInt()(DiagnosticOrigin)
+  val RUNNABLE: TInt = TInt()(DiagnosticOrigin)
 }
 case class TModel(model: Ref[Model])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TClass(cls: Ref[Class])(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOf(other: Type): Boolean = other == TSkip() || ???
+  override def superTypeOfImpl(other: Type): Boolean = false // FIXME
 }
+// PB: Potentially axiomatic datatypes could be covariant in its type arguments, but that will probably be a huge mess to
+// translate into silver.
+case class TAxiomatic(adt: Ref[AxiomaticDataType], args: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 
 // the type type is covariant in its type (yes)
 case class TType(t: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(t))

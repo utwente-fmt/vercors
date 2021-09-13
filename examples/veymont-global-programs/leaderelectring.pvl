@@ -1,6 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases LeaderElectRing
-//:: tools veymont
 //:: verdict Pass
 
 class Node {

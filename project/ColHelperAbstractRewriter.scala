@@ -19,11 +19,6 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
     abstract class AbstractRewriter extends $SCOPE_CONTEXT() {
       implicit val rewriter: AbstractRewriter = this
 
-      def rewrite(source: $PROGRAM_TYPE): $PROGRAM_TYPE =
-        $PROGRAM_TERM(collectInScope(globalScopes) {
-          source.decls.foreach(dispatch)
-        })
-
       def dispatch(decl: $DECLARATION_TYPE): Unit
 
       def rewriteDefault(decl: $DECLARATION_TYPE): Unit = ${

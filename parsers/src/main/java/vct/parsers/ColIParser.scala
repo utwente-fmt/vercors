@@ -11,7 +11,7 @@ case class ColIParser() extends Parser {
       val lexer = new LangCLexer(stream)
       val tokens = new CommonTokenStream(lexer)
       val parser = new CParser(tokens)
-      val ec = errorCounter(parser, lexer)
+      val ec = errorCounter(parser, lexer, originProvider)
 
       val tree = parser.compilationUnit()
       ec.report()

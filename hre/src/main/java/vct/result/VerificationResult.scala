@@ -1,16 +1,22 @@
 package vct.result
 
-sealed trait VerificationResult extends Throwable {
+sealed abstract class VerificationResult extends RuntimeException {
   def text: String
 }
 
 object VerificationResult {
   /* Malformed input, unsupported features, and any other documented deficiencies in VerCors */
-  trait UserError extends VerificationResult
+  abstract class UserError extends VerificationResult
+
+  case class ExcludedByCompilationError(message: String) extends UserError {
+    override def text: String = s"$message " +
+      "VerCors normally assumes that the example compiles. " +
+      "If the example does not compile, errors from VerCors may not be very clear."
+  }
 
   /* Some state was reached that was not expected. A SystemError is *always* a bug. If it is an expected failure, it
    * should be a (documented) UserError. */
-  trait SystemError extends VerificationResult
+  abstract class SystemError extends VerificationResult
 
   case class Unreachable(text: String) extends SystemError
 

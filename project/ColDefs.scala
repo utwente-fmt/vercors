@@ -27,19 +27,15 @@ object ColDefs {
     "LabelDecl" -> q"labelScopes",
     "ParBlockDecl" -> q"parBlockScopes",
     "ParInvariantDecl" -> q"parInvariantScopes",
+    "CDeclaration" -> q"cLocalScopes",
+    "CParam" -> q"cParams",
+    "JavaLocalDeclaration" -> q"javaLocalScopes",
   )
 
   /**
    * The type that is the direct superclass of AbstractRewriter, and contains the default scopes mentioned above.
    */
   val SCOPE_CONTEXT: Type.Name = Type.Name("ScopeContext")
-
-  /**
-   * The type that is the root of the AST. It must be a case class consisting of only the field decls: Seq[GlobalDeclaration].
-   */
-  val PROGRAM: String = "Program"
-  val PROGRAM_TYPE: Type.Name = Type.Name(PROGRAM)
-  val PROGRAM_TERM: Term.Name = Term.Name(PROGRAM)
 
   /**
    * The fields that occupy blame and the origin of the node respectively.

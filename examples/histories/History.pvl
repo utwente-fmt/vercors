@@ -1,23 +1,16 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases HistoryLoop
 
 //:: cases HistoryDefined
-//:: suite problem-fail
 //:: tools silicon
 //:: options --check-defined
+//:: verdict Pass
 
 //:: cases HistoryAxioms
-//:: suite problem-fail
 //:: tools silicon
 //:: options --check-axioms
-
-/*
- Checking the correctness of the defined processes and/or axioms is disabled due
- refactoring.
-*/
+//:: verdict Pass
 
 class History {
-
   int x;
   
   modifies x;
@@ -45,6 +38,5 @@ class History {
   requires m>=0 && n >= 0 ;
   ensures single(m)*single(n)==single(m+n);
   void single_axiom(int m,int n);
-  
 }
 

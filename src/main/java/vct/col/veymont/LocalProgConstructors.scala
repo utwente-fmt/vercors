@@ -15,7 +15,7 @@ import scala.jdk.CollectionConverters._
   * Adds the channels to Thread constructors
   * @param source
   */
-class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractRewriter(source) {
 
   var chanMap = Map.empty[String,Set[ChannelRepr]]
 
@@ -64,7 +64,6 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
 
   private def getRoleConstructorContract(chans : Set[ChannelRepr]) : ContractBuilder = {
     val contract = new ContractBuilder()
-    val reqSentRecvd = chans.map(_.getArgChan.getChanFieldPerm(create))
     val reqNotNull = chans.map(chan =>
       create.expression(StandardOperator.NEQ,
         create.argument_name(chan.getArgChanName),
@@ -77,12 +76,9 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
       create.expression(StandardOperator.EQ,
         create.field_name(chan.channel),
         create.argument_name(chan.getArgChanName)))
-    val ensSentRecvd = chans.map(_.getChanFieldPerm(create))
-  //  reqSentRecvd.foreach(contract.requires(_))
     reqNotNull.foreach(contract.requires(_))
     ensPerm.foreach(contract.ensures(_))
     ensArgEq.foreach(contract.ensures(_))
-  //  ensSentRecvd.foreach(contract.ensures(_))
     contract
   }
 

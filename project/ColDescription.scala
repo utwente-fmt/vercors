@@ -81,8 +81,13 @@ class ColDescription {
       q"rewriter.collectInScope(rewriter.${DECLARATION_KINDS(declKind)}){$term.foreach(rewriter.dispatch)}"
     case Type.Apply(Type.Name(collectionType), List(arg)) if Set("Seq", "Set", "Option").contains(collectionType) =>
       q"$term.map(element => ${rewriteDefault(q"element", arg)})"
+
     case Type.Tuple(List(t1, t2)) =>
       q"(${rewriteDefault(q"$term._1", t1)}, ${rewriteDefault(q"$term._2", t2)})"
+    case Type.Tuple(List(t1, t2, t3)) =>
+      q"(${rewriteDefault(q"$term._1", t1)}, ${rewriteDefault(q"$term._2", t2)}, ${rewriteDefault(q"$term._3", t3)})"
+    case Type.Tuple(other) =>
+      MetaUtil.fail(s"Oops, this tuple is too long for me! size=${other.size}", node=Some(typ))
 
     case Type.Name(declKind) if DECLARATION_KINDS.contains(declKind) =>
       q"rewriter.collectOneInScope(rewriter.${DECLARATION_KINDS(declKind)}){rewriter.dispatch($term)}"
@@ -150,6 +155,8 @@ class ColDescription {
       bases(name.value) = inits.collect {
         case Init(Type.Name(name), _, _) => name
       }
+    case Defn.Object(_, _, Template(_, _, _, stats)) =>
+      stats.foreach(collectBases(_))
     case _ =>
   }
 
@@ -167,6 +174,8 @@ class ColDescription {
         case Init(Type.Name("NodeFamily"), _, _) => ()
       }.nonEmpty)
         families += name.value
+    case Defn.Object(_, _, Template(_, _, _, stats)) =>
+      stats.foreach(collectFamily(_))
     case _ =>
   }
 

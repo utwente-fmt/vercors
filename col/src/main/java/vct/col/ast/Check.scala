@@ -1,6 +1,6 @@
 package vct.col.ast
 
-import vct.result.VerificationResult.SystemError
+import scala.collection.mutable
 
 sealed trait CheckError
 case class TypeError(expr: Expr, expectedType: Type) extends CheckError
@@ -8,7 +8,8 @@ case class TypeErrorText(expr: Expr, message: Type => String) extends CheckError
 case class OutOfScopeError(ref: Ref[_ <: Declaration]) extends CheckError
 case class IncomparableTypes(left: Expr, right: Expr) extends CheckError
 
-case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(), currentApplicable: Option[Applicable] = None) {
+case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(),
+                        currentApplicable: Option[Applicable] = None) {
   def withScope(decls: Set[Declaration]): CheckContext =
     CheckContext(scopes :+ decls, currentApplicable)
 

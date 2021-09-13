@@ -5,7 +5,7 @@
 
 class C {
     void m() {
-        //@ loop_invariant true;
+        // loop_invariant true;
         l: if (true) { }
     }
 }

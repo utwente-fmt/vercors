@@ -215,7 +215,7 @@ valGlobalDeclaration
  : 'axiom' langId '{' langExpr '==' langExpr '}'
  | valModifier* 'resource' langId '(' valArgList? ')' valDef
  | valContractClause* valModifier* 'pure' langType langId '(' valArgList? ')' valDef
- | 'model' langId '{' valModelDeclaration* '}'
+ | 'temporaryUnusedKeywordForModel' langId '{' valModelDeclaration* '}'
  | 'ghost' langGlobalDecl
  ;
 

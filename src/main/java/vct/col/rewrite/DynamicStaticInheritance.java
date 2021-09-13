@@ -66,7 +66,6 @@ public class DynamicStaticInheritance extends AbstractRewriter {
 
   private AbstractRewriter tag_this=new AbstractRewriter(this){
     public void visit(MethodInvokation e){
-//      if (isThis(e.object())&&(e.getDefinition()==null||e.getDefinition().getKind()==Method.Kind.Predicate)){
       if (isThis(e.object())){
         String class_name=this.current_class().getName();
         result=create.invokation(rewrite(e.object()), rewrite(e.dispatch()), e.method()+AT_STRING+class_name, rewrite(e.getArgs()));
@@ -96,13 +95,12 @@ public class DynamicStaticInheritance extends AbstractRewriter {
           break;
         case Open:{
           MethodInvokation i=(MethodInvokation)e.getArg(0);
-          MethodInvokation res=create.invokation(
+          result= create.invokation(
               rewrite(i.object()),
               null,
               "open_"+i.method()+AT_STRING+i.dispatch().getFullName(),
               rewrite(i.getArgs())
             );
-          result=res;
           break;
         }
         default:
@@ -169,13 +167,12 @@ public class DynamicStaticInheritance extends AbstractRewriter {
           break;
         case Open:{
           MethodInvokation i=(MethodInvokation)e.getArg(0);
-          MethodInvokation res=create.invokation(
+          result= create.invokation(
               rewrite(i.object()),
               null,
               "open_"+i.method()+AT_STRING+i.dispatch().getFullName(),
               rewrite(i.getArgs())
             );
-          result=res;
           break;
         }
         default:
@@ -242,7 +239,6 @@ public class DynamicStaticInheritance extends AbstractRewriter {
     String class_name=cl.getName();
     ASTClass res=create.ast_class(class_name,cl.kind,rewrite(cl.parameters),new ClassType[0],new ClassType[0]);
     //should be function, but chalice messes up during printing.
-    //res.add_dynamic(create.method_kind(Method.Kind.Pure,create.primitive_type(Sort.Boolean),null,"is_a_"+class_name,new DeclarationStatement[0],null));
     res.add_dynamic(create.predicate("is_a_"+class_name, null));
     res.add_dynamic(create.predicate("instance_of_"+class_name, null));
     for(DeclarationStatement decl:cl.fields()){
@@ -311,20 +307,6 @@ public class DynamicStaticInheritance extends AbstractRewriter {
         open.setStatic(m.isStatic());
         res.add(open);
         ASTNode body=tag_this.rewrite(m.getBody());
-        /* DELETE due to override instead of chain...
-        if (parent!=null){
-          for(int i=0;i<N;i++){
-            names[i]=create.local_name(m.getArgument(i));
-          }
-          ASTNode base=create.invokation(
-              create.reserved_name(This),
-              null,
-              m.getName()+AT_STRING+parent.getName(),
-              names);
-          base.labeled("parent");
-          body=create.expression(StandardOperator.Star,base,body);
-        }
-        */
         Method local=create.method_kind(
             m.kind,
             copy_rw.rewrite(m.getReturnType()),

@@ -1,7 +1,6 @@
 package vct.col.ast.util
 
 import java.util
-import java.util.Objects
 import scala.annotation.varargs
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._

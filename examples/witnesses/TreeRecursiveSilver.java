@@ -18,7 +18,7 @@ final class Tree {
   public Tree right;
 
   /*@
-    public resource state()=Perm(data,write)**
+    resource state()=Perm(data,write)**
 	Perm(left,write)**Perm(right,write)**
 	left->state()**right->state();
   @*/
@@ -26,7 +26,7 @@ final class Tree {
   /*@
     requires t->state();
     ensures  t!=null ==> \result.length > 0;
-    static seq<int> contents(Tree t)=(t==null)?seq<int>{}:
+    static pure seq<int> contents(Tree t)=(t==null)?seq<int>{}:
           \unfolding t.state() \in (contents(t.left)+seq<int>{t.data}+contents(t.right));
   */
   

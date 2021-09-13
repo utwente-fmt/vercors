@@ -1,8 +1,8 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases SimpleMethodCall
-//:: suite session-generate
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
 //:: verdict Pass
+//:: tool veymont
 
 class Role {
 	

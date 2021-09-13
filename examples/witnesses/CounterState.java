@@ -14,7 +14,7 @@ public class CounterState {
   public int val;
   
   /*@
-    public resource state(frac p,int v)=Perm(val,p)**val==v;
+    resource state(frac p,int v)=Perm(val,p)**val==v;
   @*/
  
   /*@

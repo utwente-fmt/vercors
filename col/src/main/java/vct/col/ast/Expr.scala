@@ -4,10 +4,10 @@ sealed trait Expr extends NodeFamily {
   def t: Type
 
   def checkSubType(other: Type): Seq[CheckError] =
-    if(t.superTypeOf(other))
-      Seq(TypeError(this, other))
-    else
+    if(other.superTypeOf(t))
       Nil
+    else
+      Seq(TypeError(this, other))
 
   def checkSeqThen(whenOk: TSeq => Seq[CheckError] = _ => Nil): Seq[CheckError] =
     t.asSeq.map(whenOk).getOrElse(Seq(TypeError(this, TSeq(TAny()))))
@@ -81,8 +81,26 @@ case class Void()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TVoid()
 }
 
+case class ContextSensitiveNodeNotResolved(expr: Expr, message: String) extends ASTStateError {
+  override def text: String =
+    "A node was encountered of which the type is context-sensitive, but its context is not yet resolved. " +
+    f"The node says: $message"
+}
+
 case class AmbiguousThis()(implicit val o: Origin) extends Expr with NoCheck {
-  override def t: Type = TSkip()
+  var ref: Option[Type] = None
+  override def t: Type = ref.getOrElse(throw ContextSensitiveNodeNotResolved(this,
+    "'this' encountered, but the surrounding class is not resolved."))
+}
+
+case class AmbiguousResult()(implicit val o: Origin) extends Expr with NoCheck {
+  var ref: Option[Type] = None
+  override def t: Type = ref.getOrElse(
+    throw ContextSensitiveNodeNotResolved(this, "'\\result' encountered, but its attached method is not resolved."))
+}
+
+case class CurrentThreadId()(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TInt()
 }
 
 case class Null()(implicit val o: Origin) extends Expr with NoCheck {
@@ -138,13 +156,19 @@ case class MapRemove(map: Expr, k: Expr)(implicit val o: Origin) extends Expr {
     map.checkMapThen(t => k.checkSubType(t.key))
 }
 
-case class Forall(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TBool())) with BoolExpr
-case class Starall(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TResource())) with ResourceExpr
-case class Exists(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TBool())) with BoolExpr
-case class Sum(bindings: Seq[Variable], condition: Expr, main: Expr)(implicit val o: Origin) extends Check(main.checkSubType(TInt()), condition.checkSubType(TBool())) with IntExpr
-case class Product(bindings: Seq[Variable], condition: Expr, main: Expr)(implicit val o: Origin) extends Check(main.checkSubType(TInt()), condition.checkSubType(TBool())) with IntExpr
-case class Let(binding: Variable, value: Expr, main: Expr)(implicit val o: Origin) extends Check(value.checkSubType(binding.t)) with Expr {
+sealed trait Binder extends Declarator {
+  def bindings: Seq[Variable]
+  override def declarations: Seq[Declaration] = bindings
+}
+
+case class Forall(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TBool())) with BoolExpr with Binder
+case class Starall(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TResource())) with ResourceExpr with Binder
+case class Exists(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TBool())) with BoolExpr with Binder
+case class Sum(bindings: Seq[Variable], condition: Expr, main: Expr)(implicit val o: Origin) extends Check(main.checkSubType(TInt()), condition.checkSubType(TBool())) with IntExpr with Binder
+case class Product(bindings: Seq[Variable], condition: Expr, main: Expr)(implicit val o: Origin) extends Check(main.checkSubType(TInt()), condition.checkSubType(TBool())) with IntExpr with Binder
+case class Let(binding: Variable, value: Expr, main: Expr)(implicit val o: Origin) extends Check(value.checkSubType(binding.t)) with Expr with Binder {
   override def t: Type = main.t
+  override def bindings: Seq[Variable] = Seq(binding)
 }
 case class InlinePattern(inner: Expr)(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = inner.t
@@ -155,7 +179,12 @@ case class Local(ref: Ref[Variable])(implicit val o: Origin) extends Expr {
   override def check(context: CheckContext): Seq[CheckError] =
     context.inScope(ref)
 }
-case class Deref(obj: Expr, ref: Ref[Variable])(implicit val o: Origin) extends Expr {
+case class Deref(obj: Expr, ref: Ref[Field])(implicit val o: Origin) extends Expr {
+  override def t: Type = ref.decl.t
+  override def check(context: CheckContext): Seq[CheckError] =
+    context.inScope(ref)
+}
+case class ModelDeref(obj: Expr, ref: Ref[ModelField])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
     context.inScope(ref)
@@ -169,10 +198,9 @@ case class AddrOf(e: Expr)(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TPointer(e.t)
 }
 
-sealed trait Invocation extends Expr {
-  def ref: Ref[ContractApplicable]
+sealed trait Apply extends Expr {
+  def ref: Ref[Applicable]
   def args: Seq[Expr]
-  def blame: PreconditionBlame
 
   override def t: Type = ref.decl.returnType
 
@@ -182,8 +210,14 @@ sealed trait Invocation extends Expr {
     }
 }
 
-case class KernelInvocation(ref: Ref[Procedure], blockCount: Expr, threadCount: Expr, args: Seq[Expr])
-                           (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
+case class PredicateApply(ref: Ref[Predicate], args: Seq[Expr])(implicit val o: Origin) extends Apply
+case class InstancePredicateApply(obj: Expr, ref: Ref[InstancePredicate], args: Seq[Expr])(implicit val o: Origin) extends Apply
+
+case class ADTFunctionInvocation(ref: Ref[ADTFunction], args: Seq[Expr])(implicit val o: Origin) extends Apply
+
+sealed trait Invocation extends Apply {
+  def blame: PreconditionBlame
+}
 
 case class ProcedureInvocation(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]])
                               (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation

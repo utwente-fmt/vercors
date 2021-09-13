@@ -50,7 +50,7 @@ trait PreconditionBlame {
 }
 
 trait PostconditionBlame {
-  def postconditionFailed(failure: ContractFailure, invokable: ContractApplicable)
+  def postconditionFailed(failure: ContractFailure, invokable: ContractApplicable): Unit
 }
 
 trait SilverWhileInvariantBlame {

@@ -1,6 +1,5 @@
 package vct.col.ast.stmt.decl
 
-import vct.col.ast._
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, ClassName, VisitorHelper}
 

@@ -92,4 +92,7 @@ antlrTask := {
 
 sourceGenerators in Compile += (antlrTask in Compile).taskValue
 managedSourceDirectories in Compile += (sourceManaged in Compile).value / "antlr4"
+
+// Disable documentation generation
 sources in (Compile, doc) := Seq()
+publishArtifact in (Compile, packageDoc) := false
