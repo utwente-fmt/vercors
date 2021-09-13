@@ -1,5 +1,7 @@
 package vct.col.ast
 
+import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefModel, SpecTypeNameTarget}
+
 sealed trait Expr extends NodeFamily {
   def t: Type
 
@@ -8,6 +10,20 @@ sealed trait Expr extends NodeFamily {
       Nil
     else
       Seq(TypeError(this, other))
+
+  private def isOfClassType: Boolean = t match {
+    case TClass(_) => true
+    case t @ JavaTClass(_) => t.ref.get match {
+      case RefAxiomaticDataType(_) => false
+      case RefModel(_) => false
+      case RefJavaClass(_) => true
+    }
+    case _ => false
+  }
+
+  def checkClassType: Seq[CheckError] =
+    if(isOfClassType) Nil
+    else Seq(TypeErrorText(this, got => s"Expected a class type, but got $got"))
 
   def checkSeqThen(whenOk: TSeq => Seq[CheckError] = _ => Nil): Seq[CheckError] =
     t.asSeq.map(whenOk).getOrElse(Seq(TypeError(this, TSeq(TAny()))))
@@ -583,9 +599,9 @@ case class Then(value: Expr, post: Statement)(implicit val o: Origin) extends Ex
   override def t: Type = value.t
 }
 
-case class Held(obj: Expr)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with BoolExpr
-case class IdleToken(thread: Expr)(implicit val o: Origin) extends Check(thread.checkSubType(TClass.RUNNABLE)) with BoolExpr
-case class JoinToken(thread: Expr)(implicit val o: Origin) extends Check(thread.checkSubType(TClass.RUNNABLE)) with BoolExpr
+case class Held(obj: Expr)(implicit val o: Origin) extends Check(obj.checkClassType) with BoolExpr
+case class IdleToken(thread: Expr)(implicit val o: Origin) extends Check(thread.checkClassType) with BoolExpr
+case class JoinToken(thread: Expr)(implicit val o: Origin) extends Check(thread.checkClassType) with BoolExpr
 
 case class EmptyProcess()(implicit val o: Origin) extends ProcessExpr with NoCheck
 case class ActionApply(action: Ref[ModelAction], args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with NoCheck

@@ -75,7 +75,7 @@ case class JavaConstructor(modifiers: Seq[JavaModifier], name: String,
                            signals: Seq[JavaName], body: Statement, contract: ApplicableContract)
                           (implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck with Declarator {
-  override def declarations: Seq[Declaration] = parameters ++ typeParameters
+  override def declarations: Seq[Declaration] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
 }
 case class JavaMethod(modifiers: Seq[JavaModifier], returnType: Type, dims: Int, name: String,
                       parameters: Seq[Variable], typeParameters: Seq[Variable],

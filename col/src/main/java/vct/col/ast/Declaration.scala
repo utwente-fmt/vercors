@@ -281,7 +281,7 @@ sealed trait Field extends ClassDeclaration {
 
 class InstanceField(val t: Type, val flags: Set[FieldFlag])(implicit val o: Origin) extends Field with NoCheck
 
-class Class(val declarations: Seq[ClassDeclaration])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator
+class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator
 
 sealed trait ModelDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.modelScopes.top += this

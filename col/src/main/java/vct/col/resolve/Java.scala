@@ -1,11 +1,18 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
-import vct.col.ast.{DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaImport, JavaMethod, JavaNamespace, JavaStatic, JavaTClass, Origin, TClass, TNotAValue, Variable}
+import vct.col.ast.{ApplicableContract, Block, DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaImport, JavaMethod, JavaName, JavaNamespace, JavaStatic, JavaTClass, Origin, SourceNameOrigin, TClass, TNotAValue, TType, Variable}
 import vct.result.VerificationResult
+import vct.col.ast.Constant._
 
 case object Java {
+  case class JavaSystemOrigin(preferredName: String) extends Origin {
+    override def messageInContext(message: String): String =
+      s"At: [Class loaded from JRE with reflection]\n$message"
+  }
+
   private implicit val o: Origin = DiagnosticOrigin
+  val JAVA_LANG_OBJECT: JavaTClass = JavaTClass(Seq(("java", None), ("lang", None), ("Object", None)))
 
   def findLoadedJavaTypeName(potentialFQName: Seq[String], ctx: TypeResolutionContext): Option[JavaTypeNameTarget] = {
     ctx.stack.last.foreach {
@@ -23,6 +30,29 @@ case object Java {
     }
 
     None
+  }
+
+  def findRuntimeJavaTypeName(potentialFQName: Seq[String], ctx: TypeResolutionContext): Option[JavaClassOrInterface] = {
+    implicit val o: Origin = JavaSystemOrigin("unknown_jre")
+
+    try {
+      val classLoader = this.getClass.getClassLoader
+      val cls = classLoader.loadClass(potentialFQName.mkString("."))
+
+      val colClass = JavaClass(
+        name = cls.getSimpleName,
+        modifiers = Nil,
+        typeParams = cls.getTypeParameters.map(param => new Variable(TType(JAVA_LANG_OBJECT))(JavaSystemOrigin(param.getName))),
+        ext = JAVA_LANG_OBJECT,
+        imp = Nil,
+        decls = Seq(JavaConstructor(Nil, "", Nil, Nil, Nil, Block(Seq()), ApplicableContract(true, true, true, Nil, Nil, Nil))),
+      )(JavaSystemOrigin(cls.getSimpleName))
+
+      ctx.externallyLoadedClasses += JavaNamespace(Some(JavaName(potentialFQName.init)), Nil, Seq(colClass))
+      Some(colClass)
+    } catch {
+      case _: ClassNotFoundException => None
+    }
   }
 
   def findJavaTypeName(names: Seq[String], ctx: TypeResolutionContext): Option[JavaTypeNameTarget] = {
@@ -43,6 +73,7 @@ case object Java {
     }
 
     FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName(_, ctx))
+      .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaTypeName(_, ctx)).map(RefJavaClass))
   }
 
   def findJavaName(name: String, ctx: ReferenceResolutionContext): Option[JavaNameTarget] =
@@ -54,7 +85,7 @@ case object Java {
     obj.t match {
       case t @ TNotAValue() => t.decl.get match {
         case RefUnloadedJavaNamespace(pkg) =>
-          Some(findJavaTypeName(pkg :+ name, TypeResolutionContext(ctx.stack, ctx.currentJavaNamespace))
+          Some(findJavaTypeName(pkg :+ name, ctx.asTypeResolutionContext)
             .getOrElse(RefUnloadedJavaNamespace(pkg :+ name)))
         case RefJavaClass(decl) =>
           decl.decls.flatMap(Referrable.from).collectFirst {

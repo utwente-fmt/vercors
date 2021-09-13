@@ -21,7 +21,7 @@ case class CatchClause(decl: Variable, body: Statement)(implicit val o: Origin) 
 }
 case class TryCatchFinally(body: Statement, after: Statement, catches: Seq[CatchClause])(implicit val o: Origin) extends Statement with NoCheck
 
-case class Synchronized(obj: Expr, body: Statement)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with Statement
+case class Synchronized(obj: Expr, body: Statement)(implicit val o: Origin) extends Check(obj.checkClassType) with Statement
 
 case class ParInvariant(decl: ParInvariantDecl, inv: Expr, content: Statement)(implicit val o: Origin) extends Check(inv.checkSubType(TResource())) with Statement with Declarator {
   override def declarations: Seq[Declaration] = Seq(decl)
@@ -47,7 +47,7 @@ case class ParBlock(decl: ParBlockDecl, after: Seq[Ref[ParBlockDecl]], iters: Se
   override def declarations: Seq[Declaration] = iters.map(_.variable)
 }
 
-case class Throw(e: Expr)(implicit val o: Origin) extends Check(e.checkSubType(TClass.THROWABLE)) with Statement
+case class Throw(e: Expr)(implicit val o: Origin) extends Check(e.checkClassType) with Statement
 
 case class DefaultCase()(implicit val o: Origin) extends Statement with NoCheck
 case class Case(pattern: Expr)(implicit val o: Origin) extends Statement with NoCheck
@@ -71,12 +71,12 @@ case class Assume(assn: Expr)(implicit val o: Origin) extends Check(assn.checkSu
 case class SpecIgnoreStart()(implicit val o: Origin) extends Statement with NoCheck
 case class SpecIgnoreEnd()(implicit val o: Origin) extends Statement with NoCheck
 
-case class Wait(obj: Expr)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with Statement
-case class Notify(obj: Expr)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with Statement
-case class Fork(runnable: Expr)(implicit val o: Origin) extends Check(runnable.checkSubType(TClass.RUNNABLE)) with Statement
-case class Join(runnable: Expr)(implicit val o: Origin) extends Check(runnable.checkSubType(TClass.RUNNABLE)) with Statement
-case class Lock(obj: Expr)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with Statement
-case class Unlock(obj: Expr)(implicit val o: Origin) extends Check(obj.checkSubType(TClass.OBJECT)) with Statement
+case class Wait(obj: Expr)(implicit val o: Origin) extends Check(obj.checkClassType) with Statement
+case class Notify(obj: Expr)(implicit val o: Origin) extends Check(obj.checkClassType) with Statement
+case class Fork(runnable: Expr)(implicit val o: Origin) extends Check(runnable.checkClassType) with Statement
+case class Join(runnable: Expr)(implicit val o: Origin) extends Check(runnable.checkClassType) with Statement
+case class Lock(obj: Expr)(implicit val o: Origin) extends Check(obj.checkClassType) with Statement
+case class Unlock(obj: Expr)(implicit val o: Origin) extends Check(obj.checkClassType) with Statement
 
 case class Fold(pred: Expr)(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] = pred.checkSubType(TResource())

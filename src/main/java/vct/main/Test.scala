@@ -36,7 +36,8 @@ case object Test {
   def tryParse(path: Path): Unit = try {
     println(path)
     var program = Program(Parsers.parse(path))(DiagnosticOrigin)
-    ResolveTypes.resolve(program)
+    val extraDecls = ResolveTypes.resolve(program)
+    program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)
     val errors = ResolveReferences.resolve(program)
     printErrorsOr(errors) {
       program = JavaSpecificToCol().dispatch(program)
