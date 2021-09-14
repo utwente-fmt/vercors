@@ -22,25 +22,15 @@ import scala.collection.mutable.WrappedArray
 
 
 class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with FactoryUtils[O] {
-  private final val floatFactory = FloatFactory(24, 8, RoundingMode.RNE)
-  private final val doubleFactory = FloatFactory(52, 12, RoundingMode.RNE)
 
   override def Constant(o:O, i:Int): Exp = IntLit(i)(NoPosition,new OriginInfo(o))
   override def Constant(o:O, f:Float): Exp = {
-    val floatFactory = FloatFactory(24, 8, RoundingMode.RNE)
-    val bv32Factory = BVFactory(32)
-    val bv32FromInt = bv32Factory.from_int("intToBV32")  // the value of the "name" strings can be anything
-    val floatFromBV = floatFactory.from_bv("BV32ToFloat")
     val rawIntBits = java.lang.Float.floatToRawIntBits(f)
-    BackendFuncApp(floatFromBV, Seq(BackendFuncApp(bv32FromInt, Seq(IntLit(rawIntBits)(NoPosition,new OriginInfo(o))))(NoPosition,new OriginInfo(o))))(NoPosition,new OriginInfo(o))
+    nestedBackenFuncApp(o, bv32_to_float, int_to_bv32, IntLit(rawIntBits)(NoPosition,new OriginInfo(o)))
   }
   override def Constant(o:O, d:Double): Exp = {
-    val doubleFactory = FloatFactory(52, 12, RoundingMode.RNE)
-    val bv64Factory = BVFactory(64)
-    val bv64FromInt = bv64Factory.from_int("intToBV64")
-    val doubleFromBV = doubleFactory.from_bv("BV64ToDouble")
     val rawIntBits = java.lang.Double.doubleToRawLongBits(d)
-    BackendFuncApp(doubleFromBV, Seq(BackendFuncApp(bv64FromInt, Seq(IntLit(rawIntBits)(NoPosition,new OriginInfo(o))))(NoPosition,new OriginInfo(o))))(NoPosition,new OriginInfo(o))
+    nestedBackenFuncApp(o, bv64_to_double, int_to_bv64, IntLit(rawIntBits)(NoPosition,new OriginInfo(o)))
   }
   override def Constant(o:O, b:Boolean): Exp =
     if(b) TrueLit()(NoPosition,new OriginInfo(o)) else FalseLit()(NoPosition,new OriginInfo(o))
@@ -225,8 +215,6 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def neg(o:O,e1:Exp):Exp = Minus(e1)(NoPosition,new OriginInfo(o))
 
-  private def getFloatFactory(e:Exp):FloatFactory = if (e.typ == floatFactory.typ) floatFactory else doubleFactory
-
   override def fp_neg(o:O,e1:Exp):Exp = BackendFuncApp(getFloatFactory(e1).neg("fp_neg"), Seq(e1))(NoPosition,new OriginInfo(o))
   override def fp_add(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).add("fp_add"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
   override def fp_sub(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).sub("fp_sub"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
@@ -238,6 +226,37 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   override def fp_gte(o:O, e1:Exp, e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).geq("fp_gte"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
   override def fp_lt(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).lt("fp_lt"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
   override def fp_gt(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).gt("fp_gt"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
+
+  private def getFloatFactory(e:Exp):FloatFactory = if (e.typ == floatFactory.typ) floatFactory else doubleFactory
+  private final val floatFactory = FloatFactory(24, 8, RoundingMode.RNE)
+  private final val doubleFactory = FloatFactory(53, 11, RoundingMode.RNE)
+  private final val bv32Factory = BVFactory(32)
+  private final val bv64Factory = BVFactory(64)
+  private final val int_to_bv32 = bv32Factory.from_int("intToBV32")
+  private final val bv32_to_float = floatFactory.from_bv("bv32ToFp")
+  private final val int_to_bv64 = bv64Factory.from_int("intToBV64")
+  private final val bv64_to_double = doubleFactory.from_bv("bv64ToFp")
+  private final val float_to_bv32 = floatFactory.to_bv("fpToBv32")
+  private final val bv32_to_int = bv32Factory.to_int("bv32ToInt")
+  private final val double_to_bv64 = doubleFactory.to_bv("fpToBv64")
+  private final val bv64_to_int = bv64Factory.to_int("bv64ToInt")
+
+  private def nestedBackenFuncApp(o: O, func1: BackendFunc, func2: BackendFunc, arg: Exp): BackendFuncApp =
+    BackendFuncApp(func1, Seq(BackendFuncApp(func2, Seq(arg))(NoPosition, new OriginInfo(o))))(NoPosition, new OriginInfo(o))
+
+  override def int_to_float(o: O, e1: Exp): Exp = nestedBackenFuncApp(o, bv32_to_float, int_to_bv32, e1)
+
+  override def int_to_double(o: O, e1: Exp): Exp = nestedBackenFuncApp(o, bv64_to_double, int_to_bv64, e1)
+
+  override def float_to_double(o: O, e1: Exp): Exp = {
+    val float_to_int = nestedBackenFuncApp(o, bv32_to_int, float_to_bv32, e1)
+    nestedBackenFuncApp(o, bv64_to_double, int_to_bv64, float_to_int)
+  }
+
+  override def double_to_float(o: O, e1: Exp): Exp = {
+    val double_to_int = nestedBackenFuncApp(o, bv64_to_int, double_to_bv64, e1)
+    nestedBackenFuncApp(o, bv32_to_float, int_to_bv32, double_to_int)
+  }
 
   override def local_name(o:O,name:String,t:Type):Exp = LocalVar(name, t)(NoPosition, new OriginInfo(o), NoTrafos)
 

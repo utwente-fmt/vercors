@@ -128,7 +128,11 @@ public interface ExpressionFactory<O,T,E> {
   E fp_gte(O o, E e1, E e2);
   E fp_lt(O o, E e1, E e2);
   E fp_gt(O o, E e1, E e2);
-  
+  E int_to_float(O o, E e1);
+  E int_to_double(O o, E e1);
+  E float_to_double(O o, E e1);
+  E double_to_float(O o, E e1);
+
   public E and(O o, E e1, E e2);
   public E or(O o, E e1, E e2);
   public E implies(O o, E e1, E e2);

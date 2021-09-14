@@ -64,10 +64,14 @@ public enum StandardOperator {
   Instance(2),
   /** Type Cast Expression. */
   Cast(2),
-  /** Int to Float operator. */
+  /** Int to Float cast operator. */
   IntegerToFloat(1),
-  /** Int to Double operator. */
+  /** Int to Double cast operator. */
   IntegerToDouble(1),
+  /** Float to Double cast operator. */
+  FloatToDouble(1),
+  /** Double to Float cast operator. */
+  DoubleToFLoat(1),
   /** Sub type relation. */
   SubType(2),
   /** Super type relation. */

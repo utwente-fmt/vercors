@@ -259,13 +259,26 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         return create.neg(o, e1);
       }
     }
-    case Scale:{
+    case Scale: {
       return create.scale_access(o, e2, e1);
     }
-    case Concat:
+    case Concat: {
       return create.append(o, e1, e2);
+    }
+    case IntegerToFloat: {
+      return create.int_to_float(o, e1);
+    }
+    case IntegerToDouble: {
+      return create.int_to_double(o, e1);
+    }
+    case FloatToDouble: {
+      return create.float_to_double(o, e1);
+    }
+    case DoubleToFLoat: {
+      return create.double_to_float(o, e1);
+    }
     default:
-        throw new HREError("cannot map operator %s", e.operator());
+      throw new HREError("cannot map operator %s", e.operator());
     }
   }
 

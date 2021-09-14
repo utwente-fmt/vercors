@@ -843,6 +843,16 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         e.setType(new PrimitiveType(PrimitiveSort.Double));
         break;
       }
+      case FloatToDouble: {
+        if (!tt[0].isFloat()) Fail("type of argument is %s rather than float", tt[0]);
+        e.setType(new PrimitiveType(PrimitiveSort.Double));
+        break;
+      }
+      case DoubleToFLoat: {
+        if (!tt[0].isDouble()) Fail("type of argument is %s rather than double", tt[0]);
+        e.setType(new PrimitiveType(PrimitiveSort.Float));
+        break;
+      }
       case Or: {
         if (tt[0].isPrimitive(PrimitiveSort.Process)) {
           if (!tt[1].isPrimitive(PrimitiveSort.Process)) {

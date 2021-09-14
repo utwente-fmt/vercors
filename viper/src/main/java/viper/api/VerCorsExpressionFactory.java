@@ -466,7 +466,39 @@ public class VerCorsExpressionFactory implements
   public ASTNode fp_gt(Origin o, ASTNode e1, ASTNode e2) {
     return gt(o, e1, e2);
   }
-  
+
+  @Override
+  public ASTNode int_to_float(Origin o, ASTNode e1) {
+      enter(o);
+      ASTNode res=create.expression(StandardOperator.IntegerToFloat, e1);
+      leave();
+      return res;
+  }
+
+  @Override
+  public ASTNode int_to_double(Origin o, ASTNode e1) {
+      enter(o);
+      ASTNode res=create.expression(StandardOperator.IntegerToDouble, e1);
+      leave();
+      return res;
+  }
+
+  @Override
+  public ASTNode float_to_double(Origin o, ASTNode e1) {
+      enter(o);
+      ASTNode res=create.expression(StandardOperator.FloatToDouble, e1);
+      leave();
+      return res;
+  }
+
+  @Override
+  public ASTNode double_to_float(Origin o, ASTNode e1) {
+      enter(o);
+      ASTNode res=create.expression(StandardOperator.DoubleToFLoat, e1);
+      leave();
+      return res;
+  }
+
   @Override
   public ASTNode no_perm(Origin o) {
     enter(o);

@@ -3,6 +3,7 @@ package vct.col.features
 import hre.ast.MessageOrigin
 import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
 import vct.col.ast.`type`._
+import vct.col.ast.expr.StandardOperator.{Div, EQ, GT, GTE, LT, LTE, Minus, Mult, NEQ, Plus}
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.expr._
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
@@ -307,9 +308,35 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     }
   }
 
+  private def hasImplicitTypeCast(e: OperatorExpression): Boolean = {
+    e.operator match {
+      case Plus | Minus | Mult | Div | EQ | NEQ | GT | GTE | LT | LTE =>
+        val first = e.first
+        val second = e.second
+        ((first.getType.isFloat && second.getType.isInteger)
+          || (first.getType.isInteger && second.getType.isFloat)
+          || (first.getType.isDouble && second.getType.isInteger)
+          || (first.getType.isInteger && second.getType.isDouble)
+          || (first.getType.isFloat && second.getType.isDouble)
+          || (first.getType.isDouble && second.getType.isFloat))
+      case _ =>
+        false
+    }
+  }
+
+  private def hasImplicitTypeCast(e: AssignmentStatement): Boolean = {
+    val location = e.location
+    val value = e.expression
+    ((location.getType.isFloat && value.getType.isInteger)
+      || (location.getType.isDouble && value.getType.isInteger)
+      || (location.getType.isFloat && value.getType.isDouble)
+      || (location.getType.isDouble && value.getType.isFloat))
+  }
+
   override def visit(op: OperatorExpression): Unit = {
     super.visit(op)
     visitBeforeAfter(op)
+    if (hasImplicitTypeCast(op)) addFeature(ImplicitTypeCast, op)
     op.operator match {
       case StandardOperator.Subscript =>
         if(op.second.isa(StandardOperator.RangeSeq)) {
@@ -402,6 +429,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   override def visit(assign: AssignmentStatement): Unit = {
     super.visit(assign)
+    if (hasImplicitTypeCast(assign)) addFeature(ImplicitTypeCast, assign)
     assign.location match {
       case name: NameExpression if name.kind == NameExpressionKind.Argument =>
         val unsortedWithThen = getAncestor(1).isSpecial(ASTSpecial.Kind.With) || getAncestor(1).isSpecial(ASTSpecial.Kind.Then)
@@ -660,6 +688,7 @@ object Feature {
     NoExcVar,
     Synchronized,
     ImplicitConstructorInvokation,
+    ImplicitTypeCast,
     NoLockInvariantProof,
     StringClass,
     MemberOfRange,
@@ -782,6 +811,7 @@ object Feature {
     Lemma,
     Summation,
     ImplicitConstructorInvokation,
+    ImplicitTypeCast,
     NoLockInvariantProof,
     StringClass,
     NotOptimized,
