@@ -1,27 +1,121 @@
 package vct.newrewrite
 
-import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers._
-import vct.col.ast.{DiagnosticOrigin, LabelDecl}
+import vct.col.ast._
+import vct.col.newrewrite.ContinueToBreak
+import vct.helper.{RewriteTestHelper, SimpleProgramGenerator}
 
 class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
   implicit val o = DiagnosticOrigin
 
-  "labeldecls" should "be structurally equal" in {
-    val l1 = new LabelDecl()
-    val l2 = new LabelDecl()
-    l1 should be (l2)
+  it should "replace a labeled continue with the proper labeled break" in {
+    val loopLabel = new LabelDecl()
+    val before = {
+      Block(Seq(
+        Label(loopLabel),
+        Loop(
+          Block(Nil),
+          Constant.BooleanValue(true),
+          Block(Nil),
+          Constant.BooleanValue(true),
+          Block(Seq(
+            Continue(Some(loopLabel.ref))
+          ))
+        )
+      ))
+    }
+
+    val after = {
+      val loopLabel = new LabelDecl()
+      val continueLoopLabel = new LabelDecl()
+      Block(Seq(
+        Label(loopLabel),
+        Loop(
+          Block(Nil),
+          Constant.BooleanValue(true),
+          Block(Nil),
+          Constant.BooleanValue(true),
+          Block(Seq(
+            Label(continueLoopLabel),
+            Block(Seq(
+              Break(Some(continueLoopLabel.ref))
+            ))
+          ))
+        )
+      ))
+    }
+
+    RewriteTestHelper.test(
+      ContinueToBreak(),
+      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
+      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
+    )
   }
 
-//  it should "convert continue into break" {
-//    val labelDecl = new LabelDecl
-//    val pIn = Block(Seq(
-//      Label(labelDecl),
-//      Loop(Block(Nil), true, Block(Nil), true, Block(Seq(Continue(Some(labelDecl.ref)))))
-//    ))
-//
-//    pIn should be pOut
-//  }
+  it should "only wrap the other loop when only continuing from the outer loop" in {
+    val before = {
+      val innerLoop = new LabelDecl()
+      val outerLoop = new LabelDecl
 
+      Block(Seq(
+        Label(outerLoop),
+        Loop(
+          Block(Nil),
+          Constant.BooleanValue(true),
+          Block(Nil),
+          Constant.BooleanValue(true),
+          Block(Seq(
+            Label(innerLoop),
+            Loop(
+              Block(Nil),
+              Constant.BooleanValue(true),
+              Block(Nil),
+              Constant.BooleanValue(true),
+              Block(Seq(
+                Continue(Some(outerLoop.ref))
+              ))
+            )
+          ))
+        )
+      ))
+    }
+
+    val after = {
+      val innerLoop = new LabelDecl()
+      val outerLoop = new LabelDecl
+      val continueOuterLoop = new LabelDecl
+
+      Block(Seq(
+        Label(outerLoop),
+        Loop(
+          Block(Nil),
+          Constant.BooleanValue(true),
+          Block(Nil),
+          Constant.BooleanValue(true),
+          Block(Seq(
+            Label(continueOuterLoop),
+            Block(Seq(
+              Label(innerLoop),
+              Loop(
+                Block(Nil),
+                Constant.BooleanValue(true),
+                Block(Nil),
+                Constant.BooleanValue(true),
+                Block(Seq(
+                  Break(Some(continueOuterLoop.ref))
+                ))
+              )
+            ))
+          ))
+        )
+      ))
+    }
+
+    RewriteTestHelper.test(
+      ContinueToBreak(),
+      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
+      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
+    )
+  }
 }
