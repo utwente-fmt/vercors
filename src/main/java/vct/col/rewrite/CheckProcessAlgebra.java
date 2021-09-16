@@ -74,28 +74,36 @@ public class CheckProcessAlgebra extends AbstractRewriter {
   public void visit(ASTClass cl){
     composite_map=new Hashtable<String,String>();
     process_map=new Hashtable<String,Method>();
-    HashSet<NameExpression> hist_set=new HashSet<NameExpression>();
+//    HashSet<NameExpression> hist_set=new HashSet<NameExpression>();
     for(Method m:cl.dynamicMethods()){
+      // Register all processes in this class by name
       if (!m.getReturnType().isPrimitive(PrimitiveSort.Process)) continue;
       ASTNode body=m.getBody();
       process_map.put(m.name(), m);
 
-      ASTNode[] modifies = m.getContract().modifies;
-      if (modifies == null) {
-      	modifies = new ASTNode[0];
-      }
-            
-      for(ASTNode n : modifies){
-        if (n instanceof NameExpression){
-          hist_set.add((NameExpression)n);
-        } else if (n instanceof Dereference) {
-          Dereference d=(Dereference)n;
-          hist_set.add(create.field_name(d.field()));
-        } else {
-          Fail("unexpected entry in modifies clause");
-        }
-      }
+//      ASTNode[] modifies = m.getContract().modifies;
+//      if (modifies == null) {
+//      	modifies = new ASTNode[0];
+//      }
+
+      // Since hist_set is not used, we can ignore this part
+//      for(ASTNode n : modifies){
+//        if (n instanceof NameExpression){
+//          hist_set.add((NameExpression)n);
+//        } else if (n instanceof Dereference) {
+//          Dereference d=(Dereference)n;
+//          hist_set.add(create.field_name(d.field()));
+//        } else {
+//          Fail("unexpected entry in modifies clause");
+//        }
+//      }
       if (body==null) continue;
+      // If body is of form P() || Q() || ... || Z():
+      // Save all permutations of P, Q, .., Z to composite map
+      // E.g., PQZ => methodName
+      //       QPZ => methodName
+      //       etc.
+      // Otherwise, error, cannot do any complex expressions in parallel composition sequences
       if(body.isa(StandardOperator.Or)){
         ArrayList<String> compounds = new ArrayList<String>();
         for(ASTNode p:ASTUtils.conjuncts(body, StandardOperator.Or)){
@@ -116,12 +124,15 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         	composite_map.put(composite, m.name());
         	Warning("mapping %s to %s", composite, m.name());
         }
-        
+
+        // This is obviously a semantics question
         // TODO: check if arguments are passed in-order.
         // That is p(a,b)=q(a)||q(b) is allowed, while p(a,b)=q(b)||q(a) is forbidden.
       }
     }
+    // Also copy the class literally, and trigger the visit function for lower methods and such
     super.visit(cl);
+
     /* this block creates _old vars and begin/end methods which are nto needed for checking histories.
     ASTClass res=(ASTClass)result;
     for(NameExpression n:hist_set){
@@ -172,12 +183,16 @@ public class CheckProcessAlgebra extends AbstractRewriter {
 
   @Override
   public void visit(Method m){
+    // Process methods are handled specially
+    // Pure methods are kept as is, the rest is discarded
     if (m.getReturnType().isPrimitive(PrimitiveSort.Process)){
+      // Create a new contract for the new method
       Contract c=m.getContract();
       ContractBuilder cb = new ContractBuilder();
       
       ASTNode[] modifies = c.modifies == null ? new ASTNode[0] : c.modifies;
 
+      // Create a write perm for each modifies
       for (ASTNode v : modifies){
         create.enter();
         create.setOrigin(v.getOrigin());
@@ -186,6 +201,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         create.leave();
       }
 
+      // Create a 0 < p < 1 permission for each accessible
       ArrayList<DeclarationStatement> accessArgs = new ArrayList<>();
       if (c.accesses != null) {
         for (ASTNode v : c.accesses) {
@@ -205,24 +221,32 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         }
       }
 
+      // Copy the pre and posts over
       if (c.pre_condition!=null) cb.requires(rewrite(c.pre_condition));
       if (c.post_condition!=null) cb.ensures(rewrite(c.post_condition));
 
+      // Add all original arguments after the accessible arguments
       DeclarationStatement args[]=rewrite(m.getArgs());
       for (DeclarationStatement arg : args) {
         accessArgs.add(0, arg);
       }
       args = accessArgs.toArray(DeclarationStatement[]::new);
 
+      // Transform the process body in a tricky way
       BlockStatement body=null;
       ASTNode m_body=m.getBody();
       if (m_body!=null){
         create.enter();
         body=create(m_body).block();
         m_body=normalize_body(m_body);
+        // Create_body turns a process algebra expression into a "regular" viper program
+        // E.g. + becomes if, sequential composition becomes newline, etc.
+        // At this point all left merge operators and || must be transformed away
         create_body(body,m_body);
         create.leave();
       }
+
+      // The result is plain method
       result=create.method_decl(create.primitive_type(PrimitiveSort.Void), cb.getContract(), m.name(), args, body);
     }
     else { 	
@@ -261,6 +285,21 @@ public class CheckProcessAlgebra extends AbstractRewriter {
   }
 
   private ASTNode expand_unguarded(ASTNode m_body) {
+    /*
+    Expansion works as follows:
+    - MethodInvokations with a definition are inlined, and then further expanded
+    - Empty processes are kept
+    - Parllel composition: left and right are expanded. Then a non-determinstic choice must happen:
+      - Either an action is taken from the left expansion
+      - Or an action is taken from the right expansion
+    - Choice: either side is just expanded
+    - Mult: only the first argument is expanded
+    - Ite: both branches must be expanded
+
+    Through this, expansion tries to ensure m_body eventually can always do an action (which is modelled as an abstract process)
+    This fails if there is recursion between processes on the left hand side of a parallel composition.
+     */
+
     PrintWriter out = hre.lang.System.getLogLevelErrorWriter(hre.lang.System.LogLevel.Debug);
     out.print("expanding: ");
     Configuration.getDiagSyntax().print(out,m_body);
@@ -325,7 +364,39 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     return null;
   }
 
+  /*
+   a L b is identical to a || b, except that the first action performed must be done by a
+   Hence, if a is an atomic action:
+   a L b = a . b
+   Hence, left merging is a way to possibly get rid of parallel compositions.
+   It is a linearization strategy that works in the absence of recursion, at least in this implementation
+   (See also: The Importance of the Left Merge Operator in Process Algebra by Faron Moller)
+
+   Key laws about left merge:
+   a || b = a L b + b L a         (parallel composition can be encoded as left merge)
+   (a + b) L c = a L c + b L c    (choice on the left hand side can be distributed across left merge)
+   Note that:
+   (a + b) || c =/= a || c + b || c
+
+   */
   private ASTNode left_merge(ASTNode m_body, ASTNode other) {
+    /*
+      When:
+      - Method invocation: assume it is an atomic action, and hence sequentially compose m_body and other
+      - Empty process: we can just continue with other (though in pure process algebra, I'd say this case is not defined!)
+        (Also not present in Faron Moller's work, I think)
+      - Choice: Choice of left merge of either side of the plus with other. This is effectively the distributive property at work,
+        and hence tries to ensure each branch begins with a concrete action
+      - Sequential composition:
+        - So in this case it is: (P * Q) L R
+        - In this case, P and Q must be atomic actions
+        - By left-merge's definition, rewrite this to P * (Q || R)
+        - We then try to reduce this back to an actual top-level parallel composition by seeing if this Q || R is defined in composite_map
+          - There is an inherent assumption here that all processes that are parallel compositions are unique compositions of other processes
+        - If so, we return P * S, for which S := Q || R, or maybe S := R || Q
+        - Else, we can't handle this, so we bail
+      - Ite: left merge both branches with other. Here again the transformation ensures each branch begins with a concrete action
+     */
     if (m_body instanceof MethodInvokation){
       return create.expression(StandardOperator.Mult,m_body,other);
     } else if(m_body.isReserved(ASTReserved.EmptyProcess)){
@@ -341,6 +412,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
         return create.expression(StandardOperator.Plus,g0,g1);
       }
       case Mult:{
+        // P * Q L R
         ASTNode p0=p.arg(0);
         ASTNode p1=p.arg(1);
         if (!(p0 instanceof MethodInvokation)) break;
