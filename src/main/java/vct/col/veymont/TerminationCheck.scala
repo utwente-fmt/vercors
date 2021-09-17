@@ -73,8 +73,8 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
         }
         case None =>
       }
-      Warning("Session Warning: recursive call of method '%s'" + deadlockWarning, m.method, m.getOrigin)
-    } else methods.find(tup => tup._1.name == m.method) match {
+      Warning("VeyMont Warning: recursive call of method '%s'" + deadlockWarning, m.method, m.getOrigin)
+    } else methods.find(tup => tup._1.name == (if(m.method == Method.JavaConstructor) m.dispatch.getName else m.method)) match {
       case Some(tup) => {
         val method = tup._1
         val mClass = tup._2
@@ -95,18 +95,18 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
 
   override def visit(l : LoopStatement) : Unit =
     if(currentClass != mainClassName)
-      Warning("Session Warning: loop in method of non-Main class" + deadlockWarning)
+      Warning("VeyMont Warning: loop in method of non-Main class" + deadlockWarning)
 
   override def visit(s : ASTSpecial) : Unit = {
     s.kind match {
-      case ASTSpecial.Kind.Goto => Warning("Session Warning: Goto" + deadlockWarning)
-      case ASTSpecial.Kind.Wait => Warning("Session Warning: Wait" + deadlockWarning)
-      case ASTSpecial.Kind.Fork => Warning("Session Warning: Fork" + deadlockWarning)
-      case ASTSpecial.Kind.Join => Warning("Session Warning: Join" + deadlockWarning)
-      case ASTSpecial.Kind.Lock => Warning("Session Warning: Lock" + deadlockWarning)
-      case ASTSpecial.Kind.Unlock => Warning("Session Warning: Unlock" + deadlockWarning)
-      case ASTSpecial.Kind.Send => Warning("Session Warning: Send" + deadlockWarning)
-      case ASTSpecial.Kind.Recv => Warning("Session Warning: Recv" + deadlockWarning)
+      case ASTSpecial.Kind.Goto => Warning("VeyMont Warning: Goto" + deadlockWarning)
+      case ASTSpecial.Kind.Wait => Warning("VeyMont Warning: Wait" + deadlockWarning)
+      case ASTSpecial.Kind.Fork => Warning("VeyMont Warning: Fork" + deadlockWarning)
+      case ASTSpecial.Kind.Join => Warning("VeyMont Warning: Join" + deadlockWarning)
+      case ASTSpecial.Kind.Lock => Warning("VeyMont Warning: Lock" + deadlockWarning)
+      case ASTSpecial.Kind.Unlock => Warning("VeyMont Warning: Unlock" + deadlockWarning)
+      case ASTSpecial.Kind.Send => Warning("VeyMont Warning: Send" + deadlockWarning)
+      case ASTSpecial.Kind.Recv => Warning("VeyMont Warning: Recv" + deadlockWarning)
       case _ => super.visit(s)
     }
   }

@@ -1,0 +1,136 @@
+
+class Main {
+
+    Role a,b,c;
+    StretchTree s;
+    LongLivedTree l;
+
+    Main() {
+        a = new Role(4+0,4+4);
+        b = new Role(4+2,4+4);
+        c = new Role(4+4,4+4);
+        s = new StretchTree(4+4);
+        l = new LongLivedTree(4+4);
+    }
+
+    void run() {
+        s.init();
+        s.check();
+        //  System.out.println("stretch tree of depth " + s.stretchDepth + "\t check: " s.check);
+        l.init();
+        par 
+        {
+            a.check();
+        } and {
+            b.check();
+        }  and {
+            c.check();
+        }
+        //System.out.println(a.iterations + "\t trees of depth " + a.depth + "\t check: " + a.check);
+        //System.out.println(b.iterations + "\t trees of depth " + b.depth + "\t check: " + b.check);
+        //System.out.println(c.iterations + "\t trees of depth " + c.depth + "\t check: " + c.check);
+        l.check();
+        //System.out.println("long lived tree of depth " + longLivedTree.maxDepth + "\t check: " + longLivedTree.check);
+    }
+    
+    void main() {
+        Main m = new Main();
+        m.run();
+    }
+
+
+}
+
+class Role {
+
+    int index, iterations, check, depth, MIN_DEPTH, maxDepth;
+
+    Role(int d, int n) {
+        MIN_DEPTH = 4;
+        maxDepth = n; //n < (MIN_DEPTH + 2) ? MIN_DEPTH + 2 : n;
+        check = 0;
+        iterations = 1 * pow(2, maxDepth - depth + MIN_DEPTH);
+        depth = d;
+    }
+
+    void check() {
+        for (int i = 1; i <= iterations; i++) {
+            TreeNode treeNode1 = TreeNode.bottomUpTree(depth);
+            check = check + treeNode1.itemCheck();
+        }
+        index = (depth - MIN_DEPTH) / 2;
+    }
+    
+    int pow(int base, int n) {
+        for(int i=1; i < n; i++) {
+            base = base * 2;
+        }
+        return base;
+    }
+
+}
+
+class TreeNode {
+
+    TreeNode left; //final
+    TreeNode right; //final
+
+    TreeNode(TreeNode left, TreeNode right) {
+        this.left = left;
+        this.right = right;
+    }
+
+    int itemCheck() {
+        // if necessary deallocate here
+        if (null == left) {
+            return 1;
+        }
+        return 1 + left.itemCheck() + right.itemCheck();
+    }
+    
+    static TreeNode bottomUpTree(int depth) {
+        if (0 < depth) {
+            return new TreeNode(bottomUpTree(depth - 1), bottomUpTree(depth - 1));
+        }
+        return new TreeNode(null,null);
+    }
+
+}
+
+class LongLivedTree {
+    int maxDepth, check;
+    TreeNode longLivedTree;
+    
+    LongLivedTree(int d) {
+        maxDepth = d;
+    }
+    
+    void init() {
+        longLivedTree = TreeNode.bottomUpTree(maxDepth);
+    }
+    
+    void check() {
+        check = longLivedTree.itemCheck();
+    }
+    
+}
+
+class StretchTree {
+    int stretchDepth, check;
+    TreeNode stretchTree;
+    
+    StretchTree(int maxDepth) {
+        stretchDepth = maxDepth + 1;
+    }
+    
+    void init() {
+        stretchTree = TreeNode.bottomUpTree(stretchDepth);
+    }
+    
+    void check() {
+        check = stretchTree.itemCheck();
+    }
+    
+    
+}
+

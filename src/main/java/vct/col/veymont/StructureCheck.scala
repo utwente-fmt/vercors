@@ -267,6 +267,8 @@ class StructureCheck(source : ProgramUnit) {
           Fail("VeyMont Fail: cannot call constructor '%s'! %s", mainClassName, m.getOrigin)
         else if (m.method == Method.JavaConstructor && roleClassNames.exists(_ == m.dispatch.getName))
           Fail("VeyMont Fail: cannot call role constructor '%s'! %s", m.dispatch.getName,m.getOrigin)
+        else if (m.method == runMethodName && m.`object` != null)
+          Fail("VeyMont Fail: method name '%s' only allowed for methods of class '%s'",runMethodName,mainClassName)
         else if (nonPlainMainMethodNames.exists(_ == m.method))
           Fail("VeyMont Fail: cannot have a method call statement for pure/predicate method '%s'! %s", m.method, m.getOrigin)
         else {
