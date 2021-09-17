@@ -27,6 +27,15 @@ sealed trait Expr extends NodeFamily {
     t.asTuple.map(whenOk).getOrElse(Seq(TypeError(this, TTuple(Seq(TAny())))))
   def checkModelThen(whenOk: TModel => Seq[CheckError] = _ => Nil): Seq[CheckError] =
     t.asModel.map(whenOk).getOrElse(Seq(TypeErrorText(this, got => s"Expected a model type, but got $got")))
+
+  private def unfold(node: Expr)(matchFunc: PartialFunction[Expr, Seq[Expr]]): Seq[Expr] =
+    matchFunc.lift(node) match {
+      case Some(value) => value.flatMap(unfold(_)(matchFunc))
+      case None => Seq(node)
+    }
+//
+  def unfoldStar: Seq[Expr] = unfold(this) { case Star(left, right) => Seq(left, right) }
+  def unfoldProcessPar: Seq[Expr] = unfold(this) { case ProcessPar(l, r) => Seq(l, r) }
 }
 
 trait ExtraExpr extends Expr
