@@ -6,6 +6,7 @@ import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.ast.Constant._
 import vct.col.ast._
+import vct.col.resolve.Java
 import vct.col.{ast => col}
 
 case class JavaToCol(override val originProvider: OriginProvider, blameProvider: BlameProvider) extends ToCol(originProvider) {
@@ -27,7 +28,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   def convert(implicit decl: TypeDeclarationContext): Seq[GlobalDeclaration] = decl match {
     case TypeDeclaration0(mods, ClassDeclaration0(_, name, args, ext, imp, ClassBody0(_, decls, _))) =>
       Seq(JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
-        ext.map(convert(_)).getOrElse(TClass.OBJECT),
+        ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
         imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration1(mods, enum) => fail(enum, "Enums are not supported.")
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
@@ -83,7 +84,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   def convert(implicit arg: TypeParameterContext): Variable = arg match {
     case TypeParameter0(id, bound) => bound match {
       case None =>
-        new Variable(TType(TClass.OBJECT))(SourceNameOrigin(convert(id), origin(arg)))
+        new Variable(TType(Java.JAVA_LANG_OBJECT))(SourceNameOrigin(convert(id), origin(arg)))
       case Some(TypeParameterBound0(_, TypeBound0(ext))) =>
         new Variable(TType(convert(ext)))(SourceNameOrigin(convert(id), origin(arg)))
       case Some(TypeParameterBound0(_, TypeBound1(_, _, moreBounds))) =>

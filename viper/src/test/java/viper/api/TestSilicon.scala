@@ -12,28 +12,28 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
   }
 
   vercors should "not verify a method with postcondition false" in procedure(
-    ensures = false, blame = ExpectPostconditionFailed()
+    ensures = false, blame = ExpectError()
   )
 
   val r = new Variable(TRef())
   var i = new Variable(TInt())
 
   vercors should "report insufficient permission on a dereference" in procedure(
-    args=Seq(r), body=Scope(Seq(i), i <~ (r.get->int)(ExpectSilverInsufficientPermission(), DiagnosticOrigin))
+    args=Seq(r), body=Scope(Seq(i), i <~ (r.get~>int)(ExpectError(), DiagnosticOrigin))
   )
 
   vercors should "verify a dereference with sufficient permission" in procedure(
     args=Seq(r), requires=SilverPerm(r.get, int.ref, WritePerm()),
-    body=Scope(Seq(i), i <~ r.get->int)
+    body=Scope(Seq(i), i <~ r.get~>int)
   )
 
   vercors should "report assignment failed when there is insufficient permission to assign to a field" in procedure(
-    args=Seq(r), body=(r.get->int <~ 0)(ExpectSilverAssignFailed(), DiagnosticOrigin)
+    args=Seq(r), body=(r.get~>int <~ 0)(ExpectError(), DiagnosticOrigin)
   )
 
   vercors should "assign a field with sufficient permission" in procedure(
     args=Seq(r), requires=SilverPerm(r.get, int.ref, WritePerm()),
-    body=r.get->int <~ 0
+    body=r.get~>int <~ 0
   )
 
   vercors should "verify true assertions" in procedure(
@@ -41,7 +41,7 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
   )
 
   vercors should "report the failure of false assertions" in procedure(
-    body=Assert(false)(ExpectAssertFailed())
+    body=Assert(false)(ExpectError())
   )
 
   val rs = new Variable(TSeq(TRef()))
@@ -52,17 +52,17 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
       Starall(Seq(i), Seq(),
         Implies(i.get >= 0 && i.get < Size(rs.get),
           SilverPerm(rs.get @@ i.get, int.ref, WritePerm()))))
-      (ExpectAssertFailed())
+      (ExpectError())
   )
 
   val p = new Variable(TRational())
 
   vercors should "report the failure of an assertion with a negative permission value" in procedure(
-    args=Seq(r, p), body=Block(Seq(Assert(SilverPerm(r.get, int.ref, p.get))(ExpectAssertFailed())))
+    args=Seq(r, p), body=Block(Seq(Assert(SilverPerm(r.get, int.ref, p.get))(ExpectError())))
   )
 
   vercors should "report insufficient permission to exhale when asserting too much permission" in procedure(
-    args=Seq(r), body=Block(Seq(Assert(SilverPerm(r.get, int.ref, WritePerm()))(ExpectAssertFailed())))
+    args=Seq(r), body=Block(Seq(Assert(SilverPerm(r.get, int.ref, WritePerm()))(ExpectError())))
   )
 
   vercors should "verify a valid exhale of permission" in procedure(
@@ -71,9 +71,9 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
   )
 
   vercors should "report insufficient permission to exhale when exhaling too much permission" in procedure(
-    args=Seq(r), body=Exhale(SilverPerm(r.get, int.ref, WritePerm()))(ExpectExhaleFailed())
+    args=Seq(r), body=Exhale(SilverPerm(r.get, int.ref, WritePerm()))(ExpectError())
   )
 
   val validPred = new Predicate(Seq(), Some(SilverPerm(r.get, int.ref, WritePerm())))
-  val invalidPred = new Predicate(Seq(), Some(Eq(r.get->int, 5)))
+  val invalidPred = new Predicate(Seq(), Some(Eq(r.get~>int, 5)))
 }

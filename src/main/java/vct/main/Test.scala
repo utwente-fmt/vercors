@@ -5,16 +5,26 @@ import vct.col.newrewrite.JavaSpecificToCol
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.parsers.Parsers
 import vct.result.VerificationResult
+import vct.result.VerificationResult.{SystemError, UserError}
 import vct.test.CommandLineTesting
 
 import java.nio.file.Path
 import scala.jdk.CollectionConverters._
 
 case object Test {
+  var files = 0
+  var errors = 0
+
   def main(args: Array[String]): Unit = {
-    CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).foreach(c => {
-      c.files.asScala.filter(f => f.toString.endsWith(".java") || f.toString.endsWith(".c")).foreach(tryParse)
-    })
+    try {
+      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).foreach(c => {
+        c.files.asScala.filter(f => f.toString.endsWith(".java") || f.toString.endsWith(".c")).foreach(tryParse)
+      })
+
+//    tryParse(Path.of("examples/known-problems/threads/SpecifiedThread.java"))
+    } finally {
+      println(s"Out of $files files, $errors threw a SystemError.")
+    }
   }
 
   def printErrorsOr(errors: Seq[CheckError])(otherwise: => Unit): Unit = {
@@ -32,15 +42,20 @@ case object Test {
   }
 
   def tryParse(path: Path): Unit = try {
+    files += 1
     println(path)
     var program = Program(Parsers.parse(path))(DiagnosticOrigin)
-    ResolveTypes.resolve(program)
+    val extraDecls = ResolveTypes.resolve(program)
+    program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)
     val errors = ResolveReferences.resolve(program)
     printErrorsOr(errors) {
       program = JavaSpecificToCol().dispatch(program)
       printErrorsOr(program.check){}
     }
   } catch {
+    case err: SystemError =>
+      println(err.text)
+      errors += 1
     case res: VerificationResult =>
       println(res.text)
 //      throw res

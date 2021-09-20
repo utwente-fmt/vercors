@@ -19,7 +19,7 @@ object SimpleProgramGenerator {
     val contract1 = generateSimpleApplicableContract
     val blame1 = origin
     val method1 = new InstanceMethod(TVoid(), Seq(), Seq(), Option(body), contract1)(blame1)
-    val classNode1 = new Class(Seq(method1))
+    val classNode1 = new Class(Seq(method1), Nil)
     Program(Seq(classNode1))
   }
 

@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{AmbiguousResult, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, ContractApplicable, Declaration, Declarator, Deref, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, Node, Program, Scope}
+import vct.col.ast.{AmbiguousResult, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, ContractApplicable, Declaration, Declarator, Deref, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, Node, Program, Scope}
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -10,8 +10,10 @@ case object Resolve {
 }
 
 case object ResolveTypes {
-  def resolve(program: Program): Unit = {
-    resolve(program, TypeResolutionContext())
+  def resolve(program: Program): Seq[GlobalDeclaration] = {
+    val ctx = TypeResolutionContext()
+    resolve(program, ctx)
+    ctx.externallyLoadedClasses.toSeq
   }
 
   def resolve(node: Node, ctx: TypeResolutionContext): Unit = {
