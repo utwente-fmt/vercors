@@ -7,9 +7,22 @@ import vct.col.ast.util.SuccessionMap
 
 import scala.collection.mutable
 
-case class CheckProcessAlgebraBlame(process: ModelProcess) extends PostconditionBlame {
-  override def postconditionFailed(failure: ContractFailure, invokable: ContractApplicable): Unit = {
-    ??? // process.ensures.blame(...)?
+case class CheckProcessAlgebraBlame(process: ModelProcess) extends Blame[PostconditionFailed] {
+//  override def postconditionFailed(failure: ContractFailure, invokable: ContractApplicable): Unit = {
+//    ??? // process.ensures.blame(...)?
+//  }
+
+  override def blame(error: PostconditionFailed): Unit = {
+//    process.
+    error.failure match {
+      case ContractFalse(node) =>
+      case InsufficientPermissionToExhale(node) => node.o match {
+        case PermissionForModifies(x) =>
+
+      }
+      case ReceiverNotInjective(node) =>
+      case NegativePermissionValue(node) =>
+    }
   }
 }
 
@@ -69,7 +82,7 @@ case class CheckProcessAlgebra() extends Rewriter {
 
       val modifiesPerm = Star.fold(process.modifies.map(fieldRef => {
         implicit val o = fieldRef.decl.o
-        Perm(Deref(currentThis, modelFieldSuccessors.ref(fieldRef.decl)), WritePerm())
+        Perm(Deref(currentThis, modelFieldSuccessors.ref(fieldRef.decl)), WritePerm())(PermissionForModifies(???))
       }))
 
       val accessiblePerm = Star.fold(process.accessible.map(fieldRef => {
@@ -97,7 +110,7 @@ case class CheckProcessAlgebra() extends Rewriter {
         ),
         false,
         false
-      )(CheckProcessAlgebraBlame(process))
+      )(null)
 
     case modelField: ModelField =>
       modelFieldSuccessors(modelField) = new InstanceField(modelField.t, Set())(modelField.o)
