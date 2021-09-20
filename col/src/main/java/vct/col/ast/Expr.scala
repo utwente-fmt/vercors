@@ -210,12 +210,12 @@ case class Local(ref: Ref[Variable])(implicit val o: Origin) extends Expr {
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(ref)
 }
-case class Deref(obj: Expr, ref: Ref[Field])(implicit val o: Origin) extends Expr {
+case class Deref(obj: Expr, ref: Ref[Field])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(ref)
 }
-case class ModelDeref(obj: Expr, ref: Ref[ModelField])(implicit val o: Origin) extends Expr {
+case class ModelDeref(obj: Expr, ref: Ref[ModelField])(val blame: Blame[ModelInsufficientPermission])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(ref)

@@ -4,6 +4,7 @@ sealed trait ContractFailure
 case class ContractFalse(node: Expr) extends ContractFailure {
   override def toString: String = s"it may be false"
 }
+case class ContractNotWellformed()
 case class InsufficientPermissionToExhale(node: SilverResource) extends ContractFailure {
   override def toString: String = s"there might not be enough permission to exhale this amount"
 }

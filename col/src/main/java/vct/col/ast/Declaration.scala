@@ -288,9 +288,17 @@ sealed trait ModelDeclaration extends Declaration {
 }
 
 class ModelField(val t: Type)(implicit val o: Origin) extends ModelDeclaration with NoCheck
+
+sealed trait ModelFieldMode;
+sealed case class Modifies() extends ModelFieldMode
+sealed case class Accessible() extends ModelFieldMode
+class RequiredFieldClause(val f: Ref[ModelField], val m: ModelFieldMode)
+                         (implicit val o: Origin) extends NodeFamily with NoCheck
+
 class ModelProcess(val args: Seq[Variable], val impl: Expr,
                    val requires: Expr, val ensures: Expr,
-                   val modifies: Seq[Ref[ModelField]], val accessible: Seq[Ref[ModelField]])
+                   val requiredFields: Seq[RequiredFieldClause])
+                  (val blame: Blame[PostconditionFailed])
                   (implicit val o: Origin) extends ModelDeclaration with Applicable {
   override def returnType: Type = TProcess()
   override def body: Option[Node] = Some(impl)

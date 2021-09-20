@@ -37,7 +37,7 @@ trait SilverBackend extends Backend {
             }
           case CallFailed(_, reason, _) =>
             defer(reason)
-          case ContractNotWellformed(_, reason, _) =>
+          case ContractNotWellformed(node, reason, _) =>
             defer(reason)
           case PreconditionInCallFalse(node, reason, _) =>
             val invocation = get[col.MethodInvocation](node)
@@ -149,6 +149,7 @@ trait SilverBackend extends Backend {
     case reasons.InsufficientPermission(access) => col.InsufficientPermissionToExhale(get[col.SilverResource](access))
     case reasons.ReceiverNotInjective(access) => col.ReceiverNotInjective(get[col.SilverResource](access))
     case reasons.NegativePermission(p) => col.NegativePermissionValue(p.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode.get) // need to fetch access
+    case reasons.ContractNotWellformed()
   }
 
   def defer(reason: ErrorReason): Unit = reason match {
