@@ -23,21 +23,21 @@ case class TryCatchFinally(body: Statement, after: Statement, catches: Seq[Catch
 
 case class Synchronized(obj: Expr, body: Statement)(implicit val o: Origin) extends Check(obj.checkClassType) with Statement
 
-case class ParInvariant(decl: ParInvariantDecl, inv: Expr, content: Statement)(implicit val o: Origin) extends Check(inv.checkSubType(TResource())) with Statement with Declarator {
+case class ParInvariant(decl: ParInvariantDecl, inv: Expr, content: Statement)(val blame: Blame[ParInvariantNotEstablished])(implicit val o: Origin) extends Check(inv.checkSubType(TResource())) with Statement with Declarator {
   override def declarations: Seq[Declaration] = Seq(decl)
 }
 case class ParAtomic(inv: Ref[ParInvariantDecl], content: Statement)(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =
-    context.inScope(inv)
+    context.checkInScope(inv)
 }
-case class ParBarrier(block: Ref[ParBlockDecl], invs: Seq[Ref[ParInvariantDecl]], requires: Expr, ensures: Expr, content: Statement)(implicit val o: Origin) extends Statement {
+case class ParBarrier(block: Ref[ParBlockDecl], invs: Seq[Ref[ParInvariantDecl]], requires: Expr, ensures: Expr, content: Statement)(val blame: Blame[ParBarrierFailed])(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =
     requires.checkSubType(TResource()) ++
       ensures.checkSubType(TResource()) ++
-      context.inScope(block) ++
-      invs.flatMap(context.inScope)
+      context.checkInScope(block) ++
+      invs.flatMap(context.checkInScope)
 }
-case class ParRegion(requires: Expr, ensures: Expr, blocks: Seq[ParBlock])(implicit val o: Origin)
+case class ParRegion(requires: Expr, ensures: Expr, blocks: Seq[ParBlock])(val blame: Blame[ParRegionFailed])(implicit val o: Origin)
   extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with Statement with Declarator {
   override def declarations: Seq[Declaration] = blocks.map(_.decl)
 }
@@ -62,8 +62,8 @@ case class Goto(lbl: Ref[LabelDecl])(implicit val o: Origin) extends Statement {
     }
 }
 
-case class Exhale(res: Expr)(val blame: ExhaleBlame)(implicit val o: Origin) extends Check(res.checkSubType(TResource())) with Statement
-case class Assert(assn: Expr)(val blame: AssertBlame)(implicit val o: Origin) extends Check(assn.checkSubType(TBool())) with Statement
+case class Exhale(res: Expr)(val blame: Blame[ExhaleFailed])(implicit val o: Origin) extends Check(res.checkSubType(TResource())) with Statement
+case class Assert(assn: Expr)(val blame: Blame[AssertFailed])(implicit val o: Origin) extends Check(assn.checkSubType(TBool())) with Statement
 case class Refute(assn: Expr)(implicit val o: Origin) extends Check(assn.checkSubType(TBool())) with Statement
 case class Inhale(res: Expr)(implicit val o: Origin) extends Check(res.checkSubType(TResource())) with Statement
 case class Assume(assn: Expr)(implicit val o: Origin) extends Check(assn.checkSubType(TBool())) with Statement

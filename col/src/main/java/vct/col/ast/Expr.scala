@@ -199,17 +199,17 @@ case class InlinePattern(inner: Expr)(implicit val o: Origin) extends Expr with 
 case class Local(ref: Ref[Variable])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
-    context.inScope(ref)
+    context.checkInScope(ref)
 }
 case class Deref(obj: Expr, ref: Ref[Field])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
-    context.inScope(ref)
+    context.checkInScope(ref)
 }
 case class ModelDeref(obj: Expr, ref: Ref[ModelField])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
-    context.inScope(ref)
+    context.checkInScope(ref)
 }
 case class DerefPointer(pointer: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = pointer.t.asPointer.get.element
@@ -238,18 +238,18 @@ case class InstancePredicateApply(obj: Expr, ref: Ref[InstancePredicate], args: 
 case class ADTFunctionInvocation(ref: Ref[ADTFunction], args: Seq[Expr])(implicit val o: Origin) extends Apply
 
 sealed trait Invocation extends Apply {
-  def blame: PreconditionBlame
+  def blame: Blame[PreconditionFailed]
 }
 
 case class ProcedureInvocation(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]])
-                              (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
+                              (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
 case class FunctionInvocation(ref: Ref[Function], args: Seq[Expr])
-                             (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
+                             (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
 
 case class MethodInvocation(obj: Expr, ref: Ref[InstanceMethod], args: Seq[Expr], outArgs: Seq[Ref[Variable]])
-                           (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
+                           (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
 case class InstanceFunctionInvocation(obj: Expr, ref: Ref[InstanceFunction], args: Seq[Expr])
-                                     (val blame: PreconditionBlame)(implicit val o: Origin) extends Invocation
+                                     (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
 
 sealed trait UnExpr extends Expr {
   def arg: Expr
@@ -286,16 +286,16 @@ sealed trait BoolBinExpr extends BinExpr {
 }
 
 sealed trait DividingExpr extends Expr {
-  def blame: DivByZeroBlame
+  def blame: Blame[DivByZero]
 }
 
 case class Exp(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Plus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Minus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Mult(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
-case class Div(left: Expr, right: Expr)(val blame: DivByZeroBlame)(implicit val o: Origin) extends NumericBinExpr with DividingExpr
-case class FloorDiv(left: Expr, right: Expr)(val blame: DivByZeroBlame)(implicit val o: Origin) extends IntBinExpr with DividingExpr
-case class Mod(left: Expr, right: Expr)(val blame: DivByZeroBlame)(implicit val o: Origin) extends NumericBinExpr with DividingExpr
+case class Div(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr with DividingExpr
+case class FloorDiv(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends IntBinExpr with DividingExpr
+case class Mod(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr with DividingExpr
 case class BitAnd(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr
 case class BitOr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr
 case class BitXor(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr
@@ -312,6 +312,13 @@ object Star {
   def fold(exprs: Seq[Expr])(implicit o: Origin): Expr = exprs match {
     case Nil => Constant.BooleanValue(true)
     case more => more.reduceLeft(new Star(_, _))
+  }
+
+  def unfold(expr: Expr): Seq[Expr] = expr match {
+    case Star(left, right) => unfold(left) ++ unfold(right)
+    case And(left, right) => unfold(left) ++ unfold(right)
+    case Constant(true) => Nil
+    case other => Seq(other)
   }
 }
 case class Star(left: Expr, right: Expr)(implicit val o: Origin) extends Check(left.checkSubType(TResource()), right.checkSubType(TResource())) with ResourceExpr
@@ -391,7 +398,7 @@ case class NewArray(element: Type, dims: Seq[Expr])(implicit val o: Origin) exte
   override def t: Type = TArray(element)
 }
 
-case class Old(expr: Expr, at: Option[Ref[LabelDecl]])(val blame: LabelNotReachedBlame)(implicit val o: Origin) extends Expr with NoCheck {
+case class Old(expr: Expr, at: Option[Ref[LabelDecl]])(val blame: Blame[LabelNotReached])(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = expr.t
 }
 
@@ -416,7 +423,7 @@ case class AmbiguousSubscript(collection: Expr, index: Expr)(implicit val o: Ori
     }
 }
 
-case class SeqSubscript(seq: Expr, index: Expr)(val blame: SeqBoundsBlame)(implicit val o: Origin) extends Check(seq.checkSeqThen(), index.checkSubType(TInt())) with Expr {
+case class SeqSubscript(seq: Expr, index: Expr)(val blame: Blame[SeqBoundFailure])(implicit val o: Origin) extends Check(seq.checkSeqThen(), index.checkSubType(TInt())) with Expr {
   override def t: Type = seq.t.asSeq.get.element
 }
 

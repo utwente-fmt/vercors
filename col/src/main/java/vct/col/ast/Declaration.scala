@@ -22,8 +22,8 @@ sealed abstract class Declaration extends Node {
 object Ref {
   val EXC_MESSAGE = "The AST is in an invalid state: a Ref contains a declaration of the wrong kind."
 
-  def unapply(obj: Any): Option[Declaration] = obj match {
-    case ref: Ref[_] => Some(ref.decl)
+  def unapply[T <: Declaration](obj: Ref[T]): Option[T] = obj match {
+    case ref: Ref[T] => Some(ref.decl)
     case _ => None
   }
 }
@@ -211,7 +211,7 @@ case class ApplicableContract(requires: Expr, ensures: Expr, contextEverywhere: 
 
 sealed trait ContractApplicable extends Applicable {
   def contract: ApplicableContract
-  def blame: PostconditionBlame
+  def blame: Blame[PostconditionFailed]
   override def declarations: Seq[Declaration] =
     super.declarations ++ contract.givenArgs ++ contract.yieldsArgs
 }
@@ -236,7 +236,7 @@ sealed trait AbstractMethod extends ContractApplicable {
 }
 
 class Function(val returnType: Type, val args: Seq[Variable], val body: Option[Expr], val contract: ApplicableContract, val inline: Boolean = false)
-              (val blame: PostconditionBlame)(implicit val o: Origin)
+              (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends GlobalDeclaration with AbstractFunction
 
 class Procedure(val returnType: Type,
@@ -244,7 +244,7 @@ class Procedure(val returnType: Type,
                 val body: Option[Statement],
                 val contract: ApplicableContract,
                 val inline: Boolean = false, val pure: Boolean = false)
-               (val blame: PostconditionBlame)(implicit val o: Origin)
+               (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends GlobalDeclaration with AbstractMethod
 
 class Predicate(val args: Seq[Variable], val body: Option[Expr],
@@ -252,7 +252,7 @@ class Predicate(val args: Seq[Variable], val body: Option[Expr],
   extends GlobalDeclaration with AbstractPredicate
 
 class InstanceFunction(val returnType: Type, val args: Seq[Variable], val body: Option[Expr], val contract: ApplicableContract, val inline: Boolean)
-                      (val blame: PostconditionBlame)(implicit val o: Origin)
+                      (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends ClassDeclaration with AbstractFunction
 
 class InstanceMethod(val returnType: Type,
@@ -260,7 +260,7 @@ class InstanceMethod(val returnType: Type,
                      val body: Option[Statement],
                      val contract: ApplicableContract,
                      val inline: Boolean = false, val pure: Boolean = false)
-                    (val blame: PostconditionBlame)(implicit val o: Origin)
+                    (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends ClassDeclaration with AbstractMethod
 
 class InstancePredicate(val args: Seq[Variable], val body: Option[Expr],
