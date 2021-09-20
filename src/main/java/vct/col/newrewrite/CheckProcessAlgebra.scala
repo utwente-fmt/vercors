@@ -4,24 +4,17 @@ import hre.lang.System.Warning
 import hre.util.ScopedStack
 import vct.col.ast.{Star, _}
 import vct.col.ast.util.SuccessionMap
+import vct.col.ast.RewriteHelpers._
 
 import scala.collection.mutable
 
 case class CheckProcessAlgebra() extends Rewriter {
-  case class CheckProcessAlgebraBlame(process: ModelProcess) extends Blame[PostconditionFailed] {
-    override def blame(error: PostconditionFailed): Unit = {
-      error.failure match {
-        case InsufficientPermissionToExhale(_) =>
-          // TODO: Is there some default blame to forward to? Same for next
-          InternalError(s"BUG: Unexpected permission error when exhaling process postcondition: ${error.failure}").toString()
-        case NegativePermissionValue(_) =>
-          InternalError(s"BUG: Unexpected permission error when exhaling process postcondition: ${error.failure}").toString()
-        case ReceiverNotInjective(_) =>
-          process.blame.blame(error)
-        case ContractFalse(_) =>
-          process.blame.blame(error)
-      }
-    }
+  case class ModelPostconditionFailed(process: ModelProcess) extends Blame[PostconditionFailed] {
+    override def blame(error: PostconditionFailed): Unit = process.blame.blame(error)
+  }
+
+  case class InsufficientPermissionForModelField(modelDeref: ModelDeref) extends Blame[InsufficientPermission] {
+    override def blame(error: InsufficientPermission): Unit = modelDeref.blame.blame(ModelInsufficientPermission(modelDeref))
   }
 
   val modelFieldSuccessors: SuccessionMap[ModelField, InstanceField] = SuccessionMap()
@@ -61,7 +54,7 @@ case class CheckProcessAlgebra() extends Rewriter {
         case _ =>
       }
 
-      val `class` = currentModel.having(model) {
+      val newClass = currentModel.having(model) {
         new Class(
           collectInScope(classScopes) {
             model.declarations.foreach(dispatch(_))
@@ -69,8 +62,8 @@ case class CheckProcessAlgebra() extends Rewriter {
           Seq()
         )(model.o)
       }
-      `class`.declareDefault(this)
-      modelSuccessors(currentModel) = `class`
+      newClass.declareDefault(this)
+      modelSuccessors(currentModel) = newClass
 
     case process: ModelProcess =>
       implicit val o = process.o
@@ -78,20 +71,19 @@ case class CheckProcessAlgebra() extends Rewriter {
       val currentThis = AmbiguousThis()
       currentThis.ref = Some(TClass(modelSuccessors.ref(currentModel.top)))
 
-      val modifiesPerm =
-        Star.fold(process.requiredFields.map(fieldRef => {
-          implicit val o = fieldRef.o
-          Perm(Deref(currentThis, modelFieldSuccessors.ref(fieldRef.decl)), WritePerm())(PermissionForModifies(fieldRef.decl))
-        }))
+      def fieldRefToPerm(mode: ModelFieldMode)(implicit o: Origin) = mode match {
+        case ModelFieldModifies(_) => WritePerm()
+        // TODO: This used to be a permission value passed by argument, so if the read form doesn't work out, this needs to be fixed
+        case ModelFieldAccessible(_) => ReadPerm()
+      }
 
-      val accessiblePerm = ???
-//        Star.fold(process.accessible.map(fieldRef => {
-//        implicit val o = fieldRef.decl.o
-//        /* TODO: In earlier implementation this was argument based, instead of readPerm based.
-//                 Once we can actually test this we can consider the other implementation
-//         */
-//        Perm(Deref(currentThis, modelFieldSuccessors.ref(fieldRef.decl)), ReadPerm())(PermissionForAccessible(fieldRef.decl))
-//      }))
+      val fieldPerms =
+        Star.fold(process.requiredFields.map(f => {
+          implicit val o = f.o
+          // No blame here because we assume, from the structure we generate these perms, they cannot fail
+          // TODO: Is this the right pattern?
+          Perm(Deref(currentThis, modelFieldSuccessors.ref(f.f.decl))(null), fieldRefToPerm(f))
+        }))
 
       val args = collectInScope(variableScopes)(process.args.foreach(dispatch(_)))
 
@@ -99,10 +91,11 @@ case class CheckProcessAlgebra() extends Rewriter {
         TVoid(),
         args,
         Seq(),
-        None,
+        None, // TODO: Body
         ApplicableContract(
-          Star.fold(Seq(accessiblePerm, modifiesPerm, rewriteDefault(process.requires))),
-          Star.fold(Seq(accessiblePerm, modifiesPerm, rewriteDefault(process.ensures))),
+          // TODO: Is reusing fieldPerms allowed?
+          Star(fieldPerms, rewriteDefault(process.requires)),
+          Star(fieldPerms, rewriteDefault(process.ensures)),
           Constant.BooleanValue(true),
           Seq(),
           Seq(),
@@ -110,12 +103,17 @@ case class CheckProcessAlgebra() extends Rewriter {
         ),
         false,
         false
-      )(CheckProcessAlgebraBlame(process)).declareDefault(this)
+      )(ModelPostconditionFailed(process)).declareDefault(this)
 
     case modelField: ModelField =>
       val instanceField = new InstanceField(modelField.t, Set())(modelField.o)
       instanceField.declareDefault(this)
       modelFieldSuccessors(modelField) = instanceField
+
+    case modelDeref: ModelDeref =>
+      implicit val o = modelDeref.o
+      val blame = InsufficientPermissionForModelField(modelDeref)
+      Deref(dispatch(modelDeref.obj), modelFieldSuccessors.ref(modelDeref.ref.decl))(blame)
 
     case _ =>
   }

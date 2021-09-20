@@ -149,7 +149,6 @@ trait SilverBackend extends Backend {
     case reasons.InsufficientPermission(access) => col.InsufficientPermissionToExhale(get[col.SilverResource](access))
     case reasons.ReceiverNotInjective(access) => col.ReceiverNotInjective(get[col.SilverResource](access))
     case reasons.NegativePermission(p) => col.NegativePermissionValue(p.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode.get) // need to fetch access
-    case reasons.ContractNotWellformed()
   }
 
   def defer(reason: ErrorReason): Unit = reason match {
