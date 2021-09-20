@@ -11,8 +11,8 @@ trait OriginProvider {
 }
 
 trait BlameProvider {
-  def apply(ctx: ParserRuleContext): Scapegoat = this(ctx.start, ctx.stop)
-  def apply(start: Token, stop: Token): Scapegoat
+  def apply(ctx: ParserRuleContext): Blame[VerificationFailure] = this(ctx.start, ctx.stop)
+  def apply(start: Token, stop: Token): Blame[VerificationFailure]
 }
 
 case class FileOriginProvider(path: Path) extends OriginProvider with BlameProvider {

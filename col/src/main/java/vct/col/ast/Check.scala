@@ -16,12 +16,11 @@ case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(),
   def withApplicable(applicable: Applicable): CheckContext =
     CheckContext(scopes, Some(applicable))
 
-  def inScope(ref: Ref[_ <: Declaration]): Seq[CheckError] =
-    if(scopes.exists(_.contains(ref.decl))) {
-      Seq()
-    } else {
-      Seq(OutOfScopeError(ref))
-    }
+  def inScope(ref: Ref[_ <: Declaration]): Boolean =
+    scopes.exists(_.contains(ref.decl))
+
+  def checkInScope(ref: Ref[_ <: Declaration]): Seq[CheckError] =
+    if(inScope(ref)) Nil else Seq(OutOfScopeError(ref))
 }
 
 /* list out the varags-like checks explicitly, because we want parameters to be lazily evaluated with "=>" */

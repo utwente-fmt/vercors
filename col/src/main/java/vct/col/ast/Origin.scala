@@ -1,6 +1,7 @@
 package vct.col.ast
 
 import java.nio.file.Path
+import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
 trait Origin {
@@ -136,24 +137,19 @@ object InputOrigin {
 
 }
 
-abstract class InputOrigin extends Origin with Scapegoat {
+abstract class InputOrigin extends Origin with Blame[VerificationFailure] {
   override def preferredName: String = "unknown"
 
-  override def exhaleFailed(failure: ContractFailure, exhale: Exhale): Unit = ???
-  override def silverWhileInvariantNotEstablished(failure: ContractFailure, loop: SilverWhile): Unit = ???
-  override def silverWhileInvariantNotMaintained(failure: ContractFailure, loop: SilverWhile): Unit = ???
-  override def preconditionFailed(failure: ContractFailure, invocation: Invocation): Unit = ???
-  override def assertFailed(failure: ContractFailure, assertion: Assert): Unit = ???
-  override def postconditionFailed(failure: ContractFailure, invokable: ContractApplicable): Unit = ???
-  override def labelNotReached(old: Old): Unit = ???
-  override def seqBoundNegative(subscript: SeqSubscript): Unit = ???
-  override def seqBoundExceedsLength(subscript: SeqSubscript): Unit = ???
-  override def silverInsufficientPermission(deref: SilverDeref): Unit = ???
-  override def divisionByZero(div: DividingExpr): Unit = ???
-  override def internalError(description: String): Unit = ???
-  override def silverUnfoldFailed(failure: ContractFailure, unfold: SilverUnfold): Unit = ???
-  override def silverFoldFailed(failure: ContractFailure, fold: SilverFold): Unit = ???
-  override def silverAssignFailed(assign: SilverFieldAssign): Unit = ???
+  override def blame(error: VerificationFailure): Unit = {
+    println(messageInContext(error.toString))
+  }
+}
+
+case class BlameCollector() extends Blame[VerificationFailure] {
+  val errs: ArrayBuffer[VerificationFailure] = ArrayBuffer()
+
+  override def blame(error: VerificationFailure): Unit =
+    errs += error
 }
 
 case class FileOrigin(path: Path,

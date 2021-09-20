@@ -1,5 +1,6 @@
 name := "col"
 libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.1"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test"
 
 // Disable documentation generation
 sources in (Compile, doc) := Seq()
@@ -33,6 +34,8 @@ generateHelpersTask := {
   })
 
   compile(files.toSet).toSeq
+
+//  ColHelper().generate(files, gen)
 }
 
 sourceGenerators in Compile += generateHelpersTask

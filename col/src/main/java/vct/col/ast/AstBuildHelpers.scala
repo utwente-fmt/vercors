@@ -9,9 +9,9 @@ object AstBuildHelpers {
     def +(right: Expr)(implicit origin: Origin): Plus = Plus(left, right)
     def -(right: Expr)(implicit origin: Origin): Minus = Minus(left, right)
     def *(right: Expr)(implicit origin: Origin): Mult = Mult(left, right)
-    def /(right: Expr)(implicit origin: Origin, blame: DivByZeroBlame): FloorDiv = FloorDiv(left, right)(blame)
-    def /:(right: Expr)(implicit origin: Origin, blame: DivByZeroBlame): Div = Div(left, right)(blame)
-    def %(right: Expr)(implicit origin: Origin, blame: DivByZeroBlame): Mod = Mod(left, right)(blame)
+    def /(right: Expr)(implicit origin: Origin, blame: Blame[DivByZero]): FloorDiv = FloorDiv(left, right)(blame)
+    def /:(right: Expr)(implicit origin: Origin, blame: Blame[DivByZero]): Div = Div(left, right)(blame)
+    def %(right: Expr)(implicit origin: Origin, blame: Blame[DivByZero]): Mod = Mod(left, right)(blame)
 
     def ==(right: Expr)(implicit origin: Origin): Eq = Eq(left, right)
     def !=(right: Expr)(implicit origin: Origin): Neq = Neq(left, right)
@@ -24,9 +24,11 @@ object AstBuildHelpers {
     def ||(right: Expr)(implicit origin: Origin): Or = Or(left, right)
     def &*(right: Expr)(implicit origin: Origin): Star = Star(left, right)
 
-    def ->(field: SilverField)(implicit blame: SilverInsufficientPermissionBlame, origin: Origin): SilverDeref = SilverDeref(left, new DirectRef(field))(blame)
+    def ==>(right: Expr)(implicit origin: Origin): Implies = Implies(left, right)
 
-    def @@(index: Expr)(implicit blame: SeqBoundsBlame, origin: Origin): SeqSubscript = SeqSubscript(left, index)(blame)
+    def ~>(field: SilverField)(implicit blame: Blame[SilverInsufficientPermission], origin: Origin): SilverDeref = SilverDeref(left, new DirectRef(field))(blame)
+
+    def @@(index: Expr)(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript = SeqSubscript(left, index)(blame)
   }
 
   implicit class DeclarationBuildHelpers[T <: Declaration](left: T)(implicit tag: ClassTag[T]) {
@@ -39,10 +41,20 @@ object AstBuildHelpers {
   }
 
   implicit class FieldBuildHelpers(left: SilverDeref) {
-    def <~(right: Expr)(implicit blame: SilverAssignBlame, origin: Origin): SilverFieldAssign = SilverFieldAssign(left.obj, left.field, right)(blame)
+    def <~(right: Expr)(implicit blame: Blame[SilverAssignFailed], origin: Origin): SilverFieldAssign = SilverFieldAssign(left.obj, left.field, right)(blame)
   }
 
-  implicit class StatementBuildHelpers(left: Statement) {
-
-  }
+  def procedure(blame: Blame[PostconditionFailed],
+                returnType: Type = TVoid(),
+                args: Seq[Variable] = Nil, outArgs: Seq[Variable] = Nil,
+                body: Option[Statement] = None,
+                requires: Expr = new BooleanValue(true)(DiagnosticOrigin), ensures: Expr = new BooleanValue(true)(DiagnosticOrigin),
+                contextEverywhere: Expr = new BooleanValue(true)(DiagnosticOrigin),
+                signals: Seq[SignalsClause] = Nil,
+                givenArgs: Seq[Variable] = Nil, yieldsArgs: Seq[Variable] = Nil,
+                inline: Boolean = false, pure: Boolean = false)
+               (implicit o: Origin): Procedure =
+    new Procedure(returnType, args, outArgs, body,
+      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
+      inline, pure)(blame)
 }

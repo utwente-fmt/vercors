@@ -5,7 +5,7 @@ import Constant._
 import org.scalatest.flatspec.AnyFlatSpec
 
 abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
-  implicit val noErrors: Scapegoat = new NoErrors()
+  implicit val noErrors: Blame[VerificationFailure] = NoErrors
   implicit val origin: Origin = DiagnosticOrigin
   private var _registry: Option[ExpectedErrorsRegistry] = None
 
@@ -33,7 +33,7 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
   def procedure(returnType: => Type = TVoid(),
                 args: => Seq[Variable] = Seq(), outArgs: => Seq[Variable] = Seq(),
                 body: => Statement = Block(Seq()),
-                requires: => Expr = true, ensures: => Expr = true, blame: => PostconditionBlame = noErrors): Unit = {
+                requires: => Expr = true, ensures: => Expr = true, blame: => Blame[PostconditionFailed] = noErrors): Unit = {
     decl(new Procedure(returnType, args, outArgs, Option(body), ApplicableContract(requires, ensures, true, Seq(), Seq(), Seq()))(blame))
   }
 }

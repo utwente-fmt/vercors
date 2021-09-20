@@ -75,14 +75,14 @@ case class JavaConstructor(modifiers: Seq[JavaModifier], name: String,
                            signals: Seq[JavaName], body: Statement, contract: ApplicableContract)
                           (implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck with Declarator {
-  override def declarations: Seq[Declaration] = parameters ++ typeParameters
+  override def declarations: Seq[Declaration] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
 }
 case class JavaMethod(modifiers: Seq[JavaModifier], returnType: Type, dims: Int, name: String,
                       parameters: Seq[Variable], typeParameters: Seq[Variable],
                       signals: Seq[JavaName], body: Option[Statement], contract: ApplicableContract)
-                     (val blame: PostconditionBlame)(implicit val o: Origin)
+                     (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck with Declarator {
-  override def declarations: Seq[Declaration] = parameters ++ typeParameters
+  override def declarations: Seq[Declaration] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
 }
 
 case class JavaLocalDeclaration(modifiers: Seq[JavaModifier], t: Type, decls: Seq[(String, Int, Option[Expr])])
@@ -98,6 +98,10 @@ case class JavaLocalDeclarationStatement(decl: JavaLocalDeclaration)
 
 sealed trait JavaType extends ExtraType
 case class JavaTUnion(types: Seq[Type])(implicit val o: Origin) extends JavaType {
+  override def mimics: Type =
+    if(types.size == 1) types.head.mimics
+    else JavaTUnion(types.map(_.mimics))
+
   override def superTypeOfImpl(other: Type): Boolean =
     types.exists(_.superTypeOf(other))
 }
@@ -145,7 +149,7 @@ case class JavaLiteralArray(exprs: Seq[Expr])(implicit val o: Origin) extends Ja
 }
 
 case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: String, arguments: Seq[Expr])
-                         (val blame: PreconditionBlame)(implicit val o: Origin) extends JavaExpr with NoCheck {
+                         (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends JavaExpr with NoCheck {
   var ref: Option[JavaInvocationTarget] = None
   override def t: Type = ref.get match {
     case RefFunction(decl) => decl.returnType
@@ -162,7 +166,7 @@ case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: Stri
 }
 
 case class JavaNewClass(args: Seq[Expr], typeArgs: Seq[Type], name: Type)
-                       (val blame: PreconditionBlame)(implicit val o: Origin) extends JavaExpr with NoCheck {
+                       (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends JavaExpr with NoCheck {
   override def t: Type = name
 }
 case class JavaNewLiteralArray(baseType: Type, dims: Int, initializer: Expr)(implicit val o: Origin)

@@ -14,7 +14,7 @@ import scala.meta._
  * becomes:
  * ClassDef(Seq("Namespace", "Thing"), List(param1: Int), Some(Blame), List(case))
  */
-case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Option[Type.Name], mods: List[Mod]) {
+case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Option[Type], mods: List[Mod]) {
   for(param <- params) {
     // PB: sorry if this breaks; can't find the list of keywords elsewhere...
     if(internal.tokenizers.keywords.contains(param.name.value)) {
@@ -96,7 +96,7 @@ class ColDescription {
 
     case Type.Apply(Type.Name("Ref"), List(arg)) =>
       q"new LazyRef[$arg](rewriter.successionMap($term.decl))"
-    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") =>
+    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") =>
       term
 
     case _ =>
@@ -131,7 +131,7 @@ class ColDescription {
             defs += ClassDef(path :+ name.value, parameterLists.head, blameType=None, mods)
           } else {
             parameterLists(1) match {
-              case List(Term.Param(List(Mod.ValParam()), Name("blame"), Some(t@Type.Name(_)), _)) =>
+              case List(Term.Param(List(Mod.ValParam()), Name("blame"), Some(t@Type.Apply(_)), _)) =>
                 defs += ClassDef(path :+ name.value, parameterLists.head, Some(t), mods)
             }
           }

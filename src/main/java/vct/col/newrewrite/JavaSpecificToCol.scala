@@ -134,13 +134,18 @@ case class JavaSpecificToCol() extends Rewriter {
       implicit val o: Origin = cls.o
 
       currentJavaClass.having(cls) {
+        val supports = (dispatch(cls.ext) +: cls.imp.map(dispatch)).map {
+          case TClass(cls) => cls
+          case _ => ???
+        }
+
         val instanceClass = new Class(collectInScope(classScopes) {
           val diz = AmbiguousThis()
           diz.ref = Some(TClass(javaInstanceClassSuccessor.ref(cls)))
           currentThis.having(diz) {
             makeJavaClass(decls.filter(!isJavaStatic(_)), javaInstanceClassSuccessor.ref(cls))
           }
-        })
+        }, supports)
 
         if(instanceClass.declarations.nonEmpty) {
           instanceClass.declareDefault(this)
@@ -153,7 +158,7 @@ case class JavaSpecificToCol() extends Rewriter {
           currentThis.having(diz) {
             makeJavaClass(decls.filter(isJavaStatic), javaStaticsClassSuccessor.ref(cls))
           }
-        })
+        }, Nil)
 
         if(staticsClass.declarations.nonEmpty) {
           staticsClass.declareDefault(this)
@@ -280,6 +285,8 @@ case class JavaSpecificToCol() extends Rewriter {
             case cons: JavaConstructor if cons.parameters.size == args.size => cons
           }.find(_.parameters.zip(args).forall { case (arg, v) => arg.t.superTypeOf(v.t) })
             .getOrElse(javaDefaultConstructor(decl))
+
+          // TODO reference to default constructor is not lazy!
 
           ProcedureInvocation(typedSucc[Procedure](cons), args.map(dispatch), Nil)(null)
       }

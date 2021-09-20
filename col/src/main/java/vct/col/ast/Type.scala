@@ -39,7 +39,6 @@ object Type {
     TString(),
     TRef(),
     TProcess(),
-    TClass.OBJECT,
   )
 
   def leastCommonSuperType(left: Type, right: Type): Type =
@@ -109,18 +108,41 @@ case class TResource()(implicit val o: Origin = DiagnosticOrigin) extends Type {
   override def superTypeOfImpl(other: Type): Boolean =
     Set[Type](TResource(), TBool()).contains(other)
 }
-case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+
+case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override protected def superTypeOfImpl(other: Type): Boolean = other match {
+    case TInt() | TBoundedInt(_, _) => true
+    case _ => false
+  }
+}
+case class TBoundedInt(gte: BigInt, lt: BigInt)(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override def superTypeOfImpl(other: Type): Boolean = other match {
+    case TBoundedInt(otherGte, otherLt) => gte <= otherGte && otherLt <= lt
+    case _ => false
+  }
+}
 case class TFloat()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TRational()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean =
-    Set[Type](TRational(), TInt(), TFraction(), TZFraction()).contains(other)
+  override def superTypeOfImpl(other: Type): Boolean = other match {
+    case TRational() | TInt() | TFraction() | TZFraction() | TBoundedInt(_, _) => true
+    case _ => false
+  }
 }
-case class TFraction()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override protected def superTypeOfImpl(other: Type): Boolean = other match {
+    case TFraction() => true
+    case TBoundedInt(gte, lt) if gte > 0 && lt <= 2 => true // At most [1, 2) ∩ ℤ = {1}
+    case _ => false
+  }
+}
 case class TZFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean =
-    Set[Type](TZFraction(), TFraction()).contains(other)
+  override def superTypeOfImpl(other: Type): Boolean = other match {
+    case TFraction() | TZFraction() => true
+    case TBoundedInt(gte, lt) if gte >= 0 && lt <= 2 => true // At most [0, 2) ∩ ℤ = {0, 1}
+  }
 }
+
+case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TString()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TRef()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TOption(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(element))
@@ -132,14 +154,6 @@ case class TArray(element: Type)(implicit val o: Origin = DiagnosticOrigin) exte
 case class TPointer(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TMap(key: Type, value: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(key, value)) with CollectionType
 case class TProcess()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-object TClass {
-//  val OBJECT: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
-//  val THROWABLE: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
-//  val RUNNABLE: TClass = TClass(new DirectRef[Class](null))(null) // FIXME
-  val OBJECT: TInt = TInt()(DiagnosticOrigin)
-  val THROWABLE: TInt = TInt()(DiagnosticOrigin)
-  val RUNNABLE: TInt = TInt()(DiagnosticOrigin)
-}
 case class TModel(model: Ref[Model])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TClass(cls: Ref[Class])(implicit val o: Origin = DiagnosticOrigin) extends Type {
   override def superTypeOfImpl(other: Type): Boolean = false // FIXME

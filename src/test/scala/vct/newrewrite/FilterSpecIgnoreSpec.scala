@@ -3,8 +3,9 @@ package vct.newrewrite
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
+import Constant._
 import vct.col.newrewrite.FilterSpecIgnore
-import vct.helper.{AstComparer, RewriteTestHelper, SimpleProgramGenerator}
+import vct.helper.{ColHelper, SimpleProgramGenerator}
 
 
 class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
@@ -40,7 +41,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
       ))
       programExpectedOutput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
-    RewriteTestHelper.test(rewriter, programInput, programExpectedOutput)
+    ColHelper.assertEquals(rewriter.dispatch(programInput), programExpectedOutput)
   }
 
   it should "remove nodes within filterSpecIgnore" in {
@@ -69,7 +70,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
       ))
       programExpectedOutput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
-    RewriteTestHelper.test(rewriter, programInput, programExpectedOutput)
+    ColHelper.assertEquals(rewriter.dispatch(programInput), programExpectedOutput)
   }
 
   it should "throw error with two many SpecIgnoreStart" in {
@@ -112,4 +113,12 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     throw new NotImplementedError()
   }
 
+  it should "do some testing" in {
+    implicit val o: Origin = DiagnosticOrigin
+
+    ColHelper.assertEquals(
+      left = Plus(1, 1),
+      right = Minus(1, 1)
+    )
+  }
 }
