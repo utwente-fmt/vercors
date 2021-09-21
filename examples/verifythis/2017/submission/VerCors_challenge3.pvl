@@ -1,0 +1,51 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases 2017_challenge3
+//:: tools silicon
+//:: verdict Pass
+
+// https://formal.iti.kit.edu/ulbrich/verifythis2017
+
+class ChallengeThree {
+	
+	context_everywhere N > 0 && A != null && N == A.length;
+	context (\forall* int k; 0 <= k && k < A.length; Perm(A[k], write));
+	void oddeven(int N, int[N] A) {
+
+		/* The global loop invariant should be (approximately):
+		(\forall tid; \count(0 <= j && j < tid-1); a[j] >= a[tid]) <= N - 1 - i;
+		*/
+		
+		par thread(int tid = 0..N-1)
+			requires (0 <= tid && tid < N-2 && tid%2 == 0) ==> Perm(A[tid], write) ** Perm(A[tid+1], write);
+			requires (tid == N-1 && (N-1)%2==0) ==> Perm(A[tid], write);
+			ensures (0 <= tid && tid < N-2 && (tid+(N-1))%2 == 0) ==> Perm(A[tid], write) ** Perm(A[tid+1], write);
+			ensures (tid == 0 && (N-1)%2 == 1 ==> Perm(A[tid], write));
+		{
+			int i = 0;
+
+			loop_invariant 0 <= i && i <= N-1;
+			loop_invariant (0 <= tid && tid < N-2 && (tid+i)%2 == 0) ==> Perm(A[tid], write) ** Perm(A[tid+1], write);
+			loop_invariant (tid == N-1 && ((N-1)+i)%2==0) ==> Perm(A[tid], write);
+			loop_invariant (tid == 0 && i%2 == 1 ==> Perm(A[tid], write));
+			while (i < N - 1) {
+	
+				if (0 <= tid && tid < N-2 && (tid+i)%2 == 0) {
+					int temp = A[tid];
+					A[tid] = A[tid+1];
+					A[tid+1] = temp;
+				}
+
+				barrier(thread) {
+					requires (0 <= tid && tid < N-2 && (tid+i)%2 == 0) ==> Perm(A[tid], write) ** Perm(A[tid+1], write);
+					requires (tid == N-1 && ((N-1)+i)%2==0) ==> Perm(A[tid], write);
+					requires (tid == 0 && i%2 == 1 ==> Perm(A[tid], write));
+					ensures (0 <= tid && tid < N-2 && (tid+(i-1))%2 == 0) ==> Perm(A[tid], write) ** Perm(A[tid+1], write);
+					ensures (tid == N-1 && ((N-1)+(i-1))%2==0) ==> Perm(A[tid], write);
+					ensures (tid == 0 && (i-1)%2 == 1 ==> Perm(A[tid], write));
+				}
+
+				i = i + 1;
+			}
+		}
+	}
+}
