@@ -57,4 +57,10 @@ object AstBuildHelpers {
     new Procedure(returnType, args, outArgs, body,
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
       inline, pure)(blame)
+
+  def assignField(obj: Expr, field: Ref[Field], value: Expr)(implicit o: Origin): Assign =
+    Assign(Deref(obj, field)(DerefAssignTarget), value)
+
+  def fieldPerm(obj: Expr, field: Ref[Field], amount: Expr)(implicit o: Origin): Perm =
+    Perm(Deref(obj, field)(DerefPerm), amount)
 }

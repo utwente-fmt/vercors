@@ -1,5 +1,7 @@
 package vct.col.ast
 
+import vct.result.VerificationResult
+
 sealed trait ContractFailure
 case class ContractFalse(node: Expr) extends ContractFailure {
   override def toString: String = s"it may be false"
@@ -102,7 +104,14 @@ trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
 }
 
-abstract class BlameForwarder[-In <: VerificationFailure, Out <: VerificationFailure](innerBlame: Blame[Out]) extends Blame[In] {
-  override def blame(error: In): Unit = innerBlame.blame(translate(error))
-  def translate(error: In): Out
+case class BlameUnreachable(message: String, failure: VerificationFailure) extends VerificationResult.SystemError {
+  def text: String = s"An error condition was reached, which should be statically unreachable. $message ($failure)"
 }
+
+case class PanicBlame(message: String) extends Blame[VerificationFailure] {
+  override def blame(error: VerificationFailure): Unit = throw BlameUnreachable(message, error)
+}
+
+object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")
+object DerefPerm extends PanicBlame("Dereferencing a field in a permission should trigger an error on the permission, not on the dereference.")
+object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")

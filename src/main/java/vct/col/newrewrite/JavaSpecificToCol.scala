@@ -1,6 +1,7 @@
 package vct.col.newrewrite
 
 import hre.util.{FuncTools, ScopedStack}
+import vct.col.ast.AstBuildHelpers.{assignField, fieldPerm}
 import vct.col.ast.Constant._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
@@ -50,7 +51,7 @@ case class JavaSpecificToCol() extends Rewriter {
     val fieldInit = (diz: Expr) => Block(decls.collect {
       case fields @ JavaFields(_, _, decls) =>
         Block(for(((_, _, init), idx) <- decls.zipWithIndex if init.nonEmpty)
-          yield Assign(Deref(diz, javaFieldsSuccessor.ref((fields, idx))), dispatch(init.get))
+            yield assignField(diz, javaFieldsSuccessor.ref((fields, idx)), dispatch(init.get))
         )
     })
 
@@ -79,7 +80,7 @@ case class JavaSpecificToCol() extends Rewriter {
           ensures = Star.fold(decls.collect {
             case fields @ JavaFields(_, _, decls) =>
               decls.indices.map(decl => {
-                Perm(Deref(currentThis.head, javaFieldsSuccessor.ref((fields, decl))), WritePerm())
+                fieldPerm(currentThis.head, javaFieldsSuccessor.ref((fields, decl)), WritePerm())
               })
           }.flatten),
           contextEverywhere = true, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
@@ -218,9 +219,9 @@ case class JavaSpecificToCol() extends Rewriter {
             Deref(
               obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil)(null),
               ref = javaFieldsSuccessor.ref((decls, idx)),
-            )
+            )(UnresolvedDesignProblem)
           } else {
-            Deref(currentThis.head, javaFieldsSuccessor.ref((decls, idx)))
+            Deref(currentThis.head, javaFieldsSuccessor.ref((decls, idx)))(UnresolvedDesignProblem)
           }
         case RefJavaLocalDeclaration(decls, idx) =>
           Local(javaLocalsSuccessor.ref((decls, idx)))
@@ -232,10 +233,10 @@ case class JavaSpecificToCol() extends Rewriter {
         case RefAxiomaticDataType(decl) => ???
         case RefModel(decl) => ???
         case RefJavaClass(decl) => ???
-        case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))
+        case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))(UnresolvedDesignProblem)
         case RefUnloadedJavaNamespace(names) => ???
         case RefJavaField(decls, idx) =>
-          Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))
+          Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))(UnresolvedDesignProblem)
       }
 
     case JavaLiteralArray(_) => ???
