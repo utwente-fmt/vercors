@@ -4,11 +4,17 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.newrewrite.SpecifyImplicitLabels
-import vct.helper.{RewriteTestHelper, SimpleProgramGenerator}
+import vct.helper.ColHelper
 
 class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
 
   implicit val o = DiagnosticOrigin
+
+  def test(input: Statement, expectedOutput: Statement): Unit = {
+    val rewriter = SpecifyImplicitLabels()
+    ColHelper.assertEquals(rewriter.dispatch(input), expectedOutput)
+    assert(rewriter.labelStack.isEmpty)
+  }
 
   it should "add a label to a switch without a label" in {
     val before = {
@@ -39,13 +45,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
-    val rewriter = SpecifyImplicitLabels()
-    RewriteTestHelper.test(
-      rewriter,
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
-    assert(rewriter.labelStack.isEmpty)
+    test(before, after)
   }
 
   it should "reuse labels already present" in {
@@ -81,13 +81,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
-    val rewriter = SpecifyImplicitLabels()
-    RewriteTestHelper.test(
-      rewriter,
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
-    assert(rewriter.labelStack.isEmpty)
+    test(before, after)
   }
 
   it should "not touch labeled break" in {
@@ -119,13 +113,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
-    val rewriter = SpecifyImplicitLabels()
-    RewriteTestHelper.test(
-      rewriter,
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
-    assert(rewriter.labelStack.isEmpty)
+    test(before, after)
   }
 
   it should "use the nearest label possible" in {
@@ -171,12 +159,6 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
-    val rewriter = SpecifyImplicitLabels()
-    RewriteTestHelper.test(
-      rewriter,
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
-    assert(rewriter.labelStack.isEmpty)
+    test(before, after)
   }
 }
