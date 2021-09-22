@@ -29,7 +29,7 @@ public class ColPVLParser extends Parser {
             parser.removeErrorListeners();
             parser.addErrorListener(ec);
             PVLParser.ProgramContext tree = parser.program();
-            Progress("parsing pass took %dms", tk.show());
+            Progress("Parsing pass took %dms", tk.show());
             ec.report();
             Debug("parser got: %s", tree.toStringTree(parser));
 
