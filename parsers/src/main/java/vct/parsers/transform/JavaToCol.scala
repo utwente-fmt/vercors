@@ -942,7 +942,8 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
           col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef(_)), c.consume(c.accessible).map(new UnresolvedRef(_)))(
-          SourceNameOrigin(convert(name), origin(decl)))
+          if (contract.size > 0) blameProvider(contract(0).start, contract.last.stop) else blameProvider(decl)
+        )(SourceNameOrigin(convert(name), origin(decl)))
       })
     case ValModelDeclaration2(contract, _, name, _, args, _, _) =>
       withContract(contract, c => {
