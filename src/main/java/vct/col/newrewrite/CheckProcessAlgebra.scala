@@ -18,6 +18,7 @@ case class CheckProcessAlgebra() extends Rewriter {
   }
 
   val modelFieldSuccessors: SuccessionMap[ModelField, InstanceField] = SuccessionMap()
+  val processSuccessors: SuccessionMap[ModelProcess, InstanceMethod] = SuccessionMap()
   val modelSuccessors: SuccessionMap[Model, Class] = SuccessionMap()
   val currentModel: ScopedStack[Model] = ScopedStack()
 
@@ -30,6 +31,7 @@ case class CheckProcessAlgebra() extends Rewriter {
       // in a map to detect overlapping ones
       val compositeMap: mutable.Map[Set[Expr], ModelProcess] = mutable.Map()
 
+      // TODO: Refactor this to separate method. Or, maybe in typechecker/frontend? As it could be part of a well-formedness requirement
       model.declarations.foreach {
         case process: ModelProcess =>
           process.impl match {
@@ -63,7 +65,7 @@ case class CheckProcessAlgebra() extends Rewriter {
         )(model.o)
       }
       newClass.declareDefault(this)
-      modelSuccessors(currentModel) = newClass
+      modelSuccessors(model) = newClass
 
     case process: ModelProcess =>
       implicit val o = process.o
@@ -71,19 +73,12 @@ case class CheckProcessAlgebra() extends Rewriter {
       val currentThis = AmbiguousThis()
       currentThis.ref = Some(TClass(modelSuccessors.ref(currentModel.top)))
 
-      def fieldRefToPerm(mode: ModelFieldMode)(implicit o: Origin) = mode match {
-        case ModelFieldModifies(_) => WritePerm()
-        // TODO: This used to be a permission value passed by argument, so if the read form doesn't work out, this needs to be fixed
-        case ModelFieldAccessible(_) => ReadPerm()
-      }
+      def fieldRefToPerm(p: RationalExpr, f: Ref[ModelField]) =
+        Perm(Deref(currentThis, modelFieldSuccessors.ref(f.decl))(null)(f.decl.o), p);
 
-      val fieldPerms =
-        Star.fold(process.requiredFields.map(f => {
-          implicit val o = f.o
-          // No blame here because we assume, from the structure we generate these perms, they cannot fail
-          // TODO: Is this the right pattern?
-          Perm(Deref(currentThis, modelFieldSuccessors.ref(f.f.decl))(null), fieldRefToPerm(f))
-        }))
+      val fieldPerms = Star.fold(
+        process.modifies.map(f => fieldRefToPerm(WritePerm(), f)) ++
+          process.accessible.map(f => fieldRefToPerm(ReadPerm(), f)))
 
       val args = collectInScope(variableScopes)(process.args.foreach(dispatch(_)))
 
@@ -110,11 +105,22 @@ case class CheckProcessAlgebra() extends Rewriter {
       instanceField.declareDefault(this)
       modelFieldSuccessors(modelField) = instanceField
 
+    case _ =>
+  }
+
+  override def dispatch(expr: Expr): Expr = expr match {
+    case p @ ProcessApply(process, args) => MethodInvocation(
+        AmbiguousThis()(p.o),
+        processSuccessors.ref(process.decl),
+        args.map(dispatch(_)),
+        Seq()
+      )(null)(p.o)
+
     case modelDeref: ModelDeref =>
       implicit val o = modelDeref.o
       val blame = InsufficientPermissionForModelField(modelDeref)
       Deref(dispatch(modelDeref.obj), modelFieldSuccessors.ref(modelDeref.ref.decl))(blame)
 
-    case _ =>
+    case x => dispatch(x)
   }
 }
