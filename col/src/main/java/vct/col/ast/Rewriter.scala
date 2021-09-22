@@ -27,6 +27,4 @@ class Rewriter extends AbstractRewriter {
   override def dispatch(node: JavaModifier): JavaModifier = rewriteDefault(node)
   override def dispatch(node: JavaImport): JavaImport = rewriteDefault(node)
   override def dispatch(node: JavaName): JavaName = rewriteDefault(node)
-
-  override def dispatch(node: ModelFieldMode): ModelFieldMode = rewriteDefault(node)
 }

@@ -289,16 +289,9 @@ sealed trait ModelDeclaration extends Declaration {
 
 class ModelField(val t: Type)(implicit val o: Origin) extends ModelDeclaration with NoCheck
 
-// TODO: I just want these to be more or less booleans to tell if they are acccessible or modifies...
-sealed trait ModelFieldMode extends NodeFamily with NoCheck {
-  def f: Ref[ModelField]
-}
-sealed case class ModelFieldModifies(f: Ref[ModelField])(implicit val o: Origin) extends ModelFieldMode
-sealed case class ModelFieldAccessible(f: Ref[ModelField])(implicit val o: Origin) extends ModelFieldMode
-
 class ModelProcess(val args: Seq[Variable], val impl: Expr,
                    val requires: Expr, val ensures: Expr,
-                   val requiredFields: Seq[ModelFieldMode])
+                   val modifies: Seq[Ref[ModelField]], val accessible: Seq[Ref[ModelField]])
                   (val blame: Blame[PostconditionFailed])
                   (implicit val o: Origin) extends ModelDeclaration with Applicable {
   override def returnType: Type = TProcess()
