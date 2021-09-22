@@ -181,7 +181,7 @@ class Main {
   }
 
   private def parseInputs(inputPaths: Array[String]): Unit = {
-    Progress("parsing inputs...")
+    Progress("Parsing inputs...")
     report = new PassReport(new ProgramUnit)
     report.setOutput(report.getInput)
     report.add(new ErrorDisplayVisitor)

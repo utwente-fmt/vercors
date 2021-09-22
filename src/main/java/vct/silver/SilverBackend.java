@@ -64,7 +64,6 @@ public class SilverBackend {
     MessageFactory log=new MessageFactory(new PassAddVisitor(report));
     TaskBegin verification=log.begin("Viper verification");
 
-    hre.lang.System.Progress("verifying with %s %s backend", "builtin", tool);
     //verifier.set_detail(Configuration.detailed_errors.get());
     VerCorsViperAPI vercors=VerCorsViperAPI.get();
     Program program = vercors.prog.convert(verifier,arg);
@@ -93,6 +92,9 @@ public class SilverBackend {
     }*/
     ViperControl control=new ViperControl(log);
     try {
+      SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+      hre.lang.System.Progress("Verification with %s %s backend starting at %s", "builtin", tool, dateFormat.format(new Date()));
+
       // Call into Viper to verify!
       List<? extends ViperError<Origin>> rawErrors = verifier.verify(
               Configuration.getZ3Path().toPath(),
