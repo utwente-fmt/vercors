@@ -2,28 +2,51 @@
 class Main {
 
     Role a,b,c;
-    StretchTree s;
     LongLivedTree l;
+    StretchTree s;
 
+    ensures Perm(a,1\2) ** Perm(b, 1\2) ** Perm(c,1\2) ** Perm(l, 1\2) ** Perm(s, 1\2);
+    ensures Perm(a.check,1) ** Perm(b.check,1) ** Perm(c.check,1);
+    ensures Perm(a.index,1) ** Perm(b.index,1) ** Perm(c.index,1);
+    ensures Perm(a.iterations,1) ** Perm(b.iterations,1) ** Perm(c.iterations,1);
+    ensures Perm(a.depth,1\2) ** Perm(b.depth,1\2) ** Perm(c.depth,1\2);
+    ensures Perm(a.MIN_DEPTH,1\2) ** Perm(b.MIN_DEPTH,1\2) ** Perm(c.MIN_DEPTH,1\2);
+    ensures Perm(l,1\2) ** Perm(l.longLivedTree, 1) ** Perm(l.maxDepth, 1\2) ** Perm(l.check,1);
+    ensures Perm(s,1\2) ** Perm(s.stretchTree, 1) ** Perm(s.stretchDepth, 1\2) ** Perm(s.check,1);
     Main() {
         a = new Role(4+0,4+4);
         b = new Role(4+2,4+4);
         c = new Role(4+4,4+4);
-        s = new StretchTree(4+4);
         l = new LongLivedTree(4+4);
+        s = new StretchTree(4+4);
     }
 
+    context Perm(a,1\2) ** Perm(b, 1\2) ** Perm(c,1\2) ** Perm(l, 1\2) ** Perm(s, 1\2);
+    context Perm(a.check,1) ** Perm(b.check,1) ** Perm(c.check,1);
+    context Perm(a.index,1) ** Perm(b.index,1) ** Perm(c.index,1);
+    context Perm(a.iterations,1) ** Perm(b.iterations,1) ** Perm(c.iterations,1);
+    context Perm(a.depth,1\2) ** Perm(b.depth,1\2) ** Perm(c.depth,1\2);
+    context Perm(a.MIN_DEPTH,1\2) ** Perm(b.MIN_DEPTH,1\2) ** Perm(c.MIN_DEPTH,1\2);
+    requires Perm(l.longLivedTree, 1) ** Perm(s.stretchTree, 1);
+    ensures Perm(l.longLivedTree, 1\2) ** Perm(s.stretchTree, 1\2);
+    context Perm(l,1\2) ** Perm(l.maxDepth, 1\2) ** Perm(l.check,1);
+    context Perm(s,1\2) ** Perm(s.stretchDepth, 1\2) ** Perm(s.check,1);
     void run() {
         s.init();
         s.check();
         //  System.out.println("stretch tree of depth " + s.stretchDepth + "\t check: " s.check);
         l.init();
         par 
+        context Perm(a,1\2) ** Perm(a.check,1) ** Perm(a.index,1) ** Perm(a.depth,1\2) ** Perm(a.MIN_DEPTH,1\2);
         {
             a.check();
-        } and {
+        } and 
+        context Perm(b,1\2) ** Perm(b.check,1) ** Perm(b.index,1) ** Perm(b.depth,1\2) ** Perm(b.MIN_DEPTH,1\2);
+        {
             b.check();
-        }  and {
+        }  and 
+        context Perm(c,1\2) ** Perm(c.check,1) ** Perm(c.index,1) ** Perm(c.depth,1\2) ** Perm(c.MIN_DEPTH,1\2);
+        {
             c.check();
         }
         //System.out.println(a.iterations + "\t trees of depth " + a.depth + "\t check: " + a.check);
@@ -45,6 +68,7 @@ class Role {
 
     int index, iterations, check, depth, MIN_DEPTH, maxDepth;
 
+    ensures Perm(check, 1) ** Perm(index,1) ** Perm(depth,1\2) ** Perm(MIN_DEPTH,1\2)  ** Perm(iterations,1\2);
     Role(int d, int n) {
         MIN_DEPTH = 4;
         maxDepth = n; //n < (MIN_DEPTH + 2) ? MIN_DEPTH + 2 : n;
@@ -53,7 +77,10 @@ class Role {
         depth = d;
     }
 
+    context Perm(check, 1) ** Perm(index, 1) ** Perm(depth,1\2) ** Perm(MIN_DEPTH, 1\2) ** Perm(iterations,1\2);
     void check() {
+        loop_invariant Perm(check, 1) ** Perm(index, 1) ** Perm(depth,1\2) ** Perm(MIN_DEPTH, 1\2) ** Perm(iterations,1\2);
+        loop_invariant 1 <= i && i <= iterations;
         for (int i = 1; i <= iterations; i++) {
             TreeNode treeNode1 = TreeNode.bottomUpTree(depth);
             check = check + treeNode1.itemCheck();
@@ -72,22 +99,36 @@ class Role {
 
 class TreeNode {
 
-    TreeNode left; //final
-    TreeNode right; //final
+    resource treePerm() = 
+    	Perm(left, 1\2) ** Perm(right, 1\2) 
+    	** (left != null ==> left.treePerm())
+    	** (right != null ==> right.treePerm())
+    	;
 
-    TreeNode(TreeNode left, TreeNode right) {
-        this.left = left;
-        this.right = right;
+    TreeNode left;
+    TreeNode right;
+
+    requires (l != null ==> l.treePerm()) ** (r != null ==> r.treePerm());
+    ensures this != null ** treePerm();
+    TreeNode(TreeNode l, TreeNode r) {
+        left = l;
+        right = r;
+        fold treePerm();
     }
 
+    context treePerm();
     int itemCheck() {
-        // if necessary deallocate here
-        if (null == left) {
+    	unfold treePerm();
+        if (left == null || right == null) { // had to add || right == null
+            fold treePerm();
             return 1;
         }
-        return 1 + left.itemCheck() + right.itemCheck();
+        int res = 1 + left.itemCheck() + right.itemCheck(); //had to seperate expression from return statement to specify fold
+        fold treePerm();
+        return res;
     }
     
+    ensures \result != null ** \result.treePerm();
     static TreeNode bottomUpTree(int depth) {
         if (0 < depth) {
             return new TreeNode(bottomUpTree(depth - 1), bottomUpTree(depth - 1));
@@ -101,36 +142,50 @@ class LongLivedTree {
     int maxDepth, check;
     TreeNode longLivedTree;
     
+    ensures Perm(maxDepth,1\2) ** Perm(check,1) ** Perm(longLivedTree,1);
     LongLivedTree(int d) {
         maxDepth = d;
     }
     
+    requires Perm(longLivedTree,1);
+    context Perm(maxDepth,1\2);
+    ensures Perm(longLivedTree,1\2) ** longLivedTree != null ** longLivedTree.treePerm();
     void init() {
         longLivedTree = TreeNode.bottomUpTree(maxDepth);
     }
     
+    context Perm(check,1) ** Perm(longLivedTree,1\2);
+    context longLivedTree != null ** longLivedTree.treePerm();
     void check() {
+    	assert longLivedTree.treePerm();
         check = longLivedTree.itemCheck();
     }
     
 }
 
+
 class StretchTree {
     int stretchDepth, check;
     TreeNode stretchTree;
     
+    ensures Perm(stretchDepth,1\2) ** Perm(check,1) ** Perm(stretchTree,1);
     StretchTree(int maxDepth) {
         stretchDepth = maxDepth + 1;
     }
     
+    requires Perm(stretchTree,1);
+    context Perm(stretchDepth,1\2);
+    ensures Perm(stretchTree,1\2) ** stretchTree != null ** stretchTree.treePerm();
     void init() {
         stretchTree = TreeNode.bottomUpTree(stretchDepth);
     }
     
+    context Perm(check,1) ** Perm(stretchTree,1\2);
+    context stretchTree != null ** stretchTree.treePerm();
     void check() {
         check = stretchTree.itemCheck();
     }
     
-    
 }
+
 
