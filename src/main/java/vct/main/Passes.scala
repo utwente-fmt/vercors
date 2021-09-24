@@ -10,7 +10,7 @@ import vct.col.features
 import vct.col.features.Feature
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{ChannelPerms, Decompose, GenerateBarrier, GenerateForkJoinMain, GenerateLTS, JavaForkJoin, LocalProgConstructors, RemoveTaus, StructureCheck, TerminationCheck}
+import vct.col.veymont.{ChannelPerms, Decompose, GenerateForkJoinMain, GenerateLTS, JavaForkJoin, LocalProgConstructors, RemoveTaus, StructureCheck, TerminationCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
@@ -948,18 +948,10 @@ object Passes {
       arg => { new StructureCheck(arg); arg }),
     SimplePass("VeyMontTerminationCheck", "check absence non-terminating statements",
       arg => { new TerminationCheck(arg); arg}),
-  //  SimplePass("VeyMontGlobalLTS", "generate LTS of global program",
-  //    arg => { new GenerateLTS(arg,true).generateLTSAndPrint(); arg }),
     SimplePass("VeyMontDecompose", "generate local program classes from given global program",
       new Decompose(_).addThreadClasses()),
-    SimplePass("VeyMontLocalLTS", "generate LTSs of local programs and check well-behavedness",
-      arg => { new GenerateLTS(arg,false).generateLTSAndCheckWellBehavedness(); arg }),
-    SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
-      new RemoveTaus(_).rewriteAll()),
     SimplePass("removeEmptyBlocks", "remove empty blocks of parallel regions",
       new RemoveEmptyBlocks(_).rewriteAll),
-    SimplePass("VeyMontBarrier", "generate barrier annotations",
-      new GenerateBarrier(_).rewriteAll),
     SimplePass("VeyMontLocalProgConstr", "add constructors to the local program classes",
       new LocalProgConstructors(_).addChansToConstructors()),
     SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",

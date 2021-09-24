@@ -104,7 +104,10 @@ class Main {
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
-    clops.parse(args) ++ (if (Configuration.veymont_file.get() != null) Configuration.getVeyMontFiles.map(_.getAbsolutePath()) else Array.empty[String])
+    val parseres = clops.parse(args)
+    if (Configuration.veymont_file.get() != null)
+      parseres :+ Configuration.getVeyMontFiles.getAbsolutePath()
+    else parseres
   }
 
   private def setupLogging(): Unit = {
@@ -176,7 +179,7 @@ class Main {
 
     val vFile = Configuration.veymont_file.get()
     if(vFile != null) {
-      val nonPVL = inputPaths.filter(p => !p.endsWith(".pvl") && !p.endsWith(Configuration.javaChannelFile) && !p.endsWith(Configuration.javaBarrierFile))
+      val nonPVL = inputPaths.filter(p => !p.endsWith(".pvl") && !p.endsWith(Configuration.javaChannelFile))
       if(nonPVL.nonEmpty)
         Fail("VeyMont cannot use non-PVL files %s",nonPVL.mkString(", "))
       if(!(vFile.endsWith(".pvl") || vFile.endsWith(".java")))
@@ -209,12 +212,8 @@ class Main {
     Seq(
       BY_KEY("VeyMontStructCheck"),
       BY_KEY("VeyMontTerminationCheck"),
-      //  BY_KEY("VeyMontGlobalLTS"),
       BY_KEY("VeyMontDecompose"),
-      //  BY_KEY("VeyMontLocalLTS"),
-      BY_KEY("removeTaus"),
       BY_KEY("removeEmptyBlocks"),
-      BY_KEY("VeyMontBarrier"),
       BY_KEY("VeyMontLocalProgConstr"),
       BY_KEY("VeyMontAddChannelPerms"),
       BY_KEY("VeyMontAddStartThreads"),

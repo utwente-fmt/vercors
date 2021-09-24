@@ -30,8 +30,8 @@ class Main {
     context Perm(a.MIN_DEPTH,1\2) ** Perm(b.MIN_DEPTH,1\2) ** Perm(c.MIN_DEPTH,1\2);
     requires Perm(l.longLivedTree, 1) ** Perm(s.stretchTree, 1);
     ensures Perm(l.longLivedTree, 1\2) ** Perm(s.stretchTree, 1\2);
-    context Perm(l,1\2) ** Perm(l.maxDepth, 1\2) ** Perm(l.check,1);
-    context Perm(s,1\2) ** Perm(s.stretchDepth, 1\2) ** Perm(s.check,1);
+    context Perm(l.maxDepth, 1\2) ** Perm(l.check,1);
+    context Perm(s.stretchDepth, 1\2) ** Perm(s.check,1);
     context a.iterations > 0 ** b.iterations > 0 ** c.iterations > 0;
     void run() {
         s.init();

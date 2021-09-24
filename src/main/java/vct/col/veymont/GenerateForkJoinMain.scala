@@ -27,13 +27,12 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val mainFJContract = mainClass.methods().asScala.find(_.name == Util.mainMethodName).get.getContract
     val threadsConstr = threads.map(_.methods().asScala.find(_.kind== Kind.Constructor).get)
     val chansVars = threadsConstr.flatMap(getConstrChanArgs).map(getChanVar).toArray
-    val barrierVar = getBarrierVar(threads.size)
     val threadVars = threads.map(t => getThreadVar(t)).toArray
     val threadForks = threads.map(t => getThreadRunning(t.name, true)).toArray
     val threadJoins = threads.map(t => getThreadRunning(t.name, false)).toArray
     val mainFJArgs = threadsConstr.map(getConstrRoleArgs).reduce((a,b) => a ++ b) : Array[DeclarationStatement]
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
-      (barrierVar +: (chansVars ++ threadVars ++ threadForks ++ threadJoins)):_*)
+      chansVars ++ threadVars ++ threadForks ++ threadJoins:_*)
     val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),rewrite(mainFJContract),
       localMainMethodName,mainFJArgs,body)
     mainFJClass.add_static(mainMethod)
@@ -46,10 +45,6 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
       super.visit(c)
   }
 
-  private def getBarrierVar(nrThreads : Int) : DeclarationStatement =
-    create.field_decl(new MessageOrigin("Generated Barrier variable"),barrierFieldName,getBarrierClass,
-      create.invokation(null,getBarrierClass,Method.JavaConstructor,create.constant(nrThreads)))
-
   private def getConstrChanArgs(constr : Method) : Array[DeclarationStatement] =
     constr.getArgs.filter(_.`type` match {
       case cl : ClassType => isChannelClass(cl.getName)
@@ -58,7 +53,7 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
 
   private def getConstrRoleArgs(constr : Method) : Array[DeclarationStatement] =
     constr.getArgs.filter(_.`type` match {
-      case cl : ClassType => !isChannelClass(cl.getName) && cl.getName != barrierClassName
+      case cl : ClassType => !isChannelClass(cl.getName)
       case _ => true
     })
 
@@ -72,9 +67,8 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val constr = thread.methods().asScala.find(_.kind== Kind.Constructor).get
     val chans = getConstrChanArgs(constr).map(a => unArgName(a.name)) : Array[String]
     val chanArgs = chans.map(chan => create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name),chan))
-    val barArg = create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name), barrierFieldName) : NameExpression
     val roleArgs = getConstrRoleArgs(constr).map(a => create.local_name(new MessageOrigin("Generated argument for calling constructor " + thread.name),a.name)) : Array[NameExpression]
-    val args : Array[NameExpression] = chanArgs  ++ (barArg +: roleArgs) : Array[NameExpression]
+    val args : Array[NameExpression] = chanArgs  ++ roleArgs : Array[NameExpression]
     create.field_decl(new MessageOrigin("Generated Thread variable"),getRoleName(thread.name),new ClassType(thread.name),
       create.invokation(null,new ClassType(thread.name),Method.JavaConstructor,args:_*))
   }

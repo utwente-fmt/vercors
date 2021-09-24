@@ -29,9 +29,6 @@ object Util {
   private val threadName: String = "Thread"
   val chanName: String = "Chan"
   val channelClassName: String = "Channel"
-  val barrierClassName: String = "Barrier"
-  val barrierFieldName: String = "threadBarrier"
-  val barrierAwait: String = "await"
   val chanWriteMethodName: String = "writeValue"
   val chanReadMethodName: String = "readValue"
   val cloneMethod: String = "clone"
@@ -55,13 +52,9 @@ object Util {
 
   def isChannelClass(name: String): Boolean = name.endsWith(channelClassName)
 
-  def isNoBarrierOrChannelClass(name: String): Boolean = name != barrierClassName && !isChannelClass(name)
-
-  def isRoleOrHelperClassName(name: String): Boolean = name != mainClassName && isNoBarrierOrChannelClass(name)
+  def isRoleOrHelperClassName(name: String): Boolean = name != mainClassName && !isChannelClass(name)
 
   def isChanName(chan: String): Boolean = chan.endsWith(chanName)
-
-  def getBarrierClass : ClassType = new ClassType(barrierClassName)
 
   def getArgName(name: String): String = name + "Arg"
 

@@ -314,8 +314,6 @@ class GenerateLTS(override val source : ProgramUnit, isGlobal : Boolean) extends
         val receiver = chan.substring(sender.name.length,chan.length-chanName.length)
         val nextState = takeTransition(currentState, new LTSLabel(None, WriteAction(create.field_name(receiver),sender.name,argExp)), nextSeq)
         visitStatementSequence(nextState,nextSeq)
-      } else if(m.method == barrierAwait) {
-        Fail("VeyMont Fail: It is not allowed to use a method with name %s",barrierAwait)
       } else { //role method
         val nextState = takeTransition(currentState,new LTSLabel(None, SingleRoleAction(m)), nextSeq)
         visitStatementSequence(nextState,nextSeq)

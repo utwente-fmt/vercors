@@ -47,8 +47,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         val newChansClasses = chanTypes.map(t => new GenerateTypedChannel(chanClassProg,t).rewriteAll().get(0))
         newChansClasses.foreach(target().add(_))
       }
-      else if(c.name == barrierClassName)
-        target.add(c)
       else if(cloneClasses.exists(_.name == c.name))
         target().add(rewrite(addClone(c.asInstanceOf[ASTClass])))
       else
@@ -66,7 +64,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     val rewMethods = mainClass.methods().asScala.filter(_.name != mainMethodName).map(rewrite(_))
     mainClass.fields().forEach(f => if(f.name == roleName.get) thread.add(rewrite(f)))
     chans.foreach(chan => thread.add_dynamic(create.field_decl(chan.channel,chan.getChanClass)))
-    thread.add_dynamic(create.field_decl(barrierFieldName,getBarrierClass))
     rewMethods.foreach(thread.add)
     create.leave()
     thread
@@ -130,7 +127,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     cb.requires(rewrite(pre))
     cb.ensures(rewrite(post))
     if(m.getParent match {
-      case c : ASTClass => c.name == barrierClassName || c.name == channelClassName
+      case c : ASTClass => c.name == channelClassName
       case _ => false
     })
       result = copy_rw.rewrite(m)
@@ -200,7 +197,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
             case cl : ClassType => checkChanClassType(cl,writeChanName,sendExpression)
           }
         }
-        case Tau => result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
+        case Tau => //result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
         case _ => Fail("VeyMont Fail: assignment %s is no session assignment! ", a.toString)
       }
     }
@@ -268,7 +265,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         case b: BlockStatement => //it is a statement
           if (isSingleRoleNameExpressionOfRole(m, roleNames))
             result = copy_rw.rewrite(m)
-          else result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
+          //else result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
         case _ => rewriteExpression(m)
       }
     }
@@ -288,6 +285,13 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       case e : OperatorExpression => e.operator match {
         case StandardOperator.Perm => n
         case StandardOperator.NEQ => if (isNullNode(e.first) || isNullNode(e.second)) n else create.constant(true)
+        case StandardOperator.Implies =>
+          if(selectResourceAnnotation(e.first) match {
+          case eop : OperatorExpression => isNullNode(eop.first) || isNullNode(eop.second)
+          case _ => false
+              })
+            create.expression(e.operator,selectResourceAnnotation(e.first), selectResourceAnnotation(e.second))
+          else create.constant(true)
         case StandardOperator.Star => create.expression(e.operator,selectResourceAnnotation(e.first), selectResourceAnnotation(e.second))
         case _ => create.constant(true)
       }

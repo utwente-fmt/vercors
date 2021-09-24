@@ -4,8 +4,9 @@ import vct.col.ast.expr._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl._
 import vct.col.ast.util.RecursiveVisitor
-import Util.{isNoBarrierOrChannelClass, mainClassName}
+import Util.{isChannelClass, mainClassName}
 import vct.col.veymont.TerminationCheck.deadlockWarning
+
 import scala.jdk.CollectionConverters._
 
 object TerminationCheck {
@@ -25,14 +26,14 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
 
   private def getAllMethods(source : ProgramUnit) : Iterable[(Method,String)] =
     source.get().asScala.collect {
-      case c: ASTClass if isNoBarrierOrChannelClass(c.name) => c.methods().asScala.map((_,c.name))
+      case c: ASTClass if !isChannelClass(c.name) => c.methods().asScala.map((_,c.name))
     }.flatten
 
 
   override def visit(m : Method) : Unit = {
     m.getParent match {
       case c: ASTClass =>
-        if (isNoBarrierOrChannelClass(c.name) && (methodCalled || m.kind != Method.Kind.Pure) ) {
+        if (!isChannelClass(c.name) && (methodCalled || m.kind != Method.Kind.Pure) ) {
           //only check called pure method  or non-pure method
           //don't check methods from Barrier or Channel class, so only methods from Main, roles, ot other classes
           if (methodCalled)
