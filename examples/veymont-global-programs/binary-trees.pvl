@@ -8,11 +8,12 @@ class Main {
     ensures Perm(a,1\2) ** Perm(b, 1\2) ** Perm(c,1\2) ** Perm(l, 1\2) ** Perm(s, 1\2);
     ensures Perm(a.check,1) ** Perm(b.check,1) ** Perm(c.check,1);
     ensures Perm(a.index,1) ** Perm(b.index,1) ** Perm(c.index,1);
-    ensures Perm(a.iterations,1) ** Perm(b.iterations,1) ** Perm(c.iterations,1);
+    ensures Perm(a.iterations,1\2) ** Perm(b.iterations,1\2) ** Perm(c.iterations,1\2);
     ensures Perm(a.depth,1\2) ** Perm(b.depth,1\2) ** Perm(c.depth,1\2);
     ensures Perm(a.MIN_DEPTH,1\2) ** Perm(b.MIN_DEPTH,1\2) ** Perm(c.MIN_DEPTH,1\2);
     ensures Perm(l,1\2) ** Perm(l.longLivedTree, 1) ** Perm(l.maxDepth, 1\2) ** Perm(l.check,1);
     ensures Perm(s,1\2) ** Perm(s.stretchTree, 1) ** Perm(s.stretchDepth, 1\2) ** Perm(s.check,1);
+    ensures a.iterations > 0 ** b.iterations > 0 ** c.iterations > 0;
     Main() {
         a = new Role(4+0,4+4);
         b = new Role(4+2,4+4);
@@ -24,28 +25,29 @@ class Main {
     context Perm(a,1\2) ** Perm(b, 1\2) ** Perm(c,1\2) ** Perm(l, 1\2) ** Perm(s, 1\2);
     context Perm(a.check,1) ** Perm(b.check,1) ** Perm(c.check,1);
     context Perm(a.index,1) ** Perm(b.index,1) ** Perm(c.index,1);
-    context Perm(a.iterations,1) ** Perm(b.iterations,1) ** Perm(c.iterations,1);
+    context Perm(a.iterations,1\2) ** Perm(b.iterations,1\2) ** Perm(c.iterations,1\2);
     context Perm(a.depth,1\2) ** Perm(b.depth,1\2) ** Perm(c.depth,1\2);
     context Perm(a.MIN_DEPTH,1\2) ** Perm(b.MIN_DEPTH,1\2) ** Perm(c.MIN_DEPTH,1\2);
     requires Perm(l.longLivedTree, 1) ** Perm(s.stretchTree, 1);
     ensures Perm(l.longLivedTree, 1\2) ** Perm(s.stretchTree, 1\2);
     context Perm(l,1\2) ** Perm(l.maxDepth, 1\2) ** Perm(l.check,1);
     context Perm(s,1\2) ** Perm(s.stretchDepth, 1\2) ** Perm(s.check,1);
+    context a.iterations > 0 ** b.iterations > 0 ** c.iterations > 0;
     void run() {
         s.init();
         s.check();
         //  System.out.println("stretch tree of depth " + s.stretchDepth + "\t check: " s.check);
         l.init();
         par 
-        context Perm(a,1\2) ** Perm(a.check,1) ** Perm(a.index,1) ** Perm(a.depth,1\2) ** Perm(a.MIN_DEPTH,1\2);
+        context Perm(a,1\2) ** Perm(a.check,1) ** Perm(a.index,1) ** Perm(a.depth,1\2) ** Perm(a.MIN_DEPTH,1\2) ** Perm(a.iterations,1\2) ** a.iterations > 0;
         {
             a.check();
         } and 
-        context Perm(b,1\2) ** Perm(b.check,1) ** Perm(b.index,1) ** Perm(b.depth,1\2) ** Perm(b.MIN_DEPTH,1\2);
+        context Perm(b,1\2) ** Perm(b.check,1) ** Perm(b.index,1) ** Perm(b.depth,1\2) ** Perm(b.MIN_DEPTH,1\2) ** Perm(b.iterations,1\2) ** b.iterations > 0;
         {
             b.check();
         }  and 
-        context Perm(c,1\2) ** Perm(c.check,1) ** Perm(c.index,1) ** Perm(c.depth,1\2) ** Perm(c.MIN_DEPTH,1\2);
+        context Perm(c,1\2) ** Perm(c.check,1) ** Perm(c.index,1) ** Perm(c.depth,1\2) ** Perm(c.MIN_DEPTH,1\2) ** Perm(c.iterations,1\2) ** c.iterations > 0;
         {
             c.check();
         }
@@ -69,18 +71,22 @@ class Role {
     int index, iterations, check, depth, MIN_DEPTH, maxDepth;
 
     ensures Perm(check, 1) ** Perm(index,1) ** Perm(depth,1\2) ** Perm(MIN_DEPTH,1\2)  ** Perm(iterations,1\2);
+    requires d >= 4 && n >= d;
+    ensures iterations > 0;
     Role(int d, int n) {
         MIN_DEPTH = 4;
         maxDepth = n; //n < (MIN_DEPTH + 2) ? MIN_DEPTH + 2 : n;
         check = 0;
-        iterations = 1 * pow(2, maxDepth - depth + MIN_DEPTH);
         depth = d;
+        iterations = 1 * pow(2, maxDepth - depth + MIN_DEPTH);
     }
 
     context Perm(check, 1) ** Perm(index, 1) ** Perm(depth,1\2) ** Perm(MIN_DEPTH, 1\2) ** Perm(iterations,1\2);
+    context iterations > 0;
     void check() {
         loop_invariant Perm(check, 1) ** Perm(index, 1) ** Perm(depth,1\2) ** Perm(MIN_DEPTH, 1\2) ** Perm(iterations,1\2);
-        loop_invariant 1 <= i && i <= iterations;
+        loop_invariant 1 <= i && i <= iterations+1;
+        loop_invariant iterations == \old(iterations);
         for (int i = 1; i <= iterations; i++) {
             TreeNode treeNode1 = TreeNode.bottomUpTree(depth);
             check = check + treeNode1.itemCheck();
@@ -88,7 +94,11 @@ class Role {
         index = (depth - MIN_DEPTH) / 2;
     }
     
+    requires base > 0 && n > 0;
+    ensures \result > 0;
     int pow(int base, int n) {
+        loop_invariant 1 <= i && i <= n;
+        loop_invariant base > 0 && n >= 0;
         for(int i=1; i < n; i++) {
             base = base * 2;
         }
