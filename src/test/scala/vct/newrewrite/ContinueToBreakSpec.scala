@@ -4,7 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers._
 import vct.col.ast._
 import vct.col.newrewrite.ContinueToBreak
-import vct.helper.{RewriteTestHelper, SimpleProgramGenerator}
+import vct.helper.{ColHelper, SimpleProgramGenerator}
 
 class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
   implicit val o = DiagnosticOrigin
@@ -46,11 +46,7 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
       ))
     }
 
-    RewriteTestHelper.test(
-      ContinueToBreak(),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
+    ColHelper.assertEquals(ContinueToBreak().dispatch(before), after)
   }
 
   it should "only wrap the other loop when only continuing from the outer loop" in {
@@ -112,10 +108,6 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
       ))
     }
 
-    RewriteTestHelper.test(
-      ContinueToBreak(),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
+    ColHelper.assertEquals(ContinueToBreak().dispatch(before), after)
   }
 }

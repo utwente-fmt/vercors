@@ -131,7 +131,7 @@ class ColDescription {
             defs += ClassDef(path :+ name.value, parameterLists.head, blameType=None, mods)
           } else {
             parameterLists(1) match {
-              case List(Term.Param(List(Mod.ValParam()), Name("blame"), Some(t@Type.Apply(_)), _)) =>
+              case List(Term.Param(List(Mod.ValParam()), Name("blame"), Some(t@Type.Apply(_, _)), _)) =>
                 defs += ClassDef(path :+ name.value, parameterLists.head, Some(t), mods)
             }
           }

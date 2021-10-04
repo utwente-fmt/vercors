@@ -1,505 +1,435 @@
 package vct.parsers.transform
 
 import org.antlr.v4.runtime.ParserRuleContext
-import vct.antlr4.generated.CParser._
-import vct.antlr4.generated.CParserPatterns._
-import vct.col.ast.Constant._
+import vct.col.ast.Origin
 import vct.col.ast._
+import vct.antlr4.generated.PVLParser._
+import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.{ast => col}
+import vct.antlr4.generated.{PVLParserPatterns => parse}
+import vct.col.ast.Constant._
+import vct.col.ast.stmt.composite.ParallelRegion
+import AstBuildHelpers._
+import hre.util.FuncTools
 
+case class PVLToCol(override val originProvider: OriginProvider, blameProvider: BlameProvider) extends ToCol(originProvider) {
+  implicit def origin(implicit node: ParserRuleContext): Origin = originProvider(node)
 
-case class CToCol(override val originProvider: OriginProvider, blameProvider: BlameProvider) extends ToCol(originProvider) {
-  implicit def origin(implicit ctx: ParserRuleContext): Origin = {
-    originProvider(ctx) // FIXME make blames nice
+  def convert(implicit program: ProgramContext): Seq[GlobalDeclaration] = program match {
+    case Program0(decls, _) => decls.flatMap(convert(_))
   }
 
-  def convert(unit: CompilationUnitContext): Seq[GlobalDeclaration] = unit match {
-    case CompilationUnit0(translationUnit, _) =>
-      translationUnit.map(convert).getOrElse(Nil)
+  def convert(implicit decl: ProgramDeclContext): Seq[GlobalDeclaration] = decl match {
+    case ProgramDecl0(cls) => Seq(convert(cls))
+    case ProgramDecl1(method) => Seq(convertProcedure(method))
+    case ProgramDecl2(valDecl) => convert(valDecl)
   }
 
-  def convert(unit: TranslationUnitContext): Seq[GlobalDeclaration] =
-    convertList(TranslationUnit0.unapply, TranslationUnit1.unapply)(unit).flatMap(convert(_))
-
-  def convert(implicit externalDecl: ExternalDeclarationContext): Seq[GlobalDeclaration] = externalDecl match {
-    case ExternalDeclaration0(funcDef) => Seq(convert(funcDef))
-    case ExternalDeclaration1(decl) => Seq(CGlobalDeclaration(convert(decl)))
-    case ExternalDeclaration2(valDecls) => convert(valDecls)
-    case ExternalDeclaration3(";") => Nil
+  def convertProcedure(implicit method: MethodContext): Procedure = method match {
+    case Method0(contract, modifiers, returnType, name, _, args, _, body) =>
+      withModifiers(modifiers, mods => withContract(contract, contract => {
+        new Procedure(
+          convert(returnType),
+          args.map(convert(_)).getOrElse(Nil),
+          outArgs = Nil,
+          convert(body),
+          contract.consumeApplicableContract(),
+          inline = mods.consume(mods.inline),
+          pure = mods.consume(mods.pure),
+        )(blameProvider(method))(SourceNameOrigin(convert(name), origin(method)))
+      }))
   }
 
-  def convert(implicit funcDef: FunctionDefinitionContext): CFunctionDefinition = {
-    funcDef match {
-      case FunctionDefinition0(_, _, _, Some(declarationList), _) =>
-        ??(declarationList)
-      case FunctionDefinition0(maybeContract, declSpecs, declarator, None, body) =>
-        CFunctionDefinition(convert(declSpecs), convert(declarator), convert(body))
-    }
+  def convert(implicit cls: DeclClassContext): Class = cls match {
+    case DeclClass0(_, name, _, decls, _) =>
+      new Class(decls.flatMap(convert(_)), supports = Nil)(SourceNameOrigin(convert(name), origin(cls)))
   }
 
-  def convert(implicit decl: DeclarationContext): CDeclaration = decl match {
-    case Declaration0(maybeContract, declSpecs, maybeInits, _) =>
-      withContract(maybeContract, contract =>
-        CDeclaration(contract.consumeApplicableContract(), col.Star.fold(contract.consume(contract.kernel_invariant)),
-          specs=convert(declSpecs), inits=maybeInits.map(convert(_)) getOrElse Nil))
-    case Declaration1(staticAssert) =>
-      ??(staticAssert)
+  def convert(implicit decl: ClassDeclContext): Seq[ClassDeclaration] = decl match {
+    case ClassDecl0(inner) => convert(inner)
+    case ClassDecl1(inner) => Seq(convert(inner))
+    case ClassDecl2(inner) => convert(inner)
+    case ClassDecl3(inner) => convert(inner, x => x)
   }
 
-  def convert(declSpecs: DeclarationSpecifiersContext): Seq[CDeclarationSpecifier] = declSpecs match {
-    case DeclarationSpecifiers0(specs) => specs.map(convert(_))
+  def convert(implicit method: MethodContext): InstanceMethod = method match {
+    case Method0(contract, modifiers, returnType, name, _, args, _, body) =>
+      withModifiers(modifiers, mods => withContract(contract, contract => {
+        new InstanceMethod(
+          convert(returnType),
+          args.map(convert(_)).getOrElse(Nil),
+          outArgs = Nil,
+          convert(body),
+          contract.consumeApplicableContract(),
+          inline = mods.consume(mods.inline),
+          pure = mods.consume(mods.pure),
+        )(blameProvider(method))(SourceNameOrigin(convert(name), origin(method)))
+      }))
   }
 
-  def convert(declSpecs: DeclarationSpecifiers2Context): Seq[CDeclarationSpecifier] = declSpecs match {
-    case DeclarationSpecifiers20(specs) => specs.map(convert(_))
+  def convert(implicit body: MethodBodyContext): Option[Statement] = body match {
+    case MethodBody0(_) => None
+    case MethodBody1(stat) => Some(convert(stat))
   }
 
-  def convert(implicit declSpec: DeclarationSpecifierContext): CDeclarationSpecifier = declSpec match {
-    case DeclarationSpecifier0(storageClass) => convert(storageClass)
-    case DeclarationSpecifier1(typeSpec) => convert(typeSpec)
-    case DeclarationSpecifier2(typeQual) => CTypeQualifierDeclarationSpecifier(convert(typeQual))
-    case DeclarationSpecifier3(functionSpecifier) => ??(functionSpecifier)
-    case DeclarationSpecifier4(alignmentSpecifier) => ??(alignmentSpecifier)
-    case DeclarationSpecifier5(kernelSpecifier) => convert(kernelSpecifier)
-    case DeclarationSpecifier6(valEmbedModifier) => withModifiers(valEmbedModifier, m => {
-      if(m.consume(m.pure))
-        CPure()
-      else if(m.consume(m.inline))
-        CInline()
-      else
-        fail(m.nodes.head, "This modifier cannot be attached to a declaration in C")
-    })
+  def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration] =
+    ???
+
+  def convert(implicit field: FieldContext): Seq[InstanceField] = field match {
+    case Field0(t, ids, _) =>
+      convert(ids).map(name => new InstanceField(convert(t), Set.empty)(SourceNameOrigin(name, origin(field))))
   }
 
-  def convert(implicit storageClass: StorageClassSpecifierContext): CStorageClassSpecifier = storageClass match {
-    case StorageClassSpecifier0(_) => CTypedef()
-    case StorageClassSpecifier1(_) => ??(storageClass)
-    case StorageClassSpecifier2(_) => CStatic()
-    case StorageClassSpecifier3(_) => ??(storageClass)
-    case StorageClassSpecifier4(_) => ??(storageClass)
-    case StorageClassSpecifier5(_) => ??(storageClass)
+  def convert(implicit args: ArgsContext): Seq[Variable] = args match {
+    case Args0(t, name) => Seq(new Variable(convert(t))(SourceNameOrigin(convert(name), origin(name))))
+    case Args1(t, name, _, args) =>
+      new Variable(convert(t))(SourceNameOrigin(convert(name), origin(name))) +: convert(args)
   }
 
-  def convert(implicit typeSpec: TypeSpecifierContext): CTypeSpecifier = typeSpec match {
-    case TypeSpecifier0(name) => name match {
-      case "void" => CVoid()
-      case "char" => CChar()
-      case "short" => CShort()
-      case "int" => CInt()
-      case "long" => CLong()
-      case "float" => CFloat()
-      case "double" => CDouble()
-      case "signed" => CSigned()
-      case "unsigned" => CUnsigned()
-      case "_Bool" => CBool()
-      case _ => ??(typeSpec)
-    }
-    case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
-    case TypeSpecifier2(valType) => CSpecificationType(convert(valType))
-    case TypeSpecifier3(_) => ??(typeSpec)
-    case TypeSpecifier4(_) => ??(typeSpec)
-    case TypeSpecifier5(_) => ??(typeSpec)
-    case TypeSpecifier6(name) => name match {
-      case TypedefName0(name) => CTypedefName(convert(name))
-    }
-    case TypeSpecifier7(_, _, _, _) => ??(typeSpec)
+  def convert(implicit exprs: ExprListContext): Seq[Expr] = exprs match {
+    case ExprList0(e) => Seq(convert(e))
+    case ExprList1(e, _, es) => convert(e) +: convert(es)
   }
 
-  def convert(implicit quals: TypeQualifierListContext): Seq[CTypeQualifier] =
-    convertList(TypeQualifierList0.unapply, TypeQualifierList1.unapply)(quals).map(convert(_))
-
-  def convert(implicit qual: TypeQualifierContext): CTypeQualifier = qual match {
-    case TypeQualifier0(_) => CConst()
-    case TypeQualifier1(_) => CRestrict()
-    case TypeQualifier2(_) => CVolatile()
-    case TypeQualifier3(_) => CAtomic()
+  def convert(implicit exprs: NewDimsContext): Seq[Expr] = exprs match {
+    case NewDims0(dims) => dims.map(convert(_))
   }
 
-  def convert(implicit kernel: GpgpuKernelSpecifierContext): CGpgpuKernelSpecifier = kernel match {
-    case GpgpuKernelSpecifier0(_) => CKernel()
+  def convert(implicit exprs: InvariantListContext): Expr = exprs match {
+    case InvariantList0(invs) => Star.fold(invs.map(convert(_)))
   }
 
-  def convert(implicit decls: InitDeclaratorListContext): Seq[CInit] = decls match {
-    case InitDeclaratorList0(decl) => Seq(convert(decl))
-    case InitDeclaratorList1(init, _, last) => convert(init) :+ convert(last)
+  def convert(implicit dim: QuantifiedDimContext): Expr = dim match {
+    case QuantifiedDim0(_, inner, _) => convert(inner)
   }
 
-  def convert(implicit decl: InitDeclaratorContext): CInit = decl match {
-    case InitDeclarator0(inner) => CInit(convert(inner), None)
-    case InitDeclarator1(inner, _, init) => CInit(convert(inner), Some(convert(init)))
+  def convert(implicit inv: InvariantContext): Expr = inv match {
+    case Invariant0(_, inv, _) => convert(inv)
   }
 
-  def convert(implicit decl: DeclaratorContext): CDeclarator = decl match {
-    case Declarator0(_, _, extension::_) => ??(extension)
-    case Declarator0(Some(ptr), inner, Nil) =>
-      val pointers = convert(ptr)
-      CPointerDeclarator(pointers, convert(inner))
-    case Declarator0(None, inner, Nil) => convert(inner)
+  def convert(implicit expr: ExprContext): Expr = expr match {
+    case Expr0(inner, _, block) => With(convert(block), convert(inner))
+    case Expr1(inner, _, block) => Then(convert(inner), convert(block))
+    case Expr2(_, pred, _, body) => Unfolding(convert(pred), convert(body))
+    case Expr3(inner) => convert(inner)
   }
 
-  def convert(implicit ptr: PointerContext): Seq[CPointer] = ptr match {
-    case Pointer0(_, quals) =>
-      Seq(CPointer(quals.map(convert(_)) getOrElse Nil))
-    case Pointer1(_, quals, tail) =>
-      CPointer(quals.map(convert(_)) getOrElse Nil) +: convert(tail)
-    case Pointer2(_, quals) =>
-      Seq(CPointer(Nil), CPointer(quals.map(convert(_)) getOrElse Nil))
-    case Pointer3(_, quals, tail) =>
-      Seq(CPointer(Nil), CPointer(quals.map(convert(_)) getOrElse Nil)) ++ convert(tail)
-    case Pointer4(_, _) => ??(ptr)
-    case Pointer5(_, _, _) => ??(ptr)
+  def convert(implicit expr: IteExprContext): Expr = expr match {
+    case IteExpr0(cond, _, whenTrue, _, whenFalse) => Select(convert(cond), convert(whenTrue), convert(whenFalse))
+    case IteExpr1(inner) => convert(inner)
   }
 
-  def convert(implicit decl: DirectDeclaratorContext): CDeclarator = decl match {
-    case DirectDeclarator0(name) => CName(convert(name))
-    case DirectDeclarator1(inner, _, quals, dim, _) =>
-      CArrayDeclarator(quals.map(convert(_)) getOrElse Nil, dim.map(convert(_)), convert(inner))
-    case DirectDeclarator2(_, _, _, _, _, _) => ??(decl)
-    case DirectDeclarator3(_, _, _, _, _, _) => ??(decl)
-    case DirectDeclarator4(_, _, _, _, _) => ??(decl)
-    case DirectDeclarator5(inner, _, paramList, _) =>
-      val (params, varargs) = paramList match {
-        case ParameterTypeList0(params) => (convert(params), false)
-        case ParameterTypeList1(params, _, _) => (convert(params), true)
-      }
-      CTypedFunctionDeclarator(params, varargs, convert(inner))
-    case DirectDeclarator6(inner, _, names, _) =>
-      CAnonymousFunctionDeclarator(names.map(convert(_)) getOrElse Nil, convert(inner))
+  def convert(implicit expr: ImplicationExprContext): Expr = expr match {
+    case ImplicationExpr0(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case ImplicationExpr1(inner) => convert(inner)
   }
 
-  def convert(implicit params: ParameterListContext): Seq[CParam] = params match {
-    case ParameterList0(decl) => Seq(convert(decl))
-    case ParameterList1(init, _, last) => convert(init) :+ convert(last)
+  def convert(implicit expr: OrExprContext): Expr = expr match {
+    case OrExpr0(left, _, right) => Or(convert(left), convert(right))
+    case OrExpr1(inner) => convert(inner)
   }
 
-  def convert(implicit param: ParameterDeclarationContext): CParam = param match {
-    case ParameterDeclaration0(declSpecs, declarator) =>
-      CParam(convert(declSpecs), convert(declarator))
-    case ParameterDeclaration1(_, _) =>
-      ??(param)
+  def convert(implicit expr: AndExprContext): Expr = expr match {
+    case AndExpr0(left, _, right) => And(convert(left), convert(right))
+    case AndExpr1(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case AndExpr2(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: EqExprContext): Expr = expr match {
+    case EqExpr0(left, _, right) => Eq(convert(left), convert(right))
+    case EqExpr1(left, _, right) => Neq(convert(left), convert(right))
+    case EqExpr2(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: RelExprContext): Expr = expr match {
+    case RelExpr0(left, _, right) => Less(convert(left), convert(right))
+    case RelExpr1(left, _, right) => LessEq(convert(left), convert(right))
+    case RelExpr2(left, _, right) => GreaterEq(convert(left), convert(right))
+    case RelExpr3(left, _, right) => Greater(convert(left), convert(right))
+    case RelExpr4(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case RelExpr5(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: SetExprContext): Expr = expr match {
+    case SetExpr0(x, _, xs) => AmbiguousMember(convert(x), convert(xs))
+    case SetExpr1(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: AddExprContext): Expr = expr match {
+    case AddExpr0(left, _, right) => Plus(convert(left), convert(right))
+    case AddExpr1(left, _, right) => Minus(convert(left), convert(right))
+    case AddExpr2(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: MultExprContext): Expr = expr match {
+    case MultExpr0(left, _, right) => Mult(convert(left), convert(right))
+    case MultExpr1(left, _, right) => Div(convert(left), convert(right))(blameProvider(expr))
+    case MultExpr2(left, _, right) => Mod(convert(left), convert(right))(blameProvider(expr))
+    case MultExpr3(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case MultExpr4(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: PowExprContext): Expr = expr match {
+    case PowExpr0(left, _, right) => Exp(convert(left), convert(right))
+    case PowExpr1(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: SeqAddExprContext): Expr = expr match {
+    case SeqAddExpr0(left, _, right) => Cons(convert(left), convert(right))
+    case SeqAddExpr1(left, _, right) => ??(expr)
+    case SeqAddExpr2(m, _, _, k, _, v, _) => MapCons(convert(m), convert(k), convert(v))
+    case SeqAddExpr3(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: UnaryExprContext): Expr = expr match {
+    case UnaryExpr0(_, inner) => Not(convert(inner))
+    case UnaryExpr1(_, inner) => UMinus(convert(inner))
+    case UnaryExpr2(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: NewExprContext): Expr = expr match {
+    case NewExpr0(_, name, args) => ??(expr)
+    case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims))
+    case NewExpr2(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: PostfixExprContext): Expr = expr match {
+    case PostfixExpr0(obj, _, field) => Deref(convert(obj), new UnresolvedRef[InstanceField](convert(field)))
+    case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))
+    case PostfixExpr2(obj, args) => ??(expr)
+    case PostfixExpr3(obj, specOp) => convert(specOp, convert(obj))
+    case PostfixExpr4(inner) => convert(inner)
+  }
+
+  def convert(implicit expr: UnitContext): Expr = expr match {
+    case Unit0(inner) => convert(inner)
+    case Unit1(_) => AmbiguousThis()
+    case Unit2(_) => Null()
+    case Unit3(n) => Integer.parseInt(n)
+    case Unit4(_, inner, _) => convert(inner)
+    case Unit5(id) => Local(new UnresolvedRef[Variable](convert(id)))
   }
 
   def convert(implicit stat: StatementContext): Statement = stat match {
-    case Statement0(stat) => convert(stat)
-    case Statement1(stat) => convert(stat)
-    case Statement2(stat) => convert(stat)
-    case Statement3(stat) => convert(stat)
-    case Statement4(stat) => convert(stat)
-    case Statement5(stat) => convert(stat)
-    case _: Statement6Context => ??(stat)
-  }
+    case PvlReturn(_, value, _) => Return(value.map(convert(_)).getOrElse(Void()))
+    case PvlLock(_, obj, _) => Lock(convert(obj))
+    case PvlUnlock(_, obj, _) => Unlock(convert(obj))
+    case PvlWait(_, obj, _) => Wait(convert(obj))
+    case PvlNotify(_, obj, _) => Notify(convert(obj))
+    case PvlFork(_, obj, _) => Fork(convert(obj))
+    case PvlJoin(_, obj, _) => Join(convert(obj))
+    case PvlValStatement(inner) => convert(inner)
+    case PvlIf(_, _, cond, _, body, None) =>
+      Branch(Seq((convert(cond), convert(body))))
+    case PvlIf(_, _, cond, _, body, Some(ElseBlock0(_, otherwise))) =>
+      Branch(Seq(
+        (convert(cond), convert(body)),
+        (true, convert(otherwise)),
+      ))
+    case PvlBarrier(_, _, block, tags, _, body) =>
+      val (contract, content) = body match {
+        case BarrierBody0(_, contract, _) => (contract, Block(Nil))
+        case BarrierBody1(contract, content) => (contract, content)
+      }
 
-  def convert(implicit block: CompoundStatementContext): Statement = block match {
-    case CompoundStatement0(_, stats, _) =>
-      Scope(Nil, Block(stats.map(convert(_)) getOrElse Nil))
-    case CompoundStatement1(ompPragma, _, contract, stats, _) =>
-      ???
-  }
-
-  def convert(implicit stats: BlockItemListContext): Seq[Statement] =
-    convertList(BlockItemList0.unapply, BlockItemList1.unapply)(stats).map(convert(_))
-
-  def convert(implicit stat: BlockItemContext): Statement = stat match {
-    case BlockItem0(decl) =>
-      CDeclarationStatement(convert(decl))
-    case BlockItem1(stat) => convert(stat)
-    case BlockItem2(embedStats) => convert(embedStats)
-    case BlockItem3(embedStat) => convert(embedStat)
-    case BlockItem4(GpgpuLocalBarrier0(contract, _, _, _, _)) => withContract(contract, c => {
-      GpgpuLocalBarrier(col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)))
-    })
-    case BlockItem5(GpgpuGlobalBarrier0(contract, _, _, _, _)) => withContract(contract, c => {
-      GpgpuGlobalBarrier(col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)))
-    })
-    case BlockItem6(GpgpuAtomicBlock0(_, impl, withThen)) =>
-      val (before, after) = withThen.map(convert(_)).getOrElse((Nil, Nil))
-      GpgpuAtomic(convert(impl), Block(before), Block(after))
-  }
-
-  def convert(implicit stat: LabeledStatementContext): Statement = stat match {
-    case LabeledStatement0(label, _, inner) =>
-      CLabeledStatement(new LabelDecl()(SourceNameOrigin(convert(label), originProvider(stat))), convert(inner))
-    case LabeledStatement1(_, _, _, _) => ??(stat)
-    case LabeledStatement2(_, _, _) => ??(stat)
-  }
-
-  def convert(implicit stat: ExpressionStatementContext): Statement = stat match {
-    case ExpressionStatement0(None, _) => Block(Nil)
-    case ExpressionStatement0(Some(expr), _) => Eval(convert(expr))
-  }
-
-  def convert(implicit stat: SelectionStatementContext): Statement = stat match {
-    case SelectionStatement0(_, _, cond, _, whenTrue, None) =>
-      Branch(Seq((convert(cond), convert(whenTrue))))
-    case SelectionStatement0(_, _, cond, _, whenTrue, Some(whenFalse)) =>
-      Branch(Seq((convert(cond), convert(whenTrue)), (true, convert(whenFalse))))
-    case SelectionStatement1(_, _, _, _, _) => ??(stat)
-  }
-
-  def convert(implicit stat: ElseBranchContext): Statement = stat match {
-    case ElseBranch0(_, stat) => convert(stat)
-  }
-
-  def evalOrNop(implicit expr: Option[ExpressionContext]): Statement = expr match {
-    case Some(expr) => Eval(convert(expr))(origin(expr))
-    case None =>
-      // PB: strictly speaking it would be nice if we can point to the empty range that indicates the absence of a statement here.
-      Block(Nil)(DiagnosticOrigin)
-  }
-
-  def convert(implicit stat: IterationStatementContext): Statement = stat match {
-    case IterationStatement0(contract1, _, _, cond, _, contract2, body) => withContract(contract1, contract2, c => {
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
-    })
-    case IterationStatement1(_, _, _, _, _, _, _) => ??(stat)
-    case IterationStatement2(contract1, maybePragma, _, _, init, _, cond, _, update, _, contract2, body) =>
-      withContract(contract1, contract2, c => {
-        Scope(Nil, Loop(evalOrNop(init), cond.map(convert(_)) getOrElse true, evalOrNop(update), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
+      withContract(contract, contract => {
+        ParBarrier(
+        block = new UnresolvedRef[ParBlockDecl](convert(block)),
+          invs = tags.map(convert(_)).getOrElse(Nil),
+          Star.fold(contract.consume(contract.requires)),
+          Star.fold(contract.consume(contract.ensures)),
+          Block(Nil),
+        )(blameProvider(stat))
       })
-    case IterationStatement3(contract1, maybePragma, _, _, init, cond, _, update, _, contract2, body) =>
-      withContract(contract1, contract2, c => {
-        Scope(Nil, Loop(CDeclarationStatement(convert(init)), cond.map(convert(_)) getOrElse true, evalOrNop(update), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
+    case PvlPar(contract, _, pars) =>
+      withContract(contract, contract => {
+        ParRegion(
+          requires = Star.fold(contract.consume(contract.requires)),
+          ensures = Star.fold(contract.consume(contract.ensures)),
+          convert(pars),
+        )(blameProvider(stat))
       })
+    case PvlVec(_, _, iter, _, body) =>
+      ??(stat)
+    case PvlInvariant(_, name, _, res, _, body) =>
+      ParInvariant(
+        new ParInvariantDecl()(SourceNameOrigin(convert(name), origin(stat))),
+        convert(res), convert(body)
+      )(blameProvider(stat))
+    case PvlAtomic(_, _, invs, _, body) =>
+      ParAtomic(convert(invs).map(new UnresolvedRef[ParInvariantDecl](_)), convert(body))
+    case PvlWhile(invs, _, _, cond, _, body) =>
+      Loop(Block(Nil), convert(cond), Block(Nil), convert(invs), convert(body))
+    case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
+      Loop(
+        init.map(convert(_)).getOrElse(Block(Nil)),
+        cond.map(convert(_)).getOrElse(true),
+        update.map(convert(_)).getOrElse(Block(Nil)),
+        convert(invs),
+        convert(body)
+      )
+    case PvlBlock(inner) => convert(inner)
+    case PvlGoto(_, label, _) => Goto(new UnresolvedRef[LabelDecl](convert(label)))
+    case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
+    case PvlForStatement(inner, _) => convert(inner)
   }
 
-  def convert(implicit stat: JumpStatementContext): Statement = stat match {
-    case JumpStatement0(_, label, _) =>
-      CGoto(convert(label))
-    case JumpStatement1(_, _) => col.Continue(None)
-    case JumpStatement2(_, _) => col.Break(None)
-    case JumpStatement3(_, None, _) => col.Return(col.Void())
-    case JumpStatement3(_, Some(value), _) => col.Return(convert(value))
-    case JumpStatement4(_, _, _) => ??(stat)
+  def convert(implicit stat: ForStatementListContext): Statement =
+    Block(convertList(stat))
+
+  def convertList(implicit stat: ForStatementListContext): Seq[Statement] = stat match {
+    case ForStatementList0(stat) => Seq(convert(stat))
+    case ForStatementList1(stat, _, stats) => convert(stat) +: convertList(stats)
   }
 
-  def convert(implicit exprs: ArgumentExpressionListContext): Seq[Expr] = exprs match {
-    case ArgumentExpressionList0(argument) => Seq(convert(argument))
-    case ArgumentExpressionList1(init, _, last) => convert(init) :+ convert(last)
-  }
-
-  def convert(implicit expr: ExpressionContext): Expr = expr match {
-    case Expression0(inner) => convert(inner)
-    case Expression1(first, _, result) =>
-      With(Eval(convert(first)), convert(result))
-  }
-
-  def convert(implicit expr: InitializerContext): Expr = expr match {
-    case Initializer0(_, _, _) => ??(expr)
-    case Initializer1(_, _, _, _) => ??(expr)
-    case Initializer2(inner) => convert(inner)
-  }
-
-  def convert(implicit expr: AssignmentExpressionContext): Expr = expr match {
-    case AssignmentExpression0(inner) => convert(inner)
-    case AssignmentExpression1(targetNode, AssignmentOperator0(op), valueNode) =>
-      val target = convert(targetNode)
-      val value = convert(valueNode)
-
-      PreAssignExpression(target, op match {
-        case "=" => value
-        case "*=" => Mult(target, value)
-        case "/=" => FloorDiv(target, value)(blameProvider(expr))
-        case "%=" => col.Mod(target, value)(blameProvider(expr))
-        case "+=" => col.Plus(target, value)
-        case "-=" => col.Minus(target, value)
-        case "<<=" => BitShl(target, value)
-        case ">>=" => BitShr(target, value)
-        case "&=" => BitAnd(target, value)
-        case "^=" => BitXor(target, value)
-        case "|=" => BitOr(target, value)
+  def convert(implicit stat: AllowedForStatementContext): Statement = stat match {
+    case PvlLocal(t, decls) =>
+      Block(convert(decls, convert(t)))
+    case PvlEval(e) => Eval(convert(e))
+    case PvlIncDec(name, op) =>
+      val target = Local(new UnresolvedRef[Variable](convert(name)))
+      Eval(op match {
+        case "++" => PostAssignExpression(target, target + 1)
+        case "--" => PostAssignExpression(target, target - 1)
       })
+    case PvlAssign(target, _, value) => Assign(convert(target), convert(value))
   }
 
-  def convert(implicit expr: ConditionalExpressionContext): Expr = expr match {
-    case ConditionalExpression0(inner) => convert(inner)
-    case ConditionalExpression1(cond, _, whenTrue, _, whenFalse) =>
-      Select(convert(cond), convert(whenTrue), convert(whenFalse))
+  def convert(implicit decls: DeclListContext, t: Type): Seq[Statement] = decls match {
+    case DeclList0(name, None) =>
+      Seq(LocalDecl(new Variable(t)(SourceNameOrigin(convert(name), origin(name)))))
+    case DeclList0(name, Some(DeclInit0(_, init))) =>
+      val v = new Variable(t)(SourceNameOrigin(convert(name), origin(name)))
+      Seq(
+        LocalDecl(v),
+        Assign(Local(v.ref), convert(init))
+      )
+    case DeclList1(name, None, _, more) =>
+      LocalDecl(new Variable(t)(SourceNameOrigin(convert(name), origin(name)))) +:
+        convert(more, t)
+    case DeclList1(name, Some(DeclInit0(_, init)), _, more) =>
+      val v = new Variable(t)(SourceNameOrigin(convert(name), origin(name)))
+      Seq(
+        LocalDecl(v),
+        Assign(Local(v.ref), convert(init))
+      ) ++ convert(more, t)
   }
 
-  def convert(implicit expr: ImplicationExpressionContext): Expr = expr match {
-    case ImplicationExpression0(left, ImplicationOp0(specOp), right) =>
-      convert(specOp, convert(left), convert(right))
-    case ImplicationExpression1(inner) => convert(inner)
+  def convert(implicit block: BlockContext): Block = block match {
+    case Block0(_, stats, _) => Block(stats.map(convert(_)))
   }
 
-  def convert(implicit expr: LogicalOrExpressionContext): Expr = expr match {
-    case LogicalOrExpression0(inner) => convert(inner)
-    case LogicalOrExpression1(left, _, right) => col.Or(convert(left), convert(right))
+  def convert(implicit tags: BarrierTagsContext): Seq[Ref[ParInvariantDecl]] = tags match {
+    case BarrierTags0(_, ids) =>
+      convert(ids).map(new UnresolvedRef[ParInvariantDecl](_))
   }
 
-  def convert(implicit expr: LogicalAndExpressionContext): Expr = expr match {
-    case LogicalAndExpression0(inner) => convert(inner)
-    case LogicalAndExpression1(left, op, right) => op match {
-      case LogicalAndOp0(_) => col.And(convert(left), convert(right))
-      case LogicalAndOp1(valOp) => convert(valOp, convert(left), convert(right))
+  def convert(implicit pars: ParUnitListContext): Seq[ParBlock] = pars match {
+    case ParUnitList0(par) => Seq(convert(par))
+    case ParUnitList1(par, _, pars) => convert(par) +: convert(pars)
+  }
+
+  def convert(implicit par: ParUnitContext): ParBlock = par match {
+    case ParUnit0(name, _, iters, wait, _, contract, block) =>
+      val decl = name match {
+        case None => new ParBlockDecl()
+        case Some(name) => new ParBlockDecl()(SourceNameOrigin(convert(name), origin(name)))
+      }
+
+      withContract(contract, contract =>
+        ParBlock(
+          decl,
+          wait.map(convert(_)).getOrElse(Nil),
+          iters.map(convert(_)).getOrElse(Nil),
+          Star.fold(contract.consume(contract.requires)),
+          Star.fold(contract.consume(contract.ensures)),
+          convert(block),
+        ))
+    case ParUnit1(contract, block) =>
+      withContract(contract, contract =>
+        ParBlock(
+          new ParBlockDecl(),
+          after = Nil,
+          iters = Nil,
+          Star.fold(contract.consume(contract.requires)),
+          Star.fold(contract.consume(contract.ensures)),
+          convert(block)
+        ))
+  }
+
+  def convert(implicit iters: ItersContext): Seq[IterVariable] = iters match {
+    case Iters0(iter) => Seq(convert(iter))
+    case Iters1(iter, _, iters) => convert(iter) +: convert(iters)
+  }
+
+  def convert(implicit iter: IterContext): IterVariable = iter match {
+    case Iter0(t, name, _, from, _, to) =>
+      IterVariable(
+        new Variable(convert(t))(SourceNameOrigin(convert(name), origin(name))),
+        convert(from), convert(to)
+      )
+  }
+
+  def convert(implicit wait: ParWaitListContext): Seq[Ref[ParBlockDecl]] = ??(wait)
+
+  def convert(implicit t: TypeContext): Type = t match {
+    case Type0(inner, dims) =>
+      FuncTools.repeat(TArray(_), dims.map(convert(_)).getOrElse(0), convert(inner))
+  }
+
+  def convert(implicit dims: TypeDimsContext): Int = dims match {
+    case TypeDims0(dims) => dims.size
+    case TypeDims1(dims) => dims.size
+  }
+
+  def convert(implicit t: NonArrayTypeContext): Type = t match {
+    case NonArrayType0(name) => name match {
+      case "string" => TString()
+      case "int" => TInt()
+      case "boolean" => TBool()
+      case "void" => TVoid()
     }
-  }
-
-  def convert(implicit expr: InclusiveOrExpressionContext): Expr = expr match {
-    case InclusiveOrExpression0(inner) => convert(inner)
-    case InclusiveOrExpression1(left, _, right) => BitOr(convert(left), convert(right))
-  }
-
-  def convert(implicit expr: ExclusiveOrExpressionContext): Expr = expr match {
-    case ExclusiveOrExpression0(inner) => convert(inner)
-    case ExclusiveOrExpression1(left, _, right) => BitXor(convert(left), convert(right))
-  }
-
-  def convert(implicit expr: AndExpressionContext): Expr = expr match {
-    case AndExpression0(inner) => convert(inner)
-    case AndExpression1(left, _, right) => BitAnd(convert(left), convert(right))
-  }
-
-  def convert(implicit expr: EqualityExpressionContext): Expr = expr match {
-    case EqualityExpression0(inner) => convert(inner)
-    case EqualityExpression1(left, _, right) => Eq(convert(left), convert(right))
-    case EqualityExpression2(left, _, right) => Neq(convert(left), convert(right))
-  }
-
-  def convert(implicit expr: RelationalExpressionContext): Expr = expr match {
-    case RelationalExpression0(inner) => convert(inner)
-    case RelationalExpression1(left, RelationalOp0(op), right) => op match {
-      case "<" => col.Less(convert(left), convert(right))
-      case ">" => col.Greater(convert(left), convert(right))
-      case "<=" => LessEq(convert(left), convert(right))
-      case ">=" => GreaterEq(convert(left), convert(right))
-    }
-    case RelationalExpression1(left, RelationalOp1(specOp), right) =>
-      convert(specOp, convert(left), convert(right))
-  }
-
-  def convert(implicit expr: ShiftExpressionContext): Expr = expr match {
-    case ShiftExpression0(inner) => convert(inner)
-    case ShiftExpression1(left, _, right) => BitShl(convert(left), convert(right))
-    case ShiftExpression2(left, _, right) => BitShr(convert(left), convert(right))
-  }
-
-  def convert(implicit expr: AdditiveExpressionContext): Expr = expr match {
-    case AdditiveExpression0(inner) => convert(inner)
-    case AdditiveExpression1(left, _, right) => col.Plus(convert(left), convert(right))
-    case AdditiveExpression2(left, _, right) => col.Minus(convert(left), convert(right))
-  }
-
-  def convert(implicit expr: MultiplicativeExpressionContext): Expr = expr match {
-    case MultiplicativeExpression0(inner) => convert(inner)
-    case MultiplicativeExpression1(left, op, right) => op match {
-      case MultiplicativeOp0(_) => Mult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blameProvider(expr))
-      case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right))(blameProvider(expr))
-      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blameProvider(expr))
-    }
-  }
-
-  def convert(implicit expr: PrependExpressionContext): Expr = expr match {
-    case PrependExpression0(left, PrependOp0(specOp), right) => convert(specOp, convert(left), convert(right))
-    case PrependExpression1(inner) => convert(inner)
-  }
-
-  def convert(implicit expr: CastExpressionContext): Expr = expr match {
-    case CastExpression0(inner) => convert(inner)
-    case CastExpression1(_, _, _, _) => ??(expr)
-    case CastExpression2(_, _, _, _, _) => ??(expr)
-  }
-
-  def convert(implicit expr: UnaryExpressionContext): Expr = expr match {
-    case UnaryExpression0(inner) => convert(inner)
-    case UnaryExpression1(_, arg) =>
-      val target = convert(arg)
-      PreAssignExpression(target, col.Plus(target, 1))
-    case UnaryExpression2(_, arg) =>
-      val target = convert(arg)
-      PreAssignExpression(target, col.Minus(target, 1))
-    case UnaryExpression3(UnaryOperator0(op), arg) => op match {
-      case "&" => AddrOf(convert(arg))
-      case "*" => DerefPointer(convert(arg))
-      case "+" => UPlus(convert(arg))
-      case "-" => UMinus(convert(arg))
-      case "~" => BitNot(convert(arg))
-      case "!" => col.Not(convert(arg))
-    }
-    case UnaryExpression4(_, _) => ??(expr)
-    case UnaryExpression5(_, _, _, _) => ??(expr)
-    case UnaryExpression6(_, _, _, _) => ??(expr)
-    case UnaryExpression7(_, _) => ??(expr)
-  }
-
-  def convert(implicit expr: PostfixExpressionContext): Expr = expr match {
-    case PostfixExpression0(inner) => convert(inner)
-    case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx))
-    case PostfixExpression2(f, _, args, _) => CInvocation(convert(f), args.map(convert(_)) getOrElse Nil)
-    case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))
-    case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
-    case PostfixExpression5(targetNode, _) =>
-      val target = convert(targetNode)
-      PostAssignExpression(target, col.Plus(target, 1))
-    case PostfixExpression6(targetNode, _) =>
-      val target = convert(targetNode)
-      PostAssignExpression(target, col.Minus(target, 1))
-    case PostfixExpression7(e, SpecPostfix0(postfix)) => convert(postfix, convert(e))
-    case PostfixExpression8(_, _, _, _, _, _) => ??(expr)
-    case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)
-    case PostfixExpression10(_, _, _, _, _, _, _) => ??(expr)
-    case PostfixExpression11(_, _, _, _, _, _, _, _) => ??(expr)
-    case PostfixExpression12(GpgpuCudaKernelInvocation0(name, _, blocks, _, threads, _, _, args, _, withThen)) =>
-      GpgpuCudaKernelInvocation(convert(name), convert(blocks), convert(threads), convert(args))
-  }
-
-  def convert(implicit expr: PrimaryExpressionContext): Expr = expr match {
-    case PrimaryExpression0(inner) => convert(inner)
-    case PrimaryExpression1(name) => name match {
-      case ClangIdentifier0(specInSpec) => convert(specInSpec)
-      case ClangIdentifier1(name) => CLocal(name)
-      case ClangIdentifier2(_) => CLocal(convert(name))
-    }
-    case PrimaryExpression2(const) => Integer.parseInt(const)
-    case PrimaryExpression3(_) => ??(expr)
-    case PrimaryExpression4(_, inner, _) => convert(inner)
-    case PrimaryExpression5(_) => ??(expr)
-    case PrimaryExpression6(_, _, _, _) => ??(expr)
-    case PrimaryExpression7(_, _, _, _, _, _) => ??(expr)
-    case PrimaryExpression8(_, _, _, _, _, _) => ??(expr)
+    case NonArrayType1(ClassType0(name, typeArgs)) =>
+      TClass(new UnresolvedRef[Class](convert(name)))
   }
 
   def convert(implicit ids: IdentifierListContext): Seq[String] = ids match {
     case IdentifierList0(id) => Seq(convert(id))
-    case IdentifierList1(init, _, last) => convert(init) :+ convert(last)
+    case IdentifierList1(id, _, ids) => convert(id) +: convert(ids)
   }
 
-  def convert(id: ClangIdentifierContext): String = id match {
-    case ClangIdentifier0(specInSpec) => specInSpec match {
-      case ValIdEscape(id) => id.substring(1, id.length-1)
-      case other => fail(other,
-        f"This identifier is reserved, and cannot be declared or used in specifications. " +
-          f"You might want to escape the identifier with backticks: `${other.getText}`")
-    }
-    case ClangIdentifier1(id) => id
-    case ClangIdentifier2(specOutOfSpec) =>
-      val text = specOutOfSpec.getText
-      if(text.matches("[a-zA-Z_]+")) text
-      else fail(specOutOfSpec, f"This identifier is not allowed in C.")
+  def convert(implicit id: IdentifierContext): String = id match {
+    case Identifier0(id) => id
+    case Identifier1(ValIdEscape(id)) => id.substring(1, id.length - 1)
+    case Identifier1(reserved) =>
+      fail(reserved, "This identifier is reserved and cannot be declared.")
   }
 
-  def convert(expr: LangExprContext): Expr = expr match {
-    case LangExpr0(expr) => convert(expr)
+  def withContract[T](node: ContractContext, f: ContractCollector => T): T = node match {
+    case Contract0(clauses) =>
+      val collector = new ContractCollector()
+      clauses.foreach(convert(_, collector))
+      withCollector(collector, f)
   }
 
-  def convert(stat: LangStatementContext): Statement = stat match {
-    case LangStatement0(stat) => convert(stat)
+  def convert(implicit decl: LangGlobalDeclContext): Seq[GlobalDeclaration] = Nil
+  def convert(implicit decl: LangClassDeclContext): Seq[ClassDeclaration] = Nil
+
+  def convert(implicit stat: LangStatementContext): Statement = stat match {
+    case LangStatement0(block) => convert(block)
   }
 
   def convert(implicit t: LangTypeContext): Type = t match {
-    case LangType0(typeSpec) => CPrimitiveType(Seq(convert(typeSpec)))
+    case LangType0(t) => convert(t)
   }
 
-  def convert(id: LangIdContext): String = id match {
+  def convert(implicit e: LangExprContext): Expr = e match {
+    case LangExpr0(e) => convert(e)
+  }
+
+  def convert(implicit id: LangIdContext): String = id match {
     case LangId0(id) => convert(id)
   }
-
-  def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration] = decl match {
-    case LangGlobalDecl0(decl) => convert(decl)
-  }
-
-  def convert(decl: LangClassDeclContext): Seq[ClassDeclaration] = Nil
 
   def withCollector[T](collector: ContractCollector, f: ContractCollector => T): T = {
     val result = f(collector)

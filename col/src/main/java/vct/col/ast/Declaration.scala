@@ -163,7 +163,7 @@ class ParInvariantDecl()(implicit val o: Origin) extends Declaration with NoChec
   override def declareDefault(scope: ScopeContext): Unit = scope.parInvariantScopes.top += this
 }
 
-class SimplificationRule(val from: Expr, val to: Expr)(implicit val o: Origin) extends GlobalDeclaration with NoCheck
+class SimplificationRule(val axiom: Expr)(implicit val o: Origin) extends GlobalDeclaration with NoCheck
 
 class AxiomaticDataType(val decls: Seq[ADTDeclaration], val typeArgs: Seq[Variable])(implicit val o: Origin)
   extends GlobalDeclaration with NoCheck with Declarator {

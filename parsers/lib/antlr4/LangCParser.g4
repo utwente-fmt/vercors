@@ -66,11 +66,16 @@ postfixExpression
     |   postfixExpression '->' clangIdentifier
     |   postfixExpression '++'
     |   postfixExpression '--'
+    |   postfixExpression specPostfix
     |   '(' typeName ')' '{' initializerList '}'
     |   '(' typeName ')' '{' initializerList ',' '}'
     |   '__extension__' '(' typeName ')' '{' initializerList '}'
     |   '__extension__' '(' typeName ')' '{' initializerList ',' '}'
     |   gpgpuCudaKernelInvocation
+    ;
+
+specPostfix
+    :   {specLevel>0}? valPostfix
     ;
 
 argumentExpressionList
@@ -99,9 +104,18 @@ castExpression
     |   '__extension__' '(' typeName ')' castExpression
     ;
 
+prependExpression
+    :   castExpression prependOp prependExpression
+    |   castExpression
+    ;
+
+prependOp
+    :   {specLevel>0}? valPrependOp
+    ;
+
 multiplicativeExpression
-    :   castExpression
-    |   multiplicativeExpression multiplicativeOp castExpression
+    :   prependExpression
+    |   multiplicativeExpression multiplicativeOp prependExpression
     ;
 
 multiplicativeOp
@@ -125,10 +139,12 @@ shiftExpression
 
 relationalExpression
     :   shiftExpression
-    |   relationalExpression '<' shiftExpression
-    |   relationalExpression '>' shiftExpression
-    |   relationalExpression '<=' shiftExpression
-    |   relationalExpression '>=' shiftExpression
+    |   relationalExpression relationalOp shiftExpression
+    ;
+
+relationalOp
+    :   ('<'|'>'|'<='|'>=')
+    |   {specLevel>0}? valInOp
     ;
 
 equalityExpression
@@ -164,17 +180,21 @@ logicalAndOp
 
 logicalOrExpression
     :   logicalAndExpression
-    |   logicalOrExpression logicalOrOp logicalAndExpression
+    |   logicalOrExpression '||' logicalAndExpression
     ;
 
-logicalOrOp
-    : '||'
-    | {specLevel>0}? valImpOp
+implicationExpression
+    :   logicalOrExpression implicationOp implicationExpression
+    |   logicalOrExpression
+    ;
+
+implicationOp
+    :   {specLevel>0}? valImpOp
     ;
 
 conditionalExpression
-    :   logicalOrExpression
-    |   logicalOrExpression '?' expression ':' conditionalExpression
+    :   implicationExpression
+    |   implicationExpression '?' expression ':' conditionalExpression
     ;
 
 assignmentExpression

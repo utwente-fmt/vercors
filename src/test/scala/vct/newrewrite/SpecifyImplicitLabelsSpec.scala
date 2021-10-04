@@ -4,7 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.newrewrite.SpecifyImplicitLabels
-import vct.helper.{RewriteTestHelper, SimpleProgramGenerator}
+import vct.helper.{ColHelper, SimpleProgramGenerator}
 
 class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
 
@@ -40,11 +40,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
     }
 
     val rewriter = SpecifyImplicitLabels()
-    RewriteTestHelper.test(
-      rewriter,
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
+    ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
   }
 
@@ -82,11 +78,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
     }
 
     val rewriter = SpecifyImplicitLabels()
-    RewriteTestHelper.test(
-      rewriter,
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
+    ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
   }
 
@@ -120,11 +112,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
     }
 
     val rewriter = SpecifyImplicitLabels()
-    RewriteTestHelper.test(
-      rewriter,
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
+    ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
   }
 
@@ -172,11 +160,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
     }
 
     val rewriter = SpecifyImplicitLabels()
-    RewriteTestHelper.test(
-      rewriter,
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(before),
-      SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(after)
-    )
+    ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
   }
 }

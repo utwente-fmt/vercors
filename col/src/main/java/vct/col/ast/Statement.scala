@@ -26,9 +26,9 @@ case class Synchronized(obj: Expr, body: Statement)(implicit val o: Origin) exte
 case class ParInvariant(decl: ParInvariantDecl, inv: Expr, content: Statement)(val blame: Blame[ParInvariantNotEstablished])(implicit val o: Origin) extends Check(inv.checkSubType(TResource())) with Statement with Declarator {
   override def declarations: Seq[Declaration] = Seq(decl)
 }
-case class ParAtomic(inv: Ref[ParInvariantDecl], content: Statement)(implicit val o: Origin) extends Statement {
+case class ParAtomic(inv: Seq[Ref[ParInvariantDecl]], content: Statement)(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =
-    context.checkInScope(inv)
+    inv.flatMap(context.checkInScope)
 }
 case class ParBarrier(block: Ref[ParBlockDecl], invs: Seq[Ref[ParInvariantDecl]], requires: Expr, ensures: Expr, content: Statement)(val blame: Blame[ParBarrierFailed])(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =

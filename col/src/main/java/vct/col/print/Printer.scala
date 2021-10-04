@@ -1,10 +1,8 @@
 package vct.col.print
 
-import scala.language.postfixOps
-
 import hre.util.ScopedStack
-import vct.col.ast.{ADTDeclaration, ADTFunction, ADTFunctionInvocation, ActionApply, ActionPerm, AddrOf, AmbiguousMember, AmbiguousResult, AmbiguousSubscript, AmbiguousThis, And, ApplicableContract, ArraySubscript, Assert, Assign, Assume, AxiomaticDataType, BagMemberCount, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Block, Branch, Break, CAnonymousFunctionDeclarator, CArrayDeclarator, CAtomic, CBool, CChar, CConst, CDeclaration, CDeclarationSpecifier, CDeclarationStatement, CDeclarator, CDouble, CFloat, CFunctionDefinition, CGlobalDeclaration, CGoto, CInit, CInline, CInt, CInvocation, CKernel, CLabeledStatement, CLocal, CLong, CName, CParam, CPointer, CPointerDeclarator, CPrimitiveType, CPure, CRestrict, CShort, CSigned, CSpecificationType, CStatic, CStructAccess, CStructDeref, CTypeQualifier, CTypeQualifierDeclarationSpecifier, CTypedFunctionDeclarator, CTypedef, CTypedefName, CUnsigned, CVoid, CVolatile, Case, Cast, CatchClause, Class, Concat, Cons, Constant, Continue, CurPerm, CurrentThreadId, Declaration, DefaultCase, Deref, DerefPointer, Div, Drop, Empty, EmptyProcess, Eq, Eval, Exhale, Exists, Exp, Expr, Field, FieldFlag, Final, FloorDiv, Fold, Forall, Fork, Function, FunctionInvocation, Goto, GpgpuAtomic, GpgpuCudaKernelInvocation, GpgpuGlobalBarrier, GpgpuLocalBarrier, Greater, GreaterEq, Havoc, Head, Held, IdleToken, Implies, Inhale, InlinePattern, InstanceFunction, InstanceFunctionInvocation, InstanceMethod, InstanceOf, InstancePredicate, InstancePredicateApply, IterVariable, JavaAbstract, JavaClass, JavaConstructor, JavaDeref, JavaFields, JavaFinal, JavaImport, JavaInline, JavaInterface, JavaInvocation, JavaLiteralArray, JavaLocal, JavaLocalDeclaration, JavaLocalDeclarationStatement, JavaMethod, JavaModifier, JavaName, JavaNamespace, JavaNative, JavaNewClass, JavaNewDefaultArray, JavaNewLiteralArray, JavaPrivate, JavaProtected, JavaPublic, JavaPure, JavaSharedInitialization, JavaStatic, JavaStrictFP, JavaSynchronized, JavaTClass, JavaTUnion, JavaTransient, JavaVolatile, Join, JoinToken, LabelDecl, Length, Less, LessEq, Let, LiteralSeq, LiteralSet, Local, LocalDecl, Lock, Loop, MapCons, MapDisjoint, MapEq, MapGet, MapItemSet, MapKeySet, MapMember, MapRemove, MapSize, MapValueSet, MethodInvocation, Minus, Mod, Model, ModelAction, ModelChoose, ModelCreate, ModelDeref, ModelDestroy, ModelDo, ModelField, ModelMergeFrom, ModelPerm, ModelProcess, ModelSplitInto, Mult, Neq, NewArray, NewObject, NoPerm, Node, Not, Notify, Null, Old, OptGet, OptGetOrElse, OptNone, OptSome, Or, ParAtomic, ParBarrier, ParBlock, ParBlockDecl, ParInvariant, ParInvariantDecl, ParRegion, Perm, PermPointer, PermPointerIndex, Permutation, Plus, PointerSubscript, PointsTo, PostAssignExpression, PreAssignExpression, Predicate, PredicateApply, Procedure, ProcedureInvocation, ProcessApply, ProcessChoice, ProcessPar, ProcessSelect, ProcessSeq, Product, Program, Range, ReadPerm, Refute, RemoveAt, Return, Scale, Scope, Select, SeqMember, SeqSubscript, SeqUpdate, SetMember, SignalsClause, SilverCurFieldPerm, SilverCurPredPerm, SilverDeref, SilverField, SilverFieldAssign, SilverFold, SilverIf, SilverLocalAssign, SilverNewRef, SilverPerm, SilverPredPerm, SilverPredicateAccess, SilverUnfold, SilverUnfolding, SilverWhile, SimplificationRule, Size, Slice, SpecIgnoreEnd, SpecIgnoreStart, Star, Starall, Statement, SubSet, SubSetEq, SubType, Sum, SuperType, Switch, Synchronized, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TFloat, TFraction, TInt, TMap, TModel, TNotAValue, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TVoid, TZFraction, Tail, Take, Then, Throw, TryCatchFinally, TupGet, Type, TypeOf, TypeValue, UMinus, UPlus, Unfold, Unfolding, Unlock, ValidArray, ValidMatrix, Values, Variable, Void, Wait, Wand, WandApply, WandCreate, WandQed, WandUse, With, WritePerm}
-import vct.col.resolve.{RefJavaLocalDeclaration, Referrable}
+import vct.col.ast._
+import vct.col.resolve.Referrable
 
 import scala.collection.mutable
 
@@ -12,117 +10,194 @@ sealed trait Syntax
 case object PVL extends Syntax
 case object Silver extends Syntax
 case object Java extends Syntax
-case class C(gpgpuSyntax: GpgpuSyntax) extends Syntax
-
-sealed trait GpgpuSyntax
-case object Any
-case object Cuda
-case object OpenCL
-
-case object InvalidPrinterStateMutation extends RuntimeException
+case object C extends Syntax
+case object Cuda extends Syntax
+case object OpenCL extends Syntax
 
 sealed trait PrinterState {
-  def <>(text: String): PrinterState
-  def <+>(text: String): PrinterState
+  def say(text: String)(implicit printer: Printer): PrinterState
+  def space()(implicit printer: Printer): PrinterState
+  def newline()(implicit printer: Printer): PrinterState
+  def doubleNewline()(implicit printer: Printer): PrinterState
 
-  def >> : PrinterState
-
-  def << : PrinterState
-  def >@ : PrinterState
-  def <@ : PrinterState
-  def <*@ : PrinterState
-  def >*@ : PrinterState
-  def <*> : PrinterState
-  def <**> : PrinterState
-
-  def invalid: Nothing = throw InvalidPrinterStateMutation
-  def >|(f: PrinterState => PrinterState): PrinterState = f(this)
+  def openInlineSpec()(implicit printer: Printer): PrinterState
+  def closeInlineSpec()(implicit printer: Printer): PrinterState
+  def openSpec()(implicit printer: Printer): PrinterState
+  def closeSpec()(implicit printer: Printer): PrinterState
+  def openBanNewlines()(implicit printer: Printer): PrinterState
+  def closeBanNewlines()(implicit printer: Printer): PrinterState
+  def indent()(implicit printer: Printer): PrinterState
+  def dedent()(implicit printer: Printer): PrinterState
+  def discardPendingNewlines()(implicit printer: Printer): PrinterState
 }
 
-  case class InLine(out: Appendable, lastWasSpace: Boolean, inSpec: Boolean, indent: Int) extends PrinterState {
-  override def <>(text: String): PrinterState = {
-    out.append(text)
-    InLine(out, text.last == ' ', inSpec, indent)
-  }
-  override def <+>(text: String): PrinterState = {
-    if(!lastWasSpace) out.append(' ')
-    out.append(text)
-    InLine(out, text.last == ' ', inSpec, indent)
+case class InLine(lastWasSpace: Boolean, specDepth: Int, banNewlinesDepth: Int, indent: Int) extends PrinterState {
+  override def say(text: String)(implicit printer: Printer): PrinterState = {
+    printer.out.append(text)
+    InLine(text.last == ' ', specDepth, banNewlinesDepth, indent)
   }
 
-  override def >> : PrinterState = Lines(out, 0, inSpec, indent) >>
-  override def << : PrinterState = Lines(out, 0, inSpec, indent) <<
-  override def >@ : PrinterState = LazyInLine(out, lastWasSpace, inSpec, wantSpec=true, indent)
-  override def <@ : PrinterState = LazyInLine(out, lastWasSpace, inSpec, wantSpec=false, indent)
-  override def <*@ : PrinterState = Lines(out, 0, inSpec, indent) <*@
-  override def >*@ : PrinterState = Lines(out, 0, inSpec, indent) >*@
-  override def <*> : PrinterState = Lines(out, 0, inSpec, indent) <*>
-  override def <**> : PrinterState = Lines(out, 0, inSpec, indent) <**>
-}
-
-case class LazyInLine(out: Appendable, lastWasSpace: Boolean, inSpec: Boolean, wantSpec: Boolean, indent: Int) extends PrinterState {
-  def commit: PrinterState = {
-    if(inSpec && !wantSpec) InLine(out, lastWasSpace, wantSpec, indent) <+> "@*/"
-    else if(!inSpec && wantSpec) InLine(out, lastWasSpace, wantSpec, indent) <+> "/*@ "
-    else InLine(out, lastWasSpace, wantSpec, indent)
+  override def space()(implicit printer: Printer): PrinterState = {
+    if(!lastWasSpace) printer.out.append(' ')
+    InLine(lastWasSpace = true, specDepth, banNewlinesDepth, indent)
   }
 
-  override def <>(text: String): PrinterState = commit <> text
-  override def <+>(text: String): PrinterState = commit <+> text
-  override def >> : PrinterState = LazyInLine(out, lastWasSpace, inSpec, wantSpec, indent+1)
-  override def << : PrinterState = LazyInLine(out, lastWasSpace, inSpec, wantSpec, indent-1)
-  override def >@ : PrinterState = LazyInLine(out, lastWasSpace, inSpec, wantSpec = true, indent)
-  override def <@ : PrinterState = LazyInLine(out, lastWasSpace, inSpec, wantSpec = false, indent)
-  override def <*@ : PrinterState = commit <*@
-  override def >*@ : PrinterState = commit >*@
-  override def <*> : PrinterState = commit <*>
-  override def <**> : PrinterState = commit <**>
-}
+  def toLines: Lines = Lines(0, specDepth, indent)
+  def toLazy: LazyInLine = LazyInLine(lastWasSpace, specDepth, specDepth, banNewlinesDepth, indent)
 
-case class Lines(out: Appendable, newLines: Int, inSpec: Boolean, indent: Int) extends PrinterState {
-  override def <>(text: String): PrinterState = InLine(out, newLines>0, inSpec, indent) <> text
-  override def <+>(text: String): PrinterState = InLine(out, newLines>0, inSpec, indent) <+> text
-  override def >> : PrinterState = Lines(out, newLines, inSpec, indent + 1)
-  override def << : PrinterState = Lines(out, newLines, inSpec, indent - 1)
-  override def >@ : PrinterState = InLine(out, newLines>0, inSpec, indent) >@
-  override def <@ : PrinterState = InLine(out, newLines>0, inSpec, indent) <@
-  override def <*@ : PrinterState = LazyLines(out, newLines, newLines, inSpec, wantSpec = true, indent)
-  override def >*@ : PrinterState = LazyLines(out, newLines, newLines, inSpec, wantSpec = false, indent)
-  override def <*> : PrinterState = LazyLines(out, newLines, 1, inSpec, inSpec, indent)
-  override def <**> : PrinterState = LazyLines(out, newLines, 2, inSpec, inSpec, indent)
-}
+  override def newline()(implicit printer: Printer): PrinterState =
+    if(banNewlinesDepth > 0) space()
+    else toLines.newline()
 
-case class LazyLines(out: Appendable, newLines: Int, wantNewLines: Int, inSpec: Boolean, wantSpec: Boolean, indent: Int) extends PrinterState {
-  def commit: Lines = {
-    if(wantNewLines < newLines) {
-      (newLines until wantNewLines-1).foreach(_ => {
-        (0 until indent).foreach(_ => out.append("\t"))
-        out.append('\n')
-      })
-      (0 until indent).foreach(_ => out.append("\t"))
+  override def doubleNewline()(implicit printer: Printer): PrinterState =
+    if(banNewlinesDepth > 0) space()
+    else toLines.doubleNewline()
+
+  override def openInlineSpec()(implicit printer: Printer): PrinterState = toLazy.openInlineSpec()
+  override def closeInlineSpec()(implicit printer: Printer): PrinterState = toLazy.closeInlineSpec()
+
+  override def openSpec()(implicit printer: Printer): PrinterState = toLines.openSpec()
+  override def closeSpec()(implicit printer: Printer): PrinterState = toLines.closeSpec()
+
+  def openBanNewlines()(implicit printer: Printer): PrinterState =
+    InLine(lastWasSpace, specDepth, banNewlinesDepth + 1, indent)
+  def closeBanNewlines()(implicit printer: Printer): PrinterState =
+    InLine(lastWasSpace, specDepth, banNewlinesDepth - 1, indent)
+
+  override def indent()(implicit printer: Printer): PrinterState =
+    InLine(lastWasSpace, specDepth, banNewlinesDepth, indent + 1)
+
+  override def dedent()(implicit printer: Printer): PrinterState =
+    InLine(lastWasSpace, specDepth, banNewlinesDepth, indent - 1)
+
+  override def discardPendingNewlines()(implicit printer: Printer): PrinterState = this
+}
+case class LazyInLine(lastWasSpace: Boolean, specDepth: Int, wantSpec: Int, banNewlinesDepth: Int, indent: Int) extends PrinterState {
+  def commit()(implicit printer: Printer): PrinterState = {
+    val res = InLine(lastWasSpace, wantSpec, banNewlinesDepth, indent)
+    if(specDepth > 0 && wantSpec == 0) res.space().say("@*/")
+    else if(specDepth == 0 && wantSpec > 0) res.space().say("/*@ ")
+    else res
+  }
+
+  override def say(text: String)(implicit printer: Printer): PrinterState = commit().say(text)
+  override def space()(implicit printer: Printer): PrinterState = commit().space()
+  override def newline()(implicit printer: Printer): PrinterState = commit().newline()
+  override def doubleNewline()(implicit printer: Printer): PrinterState = commit().doubleNewline()
+
+  override def openInlineSpec()(implicit printer: Printer): PrinterState =
+    LazyInLine(lastWasSpace, specDepth, wantSpec+1, banNewlinesDepth, indent)
+  override def closeInlineSpec()(implicit printer: Printer): PrinterState =
+    LazyInLine(lastWasSpace, specDepth, wantSpec-1, banNewlinesDepth, indent)
+
+  override def openSpec()(implicit printer: Printer): PrinterState = commit().openSpec()
+  override def closeSpec()(implicit printer: Printer): PrinterState = commit().closeSpec()
+
+  override def openBanNewlines()(implicit printer: Printer): PrinterState =
+    LazyInLine(lastWasSpace, specDepth, wantSpec, banNewlinesDepth+1, indent)
+  override def closeBanNewlines()(implicit printer: Printer): PrinterState =
+    LazyInLine(lastWasSpace, specDepth, wantSpec, banNewlinesDepth-1, indent)
+
+  override def indent()(implicit printer: Printer): PrinterState =
+    LazyInLine(lastWasSpace, specDepth, wantSpec, banNewlinesDepth, indent+1)
+  override def dedent()(implicit printer: Printer): PrinterState =
+    LazyInLine(lastWasSpace, specDepth, wantSpec, banNewlinesDepth, indent-1)
+
+  override def discardPendingNewlines()(implicit printer: Printer): PrinterState = this
+}
+case class Lines(newLines: Int, specDepth: Int, indent: Int) extends PrinterState {
+  def toInLine: InLine = InLine(lastWasSpace = true, specDepth, 0, indent)
+
+  override def say(text: String)(implicit printer: Printer): PrinterState = toInLine.say(text)
+  override def space()(implicit printer: Printer): PrinterState = toInLine.space()
+
+  override def newline()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, wantNewLines = 1, specDepth, specDepth, indent)
+  override def doubleNewline()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, wantNewLines = 2, specDepth, specDepth, indent)
+
+  override def openInlineSpec()(implicit printer: Printer): PrinterState = toInLine.openInlineSpec()
+  override def closeInlineSpec()(implicit printer: Printer): PrinterState = toInLine.closeInlineSpec()
+
+  override def openSpec()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, newLines, specDepth, specDepth+1, indent)
+  override def closeSpec()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, newLines, specDepth, specDepth-1, indent)
+
+  override def openBanNewlines()(implicit printer: Printer): PrinterState = toInLine.openBanNewlines()
+  override def closeBanNewlines()(implicit printer: Printer): PrinterState = toInLine.closeBanNewlines()
+
+  override def indent()(implicit printer: Printer): PrinterState =
+    Lines(newLines, specDepth, indent+1)
+  override def dedent()(implicit printer: Printer): PrinterState =
+    Lines(newLines, specDepth, indent-1)
+
+  override def discardPendingNewlines()(implicit printer: Printer): PrinterState = this
+}
+case class LazyLines(newLines: Int, wantNewLines: Int, specDepth: Int, wantSpecDepth: Int, indent: Int) extends PrinterState {
+  def commit()(implicit printer: Printer): PrinterState = {
+    if(specDepth > 0 && wantSpecDepth == 0) {
+      printer.out.append(printer.newlineText)
+      (0 until indent).foreach(_ => printer.out.append(printer.indentText))
+      printer.out.append("@*/")
     }
 
-    if(inSpec != wantSpec) {
-      if(inSpec && !wantSpec) out.append("@*/")
-      else if(!inSpec && wantSpec) out.append("/*@")
-
-      out.append('\n')
-      (0 until indent).foreach(_ => out.append("\t"))
+    if(wantNewLines > newLines) {
+      (0 until wantNewLines-newLines).foreach(_ => printer.out.append(printer.newlineText))
+      (0 until indent).foreach(_ => printer.out.append(printer.indentText))
     }
 
-    Lines(out, wantNewLines, wantSpec, indent)
+    if(specDepth == 0 && wantSpecDepth > 0) {
+      printer.out.append("/*@")
+      printer.out.append(printer.newlineText)
+      (0 until indent).foreach(_ => printer.out.append(printer.indentText))
+    }
+
+    Lines(wantNewLines, wantSpecDepth, indent)
   }
 
-  override def <>(text: String): PrinterState = commit <> text
-  override def <+>(text: String): PrinterState = commit <+> text
-  override def >> : PrinterState = LazyLines(out, newLines, wantNewLines, inSpec, wantSpec, indent+1)
-  override def << : PrinterState = LazyLines(out, newLines, wantNewLines, inSpec, wantSpec, indent-1)
-  override def >@ : PrinterState = commit >@
-  override def <@ : PrinterState = commit >@
-  override def <*@ : PrinterState = LazyLines(out, newLines, wantNewLines, inSpec, wantSpec = true, indent)
-  override def >*@ : PrinterState = LazyLines(out, newLines, wantNewLines, inSpec, wantSpec = false, indent)
-  override def <*> : PrinterState = LazyLines(out, newLines, wantNewLines.max(1), inSpec, wantSpec, indent)
-  override def <**> : PrinterState = LazyLines(out, newLines, wantNewLines.max(2), inSpec, wantSpec, indent)
+  override def say(text: String)(implicit printer: Printer): PrinterState = commit().say(text)
+  override def space()(implicit printer: Printer): PrinterState = commit().space()
+
+  override def newline()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, wantNewLines.max(1), specDepth, wantSpecDepth, indent)
+  override def doubleNewline()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, wantNewLines.max(2), specDepth, wantSpecDepth, indent)
+
+  override def openInlineSpec()(implicit printer: Printer): PrinterState = commit().openInlineSpec()
+  override def closeInlineSpec()(implicit printer: Printer): PrinterState = commit().closeInlineSpec()
+
+  override def openSpec()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, wantNewLines, specDepth, wantSpecDepth+1, indent)
+  override def closeSpec()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, wantNewLines, specDepth, wantSpecDepth-1, indent)
+
+  override def openBanNewlines()(implicit printer: Printer): PrinterState = commit().openBanNewlines()
+  override def closeBanNewlines()(implicit printer: Printer): PrinterState = commit().closeBanNewlines()
+
+  override def indent()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, wantNewLines, specDepth, wantSpecDepth, indent+1)
+  override def dedent()(implicit printer: Printer): PrinterState =
+    LazyLines(newLines, wantNewLines, specDepth, wantSpecDepth, indent-1)
+
+  override def discardPendingNewlines()(implicit printer: Printer): PrinterState =
+    LazyLines(wantNewLines, wantNewLines, specDepth, wantSpecDepth, indent)
+}
+
+case class PrependAfterWhitespace(inner: PrinterState, prepend: PrinterState => PrinterState) extends PrinterState {
+  override def say(text: String)(implicit printer: Printer): PrinterState = prepend(inner).say(text)
+  override def space()(implicit printer: Printer): PrinterState = PrependAfterWhitespace(inner.space(), prepend)
+  override def newline()(implicit printer: Printer): PrinterState = PrependAfterWhitespace(inner.newline(), prepend)
+  override def doubleNewline()(implicit printer: Printer): PrinterState = PrependAfterWhitespace(inner.doubleNewline(), prepend)
+  override def openInlineSpec()(implicit printer: Printer): PrinterState = prepend(inner).openInlineSpec()
+  override def closeInlineSpec()(implicit printer: Printer): PrinterState = prepend(inner).closeInlineSpec()
+  override def openSpec()(implicit printer: Printer): PrinterState = prepend(inner).openSpec()
+  override def closeSpec()(implicit printer: Printer): PrinterState = prepend(inner).closeSpec()
+  override def openBanNewlines()(implicit printer: Printer): PrinterState = prepend(inner).openBanNewlines()
+  override def closeBanNewlines()(implicit printer: Printer): PrinterState = prepend(inner).closeBanNewlines()
+  override def indent()(implicit printer: Printer): PrinterState = prepend(inner).indent()
+  override def dedent()(implicit printer: Printer): PrinterState = prepend(inner).dedent()
+  override def discardPendingNewlines()(implicit printer: Printer): PrinterState = PrependAfterWhitespace(inner.discardPendingNewlines(), prepend)
 }
 
 case class Printer(out: Appendable,
@@ -131,6 +206,162 @@ case class Printer(out: Appendable,
                    newlineText: String = "\n",
                    indentText: String = "    ",
 ) {
+  implicit def printer: Printer = this
+
+  sealed trait Phrase
+  implicit class Text(val text: String) extends Phrase
+  implicit class NodePhrase(val node: Node) extends Phrase
+  implicit class NodesPhrase(val nodes: Seq[Node]) extends Phrase
+  case object space extends Phrase
+  case object newline extends Phrase
+  case object doubleline extends Phrase
+  case class Do(f: () => Unit) extends Phrase
+
+  var state: PrinterState = Lines(1000, 0, 0)
+
+  def say(phrases: Phrase*): Unit = {
+    phrases.foreach {
+      case text: Text => state = state.say(text.text)
+      case node: NodePhrase => print(node.node)
+      case nodes: NodesPhrase => nodes.nodes.foreach(print)
+      case x if x == space => state = state.space()
+      case x if x == newline => state = state.newline()
+      case x if x == doubleline => state = state.doubleNewline()
+      case f: Do => f.f()
+    }
+  }
+
+  def phrase(phrases: Phrase*): Phrase = Do(() => {
+    say(phrases:_*)
+  })
+
+  def inlineSpec(phrases: Phrase*): Phrase = Do(() => {
+    state = state.openInlineSpec()
+    say(phrases:_*)
+    state = state.closeInlineSpec()
+  })
+
+  def spec(phrases: Phrase*): Phrase = Do(() => {
+    syntax match {
+      case PVL | Silver => say(phrases:_*)
+      case _ =>
+        state = state.openSpec()
+        say(phrases:_*)
+        state = state.closeSpec()
+    }
+  })
+
+  def indent(phrases: Phrase*): Phrase = Do(() => {
+    state = state.indent()
+    say(phrases:_*)
+    state = state.dedent()
+  })
+
+  def forceInline(phrases: Phrase*): Phrase = Do(() => {
+    state = state.openBanNewlines()
+    say(phrases:_*)
+    state = state.closeBanNewlines()
+  })
+
+  def controls(branches: Seq[(Phrase, Node)]): Phrase = Do(() => {
+    say(doubleline)
+
+    var lastWasBlock = false
+
+    say(branches.head._1)
+    branches.head._2 match {
+      case block: Block =>
+        printBlock(block, newline = false)
+        lastWasBlock = true
+      case other =>
+        indent(other)
+    }
+
+    for((control, impl) <- branches.tail) {
+      state = state.discardPendingNewlines()
+
+      if(lastWasBlock) state = state.space()
+      else state = state.newline()
+
+      say(control)
+
+      impl match {
+        case block: Block =>
+          printBlock(block, newline = false)
+          lastWasBlock = true
+        case other =>
+          indent(other)
+          lastWasBlock = false
+      }
+    }
+
+    say(doubleline)
+  })
+
+  def control(control: Phrase, impl: Node): Phrase =
+    controls(Seq((control, impl)))
+
+  def intersperse(spacing: Phrase, nodes: Seq[Phrase]): Do = Do(() => {
+    for ((node, i) <- nodes.zipWithIndex) {
+      if (i != 0) say(spacing)
+      say(node)
+    }
+  })
+
+  def commas(nodes: Seq[Phrase]): Do =
+    intersperse(", ", nodes)
+
+  def spaced(nodes: Seq[Phrase]): Do =
+    intersperse(space, nodes)
+
+  def prepend(writeLabel: Phrase, target: Phrase): Do = Do(() => {
+    state = PrependAfterWhitespace(state, out => {
+      state = out
+      say(writeLabel)
+      state
+    })
+    say(target)
+  })
+
+  def syntax(fsSeq: (Syntax, Phrase)*): Phrase = Do(() => {
+    val fs = fsSeq.toMap
+    val f = syntax match {
+      case Cuda => fs.get(Cuda).orElse(fs.get(C))
+      case OpenCL => fs.get(OpenCL).orElse(fs.get(C))
+      case other => fs.get(other)
+    }
+
+    if(f.isEmpty) {
+      if(permissive) say(fs.values.head)
+      else ???
+    } else say(f.get)
+  })
+
+  def clauses(contract: Expr, clauseKeyword: String): Do = Do(() => {
+    for(clause <- Star.unfold(contract)) {
+      say(newline, clauseKeyword, space, clause, ";", newline)
+    }
+  })
+
+  def statement(phrases: Phrase*): Do = Do(() => {
+    say(newline)
+    say(phrases:_*)
+    syntax(
+      C -> phrase(";"),
+      Java -> phrase(";"),
+      PVL -> phrase(";"),
+      Silver -> phrase(),
+    )
+    say(newline)
+  })
+
+  def javaDecls(decls: Seq[(String, Int, Option[Expr])]): Phrase = commas(for((name, dims, init) <- decls)
+    yield init match {
+      case Some(value) => phrase(name, "[]".repeat(dims), space, "=", space, value)
+      case None => phrase(name, "[]".repeat(dims))
+    }
+  )
+
   var names: ScopedStack[mutable.Map[Referrable, String]] = ScopedStack()
   var usedNames: ScopedStack[mutable.Set[(String, Int)]] = ScopedStack()
 
@@ -162,413 +393,861 @@ case class Printer(out: Appendable,
       .getOrElse(names.head)
       .getOrElseUpdate(decl, nextName(preferredName))
 
-  def intersperse[T](text: String)(f: T => PrinterState => PrinterState, xs: Seq[T]): PrinterState => PrinterState =
-    (out: PrinterState) => xs.tail.foldLeft(out >| f(xs.head))(_ <> ", " >| f(_))
+  def printBlock(block: Block, newline: Boolean) = ???
 
-  def commas[T](f: T => PrinterState => PrinterState, xs: Seq[T]): PrinterState => PrinterState =
-    intersperse(", ")(f, xs)
+  def printProgram(program: Program): Unit =
+    say(program.declarations)
 
-//  def printProgram(program: Program): PrinterState => PrinterState = (out: PrinterState) =>
-//    program.declarations.foldLeft(out)(_ >| printDeclaration(_))
-//
-//  def printStatement(stat: Statement): PrinterState => PrinterState = (out: PrinterState) => stat match {
-//    case CDeclarationStatement(decl) =>
-//      out .<*> >| commas(printCDeclarationSpecifier, decl.specs) >|
-//        commas(decl.ini)
-//    case CLabeledStatement(label, statement) =>
-//    case ref @ CGoto(label) =>
-//    case GpgpuLocalBarrier(requires, ensures) =>
-//    case GpgpuGlobalBarrier(requires, ensures) =>
-//    case GpgpuAtomic(impl, before, after) =>
-//    case JavaLocalDeclarationStatement(decl) =>
-//    case SilverUnfold(access) =>
-//    case SilverFold(access) =>
-//    case SilverWhile(cond, invariant, body) =>
-//    case SilverIf(cond, whenTrue, whenFalse) =>
-//    case SilverNewRef(v, fields) =>
-//    case SilverFieldAssign(obj, field, value) =>
-//    case SilverLocalAssign(v, value) =>
-//    case Eval(expr) =>
-//    case LocalDecl(local) =>
-//    case Return(result) =>
-//    case Assign(target, value) =>
-//    case Block(statements) =>
-//    case Scope(locals, body) =>
-//    case Branch(branches) =>
-//    case Switch(expr, body) =>
-//    case Loop(init, cond, update, invariant, body) =>
-//    case TryCatchFinally(body, after, catches) =>
-//    case Synchronized(obj, body) =>
-//    case ParInvariant(decl, inv, content) =>
-//    case ParAtomic(inv, content) =>
-//    case ParBarrier(block, invs, requires, ensures, content) =>
-//    case ParRegion(requires, ensures, blocks) =>
-//    case Throw(e) =>
-//    case DefaultCase() =>
-//    case Case(pattern) =>
-//    case Label(decl) =>
-//    case Goto(lbl) =>
-//    case Exhale(res) =>
-//    case Assert(assn) =>
-//    case Refute(assn) =>
-//    case Inhale(res) =>
-//    case Assume(assn) =>
-//    case SpecIgnoreStart() =>
-//    case SpecIgnoreEnd() =>
-//    case Wait(obj) =>
-//    case Notify(obj) =>
-//    case Fork(runnable) =>
-//    case Join(runnable) =>
-//    case Lock(obj) =>
-//    case Unlock(obj) =>
-//    case Fold(pred) =>
-//    case Unfold(pred) =>
-//    case WandCreate(statements) =>
-//    case WandQed(wand) =>
-//    case WandApply(wand) =>
-//    case WandUse(pred) =>
-//    case ModelCreate(target, model, process) =>
-//    case ModelDestroy(model) =>
-//    case ModelSplitInto(model, leftPerm, left, rightPerm, right) =>
-//    case ModelMergeFrom(model, leftPerm, left, rightPerm, right) =>
-//    case ModelChoose(model, perm, choiceProcess, choice) =>
-//    case ModelDo(model, perm, after, action) =>
-//    case Havoc(loc) =>
-//    case Break(label) =>
-//    case Continue(label) =>
-//  }
-//
-//  def printExpr(e: Expr): PrinterState => PrinterState = (out: PrinterState) => e match {
-//    case CLocal(name) =>
-//    case CInvocation(applicable, args) =>
-//    case CStructAccess(struct, field) =>
-//    case CStructDeref(struct, field) =>
-//    case GpgpuCudaKernelInvocation(kernel, blocks, threads, args) =>
-//    case JavaLocal(name) =>
-//    case JavaDeref(obj, field) =>
-//    case JavaLiteralArray(exprs) =>
-//    case JavaInvocation(obj, typeParams, method, arguments) =>
-//    case JavaNewClass(args, typeArgs, name) =>
-//    case JavaNewLiteralArray(baseType, dims, initializer) =>
-//    case JavaNewDefaultArray(baseType, specifiedDims, moreDims) =>
-//    case SilverDeref(obj, field) =>
-//    case SilverPerm(obj, field, perm) =>
-//    case SilverPredPerm(access) =>
-//    case SilverUnfolding(access, body) =>
-//    case SilverCurFieldPerm(obj, field) =>
-//    case SilverCurPredPerm(ref, args) =>
-//    case MapSize(map) =>
-//    case Sum(bindings, condition, main) =>
-//    case Product(bindings, condition, main) =>
-//    case Length(arr) =>
-//    case Size(obj) =>
-//    case Empty(obj) =>
-//    case BagMemberCount(x, xs) =>
-//    case value: Constant.BooleanValue =>
-//    case MapEq(left, right) =>
-//    case MapDisjoint(left, right) =>
-//    case Forall(bindings, triggers, body) =>
-//    case Exists(bindings, triggers, body) =>
-//    case ValidArray(arr, len) =>
-//    case ValidMatrix(mat, w, h) =>
-//    case SetMember(x, xs) =>
-//    case SeqMember(x, xs) =>
-//    case MapMember(x, xs) =>
-//    case Permutation(xs, ys) =>
-//    case Held(obj) =>
-//    case IdleToken(thread) =>
-//    case JoinToken(thread) =>
-//    case Starall(bindings, triggers, body) =>
-//    case Star(left, right) =>
-//    case Wand(left, right) =>
-//    case Scale(scale, res) =>
-//    case Perm(loc, perm) =>
-//    case PointsTo(loc, perm, value) =>
-//    case PermPointer(p, len, perm) =>
-//    case PermPointerIndex(p, idx, perm) =>
-//    case ModelPerm(loc, perm) =>
-//    case ActionPerm(loc, perm) =>
-//    case NoPerm() =>
-//    case ReadPerm() =>
-//    case WritePerm() =>
-//    case EmptyProcess() =>
-//    case ActionApply(action, args) =>
-//    case ProcessApply(process, args) =>
-//    case ProcessSeq(left, right) =>
-//    case ProcessChoice(left, right) =>
-//    case ProcessPar(left, right) =>
-//    case ProcessSelect(cond, whenTrue, whenFalse) =>
-//    case value: Constant.IntegerValue =>
-//    case LiteralSeq(element, values) =>
-//    case LiteralSet(element, values) =>
-//    case Void() =>
-//    case AmbiguousThis() =>
-//    case AmbiguousResult() =>
-//    case CurrentThreadId() =>
-//    case Null() =>
-//    case Range(from, to) =>
-//    case Values(arr, from, to) =>
-//    case OptSome(e) =>
-//    case OptNone() =>
-//    case MapCons(map, k, v) =>
-//    case MapKeySet(map) =>
-//    case MapValueSet(map) =>
-//    case MapItemSet(map) =>
-//    case MapRemove(map, k) =>
-//    case Let(binding, value, main) =>
-//    case InlinePattern(inner) =>
-//    case Local(ref) =>
-//    case Deref(obj, ref) =>
-//    case ModelDeref(obj, ref) =>
-//    case DerefPointer(pointer) =>
-//    case AddrOf(e) =>
-//    case PredicateApply(ref, args) =>
-//    case InstancePredicateApply(obj, ref, args) =>
-//    case ADTFunctionInvocation(ref, args) =>
-//    case ProcedureInvocation(ref, args, outArgs) =>
-//    case FunctionInvocation(ref, args) =>
-//    case MethodInvocation(obj, ref, args, outArgs) =>
-//    case InstanceFunctionInvocation(obj, ref, args) =>
-//    case UPlus(arg) =>
-//    case UMinus(arg) =>
-//    case BitNot(arg) =>
-//    case Not(arg) =>
-//    case Exp(left, right) =>
-//    case Plus(left, right) =>
-//    case Minus(left, right) =>
-//    case Mult(left, right) =>
-//    case Div(left, right) =>
-//    case Mod(left, right) =>
-//    case FloorDiv(left, right) =>
-//    case BitAnd(left, right) =>
-//    case BitOr(left, right) =>
-//    case BitXor(left, right) =>
-//    case BitShl(left, right) =>
-//    case BitShr(left, right) =>
-//    case BitUShr(left, right) =>
-//    case And(left, right) =>
-//    case Or(left, right) =>
-//    case Implies(left, right) =>
-//    case Eq(left, right) =>
-//    case Neq(left, right) =>
-//    case Greater(left, right) =>
-//    case Less(left, right) =>
-//    case GreaterEq(left, right) =>
-//    case LessEq(left, right) =>
-//    case SubSet(left, right) =>
-//    case SubSetEq(left, right) =>
-//    case Unfolding(pred, body) =>
-//    case CurPerm(loc) =>
-//    case Select(condition, whenTrue, whenFalse) =>
-//    case NewObject(cls) =>
-//    case NewArray(element, dims) =>
-//    case Old(expr, at) =>
-//    case AmbiguousSubscript(collection, index) =>
-//    case SeqSubscript(seq, index) =>
-//    case ArraySubscript(arr, index) =>
-//    case PointerSubscript(pointer, index) =>
-//    case Cons(x, xs) =>
-//    case Head(xs) =>
-//    case Tail(xs) =>
-//    case Drop(xs, count) =>
-//    case Take(xs, count) =>
-//    case Slice(xs, from, to) =>
-//    case SeqUpdate(xs, i, x) =>
-//    case Concat(xs, ys) =>
-//    case RemoveAt(xs, i) =>
-//    case AmbiguousMember(x, xs) =>
-//    case OptGet(opt) =>
-//    case OptGetOrElse(opt, alt) =>
-//    case MapGet(map, k) =>
-//    case TupGet(tup, index) =>
-//    case TypeValue(value) =>
-//    case TypeOf(expr) =>
-//    case InstanceOf(value, typeValue) =>
-//    case Cast(value, typeValue) =>
-//    case SubType(left, right) =>
-//    case SuperType(left, right) =>
-//    case PreAssignExpression(target, value) =>
-//    case PostAssignExpression(target, value) =>
-//    case With(pre, value) =>
-//    case Then(value, post) =>
-//  }
-//
-//  def printType(t: Type): PrinterState => PrinterState = (out: PrinterState) => t match {
-//    case CPrimitiveType(specifiers) =>
-//    case JavaTUnion(types) =>
-//    case JavaTClass(names) =>
-//    case TVoid() =>
-//    case TBool() =>
-//    case TFloat() =>
-//    case TChar() =>
-//    case TString() =>
-//    case TRef() =>
-//    case TArray(element) =>
-//    case TPointer(element) =>
-//    case TProcess() =>
-//    case TModel(model) =>
-//    case TAxiomatic(adt, args) =>
-//    case TOption(element) =>
-//    case TTuple(elements) =>
-//    case TSeq(element) =>
-//    case TSet(element) =>
-//    case TBag(element) =>
-//    case TMap(key, value) =>
-//    case TType(t) =>
-//    case TNotAValue() =>
-//    case TAny() =>
-//    case TNull() =>
-//    case TResource() =>
-//    case TInt() =>
-//    case TBoundedInt(gte, lt) =>
-//    case TRational() =>
-//    case TFraction() =>
-//    case TZFraction() =>
-//    case TClass(cls) =>
-//  }
-//
-//  def printDeclaration(decl: Declaration): PrinterState => PrinterState = (out: PrinterState) => decl match {
-//    case CDeclaration(contract, kernelInvariant, specs, inits) =>
-//    case CParam(specifiers, declarator) =>
-//    case JavaLocalDeclaration(modifiers, t, decls) =>
-//    case CFunctionDefinition(specs, declarator, body) =>
-//    case CGlobalDeclaration(decl) =>
-//    case JavaNamespace(pkg, imports, declarations) =>
-//    case JavaClass(name, modifiers, typeParams, ext, imp, decls) =>
-//    case JavaInterface(name, modifiers, typeParams, ext, decls) =>
-//    case field: SilverField =>
-//    case rule: SimplificationRule =>
-//    case dataType: AxiomaticDataType =>
-//    case function: Function =>
-//    case procedure: Procedure =>
-//    case predicate: Predicate =>
-//    case clazz: Class =>
-//    case model: Model =>
-//    case JavaSharedInitialization(isStatic, initialization) =>
-//    case JavaFields(modifiers, t, decls) =>
-//    case JavaConstructor(modifiers, name, parameters, typeParameters, signals, body, contract) =>
-//    case JavaMethod(modifiers, returnType, dims, name, parameters, typeParameters, signals, body, contract) =>
-//    case function: InstanceFunction =>
-//    case method: InstanceMethod =>
-//    case predicate: InstancePredicate =>
-//    case field: Field =>
-//    case variable: Variable =>
-//    case decl: LabelDecl =>
-//    case decl: ParBlockDecl =>
-//    case decl: ParInvariantDecl =>
-//    case declaration: ADTDeclaration =>
-//    case function: ADTFunction =>
-//    case process: ModelProcess =>
-//    case action: ModelAction =>
-//    case field: ModelField =>
-//  }
-//
-//  def printApplicableContract(node: ApplicableContract): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printParBlock(parBlock: ParBlock): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printCatchClause(catchClause: CatchClause): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printSignalsClause(node: SignalsClause): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printFieldFlag(fieldFlag: FieldFlag): PrinterState => PrinterState = (out: PrinterState) => fieldFlag match {
-//    case value: Final =>
-//  }
-//
-//  def printIterVariable(iterVariable: IterVariable): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printSilverPredicateAccess(silverPredAcc: SilverPredicateAccess): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printCDeclarator(node: CDeclarator): PrinterState => PrinterState = (out: PrinterState) => node match {
-//    case CPointerDeclarator(pointers, inner) =>
-//    case CArrayDeclarator(qualifiers, size, inner) =>
-//    case CTypedFunctionDeclarator(params, varargs, inner) =>
-//    case CAnonymousFunctionDeclarator(params, inner) =>
-//    case CName(name) =>
-//  }
-//
-//  def printCDeclarationSpecifier(cDeclSpec: CDeclarationSpecifier): PrinterState => PrinterState = (out: PrinterState) => cDeclSpec match {
-//    case CPure() =>
-//    case CInline() =>
-//    case CTypedef() =>
-//    case CStatic() =>
-//    case CVoid() =>
-//    case CChar() =>
-//    case CShort() =>
-//    case CInt() =>
-//    case CLong() =>
-//    case CFloat() =>
-//    case CDouble() =>
-//    case CSigned() =>
-//    case CUnsigned() =>
-//    case CBool() =>
-//    case CTypedefName(name) =>
-//    case CSpecificationType(t) =>
-//    case CTypeQualifierDeclarationSpecifier(typeQual) =>
-//    case CKernel() =>
-//  }
-//
-//  def printCTypeQualifier(node: CTypeQualifier): PrinterState => PrinterState = (out: PrinterState) => node match {
-//    case CConst() =>
-//    case CRestrict() =>
-//    case CVolatile() =>
-//    case CAtomic() =>
-//  }
-//
-//  def printCPointer(node: CPointer): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printCInit(node: CInit): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printJavaModifier(node: JavaModifier): PrinterState => PrinterState = (out: PrinterState) => node match {
-//    case JavaPublic() =>
-//    case JavaProtected() =>
-//    case JavaPrivate() =>
-//    case JavaStatic() =>
-//    case JavaAbstract() =>
-//    case JavaFinal() =>
-//    case JavaStrictFP() =>
-//    case JavaNative() =>
-//    case JavaSynchronized() =>
-//    case JavaTransient() =>
-//    case JavaVolatile() =>
-//    case JavaPure() =>
-//    case JavaInline() =>
-//  }
-//
-//  def printJavaImport(node: JavaImport): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def printJavaName(node: JavaName): PrinterState => PrinterState = (out: PrinterState) =>
-//    ???
-//
-//  def print(node: Node): PrinterState => PrinterState = (out: PrinterState) => node match {
-//    case program: Program => printProgram(program)
-//    case stat: Statement => printStatement(stat)
-//    case e: Expr => printExpr(e)
-//    case t: Type => printType(t)
-//    case decl: Declaration => printDeclaration(decl)
-//    case node: ApplicableContract => printApplicableContract(node)
-//    case parBlock: ParBlock => printParBlock(parBlock)
-//    case catchClause: CatchClause => printCatchClause(catchClause)
-//    case node: SignalsClause => printSignalsClause(node)
-//    case fieldFlag: FieldFlag => printFieldFlag(fieldFlag)
-//    case iterVariable: IterVariable => printIterVariable(iterVariable)
-//    case silverPredAcc: SilverPredicateAccess => printSilverPredicateAccess(silverPredAcc)
-//    case node: CDeclarator => printCDeclarator(node)
-//    case cDeclSpec: CDeclarationSpecifier => printCDeclarationSpecifier(cDeclSpec)
-//    case node: CTypeQualifier => printCTypeQualifier(node)
-//    case node: CPointer => printCPointer(node)
-//    case node: CInit => printCInit(node)
-//    case node: JavaModifier => printJavaModifier(node)
-//    case node: JavaImport => printJavaImport(node)
-//    case node: JavaName => printJavaName(node)
-//  }
+  def printStatement(stat: Statement): Unit = say(stat match {
+    case CDeclarationStatement(decl) =>
+      statement(syntax(C -> phrase(decl.specs, commas(decl.inits.map(NodePhrase)))))
+    case CLabeledStatement(label, statement) =>
+      syntax(C -> prepend(phrase(name(label), ":", space), phrase(statement)))
+    case ref @ CGoto(label) =>
+      statement(syntax(C -> phrase("goto", space, Text(ref.ref.map(name).getOrElse(label)))))
+    case GpgpuLocalBarrier(requires, ensures) =>
+      statement(spec(clauses(requires, "requires"), clauses(ensures, "ensures")), syntax(
+        Cuda -> phrase("__syncthreads();"),
+        OpenCL -> phrase("barrier(CLK_LOCAL_MEM_FENCE);"),
+      ))
+    case GpgpuGlobalBarrier(requires, ensures) =>
+      statement(spec(clauses(requires, "requires"), clauses(ensures, "ensures")), syntax(
+        OpenCL -> phrase("barrier(CLK_GLOBAL_MEM_FENCE);",
+      )))
+    case GpgpuAtomic(impl, before, after) =>
+      syntax(C -> statement("__vercors_atomic__", space, forceInline(impl), space,
+        spec("with", space, before, space, "then", space, before)))
+    case JavaLocalDeclarationStatement(decl) =>
+      statement(decl.t, space, javaDecls(decl.decls))
+    case SilverUnfold(access) =>
+      syntax(Silver -> statement("unfold", space, access))
+    case SilverFold(access) =>
+      syntax(Silver -> statement("fold", space, access))
+    case SilverWhile(cond, invariant, body) =>
+      syntax(Silver -> phrase(doubleline, "while(", cond, ")", newline, clauses(invariant, "invariant"), body, doubleline))
+    case SilverIf(cond, whenTrue, Block(Nil)) =>
+      syntax(Silver -> control(phrase("if(", cond, ")"), whenTrue))
+    case SilverIf(cond, whenTrue, whenFalse) =>
+      syntax(Silver -> controls(Seq(
+        (phrase("if(", cond, ")"), whenTrue),
+        (phrase("else"), whenFalse),
+      )))
+    case SilverNewRef(v, fields) =>
+      syntax(Silver -> statement(name(v.decl), space, ":=", space, "new(", commas(fields.map(_.decl).map(name).map(Text))))
+    case SilverFieldAssign(obj, field, value) =>
+      syntax(Silver -> statement(obj, ".", name(field.decl), space, ":=", space, value))
+    case SilverLocalAssign(v, value) =>
+      syntax(Silver -> statement(name(v.decl), space, ":=", space, value))
+    case Eval(expr) =>
+      statement(expr)
+    case LocalDecl(local) =>
+      statement(local.t, space, name(local))
+    case Return(result) =>
+      statement("return", space, result)
+    case Assign(target, value) =>
+      statement(target, space, "=", space, value)
+    case block: Block =>
+      printBlock(block, newline = true)
+    case Scope(locals, body) =>
+      implicit val o: Origin = DiagnosticOrigin
+      printBlock(Block(locals.map(LocalDecl(_)(o)) :+ body), newline = true)
+    case Branch(branches) =>
+      val `if` = (phrase("if(", branches.head._1, ")"), branches.head._2)
+      val others = branches.tail.map {
+        case (cond, impl) => (phrase("else if(", cond, ")"), impl)
+      }
+      controls(`if` +: others)
+    case Switch(expr, body) =>
+      control(phrase("switch(", expr, ")"), body)
+    case Loop(init, cond, update, invariant, body) =>
+      control(phrase("for(", init, "; ", cond, "; ", update, ")"), body)
+    case TryCatchFinally(body, after, catches) =>
+      controls(
+        Seq((phrase("try"), body)) ++
+          catches.map(clause => (phrase("catch(", clause.decl, ")"), clause.body)) ++
+          Seq((phrase("finally"), after))
+      )
+    case Synchronized(obj, body) =>
+      control(phrase("synchronized(", obj, ")"), body)
+    case ParInvariant(decl, inv, content) =>
+      control(phrase("invariant", space, name(decl), "(", inv, ")"), content)
+    case ParAtomic(inv, content) =>
+      control(phrase("atomic(", commas(inv.map(_.decl).map(name).map(Text)), ")"), content)
+    case ParBarrier(block, invs, requires, ensures, content) =>
+      val tags = invs match {
+        case Nil => phrase()
+        case invs => phrase(";", commas(invs.map(_.decl).map(name).map(Text)))
+      }
+      val contract = spec(clauses(requires, "requires"), clauses(ensures, "ensures"))
+
+      syntax(
+        PVL -> phrase("barrier(", name(block.decl), tags, ")", contract, newline, content),
+      )
+    case ParRegion(requires, ensures, blocks) =>
+      phrase(
+        doubleline,
+        spec(clauses(requires, "requires"), clauses(ensures, "ensures")),
+        newline, "par", space, blocks.head, newline,
+        phrase(blocks.tail.map(block => phrase("and", space, block)):_*),
+        doubleline
+      )
+    case Throw(e) =>
+      statement("throw", space, e)
+    case DefaultCase() =>
+      phrase(
+        Do(() => state = state.dedent()),
+        statement("default:"),
+        Do(() => state = state.indent()),
+      )
+    case Case(pattern) =>
+      phrase(
+        Do(() => state = state.dedent()),
+        statement("case", space, pattern, ":"),
+        Do(() => state = state.indent()),
+      )
+    case Label(decl) =>
+      statement(syntax(
+        Java -> phrase(name(decl), ": {}"),
+        C -> phrase(name(decl), ": {}"),
+        Silver -> phrase("label", space, name(decl)),
+        PVL -> phrase("label", space, name(decl)),
+      ))
+    case Goto(lbl) =>
+      statement("goto", space, name(lbl.decl))
+    case Exhale(res) =>
+      spec(statement("exhale", space, res))
+    case Assert(assn) =>
+      spec(statement("assert", space, assn))
+    case Refute(assn) =>
+      spec(statement("refute", space, assn))
+    case Inhale(res) =>
+      spec(statement("inhale", space, res))
+    case Assume(assn) =>
+      spec(statement("assume", space, assn))
+    case SpecIgnoreStart() =>
+      spec(newline, "spec_ignore {", newline)
+    case SpecIgnoreEnd() =>
+      spec(newline, "spec_ignore }", newline)
+    case Wait(obj) =>
+      syntax(PVL -> statement("wait", space, obj))
+    case Notify(obj) =>
+      syntax(PVL -> statement("notify", space, obj))
+    case Fork(runnable) =>
+      syntax(PVL -> statement("fork", space, runnable))
+    case Join(runnable) =>
+      syntax(PVL -> statement("join", space, runnable))
+    case Lock(obj) =>
+      syntax(PVL -> statement("lock", space, obj))
+    case Unlock(obj) =>
+      syntax(PVL -> statement("unlock", space, obj))
+    case Fold(pred) =>
+      spec(statement("fold", pred))
+    case Unfold(pred) =>
+      spec(statement("unfold", pred))
+    case WandCreate(statements) =>
+      spec(control(phrase("create"), Block(statements)(DiagnosticOrigin)))
+    case WandQed(wand) =>
+      spec(statement("qed", space, wand))
+    case WandApply(wand) =>
+      spec(statement("apply", space, wand))
+    case WandUse(pred) =>
+      spec(statement("use", space, pred))
+    case ModelCreate(target, model, process) =>
+      ???
+    case ModelDestroy(model) =>
+      ???
+    case ModelSplitInto(model, leftPerm, left, rightPerm, right) =>
+      ???
+    case ModelMergeFrom(model, leftPerm, left, rightPerm, right) =>
+      ???
+    case ModelChoose(model, perm, choiceProcess, choice) =>
+      ???
+    case ModelDo(model, perm, after, action) =>
+      ???
+    case Havoc(loc) =>
+      ???
+    case Break(label) =>
+      label match {
+        case Some(label) => statement("break", space, name(label.decl))
+        case None => statement("break")
+      }
+    case Continue(label) =>
+      label match {
+        case Some(label) => statement("continue", space, name(label.decl))
+        case None => statement("continue")
+      }
+  })
+
+  def printExpr(e: Expr): Unit = ???
+
+  def bind(wantPrecedence: Int, e: Expr): Phrase = {
+    val (output, precedence) = expr(e)
+    if(precedence > wantPrecedence) output
+    else phrase("(", output, ")")
+  }
+
+  def assoc(wantPrecedence: Int, e: Expr): Phrase =
+    bind(wantPrecedence - 1, e)
+
+  def expr(e: Expr): (Phrase, Int) = e match {
+    case CLocal(nodeName) => (phrase(nodeName), 110)
+    case CInvocation(applicable, args) =>
+      (phrase(assoc(100, applicable), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case CStructAccess(struct, field) =>
+      (phrase(assoc(100, struct), ".", field), 100)
+    case CStructDeref(struct, field) =>
+      (phrase(assoc(100, struct), "->", field), 100)
+    case GpgpuCudaKernelInvocation(kernel, blocks, threads, args) =>
+      (phrase(kernel, "<<", blocks, ", ", threads, ">>(", commas(args.map(NodePhrase)), ")"), 100)
+    case JavaLocal(name) => (phrase(name), 110)
+    case JavaDeref(obj, field) =>
+      (phrase(assoc(100, obj), ".", field), 100)
+    case JavaLiteralArray(exprs) =>
+      (phrase("{", commas(exprs.map(NodePhrase)), "}"), 120)
+    case JavaInvocation(obj, typeParams, method, arguments) =>
+      (obj match {
+        case Some(obj) =>
+          phrase(assoc(100, obj), ".", method, "(", commas(arguments.map(NodePhrase)), ")")
+        case None =>
+          phrase(method, "(", commas(arguments.map(NodePhrase)), ")")
+      }, 100)
+    case JavaNewClass(args, typeArgs, name) =>
+      (phrase("new", space, name, "(", commas(args.map(NodePhrase)), ")"), 100)
+    case JavaNewLiteralArray(baseType, dims, initializer) =>
+      (phrase("new", space, baseType, "[]".repeat(dims), initializer), 100)
+    case JavaNewDefaultArray(baseType, specifiedDims, moreDims) =>
+      (phrase("new", space, baseType, phrase(specifiedDims.map(phrase("[", _, "]")):_*), "[]".repeat(moreDims)), 100)
+    case SilverDeref(obj, field) => ???
+    case SilverPerm(obj, field, perm) => ???
+    case SilverPredPerm(access) => ???
+    case SilverUnfolding(access, body) => ???
+    case SilverCurFieldPerm(obj, field) => ???
+    case SilverCurPredPerm(ref, args) => ???
+    case MapSize(map) =>
+      (phrase("cardMap(", map, ")"), 100)
+    case Sum(bindings, condition, main) =>
+      (phrase("(", "\\sum", commas(bindings.map(NodePhrase)), "; ", condition, ";", main, ")"), 120)
+    case Product(bindings, condition, main) =>
+      ???
+    case Length(arr) =>
+      (phrase(assoc(100, arr), ".length"), 100)
+    case Size(obj) =>
+      (phrase("|", obj, "|"), 120)
+    case Empty(obj) =>
+      (phrase("isEmpty(", obj, ")"), 100)
+    case BagMemberCount(x, xs) =>
+      (phrase("(", x, "\\memberof", xs, ")"), 120)
+    case value: Constant.BooleanValue =>
+      (phrase(if(value.value) "true" else "false"), 100)
+    case MapEq(left, right) =>
+      (phrase("equalsMap(", left, ",", space, right, ")"), 100)
+    case MapDisjoint(left, right) =>
+      (phrase("disjointMap(", left, ",", space, right, ")"), 100)
+    case Forall(bindings, triggers, body) =>
+      (phrase("(", "\\forall", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+    case Exists(bindings, triggers, body) =>
+      (phrase("(", "\\exists", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+    case ValidArray(arr, len) =>
+      (phrase("\\array(", arr, ",", space, len, ")"), 100)
+    case ValidMatrix(mat, w, h) =>
+      (phrase("\\matrix(", mat, ",", space, w, ",", space, h, ")"), 100)
+    case SetMember(x, xs) =>
+      (phrase("(", x, "\\memberof", xs, ")"), 120)
+    case SeqMember(x, xs) =>
+      (phrase("(", x, "\\memberof", xs, ")"), 120)
+    case MapMember(x, xs) =>
+      (phrase("(", x, "\\memberof", xs, ")"), 120)
+    case Permutation(xs, ys) =>
+      ???
+    case Held(obj) =>
+      (phrase("held", "(", obj, ")"), 100)
+    case IdleToken(thread) =>
+      (phrase("idle", "(", thread, ")"), 100)
+    case JoinToken(thread) =>
+      (phrase("running", "(", thread, ")"), 100)
+    case Starall(bindings, triggers, body) =>
+      (phrase("(", "\\forall*", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+    case Star(left, right) =>
+      (phrase(assoc(40, left), space, "**", space, assoc(40, right)), 40)
+    case Wand(left, right) =>
+      (phrase(bind(30, left), space, "-*", space, assoc(30, right)), 30)
+    case Scale(scale, res) =>
+      ???
+    case Perm(loc, perm) =>
+      (phrase("Perm(", loc, ",", space, perm, ")"), 100)
+    case PointsTo(loc, perm, value) =>
+      (phrase("PointsTo(", loc, ",", space, perm, ",", space, value, ")"), 100)
+    case PermPointer(p, len, perm) =>
+      (phrase("\\pointer(", p, ",", space, len, ",", space, perm, ")"), 100)
+    case PermPointerIndex(p, idx, perm) =>
+      (phrase("\\pointer_index(", p, ",", space, idx, ",", space, perm, ")"), 100)
+    case ModelPerm(loc, perm) =>
+      (phrase("HPerm(", loc, ",", space, perm, ")"), 100)
+    case ActionPerm(loc, perm) =>
+      (phrase("APerm(", loc, ",", space, perm, ")"), 100)
+    case NoPerm() =>
+      (phrase("none"), 110)
+    case ReadPerm() =>
+      (phrase("read"), 110)
+    case WritePerm() =>
+      (phrase("write"), 110)
+    case EmptyProcess() =>
+      (phrase("empty"), 110)
+    case ActionApply(action, args) =>
+      (phrase(name(action.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case ProcessApply(process, args) =>
+      (phrase(name(process.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case ProcessSeq(left, right) =>
+      (phrase(assoc(80, left), space, "*", space, assoc(80, right)), 80)
+    case ProcessChoice(left, right) =>
+      (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
+    case ProcessPar(left, right) =>
+      (phrase(assoc(30, left), space, "||", space, assoc(30, right)), 30)
+    case ProcessSelect(cond, whenTrue, whenFalse) =>
+      (phrase(bind(20, cond), space, "?", space, bind(20, whenTrue), space, ":", space, assoc(20, whenFalse)), 20)
+    case value: Constant.IntegerValue =>
+      (phrase(value.value.toString(radix = 10)), 110)
+    case LiteralSeq(element, values) =>
+      (phrase("seq<", element, ">{", commas(values.map(NodePhrase)), "}"), 100)
+    case LiteralSet(element, values) =>
+      (phrase("set<", element, ">{", commas(values.map(NodePhrase)), "}"), 100)
+    case Void() =>
+      ???
+    case AmbiguousThis() =>
+      (phrase("this"), 110)
+    case AmbiguousResult() =>
+      (phrase("\\result"), 110)
+    case CurrentThreadId() =>
+      (phrase("\\current_thread"), 110)
+    case Null() =>
+      (phrase("null"), 110)
+    case Range(from, to) =>
+      (phrase("{", from, space, "..", space, to, "}"), 120)
+    case Values(arr, from, to) =>
+      (phrase("\\values(", arr, ",", space, from, ",", space, to, ")"), 100)
+    case OptSome(e) =>
+      (phrase("Some(", e, ")"), 100)
+    case OptNone() =>
+      (phrase("None"), 110)
+    case MapCons(map, k, v) =>
+      (phrase("buildMap(", map, ",", space, k, ",", space, v, ")"), 100)
+    case MapKeySet(map) =>
+      (phrase("keysMap(", map, ")"), 100)
+    case MapValueSet(map) =>
+      (phrase("valuesMap(", map, ")"), 100)
+    case MapItemSet(map) =>
+      (phrase("itemsMap(", map, ")"), 100)
+    case MapRemove(map, k) =>
+      (phrase("removeFromMap(", map, ",", space, k, ")"), 100)
+    case Let(binding, value, main) =>
+      (phrase("(", "\\let", space, binding, space, "=", space, value, ";", space, main, ")"), 120)
+    case InlinePattern(inner) =>
+      (phrase("{:", space, inner, space, ":}"), 120)
+    case Local(ref) =>
+      (phrase(name(ref.decl)), 110)
+    case Deref(obj, ref) =>
+      (phrase(assoc(100, obj), ".", name(ref.decl)), 100)
+    case ModelDeref(obj, ref) =>
+      (phrase(assoc(100, obj), ".", name(ref.decl)), 100)
+    case DerefPointer(pointer) =>
+      (phrase("*", assoc(90, pointer)), 90)
+    case AddrOf(e) =>
+      (phrase("&", assoc(90, e)), 90)
+    case PredicateApply(ref, args) =>
+      (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case InstancePredicateApply(obj, ref, args) =>
+      (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case ADTFunctionInvocation(ref, args) =>
+      (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case ProcedureInvocation(ref, args, outArgs) =>
+      (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case FunctionInvocation(ref, args) =>
+      (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case MethodInvocation(obj, ref, args, outArgs) =>
+      (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case InstanceFunctionInvocation(obj, ref, args) =>
+      (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case UPlus(arg) =>
+      (phrase("+", assoc(90, arg)), 90)
+    case UMinus(arg) =>
+      (phrase("-", assoc(90, arg)), 90)
+    case BitNot(arg) =>
+      (phrase("~", assoc(90, arg)), 90)
+    case Not(arg) =>
+      (phrase("!", assoc(90, arg)), 90)
+    case Exp(left, right) =>
+      (phrase(bind(85, left), space, "^^", space, assoc(85, right)), 85)
+    case Plus(left, right) =>
+      (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
+    case Minus(left, right) =>
+      (phrase(assoc(70, left), space, "-", space, bind(70, right)), 70)
+    case Mult(left, right) =>
+      (phrase(assoc(80, left), space, "-", space, assoc(80, right)), 80)
+    case Div(left, right) =>
+      (phrase(assoc(80, left), space, "\\", space, bind(80, right)), 80)
+    case Mod(left, right) =>
+      (phrase(assoc(80, left), space, "%", space, bind(80, right)), 80)
+    case FloorDiv(left, right) =>
+      (phrase(assoc(80, left), space, "/", space, bind(80, right)), 80)
+    case BitAnd(left, right) =>
+      (phrase(assoc(46, left), space, "&", space, assoc(46, right)), 46)
+    case BitOr(left, right) =>
+      (phrase(assoc(42, left), space, "|", space, assoc(42, right)), 42)
+    case BitXor(left, right) =>
+      (phrase(assoc(44, left), space, "|", space, assoc(44, right)), 44)
+    case BitShl(left, right) =>
+      (phrase(bind(65, left), space, "<<", space, bind(65, right)), 65)
+    case BitShr(left, right) =>
+      (phrase(bind(65, left), space, ">>", space, bind(65, right)), 65)
+    case BitUShr(left, right) =>
+      (phrase(bind(65, left), space, ">>>", space, bind(65, right)), 65)
+    case And(left, right) =>
+      (phrase(assoc(40, left), space, "&&", space, assoc(40, right)), 40)
+    case Or(left, right) =>
+      (phrase(assoc(30, left), space, "||", space, assoc(30, right)), 30)
+    case Implies(left, right) =>
+      (phrase(bind(30, left), space, "==>", space, assoc(30, right)), 30)
+    case Eq(left, right) =>
+      (phrase(bind(50, left), space, "==", space, bind(50, right)), 50)
+    case Neq(left, right) =>
+      (phrase(bind(50, left), space, "!=", space, bind(50, right)), 50)
+    case Greater(left, right) =>
+      (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
+    case Less(left, right) =>
+      (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
+    case GreaterEq(left, right) =>
+      (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
+    case LessEq(left, right) =>
+      (phrase(bind(60, left), space, "<=", space, bind(60, right)), 60)
+    case SubSet(left, right) =>
+      ???
+    case SubSetEq(left, right) =>
+      ???
+    case Unfolding(pred, body) =>
+      (phrase("\\unfolding", pred, "\\in", body))
+      ???
+    case CurPerm(loc) =>
+      (phrase("perm(", loc, ")"), 100)
+    case Select(condition, whenTrue, whenFalse) =>
+      (phrase(bind(20, condition), space, "?", space, bind(20, whenTrue), space, ":", space, assoc(20, whenFalse)), 20)
+    case NewObject(cls) =>
+      (phrase("new", space, name(cls.decl), "()"), 100)
+    case NewArray(element, dims) =>
+      (phrase("new", space, element, phrase(dims.map(phrase("[", _, "]")):_*)), 100)
+    case Old(expr, at) =>
+      (phrase("\\old(", expr, ")"), 100)
+    case AmbiguousSubscript(collection, index) =>
+      (phrase(assoc(100, collection), "[", index, "]"), 100)
+    case SeqSubscript(seq, index) =>
+      (phrase(assoc(100, seq), "[", index, "]"), 100)
+    case ArraySubscript(arr, index) =>
+      (phrase(assoc(100, arr), "[", index, "]"), 100)
+    case PointerSubscript(pointer, index) =>
+      (phrase(assoc(100, pointer), "[", index, "]"), 100)
+    case Cons(x, xs) =>
+      (phrase(bind(87, x), space, "::", space, assoc(87, xs)), 87)
+    case Head(xs) =>
+      (phrase("head(", xs, ")"), 100)
+    case Tail(xs) =>
+      (phrase("tail(", xs, ")"), 100)
+    case Drop(xs, count) =>
+      (phrase(assoc(100, xs), "[", count, "..]"), 100)
+    case Take(xs, count) =>
+      (phrase(assoc(100, xs), "[..", count, "]"), 100)
+    case Slice(xs, from, to) =>
+      (phrase(assoc(100, xs), "[", from, "..", to, "]"), 100)
+    case SeqUpdate(xs, i, x) =>
+      (phrase(assoc(100, xs), "[", i, space, "->", space, x, "]"), 100)
+    case Concat(xs, ys) =>
+      (phrase(assoc(87, xs), space, "++", space, assoc(87, ys)), 87)
+    case RemoveAt(xs, i) =>
+      (phrase("removeAt(", xs, ",", space, i, ")"), 100)
+    case AmbiguousMember(x, xs) =>
+      (phrase("(", x, "\\memberof", xs, ")"), 120)
+    case OptGet(opt) =>
+      (phrase("getOption(", opt, ")"), 100)
+    case OptGetOrElse(opt, alt) =>
+      (phrase("getOrElseOption(", opt, ",", space, alt, ")"), 100)
+    case MapGet(map, k) =>
+      (phrase("getFromMap(", map, ",", space, k, ")"), 100)
+    case TupGet(tup, index) =>
+      (index match {
+        case 0 => phrase("getFst(", tup, ")")
+        case 1 => phrase("getSnd(", tup, ")")
+        case _ => ???
+      }, 100)
+    case TypeValue(value) =>
+      (phrase(value), 110)
+    case TypeOf(expr) =>
+      (phrase("\\typeof(", expr, ")"), 100)
+    case InstanceOf(value, typeValue) =>
+      (phrase(bind(55, value), space, "instanceof", space, bind(55, typeValue)), 55)
+    case Cast(value, typeValue) =>
+      syntax match {
+        case C => (phrase("(", typeValue, ")", space, assoc(85, value)), 85)
+        case Java => (phrase("(", typeValue, ")", space, assoc(97, value)), 97)
+        case _ => ???
+      }
+    case SubType(left, right) => ???
+    case SuperType(left, right) => ???
+    case PreAssignExpression(target, value) => ???
+    case PostAssignExpression(target, value) => ???
+    case With(pre, value) => ???
+    case Then(value, post) => ???
+  }
+
+  def printType(t: Type): Unit = say(t match {
+    case CPrimitiveType(specifiers) =>
+      spaced(specifiers.map(NodePhrase))
+    case JavaTUnion(types) =>
+      intersperse(phrase(space, "|", space), types.map(NodePhrase))
+    case JavaTClass(names) =>
+      intersperse(".", names.map(_._1).map(Text))
+    case TVoid() => phrase("void")
+    case TBool() => syntax(
+      C -> phrase("_Bool"),
+      Java -> phrase("boolean"),
+      PVL -> phrase("boolean"),
+      Silver -> phrase("Bool"),
+    )
+    case TFloat() => phrase("float")
+    case TChar() => phrase("char")
+    case TString() => phrase("String")
+    case TRef() => phrase("Ref")
+    case TArray(element) => phrase(element, "[]")
+    case TPointer(element) => phrase("*", element)
+    case TProcess() => phrase("process")
+    case TModel(model) => phrase(name(model.decl))
+    case TAxiomatic(adt, args) => phrase(name(adt.decl))
+    case TOption(element) => phrase("option<", element, ">")
+    case TTuple(Seq(t1, t2)) => phrase("tuple<", t1, ",", space, t2, ">")
+    case TTuple(_) => ???
+    case TSeq(element) => phrase("seq<", element, ">")
+    case TSet(element) => phrase("set<", element, ">")
+    case TBag(element) => phrase("bag<", element, ">")
+    case TMap(key, value) => phrase("map<", key, ",", space, value, ">")
+    case TType(t) => phrase(t)
+    case TNotAValue() => ???
+    case TAny() => phrase("any")
+    case TNull() => ???
+    case TResource() => phrase("resource")
+    case TInt() => phrase("int")
+    case TBoundedInt(gte, lt) => phrase("int")
+    case TRational() => phrase("rational")
+    case TFraction() => phrase("frac")
+    case TZFraction() => phrase("zfrac")
+    case TClass(cls) => phrase(name(cls.decl))
+  })
+
+  def printDeclaration(decl: Declaration): Unit = say(decl match {
+    case CDeclaration(contract, kernelInvariant, specs, inits) =>
+      phrase(doubleline,
+        spec(contract, clauses(kernelInvariant, "kernel_invariant")),
+        spaced(specs.map(NodePhrase)), space, spaced(inits.map(NodePhrase)),
+        doubleline)
+    case CParam(specifiers, declarator) =>
+      phrase(spaced(specifiers.map(NodePhrase)), space, declarator)
+    case JavaLocalDeclaration(modifiers, t, decls) =>
+      phrase(spaced(modifiers.map(NodePhrase)), space, t, space, javaDecls(decls))
+    case CFunctionDefinition(specs, declarator, body) =>
+      control(phrase(spaced(specs.map(NodePhrase)), space, declarator), body)
+    case CGlobalDeclaration(decl) => decl
+    case JavaNamespace(pkg, imports, declarations) =>
+      phrase(
+        if(pkg.nonEmpty) statement("package", space, pkg.get) else phrase(),
+        phrase(imports.map(NodePhrase):_*),
+        doubleline,
+        phrase(declarations.map(NodePhrase):_*),
+      )
+    case JavaClass(name, modifiers, typeParams, ext, imp, decls) =>
+      phrase(
+        doubleline,
+        phrase(modifiers.map(NodePhrase):_*), space, "class", space, name, space,
+        "extends", space, ext, imp match {
+          case Nil => phrase()
+          case ts => phrase("implements ", commas(ts.map(NodePhrase)))
+        }, space, "{",
+        indent(phrase(decls.map(NodePhrase):_*)),
+        "}",
+        doubleline,
+      )
+    case JavaInterface(name, modifiers, typeParams, ext, decls) =>
+      phrase(
+        doubleline,
+        phrase(modifiers.map(NodePhrase):_*), space, "interface", space, name,
+        ext match {
+          case Nil => phrase()
+          case ts => phrase("extends ", commas(ts.map(NodePhrase)))
+        }, space, "{",
+        indent(phrase(decls.map(NodePhrase):_*)),
+        "}",
+        doubleline,
+      )
+    case field: SilverField =>
+      statement("field ", name(field), ": ", field.t)
+    case rule: SimplificationRule =>
+      statement("axiom", space, name(rule), space, "{", newline, indent(rule.axiom), "}")
+    case dataType: AxiomaticDataType =>
+      ???
+    case function: Function =>
+      phrase(
+        doubleline,
+        spec(function.contract),
+        if(function.inline) phrase("inline") else phrase(), space, "pure", space, function.returnType,
+        name(function), "(", commas(function.args.map(NodePhrase)), ")",
+        function.body match {
+          case Some(body) => phrase(space, "=", newline, indent(body))
+          case None => phrase(";")
+        },
+        doubleline,
+      )
+    case procedure: Procedure =>
+      val header = phrase(
+        spec(procedure.contract),
+        procedure.returnType, space, name(procedure), "(", commas(procedure.args.map(NodePhrase)), ")",
+      )
+
+      procedure.body match {
+        case Some(body) =>  control(header, body)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
+    case predicate: Predicate =>
+      val header = phrase(
+        "resource", space, name(predicate), "(", commas(predicate.args.map(NodePhrase)), ")",
+      )
+
+      predicate.body match {
+        case Some(body) => control(header, body)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
+    case clazz: Class =>
+      phrase(
+        doubleline,
+        "class", space, name(clazz), space, "{",
+        indent(phrase(clazz.declarations.map(NodePhrase):_*)),
+        "}",
+        doubleline,
+      )
+    case model: Model =>
+      ???
+    case JavaSharedInitialization(isStatic, initialization) =>
+      phrase(
+        doubleline,
+        if(isStatic) phrase("static", space) else phrase(),
+        initialization,
+        doubleline,
+      )
+    case JavaFields(modifiers, t, decls) =>
+      statement(spaced(modifiers.map(NodePhrase)), space, t, space, spaced(decls.map {
+        case (name, dims, init) =>
+          phrase(name, "[]".repeat(dims), if(init.isEmpty) phrase() else phrase(space, "=", space, init.get))
+      }))
+    case JavaConstructor(modifiers, name, parameters, typeParameters, signals, body, contract) =>
+      control(
+        phrase(contract, spaced(modifiers.map(NodePhrase)), space, name, "(", commas(parameters.map(NodePhrase)), ")"),
+        body,
+      )
+    case JavaMethod(modifiers, returnType, dims, name, parameters, typeParameters, signals, body, contract) =>
+      val header = phrase(
+        contract,
+        spaced(modifiers.map(NodePhrase)), space, returnType, space, name, "[]".repeat(dims),
+        "(", commas(parameters.map(NodePhrase)), ")",
+      )
+
+      body match {
+        case Some(body) => control(header, body)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
+    case function: InstanceFunction =>
+      val header = phrase(
+        function.contract,
+        if(function.inline) phrase("inline", space) else phrase(),
+        "pure", space, function.returnType, space, name(function), "(", commas(function.args.map(NodePhrase)), ")",
+      )
+
+      function.body match {
+        case Some(body) => phrase(doubleline, header, space, "=", space, newline, indent(body, ";"), doubleline)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
+    case method: InstanceMethod =>
+      val header = phrase(
+        method.contract,
+        if(method.inline) phrase("inline", space) else phrase(),
+        if(method.pure) phrase("pure", space) else phrase(),
+        method.returnType, space, name(method), "(", commas(method.args.map(NodePhrase)), ")",
+      )
+
+      method.body match {
+        case Some(body) => control(header, body)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
+    case predicate: InstancePredicate =>
+      val header = phrase(
+        if(predicate.threadLocal) phrase("thread_local") else phrase(),
+        if(predicate.inline) phrase("inline", space) else phrase(),
+        "resource", space, predicate.returnType, space, name(predicate), "(", commas(predicate.args.map(NodePhrase)), ")",
+      )
+
+      predicate.body match {
+        case Some(body) => phrase(doubleline, header, space, "=", space, newline, indent(body, ";"), doubleline)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
+    case field: Field =>
+      statement(field.t, space, name(field))
+    case variable: Variable =>
+      phrase(variable.t, space, name(variable))
+    case decl: LabelDecl =>
+      ???
+    case decl: ParBlockDecl =>
+      ???
+    case decl: ParInvariantDecl =>
+      ???
+    case ADTAxiom(axiom) =>
+      ???
+    case function: ADTFunction =>
+      ???
+    case process: ModelProcess =>
+      ???
+    case action: ModelAction =>
+      ???
+    case field: ModelField =>
+      ???
+  })
+
+  def printApplicableContract(node: ApplicableContract): Unit =
+    say(spec(
+      phrase(node.givenArgs.map(v => phrase(newline, "given", space, v, ";", newline)):_*),
+      clauses(node.contextEverywhere, "context_everywhere"),
+      clauses(node.requires, "requires"),
+      clauses(node.ensures, "ensures"),
+      phrase(node.signals.map(NodePhrase):_*),
+      phrase(node.yieldsArgs.map(v => phrase(newline, "yields", space, v, ";", newline)):_*),
+    ))
+
+  def printParBlock(parBlock: ParBlock, label: String): Unit = {
+    val header = phrase(label, space, name(parBlock.decl), "(", commas(parBlock.iters.map(NodePhrase)), ")")
+    val contract = spec(clauses(parBlock.requires, "requires"), clauses(parBlock.ensures, "ensures"))
+    say(
+      newline,
+      header,
+      newline,
+      contract,
+      newline,
+      parBlock.content,
+    )
+  }
+
+  def printCatchClause(catchClause: CatchClause): Unit =
+    ???
+
+  def printSignalsClause(node: SignalsClause): Unit =
+    say(phrase(newline, "signals", space, "(", node.binding, ")", space, node.assn, ";", newline))
+
+  def printFieldFlag(fieldFlag: FieldFlag): Unit = fieldFlag match {
+    case value: Final => say("final")
+  }
+
+  def printIterVariable(iterVariable: IterVariable): Unit =
+    say(iterVariable.variable, space, "=", space, iterVariable.from, space, "..", space, iterVariable.to)
+
+  def printSilverPredicateAccess(silverPredAcc: SilverPredicateAccess): Unit =
+    ???
+
+  def printCDeclarator(node: CDeclarator): Unit = node match {
+    case CPointerDeclarator(pointers, inner) =>
+      say("*".repeat(pointers.size), inner)
+    case CArrayDeclarator(qualifiers, size, inner) =>
+      say(inner, "[]")
+    case CTypedFunctionDeclarator(params, varargs, inner) =>
+      say(inner, "(", commas(params.map(NodePhrase)), ")")
+    case CAnonymousFunctionDeclarator(params, inner) =>
+      ???
+    case CName(name) => say(name)
+  }
+
+  def printCDeclarationSpecifier(cDeclSpec: CDeclarationSpecifier): Unit = cDeclSpec match {
+    case CPure() => say("pure")
+    case CInline() => say("inline")
+    case CTypedef() => say("typedef")
+    case CStatic() => say("static")
+    case CVoid() => say("void")
+    case CChar() => say("char")
+    case CShort() => say("short")
+    case CInt() => say("int")
+    case CLong() => say("long")
+    case CFloat() => say("float")
+    case CDouble() => say("double")
+    case CSigned() => say("signed")
+    case CUnsigned() => say("unsigned")
+    case CBool() => say("bool")
+    case CTypedefName(name) => say(name)
+    case CSpecificationType(t) => say(t)
+    case CTypeQualifierDeclarationSpecifier(typeQual) => say(typeQual)
+    case CKernel() => say("__kernel")
+  }
+
+  def printCTypeQualifier(node: CTypeQualifier): Unit = node match {
+    case CConst() => say("const")
+    case CRestrict() => say("restrict")
+    case CVolatile() => say("volatile")
+    case CAtomic() => say("_Atomic")
+  }
+
+  def printCPointer(node: CPointer): Unit =
+    ???
+
+  def printCInit(node: CInit): Unit =
+    node.init match {
+      case Some(value) => say(node.decl, space, "=", space, value)
+      case None => say(node.decl)
+    }
+
+  def printJavaModifier(node: JavaModifier): Unit = node match {
+    case JavaPublic() => say("public")
+    case JavaProtected() => say("protected")
+    case JavaPrivate() => say("private")
+    case JavaStatic() => say("static")
+    case JavaAbstract() => say("abstract")
+    case JavaFinal() => say("final")
+    case JavaStrictFP() => say("strictfp")
+    case JavaNative() => say("native")
+    case JavaSynchronized() => say("synchronized")
+    case JavaTransient() => say("transient")
+    case JavaVolatile() => say("volatile")
+    case JavaPure() => say(inlineSpec("pure"))
+    case JavaInline() => say(inlineSpec("inline"))
+  }
+
+  def printJavaImport(node: JavaImport): Unit =
+    say(statement(
+      "import", space,
+      if(node.isStatic) phrase("static", space) else phrase(),
+      node.name,
+      if(node.star) phrase(".*") else phrase()))
+
+  def printJavaName(node: JavaName): Unit =
+    say(node.names.mkString("."))
+
+  def print(node: Node): Unit = node match {
+    case program: Program => printProgram(program)
+    case stat: Statement => printStatement(stat)
+    case e: Expr => printExpr(e)
+    case t: Type => printType(t)
+    case decl: Declaration => printDeclaration(decl)
+    case node: ApplicableContract => printApplicableContract(node)
+    case parBlock: ParBlock => printParBlock(parBlock, "par")
+    case catchClause: CatchClause => printCatchClause(catchClause)
+    case node: SignalsClause => printSignalsClause(node)
+    case fieldFlag: FieldFlag => printFieldFlag(fieldFlag)
+    case iterVariable: IterVariable => printIterVariable(iterVariable)
+    case silverPredAcc: SilverPredicateAccess => printSilverPredicateAccess(silverPredAcc)
+    case node: CDeclarator => printCDeclarator(node)
+    case cDeclSpec: CDeclarationSpecifier => printCDeclarationSpecifier(cDeclSpec)
+    case node: CTypeQualifier => printCTypeQualifier(node)
+    case node: CPointer => printCPointer(node)
+    case node: CInit => printCInit(node)
+    case node: JavaModifier => printJavaModifier(node)
+    case node: JavaImport => printJavaImport(node)
+    case node: JavaName => printJavaName(node)
+  }
 }

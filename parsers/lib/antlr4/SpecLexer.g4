@@ -42,6 +42,9 @@ VAL_SET: 'set';
 VAL_BAG: 'bag';
 VAL_LOC: 'loc';
 VAL_POINTER: 'pointer';
+VAL_MAP: 'map';
+VAL_OPTION: 'option';
+VAL_TUPLE: 'tuple';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
@@ -169,3 +172,8 @@ WAND: '-*';
 RANGE_TO: '..';
 TRIGGER_OPEN: '{:';
 TRIGGER_CLOSE: ':}';
+LITERAL_BAG_OPEN: 'b{';
+EMPTY_SEQ_OPEN: '[t:';
+EMPTY_SET_OPEN: '{t:';
+EMPTY_BAG_OPEN: 'b{t:';
+ARROW_LEFT: '<-';

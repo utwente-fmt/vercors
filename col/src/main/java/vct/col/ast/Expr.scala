@@ -99,6 +99,10 @@ case class LiteralSet(element: Type, values: Seq[Expr])(implicit val o: Origin) 
   override def t: Type = TSet(element)
 }
 
+case class LiteralBag(element: Type, values: Seq[Expr])(implicit val o: Origin) extends Check(values.flatMap(_.checkSubType(element))) with Expr {
+  override def t: Type = TBag(element)
+}
+
 case class Void()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TVoid()
 }

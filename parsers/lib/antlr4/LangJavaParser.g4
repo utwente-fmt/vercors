@@ -577,37 +577,45 @@ constantExpression
     ;
 
 expression
-    :   {specLevel>0}? valPrimary
-    |   primary
-    |   expression '.' javaIdentifier
-    |   expression '.' 'this'
-    |   expression '.' 'new' nonWildcardTypeArguments? innerCreator
-    |   expression '.' 'super' superSuffix
-    |   expression '.' explicitGenericInvocation
-    |   expression '[' expression ']'
-    |   expression '->' javaIdentifier arguments
-    |   expression '.' javaIdentifier predicateEntryType? arguments valEmbedWithThen?
-    |   'new' creator
-    |   '(' type ')' expression
-    |   expression ('++' | '--')
-    |   ('+'|'-'|'++'|'--') expression
-    |   ('~'|'!') expression
-    |   expression mulOp expression
-    |   expression ('+'|'-') expression
-    |   expression shiftOp expression
-    |   expression ('<=' | '>=' | '>' | '<') expression
-    |   expression 'instanceof' type
-    |   expression ('==' | '!=') expression
-    |   expression '&' expression
-    |   expression '^' expression
-    |   expression '|' expression
-    |   expression andOp expression
-    |   expression '||' expression
-    |   expression impOp  expression
-    |   expression '?' expression ':' expression
-    |   <assoc=right> expression assignOp expression
+    :   {specLevel>0}? valPrimary # javaValPrimary
+    |   primary # javaPrimary
+    |   expression '.' javaIdentifier # javaDeref
+    |   expression '.' 'this' # javaPinnedThis
+    |   expression '.' 'new' nonWildcardTypeArguments? innerCreator # javaPinnedOuterClassNew
+    |   expression '.' 'super' superSuffix # javaSuper
+    |   expression '.' explicitGenericInvocation # javaGenericInvocation
+    |   expression '[' expression ']' # javaSubscript
+    |   expression '->' javaIdentifier arguments # javaNonNullInvocation
+    |   expression '.' javaIdentifier predicateEntryType? arguments valEmbedWithThen? # javaInvocation
+    |   expression postfixOp # javaValPostfix
+    |   'new' creator # javaNew
+    |   '(' type ')' expression # javaCast
+    |   expression ('++' | '--') # javaPostfixIncDec
+    |   ('+'|'-'|'++'|'--') expression # javaPrefixOp
+    |   ('~'|'!') expression # javaPrefixOp2
+    |   <assoc=right> expression prependOp expression # javaValPrepend
+    |   expression mulOp expression # javaMul
+    |   expression ('+'|'-') expression # javaAdd
+    |   expression shiftOp expression # javaShift
+    |   expression relOp expression # javaRel
+    |   expression 'instanceof' type # javaInstanceOf
+    |   expression ('==' | '!=') expression # javaEquals
+    |   expression '&' expression # javaBitAnd
+    |   expression '^' expression # javaBitXor
+    |   expression '|' expression # javaBitOr
+    |   expression andOp expression # javaAnd
+    |   expression '||' expression # javaOr
+    |   <assoc=right> expression impOp  expression # javaValImp
+    |   expression '?' expression ':' expression # javaSelect
+    |   <assoc=right> expression assignOp expression # javaAssign
     ;
 predicateEntryType: '@' javaIdentifier; // TODO: Find correct class type
+prependOp
+    : {specLevel>0}? valPrependOp
+    ;
+postfixOp
+    : {specLevel>0}? valPostfix
+    ;
 mulOp
     : ('*'|'/'|'%')
     | {specLevel>0}? valMulOp
@@ -623,6 +631,10 @@ andOp
     ;
 impOp
     : {specLevel>0}? valImpOp
+    ;
+relOp
+    : ('<=' | '>=' | '>' | '<')
+    | {specLevel>0}? valInOp
     ;
 shiftOp
     :   '<' '<'
