@@ -161,7 +161,7 @@ domain VectorExpression[T] {
     forall xs: VectorExpression[T], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= 0 && j > i) ==> vsum(vrange(i, j), xs) == vadd(vsum(vrange(i, j-1), xs), vget(xs, j-1))
   }
   axiom extend_vsum_r2 {
-    forall xs: VectorExpression[Int], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i < 0 || i >= j || j >= vsize(xs)) ==> (vsum(vrange(i, j), xs) == 0)
+    forall xs: VectorExpression[Int], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= j) ==> (vsum(vrange(i, j), xs) == 0)
   }
 }
 
