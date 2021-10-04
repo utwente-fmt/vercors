@@ -36,7 +36,7 @@ class Main {
     void run() {
         s.init();
         s.check();
-        //  System.out.println("stretch tree of depth " + s.stretchDepth + "\t check: " s.check);
+        //  System.out.println("stretch tree of depth " + s.stretchDepth + "\t check: "  +  s.check);
         l.init();
         par 
         context Perm(a,1\2) ** Perm(a.check,1) ** Perm(a.index,1) ** Perm(a.depth,1\2) ** Perm(a.MIN_DEPTH,1\2) ** Perm(a.iterations,1\2) ** a.iterations > 0;
@@ -55,7 +55,7 @@ class Main {
         //System.out.println(b.iterations + "\t trees of depth " + b.depth + "\t check: " + b.check);
         //System.out.println(c.iterations + "\t trees of depth " + c.depth + "\t check: " + c.check);
         l.check();
-        //System.out.println("long lived tree of depth " + longLivedTree.maxDepth + "\t check: " + longLivedTree.check);
+        //System.out.println("long lived tree of depth " + l.maxDepth + "\t check: " + l.check);
     }
     
     void main() {
