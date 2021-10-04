@@ -1,0 +1,153 @@
+class Main {
+    MapCreator a,b,c;
+    FrequencyCalculator d, e;
+    FrequencyCount f1, f2, f3, f4, f5;
+    MapSum s;
+    
+    Main(int[] sequence) {
+        // int[] fragmentLengths = { 1, 2, 3, 4, 6, 12, 18 };
+        a = new MapCreator(sequence,0,1);
+        b = new MapCreator(sequence,1,1);
+        c = new MapCreator(sequence,0,2);
+    }
+    
+    void run() {
+        par
+        {
+            a.createFragmentMap();
+        }
+        {
+            b.createFragmentMap();
+        }
+        {
+            c.createFragmentMap();
+        }
+        
+        d.frequenciesKeys = a.resmapkeys;
+        d.frequenciesValues = a.resmapvalues;
+        d.writeFrequencies();
+        //system out frequencies d
+        s.map1Values = b.resmapvalues;
+        s.map2Values = c.resmapvalues;
+        e.frequenciesKeys = b.resmapkeys;
+        e.frequenciesValues = s.result;
+        e.writeFrequencies();
+        //system out frequencies e
+        //send frequencies of mapCreators to FrequencyCounters
+        f1.writeCount();
+        f2.writeCount();
+        f3.writeCount();
+        f4.writeCount();
+        f5.writeCount();
+    }
+    
+}
+
+class MapCreator {
+    
+    int[] resmapkeys;
+    int[] resmapvalues;
+    int[] sequence;
+    int offset, fragmentLength;
+    
+    MapCreator(int[] sequ, int offs, int fragL) {
+        sequence = sequ;
+        offset = offs;
+        fragmentLength = fragL;
+        resmapkeys = new int[sequence.length - fragmentLength - offset];
+        resmapvalues = new int[sequence.length - fragmentLength - offset];
+    }
+    
+    void createFragmentMap() {
+        int lastIndex = sequence.length - fragmentLength + 1;
+        for (int index = offset; index < lastIndex; index = index + fragmentLength) {
+            int key = getKey(sequence, index, fragmentLength);
+            resmapkeys[index - offset] = key;
+            resmapvalues[index -offset] = 1;
+        }
+
+    }
+    
+    /**
+     * Get the long key for given byte array of codes at given offset and length
+     * (length must be less than 32)
+     */
+    static int getKey(int[] arr, int offset, int length) {
+        int key = 0;
+        for (int i = offset; i < offset + length; i++) {
+            key = key * 4 + arr[i];
+        }
+        return key;
+    }
+}
+
+class FrequencyCalculator {
+    
+    int[] frequenciesKeys;
+    int[] frequenciesValues;
+    int fragmentLength;
+    int totalCount;
+    int[] nucleotides; // = { 'A', 'C', 'G', 'T' };
+    int[][] resultKeys;
+    int[] resultValues;
+    
+    FrequencyCalculator(int fl, int tc, int[] nu) {
+        fragmentLength = fl;
+        totalCount = tc;
+        nucleotides = nu;
+    }
+    
+    void writeFrequencies() {
+        resultKeys = new int[frequenciesKeys.length][fragmentLength];
+        resultValues = new int[frequenciesKeys.length];
+        for(int i = 0; i < frequenciesValues.length; i++) {
+            keyToString(frequenciesKeys[i], i);
+            resultValues[i] = frequenciesValues[i] * 100 / totalCount;
+        }
+    }
+    
+    void keyToString(int key, int resIndex) {
+        for (int i = 0; i < fragmentLength; i++) {
+            resultKeys[resIndex][fragmentLength - i - 1] = nucleotides[(key % 3)];
+            key = key / 4;
+        }
+    }
+    
+}
+
+class MapSum {
+    
+    int[] map1Values;
+    int[] map2Values;
+    int[] result;
+    
+    void sumTwoMaps() {
+        result = new int[map1Values.length];
+        for(int i = 0; i < map1Values.length; i++) {
+            result[i] = map1Values[i] + map2Values[i]; //asuming that keys are at same indices!
+        }
+    }
+}
+
+class FrequencyCount {
+    
+    int[] result;
+    int[][] futures;
+    int[] nucleotideFragment;
+    
+    void writeCount() {
+/*            throws Exception {
+        byte[] key = toCodes(nucleotideFragment.getBytes(StandardCharsets.ISO_8859_1),
+                nucleotideFragment.length());
+        long k = getKey(key, 0, nucleotideFragment.length());
+        int count = 0;
+        for (Future<Result> future : futures) {
+            Result f = future.get();
+            if (f.keyLength == nucleotideFragment.length()) {
+                count += f.map.get(k);
+            }
+        }
+
+        return count + "\t" + nucleotideFragment + '\n'; */
+    }
+}
