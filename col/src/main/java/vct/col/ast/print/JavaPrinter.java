@@ -227,6 +227,7 @@ public class JavaPrinter extends AbstractPrinter {
       setExpr();
       ASTNode prop=e.getArg(0);
       prop.accept(this);
+      out.println(";");
       break;
     }
     case Fold:{
@@ -235,6 +236,7 @@ public class JavaPrinter extends AbstractPrinter {
         setExpr();
         ASTNode prop=e.getArg(0);
         prop.accept(this);
+        out.println(";");
         break;
       }
     case Use:{
@@ -774,7 +776,7 @@ public class JavaPrinter extends AbstractPrinter {
     }
     ASTNode body=m.getBody();
     if (body==null) {
-      out.lnprintf("{}");
+      out.lnprintf("{ \nthrow new UnsupportedOperationException(\"Method %s has not been implemented\");\n}",m.getName());
     } else if (body instanceof BlockStatement) {
       body.accept(this);
       out.lnprintf("");

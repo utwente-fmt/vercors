@@ -855,7 +855,7 @@ object Passes {
       "RemoveRecursiveActionClass", "remove super class RecursiveAction, by converting java methods to ASTSpecials",
       new RemoveRecursiveActionClass(_).rewriteAll(),
       removes = Set(features.RecursiveActionInheritance),
-      permits=Feature.DEFAULT_PERMIT + features.TopLevelImplementedMethod + features.TopLevelMethod + features.PVLSugar + features.NullAsOptionValue + features.NotJavaEncoded + features.NeedsSatCheck,
+      permits=Feature.DEFAULT_PERMIT + features.TopLevelImplementedMethod + features.TopLevelMethod + features.PVLSugar + features.NullAsOptionValue + features.NotJavaEncoded + features.NeedsSatCheck + features.ArgumentAssignment,
       introduces = Feature.DEFAULT_INTRODUCE - features.NotFlattened - features.ArrayOps + features.PVLSugar
     ),
   )
