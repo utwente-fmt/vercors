@@ -23,7 +23,7 @@ public class ColIParser extends Parser {
     ErrorCounter ec = errorCounter(parser, lexer, file_name);
 
     CParser.CompilationUnitContext tree = parser.compilationUnit();
-    Progress("first parsing pass took %dms",tk.show());
+    Progress("First parsing pass took %dms",tk.show());
     ec.report();
     Debug("parser got: %s",tree.toStringTree(parser));
 

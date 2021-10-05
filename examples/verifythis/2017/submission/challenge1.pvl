@@ -1,0 +1,95 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases 2017_challenge1
+//:: tools silicon
+//:: verdict Pass
+
+// https://formal.iti.kit.edu/ulbrich/verifythis2017
+
+
+class ChallengeOne {
+	
+	requires A != null;
+	context (\forall* int k; 0 <= k && k < A.length; Perm(A[k], write));
+	ensures (\forall int k; 0 <= k && k < A.length - 2; A[k] <= A[k+1]);
+	int[] sort(int[] A) {
+		int i = 0;
+		
+		loop_invariant A != null;
+		loop_invariant 0 <= i && i <= A.length;
+		loop_invariant (\forall* int k; 0 <= k && k < A.length; Perm(A[k], write));
+		loop_invariant (\forall int k; 0 <= k && k < i - 1; A[k] <= A[k+1]);
+		while (i < A.length - 1) {
+			int x = A[i];
+			int y = A[i + 1];
+			
+			if (x < y) {
+				int temp = x; x = y; y = temp;
+			}
+			
+			assert x >= y;
+
+			int j = i - 1;
+
+			// while j >= 0 and A[j] > x
+			loop_invariant x >= y;
+			loop_invariant -1 <= j && j <= i - 1;
+			loop_invariant (\forall* int k; 0 <= k && k < A.length; Perm(A[k], write));
+			loop_invariant (\forall int k; 0 <= k && k < j; A[k] <= A[k+1]);
+			loop_invariant (\forall int k; j+3 <= k && k <= i+1; A[k] > x);
+			loop_invariant i+1 < A.length;
+			loop_invariant 0 <= j ==> (\forall int l; j+3 <= l && l <= i+1; A[j] <= A[l]);
+			loop_invariant (\forall int k; j+3 <= k && k <= i; A[k] <= A[k+1]);
+			while (0 <= j && A[j] > x) {
+				A[j+2] = A[j];
+				j = j-1;
+			}
+			
+			/* ghost */ int jj = j;
+			A[j+2] = x;
+			
+			assert (\forall int k; jj+2 <= k && k <= i+1; A[k] >= y);
+			assert (\forall int k; jj+2 <= k && k <= i; A[k] <= A[k+1]);
+			
+			//while j >= 0 and A[j] > y
+			loop_invariant -1 <= j && j <= jj;
+			loop_invariant (\forall* int k; 0 <= k && k < A.length; Perm(A[k], write));
+			loop_invariant (\forall int k; 0 <= k && k < j; A[k] <= A[k+1]);
+			loop_invariant (\forall int k; j+2 <= k && k <= i+1; A[k] >= y);
+			loop_invariant i+1 < A.length;
+			loop_invariant 0 <= j ==> (\forall int l; j+2 <= l && l <= i+1; A[j] <= A[l]);
+			///* proven, but slow */ loop_invariant (\forall int k; jj+2 <= k && k <= i; A[k] <= A[k+1]);
+			///* proven, but slow */ loop_invariant (\forall int k; j+2 <= k && k <= jj+1; A[k] <= A[k+1]);
+			while (j >= 0 && A[j] > y) {
+				A[j+1] = A[j];
+				j = j-1;
+			}
+			
+			assume (\forall int k; jj+2 <= k && k <= i; A[k] <= A[k+1]);
+			assume (\forall int k; j+2 <= k && k <= jj+1; A[k] <= A[k+1]);
+			
+			A[j+1] = y;
+			i = i + 2;
+		}
+		
+		if (i == A.length - 1) {
+			int y = A[i];
+			int j = i - 1;
+			
+			// while j >= 0 and A[j] > y
+			loop_invariant -1 <= j && j <= A.length - 2;
+			loop_invariant (\forall* int k; 0 <= k && k < A.length; Perm(A[k], write));
+			loop_invariant (\forall int k; 0 <= k && k < j; A[k] <= A[k+1]);
+			loop_invariant (\forall int k; j+2 <= k && k <= i; A[k] >= y);
+			loop_invariant 0 <= j ==> (\forall int l; j+2 <= l && l <= i; A[j] <= A[l]);
+			loop_invariant (\forall int k; j+2 <= k && k <= i-1; A[k] <= A[k+1]);
+			while (j >= 0 && A[j] > y) {
+				A[j+1] = A[j];
+				j = j - 1;
+			}
+			
+			A[j+1] = y;
+			
+			assert (\forall int k; 0 <= k && k < A.length - 2; A[k] <= A[k+1]);
+		}
+	}
+}
