@@ -324,13 +324,15 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     }
   }
 
-  private def hasImplicitTypeCast(e: AssignmentStatement): Boolean = {
-    val location = e.location
-    val value = e.expression
-    ((location.getType.isFloat && value.getType.isInteger)
-      || (location.getType.isDouble && value.getType.isInteger)
-      || (location.getType.isFloat && value.getType.isDouble)
-      || (location.getType.isDouble && value.getType.isFloat))
+  private def hasImplicitTypeCast(s: DeclarationStatement): Boolean = {
+    s.init match {
+      case Some(expr) =>
+        ((s.getType.isFloat && expr.getType.isInteger)
+          || (s.getType.isDouble && expr.getType.isInteger)
+          || (s.getType.isFloat && expr.getType.isDouble)
+          || (s.getType.isDouble && expr.getType.isFloat))
+      case _ => false
+    }
   }
 
   override def visit(op: OperatorExpression): Unit = {
@@ -429,7 +431,6 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   override def visit(assign: AssignmentStatement): Unit = {
     super.visit(assign)
-    if (hasImplicitTypeCast(assign)) addFeature(ImplicitTypeCast, assign)
     assign.location match {
       case name: NameExpression if name.kind == NameExpressionKind.Argument =>
         val unsortedWithThen = getAncestor(1).isSpecial(ASTSpecial.Kind.With) || getAncestor(1).isSpecial(ASTSpecial.Kind.Then)
@@ -558,6 +559,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
 
   override def visit(decl: DeclarationStatement): Unit = {
     super.visit(decl)
+    if (hasImplicitTypeCast(decl)) addFeature(ImplicitTypeCast, decl)
     if(decl.isValidFlag(ASTFlags.STATIC) && decl.isStatic && getParentNode != null && getParentNode.isInstanceOf[ASTClass])
       addFeature(NotJavaEncoded, decl)
     if(ifDepth > 0 && !getParentNode.isInstanceOf[BindingExpression])

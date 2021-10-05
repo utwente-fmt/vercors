@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast.expr.OperatorExpression
-import vct.col.ast.stmt.decl.ProgramUnit
+import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.generic.ASTNode
@@ -37,15 +37,21 @@ class RewriteImplicitFloatTypeCast(source: ProgramUnit) extends AbstractRewriter
     }
   }
 
-  override def visit(s: AssignmentStatement): Unit = {
-    val location = s.location
-    val value = s.expression
-    val newValue =
-      if (location.getType.isFloat && value.getType.isInteger) create.expression(IntegerToFloat, rewrite(value))
-      if (location.getType.isDouble && value.getType.isInteger) create.expression(IntegerToDouble, rewrite(value))
-      if (location.getType.isFloat && value.getType.isDouble) create.expression(DoubleToFLoat, rewrite(value))
-      if (location.getType.isDouble && value.getType.isFloat) create.expression(FloatToDouble, rewrite(value))
-      else rewrite(value)
-    result = create.assignment(rewrite(location), newValue.asInstanceOf[ASTNode])
+  override def visit(s: DeclarationStatement): Unit = {
+    s.init match {
+      case Some(expr) =>
+        val newExpr =
+          if (s.getType.isFloat && expr.getType.isInteger) create.expression(IntegerToFloat, rewrite(expr))
+          else if (s.getType.isDouble && expr.getType.isInteger) create.expression(IntegerToDouble, rewrite(expr))
+          else if (s.getType.isFloat && expr.getType.isDouble) create.expression(DoubleToFLoat, rewrite(expr))
+          else if (s.getType.isDouble && expr.getType.isFloat) create.expression(FloatToDouble, rewrite(expr))
+          else rewrite(expr)
+        result = create.field_decl(s.name, s.getType, newExpr)
+      case _ =>
+    }
+
+    if (result == null) {
+      super.visit(s)
+    }
   }
 }
