@@ -203,7 +203,8 @@ invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
 
 nonArrayType
- : ('string' | 'int' | 'boolean' | 'void')
+ : valType
+ | ('string' | 'int' | 'boolean' | 'void')
  | classType
  ;
 

@@ -14,16 +14,20 @@ import scala.jdk.CollectionConverters._
 case object Test {
   var files = 0
   var errors = 0
+  var crashes = 0
 
   def main(args: Array[String]): Unit = {
     try {
       CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).foreach(c => {
-        c.files.asScala.filter(f => f.toString.endsWith(".java") || f.toString.endsWith(".c")).foreach(tryParse)
+        c.files.asScala.filter(f =>
+          f.toString.endsWith(".java") ||
+            f.toString.endsWith(".c") ||
+            f.toString.endsWith(".pvl")).foreach(tryParse)
       })
 
 //    tryParse(Path.of("examples/known-problems/threads/SpecifiedThread.java"))
     } finally {
-      println(s"Out of $files files, $errors threw a SystemError.")
+      println(s"Out of $files files, $errors threw a SystemError and $crashes crashed.")
     }
   }
 
@@ -58,6 +62,8 @@ case object Test {
       errors += 1
     case res: VerificationResult =>
       println(res.text)
-//      throw res
+    case e: Throwable =>
+      e.printStackTrace()
+      crashes += 1
   }
 }

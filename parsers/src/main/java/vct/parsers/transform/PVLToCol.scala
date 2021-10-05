@@ -73,7 +73,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   }
 
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration] =
-    ???
+    ??(constructor)
 
   def convert(implicit field: FieldContext): Seq[InstanceField] = field match {
     case Field0(t, ids, _) =>
@@ -89,6 +89,10 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   def convert(implicit exprs: ExprListContext): Seq[Expr] = exprs match {
     case ExprList0(e) => Seq(convert(e))
     case ExprList1(e, _, es) => convert(e) +: convert(es)
+  }
+
+  def convert(implicit tuple: TupleContext): Seq[Expr] = tuple match {
+    case Tuple0(_, exprs, _) => exprs.map(convert(_)).getOrElse(Nil)
   }
 
   def convert(implicit exprs: NewDimsContext): Seq[Expr] = exprs match {
@@ -196,7 +200,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   def convert(implicit expr: PostfixExprContext): Expr = expr match {
     case PostfixExpr0(obj, _, field) => Deref(convert(obj), new UnresolvedRef[InstanceField](convert(field)))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))
-    case PostfixExpr2(obj, args) => ??(expr)
+    case PostfixExpr2(obj, args) => AmbiguousInvocation(convert(obj), convert(args))(blameProvider(expr))
     case PostfixExpr3(obj, specOp) => convert(specOp, convert(obj))
     case PostfixExpr4(inner) => convert(inner)
   }
@@ -207,7 +211,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case Unit2(_) => Null()
     case Unit3(n) => Integer.parseInt(n)
     case Unit4(_, inner, _) => convert(inner)
-    case Unit5(id) => Local(new UnresolvedRef[Variable](convert(id)))
+    case Unit5(id) => PVLLocal(convert(id))
   }
 
   def convert(implicit stat: StatementContext): Statement = stat match {
@@ -287,7 +291,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
       Block(convert(decls, convert(t)))
     case PvlEval(e) => Eval(convert(e))
     case PvlIncDec(name, op) =>
-      val target = Local(new UnresolvedRef[Variable](convert(name)))
+      val target = PVLLocal(convert(name))
       Eval(op match {
         case "++" => PostAssignExpression(target, target + 1)
         case "--" => PostAssignExpression(target, target - 1)
@@ -383,14 +387,15 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   }
 
   def convert(implicit t: NonArrayTypeContext): Type = t match {
-    case NonArrayType0(name) => name match {
+    case NonArrayType0(inner) => convert(inner)
+    case NonArrayType1(name) => name match {
       case "string" => TString()
       case "int" => TInt()
       case "boolean" => TBool()
       case "void" => TVoid()
     }
-    case NonArrayType1(ClassType0(name, typeArgs)) =>
-      TClass(new UnresolvedRef[Class](convert(name)))
+    case NonArrayType2(ClassType0(name, typeArgs)) =>
+      PVLNamedType(convert(name))
   }
 
   def convert(implicit ids: IdentifierListContext): Seq[String] = ids match {
@@ -403,6 +408,11 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case Identifier1(ValIdEscape(id)) => id.substring(1, id.length - 1)
     case Identifier1(reserved) =>
       fail(reserved, "This identifier is reserved and cannot be declared.")
+  }
+
+  def convertExpr(implicit id: IdentifierContext): Expr = id match {
+    case Identifier0(name) => PVLLocal(name)
+    case Identifier1(reserved) => convert(reserved)
   }
 
   def withContract[T](node: ContractContext, f: ContractCollector => T): T = node match {

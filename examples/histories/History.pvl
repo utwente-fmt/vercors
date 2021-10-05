@@ -10,12 +10,12 @@
 //:: options --check-axioms
 //:: verdict Pass
 
-class History {
+model History {
   int x;
   
   modifies x;
   ensures  x==\old(x)+1;
-  process incr();
+  action incr();
   
   modifies x;
   requires n>=0;

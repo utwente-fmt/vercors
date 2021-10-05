@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{AmbiguousResult, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, ContractApplicable, Declaration, Declarator, Deref, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, Node, Program, Scope}
+import vct.col.ast.{AmbiguousResult, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, ContractApplicable, Declaration, Declarator, Deref, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, Node, PVLDeref, PVLLocal, PVLNamedType, Program, Scope, TClass}
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -39,6 +39,9 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
+    case t @ PVLNamedType(name) =>
+      t.ref = Some(PVL.findTypeName(name, ctx).getOrElse(
+        throw NoSuchNameError("class", name, t)))
     case _ =>
   }
 }
@@ -99,6 +102,8 @@ case object ResolveReferences {
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ JavaLocal(name) =>
       local.ref = Some(Java.findJavaName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
+    case local @ PVLLocal(name) =>
+      local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ Local(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
 
@@ -106,6 +111,8 @@ case object ResolveReferences {
       deref.ref = Some(C.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ JavaDeref(obj, field) =>
       deref.ref = Some(Java.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
+    case deref @ PVLDeref(obj, field) =>
+      deref.ref = Some(PVL.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
 
     case inv @ CInvocation(obj, _) =>
       inv.ref = Some(C.resolveInvocation(obj, ctx))
