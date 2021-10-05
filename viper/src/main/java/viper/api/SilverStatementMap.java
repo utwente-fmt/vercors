@@ -18,7 +18,6 @@ import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
@@ -391,18 +390,6 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   @Override
   public S map(VectorBlock vb) {
     return null;
-  }
-  
-  private <F extends ASTNode> ArrayList<E> do_names(List<F> args){
-    ArrayList<E> names = new ArrayList<E>();
-    for (ASTNode n : args) {
-      names.add(n.apply(expr));
-    }
-    return names;
-  }
-  
-  private <F extends ASTNode> ArrayList<E> do_names(F args[]){
-	return do_names(Arrays.asList(args));
   }
 
   @Override

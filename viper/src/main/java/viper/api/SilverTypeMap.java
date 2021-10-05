@@ -12,7 +12,6 @@ import vct.col.ast.langspecific.c.CFunctionType;
 import vct.col.ast.type.*;
 import vct.col.ast.util.TypeMapping;
 import vct.col.ast.util.AbstractRewriter;
-import viper.api.*;
 
 public class SilverTypeMap<T> implements TypeMapping<T> {
 

@@ -155,7 +155,7 @@ public final class PrimitiveType extends Type {
           return true;
         }
 
-        return t.isPrimitive(PrimitiveSort.Option) && ((Type)firstarg()).supertypeof(context, ((Type)((PrimitiveType) t).firstarg()));
+        return t.isPrimitive(PrimitiveSort.Option) && ((Type)firstarg()).supertypeof(context, ((Type)(t).firstarg()));
       case Cell:
         if(firstarg().equals(t)) {
           return true;
@@ -167,7 +167,7 @@ public final class PrimitiveType extends Type {
         }
         // fallthrough
       case Array:
-        return t.isPrimitive(this.sort) && firstarg().equals(((PrimitiveType) t).firstarg());
+        return t.isPrimitive(this.sort) && firstarg().equals(t.firstarg());
       case Pointer:
         if(t.isNull()) {
           return true;

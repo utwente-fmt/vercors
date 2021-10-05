@@ -939,7 +939,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       guard_stack.pop();
       res.addClause(guard,body);
     }
-    result=res; return ;
+    result=res;
   }
 
   @Override

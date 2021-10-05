@@ -36,7 +36,7 @@ public class SilverClassReduction extends AbstractRewriter {
       if (res==null) {
         Type t=n.getType();
         if (t.isPrimitive(PrimitiveSort.Sequence)){
-          t=VectorExpression(rewrite((Type)((PrimitiveType)t).firstarg()));
+          t=VectorExpression(rewrite((Type) t.firstarg()));
           return create.invokation(t,null,"vseq", rewrite(n));
         }
         Fail("cannot map vector expression %s",n);
@@ -56,7 +56,7 @@ public class SilverClassReduction extends AbstractRewriter {
       }
       case VectorCompare:{
         floats=true;
-        Type t=VectorExpression(rewrite((Type)((PrimitiveType)e.getType()).firstarg()));
+        Type t=VectorExpression(rewrite((Type) e.getType().firstarg()));
         return create.invokation(t,null,"vcmp",e.arg(0).apply(this),e.arg(1).apply(this));
       }
       default:
@@ -71,8 +71,8 @@ public class SilverClassReduction extends AbstractRewriter {
       if (res==null) {
         Type t=n.getType();
         if (t.isPrimitive(PrimitiveSort.Sequence)){
-          t=(Type)((PrimitiveType)t).firstarg();
-          t=MatrixExpression(rewrite((Type)((PrimitiveType)t).firstarg()));
+          t=(Type) t.firstarg();
+          t=MatrixExpression(rewrite((Type) t.firstarg()));
           return create.invokation(t,null,"mseq", rewrite(n));
         }
         Fail("cannot map vector expression %s",n);
@@ -92,8 +92,8 @@ public class SilverClassReduction extends AbstractRewriter {
       }
       case MatrixCompare:{
         floats=true;
-        Type t=(Type)((PrimitiveType)e.getType()).firstarg();
-        t=MatrixExpression(rewrite((Type)((PrimitiveType)t).firstarg()));
+        Type t=(Type) e.getType().firstarg();
+        t=MatrixExpression(rewrite((Type) t.firstarg()));
         return create.invokation(t,null,"mcmp",e.arg(0).apply(this),e.arg(1).apply(this));
       }
       default:
@@ -131,8 +131,6 @@ public class SilverClassReduction extends AbstractRewriter {
   };
   
   private static final String SEP="__";
-      
-  private static final String ILLEGAL_CAST="possibly_illegal_cast";
   
   private ASTClass ref_class;
   
@@ -204,7 +202,7 @@ public class SilverClassReduction extends AbstractRewriter {
     case Option:
     {
       options=true;
-      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      List<ASTNode> args = rewrite(t.argsJava());
       args.get(0).addLabel(create.label("T"));
       result=create.class_type("VCTOption",args);
       break;
@@ -220,7 +218,7 @@ public class SilverClassReduction extends AbstractRewriter {
     }
     case Tuple: {
       tuple = true;
-      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      List<ASTNode> args = rewrite(t.argsJava());
       args.get(0).addLabel(create.label("F"));
       args.get(1).addLabel(create.label("S"));
       result=create.class_type("VCTTuple",args);
@@ -229,7 +227,7 @@ public class SilverClassReduction extends AbstractRewriter {
     case Map:
       maps = true;
       tuple = true;
-      List<ASTNode> args = rewrite(((PrimitiveType)t).argsJava());
+      List<ASTNode> args = rewrite(t.argsJava());
       args.get(0).addLabel(create.label("K"));
       args.get(1).addLabel(create.label("V"));
       result=create.class_type("VCTMap",args);
@@ -364,7 +362,7 @@ public class SilverClassReduction extends AbstractRewriter {
     }
     case VectorCompare:{
       floats=true;
-      Type t=VectorExpression(rewrite((Type)((PrimitiveType)e.getType()).firstarg()));
+      Type t=VectorExpression(rewrite((Type) e.getType().firstarg()));
       result=create.invokation(t,null,"vcmp",rewrite(e.argsJava()));
       break;
     }
@@ -376,8 +374,8 @@ public class SilverClassReduction extends AbstractRewriter {
     }
     case MatrixCompare:{
       floats=true;
-      Type t=(Type)((PrimitiveType)e.getType()).firstarg();
-      t=VectorExpression(rewrite((Type)((PrimitiveType)t).firstarg()));
+      Type t=(Type) e.getType().firstarg();
+      t=VectorExpression(rewrite((Type) t.firstarg()));
       result=create.invokation(t,null,"mcmp",rewrite(e.argsJava()));
       break;
     }
@@ -594,13 +592,11 @@ public class SilverClassReduction extends AbstractRewriter {
       break;
     }
       case TupleFst:{
-        ASTNode type = rewrite(e.first().getType().firstarg());
         List<ASTNode> args = rewrite(e.argsJava());
         result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_fst", args);
         break;
     }
     case TupleSnd:{
-        ASTNode type = rewrite(e.first().getType().secondarg());
         List<ASTNode> args = rewrite(e.argsJava());
         result = create.invokation(rewrite(e.first().getType()), null, "vcttuple_snd", args);
         break;
@@ -643,7 +639,7 @@ public class SilverClassReduction extends AbstractRewriter {
       result = map;
     } else if (v.type().isPrimitive(PrimitiveSort.Tuple)) {
       Type resultType = rewrite(v.type());
-      result =  create.invokation(resultType,null,"vcttuple_tuple", rewrite(v.valuesArray()));;
+      result =  create.invokation(resultType,null,"vcttuple_tuple", rewrite(v.valuesArray()));
     } else {
       super.visit(v);
     }
@@ -808,7 +804,7 @@ public class SilverClassReduction extends AbstractRewriter {
         }
 
         create.setOrigin(new MessageOrigin("Generated OptionGet code: " + extraMessage));
-        Type returns=(Type)((ClassType)t).firstarg();
+        Type returns=(Type) t.firstarg();
         String name=entry.getValue();
         ContractBuilder cb=new ContractBuilder();
         cb.requires(neq(create.local_name("x"),create.invokation(t,null,"VCTNone")));

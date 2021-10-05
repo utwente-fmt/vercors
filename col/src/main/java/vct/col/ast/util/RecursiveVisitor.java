@@ -1,6 +1,5 @@
 package vct.col.ast.util;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,16 +25,10 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   public RecursiveVisitor(ProgramUnit source) {
-    super(source,false);
+    super(source);
   }
   public RecursiveVisitor(ProgramUnit source, ProgramUnit target) {
-    super(source, target,false);
-  }
-  public RecursiveVisitor(ProgramUnit source,boolean do_scope) {
-    super(source,do_scope);
-  }
-  public RecursiveVisitor(ProgramUnit source, ProgramUnit target,boolean do_scope) {
-    super(source, target,do_scope);
+    super(source, target);
   }
 
   @Override
@@ -170,7 +163,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   public <E extends ASTNode, F extends ASTNode> void dispatch(Map<E,F> map){
-    HashMap<E, F> res=new HashMap<E,F>();
     for(Map.Entry<E, F> entry:map.entrySet()){
       if (entry.getKey() != null) dispatch(entry.getKey());
       if (entry.getValue() != null) dispatch(entry.getValue());

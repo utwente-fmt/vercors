@@ -15,7 +15,7 @@ import scala.jdk.CollectionConverters._
   * Adds the channels to Thread constructors
   * @param source
   */
-class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractRewriter(source) {
 
   var chanMap = Map.empty[String,Set[ChannelRepr]]
 

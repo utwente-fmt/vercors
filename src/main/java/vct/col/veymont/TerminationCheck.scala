@@ -12,7 +12,7 @@ object TerminationCheck {
   private val deadlockWarning = " might not terminate, deadlock-freedom cannot be guaranteed! "
 }
 
-class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisitor(null, true) {
+class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisitor(source) {
 
   private var encountered = Set.empty[String]
   private var methodCalled = false
