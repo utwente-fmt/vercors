@@ -15,9 +15,7 @@ object GPUOptFlags extends Enumeration {
     val dataLoc = Value("glob_to_reg")
     val iterMerge = Value("iter_merge")
     val tiling = Value("tile")
-    //TODO OS do we need to distinguish between fusion and hostsync
     val fusion = Value("fuse")
-    val hostsync = Value("sync")
 }
 
 abstract case class GPUOpt(val args: List[ASTNode]) extends ASTNode {

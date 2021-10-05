@@ -498,7 +498,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
               }.toMap
 
 
-            val pattsIPlusOnePost = permPatternsIPlusOnePre(sharedVarTmp).zipped
+            val pattsIPlusOnePost = permPatternsIPlusOnePost(sharedVarTmp).zipped
               .groupBy(_._1)
               .map { case (key, value) =>
                 val newValue = value.foldLeft((Seq.empty[ASTNode], Seq.empty[ASTNode])) {
@@ -508,11 +508,17 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
                 (key, newValue)
               }.toMap
 
+            val tmppattsIPlusOne = permPatternsIPlusOnePost(sharedVarTmp)._1.filter(ASTUtils.find_name(_, newTid.name)).toSet
+            val tmppattsI = permPatternsIPost(sharedVarTmp)._1.filter(ASTUtils.find_name(_, newTid.name)).toSet
+            val setOfDifferentPostPatterns = (tmppattsIPlusOne diff tmppattsI) union (tmppattsI diff tmppattsIPlusOne)
+
             pattsIPlusOnePost.foreach { case (currentPatt, (currentPerms, currentAnns)) =>
               if (pattsIPost.contains(currentPatt)) {
                 val ipostperms = pattsIPost(currentPatt)._1.map(interpretPermission).sum
                 val ipostplusoneperms = currentPerms.map(interpretPermission).sum
-                if (ipostplusoneperms < ipostperms) {
+                if (setOfDifferentPostPatterns.nonEmpty && ipostplusoneperms > ipostperms ||
+                  setOfDifferentPostPatterns.isEmpty && ipostplusoneperms < ipostperms
+                ) {
                   currentAnns.foreach(
                     ann => cbFusedParBlock.ensures(
                       replacePerm(pattsIPost(currentPatt)._1.reduce(plus), ann)
@@ -522,8 +528,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
                   currentAnns.foreach(ann => cbFusedParBlock.ensures(copy_rw.rewrite(ann)))
                 }
               } else {
-                // Given this is the case for "both kernels have the exact same patterns", this case should never happen.
-                // But in the spirit of defensive programming, it should remain here.
+
                 currentAnns.foreach(ann => cbFusedParBlock.ensures(copy_rw.rewrite(ann)))
               }
             }
@@ -641,10 +646,10 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
         val newBarrier = create.barrier(null, cbNewBarrier.getContract(false), null, null)
         newParBody.add(newBarrier)
       }
-      pbLabel = None
       pbNewPermsForBarrier = mutable.Map.empty[ASTNode, ASTNode]
 
       fuseBody(kernelIPlusOne).foreach(_.forEachStmt(l => newParBody.add(copy_rw.rewrite(l))))
+      pbLabel = None
 
       inBodyRewrite = false
       ///////////////////////////
