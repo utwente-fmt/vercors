@@ -185,7 +185,7 @@ public class Configuration {
     }
 
     public static File getZ3Path() {
-        File base = getFileOrAbort("/deps/z3/4.8.6");
+        File base = getFileOrAbort("/deps/z3/4.8.12");
 
         switch (getOS()) {
             case WINDOWS:
