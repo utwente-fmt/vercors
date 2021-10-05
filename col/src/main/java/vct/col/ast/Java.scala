@@ -1,7 +1,7 @@
 package vct.col.ast
 
 import hre.util.FuncTools
-import vct.col.resolve.{JavaDerefTarget, JavaInvocationTarget, JavaNameTarget, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefClass, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, JavaDerefTarget, JavaInvocationTarget, JavaNameTarget, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefClass, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
 
 case class JavaName(names: Seq[String])(implicit val o: Origin)
   extends NodeFamily with NoCheck {
@@ -140,6 +140,7 @@ case class JavaDeref(obj: Expr, field: String)(implicit val o: Origin) extends J
     case ref: RefJavaClass => TNotAValue(ref)
     case ref: RefAxiomaticDataType => TNotAValue(ref)
     case RefJavaField(decls, idx) => FuncTools.repeat(TArray(_), decls.decls(idx)._2, decls.t)
+    case BuiltinField(f) => f(obj).t
   }
 }
 
@@ -162,6 +163,7 @@ case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: Stri
     case RefModelProcess(decl) => decl.returnType
     case RefModelAction(decl) => decl.returnType
     case RefJavaMethod(decl) => decl.returnType
+    case BuiltinInstanceMethod(f) => f(obj.get)(arguments).t
   }
 }
 

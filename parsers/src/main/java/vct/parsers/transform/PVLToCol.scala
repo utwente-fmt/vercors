@@ -198,9 +198,9 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   }
 
   def convert(implicit expr: PostfixExprContext): Expr = expr match {
-    case PostfixExpr0(obj, _, field) => Deref(convert(obj), new UnresolvedRef[InstanceField](convert(field)))
+    case PostfixExpr0(obj, _, field) => PVLDeref(convert(obj), convert(field))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))
-    case PostfixExpr2(obj, args) => AmbiguousInvocation(convert(obj), convert(args))(blameProvider(expr))
+    case PostfixExpr2(obj, args) => PVLInvocation(convert(obj), convert(args))(blameProvider(expr))
     case PostfixExpr3(obj, specOp) => convert(specOp, convert(obj))
     case PostfixExpr4(inner) => convert(inner)
   }
@@ -211,7 +211,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case Unit2(_) => Null()
     case Unit3(n) => Integer.parseInt(n)
     case Unit4(_, inner, _) => convert(inner)
-    case Unit5(id) => PVLLocal(convert(id))
+    case Unit5(id) => convertExpr(id)
   }
 
   def convert(implicit stat: StatementContext): Statement = stat match {
@@ -263,15 +263,15 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case PvlAtomic(_, _, invs, _, body) =>
       ParAtomic(convert(invs).map(new UnresolvedRef[ParInvariantDecl](_)), convert(body))
     case PvlWhile(invs, _, _, cond, _, body) =>
-      Loop(Block(Nil), convert(cond), Block(Nil), convert(invs), convert(body))
+      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), convert(invs), convert(body)))
     case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
-      Loop(
+      Scope(Nil, Loop(
         init.map(convert(_)).getOrElse(Block(Nil)),
         cond.map(convert(_)).getOrElse(true),
         update.map(convert(_)).getOrElse(Block(Nil)),
         convert(invs),
         convert(body)
-      )
+      ))
     case PvlBlock(inner) => convert(inner)
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[LabelDecl](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
@@ -319,8 +319,8 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
       ) ++ convert(more, t)
   }
 
-  def convert(implicit block: BlockContext): Block = block match {
-    case Block0(_, stats, _) => Block(stats.map(convert(_)))
+  def convert(implicit block: BlockContext): Statement = block match {
+    case Block0(_, stats, _) => Scope(Nil, Block(stats.map(convert(_))))
   }
 
   def convert(implicit tags: BarrierTagsContext): Seq[Ref[ParInvariantDecl]] = tags match {
@@ -641,7 +641,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
       }
       ModelDo(convert(model), convert(perm), convert(after), convert(action))
     case ValAtomic(_, _, invariant, _, body) =>
-      ParAtomic(Seq(new UnresolvedRef(convert(invariant))), convert(body))
+      ParAtomic(Seq(new UnresolvedRef[ParInvariantDecl](convert(invariant))), convert(body))
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement] = block match {
@@ -715,14 +715,14 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
       withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
           col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
-          c.consume(c.modifies).map(new UnresolvedRef(_)), c.consume(c.accessible).map(new UnresolvedRef(_)))(
+          c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })
     case ValModelAction(contract, _, name, _, args, _, _) =>
       withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
           col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
-          c.consume(c.modifies).map(new UnresolvedRef(_)), c.consume(c.accessible).map(new UnresolvedRef(_)))(
+          c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })
   }
@@ -876,7 +876,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case ValReserved0(name) => fail(res,
       f"This identifier is reserved, and cannot be declared or used in specifications. " +
         f"You might want to escape the identifier with backticks: `$name`")
-    case ValIdEscape(id) => Local(new UnresolvedRef(id.substring(1, id.length-1)))
+    case ValIdEscape(id) => Local(new UnresolvedRef[Variable](id.substring(1, id.length-1)))
     case ValResult(_) => AmbiguousResult()
     case ValCurrentThread(_) => CurrentThreadId()
     case ValNonePerm(_) => NoPerm()

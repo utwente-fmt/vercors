@@ -16,7 +16,7 @@ case object PVL {
   def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext): Option[PVLDerefTarget] =
     obj.t match {
       case t: TNotAValue => t.decl.get match {
-        case
+        case _ => Spec.builtinField(obj, name)
       }
       case t: PVLNamedType => t.ref.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
@@ -34,6 +34,15 @@ case object PVL {
           case ref: RefField if ref.name == name => ref
         }
       }
-      case _ => throw HasNoFields(obj)
+      case _ => Spec.builtinField(obj, name)
+    }
+
+  def resolveInvocation(obj: Expr, ctx: ReferenceResolutionContext): PVLInvocationTarget =
+    obj.t match {
+      case t @ TNotAValue() => t.decl.get match {
+        case target: PVLInvocationTarget => target
+        case _ => throw NotApplicable(obj)
+      }
+      case _ => throw NotApplicable(obj)
     }
 }

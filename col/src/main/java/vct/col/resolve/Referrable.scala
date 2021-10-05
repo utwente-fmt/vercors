@@ -85,6 +85,8 @@ sealed trait Referrable {
     case RefModelField(decl) => Referrable.originName(decl)
     case RefModelProcess(decl) => Referrable.originName(decl)
     case RefModelAction(decl) => Referrable.originName(decl)
+    case BuiltinField(_) => ""
+    case BuiltinInstanceMethod(_) => ""
   }
 }
 sealed trait JavaTypeNameTarget extends Referrable with JavaDerefTarget
@@ -143,3 +145,6 @@ case class RefADTFunction(decl: ADTFunction) extends Referrable with SpecInvocat
 case class RefModelField(decl: ModelField) extends Referrable with SpecDerefTarget
 case class RefModelProcess(decl: ModelProcess) extends Referrable with SpecInvocationTarget
 case class RefModelAction(decl: ModelAction) extends Referrable with SpecInvocationTarget
+
+case class BuiltinField(f: Expr => Expr) extends Referrable with SpecDerefTarget
+case class BuiltinInstanceMethod(f: Expr => Seq[Expr] => Expr) extends Referrable with SpecInvocationTarget

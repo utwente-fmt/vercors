@@ -91,10 +91,10 @@ case object Java {
           decl.decls.flatMap(Referrable.from).collectFirst {
             case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.contains(JavaStatic()) => ref
           }
-        case _ => throw HasNoFields(obj)
+        case _ => Spec.builtinField(obj, name)
       }
       case t @ JavaTClass(_) => t.ref.get match {
-        case RefAxiomaticDataType(decl) => throw HasNoFields(obj)
+        case RefAxiomaticDataType(decl) => Spec.builtinField(obj, name)
         case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
           case ref @ RefModelField(_) if ref.name == name => ref
         }
@@ -102,7 +102,7 @@ case object Java {
           case ref @ RefJavaField(_, _) if ref.name == name && !ref.decls.modifiers.contains(JavaStatic()) => ref
         }
       }
-      case _ => throw HasNoFields(obj)
+      case _ => Spec.builtinField(obj, name)
     }
 
   private def compat(args: Seq[Expr], params: Seq[Variable]): Boolean =

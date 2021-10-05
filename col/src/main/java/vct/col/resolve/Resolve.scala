@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{AmbiguousResult, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, ContractApplicable, Declaration, Declarator, Deref, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, Node, PVLDeref, PVLLocal, PVLNamedType, Program, Scope, TClass}
+import vct.col.ast.{AmbiguousResult, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, ContractApplicable, Declaration, Declarator, Deref, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, ParAtomic, ParBarrier, Program, Scope, TClass}
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -127,6 +127,8 @@ case object ResolveReferences {
         case Some(obj) => Java.findMethod(obj, method, args)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
+    case inv @ PVLInvocation(obj, _) =>
+      inv.ref = Some(PVL.resolveInvocation(obj, ctx))
 
     case goto @ CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
@@ -135,6 +137,28 @@ case object ResolveReferences {
 
     case res @ AmbiguousResult() =>
       res.ref = Some(ctx.currentReturnType.getOrElse(throw ResultOutsideMethod(res)))
+
+    case proc: ModelProcess =>
+      proc.modifies.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
+        .getOrElse(throw NoSuchNameError("field", name, proc))))
+      proc.accessible.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
+        .getOrElse(throw NoSuchNameError("field", name, proc))))
+
+    case act: ModelAction =>
+      act.modifies.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
+        .getOrElse(throw NoSuchNameError("field", name, act))))
+      act.accessible.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
+        .getOrElse(throw NoSuchNameError("field", name, act))))
+
+    case atomic @ ParAtomic(invs, _) =>
+      invs.foreach(_.tryResolve(name => Spec.findParInvariant(name, ctx)
+        .getOrElse(throw NoSuchNameError("invariant", name, atomic))))
+
+    case barrier @ ParBarrier(block, invs, _, _, _) =>
+      block.tryResolve(name => Spec.findParBlock(name, ctx)
+        .getOrElse(throw NoSuchNameError("block", name, barrier)))
+      invs.foreach(_.tryResolve(name => Spec.findParInvariant(name, ctx)
+        .getOrElse(throw NoSuchNameError("invariant", name, barrier))))
 
     case _ =>
   }

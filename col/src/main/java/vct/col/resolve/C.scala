@@ -70,7 +70,7 @@ case object C {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
           case ref: RefADTFunction if ref.name == name => ref
         }
-        case _ => throw HasNoFields(obj)
+        case _ => Spec.builtinField(obj, name)
       }
     }
 
@@ -78,7 +78,7 @@ case object C {
     obj.t match {
       case t @ TNotAValue() => t.decl.get match {
         case target: CInvocationTarget => target
-        case other => throw NotApplicable(obj)
+        case _ => throw NotApplicable(obj)
       }
       case _ => throw NotApplicable(obj)
     }

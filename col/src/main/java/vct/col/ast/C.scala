@@ -1,6 +1,6 @@
 package vct.col.ast
 
-import vct.col.resolve.{C, CDerefTarget, CInvocationTarget, CNameTarget, CTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CDerefTarget, CInvocationTarget, CNameTarget, CTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
 import vct.result.VerificationResult
 
 import scala.annotation.tailrec
@@ -134,11 +134,27 @@ case class CInvocation(applicable: Expr, args: Seq[Expr])(implicit val o: Origin
     case RefInstanceMethod(decl) => decl.returnType
     case RefInstanceFunction(decl) => decl.returnType
     case RefInstancePredicate(decl) => decl.returnType
+    case BuiltinInstanceMethod(f) => applicable match {
+      case CStructAccess(obj, _) => f(obj)(args).t
+    }
   }
 }
 case class CStructAccess(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
   var ref: Option[CDerefTarget] = None
-  override def t: Type = ???
+  override def t: Type = ref.get match {
+    case ref: RefModelField => ref.decl.t
+    case ref: RefFunction => TNotAValue(ref)
+    case ref: RefProcedure => TNotAValue(ref)
+    case ref: RefPredicate => TNotAValue(ref)
+    case ref: RefInstanceFunction => TNotAValue(ref)
+    case ref: RefInstanceMethod => TNotAValue(ref)
+    case ref: RefInstancePredicate => TNotAValue(ref)
+    case ref: RefADTFunction => TNotAValue(ref)
+    case ref: RefModelProcess => TNotAValue(ref)
+    case ref: RefModelAction => TNotAValue(ref)
+    case ref: BuiltinField => ref.f(struct).t
+    case ref: BuiltinInstanceMethod => TNotAValue(ref)
+  }
 }
 case class CStructDeref(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
   override def t: Type = ???
@@ -158,6 +174,7 @@ case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr
     case RefCFunctionDefinition(decl) => C.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) => C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case RefCDeclaration(decls, initIdx) => C.typeOrReturnTypeFromDeclaration(decls.specs, decls.inits(initIdx).decl)
+    case BuiltinInstanceMethod(f) => ???
   }
 }
 

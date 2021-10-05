@@ -25,7 +25,7 @@ case object Test {
             f.toString.endsWith(".pvl")).foreach(tryParse)
       })
 
-//    tryParse(Path.of("examples/known-problems/threads/SpecifiedThread.java"))
+//      tryParse(Path.of("examples/carp/forward-host.pvl"))
     } finally {
       println(s"Out of $files files, $errors threw a SystemError and $crashes crashed.")
     }
@@ -39,7 +39,7 @@ case object Test {
       case TypeErrorText(expr, message) =>
         println(expr.o.messageInContext(message(expr.t)))
       case OutOfScopeError(ref) =>
-        println("Out of scope")
+        ref.decl.o.messageInContext("Out of scope!")
       case IncomparableTypes(left, right) =>
         println(s"Types $left and $right are incomparable")
     }

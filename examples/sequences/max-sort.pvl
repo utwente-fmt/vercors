@@ -76,12 +76,12 @@ class MaxSort {
     ensures (\forall int g; 0 <= g && g < n; \result[g] == xs[g]);
     ensures (\forall int g; n < g && g < |xs|; \result[g] == xs[g]);
     ensures \result[n] == val;
-    pure static seq<int> Set(seq<int> xs, int n, int val) =
+    static pure seq<int> Set(seq<int> xs, int n, int val) =
         n > 0 ?
         head(xs)::MaxSort.Set(tail(xs), n-1, val) :
         val::tail(xs);
 
-    pure static boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
+    static pure boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
 
     requires |xs| > 0;
     ensures 0 <= \result && \result < |xs|;

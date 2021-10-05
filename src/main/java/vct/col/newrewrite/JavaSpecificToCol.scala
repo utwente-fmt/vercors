@@ -5,7 +5,7 @@ import vct.col.ast.Constant._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.ast.util.SuccessionMap
-import vct.col.resolve.{Java, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, Java, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
 
 import scala.collection.mutable
 
@@ -236,6 +236,7 @@ case class JavaSpecificToCol() extends Rewriter {
         case RefUnloadedJavaNamespace(names) => ???
         case RefJavaField(decls, idx) =>
           Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))
+        case BuiltinField(f) => f(dispatch(obj))
       }
 
     case JavaLiteralArray(_) => ???
@@ -273,6 +274,8 @@ case class JavaSpecificToCol() extends Rewriter {
               ref = typedSucc[InstanceMethod](decl),
               args = args.map(dispatch), outArgs = Nil)(null)
           }
+        case BuiltinInstanceMethod(f) =>
+          f(dispatch(obj.get))(args.map(dispatch))
       }
 
     case inv @ JavaNewClass(args, typeParams, t @ JavaTClass(_)) =>

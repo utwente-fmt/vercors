@@ -185,6 +185,8 @@ sealed trait Applicable extends Declaration with Declarator {
   def inline: Boolean
 
   override def declarations: Seq[Declaration] = args
+
+  override def enterCheckContext(context: CheckContext): CheckContext = context.withApplicable(this)
 }
 
 sealed trait AbstractPredicate extends Applicable {

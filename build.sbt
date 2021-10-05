@@ -105,7 +105,7 @@ lazy val vercors: Project = (project in file("."))
       "-feature",
       "-unchecked",
       "-Ypatmat-exhaust-depth",
-      "off"
+      "40",
     ),
 
     Compile / javacOptions ++= Seq(
