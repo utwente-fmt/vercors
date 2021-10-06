@@ -148,6 +148,7 @@ public class SilverBackend {
         }
       }
     } catch (Exception e){
+      Output("%s", "An exception was thrown while running the silver backend!");
       log.exception(e);
       Output(e.toString());
     } finally {
