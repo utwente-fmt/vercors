@@ -53,7 +53,7 @@ class C {
 
     invariant inv(
         N > 0
-        ** Perm(contrib, 1\(N+1))
+        ** Perm(contrib, 2\(2 * (N+1)))
         ** contrib.length == N
         ** (\forall* int i = 0..N; Perm(contrib[i], 1\2))
         ** Perm(b, write)
@@ -73,9 +73,11 @@ class C {
             // Fails:
             // b = false;
             // contrib[tid] = false;
+
+            // This is needed to convice vercors that after the lemma we still have enough permission for contrib
+            assert perm(this.contrib) > 0;
           }
         }
-        assert 0 < perm(this.contrib);
       }
     }
 
