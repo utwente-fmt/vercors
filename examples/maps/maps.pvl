@@ -6,7 +6,8 @@
 class MapsInPVL {
 	void main() {
 		map<int, boolean> m1 = map<int,boolean>{1 -> true, 2 -> true, 0 -> false};
-		
+
+		assert keysMap(m1) == keysMap(map<int,boolean>{1 -> true, 2 -> true, 0 -> false, 1 -> false, 1 -> true});
 		assert m1 == map<int,boolean>{1 -> true, 2 -> true, 0 -> false, 1 -> false, 1 -> true};
 		assert m1[1] && !m1[0];
 		assert !isEmpty(m1);
