@@ -105,7 +105,7 @@ case object Java {
       case _ => Spec.builtinField(obj, name)
     }
 
-  private def compat(args: Seq[Expr], params: Seq[Variable]): Boolean =
+  def compat(args: Seq[Expr], params: Seq[Variable]): Boolean =
     args.size == params.size && params.zip(args).forall {
       case (v, e) => v.t.superTypeOf(e.t)
     }

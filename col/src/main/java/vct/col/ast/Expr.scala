@@ -11,7 +11,7 @@ sealed trait Expr extends NodeFamily {
     else
       Seq(TypeError(this, other))
 
-  private def isOfClassType: Boolean = t match {
+  private def isOfClassType: Boolean = t.mimics match {
     case TClass(_) => true
     case t @ JavaTClass(_) => t.ref.get match {
       case RefAxiomaticDataType(_) => false
@@ -24,6 +24,12 @@ sealed trait Expr extends NodeFamily {
   def checkClassType: Seq[CheckError] =
     if(isOfClassType) Nil
     else Seq(TypeErrorText(this, got => s"Expected a class type, but got $got"))
+
+  def checkModelType: Seq[CheckError] =
+    t match {
+      case TModel(_) => Nil
+      case _ => Seq(TypeErrorText(this, got => s"Expected a model type, but got $got"))
+    }
 
   def checkSeqThen(whenOk: TSeq => Seq[CheckError] = _ => Nil): Seq[CheckError] =
     t.asSeq.map(whenOk).getOrElse(Seq(TypeError(this, TSeq(TAny()))))
@@ -61,6 +67,9 @@ sealed trait RationalExpr extends Expr {
 }
 sealed trait ProcessExpr extends Expr {
   override def t: Type = TProcess()
+}
+sealed trait VoidExpr extends Expr {
+  override def t: Type = TVoid()
 }
 
 sealed abstract class Constant[T] extends Expr {
@@ -293,6 +302,26 @@ sealed trait DividingExpr extends Expr {
   def blame: Blame[DivByZero]
 }
 
+sealed trait NumericOrProcessBinExpr extends BinExpr {
+  override def t: Type = Type.leastCommonSuperType(left.t, right.t)
+
+  override def check(context: CheckContext): Seq[CheckError] = left.t match {
+    case TProcess() => right.checkSubType(TProcess())
+    case _ => left.checkSubType(TRational()) ++ right.checkSubType(TRational())
+  }
+}
+
+case class AmbiguousMult(left: Expr, right: Expr)(implicit val o: Origin) extends NumericOrProcessBinExpr
+case class AmbiguousPlus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericOrProcessBinExpr
+case class AmbiguousOr(left: Expr, right: Expr)(implicit val o: Origin) extends BinExpr {
+  override def t: Type = Type.leastCommonSuperType(left.t, right.t)
+
+  override def check(context: CheckContext): Seq[CheckError] = left.t match {
+    case TProcess() => right.checkSubType(TProcess())
+    case _ => left.checkSubType(TBool()) ++ right.checkSubType(TBool())
+  }
+}
+
 case class Exp(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Plus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Minus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
@@ -333,6 +362,9 @@ case class Unfolding(pred: Expr, body: Expr)(implicit val o: Origin) extends Che
 }
 
 case class Perm(loc: Expr, perm: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational())) with ResourceExpr
+case class HPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational())) with ResourceExpr
+case class APerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational())) with ResourceExpr
+
 case class PointsTo(loc: Expr, perm: Expr, value: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational()), value.checkSubType(loc.t)) with ResourceExpr
 case class CurPerm(loc: Expr)(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TRational()
@@ -625,6 +657,40 @@ case class ProcessPar(left: Expr, right: Expr)(implicit val o: Origin)
   extends Check(left.checkSubType(TProcess()), right.checkSubType(TProcess())) with ProcessExpr
 case class ProcessSelect(cond: Expr, whenTrue: Expr, whenFalse: Expr)(implicit val o: Origin)
   extends Check(cond.checkSubType(TBool()), whenTrue.checkSubType(TProcess()), whenFalse.checkSubType(TProcess())) with ProcessExpr
+
+case class ModelNew(ref: Ref[Model])(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TModel(ref)
+}
+
+case class ModelState(model: Expr, perm: Expr, state: Expr)(implicit val o: Origin) extends ResourceExpr {
+  override def check(context: CheckContext): Seq[CheckError] = model.checkModelThen() ++ state.checkSubType(TProcess()) ++ perm.checkSubType(TRational())
+}
+case class ModelAbstractState(model: Expr, state: Expr)(implicit val o: Origin) extends ResourceExpr {
+  override def check(context: CheckContext): Seq[CheckError] = model.checkModelThen() ++ state.checkSubType(TResource())
+}
+case class ModelCreate(model: Expr, init: Expr)(implicit val o: Origin) extends VoidExpr {
+  override def check(context: CheckContext): Seq[CheckError] = model.checkModelThen() ++ init.checkSubType(TProcess())
+}
+case class ModelDestroy(model: Expr)(implicit val o: Origin) extends VoidExpr {
+  override def check(context: CheckContext): Seq[CheckError] = model.checkModelThen()
+}
+case class ModelSplit(model: Expr, leftPerm: Expr, leftProcess: Expr, rightPerm: Expr, rightProcess: Expr)(implicit val o: Origin) extends VoidExpr {
+  override def check(context: CheckContext): Seq[CheckError] =
+    model.checkModelThen() ++
+      leftProcess.checkSubType(TProcess()) ++ rightProcess.checkSubType(TProcess()) ++
+      leftPerm.checkSubType(TRational()) ++ rightPerm.checkSubType(TRational())
+}
+case class ModelMerge(model: Expr, leftPerm: Expr, leftProcess: Expr, rightPerm: Expr, rightProcess: Expr)(implicit val o: Origin) extends VoidExpr {
+  override def check(context: CheckContext): Seq[CheckError] =
+    model.checkModelThen() ++
+      leftProcess.checkSubType(TProcess()) ++ rightProcess.checkSubType(TProcess()) ++
+      leftPerm.checkSubType(TRational()) ++ rightPerm.checkSubType(TRational())
+}
+case class ModelChoose(model: Expr, perm: Expr, totalProcess: Expr, choice: Expr)(implicit val o: Origin) extends VoidExpr {
+  override def check(context: CheckContext): Seq[CheckError] =
+    model.checkModelThen() ++ perm.checkSubType(TRational()) ++
+      totalProcess.checkSubType(TProcess()) ++ choice.checkSubType(TProcess())
+}
 
 case class ModelPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational())) with ResourceExpr
 case class ActionPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational())) with ResourceExpr

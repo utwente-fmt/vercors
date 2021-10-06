@@ -552,18 +552,6 @@ case class Printer(out: Appendable,
       spec(statement("apply", space, wand))
     case WandUse(pred) =>
       spec(statement("use", space, pred))
-    case ModelCreate(target, model, process) =>
-      ???
-    case ModelDestroy(model) =>
-      ???
-    case ModelSplitInto(model, leftPerm, left, rightPerm, right) =>
-      ???
-    case ModelMergeFrom(model, leftPerm, left, rightPerm, right) =>
-      ???
-    case ModelChoose(model, perm, choiceProcess, choice) =>
-      ???
-    case ModelDo(model, perm, after, action) =>
-      ???
     case Havoc(loc) =>
       ???
     case Break(label) =>

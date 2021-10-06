@@ -86,14 +86,14 @@ class MaxSort {
     requires |xs| > 0;
     ensures 0 <= \result && \result < |xs|;
     ensures (\forall int i; 0 <= i && i < |xs|; xs[i] <= xs[\result]);
-    pure static int max(seq<int> xs) = maxhelper(xs, 0);
+    static pure int max(seq<int> xs) = maxhelper(xs, 0);
 
     requires |xs| > 0;
     requires 0 <= j && j < |xs|;
     ensures 0 <= \result && \result < |xs|;
     ensures \result >= j;
     ensures (\forall int i; j <= i && i < |xs|; xs[i] <= xs[\result]);
-    pure static int maxhelper(seq<int> xs, int j) =
+    static pure int maxhelper(seq<int> xs, int j) =
         j == |xs|-1 ?
             j:
             (xs[j] > xs[maxhelper(xs, j+1)] ?

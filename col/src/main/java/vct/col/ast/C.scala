@@ -117,6 +117,7 @@ case class CLocal(name: String)(implicit val o: Origin) extends CExpr with NoChe
         case Some(_) => TNotAValue(ref) // Function declaration
         case None => declInfo.typeOrReturnType(CPrimitiveType(decls.specs)) // Static declaration
       }
+    case RefModelField(field) => field.t
   }
 }
 case class CInvocation(applicable: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {

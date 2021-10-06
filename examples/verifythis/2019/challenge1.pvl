@@ -23,33 +23,33 @@ class Challenge1 {
 	
 	ensures \result == (\forall int i; 0 <= i && i < |xs| - 1; xs[i] <= xs[i + 1]);
 	ensures (\result && 0 < |xs|) ==> (\forall int i; 0 <= i && i < |xs|; xs[0] <= xs[i]);
-	pure boolean incr(seq<int> xs) = 1 < |xs| ==> (xs[0] <= xs[1] && incr(tail(xs)));
+	pure boolean incr(seq<int> xs) = 1 < |xs| ==> (xs[0] <= xs[1] && incr(xs.tail));
 	
 	ensures \result == (\forall int i; 0 <= i && i < |xs| - 1; xs[i] >= xs[i + 1]);
 	ensures (\result && 0 < |xs|) ==> (\forall int i; 0 <= i && i < |xs|; xs[0] >= xs[i]);
-	pure boolean decr(seq<int> xs) = 1 < |xs| ==> (xs[0] >= xs[1] && decr(tail(xs)));
+	pure boolean decr(seq<int> xs) = 1 < |xs| ==> (xs[0] >= xs[1] && decr(xs.tail));
 	
-	pure seq<int> flatten(seq<seq<int>> xs) = 0 < |xs| ? head(xs) + flatten(tail(xs)) : seq<int> { };
+	pure seq<int> flatten(seq<seq<int>> xs) = 0 < |xs| ? xs.head + flatten(xs.tail) : seq<int> { };
 	
 	ensures |\result| == |xs|;
 	ensures (\forall int i; 0 <= i && i < |xs|; \result[i] == xs[|xs| - 1 - i]);
-	seq<int> rev(seq<int> xs) = 0 < |xs| ? rev(tail(xs)) + seq<int> { head(xs) } : seq<int> { };
+	pure seq<int> rev(seq<int> xs) = 0 < |xs| ? rev(xs.tail) + seq<int> { xs.head } : seq<int> { };
 	
 	requires 0 <= n && n <= |xs|;
 	ensures |\result| == |xs| - n;
 	ensures (\forall int i; 0 <= i && i < |xs| - n; \result[i] == xs[i + n]);
-	pure seq<int> skip(seq<int> xs, int n) = 0 < n ? skip(tail(xs), n - 1) : xs;
+	pure seq<int> skip(seq<int> xs, int n) = 0 < n ? skip(xs.tail, n - 1) : xs;
 	
 	ensures |\result| == |xs|;
-	pure bag<int> tobag(seq<int> xs) = 0 < |xs| ? bag<int> { head(xs) } + tobag(tail(xs)) : bag<int> { };
+	pure bag<int> tobag(seq<int> xs) = 0 < |xs| ? bag<int> { xs.head } + tobag(xs.tail) : bag<int> { };
 	
 	resource ListRepr(seq<int> xs, seq<int> ys, seq<int> zs) = xs == ys + zs;
 	
 	resource Maximality(seq<seq<int>> xs, seq<boolean> dir) =
 		|xs| == |dir| &&
 		(\forall int i; 0 <= i && i < |xs|; 0 < |xs[i]|) &&
-		(\forall int i; 0 <= i && i < |xs| - 1 && dir[i]; last(xs[i]) >= head(xs[i + 1])) &&
-		(\forall int i; 0 <= i && i < |xs| - 1 && !dir[i]; last(xs[i]) < head(xs[i + 1]));
+		(\forall int i; 0 <= i && i < |xs| - 1 && dir[i]; last(xs[i]) >= xs[i + 1].head) &&
+		(\forall int i; 0 <= i && i < |xs| - 1 && !dir[i]; last(xs[i]) < xs[i + 1].head);
 	
 	
 	/** ** Lemmas */
@@ -68,22 +68,22 @@ class Challenge1 {
 	
 	ensures flatten(seq<seq<int>> { x } + xs) == x + flatten(xs);
 	void lemma_flatten_cons(seq<int> x, seq<seq<int>> xs) {
-		assert tail(seq<seq<int>> { x } + xs) == xs;
+		assert (seq<seq<int>> { x } + xs).tail == xs;
 	}
 	
 	ensures flatten(xs + ys) == flatten(xs) + flatten(ys);
 	void lemma_flatten_app(seq<seq<int>> xs, seq<seq<int>> ys) {
 		if (0 < |xs|) {
-			lemma_flatten_app(tail(xs), ys);
-			assert xs == seq<seq<int>> { head(xs) } + tail(xs);
-			lemma_sseq_app_assoc(seq<seq<int>> { head(xs) }, tail(xs), ys);
-			lemma_flatten_cons(head(xs), tail(xs) + ys);
+			lemma_flatten_app(xs.tail, ys);
+			assert xs == seq<seq<int>> { xs.head } + xs.tail;
+			lemma_sseq_app_assoc(seq<seq<int>> { xs.head }, xs.tail, ys);
+			lemma_flatten_cons(xs.head, xs.tail + ys);
 		}
 	}
 	
 	ensures flatten(seq<seq<int>> { x }) == x;
 	void lemma_flatten_singleton(seq<int> x) {
-		assert flatten(seq<seq<int>> { x }) == head(seq<seq<int>> { x }) + flatten(tail(seq<seq<int>> { x }));
+		assert flatten(seq<seq<int>> { x }) == seq<seq<int>> { x }.head + flatten(seq<seq<int>> { x }.tail);
 	}
 	
 	requires ListRepr(xs, ys, zs1 + zs2);
@@ -108,8 +108,8 @@ class Challenge1 {
 	
 	requires 0 < |xs| && |xs| == |dir| && 0 < |x|;
 	requires (\forall int i; 0 <= i && i < |xs|; 0 < |xs[i]|);
-	requires last(dir) ==> last(last(xs)) >= head(x);
-	requires !last(dir) ==> last(last(xs)) < head(x);
+	requires last(dir) ==> last(last(xs)) >= x.head;
+	requires !last(dir) ==> last(last(xs)) < x.head;
 	requires Maximality(xs, dir);
 	ensures Maximality(xs + seq<seq<int>> { x }, dir + seq<boolean> { d });
 	void lemma_Maximality_add(seq<seq<int>> xs, seq<boolean> dir, seq<int> x, boolean d) {
@@ -119,16 +119,16 @@ class Challenge1 {
 	
 	ensures tobag(seq<int> { x } + xs) == bag<int> { x } + tobag(xs);
 	void lemma_tobag_cons(int x, seq<int> xs) {
-		assert tail(seq<int> { x } + xs) == xs;
+		assert (seq<int> { x } + xs).tail == xs;
 	}
 	
 	ensures tobag(xs + ys) == tobag(xs) + tobag(ys);
 	void lemma_tobag_split(seq<int> xs, seq<int> ys) {
 		if (0 < |xs|) {
-			lemma_tobag_split(tail(xs), ys);
-			assert xs == seq<int> { head(xs) } + tail(xs);
-			lemma_seq_app_assoc(seq<int> { head(xs) }, tail(xs), ys);
-			lemma_tobag_cons(head(xs), tail(xs) + ys);
+			lemma_tobag_split(xs.tail, ys);
+			assert xs == seq<int> { xs.head } + xs.tail;
+			lemma_seq_app_assoc(seq<int> { xs.head }, xs.tail, ys);
+			lemma_tobag_cons(xs.head, xs.tail + ys);
 		}
 	}
 	
@@ -141,10 +141,10 @@ class Challenge1 {
 	ensures tobag(xs) == tobag(rev(xs));
 	void lemma_tobag_rev(seq<int> xs) {
 		if (0 < |xs|) {
-			lemma_tobag_rev(tail(xs));
-			assert xs == seq<int> { head(xs) } + tail(xs);
-			lemma_tobag_app(rev(tail(xs)), seq<int> { head(xs) });
-			lemma_tobag_cons(head(xs), rev(tail(xs)));
+			lemma_tobag_rev(xs.tail);
+			assert xs == seq<int> { xs.head } + xs.tail;
+			lemma_tobag_app(rev(xs.tail), seq<int> { xs.head });
+			lemma_tobag_cons(xs.head, rev(xs.tail));
 		}
 	}
 	
@@ -153,13 +153,13 @@ class Challenge1 {
 	ensures tobag(flatten(xs)) == tobag(flatten(ys));
 	void lemma_flatten_tobag(seq<seq<int>> xs, seq<seq<int>> ys) {
 		if (0 < |xs|) {
-			lemma_flatten_tobag(tail(xs), tail(ys));
-			assert xs == seq<seq<int>> { head(xs) } + tail(xs);
-			assert ys == seq<seq<int>> { head(ys) } + tail(ys);
-			lemma_flatten_cons(head(xs), tail(xs));
-			lemma_tobag_split(head(xs), flatten(tail(xs)));
-			lemma_flatten_cons(head(ys), tail(ys));
-			lemma_tobag_split(head(ys), flatten(tail(ys)));
+			lemma_flatten_tobag(xs.tail, ys.tail);
+			assert xs == seq<seq<int>> { xs.head } + xs.tail;
+			assert ys == seq<seq<int>> { ys.head } + ys.tail;
+			lemma_flatten_cons(xs.head, xs.tail);
+			lemma_tobag_split(xs.head, flatten(xs.tail));
+			lemma_flatten_cons(ys.head, ys.tail);
+			lemma_tobag_split(ys.head, flatten(ys.tail));
 		}
 	}
 	
@@ -181,8 +181,8 @@ class Challenge1 {
 	ensures (\forall int i; 0 <= i && i < |\result| && direction[i]; (\forall int j; 0 <= j && j < |\result[i]| - 1; \result[i][j] < \result[i][j + 1]));
 	ensures (\forall int i; 0 <= i && i < |\result| && !direction[i]; (\forall int j; 0 <= j && j < |\result[i]| - 1; \result[i][j] >= \result[i][j + 1]));
 	ensures (\forall int i; 0 <= i && i < |\result|; 0 < |\result[i]|);
-	ensures (\forall int i; 0 <= i && i < |\result| - 1 && direction[i]; last(\result[i]) >= head(\result[i + 1])); // maximality
-	ensures (\forall int i; 0 <= i && i < |\result| - 1 && !direction[i]; last(\result[i]) < head(\result[i + 1])); // maximality
+	ensures (\forall int i; 0 <= i && i < |\result| - 1 && direction[i]; last(\result[i]) >= \result[i + 1].head); // maximality
+	ensures (\forall int i; 0 <= i && i < |\result| - 1 && !direction[i]; last(\result[i]) < \result[i + 1].head); // maximality
 	seq<seq<int>> part1a(seq<int> xs) {
 		seq<seq<int>> result = seq<seq<int>> { };
 		direction = seq<boolean> { };
@@ -213,7 +213,7 @@ class Challenge1 {
 			
 			loop_invariant 0 <= x && x < y && y <= |xs|;
 			loop_invariant |current| == y - x;
-			loop_invariant head(current) == xs[x];
+			loop_invariant current.head == xs[x];
 			loop_invariant (\forall int i; 0 <= i && i < |current|; current[i] == xs[x + i]);
 			loop_invariant incr ==> (\forall int i; 0 <= i && i < |current| - 1; current[i] < current[i + 1]);
 			loop_invariant !incr ==> (\forall int i; 0 <= i && i < |current| - 1; current[i] >= current[i + 1]);
@@ -221,8 +221,8 @@ class Challenge1 {
 			loop_invariant ListRepr(xs, flatten(result), current + skip(xs, y));
 			loop_invariant Maximality(result, direction);
 			loop_invariant (\forall int i; 0 <= i && i < |result|; 0 < |result[i]|);
-			loop_invariant (x < |xs| && 0 < |result| && last(direction)) ==> last(last(result)) >= head(current);
-			loop_invariant (x < |xs| && 0 < |result| && !last(direction)) ==> last(last(result)) < head(current);
+			loop_invariant (x < |xs| && 0 < |result| && last(direction)) ==> last(last(result)) >= current.head;
+			loop_invariant (x < |xs| && 0 < |result| && !last(direction)) ==> last(last(result)) < current.head;
 			while (y < |xs| && (xs[y - 1] < xs[y] == incr)) {
 				lemma_skip_unfold_once(xs, y);
 				lemma_seq_app_assoc(current, seq<int> { xs[y] }, skip(xs, y + 1));
@@ -301,29 +301,29 @@ class Challenge1 {
 	requires incr(ys);
 	ensures |\result| == |xs| + |ys|;
 	ensures tobag(\result) == tobag(xs) + tobag(ys);
-	ensures (0 < |xs| && 0 == |ys|) ==> (head(\result) == head(xs));
-	ensures (0 == |xs| && 0 < |ys|) ==> (head(\result) == head(ys));
-	ensures (0 < |xs| && 0 < |ys|) ==> (head(\result) == head(xs) || head(\result) == head(ys));
+	ensures (0 < |xs| && 0 == |ys|) ==> (\result.head == xs.head);
+	ensures (0 == |xs| && 0 < |ys|) ==> (\result.head == ys.head);
+	ensures (0 < |xs| && 0 < |ys|) ==> (\result.head == xs.head || \result.head == ys.head);
 	ensures incr(\result);
 	seq<int> mergelists(seq<int> xs, seq<int> ys) {
 		if (0 < |xs| && 0 < |ys|) {
-			if (head(xs) < head(ys)) {
-				seq<int> rec = mergelists(tail(xs), ys);
-				seq<int> res = seq<int> { head(xs) } + rec;
+			if (xs.head < ys.head) {
+				seq<int> rec = mergelists(xs.tail, ys);
+				seq<int> res = seq<int> { xs.head } + rec;
 
-				assert xs == seq<int> { head(xs) } + tail(xs);
-				lemma_tobag_cons(head(xs), rec);
-				lemma_tobag_cons(head(xs), tail(xs));
+				assert xs == seq<int> { xs.head } + xs.tail;
+				lemma_tobag_cons(xs.head, rec);
+				lemma_tobag_cons(xs.head, xs.tail);
 				
 				return res;
 			}
 			else {
-				seq<int> rec = mergelists(xs, tail(ys));
-				seq<int> res = seq<int> { head(ys) } + rec;
+				seq<int> rec = mergelists(xs, ys.tail);
+				seq<int> res = seq<int> { ys.head } + rec;
 				
-				assert ys == seq<int> { head(ys) } + tail(ys);
-				lemma_tobag_cons(head(ys), rec);
-				lemma_tobag_cons(head(ys), tail(ys));
+				assert ys == seq<int> { ys.head } + ys.tail;
+				lemma_tobag_cons(ys.head, rec);
+				lemma_tobag_cons(ys.head, ys.tail);
 				
 				return res;
 			}
@@ -345,25 +345,25 @@ class Challenge1 {
 	seq<int> mergeall(seq<seq<int>> xs) {
 		if (1 < |xs|) {
 			seq<int> tmp = mergelists(xs[0], xs[1]);
-			seq<int> rec = mergeall(seq<seq<int>> { tmp } + tail(tail(xs)));
+			seq<int> rec = mergeall(seq<seq<int>> { tmp } + xs.tail.tail);
 			
-			lemma_flatten_cons(tmp, tail(tail(xs)));
-			lemma_tobag_split(tmp, flatten(tail(tail(xs))));
+			lemma_flatten_cons(tmp, xs.tail.tail);
+			lemma_tobag_split(tmp, flatten(xs.tail.tail));
 			lemma_tobag_split(xs[0], xs[1]);
-			lemma_tobag_split(xs[0] + xs[1], flatten(tail(tail(xs))));
+			lemma_tobag_split(xs[0] + xs[1], flatten(xs.tail.tail));
 			lemma_flatten_singleton(xs[0] + xs[1]);
 			lemma_flatten_split_two(xs[0], xs[1]);
-			lemma_flatten_app(seq<seq<int>> { xs[0], xs[1] }, tail(tail(xs)));
-			assert seq<seq<int>> { xs[0], xs[1] } + tail(tail(xs)) == xs; // needed
+			lemma_flatten_app(seq<seq<int>> { xs[0], xs[1] }, xs.tail.tail);
+			assert seq<seq<int>> { xs[0], xs[1] } + xs.tail.tail == xs; // needed
 
 			return rec;
 		}
 		else {
 			if (|xs| == 1) {
-				assert xs == seq<seq<int>> { head(xs) };
-				lemma_flatten_singleton(head(xs));
+				assert xs == seq<seq<int>> { xs.head };
+				lemma_flatten_singleton(xs.head);
 				
-				return head(xs);
+				return xs.head;
 			}
 			else {
 				return seq<int> { };

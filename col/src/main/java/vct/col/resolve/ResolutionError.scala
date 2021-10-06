@@ -9,6 +9,10 @@ case class NoSuchNameError(kind: String, name: String, use: Node) extends Resolu
   override def text: String = use.o.messageInContext(s"Could not find $kind named $name.")
 }
 
+case class NoSuchConstructor(use: Node) extends ResolutionError {
+  override def text: String = use.o.messageInContext("Could not find a constructor matching the supplied arguments.")
+}
+
 case class NameLost(o: Origin) extends SystemError {
   override def text: String = o.messageInContext("The origin of this node no longer carries its original name.")
 }

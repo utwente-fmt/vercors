@@ -9,6 +9,7 @@ case class ReferenceResolutionContext(stack: Seq[Seq[Referrable]] = Nil,
                                       checkContext: CheckContext = CheckContext(),
                                       currentJavaNamespace: Option[JavaNamespace] = None,
                                       currentJavaClass: Option[JavaClassOrInterface] = None,
+                                      currentThisType: Option[Type] = None,
                                       currentReturnType: Option[Type] = None,
                                      ) {
   def replace(stack: Seq[Seq[Referrable]] = stack,
@@ -16,9 +17,10 @@ case class ReferenceResolutionContext(stack: Seq[Seq[Referrable]] = Nil,
               checkContext: CheckContext = checkContext,
               currentJavaNamespace: Option[JavaNamespace] = currentJavaNamespace,
               currentJavaClass: Option[JavaClassOrInterface] = currentJavaClass,
+              currentThisType: Option[Type] = currentThisType,
               currentReturnType: Option[Type] = currentReturnType,
              ): ReferenceResolutionContext =
-    ReferenceResolutionContext(stack, externallyLoadedClasses, checkContext, currentJavaNamespace, currentJavaClass, currentReturnType)
+    ReferenceResolutionContext(stack, externallyLoadedClasses, checkContext, currentJavaNamespace, currentJavaClass, currentThisType, currentReturnType)
 
   def asTypeResolutionContext: TypeResolutionContext =
     TypeResolutionContext(stack, currentJavaNamespace, externallyLoadedClasses)

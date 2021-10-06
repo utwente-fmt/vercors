@@ -16,6 +16,8 @@ case object Test {
   var errors = 0
   var crashes = 0
 
+  val start = System.currentTimeMillis()
+
   def main(args: Array[String]): Unit = {
     try {
       CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).foreach(c => {
@@ -25,9 +27,10 @@ case object Test {
             f.toString.endsWith(".pvl")).foreach(tryParse)
       })
 
-//      tryParse(Path.of("examples/carp/forward-host.pvl"))
+//      tryParse(Path.of("examples/known-problems/futures/elect.pvl"))
     } finally {
       println(s"Out of $files files, $errors threw a SystemError and $crashes crashed.")
+      println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
     }
   }
 

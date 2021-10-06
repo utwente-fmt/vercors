@@ -90,19 +90,7 @@ case class WandQed(wand: Expr)(implicit val o: Origin) extends Check(wand.checkS
 case class WandApply(wand: Expr)(implicit val o: Origin) extends Check(wand.checkSubType(TResource())) with Statement
 case class WandUse(pred: Expr)(implicit val o: Origin) extends Check(pred.checkSubType(TResource())) with Statement
 
-case class ModelCreate(target: Expr, model: Ref[Model], process: Expr)(implicit val o: Origin)
-  extends Check(process.checkSubType(TProcess())) with Statement
-case class ModelDestroy(model: Expr)(implicit val o: Origin) extends Check(model.checkModelThen()) with Statement
-case class ModelSplitInto(model: Expr, leftPerm: Expr, left: Expr, rightPerm: Expr, right: Expr)(implicit val o: Origin)
-  extends Check(leftPerm.checkSubType(TRational()), rightPerm.checkSubType(TRational()),
-                left.checkSubType(TProcess()), right.checkSubType(TProcess())) with Statement
-case class ModelMergeFrom(model: Expr, leftPerm: Expr, left: Expr, rightPerm: Expr, right: Expr)(implicit val o: Origin)
-  extends Check(leftPerm.checkSubType(TRational()), rightPerm.checkSubType(TRational()),
-                left.checkSubType(TProcess()), right.checkSubType(TProcess())) with Statement
-case class ModelChoose(model: Expr, perm: Expr, choiceProcess: Expr, choice: Expr)(implicit val o: Origin)
-  extends Check(model.checkModelThen(), perm.checkSubType(TRational()),
-                choiceProcess.checkSubType(TProcess()), choice.checkSubType(TProcess())) with Statement
-case class ModelDo(model: Expr, perm: Expr, after: Expr, action: Expr)(implicit val o: Origin)
+case class ModelDo(model: Expr, perm: Expr, after: Expr, action: Expr, impl: Statement)(implicit val o: Origin)
   extends Check(model.checkModelThen(), perm.checkSubType(TRational()),
                 after.checkSubType(TProcess()), action.checkSubType(TProcess())) with Statement
 

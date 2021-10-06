@@ -51,17 +51,10 @@ valBlock
  ;
 
 valStatement
- : 'create' valBlock # valCreateWand
+ : 'create_wand' valBlock # valCreateWand
  | 'qed' langExpr ';' # valQedWand
  | 'apply' langExpr ';' # valApplyWand
  | 'use' langExpr ';' # valUseWand
- | 'create' langExpr ';' # valCreateModel
- | 'create' langExpr ',' langExpr ';' # valCreateModel2
- | 'destroy' langExpr ',' langExpr ';' # valDestroyModel
- | 'destroy' langExpr ';' # valDestroyModel2
- | 'split' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ';' # valSplitModel
- | 'merge' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ';' # valMergeModel
- | 'choose' langExpr ',' langExpr ',' langExpr ',' langExpr ';' # valChooseModel
  | 'fold' langExpr ';' # valFold
  | 'unfold' langExpr ';' # valUnfold
  | 'open' langExpr ';' # valOpen
@@ -80,15 +73,13 @@ valStatement
  | 'csl_subject' langExpr ';' # valCslSubject
  | 'spec_ignore' '}' # valSpecIgnoreStart
  | 'spec_ignore' '{' # valSpecIgnoreEnd
- | 'action' langExpr ',' langExpr ',' langExpr ',' langExpr valActionMap* ';' # valActionModel
+ | 'action' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ')' valActionImpl # valActionModel
  | 'atomic' '(' langId ')' langStatement # valAtomic
  ;
 
-valActionMap: ',' langExpr ',' langExpr;
-
-valWithThen
- : 'with' langStatement # valWith
- | 'then' langStatement # valThen
+valActionImpl
+ : ';'
+ | langStatement
  ;
 
 valImpOp: '-*' | '==>';
@@ -102,37 +93,28 @@ valPostfix
  | '[' langExpr '..' langExpr? ']'
  | '[' langExpr '->' langExpr ']' // C?
  ;
+valWith: 'with' langStatement;
+valThen: 'then' langStatement;
+valGiven: 'given' '{' valGivenMappings '}';
+valYields: 'yields' '{' valYieldsMappings '}';
+
+valGivenMappings
+ : langId '=' langExpr
+ | langId '=' langExpr ',' valGivenMappings
+ ;
+
+valYieldsMappings
+ : langExpr '=' langId
+ | langExpr '=' langId ',' valYieldsMappings
+ ;
 
 valPrimarySeq
  : '|' langExpr '|' # valCardinality
- | 'isEmpty' '(' langExpr ')' # valIsEmpty
- | 'head' '(' langExpr ')' # valHead
- | 'tail' '(' langExpr ')' # valTail
- | ('remove'|'removeAt') '(' langExpr ',' langExpr ')' # valRemove
  | '\\values' '(' langExpr ',' langExpr ',' langExpr ')' # valArrayValues
  ;
 
-valPrimaryMap
- : 'buildMap' '(' langExpr ',' langExpr ',' langExpr ')' # valBuildMap
- | 'cardMap' '(' langExpr ')' # valCardMap
- | 'valuesMap' '(' langExpr ')' # valValuesMap
- | 'removeFromMap' '(' langExpr ',' langExpr ')' # valRemoveMap
- | 'itemsMap' '(' langExpr ')' # valItemsMap
- | 'keysMap' '(' langExpr ')' # valKeysMap
- | 'getFromMap' '(' langExpr ',' langExpr ')' # valGetMap
- | 'disjointMap' '(' langExpr ',' langExpr ')' # valDisjointMap
- | 'equalsMap' '(' langExpr ',' langExpr ')' # valEqualsMap
- ;
-
 valPrimaryOption
- : 'getOption' '(' langExpr ')' # valGetOption
- | 'getOrElseOption' '(' langExpr ',' langExpr ')' # valGetOrElseOption
- | 'Some' '(' langExpr ')' # valSome
- ;
-
-valPrimaryTuple
- : 'getFst' '(' langExpr ')' # valFst
- | 'getSnd' '(' langExpr ')' # valSnd
+ : 'Some' '(' langExpr ')' # valSome
  ;
 
 valSetCompSelectors
@@ -197,12 +179,6 @@ valPrimaryVector
  | '\\mrep' '(' langExpr ')' # valMatrixRep
  ;
 
-valPrimaryModel
- : 'AbstractState' '(' langExpr ',' langExpr ')' # valAbstractState
- | 'Future' '(' langExpr  ',' langExpr ',' langExpr ')' # valFuture
- | 'Hist' '(' langExpr ',' langExpr ',' langExpr ')' # valHist
- ;
-
 valPrimaryReducible
  : 'Reducible' '(' langExpr ',' valReducibleOperator ')' # valReducible
  | 'Contribution' '(' langExpr ',' langExpr ')' # valContribution
@@ -220,14 +196,11 @@ valPrimaryThread
 
 valPrimary
  : valPrimarySeq
- | valPrimaryMap
  | valPrimaryOption
- | valPrimaryTuple
  | valPrimaryCollectionConstructor
  | valPrimaryPermission
  | valPrimaryBinder
  | valPrimaryVector
- | valPrimaryModel
  | valPrimaryReducible
  | valPrimaryThread
  | '*' # valAny
@@ -244,15 +217,14 @@ valReserved
  : (VAL_INLINE | VAL_ASSERT | VAL_RESOURCE | VAL_PROCESS | VAL_FRAC | VAL_ZFRAC | VAL_BOOL | VAL_RATIONAL | VAL_SEQ
     | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS | VAL_AXIOM | VAL_MODIFIES
     | VAL_ACCESSIBLE | VAL_REQUIRES | VAL_ENSURES | VAL_CONTEXT_EVERYWHERE | VAL_CONTEXT | VAL_LOOP_INVARIANT
-    | VAL_CREATE | VAL_QED | VAL_APPLY | VAL_USE | VAL_DESTROY | VAL_SPLIT | VAL_MERGE | VAL_CHOOSE | VAL_FOLD
+    | VAL_CREATE | VAL_QED | VAL_APPLY | VAL_USE | VAL_FOLD
     | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS
     | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE
-    | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS | VAL_SET | VAL_BAG | VAL_LOC | VAL_ABSTRACT_STATE
-    | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_BUILD_MAP | VAL_CARD_MAP | VAL_CONTRIBUTION
-    | VAL_DISJOINT_MAP | VAL_EQUALS_MAP | VAL_FUTURE | VAL_GET_FROM_MAP | VAL_GET_FST | VAL_GET_OPTION | VAL_GET_SND
-    | VAL_HEAD | VAL_HELD | VAL_HIST | VAL_HPERM | VAL_IDLE | VAL_IS_EMPTY | VAL_ITEMS_MAP | VAL_KEYS_MAP | VAL_PERM_VAL
-    | VAL_PERM | VAL_POINTS_TO | VAL_REMOVE | VAL_REMOVE_AT | VAL_REMOVE_FROM_MAP | VAL_RUNNING | VAL_SOME | VAL_TAIL
-    | VAL_VALUE | VAL_VALUES_MAP | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_GETOPTELSE | VAL_MAP | VAL_OPTION | VAL_TUPLE)
+    | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS | VAL_SET | VAL_BAG
+    | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION
+    | VAL_HPERM | VAL_IDLE | VAL_PERM_VAL
+    | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME
+    | VAL_VALUE | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_MAP | VAL_OPTION | VAL_TUPLE)
  | LANG_ID_ESCAPE # valIdEscape
  | '\\result' # valResult
  | '\\current_thread' # valCurrentThread
@@ -293,9 +265,9 @@ valClassDeclaration
  ;
 
 valModelDeclaration
- : langType langId ';' # valModelField
- | valContractClause* 'process' langId '(' valArgList? ')' '=' langExpr ';' # valModelProcess
+ : valContractClause* 'process' langId '(' valArgList? ')' '=' langExpr ';' # valModelProcess
  | valContractClause* 'action' langId '(' valArgList? ')' ';' # valModelAction
+ | langType langId ';' # valModelField
  ;
 
 valDef

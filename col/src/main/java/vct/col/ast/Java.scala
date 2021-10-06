@@ -110,7 +110,7 @@ case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: O
   var ref: Option[JavaTypeNameTarget] = None
 
   override def mimics: Type = ref.get match {
-    case RefAxiomaticDataType(decl) => ???
+    case RefAxiomaticDataType(decl) => TAxiomatic(decl.ref, Nil)
     case RefModel(decl) => TModel(decl.ref)
     case RefJavaClass(_) => this
   }
@@ -129,6 +129,7 @@ case class JavaLocal(name: String)(implicit val o: Origin) extends JavaExpr with
     case ref: RefJavaClass => TNotAValue(ref)
     case RefJavaField(decls, idx) => FuncTools.repeat(TArray(_), decls.decls(idx)._2, decls.t)
     case RefJavaLocalDeclaration(decls, idx) => FuncTools.repeat(TArray(_), decls.decls(idx)._2, decls.t)
+    case RefModelField(field) => field.t
   }
 }
 

@@ -37,6 +37,7 @@ case object Referrable {
     case decl: ModelAction => RefModelAction(decl)
     case decl: CDeclaration => return decl.inits.indices.map(RefCDeclaration(decl, _))
     case decl: JavaLocalDeclaration => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
+    case decl: PVLConstructor => RefPVLConstructor(decl)
   })
 
   def originName(decl: Declaration): String = decl.o match {
@@ -87,6 +88,7 @@ sealed trait Referrable {
     case RefModelAction(decl) => Referrable.originName(decl)
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
+    case RefPVLConstructor(decl) => ""
   }
 }
 sealed trait JavaTypeNameTarget extends Referrable with JavaDerefTarget
@@ -142,9 +144,10 @@ case class RefParBlockDecl(decl: ParBlockDecl) extends Referrable
 case class RefParInvariantDecl(decl: ParInvariantDecl) extends Referrable
 case class RefADTAxiom(decl: ADTAxiom) extends Referrable
 case class RefADTFunction(decl: ADTFunction) extends Referrable with SpecInvocationTarget
-case class RefModelField(decl: ModelField) extends Referrable with SpecDerefTarget
+case class RefModelField(decl: ModelField) extends Referrable with SpecDerefTarget with SpecNameTarget
 case class RefModelProcess(decl: ModelProcess) extends Referrable with SpecInvocationTarget
 case class RefModelAction(decl: ModelAction) extends Referrable with SpecInvocationTarget
+case class RefPVLConstructor(decl: PVLConstructor) extends Referrable
 
 case class BuiltinField(f: Expr => Expr) extends Referrable with SpecDerefTarget
 case class BuiltinInstanceMethod(f: Expr => Seq[Expr] => Expr) extends Referrable with SpecInvocationTarget

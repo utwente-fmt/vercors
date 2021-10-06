@@ -72,8 +72,11 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case MethodBody1(stat) => Some(convert(stat))
   }
 
-  def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration] =
-    ??(constructor)
+  def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration] = constructor match {
+    case Constructor0(contract, _, _, args, _, body) =>
+      Seq(withContract(contract, contract =>
+        PVLConstructor(contract.consumeApplicableContract(), args.map(convert(_)).getOrElse(Nil), convert(body))))
+  }
 
   def convert(implicit field: FieldContext): Seq[InstanceField] = field match {
     case Field0(t, ids, _) =>
@@ -129,7 +132,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   }
 
   def convert(implicit expr: OrExprContext): Expr = expr match {
-    case OrExpr0(left, _, right) => Or(convert(left), convert(right))
+    case OrExpr0(left, _, right) => AmbiguousOr(convert(left), convert(right))
     case OrExpr1(inner) => convert(inner)
   }
 
@@ -160,13 +163,13 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   }
 
   def convert(implicit expr: AddExprContext): Expr = expr match {
-    case AddExpr0(left, _, right) => Plus(convert(left), convert(right))
+    case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))
     case AddExpr1(left, _, right) => Minus(convert(left), convert(right))
     case AddExpr2(inner) => convert(inner)
   }
 
   def convert(implicit expr: MultExprContext): Expr = expr match {
-    case MultExpr0(left, _, right) => Mult(convert(left), convert(right))
+    case MultExpr0(left, _, right) => AmbiguousMult(convert(left), convert(right))
     case MultExpr1(left, _, right) => Div(convert(left), convert(right))(blameProvider(expr))
     case MultExpr2(left, _, right) => Mod(convert(left), convert(right))(blameProvider(expr))
     case MultExpr3(left, specOp, right) => convert(specOp, convert(left), convert(right))
@@ -192,7 +195,7 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   }
 
   def convert(implicit expr: NewExprContext): Expr = expr match {
-    case NewExpr0(_, name, args) => ??(expr)
+    case NewExpr0(_, name, args) => PVLNew(convert(name), convert(args))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims))
     case NewExpr2(inner) => convert(inner)
   }
@@ -602,16 +605,6 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case ValQedWand(_, wand, _) => WandQed(convert(wand))
     case ValApplyWand(_, wand, _) => WandApply(convert(wand))
     case ValUseWand(_, wand, _) => WandUse(convert(wand))
-    case ValCreateModel(_, _, _) => ??(stat)
-    case ValCreateModel2(_, target, _, process, _) => ModelCreate(convert(target), ???, convert(process))
-    case ValDestroyModel(_, _, _, _, _) => ??(stat)
-    case ValDestroyModel2(_, model, _) => ModelDestroy(convert(model))
-    case ValSplitModel(_, model, _, leftPerm, _, leftProcess, _, rightPerm, _, rightProcess, _) =>
-      ModelSplitInto(convert(model), convert(leftPerm), convert(leftProcess), convert(rightPerm), convert(rightProcess))
-    case ValMergeModel(_, model, _, leftPerm, _, leftProcess, _, rightPerm, _, rightProcess, _) =>
-      ModelMergeFrom(convert(model), convert(leftPerm), convert(leftProcess), convert(rightPerm), convert(rightProcess))
-    case ValChooseModel(_, model, _, perm, _, chooseProcess, _, choice, _) =>
-      ModelChoose(convert(model), convert(perm), convert(chooseProcess), convert(choice))
     case ValFold(_, predicate, _) =>
       Fold(convert(predicate))
     case ValUnfold(_, predicate, _) =>
@@ -633,13 +626,11 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case ValCslSubject(_, _, _) => ??(stat) // FIXME PB: csl_subject seems to be used
     case ValSpecIgnoreStart(_, _) => SpecIgnoreEnd()
     case ValSpecIgnoreEnd(_, _) => SpecIgnoreStart()
-    case ValActionModel(_, model, _, perm, _, after, _, action, modelHeapMap, _) =>
-      modelHeapMap match {
-        case Nil =>
-        case mapping :: _ =>
-          ??(mapping) // FIXME PB: disabled for now, pending investigation moving this to model creation
-      }
-      ModelDo(convert(model), convert(perm), convert(after), convert(action))
+    case ValActionModel(_, _, model, _, perm, _, after, _, action, _, impl) =>
+      ModelDo(convert(model), convert(perm), convert(after), convert(action), impl match {
+        case ValActionImpl0(_) => Block(Nil)
+        case ValActionImpl1(inner) => convert(inner)
+      })
     case ValAtomic(_, _, invariant, _, body) =>
       ParAtomic(Seq(new UnresolvedRef[ParInvariantDecl](convert(invariant))), convert(body))
   }
@@ -752,34 +743,11 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
 
   def convert(implicit e: ValPrimarySeqContext): Expr = e match {
     case ValCardinality(_, xs, _) => Size(convert(xs))
-    case ValIsEmpty(_, _, xs, _) => Empty(convert(xs))
-    case ValHead(_, _, xs, _) => Head(convert(xs))
-    case ValTail(_, _, xs, _) => Tail(convert(xs))
-    case ValRemove(_, _, xs, _, i, _) => RemoveAt(convert(xs), convert(i))
     case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))
   }
 
-  def convert(implicit e: ValPrimaryMapContext): Expr = e match {
-    case ValBuildMap(_, _, m, _, k, _, v, _) => MapCons(convert(m), convert(k), convert(v))
-    case ValCardMap(_, _, m, _) => MapSize(convert(m))
-    case ValValuesMap(_, _, m, _) => MapValueSet(convert(m))
-    case ValRemoveMap(_, _, m, _, k, _) => MapRemove(convert(m), convert(k))
-    case ValItemsMap(_, _, m, _) => MapItemSet(convert(m))
-    case ValKeysMap(_, _, m, _) => MapKeySet(convert(m))
-    case ValGetMap(_, _, m, _, k, _) => MapGet(convert(m), convert(k))
-    case ValDisjointMap(_, _, m1, _, m2, _) => MapDisjoint(convert(m1), convert(m2))
-    case ValEqualsMap(_, _, m1, _, m2, _) => MapEq(convert(m1), convert(m2))
-  }
-
   def convert(implicit e: ValPrimaryOptionContext): Expr = e match {
-    case ValGetOption(_, _, opt, _) => OptGet(convert(opt))
-    case ValGetOrElseOption(_, _, opt, _, alt, _) => OptGetOrElse(convert(opt), convert(alt))
     case ValSome(_, _, v, _) => OptSome(convert(v))
-  }
-
-  def convert(implicit e: ValPrimaryTupleContext): Expr = e match {
-    case ValFst(_, _, tup, _) => TupGet(convert(tup), 0)
-    case ValSnd(_, _, tup, _) => TupGet(convert(tup), 1)
   }
 
   // valsetcompselectors
@@ -806,8 +774,8 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case ValPerm(_, _, loc, _, perm, _) => Perm(convert(loc), convert(perm))
     case ValValue(_, _, loc, _) => Perm(convert(loc), ReadPerm())
     case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(convert(loc), convert(perm), convert(v))
-    case ValHPerm(_, _, loc, _, perm, _) => ??(e)
-    case ValAPerm(_, _, loc, _, perm, _) => ??(e)
+    case ValHPerm(_, _, loc, _, perm, _) => HPerm(convert(loc), convert(perm))
+    case ValAPerm(_, _, loc, _, perm, _) => APerm(convert(loc), convert(perm))
     case ValArrayPerm(_, _, arr, _, i, _, step, _, count, _, perm, _) => ??(e)
     case ValMatrix(_, _, m, _, dim1, _, dim2, _) => ??(e)
     case ValArray(_, _, arr, _, dim, _) => ??(e)
@@ -837,12 +805,6 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
 
   def convert(implicit e: ValPrimaryVectorContext): Expr = ??(e)
 
-  def convert(implicit e: ValPrimaryModelContext): Expr = e match {
-    case ValAbstractState(_, _, arg1, _, arg2, _) => ??(e)
-    case ValFuture(_, _, arg1, _, arg2, _, arg3, _) => ??(e)
-    case ValHist(_, _, arg1, _, arg2, _, arg3, _) => ??(e)
-  }
-
   def convert(implicit e: ValPrimaryReducibleContext): Expr = ??(e)
 
   def convert(implicit e: ValPrimaryThreadContext): Expr = e match {
@@ -859,9 +821,6 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case ValPrimary5(inner) => convert(inner)
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
-    case ValPrimary8(inner) => convert(inner)
-    case ValPrimary9(inner) => convert(inner)
-    case ValPrimary10(inner) => convert(inner)
     case ValAny(_) => ??(e)
     case ValIndependent(_, e, _, name, _) => ??(e)
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))

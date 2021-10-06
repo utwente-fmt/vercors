@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{AmbiguousResult, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, ContractApplicable, Declaration, Declarator, Deref, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, ParAtomic, ParBarrier, Program, Scope, TClass}
+import vct.col.ast.{AmbiguousResult, AmbiguousThis, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, Class, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Scope, TClass}
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -79,7 +79,11 @@ case object ResolveReferences {
       .replace(currentJavaNamespace=Some(ns)).declare(ns.declarations)
     case cls: JavaClassOrInterface => ctx
       .replace(currentJavaClass=Some(cls))
+      .replace(currentThisType=Some(JavaTClass(Seq((cls.name, None)))(DiagnosticOrigin)))
       .declare(cls.decls)
+    case cls: Class => ctx
+      .replace(currentThisType=Some(TClass(cls.ref)))
+      .declare(cls.declarations)
     case app: ContractApplicable => ctx
       .replace(currentReturnType=Some(app.returnType))
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
@@ -135,8 +139,14 @@ case object ResolveReferences {
     case goto @ Goto(lbl) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
 
+    case n @ PVLNew(name, args) =>
+      n.classRef = Some(Spec.findClass(name, ctx.asTypeResolutionContext).getOrElse(throw NoSuchNameError("class", name, n)))
+      n.ref = Some(PVL.findConstructor(n.classRef.get, args).getOrElse(throw NoSuchConstructor(n)))
+
     case res @ AmbiguousResult() =>
       res.ref = Some(ctx.currentReturnType.getOrElse(throw ResultOutsideMethod(res)))
+    case diz @ AmbiguousThis() =>
+      diz.ref = Some(ctx.currentThisType.get)
 
     case proc: ModelProcess =>
       proc.modifies.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)

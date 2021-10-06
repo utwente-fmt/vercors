@@ -36,6 +36,7 @@ case class PVLLocal(name: String)(implicit val o: Origin) extends PVLExpr with N
     case ref: RefClass => TNotAValue(ref)
     case ref: RefField => ref.decl.t
     case ref: BuiltinInstanceMethod => TNotAValue(ref)
+    case RefModelField(field) => field.t
   }
 }
 
@@ -78,3 +79,17 @@ case class PVLInvocation(obj: Expr, args: Seq[Expr])(val blame: Blame[Preconditi
     }
   }
 }
+
+case class PVLNew(className: String, args: Seq[Expr])(implicit val o: Origin) extends PVLExpr with NoCheck {
+  var ref: Option[PVLConstructor] = None
+  var classRef: Option[Class] = None
+
+  override def t: Type = TClass(classRef.get.ref)
+}
+
+sealed trait PVLClassDeclaration extends ExtraClassDeclaration
+case class PVLConstructor(contract: ApplicableContract, args: Seq[Variable], body: Option[Statement])(implicit val o: Origin)
+  extends PVLClassDeclaration with NoCheck with Declarator {
+  override def declarations: Seq[Declaration] = args
+}
+case class PVLStatic(inner: ClassDeclaration)
