@@ -1,25 +1,53 @@
 package vct.col.veymont
 
 import geny.Generator.from
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType}
+import hre.lang.System.Failure
+import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.LoopStatement
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
+import vct.col.veymont.GenerateTypedChannel.{getPrimitiveTypeName, matchPrimitiveType}
 import vct.col.veymont.Util.{chanReadMethodName, chanValueFieldName, chanWriteMethodName, channelClassName, getBlockOrThrow}
 
 import scala.jdk.CollectionConverters._
 
+object GenerateTypedChannel {
+
+  def getTypeName(t : Type) : String = t match {
+    case p: PrimitiveType => getPrimitiveTypeName(p)
+    case cl : ClassType  => cl.getName
+  }
+
+  private def getPrimitiveTypeName(p : PrimitiveType) : String = p.sort match {
+    case PrimitiveSort.Option => getPrimitiveTypeName(matchPrimitiveType(p.args.head))
+    case PrimitiveSort.Array => getPrimitiveTypeName(matchPrimitiveType(p.args.head)) + "Array"
+    case PrimitiveSort.Cell => getPrimitiveTypeName(matchPrimitiveType(p.args.head))
+    case _ => p.sort.toString
+  }
+
+  private def matchPrimitiveType(n : ASTNode) : PrimitiveType = n match {
+    case p : PrimitiveType => p
+    case _ => throw Failure("VeyMont Fail Primitive type of channel expected, but found: %s", n.toString)
+  }
+}
 class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveType,ASTClass]) extends AbstractRewriter(null, true) {
 
   override def visit(t : PrimitiveType) : Unit = {
     if(t.sort == PrimitiveSort.Integer) {
       sort match {
-        case Left(s) => result = create.primitive_type(s.sort)
+        case Left(s) => result = createPrimitive(s)
         case Right(c) => result = create.class_type(c.getName)
       }
     } else super.visit(t)
+  }
+
+  private def createPrimitive(p : PrimitiveType) : PrimitiveType = p.sort match {
+    case PrimitiveSort.Option => create.primitive_type(p.sort,createPrimitive(matchPrimitiveType(p.args.head)))
+    case PrimitiveSort.Array => create.primitive_type(p.sort,createPrimitive(matchPrimitiveType(p.args.head)))
+    case PrimitiveSort.Cell => create.primitive_type(p.sort,createPrimitive(matchPrimitiveType(p.args.head)))
+    case _ => create.primitive_type(p.sort)
   }
 
   override def visit(v : VariableDeclaration) : Unit = {
@@ -121,7 +149,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
   }
 
   private def getTypeName : String = (sort match {
-    case Left(s) => s.sort.toString
+    case Left(s) => getPrimitiveTypeName(s)
     case Right(cl) => cl.getName
   }) + channelClassName
 

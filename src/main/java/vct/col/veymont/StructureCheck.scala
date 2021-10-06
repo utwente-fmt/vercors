@@ -10,7 +10,7 @@ import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.ASTUtils
 import Util._
-import vct.col.veymont.StructureCheck.{fixedMainFail, fixedMainMethod, getRoleOrHelperClass, isRealResource}
+import vct.col.veymont.StructureCheck.{fixedMainFail, fixedMainMethod, getRoleOrHelperClass, isBasePrimitiveType, isOptionOfArray, isRealResource}
 
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
@@ -49,6 +49,39 @@ object StructureCheck {
   private def isRealResource(m : Method) = m.kind == Method.Kind.Predicate && isResourceType(m.getReturnType)
 
   def isAllowedPrimitive(p : PrimitiveType): Boolean = p.isBoolean || p.isDouble || p.isInteger
+
+  def isOptionOfArray(o : ASTNode, allowRoles : Boolean, roleClassNames : Iterable[String]) = o match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Option => p.nrOfArguments == 1 && isArray(p.args.head, allowRoles, roleClassNames)
+      case _ => false
+    }
+    case _ => false
+  }
+
+  @tailrec
+  private def isArray(a : ASTNode, allowRoles : Boolean, roleClassNames : Iterable[String]) : Boolean = a match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Array => p.nrOfArguments == 1 && (isCell(p.args.head, allowRoles, roleClassNames) || isArray(p.args.head, allowRoles, roleClassNames))
+      case _ => false
+    }
+    case _ => false
+  }
+
+  private def isCell(c : ASTNode, allowRoles : Boolean, roleClassNames : Iterable[String]) = c match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Cell => p.nrOfArguments == 1 && isBasePrimitiveType(p.args.head, allowRoles, roleClassNames)
+      case _ => false
+    }
+    case _ => false
+  }
+
+  private def isBasePrimitiveType(a : ASTNode, allowRoles : Boolean, roleClassNames : Iterable[String]) = a match {
+    case p : PrimitiveType => isBaseType(p)
+    case c : ClassType => isRoleOrHelperClassName(c.getName) && (allowRoles || !roleClassNames.exists(_ == c.getName))
+    case _ => false
+  }
+
+  private def isBaseType(p : PrimitiveType) = isAllowedPrimitive(p) || p.sort == PrimitiveSort.Resource
 }
 
 class StructureCheck(source : ProgramUnit) {
@@ -378,50 +411,17 @@ class StructureCheck(source : ProgramUnit) {
   }
 
   private def isNonRoleOrPrimitive(t : Type, isVoid : Boolean, allowRoles : Boolean) : Boolean =
-    isBasePrimitiveType(t, allowRoles) || isOptionOfArray(t, allowRoles) || isSequence(t, allowRoles) || isVoid && isVoidType(t)
+    isBasePrimitiveType(t, allowRoles, roleClassNames) || isOptionOfArray(t, allowRoles, roleClassNames) || isSequence(t, allowRoles) || isVoid && isVoidType(t)
 
   def isVoidType(a : ASTNode): Boolean = a match {
     case p : PrimitiveType => p.isVoid
     case _ => false
   }
 
-  private def isBasePrimitiveType(a : ASTNode, allowRoles : Boolean) = a match {
-    case p : PrimitiveType => isBaseType(p)
-    case c : ClassType => isRoleOrHelperClassName(c.getName) && (allowRoles || !roleClassNames.exists(_ == c.getName))
-    case _ => false
-  }
-
-  private def isBaseType(p : PrimitiveType) = StructureCheck.isAllowedPrimitive(p) || p.sort == PrimitiveSort.Resource
-
-  private def isOptionOfArray(o : ASTNode, allowRoles : Boolean) = o match {
-    case p : PrimitiveType => p.sort match {
-        case PrimitiveSort.Option => p.nrOfArguments == 1 && isArray(p.args.head, allowRoles)
-        case _ => false
-    }
-    case _ => false
-  }
-
-  @tailrec
-  private def isArray(a : ASTNode, allowRoles : Boolean) : Boolean = a match {
-    case p : PrimitiveType => p.sort match {
-      case PrimitiveSort.Array => p.nrOfArguments == 1 && (isCell(p.args.head, allowRoles) || isArray(p.args.head, allowRoles))
-      case _ => false
-    }
-    case _ => false
-  }
-
-  private def isCell(c : ASTNode, allowRoles : Boolean) = c match {
-    case p : PrimitiveType => p.sort match {
-      case PrimitiveSort.Cell => p.nrOfArguments == 1 && isBasePrimitiveType(p.args.head, allowRoles)
-      case _ => false
-    }
-    case _ => false
-  }
-
   @tailrec
   private def isSequence(s : ASTNode, allowRoles : Boolean) : Boolean = s match {
     case p : PrimitiveType => p.sort match {
-      case PrimitiveSort.Sequence => p.nrOfArguments == 1 && (isBasePrimitiveType(p.args.head, allowRoles) || isSequence(p.args.head, allowRoles))
+      case PrimitiveSort.Sequence => p.nrOfArguments == 1 && (isBasePrimitiveType(p.args.head, allowRoles, roleClassNames) || isSequence(p.args.head, allowRoles))
       case _ => false
     }
     case _ => false

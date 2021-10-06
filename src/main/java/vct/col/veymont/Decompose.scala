@@ -8,7 +8,8 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl._
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
-import vct.col.veymont.StructureCheck.{getRoleObjects, isAllowedPrimitive}
+import vct.col.veymont.GenerateTypedChannel.getTypeName
+import vct.col.veymont.StructureCheck.{getRoleObjects, isAllowedPrimitive, isOptionOfArray}
 import vct.col.veymont.Util._
 
 import scala.jdk.CollectionConverters._
@@ -206,23 +207,29 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   private def checkChanPrimitiveType(p : PrimitiveType, writeChanName : String, sendExpression : ASTNode, a : AssignmentStatement) =
     if(isAllowedPrimitive(p)) {
       sendExpression match {
-        case op : OperatorExpression => if(op.operator == StandardOperator.Subscript) Fail("VeyMont Fail: channels for array elements not supported in: %s!",a)
+      //  case op : OperatorExpression => if(op.operator == StandardOperator.Subscript) Fail("VeyMont Fail: channels for array elements not supported in: %s!",a)
         case _ => //skip
       }
       result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, sendExpression)
+    } else if(isOptionOfArray(p,false,List.empty)) {
+      result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, sendExpression)
+      //  result = getCloneWriteInvocation(writeChanName,sendExpression)
     } else Fail("VeyMont Fail: channel of type %s not supported", p)
 
-  private def checkChanClassType(cl : ClassType, writeChanName : String, sendExpression : ASTNode) =
+  private def checkChanClassType(cl : ClassType, writeChanName : String, sendExpression : ASTNode) : Unit =
     roleOrOtherClass.find(c => c.name == cl.getName) match {
       case Some(c) => {
         if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
           Fail("VeyMont Fail: channel of type %s not supported, because fields are not primitive")
         cloneClasses = cloneClasses + c
-        result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
+        result = getCloneWriteInvocation(writeChanName,sendExpression)
       }
       case None =>
         Fail("VeyMont Fail: channel of type %s not supported", cl)
     }
+
+  private def getCloneWriteInvocation(writeChanName : String, sendExpression : ASTNode) : MethodInvokation =
+    create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
 
   def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
     val expRole = getNamesFromExpression(a.expression)
@@ -309,7 +316,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     }
 
   private def getChanName(role : NameExpression, isWrite : Boolean, chanType : Type) : String =
-    (if(isWrite) (roleName.get + role.name) else (role.name + roleName.get)) + chanType.toString + chanName
+    (if(isWrite) (roleName.get + role.name) else (role.name + roleName.get)) + getTypeName(chanType) + chanName
 
   def isSingleRoleNameExpressionOfRole(e : ASTNode, roleNames : Iterable[String]) : Boolean = {
     val expRoles = getNamesFromExpression(e).filter(n => roleNames.exists(_ == n.name))

@@ -51,9 +51,11 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
 
   override def visit(b : BlockStatement) : Unit = {
     val tmp = encountered
+    val tmpcurrentclass = currentClass
     b.getStatements.foreach(s => {
       encountered = tmp
       s.accept(this)
+      currentClass = tmpcurrentclass
     })
   }
 

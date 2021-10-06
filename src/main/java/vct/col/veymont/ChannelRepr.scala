@@ -5,6 +5,7 @@ import vct.col.ast.expr.{NameExpressionKind, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.util.ASTFactory
 import Util.{chanRecvdFieldName, chanSentFieldName, channelClassName, getArgName}
+import vct.col.veymont.GenerateTypedChannel.getTypeName
 
 case class ChannelRepr(val channel: String)(val isWrite : Boolean, val chanType : Type) {
 
@@ -20,7 +21,7 @@ case class ChannelRepr(val channel: String)(val isWrite : Boolean, val chanType 
     create.expression(StandardOperator.Perm,arg1,create.expression(StandardOperator.Div,create.constant(2),create.constant(3)))
   }
 
-  def getChanClass = new ClassType(chanType.toString + channelClassName)
+  def getChanClass = new ClassType(getTypeName(chanType) + channelClassName)
 
 
 }
