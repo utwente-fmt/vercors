@@ -8,7 +8,7 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.LoopStatement
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
-import vct.col.veymont.GenerateTypedChannel.{getPrimitiveTypeName, matchPrimitiveType}
+import vct.col.veymont.GenerateTypedChannel.getPrimitiveTypeName
 import vct.col.veymont.Util.{chanReadMethodName, chanValueFieldName, chanWriteMethodName, channelClassName, getBlockOrThrow}
 
 import scala.jdk.CollectionConverters._
@@ -20,34 +20,40 @@ object GenerateTypedChannel {
     case cl : ClassType  => cl.getName
   }
 
-  private def getPrimitiveTypeName(p : PrimitiveType) : String = p.sort match {
-    case PrimitiveSort.Option => getPrimitiveTypeName(matchPrimitiveType(p.args.head))
-    case PrimitiveSort.Array => getPrimitiveTypeName(matchPrimitiveType(p.args.head)) + "Array"
-    case PrimitiveSort.Cell => getPrimitiveTypeName(matchPrimitiveType(p.args.head))
-    case _ => p.sort.toString
+  private def getPrimitiveTypeName(t : ASTNode) : String = t match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Option => getPrimitiveTypeName(p.args.head)
+      case PrimitiveSort.Array => getPrimitiveTypeName(p.args.head) + "Array"
+      case PrimitiveSort.Cell => getPrimitiveTypeName(p.args.head)
+      case PrimitiveSort.Sequence => getPrimitiveTypeName(p.args.head) + "Sequence"
+      case PrimitiveSort.Map => getPrimitiveTypeName(p.args.head) + "Map"
+      case _ => p.sort.toString
+    }
+    case cl : ClassType => cl.getName
+    case _ => throw Failure("VeyMont Fail: ASTNode %s is not a type", t.toString)
   }
 
-  private def matchPrimitiveType(n : ASTNode) : PrimitiveType = n match {
-    case p : PrimitiveType => p
-    case _ => throw Failure("VeyMont Fail Primitive type of channel expected, but found: %s", n.toString)
-  }
 }
 class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveType,ASTClass]) extends AbstractRewriter(null, true) {
 
   override def visit(t : PrimitiveType) : Unit = {
     if(t.sort == PrimitiveSort.Integer) {
       sort match {
-        case Left(s) => result = createPrimitive(s)
+        case Left(s) => result = createNewType(s)
         case Right(c) => result = create.class_type(c.getName)
       }
     } else super.visit(t)
   }
 
-  private def createPrimitive(p : PrimitiveType) : PrimitiveType = p.sort match {
-    case PrimitiveSort.Option => create.primitive_type(p.sort,createPrimitive(matchPrimitiveType(p.args.head)))
-    case PrimitiveSort.Array => create.primitive_type(p.sort,createPrimitive(matchPrimitiveType(p.args.head)))
-    case PrimitiveSort.Cell => create.primitive_type(p.sort,createPrimitive(matchPrimitiveType(p.args.head)))
-    case _ => create.primitive_type(p.sort)
+  private def createNewType(t : ASTNode) : Type = t match {
+    case p : PrimitiveType =>
+      if(Set(PrimitiveSort.Option, PrimitiveSort.Array, PrimitiveSort.Cell, PrimitiveSort.Sequence).contains(p.sort))
+        create.primitive_type(p.sort,createNewType(p.args.head))
+      else if(p.sort == PrimitiveSort.Map)
+        create.primitive_type(p.sort,createNewType(p.args.head),createNewType(p.args.tail.head))
+      else create.primitive_type(p.sort)
+    case cl : ClassType => create.class_type(cl.getName)
+    case _ => throw Failure("VeyMont Fail: ASTNode %s is not a type", t.toString)
   }
 
   override def visit(v : VariableDeclaration) : Unit = {
