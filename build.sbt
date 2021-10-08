@@ -141,7 +141,14 @@ lazy val vercors: Project = (project in file("."))
       // Copy the resources not in the jar and add them to the classpath.
       ++ directory(sourceDirectory.value / "main" / "universal" / "res"),
 
-    scriptClasspath := scriptClasspath.value :+ "../res",
+    // Sets the classpath as described on the below page
+    // https://sbt-native-packager.readthedocs.io/en/latest/recipes/longclasspath.html
+    // To circumvent the long classpath problem
+    // At the time of writing (2021-10-08) the other two workarounds described
+    // on that page seem to be broken.
+    // Both result in "class vct.main.Main" not found when running vercors.
+    // See: https://github.com/sbt/sbt-native-packager/issues/1466
+    scriptClasspath := scriptClasspath.value ++ Seq("*", "../res"),
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
     Compile / discoveredMainClasses := Seq(),
