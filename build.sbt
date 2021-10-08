@@ -148,7 +148,7 @@ lazy val vercors: Project = (project in file("."))
     // on that page seem to be broken.
     // Both result in "class vct.main.Main" not found when running vercors.
     // See: https://github.com/sbt/sbt-native-packager/issues/1466
-    scriptClasspath := scriptClasspath.value ++ Seq("*", "../res"),
+    scriptClasspath := Seq("*", "../res"),
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
     Compile / discoveredMainClasses := Seq(),
