@@ -309,6 +309,21 @@ public class JavaPrinter extends AbstractPrinter {
       current_precedence=0;
       break;
     }
+    case ThreadPoolExecutor:{
+        out.printf("ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());");
+        break;
+    }
+    case ThreadExecute:{
+      setExpr();
+      out.printf("EXECUTOR_SERVICE.execute(() -> ");
+      s.args[0].accept(this);
+      out.printf(".compute());");
+      break;
+    }
+    case ThreadPoolExecutorShutDown:{
+      out.printf("EXECUTOR_SERVICE.shutdown();\n    EXECUTOR_SERVICE.awaitTermination(120L, TimeUnit.SECONDS);");
+      break;
+    }
     case Goto:
       out.print("goto ");
       s.args[0].accept(this);

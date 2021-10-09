@@ -13,4 +13,8 @@ class RecursiveAction {
     void invoke() {
 
     }
+
+    void compute() {
+
+    }
 }

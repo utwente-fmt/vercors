@@ -1,6 +1,7 @@
 package vct.col.ast.stmt.decl;
 
 import java.util.Arrays;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import hre.util.ScalaHelper;
 import scala.collection.Iterable;
@@ -120,9 +121,20 @@ public class ASTSpecial extends ASTDeclaration {
     /**
      * Represents unobservable action
      */
-    TauAction(0)
+    TauAction(0),
+    /**
+     * Declare executor service from java.util.concurrent
+     */
+    ThreadPoolExecutor(0),
+    /**
+     * Use executorservice to execute via ExecutorService
+     */
+    ThreadExecute(1),
+    /**
+     * Shut down executor from java.util.concurrent
+     */
+    ThreadPoolExecutorShutDown(0)
     ;
-
     
     
     private final int arity;

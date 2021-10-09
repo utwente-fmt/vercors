@@ -11,6 +11,7 @@ import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTFactory, AbstractRewriter, ContractBuilder}
 import vct.col.veymont.Util.{getBlockOrThrow, getNameFromNode, getNamesFromExpression, javaRecursiveActionClass}
 
+import java.io.PrintWriter
 import scala.jdk.CollectionConverters._
 
 class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
@@ -28,14 +29,13 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(n
       classFields = null
       result = thread
     } else if(c.getName == Util.localMainClassName) {
-      //def main(args: Array[String]): Unit =  { MainFJ(0, 8, 4)
       val arrayArgs = Array(create.field_decl("args",create.primitive_type(PrimitiveSort.Array,create.primitive_type(PrimitiveSort.String))))
       val body = new BlockStatement
       getDefaultArgs(c.methods().asScala.find(_.name == Util.localMainMethodName).get) match {
         case Some(initArgs) => body.add(create.invokation(null,null,Util.localMainMethodName,initArgs:_*))
         case None => //do nothing
       }
-      val mainargsmethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),new ContractBuilder().getContract,"main",arrayArgs, body)
+      val mainargsmethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),Array(create.class_type("InterruptedException")),new ContractBuilder().getContract,"main",arrayArgs, body)
       mainargsmethod.setFlag(ASTFlags.PUBLIC,true)
       c.add_static(mainargsmethod)
       result = c

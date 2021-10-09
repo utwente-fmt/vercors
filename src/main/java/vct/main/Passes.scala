@@ -957,7 +957,7 @@ object Passes {
     SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
       new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
-      new GenerateForkJoinMain(_).addStartThreadClass()),
+      new GenerateForkJoinMain(_).addStartThreadClass(false)), //TODO: put this argument in VeyMont Configuration
   )
 
   val BY_KEY: Map[String, AbstractPass] = (

@@ -12,15 +12,15 @@ import scala.jdk.CollectionConverters._
 class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
 
 
-  def addStartThreadClass() : ProgramUnit = {
+  def addStartThreadClass(forkJoin : Boolean) : ProgramUnit = {
     val threads = source.asScala.collect {
       case c: ASTClass if isThreadClassName(c.name) => c
     }
-    target.add(getStartThreadClass(threads.toSet,StructureCheck.getMainClass(source)))
+    target.add(getStartThreadClass(threads.toSet,StructureCheck.getMainClass(source),forkJoin))
     rewriteAll()
   }
 
-  private def getStartThreadClass(threads : Set[ASTClass],mainClass : ASTClass) : ASTClass = {
+  private def getStartThreadClass(threads : Set[ASTClass],mainClass : ASTClass, forkJoin : Boolean) : ASTClass = {
     create.enter()
     create.setOrigin(new MessageOrigin("Generated Class MainJF"))
     val mainFJClass = create.new_class(localMainClassName,null,null)
@@ -30,10 +30,14 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val threadVars = threads.map(t => getThreadVar(t)).toArray
     val threadForks = threads.map(t => getThreadRunning(t.name, true)).toArray
     val threadJoins = threads.map(t => getThreadRunning(t.name, false)).toArray
+    val threadExecutes = threads.map(t => getThreadExecuting(t.name)).toArray
+    val spawnThreads =
+      if(forkJoin) threadForks ++ threadJoins
+      else create.special(ASTSpecial.Kind.ThreadPoolExecutor) +: threadExecutes :+ create.special(ASTSpecial.Kind.ThreadPoolExecutorShutDown)
     val mainFJArgs = threadsConstr.map(getConstrRoleArgs).reduce((a,b) => a ++ b) : Array[DeclarationStatement]
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
-      chansVars ++ threadVars ++ threadForks ++ threadJoins:_*)
-    val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),rewrite(mainFJContract),
+      chansVars ++ threadVars ++ spawnThreads:_*) //++ threadJoins
+    val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),Array(create.class_type("InterruptedException")),rewrite(mainFJContract),
       localMainMethodName,mainFJArgs,body)
     mainFJClass.add_static(mainMethod)
     create.leave()
@@ -77,4 +81,7 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     create.special(if(isFork) ASTSpecial.Kind.Fork else ASTSpecial.Kind.Join,
       create.local_name(new MessageOrigin("Generated argument for forking or joining"),getRoleName(threadClassName)))
   }
+
+  private def getThreadExecuting(threadClassName : String) : ASTSpecial =
+    create.special(ASTSpecial.Kind.ThreadExecute,create.local_name(new MessageOrigin("Generated argument for forking or joining"),getRoleName(threadClassName)))
 }
