@@ -150,7 +150,7 @@ case class JavaLiteralArray(exprs: Seq[Expr])(implicit val o: Origin) extends Ja
   override def t: Type = typeContext.get
 }
 
-case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: String, arguments: Seq[Expr])
+case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: String, arguments: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
                          (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends JavaExpr with NoCheck {
   var ref: Option[JavaInvocationTarget] = None
   override def t: Type = ref.get match {

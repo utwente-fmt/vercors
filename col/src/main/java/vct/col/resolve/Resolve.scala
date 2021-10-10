@@ -118,21 +118,23 @@ case object ResolveReferences {
     case deref @ PVLDeref(obj, field) =>
       deref.ref = Some(PVL.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
 
-    case inv @ CInvocation(obj, _) =>
+    case inv @ CInvocation(obj, _, _, _) =>
       inv.ref = Some(C.resolveInvocation(obj, ctx))
-    case inv @ GpgpuCudaKernelInvocation(name, blocks, threads, args) =>
+    case inv @ GpgpuCudaKernelInvocation(name, blocks, threads, args, _, _) =>
       val kernel = C.findCName(name, ctx).getOrElse(throw NoSuchNameError("kernel", name, inv))
       inv.ref = Some(kernel match {
         case target: CInvocationTarget => target
         case _ => throw NotApplicable(inv)
       })
-    case inv @ JavaInvocation(obj, _, method, args) =>
+    case inv @ JavaInvocation(obj, _, method, args, _, _) =>
       inv.ref = Some((obj match {
         case Some(obj) => Java.findMethod(obj, method, args)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
-    case inv @ PVLInvocation(obj, _) =>
-      inv.ref = Some(PVL.resolveInvocation(obj, ctx))
+    case inv @ PVLInvocation(None, method, args, _, _) =>
+      inv.ref = Some(PVL.findMethod(method, args, ctx).getOrElse(throw NoSuchNameError("method", method, inv)))
+    case inv @ PVLInvocation(Some(obj), method, args, _, _) =>
+      inv.ref = Some(PVL.findInstanceMethod(obj, method, args).getOrElse(throw NoSuchNameError("method", method, inv)))
 
     case goto @ CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
@@ -140,8 +142,7 @@ case object ResolveReferences {
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
 
     case n @ PVLNew(name, args) =>
-      n.classRef = Some(Spec.findClass(name, ctx.asTypeResolutionContext).getOrElse(throw NoSuchNameError("class", name, n)))
-      n.ref = Some(PVL.findConstructor(n.classRef.get, args).getOrElse(throw NoSuchConstructor(n)))
+
 
     case res @ AmbiguousResult() =>
       res.ref = Some(ctx.currentReturnType.getOrElse(throw ResultOutsideMethod(res)))

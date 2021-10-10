@@ -112,7 +112,7 @@ sealed trait PVLInvocationTarget extends Referrable
 sealed trait SpecInvocationTarget
   extends JavaInvocationTarget
     with CDerefTarget with CInvocationTarget
-    with PVLNameTarget with PVLDerefTarget with PVLInvocationTarget
+    with PVLInvocationTarget
 
 case class RefCParam(decl: CParam) extends Referrable with CNameTarget
 case class RefCFunctionDefinition(decl: CFunctionDefinition) extends Referrable with CNameTarget with CInvocationTarget

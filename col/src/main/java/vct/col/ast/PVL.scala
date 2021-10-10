@@ -24,19 +24,9 @@ case class PVLLocal(name: String)(implicit val o: Origin) extends PVLExpr with N
   override def t: Type = ref.get match {
     case ref: RefAxiomaticDataType => TNotAValue(ref)
     case ref: RefVariable => ref.decl.t
-    case ref: RefFunction => TNotAValue(ref)
-    case ref: RefProcedure =>  TNotAValue(ref)
-    case ref: RefPredicate => TNotAValue(ref)
-    case ref: RefInstanceFunction => TNotAValue(ref)
-    case ref: RefInstanceMethod => TNotAValue(ref)
-    case ref: RefInstancePredicate => TNotAValue(ref)
-    case ref: RefADTFunction => TNotAValue(ref)
-    case ref: RefModelProcess => TNotAValue(ref)
-    case ref: RefModelAction => TNotAValue(ref)
     case ref: RefClass => TNotAValue(ref)
     case ref: RefField => ref.decl.t
-    case ref: BuiltinInstanceMethod => TNotAValue(ref)
-    case RefModelField(field) => field.t
+    case ref: RefModelField => ref.decl.t
   }
 }
 
@@ -45,22 +35,13 @@ case class PVLDeref(obj: Expr, field: String)(implicit val o: Origin) extends PV
 
   override def t: Type = ref.get match {
     case ref: RefModelField => ref.decl.t
-    case ref: RefFunction => TNotAValue(ref)
-    case ref: RefProcedure => TNotAValue(ref)
-    case ref: RefPredicate => TNotAValue(ref)
-    case ref: RefInstanceFunction => TNotAValue(ref)
-    case ref: RefInstanceMethod => TNotAValue(ref)
-    case ref: RefInstancePredicate => TNotAValue(ref)
-    case ref: RefADTFunction => TNotAValue(ref)
-    case ref: RefModelProcess => TNotAValue(ref)
-    case ref: RefModelAction => TNotAValue(ref)
     case ref: RefField => ref.decl.t
     case ref: BuiltinField => ref.f(obj).t
-    case ref: BuiltinInstanceMethod => TNotAValue(ref)
   }
 }
 
-case class PVLInvocation(obj: Expr, args: Seq[Expr])(val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends PVLExpr with NoCheck {
+case class PVLInvocation(obj: Option[Expr], method: String, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
+                        (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends PVLExpr with NoCheck {
   var ref: Option[PVLInvocationTarget] = None
 
   override def t: Type = ref.get match {
@@ -73,18 +54,12 @@ case class PVLInvocation(obj: Expr, args: Seq[Expr])(val blame: Blame[Preconditi
     case RefADTFunction(decl) => decl.returnType
     case RefModelProcess(_) => TProcess()
     case RefModelAction(_) => TProcess()
-    case BuiltinInstanceMethod(f) => obj match {
-      case PVLDeref(obj, _) => f(obj)(args).t
-      case _ => ???
-    }
+    case BuiltinInstanceMethod(f) => f(obj.get)(args).t
   }
 }
 
-case class PVLNew(className: String, args: Seq[Expr])(implicit val o: Origin) extends PVLExpr with NoCheck {
-  var ref: Option[PVLConstructor] = None
-  var classRef: Option[Class] = None
+case class PVLNew(t: Type, args: Seq[Expr])(implicit val o: Origin) extends PVLExpr with NoCheck {
 
-  override def t: Type = TClass(classRef.get.ref)
 }
 
 sealed trait PVLClassDeclaration extends ExtraClassDeclaration

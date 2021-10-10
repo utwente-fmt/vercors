@@ -31,9 +31,11 @@ exprList
  ;
 
 expr
- : expr 'with' block
- | expr 'then' block
- | 'unfolding' expr 'in' expr
+ : valWith? unfoldingExpr valThen?
+ ;
+
+unfoldingExpr
+ : 'unfolding' unfoldingExpr 'in' unfoldingExpr
  | iteExpr
  ;
 
@@ -111,15 +113,14 @@ unaryExpr
  ;
 
 newExpr
- : 'new' identifier tuple
+ : 'new' classType call
  | 'new' nonArrayType newDims
  | postfixExpr
  ;
 
 postfixExpr
- : postfixExpr '.' identifier
+ : postfixExpr '.' identifier call?
  | postfixExpr '[' expr ']'
- | postfixExpr tuple
  | postfixExpr valPostfix
  | unit
  ;
@@ -130,9 +131,10 @@ unit
  | 'null'
  | NUMBER
  | '(' expr ')'
- | identifier
+ | identifier call?
  ;
 
+call : valGiven? tuple valYields?;
 tuple : '(' exprList? ')';
 
 block : '{' statement* '}' ;

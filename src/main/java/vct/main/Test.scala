@@ -13,7 +13,8 @@ import scala.jdk.CollectionConverters._
 
 case object Test {
   var files = 0
-  var errors = 0
+  var systemErrors = 0
+  var errorCount = 0
   var crashes = 0
 
   val start = System.currentTimeMillis()
@@ -21,23 +22,29 @@ case object Test {
   def main(args: Array[String]): Unit = {
     try {
       CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).foreach(c => {
-        c.files.asScala.filter(f =>
-          f.toString.endsWith(".java") ||
-            f.toString.endsWith(".c") ||
-            f.toString.endsWith(".pvl")).foreach(tryParse)
+        if(c.files.asScala.forall(f =>
+            f.toString.endsWith(".java") ||
+              f.toString.endsWith(".c") ||
+              f.toString.endsWith(".pvl"))) {
+          tryParse(c.files.asScala.toSeq)
+        } else {
+          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+        }
       })
 
 //      tryParse(Path.of("examples/known-problems/futures/elect.pvl"))
     } finally {
-      println(s"Out of $files files, $errors threw a SystemError and $crashes crashed.")
+      println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
     }
   }
 
   def printErrorsOr(errors: Seq[CheckError])(otherwise: => Unit): Unit = {
+    errorCount += errors.size
     if(errors.isEmpty) otherwise
     else errors.foreach {
       case TypeError(expr, expectedType) =>
+        expectedType.superTypeOf(expr.t)
         println(expr.o.messageInContext(s"Expected to be of type $expectedType, but got ${expr.t}"))
       case TypeErrorText(expr, message) =>
         println(expr.o.messageInContext(message(expr.t)))
@@ -48,10 +55,10 @@ case object Test {
     }
   }
 
-  def tryParse(path: Path): Unit = try {
+  def tryParse(paths: Seq[Path]): Unit = try {
     files += 1
-    println(path)
-    var program = Program(Parsers.parse(path))(DiagnosticOrigin)
+    println(paths.mkString(", "))
+    var program = Program(paths.flatMap(Parsers.parse))(DiagnosticOrigin)
     val extraDecls = ResolveTypes.resolve(program)
     program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)
     val errors = ResolveReferences.resolve(program)
@@ -62,7 +69,7 @@ case object Test {
   } catch {
     case err: SystemError =>
       println(err.text)
-      errors += 1
+      systemErrors += 1
     case res: VerificationResult =>
       println(res.text)
     case e: Throwable =>

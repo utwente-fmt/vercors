@@ -42,7 +42,7 @@ case object Spec {
     implicit val o: Origin = obj.o
     Some(BuiltinInstanceMethod((obj.t.mimics, method) match {
       case (t @ TNotAValue(), _) => (t.decl.get, method) match {
-        case (RefModel(model), "new") => _ => _ => ModelNew(model.ref)
+        case (RefModel(model), "create") => _ => _ => ModelNew(model.ref)
       }
 
       case (TModel(_), "state") => argCount(2)(obj => args => ModelState(obj, args(0), args(1)))

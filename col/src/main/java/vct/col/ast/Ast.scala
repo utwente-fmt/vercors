@@ -1,5 +1,6 @@
 package vct.col.ast
 
+import vct.col.print.Printer
 import vct.result.VerificationResult.SystemError
 
 case class Program(declarations: Seq[GlobalDeclaration])(implicit val o: Origin) extends NodeFamily with Declarator {
@@ -33,6 +34,13 @@ trait Node {
     this #:: subnodes.toStream.flatMap(_.transSubnodes)
 
   def subnodes: Seq[Node] = Subnodes.subnodes(this)
+
+  override def toString: String = {
+    val sb = new java.lang.StringBuilder
+    val printer = Printer(sb)
+    printer.print(this)
+    sb.toString
+  }
 }
 
 /*

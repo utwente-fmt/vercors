@@ -363,7 +363,9 @@ case class Printer(out: Appendable,
   )
 
   var names: ScopedStack[mutable.Map[Referrable, String]] = ScopedStack()
+  names.push(mutable.Map())
   var usedNames: ScopedStack[mutable.Set[(String, Int)]] = ScopedStack()
+  usedNames.push(mutable.Set())
 
   def unfmt(name: String): (String, Int) = {
     if(name.last.isDigit) {
@@ -566,7 +568,8 @@ case class Printer(out: Appendable,
       }
   })
 
-  def printExpr(e: Expr): Unit = ???
+  def printExpr(e: Expr): Unit =
+    say(expr(e)._1)
 
   def bind(wantPrecedence: Int, e: Expr): Phrase = {
     val (output, precedence) = expr(e)
@@ -579,20 +582,23 @@ case class Printer(out: Appendable,
 
   def expr(e: Expr): (Phrase, Int) = e match {
     case CLocal(nodeName) => (phrase(nodeName), 110)
-    case CInvocation(applicable, args) =>
+    case PVLLocal(name) => (phrase(name), 110)
+    case CInvocation(applicable, args, _, _) =>
       (phrase(assoc(100, applicable), "(", commas(args.map(NodePhrase)), ")"), 100)
+    case PVLDeref(obj, field) =>
+      (phrase(assoc(100, obj), ".", field), 100)
     case CStructAccess(struct, field) =>
       (phrase(assoc(100, struct), ".", field), 100)
     case CStructDeref(struct, field) =>
       (phrase(assoc(100, struct), "->", field), 100)
-    case GpgpuCudaKernelInvocation(kernel, blocks, threads, args) =>
+    case GpgpuCudaKernelInvocation(kernel, blocks, threads, args, _, _) =>
       (phrase(kernel, "<<", blocks, ", ", threads, ">>(", commas(args.map(NodePhrase)), ")"), 100)
     case JavaLocal(name) => (phrase(name), 110)
     case JavaDeref(obj, field) =>
       (phrase(assoc(100, obj), ".", field), 100)
     case JavaLiteralArray(exprs) =>
       (phrase("{", commas(exprs.map(NodePhrase)), "}"), 120)
-    case JavaInvocation(obj, typeParams, method, arguments) =>
+    case JavaInvocation(obj, typeParams, method, arguments, _, _) =>
       (obj match {
         case Some(obj) =>
           phrase(assoc(100, obj), ".", method, "(", commas(arguments.map(NodePhrase)), ")")
@@ -765,10 +771,14 @@ case class Printer(out: Appendable,
       (phrase("!", assoc(90, arg)), 90)
     case Exp(left, right) =>
       (phrase(bind(85, left), space, "^^", space, assoc(85, right)), 85)
+    case AmbiguousPlus(left, right) =>
+      (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Plus(left, right) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Minus(left, right) =>
       (phrase(assoc(70, left), space, "-", space, bind(70, right)), 70)
+    case AmbiguousMult(left, right) =>
+      (phrase(assoc(80, left), space, "-", space, assoc(80, right)), 80)
     case Mult(left, right) =>
       (phrase(assoc(80, left), space, "-", space, assoc(80, right)), 80)
     case Div(left, right) =>
@@ -791,6 +801,8 @@ case class Printer(out: Appendable,
       (phrase(bind(65, left), space, ">>>", space, bind(65, right)), 65)
     case And(left, right) =>
       (phrase(assoc(40, left), space, "&&", space, assoc(40, right)), 40)
+    case AmbiguousOr(left, right) =>
+      (phrase(assoc(30, left), space, "||", space, assoc(30, right)), 30)
     case Or(left, right) =>
       (phrase(assoc(30, left), space, "||", space, assoc(30, right)), 30)
     case Implies(left, right) =>
@@ -891,6 +903,7 @@ case class Printer(out: Appendable,
       intersperse(phrase(space, "|", space), types.map(NodePhrase))
     case JavaTClass(names) =>
       intersperse(".", names.map(_._1).map(Text))
+    case PVLNamedType(name) => phrase(name)
     case TVoid() => phrase("void")
     case TBool() => syntax(
       C -> phrase("_Bool"),
@@ -1017,7 +1030,15 @@ case class Printer(out: Appendable,
         doubleline,
       )
     case model: Model =>
-      ???
+      phrase(
+        doubleline,
+        spec(
+          "model", space, name(model), space, "{",
+          indent(phrase(model.declarations.map(NodePhrase):_*)),
+          "}"
+        ),
+        doubleline,
+      )
     case JavaSharedInitialization(isStatic, initialization) =>
       phrase(
         doubleline,

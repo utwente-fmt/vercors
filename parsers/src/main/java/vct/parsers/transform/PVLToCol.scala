@@ -115,10 +115,13 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   }
 
   def convert(implicit expr: ExprContext): Expr = expr match {
-    case Expr0(inner, _, block) => With(convert(block), convert(inner))
-    case Expr1(inner, _, block) => Then(convert(inner), convert(block))
-    case Expr2(_, pred, _, body) => Unfolding(convert(pred), convert(body))
-    case Expr3(inner) => convert(inner)
+    case Expr0(pre, inner, post) =>
+      convertWith(pre, convertThen(post, convert(inner)))
+  }
+
+  def convert(implicit expr: UnfoldingExprContext): Expr = expr match {
+    case UnfoldingExpr0(_, pred, _, body) => Unfolding(convert(pred), convert(body))
+    case UnfoldingExpr1(inner) => convert(inner)
   }
 
   def convert(implicit expr: IteExprContext): Expr = expr match {
@@ -195,17 +198,18 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
   }
 
   def convert(implicit expr: NewExprContext): Expr = expr match {
-    case NewExpr0(_, name, args) => PVLNew(convert(name), convert(args))
+    case NewExpr0(_, name, Call0(given, args, yields)) => PVLNew(convert(name), convert(args))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims))
     case NewExpr2(inner) => convert(inner)
   }
 
   def convert(implicit expr: PostfixExprContext): Expr = expr match {
-    case PostfixExpr0(obj, _, field) => PVLDeref(convert(obj), convert(field))
+    case PostfixExpr0(obj, _, field, None) => PVLDeref(convert(obj), convert(field))
+    case PostfixExpr0(obj, _, field, Some(Call0(given, args, yields))) =>
+      PVLInvocation(Some(convert(obj)), convert(field), convert(args), convertGiven(given), convertYields(yields))(blameProvider(expr))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))
-    case PostfixExpr2(obj, args) => PVLInvocation(convert(obj), convert(args))(blameProvider(expr))
-    case PostfixExpr3(obj, specOp) => convert(specOp, convert(obj))
-    case PostfixExpr4(inner) => convert(inner)
+    case PostfixExpr2(obj, specOp) => convert(specOp, convert(obj))
+    case PostfixExpr3(inner) => convert(inner)
   }
 
   def convert(implicit expr: UnitContext): Expr = expr match {
@@ -214,7 +218,9 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case Unit2(_) => Null()
     case Unit3(n) => Integer.parseInt(n)
     case Unit4(_, inner, _) => convert(inner)
-    case Unit5(id) => convertExpr(id)
+    case Unit5(id, None) => convertExpr(id)
+    case Unit5(id, Some(Call0(given, args, yields))) =>
+      PVLInvocation(None, convert(id), convert(args), convertGiven(given), convertYields(yields))(blameProvider(expr))
   }
 
   def convert(implicit stat: StatementContext): Statement = stat match {
@@ -397,8 +403,11 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
       case "boolean" => TBool()
       case "void" => TVoid()
     }
-    case NonArrayType2(ClassType0(name, typeArgs)) =>
-      PVLNamedType(convert(name))
+    case NonArrayType2(inner) => convert(inner)
+  }
+
+  def convert(implicit t: ClassTypeContext): Type = t match {
+    case ClassType0(name, typeArgs) => PVLNamedType(convert(name))
   }
 
   def convert(implicit ids: IdentifierListContext): Seq[String] = ids match {
@@ -537,24 +546,58 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case ValStatic(_) => collector.static += mod
   }
 
-  private def reduceWithThen(xs: Seq[(Seq[Statement], Seq[Statement])]): (Seq[Statement], Seq[Statement]) =
-    (xs.flatMap(_._1), xs.flatMap(_._2))
-
-  def convert(implicit withThen: ValEmbedWithThenContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValEmbedWithThen0(blocks) =>
-      reduceWithThen(blocks.map(convert(_)))
+  def convertEmbedWith(implicit whiff: Option[ValEmbedWithContext], inner: Expr): Expr = whiff match {
+    case None => inner
+    case Some(ValEmbedWith0(_, whiff, _)) => convertWith(whiff, inner)
+    case Some(ValEmbedWith1(whiff)) => convertWith(Some(whiff), inner)
   }
 
-  def convert(implicit withThen: ValEmbedWithThenBlockContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValEmbedWithThenBlock0(_, specs, _) =>
-      reduceWithThen(specs.map(convert(_)))
-    case ValEmbedWithThenBlock1(specs) =>
-      reduceWithThen(specs.map(convert(_)))
+  def convertWith(implicit whiff: Option[ValWithContext], inner: Expr): Expr = whiff match {
+    case None => inner
+    case Some(whiff @ ValWith0(_, stat)) => With(convert(stat), inner)(origin(whiff))
   }
 
-  def convert(implicit withThen: ValWithThenContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValWith(_, stat) => (convert(stat) +: Nil, Nil)
-    case ValThen(_, stat) => (Nil, convert(stat) +: Nil)
+  def convertEmbedThen(implicit den: Option[ValEmbedThenContext], inner: Expr): Expr = den match {
+    case None => inner
+    case Some(ValEmbedThen0(_, den, _)) => convertThen(den, inner)
+    case Some(ValEmbedThen1(den)) => convertThen(Some(den), inner)
+  }
+
+  def convertThen(implicit den: Option[ValThenContext], inner: Expr): Expr = den match {
+    case None => inner
+    case Some(den @ ValThen0(_, stat)) => Then(inner, convert(stat))(origin(den))
+  }
+
+  def convertEmbedGiven(implicit given: Option[ValEmbedGivenContext]): Seq[(String, Expr)] = given match {
+    case None => Nil
+    case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
+    case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
+  }
+
+  def convertGiven(implicit given: Option[ValGivenContext]): Seq[(String, Expr)] = given match {
+    case None => Nil
+    case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
+  }
+
+  def convert(implicit mappings: ValGivenMappingsContext): Seq[(String, Expr)] = mappings match {
+    case ValGivenMappings0(arg, _, v) => Seq((convert(arg), convert(v)))
+    case ValGivenMappings1(arg, _, v, _, more) => (convert(arg), convert(v)) +: convert(more)
+  }
+
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr, String)] = given match {
+    case None => Nil
+    case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
+    case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
+  }
+
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr, String)] = given match {
+    case None => Nil
+    case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
+  }
+
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr, String)] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((convert(target), convert(res)))
+    case ValYieldsMappings1(target, _, res, _, more) => (convert(target), convert(res)) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr] = exprs match {
@@ -705,14 +748,14 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
       withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
-          col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
+          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })
     case ValModelAction(contract, _, name, _, args, _, _) =>
       withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
-          col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
+          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })
@@ -777,8 +820,8 @@ case class PVLToCol(override val originProvider: OriginProvider, blameProvider: 
     case ValHPerm(_, _, loc, _, perm, _) => HPerm(convert(loc), convert(perm))
     case ValAPerm(_, _, loc, _, perm, _) => APerm(convert(loc), convert(perm))
     case ValArrayPerm(_, _, arr, _, i, _, step, _, count, _, perm, _) => ??(e)
-    case ValMatrix(_, _, m, _, dim1, _, dim2, _) => ??(e)
-    case ValArray(_, _, arr, _, dim, _) => ??(e)
+    case ValMatrix(_, _, m, _, dim1, _, dim2, _) => ValidMatrix(convert(m), convert(dim1), convert(dim2))
+    case ValArray(_, _, arr, _, dim, _) => ValidArray(convert(arr), convert(dim))
     case ValPointer(_, _, ptr, _, n, _, perm, _) => PermPointer(convert(ptr), convert(n), convert(perm))
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
   }

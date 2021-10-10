@@ -44,6 +44,10 @@ primaryExpression
     |   '__builtin_offsetof' '(' typeName ',' unaryExpression ')'
     ;
 
+annotatedPrimaryExpression
+    : valEmbedWith? primaryExpression valEmbedThen?
+    ;
+
 genericSelection
     :   '_Generic' '(' assignmentExpression ',' genericAssocList ')'
     ;
@@ -59,9 +63,9 @@ genericAssociation
     ;
 
 postfixExpression
-    :   primaryExpression
+    :   annotatedPrimaryExpression
     |   postfixExpression '[' expression ']'
-    |   postfixExpression '(' argumentExpressionList? ')'
+    |   postfixExpression valEmbedGiven? '(' argumentExpressionList? ')' valEmbedYields?
     |   postfixExpression '.' clangIdentifier
     |   postfixExpression '->' clangIdentifier
     |   postfixExpression '++'
@@ -198,8 +202,8 @@ conditionalExpression
     ;
 
 assignmentExpression
-    :   conditionalExpression
-    |   unaryExpression assignmentOperator assignmentExpression
+    :   valEmbedWith? conditionalExpression valEmbedThen?
+    |   valEmbedWith? unaryExpression assignmentOperator assignmentExpression valEmbedThen?
     ;
 
 assignmentOperator

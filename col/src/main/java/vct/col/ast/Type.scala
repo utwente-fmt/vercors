@@ -2,6 +2,8 @@ package vct.col.ast
 
 import vct.col.resolve.Referrable
 
+import scala.reflect.ClassTag
+
 sealed trait Type extends NodeFamily {
   def superTypeOf(other: Type): Boolean =
     mimics.superTypeOfImpl(other.mimics) ||
@@ -17,15 +19,15 @@ sealed trait Type extends NodeFamily {
   private def optMatch[In, Out](arg: In)(matchFunc: PartialFunction[In, Out]): Option[Out] =
     matchFunc.lift(arg)
 
-  def asSeq: Option[TSeq] = optMatch(this) { case seq: TSeq => seq }
-  def asSet: Option[TSet] = optMatch(this) { case set: TSet => set }
-  def asBag: Option[TBag] = optMatch(this) { case bag: TBag => bag }
-  def asPointer: Option[TPointer] = optMatch(this) { case ptr: TPointer => ptr }
-  def asArray: Option[TArray] = optMatch(this) { case arr: TArray => arr }
-  def asOption: Option[TOption] = optMatch(this) { case opt: TOption => opt }
-  def asMap: Option[TMap] = optMatch(this) { case map: TMap => map }
-  def asTuple: Option[TTuple] = optMatch(this) { case tup: TTuple => tup }
-  def asModel: Option[TModel] = optMatch(this) { case model: TModel => model }
+  def asSeq: Option[TSeq] = optMatch(mimics) { case seq: TSeq => seq }
+  def asSet: Option[TSet] = optMatch(mimics) { case set: TSet => set }
+  def asBag: Option[TBag] = optMatch(mimics) { case bag: TBag => bag }
+  def asPointer: Option[TPointer] = optMatch(mimics) { case ptr: TPointer => ptr }
+  def asArray: Option[TArray] = optMatch(mimics) { case arr: TArray => arr }
+  def asOption: Option[TOption] = optMatch(mimics) { case opt: TOption => opt }
+  def asMap: Option[TMap] = optMatch(mimics) { case map: TMap => map }
+  def asTuple: Option[TTuple] = optMatch(mimics) { case tup: TTuple => tup }
+  def asModel: Option[TModel] = optMatch(mimics) { case model: TModel => model }
 }
 
 trait ExtraType extends Type
@@ -62,18 +64,19 @@ sealed trait LeafType extends Type {
 
 // A Seq[Cat] is a Seq[Animal] because a Cat is an Animal. Seq is then covariant in its element type. This is nice to
 // have, and works because most of our types are immutable ("query-only").
-sealed abstract class CovariantType(subTypes: => Seq[Type]) extends Type {
+sealed abstract class CovariantType[T <: CovariantType[_]](subTypes: => Seq[Type])(implicit tag: ClassTag[T]) extends Type {
   private def types: Seq[Type] = subTypes
 
-  override def superTypeOfImpl(other: Type): Boolean =
+  override def superTypeOfImpl(other: Type): Boolean = {
     other match {
-      case other: this.type =>
+      case other: T =>
         types.size == other.types.size &&
           types.zip(other.types).forall {
             case (t, otherT) => t.superTypeOf(otherT)
           }
       case _ => false
     }
+  }
 }
 
 // Immutable collection with a defined size
@@ -145,22 +148,22 @@ case class TZFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type 
 case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TString()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TRef()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TOption(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(element))
-case class TTuple(elements: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(elements)
-case class TSeq(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(element)) with CollectionType
-case class TSet(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(element)) with CollectionType
-case class TBag(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(element)) with CollectionType
+case class TOption(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TOption](Seq(element))
+case class TTuple(elements: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TTuple](elements)
+case class TSeq(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TSeq](Seq(element)) with CollectionType
+case class TSet(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TSet](Seq(element)) with CollectionType
+case class TBag(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TBag](Seq(element)) with CollectionType
 case class TArray(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TPointer(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TMap(key: Type, value: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(key, value)) with CollectionType
+case class TMap(key: Type, value: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TMap](Seq(key, value)) with CollectionType
 case class TProcess()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TModel(model: Ref[Model])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 case class TClass(cls: Ref[Class])(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = false // FIXME
+  override def superTypeOfImpl(other: Type): Boolean = other == TClass(cls) // FIXME
 }
 // PB: Potentially axiomatic datatypes could be covariant in its type arguments, but that will probably be a huge mess to
 // translate into silver.
 case class TAxiomatic(adt: Ref[AxiomaticDataType], args: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
 
 // the type type is covariant in its type (yes)
-case class TType(t: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType(Seq(t))
+case class TType(t: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TType](Seq(t))

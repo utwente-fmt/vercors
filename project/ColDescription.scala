@@ -150,10 +150,12 @@ class ColDescription {
     case Defn.Class(_, name, _, _, Template(_, inits, _, _)) =>
       bases(name.value) = inits.collect {
         case Init(Type.Name(name), _, _) => name
+        case Init(Type.Apply(Type.Name(name), _), _, _) => name
       }
     case Defn.Trait(_, name, _, _, Template(_, inits, _, _)) =>
       bases(name.value) = inits.collect {
         case Init(Type.Name(name), _, _) => name
+        case Init(Type.Apply(Type.Name(name), _), _, _) => name
       }
     case Defn.Object(_, _, Template(_, _, _, stats)) =>
       stats.foreach(collectBases(_))

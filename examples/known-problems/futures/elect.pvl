@@ -163,7 +163,7 @@ class Program {
 		}
 		else {
 			f.choose(q, f.SigmaRecv(rank, size, v, w, maxvalue, n), f.SigmaRecv(rank, size, v, w - 1, maxvalue, n));
-			lemma_sigmaRecv_choice(f, rank, v, w - 1, x, n) with { q = q; };
+			lemma_sigmaRecv_choice given { q = q } (f, rank, v, w - 1, x, n);
 		}
 	}
 	
@@ -234,7 +234,7 @@ class Program {
 				res = f.channel[(rank - 1) % size].head; // this is the value we'll receive
 				
 				assert f.state(q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
-				lemma_sigmaRecv_choice(f, rank, v, maxvalue - 1, res, n) with { q = q2; };
+				lemma_sigmaRecv_choice given { q = q2 } (f, rank, v, maxvalue - 1, res, n);
 				assert f.state(q2, f.Recv((rank - 1) % size, res) * f.Check(rank, size, v, res, maxvalue, n));
 				
 				action(f, q2, f.Check(rank, size, v, res, maxvalue, n), f.Recv((rank - 1) % size, res)) {
@@ -280,16 +280,16 @@ class Program {
 		loop_invariant f.state(q2, f.Elect(rank, size, v, maxvalue, n));
     loop_invariant 0 <= v && v < maxvalue;
 		while (n < size) {
-			lemma_fut_elect(f, rank, size, v, maxvalue, n) with { q = q2; };
+			lemma_fut_elect given { q = q2 } (f, rank, size, v, maxvalue, n);
 			
 			// sending the current value to the left
 			process Q = f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n); // small workaround for verification purposes..
-			mpi_send((rank + 1) % size, v) with { q1 = q1; q2 = q2; P = Q; };
+			mpi_send given { q1 = q1, q2 = q2, P = Q } ((rank + 1) % size, v);
 			assert Q == f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n);
 			assert f.state(q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
 			
 			// receiving a value from the right
-			int w = mpi_recv(rank) with { v = v; n = n; q1 = q1; q2 = q2; };
+			int w = mpi_recv given { v = v, n = n, q1 = q1, q2 = q2 } (rank);
 			assert f.state(q2, f.Check(rank, size, v, w, maxvalue, n));
 			assert f.state(q2, f.Elect(rank, size, v <= w ? w : v, maxvalue, n + 1));
 			
@@ -338,7 +338,7 @@ void main(int size, int max, seq<int> xs) {
 
     // run the leader election program
     Program pr = new Program(f, size, max);
-    spawn(0, pr, xs) with { q1 = 1\2; q2 = 1; };
+    spawn given { q1 = 1\2, q2 = 1 } (0, pr, xs);
 
     // finalise the future
     lock pr;
@@ -378,7 +378,7 @@ void spawn(int rank, Program pr, seq<int> xs) {
 
         // spawn and join the remaining threads
         fork m;
-        spawn(rank + 1, pr, xs) with { q1 = q1\2; q2 = q2\2; };
+        spawn given { q1 = q1\2, q2 = q2\2 } (rank + 1, pr, xs);
         join m;
 
         // merge the resulting empty processes
@@ -421,11 +421,11 @@ class Main {
 	requires pr.f.state(r2, pr.f.Elect(rank, pr.size, val, pr.maxvalue, 0));
 	ensures pr.f.state(r2, empty);
 	void run() {
-		int res = pr.elect(rank, val) with { q1 = r1; q2 = r2; };
+		int res = pr.elect given { q1 = r1, q2 = r2 } (rank, val);
 		
 		lock pr;
 		action(pr.f, r2, empty, pr.f.Done(rank, res)) {
-			pr.f.results = Program.update(pr.f.results, rank, res);
+			pr.f.results = update(pr.f.results, rank, res);
 		}
 		unlock pr;
 	}

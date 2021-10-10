@@ -301,14 +301,10 @@ valEmbedStatementBlock
  | {specLevel>0}? valStatement+
  ;
 
-valEmbedWithThenBlock
- : startSpec valWithThen* endSpec
- | {specLevel>0}? valWithThen+
- ;
-
-valEmbedWithThen
- : valEmbedWithThenBlock+
- ;
+valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;
+valEmbedThen: startSpec valThen? endSpec | {specLevel>0}? valThen;
+valEmbedGiven: startSpec valGiven? endSpec | {specLevel>0}? valGiven;
+valEmbedYields: startSpec valYields? endSpec | {specLevel>0}? valYields;
 
 valEmbedGlobalDeclarationBlock
  : startSpec valGlobalDeclaration* endSpec

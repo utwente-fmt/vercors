@@ -302,7 +302,7 @@ sealed trait DividingExpr extends Expr {
   def blame: Blame[DivByZero]
 }
 
-sealed trait NumericOrProcessBinExpr extends BinExpr {
+case class AmbiguousMult(left: Expr, right: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = Type.leastCommonSuperType(left.t, right.t)
 
   override def check(context: CheckContext): Seq[CheckError] = left.t match {
@@ -311,8 +311,19 @@ sealed trait NumericOrProcessBinExpr extends BinExpr {
   }
 }
 
-case class AmbiguousMult(left: Expr, right: Expr)(implicit val o: Origin) extends NumericOrProcessBinExpr
-case class AmbiguousPlus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericOrProcessBinExpr
+case class AmbiguousPlus(left: Expr, right: Expr)(implicit val o: Origin) extends Expr {
+  override def t: Type = Type.leastCommonSuperType(left.t, right.t)
+
+  override def check(context: CheckContext): Seq[CheckError] = left.t match {
+    case TProcess() => right.checkSubType(TProcess())
+    case TSeq(_) => right.checkSeqThen()
+    case TBag(_) => right.checkBagThen()
+    case TSet(_) => right.checkSetThen()
+    case _ => left.checkSubType(TRational()) ++ right.checkSubType(TRational())
+  }
+}
+
+
 case class AmbiguousOr(left: Expr, right: Expr)(implicit val o: Origin) extends BinExpr {
   override def t: Type = Type.leastCommonSuperType(left.t, right.t)
 
@@ -336,16 +347,18 @@ case class BitShl(left: Expr, right: Expr)(implicit val o: Origin) extends IntBi
 case class BitShr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr // sign-extended (signed)
 case class BitUShr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr // not sign-extended (unsigned)
 
+object And {
+  def fold(exprs: Seq[Expr])(implicit o: Origin): Expr =
+    exprs.reduceOption(And(_, _)).getOrElse(Constant.BooleanValue(true))
+}
 case class And(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
 case class Or(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
 case class Implies(left: Expr, right: Expr)(implicit val o: Origin) extends Check(left.checkSubType(TBool()), right.checkSubType(TResource())) with BinExpr {
   override def t: Type = right.t
 }
 object Star {
-  def fold(exprs: Seq[Expr])(implicit o: Origin): Expr = exprs match {
-    case Nil => Constant.BooleanValue(true)
-    case more => more.reduceLeft(new Star(_, _))
-  }
+  def fold(exprs: Seq[Expr])(implicit o: Origin): Expr =
+    exprs.reduceOption(Star(_, _)).getOrElse(Constant.BooleanValue(true))
 
   def unfold(expr: Expr): Seq[Expr] = expr match {
     case Star(left, right) => unfold(left) ++ unfold(right)

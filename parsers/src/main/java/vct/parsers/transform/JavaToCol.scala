@@ -475,6 +475,11 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   }
 
   def convert(implicit expr: ExpressionContext): Expr = expr match {
+    case Expression0(whiff, inner, den) =>
+      convertEmbedWith(whiff, convertEmbedThen(den, convert(inner)))
+  }
+
+  def convert(implicit expr: ExprContext): Expr = expr match {
     case JavaValPrimary(inner) => convert(inner)
     case JavaPrimary(inner) => convert(inner)
     case parse.JavaDeref(obj, _, field) => col.JavaDeref(convert(obj), convert(field))
@@ -487,16 +492,17 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case JavaNonNullInvocation(obj, _, name, args) =>
       Implies(
         Neq(convert(obj), Null()),
-        col.JavaInvocation(Some(convert(obj)), Nil, convert(name), convert(args))(blameProvider(expr)),
+        col.JavaInvocation(Some(convert(obj)), Nil, convert(name), convert(args), Nil, Nil)(blameProvider(expr)),
       )
-    case parse.JavaInvocation(obj, _, name, familyType, args, withThen) =>
+    case parse.JavaInvocation(obj, _, name, familyType, given, args, yields) =>
       failIfDefined(familyType, "Predicate families not supported (for now)")
-      val (given, yields) = withThen.map(convert(_)).getOrElse((Nil, Nil))
-      With(Block(given), Then(
-        col.JavaInvocation(Some(convert(obj)), Nil, convert(name), convert(args))(blameProvider(expr)),
-        Block(yields)))
+      col.JavaInvocation(
+        Some(convert(obj)), Nil, convert(name), convert(args),
+        convertEmbedGiven(given), convertEmbedYields(yields))(
+        blameProvider(expr))
     case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
-    case JavaNew(_, creator) => convert(creator)
+    case JavaNew(given, _, creator, yields) =>
+      convert(creator)
     case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
     case JavaPostfixIncDec(inner, postOp) =>
       val target = convert(inner)
@@ -585,7 +591,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ExplicitGenericInvocationSuffix1(name, familyType, arguments) =>
       // FIXME PB: should support this again somehow, maybe reuse open/close with type syntax instead of fold/unfold?
       failIfDefined(familyType, "Predicate families not supported (for now)")
-      col.JavaInvocation(obj, typeArgs, convert(name), convert(arguments))(blameProvider(invocation))
+      col.JavaInvocation(obj, typeArgs, convert(name), convert(arguments), Nil, Nil)(blameProvider(invocation))
   }
 
   def convert(implicit expr: CreatorContext): Expr = expr match {
@@ -598,16 +604,19 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   }
 
   def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type], name: Type): Expr = creator match {
-    case ClassCreatorRest0(args, withThen, impl) =>
+    case ClassCreatorRest0(args, impl) =>
       failIfDefined(impl, "Anonymous classes are not supported")
-      val (before, after) = withThen.map(convert(_)).getOrElse((Nil, Nil))
-      val result = JavaNewClass(convert(args), ts, name)(blameProvider(creator))
-      With(Block(before), Then(result, Block(after)))
+      JavaNewClass(convert(args), ts, name)(blameProvider(creator))
   }
 
   def convert(implicit creator: ArrayCreatorRestContext, name: Type): Expr = creator match {
     case ArrayCreatorRest0(dims, init) => JavaNewLiteralArray(name, convert(dims), convert(init))
     case ArrayCreatorRest1(specDims, extraDims) => JavaNewDefaultArray(name, convert(specDims), extraDims.map(convert(_)).getOrElse(0))
+  }
+
+  def convert(implicit expr: AnnotatedPrimaryContext): Expr = expr match {
+    case AnnotatedPrimary0(pre, inner, post) =>
+      convertEmbedWith(pre, convertEmbedThen(post, convert(inner)))
   }
 
   def convert(implicit expr: PrimaryContext): Expr = expr match {
@@ -620,11 +629,11 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       case JavaIdentifier1(name) => JavaLocal(name)
       case JavaIdentifier2(_) => JavaLocal(convert(name))
     }
-    case Primary5(name, familyType, args, withThen) =>
+    case Primary5(name, familyType, given, args, yields) =>
       failIfDefined(familyType, "Predicate families are unsupported (for now)")
-      val (before, after) = withThen.map(convert(_)).getOrElse((Nil, Nil))
-      val result = col.JavaInvocation(None, Nil, convert(name), convert(args))(blameProvider(expr))
-      With(Block(before), Then(result, Block(after)))
+      col.JavaInvocation(None, Nil, convert(name), convert(args),
+        convertEmbedGiven(given), convertEmbedYields(yields))(
+        blameProvider(expr))
     case Primary6(_, _, _) => ??(expr)
     case Primary7(_, _, _) => ??(expr)
     case _: Primary8Context => ??(expr)
@@ -778,24 +787,58 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValStatic(_) => collector.static += mod
   }
 
-  private def reduceWithThen(xs: Seq[(Seq[Statement], Seq[Statement])]): (Seq[Statement], Seq[Statement]) =
-    (xs.flatMap(_._1), xs.flatMap(_._2))
-
-  def convert(implicit withThen: ValEmbedWithThenContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValEmbedWithThen0(blocks) =>
-      reduceWithThen(blocks.map(convert(_)))
+  def convertEmbedWith(implicit whiff: Option[ValEmbedWithContext], inner: Expr): Expr = whiff match {
+    case None => inner
+    case Some(ValEmbedWith0(_, whiff, _)) => convertWith(whiff, inner)
+    case Some(ValEmbedWith1(whiff)) => convertWith(Some(whiff), inner)
   }
 
-  def convert(implicit withThen: ValEmbedWithThenBlockContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValEmbedWithThenBlock0(_, specs, _) =>
-      reduceWithThen(specs.map(convert(_)))
-    case ValEmbedWithThenBlock1(specs) =>
-      reduceWithThen(specs.map(convert(_)))
+  def convertWith(implicit whiff: Option[ValWithContext], inner: Expr): Expr = whiff match {
+    case None => inner
+    case Some(whiff @ ValWith0(_, stat)) => With(convert(stat), inner)(origin(whiff))
   }
 
-  def convert(implicit withThen: ValWithThenContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValWith(_, stat) => (convert(stat) +: Nil, Nil)
-    case ValThen(_, stat) => (Nil, convert(stat) +: Nil)
+  def convertEmbedThen(implicit den: Option[ValEmbedThenContext], inner: Expr): Expr = den match {
+    case None => inner
+    case Some(ValEmbedThen0(_, den, _)) => convertThen(den, inner)
+    case Some(ValEmbedThen1(den)) => convertThen(Some(den), inner)
+  }
+
+  def convertThen(implicit den: Option[ValThenContext], inner: Expr): Expr = den match {
+    case None => inner
+    case Some(den @ ValThen0(_, stat)) => Then(inner, convert(stat))(origin(den))
+  }
+
+  def convertEmbedGiven(implicit given: Option[ValEmbedGivenContext]): Seq[(String, Expr)] = given match {
+    case None => Nil
+    case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
+    case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
+  }
+
+  def convertGiven(implicit given: Option[ValGivenContext]): Seq[(String, Expr)] = given match {
+    case None => Nil
+    case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
+  }
+
+  def convert(implicit mappings: ValGivenMappingsContext): Seq[(String, Expr)] = mappings match {
+    case ValGivenMappings0(arg, _, v) => Seq((convert(arg), convert(v)))
+    case ValGivenMappings1(arg, _, v, _, more) => (convert(arg), convert(v)) +: convert(more)
+  }
+
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr, String)] = given match {
+    case None => Nil
+    case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
+    case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
+  }
+
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr, String)] = given match {
+    case None => Nil
+    case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
+  }
+
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr, String)] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((convert(target), convert(res)))
+    case ValYieldsMappings1(target, _, res, _, more) => (convert(target), convert(res)) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr] = exprs match {
@@ -946,14 +989,14 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
       withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
-          col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
+          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })
     case ValModelAction(contract, _, name, _, args, _, _) =>
       withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
-          col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
+          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })

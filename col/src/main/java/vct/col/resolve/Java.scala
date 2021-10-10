@@ -105,17 +105,12 @@ case object Java {
       case _ => Spec.builtinField(obj, name)
     }
 
-  def compat(args: Seq[Expr], params: Seq[Variable]): Boolean =
-    args.size == params.size && params.zip(args).forall {
-      case (v, e) => v.t.superTypeOf(e.t)
-    }
-
   def findMethodInClass(cls: JavaClassOrInterface, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
     cls.decls.flatMap(Referrable.from).collectFirst {
-      case ref @ RefJavaMethod(decl) if ref.name == method && compat(args, decl.parameters) => ref
-      case ref @ RefInstanceMethod(decl) if ref.name == method && compat(args, decl.args) => ref
-      case ref @ RefInstanceFunction(decl) if ref.name == method && compat(args, decl.args) => ref
-      case ref @ RefInstancePredicate(decl) if ref.name == method && compat(args, decl.args) => ref
+      case ref @ RefJavaMethod(decl) if ref.name == method && Util.compat(args, decl.parameters) => ref
+      case ref @ RefInstanceMethod(decl) if ref.name == method && Util.compat(args, decl.args) => ref
+      case ref @ RefInstanceFunction(decl) if ref.name == method && Util.compat(args, decl.args) => ref
+      case ref @ RefInstancePredicate(decl) if ref.name == method && Util.compat(args, decl.args) => ref
     }
 
   def findMethod(obj: Expr, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =

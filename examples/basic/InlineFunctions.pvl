@@ -4,7 +4,7 @@
 
 class C {
     ensures false;
-    inline int f() = 3 + 3;
+    inline pure int f() = 3 + 3;
 
     void m() {
         assert f() == 6;

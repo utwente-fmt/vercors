@@ -170,6 +170,12 @@ case class JavaSpecificToCol() extends Rewriter {
       }
     case cls @ JavaInterface(_, mods, typeParams, ext, decls) =>
       ???
+    case cls: Class =>
+      val diz = AmbiguousThis()(cls.o)
+      diz.ref = Some(TClass(typedSucc[Class](cls)))
+      currentThis.having(diz) {
+        rewriteDefault(cls)
+      }
     case other => rewriteDefault(other)
   }
 
@@ -241,7 +247,7 @@ case class JavaSpecificToCol() extends Rewriter {
 
     case JavaLiteralArray(_) => ???
 
-    case inv @ JavaInvocation(obj, typeParams, _, args) =>
+    case inv @ JavaInvocation(obj, typeParams, _, args, _, _) =>
       implicit val o: Origin = inv.o
       inv.ref.get match {
         case RefFunction(decl) =>

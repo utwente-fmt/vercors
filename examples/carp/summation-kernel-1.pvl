@@ -35,7 +35,6 @@ class Ref {
         ){
           par group(int t = 0 .. N)
             context \array(contrib,N);
-						context_everywhere 0 <= g && g < M;
             requires PointsTo(contrib[t],1\2,0);
             requires Perm(ar[g*N+t],1\4);
             ensures t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(ar[g*N+k],1\4));

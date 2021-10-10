@@ -211,9 +211,8 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case BlockItem5(GpgpuGlobalBarrier0(contract, _, _, _, _)) => withContract(contract, c => {
       GpgpuGlobalBarrier(col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)))
     })
-    case BlockItem6(GpgpuAtomicBlock0(_, impl, withThen)) =>
-      val (before, after) = withThen.map(convert(_)).getOrElse((Nil, Nil))
-      GpgpuAtomic(convert(impl), Block(before), Block(after))
+    case BlockItem6(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
+      GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))
   }
 
   def convert(implicit stat: LabeledStatementContext): Statement = stat match {
@@ -290,12 +289,13 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
   }
 
   def convert(implicit expr: AssignmentExpressionContext): Expr = expr match {
-    case AssignmentExpression0(inner) => convert(inner)
-    case AssignmentExpression1(targetNode, AssignmentOperator0(op), valueNode) =>
+    case AssignmentExpression0(pre, inner, post) =>
+      convertEmbedWith(pre, convertEmbedThen(post, convert(inner)))
+    case AssignmentExpression1(pre, targetNode, AssignmentOperator0(op), valueNode, post) =>
       val target = convert(targetNode)
       val value = convert(valueNode)
 
-      PreAssignExpression(target, op match {
+      val e = PreAssignExpression(target, op match {
         case "=" => value
         case "*=" => Mult(target, value)
         case "/=" => FloorDiv(target, value)(blameProvider(expr))
@@ -308,6 +308,8 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
         case "^=" => BitXor(target, value)
         case "|=" => BitOr(target, value)
       })
+
+      convertEmbedWith(pre, convertEmbedThen(post, e))
   }
 
   def convert(implicit expr: ConditionalExpressionContext): Expr = expr match {
@@ -426,7 +428,9 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
   def convert(implicit expr: PostfixExpressionContext): Expr = expr match {
     case PostfixExpression0(inner) => convert(inner)
     case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx))
-    case PostfixExpression2(f, _, args, _) => CInvocation(convert(f), args.map(convert(_)) getOrElse Nil)
+    case PostfixExpression2(f, given, _, args, _, yields) =>
+      CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
+        convertEmbedGiven(given), convertEmbedYields(yields))
     case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
     case PostfixExpression5(targetNode, _) =>
@@ -440,8 +444,14 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)
     case PostfixExpression10(_, _, _, _, _, _, _) => ??(expr)
     case PostfixExpression11(_, _, _, _, _, _, _, _) => ??(expr)
-    case PostfixExpression12(GpgpuCudaKernelInvocation0(name, _, blocks, _, threads, _, _, args, _, withThen)) =>
-      GpgpuCudaKernelInvocation(convert(name), convert(blocks), convert(threads), convert(args))
+    case PostfixExpression12(GpgpuCudaKernelInvocation0(given, name, _, blocks, _, threads, _, _, args, _, yields)) =>
+      GpgpuCudaKernelInvocation(convert(name), convert(blocks), convert(threads), convert(args),
+        convertEmbedGiven(given), convertEmbedYields(yields))
+  }
+
+  def convert(implicit expr: AnnotatedPrimaryExpressionContext): Expr = expr match {
+    case AnnotatedPrimaryExpression0(pre, inner, post) =>
+      convertEmbedWith(pre, convertEmbedThen(post, convert(inner)))
   }
 
   def convert(implicit expr: PrimaryExpressionContext): Expr = expr match {
@@ -594,24 +604,78 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ValStatic(_) => collector.static += mod
   }
 
-  private def reduceWithThen(xs: Seq[(Seq[Statement], Seq[Statement])]): (Seq[Statement], Seq[Statement]) =
-    (xs.flatMap(_._1), xs.flatMap(_._2))
-
-  def convert(implicit withThen: ValEmbedWithThenContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValEmbedWithThen0(blocks) =>
-      reduceWithThen(blocks.map(convert(_)))
+  def convertEmbedWith(implicit whiff: Option[ValEmbedWithContext], inner: Expr): Expr = whiff match {
+    case None => inner
+    case Some(ValEmbedWith0(_, whiff, _)) => convertWith(whiff, inner)
+    case Some(ValEmbedWith1(whiff)) => convertWith(Some(whiff), inner)
   }
 
-  def convert(implicit withThen: ValEmbedWithThenBlockContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValEmbedWithThenBlock0(_, specs, _) =>
-      reduceWithThen(specs.map(convert(_)))
-    case ValEmbedWithThenBlock1(specs) =>
-      reduceWithThen(specs.map(convert(_)))
+  def convertWith(implicit whiff: Option[ValWithContext], inner: Expr): Expr = whiff match {
+    case None => inner
+    case Some(whiff @ ValWith0(_, stat)) => With(convert(stat), inner)(origin(whiff))
   }
 
-  def convert(implicit withThen: ValWithThenContext): (Seq[Statement], Seq[Statement]) = withThen match {
-    case ValWith(_, stat) => (convert(stat) +: Nil, Nil)
-    case ValThen(_, stat) => (Nil, convert(stat) +: Nil)
+  def convertEmbedThen(implicit den: Option[ValEmbedThenContext], inner: Expr): Expr = den match {
+    case None => inner
+    case Some(ValEmbedThen0(_, den, _)) => convertThen(den, inner)
+    case Some(ValEmbedThen1(den)) => convertThen(Some(den), inner)
+  }
+
+  def convertThen(implicit den: Option[ValThenContext], inner: Expr): Expr = den match {
+    case None => inner
+    case Some(den @ ValThen0(_, stat)) => Then(inner, convert(stat))(origin(den))
+  }
+
+  def convert(implicit whiff: ValEmbedWithContext): Statement = whiff match {
+    case ValEmbedWith0(_, Some(whiff), _) => convert(whiff)
+    case ValEmbedWith0(_, None, _) => Block(Nil)
+    case ValEmbedWith1(whiff) => convert(whiff)
+  }
+
+  def convert(implicit whiff: ValWithContext): Statement = whiff match {
+    case ValWith0(_, stat) => convert(stat)
+  }
+
+  def convert(implicit whiff: ValEmbedThenContext): Statement = whiff match {
+    case ValEmbedThen0(_, Some(whiff), _) => convert(whiff)
+    case ValEmbedThen0(_, None, _) => Block(Nil)
+    case ValEmbedThen1(whiff) => convert(whiff)
+  }
+
+  def convert(implicit whiff: ValThenContext): Statement = whiff match {
+    case ValThen0(_, stat) => convert(stat)
+  }
+
+  def convertEmbedGiven(implicit given: Option[ValEmbedGivenContext]): Seq[(String, Expr)] = given match {
+    case None => Nil
+    case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
+    case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
+  }
+
+  def convertGiven(implicit given: Option[ValGivenContext]): Seq[(String, Expr)] = given match {
+    case None => Nil
+    case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
+  }
+
+  def convert(implicit mappings: ValGivenMappingsContext): Seq[(String, Expr)] = mappings match {
+    case ValGivenMappings0(arg, _, v) => Seq((convert(arg), convert(v)))
+    case ValGivenMappings1(arg, _, v, _, more) => (convert(arg), convert(v)) +: convert(more)
+  }
+
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr, String)] = given match {
+    case None => Nil
+    case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
+    case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
+  }
+
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr, String)] = given match {
+    case None => Nil
+    case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
+  }
+
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr, String)] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((convert(target), convert(res)))
+    case ValYieldsMappings1(target, _, res, _, more) => (convert(target), convert(res)) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr] = exprs match {
@@ -762,14 +826,14 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
       withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
-          col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
+          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })
     case ValModelAction(contract, _, name, _, args, _, _) =>
       withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
-          col.Star.fold(c.consume(c.requires)), col.Star.fold(c.consume(c.ensures)),
+          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })

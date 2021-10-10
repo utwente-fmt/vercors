@@ -63,7 +63,7 @@ case class Goto(lbl: Ref[LabelDecl])(implicit val o: Origin) extends Statement {
 }
 
 case class Exhale(res: Expr)(val blame: Blame[ExhaleFailed])(implicit val o: Origin) extends Check(res.checkSubType(TResource())) with Statement
-case class Assert(assn: Expr)(val blame: Blame[AssertFailed])(implicit val o: Origin) extends Check(assn.checkSubType(TBool())) with Statement
+case class Assert(assn: Expr)(val blame: Blame[AssertFailed])(implicit val o: Origin) extends Check(assn.checkSubType(TResource())) with Statement
 case class Refute(assn: Expr)(implicit val o: Origin) extends Check(assn.checkSubType(TBool())) with Statement
 case class Inhale(res: Expr)(implicit val o: Origin) extends Check(res.checkSubType(TResource())) with Statement
 case class Assume(assn: Expr)(implicit val o: Origin) extends Check(assn.checkSubType(TBool())) with Statement

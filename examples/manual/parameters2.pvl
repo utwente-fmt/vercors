@@ -16,7 +16,7 @@ class parameters {
     Counter c=new Counter();
     c.x=37;
     frac q;
-    drop(c) with { p = 1; } then { q = q ; } ;
-    drop(c) with { p = q; } ;
+    drop given { p = 1 } (c) yields { q =  q};
+    drop given { p = q } (c);
   }
 }

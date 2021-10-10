@@ -376,7 +376,7 @@ class Challenge1 {
 	ensures tobag(\result) == tobag(xs); // output is permutation of input
 	seq<int> part1b(seq<int> xs) {
 		seq<boolean> dir = seq<boolean> { };
-		seq<seq<int>> segments = part1a(xs) then { dir = direction; };
+		seq<seq<int>> segments = part1a(xs) yields { dir = direction };
 		seq<seq<int>> newsegments = seq<seq<int>> { };
 		int x = 0;
   

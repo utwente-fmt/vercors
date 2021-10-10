@@ -1,12 +1,12 @@
 package vct.col.resolve
 
 import vct.col.ast
-import vct.col.ast.{ADTFunction, CovariantType, Expr, ExtraType, LeafType, PVLConstructor, PVLNamedType, TAny, TBoundedInt, TClass, TFraction, TInt, TNotAValue, TNull, TRational, TResource, TZFraction, Class}
+import vct.col.ast.{ADTFunction, Class, CovariantType, Expr, ExtraType, LeafType, PVLConstructor, PVLNamedType, TAny, TBoundedInt, TClass, TFraction, TInt, TModel, TNotAValue, TNull, TRational, TResource, TZFraction}
 
 case object PVL {
   def findConstructor(cls: ast.Class, args: Seq[Expr]): Option[PVLConstructor] =
     cls.declarations.collectFirst {
-      case cons: PVLConstructor if Java.compat(args, cons.args) => cons
+      case cons: PVLConstructor if Util.compat(args, cons.args) => cons
     }
 
   def findTypeName(name: String, ctx: TypeResolutionContext): Option[PVLTypeNameTarget] =
@@ -21,38 +21,49 @@ case object PVL {
 
   def findDerefOfClass(decl: Class, name: String): Option[PVLDerefTarget] =
     decl.declarations.flatMap(Referrable.from).collectFirst {
-      case ref: RefInstanceMethod if ref.name == name => ref
-      case ref: RefInstancePredicate if ref.name == name => ref
-      case ref: RefInstanceFunction if ref.name == name => ref
       case ref: RefField if ref.name == name => ref
     }
 
   def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext): Option[PVLDerefTarget] =
-    obj.t match {
-      case t: TNotAValue => t.decl.get match {
-        case _ => Spec.builtinField(obj, name)
-      }
-      case t: PVLNamedType => t.ref.get match { // should just use mimics here?
-        case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
-          case ref: RefADTFunction if ref.name == name => ref
-        }
-        case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
-          case ref: RefModelField if ref.name == name => ref
-          case ref: RefModelAction if ref.name == name => ref
-          case ref: RefModelProcess if ref.name == name => ref
-        }.orElse(Spec.builtinInstanceMethod(obj, name))
-        case RefClass(decl) => findDerefOfClass(decl, name)
+    obj.t.mimics match {
+      case _: TNotAValue => Spec.builtinField(obj, name)
+      case TModel(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
+        case ref: RefModelField if ref.name == name => ref
       }
       case TClass(ref) => findDerefOfClass(ref.decl, name)
-      case _ => Spec.builtinField(obj, name).orElse(Spec.builtinInstanceMethod(obj, name))
+      case _ => Spec.builtinField(obj, name)
     }
 
-  def resolveInvocation(obj: Expr, ctx: ReferenceResolutionContext): PVLInvocationTarget =
-    obj.t match {
-      case t @ TNotAValue() => t.decl.get match {
-        case target: PVLInvocationTarget => target
-        case _ => throw NotApplicable(obj)
+  def findInstanceMethod(obj: Expr, method: String, args: Seq[Expr]): Option[PVLInvocationTarget] =
+    obj.t.mimics match {
+      case t: TNotAValue => t.decl.get match {
+        case RefAxiomaticDataType(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
+          case ref: RefADTFunction if ref.name == method => ref
+        }
+        case _ => Spec.builtinInstanceMethod(obj, method)
       }
-      case _ => throw NotApplicable(obj)
+      case TModel(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
+        case ref: RefModelAction if ref.name == method => ref
+        case ref: RefModelProcess if ref.name == method => ref
+      }.orElse(Spec.builtinInstanceMethod(obj, method))
+      case TClass(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
+        case ref: RefInstanceFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+        case ref: RefInstanceMethod if ref.name == method && Util.compat(args, ref.decl.args) => ref
+        case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      }
+      case _ => Spec.builtinInstanceMethod(obj, method)
+    }
+
+  def findMethod(method: String, args: Seq[Expr], ctx: ReferenceResolutionContext): Option[PVLInvocationTarget] =
+    ctx.stack.flatten.collectFirst {
+      case ref: RefFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefProcedure if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefPredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstanceFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstanceMethod if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefADTFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefModelProcess if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefModelAction if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
 }

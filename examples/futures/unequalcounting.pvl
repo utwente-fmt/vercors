@@ -4,16 +4,16 @@
 //:: tool silicon
 //:: option --check-history
 
-class `Future` {
+model Counter {
 	int counter;
 	
 	modifies counter;
 	ensures counter == \old(counter) + n;
-	process plus(int n);
+	action plus(int n);
 	
 	modifies counter;
 	ensures counter == \old(counter) * n;
-	process mult(int n);
+	action mult(int n);
 	
 	requires counter > 0 && n > 0;
 	ensures (counter == (\old(counter) + n) * n) || (counter == (\old(counter) * n) + n);
@@ -25,23 +25,23 @@ class Program {
 	requires c > 0 && n > 0;
 	ensures \result == (c + n) * n || \result == (c * n) + n;
 	int count(int c, int n) {
-		`Future` f = new `Future`();
+		Counter f = new Counter();
 		f.counter = c;
-		create f, f.parcount(n);
-		split f, 1\2, f.plus(n), 1\2, f.mult(n);
+		f.create(f.parcount(n));
+		f.split(1\2, f.plus(n), 1\2, f.mult(n));
 		
 		invariant lockinv(HPerm(f.counter, write)) {
 			par T0() 
-				requires Future(f, 1\2, f.plus(n));
-				ensures Future(f, 1\2, empty); 
+				requires f.state(1\2, f.plus(n));
+				ensures f.state(1\2, empty);
 			{
 				atomic(lockinv) {
 					action(f, 1\2, empty, f.plus(n)) { f.counter = f.counter + n; }
 				}
 			}
 			and T1() 
-				requires Future(f, 1\2, f.mult(n));
-				ensures Future(f, 1\2, empty);
+				requires f.state(1\2, f.mult(n));
+				ensures f.state(1\2, empty);
 			{
 				atomic(lockinv) {
 					action(f, 1\2, empty, f.mult(n)) { f.counter = f.counter * n; }
@@ -49,8 +49,8 @@ class Program {
 			}
 		}
 		
-		merge f, 1\2, empty, 1\2, empty;
-		destroy f;
+		f.merge(1\2, empty, 1\2, empty);
+		f.destroy();
 		
 		return f.counter;
 	}

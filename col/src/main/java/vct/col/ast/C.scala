@@ -120,7 +120,8 @@ case class CLocal(name: String)(implicit val o: Origin) extends CExpr with NoChe
     case RefModelField(field) => field.t
   }
 }
-case class CInvocation(applicable: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
+case class CInvocation(applicable: Expr, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
+                      (implicit val o: Origin) extends CExpr with NoCheck {
   var ref: Option[CInvocationTarget] = None
   override def t: Type = ref.get match {
     case RefFunction(decl) =>  decl.returnType
@@ -160,7 +161,7 @@ case class CStructAccess(struct: Expr, field: String)(implicit val o: Origin) ex
 case class CStructDeref(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
   override def t: Type = ???
 }
-case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
+case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])(implicit val o: Origin) extends CExpr with NoCheck {
   var ref: Option[CInvocationTarget] = None
   override def t: Type = ref.get match {
     case RefFunction(decl) => decl.returnType
