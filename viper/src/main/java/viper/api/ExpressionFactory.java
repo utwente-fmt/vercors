@@ -131,6 +131,8 @@ public interface ExpressionFactory<O,T,E> {
   E int_to_double(O o, E e1);
   E float_to_double(O o, E e1);
   E double_to_float(O o, E e1);
+  E float_in_bounds(O o, E e1);
+  E float_not_nan(O o, E e1);
 
   E and(O o, E e1, E e2);
   E or(O o, E e1, E e2);

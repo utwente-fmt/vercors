@@ -221,7 +221,11 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
       }
     }
     case FloorDiv:
-      return create.floor_div(o, e1, e2);
+      if (e.getType().isFloat() || e.getType().isDouble()) {
+        return create.fp_div(o, e1, e2);
+      } else {
+        return create.floor_div(o, e1, e2);
+      }
     case Div: {
       if (e.getType().isFloat() || e.getType().isDouble()) {
         return create.fp_div(o, e1, e2);
@@ -276,6 +280,12 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     }
     case DoubleToFLoat: {
       return create.double_to_float(o, e1);
+    }
+    case FloatInBounds: {
+      return create.float_in_bounds(o, e1);
+    }
+    case FloatNotNaN: {
+      return create.float_not_nan(o, e1);
     }
     default:
       throw new HREError("cannot map operator %s", e.operator());

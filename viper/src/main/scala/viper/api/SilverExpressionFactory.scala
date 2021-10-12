@@ -208,17 +208,17 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def neg(o:O,e1:Exp):Exp = Minus(e1)(NoPosition,new OriginInfo(o))
 
-  override def fp_neg(o:O,e1:Exp):Exp = BackendFuncApp(getFloatFactory(e1).neg("fp_neg"), Seq(e1))(NoPosition,new OriginInfo(o))
-  override def fp_add(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).add("fp_add"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
-  override def fp_sub(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).sub("fp_sub"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
-  override def fp_mult(o:O, e1:Exp, e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).mul("fp_mult"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
-  override def fp_div(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).div("fp_div"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
-  override def fp_eq(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).eq("fp_eq"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
-  override def fp_neq(o:O,e1:Exp,e2:Exp):Exp = not(o, BackendFuncApp(getFloatFactory(e1).eq("fp_eq"), Seq(e1, e2))(NoPosition,new OriginInfo(o)))
-  override def fp_lte(o:O, e1:Exp, e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).leq("fp_lte"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
-  override def fp_gte(o:O, e1:Exp, e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).geq("fp_gte"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
-  override def fp_lt(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).lt("fp_lt"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
-  override def fp_gt(o:O,e1:Exp,e2:Exp):Exp = BackendFuncApp(getFloatFactory(e1).gt("fp_gt"), Seq(e1, e2))(NoPosition,new OriginInfo(o))
+  override def fp_neg(o:O,e1:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).neg("fp_neg"), Seq(e1))
+  override def fp_add(o:O,e1:Exp,e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).add("fp_add"), Seq(e1, e2))
+  override def fp_sub(o:O,e1:Exp,e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).sub("fp_sub"), Seq(e1, e2))
+  override def fp_mult(o:O, e1:Exp, e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).mul("fp_mult"), Seq(e1, e2))
+  override def fp_div(o:O,e1:Exp,e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).div("fp_div"), Seq(e1, e2))
+  override def fp_eq(o:O,e1:Exp,e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).eq("fp_eq"), Seq(e1, e2))
+  override def fp_neq(o:O,e1:Exp,e2:Exp):Exp = not(o, applyBackenFunc(o, getFloatFactory(e1).eq("fp_eq"), Seq(e1, e2)))
+  override def fp_lte(o:O, e1:Exp, e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).leq("fp_lte"), Seq(e1, e2))
+  override def fp_gte(o:O, e1:Exp, e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).geq("fp_gte"), Seq(e1, e2))
+  override def fp_lt(o:O,e1:Exp,e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).lt("fp_lt"), Seq(e1, e2))
+  override def fp_gt(o:O,e1:Exp,e2:Exp):Exp = applyBackenFunc(o, getFloatFactory(e1).gt("fp_gt"), Seq(e1, e2))
 
   private def getFloatFactory(e:Exp):FloatFactory = if (e.typ == floatFactory.typ) floatFactory else doubleFactory
   private final val floatFactory = FloatFactory(24, 8, RoundingMode.RNE)
@@ -244,6 +244,10 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   override def float_to_double(o: O, e1: Exp): Exp = applyBackenFunc(o, float_to_double_func, Seq(e1))
 
   override def double_to_float(o: O, e1: Exp): Exp = applyBackenFunc(o, double_to_float_func, Seq(e1))
+
+  override def float_in_bounds(o: O, e1: Exp): Exp = not(o, applyBackenFunc(o, getFloatFactory(e1).isInfinite("isInfinite"), Seq(e1)))
+
+  override def float_not_nan(o: O, e1: Exp): Exp = not(o, applyBackenFunc(o, getFloatFactory(e1).isNaN("isNaN"), Seq(e1)))
 
   override def local_name(o:O,name:String,t:Type):Exp = LocalVar(name, t)(NoPosition, new OriginInfo(o), NoTrafos)
 

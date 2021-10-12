@@ -362,7 +362,11 @@ public enum StandardOperator {
   /** Get the first element form the tuple */
   TupleFst(1),
   /** Get the second element form the tuple  */
-  TupleSnd(1)
+  TupleSnd(1),
+  /** Check that a float value is not +/- infinity */
+  FloatInBounds(1),
+  /** Check that a float value is not NaN */
+  FloatNotNaN(1)
   ;
 
   private final int arity;

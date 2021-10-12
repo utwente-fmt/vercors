@@ -127,6 +127,8 @@ VAL_TAIL: 'tail';
 VAL_VALUE: 'Value';
 VAL_VALUES_MAP: 'valuesMap';
 VAL_GETOPTELSE: 'getOrElseOption';
+VAL_FLOATINBOUNDS: 'floatInBounds';
+VAL_FLOATNOTNAN: 'floatNotNaN';
 
 UNFOLDING: '\\unfolding';
 IN: '\\in';

@@ -1595,6 +1595,22 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!tt[0].isPrimitive(PrimitiveSort.Tuple)) Fail("The argument is not a tuple at %s", e.getOrigin());
         e.setType((Type) tt[0].secondarg());
         break;
+      case FloatInBounds: {
+        Type t = e.arg(0).getType();
+        if (!(t.isFloat() || t.isDouble())) {
+          Fail("argument of floatInBounds not a float or double");
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
+      }
+      case FloatNotNaN: {
+        Type t = e.arg(0).getType();
+        if (!(t.isFloat() || t.isDouble())) {
+          Fail("argument of floatNotNaN not a float or double");
+        }
+        e.setType(new PrimitiveType(PrimitiveSort.Boolean));
+        break;
+      }
       default:
         Abort("missing case of operator %s", op);
         break;
@@ -1703,8 +1719,13 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       Fail("Second argument of %s is %s rather than a numeric type",op,t2);
     }
 
-    if(op == StandardOperator.FloorDiv && (t1.isFraction() || t2.isFraction())) {
-      Fail("Integer division may not involve fractions");
+    if(op == StandardOperator.FloorDiv) {
+      if (t1.isFraction() || t2.isFraction()) {
+        Fail("Integer division may not involve fractions");
+      }
+      if (t1.isPrimitive(PrimitiveSort.Float) || t1.isPrimitive(PrimitiveSort.Double)) {
+        e.setType(t1);
+      }
     }
 
     if (op==StandardOperator.Minus && t1.isPrimitive(PrimitiveSort.Fraction)){

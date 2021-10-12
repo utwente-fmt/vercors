@@ -164,6 +164,8 @@ valPrimary
     | '(' langExpr '++' langExpr ')'
     | '(' langExpr '\\in' langExpr ')'
     | 'getOrElseOption' '(' langExpr ',' langExpr ')'
+    | 'floatInBounds' '(' langExpr ')'
+    | 'floatNotNaN' '(' langExpr ')'
     ;
 
 valReducibleOperator
@@ -183,7 +185,8 @@ valReserved
     | VAL_DISJOINT_MAP | VAL_EQUALS_MAP | VAL_FUTURE | VAL_GET_FROM_MAP | VAL_GET_FST | VAL_GET_OPTION | VAL_GET_SND
     | VAL_HEAD | VAL_HELD | VAL_HIST | VAL_HPERM | VAL_IDLE | VAL_IS_EMPTY | VAL_ITEMS_MAP | VAL_KEYS_MAP | VAL_PERM_VAL
     | VAL_PERM | VAL_POINTS_TO | VAL_REMOVE | VAL_REMOVE_AT | VAL_REMOVE_FROM_MAP | VAL_RUNNING | VAL_SOME | VAL_TAIL
-    | VAL_VALUE | VAL_VALUES_MAP | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_GETOPTELSE)
+    | VAL_VALUE | VAL_VALUES_MAP | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_GETOPTELSE | VAL_FLOATINBOUNDS
+    | VAL_FLOATNOTNAN)
  | LANG_ID_ESCAPE
  | '\\result'
  | '\\current_thread'

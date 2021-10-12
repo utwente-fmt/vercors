@@ -13,7 +13,7 @@ class RewriteImplicitFloatTypeCast(source: ProgramUnit) extends AbstractRewriter
   override def visit(expr: OperatorExpression): Unit = {
     val op = expr.operator
     op match {
-      case Plus | Minus | Mult | Div | EQ | NEQ | GT | GTE | LT | LTE =>
+      case Plus | Minus | Mult | FloorDiv | Div | EQ | NEQ | GT | GTE | LT | LTE =>
         val first = expr.first
         val second = expr.second
         val args =

@@ -3,7 +3,7 @@ package vct.col.features
 import hre.ast.MessageOrigin
 import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
 import vct.col.ast.`type`._
-import vct.col.ast.expr.StandardOperator.{Div, EQ, GT, GTE, LT, LTE, Minus, Mult, NEQ, Plus}
+import vct.col.ast.expr.StandardOperator.{Div, EQ, FloorDiv, GT, GTE, LT, LTE, Minus, Mult, NEQ, Plus}
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.expr._
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
@@ -310,7 +310,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source) {
 
   private def hasImplicitTypeCast(e: OperatorExpression): Boolean = {
     e.operator match {
-      case Plus | Minus | Mult | Div | EQ | NEQ | GT | GTE | LT | LTE =>
+      case Plus | Minus | Mult | FloorDiv | Div | EQ | NEQ | GT | GTE | LT | LTE =>
         val first = e.first
         val second = e.second
         ((first.getType.isFloat && second.getType.isInteger)

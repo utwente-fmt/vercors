@@ -500,6 +500,22 @@ public class VerCorsExpressionFactory implements
   }
 
   @Override
+  public ASTNode float_in_bounds(Origin o, ASTNode e1) {
+    enter(o);
+    ASTNode res=create.expression(StandardOperator.FloatInBounds, e1);
+    leave();
+    return res;
+  }
+
+  @Override
+  public ASTNode float_not_nan(Origin o, ASTNode e1) {
+    enter(o);
+    ASTNode res=create.expression(StandardOperator.FloatNotNaN, e1);
+    leave();
+    return res;
+  }
+  
+  @Override
   public ASTNode no_perm(Origin o) {
     enter(o);
     ASTNode res=create.reserved_name(ASTReserved.NoPerm);
