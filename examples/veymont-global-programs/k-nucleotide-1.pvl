@@ -1,0 +1,137 @@
+class Main {
+    FileReader fr;
+    MapCreator m01;
+    StringBuilderRole sb;
+    FrequencyWriter w1;
+    FrequencyCollector c;
+    FrequencyCount f1, f2;
+    
+    Main(seq<int> codes, seq<int> nucleotides) {
+        fr = new FileReader(codes);
+        m01 = new MapCreator(0,1);
+        sb = new StringBuilderRole();
+        w1 = new FrequencyWriter(nucleotides);
+        c = new FrequencyCollector();
+        f1 = new FrequencyCount(codes, 0); // "GGT");
+        f2 = new FrequencyCount(codes, 1); //"GGTA");
+    }
+    
+    void run() {
+        fr.sequence = fr.readSystemIn();
+        m01.sequence = fr.sequence;
+        m01.result = m01.createFragmentMap(m01.sequence, m01.offset,m01.fragmentLength);            
+        w1.totalCount = fr.sequence.length;
+        w1.frequencies = m01.result;
+        w1.result = w1.writeFrequencies(w1.totalCount,w1.frequencies);
+        sb.str = w1.result;
+        sb.append();
+        c.frequencies = m01.result;
+        c.append();
+        f1.futures = c.result;
+        f1.result = f1.writeCount(f1.futures, f1.nucleotideFragment);
+        sb.str = f1.result;
+        sb.append();
+        f2.futures = c.result;
+        f2.result = f2.writeCount(f2.futures, f2.nucleotideFragment);
+        sb.str = f2.result;
+        sb.append();
+        sb.print();
+    }
+    
+    void main() {
+        Main m = new Main(seq<int> { -1, 0, -1, 1, 3, -1, -1, 2 }, seq<int> {0,1,2,3});
+        m.run();
+    }
+    
+}
+
+class FileReader {
+    seq<int> codes;
+    int[] sequence;
+    
+    FileReader(seq<int> c) {
+		codes = c;
+   }
+    
+    static int[] readSystemIn(); 
+}
+
+class Result {
+    map<int,int> frequencies;
+    int keyLength;
+    
+    Result(int kl);
+}
+
+class MapCreator {
+    
+    
+    int[] sequence;
+    int offset, fragmentLength;
+    Result result;
+    
+    MapCreator(int offs, int fragL) {
+        offset = offs;
+        fragmentLength = fragL;
+    }
+    
+    static Result createFragmentMap(int[] sequence, int offset, int fragmentLength);
+}
+
+class FrequencyWriter {
+    
+    Result frequencies;
+    seq<int> nucleotides; // = { 'A', 'C', 'G', 'T' };
+    boolean result;
+    int totalCount;
+    
+    FrequencyWriter(seq<int> nu) {
+        nucleotides = nu;
+    }
+    
+    static boolean writeFrequencies(int totalCount, Result frequencies);
+    
+}
+
+class MapSum {
+    
+    Result map1, map2, result;
+    
+    static Result sumTwoMaps(Result map1, Result map2);
+}
+
+class StringBuilderRole {
+    
+    boolean str;
+    
+    StringBuilderRole() { }
+    
+    void append();
+    
+    void print();
+}
+
+class FrequencyCount {
+    
+    seq<int> codes;// = { -1, 0, -1, 1, 3, -1, -1, 2 };
+    seq<Result> futures;
+    int nucleotideFragment;
+    boolean result;
+    
+    FrequencyCount(seq<int> c, int n) {
+        codes = c;
+        nucleotideFragment = n;
+    }
+    
+    static boolean writeCount(seq<Result> futures, int nucleotideFragment);
+}
+
+class FrequencyCollector {
+    Result frequencies;
+    seq<Result> result;
+    
+    FrequencyCollector() { }
+    
+    void append();
+    
+}
