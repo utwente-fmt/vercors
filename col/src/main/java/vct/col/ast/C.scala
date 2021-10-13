@@ -2,6 +2,7 @@ package vct.col.ast
 
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CDerefTarget, CInvocationTarget, CNameTarget, CTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
 import vct.result.VerificationResult
+import vct.result.VerificationResult.UserError
 
 import scala.annotation.tailrec
 
@@ -13,6 +14,7 @@ case class CInline()(implicit val o: Origin) extends CSpecificationModifier
 
 sealed trait CStorageClassSpecifier extends CDeclarationSpecifier
 case class CTypedef()(implicit val o: Origin) extends CStorageClassSpecifier
+case class CExtern()(implicit val o: Origin) extends CStorageClassSpecifier
 case class CStatic()(implicit val o: Origin) extends CStorageClassSpecifier
 
 sealed trait CTypeSpecifier extends CDeclarationSpecifier
@@ -186,8 +188,13 @@ object CPrimitiveType {
   private implicit val o: Origin = DiagnosticOrigin
 }
 
+case class CTypeNotSupported(t: CPrimitiveType) extends UserError {
+  override def code: String = "cTypeNotSupported"
+  override def text: String = t.o.messageInContext("This type is not supported by VerCors.")
+}
+
 case class CPrimitiveType(specifiers: Seq[CDeclarationSpecifier])(implicit val o: Origin = DiagnosticOrigin) extends CType {
-  override def mimics: Type = specifiers match {
+  override def mimics: Type = specifiers.collect { case spec: CTypeSpecifier => spec } match {
     case Seq(CVoid()) => TVoid()
     case Seq(CChar()) => TChar()
     case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()

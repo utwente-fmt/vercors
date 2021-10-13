@@ -1,24 +1,11 @@
 package vct.silver;
 
-import hre.ast.MessageOrigin;
-import hre.ast.Origin;
-import hre.lang.HREError;
-
-import java.io.File;
-import java.io.InputStream;
-
 import org.antlr.v4.runtime.CharStream;
 import scala.NotImplementedError;
-import scala.collection.immutable.Seq;
-import vct.col.ast.GlobalDeclaration;
-import vct.col.ast.stmt.decl.ASTClass;
-import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.ProgramUnit;
+import vct.parsers.ParseResult;
 import vct.parsers.Parser;
 import vct.parsers.transform.BlameProvider;
 import vct.parsers.transform.OriginProvider;
-import viper.api.ViperAPI;
 
 public class ColSilverParser extends Parser {
     /*@Override
@@ -66,7 +53,7 @@ public class ColSilverParser extends Parser {
     }*/
 
     @Override
-    public Seq<GlobalDeclaration> parse(CharStream stream, OriginProvider originProvider, BlameProvider blameProvider) {
+    public ParseResult parse(CharStream stream, OriginProvider originProvider, BlameProvider blameProvider) {
         throw new NotImplementedError(); // FIXME PB: should re-implement sil -> col parsing for new col
     }
 }

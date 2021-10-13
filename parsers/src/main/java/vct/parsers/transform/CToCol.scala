@@ -7,12 +7,10 @@ import vct.col.ast.Constant._
 import vct.col.ast._
 import vct.col.{ast => col}
 
+import scala.collection.mutable
 
-case class CToCol(override val originProvider: OriginProvider, blameProvider: BlameProvider) extends ToCol(originProvider) {
-  implicit def origin(implicit ctx: ParserRuleContext): Origin = {
-    originProvider(ctx) // FIXME make blames nice
-  }
-
+case class CToCol(override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: mutable.Map[(Int, Int), String])
+  extends ToCol(originProvider, blameProvider, errors) {
   def convert(unit: CompilationUnitContext): Seq[GlobalDeclaration] = unit match {
     case CompilationUnit0(translationUnit, _) =>
       translationUnit.map(convert).getOrElse(Nil)
@@ -73,7 +71,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
 
   def convert(implicit storageClass: StorageClassSpecifierContext): CStorageClassSpecifier = storageClass match {
     case StorageClassSpecifier0(_) => CTypedef()
-    case StorageClassSpecifier1(_) => ??(storageClass)
+    case StorageClassSpecifier1(_) => CExtern()
     case StorageClassSpecifier2(_) => CStatic()
     case StorageClassSpecifier3(_) => ??(storageClass)
     case StorageClassSpecifier4(_) => ??(storageClass)
@@ -248,16 +246,16 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
 
   def convert(implicit stat: IterationStatementContext): Statement = stat match {
     case IterationStatement0(contract1, _, _, cond, _, contract2, body) => withContract(contract1, contract2, c => {
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
+      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(), convert(body)))
     })
     case IterationStatement1(_, _, _, _, _, _, _) => ??(stat)
     case IterationStatement2(contract1, maybePragma, _, _, init, _, cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Scope(Nil, Loop(evalOrNop(init), cond.map(convert(_)) getOrElse true, evalOrNop(update), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
+        Scope(Nil, Loop(evalOrNop(init), cond.map(convert(_)) getOrElse true, evalOrNop(update), c.consumeLoopContract(), convert(body)))
       })
     case IterationStatement3(contract1, maybePragma, _, _, init, cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Scope(Nil, Loop(CDeclarationStatement(convert(init)), cond.map(convert(_)) getOrElse true, evalOrNop(update), col.Star.fold(c.consume(c.loop_invariant)), convert(body)))
+        Scope(Nil, Loop(CDeclarationStatement(convert(init)), cond.map(convert(_)) getOrElse true, evalOrNop(update), c.consumeLoopContract(), convert(body)))
       })
   }
 
@@ -298,8 +296,8 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
       val e = PreAssignExpression(target, op match {
         case "=" => value
         case "*=" => Mult(target, value)
-        case "/=" => FloorDiv(target, value)(blameProvider(expr))
-        case "%=" => col.Mod(target, value)(blameProvider(expr))
+        case "/=" => FloorDiv(target, value)(blame(expr))
+        case "%=" => col.Mod(target, value)(blame(expr))
         case "+=" => col.Plus(target, value)
         case "-=" => col.Minus(target, value)
         case "<<=" => BitShl(target, value)
@@ -386,9 +384,9 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blameProvider(expr))
-      case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right))(blameProvider(expr))
-      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blameProvider(expr))
+      case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blame(expr))
     }
   }
 
@@ -468,6 +466,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case PrimaryExpression6(_, _, _, _) => ??(expr)
     case PrimaryExpression7(_, _, _, _, _, _) => ??(expr)
     case PrimaryExpression8(_, _, _, _, _, _) => ??(expr)
+    case PrimaryExpression9(_) => col.Null()
   }
 
   def convert(implicit ids: IdentifierListContext): Seq[String] = ids match {
@@ -702,7 +701,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
   }
 
   def convert(implicit mulOp: ValMulOpContext, left: Expr, right: Expr): Expr = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blameProvider(mulOp))
+    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
   }
 
   def convert(implicit prependOp: ValPrependOpContext, left: Expr, right: Expr): Expr = prependOp match {
@@ -732,17 +731,19 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
       Unfold(convert(predicate))
     case ValOpen(_, _, _) => ??(stat)
     case ValClose(_, _, _) => ??(stat)
-    case ValAssert(_, assn, _) => Assert(convert(assn))(blameProvider(stat))
+    case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))
     case ValAssume(_, assn, _) => Assume(convert(assn))
     case ValInhale(_, resource, _) => Inhale(convert(resource))
-    case ValExhale(_, resource, _) => Exhale(convert(resource))(blameProvider(stat))
+    case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
       Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
     case ValRefute(_, assn, _) => ??(stat)
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
-    case ValSend(_, resource, _, label, _, idx, _) => ??(stat) // FIXME PB: send/recv should be supported
-    case ValRecv(_, resource, _, label, _, idx, _) => ??(stat)
+    case ValSend(_, resource, _, label, _, offset, _) =>
+      Send(convert(resource), new UnresolvedRef[LabelDecl](convert(label)), convert(offset))
+    case ValRecv(_, resource, _, label, _, offset, _) =>
+      Recv(convert(resource), new UnresolvedRef[LabelDecl](convert(label)), convert(offset))
     case ValTransfer(_, _, _) => ??(stat)
     case ValCslSubject(_, _, _) => ??(stat) // FIXME PB: csl_subject seems to be used
     case ValSpecIgnoreStart(_, _) => SpecIgnoreEnd()
@@ -787,7 +788,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
         withModifiers(modifiers, m => {
           val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
           new Function(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
-            c.consumeApplicableContract(), m.consume(m.inline))(blameProvider(decl))(namedOrigin)
+            c.consumeApplicableContract(), m.consume(m.inline))(blame(decl))(namedOrigin)
         })
       ))
     case ValModel(_, name, _, decls, _) =>
@@ -813,7 +814,7 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
         withModifiers(modifiers, m => {
           transform(new InstanceFunction(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
             c.consumeApplicableContract(), m.consume(m.inline))(
-            blameProvider(decl))(
+            blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
         })
       }))
@@ -881,9 +882,9 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => ??(e)
     case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) => ??(e)
-    case ValLiteralSeq(_, exprs, _) => ??(e)
-    case ValLiteralSet(_, exprs, _) => ??(e)
-    case ValLiteralBag(_, exprs, _) => ??(e)
+    case ValLiteralSeq(_, exprs, _) => UntypedLiteralSeq(convert(exprs))
+    case ValLiteralSet(_, exprs, _) => UntypedLiteralSet(convert(exprs))
+    case ValLiteralBag(_, exprs, _) => UntypedLiteralBag(convert(exprs))
     case ValEmptySeq(_, t, _) => LiteralSeq(convert(t), Nil)
     case ValEmptySet(_, t, _) => LiteralSet(convert(t), Nil)
     case ValEmptyBag(_, t, _) => LiteralBag(convert(t), Nil)
@@ -898,8 +899,8 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ValHPerm(_, _, loc, _, perm, _) => HPerm(convert(loc), convert(perm))
     case ValAPerm(_, _, loc, _, perm, _) => APerm(convert(loc), convert(perm))
     case ValArrayPerm(_, _, arr, _, i, _, step, _, count, _, perm, _) => ??(e)
-    case ValMatrix(_, _, m, _, dim1, _, dim2, _) => ??(e)
-    case ValArray(_, _, arr, _, dim, _) => ??(e)
+    case ValMatrix(_, _, m, _, dim1, _, dim2, _) => ValidMatrix(convert(m), convert(dim1), convert(dim2))
+    case ValArray(_, _, arr, _, dim, _) => ValidArray(convert(arr), convert(dim))
     case ValPointer(_, _, ptr, _, n, _, perm, _) => PermPointer(convert(ptr), convert(n), convert(perm))
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
   }
@@ -924,7 +925,17 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
   }
 
-  def convert(implicit e: ValPrimaryVectorContext): Expr = ??(e)
+  def convert(implicit e: ValPrimaryVectorContext): Expr = e match {
+    case ValSum(_, _, t, id, _, cond, _, body, _) =>
+      val binding = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id)))
+      Sum(Seq(binding), convert(cond), convert(body))
+    case ValVectorSum(_, _, rng, _, vec, _) => VectorSum(convert(rng), convert(vec))
+    case ValVectorCmp(_, _, left, _, right, _) => VectorCompare(convert(left), convert(right))
+    case ValVectorRep(_, _, inner, _) => VectorRepeat(convert(inner))
+    case ValMatrixSum(_, _, rng, _, mat, _) => MatrixSum(convert(rng), convert(mat))
+    case ValMatrixCmp(_, _, left, _, right, _) => MatrixCompare(convert(left), convert(right))
+    case ValMatrixRep(_, _, inner, _) => MatrixRepeat(convert(inner))
+  }
 
   def convert(implicit e: ValPrimaryReducibleContext): Expr = ??(e)
 
@@ -942,12 +953,12 @@ case class CToCol(override val originProvider: OriginProvider, blameProvider: Bl
     case ValPrimary5(inner) => convert(inner)
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
-    case ValAny(_) => ??(e)
+    case ValAny(_) => Any()
     case ValIndependent(_, e, _, name, _) => ??(e)
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
-    case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blameProvider(e))
+    case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
   }

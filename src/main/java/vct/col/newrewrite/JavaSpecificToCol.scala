@@ -6,10 +6,17 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.ast.util.SuccessionMap
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, Java, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.result.VerificationResult.{Unreachable, UserError}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case class JavaSpecificToCol() extends Rewriter {
+  case class NotAValue(value: Expr) extends UserError {
+    override def code: String = "notAValue"
+    override def text: String = value.o.messageInContext("Could not resolve this expression to a value.")
+  }
+
   val namespace: ScopedStack[JavaNamespace] = ScopedStack()
   val javaInstanceClassSuccessor: SuccessionMap[JavaClassOrInterface, Class] = SuccessionMap()
   val javaStaticsClassSuccessor: SuccessionMap[JavaClassOrInterface, Class] = SuccessionMap()
@@ -22,6 +29,16 @@ case class JavaSpecificToCol() extends Rewriter {
 
   val currentThis: ScopedStack[Expr] = ScopedStack()
   val currentJavaClass: ScopedStack[JavaClass] = ScopedStack()
+
+  case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
+    override def preferredName: String = "arrayInitializer"
+    override def messageInContext(message: String): String = inner.messageInContext(message)
+  }
+
+  case class InvalidArrayInitializerNesting(initializer: JavaLiteralArray) extends UserError {
+    override def text: String = initializer.o.messageInContext("This literal array is nested more deeply than its indicated type allows.")
+    override def code: String = "invalidNesting"
+  }
 
   def isJavaStatic(decl: ClassDeclaration): Boolean = decl match {
     case JavaSharedInitialization(isStatic, _) => isStatic
@@ -125,6 +142,12 @@ case class JavaSpecificToCol() extends Rewriter {
   }
 
   override def dispatch(decl: Declaration): Unit = decl match {
+    case model: Model =>
+      implicit val o: Origin = model.o
+      val diz = AmbiguousThis()
+      diz.ref = Some(TModel(model.ref))
+      currentThis.having(diz) { model.rewrite().succeedDefault(this, model) }
+
     case ns: JavaNamespace =>
       namespace.having(ns) {
         // Do not enter a scope, so classes of the namespace are declared to the program.
@@ -215,10 +238,10 @@ case class JavaSpecificToCol() extends Rewriter {
       implicit val o: Origin = local.o
 
       local.ref.get match {
-        case RefAxiomaticDataType(decl) => ???
+        case RefAxiomaticDataType(decl) => throw NotAValue(local)
         case RefVariable(decl) => Local(typedSucc[Variable](decl))
-        case RefUnloadedJavaNamespace(names) => ???
-        case RefJavaClass(decl) => ???
+        case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
+        case RefJavaClass(decl) => throw NotAValue(local)
         case RefJavaField(decls, idx) =>
           if(decls.modifiers.contains(JavaStatic())) {
             Deref(
@@ -228,6 +251,8 @@ case class JavaSpecificToCol() extends Rewriter {
           } else {
             Deref(currentThis.head, javaFieldsSuccessor.ref((decls, idx)))
           }
+        case RefModelField(field) =>
+          ModelDeref(currentThis.head, typedSucc[ModelField](field))
         case RefJavaLocalDeclaration(decls, idx) =>
           Local(javaLocalsSuccessor.ref((decls, idx)))
       }
@@ -235,11 +260,11 @@ case class JavaSpecificToCol() extends Rewriter {
     case deref @ JavaDeref(obj, _) =>
       implicit val o: Origin = deref.o
       deref.ref.get match {
-        case RefAxiomaticDataType(decl) => ???
-        case RefModel(decl) => ???
-        case RefJavaClass(decl) => ???
+        case RefAxiomaticDataType(decl) => throw NotAValue(deref)
+        case RefModel(decl) => throw NotAValue(deref)
+        case RefJavaClass(decl) => throw NotAValue(deref)
         case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))
-        case RefUnloadedJavaNamespace(names) => ???
+        case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
         case RefJavaField(decls, idx) =>
           Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))
         case BuiltinField(f) => f(dispatch(obj))
@@ -265,9 +290,9 @@ case class JavaSpecificToCol() extends Rewriter {
         case RefADTFunction(decl) =>
           ADTFunctionInvocation(typedSucc[ADTFunction](decl), args.map(dispatch))
         case RefModelProcess(decl) =>
-          ???
+          ProcessApply(typedSucc[ModelProcess](decl), args.map(dispatch))
         case RefModelAction(decl) =>
-          ???
+          ActionApply(typedSucc[ModelAction](decl), args.map(dispatch))
         case RefJavaMethod(decl) =>
           if(decl.modifiers.contains(JavaStatic())) {
             MethodInvocation(
@@ -288,21 +313,43 @@ case class JavaSpecificToCol() extends Rewriter {
       implicit val o: Origin = inv.o
       t.ref.get match {
         case RefAxiomaticDataType(decl) => ???
-        case RefModel(decl) => ???
+        case RefModel(decl) => ModelNew(typedSucc[Model](decl))
         case RefJavaClass(decl) =>
           val cons = decl.decls.collect {
             case cons: JavaConstructor if cons.parameters.size == args.size => cons
           }.find(_.parameters.zip(args).forall { case (arg, v) => arg.t.superTypeOf(v.t) })
-            .getOrElse(javaDefaultConstructor(decl))
 
-          // TODO reference to default constructor is not lazy!
+          val consRef = cons.map(typedSucc[Procedure]).getOrElse(
+            new LazyRef[Procedure](successionMap(javaDefaultConstructor(decl))))
 
-          ProcedureInvocation(typedSucc[Procedure](cons), args.map(dispatch), Nil)(null)
+          ProcedureInvocation(consRef, args.map(dispatch), Nil)(null)
       }
 
-    case JavaNewLiteralArray(_, _, _) => ???
+    case JavaNewLiteralArray(baseType, dims, initializer) =>
+      // Recursively rewrite an array initializer as a list of assignments
+      def collectArray(es: JavaLiteralArray, dims: Int, stats: ArrayBuffer[Statement]): Expr = {
+        if (dims < 1) throw InvalidArrayInitializerNesting(es)
 
-    case JavaNewDefaultArray(_, _, _) => ???
+        implicit val o: Origin = JavaInlineArrayInitializerOrigin(es.o)
+        val v = new Variable(FuncTools.repeat(TArray(_), dims, baseType))
+        stats += LocalDecl(v)
+        es.exprs.zipWithIndex.map {
+          case (e: JavaLiteralArray, i) =>
+            stats += Assign(AmbiguousSubscript(Local(v.ref), i), collectArray(e, dims-1, stats))
+          case (other, i) =>
+            stats += Assign(AmbiguousSubscript(Local(v.ref), i), dispatch(other))
+        }
+        Local(v.ref)
+      }
+
+      val stats = ArrayBuffer[Statement]()
+      val value = collectArray(initializer match {
+        case init: JavaLiteralArray => init
+        case _ => throw Unreachable("The top level expression of a JavaNewLiteralArray is never not a LiteralArray.")
+      }, dims, stats)
+      With(Block(stats.toSeq)(e.o), value)(e.o)
+
+    case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
     case other => rewriteDefault(other)
   }

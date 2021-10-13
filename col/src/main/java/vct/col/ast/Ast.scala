@@ -36,10 +36,14 @@ trait Node {
   def subnodes: Seq[Node] = Subnodes.subnodes(this)
 
   override def toString: String = {
-    val sb = new java.lang.StringBuilder
-    val printer = Printer(sb)
-    printer.print(this)
-    sb.toString
+    try {
+      val sb = new java.lang.StringBuilder
+      val printer = Printer(sb)
+      printer.print(this)
+      sb.toString
+    } catch {
+      case _: Throwable => super.toString
+    }
   }
 }
 

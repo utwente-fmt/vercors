@@ -6,6 +6,10 @@ import SpecLexer;
     private static boolean inLineSpec = false;
 }
 
+channels {
+  EXPECTED_ERROR_CHANNEL
+}
+
 // LEXER
 
 VAL_INLINE    : 'inline';

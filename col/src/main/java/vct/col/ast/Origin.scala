@@ -1,12 +1,18 @@
 package vct.col.ast
 
+import vct.col.util.ExpectedError
+
 import java.nio.file.Path
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-trait Origin {
+trait Origin extends Blame[VerificationFailure] {
   def preferredName: String
   def messageInContext(message: String): String
+
+  override def blame(error: VerificationFailure): Unit = {
+    println(messageInContext(error.toString))
+  }
 }
 
 case object DiagnosticOrigin extends Origin {
@@ -137,12 +143,8 @@ object InputOrigin {
 
 }
 
-abstract class InputOrigin extends Origin with Blame[VerificationFailure] {
+abstract class InputOrigin extends Origin {
   override def preferredName: String = "unknown"
-
-  override def blame(error: VerificationFailure): Unit = {
-    println(messageInContext(error.toString))
-  }
 }
 
 case class BlameCollector() extends Blame[VerificationFailure] {
@@ -170,7 +172,8 @@ case class InterpretedOrigin(interpretedPath: Path,
                              startLineIdx: Int, startColIdx: Int,
                              endLineIdx: Int, endColIdx: Int,
                              originalPath: Path,
-                             originalStartLineIdx: Int, originalEndLineIdx: Int) extends InputOrigin {
+                             originalStartLineIdx: Int, originalEndLineIdx: Int)
+  extends InputOrigin {
   override def messageInContext(message: String): String = {
     InputOrigin.BOLD_HR +
       f" At $originalPath:${originalStartLineIdx+1}:\n" +

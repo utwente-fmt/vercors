@@ -21,7 +21,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     var programExpectedOutput: Program = null
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
+      implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
@@ -32,7 +32,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     }
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
+      implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
@@ -49,7 +49,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     var programExpectedOutput: Program = null
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
+      implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
@@ -62,7 +62,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     }
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
+      implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
@@ -78,7 +78,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     var programExpectedOutput: Program = null
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
+      implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),
@@ -98,7 +98,7 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     var programExpectedOutput: Program = null
 
     {
-      implicit val origin: InputOrigin = SimpleProgramGenerator.generateSimpleInputOrigin()
+      implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
       val variable = new Variable(TInt())
       val body = Block(Seq(
         LocalDecl(variable),

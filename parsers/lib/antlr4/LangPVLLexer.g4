@@ -1,6 +1,10 @@
 lexer grammar LangPVLLexer;
 import SpecLexer;
 
+channels {
+  EXPECTED_ERROR_CHANNEL
+}
+
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 

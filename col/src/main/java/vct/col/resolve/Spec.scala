@@ -7,6 +7,7 @@ case object Spec {
   case class BuiltinArgumentCountError(obj: Expr, expected: Int) extends UserError {
     override def text: String =
       obj.o.messageInContext(s"Builtin method invocation has wrong argument count: expected $expected argument(s).")
+    override def code: String = "builtinArgCount"
   }
 
   def builtinField(obj: Expr, field: String): Option[BuiltinField] = {

@@ -1,7 +1,7 @@
 package vct.col.ast
 
 import vct.col.ast.ScopeContext.WrongDeclarationCount
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationResult.{SystemError, Unreachable}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -41,7 +41,7 @@ trait Ref[+T <: Declaration] {
 
   def tryResolve(resolver: String => Declaration): Unit = {}
 
-  override def equals(obj: Any): Boolean = obj match {
+  override def equals(obj: scala.Any): Boolean = obj match {
     case other: Ref[_] => decl == other.decl
   }
 
@@ -283,7 +283,14 @@ sealed trait Field extends ClassDeclaration {
 
 class InstanceField(val t: Type, val flags: Set[FieldFlag])(implicit val o: Origin) extends Field with NoCheck
 
-class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator
+class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator {
+  private def transSupportArrows(seen: Set[Class]): Seq[(Class, Class)] =
+    if(seen.contains(this)) throw Unreachable("Yes, you got me, cyclical inheritance is not supported!")
+    else supports.map(other => (this, other.decl)) ++
+      supports.flatMap(other => other.decl.transSupportArrows(Set(this) ++ seen))
+
+  def transSupportArrows: Seq[(Class, Class)] = transSupportArrows(Set.empty)
+}
 
 sealed trait ModelDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.modelScopes.top += this

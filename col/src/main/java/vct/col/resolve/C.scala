@@ -1,7 +1,7 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
-import vct.col.ast.{ADTFunction, CAnonymousFunctionDeclarator, CArrayDeclarator, CDeclarationSpecifier, CDeclarator, CInt, CLong, CName, CParam, CPointerDeclarator, CPrimitiveType, CSigned, CTypedFunctionDeclarator, CUnsigned, DiagnosticOrigin, Expr, Origin, TArray, TNotAValue, Type}
+import vct.col.ast.{ADTFunction, CAnonymousFunctionDeclarator, CArrayDeclarator, CDeclarationSpecifier, CDeclarator, CInt, CLong, CName, CParam, CPointerDeclarator, CPrimitiveType, CSigned, CTypedFunctionDeclarator, CUnsigned, DiagnosticOrigin, Expr, Origin, TArray, TNotAValue, TPointer, Type}
 
 import scala.annotation.tailrec
 
@@ -37,11 +37,16 @@ case object C {
         innerInfo.name)
     case CArrayDeclarator(_, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
-      DeclaratorInfo(innerInfo.params, t => TArray(innerInfo.typeOrReturnType(t)), innerInfo.name)
+      // TODO PB: I think pointer is not correct here.
+      DeclaratorInfo(innerInfo.params, t => TPointer(innerInfo.typeOrReturnType(t)), innerInfo.name)
     case CTypedFunctionDeclarator(params, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(params=Some(params), typeOrReturnType=(t => t), innerInfo.name)
-    case decl @ CAnonymousFunctionDeclarator(_, _) => throw AnonymousMethodsUnsupported(decl)
+    case CAnonymousFunctionDeclarator(Nil, inner) =>
+      val innerInfo = getDeclaratorInfo(inner)
+      DeclaratorInfo(params=Some(Nil), typeOrReturnType=(t => t), innerInfo.name)
+    case decl @ CAnonymousFunctionDeclarator(_, _) =>
+      throw AnonymousMethodsUnsupported(decl)
     case CName(name) => DeclaratorInfo(params=None, typeOrReturnType=(t => t), name)
   }
 

@@ -9,6 +9,7 @@ import java.nio.file.Path
 object Parsers {
   case class UnknownFileExtension(extension: String) extends UserError {
     override def text: String = s"Unknown file extension: $extension"
+    override def code: String = "unknownExt"
   }
 
   def getByExtension(extension: String): Parser = extension match {
@@ -21,6 +22,6 @@ object Parsers {
     case other => throw UnknownFileExtension(other)
   }
 
-  def parse(path: Path): Seq[GlobalDeclaration] =
+  def parse(path: Path): ParseResult =
     getByExtension(path.toString.split('.').last).parse(path.toFile)()
 }

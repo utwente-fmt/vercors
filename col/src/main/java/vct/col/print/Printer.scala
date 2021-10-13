@@ -705,6 +705,12 @@ case class Printer(out: Appendable,
       (phrase("seq<", element, ">{", commas(values.map(NodePhrase)), "}"), 100)
     case LiteralSet(element, values) =>
       (phrase("set<", element, ">{", commas(values.map(NodePhrase)), "}"), 100)
+    case UntypedLiteralSeq(values) =>
+      (phrase("[", commas(values.map(NodePhrase)), "]"), 120)
+    case UntypedLiteralSet(values) =>
+      (phrase("{", commas(values.map(NodePhrase)), "}"), 120)
+    case UntypedLiteralBag(values) =>
+      (phrase("b{", commas(values.map(NodePhrase)), "}"), 120)
     case Void() =>
       ???
     case AmbiguousThis() =>
@@ -832,8 +838,8 @@ case class Printer(out: Appendable,
       (phrase(bind(20, condition), space, "?", space, bind(20, whenTrue), space, ":", space, assoc(20, whenFalse)), 20)
     case NewObject(cls) =>
       (phrase("new", space, name(cls.decl), "()"), 100)
-    case NewArray(element, dims) =>
-      (phrase("new", space, element, phrase(dims.map(phrase("[", _, "]")):_*)), 100)
+    case NewArray(element, dims, moreDims) =>
+      (phrase("new", space, element, phrase(dims.map(phrase("[", _, "]")):_*), "[]".repeat(moreDims)), 100)
     case Old(expr, at) =>
       (phrase("\\old(", expr, ")"), 100)
     case AmbiguousSubscript(collection, index) =>
@@ -916,7 +922,7 @@ case class Printer(out: Appendable,
     case TString() => phrase("String")
     case TRef() => phrase("Ref")
     case TArray(element) => phrase(element, "[]")
-    case TPointer(element) => phrase("*", element)
+    case TPointer(element) => phrase(element, "*")
     case TProcess() => phrase("process")
     case TModel(model) => phrase(name(model.decl))
     case TAxiomatic(adt, args) => phrase(name(adt.decl))
@@ -927,9 +933,12 @@ case class Printer(out: Appendable,
     case TSet(element) => phrase("set<", element, ">")
     case TBag(element) => phrase("bag<", element, ">")
     case TMap(key, value) => phrase("map<", key, ",", space, value, ">")
+    /* case TVector(t) => phrase("vector<", t, ">") // FIXME does not parse (should it?) */
+    case TMatrix(t) => phrase("matrix<", t, ">")
     case TType(t) => phrase(t)
     case TNotAValue() => ???
     case TAny() => phrase("any")
+    case TNothing() => phrase("nothing")
     case TNull() => ???
     case TResource() => phrase("resource")
     case TInt() => phrase("int")

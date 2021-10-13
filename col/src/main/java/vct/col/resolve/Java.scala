@@ -82,7 +82,7 @@ case object Java {
     }
 
   def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext): Option[JavaDerefTarget] =
-    obj.t match {
+    (obj.t match {
       case t @ TNotAValue() => t.decl.get match {
         case RefUnloadedJavaNamespace(pkg) =>
           Some(findJavaTypeName(pkg :+ name, ctx.asTypeResolutionContext)
@@ -91,10 +91,10 @@ case object Java {
           decl.decls.flatMap(Referrable.from).collectFirst {
             case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.contains(JavaStatic()) => ref
           }
-        case _ => Spec.builtinField(obj, name)
+        case _ => None
       }
       case t @ JavaTClass(_) => t.ref.get match {
-        case RefAxiomaticDataType(decl) => Spec.builtinField(obj, name)
+        case RefAxiomaticDataType(decl) => None
         case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
           case ref @ RefModelField(_) if ref.name == name => ref
         }
@@ -102,19 +102,19 @@ case object Java {
           case ref @ RefJavaField(_, _) if ref.name == name && !ref.decls.modifiers.contains(JavaStatic()) => ref
         }
       }
-      case _ => Spec.builtinField(obj, name)
-    }
+      case _ => None
+    }).orElse(Spec.builtinField(obj, name))
 
   def findMethodInClass(cls: JavaClassOrInterface, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
     cls.decls.flatMap(Referrable.from).collectFirst {
-      case ref @ RefJavaMethod(decl) if ref.name == method && Util.compat(args, decl.parameters) => ref
-      case ref @ RefInstanceMethod(decl) if ref.name == method && Util.compat(args, decl.args) => ref
-      case ref @ RefInstanceFunction(decl) if ref.name == method && Util.compat(args, decl.args) => ref
-      case ref @ RefInstancePredicate(decl) if ref.name == method && Util.compat(args, decl.args) => ref
+      case ref: RefJavaMethod if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefInstanceFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstanceMethod if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
 
   def findMethod(obj: Expr, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
-    obj.t match {
+    (obj.t match {
       case t @ JavaTClass(_) =>
         t.ref.get match {
           case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
@@ -127,8 +127,19 @@ case object Java {
           case RefJavaClass(decl) => findMethodInClass(decl, method, args)
         }
       case _ => throw NotApplicable(obj) // FIXME
-    }
+    }).orElse(Spec.builtinInstanceMethod(obj, method))
 
   def findMethod(ctx: ReferenceResolutionContext, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
-    findMethodInClass(ctx.currentJavaClass.get, method, args)
+    ctx.stack.flatten.collectFirst {
+      case ref: RefJavaMethod if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefInstanceFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstanceMethod if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefProcedure if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefPredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefADTFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefModelProcess if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefModelAction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+    }
 }

@@ -3,7 +3,7 @@ package vct.main
 import vct.col.ast.{CheckError, DiagnosticOrigin, IncomparableTypes, OutOfScopeError, Program, TypeError, TypeErrorText}
 import vct.col.newrewrite.JavaSpecificToCol
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
-import vct.parsers.Parsers
+import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult
 import vct.result.VerificationResult.{SystemError, UserError}
 import vct.test.CommandLineTesting
@@ -32,7 +32,7 @@ case object Test {
         }
       })
 
-//      tryParse(Path.of("examples/known-problems/futures/elect.pvl"))
+//      tryParse(Seq(Path.of("examples/known-problems/verifythis/2019/challenge2b.pvl")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
@@ -48,8 +48,9 @@ case object Test {
         println(expr.o.messageInContext(s"Expected to be of type $expectedType, but got ${expr.t}"))
       case TypeErrorText(expr, message) =>
         println(expr.o.messageInContext(message(expr.t)))
-      case OutOfScopeError(ref) =>
-        ref.decl.o.messageInContext("Out of scope!")
+      case OutOfScopeError(use, ref) =>
+        println(use.o.messageInContext("This use is out of scope"))
+        println(ref.decl.o.messageInContext("Declaration occurs here"))
       case IncomparableTypes(left, right) =>
         println(s"Types $left and $right are incomparable")
     }
@@ -58,7 +59,8 @@ case object Test {
   def tryParse(paths: Seq[Path]): Unit = try {
     files += 1
     println(paths.mkString(", "))
-    var program = Program(paths.flatMap(Parsers.parse))(DiagnosticOrigin)
+    val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse))
+    var program = Program(decls)(DiagnosticOrigin)
     val extraDecls = ResolveTypes.resolve(program)
     program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)
     val errors = ResolveReferences.resolve(program)
@@ -71,6 +73,7 @@ case object Test {
       println(err.text)
       systemErrors += 1
     case res: VerificationResult =>
+      errorCount += 1
       println(res.text)
     case e: Throwable =>
       e.printStackTrace()

@@ -18,7 +18,7 @@ public class Main {
     Worker w=new Worker(7);
     //@ assert w.input==7;
     w.start();
-    w.join()/*@ with { p = 1; } @*/;
+    w.join /*@ given { p = 1 } @*/();
     //@ assert w.input==7;
     //@ open w.postJoin@Worker(1);
     //@ unfold w.postJoin@Worker(1);

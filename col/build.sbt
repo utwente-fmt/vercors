@@ -26,7 +26,6 @@ generateHelpersTask := {
   )
 
   val compile = FileFunction.cached(streams.value.cacheDirectory / "removeThisToGenerate-src_managed", FilesInfo.hash)(changedSet => {
-    println(changedSet)
     if(changedSet.nonEmpty) {
       ColHelper().generate(files, gen).toSet
     } else {
@@ -35,8 +34,6 @@ generateHelpersTask := {
   })
 
   compile(files.toSet).toSeq
-
-//  ColHelper().generate(files, gen)
 }
 
 sourceGenerators in Compile += generateHelpersTask

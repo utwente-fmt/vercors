@@ -58,13 +58,11 @@ case class PVLInvocation(obj: Option[Expr], method: String, args: Seq[Expr], giv
   }
 }
 
-case class PVLNew(t: Type, args: Seq[Expr])(implicit val o: Origin) extends PVLExpr with NoCheck {
-
-}
+case class PVLNew(t: Type, args: Seq[Expr])(implicit val o: Origin) extends PVLExpr with NoCheck
 
 sealed trait PVLClassDeclaration extends ExtraClassDeclaration
 case class PVLConstructor(contract: ApplicableContract, args: Seq[Variable], body: Option[Statement])(implicit val o: Origin)
   extends PVLClassDeclaration with NoCheck with Declarator {
-  override def declarations: Seq[Declaration] = args
+  override def declarations: Seq[Declaration] = args ++ contract.givenArgs ++ contract.yieldsArgs
 }
 case class PVLStatic(inner: ClassDeclaration)

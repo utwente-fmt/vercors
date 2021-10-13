@@ -10,9 +10,10 @@ import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.ast.Constant._
 import vct.col.resolve.Java
 
-case class JavaToCol(override val originProvider: OriginProvider, blameProvider: BlameProvider) extends ToCol(originProvider) {
-  implicit def origin(implicit node: ParserRuleContext): Origin = originProvider(node)
+import scala.collection.mutable
 
+case class JavaToCol(override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: mutable.Map[(Int, Int), String])
+  extends ToCol(originProvider, blameProvider, errors) {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
       Seq(JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
@@ -116,12 +117,12 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case MemberDeclaration0(MethodDeclaration0(returnType, name, params, dims, signals, body)) =>
       Seq(JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil),
-        convert(body), c.consumeApplicableContract())(blameProvider(decl)))
+        convert(body), c.consumeApplicableContract())(blame(decl)))
     case MemberDeclaration1(GenericMethodDeclaration0(typeParams, MethodDeclaration0(
       returnType, name, params, dims, signals, body))) =>
       Seq(JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
-        convert(body), c.consumeApplicableContract())(blameProvider(decl)))
+        convert(body), c.consumeApplicableContract())(blame(decl)))
     case MemberDeclaration2(FieldDeclaration0(t, decls, _)) =>
       // Ignore the contract collector, so that complains about being non-empty
       Seq(JavaFields(mods, convert(t), convert(decls)))
@@ -145,12 +146,12 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case InterfaceMemberDeclaration1(InterfaceMethodDeclaration0(t, name, params, dims, signals, _)) =>
       // JLS SE 7 - 9.4
       Seq(JavaMethod(Seq(JavaPublic(), JavaAbstract()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
-        convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil), None, c.consumeApplicableContract())(blameProvider(decl)))
+        convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil), None, c.consumeApplicableContract())(blame(decl)))
     case InterfaceMemberDeclaration2(GenericInterfaceMethodDeclaration0(typeParams, InterfaceMethodDeclaration0(
       t, name, params, dims, signals, _))) =>
       Seq(JavaMethod(Seq(JavaPublic(), JavaAbstract()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
-        None, c.consumeApplicableContract())(blameProvider(decl)))
+        None, c.consumeApplicableContract())(blame(decl)))
     case InterfaceMemberDeclaration3(interface) => fail(interface, "Inner interfaces are not supported.")
     case InterfaceMemberDeclaration4(annotation) => fail(annotation, "Annotations are not supported.")
     case InterfaceMemberDeclaration5(cls) => fail(cls, "Inner classes are not supported.")
@@ -265,7 +266,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
 
   def convert(implicit stat: StatementContext): Statement = stat match {
     case Statement0(block) => convert(block)
-    case Statement1(_, assn, _, _) => Assert(convert(assn))(blameProvider(stat))
+    case Statement1(_, assn, _, _) => Assert(convert(assn))(blame(stat))
     case Statement2(_, cond, body, otherwise) =>
       Branch(Seq((convert(cond), convert(body))) ++ (otherwise match {
         case None => Nil
@@ -280,7 +281,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
               init.map(convert(_)).getOrElse(Block(Nil)),
               cond.map(convert(_)).getOrElse(true),
               update.map(convert(_)).getOrElse(Block(Nil)),
-              Star.fold(c.consume(c.loop_invariant)),
+              c.consumeLoopContract(),
               convert(body)
             ))
         }
@@ -292,7 +293,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       }
     case Statement4(contract1, label, _, cond, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
-        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), Star.fold(c.consume(c.loop_invariant)), convert(body)))
+        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(), convert(body)))
       })
 
       label match {
@@ -492,14 +493,14 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case JavaNonNullInvocation(obj, _, name, args) =>
       Implies(
         Neq(convert(obj), Null()),
-        col.JavaInvocation(Some(convert(obj)), Nil, convert(name), convert(args), Nil, Nil)(blameProvider(expr)),
+        col.JavaInvocation(Some(convert(obj)), Nil, convert(name), convert(args), Nil, Nil)(blame(expr)),
       )
     case parse.JavaInvocation(obj, _, name, familyType, given, args, yields) =>
       failIfDefined(familyType, "Predicate families not supported (for now)")
       col.JavaInvocation(
         Some(convert(obj)), Nil, convert(name), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))(
-        blameProvider(expr))
+        blame(expr))
     case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
     case JavaNew(given, _, creator, yields) =>
       convert(creator)
@@ -527,8 +528,8 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       mul match {
         case MulOp0(op) => op match {
           case "*" => AmbiguousMult(left, right)
-          case "/" => FloorDiv(left, right)(blameProvider(expr))
-          case "%" => Mod(left, right)(blameProvider(expr))
+          case "/" => FloorDiv(left, right)(blame(expr))
+          case "%" => Mod(left, right)(blame(expr))
         }
         case MulOp1(specOp) => convert(specOp, left, right)
       }
@@ -574,14 +575,14 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
         case "+=" => Plus(target, value)
         case "-=" => Minus(target, value)
         case "*=" => Mult(target,  value)
-        case "/=" => FloorDiv(target,  value)(blameProvider(expr))
+        case "/=" => FloorDiv(target,  value)(blame(expr))
         case "&=" => BitAnd(target, value)
         case "|=" => BitOr(target, value)
         case "^=" => BitXor(target, value)
         case ">>=" => BitShr(target, value)
         case ">>>=" => BitUShr(target, value)
         case "<<=" => BitShl(target, value)
-        case "%=" => Mod(target, value)(blameProvider(expr))
+        case "%=" => Mod(target, value)(blame(expr))
       })
   }
 
@@ -591,7 +592,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ExplicitGenericInvocationSuffix1(name, familyType, arguments) =>
       // FIXME PB: should support this again somehow, maybe reuse open/close with type syntax instead of fold/unfold?
       failIfDefined(familyType, "Predicate families not supported (for now)")
-      col.JavaInvocation(obj, typeArgs, convert(name), convert(arguments), Nil, Nil)(blameProvider(invocation))
+      col.JavaInvocation(obj, typeArgs, convert(name), convert(arguments), Nil, Nil)(blame(invocation))
   }
 
   def convert(implicit expr: CreatorContext): Expr = expr match {
@@ -606,7 +607,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type], name: Type): Expr = creator match {
     case ClassCreatorRest0(args, impl) =>
       failIfDefined(impl, "Anonymous classes are not supported")
-      JavaNewClass(convert(args), ts, name)(blameProvider(creator))
+      JavaNewClass(convert(args), ts, name)(blame(creator))
   }
 
   def convert(implicit creator: ArrayCreatorRestContext, name: Type): Expr = creator match {
@@ -633,7 +634,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       failIfDefined(familyType, "Predicate families are unsupported (for now)")
       col.JavaInvocation(None, Nil, convert(name), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))(
-        blameProvider(expr))
+        blame(expr))
     case Primary6(_, _, _) => ??(expr)
     case Primary7(_, _, _) => ??(expr)
     case _: Primary8Context => ??(expr)
@@ -809,6 +810,26 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case Some(den @ ValThen0(_, stat)) => Then(inner, convert(stat))(origin(den))
   }
 
+  def convert(implicit whiff: ValEmbedWithContext): Statement = whiff match {
+    case ValEmbedWith0(_, Some(whiff), _) => convert(whiff)
+    case ValEmbedWith0(_, None, _) => Block(Nil)
+    case ValEmbedWith1(whiff) => convert(whiff)
+  }
+
+  def convert(implicit whiff: ValWithContext): Statement = whiff match {
+    case ValWith0(_, stat) => convert(stat)
+  }
+
+  def convert(implicit whiff: ValEmbedThenContext): Statement = whiff match {
+    case ValEmbedThen0(_, Some(whiff), _) => convert(whiff)
+    case ValEmbedThen0(_, None, _) => Block(Nil)
+    case ValEmbedThen1(whiff) => convert(whiff)
+  }
+
+  def convert(implicit whiff: ValThenContext): Statement = whiff match {
+    case ValThen0(_, stat) => convert(stat)
+  }
+
   def convertEmbedGiven(implicit given: Option[ValEmbedGivenContext]): Seq[(String, Expr)] = given match {
     case None => Nil
     case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
@@ -865,7 +886,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
   }
 
   def convert(implicit mulOp: ValMulOpContext, left: Expr, right: Expr): Expr = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blameProvider(mulOp))
+    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
   }
 
   def convert(implicit prependOp: ValPrependOpContext, left: Expr, right: Expr): Expr = prependOp match {
@@ -895,17 +916,19 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       Unfold(convert(predicate))
     case ValOpen(_, _, _) => ??(stat)
     case ValClose(_, _, _) => ??(stat)
-    case ValAssert(_, assn, _) => Assert(convert(assn))(blameProvider(stat))
+    case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))
     case ValAssume(_, assn, _) => Assume(convert(assn))
     case ValInhale(_, resource, _) => Inhale(convert(resource))
-    case ValExhale(_, resource, _) => Exhale(convert(resource))(blameProvider(stat))
+    case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
       Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
     case ValRefute(_, assn, _) => ??(stat)
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
-    case ValSend(_, resource, _, label, _, idx, _) => ??(stat) // FIXME PB: send/recv should be supported
-    case ValRecv(_, resource, _, label, _, idx, _) => ??(stat)
+    case ValSend(_, resource, _, label, _, offset, _) =>
+      Send(convert(resource), new UnresolvedRef[LabelDecl](convert(label)), convert(offset))
+    case ValRecv(_, resource, _, label, _, offset, _) =>
+      Recv(convert(resource), new UnresolvedRef[LabelDecl](convert(label)), convert(offset))
     case ValTransfer(_, _, _) => ??(stat)
     case ValCslSubject(_, _, _) => ??(stat) // FIXME PB: csl_subject seems to be used
     case ValSpecIgnoreStart(_, _) => SpecIgnoreEnd()
@@ -950,7 +973,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
         withModifiers(modifiers, m => {
           val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
           new Function(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
-            c.consumeApplicableContract(), m.consume(m.inline))(blameProvider(decl))(namedOrigin)
+            c.consumeApplicableContract(), m.consume(m.inline))(blame(decl))(namedOrigin)
         })
       ))
     case ValModel(_, name, _, decls, _) =>
@@ -976,7 +999,7 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
         withModifiers(modifiers, m => {
           transform(new InstanceFunction(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
             c.consumeApplicableContract(), m.consume(m.inline))(
-            blameProvider(decl))(
+            blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
         })
       }))
@@ -1044,9 +1067,9 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => ??(e)
     case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) => ??(e)
-    case ValLiteralSeq(_, exprs, _) => ??(e)
-    case ValLiteralSet(_, exprs, _) => ??(e)
-    case ValLiteralBag(_, exprs, _) => ??(e)
+    case ValLiteralSeq(_, exprs, _) => UntypedLiteralSeq(convert(exprs))
+    case ValLiteralSet(_, exprs, _) => UntypedLiteralSet(convert(exprs))
+    case ValLiteralBag(_, exprs, _) => UntypedLiteralBag(convert(exprs))
     case ValEmptySeq(_, t, _) => LiteralSeq(convert(t), Nil)
     case ValEmptySet(_, t, _) => LiteralSet(convert(t), Nil)
     case ValEmptyBag(_, t, _) => LiteralBag(convert(t), Nil)
@@ -1061,8 +1084,8 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValHPerm(_, _, loc, _, perm, _) => HPerm(convert(loc), convert(perm))
     case ValAPerm(_, _, loc, _, perm, _) => APerm(convert(loc), convert(perm))
     case ValArrayPerm(_, _, arr, _, i, _, step, _, count, _, perm, _) => ??(e)
-    case ValMatrix(_, _, m, _, dim1, _, dim2, _) => ??(e)
-    case ValArray(_, _, arr, _, dim, _) => ??(e)
+    case ValMatrix(_, _, m, _, dim1, _, dim2, _) => ValidMatrix(convert(m), convert(dim1), convert(dim2))
+    case ValArray(_, _, arr, _, dim, _) => ValidArray(convert(arr), convert(dim))
     case ValPointer(_, _, ptr, _, n, _, perm, _) => PermPointer(convert(ptr), convert(n), convert(perm))
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
   }
@@ -1087,7 +1110,17 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
   }
 
-  def convert(implicit e: ValPrimaryVectorContext): Expr = ??(e)
+  def convert(implicit e: ValPrimaryVectorContext): Expr = e match {
+    case ValSum(_, _, t, id, _, cond, _, body, _) =>
+      val binding = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id)))
+      Sum(Seq(binding), convert(cond), convert(body))
+    case ValVectorSum(_, _, rng, _, vec, _) => VectorSum(convert(rng), convert(vec))
+    case ValVectorCmp(_, _, left, _, right, _) => VectorCompare(convert(left), convert(right))
+    case ValVectorRep(_, _, inner, _) => VectorRepeat(convert(inner))
+    case ValMatrixSum(_, _, rng, _, mat, _) => MatrixSum(convert(rng), convert(mat))
+    case ValMatrixCmp(_, _, left, _, right, _) => MatrixCompare(convert(left), convert(right))
+    case ValMatrixRep(_, _, inner, _) => MatrixRepeat(convert(inner))
+  }
 
   def convert(implicit e: ValPrimaryReducibleContext): Expr = ??(e)
 
@@ -1105,12 +1138,12 @@ case class JavaToCol(override val originProvider: OriginProvider, blameProvider:
     case ValPrimary5(inner) => convert(inner)
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
-    case ValAny(_) => ??(e)
+    case ValAny(_) => Any()
     case ValIndependent(_, e, _, name, _) => ??(e)
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
-    case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blameProvider(e))
+    case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
   }

@@ -1,5 +1,6 @@
 package vct.col.ast
 
+import hre.util.FuncTools
 import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefModel, SpecTypeNameTarget}
 
 sealed trait Expr extends NodeFamily {
@@ -47,6 +48,10 @@ sealed trait Expr extends NodeFamily {
     t.asMap.map(whenOk).getOrElse(Seq(TypeError(this, TMap(TAny(), TAny()))))
   def checkTupleThen(whenOk: TTuple => Seq[CheckError] = _ => Nil): Seq[CheckError] =
     t.asTuple.map(whenOk).getOrElse(Seq(TypeError(this, TTuple(Seq(TAny())))))
+  /*def checkVectorThen(whenOk: TVector => Seq[CheckError] = _ => Nil): Seq[CheckError] =
+    t.asVector.map(whenOk).getOrElse(Seq(TypeError(this, TVector(TAny()))))*/
+  def checkMatrixThen(whenOk: TMatrix => Seq[CheckError] = _ => Nil): Seq[CheckError] =
+    t.asMatrix.map(whenOk).getOrElse(Seq(TypeError(this, TMatrix(TAny()))))
   def checkModelThen(whenOk: TModel => Seq[CheckError] = _ => Nil): Seq[CheckError] =
     t.asModel.map(whenOk).getOrElse(Seq(TypeErrorText(this, got => s"Expected a model type, but got $got")))
 }
@@ -75,7 +80,7 @@ sealed trait VoidExpr extends Expr {
 sealed abstract class Constant[T] extends Expr {
   def value: T
 
-  override def equals(obj: Any): Boolean = obj match {
+  override def equals(obj: scala.Any): Boolean = obj match {
     case const: Constant[T] => this.value == const.value
   }
 
@@ -84,7 +89,7 @@ sealed abstract class Constant[T] extends Expr {
 }
 
 object Constant {
-  def unapply(obj: Any): Option[Any] = obj match {
+  def unapply(obj: scala.Any): Option[scala.Any] = obj match {
     case c: Constant[_] => Some(c.value)
     case _ => None
   }
@@ -110,6 +115,18 @@ case class LiteralSet(element: Type, values: Seq[Expr])(implicit val o: Origin) 
 
 case class LiteralBag(element: Type, values: Seq[Expr])(implicit val o: Origin) extends Check(values.flatMap(_.checkSubType(element))) with Expr {
   override def t: Type = TBag(element)
+}
+
+case class UntypedLiteralSeq(values: Seq[Expr])(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TSeq(Type.leastCommonSuperType(values.map(_.t)))
+}
+
+case class UntypedLiteralSet(values: Seq[Expr])(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TSet(Type.leastCommonSuperType(values.map(_.t)))
+}
+
+case class UntypedLiteralBag(values: Seq[Expr])(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TBag(Type.leastCommonSuperType(values.map(_.t)))
 }
 
 case class Void()(implicit val o: Origin) extends Expr with NoCheck {
@@ -140,6 +157,11 @@ case class CurrentThreadId()(implicit val o: Origin) extends Expr with NoCheck {
 
 case class Null()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TNull()
+}
+
+// The * in Perm(a[*], write)
+case class Any()(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TInt()
 }
 
 case class NoPerm()(implicit val o: Origin) extends RationalExpr with NoCheck
@@ -212,17 +234,17 @@ case class InlinePattern(inner: Expr)(implicit val o: Origin) extends Expr with 
 case class Local(ref: Ref[Variable])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
-    context.checkInScope(ref)
+    context.checkInScope(this, ref)
 }
 case class Deref(obj: Expr, ref: Ref[Field])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
-    context.checkInScope(ref)
+    context.checkInScope(this, ref)
 }
 case class ModelDeref(obj: Expr, ref: Ref[ModelField])(implicit val o: Origin) extends Expr {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
-    context.checkInScope(ref)
+    context.checkInScope(this, ref)
 }
 case class DerefPointer(pointer: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = pointer.t.asPointer.get.element
@@ -422,15 +444,22 @@ sealed trait Comparison extends BinExpr {
 case class Eq(left: Expr, right: Expr)(implicit val o: Origin) extends Comparison
 case class Neq(left: Expr, right: Expr)(implicit val o: Origin) extends Comparison
 
-sealed trait NumericComparison extends Comparison {
-  override def check(context: CheckContext): Seq[CheckError] =
-    left.checkSubType(TRational()) ++ right.checkSubType(TRational())
+sealed trait OrderOp extends Comparison {
+  override def check(context: CheckContext): Seq[CheckError] = {
+    left.t match {
+      case TSet(leftT) => right.checkSetThen(rightSet =>
+        if(Type.isComparable(leftT, rightSet.element)) Nil else Seq(IncomparableTypes(left, right)))
+      case TBag(leftT) => right.checkBagThen(rightBag =>
+        if(Type.isComparable(leftT, rightBag.element)) Nil else Seq(IncomparableTypes(left, right)))
+      case _ => left.checkSubType(TRational()) ++ right.checkSubType(TRational())
+    }
+  }
 }
 
-case class Greater(left: Expr, right: Expr)(implicit val o: Origin) extends NumericComparison
-case class Less(left: Expr, right: Expr)(implicit val o: Origin) extends NumericComparison
-case class GreaterEq(left: Expr, right: Expr)(implicit val o: Origin) extends NumericComparison
-case class LessEq(left: Expr, right: Expr)(implicit val o: Origin) extends NumericComparison
+case class Greater(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp
+case class Less(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp
+case class GreaterEq(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp
+case class LessEq(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp
 
 case class Select(condition: Expr, whenTrue: Expr, whenFalse: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type =
@@ -443,8 +472,8 @@ case class NewObject(cls: Ref[Class])(implicit val o: Origin) extends Expr with 
   override def t: Type = TClass(cls)
 }
 
-case class NewArray(element: Type, dims: Seq[Expr])(implicit val o: Origin) extends Check(dims.flatMap(_.checkSubType(TInt()))) with Expr {
-  override def t: Type = TArray(element)
+case class NewArray(element: Type, dims: Seq[Expr], moreDims: Int)(implicit val o: Origin) extends Check(dims.flatMap(_.checkSubType(TInt()))) with Expr {
+  override def t: Type = FuncTools.repeat(TArray(_), dims.size + moreDims, element)
 }
 
 case class Old(expr: Expr, at: Option[Ref[LabelDecl]])(val blame: Blame[LabelNotReached])(implicit val o: Origin) extends Expr with NoCheck {
@@ -582,6 +611,37 @@ case class TupGet(tup: Expr, index: Int)(implicit val o: Origin) extends Expr {
   override def t: Type = tup.t.asTuple.get.elements(index)
   override def check(context: CheckContext): Seq[CheckError] =
     tup.checkTupleThen(t => if(0 <= index && index < t.elements.size) Seq() else Seq(TypeErrorText(this, _ => "Tuple getter exceeds tuple size")))
+}
+
+case class VectorSum(indices: Expr, vec: Expr)(implicit val o: Origin) extends Expr {
+  override def t: Type = vec.t.asSeq.get.element
+  override def check(context: CheckContext): Seq[CheckError] = vec.checkSubType(TSeq(TRational()))
+}
+case class VectorCompare(left: Expr, right: Expr)(implicit val o: Origin) extends BinExpr {
+  override def t: Type = TSeq(TInt()) // the results are 0 or 1, mimicking TSeq(TBool())
+  override def check(context: CheckContext): Seq[CheckError] =
+    left.checkSeqThen(leftT => right.checkSeqThen(rightT =>
+      if(Type.isComparable(leftT.element, rightT.element)) Nil
+      else Seq(IncomparableTypes(left, right))
+    ))
+}
+case class VectorRepeat(e: Expr)(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TSeq(e.t)
+}
+case class MatrixSum(indices: Expr, mat: Expr)(implicit val o: Origin) extends Expr {
+  override def t: Type = mat.t.asMatrix.get.element
+  override def check(context: CheckContext): Seq[CheckError] = mat.checkSubType(TMatrix(TRational()))
+}
+case class MatrixCompare(left: Expr, right: Expr)(implicit val o: Origin) extends BinExpr {
+  override def t: Type = TMatrix(TInt())
+  override def check(context: CheckContext): Seq[CheckError] =
+    left.checkMatrixThen(leftT => right.checkMatrixThen(rightT =>
+      if(Type.isComparable(leftT.element, rightT.element)) Nil
+      else Seq(IncomparableTypes(left, right))
+    ))
+}
+case class MatrixRepeat(e: Expr)(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TMatrix(e.t)
 }
 
 case class TypeValue(value: Type)(implicit val o: Origin) extends Expr with NoCheck {

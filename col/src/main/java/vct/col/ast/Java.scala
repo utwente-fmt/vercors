@@ -97,10 +97,13 @@ case class JavaLocalDeclarationStatement(decl: JavaLocalDeclaration)
   extends JavaStatement with NoCheck
 
 sealed trait JavaType extends ExtraType
-case class JavaTUnion(types: Seq[Type])(implicit val o: Origin) extends JavaType {
+case class JavaTUnion(types: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends JavaType {
   override def mimics: Type =
     if(types.size == 1) types.head.mimics
     else JavaTUnion(types.map(_.mimics))
+
+  override def subTypeOfImpl(other: Type): Boolean =
+    types.forall(other.superTypeOf)
 
   override def superTypeOfImpl(other: Type): Boolean =
     types.exists(_.superTypeOf(other))

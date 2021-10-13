@@ -7,41 +7,41 @@
 // the threads write false to b the program does not verify.
 // However, approach is unfortunately not correct; see monotonicBoolBroken.pvl in the same folder for details.
 
+requires xs != null;
+requires Perm(xs[*], read);
+requires 0 <= i && i <= xs.length;
+ensures \result == (\exists int j = i..xs.length; xs[j]);
+pure boolean foldOr(boolean[] xs, int i) =
+  i < xs.length
+    ? xs[i] || foldOr(xs, i + 1)
+    : false;
+
+given frac P;
+requires 0 < P && P < write;
+requires bools != null;
+context Perm(bools[*], P);
+requires 0 <= i && i <= definitelyTrueIndex;
+requires 0 <= definitelyTrueIndex && definitelyTrueIndex < bools.length;
+requires bools[definitelyTrueIndex];
+ensures foldOr(bools, i);
+void lemma(boolean[] bools, int definitelyTrueIndex, int i) {
+  if (bools[i]) {
+    return;
+  } else {
+    if (i < definitelyTrueIndex) {
+      lemma given { P = P\2 } (bools, definitelyTrueIndex, i + 1);
+    } else {
+      assert false;
+    }
+  }
+}
+
 class C {
   boolean b;
   boolean[] contrib;
 
   // Method that might return true or false. Useful for setting the bool "sometimes"
   boolean p(int tid);
-
-  requires xs != null;
-  requires Perm(xs[*], read);
-  requires 0 <= i && i <= xs.length;
-  ensures \result == (\exists int j = i..xs.length; xs[j]);
-  static boolean foldOr(boolean[] xs, int i) =
-    i < xs.length
-      ? xs[i] || foldOr(xs, i + 1)
-      : false;
-
-  given frac P;
-  requires 0 < P && P < write;
-  requires bools != null;
-  context Perm(bools[*], P);
-  requires 0 <= i && i <= definitelyTrueIndex;
-  requires 0 <= definitelyTrueIndex && definitelyTrueIndex < bools.length;
-  requires bools[definitelyTrueIndex];
-  ensures foldOr(bools, i);
-  static void lemma(boolean[] bools, int definitelyTrueIndex, int i) {
-    if (bools[i]) {
-        return;
-    } else {
-        if (i < definitelyTrueIndex) {
-            lemma(bools, definitelyTrueIndex, i + 1) with { P = P \ 2; };
-        } else {
-            assert false;
-        }
-    }
-  }
 
   requires Perm(contrib, write);
   requires Perm(b, write);
@@ -69,7 +69,7 @@ class C {
           atomic(inv) {
             b = true;
             contrib[tid] = true;
-            lemma(contrib, tid, 0) with { P = 1\(2 * (N+1)); };
+            lemma given { P = 1\(2 * (N+1)) } (contrib, tid, 0);
             // Fails:
             // b = false;
             // contrib[tid] = false;

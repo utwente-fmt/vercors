@@ -9,7 +9,7 @@ program  : programDecl* EOF ;
 programDecl : declClass | method | valGlobalDeclaration;
 
 declClass : 'class' identifier '{' classDecl* '}' ;
-classDecl : constructor | method | field | valClassDeclaration;
+classDecl : constructor | method | valClassDeclaration | field;
 
 field : type identifierList ';' ;
 
