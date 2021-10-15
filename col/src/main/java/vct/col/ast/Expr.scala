@@ -164,9 +164,15 @@ case class Any()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TInt()
 }
 
-case class NoPerm()(implicit val o: Origin) extends RationalExpr with NoCheck
-case class ReadPerm()(implicit val o: Origin) extends RationalExpr with NoCheck
-case class WritePerm()(implicit val o: Origin) extends RationalExpr with NoCheck
+case class NoPerm()(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TBoundedInt(0, 1)
+}
+case class ReadPerm()(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TFraction()
+}
+case class WritePerm()(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TBoundedInt(1, 2)
+}
 
 case class Range(from: Expr, to: Expr)(implicit val o: Origin) extends Check(from.checkSubType(TInt()), to.checkSubType(TInt())) with Expr {
   override def t: Type = TSeq(TInt())

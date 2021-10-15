@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{AmbiguousResult, AmbiguousThis, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLocal, CStructAccess, CTypedefName, CheckError, Class, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Scope, TClass}
+import vct.col.ast.{AmbiguousResult, AmbiguousThis, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass}
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -91,7 +91,7 @@ case object ResolveReferences {
       .replace(currentReturnType=Some(method.returnType)).declare(method.declarations)
     case func: CFunctionDefinition => ctx
       .replace(currentReturnType=Some(C.typeOrReturnTypeFromDeclaration(func.specs, func.declarator)))
-      .declare(C.paramsFromDeclarator(func.declarator)) // FIXME suspect wrt contract declarations and stuff
+      .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
     case Scope(locals, body) => ctx
       .declare(locals ++ scanScope(body))
     case app: Applicable => ctx
@@ -140,6 +140,10 @@ case object ResolveReferences {
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
     case goto @ Goto(lbl) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
+    case send @ Send(_, lbl, _) =>
+      lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, send)))
+    case recv @ Recv(_, lbl, _) =>
+      lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, recv)))
 
     case n @ PVLNew(name, args) =>
 

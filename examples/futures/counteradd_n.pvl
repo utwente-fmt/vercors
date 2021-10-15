@@ -52,7 +52,7 @@ class Program {
 
 	requires threads > 0;
 	ensures Value(f) ** f.state(1, f.pardecr(threads));
-	ensures Value(this.count) ** Value(this.threads) ** f.abstractState(counter == this.count - this.threads);
+	ensures Value(this.count) ** Value(this.threads) ** f.abstractState(f.counter == this.count - this.threads);
 	ensures this.count == count ** this.threads == threads;
 	Program(int count, int threads) {
 		this.count = count;

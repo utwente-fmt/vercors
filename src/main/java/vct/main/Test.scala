@@ -1,7 +1,7 @@
 package vct.main
 
 import vct.col.ast.{CheckError, DiagnosticOrigin, IncomparableTypes, OutOfScopeError, Program, TypeError, TypeErrorText}
-import vct.col.newrewrite.JavaSpecificToCol
+import vct.col.newrewrite.lang.LangSpecificToCol
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult
@@ -65,7 +65,7 @@ case object Test {
     program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)
     val errors = ResolveReferences.resolve(program)
     printErrorsOr(errors) {
-      program = JavaSpecificToCol().dispatch(program)
+      program = LangSpecificToCol().dispatch(program)
       printErrorsOr(program.check){}
     }
   } catch {

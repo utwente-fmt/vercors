@@ -15,7 +15,7 @@ class parameters {
   void main(){
     Counter c=new Counter();
     c.x=37;
-    drop(c) with { p = 1; } ;
+    drop given { p = 1 } (c);
     c.x=12;
   }
 }

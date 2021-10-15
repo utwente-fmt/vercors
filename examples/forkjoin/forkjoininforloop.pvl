@@ -2,47 +2,43 @@
 //:: tools silicon
 //:: verdict Pass
 
-class MainFJ {
-  
+void MainFJ(seq<int> nodes) {
+    seq<NodesThread> nodeThreads = seq<NodesThread> {};
 
-	static void MainFJ(seq<int> nodes) {
-		seq<NodesThread> nodeThreads = seq<NodesThread> {};
-		
-		loop_invariant 0 <= i && i <= |nodes|;
-		loop_invariant |nodeThreads| == i;
-		loop_invariant (\forall* int j=0..|nodeThreads|; idle(nodeThreads[j]));
-		loop_invariant (\forall* int j=0..|nodeThreads|; Perm(nodeThreads[j].val,1));
-		for(int i = 0; i < |nodes|; i++) {
-			NodesThread node = new NodesThread(nodes[i]);
-			nodeThreads = nodeThreads ++ node;
-			assert idle(nodeThreads[i]);
-		}
-		
-		assert (\forall* int j=0..|nodeThreads|; Perm(nodeThreads[j].val,1));
-		assert (\forall* int j=0..|nodeThreads|; idle(nodeThreads[j]));
-		
-		loop_invariant 0 <= i && i <= |nodes|;
-		loop_invariant (\forall* int j=i..|nodeThreads|; idle(nodeThreads[j]));
-		loop_invariant (\forall* int j=0..i; running(nodeThreads[j]));
-		loop_invariant (\forall* int j=0..|nodeThreads|; Perm(nodeThreads[j].val,1));
-		for(int i = 0; i < |nodes|; i++) {
-			assert idle(nodeThreads[i]);
-			fork nodeThreads[i];
-			assert running(nodeThreads[i]);
-		}
-		
-		assert (\forall* int j=0..|nodeThreads|; running(nodeThreads[j]));
-		
-		loop_invariant 0 <= i && i <= |nodes|;
-		loop_invariant |nodeThreads| == |nodes|;
-		loop_invariant (\forall* int j=i..|nodeThreads|; running(nodeThreads[j]));
-		loop_invariant (\forall* int j=0..i; idle(nodeThreads[j]));
-		for(int i = 0; i < |nodes|; i++) {
-			assert running(nodeThreads[i]);
-			join nodeThreads[i];
-			assert idle(nodeThreads[i]);
-		}
-	}
+    loop_invariant 0 <= i && i <= |nodes|;
+    loop_invariant |nodeThreads| == i;
+    loop_invariant (\forall* int j=0..|nodeThreads|; idle(nodeThreads[j]));
+    loop_invariant (\forall* int j=0..|nodeThreads|; Perm(nodeThreads[j].val,1));
+    for(int i = 0; i < |nodes|; i++) {
+        NodesThread node = new NodesThread(nodes[i]);
+        nodeThreads = nodeThreads + [node];
+        assert idle(nodeThreads[i]);
+    }
+
+    assert (\forall* int j=0..|nodeThreads|; Perm(nodeThreads[j].val,1));
+    assert (\forall* int j=0..|nodeThreads|; idle(nodeThreads[j]));
+
+    loop_invariant 0 <= i && i <= |nodes|;
+    loop_invariant (\forall* int j=i..|nodeThreads|; idle(nodeThreads[j]));
+    loop_invariant (\forall* int j=0..i; running(nodeThreads[j]));
+    loop_invariant (\forall* int j=0..|nodeThreads|; Perm(nodeThreads[j].val,1));
+    for(int i = 0; i < |nodes|; i++) {
+        assert idle(nodeThreads[i]);
+        fork nodeThreads[i];
+        assert running(nodeThreads[i]);
+    }
+
+    assert (\forall* int j=0..|nodeThreads|; running(nodeThreads[j]));
+
+    loop_invariant 0 <= i && i <= |nodes|;
+    loop_invariant |nodeThreads| == |nodes|;
+    loop_invariant (\forall* int j=i..|nodeThreads|; running(nodeThreads[j]));
+    loop_invariant (\forall* int j=0..i; idle(nodeThreads[j]));
+    for(int i = 0; i < |nodes|; i++) {
+        assert running(nodeThreads[i]);
+        join nodeThreads[i];
+        assert idle(nodeThreads[i]);
+    }
 }
 
 class NodesThread {

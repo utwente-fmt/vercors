@@ -1,17 +1,17 @@
-package vct.col.newrewrite
+package vct.col.newrewrite.lang
 
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.Constant._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.ast.util.SuccessionMap
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, Java, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.col.resolve._
 import vct.result.VerificationResult.{Unreachable, UserError}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-case class JavaSpecificToCol() extends Rewriter {
+case class LangSpecificToCol() extends Rewriter {
   case class NotAValue(value: Expr) extends UserError {
     override def code: String = "notAValue"
     override def text: String = value.o.messageInContext("Could not resolve this expression to a value.")
@@ -26,6 +26,7 @@ case class JavaSpecificToCol() extends Rewriter {
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration, Int), Variable] = SuccessionMap()
 
   val javaDefaultConstructor: mutable.Map[JavaClassOrInterface, JavaConstructor] = mutable.Map()
+  val pvlDefaultConstructor: SuccessionMap[Class, Procedure] = SuccessionMap()
 
   val currentThis: ScopedStack[Expr] = ScopedStack()
   val currentJavaClass: ScopedStack[JavaClass] = ScopedStack()
@@ -123,6 +124,7 @@ case class JavaSpecificToCol() extends Rewriter {
               fieldInit(res),
               sharedInit(res),
               dispatch(body),
+              Return(res),
             )))),
             contract = dispatch(contract),
           )(null).succeedDefault(this, cons)
@@ -153,6 +155,7 @@ case class JavaSpecificToCol() extends Rewriter {
         // Do not enter a scope, so classes of the namespace are declared to the program.
         ns.declarations.foreach(dispatch)
       }
+
     case cls @ JavaClass(_, mods, typeParams, ext, imp, decls) =>
       implicit val o: Origin = cls.o
 
@@ -162,28 +165,31 @@ case class JavaSpecificToCol() extends Rewriter {
           case _ => ???
         }
 
-        val instanceClass = new Class(collectInScope(classScopes) {
-          val diz = AmbiguousThis()
-          diz.ref = Some(TClass(javaInstanceClassSuccessor.ref(cls)))
-          currentThis.having(diz) {
-            makeJavaClass(decls.filter(!isJavaStatic(_)), javaInstanceClassSuccessor.ref(cls))
-          }
-        }, supports)
+        val instDecls = decls.filter(!isJavaStatic(_))
+        val staticDecls = decls.filter(isJavaStatic)
 
-        if(instanceClass.declarations.nonEmpty) {
+        if(instDecls.nonEmpty) {
+          val instanceClass = new Class(collectInScope(classScopes) {
+            val diz = AmbiguousThis()
+            diz.ref = Some(TClass(javaInstanceClassSuccessor.ref(cls)))
+            currentThis.having(diz) {
+              makeJavaClass(instDecls, javaInstanceClassSuccessor.ref(cls))
+            }
+          }, supports)
+
           instanceClass.declareDefault(this)
           javaInstanceClassSuccessor(cls) = instanceClass
         }
 
-        val staticsClass = new Class(collectInScope(classScopes) {
-          val diz = AmbiguousThis()
-          diz.ref = Some(TClass(javaStaticsClassSuccessor.ref(cls)))
-          currentThis.having(diz) {
-            makeJavaClass(decls.filter(isJavaStatic), javaStaticsClassSuccessor.ref(cls))
-          }
-        }, Nil)
+        if(staticDecls.nonEmpty) {
+          val staticsClass = new Class(collectInScope(classScopes) {
+            val diz = AmbiguousThis()
+            diz.ref = Some(TClass(javaStaticsClassSuccessor.ref(cls)))
+            currentThis.having(diz) {
+              makeJavaClass(staticDecls, javaStaticsClassSuccessor.ref(cls))
+            }
+          }, Nil)
 
-        if(staticsClass.declarations.nonEmpty) {
           staticsClass.declareDefault(this)
           val singleton = new Function(TClass(staticsClass.ref), Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null)
           singleton.declareDefault(this)
@@ -191,14 +197,46 @@ case class JavaSpecificToCol() extends Rewriter {
           javaStaticsFunctionSuccessor(cls) = singleton
         }
       }
+
     case cls @ JavaInterface(_, mods, typeParams, ext, decls) =>
       ???
+
     case cls: Class =>
       val diz = AmbiguousThis()(cls.o)
       diz.ref = Some(TClass(typedSucc[Class](cls)))
-      currentThis.having(diz) {
-        rewriteDefault(cls)
+
+      val decls = currentThis.having(diz) {
+        collectInScope(classScopes) {
+          cls.declarations.foreach(dispatch)
+
+          if(cls.declarations.collectFirst { case _: PVLConstructor => () }.isEmpty) {
+            implicit val o: Origin = cls.o
+            val t = TClass(typedSucc[Class](cls))
+            val resVar = new Variable(t)
+            val res = Local(resVar.ref)
+
+            pvlDefaultConstructor(cls) = new Procedure(
+              TClass(typedSucc[Class](cls)),
+              Nil, Nil,
+              Some(Scope(Seq(resVar), Block(Seq(
+                Assign(res, NewObject(typedSucc[Class](cls))),
+                Return(res),
+              )))),
+              ApplicableContract(
+                true,
+                Star.fold(cls.declarations.collect {
+                  case field: InstanceField => Perm(Deref(currentThis.head, typedSucc[InstanceField](field)), WritePerm())
+                }), true, Nil, Nil, Nil,
+              )
+            )(null)
+
+            pvlDefaultConstructor(cls).declareDefault(this)
+          }
+        }
       }
+
+      cls.rewrite(decls).succeedDefault(this, cls)
+
     case other => rewriteDefault(other)
   }
 
@@ -257,8 +295,20 @@ case class JavaSpecificToCol() extends Rewriter {
           Local(javaLocalsSuccessor.ref((decls, idx)))
       }
 
+    case local @ PVLLocal(_) =>
+      implicit val o: Origin = local.o
+
+      local.ref.get match {
+        case RefAxiomaticDataType(decl) => throw NotAValue(local)
+        case RefVariable(decl) => Local(typedSucc[Variable](decl))
+        case RefModelField(decl) => ModelDeref(currentThis.head, typedSucc[ModelField](decl))
+        case RefClass(decl) => throw NotAValue(local)
+        case RefField(decl) => Deref(currentThis.head, typedSucc[Field](decl))
+      }
+
     case deref @ JavaDeref(obj, _) =>
       implicit val o: Origin = deref.o
+
       deref.ref.get match {
         case RefAxiomaticDataType(decl) => throw NotAValue(deref)
         case RefModel(decl) => throw NotAValue(deref)
@@ -268,6 +318,15 @@ case class JavaSpecificToCol() extends Rewriter {
         case RefJavaField(decls, idx) =>
           Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))
         case BuiltinField(f) => f(dispatch(obj))
+      }
+
+    case deref @ PVLDeref(obj, _) =>
+      implicit val o: Origin = deref.o
+
+      deref.ref.get match {
+        case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))
+        case BuiltinField(f) => f(dispatch(obj))
+        case RefField(decl) => Deref(dispatch(obj), typedSucc[Field](decl))
       }
 
     case JavaLiteralArray(_) => ???
@@ -309,20 +368,64 @@ case class JavaSpecificToCol() extends Rewriter {
           f(dispatch(obj.get))(args.map(dispatch))
       }
 
+    case inv @ PVLInvocation(obj, _, args, givenArgs, yields) =>
+      implicit val o: Origin = inv.o
+
+      inv.ref.get match {
+        case RefFunction(decl) =>
+          FunctionInvocation(typedSucc[Function](decl), args.map(dispatch))(null)
+        case RefProcedure(decl) =>
+          ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil)(null)
+        case RefPredicate(decl) =>
+          PredicateApply(typedSucc[Predicate](decl), args.map(dispatch))
+        case RefInstanceFunction(decl) =>
+          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceFunction](decl), args.map(dispatch))(null)
+        case RefInstanceMethod(decl) =>
+          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil)(null)
+        case RefInstancePredicate(decl) =>
+          InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstancePredicate](decl), args.map(dispatch))
+        case RefADTFunction(decl) =>
+          ADTFunctionInvocation(typedSucc[ADTFunction](decl), args.map(dispatch))
+        case RefModelProcess(decl) =>
+          ProcessApply(typedSucc[ModelProcess](decl), args.map(dispatch))
+        case RefModelAction(decl) =>
+          ActionApply(typedSucc[ModelAction](decl), args.map(dispatch))
+        case BuiltinInstanceMethod(f) =>
+          f(dispatch(obj.get))(args.map(dispatch))
+      }
+
     case inv @ JavaNewClass(args, typeParams, t @ JavaTClass(_)) =>
       implicit val o: Origin = inv.o
       t.ref.get match {
         case RefAxiomaticDataType(decl) => ???
         case RefModel(decl) => ModelNew(typedSucc[Model](decl))
         case RefJavaClass(decl) =>
-          val cons = decl.decls.collect {
-            case cons: JavaConstructor if cons.parameters.size == args.size => cons
-          }.find(_.parameters.zip(args).forall { case (arg, v) => arg.t.superTypeOf(v.t) })
+          val cons = decl.decls.collectFirst {
+            case cons: JavaConstructor if Util.compat(args, cons.parameters) => cons
+          }
 
           val consRef = cons.map(typedSucc[Procedure]).getOrElse(
             new LazyRef[Procedure](successionMap(javaDefaultConstructor(decl))))
 
           ProcedureInvocation(consRef, args.map(dispatch), Nil)(null)
+      }
+
+    case inv @ PVLNew(t @ PVLNamedType(_), args) =>
+      implicit val o: Origin = inv.o
+
+      t.ref.get match {
+        case RefAxiomaticDataType(decl) =>  ???
+        case RefModel(decl) => ModelNew(typedSucc[Model](decl))
+        case RefClass(decl) =>
+          val cons = decl.declarations.collectFirst {
+            case cons: PVLConstructor if Util.compat(args, cons.args) => cons
+          }
+
+          ProcedureInvocation(
+            new LazyRef[Procedure](cons.map(successionMap).getOrElse(pvlDefaultConstructor(decl))),
+            args.map(dispatch),
+            Nil,
+          )(inv.blame)
       }
 
     case JavaNewLiteralArray(baseType, dims, initializer) =>

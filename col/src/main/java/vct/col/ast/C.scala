@@ -184,10 +184,6 @@ case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr
 
 sealed trait CType extends ExtraType
 
-object CPrimitiveType {
-  private implicit val o: Origin = DiagnosticOrigin
-}
-
 case class CTypeNotSupported(t: CPrimitiveType) extends UserError {
   override def code: String = "cTypeNotSupported"
   override def text: String = t.o.messageInContext("This type is not supported by VerCors.")
@@ -201,6 +197,7 @@ case class CPrimitiveType(specifiers: Seq[CDeclarationSpecifier])(implicit val o
     case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
     case Seq(CBool()) => TBool()
     case Seq(defn @ CTypedefName(_)) => TNotAValue(defn.ref.get)
+    case _ => throw CTypeNotSupported(this)
   }
 
   override protected def superTypeOfImpl(other: Type): Boolean =

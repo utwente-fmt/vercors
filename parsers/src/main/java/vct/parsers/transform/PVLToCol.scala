@@ -199,7 +199,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit expr: NewExprContext): Expr = expr match {
-    case NewExpr0(_, name, Call0(given, args, yields)) => PVLNew(convert(name), convert(args))
+    case NewExpr0(_, name, Call0(given, args, yields)) => PVLNew(convert(name), convert(args))(blame(expr))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
     case NewExpr2(inner) => convert(inner)
   }
