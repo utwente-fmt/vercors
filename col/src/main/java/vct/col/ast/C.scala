@@ -51,7 +51,7 @@ case class CKernel()(implicit val o: Origin) extends CGpgpuKernelSpecifier
 case class CPointer(qualifiers: Seq[CTypeQualifier])
                    (implicit val o: Origin) extends NodeFamily with NoCheck
 
-case class CParam(specifiers: Seq[CDeclarationSpecifier], declarator: CDeclarator)(implicit val o: Origin)
+class CParam(val specifiers: Seq[CDeclarationSpecifier], val declarator: CDeclarator)(implicit val o: Origin)
   extends ExtraDeclarationKind with NoCheck {
   override def declareDefault(scope: ScopeContext): Unit = scope.cParams.top += this
 }
@@ -70,8 +70,8 @@ case class CName(name: String)(implicit val o: Origin) extends CDeclarator with 
 case class CInit(decl: CDeclarator, init: Option[Expr])(implicit val o: Origin)
   extends NodeFamily with NoCheck
 
-case class CDeclaration(contract: ApplicableContract, kernelInvariant: Expr,
-                        specs: Seq[CDeclarationSpecifier], inits: Seq[CInit])(implicit val o: Origin)
+class CDeclaration(val contract: ApplicableContract, val kernelInvariant: Expr,
+                   val specs: Seq[CDeclarationSpecifier], val inits: Seq[CInit])(implicit val o: Origin)
   extends ExtraDeclarationKind {
   override def declareDefault(scope: ScopeContext): Unit = scope.cLocalScopes.top += this
   override def check(context: CheckContext): Seq[CheckError] = kernelInvariant.checkSubType(TResource())
@@ -79,14 +79,13 @@ case class CDeclaration(contract: ApplicableContract, kernelInvariant: Expr,
 
 sealed trait CAbstractGlobalDeclaration extends ExtraGlobalDeclaration
 
-case class CFunctionDefinition(specs: Seq[CDeclarationSpecifier], declarator: CDeclarator, body: Statement)(implicit val o: Origin)
+class CFunctionDefinition(val specs: Seq[CDeclarationSpecifier], val declarator: CDeclarator, val body: Statement)(implicit val o: Origin)
   extends CAbstractGlobalDeclaration with NoCheck
 
-case class CGlobalDeclaration(decl: CDeclaration)(implicit val o: Origin)
+class CGlobalDeclaration(val decl: CDeclaration)(implicit val o: Origin)
   extends CAbstractGlobalDeclaration with NoCheck
 
 sealed trait CStatement extends ExtraStatement
-// TODO nothing in the tree of nodes under CDeclarationStatement is actually a Declaration, what to do?
 case class CDeclarationStatement(decl: CDeclaration)(implicit val o: Origin) extends CStatement with NoCheck
 case class CLabeledStatement(label: LabelDecl, statement: Statement)(implicit val o: Origin) extends CStatement with NoCheck
 case class CGoto(label: String)(implicit val o: Origin) extends CStatement with NoCheck {

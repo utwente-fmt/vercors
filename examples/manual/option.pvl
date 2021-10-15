@@ -6,26 +6,22 @@
 /*
   Note that None cannot be type checked. Type inference is needed
   and is only implemented for assignment (=), and the equality
-  operators (!=,==).
+  operators (!=, ==).
+
+  PB: sike!
 */
 
-class optiontest {
-  void test(){
+void test(){
+  option<int> x = None;
+  option<int> y = Some(37);
 
-    option<int> x=None;
-    option<int> y=Some(37);
-    
-    option<optiontest> z=None;
-    
-    assert x != y;
-    assert x == None;
-    assert y != None;
-    assert z == None;
+  option<optiontest> z = None;
 
-    assert getOption(y) == 37;
-    assert getOrElseOption(x, 21387) == 21387;
+  assert x != y;
+  assert x == None;
+  assert y != None;
+  assert z == None;
 
-  }
+  assert y.get == 37;
+  assert x.getOrElse(21387) == 21387;
 }
-
-

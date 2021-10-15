@@ -101,6 +101,9 @@ object Type {
     case (JavaTUnion(left), right) => JavaTUnion((left :+ right).distinct)
     case (left, JavaTUnion(right)) => JavaTUnion((left +: right).distinct)
 
+    case (TBoundedInt(leftGte, leftLt), TBoundedInt(rightGte, rightLt)) =>
+      TBoundedInt(leftGte.min(rightGte), leftLt.max(rightLt))
+
     // Unrelated types below rational are simply a rational
     case (left, right) if TRational().superTypeOf(left) && TRational().superTypeOf(right) =>
       TRational()

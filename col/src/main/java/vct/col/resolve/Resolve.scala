@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{AmbiguousResult, AmbiguousThis, Applicable, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass}
+import vct.col.ast.{AmbiguousResult, AmbiguousThis, Applicable, Break, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, Continue, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass}
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -13,7 +13,7 @@ case object ResolveTypes {
   def resolve(program: Program): Seq[GlobalDeclaration] = {
     val ctx = TypeResolutionContext()
     resolve(program, ctx)
-    ctx.externallyLoadedClasses.toSeq
+    ctx.externallyLoadedElements.toSeq
   }
 
   def resolve(node: Node, ctx: TypeResolutionContext): Unit = {
@@ -25,8 +25,8 @@ case object ResolveTypes {
   def enterContext(node: Node, ctx: TypeResolutionContext): TypeResolutionContext = node match {
     case Program(decls) =>
       ctx.replace(stack=decls.flatMap(Referrable.from) +: ctx.stack)
-    case ns @ JavaNamespace(_, _, decls) =>
-      ctx.replace(stack=decls.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))
+    case ns: JavaNamespace =>
+      ctx.replace(stack=ns.declarations.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))
     case _ => ctx
   }
 
@@ -88,7 +88,8 @@ case object ResolveReferences {
       .replace(currentReturnType=Some(app.returnType))
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case method: JavaMethod => ctx
-      .replace(currentReturnType=Some(method.returnType)).declare(method.declarations)
+      .replace(currentReturnType=Some(method.returnType))
+      .declare(method.declarations ++ method.body.map(scanLabels).getOrElse(Nil))
     case func: CFunctionDefinition => ctx
       .replace(currentReturnType=Some(C.typeOrReturnTypeFromDeclaration(func.specs, func.declarator)))
       .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
@@ -144,6 +145,10 @@ case object ResolveReferences {
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, send)))
     case recv @ Recv(_, lbl, _) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, recv)))
+    case brk @ Break(Some(lbl)) =>
+      lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, brk)))
+    case cont @ Continue(Some(lbl)) =>
+      lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, cont)))
 
     case n @ PVLNew(name, args) =>
 

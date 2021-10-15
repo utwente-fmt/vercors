@@ -950,46 +950,46 @@ case class Printer(out: Appendable,
   })
 
   def printDeclaration(decl: Declaration): Unit = say(decl match {
-    case CDeclaration(contract, kernelInvariant, specs, inits) =>
+    case decl: CDeclaration =>
       phrase(doubleline,
-        spec(contract, clauses(kernelInvariant, "kernel_invariant")),
-        spaced(specs.map(NodePhrase)), space, spaced(inits.map(NodePhrase)),
+        spec(decl.contract, clauses(decl.kernelInvariant, "kernel_invariant")),
+        spaced(decl.specs.map(NodePhrase)), space, spaced(decl.inits.map(NodePhrase)),
         doubleline)
-    case CParam(specifiers, declarator) =>
-      phrase(spaced(specifiers.map(NodePhrase)), space, declarator)
-    case JavaLocalDeclaration(modifiers, t, decls) =>
-      phrase(spaced(modifiers.map(NodePhrase)), space, t, space, javaDecls(decls))
-    case CFunctionDefinition(specs, declarator, body) =>
-      control(phrase(spaced(specs.map(NodePhrase)), space, declarator), body)
-    case CGlobalDeclaration(decl) => decl
-    case JavaNamespace(pkg, imports, declarations) =>
+    case param: CParam =>
+      phrase(spaced(param.specifiers.map(NodePhrase)), space, param.declarator)
+    case local: JavaLocalDeclaration =>
+      phrase(spaced(local.modifiers.map(NodePhrase)), space, local.t, space, javaDecls(local.decls))
+    case defn: CFunctionDefinition =>
+      control(phrase(spaced(defn.specs.map(NodePhrase)), space, defn.declarator), defn.body)
+    case decl: CGlobalDeclaration => decl
+    case ns: JavaNamespace =>
       phrase(
-        if(pkg.nonEmpty) statement("package", space, pkg.get) else phrase(),
-        phrase(imports.map(NodePhrase):_*),
+        if(ns.pkg.nonEmpty) statement("package", space, ns.pkg.get) else phrase(),
+        phrase(ns.imports.map(NodePhrase):_*),
         doubleline,
-        phrase(declarations.map(NodePhrase):_*),
+        phrase(ns.declarations.map(NodePhrase):_*),
       )
-    case JavaClass(name, modifiers, typeParams, ext, imp, decls) =>
+    case cls: JavaClass =>
       phrase(
         doubleline,
-        phrase(modifiers.map(NodePhrase):_*), space, "class", space, name, space,
-        "extends", space, ext, imp match {
+        phrase(cls.modifiers.map(NodePhrase):_*), space, "class", space, cls.name, space,
+        "extends", space, cls.ext, cls.imp match {
           case Nil => phrase()
           case ts => phrase("implements ", commas(ts.map(NodePhrase)))
         }, space, "{",
-        indent(phrase(decls.map(NodePhrase):_*)),
+        indent(phrase(cls.decls.map(NodePhrase):_*)),
         "}",
         doubleline,
       )
-    case JavaInterface(name, modifiers, typeParams, ext, decls) =>
+    case int: JavaInterface =>
       phrase(
         doubleline,
-        phrase(modifiers.map(NodePhrase):_*), space, "interface", space, name,
-        ext match {
+        phrase(int.modifiers.map(NodePhrase):_*), space, "interface", space, int.name,
+        int.ext match {
           case Nil => phrase()
           case ts => phrase("extends ", commas(ts.map(NodePhrase)))
         }, space, "{",
-        indent(phrase(decls.map(NodePhrase):_*)),
+        indent(phrase(int.decls.map(NodePhrase):_*)),
         "}",
         doubleline,
       )
@@ -1048,31 +1048,31 @@ case class Printer(out: Appendable,
         ),
         doubleline,
       )
-    case JavaSharedInitialization(isStatic, initialization) =>
+    case init: JavaSharedInitialization =>
       phrase(
         doubleline,
-        if(isStatic) phrase("static", space) else phrase(),
-        initialization,
+        if(init.isStatic) phrase("static", space) else phrase(),
+        init.initialization,
         doubleline,
       )
-    case JavaFields(modifiers, t, decls) =>
-      statement(spaced(modifiers.map(NodePhrase)), space, t, space, spaced(decls.map {
+    case fields: JavaFields =>
+      statement(spaced(fields.modifiers.map(NodePhrase)), space, fields.t, space, spaced(fields.decls.map {
         case (name, dims, init) =>
           phrase(name, "[]".repeat(dims), if(init.isEmpty) phrase() else phrase(space, "=", space, init.get))
       }))
-    case JavaConstructor(modifiers, name, parameters, typeParameters, signals, body, contract) =>
+    case cons: JavaConstructor =>
       control(
-        phrase(contract, spaced(modifiers.map(NodePhrase)), space, name, "(", commas(parameters.map(NodePhrase)), ")"),
-        body,
+        phrase(cons.contract, spaced(cons.modifiers.map(NodePhrase)), space, cons.name, "(", commas(cons.parameters.map(NodePhrase)), ")"),
+        cons.body,
       )
-    case JavaMethod(modifiers, returnType, dims, name, parameters, typeParameters, signals, body, contract) =>
+    case method: JavaMethod =>
       val header = phrase(
-        contract,
-        spaced(modifiers.map(NodePhrase)), space, returnType, space, name, "[]".repeat(dims),
-        "(", commas(parameters.map(NodePhrase)), ")",
+        method.contract,
+        spaced(method.modifiers.map(NodePhrase)), space, method.returnType, space, method.name, "[]".repeat(method.dims),
+        "(", commas(method.parameters.map(NodePhrase)), ")",
       )
 
-      body match {
+      method.body match {
         case Some(body) => control(header, body)
         case None => phrase(doubleline, header, ";", doubleline)
       }

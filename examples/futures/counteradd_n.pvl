@@ -66,7 +66,7 @@ class Program {
 	given frac p;
 	requires p <= 1;
 	context n >= 0 ** p != none ** Value(f);
-	context Value(count) ** Value(threads) ** AbstractState(f, counter == count - threads);
+	context Value(count) ** Value(threads) ** f.abstractState(f.counter == count - threads);
 	requires f.state(p, f.pardecr(n));
 	ensures f.state(p, empty);
 	void spawn(int n) {

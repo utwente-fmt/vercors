@@ -33,7 +33,7 @@ case object C {
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(
         innerInfo.params,
-        t => FuncTools.repeat(TArray(_), pointers.size, innerInfo.typeOrReturnType(t)),
+        t => FuncTools.repeat(TPointer(_), pointers.size, innerInfo.typeOrReturnType(t)),
         innerInfo.name)
     case CArrayDeclarator(_, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)

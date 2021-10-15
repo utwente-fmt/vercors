@@ -347,6 +347,7 @@ case class AmbiguousPlus(left: Expr, right: Expr)(implicit val o: Origin) extend
     case TSeq(_) => right.checkSeqThen()
     case TBag(_) => right.checkBagThen()
     case TSet(_) => right.checkSetThen()
+    case TPointer(_) => right.checkSubType(TInt())
     case _ => left.checkSubType(TRational()) ++ right.checkSubType(TRational())
   }
 }
@@ -360,6 +361,19 @@ case class AmbiguousOr(left: Expr, right: Expr)(implicit val o: Origin) extends 
     case _ => left.checkSubType(TBool()) ++ right.checkSubType(TBool())
   }
 }
+
+sealed trait BitOp extends BinExpr {
+  override def t: Type = left.t
+
+  override def check(context: CheckContext): Seq[CheckError] = left.t.mimics match {
+    case TBool() => right.checkSubType(TBool())
+    case _ => left.checkSubType(TInt()) ++ right.checkSubType(TInt())
+  }
+}
+
+case class AmbiguousComputationalOr(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
+case class AmbiguousComputationalXor(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
+case class AmbiguousComputationalAnd(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
 
 case class Exp(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Plus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr

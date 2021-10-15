@@ -60,7 +60,7 @@ class Graph {
 		while (next < n) {
 			if (G[x][next] && !marked[next]) {
 
-				boolean rec = explore(n, G, marked, next, y) yields { P = P; };
+				boolean rec = explore(n, G, marked, next, y) yields { P = P };
 				if (rec) {
 					P = x :: P;
 					return true;

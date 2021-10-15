@@ -9,7 +9,7 @@ class Test {
 
 	void test() {
 		par T0() {
-			call() with { p = 1; };
+			call given { p = 1 } ();
 		}
 	}
 }

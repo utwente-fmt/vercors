@@ -3,22 +3,20 @@
 //:: tools silicon
 //:: verdict Pass
 
-class C {
-  static int len(seq<int> xs)=|xs|==0? 0 : 1 + len(tail(xs));
-  
-  void main(seq<int> xs,seq<int> ys){
-    lemma(xs,ys);
-    assert len(xs+ys)==len(xs)+len(ys);
-  }
-  
-  ensures len(xs+ys)==len(xs)+len(ys);
-  void lemma(seq<int> xs,seq<int> ys){
-    if (|xs|==0){
-      assert xs+ys==ys;
-    } else {
-      lemma(tail(xs),ys);
-      assert tail(xs+ys)==tail(xs)+ys;
-    }
+int len(seq<int> xs) = |xs|==0 ? 0 : 1 + len(xs.tail);
+
+void main(seq<int> xs, seq<int> ys){
+  lemma(xs, ys);
+  assert len(xs+ys) == len(xs) + len(ys);
+}
+
+ensures len(xs+ys) == len(xs) + len(ys);
+void lemma(seq<int> xs, seq<int> ys){
+  if (xs.isEmpty) {
+    assert xs+ys == ys;
+  } else {
+    lemma(xs.tail,ys);
+    assert (xs+ys).tail == xs.tail + ys;
   }
 }
 

@@ -63,6 +63,8 @@ case object Spec {
       case (TMap(_, _), "disjoint") => argCount(1)(obj => args => MapDisjoint(obj, args.head))
 
       case (TOption(_), "getOrElse") => argCount(1)(obj => args => OptGetOrElse(obj, args.head))
+
+      case (_, _) => return None
     }))
   }
 

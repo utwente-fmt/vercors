@@ -21,7 +21,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
 
   def convert(implicit externalDecl: ExternalDeclarationContext): Seq[GlobalDeclaration] = externalDecl match {
     case ExternalDeclaration0(funcDef) => Seq(convert(funcDef))
-    case ExternalDeclaration1(decl) => Seq(CGlobalDeclaration(convert(decl)))
+    case ExternalDeclaration1(decl) => Seq(new CGlobalDeclaration(convert(decl)))
     case ExternalDeclaration2(valDecls) => convert(valDecls)
     case ExternalDeclaration3(";") => Nil
   }
@@ -31,14 +31,14 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
       case FunctionDefinition0(_, _, _, Some(declarationList), _) =>
         ??(declarationList)
       case FunctionDefinition0(maybeContract, declSpecs, declarator, None, body) =>
-        CFunctionDefinition(convert(declSpecs), convert(declarator), convert(body))
+        new CFunctionDefinition(convert(declSpecs), convert(declarator), convert(body))
     }
   }
 
   def convert(implicit decl: DeclarationContext): CDeclaration = decl match {
     case Declaration0(maybeContract, declSpecs, maybeInits, _) =>
       withContract(maybeContract, contract =>
-        CDeclaration(contract.consumeApplicableContract(), col.Star.fold(contract.consume(contract.kernel_invariant)),
+        new CDeclaration(contract.consumeApplicableContract(), col.Star.fold(contract.consume(contract.kernel_invariant)),
           specs=convert(declSpecs), inits=maybeInits.map(convert(_)) getOrElse Nil))
     case Declaration1(staticAssert) =>
       ??(staticAssert)
@@ -172,7 +172,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
 
   def convert(implicit param: ParameterDeclarationContext): CParam = param match {
     case ParameterDeclaration0(declSpecs, declarator) =>
-      CParam(convert(declSpecs), convert(declarator))
+      new CParam(convert(declSpecs), convert(declarator))
     case ParameterDeclaration1(_, _) =>
       ??(param)
   }
@@ -737,7 +737,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
       Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
-    case ValRefute(_, assn, _) => ??(stat)
+    case ValRefute(_, assn, _) => Refute(convert(assn))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
     case ValSend(_, resource, _, label, _, offset, _) =>

@@ -56,7 +56,7 @@ final class Tree {
       //@ ghost seq<int> cur_contents=orig_contents;
       //@ assert cur_contents == tolist(left) + seq<int>{top.data} + tolist(top.right);
       //@ unfold left.state();
-      //@ create { qed wand:(top.state_contains(target_contents) -* top.state_contains(target_contents)); }#\label{proof 1}#
+      //@ create_wand { qed wand:(top.state_contains(target_contents) -* top.state_contains(target_contents)); }#\label{proof 1}#
 
       /*@
       loop_invariant Perm(cur.left,write) ** Perm(cur.data,write) ** Perm(cur.right,write);

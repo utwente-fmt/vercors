@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Error
 
-class problem {
+resource p();
 
-  resource p();
-  
-  requires p();
-  int f()=unfolding p() in 0;
-}
+requires p();
+pure int f()=unfolding p() in 0;

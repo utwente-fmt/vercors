@@ -76,7 +76,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration] = constructor match {
     case Constructor0(contract, _, _, args, _, body) =>
       Seq(withContract(contract, contract =>
-        PVLConstructor(contract.consumeApplicableContract(), args.map(convert(_)).getOrElse(Nil), convert(body))))
+        new PVLConstructor(contract.consumeApplicableContract(), args.map(convert(_)).getOrElse(Nil), convert(body))))
   }
 
   def convert(implicit field: FieldContext): Seq[InstanceField] = field match {
@@ -681,7 +681,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
       Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
-    case ValRefute(_, assn, _) => ??(stat)
+    case ValRefute(_, assn, _) => Refute(convert(assn))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
     case ValSend(_, resource, _, label, _, offset, _) =>

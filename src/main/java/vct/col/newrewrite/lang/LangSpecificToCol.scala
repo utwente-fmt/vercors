@@ -29,7 +29,7 @@ case class LangSpecificToCol() extends Rewriter {
   val pvlDefaultConstructor: SuccessionMap[Class, Procedure] = SuccessionMap()
 
   val currentThis: ScopedStack[Expr] = ScopedStack()
-  val currentJavaClass: ScopedStack[JavaClass] = ScopedStack()
+  val currentJavaClass: ScopedStack[JavaClassOrInterface] = ScopedStack()
 
   case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
     override def preferredName: String = "arrayInitializer"
@@ -42,7 +42,7 @@ case class LangSpecificToCol() extends Rewriter {
   }
 
   def isJavaStatic(decl: ClassDeclaration): Boolean = decl match {
-    case JavaSharedInitialization(isStatic, _) => isStatic
+    case init: JavaSharedInitialization => init.isStatic
     case fields: JavaFields => fields.modifiers.contains(JavaStatic()(DiagnosticOrigin))
     case method: JavaMethod => method.modifiers.contains(JavaStatic()(DiagnosticOrigin))
     case _: JavaConstructor => false
@@ -52,12 +52,12 @@ case class LangSpecificToCol() extends Rewriter {
   def makeJavaClass(decls: Seq[ClassDeclaration], ref: Ref[Class])(implicit o: Origin): Unit = {
     // First, declare all the fields, so we can refer to them.
     decls.foreach {
-      case fields @ JavaFields(mods, t, decls) =>
-        for(((_, dims, _), idx) <- decls.zipWithIndex) {
+      case fields: JavaFields =>
+        for(((_, dims, _), idx) <- fields.decls.zipWithIndex) {
           javaFieldsSuccessor((fields, idx)) =
             new InstanceField(
-              t = FuncTools.repeat(TArray(_), dims, t),
-              flags = mods.collect { case JavaFinal() => new Final() }.toSet)
+              t = FuncTools.repeat(TArray(_), dims, fields.t),
+              flags = fields.modifiers.collect { case JavaFinal() => new Final() }.toSet)
         }
       case _ =>
     }
@@ -66,8 +66,8 @@ case class LangSpecificToCol() extends Rewriter {
     // 1. the inline initialization of all fields
 
     val fieldInit = (diz: Expr) => Block(decls.collect {
-      case fields @ JavaFields(_, _, decls) =>
-        Block(for(((_, _, init), idx) <- decls.zipWithIndex if init.nonEmpty)
+      case fields: JavaFields =>
+        Block(for(((_, _, init), idx) <- fields.decls.zipWithIndex if init.nonEmpty)
           yield Assign(Deref(diz, javaFieldsSuccessor.ref((fields, idx))), dispatch(init.get))
         )
     })
@@ -77,7 +77,7 @@ case class LangSpecificToCol() extends Rewriter {
     val sharedInit = (diz: Expr) => {
       currentThis.having(diz) {
         Block(decls.collect {
-          case JavaSharedInitialization(_, init) => dispatch(init)
+          case init: JavaSharedInitialization => dispatch(init.initialization)
         })
       }
     }
@@ -85,7 +85,7 @@ case class LangSpecificToCol() extends Rewriter {
     // 3. the body of the constructor
 
     val declsDefault = if(decls.collect { case _: JavaConstructor => () }.isEmpty) {
-      javaDefaultConstructor(currentJavaClass.head) = JavaConstructor(
+      javaDefaultConstructor(currentJavaClass.head) = new JavaConstructor(
         modifiers = Nil,
         name = "",
         parameters = Nil,
@@ -95,8 +95,8 @@ case class LangSpecificToCol() extends Rewriter {
         contract = ApplicableContract(
           requires = true,
           ensures = Star.fold(decls.collect {
-            case fields @ JavaFields(_, _, decls) =>
-              decls.indices.map(decl => {
+            case fields: JavaFields =>
+              fields.decls.indices.map(decl => {
                 Perm(Deref(currentThis.head, javaFieldsSuccessor.ref((fields, decl))), WritePerm())
               })
           }.flatten),
@@ -107,7 +107,7 @@ case class LangSpecificToCol() extends Rewriter {
     } else decls
 
     declsDefault.foreach {
-      case cons @ JavaConstructor(mods, _, params, typeParams, signals, body, contract) =>
+      case cons: JavaConstructor =>
         implicit val o: Origin = cons.o
         val t = TClass(ref)
         val resVar = new Variable(t)
@@ -116,26 +116,26 @@ case class LangSpecificToCol() extends Rewriter {
           new Procedure(
             returnType = t,
             args = collectInScope(variableScopes) {
-              params.foreach(dispatch)
+              cons.parameters.foreach(dispatch)
             },
             outArgs = Nil,
             body = Some(Scope(Seq(resVar), Block(Seq(
               Assign(res, NewObject(ref)),
               fieldInit(res),
               sharedInit(res),
-              dispatch(body),
+              dispatch(cons.body),
               Return(res),
             )))),
-            contract = dispatch(contract),
+            contract = dispatch(cons.contract),
           )(null).succeedDefault(this, cons)
         }
-      case method @ JavaMethod(mods, returnType, dims, _, params, typeParams, signals, body, contract) =>
+      case method: JavaMethod =>
         new InstanceMethod(
-          returnType = dispatch(returnType),
-          args = collectInScope(variableScopes) { params.foreach(dispatch) },
+          returnType = dispatch(method.returnType),
+          args = collectInScope(variableScopes) { method.parameters.foreach(dispatch) },
           outArgs = Nil,
-          body = body.map(dispatch),
-          contract = dispatch(contract),
+          body = method.body.map(dispatch),
+          contract = dispatch(method.contract),
         )(null).succeedDefault(this, method)
       case _: JavaSharedInitialization =>
       case _: JavaFields =>
@@ -156,17 +156,18 @@ case class LangSpecificToCol() extends Rewriter {
         ns.declarations.foreach(dispatch)
       }
 
-    case cls @ JavaClass(_, mods, typeParams, ext, imp, decls) =>
+    case cls: JavaClassOrInterface =>
       implicit val o: Origin = cls.o
 
       currentJavaClass.having(cls) {
-        val supports = (dispatch(cls.ext) +: cls.imp.map(dispatch)).map {
-          case TClass(cls) => cls
+        val supports = cls.supports.map(dispatch).flatMap {
+          case TClass(cls) => Seq(cls)
+          case TAny() => Nil
           case _ => ???
         }
 
-        val instDecls = decls.filter(!isJavaStatic(_))
-        val staticDecls = decls.filter(isJavaStatic)
+        val instDecls = cls.decls.filter(!isJavaStatic(_))
+        val staticDecls = cls.decls.filter(isJavaStatic)
 
         if(instDecls.nonEmpty) {
           val instanceClass = new Class(collectInScope(classScopes) {
@@ -197,9 +198,6 @@ case class LangSpecificToCol() extends Rewriter {
           javaStaticsFunctionSuccessor(cls) = singleton
         }
       }
-
-    case cls @ JavaInterface(_, mods, typeParams, ext, decls) =>
-      ???
 
     case cls: Class =>
       val diz = AmbiguousThis()(cls.o)
@@ -244,11 +242,11 @@ case class LangSpecificToCol() extends Rewriter {
     case scope @ Scope(locals, body) =>
       def scanScope(node: Node): Unit = node match {
         case Scope(_, _) =>
-        case JavaLocalDeclarationStatement(locals @ JavaLocalDeclaration(mods, t, decls)) =>
+        case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration) =>
           implicit val o: Origin = node.o
-          decls.zipWithIndex.foreach {
+          locals.decls.zipWithIndex.foreach {
             case ((_, dims, _), idx) =>
-              val v = new Variable(FuncTools.repeat(TArray(_), dims, dispatch(t)))
+              val v = new Variable(FuncTools.repeat(TArray(_), dims, dispatch(locals.t)))
               javaLocalsSuccessor((locals, idx)) = v
               v.declareDefault(this)
           }
@@ -260,9 +258,9 @@ case class LangSpecificToCol() extends Rewriter {
         scanScope(body)
       })
 
-    case JavaLocalDeclarationStatement(locals @ JavaLocalDeclaration(_, _, decls)) =>
+    case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration) =>
       implicit val o: Origin = locals.o
-      Block(for(((_, _, init), i) <- decls.zipWithIndex if init.nonEmpty)
+      Block(for(((_, _, init), i) <- locals.decls.zipWithIndex if init.nonEmpty)
         yield Assign(Local(javaLocalsSuccessor.ref((locals, i))), dispatch(init.get))
       )
 

@@ -18,33 +18,32 @@ final class List {
   public List next;
   
   /*@
-    public final resource state()=
-      Perm(val,1)**Perm(next,1)**next->state();
+  resource state() =
+    Perm(val,1) ** Perm(next,1) ** next->state();
 
-    requires state();
-    public pure seq<int> contents()=\unfolding state() \in
-        ((next==null)?(seq<int>{val})
-                    :(seq<int>{val}+next.contents()));
+  requires state();
+  pure seq<int> contents()=\unfolding state() \in
+    (next==null ? [val] : val :: next.contents());
 
-    public final resource list(seq<int> c)=state() ** contents()==c;
+  resource list(seq<int> c) = state() ** contents()==c;
   @*/
 
   /*@
-    ensures list(seq<int>{v});
+  ensures list([v]);
   @*/
   public List(int v){
     val=v;
     next=null;
     //@ fold state();
-    //@ fold list(seq<int>{v});
+    //@ fold list([v]);
   }
 
   /*@
-    given    seq<int> L1;
-    given    seq<int> L2;
-    requires this.list(L1);
-    requires l!=null ** l.list(L2);
-    ensures  this.list(L1+L2);
+  given    seq<int> L1;
+  given    seq<int> L2;
+  requires this.list(L1);
+  requires l!=null ** l.list(L2);
+  ensures  this.list(L1+L2);
   @*/
   public void append_rec(List l){
     //@ unfold list(L1);
@@ -55,12 +54,10 @@ final class List {
     } else {
         //@ ghost seq<int> tmp = next.contents();
         //@ fold next.list(tmp);
-        next.append_rec(l) /*@ with { L1 = tmp ; L2 = L2 ; } @*/;
+        next.append_rec/*@ given { L1 = tmp, L2 = L2 } @*/(l);
         //@ unfold next.list(tmp+L2);
     }
     //@ fold state();
     //@ fold list(L1+L2);
   }
-
 }
-

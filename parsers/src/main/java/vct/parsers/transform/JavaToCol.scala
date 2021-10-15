@@ -16,7 +16,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
   extends ToCol(originProvider, blameProvider, errors) {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
-      Seq(JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
+      Seq(new JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
   }
 
   def convert(implicit pkg: PackageDeclarationContext): JavaName = pkg match {
@@ -29,12 +29,12 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
 
   def convert(implicit decl: TypeDeclarationContext): Seq[GlobalDeclaration] = decl match {
     case TypeDeclaration0(mods, ClassDeclaration0(_, name, args, ext, imp, ClassBody0(_, decls, _))) =>
-      Seq(JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
+      Seq(new JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
         imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration1(mods, enum) => fail(enum, "Enums are not supported.")
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
-      Seq(JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
+      Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration3(_, annotation) => fail(annotation, "Annotations are note supported.")
     case TypeDeclaration4(inner) => convert(inner)
@@ -96,7 +96,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
 
   def convert(implicit decl: ClassBodyDeclarationContext): Seq[ClassDeclaration] = decl match {
     case ClassBodyDeclaration0(_) => Nil
-    case ClassBodyDeclaration1(isStatic, body) => Seq(JavaSharedInitialization(isStatic.nonEmpty, convert(body)))
+    case ClassBodyDeclaration1(isStatic, body) => Seq(new JavaSharedInitialization(isStatic.nonEmpty, convert(body)))
     case ClassBodyDeclaration2(contract, mods, decl) =>
       withContract(contract, c => {
         convert(decl, mods.map(convert(_)), c)
@@ -115,23 +115,23 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
 
   def convert(implicit decl: MemberDeclarationContext, mods: Seq[JavaModifier], c: ContractCollector): Seq[ClassDeclaration] = decl match {
     case MemberDeclaration0(MethodDeclaration0(returnType, name, params, dims, signals, body)) =>
-      Seq(JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
+      Seq(new JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil),
         convert(body), c.consumeApplicableContract())(blame(decl)))
     case MemberDeclaration1(GenericMethodDeclaration0(typeParams, MethodDeclaration0(
       returnType, name, params, dims, signals, body))) =>
-      Seq(JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
+      Seq(new JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
         convert(body), c.consumeApplicableContract())(blame(decl)))
     case MemberDeclaration2(FieldDeclaration0(t, decls, _)) =>
       // Ignore the contract collector, so that complains about being non-empty
-      Seq(JavaFields(mods, convert(t), convert(decls)))
+      Seq(new JavaFields(mods, convert(t), convert(decls)))
     case MemberDeclaration3(ConstructorDeclaration0(name, params, signals, ConstructorBody0(body))) =>
-      Seq(JavaConstructor(mods, convert(name), convert(params), Nil,
+      Seq(new JavaConstructor(mods, convert(name), convert(params), Nil,
         signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract()))
     case MemberDeclaration4(GenericConstructorDeclaration0(typeParams,
       ConstructorDeclaration0(name, params, signals, ConstructorBody0(body)))) =>
-      Seq(JavaConstructor(mods, convert(name), convert(params), convert(typeParams),
+      Seq(new JavaConstructor(mods, convert(name), convert(params), convert(typeParams),
         signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract()))
     case MemberDeclaration5(interface) => fail(interface, "Inner interfaces are not supported.")
     case MemberDeclaration6(annotation) => fail(annotation, "Annotations are not supported.")
@@ -142,14 +142,14 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
   def convert(implicit decl: InterfaceMemberDeclarationContext, mods: Seq[JavaModifier], c: ContractCollector): Seq[ClassDeclaration] = decl match {
     case InterfaceMemberDeclaration0(ConstDeclaration0(t, decls, _)) =>
       // JLS SE 7 - 9.3
-      Seq(JavaFields(Seq(JavaPublic(), JavaStatic(), JavaFinal()) ++ mods, convert(t), convert(decls)))
+      Seq(new JavaFields(Seq(JavaPublic(), JavaStatic(), JavaFinal()) ++ mods, convert(t), convert(decls)))
     case InterfaceMemberDeclaration1(InterfaceMethodDeclaration0(t, name, params, dims, signals, _)) =>
       // JLS SE 7 - 9.4
-      Seq(JavaMethod(Seq(JavaPublic(), JavaAbstract()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
+      Seq(new JavaMethod(Seq(JavaPublic(), JavaAbstract()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil), None, c.consumeApplicableContract())(blame(decl)))
     case InterfaceMemberDeclaration2(GenericInterfaceMethodDeclaration0(typeParams, InterfaceMethodDeclaration0(
       t, name, params, dims, signals, _))) =>
-      Seq(JavaMethod(Seq(JavaPublic(), JavaAbstract()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
+      Seq(new JavaMethod(Seq(JavaPublic(), JavaAbstract()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
         None, c.consumeApplicableContract())(blame(decl)))
     case InterfaceMemberDeclaration3(interface) => fail(interface, "Inner interfaces are not supported.")
@@ -257,7 +257,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
 
   def convert(implicit decl: LocalVariableDeclarationContext): Statement = decl match {
     case LocalVariableDeclaration0(mods, t, decls) =>
-      JavaLocalDeclarationStatement(JavaLocalDeclaration(mods.map(convert(_)), convert(t), convert(decls)))
+      JavaLocalDeclarationStatement(new JavaLocalDeclaration(mods.map(convert(_)), convert(t), convert(decls)))
   }
 
   def convert(implicit stat: ElseBlockContext): Statement = stat match {
@@ -311,8 +311,8 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case Statement10(_, obj, inner) => Synchronized(convert(obj), convert(inner))
     case Statement11(_, expr, _) => Return(expr.map(convert(_)).getOrElse(Void()))
     case Statement12(_, exc, _) => Throw(convert(exc))
-    case Statement13(_, label, _) => Break(label.map(convert(_)).map(new UnresolvedRef(_)))
-    case Statement14(_, label, _) => Continue(label.map(convert(_)).map(new UnresolvedRef(_)))
+    case Statement13(_, label, _) => Break(label.map(convert(_)).map(new UnresolvedRef[LabelDecl](_)))
+    case Statement14(_, label, _) => Continue(label.map(convert(_)).map(new UnresolvedRef[LabelDecl](_)))
     case Statement15(_) => Block(Nil)
     case Statement16(expr, _) => Eval(convert(expr))
     case Statement17(label, _, statement) => Block(Seq(
@@ -554,9 +554,9 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       case "==" => Eq(convert(left), convert(right))
       case "!=" => Neq(convert(left), convert(right))
     }
-    case JavaBitAnd(left, _, right) => BitAnd(convert(left), convert(right)) // TODO PB: should be ambiguous
-    case JavaBitXor(left, _, right) => BitXor(convert(left), convert(right))
-    case JavaBitOr(left, _, right) => BitOr(convert(left), convert(right))
+    case JavaBitAnd(left, _, right) => AmbiguousComputationalAnd(convert(left), convert(right))
+    case JavaBitXor(left, _, right) => AmbiguousComputationalXor(convert(left), convert(right))
+    case JavaBitOr(left, _, right) => AmbiguousComputationalOr(convert(left), convert(right))
     case JavaAnd(left, and, right) => and match {
       case AndOp0(_) => And(convert(left), convert(right))
       case AndOp1(specOp) => convert(specOp, convert(left), convert(right))
@@ -922,7 +922,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
       Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
-    case ValRefute(_, assn, _) => ??(stat)
+    case ValRefute(_, assn, _) => Refute(convert(assn))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
     case ValSend(_, resource, _, label, _, offset, _) =>

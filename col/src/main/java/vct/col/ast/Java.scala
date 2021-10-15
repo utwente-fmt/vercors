@@ -27,17 +27,17 @@ case class JavaPure()(implicit val o: Origin) extends JavaModifier
 case class JavaInline()(implicit val o: Origin) extends JavaModifier
 
 sealed trait JavaGlobalDeclaration extends ExtraGlobalDeclaration
-case class JavaNamespace(pkg: Option[JavaName], imports: Seq[JavaImport], declarations: Seq[GlobalDeclaration])(implicit val o: Origin)
+class JavaNamespace(val pkg: Option[JavaName], val imports: Seq[JavaImport], val declarations: Seq[GlobalDeclaration])(implicit val o: Origin)
   extends JavaGlobalDeclaration with NoCheck with Declarator
 
-sealed trait JavaClassOrInterface {
+sealed abstract class JavaClassOrInterface extends JavaGlobalDeclaration with Declarator {
   def name: String
   def modifiers: Seq[JavaModifier]
   def typeParams: Seq[Variable]
   def decls: Seq[ClassDeclaration]
   def supports: Seq[Type]
   def superTypeOf(other: JavaClassOrInterface): Boolean =
-    other == this || supports.exists(superTypeOf)
+    other == this || other.supports.exists(superTypeOf)
 
   def superTypeOf(other: Type): Boolean = other match {
     case otherClassType @ JavaTClass(_) => superTypeOf(otherClassType.ref.get match {
@@ -46,47 +46,47 @@ sealed trait JavaClassOrInterface {
     })
     case _ => false
   }
+
+  override def declarations: Seq[Declaration] = typeParams ++ decls
 }
 
-case class JavaClass(name: String, modifiers: Seq[JavaModifier], typeParams: Seq[Variable],
-                     ext: Type, imp: Seq[Type],
-                     decls: Seq[ClassDeclaration])
-                    (implicit val o: Origin)
-  extends JavaGlobalDeclaration with NoCheck with JavaClassOrInterface with Declarator {
-  override def declarations: Seq[Declaration] = typeParams ++ decls
+class JavaClass(val name: String, val modifiers: Seq[JavaModifier], val typeParams: Seq[Variable],
+                val ext: Type, val imp: Seq[Type],
+                val decls: Seq[ClassDeclaration])
+               (implicit val o: Origin)
+  extends JavaClassOrInterface with NoCheck {
   override def supports: Seq[Type] = ext +: imp
 }
-case class JavaInterface(name: String, modifiers: Seq[JavaModifier], typeParams: Seq[Variable],
-                         ext: Seq[Type], decls: Seq[ClassDeclaration])
-                        (implicit val o: Origin)
-  extends JavaGlobalDeclaration with NoCheck with JavaClassOrInterface with Declarator {
-  override def declarations: Seq[Declaration] = typeParams ++ decls
+class JavaInterface(val name: String, val modifiers: Seq[JavaModifier], val typeParams: Seq[Variable],
+                    val ext: Seq[Type], val decls: Seq[ClassDeclaration])
+                   (implicit val o: Origin)
+  extends JavaClassOrInterface with NoCheck {
   override def supports: Seq[Type] = ext
 }
 
 sealed trait JavaClassDeclaration extends ExtraClassDeclaration
-case class JavaSharedInitialization(isStatic: Boolean, initialization: Statement)(implicit val o: Origin)
+class JavaSharedInitialization(val isStatic: Boolean, val initialization: Statement)(implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck
-case class JavaFields(modifiers: Seq[JavaModifier], t: Type, decls: Seq[(String, Int, Option[Expr])])
+class JavaFields(val modifiers: Seq[JavaModifier], val t: Type, val decls: Seq[(String, Int, Option[Expr])])
+                (implicit val o: Origin)
+  extends JavaClassDeclaration with NoCheck
+class JavaConstructor(val modifiers: Seq[JavaModifier], val name: String,
+                      val parameters: Seq[Variable], val typeParameters: Seq[Variable],
+                      val signals: Seq[JavaName], val body: Statement, val contract: ApplicableContract)
                      (implicit val o: Origin)
-  extends JavaClassDeclaration with NoCheck
-case class JavaConstructor(modifiers: Seq[JavaModifier], name: String,
-                           parameters: Seq[Variable], typeParameters: Seq[Variable],
-                           signals: Seq[JavaName], body: Statement, contract: ApplicableContract)
-                          (implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck with Declarator {
   override def declarations: Seq[Declaration] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
 }
-case class JavaMethod(modifiers: Seq[JavaModifier], returnType: Type, dims: Int, name: String,
-                      parameters: Seq[Variable], typeParameters: Seq[Variable],
-                      signals: Seq[JavaName], body: Option[Statement], contract: ApplicableContract)
-                     (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
+class JavaMethod(val modifiers: Seq[JavaModifier], val returnType: Type, val dims: Int, val name: String,
+                 val parameters: Seq[Variable], val typeParameters: Seq[Variable],
+                 val signals: Seq[JavaName], val body: Option[Statement], val contract: ApplicableContract)
+                (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck with Declarator {
   override def declarations: Seq[Declaration] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
 }
 
-case class JavaLocalDeclaration(modifiers: Seq[JavaModifier], t: Type, decls: Seq[(String, Int, Option[Expr])])
-                               (implicit val o: Origin)
+class JavaLocalDeclaration(val modifiers: Seq[JavaModifier], val t: Type, val decls: Seq[(String, Int, Option[Expr])])
+                          (implicit val o: Origin)
   extends ExtraDeclarationKind with NoCheck {
   override def declareDefault(scope: ScopeContext): Unit = scope.javaLocalScopes.top += this
 }

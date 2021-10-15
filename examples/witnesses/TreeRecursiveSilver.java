@@ -27,25 +27,25 @@ final class Tree {
   @*/
 
   /*@
-    requires t->state();
-    ensures  t != null ==> \result.length > 0;
+    requires state();
+    ensures this != null ==> \result.size > 0;
     pure seq<int> contents() = (this == null) ? seq<int>{} :
       \unfolding state() \in (left.contents() + seq<int>{data} + right.contents());
   @*/
   
   /*@
-    requires t!=null ** t.state();
+    requires state();
     ensures \result->state();
     ensures \result.contents() == \old(t.contents()).tail;
   @*/
-  public Tree del_min(Tree t){
-    //@ unfold t.state();
+  public Tree del_min() {
+    //@ unfold state();
     if (t.left==null) {
-      //@ assert t.left.contents() == seq<int>{};
+      //@ assert left.contents() == seq<int>{};
       return t.right;
     } else {
-      t.left = del_min(t.left);
-      //@ fold t.state();
+      t.left = t.left.del_min();
+      //@ fold state();
       return t;
     }
   }

@@ -3,51 +3,45 @@
 //:: option --check-history
 //:: verdict Fail
 
-class `Future` {
+model Model {
   int x;
   
   modifies x;
-  ensures x==\old(x)+1;
-  process step();
+  ensures x == \old(x)+1;
+  action step();
 }
 
-class Test {
-  int y;
-
-  requires HPerm(f.x,1);
-  void bad1(`Future` f){
-    f.x = 1;
-  }
-  
-  requires Perm(f.x,1);
-  void bad2(`Future` f){
-    assert HPerm(f.x,1);
-  }
-  
-  requires Perm(f.x,1);
-  void bad3(`Future` f){
-    assert APerm(f.x,1);
-  }
-  
-  requires HPerm(f.x,1);
-  void bad4(`Future` f){
-    assert Perm(f.x,1);
-  }
-  
-  requires HPerm(f.x,1);
-  void bad5(`Future` f){
-    assert APerm(f.x,1);
-  }
-  
-  requires APerm(f.x,1);
-  void bad6(`Future` f){
-    assert Perm(f.x,1);
-  }
-  
-  requires APerm(f.x,1);
-  void bad7(`Future` f){
-    assert HPerm(f.x,1);
-  }
+requires HPerm(f.x, 1);
+void bad1(Model f) {
+  f.x = 1;
 }
 
+requires Perm(f.x, 1);
+void bad2(Model f) {
+  assert HPerm(f.x, 1);
+}
 
+requires Perm(f.x, 1);
+void bad3(Model f) {
+  assert APerm(f.x, 1);
+}
+
+requires HPerm(f.x, 1);
+void bad4(Model f) {
+  assert Perm(f.x, 1);
+}
+
+requires HPerm(f.x, 1);
+void bad5(Model f) {
+  assert APerm(f.x, 1);
+}
+
+requires APerm(f.x, 1);
+void bad6(Model f) {
+  assert Perm(f.x, 1);
+}
+
+requires APerm(f.x, 1);
+void bad7(Model f) {
+  assert HPerm(f.x, 1);
+}

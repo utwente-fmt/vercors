@@ -21,7 +21,7 @@ case object Test {
 
   def main(args: Array[String]): Unit = {
     try {
-      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).foreach(c => {
+      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
         if(c.files.asScala.forall(f =>
             f.toString.endsWith(".java") ||
               f.toString.endsWith(".c") ||
@@ -32,7 +32,7 @@ case object Test {
         }
       })
 
-//      tryParse(Seq(Path.of("examples/known-problems/verifythis/2019/challenge2b.pvl")))
+//      tryParse(Seq(Path.of("examples/case-studies/exception-patterns/CatchLog.java")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
