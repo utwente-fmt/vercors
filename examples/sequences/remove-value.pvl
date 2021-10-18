@@ -9,7 +9,7 @@ class RemoveValues {
 		seq<int> b = a.removeAt(2);
 		assert b == [1, 2, 4, 5];
 		
-		seq<int> c = removeAt(b, 0);
+		seq<int> c = b.removeAt(0);
     assert c == [2, 4, 5];
 
     seq<int> d = c.removeAt(2);
@@ -20,7 +20,7 @@ class RemoveValues {
 
     seq<int> g = f.removeAt(0);
     assert g == [t:int];
-    assert isEmpty(g);
+    assert g.isEmpty;
 	
 		Edge e1 = new Edge(0, 1);
 		Edge e2 = new Edge(1, 2);

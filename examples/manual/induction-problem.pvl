@@ -3,11 +3,9 @@
 //:: tools silicon
 //:: verdict Fail
 
-class C {
-  static int len(seq<int> xs)=|xs|==0? 0 : 1 + len(tail(xs));
-  
-  void main(seq<int> xs,seq<int> ys){
-    assert len(xs+ys)==len(xs)+len(ys);
-  }
-}
 
+static int len(seq<int> xs) = |xs|==0 ? 0 : 1 + len(xs.tail);
+
+void main(seq<int> xs, seq<int> ys){
+  assert len(xs+ys) == len(xs)+len(ys);
+}

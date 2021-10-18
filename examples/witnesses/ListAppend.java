@@ -76,7 +76,7 @@ final class List {
     //@ ghost seq<int> prefix = seq<int>{};
     //@ ghost seq<int> suffix = L1;
 
-    //@ create { qed this.list(L1+L2) -* this.list(L1+L2); }
+    //@ create_wand { qed this.list(L1+L2) -* this.list(L1+L2); }
 
     //@ loop_invariant cursor!=null;
     //@ loop_invariant cursor.list(suffix);

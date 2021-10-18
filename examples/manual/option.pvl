@@ -15,8 +15,6 @@ void test(){
   option<int> x = None;
   option<int> y = Some(37);
 
-  option<optiontest> z = None;
-
   assert x != y;
   assert x == None;
   assert y != None;

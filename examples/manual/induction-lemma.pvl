@@ -3,7 +3,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-int len(seq<int> xs) = |xs|==0 ? 0 : 1 + len(xs.tail);
+pure int len(seq<int> xs) = |xs|==0 ? 0 : 1 + len(xs.tail);
 
 void main(seq<int> xs, seq<int> ys){
   lemma(xs, ys);
@@ -15,7 +15,7 @@ void lemma(seq<int> xs, seq<int> ys){
   if (xs.isEmpty) {
     assert xs+ys == ys;
   } else {
-    lemma(xs.tail,ys);
+    lemma(xs.tail, ys);
     assert (xs+ys).tail == xs.tail + ys;
   }
 }

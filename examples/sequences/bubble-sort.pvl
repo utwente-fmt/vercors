@@ -4,26 +4,26 @@
 //:: verdict Pass
 
 requires |input| > 0;
-ensures BubbleSort.sorted(\result);
+ensures sorted(\result);
 seq<int> sort(seq<int> input) {
     seq<int> out = input;
     int lastUnsorted = |out| - 1;
 
     loop_invariant lastUnsorted >= 0 && lastUnsorted < |out|;
     loop_invariant lastUnsorted < 0 ==> |input| == 0;
-    loop_invariant BubbleSort.sorted(out[lastUnsorted..]);
-    loop_invariant BubbleSort.correct(out, lastUnsorted);
+    loop_invariant sorted(out[lastUnsorted..]);
+    loop_invariant correct(out, lastUnsorted);
     while (lastUnsorted > 0) {
         int i = 0;
 
         loop_invariant 0 <= lastUnsorted && lastUnsorted < |out|;
         loop_invariant 0 <= i && i <= lastUnsorted;
-        loop_invariant BubbleSort.sorted(out[lastUnsorted..]);
-        loop_invariant BubbleSort.correct(out, lastUnsorted);
+        loop_invariant sorted(out[lastUnsorted..]);
+        loop_invariant correct(out, lastUnsorted);
         loop_invariant (\forall int k; 0 <= k && k < i; out[k] <= out[i]);
         while (i < lastUnsorted) {
             if (out[i] > out[i+1]) {
-                out = this.swap(out, i, i+1);
+                out = swap(out, i, i+1);
             }
             i = i + 1;
         }
@@ -49,8 +49,8 @@ ensures \result[i] ==  xs[j];
 ensures \result[j] ==  xs[i];
 seq<int> swap(seq<int> xs, int i, int j) {
     int tmp = xs[i];
-    seq<int> res = BubbleSort.Set(xs, i, xs[j]);
-    res = BubbleSort.Set(res, j, tmp);
+    seq<int> res = Set(xs, i, xs[j]);
+    res = Set(res, j, tmp);
     return res;
 }
 
@@ -61,5 +61,5 @@ ensures (\forall int g; n < g && g < |xs|; \result[g] == xs[g]);
 ensures \result[n] == val;
 pure seq<int> Set(seq<int> xs, int n, int val) =
     n > 0 ?
-        head(xs)::BubbleSort.Set(tail(xs), n-1, val) :
-        val::tail(xs);
+        xs.head :: Set(xs.tail, n-1, val) :
+        val :: xs.tail;

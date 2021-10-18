@@ -395,6 +395,14 @@ object And {
 }
 case class And(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
 case class Or(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
+object Implies {
+  def unfold(expr: Expr): (Seq[Expr], Expr) = expr match {
+    case Implies(left, right) =>
+      val (antecedent, consequent) = unfold(right)
+      (Star.unfold(left) ++ antecedent, consequent)
+    case other => (Nil, other)
+  }
+}
 case class Implies(left: Expr, right: Expr)(implicit val o: Origin) extends Check(left.checkSubType(TBool()), right.checkSubType(TResource())) with BinExpr {
   override def t: Type = right.t
 }

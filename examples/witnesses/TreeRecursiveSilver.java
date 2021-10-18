@@ -40,14 +40,13 @@ final class Tree {
   @*/
   public Tree del_min() {
     //@ unfold state();
-    if (t.left==null) {
-      //@ assert left.contents() == seq<int>{};
-      return t.right;
+    if (left == null) {
+      //@ assert left.contents().isEmpty;
+      return right;
     } else {
-      t.left = t.left.del_min();
+      left = left.del_min();
       //@ fold state();
-      return t;
+      return this;
     }
   }
 }
-

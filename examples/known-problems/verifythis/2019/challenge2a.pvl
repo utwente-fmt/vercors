@@ -11,15 +11,15 @@ class Challenge2 {
 	/** * Auxiliary definitions */
 	
   pure boolean distinct(seq<int> s) =
-		(\forall int i; 0 <= i && i < s.length; (\forall int j; 0 <= j && j < s.length && s[i] == s[j]; i == j));
+		(\forall int i; 0 <= i && i < s.size; (\forall int j; 0 <= j && j < s.size && s[i] == s[j]; i == j));
 	
-	inline int peek(seq<int> xs) = xs[|xs| - 1];
+	inline pure int peek(seq<int> xs) = xs[|xs| - 1];
 	
 	requires 0 < |xs|;
 	ensures |\result| == |xs| - 1;
 	ensures (\forall int i; 0 <= i && i < |\result|; \result[i] == xs[i]);
 	pure seq<int> pop(seq<int> xs) = 
-		1 < |xs| ? seq<int> { head(xs) } + pop(tail(xs)) : seq<int> { };
+		1 < |xs| ? [xs.head] + pop(xs.tail) : seq<int>{};
 	
 	
 	/** * Implementation */
@@ -47,7 +47,7 @@ class Challenge2 {
 		loop_invariant 0 < |stack| ==> peek(stack) == x - 1;
 		loop_invariant 0 == |stack| ==> x == 0;
 		loop_invariant (\forall int j; 0 <= j && j < |stack| - 1; (\forall int k; stack[j] < k && k < stack[j + 1]; s[k] >= s[stack[j + 1]]));
-		loop_invariant 0 < |stack| ==> (\forall int j; 0 <= j && j < head(stack); s[j] >= s[head(stack)]);
+		loop_invariant 0 < |stack| ==> (\forall int j; 0 <= j && j < stack.head; s[j] >= s[stack.head]);
 		loop_invariant 0 == |stack| ==> (\forall int k; 0 <= k && k < x; s[k] >= s[x]);
 		loop_invariant (\forall int j; 0 <= j && j < x; (\forall int k; left[j] < k && k <= j; s[k] >= s[j]));
 		while (x < |s|) {
@@ -64,7 +64,7 @@ class Challenge2 {
 			loop_invariant (\forall int j; 0 <= j && j < |stack| - 1; s[stack[j]] < s[stack[j + 1]]);
 			loop_invariant (\forall int j; 0 <= j && j < |stack| - 1; (\forall int k; stack[j] < k && k < stack[j + 1]; s[k] >= s[stack[j + 1]]));
 			loop_invariant 0 < |stack| ==> (\forall int k; peek(stack) < k && k < x; s[k] >= s[x]);
-			loop_invariant 0 < |stack| ==> (\forall int j; 0 <= j && j < head(stack); s[j] >= s[head(stack)]);
+			loop_invariant 0 < |stack| ==> (\forall int j; 0 <= j && j < stack.head; s[j] >= s[stack.head]);
 			loop_invariant 0 == |stack| ==> (\forall int k; 0 <= k && k < x; s[k] >= s[x]);
 			loop_invariant (\forall int j; 0 <= j && j < x; (\forall int k; left[j] < k && k <= j; s[k] >= s[j]));
 			while (0 < |stack| && s[peek(stack)] >= s[x]) {
