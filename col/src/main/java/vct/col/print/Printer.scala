@@ -1120,7 +1120,7 @@ case class Printer(out: Appendable,
       ???
     case decl: ParInvariantDecl =>
       ???
-    case ADTAxiom(axiom) =>
+    case axiom: ADTAxiom =>
       ???
     case function: ADTFunction =>
       ???

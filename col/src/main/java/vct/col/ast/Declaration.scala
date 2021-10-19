@@ -173,7 +173,7 @@ class AxiomaticDataType(val decls: Seq[ADTDeclaration], val typeArgs: Seq[Variab
 sealed trait ADTDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.adtScopes.top += this
 }
-case class ADTAxiom(axiom: Expr)(implicit val o: Origin) extends ADTDeclaration {
+class ADTAxiom(val axiom: Expr)(implicit val o: Origin) extends ADTDeclaration {
   override def check(context: CheckContext): Seq[CheckError] = axiom.checkSubType(TBool())
 }
 

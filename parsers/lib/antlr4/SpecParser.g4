@@ -224,7 +224,7 @@ valReserved
     | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION
     | VAL_HPERM | VAL_IDLE | VAL_PERM_VAL
     | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME
-    | VAL_VALUE | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_MAP | VAL_OPTION | VAL_TUPLE)
+    | VAL_VALUE | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_MAP | VAL_OPTION | VAL_TUPLE | VAL_ADT)
  | LANG_ID_ESCAPE # valIdEscape
  | '\\result' # valResult
  | '\\current_thread' # valCurrentThread
@@ -256,6 +256,7 @@ valGlobalDeclaration
  | valContractClause* valModifier* 'pure' langType langId '(' valArgList? ')' valDef # valFunction
  | 'model' langId '{' valModelDeclaration* '}' # valModel
  | 'ghost' langGlobalDecl # valGhostDecl
+ | 'adt' langId valAdtTypeArgs? '{' valAdtDeclaration* '}' # valAdtDecl
  ;
 
 valClassDeclaration
@@ -268,6 +269,15 @@ valModelDeclaration
  : valContractClause* 'process' langId '(' valArgList? ')' '=' langExpr ';' # valModelProcess
  | valContractClause* 'action' langId '(' valArgList? ')' ';' # valModelAction
  | langType langId ';' # valModelField
+ ;
+
+valAdtTypeArgs
+ : '<' valIdList '>'
+ ;
+
+valAdtDeclaration
+ : 'axiom' langExpr ';' # valAdtAxiom
+ | 'pure' langType langId '(' valArgList? ')' ';' # valAdtFunction
  ;
 
 valDef

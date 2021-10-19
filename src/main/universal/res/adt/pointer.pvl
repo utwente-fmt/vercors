@@ -1,0 +1,43 @@
+adt block {
+  pure int base_addr(block b);
+  pure int block_length(block b);
+  pure ref loc(block b, int i);
+
+  pure block loc_inv_1(ref r);
+  pure int loc_inv_2(ref r);
+
+  // block length is non-negative
+  axiom (\forall block b; true; block_length(b) >= 0);
+
+  // there are no overlapping blocks (other than equal blocks)
+  axiom (\forall block b; true; (\forall block c; true;
+    base_addr(b) < base_addr(c) + block_length(c) &&
+      base_addr(c) < base_addr(b) + block_length(b) ==>
+      b == c
+
+  // loc is injective: a (block, index) pair indicates a unique ref
+  axiom
+    (\forall block b; true; (\forall int i; true;
+      loc_inv_1(loc(b, i)) == b && loc_inv_2(loc(b, i)) == i));
+}
+
+adt pointer {
+  pure pointer pointer_of(block b, int offset);
+  pure block pointer_block(pointer p);
+  pure int pointer_offset(pointer p);
+
+  axiom (\forall pointer p; true;
+    pointer_offset(p) >= 0 &&
+      pointer_offset(p) < block_length(pointer_block(p)));
+
+  axiom (\forall block b; true; (\forall int offset; true;
+    pointer_block(pointer_of(b, offset)) == b &&
+      pointer_offset(pointer_of(b, offset)) == offset));
+}
+
+pure ref ptr_deref(pointer p) =
+  loc(pointer_block(p), pointer_offset(p));
+
+requires 0 <= pointer_offset(p) + offset && pointer_offset(p) + offset <
+pure ref ptr_add(pointer p, int offset) =
+  pointer_of(pointer_block(p), pointer_offset(p) + offset);

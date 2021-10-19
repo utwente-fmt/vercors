@@ -1,0 +1,20 @@
+adt tuple<A, B> {
+  pure tuple<A, B> tup(A a, B b);
+  pure A fst(tuple<A, B> t);
+  pure B snd(tuple<A, B> t);
+
+  axiom
+    (\forall A a; true;
+      (\forall B b; true;
+        {:fst(tup(a, b)):} == a));
+
+  axiom
+    (\forall A a; true;
+      (\forall B b; true;
+        {:snd(tup(a, b)):} == b));
+
+  axiom
+    (\forall A a1; true; (\forall A a2; true;
+      (\forall B b1; true; (\forall B b2; true;
+        tup(a1, b1) == tup(a2, b2) ==> a1 == a2 && b1 == b2))));
+}

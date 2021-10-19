@@ -980,6 +980,9 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       Seq(new Model(decls.map(convert(_)))(SourceNameOrigin(convert(name), origin(decl))))
     case ValGhostDecl(_, inner) =>
       convert(inner)
+    case ValAdtDecl(_, name, typeArgs, _, decls, _) =>
+      Seq(new AxiomaticDataType(decls.map(convert(_)), typeArgs.map(convert(_)).getOrElse(Nil))(
+        SourceNameOrigin(convert(name), origin(decl))))
   }
 
   def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration] = decl match {
@@ -1023,6 +1026,18 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       })
+  }
+
+  def convert(implicit ts: ValAdtTypeArgsContext): Seq[Variable] = ts match {
+    case ValAdtTypeArgs0(_, names, _) =>
+      convert(names).map(name => new Variable(TType(TAny()))(SourceNameOrigin(name, origin(ts))))
+  }
+
+  def convert(implicit decl: ValAdtDeclarationContext): ADTDeclaration = decl match {
+    case ValAdtAxiom(_, ax, _) => new ADTAxiom(convert(ax))
+    case ValAdtFunction(_, returnType, name, _, args, _, _) =>
+      new ADTFunction(args.map(convert(_)).getOrElse(Nil), convert(returnType))(
+        SourceNameOrigin(convert(name), origin(decl)))
   }
 
   def convert(implicit definition: ValDefContext): Option[Expr] = definition match {
