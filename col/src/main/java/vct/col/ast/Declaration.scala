@@ -1,7 +1,7 @@
 package vct.col.ast
 
 import vct.col.ast.ScopeContext.WrongDeclarationCount
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationResult.{SystemError, Unreachable}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -41,7 +41,7 @@ trait Ref[+T <: Declaration] {
 
   def tryResolve(resolver: String => Declaration): Unit = {}
 
-  override def equals(obj: Any): Boolean = obj match {
+  override def equals(obj: scala.Any): Boolean = obj match {
     case other: Ref[_] => decl == other.decl
   }
 
@@ -163,7 +163,7 @@ class ParInvariantDecl()(implicit val o: Origin) extends Declaration with NoChec
   override def declareDefault(scope: ScopeContext): Unit = scope.parInvariantScopes.top += this
 }
 
-class SimplificationRule(val from: Expr, val to: Expr)(implicit val o: Origin) extends GlobalDeclaration with NoCheck
+class SimplificationRule(val axiom: Expr)(implicit val o: Origin) extends GlobalDeclaration with NoCheck
 
 class AxiomaticDataType(val decls: Seq[ADTDeclaration], val typeArgs: Seq[Variable])(implicit val o: Origin)
   extends GlobalDeclaration with NoCheck with Declarator {
@@ -173,7 +173,7 @@ class AxiomaticDataType(val decls: Seq[ADTDeclaration], val typeArgs: Seq[Variab
 sealed trait ADTDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.adtScopes.top += this
 }
-case class ADTAxiom(axiom: Expr)(implicit val o: Origin) extends ADTDeclaration {
+class ADTAxiom(val axiom: Expr)(implicit val o: Origin) extends ADTDeclaration {
   override def check(context: CheckContext): Seq[CheckError] = axiom.checkSubType(TBool())
 }
 
@@ -185,6 +185,8 @@ sealed trait Applicable extends Declaration with Declarator {
   def inline: Boolean
 
   override def declarations: Seq[Declaration] = args
+
+  override def enterCheckContext(context: CheckContext): CheckContext = context.withApplicable(this)
 }
 
 sealed trait AbstractPredicate extends Applicable {
@@ -281,7 +283,14 @@ sealed trait Field extends ClassDeclaration {
 
 class InstanceField(val t: Type, val flags: Set[FieldFlag])(implicit val o: Origin) extends Field with NoCheck
 
-class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator
+class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator {
+  private def transSupportArrows(seen: Set[Class]): Seq[(Class, Class)] =
+    if(seen.contains(this)) throw Unreachable("Yes, you got me, cyclical inheritance is not supported!")
+    else supports.map(other => (this, other.decl)) ++
+      supports.flatMap(other => other.decl.transSupportArrows(Set(this) ++ seen))
+
+  def transSupportArrows: Seq[(Class, Class)] = transSupportArrows(Set.empty)
+}
 
 sealed trait ModelDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.modelScopes.top += this

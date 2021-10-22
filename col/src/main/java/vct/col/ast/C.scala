@@ -1,7 +1,8 @@
 package vct.col.ast
 
-import vct.col.resolve.{C, CDerefTarget, CInvocationTarget, CNameTarget, CTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CDerefTarget, CInvocationTarget, CNameTarget, CTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
 import vct.result.VerificationResult
+import vct.result.VerificationResult.UserError
 
 import scala.annotation.tailrec
 
@@ -13,6 +14,7 @@ case class CInline()(implicit val o: Origin) extends CSpecificationModifier
 
 sealed trait CStorageClassSpecifier extends CDeclarationSpecifier
 case class CTypedef()(implicit val o: Origin) extends CStorageClassSpecifier
+case class CExtern()(implicit val o: Origin) extends CStorageClassSpecifier
 case class CStatic()(implicit val o: Origin) extends CStorageClassSpecifier
 
 sealed trait CTypeSpecifier extends CDeclarationSpecifier
@@ -49,7 +51,7 @@ case class CKernel()(implicit val o: Origin) extends CGpgpuKernelSpecifier
 case class CPointer(qualifiers: Seq[CTypeQualifier])
                    (implicit val o: Origin) extends NodeFamily with NoCheck
 
-case class CParam(specifiers: Seq[CDeclarationSpecifier], declarator: CDeclarator)(implicit val o: Origin)
+class CParam(val specifiers: Seq[CDeclarationSpecifier], val declarator: CDeclarator)(implicit val o: Origin)
   extends ExtraDeclarationKind with NoCheck {
   override def declareDefault(scope: ScopeContext): Unit = scope.cParams.top += this
 }
@@ -68,8 +70,8 @@ case class CName(name: String)(implicit val o: Origin) extends CDeclarator with 
 case class CInit(decl: CDeclarator, init: Option[Expr])(implicit val o: Origin)
   extends NodeFamily with NoCheck
 
-case class CDeclaration(contract: ApplicableContract, kernelInvariant: Expr,
-                        specs: Seq[CDeclarationSpecifier], inits: Seq[CInit])(implicit val o: Origin)
+class CDeclaration(val contract: ApplicableContract, val kernelInvariant: Expr,
+                   val specs: Seq[CDeclarationSpecifier], val inits: Seq[CInit])(implicit val o: Origin)
   extends ExtraDeclarationKind {
   override def declareDefault(scope: ScopeContext): Unit = scope.cLocalScopes.top += this
   override def check(context: CheckContext): Seq[CheckError] = kernelInvariant.checkSubType(TResource())
@@ -77,14 +79,13 @@ case class CDeclaration(contract: ApplicableContract, kernelInvariant: Expr,
 
 sealed trait CAbstractGlobalDeclaration extends ExtraGlobalDeclaration
 
-case class CFunctionDefinition(specs: Seq[CDeclarationSpecifier], declarator: CDeclarator, body: Statement)(implicit val o: Origin)
+class CFunctionDefinition(val specs: Seq[CDeclarationSpecifier], val declarator: CDeclarator, val body: Statement)(implicit val o: Origin)
   extends CAbstractGlobalDeclaration with NoCheck
 
-case class CGlobalDeclaration(decl: CDeclaration)(implicit val o: Origin)
+class CGlobalDeclaration(val decl: CDeclaration)(implicit val o: Origin)
   extends CAbstractGlobalDeclaration with NoCheck
 
 sealed trait CStatement extends ExtraStatement
-// TODO nothing in the tree of nodes under CDeclarationStatement is actually a Declaration, what to do?
 case class CDeclarationStatement(decl: CDeclaration)(implicit val o: Origin) extends CStatement with NoCheck
 case class CLabeledStatement(label: LabelDecl, statement: Statement)(implicit val o: Origin) extends CStatement with NoCheck
 case class CGoto(label: String)(implicit val o: Origin) extends CStatement with NoCheck {
@@ -117,9 +118,11 @@ case class CLocal(name: String)(implicit val o: Origin) extends CExpr with NoChe
         case Some(_) => TNotAValue(ref) // Function declaration
         case None => declInfo.typeOrReturnType(CPrimitiveType(decls.specs)) // Static declaration
       }
+    case RefModelField(field) => field.t
   }
 }
-case class CInvocation(applicable: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
+case class CInvocation(applicable: Expr, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
+                      (implicit val o: Origin) extends CExpr with NoCheck {
   var ref: Option[CInvocationTarget] = None
   override def t: Type = ref.get match {
     case RefFunction(decl) =>  decl.returnType
@@ -134,16 +137,32 @@ case class CInvocation(applicable: Expr, args: Seq[Expr])(implicit val o: Origin
     case RefInstanceMethod(decl) => decl.returnType
     case RefInstanceFunction(decl) => decl.returnType
     case RefInstancePredicate(decl) => decl.returnType
+    case BuiltinInstanceMethod(f) => applicable match {
+      case CStructAccess(obj, _) => f(obj)(args).t
+    }
   }
 }
 case class CStructAccess(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
   var ref: Option[CDerefTarget] = None
-  override def t: Type = ???
+  override def t: Type = ref.get match {
+    case ref: RefModelField => ref.decl.t
+    case ref: RefFunction => TNotAValue(ref)
+    case ref: RefProcedure => TNotAValue(ref)
+    case ref: RefPredicate => TNotAValue(ref)
+    case ref: RefInstanceFunction => TNotAValue(ref)
+    case ref: RefInstanceMethod => TNotAValue(ref)
+    case ref: RefInstancePredicate => TNotAValue(ref)
+    case ref: RefADTFunction => TNotAValue(ref)
+    case ref: RefModelProcess => TNotAValue(ref)
+    case ref: RefModelAction => TNotAValue(ref)
+    case ref: BuiltinField => ref.f(struct).t
+    case ref: BuiltinInstanceMethod => TNotAValue(ref)
+  }
 }
 case class CStructDeref(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
   override def t: Type = ???
 }
-case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr, args: Seq[Expr])(implicit val o: Origin) extends CExpr with NoCheck {
+case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])(implicit val o: Origin) extends CExpr with NoCheck {
   var ref: Option[CInvocationTarget] = None
   override def t: Type = ref.get match {
     case RefFunction(decl) => decl.returnType
@@ -158,23 +177,26 @@ case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr
     case RefCFunctionDefinition(decl) => C.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) => C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case RefCDeclaration(decls, initIdx) => C.typeOrReturnTypeFromDeclaration(decls.specs, decls.inits(initIdx).decl)
+    case BuiltinInstanceMethod(f) => ???
   }
 }
 
 sealed trait CType extends ExtraType
 
-object CPrimitiveType {
-  private implicit val o: Origin = DiagnosticOrigin
+case class CTypeNotSupported(t: CPrimitiveType) extends UserError {
+  override def code: String = "cTypeNotSupported"
+  override def text: String = t.o.messageInContext("This type is not supported by VerCors.")
 }
 
 case class CPrimitiveType(specifiers: Seq[CDeclarationSpecifier])(implicit val o: Origin = DiagnosticOrigin) extends CType {
-  override def mimics: Type = specifiers match {
+  override def mimics: Type = specifiers.collect { case spec: CTypeSpecifier => spec } match {
     case Seq(CVoid()) => TVoid()
     case Seq(CChar()) => TChar()
     case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
     case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
     case Seq(CBool()) => TBool()
     case Seq(defn @ CTypedefName(_)) => TNotAValue(defn.ref.get)
+    case _ => throw CTypeNotSupported(this)
   }
 
   override protected def superTypeOfImpl(other: Type): Boolean =

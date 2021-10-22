@@ -6,6 +6,10 @@ import SpecLexer, LangOMPLexer, LangGPGPULexer;
     private static boolean inLineSpec = false;
 }
 
+channels {
+  EXPECTED_ERROR_CHANNEL
+}
+
 VAL_INLINE: EOF EOF;
 VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
@@ -13,6 +17,8 @@ VAL_FALSE: 'false';
 VAL_SIZEOF: EOF EOF;
 
 Placeholder : EOF EOF ;
+
+Null : 'NULL';
 
 Auto : 'auto';
 Break : 'break';

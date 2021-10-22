@@ -1,9 +1,13 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
-import vct.col.ast.{ApplicableContract, Block, DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaImport, JavaMethod, JavaName, JavaNamespace, JavaStatic, JavaTClass, Origin, SourceNameOrigin, TClass, TNotAValue, TType, Variable}
+import vct.col.ast.{ApplicableContract, Block, DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamespace, JavaStatic, JavaTClass, Origin, SourceNameOrigin, TAny, TArray, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TType, TVoid, Type, Variable}
 import vct.result.VerificationResult
 import vct.col.ast.Constant._
+import vct.result.VerificationResult.Unreachable
+
+import java.lang.reflect.{Modifier, Parameter}
+import scala.collection.mutable
 
 case object Java {
   case class JavaSystemOrigin(preferredName: String) extends Origin {
@@ -15,12 +19,12 @@ case object Java {
   val JAVA_LANG_OBJECT: JavaTClass = JavaTClass(Seq(("java", None), ("lang", None), ("Object", None)))
 
   def findLoadedJavaTypeName(potentialFQName: Seq[String], ctx: TypeResolutionContext): Option[JavaTypeNameTarget] = {
-    ctx.stack.last.foreach {
-      case RefJavaNamespace(JavaNamespace(pkg, _, decls)) =>
-        for(decl <- decls) {
+    (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
+      case RefJavaNamespace(ns: JavaNamespace) =>
+        for(decl <- ns.declarations) {
           Referrable.from(decl).foreach {
             case target: JavaTypeNameTarget =>
-              if(pkg.map(_.names).getOrElse(Nil) :+ target.name == potentialFQName) {
+              if(ns.pkg.map(_.names).getOrElse(Nil) :+ target.name == potentialFQName) {
                 return Some(target)
               }
             case _ =>
@@ -32,26 +36,119 @@ case object Java {
     None
   }
 
-  def findRuntimeJavaTypeName(potentialFQName: Seq[String], ctx: TypeResolutionContext): Option[JavaClassOrInterface] = {
+  private val currentlyLoading = mutable.Map[Seq[String], mutable.ArrayBuffer[JavaTClass]]()
+
+  def lazyType(name: Seq[String], ctx: TypeResolutionContext): JavaTClass = {
+    val result = JavaTClass(name.map((_, None)))
+
+    currentlyLoading.get(name) match {
+      case Some(lazyQueue) => lazyQueue += result
+      case None => result.ref = Some(findJavaTypeName(name, ctx).getOrElse(
+        throw Unreachable(s"Invalid JRE: The type `${name.mkString(".")}` built in to the JRE could not be loaded.")))
+    }
+
+    result
+  }
+
+  def findRuntimeJavaType(potentialFQName: Seq[String], ctx: TypeResolutionContext): Option[JavaClassOrInterface] = {
+    if(currentlyLoading.contains(potentialFQName))
+      throw Unreachable("Aborting cyclic loading of classes from Java runtime")
+
     implicit val o: Origin = JavaSystemOrigin("unknown_jre")
+    currentlyLoading(potentialFQName) = mutable.ArrayBuffer()
+
+//    println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim will be loaded from the JRE.")
 
     try {
       val classLoader = this.getClass.getClassLoader
       val cls = classLoader.loadClass(potentialFQName.mkString("."))
 
-      val colClass = JavaClass(
-        name = cls.getSimpleName,
-        modifiers = Nil,
-        typeParams = cls.getTypeParameters.map(param => new Variable(TType(JAVA_LANG_OBJECT))(JavaSystemOrigin(param.getName))),
-        ext = JAVA_LANG_OBJECT,
-        imp = Nil,
-        decls = Seq(JavaConstructor(Nil, "", Nil, Nil, Nil, Block(Seq()), ApplicableContract(true, true, true, Nil, Nil, Nil))),
-      )(JavaSystemOrigin(cls.getSimpleName))
+      val colClass = translateRuntimeClass(cls)(o, ctx)
 
-      ctx.externallyLoadedClasses += JavaNamespace(Some(JavaName(potentialFQName.init)), Nil, Seq(colClass))
+      ctx.externallyLoadedElements += new JavaNamespace(Some(JavaName(potentialFQName.init)), Nil, Seq(colClass))
+
+      for(t <- currentlyLoading.remove(potentialFQName).get) {
+        t.ref = Some(RefJavaClass(colClass))
+      }
+
       Some(colClass)
     } catch {
-      case _: ClassNotFoundException => None
+      case _: ClassNotFoundException =>
+        currentlyLoading.remove(potentialFQName)
+        None
+    }
+  }
+
+  def translateRuntimeType(t: Class[_])(implicit o: Origin, ctx: TypeResolutionContext): Type = t match {
+    case java.lang.Boolean.TYPE => TBool()
+    case java.lang.Character.TYPE => TChar()
+    case java.lang.Byte.TYPE => TInt()
+    case java.lang.Short.TYPE => TInt()
+    case java.lang.Integer.TYPE => TInt()
+    case java.lang.Long.TYPE => TInt()
+    case java.lang.Float.TYPE => TFloat()
+    case java.lang.Double.TYPE => TFloat()
+    case java.lang.Void.TYPE => TVoid()
+    case arr if arr.isArray => TArray(translateRuntimeType(arr.getComponentType))
+    case cls => lazyType(cls.getName.split('.'), ctx)
+  }
+
+  def translateRuntimeParameter(param: Parameter)(implicit o: Origin, ctx: TypeResolutionContext): Variable = {
+    new Variable(translateRuntimeType(param.getType))(SourceNameOrigin(param.getName, o))
+  }
+
+  def translateRuntimeClass(cls: Class[_])(implicit o: Origin, ctx: TypeResolutionContext): JavaClassOrInterface = {
+    val cons = cls.getConstructors.map(cons => {
+      new JavaConstructor(
+        modifiers = Nil,
+        name = cls.getSimpleName,
+        parameters = cons.getParameters.map(translateRuntimeParameter),
+        typeParameters = Nil,
+        signals = Nil,
+        body = Block(Nil),
+        contract = ApplicableContract(true, true, true, Nil, Nil, Nil),
+      )
+    })
+
+    val methods = cls.getMethods.map(method => {
+      new JavaMethod(
+        modifiers = if((method.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic()) else Nil,
+        returnType = translateRuntimeType(method.getReturnType),
+        dims = 0,
+        name = method.getName,
+        parameters = method.getParameters.map(translateRuntimeParameter),
+        typeParameters = Nil,
+        signals = Nil,
+        body = None,
+        contract = ApplicableContract(true, true, true, Nil, Nil, Nil),
+      )(null)
+    })
+
+    val fields = cls.getFields.map(field => {
+       new JavaFields(
+         modifiers = if((field.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic()) else Nil,
+         t = translateRuntimeType(field.getType),
+         decls = Seq((field.getName, 0, None)),
+       )
+    })
+
+    if(cls.isInterface) {
+      new JavaInterface(
+        name = cls.getName.split('.').last,
+        modifiers = Nil,
+        typeParams = Nil,
+        ext = cls.getInterfaces.map(cls => lazyType(cls.getName.split('.'), ctx)),
+        decls = fields ++ cons ++ methods,
+      )(SourceNameOrigin(cls.getName.split('.').last, o))
+    } else {
+      new JavaClass(
+        name = cls.getName.split('.').last,
+        modifiers = Nil,
+        typeParams = Nil,
+        ext = Option(cls.getSuperclass).map(cls => lazyType(cls.getName.split('.'), ctx)).getOrElse(TAny()),
+        imp = cls.getInterfaces.map(cls => lazyType(cls.getName.split('.'), ctx)),
+        decls = fields ++ cons ++ methods,
+      )(SourceNameOrigin(cls.getName.split('.').last, o))
     }
   }
 
@@ -73,7 +170,7 @@ case object Java {
     }
 
     FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName(_, ctx))
-      .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaTypeName(_, ctx)).map(RefJavaClass))
+      .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType(_, ctx)).map(RefJavaClass))
   }
 
   def findJavaName(name: String, ctx: ReferenceResolutionContext): Option[JavaNameTarget] =
@@ -82,7 +179,7 @@ case object Java {
     }
 
   def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext): Option[JavaDerefTarget] =
-    obj.t match {
+    (obj.t match {
       case t @ TNotAValue() => t.decl.get match {
         case RefUnloadedJavaNamespace(pkg) =>
           Some(findJavaTypeName(pkg :+ name, ctx.asTypeResolutionContext)
@@ -91,10 +188,10 @@ case object Java {
           decl.decls.flatMap(Referrable.from).collectFirst {
             case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.contains(JavaStatic()) => ref
           }
-        case _ => throw HasNoFields(obj)
+        case _ => None
       }
       case t @ JavaTClass(_) => t.ref.get match {
-        case RefAxiomaticDataType(decl) => throw HasNoFields(obj)
+        case RefAxiomaticDataType(decl) => None
         case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
           case ref @ RefModelField(_) if ref.name == name => ref
         }
@@ -102,38 +199,42 @@ case object Java {
           case ref @ RefJavaField(_, _) if ref.name == name && !ref.decls.modifiers.contains(JavaStatic()) => ref
         }
       }
-      case _ => throw HasNoFields(obj)
-    }
-
-  private def compat(args: Seq[Expr], params: Seq[Variable]): Boolean =
-    args.size == params.size && params.zip(args).forall {
-      case (v, e) => v.t.superTypeOf(e.t)
-    }
+      case _ => None
+    }).orElse(Spec.builtinField(obj, name))
 
   def findMethodInClass(cls: JavaClassOrInterface, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
     cls.decls.flatMap(Referrable.from).collectFirst {
-      case ref @ RefJavaMethod(decl) if ref.name == method && compat(args, decl.parameters) => ref
-      case ref @ RefInstanceMethod(decl) if ref.name == method && compat(args, decl.args) => ref
-      case ref @ RefInstanceFunction(decl) if ref.name == method && compat(args, decl.args) => ref
-      case ref @ RefInstancePredicate(decl) if ref.name == method && compat(args, decl.args) => ref
+      case ref: RefJavaMethod if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefInstanceFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstanceMethod if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
 
   def findMethod(obj: Expr, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
-    obj.t match {
+    (obj.t.mimics match {
+      case TModel(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
+        case ref: RefModelAction if ref.name == method => ref
+        case ref: RefModelProcess if ref.name == method => ref
+      }
       case t @ JavaTClass(_) =>
         t.ref.get match {
-          case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
-            case ref: RefADTFunction if ref.name == method => ref
-          }
-          case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
-            case ref: RefModelAction if ref.name == method => ref
-            case ref: RefModelProcess if ref.name == method => ref
-          }
           case RefJavaClass(decl) => findMethodInClass(decl, method, args)
+          case _ => None
         }
-      case _ => throw NotApplicable(obj) // FIXME
-    }
+      case _ => None
+    }).orElse(Spec.builtinInstanceMethod(obj, method))
 
   def findMethod(ctx: ReferenceResolutionContext, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
-    findMethodInClass(ctx.currentJavaClass.get, method, args)
+    ctx.stack.flatten.collectFirst {
+      case ref: RefJavaMethod if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefInstanceFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstanceMethod if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefProcedure if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefPredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefADTFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefModelProcess if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefModelAction if ref.name == method && Util.compat(args, ref.decl.args) => ref
+    }
 }

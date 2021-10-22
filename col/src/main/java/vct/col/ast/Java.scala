@@ -1,7 +1,7 @@
 package vct.col.ast
 
 import hre.util.FuncTools
-import vct.col.resolve.{JavaDerefTarget, JavaInvocationTarget, JavaNameTarget, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefClass, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, JavaDerefTarget, JavaInvocationTarget, JavaNameTarget, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefClass, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
 
 case class JavaName(names: Seq[String])(implicit val o: Origin)
   extends NodeFamily with NoCheck {
@@ -27,17 +27,17 @@ case class JavaPure()(implicit val o: Origin) extends JavaModifier
 case class JavaInline()(implicit val o: Origin) extends JavaModifier
 
 sealed trait JavaGlobalDeclaration extends ExtraGlobalDeclaration
-case class JavaNamespace(pkg: Option[JavaName], imports: Seq[JavaImport], declarations: Seq[GlobalDeclaration])(implicit val o: Origin)
+class JavaNamespace(val pkg: Option[JavaName], val imports: Seq[JavaImport], val declarations: Seq[GlobalDeclaration])(implicit val o: Origin)
   extends JavaGlobalDeclaration with NoCheck with Declarator
 
-sealed trait JavaClassOrInterface {
+sealed abstract class JavaClassOrInterface extends JavaGlobalDeclaration with Declarator {
   def name: String
   def modifiers: Seq[JavaModifier]
   def typeParams: Seq[Variable]
   def decls: Seq[ClassDeclaration]
   def supports: Seq[Type]
   def superTypeOf(other: JavaClassOrInterface): Boolean =
-    other == this || supports.exists(superTypeOf)
+    other == this || other.supports.exists(superTypeOf)
 
   def superTypeOf(other: Type): Boolean = other match {
     case otherClassType @ JavaTClass(_) => superTypeOf(otherClassType.ref.get match {
@@ -46,47 +46,47 @@ sealed trait JavaClassOrInterface {
     })
     case _ => false
   }
+
+  override def declarations: Seq[Declaration] = typeParams ++ decls
 }
 
-case class JavaClass(name: String, modifiers: Seq[JavaModifier], typeParams: Seq[Variable],
-                     ext: Type, imp: Seq[Type],
-                     decls: Seq[ClassDeclaration])
-                    (implicit val o: Origin)
-  extends JavaGlobalDeclaration with NoCheck with JavaClassOrInterface with Declarator {
-  override def declarations: Seq[Declaration] = typeParams ++ decls
+class JavaClass(val name: String, val modifiers: Seq[JavaModifier], val typeParams: Seq[Variable],
+                val ext: Type, val imp: Seq[Type],
+                val decls: Seq[ClassDeclaration])
+               (implicit val o: Origin)
+  extends JavaClassOrInterface with NoCheck {
   override def supports: Seq[Type] = ext +: imp
 }
-case class JavaInterface(name: String, modifiers: Seq[JavaModifier], typeParams: Seq[Variable],
-                         ext: Seq[Type], decls: Seq[ClassDeclaration])
-                        (implicit val o: Origin)
-  extends JavaGlobalDeclaration with NoCheck with JavaClassOrInterface with Declarator {
-  override def declarations: Seq[Declaration] = typeParams ++ decls
+class JavaInterface(val name: String, val modifiers: Seq[JavaModifier], val typeParams: Seq[Variable],
+                    val ext: Seq[Type], val decls: Seq[ClassDeclaration])
+                   (implicit val o: Origin)
+  extends JavaClassOrInterface with NoCheck {
   override def supports: Seq[Type] = ext
 }
 
 sealed trait JavaClassDeclaration extends ExtraClassDeclaration
-case class JavaSharedInitialization(isStatic: Boolean, initialization: Statement)(implicit val o: Origin)
+class JavaSharedInitialization(val isStatic: Boolean, val initialization: Statement)(implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck
-case class JavaFields(modifiers: Seq[JavaModifier], t: Type, decls: Seq[(String, Int, Option[Expr])])
+class JavaFields(val modifiers: Seq[JavaModifier], val t: Type, val decls: Seq[(String, Int, Option[Expr])])
+                (implicit val o: Origin)
+  extends JavaClassDeclaration with NoCheck
+class JavaConstructor(val modifiers: Seq[JavaModifier], val name: String,
+                      val parameters: Seq[Variable], val typeParameters: Seq[Variable],
+                      val signals: Seq[JavaName], val body: Statement, val contract: ApplicableContract)
                      (implicit val o: Origin)
-  extends JavaClassDeclaration with NoCheck
-case class JavaConstructor(modifiers: Seq[JavaModifier], name: String,
-                           parameters: Seq[Variable], typeParameters: Seq[Variable],
-                           signals: Seq[JavaName], body: Statement, contract: ApplicableContract)
-                          (implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck with Declarator {
   override def declarations: Seq[Declaration] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
 }
-case class JavaMethod(modifiers: Seq[JavaModifier], returnType: Type, dims: Int, name: String,
-                      parameters: Seq[Variable], typeParameters: Seq[Variable],
-                      signals: Seq[JavaName], body: Option[Statement], contract: ApplicableContract)
-                     (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
+class JavaMethod(val modifiers: Seq[JavaModifier], val returnType: Type, val dims: Int, val name: String,
+                 val parameters: Seq[Variable], val typeParameters: Seq[Variable],
+                 val signals: Seq[JavaName], val body: Option[Statement], val contract: ApplicableContract)
+                (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends JavaClassDeclaration with NoCheck with Declarator {
   override def declarations: Seq[Declaration] = parameters ++ typeParameters ++ contract.givenArgs ++ contract.yieldsArgs
 }
 
-case class JavaLocalDeclaration(modifiers: Seq[JavaModifier], t: Type, decls: Seq[(String, Int, Option[Expr])])
-                               (implicit val o: Origin)
+class JavaLocalDeclaration(val modifiers: Seq[JavaModifier], val t: Type, val decls: Seq[(String, Int, Option[Expr])])
+                          (implicit val o: Origin)
   extends ExtraDeclarationKind with NoCheck {
   override def declareDefault(scope: ScopeContext): Unit = scope.javaLocalScopes.top += this
 }
@@ -97,10 +97,13 @@ case class JavaLocalDeclarationStatement(decl: JavaLocalDeclaration)
   extends JavaStatement with NoCheck
 
 sealed trait JavaType extends ExtraType
-case class JavaTUnion(types: Seq[Type])(implicit val o: Origin) extends JavaType {
+case class JavaTUnion(types: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends JavaType {
   override def mimics: Type =
     if(types.size == 1) types.head.mimics
     else JavaTUnion(types.map(_.mimics))
+
+  override def subTypeOfImpl(other: Type): Boolean =
+    types.forall(other.superTypeOf)
 
   override def superTypeOfImpl(other: Type): Boolean =
     types.exists(_.superTypeOf(other))
@@ -110,7 +113,7 @@ case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: O
   var ref: Option[JavaTypeNameTarget] = None
 
   override def mimics: Type = ref.get match {
-    case RefAxiomaticDataType(decl) => ???
+    case RefAxiomaticDataType(decl) => TAxiomatic(decl.ref, Nil)
     case RefModel(decl) => TModel(decl.ref)
     case RefJavaClass(_) => this
   }
@@ -129,6 +132,7 @@ case class JavaLocal(name: String)(implicit val o: Origin) extends JavaExpr with
     case ref: RefJavaClass => TNotAValue(ref)
     case RefJavaField(decls, idx) => FuncTools.repeat(TArray(_), decls.decls(idx)._2, decls.t)
     case RefJavaLocalDeclaration(decls, idx) => FuncTools.repeat(TArray(_), decls.decls(idx)._2, decls.t)
+    case RefModelField(field) => field.t
   }
 }
 
@@ -140,6 +144,7 @@ case class JavaDeref(obj: Expr, field: String)(implicit val o: Origin) extends J
     case ref: RefJavaClass => TNotAValue(ref)
     case ref: RefAxiomaticDataType => TNotAValue(ref)
     case RefJavaField(decls, idx) => FuncTools.repeat(TArray(_), decls.decls(idx)._2, decls.t)
+    case BuiltinField(f) => f(obj).t
   }
 }
 
@@ -148,7 +153,7 @@ case class JavaLiteralArray(exprs: Seq[Expr])(implicit val o: Origin) extends Ja
   override def t: Type = typeContext.get
 }
 
-case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: String, arguments: Seq[Expr])
+case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: String, arguments: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
                          (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends JavaExpr with NoCheck {
   var ref: Option[JavaInvocationTarget] = None
   override def t: Type = ref.get match {
@@ -162,6 +167,7 @@ case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: Stri
     case RefModelProcess(decl) => decl.returnType
     case RefModelAction(decl) => decl.returnType
     case RefJavaMethod(decl) => decl.returnType
+    case BuiltinInstanceMethod(f) => f(obj.get)(arguments).t
   }
 }
 

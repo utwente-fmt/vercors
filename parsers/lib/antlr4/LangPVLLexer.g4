@@ -1,6 +1,10 @@
 lexer grammar LangPVLLexer;
 import SpecLexer;
 
+channels {
+  EXPECTED_ERROR_CHANNEL
+}
+
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 
@@ -13,13 +17,6 @@ ANGLE_CLOSE: '>';
 BRACK_OPEN: '[';
 BRACK_CLOSE: ']';
 ARR_RIGHT: '->';
-ARR_LEFT: '<-';
-EMPTY_SEQ_OPEN: '[t:';
-EMPTY_SET_OPEN: '{t:';
-BAG_OPEN: 'b{';
-EMPTY_BAG_OPEN: 'b{t:';
-HOARE_PRED_OPEN: '{*';
-HOARE_PRED_CLOSE: '*}';
 
 COMMA: ',';
 POINT: '.';
@@ -88,13 +85,10 @@ IN: 'in';
 NEW: 'new';
 ID: 'id';
 
-MAP: 'map';
-TUPLE: 'tuple';
 BOOL: 'boolean';
 VOID: 'void';
 INT: 'int';
 STRING: 'string';
-OPTION: 'option';
 
 NUMBER : ('0'..'9')+;
 

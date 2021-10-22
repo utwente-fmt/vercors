@@ -3,65 +3,63 @@
 //:: tools silicon
 //:: verdict Pass
 
-class BubbleSort {
-    requires |input| > 0;
-    ensures BubbleSort.sorted(\result);
-    seq<int> sort(seq<int> input) {
-        seq<int> out = input;
-        int lastUnsorted = |out| - 1;
+requires |input| > 0;
+ensures sorted(\result);
+seq<int> sort(seq<int> input) {
+    seq<int> out = input;
+    int lastUnsorted = |out| - 1;
 
-        loop_invariant lastUnsorted >= 0 && lastUnsorted < |out|;
-        loop_invariant lastUnsorted < 0 ==> |input| == 0;
-        loop_invariant BubbleSort.sorted(out[lastUnsorted..]);
-        loop_invariant BubbleSort.correct(out, lastUnsorted);
-        while (lastUnsorted > 0) {
-            int i = 0;
+    loop_invariant lastUnsorted >= 0 && lastUnsorted < |out|;
+    loop_invariant lastUnsorted < 0 ==> |input| == 0;
+    loop_invariant sorted(out[lastUnsorted..]);
+    loop_invariant correct(out, lastUnsorted);
+    while (lastUnsorted > 0) {
+        int i = 0;
 
-            loop_invariant 0 <= lastUnsorted && lastUnsorted < |out|;
-            loop_invariant 0 <= i && i <= lastUnsorted;
-            loop_invariant BubbleSort.sorted(out[lastUnsorted..]);
-            loop_invariant BubbleSort.correct(out, lastUnsorted);
-            loop_invariant (\forall int k; 0 <= k && k < i; out[k] <= out[i]);
-            while (i < lastUnsorted) {
-                if (out[i] > out[i+1]) {
-                    out = this.swap(out, i, i+1);
-                }
-                i = i + 1;
+        loop_invariant 0 <= lastUnsorted && lastUnsorted < |out|;
+        loop_invariant 0 <= i && i <= lastUnsorted;
+        loop_invariant sorted(out[lastUnsorted..]);
+        loop_invariant correct(out, lastUnsorted);
+        loop_invariant (\forall int k; 0 <= k && k < i; out[k] <= out[i]);
+        while (i < lastUnsorted) {
+            if (out[i] > out[i+1]) {
+                out = swap(out, i, i+1);
             }
-            lastUnsorted = lastUnsorted - 1;
-        
-        }    
-        return out;    
+            i = i + 1;
+        }
+        lastUnsorted = lastUnsorted - 1;
+
     }
-
-    pure static boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
-
-    pure static boolean correct(seq<int> xs, int i) =
-        (\forall int g; 0 <= g && g <= i;
-            (\forall int h; i < h && h < |xs|; xs[g] <= xs[h])
-        )
-    ;
-
-    requires 0 <= i && i < |xs|;
-    requires 0 <= j && j < |xs|;
-    ensures |xs| == |\result|;
-    ensures (\forall int k; 0 <= k && k < |xs| && k != i && k != j; \result[k] == xs[k]);
-    ensures \result[i] ==  xs[j];
-    ensures \result[j] ==  xs[i];
-    seq<int> swap(seq<int> xs, int i, int j) {
-        int tmp = xs[i];
-        seq<int> res = BubbleSort.Set(xs, i, xs[j]);
-        res = BubbleSort.Set(res, j, tmp);
-        return res;
-    }
-
-    requires 0 <= n && n < |xs|;
-    ensures |\result| == |xs|;
-    ensures (\forall int g; 0 <= g && g < n; \result[g] == xs[g]);
-    ensures (\forall int g; n < g && g < |xs|; \result[g] == xs[g]);
-    ensures \result[n] == val;
-    pure static seq<int> Set(seq<int> xs, int n, int val) =
-        n > 0 ?
-            head(xs)::BubbleSort.Set(tail(xs), n-1, val) :
-            val::tail(xs);
+    return out;
 }
+
+pure boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
+
+pure boolean correct(seq<int> xs, int i) =
+    (\forall int g; 0 <= g && g <= i;
+        (\forall int h; i < h && h < |xs|; xs[g] <= xs[h])
+    )
+;
+
+requires 0 <= i && i < |xs|;
+requires 0 <= j && j < |xs|;
+ensures |xs| == |\result|;
+ensures (\forall int k; 0 <= k && k < |xs| && k != i && k != j; \result[k] == xs[k]);
+ensures \result[i] ==  xs[j];
+ensures \result[j] ==  xs[i];
+seq<int> swap(seq<int> xs, int i, int j) {
+    int tmp = xs[i];
+    seq<int> res = Set(xs, i, xs[j]);
+    res = Set(res, j, tmp);
+    return res;
+}
+
+requires 0 <= n && n < |xs|;
+ensures |\result| == |xs|;
+ensures (\forall int g; 0 <= g && g < n; \result[g] == xs[g]);
+ensures (\forall int g; n < g && g < |xs|; \result[g] == xs[g]);
+ensures \result[n] == val;
+pure seq<int> Set(seq<int> xs, int n, int val) =
+    n > 0 ?
+        xs.head :: Set(xs.tail, n-1, val) :
+        val :: xs.tail;

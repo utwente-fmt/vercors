@@ -5,7 +5,7 @@ import scala.collection.mutable
 sealed trait CheckError
 case class TypeError(expr: Expr, expectedType: Type) extends CheckError
 case class TypeErrorText(expr: Expr, message: Type => String) extends CheckError
-case class OutOfScopeError(ref: Ref[_ <: Declaration]) extends CheckError
+case class OutOfScopeError(use: Node, ref: Ref[_ <: Declaration]) extends CheckError
 case class IncomparableTypes(left: Expr, right: Expr) extends CheckError
 
 case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(),
@@ -19,8 +19,8 @@ case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(),
   def inScope(ref: Ref[_ <: Declaration]): Boolean =
     scopes.exists(_.contains(ref.decl))
 
-  def checkInScope(ref: Ref[_ <: Declaration]): Seq[CheckError] =
-    if(inScope(ref)) Nil else Seq(OutOfScopeError(ref))
+  def checkInScope(use: Node, ref: Ref[_ <: Declaration]): Seq[CheckError] =
+    if(inScope(ref)) Nil else Seq(OutOfScopeError(use, ref))
 }
 
 /* list out the varags-like checks explicitly, because we want parameters to be lazily evaluated with "=>" */

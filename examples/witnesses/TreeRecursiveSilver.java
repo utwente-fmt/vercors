@@ -18,33 +18,35 @@ final class Tree {
   public Tree right;
 
   /*@
-    resource state()=Perm(data,write)**
-	Perm(left,write)**Perm(right,write)**
-	left->state()**right->state();
+  resource state() =
+    Perm(data,write) **
+    Perm(left,write) **
+    Perm(right,write) **
+    left->state() **
+    right->state();
   @*/
 
   /*@
-    requires t->state();
-    ensures  t!=null ==> \result.length > 0;
-    static pure seq<int> contents(Tree t)=(t==null)?seq<int>{}:
-          \unfolding t.state() \in (contents(t.left)+seq<int>{t.data}+contents(t.right));
-  */
+    requires state();
+    ensures this != null ==> \result.size > 0;
+    pure seq<int> contents() = (this == null) ? seq<int>{} :
+      \unfolding state() \in (left.contents() + seq<int>{data} + right.contents());
+  @*/
   
   /*@
-    requires t!=null ** t.state();
-    ensures  \result->state();
-    ensures  contents(\result)==tail(\old(contents(t)));
+    requires state();
+    ensures \result->state();
+    ensures \result.contents() == \old(t.contents()).tail;
   @*/
-  public Tree del_min(Tree t){
-    //@ unfold t.state();
-    if (t.left==null) {
-      //@ assert contents(t.left) == seq<int>{};
-      return t.right;
+  public Tree del_min() {
+    //@ unfold state();
+    if (left == null) {
+      //@ assert left.contents().isEmpty;
+      return right;
     } else {
-      t.left=del_min(t.left);
-      //@ fold t.state();
-      return t;
+      left = left.del_min();
+      //@ fold state();
+      return this;
     }
   }
 }
-

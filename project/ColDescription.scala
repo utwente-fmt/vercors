@@ -131,7 +131,7 @@ class ColDescription {
             defs += ClassDef(path :+ name.value, parameterLists.head, blameType=None, mods)
           } else {
             parameterLists(1) match {
-              case List(Term.Param(List(Mod.ValParam()), Name("blame"), Some(t@Type.Apply(_)), _)) =>
+              case List(Term.Param(List(Mod.ValParam()), Name("blame"), Some(t@Type.Apply(_, _)), _)) =>
                 defs += ClassDef(path :+ name.value, parameterLists.head, Some(t), mods)
             }
           }
@@ -150,10 +150,12 @@ class ColDescription {
     case Defn.Class(_, name, _, _, Template(_, inits, _, _)) =>
       bases(name.value) = inits.collect {
         case Init(Type.Name(name), _, _) => name
+        case Init(Type.Apply(Type.Name(name), _), _, _) => name
       }
     case Defn.Trait(_, name, _, _, Template(_, inits, _, _)) =>
       bases(name.value) = inits.collect {
         case Init(Type.Name(name), _, _) => name
+        case Init(Type.Apply(Type.Name(name), _), _, _) => name
       }
     case Defn.Object(_, _, Template(_, _, _, stats)) =>
       stats.foreach(collectBases(_))

@@ -2,12 +2,13 @@ package vct.parsers.transform
 
 import org.antlr.v4.runtime.ParserRuleContext
 import vct.col.ast._
+import vct.col.util.ExpectedError
 import vct.parsers.ParseError
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-abstract class ToCol(val originProvider: OriginProvider) {
+abstract class ToCol(val originProvider: OriginProvider, val blameProvider: BlameProvider, val errors: mutable.Map[(Int, Int), String]) {
   class ContractCollector() {
     val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
     val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
@@ -35,6 +36,11 @@ abstract class ToCol(val originProvider: OriginProvider) {
                          consume(signals), consume(given), consume(yields))
     }
 
+    def consumeLoopContract()(implicit o: Origin): LoopContract = {
+      if(requires.nonEmpty) IterationContract(Star.fold(consume(requires)), Star.fold(consume(ensures)))
+      else LoopInvariant(Star.fold(consume(loop_invariant)))
+    }
+
     def nodes: Seq[ParserRuleContext] = Seq(
       modifies, accessible, signals,
       requires, ensures, context_everywhere, kernel_invariant,
@@ -56,6 +62,17 @@ abstract class ToCol(val originProvider: OriginProvider) {
 
     def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static).flatten
   }
+
+  implicit def origin(implicit node: ParserRuleContext): Origin = originProvider(node)
+
+  def blame(implicit node: ParserRuleContext): Blame[VerificationFailure] =
+    errors.keys.find { case (from, to) => node.start.getTokenIndex >= from && node.stop.getTokenIndex <= to } match {
+      case Some(key) =>
+        val code = errors.remove(key).get
+        ExpectedError(code, blameProvider(node))
+      case None =>
+        blameProvider(node)
+    }
 
   def convertList[Input, Append <: Input, Singleton <: Input, Element]
                  (extractSingle: Singleton => Option[Element], extractAppend: Append => Option[(Input, Element)])

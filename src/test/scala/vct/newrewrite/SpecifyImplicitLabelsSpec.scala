@@ -45,7 +45,13 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
+<<<<<<< HEAD
     test(before, after)
+=======
+    val rewriter = SpecifyImplicitLabels()
+    ColHelper.assertEquals(rewriter.dispatch(before), after)
+    assert(rewriter.labelStack.isEmpty)
+>>>>>>> ast
   }
 
   it should "reuse labels already present" in {
@@ -81,7 +87,13 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
+<<<<<<< HEAD
     test(before, after)
+=======
+    val rewriter = SpecifyImplicitLabels()
+    ColHelper.assertEquals(rewriter.dispatch(before), after)
+    assert(rewriter.labelStack.isEmpty)
+>>>>>>> ast
   }
 
   it should "not touch labeled break" in {
@@ -113,7 +125,13 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
+<<<<<<< HEAD
     test(before, after)
+=======
+    val rewriter = SpecifyImplicitLabels()
+    ColHelper.assertEquals(rewriter.dispatch(before), after)
+    assert(rewriter.labelStack.isEmpty)
+>>>>>>> ast
   }
 
   it should "use the nearest label possible" in {
@@ -159,6 +177,12 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
+<<<<<<< HEAD
     test(before, after)
+=======
+    val rewriter = SpecifyImplicitLabels()
+    ColHelper.assertEquals(rewriter.dispatch(before), after)
+    assert(rewriter.labelStack.isEmpty)
+>>>>>>> ast
   }
 }

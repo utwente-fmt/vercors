@@ -2,6 +2,7 @@ package vct.parsers.transform
 
 import org.antlr.v4.runtime.{CommonTokenStream, Lexer, ParserRuleContext, Token}
 import vct.col.ast._
+import vct.col.util.ExpectedError
 
 import java.nio.file.Path
 
@@ -10,12 +11,12 @@ trait OriginProvider {
   def apply(start: Token, stop: Token): Origin
 }
 
-trait BlameProvider {
+abstract class BlameProvider {
   def apply(ctx: ParserRuleContext): Blame[VerificationFailure] = this(ctx.start, ctx.stop)
   def apply(start: Token, stop: Token): Blame[VerificationFailure]
 }
 
-case class FileOriginProvider(path: Path) extends OriginProvider with BlameProvider {
+case class FileOriginProvider(path: Path) extends BlameProvider with OriginProvider {
   override def apply(start: Token, stop: Token): FileOrigin = {
     val startLine = start.getLine - 1
     val startCol = start.getCharPositionInLine
@@ -28,7 +29,7 @@ case class FileOriginProvider(path: Path) extends OriginProvider with BlameProvi
   override def apply(ctx: ParserRuleContext): FileOrigin = this(ctx.start, ctx.stop)
 }
 
-case class InterpretedFileOriginProvider(tokens: CommonTokenStream, originalPath: Path, interpretedPath: Path) extends OriginProvider with BlameProvider {
+case class InterpretedFileOriginProvider(tokens: CommonTokenStream, originalPath: Path, interpretedPath: Path) extends BlameProvider with OriginProvider {
   private def getLineOffset(token: Token): Option[Int] = {
     for(tokIdx <- token.getTokenIndex-1 to 0 by -1) {
       val markerToken = tokens.get(tokIdx)

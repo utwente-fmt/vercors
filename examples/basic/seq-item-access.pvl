@@ -11,8 +11,8 @@ class Test {
     seq<Element> sequence;
 
     requires Perm(this.sequence, write);
-    requires this.sequence.length > 0;
-    requires (\forall* int i; 0 <= i && i < this.sequence.length; Perm(sequence[i].value, write));
+    requires this.sequence.size > 0;
+    requires (\forall* int i; 0 <= i && i < this.sequence.size; Perm(sequence[i].value, write));
     void test() {
         if(sequence[0].value == 0) {
 

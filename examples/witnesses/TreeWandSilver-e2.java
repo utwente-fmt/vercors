@@ -11,61 +11,67 @@
     The expected result is Fail.
 */
 
+/*@
+pure boolean sorted_list(seq<int> s) =
+  (\forall int i = 1 .. |s|; s[i-1] <= s[i]);
+@*/
+
 final class Tree {
   public int data;
   public Tree left;
   public Tree right;
   
-  /*@ resource state()=Perm(data,write)**
-      Perm(left,write)**Perm(right,write)**left->state()**right->state();
+  /*@
+  resource state() =
+    Perm(data, write) **
+    Perm(left, write) **
+    Perm(right, write) **
+    left->state() **
+    right->state();
   @*/
 
   /*@
-    requires t->state();
-    public static seq<int> tolist(Tree t)=(t==null)?seq<int>{}:
-        \unfolding t.state() \in tolist(t.left) + seq<int>{t.data} + tolist(t.right);
-    @*/
+  requires state();
+  pure seq<int> tolist() = (t==null) ? seq<int>{} :
+      \unfolding state() \in r.left.tolist() + seq<int>{data} + t.right.tolist();
+  @*/
 
   /*@
-    public inline resource state_contains(seq<int> L)=this.state() ** tolist(this)==L;
-        
-    public static inline resource contains(Tree t,seq<int>L)=t->state() ** L == tolist(t);
+  inline resource state_contains(seq<int> L) = this.state() ** tolist() == L;
+  inline resource contains(seq<int> L) = t->state() ** L == t.tolist();
 
-    public static boolean sorted_list(seq<int> s)=
-      (\forall int i ; 1 < i && i < |s| ; s[i-1] <= s[i] );
-      
-    requires t->state();
-    public static boolean sorted(Tree t)=sorted_list(tolist(t));
+  requires t->state();
+  pure boolean sorted() = sorted_list(tolist());
   @*/
 
   //@ requires top!=null ** top.state();
-  //@ ensures  contains(\result,tail(\old(tolist(top))));
+  //@ ensures  contains(\result, \old(top.tolist()).tail);
   //@ ensures  \old(sorted(top)) ==> sorted(\result);
   public Tree del_min(Tree top){
-    //@ ghost seq<int> orig_contents=tolist(top);
-    //@ ghost seq<int> target_contents=tail(tolist(top));
+    //@ ghost seq<int> orig_contents = top.tolist();
+    //@ ghost seq<int> target_contents = top.tolist().tail;
     //@ unfold top.state();
     if (top.left == null) {
-      //@ assert orig_contents == tolist(top.left) + seq<int>{top.data} + tolist(top.right);
-      //@ assert tolist(top.left) == seq<int>{};
+      //@ assert orig_contents == top.left.tolist() + seq<int>{top.data} + top.right.tolist();
+      //@ assert top.left.tolist() == seq<int>{};
       return top.right;
     } else {
       Tree cur, left;
       cur = top;
       left = top.left;
-      //@ ghost seq<int> cur_contents=orig_contents;
-      //@ assert cur_contents == tolist(left) + seq<int>{top.data} + tolist(top.right);
+      //@ ghost seq<int> cur_contents = orig_contents;
+      //@ assert cur_contents == left.tolist() + seq<int>{top.data} + top.right.tolist();
       //@ unfold left.state();
-      //@ create { qed wand:(top.state_contains(target_contents) -* top.state_contains(target_contents)); }#\label{proof 1}#
+      //@ create_wand { qed wand:(top.state_contains(target_contents) -* top.state_contains(target_contents)); }#\label{proof 1}#
 
       /*@
-      loop_invariant Perm(cur.left,write) ** Perm(cur.data,write) ** Perm(cur.right,write);
-      loop_invariant cur.left==left ** cur.right->state() ;
-      loop_invariant Perm(left.left,write) ** Perm(left.data,write) ** Perm(left.right,write);
+      loop_invariant Perm(cur.left, write) ** Perm(cur.data, write) ** Perm(cur.right, write);
+      loop_invariant cur.left == left ** cur.right->state();
+      loop_invariant Perm(left.left, write) ** Perm(left.data, write) ** Perm(left.right, write);
       loop_invariant left.left->state() ** left.right->state();
-      loop_invariant cur_contents == (tolist(left.left) + seq<int>{left.data} + tolist(left.right))
-                                      + seq<int>{cur.data} + tolist(cur.right);
-      loop_invariant wand:(cur.state_contains(tail(cur_contents)) -* top.state_contains(target_contents)); @*/
+      loop_invariant cur_contents == (left.left.tolist() + seq<int>{left.data} + left.right.tolist())
+                                      + seq<int>{cur.data} + cur.right.tolist();
+      loop_invariant wand:(cur.state_contains(cur_contents.tail) -* top.state_contains(target_contents)); @*/
       while (left.left != null)
       {
         //@ ghost Tree prev = cur;
@@ -74,31 +80,31 @@ final class Tree {
         left = cur.left;
         /*@
         unfold left.state();
-        ghost cur_contents = tolist(left.left) + seq<int>{left.data} + tolist(left.right);
-        ghost cur_contents = cur_contents + seq<int>{cur.data} + tolist(cur.right);
+        ghost cur_contents = left.left.tolist() + seq<int>{left.data} + left.right.tolist();
+        ghost cur_contents = cur_contents + seq<int>{cur.data} + cur.right.tolist();
         assert prev_contents.length > 0 ;
         assert cur_contents.length > 0 ;
-        assert prev_contents == cur_contents + seq<int>{prev.data} + tolist(prev.right);
-        create  {#\label{proof 2 begin}#
-          use    prev_contents.length > 0 ;
-          use    cur_contents.length > 0 ;
-          use    Perm(prev.left,write)**Perm(prev.data,write);
-          use    Perm(prev.right,write)**prev.right->state();
-          use    prev.left==cur;
-          use    prev_contents == cur_contents + seq<int>{prev.data} + tolist(prev.right);
+        assert prev_contents == cur_contents + seq<int>{prev.data} + prev.right.tolist();
+        create_wand  {#\label{proof 2 begin}#
+          use    prev_contents.length > 0;
+          use    cur_contents.length > 0;
+          use    Perm(prev.left, write) ** Perm(prev.data, write);
+          use    Perm(prev.right, write) ** prev.right->state();
+          use    prev.left == cur;
+          use    prev_contents == cur_contents + seq<int>{prev.data} + prev.right.tolist();
           fold   prev.state();
-          assert prev.state_contains(tail(prev_contents));
-          apply  wand:(prev.state_contains(tail(prev_contents)) -* top.state_contains(target_contents));
-          qed    wand:(cur.state_contains(tail(cur_contents)) -* top.state_contains(target_contents));
+          assert prev.state_contains(prev_contents.tail);
+          apply  wand:(prev.state_contains(prev_contents.tail) -* top.state_contains(target_contents));
+          qed    wand:(cur.state_contains(cur_contents.tail) -* top.state_contains(target_contents));
         } #\label{proof 2 end}#
         @*/
       }
       cur.left = left.left;
       //@ fold cur.state();
-      //@ assert tolist(cur)==tail(cur_contents);
-      //@ assert cur.state_contains(tolist(cur));
-      //@ assert cur.state_contains(tail(cur_contents));
-      //@ apply wand:(cur.state_contains(tail(cur_contents)) -* top.state_contains(target_contents));
+      //@ assert cur.tolist() == cur_contents.tail;
+      //@ assert cur.state_contains(cur.tolist());
+      //@ assert cur.state_contains(cur_contents.tail);
+      //@ apply wand:(cur.state_contains(cur_contents.tail) -* top.state_contains(target_contents));
       return top;
     }
   }

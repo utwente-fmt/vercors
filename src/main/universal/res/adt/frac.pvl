@@ -1,0 +1,15 @@
+adt frac {
+  pure rational frac_val(f: frac);
+
+  axiom
+    (\forall frac f; true;
+      (\forall frac g; true;
+        {:frac_val(f):} == {:frac_val(g):} ==> f == g));
+
+  axiom
+    (\forall frac f; true; none < {:frac_val(f):} <= write)
+}
+
+requires none < perm <= write;
+ensures frac_val(\result) == perm;
+pure frac new_frac(perm: rational);

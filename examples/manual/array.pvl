@@ -9,14 +9,14 @@
   with functions ensuring quantified properties about
   quantified permissions.
  */
- 
+
+inline resource ArrayPointsTo(int[] ar, frac p, seq<int> xs) =
+  p!=none ** ar!=null ** ar.length==|xs|
+  ** (\forall* int k ; 0 <= k && k < ar.length; Perm(ar[k],p))
+  ** (\forall int k ; 0 <= k && k < ar.length; ar[k]==xs[k]);
+
 class C {
 //begin(all)
-  static inline resource ArrayPointsTo(int[] ar,frac p,seq<int> xs)=
-    p!=none ** ar !=null ** ar.length==|xs|
-    ** (\forall* int k ; 0 <= k && k < ar.length; Perm(ar[k],p))
-    ** (\forall int k ; 0 <= k && k < ar.length; ar[k]==xs[k]);
-
   given frac p;
   given seq<int> xs;
   requires ArrayPointsTo(t,p,xs);

@@ -4,7 +4,7 @@
 //:: option --check-history
 //:: verdict Pass
 
-class `Future` {
+model Elect {
 
 	/* ** Communication primitives */
 	
@@ -16,14 +16,14 @@ class `Future` {
 	ensures |channel| == |\old(channel)|;
 	ensures channel[rank] == \old(channel[rank]) + seq<int> { msg };
 	ensures (\forall int i; 0 <= i && i < |channel| && i != rank; channel[i] == \old(channel[i]));
-	process Send(int rank, int msg);
+	action Send(int rank, int msg);
 	
 	modifies channel;
 	context 0 <= rank && rank < |channel|;
 	ensures |channel| == |\old(channel)|;
 	ensures seq<int> { msg } + channel[rank] == \old(channel[rank]);
 	ensures (\forall int i; 0 <= i && i < |channel| && i != rank; channel[i] == \old(channel[i]));
-	process Recv(int rank, int msg);
+	action Recv(int rank, int msg);
 	
 	
 	/* ** Leader election actions */
@@ -33,7 +33,7 @@ class `Future` {
 	ensures |results| == |\old(results)|;
 	ensures results[rank] == v;
 	ensures (\forall int i; 0 <= i && i < |results| && i != rank; results[i] == \old(results[i]));
-	process Done(int rank, int v);
+	action Done(int rank, int v);
 	
 	// `v` is the current highest value encountered by the participant
 	// `w` is the value that is being received
@@ -71,15 +71,49 @@ class `Future` {
 	context |xs| == size;
 	requires (\forall int i; 0 <= i && i < |xs|; (\forall int j; 0 <= j && j < |xs| && i != j; xs[i] != xs[j])); // uniqueness
 	requires (\forall int i; 0 <= i && i < |xs|; 0 <= xs[i] && xs[i] < max);
-	ensures (\forall int i; 0 <= i && i < |results|; results[i] == results[Program.maxint(xs, 0, 0)]);
+	ensures (\forall int i; 0 <= i && i < |results|; results[i] == results[maxint(xs, 0, 0)]);
 	process Start(int size, seq<int> xs, int max) = Spawn(0, size, xs, max);
 }
+
+/* ** Auxiliary operations */
+requires 0 <= i && i < |xs|;
+ensures |\result| == |xs|;
+ensures \result[i] == xs[i] + seq<int> { val };
+ensures (\forall int j; 0 <= j && j < |xs| && j != i; \result[j] == xs[j]);
+pure seq<seq<int>> push(seq<seq<int>> xs, int i, int val) =
+    0 < i ? seq<seq<int>> { xs.head } + push(xs.tail, i - 1, val) : seq<seq<int>> { xs.head + seq<int> { val } } + xs.tail;
+
+requires 0 <= i && i < |xs|;
+ensures |\result| == |xs|;
+ensures \result[i] == xs[i].tail;
+ensures (\forall int j; 0 <= j && j < |xs| && j != i; \result[j] == xs[j]);
+pure seq<seq<int>> pop(seq<seq<int>> xs, int i) =
+    0 < i ? seq<seq<int>> { xs.head } + pop(xs.tail, i - 1) : seq<seq<int>> { xs.head.tail } + xs.tail;
+
+requires 0 <= i && i < |xs|;
+ensures |\result| == |xs|;
+ensures \result[i] == v;
+ensures (\forall int j; 0 <= j && j < |xs| && j != i; \result[j] == xs[j]);
+pure seq<int> update(seq<int> xs, int i, int v) =
+    0 < i ? seq<int> { xs.head } + update(xs.tail, i - 1, v) : seq<int> { v } + xs.tail;
+
+// @param `xs[i]` is the position that is considered now
+// @param `xs[j]` is the current highest position
+// @result the index of the highest value in `xs`
+requires 0 <= i && i <= |xs|;
+requires 0 <= j && j < |xs|;
+requires (\forall int l; 0 <= l && l < i; xs[l] <= xs[j]);
+ensures 0 <= \result && \result < |xs|;
+ensures xs[j] <= xs[\result];
+ensures (\forall int l; i <= l && l < |xs|; xs[l] <= xs[\result]);
+pure int maxint(seq<int> xs, int i, int j) =
+    i < |xs| ? (xs[j] <= xs[i] ? maxint(xs, i + 1, i) : maxint(xs, i + 1, j)) : j;
 
 class Program {
 	boolean initialised;
 	int size;
 	int maxvalue;
-	`Future` f;
+	Elect f;
 	
 	resource lock_invariant() =
 		Perm(initialised, 1\2) ** Perm(size, 1\2) **
@@ -100,49 +134,12 @@ class Program {
 	ensures Perm(this.size, 1\2) ** this.size == size;
 	ensures Perm(this.maxvalue, 1\2) ** this.maxvalue == max;
 	ensures Perm(this.initialised, 1\2) ** this.initialised;
-	Program(`Future` f, int size, int max) {
+	Program(Elect f, int size, int max) {
 		this.f = f;
 		this.maxvalue = max;
 		this.size = size;
 		this.initialised = true;
 	}
-	
-	
-	/* ** Auxiliary operations */
-
-	requires 0 <= i && i < |xs|;
-	ensures |\result| == |xs|;
-	ensures \result[i] == xs[i] + seq<int> { val };
-	ensures (\forall int j; 0 <= j && j < |xs| && j != i; \result[j] == xs[j]);
-	seq<seq<int>> push(seq<seq<int>> xs, int i, int val) =
-		0 < i ? seq<seq<int>> { head(xs) } + push(tail(xs), i - 1, val) : seq<seq<int>> { head(xs) + seq<int> { val } } + tail(xs);
-	
-	requires 0 <= i && i < |xs|;
-	ensures |\result| == |xs|;
-	ensures \result[i] == tail(xs[i]);
-	ensures (\forall int j; 0 <= j && j < |xs| && j != i; \result[j] == xs[j]);
-	seq<seq<int>> pop(seq<seq<int>> xs, int i) =
-		0 < i ? seq<seq<int>> { head(xs) } + pop(tail(xs), i - 1) : seq<seq<int>> { tail(head(xs)) } + tail(xs);
-
-	requires 0 <= i && i < |xs|;
-	ensures |\result| == |xs|;
-	ensures \result[i] == v;
-	ensures (\forall int j; 0 <= j && j < |xs| && j != i; \result[j] == xs[j]);
-	pure static seq<int> update(seq<int> xs, int i, int v) =
-		0 < i ? seq<int> { head(xs) } + update(tail(xs), i - 1, v) : seq<int> { v } + tail(xs);
-	
-	// @param `xs[i]` is the position that is considered now
-	// @param `xs[j]` is the current highest position
-	// @result the index of the highest value in `xs`
-	requires 0 <= i && i <= |xs|;
-	requires 0 <= j && j < |xs|;
-	requires (\forall int l; 0 <= l && l < i; xs[l] <= xs[j]);
-	ensures 0 <= \result && \result < |xs|;
-	ensures xs[j] <= xs[\result];
-	ensures (\forall int l; i <= l && l < |xs|; xs[l] <= xs[\result]);
-	pure static int maxint(seq<int> xs, int i, int j) =
-		i < |xs| ? (xs[j] <= xs[i] ? maxint(xs, i + 1, i) : maxint(xs, i + 1, j)) : j;
-	
 	
 	/* ** Auxiliary lemmas */
 
@@ -153,20 +150,20 @@ class Program {
 	context f != null ** HPerm(f.channel, 1\2);
 	context 0 <= rank && rank < size;
 	requires 0 <= x && x <= w;
-	requires Future(f, q, f.SigmaRecv(rank, size, v, w, maxvalue, n));
+	requires f.state(q, f.SigmaRecv(rank, size, v, w, maxvalue, n));
 	ensures maxvalue == \old(maxvalue);
 	ensures size == \old(size);
 	ensures f.channel == \old(f.channel);
-	ensures Future(f, q, f.Recv((rank - 1) % size, x) * f.Check(rank, size, v, x, maxvalue, n));
-	void lemma_sigmaRecv_choice(`Future` f, int rank, int v, int w, int x, int n) {
+	ensures f.state(q, f.Recv((rank - 1) % size, x) * f.Check(rank, size, v, x, maxvalue, n));
+	void lemma_sigmaRecv_choice(Elect f, int rank, int v, int w, int x, int n) {
 		if (x == w) {
 			if (0 < x) {
-				choose f, q, f.SigmaRecv(rank, size, v, w, maxvalue, n), f.Recv((rank - 1) % size, x) * f.Check(rank, size, v, w, maxvalue, n);
+				f.choose(q, f.SigmaRecv(rank, size, v, w, maxvalue, n), f.Recv((rank - 1) % size, x) * f.Check(rank, size, v, w, maxvalue, n));
 			}
 		}
 		else {
-			choose f, q, f.SigmaRecv(rank, size, v, w, maxvalue, n), f.SigmaRecv(rank, size, v, w - 1, maxvalue, n);
-			lemma_sigmaRecv_choice(f, rank, v, w - 1, x, n) with { q = q; };
+			f.choose(q, f.SigmaRecv(rank, size, v, w, maxvalue, n), f.SigmaRecv(rank, size, v, w - 1, maxvalue, n));
+			lemma_sigmaRecv_choice given { q = q } (f, rank, v, w - 1, x, n);
 		}
 	}
 	
@@ -174,9 +171,9 @@ class Program {
 	context q != none;
 	requires n < size;
 	requires 0 <= rank && rank < size;
-	requires Future(f, q, f.Elect(rank, size, v, maxvalue, n));
-	ensures Future(f, q, f.Send((rank + 1) % size, v) * f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
-	void lemma_fut_elect(`Future` f, int rank, int size, int v, int maxvalue, int n) {
+	requires f.state(q, f.Elect(rank, size, v, maxvalue, n));
+	ensures f.state(q, f.Send((rank + 1) % size, v) * f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
+	void lemma_fut_elect(Elect f, int rank, int size, int v, int maxvalue, int n) {
 	}
 	
 	
@@ -191,8 +188,8 @@ class Program {
 	context_everywhere 0 <= msg && msg < maxvalue;
 	context_everywhere Perm(initialised, q1) ** initialised;
 	context_everywhere Perm(f, q1) ** f != null;
-	requires Future(f, q2, f.Send(rank, msg) * P);
-	ensures Future(f, q2, P);
+	requires f.state(q2, f.Send(rank, msg) * P);
+	ensures f.state(q2, P);
 	ensures size == \old(size);
 	ensures maxvalue == \old(maxvalue);
 	ensures f == \old(f);
@@ -213,12 +210,12 @@ class Program {
 	context_everywhere 0 <= rank && rank < size;
 	context_everywhere Perm(initialised, q1) ** initialised;
 	context_everywhere Perm(f, q1) ** f != null;
-	requires Future(f, q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
+	requires f.state(q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
 	ensures 0 <= \result && \result < maxvalue;
 	ensures size == \old(size);
 	ensures maxvalue == \old(maxvalue);
 	ensures f == \old(f);
-	ensures Future(f, q2, f.Check(rank, size, v, \result, maxvalue, n));
+	ensures f.state(q2, f.Check(rank, size, v, \result, maxvalue, n));
 	int mpi_recv(int rank) {
 		boolean stop = false;
 		int res; // going to contain the resulting, received value
@@ -227,18 +224,18 @@ class Program {
 		loop_invariant maxvalue == \old(maxvalue);
 		loop_invariant f == \old(f);
 		loop_invariant 0 <= rank && rank < size;
-		loop_invariant !stop ==> Future(f, q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
-		loop_invariant stop ==> Future(f, q2, f.Check(rank, size, v, res, maxvalue, n));
+		loop_invariant !stop ==> f.state(q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
+		loop_invariant stop ==> f.state(q2, f.Check(rank, size, v, res, maxvalue, n));
 		loop_invariant stop ==> (0 <= res && res < maxvalue);
 		while (!stop) {
 			lock this;
 			
 			if (0 < |f.channel[(rank - 1) % size]|) {
-				res = head(f.channel[(rank - 1) % size]); // this is the value we'll receive
+				res = f.channel[(rank - 1) % size].head; // this is the value we'll receive
 				
-				assert Future(f, q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
-				lemma_sigmaRecv_choice(f, rank, v, maxvalue - 1, res, n) with { q = q2; };
-				assert Future(f, q2, f.Recv((rank - 1) % size, res) * f.Check(rank, size, v, res, maxvalue, n));
+				assert f.state(q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
+				lemma_sigmaRecv_choice given { q = q2 } (f, rank, v, maxvalue - 1, res, n);
+				assert f.state(q2, f.Recv((rank - 1) % size, res) * f.Check(rank, size, v, res, maxvalue, n));
 				
 				action(f, q2, f.Check(rank, size, v, res, maxvalue, n), f.Recv((rank - 1) % size, res)) {
 					f.channel = pop(f.channel, (rank - 1) % size);
@@ -264,9 +261,9 @@ class Program {
 	context_everywhere Perm(maxvalue, q1);
 	context_everywhere 0 <= vArg && vArg < maxvalue;
 	requires Perm(f, q1) ** f != null;
-	requires Future(f, q2, f.Elect(rank, size, vArg, maxvalue, 0));
+	requires f.state(q2, f.Elect(rank, size, vArg, maxvalue, 0));
 	ensures Perm(f, q1) ** f != null;
-	ensures Future(f, q2, f.Done(rank, \result));
+	ensures f.state(q2, f.Done(rank, \result));
 	ensures 0 <= \result && \result < maxvalue;
 	ensures size == \old(size);
 	ensures maxvalue == \old(maxvalue);
@@ -280,34 +277,113 @@ class Program {
 		loop_invariant Perm(f, q1) ** f != null;
 		loop_invariant f == \old(f);
 		loop_invariant 0 <= n && n <= size;
-		loop_invariant Future(f, q2, f.Elect(rank, size, v, maxvalue, n));
+		loop_invariant f.state(q2, f.Elect(rank, size, v, maxvalue, n));
     loop_invariant 0 <= v && v < maxvalue;
 		while (n < size) {
-			lemma_fut_elect(f, rank, size, v, maxvalue, n) with { q = q2; };
+			lemma_fut_elect given { q = q2 } (f, rank, size, v, maxvalue, n);
 			
 			// sending the current value to the left
 			process Q = f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n); // small workaround for verification purposes..
-			mpi_send((rank + 1) % size, v) with { q1 = q1; q2 = q2; P = Q; };
+			mpi_send given { q1 = q1, q2 = q2, P = Q } ((rank + 1) % size, v);
 			assert Q == f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n);
-			assert Future(f, q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
+			assert f.state(q2, f.SigmaRecv(rank, size, v, maxvalue - 1, maxvalue, n));
 			
 			// receiving a value from the right
-			int w = mpi_recv(rank) with { v = v; n = n; q1 = q1; q2 = q2; };
-			assert Future(f, q2, f.Check(rank, size, v, w, maxvalue, n));
-			assert Future(f, q2, f.Elect(rank, size, v <= w ? w : v, maxvalue, n + 1));
+			int w = mpi_recv given { v = v, n = n, q1 = q1, q2 = q2 } (rank);
+			assert f.state(q2, f.Check(rank, size, v, w, maxvalue, n));
+			assert f.state(q2, f.Elect(rank, size, v <= w ? w : v, maxvalue, n + 1));
 			
 			if (v <= w) {
 				v = w;
 			}
 			
 			process R = f.Elect(rank, size, v, maxvalue, n + 1); // small workaround for verification purposes..
-			assert Future(f, q2, R);
+			assert f.state(q2, R);
 			n = n + 1;
-			assert Future(f, q2, R);
+			assert f.state(q2, R);
 		}
 		
 		return v;
 	}
+}
+
+context_everywhere 0 < size;
+context_everywhere 0 < max;
+context_everywhere |xs| == size;
+context_everywhere (\forall int j; 0 <= j && j < |xs|; (\forall int k; 0 <= k && k < |xs| && j != k; xs[j] != xs[k]));
+context_everywhere (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < max);
+void main(int size, int max, seq<int> xs) {
+    Elect f = new Elect();
+    f.channel = seq<seq<int>> { };
+    f.results = seq<int> { };
+
+    // initialise communication channels
+    int i = 0;
+    loop_invariant 0 <= i && i <= size;
+    loop_invariant Perm(f.channel, write);
+    loop_invariant Perm(f.results, write);
+    loop_invariant |f.channel| == i;
+    loop_invariant (\forall int j; 0 <= j && j < i; |f.channel[j]| == 0);
+    loop_invariant |f.results| == i;
+    loop_invariant (\forall int j; 0 <= j && j < i; f.results[j] == 0);
+    while (i < size) {
+        f.channel = f.channel + seq<seq<int>> { seq<int> { } };
+        f.results = f.results + seq<int> { 0 };
+        i = i + 1;
+    }
+
+    // instantiate the future for the leader election protocol
+    f.create(f.Start(size, xs, max));
+    assert f.state(write, f.Spawn(0, size, xs, max));
+
+    // run the leader election program
+    Program pr = new Program(f, size, max);
+    spawn given { q1 = 1\2, q2 = 1 } (0, pr, xs);
+
+    // finalise the future
+    lock pr;
+    pr.initialised = false;
+    unlock pr;
+    f.destroy();
+
+    // postcondition
+    assert (\forall int i; 0 <= i && i < |f.results|; f.results[i] == f.results[maxint(xs, 0, 0)]);
+}
+
+given frac q1; // ownership of the program `p`
+given frac q2; // ownershow of the future `p.f`
+context_everywhere q1 != none && q2 != none;
+context_everywhere pr != null;
+context_everywhere Perm(pr.size, q1);
+context_everywhere Perm(pr.f, q1) ** pr.f != null;
+context_everywhere Perm(pr.maxvalue, q1);
+context_everywhere Perm(pr.initialised, q1) ** pr.initialised;
+context_everywhere 0 <= rank && rank <= pr.size;
+context_everywhere |xs| == pr.size;
+context_everywhere (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < pr.maxvalue);
+requires pr.f.state(q2, pr.f.Spawn(rank, pr.size, xs, pr.maxvalue));
+ensures pr == \old(pr);
+ensures pr.size == \old(pr.size);
+ensures pr.maxvalue == \old(pr.maxvalue);
+ensures pr.f == \old(pr.f);
+ensures pr.f.state(q2, empty);
+void spawn(int rank, Program pr, seq<int> xs) {
+    if (rank < pr.size) {
+        Main m = new Main(pr, rank, xs[rank], q1\2, q2\2);
+
+        // split off an `Elect` process
+        assert pr.f.state(q2, pr.f.Spawn(rank, pr.size, xs, pr.maxvalue));
+        assert pr.f.state(q2, pr.f.Elect(rank, pr.size, xs[rank], pr.maxvalue, 0) || pr.f.Spawn(rank + 1, pr.size, xs, pr.maxvalue));
+        pr.f.split((q2 \ 2), pr.f.Elect(rank, pr.size, xs[rank], pr.maxvalue, 0), (q2 \ 2), pr.f.Spawn(rank + 1, pr.size, xs, pr.maxvalue));
+
+        // spawn and join the remaining threads
+        fork m;
+        spawn given { q1 = q1\2, q2 = q2\2 } (rank + 1, pr, xs);
+        join m;
+
+        // merge the resulting empty processes
+        pr.f.merge(q2\2, empty, q2\2, empty);
+    }
 }
 
 class Main {
@@ -342,94 +418,15 @@ class Main {
 	context Perm(pr.initialised, r1) ** pr.initialised;
 	context 0 <= rank && rank < pr.size;
 	context 0 <= val && val < pr.maxvalue;
-	requires Future(pr.f, r2, pr.f.Elect(rank, pr.size, val, pr.maxvalue, 0));
-	ensures Future(pr.f, r2, empty);
+	requires pr.f.state(r2, pr.f.Elect(rank, pr.size, val, pr.maxvalue, 0));
+	ensures pr.f.state(r2, empty);
 	void run() {
-		int res = pr.elect(rank, val) with { q1 = r1; q2 = r2; };
+		int res = pr.elect given { q1 = r1, q2 = r2 } (rank, val);
 		
 		lock pr;
 		action(pr.f, r2, empty, pr.f.Done(rank, res)) {
-			pr.f.results = Program.update(pr.f.results, rank, res);
+			pr.f.results = update(pr.f.results, rank, res);
 		}
 		unlock pr;
-	}
-	
-	context_everywhere 0 < size;
-	context_everywhere 0 < max;
-	context_everywhere |xs| == size;
-	context_everywhere (\forall int j; 0 <= j && j < |xs|; (\forall int k; 0 <= k && k < |xs| && j != k; xs[j] != xs[k]));
-	context_everywhere (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < max);
-	static void main(int size, int max, seq<int> xs) {
-		`Future` f = new `Future`();
-		f.channel = seq<seq<int>> { };
-		f.results = seq<int> { };
-
-		// initialise communication channels
-		int i = 0;
-		loop_invariant 0 <= i && i <= size;
-		loop_invariant Perm(f.channel, write);
-		loop_invariant Perm(f.results, write);
-		loop_invariant |f.channel| == i;
-		loop_invariant (\forall int j; 0 <= j && j < i; |f.channel[j]| == 0);
-		loop_invariant |f.results| == i;
-		loop_invariant (\forall int j; 0 <= j && j < i; f.results[j] == 0);
-		while (i < size) {
-			f.channel = f.channel + seq<seq<int>> { seq<int> { } };
-			f.results = f.results + seq<int> { 0 };
-			i = i + 1;
-		}
-		
-		// instantiate the future for the leader election protocol
-		create f, f.Start(size, xs, max);
-		assert Future(f, write, f.Spawn(0, size, xs, max));
-		
-		// run the leader election program
-		Program pr = new Program(f, size, max);
-		spawn(0, pr, xs) with { q1 = 1\2; q2 = 1; };
-		
-		// finalise the future
-		lock pr;
-		pr.initialised = false;
-		unlock pr;
-		destroy f;
-		
-		// postcondition
-		assert (\forall int i; 0 <= i && i < |f.results|; f.results[i] == f.results[Program.maxint(xs, 0, 0)]);
-	}
-	
-	given frac q1; // ownership of the program `p`
-	given frac q2; // ownershow of the future `p.f`
-	context_everywhere q1 != none && q2 != none;
-	context_everywhere pr != null;
-	context_everywhere Perm(pr.size, q1);
-	context_everywhere Perm(pr.f, q1) ** pr.f != null;
-	context_everywhere Perm(pr.maxvalue, q1);
-	context_everywhere Perm(pr.initialised, q1) ** pr.initialised;
-	context_everywhere 0 <= rank && rank <= pr.size;
-	context_everywhere |xs| == pr.size;
-	context_everywhere (\forall int j; 0 <= j && j < |xs|; 0 <= xs[j] && xs[j] < pr.maxvalue);
-	requires Future(pr.f, q2, pr.f.Spawn(rank, pr.size, xs, pr.maxvalue));
-	ensures pr == \old(pr);
-	ensures pr.size == \old(pr.size);
-	ensures pr.maxvalue == \old(pr.maxvalue);
-	ensures pr.f == \old(pr.f);
-	ensures Future(pr.f, q2, empty);
-	static void spawn(int rank, Program pr, seq<int> xs) {
-		if (rank < pr.size) {
-			Main m = new Main(pr, rank, xs[rank], q1\2, q2\2);
-			
-			// split off an `Elect` process
-			assert Future(pr.f, q2, pr.f.Spawn(rank, pr.size, xs, pr.maxvalue));
-			assert Future(pr.f, q2, pr.f.Elect(rank, pr.size, xs[rank], pr.maxvalue, 0) || pr.f.Spawn(rank + 1, pr.size, xs, pr.maxvalue));
-			split pr.f, (q2 \ 2), pr.f.Elect(rank, pr.size, xs[rank], pr.maxvalue, 0), (q2 \ 2), pr.f.Spawn(rank + 1, pr.size, xs, pr.maxvalue);
-			
-			// spawn and join the remaining threads
-			fork m;
-			spawn(rank + 1, pr, xs) with { q1 = q1\2; q2 = q2\2; };
-			join m;
-			
-			// merge the resulting empty processes
-			merge pr.f, q2\2, empty, q2\2, empty;
-		}
 	}
 }

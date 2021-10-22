@@ -9,6 +9,7 @@ class Rewriter extends AbstractRewriter {
   override def dispatch(decl: Declaration): Unit = rewriteDefault(decl)
 
   override def dispatch(node: ApplicableContract): ApplicableContract = rewriteDefault(node)
+  override def dispatch(node: LoopContract): LoopContract = rewriteDefault(node)
 
   override def dispatch(parBlock: ParBlock): ParBlock = rewriteDefault(parBlock)
   override def dispatch(catchClause: CatchClause): CatchClause = rewriteDefault(catchClause)
@@ -27,4 +28,5 @@ class Rewriter extends AbstractRewriter {
   override def dispatch(node: JavaModifier): JavaModifier = rewriteDefault(node)
   override def dispatch(node: JavaImport): JavaImport = rewriteDefault(node)
   override def dispatch(node: JavaName): JavaName = rewriteDefault(node)
+
 }

@@ -34,7 +34,7 @@ class Graph {
 			i = i + 1;
 		}
 		
-		return explore(n, G, marked, x, y) with { P = P; };
+		return explore(n, G, marked, x, y) yields { P = P };
 	}
 	
 	yields seq<int> P;
@@ -47,7 +47,7 @@ class Graph {
 	ensures \result ==> Path(n, G, P);
 	boolean explore(int n, seq<seq<boolean>> G, boolean[n] marked, int x, int y) {
 		if (x == y) {
-			P = seq<int> { x };
+			P = [x];
 			return true;
 		}
 	
@@ -60,9 +60,9 @@ class Graph {
 		while (next < n) {
 			if (G[x][next] && !marked[next]) {
 
-				boolean rec = explore(n, G, marked, next, y) with { P = P; };
+				boolean rec = explore(n, G, marked, next, y) yields { P = P };
 				if (rec) {
-					P = seq<int> { x } + P;
+					P = x :: P;
 					return true;
 				}
 			}

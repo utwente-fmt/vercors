@@ -7,9 +7,9 @@ class Test {
     seq<seq<int>> sequence;
 
     requires Perm(this.sequence, write);
-    requires this.sequence.length > 0;
+    requires this.sequence.size > 0;
     void test() {
-        if(sequence[0].length == 0) {
+        if(sequence[0].size == 0) {
 
         }
     }

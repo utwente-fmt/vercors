@@ -9,11 +9,11 @@ gpgpuGlobalBarrier
     ;
 
 gpgpuCudaKernelInvocation
-    : clangIdentifier GPGPU_CUDA_OPEN_EXEC_CONFIG expression ',' expression GPGPU_CUDA_CLOSE_EXEC_CONFIG '(' argumentExpressionList ')' valEmbedWithThen?
+    : valEmbedGiven? clangIdentifier GPGPU_CUDA_OPEN_EXEC_CONFIG expression ',' expression GPGPU_CUDA_CLOSE_EXEC_CONFIG '(' argumentExpressionList ')' valEmbedYields?
     ;
 
 gpgpuAtomicBlock
-    : GPGPU_ATOMIC compoundStatement valEmbedWithThenBlock?
+    : valEmbedWith? GPGPU_ATOMIC compoundStatement valEmbedThen?
     ;
 
 gpgpuKernelSpecifier: GPGPU_KERNEL;

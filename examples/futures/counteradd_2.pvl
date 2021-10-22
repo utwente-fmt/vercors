@@ -4,7 +4,7 @@
 //:: tool silicon
 //:: option --check-history
 
-class `Future` {
+model Counter {
     int step;
 	int counter;
 
@@ -12,7 +12,7 @@ class `Future` {
 	accessible step;
 	modifies counter;
 	ensures counter == \old(counter) - step;
-	process decr();
+	action decr();
 
 	// Models a concurrent system with two "decrease" actions.
 	accessible step;
@@ -26,24 +26,24 @@ class Program {
 	ensures \result == count - 4;
 	int decrease(int count) {
 
-		`Future` f = new `Future`();
+		Counter f = new Counter();
 		f.counter = count;
 		f.step = 2;
-		create f, f.pardecr();
-		split f, 1\2, f.decr(), 1\2, f.decr();
+		f.create(f.pardecr());
+		f.split(1\2, f.decr(), 1\2, f.decr());
 
 		invariant lockinv(HPerm(f.counter, write) ** HPerm(f.step, 1\2)) {
 			par T0()
-				requires Future(f, 1\2, f.decr());
-				ensures Future(f, 1\2, empty);
+				requires f.state(1\2, f.decr());
+				ensures f.state(1\2, empty);
 			{
 				atomic(lockinv) {
 					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - f.step; }
 				}
 			}
 			and T1()
-				requires Future(f, 1\2, f.decr());
-				ensures Future(f, 1\2, empty);
+				requires f.state(1\2, f.decr());
+				ensures f.state(1\2, empty);
 			{
 				atomic(lockinv) {
 					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - f.step; }
@@ -51,8 +51,8 @@ class Program {
 			}
 		}
 
-		merge f, 1\2, empty, 1\2, empty;
-		destroy f;
+		f.merge(1\2, empty, 1\2, empty);
+		f.destroy();
 
 		return f.counter;
 	}

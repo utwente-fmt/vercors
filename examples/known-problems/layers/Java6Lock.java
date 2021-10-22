@@ -75,10 +75,10 @@ thread_local resource lockset(bag<int> S)=
   (\forall* int l ; 0 <= l < L ;
      Value({:locks[l]:}) ** Value(locks[l].subject) **
      Value(locks[l].T) ** locks[l].T==T **
-     Value(locks[l].held) ** locks[l].lockset_part() **
+     Value(locks[l].`held`) ** locks[l].lockset_part() **
      Value(locks[l].count) ** Value(locks[l].count.dummy) ** // skip(lockset) silicon incompleteness
      Value(locks[l].owner) ** Value(locks[l].owner.dummy) ** // skip(lockset) silicon incompleteness
-     locks[l].held[\current_thread]==(l \memberof S)
+     locks[l].`held`[\current_thread]==(l \in S)
   );
     // end(lockset)
   @*/
@@ -91,9 +91,9 @@ thread_local resource lockset(bag<int> S)=
     ensures  common();
     ensures  0 <= lock_id < L;
     ensures  \result ==> lockset(S+bag<int>{lock_id});
-    ensures  \result && (lock_id \memberof S)==0 ==>
+    ensures  \result && (lock_id \in S)==0 ==>
                 locks[lock_id].subject.inv();
-    ensures  (lock_id \memberof S)>0 ==> \result;
+    ensures  (lock_id \in S)>0 ==> \result;
     ensures  !\result ==> lockset(S);
   @*/
   boolean trylock(int lock_id){
@@ -118,7 +118,7 @@ final class Lock {
   /*@
     ghost int T; // Maximum number of threads.
 
-    ghost int held[];
+    ghost int `held`[];
   
     ghost int holder;
     
@@ -133,7 +133,7 @@ final class Lock {
     inline resource common()=
       Value(count) ** Value(owner) **
       Value(T) ** 0 <= \current_thread < T **
-      Value(held) ** held != null **
+      Value(`held`) ** `held` != null **
       Value(subject);
       
     inline resource MyAPerm(loc<AtomicInteger> ref,frac p)=
@@ -145,15 +145,15 @@ final class Lock {
 /*@
 // begin(context_everywhere)
 resource csl_invariant()= Value(T) ** T > 0 **
-   Value(held) ** held != null ** Value(subject) **
+   Value(`held`) ** `held` != null ** Value(subject) **
    MyAPerm(count,1\2) ** MyAPerm(owner,1\2) **
    (count.val == 0 ==> subject.inv() **
            MyAPerm(count,1\2) ** MyAPerm(owner,1\2)) **
    Perm(holder,1) ** -1 <= holder < T **
    (holder == -1) == (count.val == 0) **
    (\forall* int i; 0 <= i < T ;
-     Perm({:held[i]:},1\2) ** (i!=holder ==> held[i]==0)
-     ** held[i] >= 0 ** (held[i]==0 ==> owner.val!=i)
+     Perm({:`held`[i]:},1\2) ** (i!=holder ==> `held`[i]==0)
+     ** `held`[i] >= 0 ** (`held`[i]==0 ==> owner.val!=i)
    );
 // end(context_everywhere)
  @*/
@@ -161,10 +161,10 @@ resource csl_invariant()= Value(T) ** T > 0 **
   /*@
     inline thread_local
 // begin(context_everywhere)
-    resource lockset_part()= held!=null **
-       Perm(held[\current_thread],1\2) **
-       (held[\current_thread] > 0 ==>
-          MyAPointsTo(count,1\2,held[\current_thread]) **
+    resource lockset_part()= `held`!=null **
+       Perm(`held`[\current_thread],1\2) **
+       (`held`[\current_thread] > 0 ==>
+          MyAPointsTo(count,1\2,`held`[\current_thread]) **
           MyAPointsTo(owner,1\2,\current_thread));
 // end(context_everywhere)
   @*/
@@ -173,17 +173,17 @@ resource csl_invariant()= Value(T) ** T > 0 **
   /*@
     ensures \result==\current_thread;
   @*/
-  public /*@ thread_local pure @*/ static int currentThread();
+  public /*@thread_local@*/ /*@pure@*/ static int currentThread();
 
 // begin(tryacquire)
   /*@
   requires common() ** lockset_part();
   ensures  common() ** lockset_part() ** (!\result ==>
-    held[\current_thread] == \old(held[\current_thread]))
-  ** (\result ==> held[\current_thread] ==
-                          \old(held[\current_thread])+1)
-  ** (\old(held[\current_thread]) > 0 ==> \result)
-  ** (\old(held[\current_thread])==0 && \result ==> subject.inv());
+    `held`[\current_thread] == \old(`held`[\current_thread]))
+  ** (\result ==> `held`[\current_thread] ==
+                          \old(`held`[\current_thread])+1)
+  ** (\old(`held`[\current_thread]) > 0 ==> \result)
+  ** (\old(`held`[\current_thread])==0 && \result ==> subject.inv());
   @*/
   boolean trylock(){
     int c, tmp, myid; boolean res;
@@ -192,7 +192,7 @@ resource csl_invariant()= Value(T) ** T > 0 **
     if (c==0) {
       res=count.cas(0,1)/*@ then { if (\result) {
         holder=\current_thread;
-        held[\current_thread]=1;
+        `held`[\current_thread]=1;
       }} @*/;
       if (res) { owner.set(myid); }
       return res;
@@ -200,7 +200,7 @@ resource csl_invariant()= Value(T) ** T > 0 **
       tmp=owner.get();
       if (tmp!=myid) { return false; }
       count.set(c+1)/*@ then {
-        held[\current_thread]=held[\current_thread]+1;
+        `held`[\current_thread]=`held`[\current_thread]+1;
       } @*/;
       return true;
     }
@@ -208,10 +208,10 @@ resource csl_invariant()= Value(T) ** T > 0 **
 // end(tryacquire)
 
 /*@  
-  requires common() ** lockset_part() ** held[\current_thread]>0;
-  requires held[\current_thread]==1 ==> subject.inv();
+  requires common() ** lockset_part() ** `held`[\current_thread]>0;
+  requires `held`[\current_thread]==1 ==> subject.inv();
   ensures  common() ** lockset_part() **
-    held[\current_thread] == \old(held[\current_thread])-1;
+    `held`[\current_thread] == \old(`held`[\current_thread])-1;
   @*/
   void release(){
     int c;
@@ -225,7 +225,7 @@ resource csl_invariant()= Value(T) ** T > 0 **
       owner.set(-1);
     }
     count.set(c)/*@ then {
-        held[\current_thread]=c;
+        `held`[\current_thread]=c;
         if (c==0) {
           holder=-1;
         }

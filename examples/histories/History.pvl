@@ -10,12 +10,24 @@
 //:: options --check-axioms
 //:: verdict Pass
 
-class History {
+requires n >= 0 ;
+ensures  h.single(n) == (n>0 ? h.single(n-1)*h.incr() : empty);
+void lemma(History h, int n){
+  if (n>=2) {
+    lemma(h, n-2);
+  }
+}
+
+requires m>=0 && n>=0;
+ensures h.single(m) * h.single(n) == h.single(m+n);
+void single_axiom(History h, int m, int n);
+
+model History {
   int x;
   
   modifies x;
   ensures  x==\old(x)+1;
-  process incr();
+  action incr();
   
   modifies x;
   requires n>=0;
@@ -26,17 +38,5 @@ class History {
   requires n>=0 && m >= 0;
   ensures  x==\old(x)+n+m;
   process  dual(int n,int m)=single(n)||single(m);
-
-  requires n >= 0 ;
-  ensures  single(n)==(n>0?single(n-1)*incr():empty);
-  void lemma(int n){
-    if (n>=2) {
-        lemma(n-2);
-    }
-  }
-  
-  requires m>=0 && n >= 0 ;
-  ensures single(m)*single(n)==single(m+n);
-  void single_axiom(int m,int n);
 }
 

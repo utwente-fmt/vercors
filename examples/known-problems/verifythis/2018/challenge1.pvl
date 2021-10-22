@@ -3,32 +3,32 @@
 //:: suite medium problem-fail
 //:: verdict Pass
 
+requires 0 <= n && n < |xs|;
+pure int Get(seq<int> xs, int n) = xs[n];
+
+requires n <= |xs|;
+ensures n >= 0 ==> |\result| == |xs| - n && (\forall int i = 0 .. |\result|; \result[i] == xs[i + n]);
+ensures n < 0 ==> |\result| == |xs|;
+pure seq<int> Skip(seq<int> xs, int n) =
+    0 < n ? Skip(xs.tail, n - 1) : xs;
+
+requires n <= |xs|;
+ensures n >= 0 ==> |\result| == n && (\forall int i = 0 .. |\result|; \result[i] == xs[i]);
+ensures n < 0 ==> |\result| == 0;
+pure seq<int> Take(seq<int> xs, int n) =
+    0 < n ? xs.head :: Take(xs.tail, n - 1) : seq<int> { };
+
 class GapBuffer {
 	int[] a;
 	int l;
 	int r;
-	
-    requires 0 <= n && n < |xs|;
-	static pure int Get(seq<int> xs, int n) = xs[n];
-	
-	requires n <= |xs|;
-    ensures n >= 0 ==> |\result| == |xs| - n && (\forall int i = 0 .. |\result|; \result[i] == xs[i + n]);
-    ensures n < 0 ==> |\result| == |xs|;
-	static pure seq<int> Skip(seq<int> xs, int n) =
-		0 < n ? Skip(tail(xs), n - 1) : xs;
-		
-	requires n <= |xs|;
-    ensures n >= 0 ==> |\result| == n && (\forall int i = 0 .. |\result|; \result[i] == xs[i]);
-    ensures n < 0 ==> |\result| == 0;
-	static pure seq<int> Take(seq<int> xs, int n) =
-		0 < n ? seq<int> { head(xs) } + Take(tail(xs), n - 1) : seq<int> { };
 
 	requires n <= |xs|;
 	ensures n < 0 ==> |Skip(xs, n)| == |xs|;
 	ensures 0 <= n ==> |Skip(xs, n)| == |xs| - n;
 	void Lemma_Skip_length(seq<int> xs, int n) {
 		if (0 < n) {
-			Lemma_Skip_length(tail(xs), n - 1);
+			Lemma_Skip_length(xs.tail, n - 1);
 		} else {
 			assert Skip(xs, n) == xs;
 			assert |Skip(xs, n)| == |xs|;
@@ -40,7 +40,7 @@ class GapBuffer {
 	ensures 0 <= n ==> |Take(xs, n)| == n;
 	void Lemma_Take_length(seq<int> xs, int n) {
 		if (0 < n) {
-			Lemma_Take_length(tail(xs), n - 1);
+			Lemma_Take_length(xs.tail, n - 1);
 		} else {
 			assert Take(xs, n) == seq<int> { };
 			assert |Take(xs, n)| == 0;
@@ -51,7 +51,7 @@ class GapBuffer {
 	ensures (\forall int i; 0 <= i && i < n; xs[i] == Get(Take(xs, n), i));
 	void Lemma_Take_eq_pairwise(seq<int> xs, int n) {
 		if (0 < n) {
-			Lemma_Take_eq_pairwise(tail(xs), n - 1);
+			Lemma_Take_eq_pairwise(xs.tail, n - 1);
 		}
 	}
 
@@ -60,7 +60,7 @@ class GapBuffer {
 	ensures xs[n + i] == Get(Skip(xs, n), i);
 	void Lemma_Skip_eq(seq<int> xs, int n, int i) {
 		if (0 < n) {
-			Lemma_Skip_eq(tail(xs), n - 1, i);
+			Lemma_Skip_eq(xs.tail, n - 1, i);
 		}
 	}
 
@@ -217,7 +217,7 @@ class GapBuffer {
 	ensures (\forall int i; \old(l) < i && i < |newcontents|; newcontents[i] == contents[i - 1]);
 	void insert(int x, int K) {
 		if (l == r) {
-			grow(K) with { contents = contents; };
+			grow given { contents = contents } (K);
 			unfold Represents(contents);
 			a[l] = x;
 			l = l + 1;

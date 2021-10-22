@@ -13,22 +13,22 @@ class Challenge3 {
 	ensures \result[j] == v;
 	ensures (\forall int i; 0 <= i && i < |\result| && i != j; \result[i] == xs[i]);
 	pure seq<int> update(seq<int> xs, int j, int v) =
-		0 < j ? seq<int> { head(xs) } + update(tail(xs), j - 1, v) : seq<int> { v } + tail(xs);
+		0 < j ? xs.head :: update(xs.tail, j - 1, v) : v :: xs.tail;
 		
 	requires |pos| == |xs| && |term| == |xs|;
 	pure int sum(seq<int> xs, seq<int> pos, seq<boolean> term, int x) =
-		0 < |xs| ? (head(pos) == x && head(term) ? head(xs) : 0) + sum(tail(xs), tail(pos), tail(term), x) : 0;
+		0 < |xs| ? (pos.head == x && term.head ? xs.head : 0) + sum(xs.tail, pos.tail, term.tail, x) : 0;
 		
 	requires |pos| == |xs|;
 	pure int sumsimple(seq<int> xs, seq<int> pos, int x) =
-		0 < |xs| ? (head(pos) == x ? head(xs) : 0) + sumsimple(tail(xs), tail(pos), x) : 0;
+		0 < |xs| ? (pos.head == x ? xs.head : 0) + sumsimple(xs.tail, pos.tail, x) : 0;
 		
 	requires 0 <= j && j < |xs|;
 	ensures |\result| == |xs|;
 	ensures \result[j] == v;
 	ensures (\forall int i; 0 <= i && i < |\result| && i != j; \result[i] == xs[i]);
 	pure seq<boolean> update(seq<boolean> xs, int j, boolean v) =
-		0 < j ? seq<boolean> { head(xs) } + update(tail(xs), j - 1, v) : seq<boolean> { v } + tail(xs);
+		0 < j ? xs.head :: update(xs.tail, j - 1, v) : v :: xs.tail;
 	
 	
 	/** ** Lemmas */
@@ -39,21 +39,21 @@ class Challenge3 {
 	ensures sum(update(res, tid, v), update(pos, tid, x), update(term, tid, true), x) == sum(res, pos, term, x) + v;
 	void lemma_sum_upd(seq<int> res, seq<int> pos, seq<boolean> term, int tid, int x, int v) {
 		if (0 < tid) {
-			lemma_sum_upd(tail(res), tail(pos), tail(term), tid - 1, x, v);
-			assert head(update(res, tid, v)) == head(res);
-			assert tail(update(res, tid, v)) == update(tail(res), tid - 1, v);
-			assert head(update(pos, tid, x)) == head(pos);
-			assert tail(update(pos, tid, x)) == update(tail(pos), tid - 1, x);
-			assert head(update(term, tid, true)) == head(term);
-			assert tail(update(term, tid, true)) == update(tail(term), tid - 1, true);
+			lemma_sum_upd(res.tail, pos.tail, term.tail, tid - 1, x, v);
+			assert update(res, tid, v).head == res.head;
+			assert update(res, tid, v).tail == update(res.tail, tid - 1, v);
+			assert update(pos, tid, x).head == pos.head;
+			assert update(pos, tid, x).tail == update(pos.tail, tid - 1, x);
+			assert update(term, tid, true).head == term.head;
+			assert update(term, tid, true).tail == update(term.tail, tid - 1, true);
 		}
 		else {
-			assert head(update(res, tid, v)) == v;
-			assert tail(update(res, tid, v)) == tail(res);
-			assert head(update(pos, tid, x)) == x;
-			assert tail(update(pos, tid, x)) == tail(pos);
-			assert head(update(term, tid, true)) == true;
-			assert tail(update(term, tid, true)) == tail(term);
+			assert update(res, tid, v).head == v;
+			assert update(res, tid, v).tail == res.tail;
+			assert update(pos, tid, x).head == x;
+			assert update(pos, tid, x).tail == pos.tail;
+			assert update(term, tid, true).head == true;
+			assert update(term, tid, true).tail == term.tail;
 		}
 	}
 	
@@ -64,21 +64,21 @@ class Challenge3 {
 	ensures sum(update(res, tid, v), update(pos, tid, x), update(term, tid, true), y) == sum(res, pos, term, y);
 	void lemma_sum_upd_neq(seq<int> res, seq<int> pos, seq<boolean> term, int tid, int x, int y, int v) {
 		if (0 < tid) {
-			lemma_sum_upd_neq(tail(res), tail(pos), tail(term), tid - 1, x, y, v);
-			assert head(update(res, tid, v)) == head(res);
-			assert tail(update(res, tid, v)) == update(tail(res), tid - 1, v);
-			assert head(update(pos, tid, x)) == head(pos);
-			assert tail(update(pos, tid, x)) == update(tail(pos), tid - 1, x);
-			assert head(update(term, tid, true)) == head(term);
-			assert tail(update(term, tid, true)) == update(tail(term), tid - 1, true);
+			lemma_sum_upd_neq(res.tail, pos.tail, term.tail, tid - 1, x, y, v);
+			assert update(res, tid, v).head == res.head;
+			assert update(res, tid, v).tail == update(res.tail, tid - 1, v);
+			assert update(pos, tid, x).head == pos.head;
+			assert update(pos, tid, x).tail == update(pos.tail, tid - 1, x);
+			assert update(term, tid, true).head == term.head;
+			assert update(term, tid, true).tail == update(term.tail, tid - 1, true);
 		}
 		else {
-			assert head(update(res, tid, v)) == v;
-			assert tail(update(res, tid, v)) == tail(res);
-			assert head(update(pos, tid, x)) == x;
-			assert tail(update(pos, tid, x)) == tail(pos);
-			assert head(update(term, tid, true)) == true;
-			assert tail(update(term, tid, true)) == tail(term);
+			assert update(res, tid, v).head == v;
+			assert update(res, tid, v).tail == res.tail;
+			assert update(pos, tid, x).head == x;
+			assert update(pos, tid, x).tail == pos.tail;
+			assert update(term, tid, true).head == true;
+			assert update(term, tid, true).tail == term.tail;
 		}
 	}
 
@@ -106,7 +106,7 @@ class Challenge3 {
 	ensures sum(res, pos, term, x) == 0;
 	void lemma_sum_nterm(seq<int> res, seq<int> pos, seq<boolean> term, int x) {
 		if (0 < |res|) {
-			lemma_sum_nterm(tail(res), tail(pos), tail(term), x);
+			lemma_sum_nterm(res.tail, pos.tail, term.tail, x);
 		}
 	}
 	
@@ -130,7 +130,7 @@ class Challenge3 {
 	ensures sum(res, pos, term, x) == sumsimple(res, pos, x);
 	void lemma_sum_tosimple(seq<int> res, seq<int> pos, seq<boolean> term, int x) {
 		if (0 < |res|) {
-			lemma_sum_tosimple(tail(res), tail(pos), tail(term), x);
+			lemma_sum_tosimple(res.tail, pos.tail, term.tail, x);
 		}
 	}
 	
@@ -157,11 +157,11 @@ class Challenge3 {
 	ensures sumsimple(xs1 + xs2, pos1 + pos2, x) == sumsimple(xs1, pos1, x) + sumsimple(xs2, pos2, x);
 	void lemma_sumsimple_split(seq<int> xs1, seq<int> xs2, seq<int> pos1, seq<int> pos2, int x) {
 		if (0 < |xs1|) {
-			lemma_sumsimple_split(tail(xs1), xs2, tail(pos1), pos2, x);
-			assert head(xs1 + xs2) == head(xs1);
-			assert tail(xs1 + xs2) == tail(xs1) + xs2;
-			assert head(pos1 + pos2) == head(pos1);
-			assert tail(pos1 + pos2) == tail(pos1) + pos2;
+			lemma_sumsimple_split(xs1.tail, xs2, pos1.tail, pos2, x);
+			assert (xs1 + xs2).head == xs1.head;
+			assert (xs1 + xs2).tail == xs1.tail + xs2;
+			assert (pos1 + pos2).head == pos1.head;
+			assert (pos1 + pos2).tail == pos1.tail + pos2;
 		}
 	}
 

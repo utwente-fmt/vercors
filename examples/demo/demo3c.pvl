@@ -34,9 +34,9 @@ class Main {
 	
 	void sum(seq<int> xs) {
 		if (0 < |xs|) {
-			Worker w = new Worker(this, head(xs));
+			Worker w = new Worker(this, xs.head);
 			fork w;
-			sum(tail(xs));
+			sum(xs.tail);
 			join w;
 		}
 	}

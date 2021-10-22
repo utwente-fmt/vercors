@@ -103,12 +103,9 @@ lazy val vercors: Project = (project in file("."))
       ThisBuild / scalacOptions ++= Seq(
       "-deprecation",
       "-feature",
-      "-unchecked"
-      // Got noncompilation problems when I had an incomplete match statement
-      // Removing this fixed that - if it doesn't cause problems in the future we can
-      // remove this comment and the two commented lines below as well
-      // "-Ypatmat-exhaust-depth",
-      // "off"
+      "-unchecked",
+      "-Ypatmat-exhaust-depth",
+      "40",
     ),
 
     Compile / javacOptions ++= Seq(

@@ -3,11 +3,9 @@
 //:: tools silicon
 //:: verdict Error
 
-class TestFork {
-  static void main(string[] args){
-    TestFork tf=new TestFork();
-    assert idle(tf);
-  }
+class TestFork {}
+
+void main(string[] args) {
+  TestFork tf=new TestFork();
+  assert idle(tf);
 }
-
-

@@ -11,78 +11,73 @@
 // :: verdict Pass
 // :: options --skip problem
 
-class Problem {
+requires ar!=null;
+requires (\forall* int i; 0 <= i && i < ar.length ; Perm(ar[i],read));
+ensures  ar!=null;
+ensures  |\result|==ar.length;
+ensures  (\forall int i; 0 <= i && i < ar.length ; ar[i]==\result[i]);
+pure seq<int> vals_function_read(int[] ar);
 
-  requires ar!=null;
-  requires (\forall* int i; 0 <= i && i < ar.length ; Perm(ar[i],read));
-  ensures  ar!=null;
-  ensures  |\result|==ar.length;
-  ensures  (\forall int i; 0 <= i && i < ar.length ; ar[i]==\result[i]);
-  static pure seq<int> vals_function_read(int[] ar);
+requires ar!=null && p!=none;
+requires (\forall* int i; 0 <= i && i < ar.length ; Perm(ar[i],p));
+ensures  |\result|==ar.length;
+ensures  (\forall int i; 0 <= i && i < ar.length ; ar[i]==\result[i]);
+pure seq<int> vals_function(frac p,int[] ar);
 
-  requires ar!=null && p!=none;
-  requires (\forall* int i; 0 <= i && i < ar.length ; Perm(ar[i],p));
-  ensures  |\result|==ar.length;
-  ensures  (\forall int i; 0 <= i && i < ar.length ; ar[i]==\result[i]);
-  static pure seq<int> vals_function(frac p,int[] ar);
+requires ar!=null && p!=none;
+requires (\forall* int i; 0 <= i && i < ar.length ; Perm(ar[i],p));
+ensures  ar!=null && p!= none;
+ensures  (\forall* int i; 0 <= i && i < ar.length ; Perm(ar[i],p));
+ensures  (\forall int i; 0 <= i && i < ar.length ; ar[i]==\old(ar[i]));
+ensures  |\result|==ar.length;
+ensures  (\forall int i; 0 <= i && i < ar.length ; ar[i]==\result[i]);
+seq<int> vals_method(frac p,int[] ar);
 
-  requires ar!=null && p!=none;
-  requires (\forall* int i; 0 <= i && i < ar.length ; Perm(ar[i],p));
-  ensures  ar!=null && p!= none;
-  ensures  (\forall* int i; 0 <= i && i < ar.length ; Perm(ar[i],p));
-  ensures  (\forall int i; 0 <= i && i < ar.length ; ar[i]==\old(ar[i]));
-  ensures  |\result|==ar.length;
-  ensures  (\forall int i; 0 <= i && i < ar.length ; ar[i]==\result[i]);
-  static seq<int> vals_method(frac p,int[] ar);
+void working(){
+  int[] array=new int[2];
+  array[0]=1;
+  array[1]=2;
 
-  void working(){
-    int[] array=new int[2];
-    array[0]=1;
-    array[1]=2;
-    
-    seq<int> xs;
-    
-    xs=vals_method(1\2,array);
-    
-    assert |xs|==array.length;
-    
-    assert (\forall int i ; 0 <= i && i < 2 ; xs[i]==array[i]);
-    
-    assert xs==seq<int>{1,2};
- 
-  }
+  seq<int> xs;
 
-  void working_too(){
-    int[] array=new int[2];
-    array[0]=1;
-    array[1]=2;
-    
-    seq<int> xs;
-     
-    xs=vals_function(1\2,array);
-    
-    assert |xs|==array.length;
-    
-    assert (\forall int i ; 0 <= i && i < 2 ; xs[i]==array[i]);
-    
-    assert xs==seq<int>{1,2};  
-  }
-  
-  void problem(){
-    int[] array=new int[2];
-    array[0]=1;
-    array[1]=2;
-    
-    seq<int> xs;
-     
-    xs=vals_function_read(array);
-    
-    assert |xs|==array.length;
-    
-    assert (\forall int i ; 0 <= i && i < 2 ; xs[i]==array[i]);
-    
-    assert xs==seq<int>{1,2};  
-  }
+  xs=vals_method(1\2,array);
+
+  assert |xs|==array.length;
+
+  assert (\forall int i ; 0 <= i && i < 2 ; xs[i]==array[i]);
+
+  assert xs==seq<int>{1,2};
 
 }
 
+void working_too(){
+  int[] array=new int[2];
+  array[0]=1;
+  array[1]=2;
+
+  seq<int> xs;
+
+  xs=vals_function(1\2,array);
+
+  assert |xs|==array.length;
+
+  assert (\forall int i ; 0 <= i && i < 2 ; xs[i]==array[i]);
+
+  assert xs==seq<int>{1,2};
+}
+
+void problem(){
+  int[] array=new int[2];
+  array[0]=1;
+  array[1]=2;
+
+  seq<int> xs;
+
+  xs=vals_function_read(array);
+
+  assert |xs|==array.length;
+
+  assert (\forall int i ; 0 <= i && i < 2 ; xs[i]==array[i]);
+
+  assert xs==seq<int>{1,2};
+}
