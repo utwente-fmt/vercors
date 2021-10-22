@@ -28,7 +28,9 @@ case class CheckProcessAlgebra() extends Rewriter {
     //      model.rewrite().declareDefault()
     case model: Model =>
       // We put all permutations of every top-level parallel process
-      // in a map to detect overlapping ones
+      // in a map to detect overlapping ones.
+      // I think I'd prefer this to be done on the fly, instead of generating _all_ permutations.
+      // Putting all processes in a set and comparing two sets is better
       val compositeMap: mutable.Map[Set[Expr], ModelProcess] = mutable.Map()
 
       // TODO: Refactor this to separate method. Or, maybe in typechecker/frontend? As it could be part of a well-formedness requirement
@@ -122,5 +124,34 @@ case class CheckProcessAlgebra() extends Rewriter {
       Deref(dispatch(modelDeref.obj), modelFieldSuccessors.ref(modelDeref.ref.decl))(blame)
 
     case x => dispatch(x)
+  }
+
+  def inline(a: ModelProcess, b: Seq[Expr]): Nothing = ???
+
+  // TODO: How to determine at what point to rewrite EmptyProcess/ActionApply? When encountered in expandUnguarded?
+
+  def expandUnguarded(p: Expr) : ProcessExpr = p match {
+    case p: EmptyProcess => p.rewrite()
+    case p: ActionApply => p.rewrite()
+    case ProcessApply(process, args) => expandUnguarded(inline(process.decl, args))
+    case ProcessSeq(q, r) => ProcessSeq(expandUnguarded(q), r)(p.o)
+    case ProcessChoice(q, r) => ProcessChoice(expandUnguarded(q), expandUnguarded(r))(p.o)
+    case ProcessPar(q, r) => ProcessChoice(leftMerge(expandUnguarded(q), r), leftMerge(expandUnguarded(r), q))(p.o)
+    case ProcessSelect(cond, q, r) =>
+      ProcessSelect(cond.rewrite(), expandUnguarded(q), expandUnguarded(r))(p.o)
+    case _ => ???
+  }
+
+
+
+  def leftMerge(p: Expr, q: Expr): Expr = p match {
+    case EmptyProcess() => q
+    case p: ActionApply => ProcessSeq(p, q)(DiagnosticOrigin)
+    case ProcessChoice(pLeft, pRight) => ProcessChoice(leftMerge(pLeft, q), leftMerge(pRight, q))(DiagnosticOrigin)
+    case ProcessSeq(pLeft, pRight) => // TODO
+      ???
+    case ProcessSelect(cond, pLeft, pRight) => ProcessSelect(cond, leftMerge(pLeft, q), leftMerge(pRight, q))(DiagnosticOrigin)
+    case ProcessPar(pLeft, pRight) => ??? // Not allowed
+    case _ => ???
   }
 }
