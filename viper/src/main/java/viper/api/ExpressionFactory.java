@@ -73,7 +73,7 @@ public interface ExpressionFactory<O,T,E> {
   E forall(O o, List<Triple<O, String, T>> vars, List<List<E>> triggers, E e);
   
   /** Create an existential quantification. */
-  E exists(O o, List<Triple<O, String, T>> vars, E e);
+  E exists(O o, List<Triple<O, String, T>> vars, List<List<E>> triggers, E e);
   
   E old(O o, E e1);
   
