@@ -36,6 +36,7 @@ VAL_PROCESS: 'process';
 VAL_FRAC: 'frac';
 VAL_ZFRAC: 'zfrac';
 VAL_BOOL: 'bool';
+VAL_REF: 'ref';
 VAL_RATIONAL: 'rational';
 VAL_SEQ: 'seq';
 VAL_SET: 'set';

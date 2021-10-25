@@ -18,7 +18,7 @@ case class PVLNamedType(name: String)(implicit val o: Origin = DiagnosticOrigin)
 }
 
 sealed trait PVLExpr extends ExtraExpr
-case class PVLLocal(name: String)(implicit val o: Origin) extends PVLExpr with NoCheck {
+case class PVLLocal(name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends PVLExpr with NoCheck {
   var ref: Option[PVLNameTarget] = None
 
   override def t: Type = ref.get match {
@@ -30,7 +30,7 @@ case class PVLLocal(name: String)(implicit val o: Origin) extends PVLExpr with N
   }
 }
 
-case class PVLDeref(obj: Expr, field: String)(implicit val o: Origin) extends PVLExpr with NoCheck {
+case class PVLDeref(obj: Expr, field: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends PVLExpr with NoCheck {
   var ref: Option[PVLDerefTarget] = None
 
   override def t: Type = ref.get match {

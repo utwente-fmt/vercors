@@ -157,7 +157,7 @@ trait SilverBackend extends Backend {
       division.blame.blame(col.DivByZero(division))
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref](f)
-      deref.blame.blame(col.SilverInsufficientPermission(deref))
+      deref.blame.blame(col.InsufficientPermission(deref))
     case reasons.LabelledStateNotReached(expr) =>
       val old = get[col.Old](expr)
       old.blame.blame(col.LabelNotReached(old))

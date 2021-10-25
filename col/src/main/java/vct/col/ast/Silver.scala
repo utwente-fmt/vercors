@@ -4,8 +4,8 @@ case class SilverPredicateAccess(ref: Ref[Predicate], args: Seq[Expr], perm: Exp
   extends Check(perm.checkSubType(TRational())) with NodeFamily
 
 sealed trait SilverExpr extends ExtraExpr
-case class SilverDeref(obj: Expr, field: Ref[SilverField])(val blame: Blame[SilverInsufficientPermission])(implicit val o: Origin)
-  extends Check(obj.checkSubType(TRef())) with SilverExpr {
+case class SilverDeref(obj: Expr, field: Ref[SilverField])(val blame: Blame[InsufficientPermission])(implicit val o: Origin)
+  extends Check(obj.checkSubType(TRef())) with SilverExpr with HeapDeref {
   override def t: Type = field.decl.t
 }
 sealed trait SilverResource extends SilverExpr {

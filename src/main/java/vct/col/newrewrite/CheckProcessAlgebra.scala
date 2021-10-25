@@ -8,6 +8,8 @@ import vct.col.ast.RewriteHelpers._
 
 import scala.collection.mutable
 
+import vct.col.ast.AstBuildHelpers._
+
 case class CheckProcessAlgebra() extends Rewriter {
   case class ModelPostconditionFailed(process: ModelProcess) extends Blame[PostconditionFailed] {
     override def blame(error: PostconditionFailed): Unit = process.blame.blame(error)
@@ -75,8 +77,8 @@ case class CheckProcessAlgebra() extends Rewriter {
       val currentThis = AmbiguousThis()
       currentThis.ref = Some(TClass(modelSuccessors.ref(currentModel.top)))
 
-      def fieldRefToPerm(p: RationalExpr, f: Ref[ModelField]) =
-        Perm(Deref(currentThis, modelFieldSuccessors.ref(f.decl))(null)(f.decl.o), p);
+      def fieldRefToPerm(p: Expr, f: Ref[ModelField]) =
+        fieldPerm(currentThis, modelFieldSuccessors.ref(f.decl), p)
 
       val fieldPerms = Star.fold(
         process.modifies.map(f => fieldRefToPerm(WritePerm(), f)) ++
@@ -138,7 +140,7 @@ case class CheckProcessAlgebra() extends Rewriter {
     case ProcessChoice(q, r) => ProcessChoice(expandUnguarded(q), expandUnguarded(r))(p.o)
     case ProcessPar(q, r) => ProcessChoice(leftMerge(expandUnguarded(q), r), leftMerge(expandUnguarded(r), q))(p.o)
     case ProcessSelect(cond, q, r) =>
-      ProcessSelect(cond.rewrite(), expandUnguarded(q), expandUnguarded(r))(p.o)
+      ProcessSelect(dispatch(cond), expandUnguarded(q), expandUnguarded(r))(p.o)
     case _ => ???
   }
 

@@ -483,7 +483,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
   def convert(implicit expr: ExprContext): Expr = expr match {
     case JavaValPrimary(inner) => convert(inner)
     case JavaPrimary(inner) => convert(inner)
-    case parse.JavaDeref(obj, _, field) => col.JavaDeref(convert(obj), convert(field))
+    case parse.JavaDeref(obj, _, field) => col.JavaDeref(convert(obj), convert(field))(blame(expr))
     case JavaPinnedThis(innerOrOuterClass, _, _) => ??(expr)
     case JavaPinnedOuterClassNew(pinnedOuterClassObj, _, _, _, _) => ??(expr)
     case JavaSuper(_, _, _, _) => ??(expr)
@@ -627,8 +627,8 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case Primary3(literal) => convert(literal)
     case Primary4(name) => name match {
       case JavaIdentifier0(specInSpec) => convert(specInSpec)
-      case JavaIdentifier1(name) => JavaLocal(name)
-      case JavaIdentifier2(_) => JavaLocal(convert(name))
+      case JavaIdentifier1(name) => JavaLocal(name)(blame(expr))
+      case JavaIdentifier2(_) => JavaLocal(convert(name))(blame(expr))
     }
     case Primary5(name, familyType, given, args, yields) =>
       failIfDefined(familyType, "Predicate families are unsupported (for now)")
@@ -694,6 +694,9 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
   def convert(implicit id: LangIdContext): String = id match {
     case LangId0(id) => convert(id)
   }
+
+  def local(ctx: ParserRuleContext, name: String): Expr =
+    JavaLocal(name)(blame(ctx))(origin(ctx))
 
   def withCollector[T](collector: ContractCollector, f: ContractCollector => T): T = {
     val result = f(collector)
@@ -1168,7 +1171,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValReserved0(name) => fail(res,
       f"This identifier is reserved, and cannot be declared or used in specifications. " +
         f"You might want to escape the identifier with backticks: `$name`")
-    case ValIdEscape(id) => Local(new UnresolvedRef[Variable](id.substring(1, id.length-1)))
+    case ValIdEscape(id) => local(res, id.substring(1, id.length-1))
     case ValResult(_) => AmbiguousResult()
     case ValCurrentThread(_) => CurrentThreadId()
     case ValNonePerm(_) => NoPerm()

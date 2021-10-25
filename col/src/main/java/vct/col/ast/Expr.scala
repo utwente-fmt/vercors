@@ -251,7 +251,8 @@ case class Local(ref: Ref[Variable])(implicit val o: Origin) extends Expr {
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(this, ref)
 }
-case class Deref(obj: Expr, ref: Ref[Field])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr {
+trait HeapDeref
+case class Deref(obj: Expr, ref: Ref[Field])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr with HeapDeref {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(this, ref)

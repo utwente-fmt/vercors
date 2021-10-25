@@ -8,6 +8,7 @@ import vct.result.VerificationResult
 import vct.result.VerificationResult.{SystemError, UserError}
 import vct.test.CommandLineTesting
 
+import java.io.File
 import java.nio.file.Path
 import scala.jdk.CollectionConverters._
 
@@ -21,16 +22,20 @@ case object Test {
 
   def main(args: Array[String]): Unit = {
     try {
-      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-        if(c.files.asScala.forall(f =>
-            f.toString.endsWith(".java") ||
-              f.toString.endsWith(".c") ||
-              f.toString.endsWith(".pvl"))) {
-          tryParse(c.files.asScala.toSeq)
-        } else {
-          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
-        }
-      })
+      for(f <- new File("src/main/universal/res/adt").listFiles()) {
+        tryParse(Seq(f.toPath))
+      }
+
+//      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
+//        if(c.files.asScala.forall(f =>
+//            f.toString.endsWith(".java") ||
+//              f.toString.endsWith(".c") ||
+//              f.toString.endsWith(".pvl"))) {
+//          tryParse(c.files.asScala.toSeq)
+//        } else {
+//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+//        }
+//      })
 
 //      tryParse(Seq(Path.of("examples/case-studies/exception-patterns/CatchLog.java")))
     } finally {

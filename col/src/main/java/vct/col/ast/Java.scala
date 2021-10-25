@@ -123,7 +123,7 @@ case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: O
 }
 
 sealed trait JavaExpr extends ExtraExpr
-case class JavaLocal(name: String)(implicit val o: Origin) extends JavaExpr with NoCheck {
+case class JavaLocal(name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr with NoCheck {
   var ref: Option[JavaNameTarget] = None
   override def t: Type = ref.get match {
     case ref: RefAxiomaticDataType => TNotAValue(ref)
@@ -136,7 +136,7 @@ case class JavaLocal(name: String)(implicit val o: Origin) extends JavaExpr with
   }
 }
 
-case class JavaDeref(obj: Expr, field: String)(implicit val o: Origin) extends JavaExpr with NoCheck {
+case class JavaDeref(obj: Expr, field: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr with NoCheck {
   var ref: Option[JavaDerefTarget] = None
   override def t: Type = ref.get match {
     case RefModelField(decl) => decl.t

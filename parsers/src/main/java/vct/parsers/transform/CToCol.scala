@@ -504,6 +504,9 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
     case LangId0(id) => convert(id)
   }
 
+  def local(ctx: ParserRuleContext, name: String): Expr =
+    CLocal(name)(origin(ctx))
+
   def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration] = decl match {
     case LangGlobalDecl0(decl) => convert(decl)
   }
@@ -983,7 +986,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
     case ValReserved0(name) => fail(res,
       f"This identifier is reserved, and cannot be declared or used in specifications. " +
         f"You might want to escape the identifier with backticks: `$name`")
-    case ValIdEscape(id) => Local(new UnresolvedRef[Variable](id.substring(1, id.length-1)))
+    case ValIdEscape(id) => local(res, id.substring(1, id.length-1))
     case ValResult(_) => AmbiguousResult()
     case ValCurrentThread(_) => CurrentThreadId()
     case ValNonePerm(_) => NoPerm()

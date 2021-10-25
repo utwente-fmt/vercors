@@ -7,14 +7,7 @@ import vct.col.newrewrite.SpecifyImplicitLabels
 import vct.helper.ColHelper
 
 class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
-
-  implicit val o = DiagnosticOrigin
-
-  def test(input: Statement, expectedOutput: Statement): Unit = {
-    val rewriter = SpecifyImplicitLabels()
-    ColHelper.assertEquals(rewriter.dispatch(input), expectedOutput)
-    assert(rewriter.labelStack.isEmpty)
-  }
+  implicit val o: Origin = DiagnosticOrigin
 
   it should "add a label to a switch without a label" in {
     val before = {
@@ -45,13 +38,9 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
-<<<<<<< HEAD
-    test(before, after)
-=======
     val rewriter = SpecifyImplicitLabels()
     ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
->>>>>>> ast
   }
 
   it should "reuse labels already present" in {
@@ -87,13 +76,9 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
-<<<<<<< HEAD
-    test(before, after)
-=======
     val rewriter = SpecifyImplicitLabels()
     ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
->>>>>>> ast
   }
 
   it should "not touch labeled break" in {
@@ -125,13 +110,9 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
-<<<<<<< HEAD
-    test(before, after)
-=======
     val rewriter = SpecifyImplicitLabels()
     ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
->>>>>>> ast
   }
 
   it should "use the nearest label possible" in {
@@ -177,12 +158,8 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       ))
     }
 
-<<<<<<< HEAD
-    test(before, after)
-=======
     val rewriter = SpecifyImplicitLabels()
     ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
->>>>>>> ast
   }
 }

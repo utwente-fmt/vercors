@@ -26,7 +26,7 @@ object AstBuildHelpers {
 
     def ==>(right: Expr)(implicit origin: Origin): Implies = Implies(left, right)
 
-    def ~>(field: SilverField)(implicit blame: Blame[SilverInsufficientPermission], origin: Origin): SilverDeref = SilverDeref(left, new DirectRef(field))(blame)
+    def ~>(field: SilverField)(implicit blame: Blame[InsufficientPermission], origin: Origin): SilverDeref = SilverDeref(left, new DirectRef(field))(blame)
 
     def @@(index: Expr)(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript = SeqSubscript(left, index)(blame)
   }

@@ -11,6 +11,8 @@ import vct.result.VerificationResult.{Unreachable, UserError}
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+import AstBuildHelpers._
+
 case class LangSpecificToCol() extends Rewriter {
   case class NotAValue(value: Expr) extends UserError {
     override def code: String = "notAValue"
@@ -68,7 +70,7 @@ case class LangSpecificToCol() extends Rewriter {
     val fieldInit = (diz: Expr) => Block(decls.collect {
       case fields: JavaFields =>
         Block(for(((_, _, init), idx) <- fields.decls.zipWithIndex if init.nonEmpty)
-          yield Assign(Deref(diz, javaFieldsSuccessor.ref((fields, idx))), dispatch(init.get))
+          yield assignField(diz, javaFieldsSuccessor.ref((fields, idx)), dispatch(init.get))
         )
     })
 
@@ -96,9 +98,8 @@ case class LangSpecificToCol() extends Rewriter {
           requires = true,
           ensures = Star.fold(decls.collect {
             case fields: JavaFields =>
-              fields.decls.indices.map(decl => {
-                Perm(Deref(currentThis.head, javaFieldsSuccessor.ref((fields, decl))), WritePerm())
-              })
+              fields.decls.indices.map(decl =>
+                fieldPerm(currentThis.head, javaFieldsSuccessor.ref((fields, decl)), WritePerm()))
           }.flatten),
           contextEverywhere = true, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
         )
@@ -223,7 +224,8 @@ case class LangSpecificToCol() extends Rewriter {
               ApplicableContract(
                 true,
                 Star.fold(cls.declarations.collect {
-                  case field: InstanceField => Perm(Deref(currentThis.head, typedSucc[InstanceField](field)), WritePerm())
+                  case field: InstanceField =>
+                    fieldPerm(currentThis.head, typedSucc[InstanceField](field), WritePerm())
                 }), true, Nil, Nil, Nil,
               )
             )(null)
@@ -283,12 +285,12 @@ case class LangSpecificToCol() extends Rewriter {
             Deref(
               obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil)(null),
               ref = javaFieldsSuccessor.ref((decls, idx)),
-            )
+            )(local.blame)
           } else {
-            Deref(currentThis.head, javaFieldsSuccessor.ref((decls, idx)))
+            Deref(currentThis.head, javaFieldsSuccessor.ref((decls, idx)))(local.blame)
           }
         case RefModelField(field) =>
-          ModelDeref(currentThis.head, typedSucc[ModelField](field))
+          ModelDeref(currentThis.head, typedSucc[ModelField](field))(local.blame)
         case RefJavaLocalDeclaration(decls, idx) =>
           Local(javaLocalsSuccessor.ref((decls, idx)))
       }
@@ -299,9 +301,9 @@ case class LangSpecificToCol() extends Rewriter {
       local.ref.get match {
         case RefAxiomaticDataType(decl) => throw NotAValue(local)
         case RefVariable(decl) => Local(typedSucc[Variable](decl))
-        case RefModelField(decl) => ModelDeref(currentThis.head, typedSucc[ModelField](decl))
+        case RefModelField(decl) => ModelDeref(currentThis.head, typedSucc[ModelField](decl))(local.blame)
         case RefClass(decl) => throw NotAValue(local)
-        case RefField(decl) => Deref(currentThis.head, typedSucc[Field](decl))
+        case RefField(decl) => Deref(currentThis.head, typedSucc[Field](decl))(local.blame)
       }
 
     case deref @ JavaDeref(obj, _) =>
@@ -311,10 +313,10 @@ case class LangSpecificToCol() extends Rewriter {
         case RefAxiomaticDataType(decl) => throw NotAValue(deref)
         case RefModel(decl) => throw NotAValue(deref)
         case RefJavaClass(decl) => throw NotAValue(deref)
-        case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))
+        case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))(deref.blame)
         case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
         case RefJavaField(decls, idx) =>
-          Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))
+          Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
         case BuiltinField(f) => f(dispatch(obj))
       }
 
@@ -322,9 +324,9 @@ case class LangSpecificToCol() extends Rewriter {
       implicit val o: Origin = deref.o
 
       deref.ref.get match {
-        case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))
+        case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))(deref.blame)
         case BuiltinField(f) => f(dispatch(obj))
-        case RefField(decl) => Deref(dispatch(obj), typedSucc[Field](decl))
+        case RefField(decl) => Deref(dispatch(obj), typedSucc[Field](decl))(deref.blame)
       }
 
     case JavaLiteralArray(_) => ???

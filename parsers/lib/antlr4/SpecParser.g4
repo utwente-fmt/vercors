@@ -240,7 +240,7 @@ valReserved
  ;
 
 valType
- : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool') # valPrimaryType
+ : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref') # valPrimaryType
  | 'seq' '<' langType '>' # valSeqType
  | 'set' '<' langType '>' # valSetType
  | 'bag' '<' langType '>' # valBagType

@@ -77,13 +77,14 @@ case class DivByZero(div: DividingExpr) extends VerificationFailure {
   override def toString: String = s"The divisor may be zero."
   override def code: String = "divByZero"
 }
-case class SilverInsufficientPermission(deref: SilverDeref) extends VerificationFailure {
-  override def toString: String = s"There may be insufficient permission to access this field here."
-  override def code: String = "silverPerm"
-}
-case class InsufficientPermission(deref: Deref) extends VerificationFailure {
+sealed trait DerefInsufficientPermission extends VerificationFailure
+case class InsufficientPermission(deref: HeapDeref) extends DerefInsufficientPermission {
   override def toString: String = s"There may be insufficient permission to access this field here."
   override def code: String = "perm"
+}
+case class ModelInsufficientPermission(deref: ModelDeref) extends DerefInsufficientPermission {
+  override def toString: String = s"There may be insufficient permission to access this model field here."
+  override def code: String = "modelPerm"
 }
 case class LabelNotReached(old: Old) extends VerificationFailure {
   override def toString: String = s"The label mentioned in this old expression may not be reached at the time the old expression is reached."
@@ -129,11 +130,6 @@ case class ParRegionPreconditionDoesNotImplyBlockPreconditions(failure: Contract
 case class ParRegionPostconditionNotImpliedByBlockPostconditions(failure: ContractFailure, region: ParRegion) extends ParRegionInconsistent {
   override def direction: String = s"the postcondition of the region does not follow from the postconditions of its blocks"
   override def code: String = "blockPostRegionPost"
-}
-
-case class ModelInsufficientPermission(deref: ModelDeref) extends VerificationFailure {
-  override def toString: String = s"There may be insufficient permission to access this model field here."
-  override def code: String = "modelPerm"
 }
 
 trait Blame[-T <: VerificationFailure] {

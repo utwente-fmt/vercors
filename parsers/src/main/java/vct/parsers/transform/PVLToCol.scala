@@ -205,7 +205,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit expr: PostfixExprContext): Expr = expr match {
-    case PostfixExpr0(obj, _, field, None) => PVLDeref(convert(obj), convert(field))
+    case PostfixExpr0(obj, _, field, None) => PVLDeref(convert(obj), convert(field))(blame(expr))
     case PostfixExpr0(obj, _, field, Some(Call0(given, args, yields))) =>
       PVLInvocation(Some(convert(obj)), convert(field), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))
@@ -243,7 +243,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case PvlBarrier(_, _, block, tags, _, body) =>
       val (contract, content) = body match {
         case BarrierBody0(_, contract, _) => (contract, Block(Nil))
-        case BarrierBody1(contract, content) => (contract, content)
+        case BarrierBody1(contract, content) => (contract, convert(content))
       }
 
       withContract(contract, contract => {
@@ -301,7 +301,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
       Block(convert(decls, convert(t)))
     case PvlEval(e) => Eval(convert(e))
     case PvlIncDec(name, op) =>
-      val target = PVLLocal(convert(name))
+      val target = PVLLocal(convert(name))(blame(stat))
       Eval(op match {
         case "++" => PostAssignExpression(target, target + 1)
         case "--" => PostAssignExpression(target, target - 1)
@@ -424,7 +424,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convertExpr(implicit id: IdentifierContext): Expr = id match {
-    case Identifier0(name) => PVLLocal(name)
+    case Identifier0(name) => PVLLocal(name)(blame(id))
     case Identifier1(reserved) => convert(reserved)
   }
 
@@ -453,6 +453,9 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   def convert(implicit id: LangIdContext): String = id match {
     case LangId0(id) => convert(id)
   }
+
+  def local(ctx: ParserRuleContext, name: String): Expr =
+    PVLLocal(name)(blame(ctx))(origin(ctx))
 
   def withCollector[T](collector: ContractCollector, f: ContractCollector => T): T = {
     val result = f(collector)
@@ -812,6 +815,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
       case "zfrac" => TZFraction()
       case "rational" => TRational()
       case "bool" => TBool()
+      case "ref" => TRef()
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
@@ -926,7 +930,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case ValReserved0(name) => fail(res,
       f"This identifier is reserved, and cannot be declared or used in specifications. " +
         f"You might want to escape the identifier with backticks: `$name`")
-    case ValIdEscape(id) => Local(new UnresolvedRef[Variable](id.substring(1, id.length-1)))
+    case ValIdEscape(id) => local(res, id.substring(1, id.length-1))
     case ValResult(_) => AmbiguousResult()
     case ValCurrentThread(_) => CurrentThreadId()
     case ValNonePerm(_) => NoPerm()
