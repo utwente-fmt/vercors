@@ -266,9 +266,14 @@ public class Configuration {
     }
 
     public static MessageProcessEnvironment getZ3() throws IOException {
-        MessageProcessEnvironment env = new MessageProcessEnvironment("z3");
+        MessageProcessEnvironment env = new MessageProcessEnvironment(getZ3Path().getAbsolutePath());
         env.setTemporaryWorkingDirectory();
-        env.addPath(getZ3Path().getAbsolutePath());
+        return env;
+    }
+
+    public static MessageProcessEnvironment getBoogie() throws IOException {
+        MessageProcessEnvironment env = new MessageProcessEnvironment(getBoogiePath().getAbsolutePath());
+        env.setTemporaryWorkingDirectory();
         return env;
     }
 

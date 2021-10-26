@@ -123,7 +123,10 @@ lazy val vercors: Project = (project in file("."))
       },
       BuildInfoKey.action("gitHasChanges") {
         Git.gitHasChanges
-      }
+      },
+      "silverCommit" -> BuildUtil.commitFromGitUrl(silver_url.toString),
+      "siliconCommit" -> BuildUtil.commitFromGitUrl(silicon_url.toString),
+      "carbonCommit" -> BuildUtil.commitFromGitUrl(carbon_url.toString)
     ),
     buildInfoOptions += BuildInfoOption.BuildTime,
     buildInfoPackage := "vct.main",
