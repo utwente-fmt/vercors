@@ -13,7 +13,7 @@ case class UnrecognizedExpression(node: ASTNode) extends Exception
 
 object Triggers {
   val allowedInTrigger = Set(Scale, /*sequence*/ Subscript, Member, Size, UPlus, Head, Tail, SubSet, SubSetEq, Member, Old)
-  val forbiddenInTrigger = Set(UMinus, Plus, Mult, FloorDiv, Div, Mod, And, Or, Not, Implies, IFF, EQ, NEQ, GT, GTE, LT, LTE, ITE, Star, Wand, Perm)
+  val forbiddenInTrigger = Set(UMinus, Minus, Plus, Mult, FloorDiv, Div, Mod, And, Or, Not, Implies, IFF, EQ, NEQ, GT, GTE, LT, LTE, ITE, Star, Wand, Perm, Value)
 
   /**
    * Collect potentially admissible patterns from an expression
