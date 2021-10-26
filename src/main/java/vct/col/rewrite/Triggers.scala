@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
-import hre.lang.System.Warning
-import vct.col.ast.`type`.ASTReserved
+import hre.lang.System.{Output, Warning}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
 import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
 import vct.col.ast.expr._
@@ -13,8 +13,7 @@ case class UnrecognizedExpression(node: ASTNode) extends Exception
 
 object Triggers {
   val allowedInTrigger = Set(Scale, /*sequence*/ Subscript, Member, Size, UPlus, Head, Tail, SubSet, SubSetEq, Member, Old)
-  // Minus is not allowed, since it acts as both integer minus and set subtraction minus.
-  // When the minus is split up into two, the set minus can go into allowed, and integer minus into forbidden.
+  // Minus is handled specially because we have no specific set minus operator. See below.
   val forbiddenInTrigger = Set(UMinus, Plus, Mult, FloorDiv, Div, Mod, And, Or, Not, Implies, IFF, EQ, NEQ, GT, GTE, LT, LTE, ITE, Star, Wand, Perm, Value)
 
   /**
@@ -40,13 +39,17 @@ object Triggers {
       val childOK = childPatterns.forall(_._2)
       val myPattern = if(childOK) Set(node) else Set()
       (childPatterns.map(_._1).foldLeft(Set[ASTNode]())(_ ++ _) ++ myPattern, childOK)
-    case OperatorExpression(op, args) =>
-      if (allowedInTrigger.contains(op)) {
+    case e @ OperatorExpression(op, args) =>
+      val isSetMinus = op == StandardOperator.Minus && e.getType != null && (e.getType.isPrimitive(PrimitiveSort.Set) || e.getType.isPrimitive(PrimitiveSort.Bag))
+      // Assuming there are no other uses of binary minus
+      val isNumericMinus = op == StandardOperator.Minus && !isSetMinus
+
+      if (allowedInTrigger.contains(op) || isSetMinus) {
         val childPatterns = args.map(collectPatterns)
         val childOK = childPatterns.forall(_._2)
         val myPattern = if(childOK) Set(node) else Set()
         (childPatterns.foldLeft(Set[ASTNode]())(_ ++ _._1) ++ myPattern, childOK)
-      } else if (forbiddenInTrigger.contains(op)) {
+      } else if (forbiddenInTrigger.contains(op) || isNumericMinus) {
         (args.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
       } else {
         throw UnrecognizedExpression(node)
@@ -81,6 +84,7 @@ object Triggers {
       case MethodInvokation(_, _, _, args) => args.exists(contains(_, element))
       case OperatorExpression(_, args) => args.exists(contains(_, element))
       case Dereference(obj, _) => contains(obj, element)
+      case StructValue(_, _, values) => values.exists(contains(_, element))
     })
 
   def powerset[T](x: Set[T]): Seq[Set[T]] = {
@@ -144,8 +148,8 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {
       case Binder.Forall | Binder.Star if expr.triggers == null || expr.triggers.isEmpty =>
-        val select = rewrite(expr.select)
-        val main = rewrite(expr.main)
+        val select = expr.select
+        val main = expr.main
         Triggers.tryComputeTrigger(expr.getDeclarations, select, main) match {
           case Some(trigger) =>
             result = create binder(
@@ -153,8 +157,8 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
               expr.result_type,
               expr.getDeclarations,
               trigger.map(_.toArray).toArray,
-              select,
-              main
+              rewrite(select),
+              rewrite(main)
             )
           case None =>
             Warning("Could not find a trigger for this expression:")
@@ -164,8 +168,8 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
               expr.result_type,
               expr.getDeclarations,
               null,
-              select,
-              main
+              rewrite(select),
+              rewrite(main)
             )
         }
       case _ =>
