@@ -205,18 +205,25 @@ class Main {
       mp.recv().getArg(0)
     }
 
-    val versionsTxt =
-      s"""Versions:
-         |- sbt: ${BuildInfo.sbtVersion}
-         |- scala: ${BuildInfo.scalaVersion}
-         |- silver: ${BuildInfo.silverCommit.getOrElse("unknown")}
-         |- silicon: ${BuildInfo.siliconCommit.getOrElse("unknown")}
-         |- carbon: ${BuildInfo.carbonCommit.getOrElse("unknown")}
-         |- z3: $z3VersionLine
-         |- boogie: $boogieVersionLine
-         |""".stripMargin
+    val viperVersions = if (Set(BuildInfo.silverCommit, BuildInfo.siliconCommit, BuildInfo.carbonCommit).size == 1) {
+      Seq(("viper", BuildInfo.silverCommit))
+    } else {
+      Seq(("silver", BuildInfo.silverCommit),
+        ("silicon", BuildInfo.siliconCommit),
+        ("carbon", BuildInfo.carbonCommit))
+    }
+    val viperVersionsTxt = viperVersions.map {
+      case (name, commitId) => s"- $name: ${commitId.getOrElse("unknown")}"
+    }
 
-    Output("%s", versionsTxt)
+    val allVersions = viperVersionsTxt ++ Seq(
+      s"- z3: $z3VersionLine",
+      s"- boogie: $boogieVersionLine"
+    )
+
+    val allVersionsTxt = ("Versions:" +: allVersions).mkString("\n")
+
+    Output("%s", allVersionsTxt)
 
     throw new HREExitException(0)
   }
