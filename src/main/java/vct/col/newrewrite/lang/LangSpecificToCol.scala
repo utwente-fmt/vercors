@@ -193,7 +193,7 @@ case class LangSpecificToCol() extends Rewriter {
           }, Nil)
 
           staticsClass.declareDefault(this)
-          val singleton = new Function(TClass(staticsClass.ref), Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null)
+          val singleton = new Function(TClass(staticsClass.ref), Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null)
           singleton.declareDefault(this)
           javaStaticsClassSuccessor(cls) = staticsClass
           javaStaticsFunctionSuccessor(cls) = singleton
@@ -283,7 +283,7 @@ case class LangSpecificToCol() extends Rewriter {
         case RefJavaField(decls, idx) =>
           if(decls.modifiers.contains(JavaStatic())) {
             Deref(
-              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil)(null),
+              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil, Nil)(null),
               ref = javaFieldsSuccessor.ref((decls, idx)),
             )(local.blame)
           } else {
@@ -335,19 +335,19 @@ case class LangSpecificToCol() extends Rewriter {
       implicit val o: Origin = inv.o
       inv.ref.get match {
         case RefFunction(decl) =>
-          FunctionInvocation(typedSucc[Function](decl), args.map(dispatch))(null)
+          FunctionInvocation(typedSucc[Function](decl), args.map(dispatch), Nil)(null)
         case RefProcedure(decl) =>
           ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil)(null)
         case RefPredicate(decl) =>
           PredicateApply(typedSucc[Predicate](decl), args.map(dispatch))
         case RefInstanceFunction(decl) =>
-          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceFunction](decl), args.map(dispatch))(null)
+          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceFunction](decl), args.map(dispatch), Nil)(null)
         case RefInstanceMethod(decl) =>
           MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil)(null)
         case RefInstancePredicate(decl) =>
           InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstancePredicate](decl), args.map(dispatch))
         case RefADTFunction(decl) =>
-          ADTFunctionInvocation(typedSucc[ADTFunction](decl), args.map(dispatch))
+          ADTFunctionInvocation(None, typedSucc[ADTFunction](decl), args.map(dispatch))
         case RefModelProcess(decl) =>
           ProcessApply(typedSucc[ModelProcess](decl), args.map(dispatch))
         case RefModelAction(decl) =>
@@ -355,7 +355,7 @@ case class LangSpecificToCol() extends Rewriter {
         case RefJavaMethod(decl) =>
           if(decl.modifiers.contains(JavaStatic())) {
             MethodInvocation(
-              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil)(null),
+              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil, Nil)(null),
               ref = typedSucc[InstanceMethod](decl),
               args = args.map(dispatch), outArgs = Nil)(null)
           } else {
@@ -368,24 +368,28 @@ case class LangSpecificToCol() extends Rewriter {
           f(dispatch(obj.get))(args.map(dispatch))
       }
 
-    case inv @ PVLInvocation(obj, _, args, givenArgs, yields) =>
+    case inv @ PVLInvocation(obj, _, args, typeArgs, givenArgs, yields) =>
       implicit val o: Origin = inv.o
 
       inv.ref.get match {
         case RefFunction(decl) =>
-          FunctionInvocation(typedSucc[Function](decl), args.map(dispatch))(null)
+          FunctionInvocation(typedSucc[Function](decl), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)
         case RefProcedure(decl) =>
-          ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil)(null)
+          ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil)(inv.blame)
         case RefPredicate(decl) =>
           PredicateApply(typedSucc[Predicate](decl), args.map(dispatch))
         case RefInstanceFunction(decl) =>
-          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceFunction](decl), args.map(dispatch))(null)
+          InstanceFunctionInvocation(
+            obj.map(dispatch).getOrElse(currentThis.head),
+            typedSucc[InstanceFunction](decl),
+            args.map(dispatch),
+            typeArgs.map(dispatch))(inv.blame)
         case RefInstanceMethod(decl) =>
-          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil)(null)
+          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil)(inv.blame)
         case RefInstancePredicate(decl) =>
           InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstancePredicate](decl), args.map(dispatch))
         case RefADTFunction(decl) =>
-          ADTFunctionInvocation(typedSucc[ADTFunction](decl), args.map(dispatch))
+          ADTFunctionInvocation(None, typedSucc[ADTFunction](decl), args.map(dispatch))
         case RefModelProcess(decl) =>
           ProcessApply(typedSucc[ModelProcess](decl), args.map(dispatch))
         case RefModelAction(decl) =>
@@ -410,7 +414,7 @@ case class LangSpecificToCol() extends Rewriter {
           ProcedureInvocation(consRef, args.map(dispatch), Nil)(null)
       }
 
-    case inv @ PVLNew(t @ PVLNamedType(_), args) =>
+    case inv @ PVLNew(t @ PVLNamedType(_, _), args) =>
       implicit val o: Origin = inv.o
 
       t.ref.get match {
@@ -469,7 +473,9 @@ case class LangSpecificToCol() extends Rewriter {
         case RefAxiomaticDataType(decl) => TAxiomatic(typedSucc[AxiomaticDataType](decl), Nil)
         case RefModel(decl) => TModel(typedSucc[Model](decl))
         case RefJavaClass(decl) => TClass(javaInstanceClassSuccessor.ref(decl))
+        case RefVariable(v) => TVar(v.ref)
       }
+    case t @ PVLNamedType(_, _) => dispatch(t.mimics)
     case other => rewriteDefault(other)
   }
 }

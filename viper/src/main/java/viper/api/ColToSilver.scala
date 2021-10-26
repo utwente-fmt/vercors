@@ -176,7 +176,7 @@ case class ColToSilver(program: col.Program) {
     case col.SilverCurFieldPerm(obj, field) => silver.CurrentPerm(silver.FieldAccess(exp(obj), fields(field.decl))(info=NodeInfo(e)))(info=NodeInfo(e))
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(info=NodeInfo(e))
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(info=NodeInfo(e))
-    case col.FunctionInvocation(f, args) =>
+    case col.FunctionInvocation(f, args, Nil) =>
       silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, silver.NoInfo, typ(f.decl.returnType), silver.NoTrafos)
     case col.SilverUnfolding(p, body) => silver.Unfolding(pred(p), exp(body))(info=NodeInfo(e))
     case col.Select(condition, whenTrue, whenFalse) => silver.CondExp(exp(condition), exp(whenTrue), exp(whenFalse))(info=NodeInfo(e))

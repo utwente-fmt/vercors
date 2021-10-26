@@ -138,7 +138,7 @@ case class RefInstanceFunction(decl: InstanceFunction) extends Referrable with S
 case class RefInstanceMethod(decl: InstanceMethod) extends Referrable with SpecInvocationTarget
 case class RefInstancePredicate(decl: InstancePredicate) extends Referrable with SpecInvocationTarget
 case class RefField(decl: Field) extends Referrable with PVLNameTarget with PVLDerefTarget
-case class RefVariable(decl: Variable) extends Referrable with SpecNameTarget
+case class RefVariable(decl: Variable) extends Referrable with SpecNameTarget with SpecTypeNameTarget
 case class RefLabelDecl(decl: LabelDecl) extends Referrable
 case class RefParBlockDecl(decl: ParBlockDecl) extends Referrable
 case class RefParInvariantDecl(decl: ParInvariantDecl) extends Referrable

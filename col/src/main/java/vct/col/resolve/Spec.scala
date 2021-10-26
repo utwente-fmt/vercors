@@ -97,4 +97,14 @@ case object Spec {
     ctx.stack.flatten.collectFirst {
       case ref @ RefParInvariantDecl(decl) if ref.name == name => decl
     }
+
+  def findAdt(ctx: ReferenceResolutionContext, name: String): Option[AxiomaticDataType] =
+    ctx.stack.flatten.collectFirst {
+      case ref @ RefAxiomaticDataType(decl) if ref.name == name => decl
+    }
+
+  def findAdtFunction(decl: AxiomaticDataType, name: String): Option[ADTFunction] =
+    decl.decls.flatMap(Referrable.from).collectFirst {
+      case ref @ RefADTFunction(f) if ref.name == name => f
+    }
 }

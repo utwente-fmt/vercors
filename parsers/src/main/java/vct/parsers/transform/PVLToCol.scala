@@ -199,15 +199,16 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit expr: NewExprContext): Expr = expr match {
-    case NewExpr0(_, name, Call0(given, args, yields)) => PVLNew(convert(name), convert(args))(blame(expr))
+    case NewExpr0(_, name, Call0(typeArgs, given, args, yields)) => PVLNew(convert(name), convert(args))(blame(expr))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
     case NewExpr2(inner) => convert(inner)
   }
 
   def convert(implicit expr: PostfixExprContext): Expr = expr match {
     case PostfixExpr0(obj, _, field, None) => PVLDeref(convert(obj), convert(field))(blame(expr))
-    case PostfixExpr0(obj, _, field, Some(Call0(given, args, yields))) =>
-      PVLInvocation(Some(convert(obj)), convert(field), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
+    case PostfixExpr0(obj, _, field, Some(Call0(typeArgs, given, args, yields))) =>
+      PVLInvocation(Some(convert(obj)), convert(field), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
+        convertGiven(given), convertYields(yields))(blame(expr))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))
     case PostfixExpr2(obj, specOp) => convert(specOp, convert(obj))
     case PostfixExpr3(inner) => convert(inner)
@@ -220,8 +221,10 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case Unit3(n) => Integer.parseInt(n)
     case Unit4(_, inner, _) => convert(inner)
     case Unit5(id, None) => convertExpr(id)
-    case Unit5(id, Some(Call0(given, args, yields))) =>
-      PVLInvocation(None, convert(id), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
+    case Unit5(id, Some(Call0(typeArgs, given, args, yields))) =>
+      PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
+        convertGiven(given), convertYields(yields))(blame(expr))
+    case Unit6(inner) => convert(inner)
   }
 
   def convert(implicit stat: StatementContext): Statement = stat match {
@@ -391,6 +394,11 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
       FuncTools.repeat(TArray(_), dims.map(convert(_)).getOrElse(0), convert(inner))
   }
 
+  def convert(implicit ts: TypeListContext): Seq[Type] = ts match {
+    case TypeList0(t) => Seq(convert(t))
+    case TypeList1(t, _, ts) => convert(t) +: convert(ts)
+  }
+
   def convert(implicit dims: TypeDimsContext): Int = dims match {
     case TypeDims0(dims) => dims.size
     case TypeDims1(dims) => dims.size
@@ -408,7 +416,11 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit t: ClassTypeContext): Type = t match {
-    case ClassType0(name, typeArgs) => PVLNamedType(convert(name))
+    case ClassType0(name, typeArgs) => PVLNamedType(convert(name), typeArgs.map(convert(_)).getOrElse(Nil))
+  }
+
+  def convert(implicit ts: TypeArgsContext): Seq[Type] = ts match {
+    case TypeArgs0(_, ts, _) => convert(ts)
   }
 
   def convert(implicit ids: IdentifierListContext): Seq[String] = ids match {
@@ -634,6 +646,11 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case ValIdList1(id, _, ids) => convert(id) +: convert(ids)
   }
 
+  def convert(implicit ts: ValTypeListContext): Seq[Type] = ts match {
+    case ValTypeList0(t) => Seq(convert(t))
+    case ValTypeList1(t, _, ts) => convert(t) +: convert(ts)
+  }
+
   def convert(implicit impOp: ValImpOpContext, left: Expr, right: Expr): Expr = impOp match {
     case ValImpOp0(_) => Wand(left, right)(origin(impOp))
     case ValImpOp1(_) => Implies(left, right)(origin(impOp))
@@ -730,12 +747,17 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
         Seq(new Predicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))
         (SourceNameOrigin(convert(name), origin(decl)))))
-    case ValFunction(contract, modifiers, _, t, name, _, args, _, definition) =>
+    case ValFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c =>
         withModifiers(modifiers, m => {
           val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
-          new Function(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
-            c.consumeApplicableContract(), m.consume(m.inline))(blame(decl))(namedOrigin)
+          new Function(
+            convert(t),
+            args.map(convert(_)).getOrElse(Nil),
+            typeArgs.map(convert(_)).getOrElse(Nil),
+            convert(definition),
+            c.consumeApplicableContract(),
+            m.consume(m.inline))(blame(decl))(namedOrigin)
         })
       ))
     case ValModel(_, name, _, decls, _) =>
@@ -759,10 +781,14 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
           mods.consume(mods.threadLocal), mods.consume(mods.inline))(
           SourceNameOrigin(convert(name), origin(decl))))
       }))
-    case ValInstanceFunction(contract, modifiers, _, t, name, _, args, _, definition) =>
+    case ValInstanceFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c => {
         withModifiers(modifiers, m => {
-          transform(new InstanceFunction(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
+          transform(new InstanceFunction(
+            convert(t),
+            args.map(convert(_)).getOrElse(Nil),
+            typeArgs.map(convert(_)).getOrElse(Nil),
+            convert(definition),
             c.consumeApplicableContract(), m.consume(m.inline))(
             blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
@@ -790,8 +816,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
       })
   }
 
-  def convert(implicit ts: ValAdtTypeArgsContext): Seq[Variable] = ts match {
-    case ValAdtTypeArgs0(_, names, _) =>
+  def convert(implicit ts: ValTypeVarsContext): Seq[Variable] = ts match {
+    case ValTypeVars0(_, names, _) =>
       convert(names).map(name => new Variable(TType(TAny()))(SourceNameOrigin(name, origin(ts))))
   }
 
@@ -844,7 +870,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => ??(e)
-    case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) => ??(e)
+    case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) =>
+      LiteralTuple(Seq(convert(t1), convert(t2)), Seq(convert(v1), convert(v2)))
     case ValLiteralSeq(_, exprs, _) => UntypedLiteralSeq(convert(exprs))
     case ValLiteralSet(_, exprs, _) => UntypedLiteralSet(convert(exprs))
     case ValLiteralBag(_, exprs, _) => UntypedLiteralBag(convert(exprs))
@@ -942,5 +969,11 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case ValGtid(_) => ???
     case ValTrue(_) => true
     case ValFalse(_) => false
+  }
+
+  def convert(implicit inv: ValGenericAdtInvocationContext): Expr = inv match {
+    case ValGenericAdtInvocation0(adt, _, typeArgs, _, _, func, _, args, _) =>
+      ADTFunctionInvocation(Some((new UnresolvedRef[AxiomaticDataType](convert(adt)), convert(typeArgs))),
+        new UnresolvedRef[ADTFunction](convert(func)), args.map(convert(_)).getOrElse(Nil))
   }
 }

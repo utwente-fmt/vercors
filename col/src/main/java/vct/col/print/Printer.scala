@@ -757,15 +757,15 @@ case class Printer(out: Appendable,
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case InstancePredicateApply(obj, ref, args) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case ADTFunctionInvocation(ref, args) =>
+    case ADTFunctionInvocation(tArgs, ref, args) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case ProcedureInvocation(ref, args, outArgs) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case FunctionInvocation(ref, args) =>
+    case FunctionInvocation(ref, args, typeArgs) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case MethodInvocation(obj, ref, args, outArgs) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case InstanceFunctionInvocation(obj, ref, args) =>
+    case InstanceFunctionInvocation(obj, ref, args, typeArgs) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case UPlus(arg) =>
       (phrase("+", assoc(90, arg)), 90)
@@ -909,7 +909,7 @@ case class Printer(out: Appendable,
       intersperse(phrase(space, "|", space), types.map(NodePhrase))
     case JavaTClass(names) =>
       intersperse(".", names.map(_._1).map(Text))
-    case PVLNamedType(name) => phrase(name)
+    case PVLNamedType(name, typeArgs) => phrase(name)
     case TVoid() => phrase("void")
     case TBool() => syntax(
       C -> phrase("_Bool"),

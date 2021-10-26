@@ -220,7 +220,11 @@ sealed trait ContractApplicable extends Applicable {
 
 sealed trait AbstractFunction extends ContractApplicable {
   override def body: Option[Expr]
-  override def check(context: CheckContext): Seq[CheckError] = body.toSeq.flatMap(_.checkSubType(returnType))
+  override def check(context: CheckContext): Seq[CheckError] =
+    body.toSeq.flatMap(_.checkSubType(returnType))
+  override def declarations: Seq[Declaration] = super.declarations ++ typeArgs
+
+  def typeArgs: Seq[Variable]
 }
 
 sealed trait AbstractMethod extends ContractApplicable {
@@ -237,7 +241,8 @@ sealed trait AbstractMethod extends ContractApplicable {
   })
 }
 
-class Function(val returnType: Type, val args: Seq[Variable], val body: Option[Expr], val contract: ApplicableContract, val inline: Boolean = false)
+class Function(val returnType: Type, val args: Seq[Variable], val typeArgs: Seq[Variable],
+               val body: Option[Expr], val contract: ApplicableContract, val inline: Boolean = false)
               (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends GlobalDeclaration with AbstractFunction
 
@@ -253,7 +258,8 @@ class Predicate(val args: Seq[Variable], val body: Option[Expr],
                 val threadLocal: Boolean = false, val inline: Boolean = false)(implicit val o: Origin)
   extends GlobalDeclaration with AbstractPredicate
 
-class InstanceFunction(val returnType: Type, val args: Seq[Variable], val body: Option[Expr], val contract: ApplicableContract, val inline: Boolean)
+class InstanceFunction(val returnType: Type, val args: Seq[Variable], val typeArgs: Seq[Variable],
+                       val body: Option[Expr], val contract: ApplicableContract, val inline: Boolean)
                       (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends ClassDeclaration with AbstractFunction
 

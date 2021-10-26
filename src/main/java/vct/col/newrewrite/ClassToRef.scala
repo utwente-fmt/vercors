@@ -35,6 +35,7 @@ case class ClassToRef() extends Rewriter {
                 thisVar.declareDefault(this)
                 function.args.foreach(dispatch)
               },
+              typeArgs = collectInScope(variableScopes) { function.typeArgs.foreach(dispatch) },
               body = function.body.map(dispatch),
               contract = dispatch(function.contract),
               inline = function.inline,
@@ -85,8 +86,8 @@ case class ClassToRef() extends Rewriter {
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args) =>
       PredicateApply(predicateSucc.ref(pred), dispatch(obj) +: args.map(dispatch))(inv.o)
-    case inv @ InstanceFunctionInvocation(obj, Ref(func), args) =>
-      FunctionInvocation(functionSucc.ref(func), dispatch(obj) +: args.map(dispatch))(inv.blame)(inv.o)
+    case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs) =>
+      FunctionInvocation(functionSucc.ref(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
     case AmbiguousThis() =>
       Local(diz.head.ref)(e.o)
     case deref @ Deref(obj, Ref(field)) =>

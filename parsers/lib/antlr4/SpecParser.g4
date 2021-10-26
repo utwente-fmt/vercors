@@ -32,6 +32,11 @@ valIdList
  | langId ',' valIdList
  ;
 
+valTypeList
+ : langType
+ | langType ',' valTypeList
+ ;
+
 valContractClause
  : 'modifies' valIdList ';'
  | 'accessible' valIdList ';'
@@ -239,6 +244,10 @@ valReserved
  | 'false' # valFalse
  ;
 
+valGenericAdtInvocation
+ : langId '<' valTypeList '>' '.' langId '(' valExpressionList? ')'
+ ;
+
 valType
  : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref') # valPrimaryType
  | 'seq' '<' langType '>' # valSeqType
@@ -253,15 +262,15 @@ valType
 valGlobalDeclaration
  : 'axiom' langId '{' langExpr '}' # valAxiom
  | valModifier* 'resource' langId '(' valArgList? ')' valDef # valPredicate
- | valContractClause* valModifier* 'pure' langType langId '(' valArgList? ')' valDef # valFunction
+ | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valDef # valFunction
  | 'model' langId '{' valModelDeclaration* '}' # valModel
  | 'ghost' langGlobalDecl # valGhostDecl
- | 'adt' langId valAdtTypeArgs? '{' valAdtDeclaration* '}' # valAdtDecl
+ | 'adt' langId valTypeVars? '{' valAdtDeclaration* '}' # valAdtDecl
  ;
 
 valClassDeclaration
  : valModifier* 'resource' langId '(' valArgList? ')' valDef # valInstancePredicate
- | valContractClause* valModifier* 'pure' langType langId '(' valArgList? ')' valDef # valInstanceFunction
+ | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valDef # valInstanceFunction
  | 'ghost' langClassDecl # valInstanceGhostDecl
  ;
 
@@ -271,7 +280,7 @@ valModelDeclaration
  | langType langId ';' # valModelField
  ;
 
-valAdtTypeArgs
+valTypeVars
  : '<' valIdList '>'
  ;
 

@@ -31,6 +31,20 @@ sealed trait Type extends NodeFamily {
   /*def asVector: Option[TVector] = optMatch(mimics) { case vec: TVector => vec }*/
   def asMatrix: Option[TMatrix] = optMatch(mimics) { case mat: TMatrix => mat }
   def asModel: Option[TModel] = optMatch(mimics) { case model: TModel => model }
+
+  def particularize(substitutions: Map[Variable, Type]): Type = {
+    case object Particularize extends Rewriter {
+      override def dispatch(t: Type): Type = t.mimics match {
+        case TVar(Ref(v)) => substitutions(v)
+        case _ => t match {
+          case t: PVLNamedType => t
+          case t: JavaTClass => t
+          case other => rewriteDefault(other)
+        }
+      }
+    }
+    Particularize.dispatch(this)
+  }
 }
 
 trait ExtraType extends Type
@@ -256,3 +270,18 @@ case class TAxiomatic(adt: Ref[AxiomaticDataType], args: Seq[Type])(implicit val
 
 // the type type is covariant in its type (yes)
 case class TType(t: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TType](Seq(t))
+
+case class TVar(ref: Ref[Variable])(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override def check(context: CheckContext): Seq[CheckError] =
+    context.checkInScope(this, ref) ++
+      (if(TType(TAny()).superTypeOf(ref.decl.t)) Nil
+      else Seq(GenericTypeError(this, TType(TAny()))))
+
+  override protected def subTypeOfImpl(other: Type): Boolean =
+    ref.decl.t match {
+      case TType(inner) => other.superTypeOf(inner)
+    }
+
+  override protected def superTypeOfImpl(other: Type): Boolean =
+    this == other
+}

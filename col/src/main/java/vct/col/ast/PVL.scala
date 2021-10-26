@@ -4,13 +4,14 @@ import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, PVLDerefTarget, PVL
 import vct.result.VerificationResult
 
 sealed trait PVLType extends ExtraType
-case class PVLNamedType(name: String)(implicit val o: Origin = DiagnosticOrigin) extends PVLType {
+case class PVLNamedType(name: String, typeArgs: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends PVLType {
   var ref: Option[PVLTypeNameTarget] = None
 
   override def mimics: Type = ref.get match {
-    case RefAxiomaticDataType(decl) => TAxiomatic(decl.ref, Nil)
+    case RefAxiomaticDataType(decl) => TAxiomatic(decl.ref, typeArgs)
     case RefModel(decl) => TModel(decl.ref)
     case RefClass(decl) => TClass(decl.ref)
+    case RefVariable(v) => TVar(v.ref)
   }
 
   override protected def superTypeOfImpl(other: Type): Boolean =
@@ -40,15 +41,16 @@ case class PVLDeref(obj: Expr, field: String)(val blame: Blame[DerefInsufficient
   }
 }
 
-case class PVLInvocation(obj: Option[Expr], method: String, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
+case class PVLInvocation(obj: Option[Expr], method: String, args: Seq[Expr], typeArgs: Seq[Type],
+                         givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
                         (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends PVLExpr with NoCheck {
   var ref: Option[PVLInvocationTarget] = None
 
   override def t: Type = ref.get match {
-    case RefFunction(decl) => decl.returnType
+    case RefFunction(decl) => decl.returnType.particularize(decl.typeArgs.zip(typeArgs).toMap)
     case RefProcedure(decl) => decl.returnType
     case RefPredicate(_) => TResource()
-    case RefInstanceFunction(decl) => decl.returnType
+    case RefInstanceFunction(decl) => decl.returnType.particularize(decl.typeArgs.zip(typeArgs).toMap)
     case RefInstanceMethod(decl) => decl.returnType
     case RefInstancePredicate(_) => TResource()
     case RefADTFunction(decl) => decl.returnType

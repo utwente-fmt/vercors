@@ -116,6 +116,7 @@ case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: O
     case RefAxiomaticDataType(decl) => TAxiomatic(decl.ref, Nil)
     case RefModel(decl) => TModel(decl.ref)
     case RefJavaClass(_) => this
+    case RefVariable(v) => TVar(v.ref)
   }
 
   override def superTypeOfImpl(other: Type): Boolean =

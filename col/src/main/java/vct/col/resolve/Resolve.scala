@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{AmbiguousResult, AmbiguousThis, Applicable, Break, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, Continue, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass}
+import vct.col.ast.{ADTFunctionInvocation, AmbiguousResult, AmbiguousThis, Applicable, Break, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, Continue, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass}
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -27,6 +27,8 @@ case object ResolveTypes {
       ctx.replace(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns: JavaNamespace =>
       ctx.replace(stack=ns.declarations.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))
+    case decl: Declarator =>
+      ctx.replace(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
   }
 
@@ -39,7 +41,7 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
-    case t @ PVLNamedType(name) =>
+    case t @ PVLNamedType(name, typeArgs) =>
       t.ref = Some(PVL.findTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("class", name, t)))
     case _ =>
@@ -132,10 +134,20 @@ case object ResolveReferences {
         case Some(obj) => Java.findMethod(obj, method, args)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
-    case inv @ PVLInvocation(None, method, args, _, _) =>
-      inv.ref = Some(PVL.findMethod(method, args, ctx).getOrElse(throw NoSuchNameError("method", method, inv)))
-    case inv @ PVLInvocation(Some(obj), method, args, _, _) =>
-      inv.ref = Some(PVL.findInstanceMethod(obj, method, args).getOrElse(throw NoSuchNameError("method", method, inv)))
+    case inv @ PVLInvocation(None, method, args, typeArgs, _, _) =>
+      inv.ref = Some(PVL.findMethod(method, args, typeArgs, ctx).getOrElse(throw NoSuchNameError("method", method, inv)))
+    case inv @ PVLInvocation(Some(obj), method, args, typeArgs, _, _) =>
+      inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs).getOrElse(throw NoSuchNameError("method", method, inv)))
+    case inv @ ADTFunctionInvocation(typeArgs, ref, args) =>
+      typeArgs match {
+        case Some((adt, typeArgs)) =>
+          // Fully-qualified external invocation
+          adt.tryResolve(name => Spec.findAdt(ctx, name).getOrElse(throw NoSuchNameError("adt", name, inv)))
+          inv.ref.tryResolve(name => Spec.findAdtFunction(adt.decl, name).getOrElse(throw NoSuchNameError("function", name, inv)))
+        case None =>
+          // Non-qualified internal invocation
+          ???
+      }
 
     case goto @ CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))

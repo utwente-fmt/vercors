@@ -1,15 +1,15 @@
-adt zfrac {
-  pure rational zfrac_val(f: zfrac);
+adt `zfrac` {
+  pure rational zfrac_val(`zfrac` f);
 
   axiom
-    (\forall zfrac f; true;
-      (\forall zfrac g; true;
+    (\forall `zfrac` f; true;
+      (\forall `zfrac` g; true;
         {:zfrac_val(f):} == {:zfrac_val(g):} ==> f == g));
 
   axiom
-    (\forall zfrac f; true; none <= {:zfrac_val(f):} <= write);
+    (\forall `zfrac` f; true; none <= {:zfrac_val(f):} && zfrac_val(f) <= write);
 }
 
-requires none <= perm <= write;
-ensures zfrac_val(\result) == perm;
-pure zfrac new_zfrac(perm: rational);
+requires none <= p && p <= write;
+ensures `zfrac`.zfrac_val(\result) == p;
+pure `zfrac` new_zfrac(rational p);

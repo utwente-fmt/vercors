@@ -875,6 +875,11 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValIdList1(id, _, ids) => convert(id) +: convert(ids)
   }
 
+  def convert(implicit ts: ValTypeListContext): Seq[Type] = ts match {
+    case ValTypeList0(t) => Seq(convert(t))
+    case ValTypeList1(t, _, ts) => convert(t) +: convert(ts)
+  }
+
   def convert(implicit impOp: ValImpOpContext, left: Expr, right: Expr): Expr = impOp match {
     case ValImpOp0(_) => Wand(left, right)(origin(impOp))
     case ValImpOp1(_) => Implies(left, right)(origin(impOp))
@@ -971,12 +976,17 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
         Seq(new Predicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))
         (SourceNameOrigin(convert(name), origin(decl)))))
-    case ValFunction(contract, modifiers, _, t, name, _, args, _, definition) =>
+    case ValFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c =>
         withModifiers(modifiers, m => {
           val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
-          new Function(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
-            c.consumeApplicableContract(), m.consume(m.inline))(blame(decl))(namedOrigin)
+          new Function(
+            convert(t),
+            args.map(convert(_)).getOrElse(Nil),
+            typeArgs.map(convert(_)).getOrElse(Nil),
+            convert(definition),
+            c.consumeApplicableContract(),
+            m.consume(m.inline))(blame(decl))(namedOrigin)
         })
       ))
     case ValModel(_, name, _, decls, _) =>
@@ -1000,10 +1010,14 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
           mods.consume(mods.threadLocal), mods.consume(mods.inline))(
           SourceNameOrigin(convert(name), origin(decl))))
       }))
-    case ValInstanceFunction(contract, modifiers, _, t, name, _, args, _, definition) =>
+    case ValInstanceFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c => {
         withModifiers(modifiers, m => {
-          transform(new InstanceFunction(convert(t), args.map(convert(_)).getOrElse(Nil), convert(definition),
+          transform(new InstanceFunction(
+            convert(t),
+            args.map(convert(_)).getOrElse(Nil),
+            typeArgs.map(convert(_)).getOrElse(Nil),
+            convert(definition),
             c.consumeApplicableContract(), m.consume(m.inline))(
             blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
@@ -1020,8 +1034,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
           col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
-          if (contract.size > 0) blameProvider(contract(0).start, contract.last.stop) else blameProvider(decl)
-          )(SourceNameOrigin(convert(name), origin(decl)))
+          SourceNameOrigin(convert(name), origin(decl)))
       })
     case ValModelAction(contract, _, name, _, args, _, _) =>
       withContract(contract, c => {
@@ -1032,8 +1045,8 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       })
   }
 
-  def convert(implicit ts: ValAdtTypeArgsContext): Seq[Variable] = ts match {
-    case ValAdtTypeArgs0(_, names, _) =>
+  def convert(implicit ts: ValTypeVarsContext): Seq[Variable] = ts match {
+    case ValTypeVars0(_, names, _) =>
       convert(names).map(name => new Variable(TType(TAny()))(SourceNameOrigin(name, origin(ts))))
   }
 
@@ -1057,6 +1070,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       case "zfrac" => TZFraction()
       case "rational" => TRational()
       case "bool" => TBool()
+      case "ref" => TRef()
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
@@ -1183,5 +1197,11 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValGtid(_) => ???
     case ValTrue(_) => true
     case ValFalse(_) => false
+  }
+
+  def convert(implicit inv: ValGenericAdtInvocationContext): Expr = inv match {
+    case ValGenericAdtInvocation0(adt, _, typeArgs, _, _, func, _, args, _) =>
+      ADTFunctionInvocation(Some((new UnresolvedRef[AxiomaticDataType](convert(adt)), convert(typeArgs))),
+        new UnresolvedRef[ADTFunction](convert(func)), args.map(convert(_)).getOrElse(Nil))
   }
 }

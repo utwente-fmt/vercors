@@ -1,7 +1,7 @@
 package vct.col.resolve
 
 import vct.col.ast
-import vct.col.ast.{ADTFunction, Class, CovariantType, Expr, ExtraType, LeafType, PVLConstructor, PVLNamedType, TAny, TBoundedInt, TClass, TFraction, TInt, TModel, TNotAValue, TNull, TRational, TResource, TZFraction}
+import vct.col.ast.{ADTFunction, Class, CovariantType, Expr, ExtraType, LeafType, PVLConstructor, PVLNamedType, TAny, TBoundedInt, TClass, TFraction, TInt, TModel, TNotAValue, TNull, TRational, TResource, TZFraction, Type}
 
 case object PVL {
   def findConstructor(cls: ast.Class, args: Seq[Expr]): Option[PVLConstructor] =
@@ -34,7 +34,7 @@ case object PVL {
       case _ => Spec.builtinField(obj, name)
     }
 
-  def findInstanceMethod(obj: Expr, method: String, args: Seq[Expr]): Option[PVLInvocationTarget] =
+  def findInstanceMethod(obj: Expr, method: String, args: Seq[Expr], typeArgs: Seq[Type]): Option[PVLInvocationTarget] =
     obj.t.mimics match {
       case t: TNotAValue => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
@@ -54,7 +54,7 @@ case object PVL {
       case _ => Spec.builtinInstanceMethod(obj, method)
     }
 
-  def findMethod(method: String, args: Seq[Expr], ctx: ReferenceResolutionContext): Option[PVLInvocationTarget] =
+  def findMethod(method: String, args: Seq[Expr], typeArgs: Seq[Type], ctx: ReferenceResolutionContext): Option[PVLInvocationTarget] =
     ctx.stack.flatten.collectFirst {
       case ref: RefFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefProcedure if ref.name == method && Util.compat(args, ref.decl.args) => ref

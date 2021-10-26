@@ -3,6 +3,8 @@ package vct.col.ast
 import vct.col.print.Printer
 import vct.result.VerificationResult.SystemError
 
+import scala.runtime.ScalaRunTime
+
 case class Program(declarations: Seq[GlobalDeclaration])(implicit val o: Origin) extends NodeFamily with Declarator {
   def check: Seq[CheckError] =
     checkTrans(CheckContext())
@@ -42,7 +44,13 @@ trait Node {
       printer.print(this)
       sb.toString
     } catch {
-      case _: Throwable => super.toString
+      // If the printer has a bug, try to print a useful representation
+      case t: Throwable => (this match {
+        // Case classes are automatically a product type, which produces the nice Type(arg1, arg2) representation.
+        case p: Product => ScalaRunTime._toString(p)
+        // Otherwise, fall back to the ugly Type@hexAdress notation
+        case _ => super.toString
+      }) + s" (err: ${t.getMessage})"
     }
   }
 }

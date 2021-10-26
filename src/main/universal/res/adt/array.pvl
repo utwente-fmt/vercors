@@ -8,10 +8,10 @@ adt array {
   axiom
     (\forall array a; true;
       (\forall int i; true;
-        loc_inv_1({:array_loc(a, i):}) == a && loc_inv_2(loc(a, i)) == i));
+        loc_inv_1({:array_loc(a, i):}) == a && loc_inv_2(array_loc(a, i)) == i));
 
   axiom (\forall array a; true; {:alen(a):} >= 0);
 }
 
-requires 0 <= i && i < alen(a);
-pure ref aloc(array a, int i) = array_loc(a, i);
+requires 0 <= i && i < `array`.alen(a);
+pure ref aloc(array a, int i) = `array`.array_loc(a, i);

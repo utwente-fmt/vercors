@@ -132,9 +132,10 @@ unit
  | NUMBER
  | '(' expr ')'
  | identifier call?
+ | valGenericAdtInvocation
  ;
 
-call : valGiven? tuple valYields?;
+call : typeArgs? valGiven? tuple valYields?;
 tuple : '(' exprList? ')';
 
 block : '{' statement* '}' ;
@@ -211,6 +212,10 @@ nonArrayType
  ;
 
 type : nonArrayType typeDims? ;
+typeList
+  : type
+  | type ',' typeList
+  ;
 
 typeDims
  : quantifiedDim+
@@ -221,7 +226,7 @@ newDims : quantifiedDim+ ;
 quantifiedDim : '[' expr ']' ;
 anonDim : '[' ']' ;
 classType : identifier typeArgs?;
-typeArgs : '<' exprList '>';
+typeArgs : '<' typeList '>';
 
 identifierList
  : identifier

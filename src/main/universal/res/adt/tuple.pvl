@@ -1,7 +1,7 @@
-adt tuple<A, B> {
-  pure tuple<A, B> tup(A a, B b);
-  pure A fst(tuple<A, B> t);
-  pure B snd(tuple<A, B> t);
+adt `tuple`<A, B> {
+  pure `tuple`<A, B> tup(A a, B b);
+  pure A fst(`tuple`<A, B> t);
+  pure B snd(`tuple`<A, B> t);
 
   axiom
     (\forall A a; true;
