@@ -12,6 +12,9 @@ import vct.col.ast.util.AbstractRewriter
 case class UnrecognizedExpression(node: ASTNode) extends Exception
 
 object Triggers {
+  val allowedInTrigger = Set(Scale, /*sequence*/ Subscript, Member, Size, UPlus, Head, Tail, SubSet, SubSetEq, Member, Old)
+  val forbiddenInTrigger = Set(UMinus, Plus, Mult, FloorDiv, Div, Mod, And, Or, Not, Implies, IFF, EQ, NEQ, GT, GTE, LT, LTE, ITE, Star, Wand, Perm)
+
   /**
    * Collect potentially admissible patterns from an expression
    * @param node the expression to collect
@@ -36,13 +39,15 @@ object Triggers {
       val myPattern = if(childOK) Set(node) else Set()
       (childPatterns.map(_._1).foldLeft(Set[ASTNode]())(_ ++ _) ++ myPattern, childOK)
     case OperatorExpression(op, args) =>
-      if(Set(Scale, /*sequence*/ Subscript, Member, Size).contains(op)) {
+      if (allowedInTrigger.contains(op)) {
         val childPatterns = args.map(collectPatterns)
         val childOK = childPatterns.forall(_._2)
         val myPattern = if(childOK) Set(node) else Set()
         (childPatterns.foldLeft(Set[ASTNode]())(_ ++ _._1) ++ myPattern, childOK)
-      } else {
+      } else if (forbiddenInTrigger.contains(op)) {
         (args.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
+      } else {
+        throw UnrecognizedExpression(node)
       }
     case Dereference(obj, _) =>
       collectPatterns(obj) match {
