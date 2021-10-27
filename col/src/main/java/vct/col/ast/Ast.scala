@@ -50,7 +50,7 @@ trait Node {
         case p: Product => ScalaRunTime._toString(p)
         // Otherwise, fall back to the ugly Type@hexAdress notation
         case _ => super.toString
-      }) + s" (err: ${t.getMessage})"
+      }) + s" (err: ${t.getClass.getCanonicalName})"
     }
   }
 }

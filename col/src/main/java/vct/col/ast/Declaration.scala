@@ -215,16 +215,18 @@ sealed trait ContractApplicable extends Applicable {
   def contract: ApplicableContract
   def blame: Blame[PostconditionFailed]
   override def declarations: Seq[Declaration] =
-    super.declarations ++ contract.givenArgs ++ contract.yieldsArgs
+    super.declarations ++ contract.givenArgs ++ contract.yieldsArgs ++ typeArgs
+
+  // PB: Not necessarily the logical place to introduce type arguments, but it happens to be correct: as many places
+  // as possible, but not predicates (for now), and ADT functions are dealt with in a special way: they inherit the
+  // type parameters from the ADT itself.
+  def typeArgs: Seq[Variable]
 }
 
 sealed trait AbstractFunction extends ContractApplicable {
   override def body: Option[Expr]
   override def check(context: CheckContext): Seq[CheckError] =
     body.toSeq.flatMap(_.checkSubType(returnType))
-  override def declarations: Seq[Declaration] = super.declarations ++ typeArgs
-
-  def typeArgs: Seq[Variable]
 }
 
 sealed trait AbstractMethod extends ContractApplicable {
@@ -247,7 +249,7 @@ class Function(val returnType: Type, val args: Seq[Variable], val typeArgs: Seq[
   extends GlobalDeclaration with AbstractFunction
 
 class Procedure(val returnType: Type,
-                val args: Seq[Variable], val outArgs: Seq[Variable],
+                val args: Seq[Variable], val outArgs: Seq[Variable], val typeArgs: Seq[Variable],
                 val body: Option[Statement],
                 val contract: ApplicableContract,
                 val inline: Boolean = false, val pure: Boolean = false)
@@ -264,7 +266,7 @@ class InstanceFunction(val returnType: Type, val args: Seq[Variable], val typeAr
   extends ClassDeclaration with AbstractFunction
 
 class InstanceMethod(val returnType: Type,
-                     val args: Seq[Variable], val outArgs: Seq[Variable],
+                     val args: Seq[Variable], val outArgs: Seq[Variable], val typeArgs: Seq[Variable],
                      val body: Option[Statement],
                      val contract: ApplicableContract,
                      val inline: Boolean = false, val pure: Boolean = false)

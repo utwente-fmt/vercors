@@ -89,7 +89,7 @@ case class CheckProcessAlgebra() extends Rewriter {
       new InstanceMethod(
         TVoid(),
         args,
-        Seq(),
+        Nil, Nil,
         None, // TODO: Body
         ApplicableContract(
           // TODO: Is reusing fieldPerms allowed?
@@ -116,8 +116,7 @@ case class CheckProcessAlgebra() extends Rewriter {
     case p @ ProcessApply(process, args) => MethodInvocation(
         AmbiguousThis()(p.o),
         processSuccessors.ref(process.decl),
-        args.map(dispatch(_)),
-        Seq()
+        args.map(dispatch(_)), Nil, Nil,
       )(null)(p.o)
 
     case modelDeref: ModelDeref =>

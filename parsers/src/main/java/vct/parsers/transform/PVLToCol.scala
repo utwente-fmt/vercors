@@ -21,9 +21,9 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit decl: ProgramDeclContext): Seq[GlobalDeclaration] = decl match {
-    case ProgramDecl0(cls) => Seq(convert(cls))
-    case ProgramDecl1(method) => Seq(convertProcedure(method))
-    case ProgramDecl2(valDecl) => convert(valDecl)
+    case ProgramDecl0(valDecl) => convert(valDecl)
+    case ProgramDecl1(cls) => Seq(convert(cls))
+    case ProgramDecl2(method) => Seq(convertProcedure(method))
   }
 
   def convertProcedure(implicit method: MethodContext): Procedure = method match {
@@ -33,6 +33,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
           convert(returnType),
           args.map(convert(_)).getOrElse(Nil),
           outArgs = Nil,
+          typeArgs = Nil,
           convert(body),
           contract.consumeApplicableContract(),
           inline = mods.consume(mods.inline),
@@ -60,6 +61,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
           convert(returnType),
           args.map(convert(_)).getOrElse(Nil),
           outArgs = Nil,
+          typeArgs = Nil,
           convert(body),
           contract.consumeApplicableContract(),
           inline = mods.consume(mods.inline),

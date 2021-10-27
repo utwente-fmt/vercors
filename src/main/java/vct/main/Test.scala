@@ -1,6 +1,7 @@
 package vct.main
 
 import vct.col.ast.{CheckError, DiagnosticOrigin, IncomparableTypes, OutOfScopeError, Program, TypeError, TypeErrorText}
+import vct.col.newrewrite.ImportADT
 import vct.col.newrewrite.lang.LangSpecificToCol
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.parsers.{ParseResult, Parsers}
@@ -22,9 +23,9 @@ case object Test {
 
   def main(args: Array[String]): Unit = {
     try {
-      for(f <- new File("src/main/universal/res/adt").listFiles()) {
-        tryParse(Seq(f.toPath))
-      }
+//      for(f <- new File("src/main/universal/res/adt").listFiles()) {
+//        tryParse(Seq(f.toPath))
+//      }
 
 //      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
 //        if(c.files.asScala.forall(f =>

@@ -46,7 +46,7 @@ object AstBuildHelpers {
 
   def procedure(blame: Blame[PostconditionFailed],
                 returnType: Type = TVoid(),
-                args: Seq[Variable] = Nil, outArgs: Seq[Variable] = Nil,
+                args: Seq[Variable] = Nil, outArgs: Seq[Variable] = Nil, typeArgs: Seq[Variable] = Nil,
                 body: Option[Statement] = None,
                 requires: Expr = new BooleanValue(true)(DiagnosticOrigin), ensures: Expr = new BooleanValue(true)(DiagnosticOrigin),
                 contextEverywhere: Expr = new BooleanValue(true)(DiagnosticOrigin),
@@ -54,7 +54,7 @@ object AstBuildHelpers {
                 givenArgs: Seq[Variable] = Nil, yieldsArgs: Seq[Variable] = Nil,
                 inline: Boolean = false, pure: Boolean = false)
                (implicit o: Origin): Procedure =
-    new Procedure(returnType, args, outArgs, body,
+    new Procedure(returnType, args, outArgs, typeArgs, body,
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
       inline, pure)(blame)
 

@@ -52,6 +52,7 @@ case class ClassToRef() extends Rewriter {
                 method.args.foreach(dispatch)
               },
               outArgs = collectInScope(variableScopes) { method.outArgs.foreach(dispatch) },
+              typeArgs = collectInScope(variableScopes) { method.typeArgs.foreach(dispatch) },
               body = method.body.map(dispatch),
               contract = dispatch(method.contract),
               inline = method.inline,
@@ -78,11 +79,12 @@ case class ClassToRef() extends Rewriter {
   }
 
   override def dispatch(e: Expr): Expr = e match {
-    case inv @ MethodInvocation(obj, Ref(method), args, outArgs) =>
+    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
       ProcedureInvocation(
         ref = methodSucc.ref(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = inv.outArgs.map(r => typedSucc[Variable](r.decl)),
+        outArgs = outArgs.map(r => typedSucc[Variable](r.decl)),
+        typeArgs = typeArgs.map(dispatch),
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args) =>
       PredicateApply(predicateSucc.ref(pred), dispatch(obj) +: args.map(dispatch))(inv.o)

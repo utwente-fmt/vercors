@@ -16,9 +16,9 @@ object SimpleProgramGenerator {
   }
 
   def generateProgramWithSingleClassAndSingleMethod(body: Statement)(implicit origin: Origin = generateSimpleInputOrigin()): Program ={
-    val contract1 = generateSimpleApplicableContract
+    val contract1 = generateSimpleApplicableContract()
     val blame1 = origin
-    val method1 = new InstanceMethod(TVoid(), Seq(), Seq(), Option(body), contract1)(blame1)
+    val method1 = new InstanceMethod(TVoid(), Nil, Nil, Nil, Option(body), contract1)(blame1)
     val classNode1 = new Class(Seq(method1), Nil)
     Program(Seq(classNode1))
   }

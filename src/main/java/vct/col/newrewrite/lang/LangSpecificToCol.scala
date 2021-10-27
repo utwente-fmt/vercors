@@ -119,7 +119,7 @@ case class LangSpecificToCol() extends Rewriter {
             args = collectInScope(variableScopes) {
               cons.parameters.foreach(dispatch)
             },
-            outArgs = Nil,
+            outArgs = Nil, typeArgs = Nil,
             body = Some(Scope(Seq(resVar), Block(Seq(
               Assign(res, NewObject(ref)),
               fieldInit(res),
@@ -134,7 +134,7 @@ case class LangSpecificToCol() extends Rewriter {
         new InstanceMethod(
           returnType = dispatch(method.returnType),
           args = collectInScope(variableScopes) { method.parameters.foreach(dispatch) },
-          outArgs = Nil,
+          outArgs = Nil, typeArgs = Nil,
           body = method.body.map(dispatch),
           contract = dispatch(method.contract),
         )(null).succeedDefault(this, method)
@@ -216,7 +216,7 @@ case class LangSpecificToCol() extends Rewriter {
 
             pvlDefaultConstructor(cls) = new Procedure(
               TClass(typedSucc[Class](cls)),
-              Nil, Nil,
+              Nil, Nil, Nil,
               Some(Scope(Seq(resVar), Block(Seq(
                 Assign(res, NewObject(typedSucc[Class](cls))),
                 Return(res),
@@ -337,13 +337,13 @@ case class LangSpecificToCol() extends Rewriter {
         case RefFunction(decl) =>
           FunctionInvocation(typedSucc[Function](decl), args.map(dispatch), Nil)(null)
         case RefProcedure(decl) =>
-          ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil)(null)
+          ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
         case RefPredicate(decl) =>
           PredicateApply(typedSucc[Predicate](decl), args.map(dispatch))
         case RefInstanceFunction(decl) =>
-          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceFunction](decl), args.map(dispatch), Nil)(null)
+          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceFunction](decl), args.map(dispatch), typeParams.map(dispatch))(null)
         case RefInstanceMethod(decl) =>
-          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil)(null)
+          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
         case RefInstancePredicate(decl) =>
           InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstancePredicate](decl), args.map(dispatch))
         case RefADTFunction(decl) =>
@@ -357,12 +357,12 @@ case class LangSpecificToCol() extends Rewriter {
             MethodInvocation(
               obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil, Nil)(null),
               ref = typedSucc[InstanceMethod](decl),
-              args = args.map(dispatch), outArgs = Nil)(null)
+              args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch))(null)
           } else {
             MethodInvocation(
               obj = obj.map(dispatch).getOrElse(currentThis.head),
               ref = typedSucc[InstanceMethod](decl),
-              args = args.map(dispatch), outArgs = Nil)(null)
+              args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch))(null)
           }
         case BuiltinInstanceMethod(f) =>
           f(dispatch(obj.get))(args.map(dispatch))
@@ -375,7 +375,7 @@ case class LangSpecificToCol() extends Rewriter {
         case RefFunction(decl) =>
           FunctionInvocation(typedSucc[Function](decl), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)
         case RefProcedure(decl) =>
-          ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil)(inv.blame)
+          ProcedureInvocation(typedSucc[Procedure](decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
         case RefPredicate(decl) =>
           PredicateApply(typedSucc[Predicate](decl), args.map(dispatch))
         case RefInstanceFunction(decl) =>
@@ -385,7 +385,7 @@ case class LangSpecificToCol() extends Rewriter {
             args.map(dispatch),
             typeArgs.map(dispatch))(inv.blame)
         case RefInstanceMethod(decl) =>
-          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil)(inv.blame)
+          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstanceMethod](decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
         case RefInstancePredicate(decl) =>
           InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.head), typedSucc[InstancePredicate](decl), args.map(dispatch))
         case RefADTFunction(decl) =>
@@ -411,7 +411,7 @@ case class LangSpecificToCol() extends Rewriter {
           val consRef = cons.map(typedSucc[Procedure]).getOrElse(
             new LazyRef[Procedure](successionMap(javaDefaultConstructor(decl))))
 
-          ProcedureInvocation(consRef, args.map(dispatch), Nil)(null)
+          ProcedureInvocation(consRef, args.map(dispatch), Nil, typeParams.map(dispatch))(null)
       }
 
     case inv @ PVLNew(t @ PVLNamedType(_, _), args) =>
@@ -428,7 +428,7 @@ case class LangSpecificToCol() extends Rewriter {
           ProcedureInvocation(
             new LazyRef[Procedure](cons.map(successionMap).getOrElse(pvlDefaultConstructor(decl))),
             args.map(dispatch),
-            Nil,
+            Nil, Nil,
           )(inv.blame)
       }
 

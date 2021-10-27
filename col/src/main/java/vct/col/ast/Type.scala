@@ -39,6 +39,9 @@ sealed trait Type extends NodeFamily {
         case _ => t match {
           case t: PVLNamedType => t
           case t: JavaTClass => t
+          case TModel(ref) => TModel(ref)
+          case TClass(ref) => TClass(ref)
+          case TAxiomatic(ref, args) => TAxiomatic(ref, args.map(dispatch))
           case other => rewriteDefault(other)
         }
       }

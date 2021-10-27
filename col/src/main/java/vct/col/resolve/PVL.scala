@@ -47,8 +47,8 @@ case object PVL {
         case ref: RefModelProcess if ref.name == method => ref
       }.orElse(Spec.builtinInstanceMethod(obj, method))
       case TClass(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
-        case ref: RefInstanceFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
-        case ref: RefInstanceMethod if ref.name == method && Util.compat(args, ref.decl.args) => ref
+        case ref: RefInstanceFunction if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
+        case ref: RefInstanceMethod if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
         case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
       }
       case _ => Spec.builtinInstanceMethod(obj, method)
@@ -56,11 +56,11 @@ case object PVL {
 
   def findMethod(method: String, args: Seq[Expr], typeArgs: Seq[Type], ctx: ReferenceResolutionContext): Option[PVLInvocationTarget] =
     ctx.stack.flatten.collectFirst {
-      case ref: RefFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefProcedure if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefFunction if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
+      case ref: RefProcedure if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
       case ref: RefPredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefInstanceFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefInstanceMethod if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefInstanceFunction if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
+      case ref: RefInstanceMethod if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
       case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefADTFunction if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefModelProcess if ref.name == method && Util.compat(args, ref.decl.args) => ref

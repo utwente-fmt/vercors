@@ -136,6 +136,12 @@ case class LiteralTuple(ts: Seq[Type], values: Seq[Expr])(implicit val o: Origin
     }
 }
 
+case class LiteralMap(k: Type, v: Type, values: Seq[(Expr, Expr)])(implicit val o: Origin) extends Expr {
+  override def t: Type = TMap(k, v)
+  override def check(context: CheckContext): Seq[CheckError] =
+    values.flatMap { case (valueK, valueV) => valueK.checkSubType(k) ++ valueV.checkSubType(v) }
+}
+
 case class UntypedLiteralSeq(values: Seq[Expr])(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TSeq(Type.leastCommonSuperType(values.map(_.t)))
 }
@@ -304,27 +310,39 @@ case class ADTFunctionInvocation(typeArgs: Option[(Ref[AxiomaticDataType], Seq[T
         ref.decl.returnType.particularize(adt.decl.typeArgs.zip(typeArgs).toMap)
       case None => ref.decl.returnType
     }
+
+  override def check(context: CheckContext): Seq[CheckError] =
+    typeArgs match {
+      case None => super.check(context)
+      case Some((adt, typeArgs)) =>
+        ref.decl.args.zip(args).flatMap {
+          case (arg, value) => value.checkSubType(arg.t.particularize(adt.decl.typeArgs.zip(typeArgs).toMap))
+        }
+    }
 }
 
 sealed trait Invocation extends Apply {
+  override def ref: Ref[ContractApplicable]
   def blame: Blame[PreconditionFailed]
+  def typeArgs: Seq[Type]
+
+  override def t: Type = super.t.particularize(ref.decl.typeArgs.zip(typeArgs).toMap)
+
+  override def check(context: CheckContext): Seq[CheckError] =
+    ref.decl.args.zip(args).flatMap {
+      case (arg, value) => value.checkSubType(arg.t.particularize(ref.decl.typeArgs.zip(typeArgs).toMap))
+    }
 }
 
-case class ProcedureInvocation(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]])
+case class ProcedureInvocation(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]], typeArgs: Seq[Type])
                               (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
 case class FunctionInvocation(ref: Ref[Function], args: Seq[Expr], typeArgs: Seq[Type])
-                             (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation {
-  override def t: Type =
-    ref.decl.returnType.particularize(ref.decl.typeArgs.zip(typeArgs).toMap)
-}
+                             (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
 
-case class MethodInvocation(obj: Expr, ref: Ref[InstanceMethod], args: Seq[Expr], outArgs: Seq[Ref[Variable]])
+case class MethodInvocation(obj: Expr, ref: Ref[InstanceMethod], args: Seq[Expr], outArgs: Seq[Ref[Variable]], typeArgs: Seq[Type])
                            (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
 case class InstanceFunctionInvocation(obj: Expr, ref: Ref[InstanceFunction], args: Seq[Expr], typeArgs: Seq[Type])
-                                     (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation {
-  override def t: Type =
-    ref.decl.returnType.particularize(ref.decl.typeArgs.zip(typeArgs).toMap)
-}
+                                     (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
 
 sealed trait UnExpr extends Expr {
   def arg: Expr

@@ -17,8 +17,8 @@ class TestCompare extends AnyFlatSpec {
 
   it should "judge equal declarations without references as equal without mappings" in {
     assert(Compare.getIsomorphism(
-      new Procedure(TVoid(), Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null),
-      new Procedure(TVoid(), Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null),
+      new Procedure(TVoid(), Nil, Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null),
+      new Procedure(TVoid(), Nil, Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null),
     ) == Right(Map.empty[Declaration, Declaration]))
   }
 

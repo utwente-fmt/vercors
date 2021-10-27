@@ -170,6 +170,10 @@ public class Configuration {
         return getFileOrAbort("/config/" + file);
     }
 
+    public static File getAdtFile(String file) {
+        return getFileOrAbort("/adt/" + file);
+    }
+
     public static File getCIncludePath() {
         return getFileOrAbort("/include");
     }

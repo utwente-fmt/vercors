@@ -6,7 +6,7 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF ;
 
-programDecl : declClass | method | valGlobalDeclaration;
+programDecl : valGlobalDeclaration | declClass | method;
 
 declClass : 'class' identifier '{' classDecl* '}' ;
 classDecl : constructor | method | valClassDeclaration | field;

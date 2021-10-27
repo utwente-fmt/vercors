@@ -759,11 +759,11 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case ADTFunctionInvocation(tArgs, ref, args) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case ProcedureInvocation(ref, args, outArgs) =>
+    case ProcedureInvocation(ref, args, outArgs, typeArgs) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case FunctionInvocation(ref, args, typeArgs) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case MethodInvocation(obj, ref, args, outArgs) =>
+    case MethodInvocation(obj, ref, args, outArgs, typeArgs) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case InstanceFunctionInvocation(obj, ref, args, typeArgs) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
@@ -909,7 +909,11 @@ case class Printer(out: Appendable,
       intersperse(phrase(space, "|", space), types.map(NodePhrase))
     case JavaTClass(names) =>
       intersperse(".", names.map(_._1).map(Text))
-    case PVLNamedType(name, typeArgs) => phrase(name)
+    case PVLNamedType(name, typeArgs) =>
+      typeArgs match {
+        case Nil => phrase(name)
+        case some => phrase(name, "<", commas(some.map(NodePhrase)), ">")
+      }
     case TVoid() => phrase("void")
     case TBool() => syntax(
       C -> phrase("_Bool"),

@@ -221,7 +221,7 @@ case class ColToSilver(program: col.Program) {
     silver.PredicateAccessPredicate(silver.PredicateAccess(p.args.map(exp), ref(p.ref))(info=NodeInfo(p)), exp(p.perm))(info=NodeInfo(p))
 
   def stat(s: col.Statement): silver.Stmt = s match {
-    case col.Eval(inv@col.ProcedureInvocation(method, args, outArgs)) =>
+    case col.Eval(inv@col.ProcedureInvocation(method, args, outArgs, Nil)) =>
       silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
         silver.NoPosition, NodeInfo(inv), silver.NoTrafos)
     case col.SilverFieldAssign(obj, field, value) =>
