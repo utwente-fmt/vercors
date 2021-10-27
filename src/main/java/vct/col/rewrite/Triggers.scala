@@ -162,11 +162,13 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
             )
           case Left(triggers) =>
             if (triggers.isEmpty) {
-              hre.lang.System.Warning("Could not find a trigger for this expression:")
-              hre.lang.System.Warning("%s", expr)
+              hre.lang.System.Warning("Could not find a trigger for an expression", expr.getOrigin)
+              hre.lang.System.Warning("Location: %s", expr.getOrigin)
+              hre.lang.System.Warning("Expression: %s", expr)
             } else {
-              hre.lang.System.Warning("More than one trigger found for this expression:")
-              hre.lang.System.Warning("%s", expr)
+              hre.lang.System.Warning("More than one trigger found for an expression")
+              hre.lang.System.Warning("Location: %s", expr.getOrigin)
+              hre.lang.System.Warning("Expression: %s", expr)
               hre.lang.System.Warning("Possible triggers:")
               triggers.foreach(t => {
                 hre.lang.System.Warning("- %s", t)
