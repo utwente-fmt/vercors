@@ -274,13 +274,30 @@ def output_pdf(path, blocks, version, generate_toc=True):
         'meta': {},
     })
 
+    toc_option = ["--toc"] if generate_toc else []
+
     pypandoc.convert_text(
         wiki_text,
         "pdf",
         format="json",
         outputfile=path,
-        extra_args=["--toc"] if generate_toc else [])
+        extra_args=toc_option + ["--pdf-engine=xelatex"])
 
+def output_html(path, blocks, version, generate_toc=True):
+    wiki_text = json.dumps({
+        'blocks': blocks,
+        'pandoc-api-version': version,
+        'meta': {}
+    })
+
+    toc_option = ["--toc", "--toc-depth", "2"] if generate_toc else []
+
+    pypandoc.convert_text(
+        wiki_text,
+        "html",
+        format="json",
+        outputfile=path,
+        extra_args=toc_option + ["-s", "--template", "wiki_template.html", "--metadata", "title=VerCors Tutorial"])
 
 if __name__ == "__main__":
     # TODO: Check if pypandoc is installed
@@ -291,10 +308,12 @@ if __name__ == "__main__":
     parser.add_option('-w', '--php', dest='php_path', help='write wiki to php file for the website', metavar='FILE')
     parser.add_option('-m', '--menu', dest='menu_path', help='extract a menu for the website', metavar='FILE')
     parser.add_option('-p', '--pdf', dest='pdf_path', help='write wiki to a latex-typeset pdf', metavar='FILE')
+    parser.add_option('--html', dest='html_path', help='write wiki to an html file', metavar='FILE')
+
 
     options, args = parser.parse_args()
 
-    if not any([options.php_path, options.menu_path, options.pdf_path]):
+    if not any([options.php_path, options.menu_path, options.pdf_path, options.html_path]):
         parser.error("No output type: please set one or more of the output paths. (try --help)")
 
     if options.source_path:
@@ -320,3 +339,6 @@ if __name__ == "__main__":
 
     if options.pdf_path:
         output_pdf(options.pdf_path, blocks, pandoc_version)
+
+    if options.html_path:
+        output_html(options.html_path, blocks, pandoc_version)
