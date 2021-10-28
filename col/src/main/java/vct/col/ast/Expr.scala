@@ -278,7 +278,7 @@ case class ModelDeref(obj: Expr, ref: Ref[ModelField])(val blame: Blame[ModelIns
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(this, ref)
 }
-case class DerefPointer(pointer: Expr)(implicit val o: Origin) extends Expr {
+case class DerefPointer(pointer: Expr)(val blame: Blame[PointerDerefError])(implicit val o: Origin) extends Expr {
   override def t: Type = pointer.t.asPointer.get.element
   override def check(context: CheckContext): Seq[CheckError] =
     pointer.checkPointerThen()
@@ -585,15 +585,16 @@ case class SeqSubscript(seq: Expr, index: Expr)(val blame: Blame[SeqBoundFailure
   override def t: Type = seq.t.asSeq.get.element
 }
 
-case class ArraySubscript(arr: Expr, index: Expr)(implicit val o: Origin) extends Check(arr.checkArrayThen(), index.checkSubType(TInt())) with Expr {
+case class ArraySubscript(arr: Expr, index: Expr)(val blame: Blame[ArraySubscriptError])(implicit val o: Origin)
+  extends Check(arr.checkArrayThen(), index.checkSubType(TInt())) with Expr {
   override def t: Type = arr.t.asArray.get.element
 }
 
-case class PointerSubscript(pointer: Expr, index: Expr)(implicit val o: Origin) extends Check(pointer.checkPointerThen(), index.checkSubType(TInt())) with Expr {
+case class PointerSubscript(pointer: Expr, index: Expr)(val blame: Blame[PointerSubscriptError])(implicit val o: Origin) extends Check(pointer.checkPointerThen(), index.checkSubType(TInt())) with Expr {
   override def t: Type = pointer.t.asPointer.get.element
 }
 
-case class Length(arr: Expr)(implicit val o: Origin) extends IntExpr {
+case class Length(arr: Expr)(val blame: Blame[ArrayNull])(implicit val o: Origin) extends IntExpr {
   override def check(context: CheckContext): Seq[CheckError] =
     arr.t match {
       case TArray(_) => Seq()
@@ -678,13 +679,13 @@ case class Permutation(xs: Expr, ys: Expr)(implicit val o: Origin) extends BoolE
   override def check(context: CheckContext): Seq[CheckError] =
     xs.checkSeqThen() ++ ys.checkSeqThen() ++ Type.checkComparable(xs, ys)
 }
-case class OptGet(opt: Expr)(implicit val o: Origin) extends Check(opt.checkOptionThen()) with Expr {
+case class OptGet(opt: Expr)(val blame: Blame[OptionNone])(implicit val o: Origin) extends Check(opt.checkOptionThen()) with Expr {
   override def t: Type = opt.t.asOption.get.element
 }
 case class OptGetOrElse(opt: Expr, alt: Expr)(implicit val o: Origin) extends Check(opt.checkOptionThen(t => alt.checkSubType(t.element))) with Expr {
   override def t: Type = Type.leastCommonSuperType(opt.t.asOption.get.element, alt.t)
 }
-case class MapGet(map: Expr, k: Expr)(implicit val o: Origin) extends Check(map.checkMapThen(t => k.checkSubType(t.key))) with Expr {
+case class MapGet(map: Expr, k: Expr)(val blame: Blame[MapKeyError])(implicit val o: Origin) extends Check(map.checkMapThen(t => k.checkSubType(t.key))) with Expr {
   override def t: Type = map.t.asMap.get.value
 }
 case class TupGet(tup: Expr, index: Int)(implicit val o: Origin) extends Expr {

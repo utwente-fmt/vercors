@@ -2,12 +2,106 @@ package vct.col.newrewrite
 
 import hre.config.Configuration
 import vct.col.ast._
-import vct.col.newrewrite.error.ExcludedByPassOrder
+import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, MapKeyErrorPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed}
+import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.parsers.Parsers
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
+case object ImportADT {
+  private def typeText(t: Type): String = t match {
+    case _: ExtraType => throw ExtraNode
+    case TNotAValue() => throw ExtraNode
+    case TVoid() => "void"
+    case TBool() => "bool"
+    case TFloat() => "float"
+    case TChar() => "char"
+    case TString() => "string"
+    case TRef() => "ref"
+    case TArray(element) => "arr_" + typeText(element)
+    case TPointer(element) => "ptr_" + typeText(element)
+    case TProcess() => "proc"
+    case TModel(Ref(model)) => model.o.preferredName
+    case TAxiomatic(Ref(adt), args) => adt.o.preferredName + "$" + args.map(typeText).mkString("__") + "$"
+    case TOption(element) => "opt_" + typeText(element)
+    case TTuple(elements) => "tup$" + elements.map(typeText).mkString("__") + "$"
+    case TSeq(element) => "seq_" + typeText(element)
+    case TSet(element) => "set_" + typeText(element)
+    case TBag(element) => "bag_" + typeText(element)
+    case TMatrix(element) => "mat_" + typeText(element)
+    case TType(t) => "typ_" + typeText(t)
+    case TAny() => "any"
+    case TNothing() => "nothing"
+    case TNull() => "null"
+    case TResource() => "res"
+    case TInt() => "int"
+    case TBoundedInt(gte, lt) => "int"
+    case TRational() => "rat"
+    case TFraction() => "fract"
+    case TZFraction() => "zfract"
+    case TMap(key, value) => "map$" + typeText(key) + "__" + typeText(value) + "$"
+    case TClass(Ref(cls)) => cls.o.preferredName
+    case TVar(Ref(v)) => v.o.preferredName
+  }
+
+  case class ArrayField(t: Type) extends Origin {
+    override def preferredName: String = typeText(t)
+    override def messageInContext(message:  String): String =
+      s"At field generated for array location of type $t: $message"
+  }
+
+  case class PointerField(t: Type) extends Origin {
+    override def preferredName: String = typeText(t)
+    override def messageInContext(message:  String): String =
+      s"At field generated for pointer location of type $t: $message"
+  }
+
+  case class OptionNonePreconditionFailed(access: OptGet) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      access.blame.blame(OptionNone(access))
+  }
+
+  case class MapKeyErrorPreconditionFailed(access: MapGet) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      access.blame.blame(MapKeyError(access))
+  }
+
+  case class ArrayNullPreconditionFailed(inner: Blame[ArrayNull], expr: Expr) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      inner.blame(ArrayNull(expr))
+  }
+
+  case class ArrayBoundsPreconditionFailed(inner: Blame[ArrayBounds], idx: Expr) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      inner.blame(ArrayBounds(idx))
+  }
+
+  case class ArrayFieldInsufficientPermission(inner: Blame[ArrayInsufficientPermission], expr: Expr) extends Blame[InsufficientPermission] {
+    override def blame(error: InsufficientPermission): Unit =
+      inner.blame(ArrayInsufficientPermission(expr))
+  }
+
+  case class PointerNullPreconditionFailed(inner: Blame[PointerNull], expr: Expr) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      inner.blame(PointerNull(expr))
+  }
+
+  case class PointerBoundsPreconditionFailed(inner: Blame[PointerBounds], expr: Expr) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      inner.blame(PointerBounds(expr))
+  }
+
+  case class PointerFieldInsufficientPermission(inner: Blame[PointerInsufficientPermission], expr: Expr) extends Blame[InsufficientPermission] {
+    override def blame(error: InsufficientPermission): Unit =
+      inner.blame(PointerInsufficientPermission(expr))
+  }
+}
+
 case class ImportADT() extends Rewriter {
+  val arrayField: mutable.Map[Type, SilverField] = mutable.Map()
+  val pointerField: mutable.Map[Type, SilverField] = mutable.Map()
+
   private def parse(name: String): Seq[GlobalDeclaration] = {
     val decls = Parsers.parse(Configuration.getAdtFile(s"$name.pvl").toPath).decls
     decls.foreach(dispatch)
@@ -94,12 +188,31 @@ case class ImportADT() extends Rewriter {
       case TOption(element) => TAxiomatic(optionAdt.ref, Seq(dispatch(element)))
       case TMap(k, v) => TAxiomatic(mapAdt.ref, Seq(dispatch(k), dispatch(v)))
       case TArray(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(arrayAdt.ref, Nil)))
+      case TPointer(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(pointerAdt.ref, Nil)))
     }
   }
 
   private def mapTypeArgs(map: Expr): Seq[Type] = {
     val mapType = map.t.asMap.get
     Seq(dispatch(mapType.key), dispatch(mapType.value))
+  }
+
+  private def getArrayField(arr: Expr): SilverField = {
+    val tElement = dispatch(arr.t.asArray.get.element)
+    arrayField.getOrElseUpdate(tElement, {
+      val field = new SilverField(tElement)(ArrayField(tElement))
+      field.declareDefault(this)
+      field
+    })
+  }
+
+  private def getPointerField(ptr: Expr): SilverField = {
+    val tElement = dispatch(ptr.t.asPointer.get.element)
+    pointerField.getOrElseUpdate(tElement, {
+      val field = new SilverField(tElement)(PointerField(tElement))
+      field.declareDefault(this)
+      field
+    })
   }
 
   override def dispatch(e: Expr): Expr = {
@@ -131,13 +244,14 @@ case class ImportADT() extends Rewriter {
           Some((optionAdt.ref, Seq(newElement.t))),
           optionSome.ref, Seq(newElement),
         )
-      case OptGet(opt) =>
-        FunctionInvocation(optionGet.ref, Seq(dispatch(opt)), Seq(dispatch(opt.t.asOption.get.element)))(???)
+      case access @ OptGet(opt) =>
+        FunctionInvocation(optionGet.ref, Seq(dispatch(opt)), Seq(dispatch(opt.t.asOption.get.element)))(
+          OptionNonePreconditionFailed(access))
       case OptGetOrElse(opt, alt) =>
         FunctionInvocation(optionGetOrElse.ref,
           Seq(dispatch(opt), dispatch(alt)),
           Seq(???),
-        )(???)
+        )(PanicBlame("opt_or_else requires nothing."))
       case LiteralMap(k, v, values) =>
         val typeArgs = Some((mapAdt.ref, Seq(dispatch(k), dispatch(v))))
         values.foldLeft(
@@ -150,19 +264,64 @@ case class ImportADT() extends Rewriter {
           Some((mapAdt.ref, mapTypeArgs(map))), mapKeys.ref, Seq(dispatch(map))
         )
       case MapSize(map) =>
-        FunctionInvocation(mapSize.ref, Seq(dispatch(map)), mapTypeArgs(map))(???)
-      case MapGet(map, k) =>
-        FunctionInvocation(mapGet.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map))(???)
+        FunctionInvocation(mapSize.ref, Seq(dispatch(map)), mapTypeArgs(map))(PanicBlame("map_size requires nothing."))
+      case access @ MapGet(map, k) =>
+        FunctionInvocation(mapGet.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map))(
+          MapKeyErrorPreconditionFailed(access))
       case MapValueSet(map) =>
-        FunctionInvocation(mapValues.ref, Seq(dispatch(map)), mapTypeArgs(map))(???)
+        FunctionInvocation(mapValues.ref, Seq(dispatch(map)), mapTypeArgs(map))(PanicBlame("map_values requires nothing."))
       case MapItemSet(map) =>
-        FunctionInvocation(mapItems.ref, Seq(dispatch(map)), mapTypeArgs(map))(???)
+        FunctionInvocation(mapItems.ref, Seq(dispatch(map)), mapTypeArgs(map))(PanicBlame("map_items requires nothing."))
       case MapEq(left, right) =>
-        FunctionInvocation(mapEquals.ref, Seq(dispatch(left), dispatch(right)), ???)(???)
+        FunctionInvocation(mapEquals.ref, Seq(dispatch(left), dispatch(right)), ???)(PanicBlame("map_equals requires nothing."))
       case MapDisjoint(left, right) =>
-        FunctionInvocation(mapDisjoint.ref, Seq(dispatch(left), dispatch(right)), ???)(???)
+        FunctionInvocation(mapDisjoint.ref, Seq(dispatch(left), dispatch(right)), ???)(PanicBlame("map_disjoint requires nothing."))
       case MapRemove(map, k) =>
-        FunctionInvocation(mapRemove.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map))(???)
+        FunctionInvocation(mapRemove.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map))(PanicBlame("map_remove requires nothing."))
+      case sub @ ArraySubscript(arr, index) =>
+        SilverDeref(
+          obj = FunctionInvocation(
+            ref = arrayLoc.ref,
+            args = Seq(
+              FunctionInvocation(optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic(arrayAdt.ref, Nil)))(
+                ArrayNullPreconditionFailed(sub.blame, arr)),
+              dispatch(index)),
+            typeArgs = Nil)(ArrayBoundsPreconditionFailed(sub.blame, index)),
+          field = getArrayField(arr).ref)(ArrayFieldInsufficientPermission(sub.blame, sub))
+      case length @ Length(arr) =>
+        ADTFunctionInvocation(None, arrayLen.ref, Seq(
+          FunctionInvocation(optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic(arrayAdt.ref, Nil)))(
+            ArrayNullPreconditionFailed(length.blame, length))
+        ))
+      case sub @ PointerSubscript(pointer, index) =>
+        SilverDeref(
+          obj = FunctionInvocation(
+            ref = pointerDeref.ref,
+            args = Seq(FunctionInvocation(
+              ref = pointerAdd.ref,
+              args = Seq(FunctionInvocation(
+                ref = optionGet.ref,
+                args = Seq(dispatch(pointer)),
+                typeArgs = Seq(TAxiomatic(pointerAdt.ref, Nil)),
+              )(PointerNullPreconditionFailed(sub.blame, pointer)), dispatch(index)),
+              typeArgs = Nil)(PointerBoundsPreconditionFailed(sub.blame, index))),
+            typeArgs = Nil,
+          )(PanicBlame("ptr_deref requires nothing.")),
+          field = getPointerField(pointer).ref,
+        )(PointerFieldInsufficientPermission(sub.blame, sub))
+      case deref @ DerefPointer(pointer) =>
+        SilverDeref(
+          obj = FunctionInvocation(
+            ref = pointerDeref.ref,
+            args = Seq(FunctionInvocation(
+              ref = optionGet.ref,
+              args = Seq(dispatch(pointer)),
+              typeArgs = Seq(TAxiomatic(pointerAdt.ref, Nil)),
+            )(PointerNullPreconditionFailed(deref.blame, pointer))),
+            typeArgs = Nil,
+          )(PanicBlame("ptr_deref requires nothing.")),
+          field = getPointerField(pointer).ref,
+        )(PointerFieldInsufficientPermission(deref.blame, deref))
     }
   }
 }

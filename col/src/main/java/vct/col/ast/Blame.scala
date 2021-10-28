@@ -130,6 +130,41 @@ case class ParRegionPostconditionNotImpliedByBlockPostconditions(failure: Contra
   override def direction: String = s"the postcondition of the region does not follow from the postconditions of its blocks"
   override def code: String = "blockPostRegionPost"
 }
+case class OptionNone(access: OptGet) extends VerificationFailure {
+  override def code: String = "optNone"
+  override def toString: String = "Option may be empty."
+}
+case class MapKeyError(access: MapGet) extends VerificationFailure {
+  override def code: String = "mapKey"
+  override def toString: String = "Map may not contain this key."
+}
+sealed trait ArraySubscriptError extends VerificationFailure
+case class ArrayNull(arr: Expr) extends ArraySubscriptError {
+  override def code: String = "arrayNull"
+  override def toString: String = "Array may be null."
+}
+case class ArrayBounds(idx: Expr) extends ArraySubscriptError {
+  override def code: String = "arrayBounds"
+  override def toString: String = "Index may be negative, or exceed the length of the array."
+}
+case class ArrayInsufficientPermission(arr: Expr) extends ArraySubscriptError {
+  override def code: String = "arrayPerm"
+  override def toString: String = "There may be insufficient permission to access the array."
+}
+sealed trait PointerSubscriptError extends VerificationFailure
+sealed trait PointerDerefError extends PointerSubscriptError
+case class PointerNull(pointer: Expr) extends PointerDerefError {
+  override def code: String = "ptrNull"
+  override def toString: String = "Pointer may be null."
+}
+case class PointerBounds(pointer: Expr) extends PointerSubscriptError {
+  override def code: String = "ptrBlock"
+  override def toString: String = "The offset to the pointer may be outside the bounds of the allocated memory area that the pointer is in."
+}
+case class PointerInsufficientPermission(pointer: Expr) extends PointerDerefError {
+  override def code: String = "ptrPerm"
+  override def toString: String = "There may be insufficient permission to dereference the pointer."
+}
 
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit

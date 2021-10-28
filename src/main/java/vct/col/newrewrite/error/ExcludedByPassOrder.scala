@@ -15,3 +15,6 @@ case class ExcludedByPassOrder(message: String, node: Option[Node]) extends Syst
     }
   }
 }
+
+object ExtraNode extends ExcludedByPassOrder(
+  "Language-specific type, expression or declaration was encountered, which should have been already resolved", None)
