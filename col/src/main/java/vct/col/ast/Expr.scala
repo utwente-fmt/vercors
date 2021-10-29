@@ -1,6 +1,7 @@
 package vct.col.ast
 
 import hre.util.FuncTools
+import vct.col.ast.`type`.ClassType
 import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefModel, SpecTypeNameTarget}
 
 sealed trait Expr extends NodeFamily {
@@ -168,6 +169,10 @@ case class AmbiguousThis()(implicit val o: Origin) extends Expr with NoCheck {
   var ref: Option[Type] = None
   override def t: Type = ref.getOrElse(throw ContextSensitiveNodeNotResolved(this,
     "'this' encountered, but the surrounding class is not resolved."))
+}
+
+case class This(c: Ref[Class])(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TClass(c)
 }
 
 case class AmbiguousResult()(implicit val o: Origin) extends Expr with NoCheck {
@@ -801,8 +806,12 @@ case class IdleToken(thread: Expr)(implicit val o: Origin) extends Check(thread.
 case class JoinToken(thread: Expr)(implicit val o: Origin) extends Check(thread.checkClassType) with BoolExpr
 
 case class EmptyProcess()(implicit val o: Origin) extends ProcessExpr with NoCheck
-case class ActionApply(action: Ref[ModelAction], args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with NoCheck
-case class ProcessApply(process: Ref[ModelProcess], args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with NoCheck
+case class ActionApply(action: Ref[ModelAction], args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with Apply with NoCheck {
+  override def ref: Ref[Applicable] = action
+}
+case class ProcessApply(process: Ref[ModelProcess], args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with Apply with NoCheck {
+  override def ref: Ref[Applicable] = process
+}
 case class ProcessSeq(left: Expr, right: Expr)(implicit val o: Origin)
   extends Check(left.checkSubType(TProcess()), right.checkSubType(TProcess())) with ProcessExpr
 case class ProcessChoice(left: Expr, right: Expr)(implicit val o: Origin)
@@ -813,6 +822,10 @@ case class ProcessSelect(cond: Expr, whenTrue: Expr, whenFalse: Expr)(implicit v
   extends Check(cond.checkSubType(TBool()), whenTrue.checkSubType(TProcess()), whenFalse.checkSubType(TProcess())) with ProcessExpr
 
 case class ModelNew(ref: Ref[Model])(implicit val o: Origin) extends Expr with NoCheck {
+  override def t: Type = TModel(ref)
+}
+
+case class ModelThis(ref: Ref[Model])(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TModel(ref)
 }
 
