@@ -130,7 +130,7 @@ object Triggers {
             } else {
               Left(triggers.flatten.toSet)
             }
-          case _ => Left(Set())
+          case _ => Left(triggers.flatten.toSet)
         }
       }
     } catch {
