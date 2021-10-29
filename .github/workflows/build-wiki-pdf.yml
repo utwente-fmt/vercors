@@ -12,7 +12,7 @@ jobs:
       - working-directory: util/wiki
         run: pip3 install -r requirements.txt
       - working-directory: util/wiki
-        run: python3 ./generate_wiki_pdf.py --pdf
+        run: python3 ./generate_wiki_pdf.py --pdf wiki.pdf
       - working-directory: util/wiki
         run: ls
       - name: Set wiki pdf tag in github repo
