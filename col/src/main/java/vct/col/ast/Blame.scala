@@ -178,6 +178,12 @@ case class PanicBlame(message: String) extends Blame[VerificationFailure] {
   override def blame(error: VerificationFailure): Unit = throw BlameUnreachable(message, error)
 }
 
+object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should always be ok.")
+object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds")
+object FramedMapGet extends PanicBlame("access in `∀k. k \\in m.keys ==> ...m[k]...` should always be ok.")
+object AbstractApplicable extends PanicBlame("the postcondition of an abstract applicable is not checked, and hence cannot fail.")
+object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
+
 object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")
 object DerefPerm extends PanicBlame("Dereferencing a field in a permission should trigger an error on the permission, not on the dereference.")
 object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")

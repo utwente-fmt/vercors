@@ -667,7 +667,7 @@ case class AmbiguousMember(x: Expr, xs: Expr)(implicit val o: Origin) extends Ex
 case class SetMember(x: Expr, xs: Expr)(implicit val o: Origin) extends Check(xs.checkSetThen(set => x.checkSubType(set.element))) with BoolExpr
 case class SeqMember(x: Expr, xs: Expr)(implicit val o: Origin) extends Check(xs.checkSeqThen(seq => x.checkSubType(seq.element))) with BoolExpr
 case class MapMember(x: Expr, xs: Expr)(implicit val o: Origin) extends Check(xs.checkMapThen(map => x.checkSubType(map.key))) with BoolExpr
-case class BagMemberCount(x: Expr, xs: Expr)(implicit val o: Origin) extends Check(xs.checkMapThen()) with IntExpr
+case class BagMemberCount(x: Expr, xs: Expr)(implicit val o: Origin) extends Check(xs.checkBagThen(bag => x.checkSubType(bag.element))) with IntExpr
 
 sealed trait SetComparison extends Comparison {
   override def check(context: CheckContext): Seq[CheckError] =

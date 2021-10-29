@@ -13,7 +13,7 @@ object AstBuildHelpers {
     def /:(right: Expr)(implicit origin: Origin, blame: Blame[DivByZero]): Div = Div(left, right)(blame)
     def %(right: Expr)(implicit origin: Origin, blame: Blame[DivByZero]): Mod = Mod(left, right)(blame)
 
-    def ==(right: Expr)(implicit origin: Origin): Eq = Eq(left, right)
+    def ===(right: Expr)(implicit origin: Origin): Eq = Eq(left, right)
     def !=(right: Expr)(implicit origin: Origin): Neq = Neq(left, right)
     def <(right: Expr)(implicit origin: Origin): Less = Less(left, right)
     def >(right: Expr)(implicit origin: Origin): Greater = Greater(left, right)
@@ -44,12 +44,28 @@ object AstBuildHelpers {
     def <~(right: Expr)(implicit blame: Blame[SilverAssignFailed], origin: Origin): SilverFieldAssign = SilverFieldAssign(left.obj, left.field, right)(blame)
   }
 
+  private case object ConstOrigin extends Origin {
+    override def preferredName: String = "unknown"
+    override def messageInContext(message: String): String = s"[At generated constant]: $message"
+  }
+
+  def tt: Constant.BooleanValue = Constant.BooleanValue(true)(ConstOrigin)
+  def ff: Constant.BooleanValue = Constant.BooleanValue(false)(ConstOrigin)
+
+  def const(i: Int)(implicit o: Origin): Constant.IntegerValue =
+    Constant.IntegerValue(i)
+
+  def contract(requires: Expr = tt, ensures: Expr = tt, contextEverywhere: Expr = tt,
+               signals: Seq[SignalsClause] = Nil, givenArgs: Seq[Variable] = Nil, yieldsArgs: Seq[Variable] = Nil)
+              (implicit o: Origin): ApplicableContract =
+    ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs)
+
   def procedure(blame: Blame[PostconditionFailed],
                 returnType: Type = TVoid(),
                 args: Seq[Variable] = Nil, outArgs: Seq[Variable] = Nil, typeArgs: Seq[Variable] = Nil,
                 body: Option[Statement] = None,
-                requires: Expr = new BooleanValue(true)(DiagnosticOrigin), ensures: Expr = new BooleanValue(true)(DiagnosticOrigin),
-                contextEverywhere: Expr = new BooleanValue(true)(DiagnosticOrigin),
+                requires: Expr = tt, ensures: Expr = tt,
+                contextEverywhere: Expr = tt,
                 signals: Seq[SignalsClause] = Nil,
                 givenArgs: Seq[Variable] = Nil, yieldsArgs: Seq[Variable] = Nil,
                 inline: Boolean = false, pure: Boolean = false)
@@ -57,6 +73,17 @@ object AstBuildHelpers {
     new Procedure(returnType, args, outArgs, typeArgs, body,
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
       inline, pure)(blame)
+
+  def function(blame: Blame[PostconditionFailed],
+               returnType: Type = TVoid(),
+               args: Seq[Variable] = Nil, typeArgs: Seq[Variable] = Nil,
+               body: Option[Expr] = None,
+               requires: Expr = tt, ensures: Expr = tt, contextEverywhere: Expr = tt,
+               signals: Seq[SignalsClause] = Nil, givenArgs: Seq[Variable] = Nil, yieldsArgs: Seq[Variable] = Nil,
+               inline: Boolean = false)(implicit o: Origin): Function =
+    new Function(returnType, args, typeArgs, body,
+      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
+      inline)(blame)
 
   def assignField(obj: Expr, field: Ref[Field], value: Expr)(implicit o: Origin): Assign =
     Assign(Deref(obj, field)(DerefAssignTarget), value)

@@ -1,9 +1,182 @@
 package vct.col.ast
 
 import vct.col.resolve.Referrable
-import vct.result.VerificationResult.Unreachable
+import AstBuildHelpers._
 
 import scala.reflect.ClassTag
+
+sealed trait Coercion {
+  /**
+   * Promoting coercions produce a strictly larger type, and must always be implemented injectively.
+   */
+  def isPromoting: Boolean
+}
+
+case object Coercion {
+  sealed trait Promotion extends Coercion {
+    override def isPromoting: Boolean = true
+  }
+
+  sealed trait MappingCoercion extends Coercion {
+    def inner: Coercion
+    override def isPromoting: Boolean = inner.isPromoting
+  }
+
+  sealed trait MappingPromotion extends Promotion with MappingCoercion {
+    override def inner: Promotion
+    override def isPromoting: Boolean = true
+  }
+
+  case object Identity extends Promotion
+  case class Compose(left: Coercion, right: Coercion) extends Coercion {
+    override def isPromoting: Boolean = left.isPromoting && right.isPromoting
+  }
+
+  case class NothingSomething(target: Type) extends Promotion
+  case object SomethingAny extends Promotion
+  case class MapOption(source: TOption, target: TOption, inner: Coercion) extends MappingCoercion
+  case class MapSeq(source: TSeq, target: TSeq, inner: Coercion) extends MappingCoercion
+  case class MapSet(source: TSet, target: TSet, inner: Promotion) extends MappingPromotion
+  case class MapBag(source: TBag, target: TBag, inner: Promotion) extends MappingPromotion
+  case class MapMatrix(source: TMatrix, target: TMatrix, inner: Coercion) extends MappingCoercion
+  case class MapMap(source: TMap, target: TMap, inner: Coercion) extends MappingCoercion
+  case class MapType(source: TType, target: TType, inner: Coercion) extends MappingCoercion
+  case class Supports(source: TClass, target: TClass) extends Promotion
+  case class JavaSupports(source: JavaTClass, target: JavaTClass) extends Promotion
+  case object NullRef extends Promotion
+  case class NullArray(target: TArray) extends Promotion
+  case class NullClass(target: TClass) extends Promotion
+  case class NullJavaClass(target: JavaTClass) extends Promotion
+  case class NullPointer(target: TPointer) extends Promotion
+  case object FracZFrac extends Promotion
+  case object ZFracRat extends Promotion
+  case class FloatRat(source: TFloat) extends Promotion
+  case class WidenBound(source: TBoundedInt, target: TBoundedInt) extends Promotion
+  case class UnboundInt(source: TBoundedInt) extends Promotion
+  case object IntRat extends Promotion
+
+  case object RatZFrac extends Coercion {
+    override def isPromoting: Boolean = false
+  }
+  case object ZFracFrac extends Coercion {
+    override def isPromoting: Boolean = false
+  }
+}
+
+sealed trait ResolveCoercion {
+  /**
+   * Apply a particular coercion to an expression.
+   * SAFETY: all promoting coercions must be injective; otherwise the default mapping coercion of sets is unsound.
+   * @param e the expression to coerce
+   * @param coercion the coercion
+   * @param o the origin to assign to generated expressions
+   * @param sc the scope in which to declare functions
+   * @return the coerced expression
+   */
+  def apply(e: Expr, coercion: Coercion)(implicit o: Origin, sc: ScopeContext): Expr = coercion match {
+    case Coercion.Identity => e
+    case Coercion.Compose(left, right) => apply(apply(e, right), left)
+    case Coercion.NothingSomething(_) => e
+    case Coercion.SomethingAny => e
+    case Coercion.MapOption(_, _, inner) =>
+      Select(Eq(e, OptNone()), OptNone(), apply(OptGet(e)(NeverNone), inner))
+    case Coercion.MapSeq(source, target, inner) =>
+      val result = AmbiguousResult()
+      result.ref = Some(target)
+      val v = new Variable(source)
+      val i = new Variable(TInt())
+      val v_i = SeqSubscript(v.get, i.get)(FramedSeqIndex)
+      val result_i = SeqSubscript(result, i.get)(FramedSeqIndex)
+
+      val f = function(
+        blame = AbstractApplicable,
+        returnType = target,
+        args = Seq(v),
+        ensures =
+          Eq(Size(v.get), Size(result)) &&
+          Forall(Seq(i), Seq(Seq(result_i)),
+            (const(0) < i.get && i.get < Size(result)) ==>
+              result_i === apply(v_i, inner)),
+      )
+
+      f.declareDefault(sc)
+      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
+    case Coercion.MapSet(source, target, inner) =>
+      val result = AmbiguousResult()
+      result.ref = Some(target)
+      val v = new Variable(source)
+      val elem = new Variable(source.element)
+
+      val f = function(
+        blame = AbstractApplicable,
+        returnType = target,
+        args = Seq(v),
+        ensures =
+          Eq(Size(result), Size(v.get)) &&
+          Forall(Seq(elem), Seq(Seq(SetMember(elem.get, result))),
+            Eq(SetMember(apply(elem.get, inner), result), SetMember(elem.get, v.get)))
+      )
+
+      f.declareDefault(sc)
+      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
+    case Coercion.MapBag(source, target, inner) =>
+      val result = AmbiguousResult()
+      result.ref = Some(target)
+      val v = new Variable(source)
+      val elem = new Variable(source.element)
+
+      val f = function(
+        blame = AbstractApplicable,
+        returnType = target,
+        args = Seq(v),
+        ensures =
+          Eq(Size(result), Size(v.get)) &&
+          Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
+            Eq(BagMemberCount(apply(elem.get, inner), result), BagMemberCount(elem.get, v.get)))
+      )
+
+      f.declareDefault(sc)
+      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
+    case Coercion.MapMatrix(source, target, inner) =>
+      ???
+    case Coercion.MapMap(source, target, inner) =>
+      val result = AmbiguousResult()
+      result.ref = Some(target)
+      val v = new Variable(source)
+      val k = new Variable(source.key)
+
+      val f = function(
+        blame = AbstractApplicable,
+        returnType = target,
+        args = Seq(v),
+        ensures =
+          Eq(MapKeySet(result), MapKeySet(v.get)) &&
+          Forall(Seq(k), Seq(Seq(MapGet(result, k.get)(TriggerPatternBlame))),
+            SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), MapGet(v.get, k.get)(FramedMapGet)))
+      )
+
+      f.declareDefault(sc)
+      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
+    case Coercion.MapType(source, target, inner) =>
+      ???
+    case Coercion.Supports(_, _) => e
+    case Coercion.JavaSupports(_, _) => e
+    case Coercion.NullRef => e
+    case Coercion.NullArray(_) => e
+    case Coercion.NullClass(_) => e
+    case Coercion.NullJavaClass(_) => e
+    case Coercion.NullPointer(_) => e
+    case Coercion.FracZFrac => e
+    case Coercion.ZFracRat => e
+    case Coercion.FloatRat(_) => e
+    case Coercion.WidenBound(_, _) => e
+    case Coercion.UnboundInt(_) => e
+    case Coercion.IntRat => e
+    case Coercion.RatZFrac => e
+    case Coercion.ZFracFrac => e
+  }
+}
+
 
 sealed trait Type extends NodeFamily {
   def superTypeOf(other: Type): Boolean =
