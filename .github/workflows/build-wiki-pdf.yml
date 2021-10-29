@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
-      - run: sudo apt install pandoc
+      - run: sudo apt install pandoc texlive-xetex
       - working-directory: util/wiki
         run: pip3 install -r requirements.txt
       - working-directory: util/wiki
