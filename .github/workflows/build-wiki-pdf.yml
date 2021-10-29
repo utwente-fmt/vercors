@@ -9,10 +9,12 @@ jobs:
       - uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
       - run: sudo apt install pandoc
-      - run: cd util/wiki
-      - run: pip3 install -r requirements.txt
-      - run: ./generate_wiki_pdf.py --pdf
-      - run: ls
+      - working-directory: util/wiki
+        run: pip3 install -r requirements.txt
+      - working-directory: util/wiki
+        run: ./generate_wiki_pdf.py --pdf
+      - working-directory: util/wiki
+        run: ls
       - name: Set wiki pdf tag in github repo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,7 +29,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
-          artifacts: "*.pdf"
+          artifacts: "util/wiki/*.pdf"
           artifactContentType: application/pdf
           body: This is an automatically generated LaTeX/PDF version of the tutorial on the VerCors wiki.
           name: VerCors Wiki PDF
