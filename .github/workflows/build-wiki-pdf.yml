@@ -24,7 +24,6 @@ jobs:
           git remote set-url origin https://${GITHUB_TOKEN}@github.com/utwente-fmt/vercors.git
           git push --force --tags
       - name: Create Wiki PDF release
-        if: ${{ github.ref == 'refs/heads/dev' }}
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
