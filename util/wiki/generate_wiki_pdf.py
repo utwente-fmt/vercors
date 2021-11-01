@@ -297,6 +297,7 @@ def output_html(path, blocks, version, generate_toc=True):
     <style>
         body {
             max-width: 50em;
+            margin: 0 auto;
         }
     </style>
     """
