@@ -65,6 +65,19 @@ sealed trait Expr extends NodeFamily {
   def unfoldProcessPar: Seq[Expr] = unfold(this) { case ProcessPar(l, r) => Seq(l, r) }
 }
 
+sealed trait CoercingExpr extends Expr {
+  def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr
+
+  def check(context: CheckContext): Seq[CheckError] =
+    try {
+      case object DummyScope extends ScopeContext
+      coerce(NopCoercionResolver)(DiagnosticOrigin, DummyScope)
+      Nil
+    } catch {
+      case Incoercible(expr, target) => Seq(TypeError(expr, target))
+    }
+}
+
 trait ExtraExpr extends Expr
 
 sealed trait IntExpr extends Expr {
@@ -113,45 +126,71 @@ object Constant {
   implicit class BooleanValue(val value: Boolean)(implicit val o: Origin) extends Constant[Boolean] with BoolExpr with NoCheck
 }
 
-case class LiteralSeq(element: Type, values: Seq[Expr])(implicit val o: Origin) extends Check(values.flatMap(_.checkSubType(element))) with Expr {
+case class LiteralSeq(element: Type, values: Seq[Expr])(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = TSeq(element)
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    LiteralSeq(element, values.map(resolver(_, element)))
 }
 
 /* We do *not* want to statically deduplicate structurally equal expressions, since expressions may have side effects. */
-case class LiteralSet(element: Type, values: Seq[Expr])(implicit val o: Origin) extends Check(values.flatMap(_.checkSubType(element))) with Expr {
+case class LiteralSet(element: Type, values: Seq[Expr])(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = TSet(element)
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    LiteralSet(element, values.map(resolver(_, element)))
 }
 
-case class LiteralBag(element: Type, values: Seq[Expr])(implicit val o: Origin) extends Check(values.flatMap(_.checkSubType(element))) with Expr {
+case class LiteralBag(element: Type, values: Seq[Expr])(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = TBag(element)
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    LiteralBag(element, values.map(resolver(_, element)))
 }
 
-case class LiteralTuple(ts: Seq[Type], values: Seq[Expr])(implicit val o: Origin) extends Expr {
+case class LiteralTuple(ts: Seq[Type], values: Seq[Expr])(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = TTuple(ts)
+
   override def check(context: CheckContext): Seq[CheckError] =
     if(ts.size == values.size) {
-      values.zip(ts).flatMap { case (value, t) => value.checkSubType(t) }
+      super.check(context)
     } else {
       Seq(TupleTypeCount(this))
     }
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    LiteralTuple(ts, values.zip(ts).map {
+      case (value, t) => resolver(value, t)
+    })
 }
 
-case class LiteralMap(k: Type, v: Type, values: Seq[(Expr, Expr)])(implicit val o: Origin) extends Expr {
+case class LiteralMap(k: Type, v: Type, values: Seq[(Expr, Expr)])(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = TMap(k, v)
-  override def check(context: CheckContext): Seq[CheckError] =
-    values.flatMap { case (valueK, valueV) => valueK.checkSubType(k) ++ valueV.checkSubType(v) }
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    LiteralMap(k, v, values.map {
+      case (key, value) => (resolver(key, k), resolver(value, v))
+    })
 }
 
-case class UntypedLiteralSeq(values: Seq[Expr])(implicit val o: Origin) extends Expr with NoCheck {
-  override def t: Type = TSeq(Type.leastCommonSuperType(values.map(_.t)))
+case class UntypedLiteralSeq(values: Seq[Expr])(implicit val o: Origin) extends CoercingExpr {
+  def elementType: Type = Type.leastCommonSuperType(values.map(_.t))
+  override def t: Type = TSeq(elementType)
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    UntypedLiteralSeq(values.map(resolver(_, elementType)))
 }
 
-case class UntypedLiteralSet(values: Seq[Expr])(implicit val o: Origin) extends Expr with NoCheck {
-  override def t: Type = TSet(Type.leastCommonSuperType(values.map(_.t)))
+case class UntypedLiteralSet(values: Seq[Expr])(implicit val o: Origin) extends CoercingExpr {
+  def elementType: Type = Type.leastCommonSuperType(values.map(_.t))
+  override def t: Type = TSet(elementType)
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    UntypedLiteralSet(values.map(resolver(_, elementType)))
 }
 
-case class UntypedLiteralBag(values: Seq[Expr])(implicit val o: Origin) extends Expr with NoCheck {
-  override def t: Type = TBag(Type.leastCommonSuperType(values.map(_.t)))
+case class UntypedLiteralBag(values: Seq[Expr])(implicit val o: Origin) extends CoercingExpr {
+  def elementType: Type = Type.leastCommonSuperType(values.map(_.t))
+  override def t: Type = TBag(elementType)
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    UntypedLiteralBag(values.map(resolver(_, elementType)))
 }
 
 case class Void()(implicit val o: Origin) extends Expr with NoCheck {
@@ -199,8 +238,10 @@ case class WritePerm()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TBoundedInt(1, 2)
 }
 
-case class Range(from: Expr, to: Expr)(implicit val o: Origin) extends Check(from.checkSubType(TInt()), to.checkSubType(TInt())) with Expr {
+case class Range(from: Expr, to: Expr)(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = TSeq(TInt())
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Range(resolver(from, TInt()), resolver(to, TInt()))
 }
 case class Values(arr: Expr, from: Expr, to: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = TSeq(arr.t.asArray.get.element)
@@ -431,7 +472,11 @@ case class Exp(left: Expr, right: Expr)(implicit val o: Origin) extends NumericB
 case class Plus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Minus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Mult(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
-case class Div(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr with DividingExpr
+case class Div(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr with DividingExpr {
+  override def t: Type = TRational()
+  override def check(context: CheckContext): Seq[CheckError] =
+    left.checkSubType(TRational()) ++ right.checkSubType(TRational())
+}
 case class FloorDiv(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends IntBinExpr with DividingExpr
 case class Mod(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr with DividingExpr
 case class BitAnd(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr

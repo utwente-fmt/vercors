@@ -13,9 +13,6 @@ case class PVLNamedType(name: String, typeArgs: Seq[Type])(implicit val o: Origi
     case RefClass(decl) => TClass(decl.ref)
     case RefVariable(v) => TVar(v.ref)
   }
-
-  override protected def superTypeOfImpl(other: Type): Boolean =
-    throw VerificationResult.Unreachable("PVL types always mimic a basic type.")
 }
 
 sealed trait PVLExpr extends ExtraExpr

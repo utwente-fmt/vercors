@@ -1,7 +1,7 @@
 package vct.col.resolve
 
 import vct.col.ast
-import vct.col.ast.{ADTFunction, Blame, BuiltinError, Class, CovariantType, Expr, ExtraType, LeafType, PVLConstructor, PVLNamedType, TAny, TBoundedInt, TClass, TFraction, TInt, TModel, TNotAValue, TNull, TRational, TResource, TZFraction, Type}
+import vct.col.ast.{Blame, BuiltinError, Class, Expr, PVLConstructor, TClass, TModel, TNotAValue, Type}
 
 case object PVL {
   def findConstructor(cls: ast.Class, args: Seq[Expr]): Option[PVLConstructor] =

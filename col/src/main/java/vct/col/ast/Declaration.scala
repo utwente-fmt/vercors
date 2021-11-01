@@ -16,7 +16,12 @@ sealed abstract class Declaration extends Node {
 
   def declareDefault(scope: ScopeContext): Unit
 
-  def ref[T <: Declaration](implicit tag: ClassTag[T]): Ref[T] = new DirectRef[T](this)
+  /**
+   * Create a Ref to this declaration. This is often useful in a place where the type of the ref can be directly
+   * inferred, e.g. `FunctionInvocation(func.ref, ...)`. The witness to `this.type <:< T` demands that the
+   * inferred T at least supports the type of this declaration.
+   */
+  def ref[T <: Declaration](implicit tag: ClassTag[T], witness: this.type <:< T): Ref[T] = new DirectRef[T](this)
 }
 
 object Ref {

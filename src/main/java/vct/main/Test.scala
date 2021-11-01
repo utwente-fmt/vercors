@@ -23,7 +23,7 @@ case object Test {
 
   def main(args: Array[String]): Unit = {
     try {
-//      for(f <- new File("src/main/universal/res/adt").listFiles()) {
+//      for(f <- new File("examples/arrays/array-example.pvl").listFiles()) {
 //        tryParse(Seq(f.toPath))
 //      }
 
@@ -38,7 +38,7 @@ case object Test {
 //        }
 //      })
 
-//      tryParse(Seq(Path.of("examples/case-studies/exception-patterns/CatchLog.java")))
+      tryParse(Seq(Path.of("examples/arrays/array-example.pvl")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")

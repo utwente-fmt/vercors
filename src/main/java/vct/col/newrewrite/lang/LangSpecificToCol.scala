@@ -462,7 +462,7 @@ case class LangSpecificToCol() extends Rewriter {
   }
 
   override def dispatch(t: Type): Type = t match {
-    case JavaTUnion(names) =>
+    case TUnion(names) =>
       if(names.size == 1) {
         dispatch(names.head)
       } else {

@@ -3,190 +3,11 @@ package vct.col.ast
 import vct.col.resolve.Referrable
 import AstBuildHelpers._
 
-import scala.reflect.ClassTag
-
-sealed trait Coercion {
-  /**
-   * Promoting coercions produce a strictly larger type, and must always be implemented injectively.
-   */
-  def isPromoting: Boolean
-}
-
-case object Coercion {
-  sealed trait Promotion extends Coercion {
-    override def isPromoting: Boolean = true
-  }
-
-  sealed trait MappingCoercion extends Coercion {
-    def inner: Coercion
-    override def isPromoting: Boolean = inner.isPromoting
-  }
-
-  sealed trait MappingPromotion extends Promotion with MappingCoercion {
-    override def inner: Promotion
-    override def isPromoting: Boolean = true
-  }
-
-  case object Identity extends Promotion
-  case class Compose(left: Coercion, right: Coercion) extends Coercion {
-    override def isPromoting: Boolean = left.isPromoting && right.isPromoting
-  }
-
-  case class NothingSomething(target: Type) extends Promotion
-  case object SomethingAny extends Promotion
-  case class MapOption(source: TOption, target: TOption, inner: Coercion) extends MappingCoercion
-  case class MapSeq(source: TSeq, target: TSeq, inner: Coercion) extends MappingCoercion
-  case class MapSet(source: TSet, target: TSet, inner: Promotion) extends MappingPromotion
-  case class MapBag(source: TBag, target: TBag, inner: Promotion) extends MappingPromotion
-  case class MapMatrix(source: TMatrix, target: TMatrix, inner: Coercion) extends MappingCoercion
-  case class MapMap(source: TMap, target: TMap, inner: Coercion) extends MappingCoercion
-  case class MapType(source: TType, target: TType, inner: Coercion) extends MappingCoercion
-  case class Supports(source: TClass, target: TClass) extends Promotion
-  case class JavaSupports(source: JavaTClass, target: JavaTClass) extends Promotion
-  case object NullRef extends Promotion
-  case class NullArray(target: TArray) extends Promotion
-  case class NullClass(target: TClass) extends Promotion
-  case class NullJavaClass(target: JavaTClass) extends Promotion
-  case class NullPointer(target: TPointer) extends Promotion
-  case object FracZFrac extends Promotion
-  case object ZFracRat extends Promotion
-  case class FloatRat(source: TFloat) extends Promotion
-  case class WidenBound(source: TBoundedInt, target: TBoundedInt) extends Promotion
-  case class UnboundInt(source: TBoundedInt) extends Promotion
-  case object IntRat extends Promotion
-
-  case object RatZFrac extends Coercion {
-    override def isPromoting: Boolean = false
-  }
-  case object ZFracFrac extends Coercion {
-    override def isPromoting: Boolean = false
-  }
-}
-
-sealed trait ResolveCoercion {
-  /**
-   * Apply a particular coercion to an expression.
-   * SAFETY: all promoting coercions must be injective; otherwise the default mapping coercion of sets is unsound.
-   * @param e the expression to coerce
-   * @param coercion the coercion
-   * @param o the origin to assign to generated expressions
-   * @param sc the scope in which to declare functions
-   * @return the coerced expression
-   */
-  def apply(e: Expr, coercion: Coercion)(implicit o: Origin, sc: ScopeContext): Expr = coercion match {
-    case Coercion.Identity => e
-    case Coercion.Compose(left, right) => apply(apply(e, right), left)
-    case Coercion.NothingSomething(_) => e
-    case Coercion.SomethingAny => e
-    case Coercion.MapOption(_, _, inner) =>
-      Select(Eq(e, OptNone()), OptNone(), apply(OptGet(e)(NeverNone), inner))
-    case Coercion.MapSeq(source, target, inner) =>
-      val result = AmbiguousResult()
-      result.ref = Some(target)
-      val v = new Variable(source)
-      val i = new Variable(TInt())
-      val v_i = SeqSubscript(v.get, i.get)(FramedSeqIndex)
-      val result_i = SeqSubscript(result, i.get)(FramedSeqIndex)
-
-      val f = function(
-        blame = AbstractApplicable,
-        returnType = target,
-        args = Seq(v),
-        ensures =
-          Eq(Size(v.get), Size(result)) &&
-          Forall(Seq(i), Seq(Seq(result_i)),
-            (const(0) < i.get && i.get < Size(result)) ==>
-              result_i === apply(v_i, inner)),
-      )
-
-      f.declareDefault(sc)
-      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
-    case Coercion.MapSet(source, target, inner) =>
-      val result = AmbiguousResult()
-      result.ref = Some(target)
-      val v = new Variable(source)
-      val elem = new Variable(source.element)
-
-      val f = function(
-        blame = AbstractApplicable,
-        returnType = target,
-        args = Seq(v),
-        ensures =
-          Eq(Size(result), Size(v.get)) &&
-          Forall(Seq(elem), Seq(Seq(SetMember(elem.get, result))),
-            Eq(SetMember(apply(elem.get, inner), result), SetMember(elem.get, v.get)))
-      )
-
-      f.declareDefault(sc)
-      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
-    case Coercion.MapBag(source, target, inner) =>
-      val result = AmbiguousResult()
-      result.ref = Some(target)
-      val v = new Variable(source)
-      val elem = new Variable(source.element)
-
-      val f = function(
-        blame = AbstractApplicable,
-        returnType = target,
-        args = Seq(v),
-        ensures =
-          Eq(Size(result), Size(v.get)) &&
-          Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
-            Eq(BagMemberCount(apply(elem.get, inner), result), BagMemberCount(elem.get, v.get)))
-      )
-
-      f.declareDefault(sc)
-      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
-    case Coercion.MapMatrix(source, target, inner) =>
-      ???
-    case Coercion.MapMap(source, target, inner) =>
-      val result = AmbiguousResult()
-      result.ref = Some(target)
-      val v = new Variable(source)
-      val k = new Variable(source.key)
-
-      val f = function(
-        blame = AbstractApplicable,
-        returnType = target,
-        args = Seq(v),
-        ensures =
-          Eq(MapKeySet(result), MapKeySet(v.get)) &&
-          Forall(Seq(k), Seq(Seq(MapGet(result, k.get)(TriggerPatternBlame))),
-            SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), MapGet(v.get, k.get)(FramedMapGet)))
-      )
-
-      f.declareDefault(sc)
-      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
-    case Coercion.MapType(source, target, inner) =>
-      ???
-    case Coercion.Supports(_, _) => e
-    case Coercion.JavaSupports(_, _) => e
-    case Coercion.NullRef => e
-    case Coercion.NullArray(_) => e
-    case Coercion.NullClass(_) => e
-    case Coercion.NullJavaClass(_) => e
-    case Coercion.NullPointer(_) => e
-    case Coercion.FracZFrac => e
-    case Coercion.ZFracRat => e
-    case Coercion.FloatRat(_) => e
-    case Coercion.WidenBound(_, _) => e
-    case Coercion.UnboundInt(_) => e
-    case Coercion.IntRat => e
-    case Coercion.RatZFrac => e
-    case Coercion.ZFracFrac => e
-  }
-}
-
-
 sealed trait Type extends NodeFamily {
   def superTypeOf(other: Type): Boolean =
-    mimics.superTypeOfImpl(other.mimics) ||
-      other.mimics.subTypeOfImpl(mimics)
+    Coercion.getCoercion(other.mimics, mimics).isDefined
 
   def mimics: Type = this
-
-  protected def superTypeOfImpl(other: Type): Boolean
-  protected def subTypeOfImpl(other: Type): Boolean = false
 
   override def check(context: CheckContext): Seq[CheckError] = Nil
 
@@ -282,14 +103,14 @@ object Type {
       classes match {
         case Nil => TAny()
         case Seq(t) => TClass(t.ref)
-        case other => JavaTUnion(other.map(cls => TClass(cls.ref)))
+        case other => TUnion(other.map(cls => TClass(cls.ref)))
       }
 
     // TODO similar stuff for JavaClass
 
-    case (JavaTUnion(left), JavaTUnion(right)) => JavaTUnion((left ++ right).distinct)
-    case (JavaTUnion(left), right) => JavaTUnion((left :+ right).distinct)
-    case (left, JavaTUnion(right)) => JavaTUnion((left +: right).distinct)
+    case (TUnion(left), TUnion(right)) => TUnion((left ++ right).distinct)
+    case (TUnion(left), right) => TUnion((left :+ right).distinct)
+    case (left, TUnion(right)) => TUnion((left +: right).distinct)
 
     case (TBoundedInt(leftGte, leftLt), TBoundedInt(rightGte, rightLt)) =>
       TBoundedInt(leftGte.min(rightGte), leftLt.max(rightLt))
@@ -310,30 +131,8 @@ object Type {
     else Seq(IncomparableTypes(left, right))
 }
 
-sealed trait LeafType extends Type {
-  override def superTypeOfImpl(other: Type): Boolean =
-    other == this
-}
-
-// A Seq[Cat] is a Seq[Animal] because a Cat is an Animal. Seq is then covariant in its element type. This is nice to
-// have, and works because most of our types are immutable ("query-only").
-sealed abstract class CovariantType[T <: CovariantType[_]](subTypes: => Seq[Type])(implicit val tag: ClassTag[T]) extends Type {
-  private def types: Seq[Type] = subTypes
-
-  override def superTypeOfImpl(other: Type): Boolean = {
-    other match {
-      case other: T =>
-        types.size == other.types.size &&
-          types.zip(other.types).forall {
-            case (t, otherT) => t.superTypeOf(otherT)
-          }
-      case _ => false
-    }
-  }
-}
-
 // Immutable collection with a defined size
-sealed trait CollectionType
+sealed trait CollectionType extends Type
 
 object TNotAValue {
   def apply(decl: Referrable): TNotAValue = {
@@ -345,119 +144,60 @@ object TNotAValue {
 
 case class TNotAValue()(implicit val o: Origin = DiagnosticOrigin) extends Type {
   var decl: Option[Referrable] = None
-  override protected def superTypeOfImpl(other: Type): Boolean = false
 }
 
-case class TAny()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = other match {
-    case TNotAValue() => false
-    case _ => true
-  }
+case class TAny()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TNothing()(implicit val o: Origin = DiagnosticOrigin) extends Type
+
+case class TUnion(types: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends Type {
+  override def mimics: Type =
+    if(types.size == 1) types.head.mimics
+    else TUnion(types.map(_.mimics))
+
+//  override def subTypeOfImpl(other: Type): Boolean =
+//    types.forall(other.superTypeOf)
+//
+//  override def superTypeOfImpl(other: Type): Boolean =
+//    types.exists(_.superTypeOf(other))
 }
 
-case class TNothing()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = other == TNothing()
-  override def subTypeOfImpl(other: Type): Boolean = other != TNotAValue()
-}
+case class TVoid()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TNull()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TBool()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TResource()(implicit val o: Origin = DiagnosticOrigin) extends Type
 
-case class TVoid()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TNull()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = other == TNull()
+case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TBoundedInt(gte: BigInt, lt: BigInt)(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TFloat()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TRational()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TZFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type
 
-  override def subTypeOfImpl(other: Type): Boolean = other match {
-    case TPointer(_) => true
-    case TClass(_) => true
-    case JavaTClass(_) => true
-    case TArray(_) => true
-    case TRef() => true
-    case _ => false
-  }
-}
-case class TBool()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TResource()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean =
-    other == TResource() || other == TBool()
-}
-
-case class TInt()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override protected def superTypeOfImpl(other: Type): Boolean = other match {
-    case TInt() | TBoundedInt(_, _) => true
-    case _ => false
-  }
-}
-case class TBoundedInt(gte: BigInt, lt: BigInt)(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = other match {
-    case TBoundedInt(otherGte, otherLt) => gte <= otherGte && otherLt <= lt
-    case _ => false
-  }
-}
-case class TFloat()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TRational()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = other match {
-    case TRational() | TInt() | TFraction() | TZFraction() | TBoundedInt(_, _) => true
-    case _ => false
-  }
-}
-case class TFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override protected def superTypeOfImpl(other: Type): Boolean = other match {
-    case TFraction() => true
-    case TBoundedInt(gte, lt) if gte > 0 && lt <= 2 => true // At most [1, 2) ∩ ℤ = {1}
-    case _ => false
-  }
-}
-case class TZFraction()(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = other match {
-    case TFraction() | TZFraction() => true
-    case TBoundedInt(gte, lt) if gte >= 0 && lt <= 2 => true // At most [0, 2) ∩ ℤ = {0, 1}
-  }
-}
-
-case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TString()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TRef()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TOption(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TOption](Seq(element))
-case class TTuple(elements: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TTuple](elements)
-case class TSeq(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TSeq](Seq(element)) with CollectionType
-case class TSet(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TSet](Seq(element)) with CollectionType
-case class TBag(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TBag](Seq(element)) with CollectionType
+case class TChar()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TString()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TRef()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TOption(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TTuple(elements: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TSeq(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CollectionType
+case class TSet(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CollectionType
+case class TBag(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CollectionType
 /* case class TVector(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TVector](Seq(element)) with CollectionType */
-case class TMatrix(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TMatrix](Seq(element))
-case class TArray(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TPointer(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TMap(key: Type, value: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override protected def superTypeOfImpl(other: Type): Boolean = other match {
-    case TMap(k, other) =>
-      // key occurs in contra- and covariant positions (e.g. MapGet and MapItemSet)
-      // value currently appears only in covariant positions (i.e. we don't have MapContains(value))
-      key == k && value.superTypeOf(other)
-    case _ => false
-  }
-}
-case class TProcess()(implicit val o: Origin = DiagnosticOrigin) extends LeafType
-case class TModel(model: Ref[Model])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TMatrix(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TArray(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TPointer(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TMap(key: Type, value: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TProcess()(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TModel(model: Ref[Model])(implicit val o: Origin = DiagnosticOrigin) extends Type
 case class TClass(cls: Ref[Class])(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def superTypeOfImpl(other: Type): Boolean = other == TClass(cls) // FIXME
-
   def transSupportArrows: Seq[(Class, Class)] = cls.decl.transSupportArrows
 }
-// PB: Potentially axiomatic datatypes could be covariant in its type arguments, but that will probably be a huge mess to
-// translate into silver.
-case class TAxiomatic(adt: Ref[AxiomaticDataType], args: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends LeafType
+case class TAxiomatic(adt: Ref[AxiomaticDataType], args: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends Type
 
-// the type type is covariant in its type (yes)
-case class TType(t: Type)(implicit val o: Origin = DiagnosticOrigin) extends CovariantType[TType](Seq(t))
+case class TType(t: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type
 
 case class TVar(ref: Ref[Variable])(implicit val o: Origin = DiagnosticOrigin) extends Type {
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(this, ref) ++
       (if(TType(TAny()).superTypeOf(ref.decl.t)) Nil
       else Seq(GenericTypeError(this, TType(TAny()))))
-
-  override protected def subTypeOfImpl(other: Type): Boolean =
-    ref.decl.t match {
-      case TType(inner) => other.superTypeOf(inner)
-    }
-
-  override protected def superTypeOfImpl(other: Type): Boolean =
-    this == other
 }

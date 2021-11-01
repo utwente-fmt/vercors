@@ -198,7 +198,4 @@ case class CPrimitiveType(specifiers: Seq[CDeclarationSpecifier])(implicit val o
     case Seq(defn @ CTypedefName(_)) => TNotAValue(defn.ref.get)
     case _ => throw CTypeNotSupported(this)
   }
-
-  override protected def superTypeOfImpl(other: Type): Boolean =
-    throw VerificationResult.Unreachable("C primitive types always mimic a basic type!")
 }

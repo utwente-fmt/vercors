@@ -2,6 +2,7 @@ package vct.col.ast
 
 import hre.util.FuncTools
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, JavaDerefTarget, JavaInvocationTarget, JavaNameTarget, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefClass, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.result.VerificationResult.Unreachable
 
 case class JavaName(names: Seq[String])(implicit val o: Origin)
   extends NodeFamily with NoCheck {
@@ -36,15 +37,21 @@ sealed abstract class JavaClassOrInterface extends JavaGlobalDeclaration with De
   def typeParams: Seq[Variable]
   def decls: Seq[ClassDeclaration]
   def supports: Seq[Type]
-  def superTypeOf(other: JavaClassOrInterface): Boolean =
-    other == this || other.supports.exists(superTypeOf)
 
-  def superTypeOf(other: Type): Boolean = other match {
-    case otherClassType @ JavaTClass(_) => superTypeOf(otherClassType.ref.get match {
-      case RefJavaClass(decl) => decl
-      case _ => return false
-    })
-    case _ => false
+  def transSupportArrows(seen: Set[JavaClassOrInterface]): Seq[(JavaClassOrInterface, JavaClassOrInterface)] = {
+    if(seen.contains(this)) {
+      throw Unreachable("Yes, you got me, cyclical inheritance is not supported!")
+    }
+
+    val ts = supports.flatMap {
+      case t: JavaTClass => t.ref.get match {
+        case target: SpecTypeNameTarget => Nil
+        case RefJavaClass(decl) => Seq(decl)
+      }
+      case _ => Nil
+    }
+
+    ts.map((this, _)) ++ ts.flatMap(_.transSupportArrows(Set(this) ++ seen))
   }
 
   override def declarations: Seq[Declaration] = typeParams ++ decls
@@ -97,17 +104,6 @@ case class JavaLocalDeclarationStatement(decl: JavaLocalDeclaration)
   extends JavaStatement with NoCheck
 
 sealed trait JavaType extends ExtraType
-case class JavaTUnion(types: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends JavaType {
-  override def mimics: Type =
-    if(types.size == 1) types.head.mimics
-    else JavaTUnion(types.map(_.mimics))
-
-  override def subTypeOfImpl(other: Type): Boolean =
-    types.forall(other.superTypeOf)
-
-  override def superTypeOfImpl(other: Type): Boolean =
-    types.exists(_.superTypeOf(other))
-}
 
 case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: Origin) extends JavaType {
   var ref: Option[JavaTypeNameTarget] = None
@@ -118,9 +114,6 @@ case class JavaTClass(names: Seq[(String, Option[Seq[Type]])])(implicit val o: O
     case RefJavaClass(_) => this
     case RefVariable(v) => TVar(v.ref)
   }
-
-  override def superTypeOfImpl(other: Type): Boolean =
-    ref.get.asInstanceOf[RefJavaClass].decl.superTypeOf(other)
 }
 
 sealed trait JavaExpr extends ExtraExpr

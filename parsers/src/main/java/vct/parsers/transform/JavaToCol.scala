@@ -355,9 +355,9 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       CatchClause(new Variable(convert(ts))(SourceNameOrigin(convert(id), origin(grab))), convert(body))
   }
 
-  def convert(implicit ts: CatchTypeContext): JavaTUnion = ts match {
-    case CatchType0(name) => JavaTUnion(Seq(convert(name)))
-    case CatchType1(name, _, names) => JavaTUnion(convert(name) +: convert(names).types)
+  def convert(implicit ts: CatchTypeContext): TUnion = ts match {
+    case CatchType0(name) => TUnion(Seq(convert(name)))
+    case CatchType1(name, _, names) => TUnion(convert(name) +: convert(names).types)
   }
 
   def convert(implicit ts: NonWildcardTypeArgumentsContext): Seq[Type] = ts match {

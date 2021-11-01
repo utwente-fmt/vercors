@@ -905,7 +905,7 @@ case class Printer(out: Appendable,
   def printType(t: Type): Unit = say(t match {
     case CPrimitiveType(specifiers) =>
       spaced(specifiers.map(NodePhrase))
-    case JavaTUnion(types) =>
+    case TUnion(types) =>
       intersperse(phrase(space, "|", space), types.map(NodePhrase))
     case JavaTClass(names) =>
       intersperse(".", names.map(_._1).map(Text))
