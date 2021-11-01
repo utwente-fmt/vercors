@@ -298,7 +298,7 @@ def output_html(path, blocks, version, generate_toc=True):
         "html",
         format="json",
         outputfile=path,
-        extra_args=shared_pandoc_opts(generate_toc) + ["-s", "--template", "wiki_template.html"])
+        extra_args=["-s", "--template", "wiki_template.html"] + shared_pandoc_opts(generate_toc))
 
 if __name__ == "__main__":
     # TODO: Check if pypandoc is installed
