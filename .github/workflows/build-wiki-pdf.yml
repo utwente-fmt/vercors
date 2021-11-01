@@ -11,9 +11,9 @@ jobs:
       - working-directory: util/wiki
         run: pip3 install -r requirements.txt
       - working-directory: util/wiki
-        run: git clone https://github.com/utwente-fmt/vercors.wiki.git
-      - working-directiry: util/wiki
-        run: python3 ./generate_wiki_pdf.py -i vercors.wiki --html wiki.html
+        run: "git clone https://github.com/utwente-fmt/vercors.wiki.git"
+      - working-directory: util/wiki
+        run: "python3 ./generate_wiki_pdf.py -i vercors.wiki --html wiki.html"
       - working-directory: util/wiki
         run: ls
       - name: Set wiki pdf tag in github repo
