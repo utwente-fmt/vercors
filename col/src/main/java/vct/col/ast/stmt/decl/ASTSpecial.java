@@ -125,7 +125,7 @@ public class ASTSpecial extends ASTDeclaration {
     /**
      * Declare executor service from java.util.concurrent
      */
-    ThreadPoolExecutor(0),
+    ThreadPoolExecutor(1),
     /**
      * Use executorservice to execute via ExecutorService
      */

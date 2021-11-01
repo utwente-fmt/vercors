@@ -310,8 +310,11 @@ public class JavaPrinter extends AbstractPrinter {
       break;
     }
     case ThreadPoolExecutor:{
-        out.printf("ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());");
-        break;
+      setExpr();
+      out.printf("ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(");
+      s.args[0].accept(this);
+      out.printf(");");
+      break;
     }
     case ThreadExecute:{
       setExpr();
@@ -1222,10 +1225,14 @@ public class JavaPrinter extends AbstractPrinter {
         if (nrofargs!=2){
           Fail("Map type constructor with %d arguments instead of 2",nrofargs);
         }
-        out.printf("map<");
-        t.firstarg().accept(this);
+        out.printf("Map<");
+        if(t.firstarg() instanceof PrimitiveType && ((PrimitiveType) t.firstarg()).sort == PrimitiveSort.Integer)
+          out.printf(((PrimitiveType)t.firstarg()).sort.toString());
+        else t.firstarg().accept(this);
         out.printf(",");
-        t.secondarg().accept(this);
+        if(t.secondarg() instanceof PrimitiveType && ((PrimitiveType) t.secondarg()).sort == PrimitiveSort.Integer)
+          out.printf(((PrimitiveType)t.secondarg()).sort.toString());
+        else t.secondarg().accept(this);
         out.printf(">");
         break;
       case Tuple:
@@ -1242,8 +1249,10 @@ public class JavaPrinter extends AbstractPrinter {
         if (nrofargs!=1){
           Fail("Sequence type constructor with %d arguments instead of 1",nrofargs);
         }
-        out.printf("seq<");
-        t.firstarg().accept(this);
+        out.printf("List<");
+        if(t.firstarg() instanceof PrimitiveType && ((PrimitiveType) t.firstarg()).sort == PrimitiveSort.Integer)
+          out.printf(((PrimitiveType)t.firstarg()).sort.toString());
+        else t.firstarg().accept(this);
         out.printf(">");
         break;
       case Set:

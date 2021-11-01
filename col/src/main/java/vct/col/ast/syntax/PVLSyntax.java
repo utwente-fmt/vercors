@@ -123,6 +123,7 @@ public class PVLSyntax extends Syntax {
       syntax.addReserved(CurrentThread,"current_thread");
       syntax.addReserved(Null,"null");
       syntax.addReserved(This,"this");
+      syntax.addReserved(Protected,"");
       
       syntax.addOperator(Unfolding,140,"unfolding","in","");
       

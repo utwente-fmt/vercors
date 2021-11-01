@@ -33,8 +33,8 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val threadExecutes = threads.map(t => getThreadExecuting(t.name)).toArray
     val spawnThreads =
       if(forkJoin) threadForks ++ threadJoins
-      else create.special(ASTSpecial.Kind.ThreadPoolExecutor) +: threadExecutes :+ create.special(ASTSpecial.Kind.ThreadPoolExecutorShutDown)
-    val mainFJArgs = threadsConstr.map(getConstrRoleArgs).reduce((a,b) => a ++ b) : Array[DeclarationStatement]
+      else create.special(ASTSpecial.Kind.ThreadPoolExecutor,create.constant(threadVars.length)) +: threadExecutes :+ create.special(ASTSpecial.Kind.ThreadPoolExecutorShutDown)
+    val mainFJArgs = mainClass.methods().asScala.find(_.kind == Method.Kind.Constructor).get.getArgs
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
       chansVars ++ threadVars ++ spawnThreads:_*) //++ threadJoins
     val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),Array(create.class_type("InterruptedException")),rewrite(mainFJContract),

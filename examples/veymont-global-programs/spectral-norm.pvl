@@ -1,37 +1,42 @@
 class Collector {
     int n;
-    int[] t1, t2, t3;
+    int[] t0, t1, t2;
     int[] result;
+    int nrThreads;
     
-    Collector(int nn) {
+    Collector(int nn, int nrT) {
         n = nn;
+        nrThreads = nrT;
     }
     
     void flatten() {
-        result = new int[3*n];
-        for(int i = 0; i < n; i++) {
-            result[i] = t1[i];
-            result[n + i] = t2[i];
-            result[2*n + i] = t3[i];
+        result = new int[n];
+        int l = n / nrThreads;
+        for(int i = 0; i < l; i++) {
+            result[i] = t0[i];
+            result[l + i] = t1[i];
+            result[2*l + i] = t2[i];
         }
     }
 }
 
 class Times {
     int n;
-    int[] x,u;
+    int[] v,u;
     boolean transpose;
+    int seg;
     
-    Times(int nn, boolean transp) {
+    Times(int nn, boolean transp, int nrThreads) {
         n = nn;
         transpose = transp;
+        seg = n / nrThreads;
     }
     
     void runn();
-    //assign x
+    //assign v
     
-    void initx() {
-        x = new int[n];
+    void initv() {
+        v = new int[n];
     }
     
     void initu() {
@@ -45,81 +50,83 @@ class Times {
 
 class Calculator {
     int[] v, u; 
-    int vBv, vv;
+    int n,vBv, vv;
     
-    Calculator() {
+    Calculator(int nn) {
+        n = nn;
     }
     
-    void compute();
+    void calculate();
     //compute vBv and vv from v and u
 }
 
 class Main {
 
-    Times t1, t2, t3;
+    Times t0, t1, t2;
     Collector c;
     Calculator cal;
     
     Main(int n) {
-        t1 = new Times(n,false);
-        t2 = new Times(n,false);
-        t3 = new Times(n,false);
-        c = new Collector(n);
-        cal = new Calculator();
+        t0 = new Times(n,false,3);
+        t1 = new Times(n,false,3);
+        t2 = new Times(n,false,3);
+        c = new Collector(n, 3);
+        cal = new Calculator(n);
     }
     
     void run() {
+        t0.initu();
         t1.initu();
         t2.initu();
-        t3.initu();
         aTimesTransp();
+        t0.u = c.result;        
         t1.u = c.result;
         t2.u = c.result;
-        t3.u = c.result;
+        t0.transpose = true;
         t1.transpose = true;
         t2.transpose = true;
-        t3.transpose = true;
         aTimesTransp();
-        cal.v = t1.u;
+        cal.v = t0.u;
         cal.u = c.result;
-        cal.compute();
+        cal.calculate();
     }
     
     void aTimesTransp() {
          par
         { 
-            t1.initx();
-            t1.runn();
-            c.t1 = t1.x;
+            t0.initv();
+            t0.runn();
+            c.t0 = t0.v;
             
         } and 
         {
-            t2.initx();
-            t2.runn();
-            c.t2 = t2.x;
+            t1.initv();
+            t1.runn();
+            c.t1 = t1.v;
         } and 
         {
-            t3.initx();
-            t3.runn();
-            c.t3 = t3.x;
+            t2.initv();
+            t2.runn();
+            c.t1 = t1.v;
         }
         c.flatten(); // x in c.result
         par
         {
-            t1.initx();
+            t0.initv();
+            t0.u = c.result;
+            t0.runn();
+            c.t0 = t0.v;
+        } and
+        {
+            t1.initv();
             t1.u = c.result;
             t1.runn();
-            c.t1 = t1.x;
+            c.t1 = t1.v;
         } and {
-            t2.initx();
+            t2.initv();
             t2.u = c.result;
             t2.runn();
-            c.t2 = t2.x;
-        } and {
-            t3.initx();
-            t3.u = c.result;
-            t1.runn();
-            c.t3 = t3.x;
+            c.t2 = t2.v;
         }
         c.flatten(); // v in c.result
     }

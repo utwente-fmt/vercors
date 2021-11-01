@@ -20,25 +20,12 @@ class Main {
         s.init();
         s.check();
         l.init();
-        par 
-        {
-            r0.check();
-        } and 
-        {
-            r1.check();
-        }  and 
-        {
-            r2.check();
-        }  and 
-        {
-            r3.check();
-        }  and 
-        {
-            r4.check();
-        }  and 
-        {
-            r5.check();
-        }
+        r0.check();
+        r1.check();
+        r2.check();
+        r3.check();
+        r4.check();
+        r5.check();
         l.check();
     }
     
@@ -94,10 +81,10 @@ class Role {
 class TreeNode {
 
     resource treePerm() = 
-    	Perm(left, 1\2) ** Perm(right, 1\2) 
-    	** (left != null ==> left.treePerm())
-    	** (right != null ==> right.treePerm())
-    	;
+        Perm(left, 1\2) ** Perm(right, 1\2) 
+        ** (left != null ==> left.treePerm())
+        ** (right != null ==> right.treePerm())
+        ;
 
     TreeNode left;
     TreeNode right;
@@ -112,7 +99,7 @@ class TreeNode {
 
     context treePerm();
     int itemCheck() {
-    	unfold treePerm();
+        unfold treePerm();
         if (left == null || right == null) { // had to add || right == null
             fold treePerm();
             return 1;
@@ -151,7 +138,7 @@ class LongLivedTree {
     context Perm(check,1) ** Perm(longLivedTree,1\2);
     context longLivedTree != null ** longLivedTree.treePerm();
     void check() {
-    	assert longLivedTree.treePerm();
+        assert longLivedTree.treePerm();
         check = longLivedTree.itemCheck();
     }
     

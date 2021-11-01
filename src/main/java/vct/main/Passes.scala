@@ -43,6 +43,8 @@ object Passes {
           PVLSyntax.get().print(out,arg)
         else if(Configuration.veymont_file.get().endsWith(".java")) {
           out.println("import java.util.concurrent.*;")
+          out.println("import java.util.List;")
+          out.println("import java.util.Map;")
           JavaSyntax.getJava(JavaDialect.JavaVerCors).print(out, new JavaForkJoin(arg).rewriteAll())
         }
         else Fail("VeyMont Fail: VeyMont cannot write output to file %s",Configuration.veymont_file.get())

@@ -289,7 +289,7 @@ class StructureCheck(source : ProgramUnit) {
         })
       case i: IfStatement => {
         if (i.getCount == 1 || i.getCount == 2) {
-          if (checkSessionCondition(i.getGuard(0), roleNames)) {
+          if (checkVeyMontCondition(i.getGuard(0), roleNames)) {
             if(checkEqualRoleExpressions(prevAssertArg,i.getGuard(0))) {
               checkMainStatement(i.getStatement(0))
               if (i.getCount == 2) checkMainStatement(i.getStatement(1))
@@ -299,7 +299,7 @@ class StructureCheck(source : ProgramUnit) {
       }
       case l: LoopStatement => {
         if (l.getInitBlock == null && l.getUpdateBlock == null) { //it is a while loop
-          if (checkSessionCondition(l.getEntryGuard, roleNames)) {
+          if (checkVeyMontCondition(l.getEntryGuard, roleNames)) {
             if(checkEqualRoleExpressions(l.getContract.invariant,l.getEntryGuard))
               checkMainStatement(l.getBody)
             else Fail("VeyMont Fail: a while loop needs to have a loop invariant stating the equality of all the role expressions from the conditions! %s",l.getOrigin)
@@ -322,6 +322,8 @@ class StructureCheck(source : ProgramUnit) {
           Fail("VeyMont Fail: cannot call role constructor '%s'! %s", m.dispatch.getName,m.getOrigin)
         else if (m.method == runMethodName && m.`object` != null)
           Fail("VeyMont Fail: method name '%s' only allowed for methods of class '%s'",runMethodName,mainClassName)
+        else if (m.method == javaRunMethodName)
+          Fail("VeyMont Fail: methode name '%s' reserved!", javaRunMethodName)
         else if (nonPlainMainMethodNames.exists(_ == m.method))
           Fail("VeyMont Fail: cannot have a method call statement for pure/predicate method '%s'! %s", m.method, m.getOrigin)
         else {
@@ -348,14 +350,14 @@ class StructureCheck(source : ProgramUnit) {
           if(as.args.length != 1) {
             Fail("VeyMont Fail: Assert can only have one argument!")
           } else prevAssertArg = as.args.head
-        } else Fail("VeyMont Fail: Syntax not allowed; statement %s is not a session statement! %s", as.toString, s.getOrigin)
-      case _ => Fail("VeyMont Fail: Syntax not allowed; statement %s is not a session statement! %s", s.toString, s.getOrigin)
+        } else Fail("VeyMont Fail: Syntax not allowed; statement %s is not a VeyMont global program statement! %s", as.toString, s.getOrigin)
+      case _ => Fail("VeyMont Fail: Syntax not allowed; statement %s is not a VeyMont global program statement! %s", s.toString, s.getOrigin)
     }
     if(!s.isInstanceOf[ASTSpecial]) //it is no ASTSpeicial, so no assert
       prevAssertArg = null
   }
 
-  private def checkSessionCondition(node: ASTNode, roleNames : Iterable[String]) : Boolean = {
+  private def checkVeyMontCondition(node: ASTNode, roleNames : Iterable[String]) : Boolean = {
     val mi = getMethodInvocationsFromExpression(node)
     if(mi.exists(m => nonPlainMainMethodNames.exists(_ == m.method))) {
       Fail("VeyMont Fail: Cannot call pure method in if or while condition! ")

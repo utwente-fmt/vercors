@@ -18,19 +18,10 @@ class Main {
         s.init();
         s.check();
         l.init();
-        par 
-        {
-            r0.check();
-        } and 
-        {
-            r1.check();
-        }  and 
-        {
-            r2.check();
-        }  and 
-        {
-            r3.check();
-        }
+        r0.check();
+        r1.check();
+        r2.check();
+        r3.check();
         l.check();
     }
     

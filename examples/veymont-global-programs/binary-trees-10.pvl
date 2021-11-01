@@ -1,21 +1,23 @@
 
 class Main {
 
-    Role r0,r1,r2,r3,r4,r5,r6,r7;
+    Role r0,r1,r2,r3,r4,r5,r6,r7,r8,r9;
     LongLivedTree l;
     StretchTree s;
 
     Main() {
-        r0 = new Role(4+0,4+14);
-        r1 = new Role(4+2,4+14);
-        r2 = new Role(4+4,4+14);
-        r3 = new Role(4+6,4+14);
-        r4 = new Role(4+8,4+14);
-        r5 = new Role(4+10,4+14);
-        r6 = new Role(4+12,4+14);
-        r7 = new Role(4+14,4+14);
-        l = new LongLivedTree(4+14);
-        s = new StretchTree(4+14);
+        r0 = new Role(4+0,4+18);
+        r1 = new Role(4+2,4+18);
+        r2 = new Role(4+4,4+18);
+        r3 = new Role(4+6,4+18);
+        r4 = new Role(4+8,4+18);
+        r5 = new Role(4+10,4+18);
+        r6 = new Role(4+12,4+18);
+        r7 = new Role(4+14,4+18);
+        r8 = new Role(4+16,4+18);
+        r9 = new Role(4+18,4+18);
+        l = new LongLivedTree(4+18);
+        s = new StretchTree(4+18);
     }
 
     void run() {
@@ -30,6 +32,8 @@ class Main {
         r5.check();
         r6.check();
         r7.check();
+        r8.check();
+        r9.check();
         l.check();
     }
     

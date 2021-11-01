@@ -85,12 +85,13 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         classFieldNames.foreach(f => contract.context(create.expression(StandardOperator.Perm,f,create.reserved_name(ASTReserved.ReadPerm))))
         c.fields().forEach(f => contract.ensures(create.expression(StandardOperator.Perm,create.dereference(create.reserved_name(ASTReserved.Result),f.name),create.constant(1))))
         val classType = create.class_type(c.name,Array.empty[DeclarationStatement]:_*)
-        val body = new BlockStatement()
-        getConstrFieldArgs(classFieldNames,c) match {
+        val body = getConstrFieldArgs(classFieldNames,c) match {
           case Some(args) =>
             val ret = create.return_statement(create.new_object(classType,classFieldNames.toArray:_*))
+            val body = new BlockStatement()
             body.add(ret)
-          case None => //do nothing; body of clone is empty
+            body
+          case None => null//do nothing; body of clone is empty
         }
         val m = create.method_decl(classType,contract.getContract,cloneMethod,Array.empty[DeclarationStatement] ,body)
         m.attach(create.reserved_name(ASTReserved.Protected))
@@ -157,7 +158,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
 
   private def filterRoleArgs(constr : Method) : Array[DeclarationStatement] = {
     val roleAssign = getRoleObjects(constr).find(_.location.asInstanceOf[NameExpression].name == roleName.get).get
-    val roleArgs = roleAssign.expression.asInstanceOf[MethodInvokation].args
+    val roleArgs = roleAssign.expression.asInstanceOf[MethodInvokation].args.flatMap(getNamesFromExpression).toSet
     constr.getArgs.filter(arg => roleArgs.exists(_ match {
       case a : NameExpression => arg.name == a.name
       case _ => false
@@ -191,7 +192,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     if(roleName.isEmpty) {
       super.visit(a)
     } else {
-      getLocalAction(a, roleName.get) match {
+      getLocalAction(a, roleName.get,roleNames) match {
         case SingleRoleAction(_) => result = copy_rw.rewrite(a)
         case ReadAction(receiver, sender, receiveExpression) => {
           val chanType = receiveExpression.getType
@@ -213,7 +214,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
           }
         }
         case Tau => //result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
-        case _ => Fail("VeyMont Fail: assignment %s is no session assignment! ", a.toString)
+        case _ => Fail("VeyMont Fail: assignment %s is no VeyMont global program assignment! ", a.toString)
       }
     }
   }
@@ -249,8 +250,8 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   private def getCloneWriteInvocation(writeChanName : String, sendExpression : ASTNode) : MethodInvokation =
     create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
 
-  def getLocalAction(a: AssignmentStatement, roleName : String) : LocalAction = {
-    val expRole = getNamesFromExpression(a.expression)
+  def getLocalAction(a: AssignmentStatement, roleName : String, roleNames : Iterable[String]) : LocalAction = {
+    val expRole = getNamesFromExpression(a.expression).filter(n => roleNames.exists(_ == n.name))
     getNameFromNode(a.location) match {
       case Some(locRole) => {
         if(locRole.name == roleName && (expRole.isEmpty || expRole.size == 1 && expRole.head.name == roleName || isRoleConstructorCall(a.expression)))

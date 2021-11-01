@@ -50,11 +50,11 @@ class Main {
         sb.str = w2.result;
         sb.append();
         c.frequencies = m01.result;
-        c.append();
+        c.add();
         c.frequencies = m02.result;
-        c.append();
+        c.add();
         c.frequencies = m12.result;
-        c.append();
+        c.add();
         f1.futures = c.result;
         f1.result = f1.writeCount(f1.futures, f1.nucleotideFragment);
         sb.str = f1.result;
@@ -160,6 +160,6 @@ class FrequencyCollector {
     
     FrequencyCollector() { }
     
-    void append();
+    void add();
     
 }
