@@ -1,0 +1,31 @@
+Done:
+axiomatic-data-types-option-2-silicon (by some new PR, this is actually a bug)
+
+In progress:
+magic-wands-syntax-in-vercors-applying-a-wand-1-silicon (Lukas is looking at it)
+    (magic-wands-syntax-in-vercors-more-complex-expressions-1-silicon)
+
+To be fixed:
+axiomatic-data-types-set-3-silicon
+background-software-verification-1-silicon
+gpgpu-verification-?-openclcuda-with-barrier-1-silicon
+gpgpu-verification-?-openclcuda-with-barrier-2-silicon
+gpgpu-verification-?-openclcuda-without-barrier-1-silicon
+gpgpu-verification-?-openclcuda-without-barrier-2-silicon
+parallel-blocks-?-complicated-parallel-blocks-nested-parallel-blocks-1-silicon
+parallel-blocks-?-complicated-parallel-blocks-simultaneous-parallel-blocks-1-silicon
+parallel-blocks-?-complicated-parallel-blocks-simultaneous-parallel-blocks-2-silicon
+predicates-predicate-syntax-and-usage-3-silicon
+predicates-the-counter-example-now-with-predicates-2-silicon
+predicates-why-predicates-2-silicon
+specification-syntax-1-silicon
+specification-syntax-2-silicon
+specification-syntax-auxiliary-annotations-expressions-quantifiers-1-silicon
+specification-syntax-auxiliary-annotations-expressions-quantifiers-2-silicon
+specification-syntax-auxiliary-annotations-expressions-quantifiers-triggers-1-silicon
+specification-syntax-auxiliary-annotations-expressions-quantifiers-triggers-2-silicon
+specification-syntax-auxiliary-annotations-ghost-code-1-silicon
+specification-syntax-auxiliary-annotations-ghost-code-ghost-methods-and-functions-abstract-methods-and-functions-1-silicon
+specification-syntax-auxiliary-annotations-ghost-code-ghost-parameters-and-results-1-silicon
+specification-syntax-method-contracts-1-silicon
+
