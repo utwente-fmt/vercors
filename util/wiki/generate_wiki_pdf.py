@@ -293,12 +293,20 @@ def output_html(path, blocks, version, generate_toc=True):
         'meta': {}
     })
 
+    header_includes = """
+    <style>
+        body {
+            max-width: 50em;
+        }
+    </style>
+    """
+
     pypandoc.convert_text(
         wiki_text,
         "html",
         format="json",
         outputfile=path,
-        extra_args=["-s", "--template", "wiki_template.html"] + shared_pandoc_opts(generate_toc))
+        extra_args=["-s", "-V", f"header-includes={header_includes}"] + shared_pandoc_opts(generate_toc))
 
 if __name__ == "__main__":
     # TODO: Check if pypandoc is installed
