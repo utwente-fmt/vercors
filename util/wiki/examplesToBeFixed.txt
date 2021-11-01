@@ -1,17 +1,19 @@
 Done:
-axiomatic-data-types-option-2-silicon (by some new PR, this is actually a bug)
-
-In progress:
 magic-wands-syntax-in-vercors-applying-a-wand-1-silicon (Lukas is looking at it)
     (magic-wands-syntax-in-vercors-more-complex-expressions-1-silicon)
-
-To be fixed:
 axiomatic-data-types-set-3-silicon
 background-software-verification-1-silicon
+
+In progress:
+axiomatic-data-types-option-2-silicon (by some new PR, this is actually a bug. Should be on dev)
+
+Could be that the following are still broken, only fixed some parsing errors:
 gpgpu-verification-?-openclcuda-with-barrier-1-silicon
 gpgpu-verification-?-openclcuda-with-barrier-2-silicon
 gpgpu-verification-?-openclcuda-without-barrier-1-silicon
 gpgpu-verification-?-openclcuda-without-barrier-2-silicon
+
+To be fixed:
 parallel-blocks-?-complicated-parallel-blocks-nested-parallel-blocks-1-silicon
 parallel-blocks-?-complicated-parallel-blocks-simultaneous-parallel-blocks-1-silicon
 parallel-blocks-?-complicated-parallel-blocks-simultaneous-parallel-blocks-2-silicon

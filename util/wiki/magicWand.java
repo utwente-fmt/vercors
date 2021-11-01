@@ -48,9 +48,8 @@ final class Tree {
     //@ unfold left.tree();
     boolean res = left.priority <= max_priority;
     //@ fold left.tree();
-    // apply tree(left) -* tree(t);
     //@ apply left.tree() -* t.tree();
-    // now tree(left) is no longer directly available, but t.tree() is back
+    // now left.tree() is no longer directly available, but t.tree() is back
     return res;
   }
 
@@ -77,11 +76,11 @@ final class Tree {
     Tree res = t.left;
     /*@
     create {
-      // necessary parts for tree(t)
+      // necessary parts for t.tree()
       use Perm(t.value, write) ** Perm(t.priority, write) ** Perm(t.left, write) ** Perm(t.right, write);
       use t.right != null ==> t.right.tree();
       use res == t.left;
-      // necessary parts for sorted(t)
+      // necessary parts for t.sorted()
       use res != null;
       use t.priority == root_prio;
       use t.right != null ==> sorted(t.right) && \unfolding t.right.tree() \in t.priority >= t.right.priority;
@@ -103,13 +102,12 @@ final class Tree {
   static boolean check_left_priority_sorted(Tree t, int max_priority) {
     //@ ghost int root_prio;
     Tree left = get_left_sorted(t) /*@ then { root_prio = root_prio; } @*/;
-    // now we have tree(left), sorted(left) and wand_helper(left, root_prio), as well as the wand
+    // now we have left.tree(), sorted(left) and wand_helper(left, root_prio), as well as the wand
     //@ unfold left.tree();
     boolean res = left.priority <= max_priority;
     //@ fold left.tree();
-    // apply (tree(left) ** sorted(left) ** wand_helper(left, root_prio)) -* (tree(t) ** sorted(t));
     //@ apply (left.tree() ** sorted(left) ** wand_helper(left, root_prio)) -* (t.tree() ** sorted(t));
-    // now tree(left) is no longer directly available, but tree(t) is back and sorted
+    // now left.tree() is no longer directly available, but t.tree() is back and sorted
     return res;
   }
 }
