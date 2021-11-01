@@ -31,7 +31,7 @@ case class PVLLocal(name: String)(val blame: Blame[DerefInsufficientPermission])
   }
 }
 
-case class PVLDeref(obj: Expr, field: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends PVLExpr with NoCheck {
+case class PVLDeref(obj: Expr, field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends PVLExpr with NoCheck {
   var ref: Option[PVLDerefTarget] = None
 
   override def t: Type = ref.get match {
@@ -43,7 +43,7 @@ case class PVLDeref(obj: Expr, field: String)(val blame: Blame[DerefInsufficient
 
 case class PVLInvocation(obj: Option[Expr], method: String, args: Seq[Expr], typeArgs: Seq[Type],
                          givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
-                        (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends PVLExpr with NoCheck {
+                        (val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends PVLExpr with NoCheck {
   var ref: Option[PVLInvocationTarget] = None
 
   override def t: Type = ref.get match {

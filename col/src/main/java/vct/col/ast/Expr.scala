@@ -268,7 +268,7 @@ case class Local(ref: Ref[Variable])(implicit val o: Origin) extends Expr {
     context.checkInScope(this, ref)
 }
 trait HeapDeref
-case class Deref(obj: Expr, ref: Ref[Field])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr with HeapDeref {
+case class Deref(obj: Expr, ref: Ref[InstanceField])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr with HeapDeref {
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(this, ref)
@@ -288,7 +288,7 @@ case class AddrOf(e: Expr)(implicit val o: Origin) extends Expr with NoCheck {
 }
 
 sealed trait Apply extends Expr {
-  def ref: Ref[Applicable]
+  def ref: Ref[_ <: Applicable]
   def args: Seq[Expr]
 
   override def t: Type = ref.decl.returnType
@@ -322,7 +322,7 @@ case class ADTFunctionInvocation(typeArgs: Option[(Ref[AxiomaticDataType], Seq[T
 }
 
 sealed trait Invocation extends Apply {
-  override def ref: Ref[ContractApplicable]
+  override def ref: Ref[_ <: ContractApplicable]
   def blame: Blame[PreconditionFailed]
   def typeArgs: Seq[Type]
 

@@ -1,7 +1,7 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
-import vct.col.ast.{ADTFunction, CAnonymousFunctionDeclarator, CArrayDeclarator, CDeclarationSpecifier, CDeclarator, CInt, CLong, CName, CParam, CPointerDeclarator, CPrimitiveType, CSigned, CTypedFunctionDeclarator, CUnsigned, DiagnosticOrigin, Expr, Origin, TArray, TNotAValue, TPointer, Type}
+import vct.col.ast.{ADTFunction, Blame, BuiltinError, CAnonymousFunctionDeclarator, CArrayDeclarator, CDeclarationSpecifier, CDeclarator, CInt, CLong, CName, CParam, CPointerDeclarator, CPrimitiveType, CSigned, CTypedFunctionDeclarator, CUnsigned, DiagnosticOrigin, Expr, Origin, TArray, TNotAValue, TPointer, Type}
 
 import scala.annotation.tailrec
 
@@ -69,13 +69,13 @@ case object C {
       case target: CNameTarget if target.name == name => target
     }
 
-  def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext): Option[CDerefTarget] =
+  def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext, blame: Blame[BuiltinError]): Option[CDerefTarget] =
     obj.t match {
       case t @ TNotAValue() => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
           case ref: RefADTFunction if ref.name == name => ref
         }
-        case _ => Spec.builtinField(obj, name)
+        case _ => Spec.builtinField(obj, name, blame)
       }
     }
 

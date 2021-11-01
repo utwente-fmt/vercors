@@ -253,7 +253,7 @@ case class ImportADT() extends Rewriter {
           Seq(???),
         )(PanicBlame("opt_or_else requires nothing."))
       case LiteralMap(k, v, values) =>
-        val typeArgs = Some((mapAdt.ref, Seq(dispatch(k), dispatch(v))))
+        val typeArgs = Some((mapAdt.ref[AxiomaticDataType], Seq(dispatch(k), dispatch(v))))
         values.foldLeft(
           ADTFunctionInvocation(typeArgs, mapEmpty.ref, Nil)
         )((m, pair) =>

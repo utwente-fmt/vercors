@@ -115,11 +115,11 @@ case object ResolveReferences {
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
 
     case deref @ CStructAccess(obj, field) =>
-      deref.ref = Some(C.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
+      deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ JavaDeref(obj, field) =>
-      deref.ref = Some(Java.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
+      deref.ref = Some(Java.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ PVLDeref(obj, field) =>
-      deref.ref = Some(PVL.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
+      deref.ref = Some(PVL.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
 
     case inv @ CInvocation(obj, _, _, _) =>
       inv.ref = Some(C.resolveInvocation(obj, ctx))
@@ -131,13 +131,13 @@ case object ResolveReferences {
       })
     case inv @ JavaInvocation(obj, _, method, args, _, _) =>
       inv.ref = Some((obj match {
-        case Some(obj) => Java.findMethod(obj, method, args)
+        case Some(obj) => Java.findMethod(obj, method, args, inv.blame)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
     case inv @ PVLInvocation(None, method, args, typeArgs, _, _) =>
       inv.ref = Some(PVL.findMethod(method, args, typeArgs, ctx).getOrElse(throw NoSuchNameError("method", method, inv)))
     case inv @ PVLInvocation(Some(obj), method, args, typeArgs, _, _) =>
-      inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs).getOrElse(throw NoSuchNameError("method", method, inv)))
+      inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame).getOrElse(throw NoSuchNameError("method", method, inv)))
     case inv @ ADTFunctionInvocation(typeArgs, ref, args) =>
       typeArgs match {
         case Some((adt, typeArgs)) =>

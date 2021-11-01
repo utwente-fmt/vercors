@@ -137,7 +137,7 @@ case class JavaLocal(name: String)(val blame: Blame[DerefInsufficientPermission]
   }
 }
 
-case class JavaDeref(obj: Expr, field: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr with NoCheck {
+case class JavaDeref(obj: Expr, field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends JavaExpr with NoCheck {
   var ref: Option[JavaDerefTarget] = None
   override def t: Type = ref.get match {
     case RefModelField(decl) => decl.t
@@ -155,7 +155,7 @@ case class JavaLiteralArray(exprs: Seq[Expr])(implicit val o: Origin) extends Ja
 }
 
 case class JavaInvocation(obj: Option[Expr], typeParams: Seq[Type], method: String, arguments: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
-                         (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends JavaExpr with NoCheck {
+                         (val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends JavaExpr with NoCheck {
   var ref: Option[JavaInvocationTarget] = None
   override def t: Type = ref.get match {
     case RefFunction(decl) => decl.returnType

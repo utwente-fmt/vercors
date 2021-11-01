@@ -55,7 +55,8 @@ case class SilverFoldFailed(failure: ContractFailure, fold: SilverFold) extends 
   override def toString: String = s"Fold may fail, since $failure"
   override def code: String = "failed"
 }
-case class PreconditionFailed(failure: ContractFailure, invocation: Invocation) extends VerificationFailure {
+sealed trait FrontendInvocationError extends VerificationFailure
+case class PreconditionFailed(failure: ContractFailure, invocation: Invocation) extends FrontendInvocationError {
   override def toString: String = s"Precondition may not hold, since $failure."
   override def code: String = "preFailed"
 }
@@ -76,7 +77,8 @@ case class DivByZero(div: DividingExpr) extends VerificationFailure {
   override def toString: String = s"The divisor may be zero."
   override def code: String = "divByZero"
 }
-sealed trait DerefInsufficientPermission extends VerificationFailure
+sealed trait FrontendDerefError extends VerificationFailure
+sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(deref: HeapDeref) extends DerefInsufficientPermission {
   override def toString: String = s"There may be insufficient permission to access this field here."
   override def code: String = "perm"
@@ -130,16 +132,18 @@ case class ParRegionPostconditionNotImpliedByBlockPostconditions(failure: Contra
   override def direction: String = s"the postcondition of the region does not follow from the postconditions of its blocks"
   override def code: String = "blockPostRegionPost"
 }
-case class OptionNone(access: OptGet) extends VerificationFailure {
+
+sealed trait BuiltinError extends FrontendDerefError with FrontendInvocationError
+case class OptionNone(access: OptGet) extends BuiltinError {
   override def code: String = "optNone"
   override def toString: String = "Option may be empty."
 }
-case class MapKeyError(access: MapGet) extends VerificationFailure {
+case class MapKeyError(access: MapGet) extends BuiltinError {
   override def code: String = "mapKey"
   override def toString: String = "Map may not contain this key."
 }
 sealed trait ArraySubscriptError extends VerificationFailure
-case class ArrayNull(arr: Expr) extends ArraySubscriptError {
+case class ArrayNull(arr: Expr) extends ArraySubscriptError with BuiltinError {
   override def code: String = "arrayNull"
   override def toString: String = "Array may be null."
 }

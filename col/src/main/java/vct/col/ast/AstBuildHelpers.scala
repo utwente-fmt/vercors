@@ -85,9 +85,9 @@ object AstBuildHelpers {
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
       inline)(blame)
 
-  def assignField(obj: Expr, field: Ref[Field], value: Expr)(implicit o: Origin): Assign =
+  def assignField(obj: Expr, field: Ref[InstanceField], value: Expr)(implicit o: Origin): Assign =
     Assign(Deref(obj, field)(DerefAssignTarget), value)
 
-  def fieldPerm(obj: Expr, field: Ref[Field], amount: Expr)(implicit o: Origin): Perm =
+  def fieldPerm(obj: Expr, field: Ref[InstanceField], amount: Expr)(implicit o: Origin): Perm =
     Perm(Deref(obj, field)(DerefPerm), amount)
 }

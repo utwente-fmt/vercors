@@ -67,7 +67,7 @@ case class ColToSilver(program: col.Program) {
   /**
    * Retrieve the name for this reference
    */
-  def ref(r: col.Ref[col.Declaration]): String = ref(r.decl)
+  def ref(r: col.Ref[_ <: col.Declaration]): String = ref(r.decl)
 
   /**
    * Retrieve the name for this declaration

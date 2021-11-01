@@ -303,7 +303,7 @@ case class LangSpecificToCol() extends Rewriter {
         case RefVariable(decl) => Local(typedSucc[Variable](decl))
         case RefModelField(decl) => ModelDeref(currentThis.head, typedSucc[ModelField](decl))(local.blame)
         case RefClass(decl) => throw NotAValue(local)
-        case RefField(decl) => Deref(currentThis.head, typedSucc[Field](decl))(local.blame)
+        case RefField(decl) => Deref(currentThis.head, typedSucc[InstanceField](decl))(local.blame)
       }
 
     case deref @ JavaDeref(obj, _) =>
@@ -326,7 +326,7 @@ case class LangSpecificToCol() extends Rewriter {
       deref.ref.get match {
         case RefModelField(decl) => ModelDeref(dispatch(obj), typedSucc[ModelField](decl))(deref.blame)
         case BuiltinField(f) => f(dispatch(obj))
-        case RefField(decl) => Deref(dispatch(obj), typedSucc[Field](decl))(deref.blame)
+        case RefField(decl) => Deref(dispatch(obj), typedSucc[InstanceField](decl))(deref.blame)
       }
 
     case JavaLiteralArray(_) => ???

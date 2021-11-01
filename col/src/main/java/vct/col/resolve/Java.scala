@@ -1,7 +1,7 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
-import vct.col.ast.{ApplicableContract, Block, DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamespace, JavaStatic, JavaTClass, Origin, SourceNameOrigin, TAny, TArray, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TType, TVoid, Type, Variable}
+import vct.col.ast.{ApplicableContract, Blame, Block, BuiltinError, DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamespace, JavaStatic, JavaTClass, Origin, SourceNameOrigin, TAny, TArray, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TType, TVoid, Type, Variable}
 import vct.result.VerificationResult
 import vct.col.ast.Constant._
 import vct.result.VerificationResult.Unreachable
@@ -178,7 +178,7 @@ case object Java {
       case target: JavaNameTarget if target.name == name => target
     }
 
-  def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext): Option[JavaDerefTarget] =
+  def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext, blame: Blame[BuiltinError]): Option[JavaDerefTarget] =
     (obj.t match {
       case t @ TNotAValue() => t.decl.get match {
         case RefUnloadedJavaNamespace(pkg) =>
@@ -200,7 +200,7 @@ case object Java {
         }
       }
       case _ => None
-    }).orElse(Spec.builtinField(obj, name))
+    }).orElse(Spec.builtinField(obj, name, blame))
 
   def findMethodInClass(cls: JavaClassOrInterface, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
     cls.decls.flatMap(Referrable.from).collectFirst {
@@ -210,7 +210,7 @@ case object Java {
       case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
 
-  def findMethod(obj: Expr, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
+  def findMethod(obj: Expr, method: String, args: Seq[Expr], blame: Blame[BuiltinError]): Option[JavaInvocationTarget] =
     (obj.t.mimics match {
       case TModel(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
         case ref: RefModelAction if ref.name == method => ref
@@ -222,7 +222,7 @@ case object Java {
           case _ => None
         }
       case _ => None
-    }).orElse(Spec.builtinInstanceMethod(obj, method))
+    }).orElse(Spec.builtinInstanceMethod(obj, method, blame))
 
   def findMethod(ctx: ReferenceResolutionContext, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
     ctx.stack.flatten.collectFirst {

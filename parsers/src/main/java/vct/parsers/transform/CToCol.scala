@@ -411,7 +411,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
       PreAssignExpression(target, col.Minus(target, 1))
     case UnaryExpression3(UnaryOperator0(op), arg) => op match {
       case "&" => AddrOf(convert(arg))
-      case "*" => DerefPointer(convert(arg))
+      case "*" => DerefPointer(convert(arg))(blame(expr))
       case "+" => UPlus(convert(arg))
       case "-" => UMinus(convert(arg))
       case "~" => BitNot(convert(arg))
@@ -429,7 +429,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
     case PostfixExpression2(f, given, _, args, _, yields) =>
       CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))
-    case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))
+    case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))(blame(expr))
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)

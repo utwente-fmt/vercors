@@ -142,7 +142,7 @@ case class CInvocation(applicable: Expr, args: Seq[Expr], givenArgs: Seq[(String
     }
   }
 }
-case class CStructAccess(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
+case class CStructAccess(struct: Expr, field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CExpr with NoCheck {
   var ref: Option[CDerefTarget] = None
   override def t: Type = ref.get match {
     case ref: RefModelField => ref.decl.t

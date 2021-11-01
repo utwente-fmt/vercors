@@ -16,7 +16,7 @@ sealed abstract class Declaration extends Node {
 
   def declareDefault(scope: ScopeContext): Unit
 
-  def ref: Ref[this.type] = new DirectRef[this.type](this)
+  def ref[T <: Declaration](implicit tag: ClassTag[T]): Ref[T] = new DirectRef[T](this)
 }
 
 object Ref {
@@ -36,7 +36,7 @@ object Ref {
    The most acceptable solution is then to pretend to have a safe interface that returns a declaration of the right
    kind, but quietly check the type on first access.
  */
-trait Ref[+T <: Declaration] {
+trait Ref[T <: Declaration] {
   def decl: T
 
   def tryResolve(resolver: String => Declaration): Unit = {}
@@ -54,27 +54,27 @@ case class MistypedRef(received: Declaration, expected: ClassTag[_]) extends AST
       s"A ${expected.runtimeClass.getSimpleName} was expected here, but we got a ${received.getClass.getSimpleName}"
 }
 
-class DirectRef[+T <: Declaration](genericDecl: Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
+class DirectRef[T <: Declaration](genericDecl: Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
   override def decl: T = genericDecl match {
     case decl: /*tagged*/ T => decl
     case other => throw MistypedRef(other, tag)
   }
 }
 
-class LazyRef[+T <: Declaration](lazyDecl: => Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
+class LazyRef[T <: Declaration](lazyDecl: => Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
   def decl: T = lazyDecl match {
     case decl: /*tagged*/ T => decl
     case other => throw MistypedRef(other, tag)
   }
 }
 
-case class NotResolved(ref: UnresolvedRef[Declaration], expected: ClassTag[_]) extends ASTStateError {
+case class NotResolved(ref: UnresolvedRef[_ <: Declaration], expected: ClassTag[_]) extends ASTStateError {
   override def text: String =
     "The declaration of an unresolved reference was queried, but it is not yet resolved.\n" +
       s"We expected the name `${ref.name}` to resolve to a ${expected.runtimeClass.getSimpleName}."
 }
 
-class UnresolvedRef[+T <: Declaration](val name: String)(implicit tag: ClassTag[T]) extends Ref[T] {
+class UnresolvedRef[T <: Declaration](val name: String)(implicit tag: ClassTag[T]) extends Ref[T] {
   private var resolvedDecl: Option[Declaration] = None
 
   override def tryResolve(resolver: String => Declaration): Unit = resolve(resolver(name))
