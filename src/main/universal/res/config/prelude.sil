@@ -62,10 +62,6 @@ domain VCTOption[T] {
     forall x: T :: {VCTSome(x)} VCTNone() != VCTSome(x)
   }
 
-  axiom equal_vct {
-    forall x: T, y: T :: {VCTSome(x), VCTSome(y)} (VCTSome(x) == VCTSome(y)) == (x == y)
-  }
-
   axiom get_axiom_vct {
     forall x: T :: {getVCTOption(VCTSome(x))} getVCTOption(VCTSome(x)) == x
   }
