@@ -11,7 +11,10 @@ jobs:
       - working-directory: util/wiki
         run: pip3 install -r requirements.txt
       - working-directory: util/wiki
-        run: python3 ./generate_wiki_pdf.py --pdf wiki.pdf
+        run: |
+            git clone https://github.com/utwente-fmt/vercors.wiki.git
+            python3 ./generate_wiki_pdf.py -i vercors.wiki --pdf wiki.pdf
+            python3 ./generate_wiki_pdf.py -i vercors.wiki --html wiki.html
       - working-directory: util/wiki
         run: ls
       - name: Set wiki pdf tag in github repo
@@ -20,17 +23,17 @@ jobs:
         run: |
           git config --local user.name "Vercors Team"
           git config --local user.email "vercors@lists.utwente.nl"
-          git tag --force wiki-pdf
+          git tag --force wiki-generated-doc
           git remote set-url origin https://${GITHUB_TOKEN}@github.com/utwente-fmt/vercors.git
           git push --force --tags
       - name: Create Wiki PDF release
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
-          artifacts: "util/wiki/*.pdf"
+          artifacts: "util/wiki/*.pdf,util/wiki/*.html"
           artifactContentType: application/pdf
-          body: This is an automatically generated LaTeX/PDF version of the tutorial on the VerCors wiki.
+          body: These are automatically generated versions of the tutorial on the VerCors wiki. There are two artefacts of interest: the Latex/PDF version, suitable for printing, and the HTML version, suitable for offline viewing.
           name: VerCors Wiki PDF
           prerelease: true
-          tag: wiki-pdf
+          tag: wiki-generated-doc
           token: ${{ secrets.GITHUB_TOKEN }}
