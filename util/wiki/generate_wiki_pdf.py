@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import re
 import subprocess
 import tempfile
@@ -267,6 +268,10 @@ def output_menu(path, blocks, version):
             f.write("</li>\n")
         f.write("</ul>\n")
 
+def shared_pandoc_opts(generate_toc):
+    return ((["--toc", "--toc-depth", "2"] if generate_toc else [])
+        + [ "--metadata", "title=VerCors Tutorial" ])
+
 def output_pdf(path, blocks, version, generate_toc=True):
     wiki_text = json.dumps({
         'blocks': blocks,
@@ -279,8 +284,30 @@ def output_pdf(path, blocks, version, generate_toc=True):
         "pdf",
         format="json",
         outputfile=path,
-        extra_args=["--toc"] if generate_toc else [])
+        extra_args=shared_pandoc_opts(generate_toc) + ["--pdf-engine=xelatex"])
 
+def output_html(path, blocks, version, generate_toc=True):
+    wiki_text = json.dumps({
+        'blocks': blocks,
+        'pandoc-api-version': version,
+        'meta': {}
+    })
+
+    header_includes = """
+    <style>
+        body {
+            max-width: 50em;
+            margin: 0 auto;
+        }
+    </style>
+    """
+
+    pypandoc.convert_text(
+        wiki_text,
+        "html",
+        format="json",
+        outputfile=path,
+        extra_args=["-s", "-V", f"header-includes={header_includes}"] + shared_pandoc_opts(generate_toc))
 
 if __name__ == "__main__":
     # TODO: Check if pypandoc is installed
@@ -291,10 +318,12 @@ if __name__ == "__main__":
     parser.add_option('-w', '--php', dest='php_path', help='write wiki to php file for the website', metavar='FILE')
     parser.add_option('-m', '--menu', dest='menu_path', help='extract a menu for the website', metavar='FILE')
     parser.add_option('-p', '--pdf', dest='pdf_path', help='write wiki to a latex-typeset pdf', metavar='FILE')
+    parser.add_option('--html', dest='html_path', help='write wiki to an html file', metavar='FILE')
+
 
     options, args = parser.parse_args()
 
-    if not any([options.php_path, options.menu_path, options.pdf_path]):
+    if not any([options.php_path, options.menu_path, options.pdf_path, options.html_path]):
         parser.error("No output type: please set one or more of the output paths. (try --help)")
 
     if options.source_path:
@@ -320,3 +349,6 @@ if __name__ == "__main__":
 
     if options.pdf_path:
         output_pdf(options.pdf_path, blocks, pandoc_version)
+
+    if options.html_path:
+        output_html(options.html_path, blocks, pandoc_version)

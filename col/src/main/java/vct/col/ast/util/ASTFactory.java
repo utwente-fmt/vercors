@@ -486,19 +486,22 @@ public class ASTFactory<E> implements FrameControl {
     }
           
     public BindingExpression exists(ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
+      return exists(null, guard, claim, decl);
+    }
+    public BindingExpression exists(ASTNode triggers[][], ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
       BindingExpression res=new BindingExpression(
-          Binder.Exists,
-          primitive_type(PrimitiveSort.Boolean),
-          decl,
-          null,
-          guard,
-          claim
+              Binder.Exists,
+              primitive_type(PrimitiveSort.Boolean),
+              decl,
+              triggers,
+              guard,
+              claim
       );
       res.setOrigin(origin_stack.get());
       res.accept_if(post);
       return res;
     }
-    public BindingExpression summation(ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
+  public BindingExpression summation(ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
       int i=decl.length-1;
       BindingExpression res=new BindingExpression(
           Binder.Sum,

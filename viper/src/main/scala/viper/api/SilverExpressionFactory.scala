@@ -260,8 +260,11 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
     Forall(to_decls(o,vars),tmp.toSeq,e)(NoPosition,new OriginInfo(o))
   }
   
-  override def exists(o:O, vars:List[util.Triple[O,String,Type]], e:Exp):Exp = {
-    Exists(to_decls(o,vars),Seq(),e)(NoPosition,new OriginInfo(o))
+  override def exists(o:O, vars:List[util.Triple[O,String,Type]], triggers: List[List[Exp]], e:Exp):Exp = {
+    val tmp=triggers.asScala map {
+      l => Trigger(l.asScala.toSeq)(NoPosition,new OriginInfo(o))
+    }
+    Exists(to_decls(o,vars),tmp.toSeq,e)(NoPosition,new OriginInfo(o))
   }
   override def old(o:O,e:Exp):Exp = Old(e)(NoPosition,new OriginInfo(o))
  

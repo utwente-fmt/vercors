@@ -1,7 +1,7 @@
 package vct.main
 
 import java.io._
-import java.time.Instant
+import java.time.{Instant, ZoneId}
 import java.util
 import hre.ast.FileOrigin
 import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
@@ -20,6 +20,8 @@ import vct.test.CommandLineTesting
 
 import scala.jdk.CollectionConverters._
 import java.nio.file.Paths
+import java.time.format.DateTimeFormatter
+import java.util.TimeZone
 
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
@@ -133,13 +135,7 @@ class Main {
 
   private def checkOptions(): Unit = {
     if (version.get) {
-      Output("%s %s", BuildInfo.name, BuildInfo.version)
-      Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion, BuildInfo.scalaVersion, Instant.ofEpochMilli(BuildInfo.builtAtMillis))
-      if (BuildInfo.currentBranch != "master")
-        Output("On branch %s, commit %s, %s",
-          BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
-
-      throw new HREExitException(0)
+      printVersions()
     }
 
     if (help_passes.get) {
@@ -178,6 +174,58 @@ class Main {
       if(!vFile.endsWith(".pvl"))
         Fail("VeyMont cannot output to non-PVL file %s",vFile)
     }
+  }
+
+  private def printVersions(): Unit = {
+    Output("%s %s", BuildInfo.name, BuildInfo.version)
+
+    val timestamp = {
+      val instance = Instant.ofEpochMilli(BuildInfo.builtAtMillis)
+      val localDateTime = java.time.LocalDateTime
+        .ofInstant(instance, ZoneId.systemDefault())
+      localDateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    }
+
+    Output("Built at %s", timestamp)
+    if (BuildInfo.currentBranch != "master")
+      Output("On branch %s, commit %s, %s",
+        BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
+
+    val z3VersionLine = {
+      val z3 = Configuration.getZ3
+      z3.addArg("--version")
+      val mp = z3.startProcess()
+      mp.recv().getArg(0)
+    }
+
+    val boogieVersionLine = {
+      val boogie = Configuration.getBoogie
+      boogie.addArg("/version")
+      val mp = boogie.startProcess()
+      mp.recv().getArg(0)
+    }
+
+    val viperVersions = if (Set(BuildInfo.silverCommit, BuildInfo.siliconCommit, BuildInfo.carbonCommit).size == 1) {
+      Seq(("viper", BuildInfo.silverCommit))
+    } else {
+      Seq(("silver", BuildInfo.silverCommit),
+        ("silicon", BuildInfo.siliconCommit),
+        ("carbon", BuildInfo.carbonCommit))
+    }
+    val viperVersionsTxt = viperVersions.map {
+      case (name, commitId) => s"- $name: ${commitId.getOrElse("unknown")}"
+    }
+
+    val allVersions = viperVersionsTxt ++ Seq(
+      s"- z3: $z3VersionLine",
+      s"- boogie: $boogieVersionLine"
+    )
+
+    val allVersionsTxt = ("Versions:" +: allVersions).mkString("\n")
+
+    Output("%s", allVersionsTxt)
+
+    throw new HREExitException(0)
   }
 
   private def parseInputs(inputPaths: Array[String]): Unit = {

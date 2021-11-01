@@ -7,6 +7,6 @@ lazy val hre = (project in file("."))
     libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
 
     // Disable documentation generation
-    sources in (Compile, doc) := Seq(),
-    publishArtifact in (Compile, packageDoc) := false,
+    Compile / doc / sources := Seq(),
+    Compile / packageDoc / publishArtifact := false,
   )

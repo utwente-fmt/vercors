@@ -16,9 +16,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#v.21.01-release")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.21.01-release")
-val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.21.01-release")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#v.21.07-release")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.21.07-release")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.21.07-release")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -123,7 +123,10 @@ lazy val vercors: Project = (project in file("."))
       },
       BuildInfoKey.action("gitHasChanges") {
         Git.gitHasChanges
-      }
+      },
+      "silverCommit" -> BuildUtil.commitFromGitUrl(silver_url.toString),
+      "siliconCommit" -> BuildUtil.commitFromGitUrl(silicon_url.toString),
+      "carbonCommit" -> BuildUtil.commitFromGitUrl(carbon_url.toString)
     ),
     buildInfoOptions += BuildInfoOption.BuildTime,
     buildInfoPackage := "vct.main",
@@ -141,7 +144,14 @@ lazy val vercors: Project = (project in file("."))
       // Copy the resources not in the jar and add them to the classpath.
       ++ directory(sourceDirectory.value / "main" / "universal" / "res"),
 
-    scriptClasspath := scriptClasspath.value :+ "../res",
+    // Sets the classpath as described on the below page
+    // https://sbt-native-packager.readthedocs.io/en/latest/recipes/longclasspath.html
+    // To circumvent the long classpath problem
+    // At the time of writing (2021-10-08) the other two workarounds described
+    // on that page seem to be broken.
+    // Both result in "class vct.main.Main" not found when running vercors.
+    // See: https://github.com/sbt/sbt-native-packager/issues/1466
+    scriptClasspath := Seq("*", "../res"),
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
     Compile / discoveredMainClasses := Seq(),
