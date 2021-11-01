@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import re
 import subprocess
 import tempfile
@@ -267,6 +268,10 @@ def output_menu(path, blocks, version):
             f.write("</li>\n")
         f.write("</ul>\n")
 
+def shared_pandoc_opts(generate_toc):
+    return ((["--toc", "--toc-depth", "2"] if generate_toc else [])
+        + [ "--metadata", "title=VerCors Tutorial" ])
+
 def output_pdf(path, blocks, version, generate_toc=True):
     wiki_text = json.dumps({
         'blocks': blocks,
@@ -274,14 +279,12 @@ def output_pdf(path, blocks, version, generate_toc=True):
         'meta': {},
     })
 
-    toc_option = ["--toc"] if generate_toc else []
-
     pypandoc.convert_text(
         wiki_text,
         "pdf",
         format="json",
         outputfile=path,
-        extra_args=toc_option + ["--pdf-engine=xelatex"])
+        extra_args=shared_pandoc_opts(generate_toc) + ["--pdf-engine=xelatex"])
 
 def output_html(path, blocks, version, generate_toc=True):
     wiki_text = json.dumps({
@@ -290,14 +293,12 @@ def output_html(path, blocks, version, generate_toc=True):
         'meta': {}
     })
 
-    toc_option = ["--toc", "--toc-depth", "2"] if generate_toc else []
-
     pypandoc.convert_text(
         wiki_text,
         "html",
         format="json",
         outputfile=path,
-        extra_args=toc_option + ["-s", "--template", "wiki_template.html", "--metadata", "title=VerCors Tutorial"])
+        extra_args=shared_pandoc_opts(generate_toc) + ["-s", "--template", "wiki_template.html"])
 
 if __name__ == "__main__":
     # TODO: Check if pypandoc is installed
