@@ -44,6 +44,8 @@ class SnippetTestcase:
     def render(self):
         return self.content
 
+class UnknownVerdict(Exception):
+    pass
 
 class TemplateTestcase:
     """
@@ -63,20 +65,31 @@ class TemplateTestcase:
     """
 
     METHOD = \
-"""class Test {
-$content$
-}"""
+"""{final}class Test {{
+{content}
+}}"""
 
     BLOCK = \
-"""class Test {
-    void test() {
-$content$
-    }
-}"""
+"""{final}class Test {{
+    void test() {{
+{content}
+    }}
+}}"""
 
-    def __init__(self, template_kind, verdict):
+    HEADER = \
+"""//:: cases {case_name}
+//:: verdict {verdict}
+//:: tools silicon
+"""
+
+    def __init__(self, case_name, template_kind, verdict):
+        if verdict:
+            if not (verdict == "Pass" or verdict == "Fail" or verdict == "Error"):
+                raise UnknownVerdict()
+
         self.template_kind = template_kind
-        self.verdict = verdict
+        self.case_name = case_name
+        self.verdict = verdict if verdict else "Pass"
         self.content = None
         self.language = None
 
@@ -88,16 +101,28 @@ $content$
 
     def indent(self, amount, text):
         return '\n'.join("    " * amount + line for line in text.split("\n"))
+    
+    def render_header(self):
+        return TemplateTestcase.HEADER.format(case_name=self.case_name, verdict=self.verdict)
 
-    def render(self):
+    def render_body(self):
         if self.template_kind == 'test':
             return self.content
         elif self.template_kind == 'testMethod':
-            return TemplateTestcase.METHOD.replace('$content$', self.indent(1, self.content))
+            return TemplateTestcase.METHOD.format(
+                    final="final " if self.language == "java" else "",
+                    content=self.indent(1, self.content)
+                    )
         elif self.template_kind == 'testBlock':
-            return TemplateTestcase.BLOCK.replace('$content$', self.indent(2, self.content))
+            return TemplateTestcase.BLOCK.format(
+                    final="final " if self.language == "java" else "",
+                    content=self.indent(2, self.content)
+                    )
         else:
             raise RuntimeError()
+
+    def render(self):
+        return self.render_header() + self.render_body()
 
 
 def collect_chapters(wiki_location):
@@ -171,7 +196,7 @@ def collect_testcases(document, cases):
                 if kind in {'testBlock', 'testMethod', 'test'}:
                     code_block_label = '-'.join(breadcrumbs) + '-' + str(testcase_number)
                     testcase_number += 1
-                    cases[code_block_label] = TemplateTestcase(kind, args[0] if args else 'Pass')
+                    cases[code_block_label] = TemplateTestcase(code_block_label, kind, args[0] if args else 'Pass')
 
                 # Snippet
                 if kind == 'standaloneSnip':
@@ -309,6 +334,53 @@ def output_html(path, blocks, version, generate_toc=True):
         outputfile=path,
         extra_args=["-s", "-V", f"header-includes={header_includes}"] + shared_pandoc_opts(generate_toc))
 
+class UnknownLanguageError(Exception):
+    pass
+
+class CasesExtractionFailed(Exception):
+    pass
+
+class CaseWithoutTool(Exception):
+    pass
+
+def language_to_extension(language):
+    # Ok, this looks a bit stupid, but we cannot assume the "language" attribute github uses for markdown code snippets will never diverge from extensions used for files of that type...
+    if language == "java":
+        return "java"
+    elif language == "c":
+        return "c"
+    elif language == "pvl":
+        return "pvl"
+    elif language == "opencl" or language == "cuda":
+        return "c"
+    else:
+        raise UnknownLanguageError
+
+def output_cases(path, cases):
+    os.makedirs(path)
+
+    ok = 0
+    not_ok = 0
+
+    for case_name in cases:
+        case = cases[case_name]
+        try:
+            p = os.path.join(path, f"{case_name}.{language_to_extension(case.language)}")
+            content = case.render()
+            if not "//:: tool" in content:
+                raise CaseWithoutTool(f'Case "{case_name}" is missing a tool directive for the test suite')
+            with open(p, "w") as f:
+                f.write(case.render())
+            ok += 1
+        except UnknownLanguageError:
+            print(f"Unknown language {case.language} in case {case_name}")
+            not_ok += 1
+
+    print(f"Extracted {ok} cases successfully. {not_ok} cases failed.")
+
+    if not_ok > 0:
+        raise CasesExtractionFailed
+
 if __name__ == "__main__":
     # TODO: Check if pypandoc is installed
     # TODO: Check if pandoc is installed, suggest installation methods
@@ -319,11 +391,12 @@ if __name__ == "__main__":
     parser.add_option('-m', '--menu', dest='menu_path', help='extract a menu for the website', metavar='FILE')
     parser.add_option('-p', '--pdf', dest='pdf_path', help='write wiki to a latex-typeset pdf', metavar='FILE')
     parser.add_option('--html', dest='html_path', help='write wiki to an html file', metavar='FILE')
+    parser.add_option('-c', '--cases', dest='cases_path', help='write test cases extracted from the wiki to a folder')
 
 
     options, args = parser.parse_args()
 
-    if not any([options.php_path, options.menu_path, options.pdf_path, options.html_path]):
+    if not any([options.php_path, options.menu_path, options.pdf_path, options.html_path]) and not options.cases_path:
         parser.error("No output type: please set one or more of the output paths. (try --help)")
 
     if options.source_path:
@@ -352,3 +425,6 @@ if __name__ == "__main__":
 
     if options.html_path:
         output_html(options.html_path, blocks, pandoc_version)
+
+    if options.cases_path:
+        output_cases(options.cases_path, cases)
