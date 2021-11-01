@@ -1,6 +1,6 @@
 name: Vercors wiki pdf workflow
 # Only run when the wiki is updated
-on: push
+on: gollum
 jobs:
   make_pdf:
     runs-on: ubuntu-latest
