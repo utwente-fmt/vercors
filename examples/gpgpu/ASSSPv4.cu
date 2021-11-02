@@ -1,5 +1,9 @@
 //:: case ASSSPv4
-//:: tool silicon
+
+/* Currently this file does not verify because CUDA features are needed that VerCors doesn't support yet. This file
+ * is included in the example folder to serve as an example of CUDA features we might want in the future.
+ */
+
 /***********************************************************************************
 Created by Mohsen Safari.
 ************************************************************************************/
