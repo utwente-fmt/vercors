@@ -72,7 +72,13 @@ case object Coercion {
     override def isPromoting: Boolean = false
   }
 
-  def getCoercion(source: Type, target: Type): Option[Coercion] =
+  def getCoercion(source: Type, target: Type): Option[Coercion] = {
+    val result = getCoercion1(source, target)
+    println(s"$source is a $target by $result")
+    result
+  }
+
+  def getCoercion1(source: Type, target: Type): Option[Coercion] =
     Some((source, target) match {
       case (TNotAValue(), _) => return None
       case (_, TNotAValue()) => return None
@@ -151,9 +157,68 @@ case object Coercion {
       case Some(coercion) if coercion.isPromoting => Some(coercion)
       case _ => None
     }
+
+  def getAnySeqCoercion(source: Type): Option[Coercion] = source match {
+    case _: TSeq => Some(Identity)
+    case _ => None
+  }
+
+  def getAnySetCoercion(source: Type): Option[Coercion] = source match {
+    case _: TSet => Some(Identity)
+    case _ => None
+  }
+
+  def getAnyBagCoercion(source: Type): Option[Coercion] = source match {
+    case _: TBag => Some(Identity)
+    case _ => None
+  }
+
+  def getAnyPointerCoercion(source: Type): Option[Coercion] = source match {
+    case _: TPointer => Some(Identity)
+    case _: TNull => Some(NullPointer(TPointer(TAny())))
+    case _ => None
+  }
+
+  def getAnyArrayCoercion(source: Type): Option[Coercion] = source match {
+    case _: TArray => Some(Identity)
+    case _: TNull => Some(NullArray(TArray(TAny())))
+    case _ => None
+  }
+
+  def getAnyMatrixArrayCoercion(source: Type): Option[Coercion] = source match {
+    case TArray(TArray(_)) => Some(Identity)
+    case TArray(TNull()) => Some(???)
+    case TNull() => Some(NullArray(TArray(TArray(TAny()))))
+    case _ => None
+  }
+
+  def getAnyOptionCoercion(source: Type): Option[Coercion] = source match {
+    case _: TOption => Some(Identity)
+    case _ => None
+  }
+
+  def getAnyMapCoercion(source: Type): Option[Coercion] = source match {
+    case _: TMap => Some(Identity)
+    case _ => None
+  }
+
+  def getAnyTupleCoercion(source: Type): Option[Coercion] = source match {
+    case _: TTuple => Some(Identity)
+    case _ => None
+  }
+
+  def getAnyMatrixCoercion(source: Type): Option[Coercion] = source match {
+    case _: TMatrix => Some(Identity)
+    case _ => None
+  }
+
+  def getAnyModelCoercion(source: Type): Option[Coercion] = source match {
+    case _: TModel => Some(Identity)
+    case _ => None
+  }
 }
 
-sealed trait ResolveCoercion {
+trait ResolveCoercion {
   /**
    * Apply a particular coercion to an expression.
    * SAFETY: all promoting coercions must be injective; otherwise the default mapping coercion of sets is unsound.
@@ -271,8 +336,75 @@ sealed trait ResolveCoercion {
       case Some(coercion) => coercion
       case None => throw Incoercible(e, target)
     })
+
+  def seq(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnySeqCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TSeq(TAny()))
+    })
+
+  def set(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnySetCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TSet(TAny()))
+    })
+
+  def bag(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyBagCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TBag(TAny()))
+    })
+
+  def pointer(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyPointerCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TPointer(TAny()))
+    })
+
+  def array(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyArrayCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TArray(TAny()))
+    })
+
+  def matrixArray(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyMatrixArrayCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw IncoercibleText(e, got => s"Expected a two-dimensional array, but got $got")
+    })
+
+  def option(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyOptionCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TOption(TAny()))
+    })
+
+  def map(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyMapCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TMap(TAny(), TAny()))
+    })
+
+  def tuple(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyTupleCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TTuple(Seq(TAny(), TAny())))
+    })
+
+  def matrix(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyMatrixCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(e, TMatrix(TAny()))
+    })
+
+  def model(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyModelCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw IncoercibleText(e, got => s"Expected a model type, but got $got")
+    })
 }
 
 case object NopCoercionResolver extends ResolveCoercion
 
 case class Incoercible(expr: Expr, target: Type) extends RuntimeException
+case class IncoercibleText(expr: Expr, message: Type => String) extends RuntimeException

@@ -767,8 +767,6 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case InstanceFunctionInvocation(obj, ref, args, typeArgs) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case UPlus(arg) =>
-      (phrase("+", assoc(90, arg)), 90)
     case UMinus(arg) =>
       (phrase("-", assoc(90, arg)), 90)
     case BitNot(arg) =>

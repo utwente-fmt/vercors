@@ -6,12 +6,6 @@ import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefModel, SpecTypeNa
 sealed trait Expr extends NodeFamily {
   def t: Type
 
-  def checkSubType(other: Type): Seq[CheckError] =
-    if(other.superTypeOf(t))
-      Nil
-    else
-      Seq(TypeError(this, other))
-
   private def isOfClassType: Boolean = t.mimics match {
     case TClass(_) => true
     case t @ JavaTClass(_) => t.ref.get match {
@@ -22,45 +16,12 @@ sealed trait Expr extends NodeFamily {
     case _ => false
   }
 
-  def checkClassType: Seq[CheckError] =
-    if(isOfClassType) Nil
-    else Seq(TypeErrorText(this, got => s"Expected a class type, but got $got"))
-
-  def checkModelType: Seq[CheckError] =
-    t match {
-      case TModel(_) => Nil
-      case _ => Seq(TypeErrorText(this, got => s"Expected a model type, but got $got"))
-    }
-
-  def checkSeqThen(whenOk: TSeq => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asSeq.map(whenOk).getOrElse(Seq(TypeError(this, TSeq(TAny()))))
-  def checkSetThen(whenOk: TSet => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asSet.map(whenOk).getOrElse(Seq(TypeError(this, TSet(TAny()))))
-  def checkBagThen(whenOk: TBag => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asBag.map(whenOk).getOrElse(Seq(TypeError(this, TBag(TAny()))))
-  def checkPointerThen(whenOk: TPointer => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asPointer.map(whenOk).getOrElse(Seq(TypeError(this, TPointer(TAny()))))
-  def checkArrayThen(whenOk: TArray => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asArray.map(whenOk).getOrElse(Seq(TypeError(this, TArray(TAny()))))
-  def checkOptionThen(whenOk: TOption => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asOption.map(whenOk).getOrElse(Seq(TypeError(this, TOption(TAny()))))
-  def checkMapThen(whenOk: TMap => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asMap.map(whenOk).getOrElse(Seq(TypeError(this, TMap(TAny(), TAny()))))
-  def checkTupleThen(whenOk: TTuple => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asTuple.map(whenOk).getOrElse(Seq(TypeError(this, TTuple(Seq(TAny())))))
-  /*def checkVectorThen(whenOk: TVector => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asVector.map(whenOk).getOrElse(Seq(TypeError(this, TVector(TAny()))))*/
-  def checkMatrixThen(whenOk: TMatrix => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asMatrix.map(whenOk).getOrElse(Seq(TypeError(this, TMatrix(TAny()))))
-  def checkModelThen(whenOk: TModel => Seq[CheckError] = _ => Nil): Seq[CheckError] =
-    t.asModel.map(whenOk).getOrElse(Seq(TypeErrorText(this, got => s"Expected a model type, but got $got")))
-
   private def unfold(node: Expr)(matchFunc: PartialFunction[Expr, Seq[Expr]]): Seq[Expr] =
     matchFunc.lift(node) match {
       case Some(value) => value.flatMap(unfold(_)(matchFunc))
       case None => Seq(node)
     }
-//
+
   def unfoldStar: Seq[Expr] = unfold(this) { case Star(left, right) => Seq(left, right) }
   def unfoldProcessPar: Seq[Expr] = unfold(this) { case ProcessPar(l, r) => Seq(l, r) }
 }
@@ -75,6 +36,7 @@ sealed trait CoercingExpr extends Expr {
       Nil
     } catch {
       case Incoercible(expr, target) => Seq(TypeError(expr, target))
+      case IncoercibleText(expr, message) => Seq(TypeErrorText(expr, message))
     }
 }
 
@@ -243,10 +205,11 @@ case class Range(from: Expr, to: Expr)(implicit val o: Origin) extends CoercingE
   override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
     Range(resolver(from, TInt()), resolver(to, TInt()))
 }
-case class Values(arr: Expr, from: Expr, to: Expr)(implicit val o: Origin) extends Expr {
+case class Values(arr: Expr, from: Expr, to: Expr)(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = TSeq(arr.t.asArray.get.element)
-  override def check(context: CheckContext): Seq[CheckError] =
-    from.checkSubType(TInt()) ++ to.checkSubType(TInt()) ++ arr.checkArrayThen()
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Values(resolver.array(arr), resolver(from, TInt()), resolver(to, TInt()))
 }
 
 case class OptSome(e: Expr)(implicit val o: Origin) extends Expr with NoCheck {
@@ -256,33 +219,50 @@ case class OptNone()(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TOption(TAny())
 }
 
-case class MapCons(map: Expr, k: Expr, v: Expr)(implicit val o: Origin) extends Expr {
-  override def t: Type = map.t
-  override def check(context: CheckContext): Seq[CheckError] =
-    map.checkMapThen(t => k.checkSubType(t.key) ++ v.checkSubType(t.key))
+case class MapCons(map: Expr, k: Expr, v: Expr)(implicit val o: Origin) extends CoercingExpr {
+  override def t: Type = tailType
+  def tailType: TMap = map.t.asMap.get
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MapCons(resolver.map(map), resolver(k, tailType.key), resolver(v, tailType.value))
 }
-case class MapEq(left: Expr, right: Expr)(implicit val o: Origin) extends BoolExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-    left.checkMapThen(_ => right.checkMapThen(_ => Type.checkComparable(left, right)))
+case class MapEq(left: Expr, right: Expr)(implicit val o: Origin) extends CoercingExpr with BoolExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MapEq(resolver.map(left), resolver.map(right))
 }
-case class MapDisjoint(left: Expr, right: Expr)(implicit val o: Origin) extends BoolExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-    left.checkMapThen(_ => right.checkMapThen(_ => Type.checkComparable(left, right)))
+case class MapDisjoint(left: Expr, right: Expr)(implicit val o: Origin) extends CoercingExpr with BoolExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MapDisjoint(resolver.map(left), resolver.map(right))
 }
-case class MapKeySet(map: Expr)(implicit val o: Origin) extends Check(map.checkMapThen()) with Expr {
-  override def t: Type = TSet(map.t.asMap.get.key)
+sealed trait MapOp extends CoercingExpr {
+  def map: Expr
+  def mapType: TMap = map.t.asMap.get
 }
-case class MapValueSet(map: Expr)(implicit val o: Origin) extends Check(map.checkMapThen()) with Expr {
-  override def t: Type = TSet(map.t.asMap.get.value)
+case class MapKeySet(map: Expr)(implicit val o: Origin) extends MapOp {
+  override def t: Type = TSet(mapType.key)
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MapKeySet(resolver.map(map))
 }
-case class MapItemSet(map: Expr)(implicit val o: Origin) extends Check(map.checkMapThen()) with Expr {
-  override def t: Type = TSet(TTuple(Seq(map.t.asMap.get.key, map.t.asMap.get.value)))
+case class MapValueSet(map: Expr)(implicit val o: Origin) extends MapOp {
+  override def t: Type = TSet(mapType.value)
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MapValueSet(resolver.map(map))
 }
-case class MapSize(map: Expr)(implicit val o: Origin) extends Check(map.checkMapThen()) with IntExpr
-case class MapRemove(map: Expr, k: Expr)(implicit val o: Origin) extends Expr {
-  override def t: Type = map.t
-  override def check(context: CheckContext): Seq[CheckError] =
-    map.checkMapThen(t => k.checkSubType(t.key))
+case class MapItemSet(map: Expr)(implicit val o: Origin) extends MapOp {
+  override def t: Type = TSet(TTuple(Seq(mapType.key, mapType.value)))
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MapItemSet(resolver.map(map))
+}
+case class MapSize(map: Expr)(implicit val o: Origin) extends MapOp with IntExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MapSize(resolver.map(map))
+}
+case class MapRemove(map: Expr, k: Expr)(implicit val o: Origin) extends CoercingExpr {
+  def mapType: TMap = map.t.asMap.get
+  override def t: Type = mapType
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MapRemove(resolver.map(map), resolver(k, mapType.key))
 }
 
 sealed trait Binder extends Declarator {
@@ -290,14 +270,31 @@ sealed trait Binder extends Declarator {
   override def declarations: Seq[Declaration] = bindings
 }
 
-case class Forall(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TBool())) with BoolExpr with Binder
-case class Starall(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TResource())) with ResourceExpr with Binder
-case class Exists(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends Check(body.checkSubType(TBool())) with BoolExpr with Binder
-case class Sum(bindings: Seq[Variable], condition: Expr, main: Expr)(implicit val o: Origin) extends Check(main.checkSubType(TInt()), condition.checkSubType(TBool())) with IntExpr with Binder
-case class Product(bindings: Seq[Variable], condition: Expr, main: Expr)(implicit val o: Origin) extends Check(main.checkSubType(TInt()), condition.checkSubType(TBool())) with IntExpr with Binder
-case class Let(binding: Variable, value: Expr, main: Expr)(implicit val o: Origin) extends Check(value.checkSubType(binding.t)) with Expr with Binder {
+case class Forall(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends BoolExpr with Binder with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Forall(bindings, triggers, resolver(body, TBool()))
+}
+case class Starall(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends ResourceExpr with Binder with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Starall(bindings, triggers, resolver(body, TResource()))
+}
+case class Exists(bindings: Seq[Variable], triggers: Seq[Seq[Expr]], body: Expr)(implicit val o: Origin) extends BoolExpr with Binder with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Exists(bindings, triggers, resolver(body, TBool()))
+}
+case class Sum(bindings: Seq[Variable], condition: Expr, main: Expr)(implicit val o: Origin) extends IntExpr with Binder with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Sum(bindings, resolver(condition, TBool()), resolver(main, TInt()))
+}
+case class Product(bindings: Seq[Variable], condition: Expr, main: Expr)(implicit val o: Origin) extends IntExpr with Binder with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Product(bindings, resolver(condition, TBool()), resolver(main, TInt()))
+}
+case class Let(binding: Variable, value: Expr, main: Expr)(implicit val o: Origin) extends Expr with Binder with CoercingExpr {
   override def t: Type = main.t
   override def bindings: Seq[Variable] = Seq(binding)
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Let(binding, resolver(value, binding.t), main)
 }
 case class InlinePattern(inner: Expr)(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = inner.t
@@ -319,29 +316,36 @@ case class ModelDeref(obj: Expr, ref: Ref[ModelField])(val blame: Blame[ModelIns
   override def check(context: CheckContext): Seq[CheckError] =
     context.checkInScope(this, ref)
 }
-case class DerefPointer(pointer: Expr)(val blame: Blame[PointerDerefError])(implicit val o: Origin) extends Expr {
+case class DerefPointer(pointer: Expr)(val blame: Blame[PointerDerefError])(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = pointer.t.asPointer.get.element
-  override def check(context: CheckContext): Seq[CheckError] =
-    pointer.checkPointerThen()
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    DerefPointer(resolver.pointer(pointer))(blame)
 }
 case class AddrOf(e: Expr)(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TPointer(e.t)
 }
 
-sealed trait Apply extends Expr {
+sealed trait Apply extends CoercingExpr {
   def ref: Ref[_ <: Applicable]
   def args: Seq[Expr]
 
   override def t: Type = ref.decl.returnType
 
-  override def check(context: CheckContext): Seq[CheckError] =
-    ref.decl.args.zip(args).flatMap {
-      case (arg, value) => value.checkSubType(arg.t)
+  def coercedArgs(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Seq[Expr] =
+    args.zip(ref.decl.args).map {
+      case (arg, v) => resolver(arg, v.t)
     }
 }
 
-case class PredicateApply(ref: Ref[Predicate], args: Seq[Expr])(implicit val o: Origin) extends Apply
-case class InstancePredicateApply(obj: Expr, ref: Ref[InstancePredicate], args: Seq[Expr])(implicit val o: Origin) extends Apply
+case class PredicateApply(ref: Ref[Predicate], args: Seq[Expr])(implicit val o: Origin) extends Apply {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    PredicateApply(ref, coercedArgs(resolver))
+}
+case class InstancePredicateApply(obj: Expr, ref: Ref[InstancePredicate], args: Seq[Expr])(implicit val o: Origin) extends Apply {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    InstancePredicateApply(obj, ref, coercedArgs(resolver))
+}
 
 case class ADTFunctionInvocation(typeArgs: Option[(Ref[AxiomaticDataType], Seq[Type])],
                                  ref: Ref[ADTFunction], args: Seq[Expr])(implicit val o: Origin) extends Apply {
@@ -352,14 +356,17 @@ case class ADTFunctionInvocation(typeArgs: Option[(Ref[AxiomaticDataType], Seq[T
       case None => ref.decl.returnType
     }
 
-  override def check(context: CheckContext): Seq[CheckError] =
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr = {
     typeArgs match {
-      case None => super.check(context)
-      case Some((adt, typeArgs)) =>
-        ref.decl.args.zip(args).flatMap {
-          case (arg, value) => value.checkSubType(arg.t.particularize(adt.decl.typeArgs.zip(typeArgs).toMap))
-        }
+      case None => ADTFunctionInvocation(typeArgs, ref, coercedArgs(resolver))
+      case Some((adt, ts)) =>
+        ADTFunctionInvocation(typeArgs, ref,
+          ref.decl.args.zip(args).map {
+            case (arg, value) => resolver(value, arg.t.particularize(adt.decl.typeArgs.zip(ts).toMap))
+          }
+        )
     }
+  }
 }
 
 sealed trait Invocation extends Apply {
@@ -369,129 +376,229 @@ sealed trait Invocation extends Apply {
 
   override def t: Type = super.t.particularize(ref.decl.typeArgs.zip(typeArgs).toMap)
 
-  override def check(context: CheckContext): Seq[CheckError] =
-    ref.decl.args.zip(args).flatMap {
-      case (arg, value) => value.checkSubType(arg.t.particularize(ref.decl.typeArgs.zip(typeArgs).toMap))
+  override def coercedArgs(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Seq[Expr] =
+    args.zip(ref.decl.args).map {
+      case (arg, v) => resolver(arg, v.t.particularize(ref.decl.typeArgs.zip(typeArgs).toMap))
     }
 }
 
 case class ProcedureInvocation(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]], typeArgs: Seq[Type])
-                              (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
+                              (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    ProcedureInvocation(ref, coercedArgs(resolver), outArgs, typeArgs)(blame)
+}
 case class FunctionInvocation(ref: Ref[Function], args: Seq[Expr], typeArgs: Seq[Type])
-                             (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
+                             (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    FunctionInvocation(ref, coercedArgs(resolver), typeArgs)(blame)
+}
 
 case class MethodInvocation(obj: Expr, ref: Ref[InstanceMethod], args: Seq[Expr], outArgs: Seq[Ref[Variable]], typeArgs: Seq[Type])
-                           (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
+                           (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    MethodInvocation(obj, ref, coercedArgs(resolver), outArgs, typeArgs)(blame)
+}
 case class InstanceFunctionInvocation(obj: Expr, ref: Ref[InstanceFunction], args: Seq[Expr], typeArgs: Seq[Type])
-                                     (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
+                                     (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    InstanceFunctionInvocation(obj, ref, coercedArgs(resolver), typeArgs)(blame)
+}
 
 sealed trait UnExpr extends Expr {
   def arg: Expr
-  def t: Type = arg.t
 }
 
-/* The "unary plus" is the identity function, e.g. +1 is UPlus(IntegerValue(1)) */
-case class UPlus(arg: Expr)(implicit val o: Origin) extends Check(arg.checkSubType(TRational())) with UnExpr
-case class UMinus(arg: Expr)(implicit val o: Origin) extends Check(arg.checkSubType(TRational())) with UnExpr
-case class BitNot(arg: Expr)(implicit val o: Origin) extends Check(arg.checkSubType(TInt())) with UnExpr
-case class Not(arg: Expr)(implicit val o: Origin) extends Check(arg.checkSubType(TBool())) with UnExpr
+case class UMinus(arg: Expr)(implicit val o: Origin) extends UnExpr with CoercingExpr {
+  override def t: Type =
+    Coercion.getCoercion(arg.t, TInt()) match {
+      case Some(_) => TInt()
+      case _ => TRational()
+    }
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Coercion.getCoercion(arg.t, TInt()) match {
+      case Some(_) => UMinus(resolver(arg, TInt()))
+      case _ => UMinus(resolver(arg, TRational()))
+    }
+}
+case class BitNot(arg: Expr)(implicit val o: Origin) extends UnExpr with IntExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    BitNot(resolver(arg, TInt()))
+}
+case class Not(arg: Expr)(implicit val o: Origin) extends UnExpr with BoolExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Not(resolver(arg, TBool()))
+}
 
 sealed trait BinExpr extends Expr {
   def left: Expr
   def right: Expr
 }
-sealed trait NumericBinExpr extends BinExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-    left.checkSubType(TRational()) ++ right.checkSubType(TRational())
+sealed trait NumericBinExpr extends BinExpr with CoercingExpr {
+  def isIntOp: Boolean =
+    Coercion.getCoercion(left.t, TInt()).isDefined &&
+      Coercion.getCoercion(right.t, TInt()).isDefined
 
-  override def t: Type = Type.leastCommonSuperType(left.t, right.t)
+  override def t: Type = if(isIntOp) TInt() else TRational()
 }
 
 sealed trait IntBinExpr extends BinExpr {
   override def t: Type = TInt()
-  override def check(context: CheckContext): Seq[CheckError] =
-    left.checkSubType(TInt()) ++ right.checkSubType(TInt())
 }
 
 sealed trait BoolBinExpr extends BinExpr {
   override def t: Type = TBool()
-  override def check(context: CheckContext): Seq[CheckError] =
-    left.checkSubType(TBool()) ++ right.checkSubType(TBool())
 }
 
 sealed trait DividingExpr extends Expr {
   def blame: Blame[DivByZero]
 }
 
-case class AmbiguousMult(left: Expr, right: Expr)(implicit val o: Origin) extends Expr {
-  override def t: Type = Type.leastCommonSuperType(left.t, right.t)
+case class AmbiguousMult(left: Expr, right: Expr)(implicit val o: Origin) extends CoercingExpr {
+  def isProcessOp: Boolean = Coercion.getCoercion(left.t, TProcess()).isDefined
+  def isIntOp: Boolean = Coercion.getCoercion(left.t, TInt()).isDefined && Coercion.getCoercion(right.t, TInt()).isDefined
 
-  override def check(context: CheckContext): Seq[CheckError] = left.t match {
-    case TProcess() => right.checkSubType(TProcess())
-    case _ => left.checkSubType(TRational()) ++ right.checkSubType(TRational())
-  }
+  override def t: Type = if(isProcessOp) TProcess() else (if(isIntOp) TInt() else TRational())
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isProcessOp) AmbiguousMult(resolver(left, TProcess()), resolver(right, TProcess()))
+    else if(isIntOp) AmbiguousMult(resolver(left, TInt()), resolver(right, TInt()))
+    else AmbiguousMult(resolver(left, TRational()), resolver(right, TRational()))
 }
 
-case class AmbiguousPlus(left: Expr, right: Expr)(implicit val o: Origin) extends Expr {
-  override def t: Type = Type.leastCommonSuperType(left.t, right.t)
+case class AmbiguousPlus(left: Expr, right: Expr)(implicit val o: Origin) extends CoercingExpr {
+  def isProcessOp: Boolean = Coercion.getCoercion(left.t, TProcess()).isDefined
+  def isSeqOp: Boolean = Coercion.getAnySeqCoercion(left.t).isDefined
+  def isBagOp: Boolean = Coercion.getAnyBagCoercion(left.t).isDefined
+  def isSetOp: Boolean = Coercion.getAnySetCoercion(left.t).isDefined
+  def isPointerOp: Boolean = Coercion.getAnyPointerCoercion(left.t).isDefined
+  def isIntOp: Boolean =
+    Coercion.getCoercion(left.t, TInt()).isDefined &&
+      Coercion.getCoercion(right.t, TInt()).isDefined
 
-  override def check(context: CheckContext): Seq[CheckError] = left.t match {
-    case TProcess() => right.checkSubType(TProcess())
-    case TSeq(_) => right.checkSeqThen()
-    case TBag(_) => right.checkBagThen()
-    case TSet(_) => right.checkSetThen()
-    case TPointer(_) => right.checkSubType(TInt())
-    case _ => left.checkSubType(TRational()) ++ right.checkSubType(TRational())
-  }
+  override def t: Type =
+    if(isProcessOp) TProcess()
+    else if(isSeqOp || isBagOp || isSetOp) Type.leastCommonSuperType(left, right)
+    else if(isPointerOp) left.t
+    else if(isIntOp) TInt()
+    else TRational()
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isProcessOp) AmbiguousPlus(resolver(left, TProcess()), resolver(right, TProcess()))
+    else if(isSeqOp) AmbiguousPlus(resolver.seq(left), resolver.seq(right))
+    else if(isBagOp) AmbiguousPlus(resolver.bag(left), resolver.bag(right))
+    else if(isSetOp) AmbiguousPlus(resolver.set(left), resolver.set(right))
+    else if(isPointerOp) AmbiguousPlus(resolver.pointer(left), resolver(right, TInt()))
+    else if(isIntOp) AmbiguousPlus(resolver(left, TInt()), resolver(right, TInt()))
+    else AmbiguousPlus(resolver(left, TRational()), resolver(right, TRational()))
 }
 
 
-case class AmbiguousOr(left: Expr, right: Expr)(implicit val o: Origin) extends BinExpr {
-  override def t: Type = Type.leastCommonSuperType(left.t, right.t)
+case class AmbiguousOr(left: Expr, right: Expr)(implicit val o: Origin) extends BinExpr with CoercingExpr {
+  def isProcessOp: Boolean = Coercion.getCoercion(left.t, TProcess()).isDefined
 
-  override def check(context: CheckContext): Seq[CheckError] = left.t match {
-    case TProcess() => right.checkSubType(TProcess())
-    case _ => left.checkSubType(TBool()) ++ right.checkSubType(TBool())
-  }
+  override def t: Type = if(isProcessOp) TProcess() else TBool()
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isProcessOp) AmbiguousOr(resolver(left, TProcess()), resolver(right, TProcess()))
+    else AmbiguousOr(resolver(left, TBool()), resolver(right, TBool()))
 }
 
-sealed trait BitOp extends BinExpr {
-  override def t: Type = left.t
+sealed trait BitOp extends BinExpr with CoercingExpr {
+  def isBoolOp: Boolean = Coercion.getCoercion(left.t, TBool()).isDefined
 
-  override def check(context: CheckContext): Seq[CheckError] = left.t.mimics match {
-    case TBool() => right.checkSubType(TBool())
-    case _ => left.checkSubType(TInt()) ++ right.checkSubType(TInt())
-  }
+  override def t: Type = if(isBoolOp) TBool() else TInt()
 }
 
-case class AmbiguousComputationalOr(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
-case class AmbiguousComputationalXor(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
-case class AmbiguousComputationalAnd(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
+case class AmbiguousComputationalOr(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isBoolOp) AmbiguousComputationalOr(resolver(left, TBool()), resolver(right, TBool()))
+    else AmbiguousComputationalOr(resolver(left, TInt()), resolver(right, TInt()))
+}
+case class AmbiguousComputationalXor(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isBoolOp) AmbiguousComputationalXor(resolver(left, TBool()), resolver(right, TBool()))
+    else AmbiguousComputationalXor(resolver(left, TInt()), resolver(right, TInt()))
+}
+case class AmbiguousComputationalAnd(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isBoolOp) AmbiguousComputationalAnd(resolver(left, TBool()), resolver(right, TBool()))
+    else AmbiguousComputationalAnd(resolver(left, TInt()), resolver(right, TInt()))
+}
 
-case class Exp(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
-case class Plus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
-case class Minus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
-case class Mult(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
-case class Div(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr with DividingExpr {
+case class Exp(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isIntOp) Exp(resolver(left, TInt()), resolver(right, TInt()))
+    else Exp(resolver(left, TRational()), resolver(right, TRational()))
+}
+case class Plus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isIntOp) Plus(resolver(left, TInt()), resolver(right, TInt()))
+    else Plus(resolver(left, TRational()), resolver(right, TRational()))
+}
+case class Minus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isIntOp) Minus(resolver(left, TInt()), resolver(right, TInt()))
+    else Minus(resolver(left, TRational()), resolver(right, TRational()))
+}
+case class Mult(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isIntOp) Mult(resolver(left, TInt()), resolver(right, TInt()))
+    else Mult(resolver(left, TRational()), resolver(right, TRational()))
+}
+case class Div(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr with DividingExpr with CoercingExpr {
   override def t: Type = TRational()
-  override def check(context: CheckContext): Seq[CheckError] =
-    left.checkSubType(TRational()) ++ right.checkSubType(TRational())
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Div(resolver(left, TRational()), resolver(right, TRational()))(blame)
 }
-case class FloorDiv(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends IntBinExpr with DividingExpr
-case class Mod(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr with DividingExpr
-case class BitAnd(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr
-case class BitOr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr
-case class BitXor(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr
-case class BitShl(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr
-case class BitShr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr // sign-extended (signed)
-case class BitUShr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr // not sign-extended (unsigned)
+case class FloorDiv(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends IntBinExpr with DividingExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    FloorDiv(resolver(left, TRational()), resolver(right, TRational()))(blame)
+}
+case class Mod(left: Expr, right: Expr)(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr with DividingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr = {
+    if(isIntOp) Mod(resolver(left, TInt()), resolver(right, TInt()))(blame)
+    else Mod(resolver(left, TRational()), resolver(right, TRational()))(blame)
+}
+case class BitAnd(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    BitAnd(resolver(left, TInt()), resolver(right, TInt()))
+}
+case class BitOr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    BitOr(resolver(left, TInt()), resolver(right, TInt()))
+}
+case class BitXor(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    BitXor(resolver(left, TInt()), resolver(right, TInt()))
+}
+case class BitShl(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    BitShl(resolver(left, TInt()), resolver(right, TInt()))
+}
+// sign-extended (signed)
+case class BitShr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    BitShr(resolver(left, TInt()), resolver(right, TInt()))
+}
+// not sign-extended (unsigned)
+case class BitUShr(left: Expr, right: Expr)(implicit val o: Origin) extends IntBinExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    BitUShr(resolver(left, TInt()), resolver(right, TInt()))
+}
 
 object And {
   def fold(exprs: Seq[Expr])(implicit o: Origin): Expr =
     exprs.reduceOption(And(_, _)).getOrElse(Constant.BooleanValue(true))
 }
-case class And(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
-case class Or(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
+case class And(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    And(resolver(left, TBool()), resolver(right, TBool()))
+}
+case class Or(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Or(resolver(left, TBool()), resolver(right, TBool()))
+}
 object Implies {
   def unfold(expr: Expr): (Seq[Expr], Expr) = expr match {
     case Implies(left, right) =>
@@ -500,8 +607,11 @@ object Implies {
     case other => (Nil, other)
   }
 }
-case class Implies(left: Expr, right: Expr)(implicit val o: Origin) extends Check(left.checkSubType(TBool()), right.checkSubType(TResource())) with BinExpr {
+case class Implies(left: Expr, right: Expr)(implicit val o: Origin) extends BinExpr with CoercingExpr {
   override def t: Type = right.t
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Implies(resolver(left, TBool()), resolver(right, TResource()))
 }
 object Star {
   def fold(exprs: Seq[Expr])(implicit o: Origin): Expr =
@@ -514,91 +624,117 @@ object Star {
     case other => Seq(other)
   }
 }
-case class Star(left: Expr, right: Expr)(implicit val o: Origin) extends Check(left.checkSubType(TResource()), right.checkSubType(TResource())) with ResourceExpr
-case class Wand(left: Expr, right: Expr)(implicit val o: Origin) extends Check(left.checkSubType(TResource()), right.checkSubType(TResource())) with ResourceExpr
-case class Scale(scale: Expr, res: Expr)(implicit val o: Origin) extends Check(scale.checkSubType(TRational()), res.checkSubType(TResource())) with ResourceExpr
-case class Unfolding(pred: Expr, body: Expr)(implicit val o: Origin) extends Check(pred.checkSubType(TResource())) with Expr {
+case class Star(left: Expr, right: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Star(resolver(left, TResource()), resolver(right, TResource()))
+}
+case class Wand(left: Expr, right: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Wand(resolver(left, TResource()), resolver(right, TResource()))
+}
+case class Scale(scale: Expr, res: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Scale(resolver(scale, TRational()), resolver(res, TResource()))
+}
+case class Unfolding(pred: Expr, body: Expr)(implicit val o: Origin) extends Expr with CoercingExpr {
   override def t: Type = body.t
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Unfolding(resolver(pred, TResource()), body)
 }
 
-case class Perm(loc: Expr, perm: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational())) with ResourceExpr
-case class HPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational())) with ResourceExpr
-case class APerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational())) with ResourceExpr
+case class Perm(loc: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Perm(loc, resolver(perm, TRational()))
+}
+case class HPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    HPerm(loc, resolver(perm, TRational()))
+}
+case class APerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    APerm(loc, resolver(perm, TRational()))
+}
 
-case class PointsTo(loc: Expr, perm: Expr, value: Expr)(implicit val o: Origin) extends Check(perm.checkSubType(TRational()), value.checkSubType(loc.t)) with ResourceExpr
+case class PointsTo(loc: Expr, perm: Expr, value: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    PointsTo(loc, resolver(perm, TRational()), resolver(value, loc.t))
+}
 case class CurPerm(loc: Expr)(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TRational()
 }
 
-case class ValidArray(arr: Expr, len: Expr)(implicit val o: Origin) extends BoolExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-    len.checkSubType(TInt()) ++ (arr.t match {
-      case TArray(_) => Seq()
-      case _ => Seq(TypeError(arr, TArray(TAny())))
-    })
+case class ValidArray(arr: Expr, len: Expr)(implicit val o: Origin) extends BoolExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    ValidArray(resolver.array(arr), resolver(len, TInt()))
 }
-case class ValidMatrix(mat: Expr, w: Expr, h: Expr)(implicit val o: Origin) extends BoolExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-    w.checkSubType(TInt()) ++ h.checkSubType(TInt()) ++ (mat.t match {
-      case TArray(TArray(_)) => Seq()
-      case _ => Seq(TypeError(mat, TArray(TArray(TAny()))))
-    })
+case class ValidMatrix(mat: Expr, w: Expr, h: Expr)(implicit val o: Origin) extends BoolExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    ValidMatrix(resolver.matrixArray(mat), resolver(w, TInt()), resolver(h, TInt()))
 }
 
-case class PermPointer(p: Expr, len: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-    len.checkSubType(TInt()) ++ perm.checkSubType(TRational()) ++ (p.t match {
-      case TPointer(_) => Seq()
-      case _ => Seq(TypeError(p, TPointer(TAny())))
-    })
+case class PermPointer(p: Expr, len: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    PermPointer(resolver.pointer(p), resolver(len, TInt()), resolver(perm, TRational()))
 }
-case class PermPointerIndex(p: Expr, idx: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-    idx.checkSubType(TInt()) ++ perm.checkSubType(TRational()) ++ (p.t match {
-      case TPointer(_) => Seq()
-      case _ => Seq(TypeError(p, TPointer(TAny())))
-    })
+case class PermPointerIndex(p: Expr, idx: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr with CoercingExpr {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    PermPointerIndex(resolver.pointer(p), resolver(idx, TInt()), resolver(perm, TRational()))
 }
 
 sealed trait Comparison extends BinExpr {
   override def t: Type = TBool()
-  override def check(context: CheckContext): Seq[CheckError] =
-    Type.checkComparable(left, right)
 }
 
-case class Eq(left: Expr, right: Expr)(implicit val o: Origin) extends Comparison
-case class Neq(left: Expr, right: Expr)(implicit val o: Origin) extends Comparison
+case class Eq(left: Expr, right: Expr)(implicit val o: Origin) extends Comparison with NoCheck
+case class Neq(left: Expr, right: Expr)(implicit val o: Origin) extends Comparison with NoCheck
 
-sealed trait OrderOp extends Comparison {
-  override def check(context: CheckContext): Seq[CheckError] = {
-    left.t match {
-      case TSet(leftT) => right.checkSetThen(rightSet =>
-        if(Type.isComparable(leftT, rightSet.element)) Nil else Seq(IncomparableTypes(left, right)))
-      case TBag(leftT) => right.checkBagThen(rightBag =>
-        if(Type.isComparable(leftT, rightBag.element)) Nil else Seq(IncomparableTypes(left, right)))
-      case _ => left.checkSubType(TRational()) ++ right.checkSubType(TRational())
-    }
-  }
+sealed trait OrderOp extends Comparison with CoercingExpr {
+  def isSetOp: Boolean = Coercion.getAnySetCoercion(left.t).isDefined
+  def isBagOp: Boolean = Coercion.getAnyBagCoercion(left.t).isDefined
+  def isIntOp: Boolean =
+    Coercion.getCoercion(left.t, TInt()).isDefined &&
+      Coercion.getCoercion(right.t, TInt()).isDefined
+
+  protected def mkCoerced(left: Expr, right: Expr): Expr
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    if(isSetOp) mkCoerced(resolver.set(left), resolver.set(right))
+    else if(isBagOp) mkCoerced(resolver.bag(left), resolver.bag(right))
+    else if(isIntOp) mkCoerced(resolver(left, TInt()), resolver(right, TInt()))
+    else mkCoerced(resolver(left, TResource()), resolver(right, TResource()))
 }
 
-case class Greater(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp
-case class Less(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp
-case class GreaterEq(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp
-case class LessEq(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp
+case class Greater(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp {
+  override protected def mkCoerced(left: Expr, right: Expr): Expr = Greater(left, right)(o)
+}
+case class Less(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp {
+  override protected def mkCoerced(left: Expr, right: Expr): Expr = Less(left, right)(o)
+}
+case class GreaterEq(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp {
+  override protected def mkCoerced(left: Expr, right: Expr): Expr = GreaterEq(left, right)(o)
+}
+case class LessEq(left: Expr, right: Expr)(implicit val o: Origin) extends OrderOp {
+  override protected def mkCoerced(left: Expr, right: Expr): Expr = LessEq(left, right)(o)
+}
 
-case class Select(condition: Expr, whenTrue: Expr, whenFalse: Expr)(implicit val o: Origin) extends Expr {
+case class Select(condition: Expr, whenTrue: Expr, whenFalse: Expr)(implicit val o: Origin) extends CoercingExpr {
   override def t: Type =
     Type.leastCommonSuperType(whenTrue.t, whenFalse.t)
-  override def check(context: CheckContext): Seq[CheckError] =
-    condition.checkSubType(TBool()) ++ Type.checkComparable(whenTrue, whenFalse)
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    Select(resolver(condition, TBool()), resolver(whenTrue, t), resolver(whenFalse, t))
 }
 
 case class NewObject(cls: Ref[Class])(implicit val o: Origin) extends Expr with NoCheck {
   override def t: Type = TClass(cls)
 }
 
-case class NewArray(element: Type, dims: Seq[Expr], moreDims: Int)(implicit val o: Origin) extends Check(dims.flatMap(_.checkSubType(TInt()))) with Expr {
+case class NewArray(element: Type, dims: Seq[Expr], moreDims: Int)(implicit val o: Origin) extends CoercingExpr {
   override def t: Type = FuncTools.repeat(TArray(_), dims.size + moreDims, element)
+
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Expr =
+    NewArray(element, dims.map(resolver(_, TInt())), moreDims)
 }
 
 case class Old(expr: Expr, at: Option[Ref[LabelDecl]])(val blame: Blame[LabelNotReached])(implicit val o: Origin) extends Expr with NoCheck {

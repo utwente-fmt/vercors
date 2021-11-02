@@ -170,6 +170,20 @@ case class PointerInsufficientPermission(pointer: Expr) extends PointerDerefErro
   override def toString: String = "There may be insufficient permission to dereference the pointer."
 }
 
+sealed trait UnsafeCoercion extends VerificationFailure
+case class CoerceRatZFracFailed(rat: Expr) extends UnsafeCoercion {
+  override def code: String = "ratZfrac"
+  override def toString: String = "Rational may exceed the bounds of zfrac: [0, 1]"
+}
+case class CoerceRatFracFailed(rat: Expr) extends UnsafeCoercion {
+  override def code: String = "ratFrac"
+  override def toString: String = "Rational may exceed the bounds of frac: (0, 1]"
+}
+case class CoerceZFracFracFailed(zfrac: Expr) extends UnsafeCoercion {
+  override def code: String = "zfracFrac"
+  override def toString: String = "zfrac may be zero."
+}
+
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
 }

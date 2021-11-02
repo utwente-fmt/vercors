@@ -66,9 +66,9 @@ case object Test {
     files += 1
     println(paths.mkString(", "))
     val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse))
-    var program = Program(decls)(DiagnosticOrigin)
+    var program = Program(decls)(DiagnosticOrigin)(DiagnosticOrigin)
     val extraDecls = ResolveTypes.resolve(program)
-    program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)
+    program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)(DiagnosticOrigin)
     val errors = ResolveReferences.resolve(program)
     printErrorsOr(errors) {
       program = LangSpecificToCol().dispatch(program)

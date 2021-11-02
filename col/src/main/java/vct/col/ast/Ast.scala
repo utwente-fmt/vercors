@@ -5,7 +5,7 @@ import vct.result.VerificationResult.SystemError
 
 import scala.runtime.ScalaRunTime
 
-case class Program(declarations: Seq[GlobalDeclaration])(implicit val o: Origin) extends NodeFamily with Declarator {
+case class Program(declarations: Seq[GlobalDeclaration])(val blame: Blame[UnsafeCoercion])(implicit val o: Origin) extends NodeFamily with Declarator {
   def check: Seq[CheckError] =
     checkTrans(CheckContext())
 

@@ -1,10 +1,13 @@
 package vct.col.newrewrite
 
 import hre.config.Configuration
+import hre.util.ScopedStack
+import vct.col.ast.Coercion.{FracZFrac, NullArray, NullPointer, ZFracRat}
 import vct.col.ast._
-import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, MapKeyErrorPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed}
+import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, MapKeyErrorPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
 import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.parsers.Parsers
+import RewriteHelpers._
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -96,6 +99,21 @@ case object ImportADT {
     override def blame(error: InsufficientPermission): Unit =
       inner.blame(PointerInsufficientPermission(expr))
   }
+
+  case class RatZFracPreconditionFailed(inner: Blame[CoerceRatZFracFailed], expr: Expr) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      inner.blame(CoerceRatZFracFailed(expr))
+  }
+
+  case class RatFracPreconditionFailed(inner: Blame[CoerceRatFracFailed], expr: Expr) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      inner.blame(CoerceRatFracFailed(expr))
+  }
+
+  case class ZFracFracPreconditionFailed(inner: Blame[CoerceZFracFracFailed], expr: Expr) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      inner.blame(CoerceZFracFracFailed(expr))
+  }
 }
 
 case class ImportADT() extends Rewriter {
@@ -179,6 +197,13 @@ case class ImportADT() extends Rewriter {
   private lazy val pointerDeref = find[Function](pointerFile, "ptr_deref")
   private lazy val pointerAdd = find[Function](pointerFile, "ptr_add")
 
+  val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
+
+  override def dispatch(program: Program): Program =
+    globalBlame.having(program.blame) {
+      program.rewrite()
+    }
+
   override def dispatch(t: Type): Type = {
     implicit val o: Origin = t.o
     t match {
@@ -217,7 +242,38 @@ case class ImportADT() extends Rewriter {
 
   override def dispatch(e: Expr): Expr = {
     implicit val o: Origin = e.o
-    e match {
+
+    // PB: coerced is now of course not well-typed, is that OK, since we rewrite it again below?
+    val coerced = e match {
+      case e: CoercingExpr =>
+        e.coerce(new ResolveCoercion {
+          override def apply(e: Expr, coercion: Coercion)(implicit o: Origin, sc: ScopeContext): Expr = coercion match {
+            case Coercion.NullArray(_) => OptNone()
+            case Coercion.NullPointer(_) => OptNone()
+
+            case Coercion.ZFracRat =>
+              ADTFunctionInvocation(Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
+            case Coercion.Compose(Coercion.ZFracRat, Coercion.FracZFrac) =>
+              ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
+            case Coercion.FracZFrac =>
+              val rat = ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
+              FunctionInvocation(zfracNew.ref, Seq(rat), Nil)(PanicBlame("a frac always fits in a zfrac."))
+
+            case Coercion.RatZFrac =>
+              FunctionInvocation(zfracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.head, e))
+            case Coercion.Compose(Coercion.ZFracFrac, Coercion.RatZFrac) =>
+              FunctionInvocation(fracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.head, e))
+            case Coercion.ZFracFrac =>
+              val rat = ADTFunctionInvocation(Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
+              FunctionInvocation(fracNew.ref, Seq(rat), Nil)(ZFracFracPreconditionFailed(globalBlame.head, e))
+
+            case _ => super.apply(e, coercion)
+          }
+        })
+      case e => e
+    }
+
+    coerced match {
       case LiteralTuple(Seq(t1, t2), Seq(v1, v2)) =>
         ADTFunctionInvocation(
           Some((tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))),
@@ -247,10 +303,10 @@ case class ImportADT() extends Rewriter {
       case access @ OptGet(opt) =>
         FunctionInvocation(optionGet.ref, Seq(dispatch(opt)), Seq(dispatch(opt.t.asOption.get.element)))(
           OptionNonePreconditionFailed(access))
-      case OptGetOrElse(opt, alt) =>
+      case get @ OptGetOrElse(opt, alt) =>
         FunctionInvocation(optionGetOrElse.ref,
           Seq(dispatch(opt), dispatch(alt)),
-          Seq(???),
+          Seq(dispatch(get.t)),
         )(PanicBlame("opt_or_else requires nothing."))
       case LiteralMap(k, v, values) =>
         val typeArgs = Some((mapAdt.ref[AxiomaticDataType], Seq(dispatch(k), dispatch(v))))
