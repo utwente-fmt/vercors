@@ -150,7 +150,7 @@ def collect_chapters(wiki_location):
     # Ignore "wiki" chapter, which is just a link to the wiki
     chapters = [chapter for chapter in chapter_re.findall(contents) if chapter[0] != "Home"]
     
-    # Every md file is loaded and combined into one to ensure only one call is necessary to operate upon all the files.
+    # Every md file is loaded and combined into one to ensure only one call is necessary to operate upon all the files. This saves time.
     # UUIDs are inserted at points where we later want to put a top-level title.
     print("Loading chapters...", end="")
     start_measuring_time()
@@ -373,12 +373,12 @@ def language_to_extension(language):
     # Ok, this looks a bit stupid, but we cannot assume the "language" attribute github uses for markdown code snippets will never diverge from extensions used for files of that type...
     if language == "java":
         return "java"
-    elif language == "c":
+    elif language == "c" or language == "opencl":
         return "c"
     elif language == "pvl":
         return "pvl"
-    elif language == "opencl" or language == "cuda":
-        return "c"
+    elif language == "cuda":
+        return "cu"
     else:
         raise UnknownLanguageError
 
