@@ -8,7 +8,8 @@ import json
 import os
 import base64
 import optparse
-
+import time
+import uuid
 
 class SnippetTestcase:
     """
@@ -124,6 +125,14 @@ class TemplateTestcase:
     def render(self):
         return self.render_header() + self.render_body()
 
+measurement_time = 0
+def start_measuring_time():
+    global measurement_time
+    measurement_time = time.perf_counter()
+
+def print_elapsed_time():
+    global measurement_time
+    print(f" Done ({time.perf_counter() - measurement_time:.2f}s)")
 
 def collect_chapters(wiki_location):
     """
@@ -140,23 +149,40 @@ def collect_chapters(wiki_location):
     # Extract titles and last parts of links to chapters
     # Ignore "wiki" chapter, which is just a link to the wiki
     chapters = [chapter for chapter in chapter_re.findall(contents) if chapter[0] != "Home"]
-
-    # Get all chapter texts
-    md_shifted_headers = []
-    for name, file_name in chapters:
-        with open(os.path.join(wiki_location, file_name + ".md"), "r") as f:
-            md_shifted_headers.append(pypandoc.convert_text(
-                f.read(), "gfm", "gfm", extra_args=["--base-header-level=2"]
-            ))
-
+    
+    # Every md file is loaded and combined into one to ensure only one call is necessary to operate upon all the files.
+    # UUIDs are inserted at points where we later want to put a top-level title.
+    print("Loading chapters...", end="")
+    start_measuring_time()
+    uuid_mappings = {}
     total_md = ""
-    for (name, _), md in zip(chapters, md_shifted_headers):
-        total_md += f"# {name}\n"
-        total_md += md
+    for (name, file_name) in chapters:
+        chapter_code = uuid.uuid4()
+        uuid_mappings[chapter_code] = f"# {name}"
+        total_md += f"\n\n{chapter_code}\n\n"
+        with open(os.path.join(wiki_location, file_name + ".md"), "r") as f:
+            total_md += f.read()
         total_md += "\n"
+    print_elapsed_time()
 
-    return json.loads(pypandoc.convert_text(total_md, "json", "gfm"))
+    # Every header is shifted by one to make sure only this script can insert top-level headings.
+    print("Shifting headers...", end="")
+    start_measuring_time()
+    shifted_md = pypandoc.convert_text(total_md , "gfm", "gfm", extra_args=["--base-header-level=2"])
+    print_elapsed_time()
 
+    print("Replacing codes...", end="")
+    start_measuring_time()
+    shifted_titled_md = shifted_md
+    for chapter_code in uuid_mappings:
+        shifted_titled_md = shifted_titled_md.replace(str(chapter_code), uuid_mappings[chapter_code])
+    print_elapsed_time()
+
+    print("Converting to json...", end="")
+    start_measuring_time()
+    final_json = json.loads(pypandoc.convert_text(shifted_titled_md, "json", "gfm"))
+    print_elapsed_time()
+    return final_json
 
 def collect_testcases(document, cases):
     """
@@ -357,7 +383,7 @@ def language_to_extension(language):
         raise UnknownLanguageError
 
 def output_cases(path, cases):
-    os.makedirs(path)
+    os.makedirs(path, exist_ok=True)
 
     ok = 0
     not_ok = 0
@@ -410,21 +436,28 @@ if __name__ == "__main__":
     pandoc_version = document['pandoc-api-version']
     cases = {}
 
+    print("Collecting test cases...")
     collect_testcases(document, cases)
 
     blocks = document['blocks']
 
     if options.php_path:
+        print("Creating PHP...")
         output_php(options.php_path, blocks, cases, pandoc_version)
 
     if options.menu_path:
+        print("Creating menu...")
         output_menu(options.menu_path, blocks, pandoc_version)
 
     if options.pdf_path:
+        print("Creating PDF...")
         output_pdf(options.pdf_path, blocks, pandoc_version)
 
     if options.html_path:
+        print("Creating HTML...")
         output_html(options.html_path, blocks, pandoc_version)
 
     if options.cases_path:
+        print("Creating wiki test suite...")
         output_cases(options.cases_path, cases)
+        print("done")
