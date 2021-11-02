@@ -1,4 +1,5 @@
 //:: case GPGPUExampleUpdates
+//:: tool silicon
 
 /***********************************************************************************
 Created by Mohsen Safari.
