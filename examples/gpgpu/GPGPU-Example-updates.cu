@@ -45,7 +45,6 @@ int main(int argc, char** argv)
 
   // allocate host memory
   int* host_array = (int*) malloc(sizeof(int)*N);
-//   int* host_array = malloc(sizeof(int)*N);
   int host_sum = 0;
   // initalize the memory
   for(unsigned int i = 0; i < N; i++)
@@ -56,12 +55,12 @@ int main(int argc, char** argv)
 
   //Copy the array to device memory
   int* device_array;
-//   cudaMalloc( (void**) &device_array, sizeof(int)*N) ;
+  cudaMalloc( (void**) &device_array, sizeof(int)*N) ;
   cudaMemcpy( device_array, host_array, sizeof(int)*N, cudaMemcpyHostToDevice) ;
 
   //Copy the int variable to device memory
   int* device_sum;
-//   cudaMalloc((void**) &device_sum, sizeof(int));
+  cudaMalloc((void**) &device_sum, sizeof(int));
   cudaMemcpy( device_sum, host_sum, sizeof(int), cudaMemcpyHostToDevice);
 
 
