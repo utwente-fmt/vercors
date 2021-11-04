@@ -1,6 +1,6 @@
 name: Wiki snippet tests
 # Only run on changes to the wiki
-on: push
+on: gollum
 jobs:
   wiki-test:
     runs-on: ubuntu-latest
