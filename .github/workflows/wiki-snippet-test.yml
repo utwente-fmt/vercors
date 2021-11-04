@@ -2,7 +2,7 @@ name: Wiki snippet tests
 # Only run on changes to the wiki
 on: push
 jobs:
-  build-test:
+  wiki-test:
     runs-on: ubuntu-latest
     steps:
       # This should automatically cancel any previous workflows that are still

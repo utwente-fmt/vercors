@@ -12,6 +12,7 @@ if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
     printf "Extracting classpath from SBT. This might take a moment.\n"
     (cd $ROOT && sbt --error "Global / printMainClasspath" > "$BIN/.classpath")
     printf "Classpath extracted\n"
+    cat "$BIN/.classpath"
 fi
 
 CLASSPATH=$(cat "$BIN/.classpath")
