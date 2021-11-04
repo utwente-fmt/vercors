@@ -11,7 +11,6 @@ on:
       - '**'
 jobs:
   pre_build_test:
-    # continue-on-error: true # Uncomment once integration is finished
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
@@ -20,11 +19,14 @@ jobs:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@master
         with:
-          # All of these options are optional, so you can remove them if you are happy with the defaults
+          # Never allow two runs of this workflow to exist
           concurrent_skipping: 'always'
-          skip_after_successful_duplicate: 'true'
-          paths_ignore: '["**/README.md", "**/LICENSE*"]'
+          # Except, never skip a PR, scheduled, or manually dispatch run
           do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+          # Skip if we can find a duplicate run with the same everything
+          skip_after_successful_duplicate: 'true'
+          # Do not run on changes only to these files
+          paths_ignore: '["**/README.md", "**/LICENSE*"]'
 
   build-test:
     needs: pre_build_test
