@@ -16,6 +16,10 @@ if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
     printf "Done debug printing classpath\n"
 fi
 
+printf "Doing a run...\n"
+(cd $ROOT && sbt --error "Global / printMainClasspath")
+printf "Done with a run!\n"
+
 CLASSPATH=$(cat "$BIN/.classpath")
 printf "###\n$CLASSPATH\n###"
 java -Xss128M -cp $CLASSPATH "$@"
