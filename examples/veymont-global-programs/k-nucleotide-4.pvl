@@ -147,7 +147,7 @@ class FileReader {
 		codes = c;
    }
     
-    static int[] readSystemIn(); 
+    int[] readSystemIn(); 
 }
 
 class Result {
@@ -183,7 +183,7 @@ class FrequencyWriter {
         nucleotides = nu;
     }
     
-    static boolean writeFrequencies(int totalCount, Result frequencies);
+    boolean writeFrequencies(int totalCount, Result frequencies);
     
 }
 
@@ -217,7 +217,7 @@ class FrequencyCount {
         nucleotideFragment = n;
     }
     
-    static boolean writeCount(seq<Result> futures, int nucleotideFragment);
+    boolean writeCount(seq<Result> futures, int nucleotideFragment);
 }
 
 class FrequencyCollector {
