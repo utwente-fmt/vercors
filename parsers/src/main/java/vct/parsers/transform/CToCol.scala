@@ -412,7 +412,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
     case UnaryExpression3(UnaryOperator0(op), arg) => op match {
       case "&" => AddrOf(convert(arg))
       case "*" => DerefPointer(convert(arg))(blame(expr))
-      case "+" => UPlus(convert(arg))
+      case "+" => convert(arg)
       case "-" => UMinus(convert(arg))
       case "~" => BitNot(convert(arg))
       case "!" => col.Not(convert(arg))

@@ -173,6 +173,13 @@ case object Coercion {
     case _ => None
   }
 
+  def getAnyCollectionCoercion(source: Type): Option[Coercion] = source match {
+    case _: TSeq => Some(Identity)
+    case _: TSet => Some(Identity)
+    case _: TBag => Some(Identity)
+    case _ => None
+  }
+
   def getAnyPointerCoercion(source: Type): Option[Coercion] = source match {
     case _: TPointer => Some(Identity)
     case _: TNull => Some(NullPointer(TPointer(TAny())))
@@ -214,6 +221,11 @@ case object Coercion {
 
   def getAnyModelCoercion(source: Type): Option[Coercion] = source match {
     case _: TModel => Some(Identity)
+    case _ => None
+  }
+
+  def getAnyClassCoercion(source: Type): Option[Coercion] = source match {
+    case _: TClass => Some(Identity)
     case _ => None
   }
 }
@@ -355,6 +367,12 @@ trait ResolveCoercion {
       case None => throw Incoercible(e, TBag(TAny()))
     })
 
+  def collection(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyCollectionCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw IncoercibleText(e, got => s"Expected a collection type (sequence, set or bag) but got $got")
+    })
+
   def pointer(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
     apply(e, Coercion.getAnyPointerCoercion(e.t) match {
       case Some(coercion) => coercion
@@ -401,6 +419,12 @@ trait ResolveCoercion {
     apply(e, Coercion.getAnyModelCoercion(e.t) match {
       case Some(coercion) => coercion
       case None => throw IncoercibleText(e, got => s"Expected a model type, but got $got")
+    })
+
+  def cls(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
+    apply(e, Coercion.getAnyClassCoercion(e.t) match {
+      case Some(coercion) => coercion
+      case None => throw IncoercibleText(e, got => s"Expected a class type, but got $got")
     })
 }
 

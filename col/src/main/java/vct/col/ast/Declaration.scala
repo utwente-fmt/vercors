@@ -202,18 +202,20 @@ sealed trait AbstractPredicate extends Applicable {
   override def check(context: CheckContext): Seq[CheckError] = body.toSeq.flatMap(_.checkSubType(TResource()))
 }
 
-case class SignalsClause(binding: Variable, assn: Expr)(implicit val o: Origin) extends Check(assn.checkSubType(TResource())) with NodeFamily with Declarator {
+case class SignalsClause(binding: Variable, assn: Expr)(implicit val o: Origin) extends Coercing with NodeFamily with Declarator {
   override def declarations: Seq[Declaration] = Seq(binding)
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Node =
+    SignalsClause(binding, resolver(assn, TResource()))
 }
 
 case class ApplicableContract(requires: Expr, ensures: Expr, contextEverywhere: Expr,
                               signals: Seq[SignalsClause], givenArgs: Seq[Variable], yieldsArgs: Seq[Variable])
-                             (implicit val o: Origin)
-  extends NodeFamily {
-  override def check(context: CheckContext): Seq[CheckError] =
-    requires.checkSubType(TResource()) ++
-      ensures.checkSubType(TResource()) ++
-      contextEverywhere.checkSubType(TResource())
+                             (implicit val o: Origin) extends NodeFamily with Coercing {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Node =
+    ApplicableContract(
+      resolver(requires, TResource()), resolver(ensures, TResource()), resolver(contextEverywhere, TResource()),
+      signals, givenArgs, yieldsArgs,
+    )(o)
 }
 
 sealed trait ContractApplicable extends Applicable {

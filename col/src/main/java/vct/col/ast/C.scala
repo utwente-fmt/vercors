@@ -92,10 +92,14 @@ case class CGoto(label: String)(implicit val o: Origin) extends CStatement with 
   var ref: Option[LabelDecl] = None
 }
 
-case class GpgpuLocalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin)
-  extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with CStatement
-case class GpgpuGlobalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin)
-  extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with CStatement
+case class GpgpuLocalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin) extends Coercing with CStatement {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): GpgpuLocalBarrier =
+    GpgpuLocalBarrier(resolver(requires, TResource()), resolver(ensures, TResource()))
+}
+case class GpgpuGlobalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin) extends Coercing with CStatement {
+  override def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): GpgpuGlobalBarrier =
+    GpgpuGlobalBarrier(resolver(requires, TResource()), resolver(ensures, TResource()))
+}
 case class GpgpuAtomic(impl: Statement, before: Statement, after: Statement)(implicit val o: Origin) extends CStatement with NoCheck
 
 sealed trait CExpr extends ExtraExpr

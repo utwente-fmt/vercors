@@ -61,6 +61,23 @@ trait Node {
  */
 trait NodeFamily extends Node
 
+/**
+  * Coercing nodes have a simplified checking procedure, where we only have to coerce subnodes to a particular type.
+  */
+trait Coercing {
+  def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Node
+
+  def check(context: CheckContext): Seq[CheckError] =
+    try {
+      case object DummyScope extends ScopeContext
+      coerce(NopCoercionResolver)(DiagnosticOrigin, DummyScope)
+      Nil
+    } catch {
+      case Incoercible(expr, target) => Seq(TypeError(expr, target))
+      case IncoercibleText(expr, message) => Seq(TypeErrorText(expr, message))
+    }
+}
+
 trait Declarator extends Node {
   def declarations: Seq[Declaration]
   override def enterCheckContext(context: CheckContext): CheckContext =
