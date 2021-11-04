@@ -21,6 +21,6 @@ printf "Doing a run...\n"
 (cd $ROOT && sbt --error "Global / printMainClasspath")
 printf "Done with a run!\n"
 
-CLASSPATH=$(cat "$BIN/.classpath")
-printf "###\n$CLASSPATH\n###"
+CLASSPATH=$(cat "$BIN/.classpath" | tr -d "[:space:]")
+printf "###\n$CLASSPATH\n###\n"
 java -Xss128M -cp $CLASSPATH "$@"
