@@ -1,0 +1,39 @@
+name: Vercors build and test workflow
+# Only run on changes to the wiki
+on: gollum
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      # This should automatically cancel any previous workflows that are still
+      # running when for example new commits are pushed.
+      - uses: technote-space/auto-cancel-redundant-workflow@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+      - name: Coursier cache
+        uses: coursier/cache-action@v5
+      - name: Build VerCors
+        run: sbt compile
+      - name: Install wiki script dependencies
+        working-directory: util/wiki
+        run: |
+          sudo apt install pandoc
+          pip3 install -r requirements.txt
+      - name: Extract test cases from wiki
+        run: "python3 util/wiki/generate_wiki_pdf.py -c wiki_cases"
+      - name: Smoke-test VerCors
+        run: ./bin/vct --silicon examples/manual/fibonacci.pvl
+      - name: Test all wiki snippets
+        run: ./bin/vct --test=wiki_cases --test-workers=2 --tool carbon --tool silicon --tool veymont --exclude-suite=slow,medium,problem-fail --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_wiki_tests.xml
+      - name: Clean up intermediate files for caching
+        # From the sbt manual, clean up any leftover intermediate files
+        # https://www.scala-sbt.org/1.x/docs/GitHub-Actions-with-sbt.html
+        run: |
+          rm -rf "$HOME/.ivy2/local" || true
+          find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
+          find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
+          find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
+          find $HOME/.sbt                              -name "*.lock"               -delete || true
+
