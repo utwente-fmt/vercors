@@ -19,9 +19,8 @@ jobs:
       - name: Install wiki script dependencies
         working-directory: util/wiki
         run: |
-          sudo apt install pandoc tree
+          sudo apt install pandoc
           pip3 install -r requirements.txt
-      - run: tree target
       - name: Extract test cases from wiki
         run: "python3 util/wiki/generate_wiki_pdf.py -c wiki_cases"
       - name: Smoke-test VerCors

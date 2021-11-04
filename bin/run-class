@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-set -o xtrace
 
 # Utility script that caches the classpath from the vercors project, and
 # proceeds to run a class from the arguments. Other scripts in this directory
@@ -13,14 +12,7 @@ if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
     printf "Extracting classpath from SBT. This might take a moment.\n"
     (cd $ROOT && sbt --error "Global / printMainClasspath" > "$BIN/.classpath")
     printf "Classpath extracted\n"
-    cat "$BIN/.classpath"
-    printf "Done debug printing classpath\n"
 fi
 
-printf "Doing a run...\n"
-(cd $ROOT && sbt --error "Global / printMainClasspath")
-printf "Done with a run!\n"
-
-CLASSPATH=$(cat "$BIN/.classpath" | tr -d "[:space:]")
-printf "###\n$CLASSPATH\n###\n"
+CLASSPATH=$(cat "$BIN/.classpath" | tr -d "\n\r")
 java -Xss128M -cp $CLASSPATH "$@"
