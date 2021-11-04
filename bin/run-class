@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -o xtrace
 
 # Utility script that caches the classpath from the vercors project, and
 # proceeds to run a class from the arguments. Other scripts in this directory
