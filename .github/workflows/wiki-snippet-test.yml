@@ -1,6 +1,6 @@
 name: Vercors build and test workflow
 # Only run on changes to the wiki
-on: gollum
+on: push
 jobs:
   build-test:
     runs-on: ubuntu-latest
