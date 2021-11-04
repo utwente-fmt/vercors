@@ -16,4 +16,5 @@ if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
 fi
 
 CLASSPATH=$(cat "$BIN/.classpath")
+printf "###\n$CLASSPATH\n###"
 java -Xss128M -cp $CLASSPATH "$@"
