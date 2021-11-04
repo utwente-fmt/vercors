@@ -1,4 +1,4 @@
-name: Vercors build and test workflow
+name: Wiki snippet tests
 # Only run on changes to the wiki
 on: push
 jobs:

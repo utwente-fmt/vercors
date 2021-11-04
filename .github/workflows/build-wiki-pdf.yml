@@ -1,4 +1,4 @@
-name: Vercors wiki pdf workflow
+name: Build and add wiki release
 # Only run when the wiki is updated
 on: gollum
 jobs:

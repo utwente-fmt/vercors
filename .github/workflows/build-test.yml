@@ -1,4 +1,4 @@
-name: Vercors build and test workflow
+name: Build and test
 # Only run the workflow when pushed to master, dev, or on pull requests.
 on: 
   push:
