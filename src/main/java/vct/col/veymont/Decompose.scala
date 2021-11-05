@@ -237,8 +237,8 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   private def checkChanClassType(cl : ClassType, writeChanName : String, sendExpression : ASTNode) : Unit =
     roleOrOtherClass.find(c => c.name == cl.getName) match {
       case Some(c) => {
-        if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
-          Warning("VeyMont Warning: channel of type %s not fully supported, permission annotations will be incomplete!",cl.getType.toString)
+        //if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
+        //  Warning("VeyMont Warning: channel of type %s not fully supported, permission annotations will be incomplete!",cl.getType.toString)
         cloneClasses = cloneClasses + c
         result = getCloneWriteInvocation(writeChanName,sendExpression)
       }
