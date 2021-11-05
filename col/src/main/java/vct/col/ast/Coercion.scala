@@ -74,7 +74,13 @@ case object Coercion {
 
   def getCoercion(source: Type, target: Type): Option[Coercion] = {
     val result = getCoercion1(source, target)
-    println(s"$source is a $target by $result")
+    result match {
+      case Some(Coercion.Identity) =>
+      case Some(Coercion.BoolResource) =>
+      case Some(UnboundInt(_)) =>
+      case other =>
+        println(s"$source is a $target by $result")
+    }
     result
   }
 
@@ -324,8 +330,17 @@ trait ResolveCoercion {
 
       f.declareDefault(sc)
       FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
+    case Coercion.MapTuple(source, target, left, right) =>
+      LiteralTuple(target.elements, Seq(apply(TupGet(e, 0), left), apply(TupGet(e, 1), right)))
     case Coercion.MapType(source, target, inner) =>
       ???
+
+    case Coercion.BoolResource => e
+    case Coercion.BoundIntFrac => e
+    case Coercion.BoundIntZFrac(_) => e
+    case Coercion.JoinUnion(_, _, inner) => e
+    case Coercion.SelectUnion(_, _, _, inner) => apply(e, inner)
+
     case Coercion.Supports(_, _) => e
     case Coercion.JavaSupports(_, _) => e
     case Coercion.NullRef => e
@@ -338,6 +353,7 @@ trait ResolveCoercion {
     case Coercion.FloatRat(_) => e
     case Coercion.WidenBound(_, _) => e
     case Coercion.UnboundInt(_) => e
+
     case Coercion.IntRat => e
     case Coercion.RatZFrac => e
     case Coercion.ZFracFrac => e

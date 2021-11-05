@@ -214,6 +214,7 @@ case class ImportADT() extends Rewriter {
       case TMap(k, v) => TAxiomatic(mapAdt.ref, Seq(dispatch(k), dispatch(v)))
       case TArray(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(arrayAdt.ref, Nil)))
       case TPointer(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(pointerAdt.ref, Nil)))
+      case other => rewriteDefault(other)
     }
   }
 
@@ -378,6 +379,7 @@ case class ImportADT() extends Rewriter {
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer).ref,
         )(PointerFieldInsufficientPermission(deref.blame, deref))
+      case other => rewriteDefault(other)
     }
   }
 }
