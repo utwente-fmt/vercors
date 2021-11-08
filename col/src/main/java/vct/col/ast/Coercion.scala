@@ -164,74 +164,80 @@ case object Coercion {
       case _ => None
     }
 
-  def getAnySeqCoercion(source: Type): Option[Coercion] = source match {
-    case _: TSeq => Some(Identity)
+  def getAnySeqCoercion(source: Type): Option[(Coercion, TSeq)] = source match {
+    case t: TSeq => Some((Identity, t))
     case _ => None
   }
 
-  def getAnySetCoercion(source: Type): Option[Coercion] = source match {
-    case _: TSet => Some(Identity)
+  def getAnySetCoercion(source: Type): Option[(Coercion, TSet)] = source match {
+    case t: TSet => Some((Identity, t))
     case _ => None
   }
 
-  def getAnyBagCoercion(source: Type): Option[Coercion] = source match {
-    case _: TBag => Some(Identity)
+  def getAnyBagCoercion(source: Type): Option[(Coercion, TBag)] = source match {
+    case t: TBag => Some((Identity, t))
     case _ => None
   }
 
-  def getAnyCollectionCoercion(source: Type): Option[Coercion] = source match {
-    case _: TSeq => Some(Identity)
-    case _: TSet => Some(Identity)
-    case _: TBag => Some(Identity)
+  def getAnyCollectionCoercion(source: Type): Option[(Coercion, CollectionType)] = source match {
+    case t: TSeq => Some((Identity, t))
+    case t: TSet => Some((Identity, t))
+    case t: TBag => Some((Identity, t))
     case _ => None
   }
 
-  def getAnyPointerCoercion(source: Type): Option[Coercion] = source match {
-    case _: TPointer => Some(Identity)
-    case _: TNull => Some(NullPointer(TPointer(TAny())))
+  def getAnyPointerCoercion(source: Type): Option[(Coercion, TPointer)] = source match {
+    case t: TPointer => Some((Identity, t))
+    case _: TNull =>
+      val t = TPointer(TAny())
+      Some((NullPointer(t), t))
     case _ => None
   }
 
-  def getAnyArrayCoercion(source: Type): Option[Coercion] = source match {
-    case _: TArray => Some(Identity)
-    case _: TNull => Some(NullArray(TArray(TAny())))
+  def getAnyArrayCoercion(source: Type): Option[(Coercion, TArray)] = source match {
+    case t: TArray => Some((Identity, t))
+    case _: TNull =>
+      val t = TArray(TAny())
+      Some((NullArray(t), t))
     case _ => None
   }
 
-  def getAnyMatrixArrayCoercion(source: Type): Option[Coercion] = source match {
-    case TArray(TArray(_)) => Some(Identity)
+  def getAnyMatrixArrayCoercion(source: Type): Option[(Coercion, TArray)] = source match {
+    case t @ TArray(TArray(_)) => Some((Identity, t))
     case TArray(TNull()) => Some(???)
-    case TNull() => Some(NullArray(TArray(TArray(TAny()))))
+    case TNull() =>
+      val t = TArray(TArray(TAny()))
+      Some((NullArray(t), t))
     case _ => None
   }
 
-  def getAnyOptionCoercion(source: Type): Option[Coercion] = source match {
-    case _: TOption => Some(Identity)
+  def getAnyOptionCoercion(source: Type): Option[(Coercion, TOption)] = source match {
+    case t: TOption => Some((Identity, t))
     case _ => None
   }
 
-  def getAnyMapCoercion(source: Type): Option[Coercion] = source match {
-    case _: TMap => Some(Identity)
+  def getAnyMapCoercion(source: Type): Option[(Coercion, TMap)] = source match {
+    case t: TMap => Some((Identity, t))
     case _ => None
   }
 
-  def getAnyTupleCoercion(source: Type): Option[Coercion] = source match {
-    case _: TTuple => Some(Identity)
+  def getAnyTupleCoercion(source: Type): Option[(Coercion, TTuple)] = source match {
+    case t: TTuple => Some((Identity, t))
     case _ => None
   }
 
-  def getAnyMatrixCoercion(source: Type): Option[Coercion] = source match {
-    case _: TMatrix => Some(Identity)
+  def getAnyMatrixCoercion(source: Type): Option[(Coercion, TMatrix)] = source match {
+    case t: TMatrix => Some((Identity, t))
     case _ => None
   }
 
-  def getAnyModelCoercion(source: Type): Option[Coercion] = source match {
-    case _: TModel => Some(Identity)
+  def getAnyModelCoercion(source: Type): Option[(Coercion, TModel)] = source match {
+    case t: TModel => Some((Identity, t))
     case _ => None
   }
 
-  def getAnyClassCoercion(source: Type): Option[Coercion] = source match {
-    case _: TClass => Some(Identity)
+  def getAnyClassCoercion(source: Type): Option[(Coercion, TClass)] = source match {
+    case t: TClass => Some((Identity, t))
     case _ => None
   }
 }

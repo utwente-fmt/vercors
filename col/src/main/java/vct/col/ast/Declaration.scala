@@ -133,10 +133,7 @@ class ScopeContext {
     result.head
   }
 
-  def succ(decl: Declaration): LazyRef[Declaration] =
-    new LazyRef[Declaration](successionMap(decl))
-
-  def typedSucc[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): LazyRef[T] =
+  def succ[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): LazyRef[T] =
     new LazyRef[T](successionMap(decl))
 }
 

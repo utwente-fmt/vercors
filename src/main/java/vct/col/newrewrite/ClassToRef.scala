@@ -83,7 +83,7 @@ case class ClassToRef() extends Rewriter {
       ProcedureInvocation(
         ref = methodSucc.ref(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = outArgs.map(r => typedSucc[Variable](r.decl)),
+        outArgs = outArgs.map(r => succ[Variable](r.decl)),
         typeArgs = typeArgs.map(dispatch),
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args) =>
