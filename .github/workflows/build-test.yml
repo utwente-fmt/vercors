@@ -248,20 +248,12 @@ jobs:
       - run: "sudo dpkg -i *.deb"
       - run: vercors --silicon examples/manual/fibonacci.pvl
         # Be sure to propagate any changes to this line below to the appropriate invocation in wiki-snippet-test.yml
-      - run: vercors --test=wiki_cases --test-workers=2 --tool carbon --tool silicon --tool veymont --exclude-suite=slow,medium,problem-fail --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_wiki_tests.xml
-      - name: Archive Java Code Coverage (jacoco_wiki_tests.xml)
-        uses: actions/upload-artifact@v2
-        with:
-          name: vercors-jacoco-xml
-          retention-days: 1
-          path: |
-            jacoco*.xml
+      - run: vercors --test=wiki_cases --test-workers=2 --tool carbon --tool silicon --tool veymont --exclude-suite=slow,medium,problem-fail --progress --actions-test-output
 
   sonar:
     needs:
       - build-test
       - integration-test-linux
-      - integration-test-wiki
     runs-on: ubuntu-latest
     environment: Default
     steps:
