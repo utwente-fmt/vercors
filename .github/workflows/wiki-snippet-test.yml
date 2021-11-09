@@ -25,6 +25,7 @@ jobs:
         run: "python3 util/wiki/generate_wiki_pdf.py -c wiki_cases"
       - name: Smoke-test VerCors
         run: ./bin/vct --silicon examples/manual/fibonacci.pvl
+        # Be sure to propagate any changes to this line below to the appropriate invocation in build-test.yml
       - name: Test all wiki snippets
         run: ./bin/vct --test=wiki_cases --test-workers=2 --tool carbon --tool silicon --tool veymont --exclude-suite=slow,medium,problem-fail --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_wiki_tests.xml
       - name: Clean up intermediate files for caching
