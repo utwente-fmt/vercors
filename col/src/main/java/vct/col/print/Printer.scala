@@ -2,6 +2,7 @@ package vct.col.print
 
 import hre.util.ScopedStack
 import vct.col.ast._
+import vct.col.origin._
 import vct.col.resolve.Referrable
 
 import scala.collection.mutable

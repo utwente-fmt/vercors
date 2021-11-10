@@ -3,6 +3,7 @@ package vct.col.newrewrite
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.newrewrite.util.Substitute
+import vct.col.rewrite.Rewriter
 import vct.result.VerificationResult.UserError
 
 import scala.annotation.tailrec

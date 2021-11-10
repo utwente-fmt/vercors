@@ -1,5 +1,7 @@
 package vct.col.ast
 
+import vct.col.origin._
+
 case class SilverPredicateAccess(ref: Ref[Predicate], args: Seq[Expr], perm: Expr)(implicit val o: Origin)
   extends NodeFamily
 

@@ -1,8 +1,6 @@
-package vct.col.ast
+package vct.col.coerce
 
-import vct.col.ast.AstBuildHelpers._
-
-import scala.math.BigInt
+import vct.col.ast._
 
 sealed trait Coercion {
   /**

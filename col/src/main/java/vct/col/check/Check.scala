@@ -1,6 +1,6 @@
-package vct.col.ast
+package vct.col.check
 
-import scala.collection.mutable
+import vct.col.ast._
 
 sealed trait CheckError
 case class TypeError(expr: Expr, expectedType: Type) extends CheckError

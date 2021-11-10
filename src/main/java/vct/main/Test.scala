@@ -1,8 +1,10 @@
 package vct.main
 
-import vct.col.ast.{CheckError, DiagnosticOrigin, IncomparableTypes, OutOfScopeError, Program, TypeError, TypeErrorText}
+import vct.col.ast.Program
+import vct.col.check.{CheckError, IncomparableTypes, OutOfScopeError, TypeError, TypeErrorText}
 import vct.col.newrewrite.ImportADT
 import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult

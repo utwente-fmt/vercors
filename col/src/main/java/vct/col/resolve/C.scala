@@ -1,9 +1,8 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
-import vct.col.ast.{ADTFunction, Blame, BuiltinError, CAnonymousFunctionDeclarator, CArrayDeclarator, CDeclarationSpecifier, CDeclarator, CInt, CLong, CName, CParam, CPointerDeclarator, CPrimitiveType, CSigned, CTypedFunctionDeclarator, CUnsigned, DiagnosticOrigin, Expr, Origin, TArray, TNotAValue, TPointer, Type}
-
-import scala.annotation.tailrec
+import vct.col.ast._
+import vct.col.origin._
 
 case object C {
   implicit private val o: Origin = DiagnosticOrigin

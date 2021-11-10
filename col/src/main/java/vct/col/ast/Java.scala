@@ -2,6 +2,7 @@ package vct.col.ast
 
 import hre.util.FuncTools
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, JavaDerefTarget, JavaInvocationTarget, JavaNameTarget, JavaTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefClass, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.col.origin._
 import vct.result.VerificationResult.Unreachable
 
 case class JavaName(names: Seq[String])(implicit val o: Origin)

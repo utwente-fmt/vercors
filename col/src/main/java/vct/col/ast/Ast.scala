@@ -1,6 +1,9 @@
 package vct.col.ast
 
+import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
+import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
 import vct.col.print.Printer
+import vct.col.origin._
 import vct.result.VerificationResult.SystemError
 
 import scala.runtime.ScalaRunTime

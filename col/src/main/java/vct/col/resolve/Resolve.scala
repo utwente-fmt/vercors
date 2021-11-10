@@ -1,6 +1,8 @@
 package vct.col.resolve
 
-import vct.col.ast.{ADTFunctionInvocation, AmbiguousResult, AmbiguousThis, Applicable, Break, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, Continue, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaTClass, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass, TUnion}
+import vct.col.ast._
+import vct.col.check.CheckError
+import vct.col.origin._
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {

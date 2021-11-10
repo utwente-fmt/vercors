@@ -1,6 +1,7 @@
 package viper.api
 
 import vct.col.ast._
+import vct.col.origin._
 import Constant._
 import org.scalatest.flatspec.AnyFlatSpec
 

@@ -1,7 +1,8 @@
 package vct.col.newrewrite.lang
 
-import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDouble, CFloat, CLong, CPrimitiveType, CTypeSpecifier, CTypedefName, CVoid, JavaNamedType, JavaTClass, Model, PVLNamedType, Rewriter, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
+import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDouble, CFloat, CLong, CPrimitiveType, CTypeSpecifier, CTypedefName, CVoid, JavaNamedType, JavaTClass, Model, PVLNamedType, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
 import vct.col.resolve.{C, RefAxiomaticDataType, RefClass, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
+import vct.col.rewrite.Rewriter
 import vct.result.VerificationResult.UserError
 
 case class LangTypesToCol() extends Rewriter {

@@ -1,6 +1,8 @@
 package vct.col.ast
 
+import vct.col.check.{CheckContext, CheckError, OutOfScopeError}
 import vct.col.resolve.ResolveReferences
+import vct.col.origin._
 
 sealed trait Statement extends NodeFamily
 trait ExtraStatement extends Statement

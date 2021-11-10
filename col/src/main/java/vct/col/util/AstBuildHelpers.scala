@@ -1,6 +1,7 @@
-package vct.col.ast
+package vct.col.util
 
-import Constant._
+import vct.col.ast._
+import vct.col.origin._
 
 import scala.reflect.ClassTag
 

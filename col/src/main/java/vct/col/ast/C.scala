@@ -1,10 +1,8 @@
 package vct.col.ast
 
+import vct.col.check.{CheckContext, CheckError}
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CDerefTarget, CInvocationTarget, CNameTarget, CTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
-import vct.result.VerificationResult
-import vct.result.VerificationResult.UserError
-
-import scala.annotation.tailrec
+import vct.col.origin._
 
 sealed trait CDeclarationSpecifier extends NodeFamily
 

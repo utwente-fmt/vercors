@@ -3,12 +3,13 @@ package vct.col.newrewrite
 import hre.lang.System.Warning
 import hre.util.ScopedStack
 import vct.col.ast.{Star, _}
-import vct.col.ast.util.SuccessionMap
+import vct.col.origin._
 import vct.col.ast.RewriteHelpers._
+import vct.col.rewrite.Rewriter
 
 import scala.collection.mutable
-
-import vct.col.ast.AstBuildHelpers._
+import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 
 case class CheckProcessAlgebra() extends Rewriter {
   case class ModelPostconditionFailed(process: ModelProcess) extends Blame[PostconditionFailed] {

@@ -1,6 +1,7 @@
 package vct.col.newrewrite.util
 
-import vct.col.ast.{Expr, Rewriter}
+import vct.col.ast.Expr
+import vct.col.rewrite.Rewriter
 
 /**
  * Apply a substitution map to expressions

@@ -1,6 +1,7 @@
 package vct.col.newrewrite.util
 
 import vct.col.ast._
+import vct.col.origin.Origin
 
 case object Comparison {
   val LESS: Comparison = Comparison(less = true)

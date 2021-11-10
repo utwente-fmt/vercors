@@ -6,6 +6,7 @@ import vct.col.ast._
 import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.{ast => col}
+import vct.col.origin._
 import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.ast.Constant._
 import vct.col.resolve.Java

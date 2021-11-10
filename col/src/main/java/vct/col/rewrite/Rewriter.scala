@@ -1,4 +1,6 @@
-package vct.col.ast
+package vct.col.rewrite
+
+import vct.col.ast._
 
 class Rewriter extends AbstractRewriter {
   override def dispatch(program: Program): Program = rewriteDefault(program)

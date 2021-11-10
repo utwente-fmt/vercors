@@ -1,8 +1,8 @@
 package vct.helper
 
 import org.scalatest.Assertions.fail
-import vct.col.ast.util.Compare
-import vct.col.ast.{Node, Program, Rewriter}
+import vct.col.ast.{Node, Program}
+import vct.col.util.Compare
 
 object ColHelper {
   def assertEquals(left: Node, right: Node): Unit = {

@@ -1,7 +1,11 @@
 package vct.col.ast
 
 import hre.util.FuncTools
+import vct.col
+import vct.col.check.{CheckContext, CheckError, TupleTypeCount, TypeError, TypeErrorText, UnreachableAfterTypeCheck}
+import vct.col.coerce.Coercion
 import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefModel, SpecTypeNameTarget}
+import vct.col.origin._
 
 sealed trait Expr extends NodeFamily {
   def checkSubType(other: Type): Seq[CheckError] =
@@ -592,7 +596,7 @@ case class TupGet(tup: Expr, index: Int)(implicit val o: Origin) extends Expr {
   override def t: Type = tupleType.elements(index)
   override def check(context: CheckContext): Seq[CheckError] =
     super.check(context) match {
-      case Nil => if(0 <= index && index < tupleType.elements.size) Nil else Seq(TypeErrorText(this, _ => "Tuple getter exceeds tuple size"))
+      case Nil => if(0 <= index && index < tupleType.elements.size) Nil else Seq(col.check.TypeErrorText(this, _ => "Tuple getter exceeds tuple size"))
       case some => some
     }
 }

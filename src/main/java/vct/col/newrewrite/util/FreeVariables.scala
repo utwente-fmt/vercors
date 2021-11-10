@@ -1,6 +1,7 @@
 package vct.col.newrewrite.util
 
-import vct.col.ast.{AmbiguousThis, CheckContext, Local, Node, Variable}
+import vct.col.ast.{AmbiguousThis, Local, Node, Variable}
+import vct.col.check.CheckContext
 
 object FreeVariables {
   sealed trait FreeVariable

@@ -1,15 +1,15 @@
 package vct.parsers.transform
 
 import org.antlr.v4.runtime.ParserRuleContext
-import vct.col.ast.Origin
 import vct.col.ast._
+import vct.col.origin._
 import vct.antlr4.generated.PVLParser._
 import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.{ast => col}
 import vct.antlr4.generated.{PVLParserPatterns => parse}
 import vct.col.ast.Constant._
 import vct.col.ast.stmt.composite.ParallelRegion
-import AstBuildHelpers._
+import vct.col.util.AstBuildHelpers._
 import hre.util.FuncTools
 
 import scala.collection.mutable

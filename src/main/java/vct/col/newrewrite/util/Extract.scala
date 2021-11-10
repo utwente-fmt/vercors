@@ -1,6 +1,7 @@
 package vct.col.newrewrite.util
 
 import vct.col.ast._
+import vct.col.origin._
 import vct.col.newrewrite.util.FreeVariables.{FreeVar, This}
 
 /**

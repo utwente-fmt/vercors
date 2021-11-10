@@ -1,7 +1,11 @@
 package vct.col.ast
 
+import vct.col.check.{CheckContext, CheckError, GenericTypeError, IncomparableTypes}
+import vct.col.coerce.Coercion
 import vct.col.resolve.Referrable
-import AstBuildHelpers._
+import vct.col.origin._
+import vct.col.rewrite.Rewriter
+import vct.col.util.AstBuildHelpers._
 
 sealed trait Type extends NodeFamily {
   def superTypeOf(other: Type): Boolean =

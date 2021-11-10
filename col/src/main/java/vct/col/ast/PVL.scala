@@ -1,6 +1,7 @@
 package vct.col.ast
 
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, PVLDerefTarget, PVLInvocationTarget, PVLNameTarget, PVLTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefClass, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
+import vct.col.origin._
 import vct.result.VerificationResult
 
 sealed trait PVLType extends ExtraType

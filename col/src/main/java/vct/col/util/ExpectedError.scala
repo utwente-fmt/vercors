@@ -1,6 +1,6 @@
 package vct.col.util
 
-import vct.col.ast.{Blame, ExpectedErrorTrippedTwice, Origin, VerificationFailure}
+import vct.col.origin._
 
 case class ExpectedError(errorCode: String, innerBlame: Blame[VerificationFailure]) extends Blame[VerificationFailure] {
   var tripped: Boolean = false

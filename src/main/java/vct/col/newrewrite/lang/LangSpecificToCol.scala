@@ -4,14 +4,15 @@ import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.Constant._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.ast.util.SuccessionMap
+import vct.col.origin._
 import vct.col.resolve._
+import vct.col.rewrite.Rewriter
 import vct.result.VerificationResult.{Unreachable, UserError}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-
-import AstBuildHelpers._
+import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 
 case class LangSpecificToCol() extends Rewriter {
   case class NotAValue(value: Expr) extends UserError {

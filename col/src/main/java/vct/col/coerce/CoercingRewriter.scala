@@ -1,8 +1,9 @@
-package vct.col.ast
+package vct.col.coerce
 
-import vct.col.ast.util.SuccessionMap
 import vct.col.ast._
-import AstBuildHelpers._
+import vct.col.origin._
+import vct.col.rewrite.Rewriter
+import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable.ArrayBuffer
 

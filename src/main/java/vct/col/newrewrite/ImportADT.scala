@@ -2,12 +2,14 @@ package vct.col.newrewrite
 
 import hre.config.Configuration
 import hre.util.ScopedStack
-import vct.col.ast.Coercion.{FracZFrac, NullArray, NullPointer, ZFracRat}
+import vct.col.coerce.Coercion.{FracZFrac, NullArray, NullPointer, ZFracRat}
 import vct.col.ast._
 import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, MapKeyErrorPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
 import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.parsers.Parsers
 import RewriteHelpers._
+import vct.col.coerce.{CoercingRewriter, Coercion}
+import vct.col.origin._
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

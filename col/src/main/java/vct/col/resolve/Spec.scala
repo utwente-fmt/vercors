@@ -1,6 +1,7 @@
 package vct.col.resolve
 
 import vct.col.ast._
+import vct.col.origin._
 import vct.result.VerificationResult.UserError
 
 case object Spec {

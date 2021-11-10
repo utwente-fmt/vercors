@@ -6,6 +6,7 @@ import vct.antlr4.generated.CParserPatterns._
 import vct.col.ast.Constant._
 import vct.col.ast._
 import vct.col.{ast => col}
+import vct.col.origin._
 
 import scala.collection.mutable
 

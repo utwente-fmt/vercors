@@ -1,6 +1,9 @@
 package vct.col.ast
 
 import vct.col.ast.ScopeContext.WrongDeclarationCount
+import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
+import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
+import vct.col.origin._
 import vct.result.VerificationResult.{SystemError, Unreachable}
 
 import scala.collection.mutable

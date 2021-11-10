@@ -1,7 +1,8 @@
-package vct.col.ast
+package vct.col.origin
 
 import vct.result.VerificationResult
 import vct.col.util.ExpectedError
+import vct.col.ast._
 
 sealed trait ContractFailure
 case class ContractFalse(node: Expr) extends ContractFailure {

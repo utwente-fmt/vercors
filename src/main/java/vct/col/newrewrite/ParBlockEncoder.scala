@@ -3,8 +3,10 @@ package vct.col.newrewrite
 import hre.util.ScopedStack
 import vct.col.ast._
 import Constant._
-import AstBuildHelpers._
+import vct.col.util.AstBuildHelpers._
 import vct.col.newrewrite.util.{Extract, FreeVariables, Substitute}
+import vct.col.origin._
+import vct.col.rewrite.Rewriter
 
 import scala.collection.mutable
 case class ParBlockEncoder() extends Rewriter {

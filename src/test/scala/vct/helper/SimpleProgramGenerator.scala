@@ -1,7 +1,8 @@
 package vct.helper
 
 import vct.col.ast.Constant._
-import vct.col.ast.{ApplicableContract, Class, DiagnosticOrigin, FileOrigin, InputOrigin, InstanceMethod, Origin, Program, Statement, TVoid}
+import vct.col.ast._
+import vct.col.origin._
 
 import java.nio.file.Paths
 

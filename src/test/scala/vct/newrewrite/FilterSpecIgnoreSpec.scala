@@ -3,6 +3,7 @@ package vct.newrewrite
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
+import vct.col.origin._
 import Constant._
 import vct.col.newrewrite.FilterSpecIgnore
 import vct.helper.{ColHelper, SimpleProgramGenerator}

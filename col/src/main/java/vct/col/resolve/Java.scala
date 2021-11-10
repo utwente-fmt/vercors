@@ -1,9 +1,10 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
-import vct.col.ast.{ApplicableContract, Blame, Block, BuiltinError, DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamespace, JavaStatic, JavaNamedType, Origin, SourceNameOrigin, TAny, TArray, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TType, TVoid, Type, Variable}
+import vct.col.origin._
 import vct.result.VerificationResult
 import vct.col.ast.Constant._
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
 import vct.result.VerificationResult.Unreachable
 
 import java.lang.reflect.{Modifier, Parameter}
