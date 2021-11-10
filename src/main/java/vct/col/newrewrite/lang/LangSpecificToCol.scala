@@ -162,7 +162,7 @@ case class LangSpecificToCol() extends Rewriter {
 
       currentJavaClass.having(cls) {
         val supports = cls.supports.map(dispatch).flatMap {
-          case TClass(cls) => Seq(cls)
+          case TClass(ref) => Seq(ref)
           case TAny() => Nil
           case _ => ???
         }
@@ -398,21 +398,16 @@ case class LangSpecificToCol() extends Rewriter {
           f(dispatch(obj.get))(args.map(dispatch))
       }
 
-    case inv @ JavaNewClass(args, typeParams, t @ JavaTClass(_)) =>
+    case inv @ JavaNewClass(args, typeParams, t @ JavaTClass(Ref(decl), _)) =>
       implicit val o: Origin = inv.o
-      t.ref.get match {
-        case RefAxiomaticDataType(decl) => ???
-        case RefModel(decl) => ModelNew(succ[Model](decl))
-        case RefJavaClass(decl) =>
-          val cons = decl.decls.collectFirst {
-            case cons: JavaConstructor if Util.compat(args, cons.parameters) => cons
-          }
-
-          val consRef = cons.map(succ[Procedure]).getOrElse(
-            new LazyRef[Procedure](successionMap(javaDefaultConstructor(decl))))
-
-          ProcedureInvocation(consRef, args.map(dispatch), Nil, typeParams.map(dispatch))(null)
+      val cons = decl.decls.collectFirst {
+        case cons: JavaConstructor if Util.compat(args, cons.parameters) => cons
       }
+
+      val consRef = cons.map(succ[Procedure]).getOrElse(
+        new LazyRef[Procedure](successionMap(javaDefaultConstructor(decl))))
+
+      ProcedureInvocation(consRef, args.map(dispatch), Nil, typeParams.map(dispatch))(null)
 
     case inv @ PVLNew(t @ PVLNamedType(_, _), args) =>
       implicit val o: Origin = inv.o
@@ -462,20 +457,7 @@ case class LangSpecificToCol() extends Rewriter {
   }
 
   override def dispatch(t: Type): Type = t match {
-    case TUnion(names) =>
-      if(names.size == 1) {
-        dispatch(names.head)
-      } else {
-        ???
-      }
-    case tClass @ JavaTClass(_) =>
-      tClass.ref.get match {
-        case RefAxiomaticDataType(decl) => TAxiomatic(succ[AxiomaticDataType](decl), Nil)
-        case RefModel(decl) => TModel(succ[Model](decl))
-        case RefJavaClass(decl) => TClass(javaInstanceClassSuccessor.ref(decl))
-        case RefVariable(v) => TVar(v.ref)
-      }
-    case t @ PVLNamedType(_, _) => dispatch(t.mimics)
+    case JavaTClass(Ref(cls), _) => TClass(javaInstanceClassSuccessor.ref(cls))
     case other => rewriteDefault(other)
   }
 }

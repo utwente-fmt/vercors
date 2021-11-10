@@ -905,7 +905,7 @@ case class Printer(out: Appendable,
       spaced(specifiers.map(NodePhrase))
     case TUnion(types) =>
       intersperse(phrase(space, "|", space), types.map(NodePhrase))
-    case JavaTClass(names) =>
+    case JavaNamedType(names) =>
       intersperse(".", names.map(_._1).map(Text))
     case PVLNamedType(name, typeArgs) =>
       typeArgs match {

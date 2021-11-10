@@ -375,11 +375,11 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case Type2(element, dims) => FuncTools.repeat(TArray(_), dims.map(convert(_)).getOrElse(0), convert(element))
   }
 
-  def convert(implicit t: ClassOrInterfaceTypeContext): JavaTClass = t match {
+  def convert(implicit t: ClassOrInterfaceTypeContext): JavaNamedType = t match {
     case ClassOrInterfaceType0(name, args) =>
-      JavaTClass(Seq((convert(name), args.map(convert(_)))))
+      JavaNamedType(Seq((convert(name), args.map(convert(_)))))
     case ClassOrInterfaceType1(names, _, name, args) =>
-      JavaTClass(convert(names).names :+ (convert(name), args.map(convert(_))))
+      JavaNamedType(convert(names).names :+ (convert(name), args.map(convert(_))))
   }
 
   def convert(implicit t: CreatedNameContext): Type = t match {
@@ -387,11 +387,11 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case CreatedName1(t) => convert(t)
   }
 
-  def convert(implicit t: ClassTypeDiamondListContext): JavaTClass = t match {
+  def convert(implicit t: ClassTypeDiamondListContext): JavaNamedType = t match {
     case ClassTypeDiamondList0(name, typeArgs) =>
-      JavaTClass(Seq((convert(name), typeArgs.map(convert(_)))))
+      JavaNamedType(Seq((convert(name), typeArgs.map(convert(_)))))
     case ClassTypeDiamondList1(name, typeArgs, _, more) =>
-      JavaTClass((convert(name), typeArgs.map(convert(_))) +: convert(more).names)
+      JavaNamedType((convert(name), typeArgs.map(convert(_))) +: convert(more).names)
   }
 
   def convert(implicit ts: TypeArgumentsOrDiamondContext): Seq[Type] = ts match {

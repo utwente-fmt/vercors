@@ -5,34 +5,31 @@ import AstBuildHelpers._
 
 sealed trait Type extends NodeFamily {
   def superTypeOf(other: Type): Boolean =
-    Coercion.getCoercion(other.mimics, mimics).isDefined
-
-  def mimics: Type = this
+    Coercion.getCoercion(other, this).isDefined
 
   override def check(context: CheckContext): Seq[CheckError] = Nil
 
   private def optMatch[In, Out](arg: In)(matchFunc: PartialFunction[In, Out]): Option[Out] =
     matchFunc.lift(arg)
 
-  def asSeq: Option[TSeq] = optMatch(mimics) { case seq: TSeq => seq }
-  def asSet: Option[TSet] = optMatch(mimics) { case set: TSet => set }
-  def asBag: Option[TBag] = optMatch(mimics) { case bag: TBag => bag }
-  def asPointer: Option[TPointer] = optMatch(mimics) { case ptr: TPointer => ptr }
-  def asArray: Option[TArray] = optMatch(mimics) { case arr: TArray => arr }
-  def asOption: Option[TOption] = optMatch(mimics) { case opt: TOption => opt }
-  def asMap: Option[TMap] = optMatch(mimics) { case map: TMap => map }
-  def asTuple: Option[TTuple] = optMatch(mimics) { case tup: TTuple => tup }
-  /*def asVector: Option[TVector] = optMatch(mimics) { case vec: TVector => vec }*/
-  def asMatrix: Option[TMatrix] = optMatch(mimics) { case mat: TMatrix => mat }
-  def asModel: Option[TModel] = optMatch(mimics) { case model: TModel => model }
+  def asSeq: Option[TSeq] = optMatch(this) { case seq: TSeq => seq }
+  def asSet: Option[TSet] = optMatch(this) { case set: TSet => set }
+  def asBag: Option[TBag] = optMatch(this) { case bag: TBag => bag }
+  def asPointer: Option[TPointer] = optMatch(this) { case ptr: TPointer => ptr }
+  def asArray: Option[TArray] = optMatch(this) { case arr: TArray => arr }
+  def asOption: Option[TOption] = optMatch(this) { case opt: TOption => opt }
+  def asMap: Option[TMap] = optMatch(this) { case map: TMap => map }
+  def asTuple: Option[TTuple] = optMatch(this) { case tup: TTuple => tup }
+  /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
+  def asMatrix: Option[TMatrix] = optMatch(this) { case mat: TMatrix => mat }
+  def asModel: Option[TModel] = optMatch(this) { case model: TModel => model }
 
   def particularize(substitutions: Map[Variable, Type]): Type = {
     case object Particularize extends Rewriter {
-      override def dispatch(t: Type): Type = t.mimics match {
+      override def dispatch(t: Type): Type = t match {
         case TVar(Ref(v)) => substitutions(v)
         case _ => t match {
-          case t: PVLNamedType => t
-          case t: JavaTClass => t
+          case JavaTClass(ref, args) => JavaTClass(ref, args)
           case TModel(ref) => TModel(ref)
           case TClass(ref) => TClass(ref)
           case TAxiomatic(ref, args) => TAxiomatic(ref, args.map(dispatch))
@@ -149,17 +146,7 @@ case class TNotAValue()(implicit val o: Origin = DiagnosticOrigin) extends Type 
 case class TAny()(implicit val o: Origin = DiagnosticOrigin) extends Type
 case class TNothing()(implicit val o: Origin = DiagnosticOrigin) extends Type
 
-case class TUnion(types: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends Type {
-  override def mimics: Type =
-    if(types.size == 1) types.head.mimics
-    else TUnion(types.map(_.mimics))
-
-//  override def subTypeOfImpl(other: Type): Boolean =
-//    types.forall(other.superTypeOf)
-//
-//  override def superTypeOfImpl(other: Type): Boolean =
-//    types.exists(_.superTypeOf(other))
-}
+case class TUnion(types: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends Type
 
 case class TVoid()(implicit val o: Origin = DiagnosticOrigin) extends Type
 case class TNull()(implicit val o: Origin = DiagnosticOrigin) extends Type

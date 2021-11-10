@@ -76,6 +76,7 @@ case class ClassToRef() extends Rewriter {
           fieldSucc(field) = new SilverField(field.t)(field.o)
           fieldSucc(field).declareDefault(this)
       }
+    case decl => rewriteDefault(decl)
   }
 
   override def dispatch(e: Expr): Expr = e match {

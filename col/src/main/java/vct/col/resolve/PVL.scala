@@ -25,7 +25,7 @@ case object PVL {
     }
 
   def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext, blame: Blame[BuiltinError]): Option[PVLDerefTarget] =
-    obj.t.mimics match {
+    obj.t match {
       case _: TNotAValue => Spec.builtinField(obj, name, blame)
       case TModel(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
         case ref: RefModelField if ref.name == name => ref
@@ -35,7 +35,7 @@ case object PVL {
     }
 
   def findInstanceMethod(obj: Expr, method: String, args: Seq[Expr], typeArgs: Seq[Type], blame: Blame[BuiltinError]): Option[PVLInvocationTarget] =
-    obj.t.mimics match {
+    obj.t match {
       case t: TNotAValue => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
           case ref: RefADTFunction if ref.name == method => ref

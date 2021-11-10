@@ -2,7 +2,7 @@ package vct.main
 
 import vct.col.ast.{CheckError, DiagnosticOrigin, IncomparableTypes, OutOfScopeError, Program, TypeError, TypeErrorText}
 import vct.col.newrewrite.ImportADT
-import vct.col.newrewrite.lang.LangSpecificToCol
+import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult
@@ -69,12 +69,14 @@ case object Test {
     var program = Program(decls)(DiagnosticOrigin)(DiagnosticOrigin)
     val extraDecls = ResolveTypes.resolve(program)
     program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)(DiagnosticOrigin)
+    val typesToCol = LangTypesToCol()
+    program = typesToCol.dispatch(program)
     val errors = ResolveReferences.resolve(program)
     printErrorsOr(errors) {
       program = LangSpecificToCol().dispatch(program)
       printErrorsOr(program.check) {
-        program = ImportADT().dispatch(program)
-        printErrorsOr(program.check) {}
+//        program = ImportADT().dispatch(program)
+//        printErrorsOr(program.check) {}
       }
     }
   } catch {

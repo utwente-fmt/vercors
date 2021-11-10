@@ -59,22 +59,14 @@ trait Node {
   Marker trait to indicate this node, or this hierarchy of nodes, always rewrites to itself. This is for example for
   Expr (which always rewrites to an Expr), but also single-purpose nodes, such as a catch clause.
  */
-trait NodeFamily extends Node
-
-/**
-  * Coercing nodes have a simplified checking procedure, where we only have to coerce subnodes to a particular type.
-  */
-trait Coercing {
-  def coerce(resolver: ResolveCoercion)(implicit o: Origin, sc: ScopeContext): Node
-
-  def check(context: CheckContext): Seq[CheckError] =
+trait NodeFamily extends Node {
+  override def check(context: CheckContext): Seq[CheckError] =
     try {
-      case object DummyScope extends ScopeContext
-      coerce(NopCoercionResolver)(DiagnosticOrigin, DummyScope)
+      NopCoercingRewriter.coerceAny(this)
       Nil
     } catch {
-      case Incoercible(expr, target) => Seq(TypeError(expr, target))
-      case IncoercibleText(expr, message) => Seq(TypeErrorText(expr, message))
+      case CoercingRewriter.Incoercible(e, t) => Seq(TypeError(e, t))
+      case CoercingRewriter.IncoercibleText(e, m) => Seq(TypeErrorText(e, _ => m))
     }
 }
 

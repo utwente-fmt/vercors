@@ -12,7 +12,7 @@ case object Spec {
 
   def builtinField(obj: Expr, field: String, blame: Blame[BuiltinError]): Option[BuiltinField] = {
     implicit val o: Origin = obj.o
-    Some(BuiltinField((obj.t.mimics, field) match {
+    Some(BuiltinField((obj.t, field) match {
       case (TArray(_), "length") => Length(_)(blame)
 
       case (_: CollectionType, "isEmpty") => Empty(_)
@@ -41,7 +41,7 @@ case object Spec {
 
   def builtinInstanceMethod(obj: Expr, method: String, blame: Blame[BuiltinError]): Option[BuiltinInstanceMethod] = {
     implicit val o: Origin = obj.o
-    Some(BuiltinInstanceMethod((obj.t.mimics, method) match {
+    Some(BuiltinInstanceMethod((obj.t, method) match {
       case (t @ TNotAValue(), _) => (t.decl.get, method) match {
         case (RefModel(model), "create") => _ => _ => ModelNew(model.ref)
       }

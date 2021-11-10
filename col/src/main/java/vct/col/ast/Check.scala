@@ -25,19 +25,6 @@ case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(),
     if(inScope(ref)) Nil else Seq(OutOfScopeError(use, ref))
 }
 
-/* list out the varags-like checks explicitly, because we want parameters to be lazily evaluated with "=>" */
-abstract class Check(one: => Seq[CheckError] = Seq(),
-                     two: => Seq[CheckError] = Seq(),
-                     three: => Seq[CheckError] = Seq(),
-                     four: => Seq[CheckError] = Seq()) {
-  def check(context: CheckContext): Seq[CheckError] =
-    one ++ two ++ three ++ four
-}
-
-trait NoCheck {
-  def check(context: CheckContext): Seq[CheckError] = Nil
-}
-
 case class UnreachableAfterTypeCheck(message: String, at: Node) extends ASTStateError {
   override def text: String = "A condition was reached that should have been excluded by the type check. " +
     "Either a property of a node was queried before the type check, or the type check is missing a condition. " +

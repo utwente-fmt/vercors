@@ -43,7 +43,6 @@ case object Coercion {
   case class MapMap(source: TMap, target: TMap, inner: Coercion) extends MappingCoercion
   case class MapType(source: TType, target: TType, inner: Coercion) extends MappingCoercion
   case class Supports(source: TClass, target: TClass) extends Promotion
-  case class JavaSupports(source: JavaTClass, target: JavaTClass) extends Promotion
   case object NullRef extends Promotion
   case class NullArray(target: TArray) extends Promotion
   case class NullClass(target: TClass) extends Promotion
@@ -65,6 +64,8 @@ case object Coercion {
     override def isPromoting: Boolean = inner.isPromoting
   }
 
+  case class JavaSupports(source: JavaTClass, target: JavaTClass) extends Promotion
+
   case object RatZFrac extends Coercion {
     override def isPromoting: Boolean = false
   }
@@ -79,7 +80,7 @@ case object Coercion {
       case Some(Coercion.BoolResource) =>
       case Some(UnboundInt(_)) =>
       case other =>
-        println(s"$source is a $target by $result")
+        // println(s"$source is a $target by $result")
     }
     result
   }
@@ -241,216 +242,3 @@ case object Coercion {
     case _ => None
   }
 }
-
-trait ResolveCoercion {
-  /**
-   * Apply a particular coercion to an expression.
-   * SAFETY: all promoting coercions must be injective; otherwise the default mapping coercion of sets is unsound.
-   * @param e the expression to coerce
-   * @param coercion the coercion
-   * @param o the origin to assign to generated expressions
-   * @param sc the scope in which to declare functions
-   * @return the coerced expression
-   */
-  def apply(e: Expr, coercion: Coercion)(implicit o: Origin, sc: ScopeContext): Expr = coercion match {
-    case Coercion.Identity => e
-    case Coercion.Compose(left, right) => apply(apply(e, right), left)
-    case Coercion.NothingSomething(_) => e
-    case Coercion.SomethingAny => e
-    case Coercion.MapOption(_, _, inner) =>
-      Select(Eq(e, OptNone()), OptNone(), apply(OptGet(e)(NeverNone), inner))
-    case Coercion.MapSeq(source, target, inner) =>
-      val result = AmbiguousResult()
-      result.ref = Some(target)
-      val v = new Variable(source)
-      val i = new Variable(TInt())
-      val v_i = SeqSubscript(v.get, i.get)(FramedSeqIndex)
-      val result_i = SeqSubscript(result, i.get)(FramedSeqIndex)
-
-      val f = function(
-        blame = AbstractApplicable,
-        returnType = target,
-        args = Seq(v),
-        ensures =
-          Eq(Size(v.get), Size(result)) &&
-            Forall(Seq(i), Seq(Seq(result_i)),
-              (const(0) < i.get && i.get < Size(result)) ==>
-                result_i === apply(v_i, inner)),
-      )
-
-      f.declareDefault(sc)
-      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
-    case Coercion.MapSet(source, target, inner) =>
-      val result = AmbiguousResult()
-      result.ref = Some(target)
-      val v = new Variable(source)
-      val elem = new Variable(source.element)
-
-      val f = function(
-        blame = AbstractApplicable,
-        returnType = target,
-        args = Seq(v),
-        ensures =
-          Eq(Size(result), Size(v.get)) &&
-            Forall(Seq(elem), Seq(Seq(SetMember(elem.get, result))),
-              Eq(SetMember(apply(elem.get, inner), result), SetMember(elem.get, v.get)))
-      )
-
-      f.declareDefault(sc)
-      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
-    case Coercion.MapBag(source, target, inner) =>
-      val result = AmbiguousResult()
-      result.ref = Some(target)
-      val v = new Variable(source)
-      val elem = new Variable(source.element)
-
-      val f = function(
-        blame = AbstractApplicable,
-        returnType = target,
-        args = Seq(v),
-        ensures =
-          Eq(Size(result), Size(v.get)) &&
-            Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
-              Eq(BagMemberCount(apply(elem.get, inner), result), BagMemberCount(elem.get, v.get)))
-      )
-
-      f.declareDefault(sc)
-      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
-    case Coercion.MapMatrix(source, target, inner) =>
-      ???
-    case Coercion.MapMap(source, target, inner) =>
-      val result = AmbiguousResult()
-      result.ref = Some(target)
-      val v = new Variable(source)
-      val k = new Variable(source.key)
-
-      val f = function(
-        blame = AbstractApplicable,
-        returnType = target,
-        args = Seq(v),
-        ensures =
-          Eq(MapKeySet(result), MapKeySet(v.get)) &&
-            Forall(Seq(k), Seq(Seq(MapGet(result, k.get)(TriggerPatternBlame))),
-              SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), MapGet(v.get, k.get)(FramedMapGet)))
-      )
-
-      f.declareDefault(sc)
-      FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
-    case Coercion.MapTuple(source, target, left, right) =>
-      LiteralTuple(target.elements, Seq(apply(TupGet(e, 0), left), apply(TupGet(e, 1), right)))
-    case Coercion.MapType(source, target, inner) =>
-      ???
-
-    case Coercion.BoolResource => e
-    case Coercion.BoundIntFrac => e
-    case Coercion.BoundIntZFrac(_) => e
-    case Coercion.JoinUnion(_, _, inner) => e
-    case Coercion.SelectUnion(_, _, _, inner) => apply(e, inner)
-
-    case Coercion.Supports(_, _) => e
-    case Coercion.JavaSupports(_, _) => e
-    case Coercion.NullRef => e
-    case Coercion.NullArray(_) => e
-    case Coercion.NullClass(_) => e
-    case Coercion.NullJavaClass(_) => e
-    case Coercion.NullPointer(_) => e
-    case Coercion.FracZFrac => e
-    case Coercion.ZFracRat => e
-    case Coercion.FloatRat(_) => e
-    case Coercion.WidenBound(_, _) => e
-    case Coercion.UnboundInt(_) => e
-
-    case Coercion.IntRat => e
-    case Coercion.RatZFrac => e
-    case Coercion.ZFracFrac => e
-  }
-
-  def apply(e: Expr, target: Type)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getCoercion(e.t, target) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, target)
-    })
-
-  def seq(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnySeqCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TSeq(TAny()))
-    })
-
-  def set(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnySetCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TSet(TAny()))
-    })
-
-  def bag(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyBagCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TBag(TAny()))
-    })
-
-  def collection(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyCollectionCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw IncoercibleText(e, got => s"Expected a collection type (sequence, set or bag) but got $got")
-    })
-
-  def pointer(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyPointerCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TPointer(TAny()))
-    })
-
-  def array(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyArrayCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TArray(TAny()))
-    })
-
-  def matrixArray(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyMatrixArrayCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw IncoercibleText(e, got => s"Expected a two-dimensional array, but got $got")
-    })
-
-  def option(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyOptionCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TOption(TAny()))
-    })
-
-  def map(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyMapCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TMap(TAny(), TAny()))
-    })
-
-  def tuple(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyTupleCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TTuple(Seq(TAny(), TAny())))
-    })
-
-  def matrix(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyMatrixCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(e, TMatrix(TAny()))
-    })
-
-  def model(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyModelCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw IncoercibleText(e, got => s"Expected a model type, but got $got")
-    })
-
-  def cls(e: Expr)(implicit o: Origin, sc: ScopeContext): Expr =
-    apply(e, Coercion.getAnyClassCoercion(e.t) match {
-      case Some(coercion) => coercion
-      case None => throw IncoercibleText(e, got => s"Expected a class type, but got $got")
-    })
-}
-
-case object NopCoercionResolver extends ResolveCoercion
-
-case class Incoercible(expr: Expr, target: Type) extends RuntimeException
-case class IncoercibleText(expr: Expr, message: Type => String) extends RuntimeException

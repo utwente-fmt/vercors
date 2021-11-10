@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{ADTFunctionInvocation, AmbiguousResult, AmbiguousThis, Applicable, Break, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, Continue, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, TUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass}
+import vct.col.ast.{ADTFunctionInvocation, AmbiguousResult, AmbiguousThis, Applicable, Break, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, Continue, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaTClass, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass, TUnion}
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -33,7 +33,7 @@ case object ResolveTypes {
   }
 
   def resolveOne(node: Node, ctx: TypeResolutionContext): Unit = node match {
-    case javaClass @ JavaTClass(genericNames) =>
+    case javaClass @ JavaNamedType(genericNames) =>
       val names = genericNames.map(_._1)
       javaClass.ref = Some(Java.findJavaTypeName(names, ctx).getOrElse(
         throw NoSuchNameError("class", names.mkString("."), javaClass)))
@@ -81,7 +81,7 @@ case object ResolveReferences {
       .replace(currentJavaNamespace=Some(ns)).declare(ns.declarations)
     case cls: JavaClassOrInterface => ctx
       .replace(currentJavaClass=Some(cls))
-      .replace(currentThisType=Some(JavaTClass(Seq((cls.name, None)))(DiagnosticOrigin)))
+      .replace(currentThisType=Some(JavaTClass(cls.ref, Nil)))
       .declare(cls.decls)
     case cls: Class => ctx
       .replace(currentThisType=Some(TClass(cls.ref)))

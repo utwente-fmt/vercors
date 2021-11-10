@@ -116,7 +116,7 @@ case object ImportADT {
   }
 }
 
-case class ImportADT() extends Rewriter {
+case class ImportADT() extends CoercingRewriter {
   val arrayField: mutable.Map[Type, SilverField] = mutable.Map()
   val pointerField: mutable.Map[Type, SilverField] = mutable.Map()
 
@@ -199,6 +199,29 @@ case class ImportADT() extends Rewriter {
 
   val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
 
+  override def coerce(e: Expr, coercion: Coercion)(implicit o: Origin): Expr = coercion match {
+    case Coercion.NullArray(_) => OptNone()
+    case Coercion.NullPointer(_) => OptNone()
+
+    case Coercion.ZFracRat =>
+      ADTFunctionInvocation(Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
+    case Coercion.Compose(Coercion.ZFracRat, Coercion.FracZFrac) =>
+      ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
+    case Coercion.FracZFrac =>
+      val rat = ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
+      FunctionInvocation(zfracNew.ref, Seq(rat), Nil)(PanicBlame("a frac always fits in a zfrac."))
+
+    case Coercion.RatZFrac =>
+      FunctionInvocation(zfracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.head, e))
+    case Coercion.Compose(Coercion.ZFracFrac, Coercion.RatZFrac) =>
+      FunctionInvocation(fracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.head, e))
+    case Coercion.ZFracFrac =>
+      val rat = ADTFunctionInvocation(Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
+      FunctionInvocation(fracNew.ref, Seq(rat), Nil)(ZFracFracPreconditionFailed(globalBlame.head, e))
+
+    case _ => super.coerce(e, coercion)
+  }
+
   override def dispatch(program: Program): Program =
     globalBlame.having(program.blame) {
       program.rewrite()
@@ -241,40 +264,10 @@ case class ImportADT() extends Rewriter {
     })
   }
 
-  override def dispatch(e: Expr): Expr = {
+  override def postCoerce(e: Expr): Expr = {
     implicit val o: Origin = e.o
 
-    // PB: coerced is now of course not well-typed, is that OK, since we rewrite it again below?
-    val coerced = e match {
-      case e: CoercingExpr =>
-        e.coerce(new ResolveCoercion {
-          override def apply(e: Expr, coercion: Coercion)(implicit o: Origin, sc: ScopeContext): Expr = coercion match {
-            case Coercion.NullArray(_) => OptNone()
-            case Coercion.NullPointer(_) => OptNone()
-
-            case Coercion.ZFracRat =>
-              ADTFunctionInvocation(Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
-            case Coercion.Compose(Coercion.ZFracRat, Coercion.FracZFrac) =>
-              ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
-            case Coercion.FracZFrac =>
-              val rat = ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
-              FunctionInvocation(zfracNew.ref, Seq(rat), Nil)(PanicBlame("a frac always fits in a zfrac."))
-
-            case Coercion.RatZFrac =>
-              FunctionInvocation(zfracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.head, e))
-            case Coercion.Compose(Coercion.ZFracFrac, Coercion.RatZFrac) =>
-              FunctionInvocation(fracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.head, e))
-            case Coercion.ZFracFrac =>
-              val rat = ADTFunctionInvocation(Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
-              FunctionInvocation(fracNew.ref, Seq(rat), Nil)(ZFracFracPreconditionFailed(globalBlame.head, e))
-
-            case _ => super.apply(e, coercion)
-          }
-        })
-      case e => e
-    }
-
-    coerced match {
+    e match {
       case LiteralTuple(Seq(t1, t2), Seq(v1, v2)) =>
         ADTFunctionInvocation(
           Some((tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))),

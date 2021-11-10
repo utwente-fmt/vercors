@@ -6,17 +6,10 @@ import vct.result.VerificationResult
 sealed trait PVLType extends ExtraType
 case class PVLNamedType(name: String, typeArgs: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends PVLType {
   var ref: Option[PVLTypeNameTarget] = None
-
-  override def mimics: Type = ref.get match {
-    case RefAxiomaticDataType(decl) => TAxiomatic(decl.ref, typeArgs)
-    case RefModel(decl) => TModel(decl.ref)
-    case RefClass(decl) => TClass(decl.ref)
-    case RefVariable(v) => TVar(v.ref)
-  }
 }
 
 sealed trait PVLExpr extends ExtraExpr
-case class PVLLocal(name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends PVLExpr with NoCheck {
+case class PVLLocal(name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends PVLExpr {
   var ref: Option[PVLNameTarget] = None
 
   override def t: Type = ref.get match {
@@ -28,7 +21,7 @@ case class PVLLocal(name: String)(val blame: Blame[DerefInsufficientPermission])
   }
 }
 
-case class PVLDeref(obj: Expr, field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends PVLExpr with NoCheck {
+case class PVLDeref(obj: Expr, field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends PVLExpr {
   var ref: Option[PVLDerefTarget] = None
 
   override def t: Type = ref.get match {
@@ -40,7 +33,7 @@ case class PVLDeref(obj: Expr, field: String)(val blame: Blame[FrontendDerefErro
 
 case class PVLInvocation(obj: Option[Expr], method: String, args: Seq[Expr], typeArgs: Seq[Type],
                          givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
-                        (val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends PVLExpr with NoCheck {
+                        (val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends PVLExpr {
   var ref: Option[PVLInvocationTarget] = None
 
   override def t: Type = ref.get match {
@@ -57,10 +50,10 @@ case class PVLInvocation(obj: Option[Expr], method: String, args: Seq[Expr], typ
   }
 }
 
-case class PVLNew(t: Type, args: Seq[Expr])(val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends PVLExpr with NoCheck
+case class PVLNew(t: Type, args: Seq[Expr])(val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends PVLExpr
 
 sealed trait PVLClassDeclaration extends ExtraClassDeclaration
 class PVLConstructor(val contract: ApplicableContract, val args: Seq[Variable], val body: Option[Statement])(implicit val o: Origin)
-  extends PVLClassDeclaration with NoCheck with Declarator {
+  extends PVLClassDeclaration with Declarator {
   override def declarations: Seq[Declaration] = args ++ contract.givenArgs ++ contract.yieldsArgs
 }
