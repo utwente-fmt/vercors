@@ -944,7 +944,7 @@ case class Printer(out: Appendable,
     case TNull() => ???
     case TResource() => phrase("resource")
     case TInt() => phrase("int")
-    case TBoundedInt(gte, lt) => phrase("int")
+    case TBoundedInt(gte, lt) => phrase("{", gte.toString, "..", lt.toString, "}")
     case TRational() => phrase("rational")
     case TFraction() => phrase("frac")
     case TZFraction() => phrase("zfrac")

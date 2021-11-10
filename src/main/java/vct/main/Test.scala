@@ -27,18 +27,18 @@ case object Test {
 //        tryParse(Seq(f.toPath))
 //      }
 
-      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-        if(c.files.asScala.forall(f =>
-            f.toString.endsWith(".java") ||
-              f.toString.endsWith(".c") ||
-              f.toString.endsWith(".pvl"))) {
-          tryParse(c.files.asScala.toSeq)
-        } else {
-          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
-        }
-      })
+//      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
+//        if(c.files.asScala.forall(f =>
+//            f.toString.endsWith(".java") ||
+//              f.toString.endsWith(".c") ||
+//              f.toString.endsWith(".pvl"))) {
+//          tryParse(c.files.asScala.toSeq)
+//        } else {
+//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+//        }
+//      })
 
-//      tryParse(Seq(Path.of("examples/arrays/array-example.pvl")))
+      tryParse(Seq(Path.of("examples/arrays/backward-dep-e1.c")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")

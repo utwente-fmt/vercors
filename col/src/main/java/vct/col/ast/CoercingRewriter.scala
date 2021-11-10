@@ -269,7 +269,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case None => throw IncoercibleText(e, s"Expected a model here, but got ${e.t}")
     }
 
-  def firstOk[T](expr: Expr, message: String,
+  def firstOk[T](expr: Expr, message: => String,
                  alt1: => T = throw IncoercibleDummy,
                  alt2: => T = throw IncoercibleDummy,
                  alt3: => T = throw IncoercibleDummy,
@@ -333,22 +333,22 @@ abstract class CoercingRewriter() extends Rewriter {
           ADTFunctionInvocation(None, succ(ref.decl), coerceArgs(args, ref.decl))
       }
       case AmbiguousComputationalAnd(left, right) =>
-        firstOk(e, "Expected both operands to be of type integer or boolean",
+        firstOk(e, s"Expected both operands to be of type integer or boolean, but got ${left.t} and ${right.t}.",
           AmbiguousComputationalAnd(int(left), int(right)),
           AmbiguousComputationalAnd(bool(left), bool(right)),
         )
       case AmbiguousComputationalOr(left, right) =>
-        firstOk(e, "Expected both operands to be of type integer or boolean",
+        firstOk(e, s"Expected both operands to be of type integer or boolean, but got ${left.t} and ${right.t}.",
           AmbiguousComputationalOr(int(left), int(right)),
           AmbiguousComputationalOr(bool(left), bool(right)),
         )
       case AmbiguousComputationalXor(left, right) =>
-        firstOk(e, "Expected both operands to be of type integer or boolean",
+        firstOk(e, s"Expected both operands to be of type integer or boolean, but got ${left.t} and ${right.t}.",
           AmbiguousComputationalXor(int(left), int(right)),
           AmbiguousComputationalXor(bool(left), bool(right)),
         )
       case AmbiguousMember(x, xs) =>
-        firstOk(xs, "Expected collection to be a sequence, set, bag or map", {
+        firstOk(xs, s"Expected collection to be a sequence, set, bag or map, but got ${xs.t}.", {
           val (coercedXs, TSeq(element)) = seq(xs)
           val sharedType = Type.leastCommonSuperType(x.t, element)
           AmbiguousMember(coerce(x, sharedType), coerce(coercedXs, TSeq(sharedType)))
@@ -365,18 +365,18 @@ abstract class CoercingRewriter() extends Rewriter {
           AmbiguousMember(coerce(x, element), coercedXs)
         })
       case AmbiguousMult(left, right) =>
-        firstOk(e, "Expected both operands to be numeric or a process",
+        firstOk(e, s"Expected both operands to be numeric or a process, but got ${left.t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
           AmbiguousMult(rat(left), rat(right)),
           AmbiguousMult(process(left), process(right)),
         )
       case AmbiguousOr(left, right) =>
-        firstOk(e, "Expected both operands to be boolean or a process",
+        firstOk(e, s"Expected both operands to be boolean or a process, but got ${left.t} and ${right.t}.",
           AmbiguousOr(bool(left), bool(right)),
           AmbiguousOr(process(left), process(right)),
         )
       case AmbiguousPlus(left, right) =>
-        firstOk(e, "Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer",
+        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right)),
           AmbiguousPlus(rat(left), rat(right)),
           AmbiguousPlus(process(left), process(right)),
@@ -400,7 +400,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case AmbiguousResult() => e
       case AmbiguousSubscript(collection, index) =>
         val coercedIndex = int(index)
-        firstOk(e, "Expected collection to be a sequence, array, pointer or map",
+        firstOk(e, s"Expected collection to be a sequence, array, pointer or map, but got ${collection.t}.",
           AmbiguousSubscript(seq(collection)._1, coercedIndex),
           AmbiguousSubscript(array(collection)._1, coercedIndex),
           AmbiguousSubscript(pointer(collection)._1, coercedIndex),
@@ -472,7 +472,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case Exists(bindings, triggers, body) =>
         Exists(bindings, triggers, bool(body))
       case Exp(left, right) =>
-        firstOk(e, "Expected both operands to be numeric",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Exp(int(left), int(right)),
           Exp(rat(left), rat(right)),
         )
@@ -485,7 +485,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
         GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)
       case Greater(left, right) =>
-        firstOk(e, "Expected both operands to be numeric, a set, or a bag",
+        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           Greater(int(left), int(right)),
           Greater(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
@@ -500,7 +500,7 @@ abstract class CoercingRewriter() extends Rewriter {
           },
         )
       case GreaterEq(left, right) =>
-        firstOk(e, "Expected both operands to be numeric, a set, or a bag",
+        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           GreaterEq(int(left), int(right)),
           GreaterEq(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
@@ -545,7 +545,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case length @ Length(arr) =>
         Length(array(arr)._1)(length.blame)
       case Less(left, right) =>
-        firstOk(e, "Expected both operands to be numeric, a set, or a bag",
+        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           Less(int(left), int(right)),
           Less(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
@@ -560,7 +560,7 @@ abstract class CoercingRewriter() extends Rewriter {
           },
         )
       case LessEq(left, right) =>
-        firstOk(e, "Expected both operands to be numeric, a set, or a bag",
+        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           LessEq(int(left), int(right)),
           LessEq(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
@@ -647,12 +647,12 @@ abstract class CoercingRewriter() extends Rewriter {
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs) =>
         MethodInvocation(cls(obj)._1, succ(ref.decl), coerceArgs(args, ref.decl, typeArgs), outArgs.map(v => succ(v.decl)), typeArgs)(inv.blame)
       case Minus(left, right) =>
-        firstOk(e, "Expected both operands to be numeric",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
           Minus(rat(left), rat(right)),
         )
       case div @ Mod(left, right) =>
-        firstOk(e, "Expected both operands to be numeric",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Mod(int(left), int(right))(div.blame),
           Mod(rat(left), rat(right))(div.blame),
         )
@@ -677,7 +677,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case ModelState(m, perm, state) =>
         ModelState(model(m)._1, rat(perm), process(state))
       case Mult(left, right) =>
-        firstOk(e, "Expected both operands to be numeric",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Mult(int(left), int(right)),
           Mult(rat(left), rat(right)),
         )
@@ -720,7 +720,7 @@ abstract class CoercingRewriter() extends Rewriter {
         val sharedType = Type.leastCommonSuperType(leftType.element, rightType.element)
         Permutation(coerce(left, TSeq(sharedType)), coerce(right, TSeq(sharedType)))
       case Plus(left, right) =>
-        firstOk(e, "Expected both operands to be numeric",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Plus(int(left), int(right)),
           Plus(rat(left), rat(right)),
         )
@@ -798,7 +798,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case Starall(bindings, triggers, body) =>
         Starall(bindings, triggers, res(body))
       case SubSet(left, right) =>
-        firstOk(e, s"Expected both operands to be a set or bag", {
+        firstOk(e, s"Expected both operands to be a set or bag, but got ${left.t} and ${right.t}.", {
           val (coercedLeft, leftSet) = set(left)
           val (coercedRight, rightSet) = set(right)
           val sharedType = Type.leastCommonSuperType(leftSet.element, rightSet.element)
@@ -810,7 +810,7 @@ abstract class CoercingRewriter() extends Rewriter {
           SubSet(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
         })
       case SubSetEq(left, right) =>
-        firstOk(e, s"Expected both operands to be a set or bag", {
+        firstOk(e, s"Expected both operands to be a set or bag, but got ${left.t} and ${right.t}.", {
           val (coercedLeft, leftSet) = set(left)
           val (coercedRight, rightSet) = set(right)
           val sharedType = Type.leastCommonSuperType(leftSet.element, rightSet.element)
@@ -840,7 +840,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case TypeValue(value) =>
         ???
       case UMinus(arg) =>
-        firstOk(e, "Expected operand to be numeric",
+        firstOk(e, s"Expected operand to be numeric, but got ${arg.t}.",
           UMinus(int(arg)),
           UMinus(rat(arg)),
         )
