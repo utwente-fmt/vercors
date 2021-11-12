@@ -14,10 +14,18 @@ case object EncodeCurrentThread {
       s"[At generated variable for the current thread ID]: $message"
   }
 
-  case class MisplacedCurrentThreadReference(node: CurrentThreadId) extends UserError {
+  abstract class MisplacedCurrentThreadReference extends UserError {
     override def code: String = "curThreadScope"
-    override def text: String = node.o.messageInContext(
-      "This reference to \\current_thread is misplaced, since the surrounding declaration is not thread_local.")
+  }
+
+  case class MisplacedCurrentThreadConstant(node: CurrentThreadId) extends MisplacedCurrentThreadReference {
+    override def text: String =
+      "This reference to \\current_thread is misplaced, since the surrounding declaration is not thread_local."
+  }
+
+  case class MisplacedThreadLocalInvocation(node: Apply) extends MisplacedCurrentThreadReference {
+    override def text: String =
+      "This invocation refers to an applicable that is thread local, but the surrounding context is not thread local."
   }
 }
 
@@ -53,9 +61,19 @@ case class EncodeCurrentThread() extends Rewriter {
   override def dispatch(e: Expr): Expr = e match {
     case node @ CurrentThreadId() =>
       if(currentThreadId.isEmpty) {
-        throw MisplacedCurrentThreadReference(node)
+        throw MisplacedCurrentThreadConstant(node)
       } else {
         currentThreadId.top
+      }
+    case apply: Apply =>
+      if(wantsThreadLocal(apply.ref.decl)) {
+        if(currentThreadId.isEmpty) {
+          throw MisplacedThreadLocalInvocation(apply)
+        } else {
+          apply.rewrite(args = currentThreadId.top +: apply.args.map(dispatch))
+        }
+      } else {
+        apply.rewrite()
       }
   }
 }

@@ -68,6 +68,25 @@ object AstBuildHelpers {
     }
   }
 
+  implicit class ApplyBuildHelpers(apply: Apply)(implicit rewriter: AbstractRewriter) {
+    def rewrite(args: Seq[Expr] = apply.args.map(rewriter.dispatch)): Apply = apply match {
+      case inv: PredicateApply =>
+        new RewritePredicateApply(inv).rewrite(args = args)
+      case inv: InstancePredicateApply =>
+        new RewriteInstancePredicateApply(inv).rewrite(args = args)
+      case inv: ADTFunctionInvocation =>
+        new RewriteADTFunctionInvocation(inv).rewrite(args = args)
+      case inv: ProcedureInvocation =>
+        new RewriteProcedureInvocation(inv).rewrite(args = args)
+      case inv: FunctionInvocation =>
+        new RewriteFunctionInvocation(inv).rewrite(args = args)
+      case inv: MethodInvocation =>
+        new RewriteMethodInvocation(inv).rewrite(args = args)
+      case inv: InstanceFunctionInvocation =>
+        new RewriteInstanceFunctionInvocation(inv).rewrite(args = args)
+    }
+  }
+
   private case object ConstOrigin extends Origin {
     override def preferredName: String = "unknown"
     override def messageInContext(message: String): String = s"[At generated constant]: $message"
