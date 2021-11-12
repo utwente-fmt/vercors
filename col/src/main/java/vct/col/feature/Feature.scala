@@ -29,7 +29,7 @@ case object ExpressionWithSideEffects extends Feature // ResolveExpressionSideEf
 case object NonMethodInvocationEvaluation extends Feature // TODO
 case object IntrinsicLocks extends Feature // TODO
 case object JavaThreads extends Feature // TODO
-case object UnscopedDeclaration extends Feature // TODO
+case object UnscopedDeclaration extends Feature // CollectLocalDeclarations
 case object NonVoidReturn extends Feature // TODO
 case object LoopIterationContract extends Feature // TODO
 case object NonTrivialBranch extends Feature // TODO
@@ -38,7 +38,7 @@ case object TryCatchStatement extends Feature // TODO
 case object NonWhileLoop extends Feature // TODO
 case object ParallelRegion extends Feature // TODO
 case object SendRecv extends Feature // TODO
-case object SpecIgnore extends Feature // TODO
+case object SpecIgnore extends Feature // FilterSpecIgnore
 case object Exceptions extends Feature // TODO
 case object WaitNotify extends Feature // TODO
 case object ExceptionalLoopControl extends Feature // TODO + ContinueToBreak
@@ -46,6 +46,6 @@ case object ExoticTypes extends Feature // TODO
 case object TextTypes extends Feature // TODO
 case object TermRewriteRules extends Feature // TODO
 case object ApplicableToBeInlined extends Feature // TODO
-case object MethodToBePurified extends Feature // TODO
+case object MethodToBePurified extends Feature // PureMethodsToFunctions
 case object FinalField extends Feature // TODO
 case object ComputationalLogicOperator extends Feature // TODO
