@@ -361,6 +361,16 @@ case class ImportADT() extends CoercingRewriter {
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer).ref,
         )(PointerFieldInsufficientPermission(sub.blame, sub))
+      case add @ PointerAdd(pointer, offset) =>
+        FunctionInvocation(
+          ref = pointerAdd.ref,
+          args = Seq(FunctionInvocation(
+            ref = optionGet.ref,
+            args = Seq(dispatch(pointer)),
+            typeArgs = Seq(TAxiomatic(pointerAdt.ref, Nil)),
+          )(PointerNullPreconditionFailed(add.blame, pointer)), dispatch(offset)),
+          typeArgs = Nil,
+        )(PointerBoundsPreconditionFailed(add.blame, pointer))
       case deref @ DerefPointer(pointer) =>
         SilverDeref(
           obj = FunctionInvocation(

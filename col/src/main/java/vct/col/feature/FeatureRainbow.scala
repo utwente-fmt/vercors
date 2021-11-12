@@ -96,6 +96,9 @@ class FeatureRainbow {
         if(node.isBoolOp) Nil
         else Seq(BitOperators)
       )
+    case node: ComputationalOr => ComputationalLogicOperator
+    case node: ComputationalXor => ComputationalLogicOperator
+    case node: ComputationalAnd => ComputationalLogicOperator
     case node: Exp => Exponents
     case node: Plus => return Nil
     case node: Minus => return Nil
@@ -144,6 +147,7 @@ class FeatureRainbow {
       )
     case node: SeqSubscript => return Nil
     case node: ArraySubscript => Arrays
+    case node: PointerAdd => Pointers
     case node: PointerSubscript => Pointers
     case node: Length => Arrays
     case node: Size => return Nil
@@ -324,7 +328,8 @@ class FeatureRainbow {
         (if(node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil)
     case node: Procedure =>
       return (if(node.inline) Seq(ApplicableToBeInlined) else Nil) ++
-        (if(node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil)
+        (if(node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil) ++
+        (if(node.pure) Seq(MethodToBePurified) else Nil)
     case node: Predicate =>
       return (if(node.inline) Seq(ApplicableToBeInlined) else Nil)
     case node: InstanceFunction =>
@@ -334,18 +339,19 @@ class FeatureRainbow {
     case node: InstanceMethod =>
       return Seq(Classes) ++
         (if(node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil) ++
-        (if(node.inline) Seq(ApplicableToBeInlined) else Nil)
+        (if(node.inline) Seq(ApplicableToBeInlined) else Nil) ++
+        (if(node.pure) Seq(MethodToBePurified) else Nil)
     case node: InstancePredicate =>
       return Seq(Classes) ++
         (if(node.inline) Seq(ApplicableToBeInlined) else Nil)
     case node: ADTFunction => return Nil
     case node: Final => return Nil
-    case node: InstanceField => return Nil
-    case node: Class => return Nil
-    case node: ModelField => return Nil
-    case node: ModelProcess => return Nil
-    case node: ModelAction => return Nil
-    case node: Model => return Nil
+    case node: InstanceField => FinalField
+    case node: Class => Classes
+    case node: ModelField => Models
+    case node: ModelProcess => Models
+    case node: ModelAction => Models
+    case node: Model => Models
     case node: SilverPredicateAccess => return Nil
     case node: SilverDeref => return Nil
     case node: SilverPerm => return Nil

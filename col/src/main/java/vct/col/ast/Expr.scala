@@ -165,7 +165,7 @@ case class WritePerm()(implicit val o: Origin) extends Expr {
 case class Range(from: Expr, to: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = TSeq(TInt())
 }
-case class Values(arr: Expr, from: Expr, to: Expr)(implicit val o: Origin) extends Expr {
+case class Values(arr: Expr, from: Expr, to: Expr)(val blame: Blame[ArrayValuesError])(implicit val o: Origin) extends Expr {
   override def t: Type = TSeq(arr.t.asArray.get.element)
 }
 
@@ -237,6 +237,9 @@ case class ModelDeref(obj: Expr, ref: Ref[ModelField])(val blame: Blame[ModelIns
 }
 case class DerefPointer(pointer: Expr)(val blame: Blame[PointerDerefError])(implicit val o: Origin) extends Expr {
   override def t: Type = pointer.t.asPointer.get.element
+}
+case class PointerAdd(pointer: Expr, offset: Expr)(val blame: Blame[PointerAddError])(implicit val o: Origin) extends Expr {
+  override def t: Type = pointer.t
 }
 case class AddrOf(e: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = TPointer(e.t)
@@ -325,7 +328,7 @@ case class AmbiguousMult(left: Expr, right: Expr)(implicit val o: Origin) extend
   override def t: Type = if(isProcessOp) TProcess() else (if(isIntOp) TInt() else TRational())
 }
 
-case class AmbiguousPlus(left: Expr, right: Expr)(implicit val o: Origin) extends Expr {
+case class AmbiguousPlus(left: Expr, right: Expr)(val blame: Blame[FrontendPlusError])(implicit val o: Origin) extends Expr {
   def isProcessOp: Boolean = Coercion.getCoercion(left.t, TProcess()).isDefined
   def isSeqOp: Boolean = Coercion.getAnySeqCoercion(left.t).isDefined
   def isBagOp: Boolean = Coercion.getAnyBagCoercion(left.t).isDefined
@@ -359,6 +362,10 @@ sealed trait BitOp extends BinExpr {
 case class AmbiguousComputationalOr(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
 case class AmbiguousComputationalXor(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
 case class AmbiguousComputationalAnd(left: Expr, right: Expr)(implicit val o: Origin) extends BitOp
+
+case class ComputationalOr(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
+case class ComputationalXor(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
+case class ComputationalAnd(left: Expr, right: Expr)(implicit val o: Origin) extends BoolBinExpr
 
 case class Exp(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
 case class Plus(left: Expr, right: Expr)(implicit val o: Origin) extends NumericBinExpr
@@ -473,13 +480,10 @@ case class Old(expr: Expr, at: Option[Ref[LabelDecl]])(val blame: Blame[LabelNot
   override def t: Type = expr.t
 }
 
-case class AmbiguousSubscript(collection: Expr, index: Expr)(implicit val o: Origin) extends Expr {
+case class AmbiguousSubscript(collection: Expr, index: Expr)(val blame: Blame[FrontendSubscriptError])(implicit val o: Origin) extends Expr {
   def isSeqOp: Boolean = Coercion.getAnySeqCoercion(collection.t).isDefined
-
   def isArrayOp: Boolean = Coercion.getAnyArrayCoercion(collection.t).isDefined
-
   def isPointerOp: Boolean = Coercion.getAnyPointerCoercion(collection.t).isDefined
-
   def isMapOp: Boolean = Coercion.getAnyMapCoercion(collection.t).isDefined
 
   override def t: Type =
@@ -517,7 +521,7 @@ case class Cons(x: Expr, xs: Expr)(implicit val o: Origin) extends Expr {
   override def t: TSeq = TSeq(Type.leastCommonSuperType(tailType.element, x.t))
 }
 
-case class Head(xs: Expr)(implicit val o: Origin) extends Expr {
+case class Head(xs: Expr)(val blame: Blame[SeqBoundFailure])(implicit val o: Origin) extends Expr {
   override def t: Type = xs.t.asSeq.get.element
 }
 

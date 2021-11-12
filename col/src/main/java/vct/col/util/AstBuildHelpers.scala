@@ -1,7 +1,9 @@
 package vct.col.util
 
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.rewrite.Rewriter
 
 import scala.reflect.ClassTag
 
@@ -15,7 +17,7 @@ object AstBuildHelpers {
     def %(right: Expr)(implicit origin: Origin, blame: Blame[DivByZero]): Mod = Mod(left, right)(blame)
 
     def ===(right: Expr)(implicit origin: Origin): Eq = Eq(left, right)
-    def !=(right: Expr)(implicit origin: Origin): Neq = Neq(left, right)
+    def !==(right: Expr)(implicit origin: Origin): Neq = Neq(left, right)
     def <(right: Expr)(implicit origin: Origin): Less = Less(left, right)
     def >(right: Expr)(implicit origin: Origin): Greater = Greater(left, right)
     def <=(right: Expr)(implicit origin: Origin): LessEq = LessEq(left, right)
@@ -32,10 +34,6 @@ object AstBuildHelpers {
     def @@(index: Expr)(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript = SeqSubscript(left, index)(blame)
   }
 
-  implicit class DeclarationBuildHelpers[T <: Declaration](left: T)(implicit tag: ClassTag[T]) {
-    def ref: Ref[T] = new DirectRef[T](left)
-  }
-
   implicit class VarBuildHelpers(left: Variable) {
     def get(implicit origin: Origin): Local = Local(new DirectRef(left))
     def <~(right: Expr)(implicit origin: Origin): SilverLocalAssign = SilverLocalAssign(new DirectRef(left), right)
@@ -45,13 +43,38 @@ object AstBuildHelpers {
     def <~(right: Expr)(implicit blame: Blame[SilverAssignFailed], origin: Origin): SilverFieldAssign = SilverFieldAssign(left.obj, left.field, right)(blame)
   }
 
+  implicit class ApplicableBuildHelpers(applicable: Applicable)(implicit rewriter: AbstractRewriter) {
+    def rewrite(args: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { applicable.args.foreach(rewriter.dispatch) },
+                inline: Boolean = applicable.inline,
+               ): Applicable = applicable match {
+      case predicate: Predicate =>
+        new RewritePredicate(predicate).rewrite(args = args, inline = inline)
+      case predicate: InstancePredicate =>
+        new RewriteInstancePredicate(predicate).rewrite(args = args, inline = inline)
+      case function: Function =>
+        new RewriteFunction(function).rewrite(args = args, inline = inline)
+      case function: InstanceFunction =>
+        new RewriteInstanceFunction(function).rewrite(args = args, inline = inline)
+      case procedure: Procedure =>
+        new RewriteProcedure(procedure).rewrite(args = args, inline = inline)
+      case method: InstanceMethod =>
+        new RewriteInstanceMethod(method).rewrite(args = args, inline = inline)
+      case function: ADTFunction =>
+        new RewriteADTFunction(function).rewrite(args = args)
+      case process: ModelProcess =>
+        new RewriteModelProcess(process).rewrite(args = args)
+      case action: ModelAction =>
+        new RewriteModelAction(action).rewrite(args = args)
+    }
+  }
+
   private case object ConstOrigin extends Origin {
     override def preferredName: String = "unknown"
     override def messageInContext(message: String): String = s"[At generated constant]: $message"
   }
 
-  def tt: Constant.BooleanValue = Constant.BooleanValue(true)(ConstOrigin)
-  def ff: Constant.BooleanValue = Constant.BooleanValue(false)(ConstOrigin)
+  val tt: Constant.BooleanValue = Constant.BooleanValue(true)(ConstOrigin)
+  val ff: Constant.BooleanValue = Constant.BooleanValue(false)(ConstOrigin)
 
   def const(i: Int)(implicit o: Origin): Constant.IntegerValue =
     Constant.IntegerValue(i)
@@ -86,9 +109,46 @@ object AstBuildHelpers {
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
       inline)(blame)
 
+  case object GeneratedQuantifier extends Origin {
+    override def preferredName: String = "i"
+    override def messageInContext(message: String): String =
+      s"[At generated quantifier]: $message"
+  }
+
+  def starall(t: Type,
+              body: Local => Expr,
+              triggers: Local => Seq[Seq[Expr]] = _ => Nil,
+             ): Starall = {
+    implicit val o: Origin = GeneratedQuantifier
+    val i_var = new Variable(TInt())
+    val i = Local(i_var.ref)
+    Starall(
+      bindings = Seq(i_var),
+      triggers = triggers(i),
+      body = body(i),
+    )
+  }
+
+  def forall(t: Type,
+             body: Local => Expr,
+             triggers: Local => Seq[Seq[Expr]] = _ => Nil,
+            ): Forall = {
+    implicit val o: Origin = GeneratedQuantifier
+    val i_var = new Variable(TInt())
+    val i = Local(i_var.ref)
+    Forall(
+      bindings = Seq(i_var),
+      triggers = triggers(i),
+      body = body(i),
+    )
+  }
+
   def assignField(obj: Expr, field: Ref[InstanceField], value: Expr)(implicit o: Origin): Assign =
     Assign(Deref(obj, field)(DerefAssignTarget), value)
 
   def fieldPerm(obj: Expr, field: Ref[InstanceField], amount: Expr)(implicit o: Origin): Perm =
     Perm(Deref(obj, field)(DerefPerm), amount)
+
+  def arrayPerm(arr: Expr, index: Expr, amount: Expr)(implicit o: Origin): Perm =
+    Perm(ArraySubscript(arr, index)(ArrayPerm), amount)
 }

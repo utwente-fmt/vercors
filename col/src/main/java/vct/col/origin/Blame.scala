@@ -79,6 +79,9 @@ case class DivByZero(div: DividingExpr) extends VerificationFailure {
   override def code: String = "divByZero"
 }
 sealed trait FrontendDerefError extends VerificationFailure
+sealed trait FrontendPlusError extends VerificationFailure
+sealed trait FrontendSubscriptError extends VerificationFailure
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(deref: HeapDeref) extends DerefInsufficientPermission {
   override def toString: String = s"There may be insufficient permission to access this field here."
@@ -92,7 +95,7 @@ case class LabelNotReached(old: Old) extends VerificationFailure {
   override def toString: String = s"The label mentioned in this old expression may not be reached at the time the old expression is reached."
   override def code: String = "notReached"
 }
-sealed trait SeqBoundFailure extends VerificationFailure
+sealed trait SeqBoundFailure extends FrontendSubscriptError
 case class SeqBoundNegative(subscript: SeqSubscript) extends SeqBoundFailure {
   override def toString: String = s"The index in this sequence subscript may be negative."
   override def code: String = "indexNegative"
@@ -139,11 +142,11 @@ case class OptionNone(access: OptGet) extends BuiltinError {
   override def code: String = "optNone"
   override def toString: String = "Option may be empty."
 }
-case class MapKeyError(access: MapGet) extends BuiltinError {
+case class MapKeyError(access: MapGet) extends BuiltinError with FrontendSubscriptError {
   override def code: String = "mapKey"
   override def toString: String = "Map may not contain this key."
 }
-sealed trait ArraySubscriptError extends VerificationFailure
+sealed trait ArraySubscriptError extends FrontendSubscriptError
 case class ArrayNull(arr: Expr) extends ArraySubscriptError with BuiltinError {
   override def code: String = "arrayNull"
   override def toString: String = "Array may be null."
@@ -156,13 +159,23 @@ case class ArrayInsufficientPermission(arr: Expr) extends ArraySubscriptError {
   override def code: String = "arrayPerm"
   override def toString: String = "There may be insufficient permission to access the array."
 }
-sealed trait PointerSubscriptError extends VerificationFailure
+case class ArrayValuesError(values: Values) extends VerificationFailure {
+  override def code: String = "arrayValues"
+  override def toString: String =
+    "Array values invocation may fail, since:\n" +
+      "- The array may be null, or;\n" +
+      "- The specified bounds may exceed the bounds of the array, or;\n" +
+      "- The lower bound may exceed the upper bound, or;\n" +
+      "- There may be insufficient permission to access the array at the specified range."
+}
+sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError extends PointerSubscriptError
-case class PointerNull(pointer: Expr) extends PointerDerefError {
+sealed trait PointerAddError extends FrontendPlusError
+case class PointerNull(pointer: Expr) extends PointerDerefError with PointerAddError {
   override def code: String = "ptrNull"
   override def toString: String = "Pointer may be null."
 }
-case class PointerBounds(pointer: Expr) extends PointerSubscriptError {
+case class PointerBounds(pointer: Expr) extends PointerSubscriptError with PointerAddError {
   override def code: String = "ptrBlock"
   override def toString: String = "The offset to the pointer may be outside the bounds of the allocated memory area that the pointer is in."
 }
@@ -199,10 +212,13 @@ case class PanicBlame(message: String) extends Blame[VerificationFailure] {
 
 object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should always be ok.")
 object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds")
+object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
+object FramedArrLength extends PanicBlame("length query in `arr == null ? _ : arr.length` should always be ok.")
 object FramedMapGet extends PanicBlame("access in `∀k. k \\in m.keys ==> ...m[k]...` should always be ok.")
 object AbstractApplicable extends PanicBlame("the postcondition of an abstract applicable is not checked, and hence cannot fail.")
 object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
 
 object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")
 object DerefPerm extends PanicBlame("Dereferencing a field in a permission should trigger an error on the permission, not on the dereference.")
+object ArrayPerm extends PanicBlame("Subscripting an array in a permission should trigger an error on the permission, not on the dereference.")
 object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")

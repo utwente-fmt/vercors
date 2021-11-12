@@ -122,14 +122,6 @@ object Type {
 
     case (_, _) => TAny()
   }
-
-  def isComparable(left: Type, right: Type): Boolean =
-    /* left == right || ROOT_TYPES.map(_.superTypeOf(left)) == ROOT_TYPES.map(_.superTypeOf(right)) */
-    true // TODO is this bad?
-
-  def checkComparable(left: Expr, right: Expr): Seq[CheckError] =
-    if(isComparable(left.t, right.t)) Seq()
-    else Seq(IncomparableTypes(left, right))
 }
 
 // Immutable collection with a defined size

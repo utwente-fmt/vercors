@@ -725,6 +725,8 @@ abstract class CoercingRewriter() extends Rewriter {
           Plus(int(left), int(right)),
           Plus(rat(left), rat(right)),
         )
+      case add @ PointerAdd(p, offset) =>
+        PointerAdd(pointer(p)._1, int(offset))(add.blame)
       case get @ PointerSubscript(p, index) =>
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointsTo(loc, perm, value) =>

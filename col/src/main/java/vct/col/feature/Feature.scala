@@ -46,3 +46,6 @@ case object ExoticTypes extends Feature
 case object TextTypes extends Feature
 case object TermRewriteRules extends Feature
 case object ApplicableToBeInlined extends Feature
+case object MethodToBePurified extends Feature
+case object FinalField extends Feature
+case object ComputationalLogicOperator extends Feature
