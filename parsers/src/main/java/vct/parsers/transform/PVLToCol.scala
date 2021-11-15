@@ -169,7 +169,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit expr: AddExprContext): Expr = expr match {
-    case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))
+    case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
     case AddExpr1(left, _, right) => Minus(convert(left), convert(right))
     case AddExpr2(inner) => convert(inner)
   }
@@ -211,7 +211,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case PostfixExpr0(obj, _, field, Some(Call0(typeArgs, given, args, yields))) =>
       PVLInvocation(Some(convert(obj)), convert(field), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
-    case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))
+    case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))(blame(expr))
     case PostfixExpr2(obj, specOp) => convert(specOp, convert(obj))
     case PostfixExpr3(inner) => convert(inner)
   }
@@ -856,7 +856,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
 
   def convert(implicit e: ValPrimarySeqContext): Expr = e match {
     case ValCardinality(_, xs, _) => Size(convert(xs))
-    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))
+    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryOptionContext): Expr = e match {

@@ -490,7 +490,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case JavaSuper(_, _, _, _) => ??(expr)
     case JavaGenericInvocation(obj, _, ExplicitGenericInvocation0(typeArgs, invocation)) =>
       convert(invocation, Some(convert(obj)), convert(typeArgs))
-    case JavaSubscript(ar, _, idx, _) => AmbiguousSubscript(convert(ar), convert(idx))
+    case JavaSubscript(ar, _, idx, _) => AmbiguousSubscript(convert(ar), convert(idx))(blame(expr))
     case JavaNonNullInvocation(obj, _, name, args) =>
       Implies(
         Neq(convert(obj), Null()),
@@ -535,7 +535,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
         case MulOp1(specOp) => convert(specOp, left, right)
       }
     case JavaAdd(left, op, right) => op match {
-      case "+" => AmbiguousPlus(convert(left), convert(right))
+      case "+" => AmbiguousPlus(convert(left), convert(right))(blame(expr))
       case "-" => Minus(convert(left), convert(right))
     }
     case JavaShift(left, shift, right) => shift match {
@@ -1084,7 +1084,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
 
   def convert(implicit e: ValPrimarySeqContext): Expr = e match {
     case ValCardinality(_, xs, _) => Size(convert(xs))
-    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))
+    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryOptionContext): Expr = e match {

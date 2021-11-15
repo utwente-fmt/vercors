@@ -438,9 +438,9 @@ case class LangSpecificToCol() extends Rewriter {
         stats += LocalDecl(v)
         es.exprs.zipWithIndex.map {
           case (e: JavaLiteralArray, i) =>
-            stats += Assign(AmbiguousSubscript(Local(v.ref), i), collectArray(e, dims-1, stats))
+            stats += Assign(AmbiguousSubscript(Local(v.ref), i)(JavaArrayInitializerBlame), collectArray(e, dims-1, stats))
           case (other, i) =>
-            stats += Assign(AmbiguousSubscript(Local(v.ref), i), dispatch(other))
+            stats += Assign(AmbiguousSubscript(Local(v.ref), i)(JavaArrayInitializerBlame), dispatch(other))
         }
         Local(v.ref)
       }

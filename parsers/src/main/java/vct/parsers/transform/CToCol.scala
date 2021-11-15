@@ -377,7 +377,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
 
   def convert(implicit expr: AdditiveExpressionContext): Expr = expr match {
     case AdditiveExpression0(inner) => convert(inner)
-    case AdditiveExpression1(left, _, right) => AmbiguousPlus(convert(left), convert(right))
+    case AdditiveExpression1(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
     case AdditiveExpression2(left, _, right) => col.Minus(convert(left), convert(right))
   }
 
@@ -426,7 +426,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
 
   def convert(implicit expr: PostfixExpressionContext): Expr = expr match {
     case PostfixExpression0(inner) => convert(inner)
-    case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx))
+    case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx))(blame(expr))
     case PostfixExpression2(f, given, _, args, _, yields) =>
       CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))
@@ -899,7 +899,7 @@ case class CToCol(override val originProvider: OriginProvider, override val blam
 
   def convert(implicit e: ValPrimarySeqContext): Expr = e match {
     case ValCardinality(_, xs, _) => Size(convert(xs))
-    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))
+    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryOptionContext): Expr = e match {

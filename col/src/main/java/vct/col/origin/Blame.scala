@@ -95,7 +95,7 @@ case class LabelNotReached(old: Old) extends VerificationFailure {
   override def toString: String = s"The label mentioned in this old expression may not be reached at the time the old expression is reached."
   override def code: String = "notReached"
 }
-sealed trait SeqBoundFailure extends FrontendSubscriptError
+sealed trait SeqBoundFailure extends FrontendSubscriptError with BuiltinError
 case class SeqBoundNegative(subscript: SeqSubscript) extends SeqBoundFailure {
   override def toString: String = s"The index in this sequence subscript may be negative."
   override def code: String = "indexNegative"
@@ -222,3 +222,5 @@ object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger
 object DerefPerm extends PanicBlame("Dereferencing a field in a permission should trigger an error on the permission, not on the dereference.")
 object ArrayPerm extends PanicBlame("Subscripting an array in a permission should trigger an error on the permission, not on the dereference.")
 object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")
+
+object JavaArrayInitializerBlame extends PanicBlame("The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array")
