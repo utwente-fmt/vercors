@@ -151,7 +151,7 @@ statement
  | valStatement # pvlValStatement
  | 'if' '(' expr ')' statement elseBlock? # pvlIf
  | 'barrier' '(' identifier barrierTags? ')' barrierBody # pvlBarrier
- | contract 'par' parUnitList # pvlPar
+ | parRegion # pvlPar
  | 'vec' '(' iter ')' block # pvlVec
  | 'invariant' identifier '(' expr ')' block # pvlInvariant
  | 'atomic' '(' identifierList ')' block # pvlAtomic
@@ -166,7 +166,6 @@ statement
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;
 barrierBody: '{' contract '}' | contract block;
-parUnitList: parUnit | parUnit 'and' parUnitList;
 
 allowedForStatement
  : type declList # pvlLocal
@@ -180,6 +179,23 @@ forStatementList
  | allowedForStatement ',' forStatementList
  ;
 
+parRegion
+ : 'parallel' '{' parRegion* '}' # pvlParallel
+ | 'sequential' '{' parRegion* '}' # pvlSequential
+ | 'block' identifier? parBlockIter? contract statement # pvlParBlock
+ | 'par' parOldUnitList # pvlOldPar
+ ;
+
+parOldUnit
+ : identifier? parBlockIter? contract statement # pvlOldParUnit
+ ;
+
+parOldUnitList
+ : parOldUnit
+ | parOldUnit 'and' parOldUnitList
+ ;
+
+
 declList
  : identifier declInit?
  | identifier declInit? ',' declList
@@ -187,11 +203,7 @@ declList
 
 declInit : '=' expr ;
 
-parUnit
- : identifier? '(' iters? parWaitList? ')' contract block
- | contract block
- ;
-
+parBlockIter: '(' iters ')';
 iters: iter | iter ',' iters;
 iter: type identifier '=' expr '..' expr;
 

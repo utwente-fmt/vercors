@@ -118,24 +118,6 @@ case class ParBarrierInconsistent(failure: ContractFailure, barrier: ParBarrier)
   override def toString: String = s"The precondition of this barrier is not consistent with the postcondition, since this postcondition may not hold, because $failure."
   override def code: String = "inconsistent"
 }
-sealed trait ParRegionFailed extends VerificationFailure
-case class ParRegionPreconditionFailed(failure: ContractFailure, region: ParRegion) extends ParRegionFailed {
-  override def toString: String = s"The precondition of this region may not hold, since $failure."
-  override def code: String = "preFailed"
-}
-sealed trait ParRegionInconsistent extends ParRegionFailed {
-  def failure: ContractFailure
-  override def toString: String = s"The contract of the parallel region is inconsistent with the joint contracts of its blocks: $direction, since $failure."
-  def direction: String
-}
-case class ParRegionPreconditionDoesNotImplyBlockPreconditions(failure: ContractFailure, region: ParRegion) extends ParRegionInconsistent {
-  override def direction: String = s"the precondition of the region does not imply the preconditions of its blocks"
-  override def code: String = "regionPreBlockPre"
-}
-case class ParRegionPostconditionNotImpliedByBlockPostconditions(failure: ContractFailure, region: ParRegion) extends ParRegionInconsistent {
-  override def direction: String = s"the postcondition of the region does not follow from the postconditions of its blocks"
-  override def code: String = "blockPostRegionPost"
-}
 
 sealed trait BuiltinError extends FrontendDerefError with FrontendInvocationError
 case class OptionNone(access: OptGet) extends BuiltinError {

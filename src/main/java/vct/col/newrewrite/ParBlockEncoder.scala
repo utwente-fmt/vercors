@@ -25,21 +25,6 @@ case class ParBlockEncoder() extends Rewriter {
       barrier.blame.blame(ParBarrierNotEstablished(error.failure, barrier))
   }
 
-  case class ParRegionExhaleFailed(region: ParRegion) extends Blame[ExhaleFailed] {
-    override def blame(error: ExhaleFailed): Unit =
-      region.blame.blame(ParRegionPreconditionFailed(error.failure, region))
-  }
-
-  case class ParRegionPreInconsistentPostconditionFailed(region: ParRegion) extends Blame[PostconditionFailed] {
-    override def blame(error: PostconditionFailed): Unit =
-      region.blame.blame(ParRegionPreconditionDoesNotImplyBlockPreconditions(error.failure, region))
-  }
-
-  case class ParRegionPostInconsistentPostconditionFailed(region: ParRegion) extends Blame[PostconditionFailed] {
-    override def blame(error: PostconditionFailed): Unit =
-      region.blame.blame(ParRegionPostconditionNotImpliedByBlockPostconditions(error.failure, region))
-  }
-
   val invariants: ScopedStack[Expr] = ScopedStack()
   val parDecls: mutable.Map[ParBlockDecl, ParBlock] = mutable.Map()
 
@@ -60,10 +45,68 @@ case class ParBlockEncoder() extends Rewriter {
       blame = blame,
       requires = req,
       ensures = ens,
-      args = bindings.map(_._1),
+      args = bindings.keys.toSeq,
       body = Some(hint.getOrElse(Block(Nil))),
     ).declareDefault(this)
   }
+
+  def requires(region: ParRegion)(implicit o: Origin): Expr = region match {
+    case ParParallel(regions) => Star.fold(regions.map(requires))
+    case ParSequential(regions) => regions.headOption.map(requires).getOrElse(tt)
+    case block: ParBlock => quantify(block, block.requires)
+  }
+
+  def ensures(region: ParRegion)(implicit o: Origin): Expr = region match {
+    case ParParallel(regions) => Star.fold(regions.map(ensures))
+    case ParSequential(regions) => regions.headOption.map(ensures).getOrElse(tt)
+    case block: ParBlock => quantify(block, block.ensures)
+  }
+
+  val regionAsMethod: mutable.Map[ParRegion, (Procedure, Seq[Expr])] = mutable.Map()
+
+  def getRegionMethod(region: ParRegion)(implicit o: Origin): (Procedure, Seq[Expr]) =
+    regionAsMethod.getOrElseUpdate(region, region match {
+      case ParParallel(regions) =>
+        val (Seq(req, ens), vars) = Extract.extract(requires(region), ensures(region))
+        val result = procedure(
+          blame = AbstractApplicable,
+          args = vars.keys.toSeq,
+          requires = req,
+          ensures = ens,
+        )
+        result.declareDefault(this)
+        (result, vars.values.toSeq)
+      case ParSequential(regions) =>
+        val preInvocations = regions.map(getRegionMethod).map {
+          case (proc, args) => ProcedureInvocation(proc.ref, args, Nil, Nil)(???)
+        }
+
+        val (Seq(req, ens, invocations @ _*), vars) =
+          Extract.extract(requires(region) +: ensures(region) +: preInvocations : _*)
+
+        val result = procedure(
+          blame = ???,
+          args = vars.keys.toSeq,
+          requires = req,
+          ensures = ens,
+          body = Some(Block(invocations.map(Eval(_)))),
+        )
+        result.declareDefault(this)
+        (result, vars.values.toSeq)
+      case block: ParBlock =>
+        val (Seq(req, ens), vars) = Extract.extract(requires(block), ensures(block))
+
+        val result = procedure(
+          blame = AbstractApplicable,
+          args = vars.keys.toSeq,
+          requires = req,
+          ensures = ens,
+        )
+        result.declareDefault(this)
+        (result, vars.values.toSeq)
+    })
+
+
 
   override def dispatch(stat: Statement): Statement = stat match {
     case parInv @ ParInvariant(decl, inv, content) =>
@@ -74,30 +117,8 @@ case class ParBlockEncoder() extends Rewriter {
         Inhale(dispatch(inv)),
       ))
 
-    case parRegion @ ParRegion(specRequires, specEnsures, blocks) =>
-      implicit val o: Origin = parRegion.o
-      blocks.foreach(block => parDecls(block.decl) = block)
+    case parRegion @ ParStatement(impl) => ???
 
-      val requires = specRequires match {
-        case Constant(true) => Star.fold(blocks.map(block => quantify(block, block.requires)))
-        case specified =>
-          proveImplies(ParRegionPreInconsistentPostconditionFailed(parRegion),
-            specified, Star.fold(blocks.map(block => quantify(block, block.requires))))
-          specified
-      }
-
-      val ensures = specEnsures match {
-        case Constant(true) => Star.fold(blocks.map(_.ensures))
-        case specified =>
-          proveImplies(ParRegionPostInconsistentPostconditionFailed(parRegion),
-            Star.fold(blocks.map(block => quantify(block, block.ensures))), specified)
-          specified
-      }
-
-      Block(Seq(
-        Exhale(requires)(ParRegionExhaleFailed(parRegion)),
-        Inhale(ensures),
-      ))
 
     case parBarrier @ ParBarrier(blockRef, invs, requires, ensures, content) =>
       implicit val o: Origin = parBarrier.o

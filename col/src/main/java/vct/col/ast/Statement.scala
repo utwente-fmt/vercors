@@ -39,12 +39,15 @@ case class ParAtomic(inv: Seq[Ref[ParInvariantDecl]], content: Statement)(implic
     inv.flatMap(context.checkInScope(this, _))
 }
 case class ParBarrier(block: Ref[ParBlockDecl], invs: Seq[Ref[ParInvariantDecl]], requires: Expr, ensures: Expr, content: Statement)(val blame: Blame[ParBarrierFailed])(implicit val o: Origin) extends Statement
-case class ParRegion(requires: Expr, ensures: Expr, blocks: Seq[ParBlock])(val blame: Blame[ParRegionFailed])(implicit val o: Origin) extends Statement with Declarator {
-  override def declarations: Seq[Declaration] = blocks.map(_.decl)
-}
+case class ParStatement(impl: ParRegion)(val blame: Blame[Nothing])(implicit val o: Origin) extends Statement
+sealed trait ParRegion extends NodeFamily
+
+case class ParParallel(regions: Seq[ParRegion])(implicit val o: Origin) extends ParRegion
+case class ParSequential(regions: Seq[ParRegion])(implicit val o: Origin) extends ParRegion
+
 case class IterVariable(variable: Variable, from: Expr, to: Expr)(implicit val o: Origin) extends NodeFamily
-case class ParBlock(decl: ParBlockDecl, after: Seq[Ref[ParBlockDecl]], iters: Seq[IterVariable], requires: Expr, ensures: Expr, content: Statement)(implicit val o: Origin)
-  extends NodeFamily with Declarator {
+case class ParBlock(decl: ParBlockDecl, iters: Seq[IterVariable], requires: Expr, ensures: Expr, content: Statement)(implicit val o: Origin)
+  extends ParRegion with Declarator {
   override def declarations: Seq[Declaration] = iters.map(_.variable)
 }
 
