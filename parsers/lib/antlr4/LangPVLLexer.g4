@@ -59,6 +59,9 @@ RETURN: 'return';
 VEC: 'vec';
 PAR: 'par';
 PAR_AND: 'and';
+PARALLEL: 'parallel';
+SEQUENTIAL: 'sequential';
+BLOCK: 'block';
 
 LOCK: 'lock';
 UNLOCK: 'unlock';

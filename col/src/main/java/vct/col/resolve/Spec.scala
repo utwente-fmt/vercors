@@ -19,7 +19,7 @@ case object Spec {
       case (_: CollectionType, "isEmpty") => Empty(_)
       case (_: CollectionType, "size") => Size(_)
 
-      case (TSeq(_), "head") => Head(_)
+      case (TSeq(_), "head") => Head(_)(blame)
       case (TSeq(_), "tail") => Tail(_)
 
       case (TMap(_, _), "values") => MapValueSet(_)

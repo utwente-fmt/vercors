@@ -376,36 +376,36 @@ abstract class CoercingRewriter() extends Rewriter {
           AmbiguousOr(bool(left), bool(right)),
           AmbiguousOr(process(left), process(right)),
         )
-      case AmbiguousPlus(left, right) =>
+      case plus @ AmbiguousPlus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
-          AmbiguousPlus(int(left), int(right)),
-          AmbiguousPlus(rat(left), rat(right)),
-          AmbiguousPlus(process(left), process(right)),
-          AmbiguousPlus(pointer(left)._1, int(right)), {
+          AmbiguousPlus(int(left), int(right))(plus.blame),
+          AmbiguousPlus(rat(left), rat(right))(plus.blame),
+          AmbiguousPlus(process(left), process(right))(plus.blame),
+          AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
             val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))
+            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))(plus.blame)
           }, {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
             val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))
+            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))(plus.blame)
           }, {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
             val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))
+            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))(plus.blame)
           }
         )
       case AmbiguousResult() => e
-      case AmbiguousSubscript(collection, index) =>
+      case sub @ AmbiguousSubscript(collection, index) =>
         val coercedIndex = int(index)
         firstOk(e, s"Expected collection to be a sequence, array, pointer or map, but got ${collection.t}.",
-          AmbiguousSubscript(seq(collection)._1, coercedIndex),
-          AmbiguousSubscript(array(collection)._1, coercedIndex),
-          AmbiguousSubscript(pointer(collection)._1, coercedIndex),
-          AmbiguousSubscript(map(collection)._1, coercedIndex),
+          AmbiguousSubscript(seq(collection)._1, coercedIndex)(sub.blame),
+          AmbiguousSubscript(array(collection)._1, coercedIndex)(sub.blame),
+          AmbiguousSubscript(pointer(collection)._1, coercedIndex)(sub.blame),
+          AmbiguousSubscript(map(collection)._1, coercedIndex)(sub.blame),
         )
       case AmbiguousThis() => e
       case And(left, right) =>
@@ -515,8 +515,8 @@ abstract class CoercingRewriter() extends Rewriter {
             GreaterEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           },
         )
-      case Head(xs) =>
-        Head(seq(xs)._1)
+      case head @ Head(xs) =>
+        Head(seq(xs)._1)(head.blame)
       case Held(obj) =>
         Held(cls(obj)._1)
       case HPerm(loc, perm) =>
@@ -864,8 +864,8 @@ abstract class CoercingRewriter() extends Rewriter {
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: Constant.BooleanValue => e
       case value: Constant.IntegerValue => e
-      case Values(arr, from, to) =>
-        Values(array(arr)._1, int(from), int(to))
+      case values @ Values(arr, from, to) =>
+        Values(array(arr)._1, int(from), int(to))(values.blame)
       case VectorCompare(left, right) =>
         val (coercedLeft, leftType) = seq(left)
         val (coercedRight, rightType) = seq(right)

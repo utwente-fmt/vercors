@@ -64,10 +64,10 @@ case class EncodeArrayValues() extends Rewriter {
   override def dispatch(e: Expr): Expr = {
     implicit val o: Origin = ValuesFunctionOrigin()
     e match {
-      case Values(arr, from, to) =>
+      case values @ Values(arr, from, to) =>
         val arrayType = Coercion.getAnyArrayCoercion(arr.t).get._2
         val func = valuesFunctions.getOrElseUpdate(arrayType, makeFunctionFor(arrayType))
-        FunctionInvocation(func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil)
+        FunctionInvocation(func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil)(ArrayValuesPreconditionFailed(values))
     }
   }
 }

@@ -95,7 +95,7 @@ case class LabelNotReached(old: Old) extends VerificationFailure {
   override def toString: String = s"The label mentioned in this old expression may not be reached at the time the old expression is reached."
   override def code: String = "notReached"
 }
-sealed trait SeqBoundFailure extends FrontendSubscriptError
+sealed trait SeqBoundFailure extends FrontendSubscriptError with BuiltinError
 case class SeqBoundNegative(subscript: SeqSubscript) extends SeqBoundFailure {
   override def toString: String = s"The index in this sequence subscript may be negative."
   override def code: String = "indexNegative"
@@ -117,24 +117,6 @@ case class ParBarrierNotEstablished(failure: ContractFailure, barrier: ParBarrie
 case class ParBarrierInconsistent(failure: ContractFailure, barrier: ParBarrier) extends ParBarrierFailed {
   override def toString: String = s"The precondition of this barrier is not consistent with the postcondition, since this postcondition may not hold, because $failure."
   override def code: String = "inconsistent"
-}
-sealed trait ParRegionFailed extends VerificationFailure
-case class ParRegionPreconditionFailed(failure: ContractFailure, region: ParRegion) extends ParRegionFailed {
-  override def toString: String = s"The precondition of this region may not hold, since $failure."
-  override def code: String = "preFailed"
-}
-sealed trait ParRegionInconsistent extends ParRegionFailed {
-  def failure: ContractFailure
-  override def toString: String = s"The contract of the parallel region is inconsistent with the joint contracts of its blocks: $direction, since $failure."
-  def direction: String
-}
-case class ParRegionPreconditionDoesNotImplyBlockPreconditions(failure: ContractFailure, region: ParRegion) extends ParRegionInconsistent {
-  override def direction: String = s"the precondition of the region does not imply the preconditions of its blocks"
-  override def code: String = "regionPreBlockPre"
-}
-case class ParRegionPostconditionNotImpliedByBlockPostconditions(failure: ContractFailure, region: ParRegion) extends ParRegionInconsistent {
-  override def direction: String = s"the postcondition of the region does not follow from the postconditions of its blocks"
-  override def code: String = "blockPostRegionPost"
 }
 
 sealed trait BuiltinError extends FrontendDerefError with FrontendInvocationError
@@ -222,3 +204,5 @@ object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger
 object DerefPerm extends PanicBlame("Dereferencing a field in a permission should trigger an error on the permission, not on the dereference.")
 object ArrayPerm extends PanicBlame("Subscripting an array in a permission should trigger an error on the permission, not on the dereference.")
 object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")
+
+object JavaArrayInitializerBlame extends PanicBlame("The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array")

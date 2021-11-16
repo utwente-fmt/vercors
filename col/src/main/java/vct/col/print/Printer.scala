@@ -486,14 +486,14 @@ case class Printer(out: Appendable,
       syntax(
         PVL -> phrase("barrier(", name(block.decl), tags, ")", contract, newline, content),
       )
-    case ParRegion(requires, ensures, blocks) =>
-      phrase(
-        doubleline,
-        spec(clauses(requires, "requires"), clauses(ensures, "ensures")),
-        newline, "par", space, blocks.head, newline,
-        phrase(blocks.tail.map(block => phrase("and", space, block)):_*),
-        doubleline
-      )
+//    case ParRegion(requires, ensures, blocks) =>
+//      phrase(
+//        doubleline,
+//        spec(clauses(requires, "requires"), clauses(ensures, "ensures")),
+//        newline, "par", space, blocks.head, newline,
+//        phrase(blocks.tail.map(block => phrase("and", space, block)):_*),
+//        doubleline
+//      )
     case Throw(e) =>
       statement("throw", space, e)
     case DefaultCase() =>
