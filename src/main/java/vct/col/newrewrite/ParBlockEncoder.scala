@@ -9,6 +9,18 @@ import vct.col.origin._
 import vct.col.rewrite.Rewriter
 
 import scala.collection.mutable
+case object ParBlockEncoder {
+  def regionName(region: ParRegion): String = region match {
+    case ParParallel(regions) => "par_$" + regions.map(regionName).mkString("_") + "$"
+    case ParSequential(regions) => "seq_$" + regions.map(regionName).mkString("_") + "$"
+    case block: ParBlock => block.o.preferredName
+  }
+
+  case class ParImplOrigin(preferredName: String) extends Origin {
+    override def messageInContext(message: String): String = ???
+  }
+}
+
 case class ParBlockEncoder() extends Rewriter {
   case class ParInvariantCannotBeExhaled(invariant: ParInvariant) extends Blame[ExhaleFailed] {
     override def blame(error: ExhaleFailed): Unit =
@@ -117,7 +129,9 @@ case class ParBlockEncoder() extends Rewriter {
         Inhale(dispatch(inv)),
       ))
 
-    case parRegion @ ParStatement(impl) => ???
+    case parRegion @ ParStatement(impl) =>
+      val (proc, args) = getRegionMethod(impl)(???)
+      ???
 
 
     case parBarrier @ ParBarrier(blockRef, invs, requires, ensures, content) =>
