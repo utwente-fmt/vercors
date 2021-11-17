@@ -305,7 +305,7 @@ object Passes {
       new UnfoldSynchronized(_).rewriteAll(),
       permits = Feature.DEFAULT_PERMIT + features.Synchronized + features.NotJavaEncoded + features.PVLSugar + features.NullAsOptionValue ++ Feature.OPTION_GATES + features.ArgumentAssignment,
       removes = Set(features.Synchronized),
-      introduces = Set(features.Exceptions, features.NoExcVar, features.Finally, features.PVLSugar)
+      introduces = Set(features.Exceptions, features.NoExcVar, features.Finally, features.PVLSugar, features.ExceptionalReturn)
     ),
     SimplePass("introExcVar",
       "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
@@ -772,7 +772,13 @@ object Passes {
     ErrorMapPass("returnTypeToOutParameter",
       "Replace return value by out parameter.",
       new CreateReturnParameter(_, _).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.NotFlattened + features.TopLevelImplementedMethod + features.TopLevelMethod - features.Constructors,
+      permits=Feature.DEFAULT_PERMIT
+        - features.NotFlattened
+        + features.TopLevelImplementedMethod
+        + features.TopLevelMethod
+        - features.Constructors
+        - features.ExceptionalReturn
+        - features.Synchronized,
       removes=Set(features.NonVoidMethods),
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,

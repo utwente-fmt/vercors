@@ -559,7 +559,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source) {
 
   override def visit(returnStatement: vct.col.ast.stmt.terminal.ReturnStatement): Unit = {
     super.visit(returnStatement)
-    if(!lastMethodStatements.contains(returnStatement) || current_method().isSynchronized) {
+    if(!lastMethodStatements.contains(returnStatement)) {
       addFeature(ExceptionalReturn, returnStatement)
     }
   }
