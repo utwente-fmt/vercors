@@ -1,6 +1,6 @@
-package vct.col.ast.util
+package vct.col.util
 
-import vct.col.ast.{Declaration, LazyRef, Ref}
+import vct.col.ast.{Declaration, LazyRef}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

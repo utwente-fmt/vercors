@@ -1,6 +1,7 @@
 package vct.col.newrewrite.util
 
 import vct.col.ast._
+import vct.col.origin._
 import vct.col.newrewrite.util.FreeVariables.{FreeVar, This}
 
 /**
@@ -13,11 +14,12 @@ case object Extract {
       s"At: [extracted expression]\n$message"
   }
 
-  def extract(nodes: Expr*): (Seq[Expr], Seq[(Variable, Expr)]) = {
+  def extract(nodes: Expr*): (Seq[Expr], Map[Variable, Expr]) = {
     val map = nodes.flatMap(FreeVariables.freeVariables(_)).distinct.map {
-      case FreeVar(v) => (new Variable(v.t)(v.ref.decl.o), v)
-      case This(t) => (new Variable(t.ref.get)(ExtractOrigin("this")), t)
-    }
+      case FreeVar(v) => new Variable(v.t)(v.ref.decl.o) -> v
+      case This(t) => new Variable(t.ref.get)(ExtractOrigin("this")) -> t
+    }.toMap
+
     val substitute = Substitute(map.map(pair => pair._2 -> Local(pair._1.ref)(ExtractOrigin(""))).toMap)
 
     (nodes.map(substitute.dispatch), map)

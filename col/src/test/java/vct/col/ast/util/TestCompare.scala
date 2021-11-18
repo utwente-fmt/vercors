@@ -3,7 +3,9 @@ package vct.col.ast.util
 import org.scalatest.flatspec.AnyFlatSpec
 import vct.col.ast._
 import Constant._
-import AstBuildHelpers._
+import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.util.AstBuildHelpers._
+import vct.col.util.Compare
 
 class TestCompare extends AnyFlatSpec {
   implicit val o: Origin = DiagnosticOrigin

@@ -1,9 +1,10 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
-import vct.col.ast.{ApplicableContract, Block, DiagnosticOrigin, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamespace, JavaStatic, JavaTClass, Origin, SourceNameOrigin, TAny, TArray, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TType, TVoid, Type, Variable}
+import vct.col.origin._
 import vct.result.VerificationResult
 import vct.col.ast.Constant._
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
 import vct.result.VerificationResult.Unreachable
 
 import java.lang.reflect.{Modifier, Parameter}
@@ -16,7 +17,7 @@ case object Java {
   }
 
   private implicit val o: Origin = DiagnosticOrigin
-  val JAVA_LANG_OBJECT: JavaTClass = JavaTClass(Seq(("java", None), ("lang", None), ("Object", None)))
+  val JAVA_LANG_OBJECT: JavaNamedType = JavaNamedType(Seq(("java", None), ("lang", None), ("Object", None)))
 
   def findLoadedJavaTypeName(potentialFQName: Seq[String], ctx: TypeResolutionContext): Option[JavaTypeNameTarget] = {
     (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
@@ -36,10 +37,10 @@ case object Java {
     None
   }
 
-  private val currentlyLoading = mutable.Map[Seq[String], mutable.ArrayBuffer[JavaTClass]]()
+  private val currentlyLoading = mutable.Map[Seq[String], mutable.ArrayBuffer[JavaNamedType]]()
 
-  def lazyType(name: Seq[String], ctx: TypeResolutionContext): JavaTClass = {
-    val result = JavaTClass(name.map((_, None)))
+  def lazyType(name: Seq[String], ctx: TypeResolutionContext): JavaNamedType = {
+    val result = JavaNamedType(name.map((_, None)))
 
     currentlyLoading.get(name) match {
       case Some(lazyQueue) => lazyQueue += result
@@ -178,7 +179,7 @@ case object Java {
       case target: JavaNameTarget if target.name == name => target
     }
 
-  def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext): Option[JavaDerefTarget] =
+  def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext, blame: Blame[BuiltinError]): Option[JavaDerefTarget] =
     (obj.t match {
       case t @ TNotAValue() => t.decl.get match {
         case RefUnloadedJavaNamespace(pkg) =>
@@ -190,7 +191,7 @@ case object Java {
           }
         case _ => None
       }
-      case t @ JavaTClass(_) => t.ref.get match {
+      case t @ JavaNamedType(_) => t.ref.get match {
         case RefAxiomaticDataType(decl) => None
         case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
           case ref @ RefModelField(_) if ref.name == name => ref
@@ -200,7 +201,7 @@ case object Java {
         }
       }
       case _ => None
-    }).orElse(Spec.builtinField(obj, name))
+    }).orElse(Spec.builtinField(obj, name, blame))
 
   def findMethodInClass(cls: JavaClassOrInterface, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
     cls.decls.flatMap(Referrable.from).collectFirst {
@@ -210,19 +211,19 @@ case object Java {
       case ref: RefInstancePredicate if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
 
-  def findMethod(obj: Expr, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
-    (obj.t.mimics match {
+  def findMethod(obj: Expr, method: String, args: Seq[Expr], blame: Blame[BuiltinError]): Option[JavaInvocationTarget] =
+    (obj.t match {
       case TModel(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
         case ref: RefModelAction if ref.name == method => ref
         case ref: RefModelProcess if ref.name == method => ref
       }
-      case t @ JavaTClass(_) =>
+      case t @ JavaNamedType(_) =>
         t.ref.get match {
           case RefJavaClass(decl) => findMethodInClass(decl, method, args)
           case _ => None
         }
       case _ => None
-    }).orElse(Spec.builtinInstanceMethod(obj, method))
+    }).orElse(Spec.builtinInstanceMethod(obj, method, blame))
 
   def findMethod(ctx: ReferenceResolutionContext, method: String, args: Seq[Expr]): Option[JavaInvocationTarget] =
     ctx.stack.flatten.collectFirst {

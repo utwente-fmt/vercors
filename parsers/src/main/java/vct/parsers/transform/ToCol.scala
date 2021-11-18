@@ -2,6 +2,7 @@ package vct.parsers.transform
 
 import org.antlr.v4.runtime.ParserRuleContext
 import vct.col.ast._
+import vct.col.origin._
 import vct.col.util.ExpectedError
 import vct.parsers.ParseError
 

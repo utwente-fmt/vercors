@@ -1,6 +1,6 @@
-package vct.col.ast
+package vct.col.check
 
-import scala.collection.mutable
+import vct.col.ast._
 
 sealed trait CheckError
 case class TypeError(expr: Expr, expectedType: Type) extends CheckError
@@ -23,19 +23,6 @@ case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(),
 
   def checkInScope(use: Node, ref: Ref[_ <: Declaration]): Seq[CheckError] =
     if(inScope(ref)) Nil else Seq(OutOfScopeError(use, ref))
-}
-
-/* list out the varags-like checks explicitly, because we want parameters to be lazily evaluated with "=>" */
-abstract class Check(one: => Seq[CheckError] = Seq(),
-                     two: => Seq[CheckError] = Seq(),
-                     three: => Seq[CheckError] = Seq(),
-                     four: => Seq[CheckError] = Seq()) {
-  def check(context: CheckContext): Seq[CheckError] =
-    one ++ two ++ three ++ four
-}
-
-trait NoCheck {
-  def check(context: CheckContext): Seq[CheckError] = Nil
 }
 
 case class UnreachableAfterTypeCheck(message: String, at: Node) extends ASTStateError {

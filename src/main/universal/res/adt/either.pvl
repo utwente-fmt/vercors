@@ -1,0 +1,32 @@
+adt `either`<L, R> {
+  pure `either`<L, R> left(L l);
+  pure `either`<L, R> right(R r);
+
+  pure boolean is_right(`either`<L, R> e);
+
+  pure L either_get_left(`either`<L, R> e);
+  pure R either_get_right(`either`<L, R> e);
+
+  axiom (\forall L l1; true; (\forall L l2; true;
+    left(l1) == left(l2) ==> l1 == l2));
+
+  axiom (\forall R r1; true; (\forall R r2; true;
+    right(r1) == right(r2) ==> r1 == r2));
+
+  axiom (\forall R r; true; (\forall L l; true;
+    right(r) != left(l)));
+
+  axiom (\forall L l; true; !is_right(left(l)));
+  axiom (\forall R r; true; is_right(right(r)));
+
+  axiom (\forall L l; true; get_left(left(l)) == l);
+  axiom (\forall R r; true; get_right(right(r)) == r);
+}
+
+requires !`either`<L, R>.is_right(e);
+pure L get_left<L, R>(`either`<L, R> e) =
+  `either`<L, R>.either_get_left(e);
+
+requires `either`<L, R>.is_right(e);
+pure R get_right<L, R>(`either`<L, R> e) =
+  `either`<L, R>.either_get_right(e);

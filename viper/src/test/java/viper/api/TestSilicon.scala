@@ -1,14 +1,15 @@
 package viper.api
 
-import vct.col.ast.AstBuildHelpers._
+import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 
 import java.nio.file.Paths
 import vct.col.ast.Constant._
+import vct.col.origin.DiagnosticOrigin
 
 class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/vercors/src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3"))) {
   vercors should "verify an empty program" in program {
-    Program(Seq())
+    Program(Seq())(noErrors)
   }
 
   vercors should "not verify a method with postcondition false" in procedure(

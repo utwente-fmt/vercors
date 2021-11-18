@@ -1,11 +1,13 @@
 package vct.col.newrewrite
 
 import vct.col.ast._
-import AstBuildHelpers._
+import vct.col.origin._
+import vct.col.util.AstBuildHelpers._
 import Constant._
 import hre.util.ScopedStack
-import vct.col.ast.util.SuccessionMap
 import vct.col.newrewrite.error.ExcludedByPassOrder
+import vct.col.rewrite.Rewriter
+import vct.col.util.SuccessionMap
 
 case class ClassToRef() extends Rewriter {
   case object This extends Origin {
@@ -76,6 +78,7 @@ case class ClassToRef() extends Rewriter {
           fieldSucc(field) = new SilverField(field.t)(field.o)
           fieldSucc(field).declareDefault(this)
       }
+    case decl => rewriteDefault(decl)
   }
 
   override def dispatch(e: Expr): Expr = e match {
@@ -83,7 +86,7 @@ case class ClassToRef() extends Rewriter {
       ProcedureInvocation(
         ref = methodSucc.ref(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = outArgs.map(r => typedSucc[Variable](r.decl)),
+        outArgs = outArgs.map(r => succ[Variable](r.decl)),
         typeArgs = typeArgs.map(dispatch),
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args) =>

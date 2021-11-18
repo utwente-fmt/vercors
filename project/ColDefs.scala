@@ -10,6 +10,13 @@ object ColDefs {
   val PACKAGE: Seq[String] = Seq("vct", "col", "ast")
 
   /**
+   * The default import set for generated files
+   */
+  val IMPORTS: List[Stat] = List(
+    q"import vct.col.origin._",
+  )
+
+  /**
    * The root type of declarations
    */
   val DECLARATION: String = "Declaration"

@@ -1,8 +1,10 @@
 package vct.col.newrewrite
 
-import vct.col.ast.AstBuildHelpers._
+import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.origin._
+import vct.col.rewrite.Rewriter
 
 import scala.collection.mutable
 

@@ -2,6 +2,7 @@ package vct.col.print
 
 import hre.util.ScopedStack
 import vct.col.ast._
+import vct.col.origin._
 import vct.col.resolve.Referrable
 
 import scala.collection.mutable
@@ -485,14 +486,14 @@ case class Printer(out: Appendable,
       syntax(
         PVL -> phrase("barrier(", name(block.decl), tags, ")", contract, newline, content),
       )
-    case ParRegion(requires, ensures, blocks) =>
-      phrase(
-        doubleline,
-        spec(clauses(requires, "requires"), clauses(ensures, "ensures")),
-        newline, "par", space, blocks.head, newline,
-        phrase(blocks.tail.map(block => phrase("and", space, block)):_*),
-        doubleline
-      )
+//    case ParRegion(requires, ensures, blocks) =>
+//      phrase(
+//        doubleline,
+//        spec(clauses(requires, "requires"), clauses(ensures, "ensures")),
+//        newline, "par", space, blocks.head, newline,
+//        phrase(blocks.tail.map(block => phrase("and", space, block)):_*),
+//        doubleline
+//      )
     case Throw(e) =>
       statement("throw", space, e)
     case DefaultCase() =>
@@ -767,8 +768,6 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case InstanceFunctionInvocation(obj, ref, args, typeArgs) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case UPlus(arg) =>
-      (phrase("+", assoc(90, arg)), 90)
     case UMinus(arg) =>
       (phrase("-", assoc(90, arg)), 90)
     case BitNot(arg) =>
@@ -905,9 +904,9 @@ case class Printer(out: Appendable,
   def printType(t: Type): Unit = say(t match {
     case CPrimitiveType(specifiers) =>
       spaced(specifiers.map(NodePhrase))
-    case JavaTUnion(types) =>
+    case TUnion(types) =>
       intersperse(phrase(space, "|", space), types.map(NodePhrase))
-    case JavaTClass(names) =>
+    case JavaNamedType(names) =>
       intersperse(".", names.map(_._1).map(Text))
     case PVLNamedType(name, typeArgs) =>
       typeArgs match {
@@ -946,7 +945,7 @@ case class Printer(out: Appendable,
     case TNull() => ???
     case TResource() => phrase("resource")
     case TInt() => phrase("int")
-    case TBoundedInt(gte, lt) => phrase("int")
+    case TBoundedInt(gte, lt) => phrase("{", gte.toString, "..", lt.toString, "}")
     case TRational() => phrase("rational")
     case TFraction() => phrase("frac")
     case TZFraction() => phrase("zfrac")

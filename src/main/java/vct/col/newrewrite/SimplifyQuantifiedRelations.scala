@@ -3,9 +3,11 @@ package vct.col.newrewrite
 import hre.util.FuncTools
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.ast.AstBuildHelpers._
+import vct.col.util.AstBuildHelpers._
 import vct.col.features.MemberOfRange
 import vct.col.newrewrite.util.Comparison
+import vct.col.origin.Origin
+import vct.col.rewrite.Rewriter
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

@@ -1,4 +1,4 @@
-package vct.col.ast
+package vct.col.origin
 
 import vct.col.util.ExpectedError
 

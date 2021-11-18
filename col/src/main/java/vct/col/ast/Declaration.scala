@@ -1,6 +1,9 @@
 package vct.col.ast
 
 import vct.col.ast.ScopeContext.WrongDeclarationCount
+import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
+import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
+import vct.col.origin._
 import vct.result.VerificationResult.{SystemError, Unreachable}
 
 import scala.collection.mutable
@@ -16,7 +19,21 @@ sealed abstract class Declaration extends Node {
 
   def declareDefault(scope: ScopeContext): Unit
 
-  def ref: Ref[this.type] = new DirectRef[this.type](this)
+  /**
+   * Create a Ref to this declaration. This is often useful in a place where the type of the ref can be directly
+   * inferred, e.g. `FunctionInvocation(func.ref, ...)`. The witness to `this.type <:< T` demands that the
+   * inferred T at least supports the type of this declaration.
+   */
+  def ref[T <: Declaration](implicit tag: ClassTag[T], witness: this.type <:< T): Ref[T] = new DirectRef[T](this)
+
+  override def check(context: CheckContext): Seq[CheckError] =
+    try {
+      NopCoercingRewriter.coerce(this)
+      Nil
+    } catch {
+      case CoercingRewriter.Incoercible(e, t) => Seq(TypeError(e, t))
+      case CoercingRewriter.IncoercibleText(e, m) => Seq(TypeErrorText(e, _ => m))
+    }
 }
 
 object Ref {
@@ -36,7 +53,7 @@ object Ref {
    The most acceptable solution is then to pretend to have a safe interface that returns a declaration of the right
    kind, but quietly check the type on first access.
  */
-trait Ref[+T <: Declaration] {
+trait Ref[T <: Declaration] {
   def decl: T
 
   def tryResolve(resolver: String => Declaration): Unit = {}
@@ -54,27 +71,28 @@ case class MistypedRef(received: Declaration, expected: ClassTag[_]) extends AST
       s"A ${expected.runtimeClass.getSimpleName} was expected here, but we got a ${received.getClass.getSimpleName}"
 }
 
-class DirectRef[+T <: Declaration](genericDecl: Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
+class DirectRef[T <: Declaration](genericDecl: Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
   override def decl: T = genericDecl match {
     case decl: /*tagged*/ T => decl
     case other => throw MistypedRef(other, tag)
   }
 }
 
-class LazyRef[+T <: Declaration](lazyDecl: => Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
+class LazyRef[T <: Declaration](lazyDecl: => Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
+  val made = Thread.currentThread().getStackTrace.toSeq
   def decl: T = lazyDecl match {
     case decl: /*tagged*/ T => decl
     case other => throw MistypedRef(other, tag)
   }
 }
 
-case class NotResolved(ref: UnresolvedRef[Declaration], expected: ClassTag[_]) extends ASTStateError {
+case class NotResolved(ref: UnresolvedRef[_ <: Declaration], expected: ClassTag[_]) extends ASTStateError {
   override def text: String =
     "The declaration of an unresolved reference was queried, but it is not yet resolved.\n" +
       s"We expected the name `${ref.name}` to resolve to a ${expected.runtimeClass.getSimpleName}."
 }
 
-class UnresolvedRef[+T <: Declaration](val name: String)(implicit tag: ClassTag[T]) extends Ref[T] {
+class UnresolvedRef[T <: Declaration](val name: String)(implicit tag: ClassTag[T]) extends Ref[T] {
   private var resolvedDecl: Option[Declaration] = None
 
   override def tryResolve(resolver: String => Declaration): Unit = resolve(resolver(name))
@@ -128,10 +146,7 @@ class ScopeContext {
     result.head
   }
 
-  def succ(decl: Declaration): LazyRef[Declaration] =
-    new LazyRef[Declaration](successionMap(decl))
-
-  def typedSucc[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): LazyRef[T] =
+  def succ[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): LazyRef[T] =
     new LazyRef[T](successionMap(decl))
 }
 
@@ -149,24 +164,24 @@ abstract class ExtraClassDeclaration extends ClassDeclaration
 
 /* Common type for unit names: locals, bindings, arguments, etc. (but not fields, as they are only in reference to an
   object) */
-class Variable(val t: Type)(implicit val o: Origin) extends Declaration with NoCheck {
+class Variable(val t: Type)(implicit val o: Origin) extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.variableScopes.top += this
 }
 
-class LabelDecl()(implicit val o: Origin) extends Declaration with NoCheck {
+class LabelDecl()(implicit val o: Origin) extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.labelScopes.top += this
 }
-class ParBlockDecl()(implicit val o: Origin) extends Declaration with NoCheck {
+class ParBlockDecl()(implicit val o: Origin) extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.parBlockScopes.top += this
 }
-class ParInvariantDecl()(implicit val o: Origin) extends Declaration with NoCheck {
+class ParInvariantDecl()(implicit val o: Origin) extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.parInvariantScopes.top += this
 }
 
-class SimplificationRule(val axiom: Expr)(implicit val o: Origin) extends GlobalDeclaration with NoCheck
+class SimplificationRule(val axiom: Expr)(implicit val o: Origin) extends GlobalDeclaration
 
 class AxiomaticDataType(val decls: Seq[ADTDeclaration], val typeArgs: Seq[Variable])(implicit val o: Origin)
-  extends GlobalDeclaration with NoCheck with Declarator {
+  extends GlobalDeclaration with Declarator {
   override def declarations: Seq[Declaration] = decls ++ typeArgs
 }
 
@@ -197,19 +212,13 @@ sealed trait AbstractPredicate extends Applicable {
   override def check(context: CheckContext): Seq[CheckError] = body.toSeq.flatMap(_.checkSubType(TResource()))
 }
 
-case class SignalsClause(binding: Variable, assn: Expr)(implicit val o: Origin) extends Check(assn.checkSubType(TResource())) with NodeFamily with Declarator {
+case class SignalsClause(binding: Variable, assn: Expr)(implicit val o: Origin) extends NodeFamily with Declarator {
   override def declarations: Seq[Declaration] = Seq(binding)
 }
 
 case class ApplicableContract(requires: Expr, ensures: Expr, contextEverywhere: Expr,
                               signals: Seq[SignalsClause], givenArgs: Seq[Variable], yieldsArgs: Seq[Variable])
-                             (implicit val o: Origin)
-  extends NodeFamily {
-  override def check(context: CheckContext): Seq[CheckError] =
-    requires.checkSubType(TResource()) ++
-      ensures.checkSubType(TResource()) ++
-      contextEverywhere.checkSubType(TResource())
-}
+                             (implicit val o: Origin) extends NodeFamily
 
 sealed trait ContractApplicable extends Applicable {
   def contract: ApplicableContract
@@ -277,21 +286,21 @@ class InstancePredicate(val args: Seq[Variable], val body: Option[Expr],
                         val threadLocal: Boolean = false, val inline: Boolean = false)(implicit val o: Origin)
   extends ClassDeclaration with AbstractPredicate
 
-class ADTFunction(val args: Seq[Variable], val returnType: Type)(implicit val o: Origin) extends Applicable with ADTDeclaration with NoCheck {
+class ADTFunction(val args: Seq[Variable], val returnType: Type)(implicit val o: Origin) extends Applicable with ADTDeclaration {
   override def body: Option[Node] = None
   override def inline: Boolean = false
 }
 
-sealed trait FieldFlag extends NodeFamily with NoCheck
+sealed trait FieldFlag extends NodeFamily
 class Final()(implicit val o: Origin) extends FieldFlag
 
 sealed trait Field extends ClassDeclaration {
   def t: Type
 }
 
-class InstanceField(val t: Type, val flags: Set[FieldFlag])(implicit val o: Origin) extends Field with NoCheck
+class InstanceField(val t: Type, val flags: Set[FieldFlag])(implicit val o: Origin) extends Field
 
-class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator {
+class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]])(implicit val o: Origin) extends GlobalDeclaration with Declarator {
   private def transSupportArrows(seen: Set[Class]): Seq[(Class, Class)] =
     if(seen.contains(this)) throw Unreachable("Yes, you got me, cyclical inheritance is not supported!")
     else supports.map(other => (this, other.decl)) ++
@@ -304,7 +313,7 @@ sealed trait ModelDeclaration extends Declaration {
   override def declareDefault(scope: ScopeContext): Unit = scope.modelScopes.top += this
 }
 
-class ModelField(val t: Type)(implicit val o: Origin) extends ModelDeclaration with NoCheck
+class ModelField(val t: Type)(implicit val o: Origin) extends ModelDeclaration
 
 class ModelProcess(val args: Seq[Variable], val impl: Expr,
                    val requires: Expr, val ensures: Expr,
@@ -329,4 +338,4 @@ class ModelAction(val args: Seq[Variable],
     requires.checkSubType(TBool()) ++ ensures.checkSubType(TBool())
 }
 
-class Model(val declarations: Seq[ModelDeclaration])(implicit val o: Origin) extends GlobalDeclaration with NoCheck with Declarator
+class Model(val declarations: Seq[ModelDeclaration])(implicit val o: Origin) extends GlobalDeclaration with Declarator

@@ -1,6 +1,8 @@
 package vct.col.resolve
 
-import vct.col.ast.{ADTFunctionInvocation, AmbiguousResult, AmbiguousThis, Applicable, Break, CDeclarationStatement, CFunctionDefinition, CGoto, CInvocation, CLabeledStatement, CLocal, CStructAccess, CTypedefName, CheckError, Class, Continue, ContractApplicable, Declaration, Declarator, Deref, DiagnosticOrigin, GlobalDeclaration, Goto, GpgpuCudaKernelInvocation, JavaClassOrInterface, JavaConstructor, JavaDeref, JavaInvocation, JavaLocal, JavaLocalDeclarationStatement, JavaMethod, JavaName, JavaNamespace, JavaTClass, JavaTUnion, LabelDecl, Local, LocalDecl, ModelAction, ModelProcess, Node, PVLConstructor, PVLDeref, PVLInvocation, PVLLocal, PVLNamedType, PVLNew, ParAtomic, ParBarrier, Program, Recv, Scope, Send, TClass}
+import vct.col.ast._
+import vct.col.check.CheckError
+import vct.col.origin._
 
 case object Resolve {
   def resolve(program: Program): Seq[CheckError] = {
@@ -33,7 +35,7 @@ case object ResolveTypes {
   }
 
   def resolveOne(node: Node, ctx: TypeResolutionContext): Unit = node match {
-    case javaClass @ JavaTClass(genericNames) =>
+    case javaClass @ JavaNamedType(genericNames) =>
       val names = genericNames.map(_._1)
       javaClass.ref = Some(Java.findJavaTypeName(names, ctx).getOrElse(
         throw NoSuchNameError("class", names.mkString("."), javaClass)))
@@ -81,7 +83,7 @@ case object ResolveReferences {
       .replace(currentJavaNamespace=Some(ns)).declare(ns.declarations)
     case cls: JavaClassOrInterface => ctx
       .replace(currentJavaClass=Some(cls))
-      .replace(currentThisType=Some(JavaTClass(Seq((cls.name, None)))(DiagnosticOrigin)))
+      .replace(currentThisType=Some(JavaTClass(cls.ref, Nil)))
       .declare(cls.decls)
     case cls: Class => ctx
       .replace(currentThisType=Some(TClass(cls.ref)))
@@ -115,11 +117,11 @@ case object ResolveReferences {
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
 
     case deref @ CStructAccess(obj, field) =>
-      deref.ref = Some(C.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
+      deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ JavaDeref(obj, field) =>
-      deref.ref = Some(Java.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
+      deref.ref = Some(Java.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ PVLDeref(obj, field) =>
-      deref.ref = Some(PVL.findDeref(obj, field, ctx).getOrElse(throw NoSuchNameError("field", field, deref)))
+      deref.ref = Some(PVL.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
 
     case inv @ CInvocation(obj, _, _, _) =>
       inv.ref = Some(C.resolveInvocation(obj, ctx))
@@ -131,13 +133,13 @@ case object ResolveReferences {
       })
     case inv @ JavaInvocation(obj, _, method, args, _, _) =>
       inv.ref = Some((obj match {
-        case Some(obj) => Java.findMethod(obj, method, args)
+        case Some(obj) => Java.findMethod(obj, method, args, inv.blame)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
     case inv @ PVLInvocation(None, method, args, typeArgs, _, _) =>
       inv.ref = Some(PVL.findMethod(method, args, typeArgs, ctx).getOrElse(throw NoSuchNameError("method", method, inv)))
     case inv @ PVLInvocation(Some(obj), method, args, typeArgs, _, _) =>
-      inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs).getOrElse(throw NoSuchNameError("method", method, inv)))
+      inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame).getOrElse(throw NoSuchNameError("method", method, inv)))
     case inv @ ADTFunctionInvocation(typeArgs, ref, args) =>
       typeArgs match {
         case Some((adt, typeArgs)) =>

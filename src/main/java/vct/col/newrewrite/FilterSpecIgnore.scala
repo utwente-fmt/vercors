@@ -4,6 +4,7 @@ import vct.col.ast._
 
 import scala.collection.mutable.ArrayBuffer
 import RewriteHelpers._
+import vct.col.rewrite.Rewriter
 import vct.result.VerificationResult.UserError
 
 case class FilterSpecIgnore() extends Rewriter {

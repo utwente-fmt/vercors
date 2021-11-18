@@ -1,8 +1,11 @@
 package vct.main
 
-import vct.col.ast.{CheckError, DiagnosticOrigin, IncomparableTypes, OutOfScopeError, Program, TypeError, TypeErrorText}
+import vct.col.ast.Program
+import vct.col.check.{CheckError, IncomparableTypes, OutOfScopeError, TypeError, TypeErrorText}
+import vct.col.feature.FeatureRainbow
 import vct.col.newrewrite.ImportADT
-import vct.col.newrewrite.lang.LangSpecificToCol
+import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult
@@ -23,22 +26,22 @@ case object Test {
 
   def main(args: Array[String]): Unit = {
     try {
-//      for(f <- new File("src/main/universal/res/adt").listFiles()) {
+//      for(f <- new File("examples/arrays/array-example.pvl").listFiles()) {
 //        tryParse(Seq(f.toPath))
 //      }
 
-//      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-//        if(c.files.asScala.forall(f =>
-//            f.toString.endsWith(".java") ||
-//              f.toString.endsWith(".c") ||
-//              f.toString.endsWith(".pvl"))) {
-//          tryParse(c.files.asScala.toSeq)
-//        } else {
-//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
-//        }
-//      })
+      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
+        if(c.files.asScala.forall(f =>
+            f.toString.endsWith(".java") ||
+              f.toString.endsWith(".c") ||
+              f.toString.endsWith(".pvl"))) {
+          tryParse(c.files.asScala.toSeq)
+        } else {
+          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+        }
+      })
 
-//      tryParse(Seq(Path.of("examples/case-studies/exception-patterns/CatchLog.java")))
+//      tryParse(Seq(Path.of("examples/arrays/backward-dep-e1.c")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
@@ -66,13 +69,21 @@ case object Test {
     files += 1
     println(paths.mkString(", "))
     val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse))
-    var program = Program(decls)(DiagnosticOrigin)
+    var program = Program(decls)(DiagnosticOrigin)(DiagnosticOrigin)
     val extraDecls = ResolveTypes.resolve(program)
-    program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)
+    program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)(DiagnosticOrigin)
+    val typesToCol = LangTypesToCol()
+    program = typesToCol.dispatch(program)
     val errors = ResolveReferences.resolve(program)
     printErrorsOr(errors) {
       program = LangSpecificToCol().dispatch(program)
-      printErrorsOr(program.check){}
+      printErrorsOr(program.check) {
+        val features = new FeatureRainbow()
+        features.scan(program)
+        println(features.features)
+//        program = ImportADT().dispatch(program)
+//        printErrorsOr(program.check) {}
+      }
     }
   } catch {
     case err: SystemError =>

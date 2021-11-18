@@ -3,6 +3,8 @@ package vct.col.newrewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.origin.Origin
+import vct.col.rewrite.Rewriter
 
 case class ImplicitLabelOrigin(inner: Origin) extends Origin {
   override def preferredName: String = "implicitLabel"

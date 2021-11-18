@@ -1,7 +1,8 @@
 package viper.api
 
 import org.scalatest.Assertions.fail
-import vct.col.ast.{Assert, Blame, ContractApplicable, ContractFailure, Deref, DividingExpr, Exhale, Invocation, Old, SeqSubscript, SilverDeref, SilverFieldAssign, SilverFold, SilverUnfold, SilverWhile, VerificationFailure}
+import vct.col.ast._
+import vct.col.origin._
 
 import scala.collection.mutable
 

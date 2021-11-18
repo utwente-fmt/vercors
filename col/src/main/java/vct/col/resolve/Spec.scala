@@ -1,6 +1,7 @@
 package vct.col.resolve
 
 import vct.col.ast._
+import vct.col.origin._
 import vct.result.VerificationResult.UserError
 
 case object Spec {
@@ -10,22 +11,22 @@ case object Spec {
     override def code: String = "builtinArgCount"
   }
 
-  def builtinField(obj: Expr, field: String): Option[BuiltinField] = {
+  def builtinField(obj: Expr, field: String, blame: Blame[BuiltinError]): Option[BuiltinField] = {
     implicit val o: Origin = obj.o
-    Some(BuiltinField((obj.t.mimics, field) match {
-      case (TArray(_), "length") => Length(_)
+    Some(BuiltinField((obj.t, field) match {
+      case (TArray(_), "length") => Length(_)(blame)
 
       case (_: CollectionType, "isEmpty") => Empty(_)
       case (_: CollectionType, "size") => Size(_)
 
-      case (TSeq(_), "head") => Head(_)
+      case (TSeq(_), "head") => Head(_)(blame)
       case (TSeq(_), "tail") => Tail(_)
 
       case (TMap(_, _), "values") => MapValueSet(_)
       case (TMap(_, _), "items") => MapItemSet(_)
       case (TMap(_, _), "keys") => MapKeySet(_)
 
-      case (TOption(_), "get") => OptGet(_)
+      case (TOption(_), "get") => OptGet(_)(blame)
 
       case (TTuple(_), "fst") => TupGet(_, 0)
       case (TTuple(_), "snd") => TupGet(_, 1)
@@ -39,9 +40,9 @@ case object Spec {
       if(args.size == n) f(obj)(args)
       else throw BuiltinArgumentCountError(obj, n)
 
-  def builtinInstanceMethod(obj: Expr, method: String): Option[BuiltinInstanceMethod] = {
+  def builtinInstanceMethod(obj: Expr, method: String, blame: Blame[BuiltinError]): Option[BuiltinInstanceMethod] = {
     implicit val o: Origin = obj.o
-    Some(BuiltinInstanceMethod((obj.t.mimics, method) match {
+    Some(BuiltinInstanceMethod((obj.t, method) match {
       case (t @ TNotAValue(), _) => (t.decl.get, method) match {
         case (RefModel(model), "create") => _ => _ => ModelNew(model.ref)
       }
@@ -58,7 +59,7 @@ case object Spec {
 
       case (TMap(_, _), "add") => argCount(2)(obj => args => MapCons(obj, args(0), args(1)))
       case (TMap(_, _), "remove") => argCount(1)(obj => args => MapRemove(obj, args.head))
-      case (TMap(_, _), "get") => argCount(1)(obj => args => MapGet(obj, args.head))
+      case (TMap(_, _), "get") => argCount(1)(obj => args => MapGet(obj, args.head)(blame))
       case (TMap(_, _), "equals") => argCount(1)(obj => args => MapEq(obj, args.head))
       case (TMap(_, _), "disjoint") => argCount(1)(obj => args => MapDisjoint(obj, args.head))
 

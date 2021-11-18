@@ -2,13 +2,16 @@ package vct.col.newrewrite
 
 import hre.util.ScopedStack
 import vct.col.ast.{Star, _}
-import vct.col.ast.util.SuccessionMap
+import vct.col.origin._
 import vct.col.ast.RewriteHelpers._
+import vct.col.rewrite.Rewriter
+import vct.col.ast.Constant._
 
 import scala.collection.mutable
-import vct.col.ast.AstBuildHelpers._
 import vct.col.newrewrite.util.Substitute
 import vct.result.VerificationResult.{SystemError, Unreachable, UserError}
+import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 
 case class CheckProcessAlgebra() extends Rewriter {
   case class ModelPostconditionFailed(process: ModelProcess) extends Blame[PostconditionFailed] {
@@ -24,6 +27,24 @@ case class CheckProcessAlgebra() extends Rewriter {
   val actionSuccessors: SuccessionMap[ModelAction, InstanceMethod] = SuccessionMap()
   val modelSuccessors: SuccessionMap[Model, Class] = SuccessionMap()
   val currentModel: ScopedStack[Model] = ScopedStack()
+
+  var randomBool: Option[Procedure] = None
+
+  def getRandomBoolProc: Procedure = randomBool match {
+    case Some(proc) => proc
+    case None =>
+      implicit val o = DiagnosticOrigin
+      val proc = procedure(
+        ???, // Pretty sure this postcondition cannot fail, but should probably have some sane default value here
+        TBool()
+      )
+      randomBool = Some(proc)
+      proc
+  }
+
+  override def dispatch(program: Program): Unit = program match {
+    case Program(declarations) => ???
+  }
 
   override def dispatch(model: Declaration): Unit = model match {
     case model: Model =>
@@ -54,7 +75,7 @@ case class CheckProcessAlgebra() extends Rewriter {
         TVoid(),
         args,
         Nil, Nil,
-        createBody(expandUnguarded(process.impl)),
+        Some(Block(createBody(expandUnguarded(process.impl)))),
         ApplicableContract(
           Star(fieldPerms, rewriteDefault(process.requires)),
           Star(fieldPerms, rewriteDefault(process.ensures)),
@@ -163,25 +184,25 @@ case class CheckProcessAlgebra() extends Rewriter {
         Eval(MethodInvocation(
           This(modelSuccessors(currentModel.top).ref),
           actionSuccessors(action.decl).ref,
-          args.map(_.rewrite())
+          args.map(_.rewrite()),
           Seq(), Seq())(null))
       case ProcessApply(process, args) =>
         // TODO: Accessible fields, precondition failed blame
         Eval(MethodInvocation(
           This(modelSuccessors(currentModel.top).ref),
           processSuccessors(process.decl).ref,
-          args.map(_.rewrite())
+          args.map(_.rewrite()),
             Seq(), Seq())(null)
-        ))
+        )
       case ProcessSeq(left: ProcessExpr, right: ProcessExpr) => createBody(left) ++ createBody(right)
       case ProcessChoice(left, right) => Seq(Branch(Seq(
         // TODO: Add non-deterministic choice function
-        (null, left.rewrite()),
-        (true, right.rewrite())
+        (tt, left.rewrite()),
+        (tt, right.rewrite())
       )))
-      case ProcessSelect(cond, whenTrue, whenFalse) =>Seq(Branch(Seq(
+      case ProcessSelect(cond, whenTrue, whenFalse) => Seq(Branch(Seq(
         (cond.rewrite(), whenTrue.rewrite()),
-        (true, whenFalse.rewrite())
+        (tt, whenFalse.rewrite())
       )))
       case ProcessPar(left, right) => throw Unreachable("Parallel composition of processes should be removed before entering createBody")
     }

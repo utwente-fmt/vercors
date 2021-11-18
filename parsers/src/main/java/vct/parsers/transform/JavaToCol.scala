@@ -6,6 +6,7 @@ import vct.col.ast._
 import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.{ast => col}
+import vct.col.origin._
 import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.ast.Constant._
 import vct.col.resolve.Java
@@ -355,9 +356,9 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       CatchClause(new Variable(convert(ts))(SourceNameOrigin(convert(id), origin(grab))), convert(body))
   }
 
-  def convert(implicit ts: CatchTypeContext): JavaTUnion = ts match {
-    case CatchType0(name) => JavaTUnion(Seq(convert(name)))
-    case CatchType1(name, _, names) => JavaTUnion(convert(name) +: convert(names).types)
+  def convert(implicit ts: CatchTypeContext): TUnion = ts match {
+    case CatchType0(name) => TUnion(Seq(convert(name)))
+    case CatchType1(name, _, names) => TUnion(convert(name) +: convert(names).types)
   }
 
   def convert(implicit ts: NonWildcardTypeArgumentsContext): Seq[Type] = ts match {
@@ -375,11 +376,11 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case Type2(element, dims) => FuncTools.repeat(TArray(_), dims.map(convert(_)).getOrElse(0), convert(element))
   }
 
-  def convert(implicit t: ClassOrInterfaceTypeContext): JavaTClass = t match {
+  def convert(implicit t: ClassOrInterfaceTypeContext): JavaNamedType = t match {
     case ClassOrInterfaceType0(name, args) =>
-      JavaTClass(Seq((convert(name), args.map(convert(_)))))
+      JavaNamedType(Seq((convert(name), args.map(convert(_)))))
     case ClassOrInterfaceType1(names, _, name, args) =>
-      JavaTClass(convert(names).names :+ (convert(name), args.map(convert(_))))
+      JavaNamedType(convert(names).names :+ (convert(name), args.map(convert(_))))
   }
 
   def convert(implicit t: CreatedNameContext): Type = t match {
@@ -387,11 +388,11 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case CreatedName1(t) => convert(t)
   }
 
-  def convert(implicit t: ClassTypeDiamondListContext): JavaTClass = t match {
+  def convert(implicit t: ClassTypeDiamondListContext): JavaNamedType = t match {
     case ClassTypeDiamondList0(name, typeArgs) =>
-      JavaTClass(Seq((convert(name), typeArgs.map(convert(_)))))
+      JavaNamedType(Seq((convert(name), typeArgs.map(convert(_)))))
     case ClassTypeDiamondList1(name, typeArgs, _, more) =>
-      JavaTClass((convert(name), typeArgs.map(convert(_))) +: convert(more).names)
+      JavaNamedType((convert(name), typeArgs.map(convert(_))) +: convert(more).names)
   }
 
   def convert(implicit ts: TypeArgumentsOrDiamondContext): Seq[Type] = ts match {
@@ -489,7 +490,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case JavaSuper(_, _, _, _) => ??(expr)
     case JavaGenericInvocation(obj, _, ExplicitGenericInvocation0(typeArgs, invocation)) =>
       convert(invocation, Some(convert(obj)), convert(typeArgs))
-    case JavaSubscript(ar, _, idx, _) => AmbiguousSubscript(convert(ar), convert(idx))
+    case JavaSubscript(ar, _, idx, _) => AmbiguousSubscript(convert(ar), convert(idx))(blame(expr))
     case JavaNonNullInvocation(obj, _, name, args) =>
       Implies(
         Neq(convert(obj), Null()),
@@ -534,7 +535,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
         case MulOp1(specOp) => convert(specOp, left, right)
       }
     case JavaAdd(left, op, right) => op match {
-      case "+" => AmbiguousPlus(convert(left), convert(right))
+      case "+" => AmbiguousPlus(convert(left), convert(right))(blame(expr))
       case "-" => Minus(convert(left), convert(right))
     }
     case JavaShift(left, shift, right) => shift match {
@@ -1083,7 +1084,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
 
   def convert(implicit e: ValPrimarySeqContext): Expr = e match {
     case ValCardinality(_, xs, _) => Size(convert(xs))
-    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))
+    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryOptionContext): Expr = e match {

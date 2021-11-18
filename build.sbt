@@ -100,12 +100,11 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.jacoco" % "org.jacoco.cli" % "0.8.7" classifier "nodeps",
     libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
-      ThisBuild / scalacOptions ++= Seq(
+    ThisBuild / scalacOptions ++= Seq(
       "-deprecation",
       "-feature",
       "-unchecked",
-      "-Ypatmat-exhaust-depth",
-      "40",
+      "-Ypatmat-exhaust-depth", "40",
     ),
 
     Compile / javacOptions ++= Seq(

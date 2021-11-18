@@ -1,15 +1,15 @@
 package vct.parsers.transform
 
 import org.antlr.v4.runtime.ParserRuleContext
-import vct.col.ast.Origin
 import vct.col.ast._
+import vct.col.origin._
 import vct.antlr4.generated.PVLParser._
 import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.{ast => col}
 import vct.antlr4.generated.{PVLParserPatterns => parse}
 import vct.col.ast.Constant._
 import vct.col.ast.stmt.composite.ParallelRegion
-import AstBuildHelpers._
+import vct.col.util.AstBuildHelpers._
 import hre.util.FuncTools
 
 import scala.collection.mutable
@@ -169,7 +169,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit expr: AddExprContext): Expr = expr match {
-    case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))
+    case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
     case AddExpr1(left, _, right) => Minus(convert(left), convert(right))
     case AddExpr2(inner) => convert(inner)
   }
@@ -211,7 +211,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case PostfixExpr0(obj, _, field, Some(Call0(typeArgs, given, args, yields))) =>
       PVLInvocation(Some(convert(obj)), convert(field), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
-    case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))
+    case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))(blame(expr))
     case PostfixExpr2(obj, specOp) => convert(specOp, convert(obj))
     case PostfixExpr3(inner) => convert(inner)
   }
@@ -260,14 +260,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
           content,
         )(blame(stat))
       })
-    case PvlPar(contract, _, pars) =>
-      withContract(contract, contract => {
-        ParRegion(
-          requires = Star.fold(contract.consume(contract.requires)),
-          ensures = Star.fold(contract.consume(contract.ensures)),
-          convert(pars),
-        )(blame(stat))
-      })
+    case PvlPar(impl) =>
+      ParStatement(convert(impl))(blame(stat))
     case PvlVec(_, _, iter, _, body) =>
       ??(stat)
     case PvlInvariant(_, name, _, res, _, body) =>
@@ -314,6 +308,54 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case PvlAssign(target, _, value) => Assign(convert(target), convert(value))
   }
 
+  def convert(implicit region: ParRegionContext): ParRegion = region match {
+    case PvlParallel(_, _, regions, _) => ParParallel(regions.map(convert(_)))
+    case PvlSequential(_, _, regions, _) => ParSequential(regions.map(convert(_)))
+    case PvlParBlock(_, name, iter, contract, impl) =>
+      withContract(contract, contract => {
+        val decl = name match {
+          case None => new ParBlockDecl()
+          case Some(name) => new ParBlockDecl()(SourceNameOrigin(convert(name), origin(region)))
+        }
+
+        ParBlock(
+          decl,
+          iter.map(convert(_)).getOrElse(Nil),
+          Star.fold(contract.consume(contract.requires)),
+          Star.fold(contract.consume(contract.ensures)),
+          convert(impl),
+        )
+      })
+    case PvlOldPar(_, pars) => ParParallel(convert(pars))
+  }
+
+  def convert(implicit pars: ParOldUnitListContext): Seq[ParBlock] = pars match {
+    case ParOldUnitList0(par) => Seq(convert(par))
+    case ParOldUnitList1(par, _, pars) => convert(par) +: convert(pars)
+  }
+
+  def convert(implicit par: ParOldUnitContext): ParBlock = par match {
+    case PvlOldParUnit(name, iter, contract, impl) =>
+      val decl = name match {
+        case None => new ParBlockDecl()
+        case Some(name) => new ParBlockDecl()(SourceNameOrigin(convert(name), origin(par)))
+      }
+
+      withContract(contract, contract => {
+        ParBlock(
+          decl,
+          iter.map(convert(_)).getOrElse(Nil),
+          Star.fold(contract.consume(contract.requires)),
+          Star.fold(contract.consume(contract.ensures)),
+          convert(impl),
+        )
+      })
+  }
+
+  def convert(implicit iters: ParBlockIterContext): Seq[IterVariable] = iters match {
+    case ParBlockIter0(_, iters, _) => convert(iters)
+  }
+
   def convert(implicit decls: DeclListContext, t: Type): Seq[Statement] = decls match {
     case DeclList0(name, None) =>
       Seq(LocalDecl(new Variable(t)(SourceNameOrigin(convert(name), origin(name)))))
@@ -341,39 +383,6 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   def convert(implicit tags: BarrierTagsContext): Seq[Ref[ParInvariantDecl]] = tags match {
     case BarrierTags0(_, ids) =>
       convert(ids).map(new UnresolvedRef[ParInvariantDecl](_))
-  }
-
-  def convert(implicit pars: ParUnitListContext): Seq[ParBlock] = pars match {
-    case ParUnitList0(par) => Seq(convert(par))
-    case ParUnitList1(par, _, pars) => convert(par) +: convert(pars)
-  }
-
-  def convert(implicit par: ParUnitContext): ParBlock = par match {
-    case ParUnit0(name, _, iters, wait, _, contract, block) =>
-      val decl = name match {
-        case None => new ParBlockDecl()
-        case Some(name) => new ParBlockDecl()(SourceNameOrigin(convert(name), origin(name)))
-      }
-
-      withContract(contract, contract =>
-        ParBlock(
-          decl,
-          wait.map(convert(_)).getOrElse(Nil),
-          iters.map(convert(_)).getOrElse(Nil),
-          Star.fold(contract.consume(contract.requires)),
-          Star.fold(contract.consume(contract.ensures)),
-          convert(block),
-        ))
-    case ParUnit1(contract, block) =>
-      withContract(contract, contract =>
-        ParBlock(
-          new ParBlockDecl(),
-          after = Nil,
-          iters = Nil,
-          Star.fold(contract.consume(contract.requires)),
-          Star.fold(contract.consume(contract.ensures)),
-          convert(block)
-        ))
   }
 
   def convert(implicit iters: ItersContext): Seq[IterVariable] = iters match {
@@ -856,7 +865,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
 
   def convert(implicit e: ValPrimarySeqContext): Expr = e match {
     case ValCardinality(_, xs, _) => Size(convert(xs))
-    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))
+    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryOptionContext): Expr = e match {

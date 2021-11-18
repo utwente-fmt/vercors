@@ -1,11 +1,14 @@
 package vct.col.ast
 
+import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
+import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
 import vct.col.print.Printer
+import vct.col.origin._
 import vct.result.VerificationResult.SystemError
 
 import scala.runtime.ScalaRunTime
 
-case class Program(declarations: Seq[GlobalDeclaration])(implicit val o: Origin) extends NodeFamily with Declarator {
+case class Program(declarations: Seq[GlobalDeclaration])(val blame: Blame[UnsafeCoercion])(implicit val o: Origin) extends NodeFamily with Declarator {
   def check: Seq[CheckError] =
     checkTrans(CheckContext())
 
@@ -59,7 +62,16 @@ trait Node {
   Marker trait to indicate this node, or this hierarchy of nodes, always rewrites to itself. This is for example for
   Expr (which always rewrites to an Expr), but also single-purpose nodes, such as a catch clause.
  */
-trait NodeFamily extends Node
+trait NodeFamily extends Node {
+  override def check(context: CheckContext): Seq[CheckError] =
+    try {
+      NopCoercingRewriter.coerceAny(this)
+      Nil
+    } catch {
+      case CoercingRewriter.Incoercible(e, t) => Seq(TypeError(e, t))
+      case CoercingRewriter.IncoercibleText(e, m) => Seq(TypeErrorText(e, _ => m))
+    }
+}
 
 trait Declarator extends Node {
   def declarations: Seq[Declaration]

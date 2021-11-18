@@ -3,12 +3,13 @@ package vct.newrewrite
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers._
 import vct.col.ast._
+import vct.col.origin._
 import vct.col.newrewrite.ContinueToBreak
 
 import vct.helper.ColHelper
 
 class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
-  implicit val o = DiagnosticOrigin
+  implicit val o: Origin = DiagnosticOrigin
 
   it should "replace a labeled continue with the proper labeled break" in {
     val loopLabel = new LabelDecl()

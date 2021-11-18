@@ -1,6 +1,7 @@
 package vct.col.resolve
 
 import vct.col.ast._
+import vct.col.origin.SourceNameOrigin
 
 case object Referrable {
   def from(decl: Declaration): Seq[Referrable] = Seq(decl match {
@@ -42,7 +43,7 @@ case object Referrable {
 
   def originName(decl: Declaration): String = decl.o match {
     case SourceNameOrigin(name, _) => name
-    case _ =>  throw NameLost(decl.o)
+    case _ => throw NameLost(decl.o)
   }
 
   def originNameOrEmpty(decl: Declaration): String = decl.o match {

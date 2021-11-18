@@ -1,12 +1,10 @@
 package vct.col.ast
 
+import vct.col.check.{CheckContext, CheckError}
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CDerefTarget, CInvocationTarget, CNameTarget, CTypeNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget, SpecTypeNameTarget}
-import vct.result.VerificationResult
-import vct.result.VerificationResult.UserError
+import vct.col.origin._
 
-import scala.annotation.tailrec
-
-sealed trait CDeclarationSpecifier extends NodeFamily with NoCheck
+sealed trait CDeclarationSpecifier extends NodeFamily
 
 sealed trait CSpecificationModifier extends CDeclarationSpecifier
 case class CPure()(implicit val o: Origin) extends CSpecificationModifier
@@ -37,10 +35,10 @@ case class CTypeQualifierDeclarationSpecifier(typeQual: CTypeQualifier)(implicit
   extends CDeclarationSpecifier
 
 sealed trait CTypeQualifier extends NodeFamily
-case class CConst()(implicit val o: Origin) extends CTypeQualifier with NoCheck
-case class CRestrict()(implicit val o: Origin) extends CTypeQualifier with NoCheck
-case class CVolatile()(implicit val o: Origin) extends CTypeQualifier with NoCheck
-case class CAtomic()(implicit val o: Origin) extends CTypeQualifier with NoCheck
+case class CConst()(implicit val o: Origin) extends CTypeQualifier
+case class CRestrict()(implicit val o: Origin) extends CTypeQualifier
+case class CVolatile()(implicit val o: Origin) extends CTypeQualifier
+case class CAtomic()(implicit val o: Origin) extends CTypeQualifier
 
 sealed trait CFunctionSpecifier extends CDeclarationSpecifier
 sealed trait CAlignmentSpecifier extends CDeclarationSpecifier
@@ -49,26 +47,26 @@ sealed trait CGpgpuKernelSpecifier extends CDeclarationSpecifier
 case class CKernel()(implicit val o: Origin) extends CGpgpuKernelSpecifier
 
 case class CPointer(qualifiers: Seq[CTypeQualifier])
-                   (implicit val o: Origin) extends NodeFamily with NoCheck
+                   (implicit val o: Origin) extends NodeFamily
 
 class CParam(val specifiers: Seq[CDeclarationSpecifier], val declarator: CDeclarator)(implicit val o: Origin)
-  extends ExtraDeclarationKind with NoCheck {
+  extends ExtraDeclarationKind {
   override def declareDefault(scope: ScopeContext): Unit = scope.cParams.top += this
 }
 
 sealed trait CDeclarator extends NodeFamily
 case class CPointerDeclarator(pointers: Seq[CPointer], inner: CDeclarator)(implicit val o: Origin)
-  extends CDeclarator with NoCheck
+  extends CDeclarator
 case class CArrayDeclarator(qualifiers: Seq[CTypeQualifier], size: Option[Expr], inner: CDeclarator)(implicit val o: Origin)
-  extends CDeclarator with NoCheck
+  extends CDeclarator
 case class CTypedFunctionDeclarator(params: Seq[CParam], varargs: Boolean, inner: CDeclarator)(implicit val o: Origin)
-  extends CDeclarator with NoCheck
+  extends CDeclarator
 case class CAnonymousFunctionDeclarator(params: Seq[String], inner: CDeclarator)(implicit val o: Origin)
-  extends CDeclarator with NoCheck
-case class CName(name: String)(implicit val o: Origin) extends CDeclarator with NoCheck
+  extends CDeclarator
+case class CName(name: String)(implicit val o: Origin) extends CDeclarator
 
 case class CInit(decl: CDeclarator, init: Option[Expr])(implicit val o: Origin)
-  extends NodeFamily with NoCheck
+  extends NodeFamily
 
 class CDeclaration(val contract: ApplicableContract, val kernelInvariant: Expr,
                    val specs: Seq[CDeclarationSpecifier], val inits: Seq[CInit])(implicit val o: Origin)
@@ -80,26 +78,24 @@ class CDeclaration(val contract: ApplicableContract, val kernelInvariant: Expr,
 sealed trait CAbstractGlobalDeclaration extends ExtraGlobalDeclaration
 
 class CFunctionDefinition(val specs: Seq[CDeclarationSpecifier], val declarator: CDeclarator, val body: Statement)(implicit val o: Origin)
-  extends CAbstractGlobalDeclaration with NoCheck
+  extends CAbstractGlobalDeclaration
 
 class CGlobalDeclaration(val decl: CDeclaration)(implicit val o: Origin)
-  extends CAbstractGlobalDeclaration with NoCheck
+  extends CAbstractGlobalDeclaration
 
 sealed trait CStatement extends ExtraStatement
-case class CDeclarationStatement(decl: CDeclaration)(implicit val o: Origin) extends CStatement with NoCheck
-case class CLabeledStatement(label: LabelDecl, statement: Statement)(implicit val o: Origin) extends CStatement with NoCheck
-case class CGoto(label: String)(implicit val o: Origin) extends CStatement with NoCheck {
+case class CDeclarationStatement(decl: CDeclaration)(implicit val o: Origin) extends CStatement
+case class CLabeledStatement(label: LabelDecl, statement: Statement)(implicit val o: Origin) extends CStatement
+case class CGoto(label: String)(implicit val o: Origin) extends CStatement {
   var ref: Option[LabelDecl] = None
 }
 
-case class GpgpuLocalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin)
-  extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with CStatement
-case class GpgpuGlobalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin)
-  extends Check(requires.checkSubType(TResource()), ensures.checkSubType(TResource())) with CStatement
-case class GpgpuAtomic(impl: Statement, before: Statement, after: Statement)(implicit val o: Origin) extends CStatement with NoCheck
+case class GpgpuLocalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin) extends CStatement
+case class GpgpuGlobalBarrier(requires: Expr, ensures: Expr)(implicit val o: Origin) extends CStatement
+case class GpgpuAtomic(impl: Statement, before: Statement, after: Statement)(implicit val o: Origin) extends CStatement
 
 sealed trait CExpr extends ExtraExpr
-case class CLocal(name: String)(implicit val o: Origin) extends CExpr with NoCheck {
+case class CLocal(name: String)(implicit val o: Origin) extends CExpr {
   var ref: Option[CNameTarget] = None
   override def t: Type = ref.get match {
     case ref: RefCParam => C.typeOrReturnTypeFromDeclaration(ref.decl.specifiers, ref.decl.declarator)
@@ -122,7 +118,7 @@ case class CLocal(name: String)(implicit val o: Origin) extends CExpr with NoChe
   }
 }
 case class CInvocation(applicable: Expr, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])
-                      (implicit val o: Origin) extends CExpr with NoCheck {
+                      (implicit val o: Origin) extends CExpr {
   var ref: Option[CInvocationTarget] = None
   override def t: Type = ref.get match {
     case RefFunction(decl) =>  decl.returnType
@@ -142,7 +138,7 @@ case class CInvocation(applicable: Expr, args: Seq[Expr], givenArgs: Seq[(String
     }
   }
 }
-case class CStructAccess(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
+case class CStructAccess(struct: Expr, field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CExpr {
   var ref: Option[CDerefTarget] = None
   override def t: Type = ref.get match {
     case ref: RefModelField => ref.decl.t
@@ -159,10 +155,10 @@ case class CStructAccess(struct: Expr, field: String)(implicit val o: Origin) ex
     case ref: BuiltinInstanceMethod => TNotAValue(ref)
   }
 }
-case class CStructDeref(struct: Expr, field: String)(implicit val o: Origin) extends CExpr with NoCheck {
+case class CStructDeref(struct: Expr, field: String)(implicit val o: Origin) extends CExpr {
   override def t: Type = ???
 }
-case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])(implicit val o: Origin) extends CExpr with NoCheck {
+case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr, args: Seq[Expr], givenArgs: Seq[(String, Expr)], yields: Seq[(Expr, String)])(implicit val o: Origin) extends CExpr {
   var ref: Option[CInvocationTarget] = None
   override def t: Type = ref.get match {
     case RefFunction(decl) => decl.returnType
@@ -182,23 +178,4 @@ case class GpgpuCudaKernelInvocation(kernel: String, blocks: Expr, threads: Expr
 }
 
 sealed trait CType extends ExtraType
-
-case class CTypeNotSupported(t: CPrimitiveType) extends UserError {
-  override def code: String = "cTypeNotSupported"
-  override def text: String = t.o.messageInContext("This type is not supported by VerCors.")
-}
-
-case class CPrimitiveType(specifiers: Seq[CDeclarationSpecifier])(implicit val o: Origin = DiagnosticOrigin) extends CType {
-  override def mimics: Type = specifiers.collect { case spec: CTypeSpecifier => spec } match {
-    case Seq(CVoid()) => TVoid()
-    case Seq(CChar()) => TChar()
-    case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
-    case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
-    case Seq(CBool()) => TBool()
-    case Seq(defn @ CTypedefName(_)) => TNotAValue(defn.ref.get)
-    case _ => throw CTypeNotSupported(this)
-  }
-
-  override protected def superTypeOfImpl(other: Type): Boolean =
-    throw VerificationResult.Unreachable("C primitive types always mimic a basic type!")
-}
+case class CPrimitiveType(specifiers: Seq[CDeclarationSpecifier])(implicit val o: Origin = DiagnosticOrigin) extends CType

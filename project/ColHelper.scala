@@ -28,7 +28,7 @@ case class ColHelper() {
       case (fileName, maker) =>
         val out = packageOutput.resolve(fileName + ".scala")
         Files.deleteIfExists(out)
-        Files.writeString(out, Pkg(packageName, maker()).toString())
+        Files.writeString(out, Pkg(packageName, ColDefs.IMPORTS ++ maker()).toString())
         out.toFile
     }
   }

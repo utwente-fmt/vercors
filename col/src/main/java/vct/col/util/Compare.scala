@@ -1,4 +1,4 @@
-package vct.col.ast.util
+package vct.col.util
 
 import vct.col.ast.{Comparator, Declaration, Node}
 

@@ -1,5 +1,5 @@
 package viper.api
-import vct.col.{ast => col}
+import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationResult.SystemError
 import viper.silver.verifier.errors._
 import viper.silver.verifier._
@@ -28,7 +28,7 @@ trait SilverBackend extends Backend {
               case fieldAssign@col.SilverFieldAssign(_, _, _) =>
                 reason match {
                   case reasons.InsufficientPermission(access) if get[col.Node](access) == fieldAssign =>
-                    fieldAssign.blame.blame(col.SilverAssignFailed(fieldAssign))
+                    fieldAssign.blame.blame(blame.SilverAssignFailed(fieldAssign))
                   case otherReason =>
                     defer(otherReason)
                 }
@@ -41,21 +41,21 @@ trait SilverBackend extends Backend {
             defer(reason)
           case PreconditionInCallFalse(node, reason, _) =>
             val invocation = get[col.MethodInvocation](node)
-            invocation.blame.blame(col.PreconditionFailed(getFailure(reason), invocation))
+            invocation.blame.blame(blame.PreconditionFailed(getFailure(reason), invocation))
           case PreconditionInAppFalse(node, reason, _) =>
             val invocation = get[col.FunctionInvocation](node)
-            invocation.blame.blame(col.PreconditionFailed(getFailure(reason), invocation))
+            invocation.blame.blame(blame.PreconditionFailed(getFailure(reason), invocation))
           case ExhaleFailed(node, reason, _) =>
             val exhale = get[col.Exhale](node)
             reason match {
               case reasons.InsufficientPermission(permNode) => get[col.Node](permNode) match {
                 case _: col.SilverResource =>
-                  exhale.blame.blame(col.ExhaleFailed(getFailure(reason), exhale))
+                  exhale.blame.blame(blame.ExhaleFailed(getFailure(reason), exhale))
                 case _ =>
                   defer(reason)
               }
               case reasons.AssertionFalse(_) | reasons.NegativePermission(_) | reasons. ReceiverNotInjective(_) =>
-                exhale.blame.blame(col.ExhaleFailed(getFailure(reason), exhale))
+                exhale.blame.blame(blame.ExhaleFailed(getFailure(reason), exhale))
               case otherReason =>
                 defer(otherReason)
             }
@@ -70,18 +70,18 @@ trait SilverBackend extends Backend {
             reason match {
               case reasons.InsufficientPermission(permNode) => get[col.Node](permNode) match {
                 case _: col.SilverResource =>
-                  assert.blame.blame(col.AssertFailed(getFailure(reason), assert))
+                  assert.blame.blame(blame.AssertFailed(getFailure(reason), assert))
                 case _ =>
                   defer(reason)
               }
               case reasons.AssertionFalse(_) | reasons.NegativePermission(_) | reasons.ReceiverNotInjective(_) =>
-                assert.blame.blame(col.AssertFailed(getFailure(reason), assert))
+                assert.blame.blame(blame.AssertFailed(getFailure(reason), assert))
               case otherReason =>
                 defer(otherReason)
             }
           case PostconditionViolated(_, member, reason, _) =>
             val applicable = get[col.ContractApplicable](member)
-            applicable.blame.blame(col.PostconditionFailed(getFailure(reason), applicable))
+            applicable.blame.blame(blame.PostconditionFailed(getFailure(reason), applicable))
           case FoldFailed(node, reason, _) =>
             val fold = get[col.SilverFold](node)
             reason match {
@@ -89,10 +89,10 @@ trait SilverBackend extends Backend {
                 if(node.contains(access)) {
                   defer(reason)
                 } else {
-                  fold.blame.blame(col.SilverFoldFailed(getFailure(reason), fold))
+                  fold.blame.blame(blame.SilverFoldFailed(getFailure(reason), fold))
                 }
               case reasons.AssertionFalse(_) | reasons.NegativePermission(_) | reasons.ReceiverNotInjective(_) =>
-                fold.blame.blame(col.SilverFoldFailed(getFailure(reason), fold))
+                fold.blame.blame(blame.SilverFoldFailed(getFailure(reason), fold))
               case otherReason =>
                 defer(otherReason)
             }
@@ -102,7 +102,7 @@ trait SilverBackend extends Backend {
                 get[col.Node](access) match {
                   case col.SilverPredicateAccess(_, _, _) =>
                     val unfold = get[col.SilverUnfold](node)
-                    unfold.blame.blame(col.SilverUnfoldFailed(getFailure(reason), unfold))
+                    unfold.blame.blame(blame.SilverUnfoldFailed(getFailure(reason), unfold))
                   case _ =>
                     defer(reason)
                 }
@@ -111,10 +111,10 @@ trait SilverBackend extends Backend {
             }
           case LoopInvariantNotPreserved(node, reason, _) =>
             val `while` = get[col.SilverWhile](node)
-            `while`.blame.blame(col.SilverWhileInvariantNotMaintained(getFailure(reason), `while`))
+            `while`.blame.blame(blame.SilverWhileInvariantNotMaintained(getFailure(reason), `while`))
           case LoopInvariantNotEstablished(node, reason, _) =>
             val `while` = get[col.SilverWhile](node)
-            `while`.blame.blame(col.SilverWhileInvariantNotEstablished(getFailure(reason), `while`))
+            `while`.blame.blame(blame.SilverWhileInvariantNotEstablished(getFailure(reason), `while`))
           case FunctionNotWellformed(_, reason, _) =>
             defer(reason)
           case PredicateNotWellformed(_, reason, _) =>
@@ -144,28 +144,28 @@ trait SilverBackend extends Backend {
     }
   }
 
-  def getFailure(reason: ErrorReason): col.ContractFailure = reason match {
-    case reasons.AssertionFalse(expr) => col.ContractFalse(get[col.Expr](expr))
-    case reasons.InsufficientPermission(access) => col.InsufficientPermissionToExhale(get[col.SilverResource](access))
-    case reasons.ReceiverNotInjective(access) => col.ReceiverNotInjective(get[col.SilverResource](access))
-    case reasons.NegativePermission(p) => col.NegativePermissionValue(p.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode.get) // need to fetch access
+  def getFailure(reason: ErrorReason): blame.ContractFailure = reason match {
+    case reasons.AssertionFalse(expr) => blame.ContractFalse(get[col.Expr](expr))
+    case reasons.InsufficientPermission(access) => blame.InsufficientPermissionToExhale(get[col.SilverResource](access))
+    case reasons.ReceiverNotInjective(access) => blame.ReceiverNotInjective(get[col.SilverResource](access))
+    case reasons.NegativePermission(p) => blame.NegativePermissionValue(p.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode.get) // need to fetch access
   }
 
   def defer(reason: ErrorReason): Unit = reason match {
     case reasons.DivisionByZero(e) =>
       val division = get[col.DividingExpr](e)
-      division.blame.blame(col.DivByZero(division))
+      division.blame.blame(blame.DivByZero(division))
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref](f)
-      deref.blame.blame(col.InsufficientPermission(deref))
+      deref.blame.blame(blame.InsufficientPermission(deref))
     case reasons.LabelledStateNotReached(expr) =>
       val old = get[col.Old](expr)
-      old.blame.blame(col.LabelNotReached(old))
+      old.blame.blame(blame.LabelNotReached(old))
     case reasons.SeqIndexNegative(_, idx) =>
       val subscript = idx.info.asInstanceOf[NodeInfo[_]].seqIndexSubscriptNode.get
-      subscript.blame.blame(col.SeqBoundNegative(subscript))
+      subscript.blame.blame(blame.SeqBoundNegative(subscript))
     case reasons.SeqIndexExceedsLength(_, idx) =>
       val subscript = idx.info.asInstanceOf[NodeInfo[_]].seqIndexSubscriptNode.get
-      subscript.blame.blame(col.SeqBoundExceedsLength(subscript))
+      subscript.blame.blame(blame.SeqBoundExceedsLength(subscript))
   }
 }

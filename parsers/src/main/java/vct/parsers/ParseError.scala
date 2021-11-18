@@ -1,6 +1,6 @@
 package vct.parsers
 
-import vct.col.ast.Origin
+import vct.col.origin._
 import vct.result.VerificationResult
 
 case class ParseError(origin: Origin, message: String) extends VerificationResult.UserError {

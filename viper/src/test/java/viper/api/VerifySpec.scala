@@ -1,6 +1,7 @@
 package viper.api
 
 import vct.col.ast._
+import vct.col.origin._
 import Constant._
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -27,7 +28,7 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
   }
 
   def decl(global: => GlobalDeclaration): Unit = {
-    program(Program(Seq(ref, int, global)))
+    program(Program(Seq(ref, int, global))(noErrors))
   }
 
   def procedure(returnType: => Type = TVoid(),

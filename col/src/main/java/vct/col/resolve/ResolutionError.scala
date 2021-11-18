@@ -1,6 +1,7 @@
 package vct.col.resolve
 
-import vct.col.ast.{AmbiguousResult, CDeclarator, Expr, Node, Origin}
+import vct.col.ast._
+import vct.col.origin._
 import vct.result.VerificationResult.{SystemError, UserError}
 
 trait ResolutionError extends UserError
