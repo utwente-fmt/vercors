@@ -34,6 +34,7 @@ case class CheckProcessAlgebra() extends Rewriter {
     case Some(proc) => proc
     case None =>
       implicit val o = DiagnosticOrigin
+      // TODO: Add origin s.t. it gets a semi useful name in the backend
       val proc = procedure(
         ???, // Pretty sure this postcondition cannot fail, but should probably have some sane default value here
         TBool()
@@ -42,8 +43,13 @@ case class CheckProcessAlgebra() extends Rewriter {
       proc
   }
 
-  override def dispatch(program: Program): Unit = program match {
-    case Program(declarations) => ???
+  override def dispatch(program: Program): Unit = {
+    val decls = collectInScope(globalScopes) { program.foreach(rewriter.dispatch) }
+    val decls2 = randomBool match {
+        case Some(value) => value +: decls
+        case None => decls
+      }
+    program.rewrite(decls2)
   }
 
   override def dispatch(model: Declaration): Unit = model match {
@@ -196,8 +202,8 @@ case class CheckProcessAlgebra() extends Rewriter {
         )
       case ProcessSeq(left: ProcessExpr, right: ProcessExpr) => createBody(left) ++ createBody(right)
       case ProcessChoice(left, right) => Seq(Branch(Seq(
-        // TODO: Add non-deterministic choice function
-        (tt, left.rewrite()),
+        // TODO: Precondition of getRandomBool can't fail, so how to blame?
+        (ProcedureInvocation(getRandomBoolProc.ref, Seq(), Seq(), Seq())(???), left.rewrite()),
         (tt, right.rewrite())
       )))
       case ProcessSelect(cond, whenTrue, whenFalse) => Seq(Branch(Seq(
