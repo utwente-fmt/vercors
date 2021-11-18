@@ -43,8 +43,8 @@ case class CheckProcessAlgebra() extends Rewriter {
       proc
   }
 
-  override def dispatch(program: Program): Unit = {
-    val decls = collectInScope(globalScopes) { program.foreach(rewriter.dispatch) }
+  override def dispatch(program: Program): Program = {
+    val decls = collectInScope(globalScopes) { program.declarations.foreach(rewriter.dispatch) }
     val decls2 = randomBool match {
         case Some(value) => value +: decls
         case None => decls
@@ -104,15 +104,15 @@ case class CheckProcessAlgebra() extends Rewriter {
       case _: InstanceMethod => // Discard
       case function: InstanceFunction => function.rewrite()
       case predicate: InstancePredicate => predicate.rewrite()
-      case field: Field => field.rewrite()
+      case field: Field => rewriteDefault(field)
     }
 
-    case _ =>
+    case _ => // All other stuff is discarded
   }
 
   override def dispatch(t: Type): Type = t match {
     case TModel(modelRef) => TClass(modelSuccessors(modelRef.decl).ref)
-    case t => t.rewrite()
+    case t => rewriteDefault(t)
   }
 
   override def dispatch(expr: Expr): Expr = expr match {
@@ -125,7 +125,7 @@ case class CheckProcessAlgebra() extends Rewriter {
       implicit val o = mt.o
       This(modelSuccessors(modelRef.decl).ref)
 
-    case x => x.rewrite()
+    case x => rewriteDefault(x)
   }
 
   def inline(a: Apply): Option[Expr] = {
@@ -187,28 +187,28 @@ case class CheckProcessAlgebra() extends Rewriter {
       case EmptyProcess() => throw Unreachable("The empty process should be optimized away by leftMerge")
       case a @ ActionApply(action, args) =>
         // TODO: Accessible fields, precondition failed blame
-        Eval(MethodInvocation(
+        Seq(Eval(MethodInvocation(
           This(modelSuccessors(currentModel.top).ref),
           actionSuccessors(action.decl).ref,
-          args.map(_.rewrite()),
-          Seq(), Seq())(null))
+          args.map(rewriteDefault(_)),
+          Seq(), Seq())(null)))
       case ProcessApply(process, args) =>
         // TODO: Accessible fields, precondition failed blame
-        Eval(MethodInvocation(
+        Seq(Eval(MethodInvocation(
           This(modelSuccessors(currentModel.top).ref),
           processSuccessors(process.decl).ref,
-          args.map(_.rewrite()),
+          args.map(rewriteDefault(_)),
             Seq(), Seq())(null)
-        )
+        ))
       case ProcessSeq(left: ProcessExpr, right: ProcessExpr) => createBody(left) ++ createBody(right)
       case ProcessChoice(left, right) => Seq(Branch(Seq(
         // TODO: Precondition of getRandomBool can't fail, so how to blame?
-        (ProcedureInvocation(getRandomBoolProc.ref, Seq(), Seq(), Seq())(???), left.rewrite()),
-        (tt, right.rewrite())
+        (ProcedureInvocation(getRandomBoolProc.ref, Seq(), Seq(), Seq())(???), Eval(rewriteDefault(left))),
+        (tt, Eval(rewriteDefault(right)))
       )))
       case ProcessSelect(cond, whenTrue, whenFalse) => Seq(Branch(Seq(
-        (cond.rewrite(), whenTrue.rewrite()),
-        (tt, whenFalse.rewrite())
+        (rewriteDefault(cond), Eval(rewriteDefault(whenTrue))),
+        (tt, Eval(rewriteDefault(whenFalse)))
       )))
       case ProcessPar(left, right) => throw Unreachable("Parallel composition of processes should be removed before entering createBody")
     }
