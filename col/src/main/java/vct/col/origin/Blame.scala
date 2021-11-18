@@ -119,6 +119,16 @@ case class ParBarrierInconsistent(failure: ContractFailure, barrier: ParBarrier)
   override def code: String = "inconsistent"
 }
 
+sealed trait ParBlockFailure extends VerificationFailure
+case class ParPreconditionFailed(failure: ContractFailure, region: ParRegion) extends ParBlockFailure {
+  override def toString: String = s"The precondition of this parallel region may not hold, since $failure."
+  override def code: String = "parPreFailed"
+}
+case class ParBlockPostconditionFailed(failure: ContractFailure, block: ParBlock) extends ParBlockFailure {
+  override def toString: String = s"The postcondition of this parallel block may not hold, since $failure."
+  override def code: String = "parPostFailed"
+}
+
 sealed trait BuiltinError extends FrontendDerefError with FrontendInvocationError
 case class OptionNone(access: OptGet) extends BuiltinError {
   override def code: String = "optNone"
