@@ -679,18 +679,10 @@ case class ActionApply(action: Ref[ModelAction], args: Seq[Expr])(implicit val o
 case class ProcessApply(process: Ref[ModelProcess], args: Seq[Expr])(implicit val o: Origin) extends ProcessExpr with Apply {
   override def ref: Ref[Applicable] = process.decl.ref
 }
-case class ProcessSeq(left: Expr, right: Expr)(implicit val o: Origin) extends ProcessExpr {
-  override def check(context: CheckContext): Seq[CheckError] = left.checkSubType(TProcess()) ++ right.checkSubType(TProcess())
-}
-case class ProcessChoice(left: Expr, right: Expr)(implicit val o: Origin) extends ProcessExpr {
-  override def check(context: CheckContext): Seq[CheckError] = left.checkSubType(TProcess()) ++ right.checkSubType(TProcess())
-}
-case class ProcessPar(left: Expr, right: Expr)(implicit val o: Origin) extends ProcessExpr {
-  override def check(context: CheckContext): Seq[CheckError] = left.checkSubType(TProcess()) ++ right.checkSubType(TProcess())
-}
-case class ProcessSelect(cond: Expr, whenTrue: Expr, whenFalse: Expr)(implicit val o: Origin) extends ProcessExpr {
-  override def check(context: CheckContext): Seq[CheckError] = cond.checkSubType(TBool()) ++ whenTrue.checkSubType(TProcess()) ++ whenFalse.checkSubType(TProcess())
-}
+case class ProcessSeq(left: Expr, right: Expr)(implicit val o: Origin) extends ProcessExpr
+case class ProcessChoice(left: Expr, right: Expr)(implicit val o: Origin) extends ProcessExpr
+case class ProcessPar(left: Expr, right: Expr)(implicit val o: Origin) extends ProcessExpr
+case class ProcessSelect(cond: Expr, whenTrue: Expr, whenFalse: Expr)(implicit val o: Origin) extends ProcessExpr
 
 case class ModelNew(ref: Ref[Model])(implicit val o: Origin) extends Expr {
   override def t: Type = TModel(ref)
@@ -700,36 +692,13 @@ case class ModelThis(ref: Ref[Model])(implicit val o: Origin) extends Expr {
   override def t: Type = TModel(ref)
 }
 
-case class ModelState(model: Expr, perm: Expr, state: Expr)(implicit val o: Origin) extends ResourceExpr {
-  override def check(context: CheckContext): Seq[CheckError] = state.checkSubType(TProcess()) ++ perm.checkSubType(TRational())
-}
-case class ModelAbstractState(model: Expr, state: Expr)(implicit val o: Origin) extends ResourceExpr {
-  override def check(context: CheckContext): Seq[CheckError] = state.checkSubType(TResource())
-}
-case class ModelCreate(model: Expr, init: Expr)(implicit val o: Origin) extends VoidExpr {
-  override def check(context: CheckContext): Seq[CheckError] = init.checkSubType(TProcess())
-}
-case class ModelDestroy(model: Expr)(implicit val o: Origin) extends VoidExpr {
-  override def check(context: CheckContext): Seq[CheckError] = ??? // TODO: Check model subtype, similar for above and below
-}
-case class ModelSplit(model: Expr, leftPerm: Expr, leftProcess: Expr, rightPerm: Expr, rightProcess: Expr)(implicit val o: Origin) extends VoidExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-      leftProcess.checkSubType(TProcess()) ++ rightProcess.checkSubType(TProcess()) ++
-      leftPerm.checkSubType(TRational()) ++ rightPerm.checkSubType(TRational())
-}
-case class ModelMerge(model: Expr, leftPerm: Expr, leftProcess: Expr, rightPerm: Expr, rightProcess: Expr)(implicit val o: Origin) extends VoidExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-      leftProcess.checkSubType(TProcess()) ++ rightProcess.checkSubType(TProcess()) ++
-      leftPerm.checkSubType(TRational()) ++ rightPerm.checkSubType(TRational())
-}
-case class ModelChoose(model: Expr, perm: Expr, totalProcess: Expr, choice: Expr)(implicit val o: Origin) extends VoidExpr {
-  override def check(context: CheckContext): Seq[CheckError] =
-      totalProcess.checkSubType(TProcess()) ++ choice.checkSubType(TProcess())
-}
+case class ModelState(model: Expr, perm: Expr, state: Expr)(implicit val o: Origin) extends ResourceExpr
+case class ModelAbstractState(model: Expr, state: Expr)(implicit val o: Origin) extends ResourceExpr
+case class ModelCreate(model: Expr, init: Expr)(implicit val o: Origin) extends VoidExpr
+case class ModelDestroy(model: Expr)(implicit val o: Origin) extends VoidExpr
+case class ModelSplit(model: Expr, leftPerm: Expr, leftProcess: Expr, rightPerm: Expr, rightProcess: Expr)(implicit val o: Origin) extends VoidExpr
+case class ModelMerge(model: Expr, leftPerm: Expr, leftProcess: Expr, rightPerm: Expr, rightProcess: Expr)(implicit val o: Origin) extends VoidExpr
+case class ModelChoose(model: Expr, perm: Expr, totalProcess: Expr, choice: Expr)(implicit val o: Origin) extends VoidExpr
 
-case class ModelPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr {
-  override def check(context: CheckContext): Seq[CheckError] = perm.checkSubType(TRational())
-}
-case class ActionPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr {
-  override def check(context: CheckContext): Seq[CheckError] = perm.checkSubType(TRational())
-}
+case class ModelPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr
+case class ActionPerm(loc: Expr, perm: Expr)(implicit val o: Origin) extends ResourceExpr
