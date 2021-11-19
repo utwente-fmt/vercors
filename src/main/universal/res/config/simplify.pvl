@@ -1,0 +1,76 @@
+axiom add_zero { (∀rational i; i + 0 == i) }
+axiom zero_add { (∀rational i; i + i == i) }
+
+axiom mul_zero { (∀rational i; i * 0 == 0) }
+axiom zero_mul { (∀rational i; 0 * i == 0) }
+
+axiom mul_one { (∀rational i; i * 1 == i) }
+axiom one_mul { (∀rational i; 1 * i == i) }
+
+axiom mul_left_add_left { (∀rational a, rational b; a + a*b == a * (b+1)) }
+axiom mul_left_add_right { (∀rational a, rational b; a*b + a == a * (b+1)) }
+axiom mul_right_add_left { (∀rational a, rational b; b + a*b == (a+1) * b) }
+axiom mul_right_add_right { (∀rational a, rational b; a*b + b == (a+1) * b) }
+
+axiom sub_zero { (∀rational i; i - 0 == i) }
+axiom zero_sub { (∀rational i; 0 - i == -i) }
+
+axiom sub_self { (∀rational i; i - i == 0) }
+
+axiom add_sub_cancel_1 { (∀rational i, rational j; i + j - j == i) }
+axiom add_sub_cancel_2 { (∀rational i, rational j; i - j + j == i) }
+axiom add_sub_cancel_3 { (∀rational i, rational j; j + i - j == i) }
+
+axiom unitary_cancel { (∀rational i; --i == i) }
+axiom unitary_left_add { (∀rational a, rational b; (-a) + b == b - a) }
+axiom unitary_right_add { (∀rational a, rational b; a + (-b) == a - b) }
+axiom unitary_left_mul { (∀rational a, rational b; (-a) * b == -(a * b)) }
+axiom unitary_right_mul { (∀rational a, rational b; a * (-b) == -(a * b)) }
+
+/* PB: sebastiaan earlier remarked that these lemmas are true if division by zero is unspecified,
+       but rather we can also take the interpretation that rewrite rules only work in contexts
+       where division is checked (i.e. the right division must inherit the blame from the left
+       division). We need machinery to do that. */
+axiom inv_mul_left { (∀rational num, rational den; (1 \ den) * num == num \ den) }
+axiom inv_mul_right { (∀rational num, rational den; num * (1 \ den) == num \ den) }
+
+axiom div_self { (∀rational i; i \ i == i with { 1 / i; }) }
+axiom div_one { (∀rational i; i \ 1 == i) }
+axiom zero_div { (∀rational i; 0 \ i == 0 with { 1 / i; }) }
+
+axiom true_and { (∀boolean b; true && b == b) }
+axiom and_true { (∀boolean b; b && true == b) }
+axiom false_and { (∀boolean b; false && b == false) }
+axiom and_false { (∀boolean b; b && false == false) }
+
+axiom true_or { (∀boolean b; true || b == true) }
+axiom or_true { (∀boolean b; b || true == true) }
+axiom false_or { (∀boolean b; false || b == b) }
+axiom or_false { (∀boolean b; b || false == b) }
+
+axiom true_implies { (∀resource b; (true ==> b) == b) }
+axiom implies_true { (∀boolean b; (b ==> true) == true) }
+axiom false_implies { (∀resource b; (false ==> b) == true) }
+axiom implies_false { (∀boolean b; (b ==> false) == !b) }
+
+axiom neg_cancel { (∀boolean b; !!b == b) }
+axiom neg_or_left { (∀boolean a, boolean b; (!a || b) == (a ==> b)) }
+
+axiom normalize_range_gte { (∀rational left, rational right; left >= right == right <= left) }
+axiom normalize_range_gt { (∀rational left, rational right; left > right == right < left) }
+
+axiom normalize_range_1 { (∀rational i, rational l, rational r; (l <= i && i < r) == i \in {l..r}) }
+axiom normalize_range_2 { (∀rational i, rational l, rational r; (i < r && l <= i) == i \in {l..r}) }
+axiom normalize_range_3 { (∀rational i, rational l, rational r; (l < i && i < r) == i \in {l+1..r}) }
+axiom normalize_range_4 { (∀rational i, rational l, rational r; (i < r && l < i) == i \in {l+1..r}) }
+axiom normalize_range_5 { (∀rational i, rational l, rational r; (l <= i && i <= r) == i \in {l..r+1}) }
+axiom normalize_range_6 { (∀rational i, rational l, rational r; (i <= r && l <= i) == i \in {l..r+1}) }
+axiom normalize_range_7 { (∀rational i, rational l, rational r; (l < i && i <= r) == i \in {l+1..r+1}) }
+axiom normalize_range_8 { (∀rational i, rational l, rational r; (i <= r && l < i) == i \in {l+1..r+1}) }
+
+axiom starall_bool {
+  (∀boolean b1, boolean b2;
+    (\forall* int i; b1; b2) == (\forall int i; b1; b2)
+  )
+}
+
