@@ -1237,9 +1237,9 @@ class CMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: CParser)
       create expression(Member, expr(x), expr(xs))
     case ValPrimary70("getOrElseOption", "(", opt, ",", alt, ")") =>
       create expression(OptionGetOrElse, expr(opt), expr(alt))
-    case ValPrimary71("floatInBounds", "(", float_var, ")") =>
-      create expression(FloatInBounds, expr(float_var))
-    case ValPrimary72("floatNotNaN", "(", float_var, ")") =>
+    case ValPrimary71("isFinite", "(", float_var, ")") =>
+      create expression(FloatIsFinite, expr(float_var))
+    case ValPrimary72("notNaN", "(", float_var, ")") =>
       create expression(FloatNotNaN, expr(float_var))
   })
 

@@ -364,7 +364,7 @@ public enum StandardOperator {
   /** Get the second element form the tuple  */
   TupleSnd(1),
   /** Check that a float value is not +/- infinity */
-  FloatInBounds(1),
+  FloatIsFinite(1),
   /** Check that a float value is not NaN */
   FloatNotNaN(1)
   ;

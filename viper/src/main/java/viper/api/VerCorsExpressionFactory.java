@@ -500,9 +500,9 @@ public class VerCorsExpressionFactory implements
   }
 
   @Override
-  public ASTNode float_in_bounds(Origin o, ASTNode e1) {
+  public ASTNode float_is_finite(Origin o, ASTNode e1) {
     enter(o);
-    ASTNode res=create.expression(StandardOperator.FloatInBounds, e1);
+    ASTNode res=create.expression(StandardOperator.FloatIsFinite, e1);
     leave();
     return res;
   }

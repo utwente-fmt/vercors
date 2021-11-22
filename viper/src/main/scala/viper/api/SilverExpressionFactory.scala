@@ -245,7 +245,7 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   override def double_to_float(o: O, e1: Exp): Exp = applyBackenFunc(o, double_to_float_func, Seq(e1))
 
-  override def float_in_bounds(o: O, e1: Exp): Exp = not(o, applyBackenFunc(o, getFloatFactory(e1).isInfinite("isInfinite"), Seq(e1)))
+  override def float_is_finite(o: O, e1: Exp): Exp = not(o, applyBackenFunc(o, getFloatFactory(e1).isInfinite("isInfinite"), Seq(e1)))
 
   override def float_not_nan(o: O, e1: Exp): Exp = not(o, applyBackenFunc(o, getFloatFactory(e1).isNaN("isNaN"), Seq(e1)))
 

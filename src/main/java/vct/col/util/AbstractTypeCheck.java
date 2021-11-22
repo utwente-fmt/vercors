@@ -1600,10 +1600,10 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!tt[0].isPrimitive(PrimitiveSort.Tuple)) Fail("The argument is not a tuple at %s", e.getOrigin());
         e.setType((Type) tt[0].secondarg());
         break;
-      case FloatInBounds: {
+      case FloatIsFinite: {
         Type t = e.arg(0).getType();
         if (!(t.isFloat() || t.isDouble())) {
-          Fail("argument of floatInBounds not a float or double");
+          Fail("argument of isFinite is not a float or double");
         }
         e.setType(new PrimitiveType(PrimitiveSort.Boolean));
         break;
@@ -1611,7 +1611,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       case FloatNotNaN: {
         Type t = e.arg(0).getType();
         if (!(t.isFloat() || t.isDouble())) {
-          Fail("argument of floatNotNaN not a float or double");
+          Fail("argument of notNaN is not a float or double");
         }
         e.setType(new PrimitiveType(PrimitiveSort.Boolean));
         break;

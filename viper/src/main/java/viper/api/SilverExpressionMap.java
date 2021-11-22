@@ -281,8 +281,8 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     case DoubleToFLoat: {
       return create.double_to_float(o, e1);
     }
-    case FloatInBounds: {
-      return create.float_in_bounds(o, e1);
+      case FloatIsFinite: {
+      return create.float_is_finite(o, e1);
     }
     case FloatNotNaN: {
       return create.float_not_nan(o, e1);
