@@ -43,6 +43,10 @@ axiom and_true { (∀boolean b; b && true == b) }
 axiom false_and { (∀boolean b; false && b == false) }
 axiom and_false { (∀boolean b; b && false == false) }
 
+axiom true_star { (∀boolean b; true ** b == b) }
+axiom star_true { (∀boolean b; b ** true == b) }
+axiom false_star { (∀boolean b; false ** b == false) }
+
 axiom true_or { (∀boolean b; true || b == true) }
 axiom or_true { (∀boolean b; b || true == true) }
 axiom false_or { (∀boolean b; false || b == b) }
@@ -52,6 +56,13 @@ axiom true_implies { (∀resource b; (true ==> b) == b) }
 axiom implies_true { (∀boolean b; (b ==> true) == true) }
 axiom false_implies { (∀resource b; (false ==> b) == true) }
 axiom implies_false { (∀boolean b; (b ==> false) == !b) }
+
+axiom implies_self { (∀boolean b; (b ==> b) == true) }
+
+axiom collapse_nested_implies {
+  (∀boolean a, boolean b, resource c;
+    (a ==> b ==> c) == ((a && b) ==> c)
+}
 
 axiom neg_cancel { (∀boolean b; !!b == b) }
 axiom neg_or_left { (∀boolean a, boolean b; (!a || b) == (a ==> b)) }
@@ -68,9 +79,74 @@ axiom normalize_range_6 { (∀rational i, rational l, rational r; (i <= r && l <
 axiom normalize_range_7 { (∀rational i, rational l, rational r; (l < i && i <= r) == i \in {l+1..r+1}) }
 axiom normalize_range_8 { (∀rational i, rational l, rational r; (i <= r && l < i) == i \in {l+1..r+1}) }
 
+/*
+TODO PB: check all of this off-by-one stuff and make the left version.
+axiom specialize_range_right_1 {
+  (∀rational i, rational l, rational r1, rational r2;
+    (i \in {l..r1} && i < r2) == (i \in {l .. r1<r2 ? r1 : r2})) }
+axiom specialize_range_right_2 {
+  (∀rational i, rational l, rational r1, rational r2;
+    (i \in {l..r1} && i <= r2) == (i \in {l .. r1<=r2 ? r1 : r2+1})) }
+axiom specialize_range_right_3 {
+  (∀rational i, rational l1, rational l2, rational r;
+    (i \in {l1..r} && l2 <= i) == (i \in {l2<l1 ? l1 : l2 .. r})) }
+axiom specialize_range_right_4 {
+  (∀rational i, rational l1, rational l2, rational r;
+    (i \in {l..r1} && l2 < i) == (i \in {l2+1<l1 ? l1 : l2+1 .. r})) }
+*/
+
 axiom starall_bool {
-  (∀boolean b1, boolean b2;
-    (\forall* int i; b1; b2) == (\forall int i; b1; b2)
-  )
+  (∀boolean body;
+    (∀* any binding; body) == (∀ any binding; body))
 }
 
+axiom forall_and {
+  (∀boolean cond, boolean b1, boolean b2;
+    (∀any binding; cond ==> b1 && b2) ==
+    ((∀any binding; cond ==> b1) && (∀any binding; cond ==> b2)))
+}
+
+axiom starall_star {
+  (∀boolean cond, resource r1, resource r2;
+    (∀* any binding; cond ==> r1 ** r2) ==
+    ((∀* any binding; cond ==> r1) ** (∀* any binding; cond ==> r2)))
+}
+
+axiom nested_forall_indep_cond {
+  (∀boolean cond1, boolean indep, boolean cond2, boolean body;
+    (∀any binding1; cond ==> (∀any binding2; ((indep!binding2) && cond2) ==> body)) ==
+    (∀any binding1; (cond && indep) ==> (∀any binding2; cond2 ==> body)))
+}
+
+axiom nested_starall_indep_cond {
+  (∀boolean cond1, boolean indep, boolean cond2, resource body;
+    (∀* any binding1; cond ==> (∀* any binding2; ((indep!binding2) && cond2) ==> body)) ==
+    (∀* any binding1; (cond && indep) ==> (∀* any binding2; cond2 ==> body)))
+}
+
+/* axiom implement_let_as_starall {
+ *   (∀any value, boolean guard, resource body;
+ *     (∀* any binding; (guard && binding == (value!binding)) ==> body) ==
+ *     (\let any binding = value; guard ==> body))
+ *
+ * PB: and similar for ∀, is that really useful?
+ */
+
+// TODO PB: something with starall read/Value? see e.g. A7
+
+axiom forall_range_body_indep {
+  (∀int l, int r, boolean body;
+    (∀int binding; binding \in {l..r} ==> (body!binding)) ==
+      (l < r ==> body))
+}
+
+axiom forall_range_cond_body_indep {
+  (∀int l, int r, boolean cond, boolean body;
+    (∀int binding; binding \in {l..r} && cond ==> (body!binding)) ==
+      (l < r && cond ==> body))
+}
+
+axiom shift_range_plus_right {
+  (∀int l, int r, int shift;
+    (how to array
+}
