@@ -25,7 +25,7 @@ case class IterationContractToParBlock() extends Rewriter {
 
   def getVariableAndLowerBound(init: Statement): Option[(Variable, Expr)] =
     init match {
-      case Scope(Seq(v), Block(Assign(Local(Ref(v1)), low))) if v == v1 =>
+      case Scope(Seq(v), Block(Seq(Assign(Local(Ref(v1)), low)))) if v == v1 =>
         Some((v, low))
       case _ => None
     }

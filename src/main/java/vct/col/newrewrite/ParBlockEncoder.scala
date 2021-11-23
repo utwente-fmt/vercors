@@ -125,7 +125,7 @@ case class ParBlockEncoder() extends Rewriter {
         result.declareDefault(this)
         (result, vars.values.toSeq)
       case ParSequential(regions) =>
-        val (Seq(req, ens,), vars) = Extract.extract(requires(region), ensures(region))
+        val (Seq(req, ens), vars) = Extract.extract(requires(region), ensures(region))
 
         val result = procedure(
           blame = AbstractApplicable,

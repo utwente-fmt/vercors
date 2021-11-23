@@ -45,6 +45,7 @@ VAL_POINTER: 'pointer';
 VAL_MAP: 'map';
 VAL_OPTION: 'option';
 VAL_TUPLE: 'tuple';
+VAL_TYPE: 'type';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
@@ -115,6 +116,9 @@ CURRENT_THREAD: '\\current_thread';
 FORALL_STAR: '\\forall*';
 FORALL: '\\forall';
 EXISTS: '\\exists';
+FORALL_UNICODE: '∀';
+FORALL_STAR_UNICODE: '∀*';
+EXISTS_UNICODE: '∃';
 LET: '\\let';
 SUM: '\\sum';
 LENGTH: '\\length';

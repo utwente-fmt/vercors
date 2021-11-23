@@ -28,7 +28,7 @@ class simplify_quant_pass2 {
      ==
     (\forall* int i; (i \memberof {e1*e3+e4..e2*e3+e4}) && (i-e4) % e3 == 0; Perm(ar[i], p1))
   }
-  
+
   // completion for b==0.
   axiom simplify_linear_a {
     (\forall* int i; (i \memberof {e1..e2}); Perm(ar[i*(e3!i)], (p1!i)))

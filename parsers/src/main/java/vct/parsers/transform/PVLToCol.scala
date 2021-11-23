@@ -309,8 +309,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit region: ParRegionContext): ParRegion = region match {
-    case PvlParallel(_, _, regions, _) => ParParallel(regions.map(convert(_)))
-    case PvlSequential(_, _, regions, _) => ParSequential(regions.map(convert(_)))
+    case PvlParallel(_, _, regions, _) => ParParallel(regions.map(convert(_)))(blame(region))
+    case PvlSequential(_, _, regions, _) => ParSequential(regions.map(convert(_)))(blame(region))
     case PvlParBlock(_, name, iter, contract, impl) =>
       withContract(contract, contract => {
         val decl = name match {
@@ -324,9 +324,9 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
           Star.fold(contract.consume(contract.requires)),
           Star.fold(contract.consume(contract.ensures)),
           convert(impl),
-        )
+        )(blame(region))
       })
-    case PvlOldPar(_, pars) => ParParallel(convert(pars))
+    case PvlOldPar(_, pars) => ParParallel(convert(pars))(blame(region))
   }
 
   def convert(implicit pars: ParOldUnitListContext): Seq[ParBlock] = pars match {
@@ -348,7 +348,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
           Star.fold(contract.consume(contract.requires)),
           Star.fold(contract.consume(contract.ensures)),
           convert(impl),
-        )
+        )(blame(par))
       })
   }
 

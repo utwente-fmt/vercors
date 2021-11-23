@@ -232,7 +232,7 @@ valReserved
     | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION
     | VAL_HPERM | VAL_IDLE | VAL_PERM_VAL
     | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME
-    | VAL_VALUE | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_MAP | VAL_OPTION | VAL_TUPLE | VAL_ADT)
+    | VAL_VALUE | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_MAP | VAL_OPTION | VAL_TUPLE | VAL_ADT | VAL_TYPE)
  | LANG_ID_ESCAPE # valIdEscape
  | '\\result' # valResult
  | '\\current_thread' # valCurrentThread
@@ -260,6 +260,7 @@ valType
  | 'map' '<' langType ',' langType '>' # valMapType
  | 'tuple' '<' langType ',' langType '>' # valTupleType
  | 'pointer' '<' langType '>' # valPointerType
+ | 'type' '<' langType '>' # valTypeType
  ;
 
 valGlobalDeclaration
