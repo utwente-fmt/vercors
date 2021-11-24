@@ -19,6 +19,7 @@ abstract class ToCol(val originProvider: OriginProvider, val blameProvider: Blam
     val ensures: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
     val context_everywhere: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
     val kernel_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
+    val lock_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
 
     val given: mutable.ArrayBuffer[(ParserRuleContext, Variable)] = mutable.ArrayBuffer()
     val yields: mutable.ArrayBuffer[(ParserRuleContext, Variable)] = mutable.ArrayBuffer()

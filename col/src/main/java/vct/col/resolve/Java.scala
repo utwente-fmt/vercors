@@ -6,6 +6,7 @@ import vct.result.VerificationResult
 import vct.col.ast.Constant._
 import vct.col.ast.{ApplicableContract, Block, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
 import vct.result.VerificationResult.Unreachable
+import vct.col.util.AstBuildHelpers._
 
 import java.lang.reflect.{Modifier, Parameter}
 import scala.collection.mutable
@@ -146,6 +147,7 @@ case object Java {
         name = cls.getName.split('.').last,
         modifiers = Nil,
         typeParams = Nil,
+        intrinsicLockInvariant = `tt`,
         ext = Option(cls.getSuperclass).map(cls => lazyType(cls.getName.split('.'), ctx)).getOrElse(TAny()),
         imp = cls.getInterfaces.map(cls => lazyType(cls.getName.split('.'), ctx)),
         decls = fields ++ cons ++ methods,

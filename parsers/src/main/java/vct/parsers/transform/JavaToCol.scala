@@ -29,10 +29,13 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit decl: TypeDeclarationContext): Seq[GlobalDeclaration] = decl match {
-    case TypeDeclaration0(mods, ClassDeclaration0(_, name, args, ext, imp, ClassBody0(_, decls, _))) =>
-      Seq(new JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
-        ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
-        imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
+    case TypeDeclaration0(mods, ClassDeclaration0(contract, _, name, args, ext, imp, ClassBody0(_, decls, _))) =>
+      withContract(contract, contract => {
+        Seq(new JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
+          Star.fold(contract.consume(contract.lock_invariant)),
+          ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
+          imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
+      })
     case TypeDeclaration1(mods, enum) => fail(enum, "Enums are not supported.")
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
@@ -309,7 +312,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case Statement8(_, _, _, _, _) => ??(stat)
     case Statement9(_, expr, _, casedStatements, trailingCases, _) =>
       Switch(convert(expr), Block(casedStatements.flatMap(convert(_)) ++ trailingCases.map(convert(_))))
-    case Statement10(_, obj, inner) => Synchronized(convert(obj), convert(inner))
+    case Statement10(_, obj, inner) => Synchronized(convert(obj), convert(inner))(blame(stat))
     case Statement11(_, expr, _) => Return(expr.map(convert(_)).getOrElse(Void()))
     case Statement12(_, exc, _) => Throw(convert(exc))
     case Statement13(_, label, _) => Break(label.map(convert(_)).map(new UnresolvedRef[LabelDecl](_)))

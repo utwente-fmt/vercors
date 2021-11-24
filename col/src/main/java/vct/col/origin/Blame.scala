@@ -176,6 +176,21 @@ case class PointerInsufficientPermission(pointer: Expr) extends PointerDerefErro
   override def toString: String = "There may be insufficient permission to dereference the pointer."
 }
 
+sealed trait UnlockFailure extends VerificationFailure
+case class UnlockInvariantFailed(unlock: Unlock, failure: ContractFailure) extends UnlockFailure {
+  override def code: String = "invariantFailed"
+  override def toString: String = s"The lock invariant may not be exhaled here, since $failure."
+}
+case class LockTokenNotHeld(unlock: Unlock, failure: ContractFailure) extends UnlockFailure {
+  override def code: String = "heldFailed"
+  override def toString: String = s"The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since $failure."
+}
+
+case class NotifyFailed(not: Notify, failure: ContractFailure) extends VerificationFailure {
+  override def code: String = "heldFailed"
+  override def toString: String = s"The token that indicated the lock is locked (`held(obj)`) may not be asserted here, since $failure."
+}
+
 sealed trait UnsafeCoercion extends VerificationFailure
 case class CoerceRatZFracFailed(rat: Expr) extends UnsafeCoercion {
   override def code: String = "ratZfrac"

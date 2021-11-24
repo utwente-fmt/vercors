@@ -23,23 +23,19 @@ case object UnscopedDeclaration extends Feature // CollectLocalDeclarations
 case object LoopIterationContract extends Feature // IterationContractToParBlock
 case object ParallelRegion extends Feature // ParBlockEncoder
 case object SpecIgnore extends Feature // FilterSpecIgnore
+case object NonTrivialBranch extends Feature // BranchToIfElse
+case object NonWhileLoop extends Feature // ForLoopToWhileLoop
+case object IntrinsicLocks extends Feature // EncodeIntrinsicLock
+case object WaitNotify extends Feature // EncodeIntrinsicLock
+case object NonMethodInvocationEvaluation extends Feature // EvaluationTargetDummy
 
 case object MatrixVector extends Feature // TODO
 case object NumericReductionOperator extends Feature // TODO
 
 case object ContextSensitiveNode extends Feature // TODO
 case object InlineQuantifierPattern extends Feature // TODO
-case object MagicWand extends Feature // TODO
 case object TypeValuesAndGenerics extends Feature // TODO
-case object NonMethodInvocationEvaluation extends Feature // TODO
-case object IntrinsicLocks extends Feature // TODO
-case object JavaThreads extends Feature // TODO
 case object NonVoidReturn extends Feature // TODO
-case object NonTrivialBranch extends Feature // TODO
-case object NonWhileLoop extends Feature // TODO
-case object SendRecv extends Feature // TODO
-case object WaitNotify extends Feature // TODO
-case object ComputationalLogicOperator extends Feature // TODO
 case object ExoticTypes extends Feature // TODO
 
 case object Exceptions extends Feature // TODO
@@ -48,6 +44,11 @@ case object SwitchStatement extends Feature // TODO
 case object TryCatchStatement extends Feature // TODO
 
 case object Models extends Feature // TODO
+
+case object ComputationalLogicOperator extends Feature // delay?
+case object MagicWand extends Feature // delay?
+case object JavaThreads extends Feature // delay?
+case object SendRecv extends Feature // delay?
 
 case object TextTypes extends Feature // delay?
 case object TermRewriteRules extends Feature // delay?

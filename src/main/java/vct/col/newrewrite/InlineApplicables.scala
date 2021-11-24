@@ -75,5 +75,7 @@ case class InlineApplicables() extends Rewriter {
             dispatch(Substitute(replacementsWithObj).dispatch(pred.body.getOrElse(???)))
         }
       }
+
+    case other => rewriteDefault(other)
   }
 }

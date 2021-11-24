@@ -91,7 +91,7 @@ variableModifier
     ;
 
 classDeclaration
-    :   'class' javaIdentifier typeParameters? ext? imp? classBody
+    :   valEmbedContract? 'class' javaIdentifier typeParameters? ext? imp? classBody
     ;
 ext: 'extends' type;
 imp: 'implements' typeList;

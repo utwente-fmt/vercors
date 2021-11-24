@@ -126,6 +126,7 @@ case class LangSpecificToCol() extends Rewriter {
               fieldInit(res),
               sharedInit(res),
               dispatch(cons.body),
+              Commit(res),
               Return(res),
             )))),
             contract = dispatch(cons.contract),
@@ -172,13 +173,18 @@ case class LangSpecificToCol() extends Rewriter {
         val staticDecls = cls.decls.filter(isJavaStatic)
 
         if(instDecls.nonEmpty) {
+          val lockInvariant = cls match {
+            case clazz: JavaClass => clazz.intrinsicLockInvariant
+            case _: JavaInterface => tt
+          }
+
           val instanceClass = new Class(collectInScope(classScopes) {
             val diz = AmbiguousThis()
             diz.ref = Some(TClass(javaInstanceClassSuccessor.ref(cls)))
             currentThis.having(diz) {
               makeJavaClass(instDecls, javaInstanceClassSuccessor.ref(cls))
             }
-          }, supports)
+          }, supports, lockInvariant)
 
           instanceClass.declareDefault(this)
           javaInstanceClassSuccessor(cls) = instanceClass
@@ -191,7 +197,7 @@ case class LangSpecificToCol() extends Rewriter {
             currentThis.having(diz) {
               makeJavaClass(staticDecls, javaStaticsClassSuccessor.ref(cls))
             }
-          }, Nil)
+          }, Nil, tt)
 
           staticsClass.declareDefault(this)
           val singleton = new Function(TClass(staticsClass.ref), Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null)

@@ -65,8 +65,7 @@ case class CheckProcessAlgebra() extends Rewriter {
         new Class(
           collectInScope(classScopes) {
             model.declarations.foreach(dispatch(_))
-          },
-          Seq()
+          }, Nil, tt,
         )(model.o)
       }
       newClass.declareDefault(this)

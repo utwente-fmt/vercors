@@ -8,7 +8,7 @@ program  : programDecl* EOF ;
 
 programDecl : valGlobalDeclaration | declClass | method;
 
-declClass : 'class' identifier '{' classDecl* '}' ;
+declClass : contract 'class' identifier '{' classDecl* '}' ;
 classDecl : constructor | method | valClassDeclaration | field;
 
 field : type identifierList ';' ;

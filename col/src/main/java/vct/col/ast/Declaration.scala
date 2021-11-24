@@ -300,7 +300,7 @@ sealed trait Field extends ClassDeclaration {
 
 class InstanceField(val t: Type, val flags: Set[FieldFlag])(implicit val o: Origin) extends Field
 
-class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]])(implicit val o: Origin) extends GlobalDeclaration with Declarator {
+class Class(val declarations: Seq[ClassDeclaration], val supports: Seq[Ref[Class]], val intrinsicLockInvariant: Expr)(implicit val o: Origin) extends GlobalDeclaration with Declarator {
   private def transSupportArrows(seen: Set[Class]): Seq[(Class, Class)] =
     if(seen.contains(this)) throw Unreachable("Yes, you got me, cyclical inheritance is not supported!")
     else supports.map(other => (this, other.decl)) ++

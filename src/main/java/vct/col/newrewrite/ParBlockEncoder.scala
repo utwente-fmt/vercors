@@ -211,5 +211,7 @@ case class ParBlockEncoder() extends Rewriter {
         Exhale(dispatch(requires))(ParBarrierExhaleFailed(parBarrier)),
         Inhale(dispatch(ensures)),
       ))
+
+    case other => rewriteDefault(other)
   }
 }

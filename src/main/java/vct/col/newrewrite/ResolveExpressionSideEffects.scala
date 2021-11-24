@@ -7,6 +7,7 @@ import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.Rewriter
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 case object ResolveExpressionSideEffects {
@@ -101,7 +102,7 @@ case class ResolveExpressionSideEffects() extends Rewriter {
             ))
         }
       case attempt: TryCatchFinally => rewriteDefault(attempt)
-      case Synchronized(obj, body) => frame(obj, Synchronized(_, dispatch(body)))
+      case sync @ Synchronized(obj, body) => frame(obj, Synchronized(_, dispatch(body))(sync.blame))
       case inv: ParInvariant => rewriteDefault(inv)
       case atomic: ParAtomic => rewriteDefault(atomic)
       case barrier: ParBarrier => rewriteDefault(barrier)
@@ -121,12 +122,12 @@ case class ResolveExpressionSideEffects() extends Rewriter {
       case ignore: SpecIgnoreStart => rewriteDefault(ignore)
       case ignore: SpecIgnoreEnd => rewriteDefault(ignore)
       case Throw(obj) => frame(obj, Throw(_))
-      case Wait(obj) => frame(obj, Wait(_))
-      case Notify(obj) => frame(obj, Notify(_))
+      case wait @ Wait(obj) => frame(obj, Wait(_)(wait.blame))
+      case notify @ Notify(obj) => frame(obj, Notify(_)(notify.blame))
       case Fork(obj) => frame(obj, Fork(_))
       case Join(obj) => frame(obj, Join(_))
       case Lock(obj) => frame(obj, Lock(_))
-      case Unlock(obj) => frame(obj, Unlock(_))
+      case unlock @ Unlock(obj) => frame(obj, Unlock(_)(unlock.blame))
       case fold: Fold => rewriteDefault(fold)
       case unfold: Unfold => rewriteDefault(unfold)
       case create: WandCreate => rewriteDefault(create)

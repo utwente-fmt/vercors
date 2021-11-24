@@ -29,7 +29,7 @@ case class CatchClause(decl: Variable, body: Statement)(implicit val o: Origin) 
 }
 case class TryCatchFinally(body: Statement, after: Statement, catches: Seq[CatchClause])(implicit val o: Origin) extends Statement
 
-case class Synchronized(obj: Expr, body: Statement)(implicit val o: Origin) extends Statement
+case class Synchronized(obj: Expr, body: Statement)(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends Statement
 
 case class ParInvariant(decl: ParInvariantDecl, inv: Expr, content: Statement)(val blame: Blame[ParInvariantNotEstablished])(implicit val o: Origin) extends Statement with Declarator {
   override def declarations: Seq[Declaration] = Seq(decl)
@@ -88,12 +88,13 @@ case class SpecIgnoreStart()(implicit val o: Origin) extends Statement
 case class SpecIgnoreEnd()(implicit val o: Origin) extends Statement
 
 case class Throw(obj: Expr)(implicit val o: Origin) extends Statement
-case class Wait(obj: Expr)(implicit val o: Origin) extends Statement
-case class Notify(obj: Expr)(implicit val o: Origin) extends Statement
+case class Wait(obj: Expr)(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends Statement
+case class Notify(obj: Expr)(val blame: Blame[NotifyFailed])(implicit val o: Origin) extends Statement
 case class Fork(obj: Expr)(implicit val o: Origin) extends Statement
 case class Join(obj: Expr)(implicit val o: Origin) extends Statement
 case class Lock(obj: Expr)(implicit val o: Origin) extends Statement
-case class Unlock(obj: Expr)(implicit val o: Origin) extends Statement
+case class Unlock(obj: Expr)(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends Statement
+case class Commit(obj: Expr)(implicit val o: Origin) extends Statement
 
 case class Fold(res: Expr)(implicit val o: Origin) extends Statement
 case class Unfold(res: Expr)(implicit val o: Origin) extends Statement

@@ -56,6 +56,7 @@ sealed abstract class JavaClassOrInterface extends JavaGlobalDeclaration with De
 }
 
 class JavaClass(val name: String, val modifiers: Seq[JavaModifier], val typeParams: Seq[Variable],
+                val intrinsicLockInvariant: Expr,
                 val ext: Type, val imp: Seq[Type],
                 val decls: Seq[ClassDeclaration])
                (implicit val o: Origin)

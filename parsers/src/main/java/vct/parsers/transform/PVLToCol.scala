@@ -43,8 +43,14 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit cls: DeclClassContext): Class = cls match {
-    case DeclClass0(_, name, _, decls, _) =>
-      new Class(decls.flatMap(convert(_)), supports = Nil)(SourceNameOrigin(convert(name), origin(cls)))
+    case DeclClass0(contract, _, name, _, decls, _) =>
+      withContract(contract, contract => {
+        new Class(
+          declarations = decls.flatMap(convert(_)),
+          supports = Nil,
+          intrinsicLockInvariant = Star.fold(contract.consume(contract.lock_invariant)),
+        )(SourceNameOrigin(convert(name), origin(cls)))
+      })
   }
 
   def convert(implicit decl: ClassDeclContext): Seq[ClassDeclaration] = decl match {
@@ -232,9 +238,9 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   def convert(implicit stat: StatementContext): Statement = stat match {
     case PvlReturn(_, value, _) => Return(value.map(convert(_)).getOrElse(Void()))
     case PvlLock(_, obj, _) => Lock(convert(obj))
-    case PvlUnlock(_, obj, _) => Unlock(convert(obj))
-    case PvlWait(_, obj, _) => Wait(convert(obj))
-    case PvlNotify(_, obj, _) => Notify(convert(obj))
+    case PvlUnlock(_, obj, _) => Unlock(convert(obj))(blame(stat))
+    case PvlWait(_, obj, _) => Wait(convert(obj))(blame(stat))
+    case PvlNotify(_, obj, _) => Notify(convert(obj))(blame(stat))
     case PvlFork(_, obj, _) => Fork(convert(obj))
     case PvlJoin(_, obj, _) => Join(convert(obj))
     case PvlValStatement(inner) => convert(inner)

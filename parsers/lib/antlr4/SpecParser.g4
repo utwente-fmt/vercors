@@ -49,6 +49,7 @@ valContractClause
  | 'loop_invariant' langExpr ';'
  | 'kernel_invariant' langExpr ';'
  | 'signals' '(' langType langId ')' langExpr ';'
+ | 'lock_invariant' langExpr ';'
  ;
 
 valBlock
