@@ -293,7 +293,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
 
       label match {
         case None => loop
-        case Some(label) => Block(Seq(convert(label), loop))
+        case Some(label) => Label(convert(label), loop)
       }
     case Statement4(contract1, label, _, cond, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
@@ -302,7 +302,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
 
       label match {
         case None => loop
-        case Some(label) => Block(Seq(convert(label), loop))
+        case Some(label) => Label(convert(label), loop)
       }
     case Statement5(_, _, _, _, _) => ??(stat)
     case Statement6(_, attempt, grab, eventually) =>
@@ -319,15 +319,16 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case Statement14(_, label, _) => Continue(label.map(convert(_)).map(new UnresolvedRef[LabelDecl](_)))
     case Statement15(_) => Block(Nil)
     case Statement16(expr, _) => Eval(convert(expr))
-    case Statement17(label, _, statement) => Block(Seq(
-      Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat)))),
-      convert(statement),
-    ))
+    case Statement17(label, _, statement) =>
+      Label(
+        new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))),
+        convert(statement),
+      )
     case Statement18(inner) => convert(inner)
   }
 
-  def convert(implicit label: LoopLabelContext): Statement = label match {
-    case LoopLabel0(name, _) => Label(new LabelDecl()(SourceNameOrigin(convert(name), origin(label))))
+  def convert(implicit label: LoopLabelContext): LabelDecl = label match {
+    case LoopLabel0(name, _) => new LabelDecl()(SourceNameOrigin(convert(name), origin(label)))
   }
 
   def convert(implicit switchBlock: SwitchBlockStatementGroupContext): Seq[Statement] = switchBlock match {
@@ -933,7 +934,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValInhale(_, resource, _) => Inhale(convert(resource))
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
-      Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
+      Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
     case ValRefute(_, assn, _) => Refute(convert(assn))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)

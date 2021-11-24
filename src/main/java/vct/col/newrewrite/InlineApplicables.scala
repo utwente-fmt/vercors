@@ -50,7 +50,7 @@ case class InlineApplicables() extends Rewriter {
           case PredicateApply(Ref(pred), _) =>
             dispatch(Substitute(replacements).dispatch(pred.body.getOrElse(???)))
           case ProcedureInvocation(Ref(proc), _, outArgs, typeArgs) =>
-            val done = Label(new LabelDecl())
+            val done = Label(new LabelDecl(), Block(Nil))
             val v = new Variable(proc.returnType)
             val returnReplacement = (result: Expr) => Block(Seq(Assign(v.get, result), Goto(done.decl.ref)))
             val replacedArgumentsBody = Substitute(replacements).dispatch(proc.body.getOrElse(???))
@@ -60,7 +60,7 @@ case class InlineApplicables() extends Rewriter {
             dispatch(Substitute(replacements).dispatch(func.body.getOrElse(???)))
 
           case MethodInvocation(obj, Ref(method), _, outArgs, typeArgs) =>
-            val done = Label(new LabelDecl())
+            val done = Label(new LabelDecl(), Block(Nil))
             val v = new Variable(method.returnType)
             val replacementsWithObj = replacements ++ Map(AmbiguousThis() -> obj)
             val returnReplacement = (result: Expr) => Block(Seq(Assign(v.get, result), Goto(done.decl.ref)))

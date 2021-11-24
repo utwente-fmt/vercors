@@ -42,6 +42,7 @@ case object Exceptions extends Feature // TODO
 case object ExceptionalLoopControl extends Feature // TODO + ContinueToBreak
 case object SwitchStatement extends Feature // TODO
 case object TryCatchStatement extends Feature // TODO
+case object NonTrivialLabel extends Feature // TODO
 
 case object Models extends Feature // TODO
 

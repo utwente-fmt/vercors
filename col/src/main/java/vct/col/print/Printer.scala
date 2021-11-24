@@ -508,7 +508,7 @@ case class Printer(out: Appendable,
         statement("case", space, pattern, ":"),
         Do(() => state = state.indent()),
       )
-    case Label(decl) =>
+    case Label(decl, impl) =>
       statement(syntax(
         Java -> phrase(name(decl), ": {}"),
         C -> phrase(name(decl), ": {}"),

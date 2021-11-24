@@ -256,7 +256,10 @@ class FeatureRainbow {
     case node: Recv => SendRecv
     case node: DefaultCase => SwitchStatement
     case node: Case => SwitchStatement
-    case node: Label => return Nil
+    case node: Label => node.stat match {
+      case Block(Nil) => return Nil
+      case _ => NonTrivialLabel
+    }
     case node: Goto => return Nil
     case node: Exhale => return Nil
     case node: Assert => return Nil

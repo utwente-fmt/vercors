@@ -20,6 +20,8 @@ case class ContinueToBreak() extends Rewriter {
   val loopLabelToInnerLabel = new mutable.HashMap[LabelDecl, LabelDecl]()
 
   override def dispatch(stat: Statement): Statement = stat match {
+    /*
+    PB TODO: fix because Label now contains a statement; maybe Label(decl, loop: Loop) instead?
     case block@Block(Seq(l@Label(labelDecl), loop: Loop)) =>
       val rewrittenBody = dispatch(loop.body)
 
@@ -41,6 +43,8 @@ case class ContinueToBreak() extends Rewriter {
         new LabelDecl()(ContinueToBreakOrigin(labelDecl.o))
       )
       Break(Some(innerLabelDecl.ref))(c.o)
+
+    */
 
     case other => rewriteDefault(other)
   }

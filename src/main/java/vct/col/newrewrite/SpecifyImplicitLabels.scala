@@ -21,6 +21,8 @@ case class SpecifyImplicitLabels() extends Rewriter {
   }
 
   override def dispatch(stat: Statement): Statement = stat match {
+    /*
+    PB TODO: fix as with continuetobreak
     case block@Block(Seq(oldLabel@Label(_), s: Statement)) if isBreakable(s) =>
       val newLabel = oldLabel.rewrite()
       val newS = labelStack.having(newLabel.decl) {
@@ -38,6 +40,7 @@ case class SpecifyImplicitLabels() extends Rewriter {
       c.rewrite(Some(labelStack.top.ref))
     case b@Break(None) =>
       b.rewrite(Some(labelStack.top.ref))
+     */
     case other => rewriteDefault(other)
   }
 }

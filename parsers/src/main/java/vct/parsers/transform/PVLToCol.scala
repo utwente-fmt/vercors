@@ -289,7 +289,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
       ))
     case PvlBlock(inner) => convert(inner)
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[LabelDecl](convert(label)))
-    case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
+    case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
     case PvlForStatement(inner, _) => convert(inner)
   }
 
@@ -717,7 +717,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case ValInhale(_, resource, _) => Inhale(convert(resource))
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
-      Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))))
+      Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
     case ValRefute(_, assn, _) => Refute(convert(assn))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)

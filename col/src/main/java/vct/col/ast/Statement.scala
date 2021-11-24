@@ -67,7 +67,7 @@ case class Recv(resource: Expr, label: Ref[LabelDecl], offset: Expr)(implicit va
 
 case class DefaultCase()(implicit val o: Origin) extends Statement
 case class Case(pattern: Expr)(implicit val o: Origin) extends Statement
-case class Label(decl: LabelDecl)(implicit val o: Origin) extends Statement
+case class Label(decl: LabelDecl, stat: Statement)(implicit val o: Origin) extends Statement
 case class Goto(lbl: Ref[LabelDecl])(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =
     context.currentApplicable.get.body.get.transSubnodes.collectFirst {

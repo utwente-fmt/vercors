@@ -234,7 +234,7 @@ case class ColToSilver(program: col.Program) {
       silver.Seqn(Seq(stat(body)), silverLocals)(info=NodeInfo(s))
     case col.SilverIf(cond, whenTrue, whenFalse) => silver.If(exp(cond), block(whenTrue), block(whenFalse))(info=NodeInfo(s))
     case col.SilverWhile(cond, inv, body) => silver.While(exp(cond), Seq(exp(inv)), block(body))(info=NodeInfo(s))
-    case col.Label(decl) => silver.Label(ref(decl), Seq())(info=NodeInfo(s))
+    case col.Label(decl, col.Block(Nil)) => silver.Label(ref(decl), Seq())(info=NodeInfo(s))
     case col.Goto(lbl) => silver.Goto(ref(lbl))(info=NodeInfo(s))
     case col.Exhale(res) => silver.Exhale(exp(res))(info=NodeInfo(s))
     case col.Assert(assn) => silver.Assert(exp(assn))(info=NodeInfo(s))
