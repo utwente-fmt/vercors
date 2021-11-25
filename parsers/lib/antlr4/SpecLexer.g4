@@ -44,6 +44,7 @@ VAL_BAG: 'bag';
 VAL_POINTER: 'pointer';
 VAL_MAP: 'map';
 VAL_OPTION: 'option';
+VAL_EITHER: 'either';
 VAL_TUPLE: 'tuple';
 VAL_TYPE: 'type';
 
@@ -108,8 +109,8 @@ VAL_PERM: 'Perm';
 VAL_POINTS_TO: 'PointsTo';
 VAL_RUNNING: 'running';
 VAL_SOME: 'Some';
-VAL_SOME: 'Left';
-VAL_SOME: 'Right';
+VAL_LEFT: 'Left';
+VAL_RIGHT: 'Right';
 VAL_VALUE: 'Value';
 
 UNFOLDING: '\\unfolding';

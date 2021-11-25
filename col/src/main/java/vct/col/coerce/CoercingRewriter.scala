@@ -475,6 +475,10 @@ abstract class CoercingRewriter() extends Rewriter {
       case Eq(left, right) =>
         val sharedType = Type.leastCommonSuperType(left.t, right.t)
         Eq(coerce(left, sharedType), coerce(right, sharedType))
+      case EitherLeft(e) =>
+        EitherLeft(e)
+      case EitherRight(e) =>
+        EitherRight(e)
       case Exists(bindings, triggers, body) =>
         Exists(bindings, triggers, bool(body))
       case Exp(left, right) =>

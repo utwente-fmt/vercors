@@ -176,6 +176,13 @@ case class OptNone()(implicit val o: Origin) extends Expr {
   override def t: Type = TOption(TAny())
 }
 
+case class EitherLeft(e: Expr)(implicit val o: Origin) extends Expr {
+  override def t: Type = TEither(e.t, TNothing())
+}
+case class EitherRight(e: Expr)(implicit val o: Origin) extends Expr {
+  override def t: Type = TEither(TNothing(), e.t)
+}
+
 case class MapCons(map: Expr, k: Expr, v: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = tailType
   def tailType: TMap = map.t.asMap.get

@@ -4,7 +4,7 @@ import hre.config.Configuration
 import hre.util.ScopedStack
 import vct.col.coerce.Coercion.{FracZFrac, NullArray, NullPointer, ZFracRat}
 import vct.col.ast._
-import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, MapKeyErrorPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
+import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
 import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.parsers.Parsers
 import RewriteHelpers._
@@ -31,6 +31,7 @@ case object ImportADT {
     case TAxiomatic(Ref(adt), args) => adt.o.preferredName + "$" + args.map(typeText).mkString("__") + "$"
     case TOption(element) => "opt_" + typeText(element)
     case TTuple(elements) => "tup$" + elements.map(typeText).mkString("__") + "$"
+    case TEither(left, right) => "either$" + typeText(left) + "__" + typeText(right) + "$"
     case TSeq(element) => "seq_" + typeText(element)
     case TSet(element) => "set_" + typeText(element)
     case TBag(element) => "bag_" + typeText(element)
@@ -116,6 +117,16 @@ case object ImportADT {
     override def blame(error: PreconditionFailed): Unit =
       inner.blame(CoerceZFracFracFailed(expr))
   }
+
+  case class NotLeftPreconditionFailed(get: GetLeft) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      get.blame.blame(NotLeft(get))
+  }
+
+  case class NotRightPreconditionFailed(get: GetRight) extends Blame[PreconditionFailed] {
+    override def blame(error: PreconditionFailed): Unit =
+      get.blame.blame(NotRight(get))
+  }
 }
 
 case class ImportADT() extends CoercingRewriter {
@@ -132,6 +143,7 @@ case class ImportADT() extends CoercingRewriter {
   private lazy val zfracFile = parse("zfrac")
   private lazy val tupleFile = parse("tuple")
   private lazy val optionFile = parse("option")
+  private lazy val eitherFile = parse("either")
   private lazy val mapFile = parse("map")
   private lazy val arrayFile = parse("array")
   private lazy val pointerFile = parse("pointer")
@@ -164,6 +176,15 @@ case class ImportADT() extends CoercingRewriter {
   private lazy val optionAxGet = find[ADTFunction](optionAdt, "option_get")
   private lazy val optionGet = find[Function](optionFile, "opt_get")
   private lazy val optionGetOrElse = find[Function](optionFile, "opt_or_else")
+
+  private lazy val eitherAdt = find[AxiomaticDataType](eitherFile, "either")
+  private lazy val eitherLeft = find[ADTFunction](eitherAdt, "left")
+  private lazy val eitherRight = find[ADTFunction](eitherAdt, "right")
+  private lazy val eitherIsRight = find[ADTFunction](eitherAdt, "is_right")
+  private lazy val eitherAxGetLeft = find[ADTFunction](eitherAdt, "either_get_left")
+  private lazy val eitherAxGetRight = find[ADTFunction](eitherAdt, "either_get_right")
+  private lazy val eitherGetLeft = find[Function](eitherFile, "get_left")
+  private lazy val eitherGetRight = find[Function](eitherFile, "get_right")
 
   private lazy val mapAdt = find[AxiomaticDataType](mapFile, "map")
   private lazy val mapEmpty = find[ADTFunction](mapAdt, "map_empty")
@@ -235,6 +256,7 @@ case class ImportADT() extends CoercingRewriter {
       case TFraction() => TAxiomatic(fracAdt.ref, Nil)
       case TZFraction() => TAxiomatic(zfracAdt.ref, Nil)
       case TTuple(Seq(t1, t2)) => TAxiomatic(tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))
+      case TEither(left, right) => TAxiomatic(eitherAdt.ref, Seq(dispatch(left), dispatch(right)))
       case TOption(element) => TAxiomatic(optionAdt.ref, Seq(dispatch(element)))
       case TMap(k, v) => TAxiomatic(mapAdt.ref, Seq(dispatch(k), dispatch(v)))
       case TArray(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(arrayAdt.ref, Nil)))
@@ -304,6 +326,34 @@ case class ImportADT() extends CoercingRewriter {
           Seq(dispatch(opt), dispatch(alt)),
           Seq(dispatch(get.t)),
         )(PanicBlame("opt_or_else requires nothing."))
+      case get @ GetLeft(e) =>
+        FunctionInvocation(eitherGetLeft.ref,
+          Seq(dispatch(e)),
+          Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)),
+        )(NotLeftPreconditionFailed(get))
+      case get @ GetRight(e) =>
+        FunctionInvocation(eitherGetRight.ref,
+          Seq(dispatch(e)),
+          Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)),
+        )(NotRightPreconditionFailed(get))
+      case is @ IsLeft(e) =>
+        Not(ADTFunctionInvocation(
+          Some((
+            eitherAdt.ref,
+            Seq(dispatch(is.eitherType.left), dispatch(is.eitherType.right))
+          )),
+          eitherIsRight.ref,
+          Seq(dispatch(e)),
+        ))
+      case is @ IsRight(e) =>
+        ADTFunctionInvocation(
+          Some((
+            eitherAdt.ref,
+            Seq(dispatch(is.eitherType.left), dispatch(is.eitherType.right))
+          )),
+          eitherIsRight.ref,
+          Seq(dispatch(e)),
+        )
       case LiteralMap(k, v, values) =>
         val typeArgs = Some((mapAdt.ref[AxiomaticDataType], Seq(dispatch(k), dispatch(v))))
         values.foldLeft(
