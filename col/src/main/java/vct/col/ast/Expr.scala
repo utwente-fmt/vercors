@@ -605,6 +605,20 @@ case class TupGet(tup: Expr, index: Int)(implicit val o: Origin) extends Expr {
     }
 }
 
+sealed trait EitherOp extends Expr {
+  def either: Expr
+  def eitherType: TEither = either.t.asEither.get
+}
+
+case class GetLeft(either: Expr)(val blame: Blame[NotLeft])(implicit val o: Origin) extends EitherOp {
+  override def t: Type = eitherType.left
+}
+case class GetRight(either: Expr)(val blame: Blame[NotRight])(implicit val o: Origin) extends EitherOp {
+  override def t: Type = eitherType.right
+}
+case class IsLeft(either: Expr)(implicit val o: Origin) extends EitherOp with BoolExpr
+case class IsRight(either: Expr)(implicit val o: Origin) extends EitherOp with BoolExpr
+
 case class VectorSum(indices: Expr, vec: Expr)(implicit val o: Origin) extends Expr {
   override def t: Type = vec.t.asSeq.get.element
 }

@@ -31,6 +31,11 @@ case object Spec {
       case (TTuple(_), "fst") => TupGet(_, 0)
       case (TTuple(_), "snd") => TupGet(_, 1)
 
+      case (TEither(_, _), "left") => GetLeft(_)(blame)
+      case (TEither(_, _), "right") => GetRight(_)(blame)
+      case (TEither(_, _), "isLeft") => IsLeft(_)
+      case (TEither(_, _), "isRight") => IsRight(_)
+
       case _ => return None
     }))
   }

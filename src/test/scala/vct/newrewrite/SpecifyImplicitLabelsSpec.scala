@@ -3,15 +3,13 @@ package vct.newrewrite
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
+import vct.col.newrewrite.exc.SpecifyImplicitLabels
 import vct.col.origin._
-import vct.col.newrewrite.SpecifyImplicitLabels
 import vct.helper.ColHelper
 
 class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
   implicit val o: Origin = DiagnosticOrigin
 
-  /*
-  PB TODO: fix together with specifyimplicitlabels
   it should "add a label to a switch without a label" in {
     val before = {
       Switch(
@@ -27,8 +25,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
 
     val after = {
       val switchLabel = new LabelDecl()
-      Block(Seq(
-        Label(switchLabel),
+      Label(switchLabel,
         Switch(
           Constant.IntegerValue(5),
           Block(Seq(
@@ -38,7 +35,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Break(Some(switchLabel.ref)),
           ))
         )
-      ))
+      )
     }
 
     val rewriter = SpecifyImplicitLabels()
@@ -49,8 +46,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
   it should "reuse labels already present" in {
     val before = {
       val switchLabel = new LabelDecl()
-      Block(Seq(
-        Label(switchLabel),
+      Label(switchLabel,
         Switch(
           Constant.IntegerValue(5),
           Block(Seq(
@@ -60,13 +56,12 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Break(None),
           ))
         )
-      ))
+      )
     }
 
     val after = {
       val switchLabel = new LabelDecl()
-      Block(Seq(
-        Label(switchLabel),
+      Label(switchLabel,
         Switch(
           Constant.IntegerValue(5),
           Block(Seq(
@@ -76,7 +71,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Break(Some(switchLabel.ref)),
           ))
         )
-      ))
+      )
     }
 
     val rewriter = SpecifyImplicitLabels()
@@ -87,8 +82,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
   it should "not touch labeled break" in {
     val before = {
       val switchLabel = new LabelDecl()
-      Block(Seq(
-        Label(switchLabel),
+      Label(switchLabel,
         Switch(
           Constant.IntegerValue(5),
           Block(Seq(
@@ -96,13 +90,12 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Break(Some(switchLabel.ref)),
           ))
         )
-      ))
+      )
     }
 
     val after = {
       val switchLabel = new LabelDecl()
-      Block(Seq(
-        Label(switchLabel),
+      Label(switchLabel,
         Switch(
           Constant.IntegerValue(5),
           Block(Seq(
@@ -110,7 +103,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
             Break(Some(switchLabel.ref)),
           ))
         )
-      ))
+      )
     }
 
     val rewriter = SpecifyImplicitLabels()
@@ -121,8 +114,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
   it should "use the nearest label possible" in {
     val before = {
       val switchLabelA = new LabelDecl()
-      Block(Seq(
-        Label(switchLabelA),
+      Label(switchLabelA,
         Switch(
           Constant.IntegerValue(33),
           Switch(
@@ -133,7 +125,7 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
               Case(Constant.IntegerValue(5)),
               Break(None),
             ))
-          ))
+          )
         )
       )
     }
@@ -141,14 +133,10 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
     val after = {
       val switchLabelA = new LabelDecl()
       val switchLabelB = new LabelDecl()
-      Block(Seq(
-        Label(switchLabelA),
-        Switch(
-          Constant.IntegerValue(33),
-          Block(Seq(
-            Label(switchLabelB),
-            Switch(
-              Constant.IntegerValue(5),
+      Label(switchLabelA,
+        Switch(Constant.IntegerValue(33),
+          Label(switchLabelB,
+            Switch(Constant.IntegerValue(5),
               Block(Seq(
                 Case(Constant.IntegerValue(0)),
                 Break(Some(switchLabelA.ref)),
@@ -156,14 +144,13 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
                 Break(Some(switchLabelB.ref))
               ))
             )
-          ))
+          )
         )
-      ))
+      )
     }
 
     val rewriter = SpecifyImplicitLabels()
     ColHelper.assertEquals(rewriter.dispatch(before), after)
     assert(rewriter.labelStack.isEmpty)
   }
-   */
 }

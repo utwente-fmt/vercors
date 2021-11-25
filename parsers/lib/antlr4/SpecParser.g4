@@ -123,6 +123,11 @@ valPrimaryOption
  : 'Some' '(' langExpr ')' # valSome
  ;
 
+valPrimaryEither
+ : 'Left' '(' langExpr ')' # valLeft
+ | 'Right' '(' langExpr ')' # valRight
+ ;
+
 valSetCompSelectors
  : langType langId
  | langType langId '<-' langId
@@ -232,7 +237,7 @@ valReserved
     | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS | VAL_SET | VAL_BAG
     | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION
     | VAL_HPERM | VAL_IDLE | VAL_PERM_VAL
-    | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME
+    | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME | VAL_LEFT | VAL_RIGHT
     | VAL_VALUE | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_MAP | VAL_OPTION | VAL_TUPLE | VAL_ADT | VAL_TYPE)
  | LANG_ID_ESCAPE # valIdEscape
  | '\\result' # valResult
@@ -262,6 +267,7 @@ valType
  | 'tuple' '<' langType ',' langType '>' # valTupleType
  | 'pointer' '<' langType '>' # valPointerType
  | 'type' '<' langType '>' # valTypeType
+ | 'either' '<' langType ',' langType '>' # valEitherType
  ;
 
 valGlobalDeclaration

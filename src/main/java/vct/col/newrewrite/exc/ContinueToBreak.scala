@@ -1,6 +1,5 @@
-package vct.col.newrewrite
+package vct.col.newrewrite.exc
 
-import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
@@ -20,31 +19,27 @@ case class ContinueToBreak() extends Rewriter {
   val loopLabelToInnerLabel = new mutable.HashMap[LabelDecl, LabelDecl]()
 
   override def dispatch(stat: Statement): Statement = stat match {
-    /*
-    PB TODO: fix because Label now contains a statement; maybe Label(decl, loop: Loop) instead?
-    case block@Block(Seq(l@Label(labelDecl), loop: Loop)) =>
+    case Label(labelDecl, loop: Loop) =>
       val rewrittenBody = dispatch(loop.body)
 
       // If the loop label appears in the mapping, it means it contains some continue that wants to break
       // from the inner label. We create a block wrapping the body, labeled with the inner label.
       val possiblyWrappedBody = loopLabelToInnerLabel.get(labelDecl) match {
         case Some(innerLabelDecl) =>
-          implicit val o = innerLabelDecl.o
-          Block(Seq(Label(innerLabelDecl), rewrittenBody))
+          implicit val o: Origin = innerLabelDecl.o
+          Label(innerLabelDecl, rewrittenBody)
         case None => rewrittenBody
       }
 
-      block.rewrite(Seq(l.rewrite(), loop.rewrite(body = possiblyWrappedBody)))
+      Label(labelDecl.rewrite(), loop.rewrite(body = possiblyWrappedBody))(stat.o)
 
-    case c@Continue(Some(Ref(labelDecl: LabelDecl))) =>
+    case c@Continue(Some(Ref(labelDecl))) =>
       // Reuse an already created inner label or create one
       val innerLabelDecl = loopLabelToInnerLabel.getOrElseUpdate(
         labelDecl,
         new LabelDecl()(ContinueToBreakOrigin(labelDecl.o))
       )
       Break(Some(innerLabelDecl.ref))(c.o)
-
-    */
 
     case other => rewriteDefault(other)
   }

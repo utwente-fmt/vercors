@@ -269,6 +269,11 @@ abstract class CoercingRewriter() extends Rewriter {
       case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a model here, but got ${e.t}")
     }
+  def either(e: Expr): (Expr, TEither) =
+    Coercion.getAnyEitherCoercion(e.t) match {
+      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+      case None => throw IncoercibleText(e, s"Expected an either here, but got ${e.t}")
+    }
 
   def firstOk[T](expr: Expr, message: => String,
                  alt1: => T = throw IncoercibleDummy,
@@ -483,6 +488,10 @@ abstract class CoercingRewriter() extends Rewriter {
         Forall(bindings, triggers, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs) =>
         FunctionInvocation(succ(ref.decl), coerceArgs(args, ref.decl, typeArgs), typeArgs)(inv.blame)
+      case get @ GetLeft(e) =>
+        GetLeft(either(e)._1)(get.blame)
+      case get @ GetRight(e) =>
+        GetRight(either(e)._1)(get.blame)
       case GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
         GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)
       case Greater(left, right) =>
@@ -533,6 +542,10 @@ abstract class CoercingRewriter() extends Rewriter {
         ???
       case InstancePredicateApply(obj, ref, args) =>
         InstancePredicateApply(cls(obj)._1, succ(ref.decl), coerceArgs(args, ref.decl))
+      case IsLeft(e) =>
+        IsLeft(either(e)._1)
+      case IsRight(e) =>
+        IsRight(either(e)._1)
       case deref @ JavaDeref(obj, field) => e
       case inv @ JavaInvocation(obj, typeParams, method, arguments, givenArgs, yields) => e
       case JavaLiteralArray(exprs) =>

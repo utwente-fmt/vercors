@@ -134,6 +134,14 @@ case class OptionNone(access: OptGet) extends BuiltinError {
   override def code: String = "optNone"
   override def toString: String = "Option may be empty."
 }
+case class NotRight(access: GetRight) extends BuiltinError {
+  override def code: String = "left"
+  override def toString: String = "Either may be left."
+}
+case class NotLeft(access: GetLeft) extends BuiltinError {
+  override def code: String = "right"
+  override def toString: String = "Either may be right."
+}
 case class MapKeyError(access: MapGet) extends BuiltinError with FrontendSubscriptError {
   override def code: String = "mapKey"
   override def toString: String = "Map may not contain this key."

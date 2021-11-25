@@ -108,6 +108,8 @@ VAL_PERM: 'Perm';
 VAL_POINTS_TO: 'PointsTo';
 VAL_RUNNING: 'running';
 VAL_SOME: 'Some';
+VAL_SOME: 'Left';
+VAL_SOME: 'Right';
 VAL_VALUE: 'Value';
 
 UNFOLDING: '\\unfolding';

@@ -1,4 +1,4 @@
-package vct.col.newrewrite
+package vct.col.newrewrite.exc
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
@@ -21,26 +21,23 @@ case class SpecifyImplicitLabels() extends Rewriter {
   }
 
   override def dispatch(stat: Statement): Statement = stat match {
-    /*
-    PB TODO: fix as with continuetobreak
-    case block@Block(Seq(oldLabel@Label(_), s: Statement)) if isBreakable(s) =>
-      val newLabel = oldLabel.rewrite()
-      val newS = labelStack.having(newLabel.decl) {
-        rewriteDefault(s)
+    case Label(decl, impl) if isBreakable(impl) =>
+      val newLabel = decl.rewrite()
+      val newImpl = labelStack.having(newLabel) {
+        rewriteDefault(impl)
       }
-      block.rewrite(statements = Seq(newLabel, newS))
-    case s: Statement if isBreakable(s) =>
-      implicit val o = s.o
+      Label(newLabel, newImpl)(stat.o)
+    case stat if isBreakable(stat) =>
+      implicit val o: Origin = stat.o
       val labelDecl = new LabelDecl()(ImplicitLabelOrigin(o))
-      val labelStatement = Label(labelDecl)
       labelStack.having(labelDecl) {
-        Block(Seq(labelStatement, rewriteDefault(s)))
+        Label(labelDecl, rewriteDefault(stat))
       }
     case c@Continue(None) =>
       c.rewrite(Some(labelStack.top.ref))
     case b@Break(None) =>
       b.rewrite(Some(labelStack.top.ref))
-     */
+
     case other => rewriteDefault(other)
   }
 }

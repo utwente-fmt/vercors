@@ -27,6 +27,7 @@ sealed trait Type extends NodeFamily {
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
   def asMatrix: Option[TMatrix] = optMatch(this) { case mat: TMatrix => mat }
   def asModel: Option[TModel] = optMatch(this) { case model: TModel => model }
+  def asEither: Option[TEither] = optMatch(this) { case either: TEither => either }
 
   def particularize(substitutions: Map[Variable, Type]): Type = {
     case object Particularize extends Rewriter {
@@ -142,6 +143,7 @@ case class TNotAValue()(implicit val o: Origin = DiagnosticOrigin) extends Type 
 case class TAny()(implicit val o: Origin = DiagnosticOrigin) extends Type
 case class TNothing()(implicit val o: Origin = DiagnosticOrigin) extends Type
 
+// "joint" union, i.e. not a sum type / tagged union.
 case class TUnion(types: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends Type
 
 case class TVoid()(implicit val o: Origin = DiagnosticOrigin) extends Type
@@ -161,6 +163,7 @@ case class TString()(implicit val o: Origin = DiagnosticOrigin) extends Type
 case class TRef()(implicit val o: Origin = DiagnosticOrigin) extends Type
 case class TOption(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type
 case class TTuple(elements: Seq[Type])(implicit val o: Origin = DiagnosticOrigin) extends Type
+case class TEither(left: Type, right: Type)(implicit val o: Origin = DiagnosticOrigin) extends Type
 case class TSeq(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CollectionType
 case class TSet(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CollectionType
 case class TBag(element: Type)(implicit val o: Origin = DiagnosticOrigin) extends CollectionType

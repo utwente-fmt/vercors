@@ -34,6 +34,9 @@ case object Coercion {
   case class MapTuple(source: TTuple, target: TTuple, left: Coercion, right: Coercion) extends Coercion {
     override def isPromoting: Boolean = left.isPromoting && right.isPromoting
   }
+  case class MapEither(source: TEither, target: TEither, left: Coercion, right: Coercion) extends Coercion {
+    override def isPromoting: Boolean = left.isPromoting && right.isPromoting
+  }
   case class MapSeq(source: TSeq, target: TSeq, inner: Coercion) extends MappingCoercion
   case class MapSet(source: TSet, target: TSet, inner: Coercion) extends MappingPromotion
   case class MapBag(source: TBag, target: TBag, inner: Coercion) extends MappingPromotion
@@ -96,6 +99,10 @@ case object Coercion {
         MapOption(source, target, getCoercion(innerSource, innerTarget).getOrElse(return None))
       case (source @ TTuple(Seq(leftSource, rightSource)), target @ TTuple(Seq(leftTarget, rightTarget))) =>
         MapTuple(source, target,
+          left = getCoercion(leftSource, leftTarget).getOrElse(return None),
+          right = getCoercion(rightSource, rightTarget).getOrElse(return None))
+      case (source @ TEither(leftSource, rightSource), target @ TEither(leftTarget, rightTarget)) =>
+        MapEither(source, target,
           left = getCoercion(leftSource, leftTarget).getOrElse(return None),
           right = getCoercion(rightSource, rightTarget).getOrElse(return None))
       case (source @ TSeq(innerSource), target @ TSeq(innerTarget)) =>
@@ -235,6 +242,10 @@ case object Coercion {
     case _ => None
   }
 
+  def getAnyEitherCoercion(source: Type): Option[(Coercion, TEither)] = source match {
+    case t: TEither => Some((Identity, t))
+    case _ => None
+  }
   def getAnyClassCoercion(source: Type): Option[(Coercion, TClass)] = source match {
     case t: TClass => Some((Identity, t))
     case _ => None
