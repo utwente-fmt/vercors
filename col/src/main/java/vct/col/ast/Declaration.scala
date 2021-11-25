@@ -79,7 +79,6 @@ class DirectRef[T <: Declaration](genericDecl: Declaration)(implicit tag: ClassT
 }
 
 class LazyRef[T <: Declaration](lazyDecl: => Declaration)(implicit tag: ClassTag[T]) extends Ref[T] {
-  val made = Thread.currentThread().getStackTrace.toSeq
   def decl: T = lazyDecl match {
     case decl: /*tagged*/ T => decl
     case other => throw MistypedRef(other, tag)
