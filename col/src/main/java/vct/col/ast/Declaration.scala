@@ -196,14 +196,17 @@ sealed trait Applicable extends Declaration with Declarator {
   def args: Seq[Variable]
   def returnType: Type
   def body: Option[Node]
-  def inline: Boolean
 
   override def declarations: Seq[Declaration] = args
 
   override def enterCheckContext(context: CheckContext): CheckContext = context.withApplicable(this)
 }
 
-sealed trait AbstractPredicate extends Applicable {
+sealed trait InlineableApplicable extends Applicable {
+  def inline: Boolean
+}
+
+sealed trait AbstractPredicate extends InlineableApplicable {
   override def body: Option[Expr]
   override def returnType: Type = TResource()
   def threadLocal: Boolean
@@ -219,7 +222,7 @@ case class ApplicableContract(requires: Expr, ensures: Expr, contextEverywhere: 
                               signals: Seq[SignalsClause], givenArgs: Seq[Variable], yieldsArgs: Seq[Variable])
                              (implicit val o: Origin) extends NodeFamily
 
-sealed trait ContractApplicable extends Applicable {
+sealed trait ContractApplicable extends InlineableApplicable {
   def contract: ApplicableContract
   def blame: Blame[PostconditionFailed]
   override def declarations: Seq[Declaration] =
@@ -287,7 +290,6 @@ class InstancePredicate(val args: Seq[Variable], val body: Option[Expr],
 
 class ADTFunction(val args: Seq[Variable], val returnType: Type)(implicit val o: Origin) extends Applicable with ADTDeclaration {
   override def body: Option[Node] = None
-  override def inline: Boolean = false
 }
 
 sealed trait FieldFlag extends NodeFamily
@@ -321,7 +323,6 @@ class ModelProcess(val args: Seq[Variable], val impl: Expr,
                   (implicit val o: Origin) extends ModelDeclaration with Applicable {
   override def returnType: Type = TProcess()
   override def body: Option[Node] = Some(impl)
-  override def inline: Boolean = false
   override def check(context: CheckContext): Seq[CheckError] =
     impl.checkSubType(TProcess()) ++ requires.checkSubType(TBool()) ++ ensures.checkSubType(TBool())
 }
@@ -331,7 +332,6 @@ class ModelAction(val args: Seq[Variable],
                  (implicit val o: Origin) extends ModelDeclaration with Applicable {
   override def returnType: Type = TProcess()
   override def body: Option[Node] = None
-  override def inline: Boolean = false
 
   override def check(context: CheckContext): Seq[CheckError] =
     requires.checkSubType(TBool()) ++ ensures.checkSubType(TBool())

@@ -45,26 +45,86 @@ object AstBuildHelpers {
 
   implicit class ApplicableBuildHelpers(applicable: Applicable)(implicit rewriter: AbstractRewriter) {
     def rewrite(args: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { applicable.args.foreach(rewriter.dispatch) },
-                inline: Boolean = applicable.inline,
                ): Applicable = applicable match {
-      case predicate: Predicate =>
-        new RewritePredicate(predicate).rewrite(args = args, inline = inline)
-      case predicate: InstancePredicate =>
-        new RewriteInstancePredicate(predicate).rewrite(args = args, inline = inline)
-      case function: Function =>
-        new RewriteFunction(function).rewrite(args = args, inline = inline)
-      case function: InstanceFunction =>
-        new RewriteInstanceFunction(function).rewrite(args = args, inline = inline)
-      case procedure: Procedure =>
-        new RewriteProcedure(procedure).rewrite(args = args, inline = inline)
-      case method: InstanceMethod =>
-        new RewriteInstanceMethod(method).rewrite(args = args, inline = inline)
+      case inlineable: InlineableApplicable =>
+        new InlineableApplicableBuildHelpers(inlineable).rewrite(args = args)
       case function: ADTFunction =>
         new RewriteADTFunction(function).rewrite(args = args)
       case process: ModelProcess =>
         new RewriteModelProcess(process).rewrite(args = args)
       case action: ModelAction =>
         new RewriteModelAction(action).rewrite(args = args)
+    }
+  }
+
+  implicit class InlineableApplicableBuildHelpers(inlineable: InlineableApplicable)(implicit rewriter: AbstractRewriter) {
+    def rewrite(args: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { inlineable.args.foreach(rewriter.dispatch) },
+                inline: Boolean = inlineable.inline,
+               ): InlineableApplicable = inlineable match {
+      case pred: AbstractPredicate =>
+        new PredicateBuildHelpers(pred).rewrite(args = args, inline = inline)
+      case contracted: ContractApplicable =>
+        new ContractApplicableBuildHelpers(contracted).rewrite(args = args, inline = inline)
+    }
+  }
+
+  implicit class ContractApplicableBuildHelpers(contracted: ContractApplicable)(implicit rewriter: AbstractRewriter) {
+    def rewrite(args: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { contracted.args.foreach(rewriter.dispatch) },
+                returnType: Type = rewriter.dispatch(contracted.returnType),
+                contract: ApplicableContract = rewriter.dispatch(contracted.contract),
+                typeArgs: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { contracted.typeArgs.foreach(rewriter.dispatch) },
+                inline: Boolean = contracted.inline,
+               ): ContractApplicable = contracted match {
+      case function: Function =>
+        new RewriteFunction(function).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+      case function: InstanceFunction =>
+        new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+      case method: AbstractMethod =>
+        new MethodBuildHelpers(method).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+    }
+  }
+
+  implicit class MethodBuildHelpers(method: AbstractMethod)(implicit rewriter: AbstractRewriter) {
+    def rewrite(args: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { method.args.foreach(rewriter.dispatch) },
+                returnType: Type = rewriter.dispatch(method.returnType),
+                outArgs: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { method.outArgs.foreach(rewriter.dispatch) },
+                body: Option[Statement] = method.body.map(rewriter.dispatch),
+                contract: ApplicableContract = rewriter.dispatch(method.contract),
+                typeArgs: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { method.typeArgs.foreach(rewriter.dispatch) },
+                inline: Boolean = method.inline,
+                pure: Boolean = method.pure,
+               ): AbstractMethod = method match {
+      case procedure: Procedure =>
+        new RewriteProcedure(procedure).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = pure)
+      case method: InstanceMethod =>
+        new RewriteInstanceMethod(method).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = pure)
+    }
+  }
+
+  implicit class FunctionBuildHelpers(function: AbstractFunction)(implicit rewriter: AbstractRewriter) {
+    def rewrite(args: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { function.args.foreach(rewriter.dispatch) },
+                returnType: Type = rewriter.dispatch(function.returnType),
+                body: Option[Expr] = function.body.map(rewriter.dispatch),
+                contract: ApplicableContract = rewriter.dispatch(function.contract),
+                typeArgs: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { function.typeArgs.foreach(rewriter.dispatch) },
+                inline: Boolean = function.inline,
+               ): ContractApplicable = function match {
+      case function: Function =>
+        new RewriteFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs)
+      case function: InstanceFunction =>
+        new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs)
+    }
+  }
+
+  implicit class PredicateBuildHelpers(predicate: AbstractPredicate)(implicit rewriter: AbstractRewriter) {
+    def rewrite(args: Seq[Variable] = rewriter.collectInScope(rewriter.variableScopes) { predicate.args.foreach(rewriter.dispatch) },
+                inline: Boolean = predicate.inline,
+                threadLocal: Boolean = predicate.threadLocal,
+               ): AbstractPredicate = predicate match {
+      case predicate: Predicate =>
+        new RewritePredicate(predicate).rewrite(args = args, inline = inline, threadLocal = threadLocal)
+      case predicate: InstancePredicate =>
+        new RewriteInstancePredicate(predicate).rewrite(args = args, inline = inline, threadLocal = threadLocal)
     }
   }
 

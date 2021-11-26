@@ -28,13 +28,13 @@ case class InlineApplicables() extends Rewriter {
   val inlineStack: ScopedStack[Apply] = ScopedStack()
 
   override def dispatch(decl: Declaration): Unit = decl match {
-    case app: Applicable if app.inline =>
+    case app: InlineableApplicable if app.inline =>
       // discard definition
     case other => rewriteDefault(other)
   }
 
   override def dispatch(e: Expr): Expr = e match {
-    case apply: Apply if apply.ref.decl.inline =>
+    case apply: ApplyInlineable if apply.ref.decl.inline =>
       implicit val o: Origin = apply.o
 
       if(inlineStack.exists(_.ref.decl == apply.ref.decl))
@@ -44,9 +44,6 @@ case class InlineApplicables() extends Rewriter {
         val replacements = apply.ref.decl.args.map(_.get).zip(apply.args).toMap[Expr, Expr]
         // TODO: consider type arguments and out-arguments
         apply match {
-          case ADTFunctionInvocation(typeArgs, ref, args) =>
-            throw Unreachable("ADT functions are never inline.")
-
           case PredicateApply(Ref(pred), _) =>
             dispatch(Substitute(replacements).dispatch(pred.body.getOrElse(???)))
           case ProcedureInvocation(Ref(proc), _, outArgs, typeArgs) =>

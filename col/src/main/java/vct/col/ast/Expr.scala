@@ -259,8 +259,16 @@ sealed trait Apply extends Expr {
   override def t: Type = ref.decl.returnType
 }
 
-case class PredicateApply(ref: Ref[Predicate], args: Seq[Expr])(implicit val o: Origin) extends Apply
-case class InstancePredicateApply(obj: Expr, ref: Ref[InstancePredicate], args: Seq[Expr])(implicit val o: Origin) extends Apply
+sealed trait ApplyInlineable extends Apply {
+  override def ref: Ref[_ <: InlineableApplicable]
+}
+
+sealed trait ApplyAnyPredicate extends ApplyInlineable {
+  override def ref: Ref[_ <: AbstractPredicate]
+}
+
+case class PredicateApply(ref: Ref[Predicate], args: Seq[Expr])(implicit val o: Origin) extends ApplyAnyPredicate
+case class InstancePredicateApply(obj: Expr, ref: Ref[InstancePredicate], args: Seq[Expr])(implicit val o: Origin) extends ApplyAnyPredicate
 
 case class ADTFunctionInvocation(typeArgs: Option[(Ref[AxiomaticDataType], Seq[Type])],
                                  ref: Ref[ADTFunction], args: Seq[Expr])(implicit val o: Origin) extends Apply {
@@ -272,7 +280,7 @@ case class ADTFunctionInvocation(typeArgs: Option[(Ref[AxiomaticDataType], Seq[T
     }
 }
 
-sealed trait Invocation extends Apply {
+sealed trait Invocation extends ApplyInlineable {
   override def ref: Ref[_ <: ContractApplicable]
   def blame: Blame[PreconditionFailed]
   def typeArgs: Seq[Type]
@@ -280,15 +288,23 @@ sealed trait Invocation extends Apply {
   override def t: Type = super.t.particularize(ref.decl.typeArgs.zip(typeArgs).toMap)
 }
 
+sealed trait AnyMethodInvocation extends Invocation {
+  override def ref: Ref[_ <: AbstractMethod]
+}
+
+sealed trait AnyFunctionInvocation extends Invocation {
+  override def ref: Ref[_ <: AbstractFunction]
+}
+
 case class ProcedureInvocation(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]], typeArgs: Seq[Type])
-                              (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
+                              (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends AnyMethodInvocation
 case class FunctionInvocation(ref: Ref[Function], args: Seq[Expr], typeArgs: Seq[Type])
-                             (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
+                             (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends AnyFunctionInvocation
 
 case class MethodInvocation(obj: Expr, ref: Ref[InstanceMethod], args: Seq[Expr], outArgs: Seq[Ref[Variable]], typeArgs: Seq[Type])
-                           (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
+                           (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends AnyMethodInvocation
 case class InstanceFunctionInvocation(obj: Expr, ref: Ref[InstanceFunction], args: Seq[Expr], typeArgs: Seq[Type])
-                                     (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends Invocation
+                                     (val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends AnyFunctionInvocation
 
 sealed trait UnExpr extends Expr {
   def arg: Expr

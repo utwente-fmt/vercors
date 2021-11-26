@@ -65,8 +65,9 @@ case class VecBlock(iters: Seq[IterVariable], requires: Expr, ensures: Expr, con
 case class Send(resource: Expr, label: Ref[LabelDecl], offset: Expr)(implicit val o: Origin) extends Statement
 case class Recv(resource: Expr, label: Ref[LabelDecl], offset: Expr)(implicit val o: Origin) extends Statement
 
-case class DefaultCase()(implicit val o: Origin) extends Statement
-case class Case(pattern: Expr)(implicit val o: Origin) extends Statement
+sealed trait SwitchCase extends Statement
+case class DefaultCase()(implicit val o: Origin) extends SwitchCase
+case class Case(pattern: Expr)(implicit val o: Origin) extends SwitchCase
 case class Label(decl: LabelDecl, stat: Statement)(implicit val o: Origin) extends Statement
 case class Goto(lbl: Ref[LabelDecl])(implicit val o: Origin) extends Statement {
   override def check(context: CheckContext): Seq[CheckError] =

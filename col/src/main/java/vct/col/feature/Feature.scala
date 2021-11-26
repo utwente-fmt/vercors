@@ -28,6 +28,9 @@ case object NonWhileLoop extends Feature // ForLoopToWhileLoop
 case object IntrinsicLocks extends Feature // EncodeIntrinsicLock
 case object WaitNotify extends Feature // EncodeIntrinsicLock
 case object NonMethodInvocationEvaluation extends Feature // EvaluationTargetDummy
+case object ExceptionalLoopControl extends Feature // ContinueToBreak + EncodeBreakReturn
+case object NonTrivialLabel extends Feature // EncodeBreakReturn
+case object SwitchStatement extends Feature // SwitchToGoto
 
 case object MatrixVector extends Feature // TODO
 case object NumericReductionOperator extends Feature // TODO
@@ -39,10 +42,7 @@ case object NonVoidReturn extends Feature // TODO
 case object ExoticTypes extends Feature // TODO
 
 case object Exceptions extends Feature // TODO
-case object ExceptionalLoopControl extends Feature // TODO + ContinueToBreak
-case object SwitchStatement extends Feature // TODO
 case object TryCatchStatement extends Feature // TODO
-case object NonTrivialLabel extends Feature // TODO
 
 case object Models extends Feature // TODO
 
