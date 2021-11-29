@@ -199,6 +199,11 @@ case class NotifyFailed(not: Notify, failure: ContractFailure) extends Verificat
   override def toString: String = s"The token that indicated the lock is locked (`held(obj)`) may not be asserted here, since $failure."
 }
 
+case class ThrowNull(t: Throw) extends VerificationFailure {
+  override def code: String = "null"
+  override def toString: String = "The value thrown here may be null."
+}
+
 sealed trait UnsafeCoercion extends VerificationFailure
 case class CoerceRatZFracFailed(rat: Expr) extends UnsafeCoercion {
   override def code: String = "ratZfrac"

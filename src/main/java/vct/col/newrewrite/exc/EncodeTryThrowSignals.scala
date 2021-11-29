@@ -5,12 +5,24 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import vct.col.newrewrite.util.Substitute
-import vct.col.origin.Origin
+import vct.col.origin.{AssertFailed, Blame, Origin, ThrowNull}
 import vct.col.rewrite.Rewriter
 
+case object EncodeTryThrowSignals {
+  case class ThrowNullAssertFailed(t: Throw) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      t.blame.blame(ThrowNull(t))
+  }
+}
+
 case class EncodeTryThrowSignals() extends Rewriter {
+  import EncodeTryThrowSignals._
+
   val currentException: ScopedStack[Variable] = ScopedStack()
   val exceptionalHandlerEntry: ScopedStack[LabelDecl] = ScopedStack()
+  val returnHandler: ScopedStack[LabelDecl] = ScopedStack()
+
+  val signalsBinding: ScopedStack[Variable] = ScopedStack()
 
   def getExc(implicit o: Origin): Expr =
     currentException.last.get
@@ -56,20 +68,77 @@ case class EncodeTryThrowSignals() extends Rewriter {
           catchImpl,
           finallyImpl,
         ))
+
+      case t @ Throw(obj) =>
+        Block(Seq(
+          Assign(getExc, dispatch(obj)),
+          Assert(getExc !== Null())(ThrowNullAssertFailed(t)),
+          Goto(exceptionalHandlerEntry.last.ref),
+        ))
+
+      case Return(result) =>
+        Block(Seq(
+          Label(returnHandler.last, Block(Nil)),
+          Return(Select(
+            getExc === Null(),
+            EitherRight(dispatch(result)),
+            EitherLeft(getExc),
+          ))
+        ))
     }
   }
 
   override def dispatch(decl: Declaration): Unit = decl match {
     case method: AbstractMethod =>
       implicit val o: Origin = method.o
-      method.rewrite(body = method.body.map(body => {
-        val exc = new Variable(TClass(???))
-        // Before dispatching to body we should push an exceptionalHandlerEntry, to deal with an exception bubbling
-        // up the stack.
-        Scope(Seq(exc), Block(Seq(
-          Assign(exc.get, Null()),
-          currentException.having(exc) { dispatch(body) },
-        )))
-      }))
+
+      val exc = new Variable(TClass(???))
+
+      currentException.having(exc) {
+        val body = method.body.map(body => {
+          val returnPoint = new LabelDecl()
+          // The return point is at this moment guaranteed to be the last logical statement of the method, since either
+          // all return statements are encoded as a goto to the end of the method, or they are encoded as exceptions.
+          // Because of that, we can designate the (only) return statement as the outermost exception handler, returning
+          // Left(exc) if an exception is being handled, Right(result) otherwise.
+          // However, we should figure out a better way of doing this. Perhaps first translating to out-parameters is
+          // the way to go? But then we should perhaps add an out-parameter option<exception> or so, instead of changing
+          // the return type to either<exc, _>.
+          Scope(Seq(exc), Block(Seq(
+            Assign(exc.get, Null()),
+            returnHandler.having(returnPoint) {
+              exceptionalHandlerEntry.having(returnPoint) {
+                currentException.having(exc) {
+                  dispatch(body)
+                }
+              }
+            },
+          )))
+        })
+
+        val ensures =
+          (IsRight(AmbiguousResult()) ==> dispatch(method.contract.ensures)) &*
+            Star.fold(method.contract.signals.map {
+              case SignalsClause(binding, assn) =>
+                (IsLeft(AmbiguousResult()) && InstanceOf(GetLeft(AmbiguousResult())(???), TypeValue(binding.t))) ==>
+                  (signalsBinding.having(binding) { dispatch(assn) })
+            })
+
+        method.rewrite(
+          returnType = TEither(TClass(???), dispatch(method.returnType)),
+          body = body,
+          contract = method.contract.rewrite(ensures = ensures, signals = Nil)
+        )
+      }
+  }
+
+  override def dispatch(e: Expr): Expr = e match {
+    case Local(Ref(v)) if signalsBinding.nonEmpty && signalsBinding.last == v =>
+      implicit val o: Origin = e.o
+      GetLeft(AmbiguousResult())(???)
+
+    case AmbiguousResult() =>
+      implicit val o: Origin = e.o
+      GetRight(AmbiguousResult())(???)
   }
 }

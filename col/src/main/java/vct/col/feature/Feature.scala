@@ -31,6 +31,8 @@ case object NonMethodInvocationEvaluation extends Feature // EvaluationTargetDum
 case object ExceptionalLoopControl extends Feature // ContinueToBreak + EncodeBreakReturn
 case object NonTrivialLabel extends Feature // EncodeBreakReturn
 case object SwitchStatement extends Feature // SwitchToGoto
+case object Exceptions extends Feature // EncodeTryThrowSignals
+case object TryCatchStatement extends Feature // EncodeTryThrowSignals
 
 case object MatrixVector extends Feature // TODO
 case object NumericReductionOperator extends Feature // TODO
@@ -40,9 +42,6 @@ case object InlineQuantifierPattern extends Feature // TODO
 case object TypeValuesAndGenerics extends Feature // TODO
 case object NonVoidReturn extends Feature // TODO
 case object ExoticTypes extends Feature // TODO
-
-case object Exceptions extends Feature // TODO
-case object TryCatchStatement extends Feature // TODO
 
 case object Models extends Feature // TODO
 

@@ -314,7 +314,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       Switch(convert(expr), Block(casedStatements.flatMap(convert(_)) ++ trailingCases.map(convert(_))))
     case Statement10(_, obj, inner) => Synchronized(convert(obj), convert(inner))(blame(stat))
     case Statement11(_, expr, _) => Return(expr.map(convert(_)).getOrElse(Void()))
-    case Statement12(_, exc, _) => Throw(convert(exc))
+    case Statement12(_, exc, _) => Throw(convert(exc))(blame(stat))
     case Statement13(_, label, _) => Break(label.map(convert(_)).map(new UnresolvedRef[LabelDecl](_)))
     case Statement14(_, label, _) => Continue(label.map(convert(_)).map(new UnresolvedRef[LabelDecl](_)))
     case Statement15(_) => Block(Nil)

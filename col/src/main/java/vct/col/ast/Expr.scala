@@ -52,6 +52,7 @@ sealed abstract class Constant[T] extends Expr {
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case const: Constant[T] => this.value == const.value
+    case _ => false
   }
 
   override def hashCode(): Int = value.hashCode()

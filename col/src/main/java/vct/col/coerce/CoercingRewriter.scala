@@ -159,7 +159,7 @@ abstract class CoercingRewriter() extends Rewriter {
     case node: Type => node
     case node: ApplicableContract => node
     case node: LoopContract => node
-    case node: ParBlock => node
+    case node: ParParallel => node
     case node: CatchClause => node
     case node: SignalsClause => node
     case node: FieldFlag => node

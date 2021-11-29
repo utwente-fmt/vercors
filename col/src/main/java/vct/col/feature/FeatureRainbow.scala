@@ -455,5 +455,6 @@ class FeatureRainbow {
     case node: PVLInvocation => return Nil
     case node: PVLNew => return Nil
     case node: PVLConstructor => return Nil
+    case node: Commit => IntrinsicLocks
   })
 }

@@ -88,7 +88,7 @@ case class Assume(assn: Expr)(implicit val o: Origin) extends Statement
 case class SpecIgnoreStart()(implicit val o: Origin) extends Statement
 case class SpecIgnoreEnd()(implicit val o: Origin) extends Statement
 
-case class Throw(obj: Expr)(implicit val o: Origin) extends Statement
+case class Throw(obj: Expr)(val blame: Blame[ThrowNull])(implicit val o: Origin) extends Statement
 case class Wait(obj: Expr)(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends Statement
 case class Notify(obj: Expr)(val blame: Blame[NotifyFailed])(implicit val o: Origin) extends Statement
 case class Fork(obj: Expr)(implicit val o: Origin) extends Statement

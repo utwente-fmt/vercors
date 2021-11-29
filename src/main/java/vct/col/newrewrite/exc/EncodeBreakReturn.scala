@@ -3,7 +3,7 @@ package vct.col.newrewrite.exc
 import vct.col.ast._
 import RewriteHelpers._
 import vct.col.newrewrite.error.ExcludedByPassOrder
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, PanicBlame}
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.Rewriter
 import vct.col.util.SuccessionMap
@@ -128,14 +128,14 @@ case class EncodeBreakReturn() extends Rewriter {
             cls.declareDefault(this)
             cls
           })
-          Throw(NewObject(cls.ref))
+          Throw(NewObject(cls.ref))(PanicBlame("The result of NewObject is never null"))
 
         case Return(result) =>
           val exc = new Variable(TClass(returnClass.ref))
           Scope(Seq(exc), Block(Seq(
             Assign(exc.get, NewObject(returnClass.ref)),
             assignField(exc.get, valueField.ref, dispatch(result)),
-            Throw(exc.get),
+            Throw(exc.get)(PanicBlame("The result of NewObject is never null")),
           )))
 
         case other => rewriteDefault(other)

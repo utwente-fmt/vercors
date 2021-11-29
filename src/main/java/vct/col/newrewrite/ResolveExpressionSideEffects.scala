@@ -121,7 +121,7 @@ case class ResolveExpressionSideEffects() extends Rewriter {
       case assume: Assume => rewriteDefault(assume)
       case ignore: SpecIgnoreStart => rewriteDefault(ignore)
       case ignore: SpecIgnoreEnd => rewriteDefault(ignore)
-      case Throw(obj) => frame(obj, Throw(_))
+      case t @ Throw(obj) => frame(obj, Throw(_)(t.blame))
       case wait @ Wait(obj) => frame(obj, Wait(_)(wait.blame))
       case notify @ Notify(obj) => frame(obj, Notify(_)(notify.blame))
       case Fork(obj) => frame(obj, Fork(_))
