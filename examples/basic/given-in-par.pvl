@@ -8,7 +8,7 @@ class Test {
 	void call();
 
 	void test() {
-		par T0() {
+		par T0 {
 			call given { p = 1 } ();
 		}
 	}

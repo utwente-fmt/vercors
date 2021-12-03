@@ -1,6 +1,6 @@
 package vct.main
 
-import vct.col.ast.Program
+import vct.col.ast.{PVLInvocation, Program}
 import vct.col.check.{CheckError, IncomparableTypes, OutOfScopeError, TypeError, TypeErrorText}
 import vct.col.feature.FeatureRainbow
 import vct.col.newrewrite.ImportADT
@@ -41,7 +41,7 @@ case object Test {
         }
       })
 
-//      tryParse(Seq(Path.of("examples/arrays/backward-dep-e1.c")))
+//      tryParse(Seq(Path.of("examples/demo/demo3d.pvl")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
@@ -51,18 +51,7 @@ case object Test {
   def printErrorsOr(errors: Seq[CheckError])(otherwise: => Unit): Unit = {
     errorCount += errors.size
     if(errors.isEmpty) otherwise
-    else errors.foreach {
-      case TypeError(expr, expectedType) =>
-        expectedType.superTypeOf(expr.t)
-        println(expr.o.messageInContext(s"Expected to be of type $expectedType, but got ${expr.t}"))
-      case TypeErrorText(expr, message) =>
-        println(expr.o.messageInContext(message(expr.t)))
-      case OutOfScopeError(use, ref) =>
-        println(use.o.messageInContext("This use is out of scope"))
-        println(ref.decl.o.messageInContext("Declaration occurs here"))
-      case IncomparableTypes(left, right) =>
-        println(s"Types $left and $right are incomparable")
-    }
+    else errors.foreach(println)
   }
 
   def tryParse(paths: Seq[Path]): Unit = try {
@@ -78,11 +67,12 @@ case object Test {
     printErrorsOr(errors) {
       program = LangSpecificToCol().dispatch(program)
       printErrorsOr(program.check) {
+        program.transSubnodes.filter(_.subnodes.collect { case _: PVLInvocation => () }.nonEmpty).foreach(println)
         val features = new FeatureRainbow()
         features.scan(program)
         println(features.features)
-//        program = ImportADT().dispatch(program)
-//        printErrorsOr(program.check) {}
+        program = ImportADT().dispatch(program)
+        printErrorsOr(program.check) {}
       }
     }
   } catch {

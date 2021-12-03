@@ -67,6 +67,9 @@ case object Coercion {
 
   case class JavaSupports(source: JavaTClass, target: JavaTClass) extends Promotion
 
+  case class CPrimitiveToCol(source: CPrimitiveType, target: Type) extends Promotion
+  case class ColToCPrimitive(source: Type, target: CPrimitiveType) extends Promotion
+
   case object RatZFrac extends Coercion {
     override def isPromoting: Boolean = false
   }
@@ -154,6 +157,26 @@ case object Coercion {
             SelectUnion(source, target, index, coercion)
         }
 
+      case (source @ CPrimitiveType(specs), target) =>
+        specs.collectFirst { case spec: CSpecificationType => spec } match {
+          case Some(CSpecificationType(t)) =>
+            Compose(
+              getCoercion(t, target).getOrElse(return None),
+              CPrimitiveToCol(source, t)
+            )
+          case None => return None
+        }
+
+      case (source, target @ CPrimitiveType(specs)) =>
+        specs.collectFirst { case spec: CSpecificationType => spec } match {
+          case Some(CSpecificationType(t)) =>
+            Compose(
+              ColToCPrimitive(t, target),
+              getCoercion(source, t).getOrElse(return None),
+            )
+          case None => return None
+        }
+
       // Something with TVar?
 
       // Unsafe coercions
@@ -161,7 +184,7 @@ case object Coercion {
       case (TRational(), TFraction()) => Compose(ZFracFrac, RatZFrac)
       case (TZFraction(), TFraction()) => ZFracFrac
 
-      case (_, _) => return None
+      case (source, target) => return None
     })
 
   def getPromotion(source: Type, target: Type): Option[Coercion] =
@@ -170,22 +193,44 @@ case object Coercion {
       case _ => None
     }
 
+  def getAnyCCoercion(source: Type): Option[(Coercion, Type)] = source match {
+    case t: CPrimitiveType =>
+      t.specifiers.collectFirst { case spec: CSpecificationType => spec }.map {
+        case CSpecificationType(inner) => (CPrimitiveToCol(t, inner), inner)
+      }
+    case _ => None
+  }
+
+  def chainCCoercion[T](source: CPrimitiveType, next: Type => Option[(Coercion, T)]): Option[(Coercion, T)] =
+    getAnyCCoercion(source) match {
+      case Some(inner) => next(inner._2) match {
+        case Some((coercion, finalType)) =>
+          Some((Compose(coercion, inner._1), finalType))
+        case None => None
+      }
+      case None => None
+    }
+
   def getAnySeqCoercion(source: Type): Option[(Coercion, TSeq)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnySeqCoercion)
     case t: TSeq => Some((Identity, t))
     case _ => None
   }
 
   def getAnySetCoercion(source: Type): Option[(Coercion, TSet)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnySetCoercion)
     case t: TSet => Some((Identity, t))
     case _ => None
   }
 
   def getAnyBagCoercion(source: Type): Option[(Coercion, TBag)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyBagCoercion)
     case t: TBag => Some((Identity, t))
     case _ => None
   }
 
   def getAnyCollectionCoercion(source: Type): Option[(Coercion, CollectionType)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyCollectionCoercion)
     case t: TSeq => Some((Identity, t))
     case t: TSet => Some((Identity, t))
     case t: TBag => Some((Identity, t))
@@ -193,6 +238,7 @@ case object Coercion {
   }
 
   def getAnyPointerCoercion(source: Type): Option[(Coercion, TPointer)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyPointerCoercion)
     case t: TPointer => Some((Identity, t))
     case _: TNull =>
       val t = TPointer(TAny())
@@ -201,6 +247,7 @@ case object Coercion {
   }
 
   def getAnyArrayCoercion(source: Type): Option[(Coercion, TArray)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyArrayCoercion)
     case t: TArray => Some((Identity, t))
     case _: TNull =>
       val t = TArray(TAny())
@@ -209,6 +256,7 @@ case object Coercion {
   }
 
   def getAnyMatrixArrayCoercion(source: Type): Option[(Coercion, TArray)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyMatrixArrayCoercion)
     case t @ TArray(TArray(_)) => Some((Identity, t))
     case TArray(TNull()) => Some(???)
     case TNull() =>
@@ -218,35 +266,42 @@ case object Coercion {
   }
 
   def getAnyOptionCoercion(source: Type): Option[(Coercion, TOption)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyOptionCoercion)
     case t: TOption => Some((Identity, t))
     case _ => None
   }
 
   def getAnyMapCoercion(source: Type): Option[(Coercion, TMap)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyMapCoercion)
     case t: TMap => Some((Identity, t))
     case _ => None
   }
 
   def getAnyTupleCoercion(source: Type): Option[(Coercion, TTuple)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyTupleCoercion)
     case t: TTuple => Some((Identity, t))
     case _ => None
   }
 
   def getAnyMatrixCoercion(source: Type): Option[(Coercion, TMatrix)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyMatrixCoercion)
     case t: TMatrix => Some((Identity, t))
     case _ => None
   }
 
   def getAnyModelCoercion(source: Type): Option[(Coercion, TModel)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyModelCoercion)
     case t: TModel => Some((Identity, t))
     case _ => None
   }
 
   def getAnyEitherCoercion(source: Type): Option[(Coercion, TEither)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyEitherCoercion)
     case t: TEither => Some((Identity, t))
     case _ => None
   }
   def getAnyClassCoercion(source: Type): Option[(Coercion, TClass)] = source match {
+    case t: CPrimitiveType => chainCCoercion(t, getAnyClassCoercion)
     case t: TClass => Some((Identity, t))
     case _ => None
   }

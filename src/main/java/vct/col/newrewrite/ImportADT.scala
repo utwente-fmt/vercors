@@ -4,12 +4,16 @@ import hre.config.Configuration
 import hre.util.ScopedStack
 import vct.col.coerce.Coercion.{FracZFrac, NullArray, NullPointer, ZFracRat}
 import vct.col.ast._
-import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
+import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, InvalidImportedAdt, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
 import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.parsers.Parsers
 import RewriteHelpers._
+import vct.col.check.CheckError
 import vct.col.coerce.{CoercingRewriter, Coercion}
+import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin._
+import vct.col.resolve.{ResolveReferences, ResolveTypes}
+import vct.result.VerificationResult.UserError
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -49,6 +53,13 @@ case object ImportADT {
     case TMap(key, value) => "map$" + typeText(key) + "__" + typeText(value) + "$"
     case TClass(Ref(cls)) => cls.o.preferredName
     case TVar(Ref(v)) => v.o.preferredName
+  }
+
+  case class InvalidImportedAdt(errors: Seq[CheckError]) extends UserError {
+    override def code: String = "invalidAdt"
+    override def text: String =
+      "Errors were encountered while importing the definition of an internal axiomatic datatype:\n" +
+        errors.map(_.toString).mkString("\n")
   }
 
   case class ArrayField(t: Type) extends Origin {
@@ -135,8 +146,13 @@ case class ImportADT() extends CoercingRewriter {
 
   private def parse(name: String): Seq[GlobalDeclaration] = {
     val decls = Parsers.parse(Configuration.getAdtFile(s"$name.pvl").toPath).decls
-    decls.foreach(dispatch)
-    decls.map(successionMap(_).asInstanceOf[GlobalDeclaration])
+    val moreDecls = ResolveTypes.resolve(Program(decls)(DiagnosticOrigin)(DiagnosticOrigin))
+    val typedProgram = LangTypesToCol().dispatch(Program(decls ++ moreDecls)(DiagnosticOrigin)(DiagnosticOrigin))
+    val errors = ResolveReferences.resolve(typedProgram)
+    if(errors.nonEmpty) throw InvalidImportedAdt(errors)
+    val program = LangSpecificToCol().dispatch(typedProgram)
+    program.declarations.foreach(dispatch)
+    program.declarations.map(successionMap(_).asInstanceOf[GlobalDeclaration])
   }
 
   private lazy val fracFile = parse("frac")

@@ -35,10 +35,7 @@ case class EncodeArrayValues() extends Rewriter {
     val from = Local(from_var.ref)
     val to = Local(to_var.ref)
 
-    val result = AmbiguousResult()
-    result.ref = Some(TSeq(arrayType.element))
-
-    function(
+    withResult(result => function(
       blame = AbstractApplicable,
       returnType = TSeq(arrayType.element),
       args = Seq(arr_var, from_var, to_var),
@@ -58,7 +55,7 @@ case class EncodeArrayValues() extends Rewriter {
           i => (from <= i && i < to) ==> ArraySubscript(arr, i)(FramedArrIndex) === SeqSubscript(result, i - from)(FramedSeqIndex),
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame)))
         )
-    )
+    ))
   }
 
   override def dispatch(e: Expr): Expr = {

@@ -13,15 +13,15 @@ class Node {
   Object left;
   Object right;
   
-  //@ requires Test.state(left) ** Test.state(right);
-  //@ ensures Test.state(this);
+  //@ requires state(left) ** state(right);
+  //@ ensures state(this);
   public Node(int key,Object left,Object right){
     this.key=key;
     this.left=left;
     this.right=right;
     //@ assert this instanceof Node;
     //@ assert !(this instanceof Leaf);
-    //@ fold Test.state_rec(this);
+    //@ fold state_rec(this);
   }
   
 }
@@ -30,35 +30,27 @@ class Leaf {
   int other;
 }
 
-
-class Test {
-
 /*@
-  static inline resource state(Object t) = t != null ** state_rec(t);
-    
-    
-  static resource state_rec(Object t) = t != null **
-    (t instanceof Leaf || t instanceof Node) **
-    (t instanceof Leaf ==> Perm(((Leaf)t).other,1)) **
-    (t instanceof Node ==>
-       Perm(((Node)t).key,1) **
-       Perm(((Node)t).left,1) ** state(((Node)t).left) **
-       Perm(((Node)t).right,1) ** state(((Node)t).right)) ;
+resource state_rec(Object t) = t != null **
+  (t instanceof Leaf || t instanceof Node) **
+  (t instanceof Leaf ==> Perm(((Leaf)t).other,1)) **
+  (t instanceof Node ==>
+     Perm(((Node)t).key,1) **
+     Perm(((Node)t).left,1) ** state(((Node)t).left) **
+     Perm(((Node)t).right,1) ** state(((Node)t).right));
+
+inline resource state(Object t) = t != null ** state_rec(t);
 @*/
 
-
-  /*@
-    requires state(tt);
-  @*/
+class Test {
+  //@ requires state(tt);
   int find(Object tt,int key){
     Object t=tt;
-    /*@
-      loop_invariant state(t);
-    @*/
+    //@ loop_invariant state(t);
     while(t instanceof Node){
       Node n=(Node)t;
       //@ unfold state_rec(n);
-      if (key < n.key){
+      if (key < n.key) {
         t=n.left;
       } else {
         t=n.right;
@@ -68,7 +60,4 @@ class Test {
     Leaf l=(Leaf)t;
     return l.other;
   }
-
 }
-
-

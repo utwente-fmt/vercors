@@ -128,6 +128,7 @@ SUM: '\\sum';
 LENGTH: '\\length';
 OLD: '\\old';
 TYPEOF: '\\typeof';
+TYPEVALUE: '\\type';
 MATRIX: '\\matrix';
 ARRAY: '\\array';
 POINTER: '\\pointer';

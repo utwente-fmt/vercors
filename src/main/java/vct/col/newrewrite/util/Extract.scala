@@ -2,7 +2,7 @@ package vct.col.newrewrite.util
 
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.newrewrite.util.FreeVariables.{FreeVar, This}
+import vct.col.newrewrite.util.FreeVariables.{FreeThisModel, FreeThisObject, FreeVar}
 
 import scala.collection.mutable
 
@@ -32,8 +32,10 @@ case class Extract() {
     FreeVariables.freeVariables(node).map {
       case free @ FreeVar(v) => v ->
         Local(map.getOrElseUpdate(free, new Variable(v.t)(v.ref.decl.o)).ref)(ExtractOrigin(""))
-      case free @ This(t) => t ->
-        Local(map.getOrElseUpdate(free, new Variable(t.ref.get)(ExtractOrigin("this"))).ref)(ExtractOrigin(""))
+      case free @ FreeThisObject(t) => t ->
+        Local(map.getOrElseUpdate(free, new Variable(TClass(t.cls))(ExtractOrigin("this"))).ref)(ExtractOrigin(""))
+      case free @ FreeThisModel(t) => t ->
+        Local(map.getOrElseUpdate(free, new Variable(TModel(t.cls))(ExtractOrigin("this"))).ref)(ExtractOrigin(""))
     }.toMap[Expr, Expr]
 
   def extract(expr: Expr): Expr =
@@ -45,7 +47,8 @@ case class Extract() {
   def finish(): Map[Variable, Expr] = {
     map.map {
       case (FreeVar(v), extracted) => extracted -> v
-      case (This(t), extracted) => extracted -> t
+      case (FreeThisObject(t), extracted) => extracted -> t
+      case (FreeThisModel(t), extracted) => extracted -> t
     }.toMap
   }
 }

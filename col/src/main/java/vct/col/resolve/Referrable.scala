@@ -115,28 +115,32 @@ sealed trait SpecInvocationTarget
     with CDerefTarget with CInvocationTarget
     with PVLInvocationTarget
 
+sealed trait ThisTarget extends Referrable
+
+sealed trait ResultTarget extends Referrable
+
 case class RefCParam(decl: CParam) extends Referrable with CNameTarget
-case class RefCFunctionDefinition(decl: CFunctionDefinition) extends Referrable with CNameTarget with CInvocationTarget
-case class RefCGlobalDeclaration(decls: CGlobalDeclaration, initIdx: Int) extends Referrable with CNameTarget with CInvocationTarget
+case class RefCFunctionDefinition(decl: CFunctionDefinition) extends Referrable with CNameTarget with CInvocationTarget with ResultTarget
+case class RefCGlobalDeclaration(decls: CGlobalDeclaration, initIdx: Int) extends Referrable with CNameTarget with CInvocationTarget with ResultTarget
 case class RefCDeclaration(decls: CDeclaration, initIdx: Int) extends Referrable with CNameTarget with CInvocationTarget
 case class RefJavaNamespace(decl: JavaNamespace) extends Referrable
 case class RefUnloadedJavaNamespace(names: Seq[String]) extends Referrable with JavaNameTarget with JavaDerefTarget
-case class RefJavaClass(decl: JavaClassOrInterface) extends Referrable with JavaTypeNameTarget with JavaNameTarget with JavaDerefTarget
+case class RefJavaClass(decl: JavaClassOrInterface) extends Referrable with JavaTypeNameTarget with JavaNameTarget with JavaDerefTarget with ThisTarget
 case class RefSilverField(decl: SilverField) extends Referrable
 case class RefSimplificationRule(decl: SimplificationRule) extends Referrable
 case class RefAxiomaticDataType(decl: AxiomaticDataType) extends Referrable with SpecTypeNameTarget with SpecNameTarget with JavaDerefTarget
-case class RefFunction(decl: Function) extends Referrable with SpecInvocationTarget
-case class RefProcedure(decl: Procedure) extends Referrable with SpecInvocationTarget
+case class RefFunction(decl: Function) extends Referrable with SpecInvocationTarget with ResultTarget
+case class RefProcedure(decl: Procedure) extends Referrable with SpecInvocationTarget with ResultTarget
 case class RefPredicate(decl: Predicate) extends Referrable with SpecInvocationTarget
-case class RefClass(decl: Class) extends Referrable with PVLTypeNameTarget with PVLNameTarget
-case class RefModel(decl: Model) extends Referrable with SpecTypeNameTarget
+case class RefClass(decl: Class) extends Referrable with PVLTypeNameTarget with PVLNameTarget with ThisTarget
+case class RefModel(decl: Model) extends Referrable with SpecTypeNameTarget with ThisTarget
 case class RefJavaSharedInitialization(decl: JavaSharedInitialization) extends Referrable
 case class RefJavaField(decls: JavaFields, idx: Int) extends Referrable with JavaNameTarget with JavaDerefTarget
 case class RefJavaLocalDeclaration(decls: JavaLocalDeclaration, idx: Int) extends Referrable with JavaNameTarget
 case class RefJavaConstructor(decl: JavaConstructor) extends Referrable
-case class RefJavaMethod(decl: JavaMethod) extends Referrable with JavaInvocationTarget
-case class RefInstanceFunction(decl: InstanceFunction) extends Referrable with SpecInvocationTarget
-case class RefInstanceMethod(decl: InstanceMethod) extends Referrable with SpecInvocationTarget
+case class RefJavaMethod(decl: JavaMethod) extends Referrable with JavaInvocationTarget with ResultTarget
+case class RefInstanceFunction(decl: InstanceFunction) extends Referrable with SpecInvocationTarget with ResultTarget
+case class RefInstanceMethod(decl: InstanceMethod) extends Referrable with SpecInvocationTarget with ResultTarget
 case class RefInstancePredicate(decl: InstancePredicate) extends Referrable with SpecInvocationTarget
 case class RefField(decl: Field) extends Referrable with PVLNameTarget with PVLDerefTarget
 case class RefVariable(decl: Variable) extends Referrable with SpecNameTarget with SpecTypeNameTarget

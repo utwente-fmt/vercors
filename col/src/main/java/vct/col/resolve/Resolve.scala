@@ -78,25 +78,33 @@ case object ResolveReferences {
     case decl: LabelDecl => decl
   }
 
+  def scanBlocks(node: ParRegion): Seq[ParBlock] = node match {
+    case ParParallel(regions) => regions.flatMap(scanBlocks)
+    case ParSequential(regions) => regions.flatMap(scanBlocks)
+    case block: ParBlock => Seq(block)
+  }
+
   def enterContext(node: Node, ctx: ReferenceResolutionContext): ReferenceResolutionContext = (node match {
     case ns: JavaNamespace => ctx
       .replace(currentJavaNamespace=Some(ns)).declare(ns.declarations)
     case cls: JavaClassOrInterface => ctx
       .replace(currentJavaClass=Some(cls))
-      .replace(currentThisType=Some(JavaTClass(cls.ref, Nil)))
+      .replace(currentThis=Some(RefJavaClass(cls)))
       .declare(cls.decls)
     case cls: Class => ctx
-      .replace(currentThisType=Some(TClass(cls.ref)))
+      .replace(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
     case app: ContractApplicable => ctx
-      .replace(currentReturnType=Some(app.returnType))
+      .replace(currentResult=Some(Referrable.from(app).head.asInstanceOf[ResultTarget] /* PB TODO: ew */))
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case method: JavaMethod => ctx
-      .replace(currentReturnType=Some(method.returnType))
+      .replace(currentResult=Some(RefJavaMethod(method)))
       .declare(method.declarations ++ method.body.map(scanLabels).getOrElse(Nil))
     case func: CFunctionDefinition => ctx
-      .replace(currentReturnType=Some(C.typeOrReturnTypeFromDeclaration(func.specs, func.declarator)))
+      .replace(currentResult=Some(RefCFunctionDefinition(func)))
       .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
+    case par: ParStatement => ctx
+      .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
       .declare(locals ++ scanScope(body))
     case app: Applicable => ctx
@@ -145,7 +153,7 @@ case object ResolveReferences {
         case Some((adt, typeArgs)) =>
           // Fully-qualified external invocation
           adt.tryResolve(name => Spec.findAdt(ctx, name).getOrElse(throw NoSuchNameError("adt", name, inv)))
-          inv.ref.tryResolve(name => Spec.findAdtFunction(adt.decl, name).getOrElse(throw NoSuchNameError("function", name, inv)))
+          ref.tryResolve(name => Spec.findAdtFunction(adt.decl, name).getOrElse(throw NoSuchNameError("function", name, inv)))
         case None =>
           // Non-qualified internal invocation
           ???
@@ -164,13 +172,10 @@ case object ResolveReferences {
     case cont @ Continue(Some(lbl)) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, cont)))
 
-    case n @ PVLNew(name, args) =>
-
-
     case res @ AmbiguousResult() =>
-      res.ref = Some(ctx.currentReturnType.getOrElse(throw ResultOutsideMethod(res)))
+      res.ref = Some(ctx.currentResult.getOrElse(throw ResultOutsideMethod(res)))
     case diz @ AmbiguousThis() =>
-      diz.ref = Some(ctx.currentThisType.get)
+      diz.ref = Some(ctx.currentThis.get)
 
     case proc: ModelProcess =>
       proc.modifies.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)

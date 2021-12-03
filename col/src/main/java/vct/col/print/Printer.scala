@@ -404,8 +404,6 @@ case class Printer(out: Appendable,
   def printStatement(stat: Statement): Unit = say(stat match {
     case CDeclarationStatement(decl) =>
       statement(syntax(C -> phrase(decl.specs, commas(decl.inits.map(NodePhrase)))))
-    case CLabeledStatement(label, statement) =>
-      syntax(C -> prepend(phrase(name(label), ":", space), phrase(statement)))
     case ref @ CGoto(label) =>
       statement(syntax(C -> phrase("goto", space, Text(ref.ref.map(name).getOrElse(label)))))
     case GpgpuLocalBarrier(requires, ensures) =>

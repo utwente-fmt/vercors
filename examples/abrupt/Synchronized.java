@@ -3,9 +3,9 @@
 //:: tools silicon
 //:: verdict Pass
 
-final class MyClass {
-    //@ final resource lock_invariant() = Perm(this.x, 1);
-
+final
+//@ lock_invariant Perm(this.x, 1);
+class MyClass {
     int x;
 
     MyClass() {

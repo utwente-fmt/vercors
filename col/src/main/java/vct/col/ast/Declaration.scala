@@ -4,6 +4,7 @@ import vct.col.ast.ScopeContext.WrongDeclarationCount
 import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
 import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
 import vct.col.origin._
+import vct.col.util.SuccessionMap
 import vct.result.VerificationResult.{SystemError, Unreachable}
 
 import scala.collection.mutable
@@ -114,7 +115,7 @@ object ScopeContext {
 
 class ScopeContext {
   // The default action for declarations is to be succeeded by a similar declaration, for example a copy.
-  val successionMap: mutable.Map[Declaration, Declaration] = mutable.Map()
+  val successionMap: SuccessionMap[Declaration, Declaration] = SuccessionMap()
 
   val globalScopes: mutable.Stack[ArrayBuffer[GlobalDeclaration]] = mutable.Stack()
   val classScopes: mutable.Stack[ArrayBuffer[ClassDeclaration]] = mutable.Stack()
@@ -145,8 +146,11 @@ class ScopeContext {
     result.head
   }
 
+  def succ[T <: Declaration](ref: Ref[T])(implicit tag: ClassTag[T]): Ref[T] =
+    succ(ref.decl)
+
   def succ[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): LazyRef[T] =
-    new LazyRef[T](successionMap(decl))
+    successionMap.ref(decl)
 }
 
 abstract class ExtraDeclarationKind extends Declaration
@@ -199,7 +203,8 @@ sealed trait Applicable extends Declaration with Declarator {
 
   override def declarations: Seq[Declaration] = args
 
-  override def enterCheckContext(context: CheckContext): CheckContext = context.withApplicable(this)
+  override def enterCheckContext(context: CheckContext): CheckContext =
+    super.enterCheckContext(context).withApplicable(this)
 }
 
 sealed trait InlineableApplicable extends Applicable {
@@ -250,7 +255,7 @@ sealed trait AbstractMethod extends ContractApplicable {
   override def check(context: CheckContext): Seq[CheckError] =
     body.toSeq.flatMap(_.transSubnodes.flatMap {
       case Return(e) => e.checkSubType(returnType)
-      case _ => Seq()
+      case _ => Nil
   })
 }
 

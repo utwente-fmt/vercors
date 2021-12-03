@@ -36,7 +36,7 @@ final class Tree {
   /*@
     requires state();
     ensures \result->state();
-    ensures \result.contents() == \old(t.contents()).tail;
+    ensures \result.contents() == \old(contents()).tail;
   @*/
   public Tree del_min() {
     //@ unfold state();

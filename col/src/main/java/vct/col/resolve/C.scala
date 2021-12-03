@@ -3,9 +3,20 @@ package vct.col.resolve
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin._
+import vct.result.VerificationResult.UserError
 
 case object C {
   implicit private val o: Origin = DiagnosticOrigin
+
+  case class CTypeNotSupported(node: Option[Node]) extends UserError {
+    override def code: String = "cTypeNotSupported"
+    override def text: String = {
+      (node match {
+        case Some(node) => node.o.messageInContext(_)
+        case None => (text: String) => text
+      })("This type is not supported by VerCors.")
+    }
+  }
 
   val NUMBER_LIKE_PREFIXES: Seq[Seq[CDeclarationSpecifier]] = Seq(
     Nil,
@@ -48,6 +59,17 @@ case object C {
       throw AnonymousMethodsUnsupported(decl)
     case CName(name) => DeclaratorInfo(params=None, typeOrReturnType=(t => t), name)
   }
+
+  def getPrimitiveType(specs: Seq[CDeclarationSpecifier], context: Option[Node] = None): Type =
+    specs.collect { case spec: CTypeSpecifier => spec } match {
+      case Seq(CVoid()) => TVoid()
+      case Seq(CChar()) => TChar()
+      case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
+      case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
+      case Seq(CBool()) => TBool()
+      case Seq(defn @ CTypedefName(_)) => TNotAValue(defn.ref.get)
+      case _ => throw CTypeNotSupported(context)
+    }
 
   def nameFromDeclarator(declarator: CDeclarator): String =
     getDeclaratorInfo(declarator).name

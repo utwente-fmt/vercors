@@ -74,8 +74,7 @@ case class CheckProcessAlgebra() extends Rewriter {
     case process: ModelProcess =>
       implicit val o = process.o
 
-      val currentThis = AmbiguousThis()
-      currentThis.ref = Some(TClass(modelSuccessors.ref(currentModel.top)))
+      val currentThis = ThisObject(modelSuccessors.ref(currentModel.top))
 
       def fieldRefToPerm(p: Expr, f: Ref[ModelField]) =
         fieldPerm(currentThis, modelFieldSuccessors.ref(f.decl), p)

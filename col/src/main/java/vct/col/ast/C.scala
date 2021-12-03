@@ -77,7 +77,8 @@ class CDeclaration(val contract: ApplicableContract, val kernelInvariant: Expr,
 
 sealed trait CAbstractGlobalDeclaration extends ExtraGlobalDeclaration
 
-class CFunctionDefinition(val specs: Seq[CDeclarationSpecifier], val declarator: CDeclarator, val body: Statement)(implicit val o: Origin)
+class CFunctionDefinition(val specs: Seq[CDeclarationSpecifier], val declarator: CDeclarator, val body: Statement)
+                         (val blame: Blame[PostconditionFailed])(implicit val o: Origin)
   extends CAbstractGlobalDeclaration
 
 class CGlobalDeclaration(val decl: CDeclaration)(implicit val o: Origin)
@@ -85,7 +86,6 @@ class CGlobalDeclaration(val decl: CDeclaration)(implicit val o: Origin)
 
 sealed trait CStatement extends ExtraStatement
 case class CDeclarationStatement(decl: CDeclaration)(implicit val o: Origin) extends CStatement
-case class CLabeledStatement(label: LabelDecl, statement: Statement)(implicit val o: Origin) extends CStatement
 case class CGoto(label: String)(implicit val o: Origin) extends CStatement {
   var ref: Option[LabelDecl] = None
 }

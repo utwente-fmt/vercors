@@ -2,10 +2,9 @@
 //:: cases OwickiGries
 //:: tools silicon
 //:: verdict Pass
+lock_invariant Perm(x,1);
 class OwickiGries {
   int x;
-
-  resource lock_invariant()=Perm(x,1);
 
   OwickiGries(){
     x=0;

@@ -177,9 +177,7 @@ valPrimaryBinder
         langType langId '=' langExpr '..' langExpr ';' langExpr ')' # valRangeQuantifier
  | '(' ('\\forall*'|'\\forall'|'\\exists')
         langType langId ';' langExpr ';' langExpr ')' # valQuantifier
- | '(' '∀' valArgList ';' langExpr ')' # valShortForall
- | '(' '∀*' valArgList ';' langExpr ')' # valShortStarall
- | '(' '∃' valArgList ';' langExpr ')' # valShortExists
+ | '(' ('∀'|'∀*'|'∃') valArgList ';' langExpr ')' # valShortQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
  ;
 
@@ -211,6 +209,7 @@ valPrimaryThread
 valPrimary
  : valPrimarySeq
  | valPrimaryOption
+ | valPrimaryEither
  | valPrimaryCollectionConstructor
  | valPrimaryPermission
  | valPrimaryBinder
@@ -224,6 +223,7 @@ valPrimary
  | '\\unfolding' langExpr '\\in' langExpr # valUnfolding
  | '\\old' '(' langExpr ')' # valOld
  | '\\typeof' '(' langExpr ')' # valTypeof
+ | '\\type' '(' langType ')' # valTypeValue
  | 'held' '(' langExpr ')' # valHeld
  ;
 
@@ -288,7 +288,7 @@ valClassDeclaration
 valModelDeclaration
  : valContractClause* 'process' langId '(' valArgList? ')' '=' langExpr ';' # valModelProcess
  | valContractClause* 'action' langId '(' valArgList? ')' ';' # valModelAction
- | langType langId ';' # valModelField
+ | langType valIdList ';' # valModelField
  ;
 
 valTypeVars

@@ -43,12 +43,11 @@ class Worker {
 	}
 }
 
+lock_invariant Value(f) ** HPerm(f.counter, 1);
 class Program {
 	/* ghost */ int count;
 	/* ghost */ int threads;
 	Counter f;
-
-	resource lock_invariant() = Value(f) ** HPerm(f.counter, 1);
 
 	requires threads > 0;
 	ensures Value(f) ** f.state(1, f.pardecr(threads));

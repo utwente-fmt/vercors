@@ -13,21 +13,18 @@ sealed trait Type extends NodeFamily {
 
   override def check(context: CheckContext): Seq[CheckError] = Nil
 
-  private def optMatch[In, Out](arg: In)(matchFunc: PartialFunction[In, Out]): Option[Out] =
-    matchFunc.lift(arg)
-
-  def asSeq: Option[TSeq] = optMatch(this) { case seq: TSeq => seq }
-  def asSet: Option[TSet] = optMatch(this) { case set: TSet => set }
-  def asBag: Option[TBag] = optMatch(this) { case bag: TBag => bag }
-  def asPointer: Option[TPointer] = optMatch(this) { case ptr: TPointer => ptr }
-  def asArray: Option[TArray] = optMatch(this) { case arr: TArray => arr }
-  def asOption: Option[TOption] = optMatch(this) { case opt: TOption => opt }
-  def asMap: Option[TMap] = optMatch(this) { case map: TMap => map }
-  def asTuple: Option[TTuple] = optMatch(this) { case tup: TTuple => tup }
+  def asSeq: Option[TSeq] = Coercion.getAnySeqCoercion(this).map(_._2)
+  def asSet: Option[TSet] = Coercion.getAnySetCoercion(this).map(_._2)
+  def asBag: Option[TBag] = Coercion.getAnyBagCoercion(this).map(_._2)
+  def asPointer: Option[TPointer] = Coercion.getAnyPointerCoercion(this).map(_._2)
+  def asArray: Option[TArray] = Coercion.getAnyArrayCoercion(this).map(_._2)
+  def asOption: Option[TOption] = Coercion.getAnyOptionCoercion(this).map(_._2)
+  def asMap: Option[TMap] = Coercion.getAnyMapCoercion(this).map(_._2)
+  def asTuple: Option[TTuple] = Coercion.getAnyTupleCoercion(this).map(_._2)
+  def asMatrix: Option[TMatrix] = Coercion.getAnyMatrixCoercion(this).map(_._2)
+  def asModel: Option[TModel] = Coercion.getAnyModelCoercion(this).map(_._2)
+  def asEither: Option[TEither] = Coercion.getAnyEitherCoercion(this).map(_._2)
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
-  def asMatrix: Option[TMatrix] = optMatch(this) { case mat: TMatrix => mat }
-  def asModel: Option[TModel] = optMatch(this) { case model: TModel => model }
-  def asEither: Option[TEither] = optMatch(this) { case either: TEither => either }
 
   def particularize(substitutions: Map[Variable, Type]): Type = {
     case object Particularize extends Rewriter {

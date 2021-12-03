@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.rewrite.Rewriter
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 object AstBuildHelpers {
@@ -162,6 +163,14 @@ object AstBuildHelpers {
                signals: Seq[SignalsClause] = Nil, givenArgs: Seq[Variable] = Nil, yieldsArgs: Seq[Variable] = Nil)
               (implicit o: Origin): ApplicableContract =
     ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs)
+
+  def withResult[T <: ContractApplicable](builder: Result => T)(implicit o: Origin): T = {
+    val box = SuccessionMap[Unit, ContractApplicable]()
+    val result = Result(box.ref[ContractApplicable](()))
+    val applicable = builder(result)
+    box(()) = applicable
+    applicable
+  }
 
   def procedure(blame: Blame[PostconditionFailed],
                 returnType: Type = TVoid(),

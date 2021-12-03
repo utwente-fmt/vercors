@@ -46,79 +46,79 @@ abstract class CoercingRewriter() extends Rewriter {
       case Coercion.MapOption(_, _, inner) =>
         Select(Eq(e, OptNone()), OptNone(), coerce(OptGet(e)(NeverNone), inner))
       case Coercion.MapSeq(source, target, inner) =>
-        val result = AmbiguousResult()
-        result.ref = Some(target)
-        val v = new Variable(source)
-        val i = new Variable(TInt())
-        val v_i = SeqSubscript(v.get, i.get)(FramedSeqIndex)
-        val result_i = SeqSubscript(result, i.get)(FramedSeqIndex)
+        val f = withResult(result => {
+          val v = new Variable(source)
+          val i = new Variable(TInt())
+          val v_i = SeqSubscript(v.get, i.get)(FramedSeqIndex)
+          val result_i = SeqSubscript(result, i.get)(FramedSeqIndex)
 
-        val f = function(
-          blame = AbstractApplicable,
-          returnType = target,
-          args = Seq(v),
-          ensures =
-            Eq(Size(v.get), Size(result)) &&
-            Forall(Seq(i), Seq(Seq(result_i)),
-              (const(0) < i.get && i.get < Size(result)) ==>
-                result_i === coerce(v_i, inner)),
-        )
+          function(
+            blame = AbstractApplicable,
+            returnType = target,
+            args = Seq(v),
+            ensures =
+              Eq(Size(v.get), Size(result)) &&
+              Forall(Seq(i), Seq(Seq(result_i)),
+                (const(0) < i.get && i.get < Size(result)) ==>
+                  result_i === coerce(v_i, inner)),
+          )
+        })
 
         f.declareDefault(this)
         FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
       case Coercion.MapSet(source, target, inner) =>
-        val result = AmbiguousResult()
-        result.ref = Some(target)
-        val v = new Variable(source)
-        val elem = new Variable(source.element)
+        val f = withResult(result => {
+          val v = new Variable(source)
+          val elem = new Variable(source.element)
 
-        val f = function(
-          blame = AbstractApplicable,
-          returnType = target,
-          args = Seq(v),
-          ensures =
-            Eq(Size(result), Size(v.get)) &&
-              Forall(Seq(elem), Seq(Seq(SetMember(elem.get, result))),
-                Eq(SetMember(coerce(elem.get, inner), result), SetMember(elem.get, v.get)))
-        )
+          function(
+            blame = AbstractApplicable,
+            returnType = target,
+            args = Seq(v),
+            ensures =
+              Eq(Size(result), Size(v.get)) &&
+                Forall(Seq(elem), Seq(Seq(SetMember(elem.get, result))),
+                  Eq(SetMember(coerce(elem.get, inner), result), SetMember(elem.get, v.get)))
+          )
+        })
 
         f.declareDefault(this)
         FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
       case Coercion.MapBag(source, target, inner) =>
-        val result = AmbiguousResult()
-        result.ref = Some(target)
-        val v = new Variable(source)
-        val elem = new Variable(source.element)
+        val f = withResult(result => {
+          val v = new Variable(source)
+          val elem = new Variable(source.element)
 
-        val f = function(
-          blame = AbstractApplicable,
-          returnType = target,
-          args = Seq(v),
-          ensures =
-            Eq(Size(result), Size(v.get)) &&
-            Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
-              Eq(BagMemberCount(coerce(elem.get, inner), result), BagMemberCount(elem.get, v.get)))
-        )
+          function(
+            blame = AbstractApplicable,
+            returnType = target,
+            args = Seq(v),
+            ensures =
+              Eq(Size(result), Size(v.get)) &&
+                Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
+                  Eq(BagMemberCount(coerce(elem.get, inner), result), BagMemberCount(elem.get, v.get)))
+          )
+        })
 
         f.declareDefault(this)
         FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
       case Coercion.MapMatrix(source, target, inner) =>
         ???
       case Coercion.MapMap(source, target, inner) =>
-        val result = AmbiguousResult()
-        result.ref = Some(target)
-        val v = new Variable(source)
-        val k = new Variable(source.key)
+        val f = withResult(result => {
+          val v = new Variable(source)
+          val k = new Variable(source.key)
 
-        val f = function(
-          blame = AbstractApplicable,
-          returnType = target,
-          args = Seq(v),
-          ensures =
-            Eq(MapKeySet(result), MapKeySet(v.get)) &&
-              Forall(Seq(k), Seq(Seq(MapGet(result, k.get)(TriggerPatternBlame))),
-                SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), MapGet(v.get, k.get)(FramedMapGet)))
-        )
+          function(
+            blame = AbstractApplicable,
+            returnType = target,
+            args = Seq(v),
+            ensures =
+              Eq(MapKeySet(result), MapKeySet(v.get)) &&
+                Forall(Seq(k), Seq(Seq(MapGet(result, k.get)(TriggerPatternBlame))),
+                  SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), MapGet(v.get, k.get)(FramedMapGet)))
+          )
+        })
 
         f.declareDefault(this)
         FunctionInvocation(f.ref, Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
@@ -135,6 +135,8 @@ abstract class CoercingRewriter() extends Rewriter {
 
       case Coercion.Supports(_, _) => e
       case Coercion.JavaSupports(_, _) => e
+      case Coercion.CPrimitiveToCol(_, _) => e
+      case Coercion.ColToCPrimitive(_, _) => e
       case Coercion.NullRef => e
       case Coercion.NullArray(_) => e
       case Coercion.NullClass(_) => e
@@ -159,7 +161,7 @@ abstract class CoercingRewriter() extends Rewriter {
     case node: Type => node
     case node: ApplicableContract => node
     case node: LoopContract => node
-    case node: ParParallel => node
+    case node: ParRegion => node
     case node: CatchClause => node
     case node: SignalsClause => node
     case node: FieldFlag => node
@@ -325,18 +327,18 @@ abstract class CoercingRewriter() extends Rewriter {
 
     e match {
       case ActionApply(action, args) =>
-        ActionApply(succ(action.decl), coerceArgs(args, action.decl))
+        ActionApply(action, coerceArgs(args, action.decl))
       case ActionPerm(loc, perm) =>
         ActionPerm(loc, rat(perm))
       case AddrOf(e) =>
         AddrOf(e)
       case ADTFunctionInvocation(typeArgs, ref, args) => typeArgs match {
         case Some((adt, typeArgs)) =>
-          ADTFunctionInvocation(Some((succ(adt.decl), typeArgs)), succ(ref.decl), args.zip(ref.decl.args).map {
+          ADTFunctionInvocation(Some((adt, typeArgs)), ref, args.zip(ref.decl.args).map {
             case (value, arg) => coerce(value, arg.t.particularize(adt.decl.typeArgs.zip(typeArgs).toMap))
           })
         case None =>
-          ADTFunctionInvocation(None, succ(ref.decl), coerceArgs(args, ref.decl))
+          ADTFunctionInvocation(None, ref, coerceArgs(args, ref.decl))
       }
       case AmbiguousComputationalAnd(left, right) =>
         firstOk(e, s"Expected both operands to be of type integer or boolean, but got ${left.t} and ${right.t}.",
@@ -392,15 +394,15 @@ abstract class CoercingRewriter() extends Rewriter {
             val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))(plus.blame)
           }, {
-            val (coercedLeft, TSeq(elementLeft)) = seq(left)
-            val (coercedRight, TSeq(elementRight)) = seq(right)
+            val (coercedLeft, TSet(elementLeft)) = set(left)
+            val (coercedRight, TSet(elementRight)) = set(right)
             val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))(plus.blame)
+            AmbiguousPlus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))(plus.blame)
           }, {
-            val (coercedLeft, TSeq(elementLeft)) = seq(left)
-            val (coercedRight, TSeq(elementRight)) = seq(right)
+            val (coercedLeft, TBag(elementLeft)) = bag(left)
+            val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))(plus.blame)
+            AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
           }
         )
       case AmbiguousResult() => e
@@ -462,7 +464,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case CurrentThreadId() =>
         CurrentThreadId()
       case deref @ Deref(obj, ref) =>
-        Deref(cls(obj)._1, succ(ref.decl))(deref.blame)
+        Deref(cls(obj)._1, ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
       case div @ Div(left, right) =>
@@ -491,7 +493,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs) =>
-        FunctionInvocation(succ(ref.decl), coerceArgs(args, ref.decl, typeArgs), typeArgs)(inv.blame)
+        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs)(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
@@ -541,11 +543,11 @@ abstract class CoercingRewriter() extends Rewriter {
       case InlinePattern(inner) =>
         InlinePattern(inner)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs) =>
-        InstanceFunctionInvocation(cls(obj)._1, succ(ref.decl), coerceArgs(args, ref.decl, typeArgs), typeArgs)(inv.blame)
+        InstanceFunctionInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), typeArgs)(inv.blame)
       case InstanceOf(value, typeValue) =>
-        ???
+        InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args) =>
-        InstancePredicateApply(cls(obj)._1, succ(ref.decl), coerceArgs(args, ref.decl))
+        InstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl))
       case IsLeft(e) =>
         IsLeft(either(e)._1)
       case IsRight(e) =>
@@ -609,7 +611,7 @@ abstract class CoercingRewriter() extends Rewriter {
           case (v, t) => coerce(v, t)
         })
       case Local(ref) =>
-        Local(succ(ref.decl))
+        Local(ref)
       case MapCons(m, k, v) =>
         val (coercedMap, mapType) = map(m)
         val sharedType = Type.leastCommonSuperType(mapType.value, v.t)
@@ -663,7 +665,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq(TInt())), coerce(mat, TSeq(TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs) =>
-        MethodInvocation(cls(obj)._1, succ(ref.decl), coerceArgs(args, ref.decl, typeArgs), outArgs.map(v => succ(v.decl)), typeArgs)(inv.blame)
+        MethodInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
@@ -681,13 +683,13 @@ abstract class CoercingRewriter() extends Rewriter {
       case ModelCreate(m, init) =>
         ModelCreate(model(m)._1, process(init))
       case deref @ ModelDeref(obj, ref) =>
-        ModelDeref(model(obj)._1, succ(ref.decl))(deref.blame)
+        ModelDeref(model(obj)._1, ref)(deref.blame)
       case ModelDestroy(m) =>
         ModelDestroy(model(m)._1)
       case ModelMerge(m, leftPerm, leftProcess, rightPerm, rightProcess) =>
         ModelMerge(model(m)._1, rat(leftPerm), process(leftProcess), rat(rightPerm), process(rightProcess))
       case ModelNew(ref) =>
-        ModelNew(succ(ref.decl))
+        ModelNew(ref)
       case ModelPerm(loc, perm) =>
         ModelPerm(loc, rat(perm))
       case ModelSplit(m, leftPerm, leftProcess, rightPerm, rightProcess) =>
@@ -705,7 +707,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case NewArray(element, dims, moreDims) =>
         NewArray(element, dims.map(int), moreDims)
       case NewObject(cls) =>
-        NewObject(succ(cls.decl))
+        NewObject(cls)
       case NoPerm() =>
         NoPerm()
       case Not(arg) =>
@@ -713,7 +715,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case Null() =>
         Null()
       case old @ Old(expr, at) =>
-        Old(expr, at.map(ref => succ(ref.decl)))(old.blame)
+        Old(expr, at)(old.blame)
       case get @ OptGet(opt) =>
         OptGet(option(opt)._1)(get.blame)
       case OptGetOrElse(opt, alt) =>
@@ -753,11 +755,11 @@ abstract class CoercingRewriter() extends Rewriter {
       case PreAssignExpression(target, value) =>
         PreAssignExpression(target, coerce(value, target.t))
       case PredicateApply(ref, args) =>
-        PredicateApply(succ(ref.decl), coerceArgs(args, ref.decl))
+        PredicateApply(ref, coerceArgs(args, ref.decl))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs) =>
-        ProcedureInvocation(succ(ref.decl), coerceArgs(args, ref.decl, typeArgs), outArgs.map(v => succ(v.decl)), typeArgs)(inv.blame)
+        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
       case ProcessApply(process, args) =>
-        ProcessApply(succ(process.decl), coerceArgs(args, process.decl))
+        ProcessApply(process, coerceArgs(args, process.decl))
       case ProcessChoice(left, right) =>
         ProcessChoice(process(left), process(right))
       case ProcessPar(left, right) =>
@@ -778,6 +780,8 @@ abstract class CoercingRewriter() extends Rewriter {
         ReadPerm()
       case RemoveAt(xs, i) =>
         RemoveAt(seq(xs)._1, int(i))
+      case Result(ref) =>
+        Result(ref)
       case Scale(scale, r) =>
         Scale(rat(scale), res(r))
       case Select(condition, whenTrue, whenFalse) =>
@@ -798,13 +802,13 @@ abstract class CoercingRewriter() extends Rewriter {
         val sharedType = Type.leastCommonSuperType(x.t, setType.element)
         SetMember(coerce(x, sharedType), coerce(coercedSet, TSet(sharedType)))
       case SilverCurFieldPerm(obj, field) =>
-        SilverCurFieldPerm(ref(obj), succ(field.decl))
+        SilverCurFieldPerm(ref(obj), field)
       case SilverCurPredPerm(ref, args) =>
-        SilverCurPredPerm(succ(ref.decl), coerceArgs(args, ref.decl))
+        SilverCurPredPerm(ref, coerceArgs(args, ref.decl))
       case deref @ SilverDeref(obj, field) =>
-        SilverDeref(ref(obj), succ(field.decl))(deref.blame)
+        SilverDeref(ref(obj), field)(deref.blame)
       case SilverPerm(obj, field, perm) =>
-        SilverPerm(ref(obj), succ(field.decl), rat(perm))
+        SilverPerm(ref(obj), field, rat(perm))
       case SilverPredPerm(access) =>
         SilverPredPerm(access)
       case SilverUnfolding(access, body) =>
@@ -842,23 +846,27 @@ abstract class CoercingRewriter() extends Rewriter {
           SubSetEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
         })
       case SubType(left, right) =>
-        ???
+        SubType(left, right)
       case Sum(bindings, condition, main) =>
         Sum(bindings, bool(condition), int(main))
       case SuperType(left, right) =>
-        ???
+        SuperType(left, right)
       case Tail(xs) =>
         Tail(seq(xs)._1)
       case Take(xs, count) =>
         Take(seq(xs)._1, int(count))
       case Then(value, post) =>
         Then(value, post)
+      case ThisModel(ref) =>
+        ThisModel(ref)
+      case ThisObject(ref) =>
+        ThisObject(ref)
       case TupGet(tup, index) =>
         TupGet(tuple(tup)._1, index)
       case TypeOf(expr) =>
-        ???
+        TypeOf(expr)
       case TypeValue(value) =>
-        ???
+        TypeValue(value)
       case UMinus(arg) =>
         firstOk(e, s"Expected operand to be numeric, but got ${arg.t}.",
           UMinus(int(arg)),

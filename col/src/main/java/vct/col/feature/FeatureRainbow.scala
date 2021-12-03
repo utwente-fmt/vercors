@@ -35,6 +35,9 @@ class FeatureRainbow {
     case node: Void => return Nil
     case node: AmbiguousThis => ContextSensitiveNode
     case node: AmbiguousResult => ContextSensitiveNode
+    case node: ThisObject => return Nil
+    case node: ThisModel => return Nil
+    case node: Result => return Nil
     case node: CurrentThreadId => CurrentThread
     case node: Null => return Nil
     case node: Any => StarSubscript
@@ -248,10 +251,12 @@ class FeatureRainbow {
     case node: ParInvariant => ParallelRegion
     case node: ParAtomic => ParallelRegion
     case node: ParBarrier => ParallelRegion
-    case node: ParRegion => ParallelRegion
     case node: IterVariable => return Nil
     case node: ParBlock => ParallelRegion
+    case node: ParParallel => ParallelRegion
+    case node: ParRegion => ParallelRegion
     case node: VecBlock => ParallelRegion
+    case node: ParStatement => ParallelRegion
     case node: Send => SendRecv
     case node: Recv => SendRecv
     case node: DefaultCase => SwitchStatement
@@ -405,7 +410,6 @@ class FeatureRainbow {
     case node: CFunctionDefinition => return Nil
     case node: CGlobalDeclaration => return Nil
     case node: CDeclarationStatement => return Nil
-    case node: CLabeledStatement => return Nil
     case node: CGoto => return Nil
     case node: GpgpuLocalBarrier => return Nil
     case node: GpgpuGlobalBarrier => return Nil

@@ -109,20 +109,19 @@ ensures (\forall int l; i <= l && l < |xs|; xs[l] <= xs[\result]);
 pure int maxint(seq<int> xs, int i, int j) =
     i < |xs| ? (xs[j] <= xs[i] ? maxint(xs, i + 1, i) : maxint(xs, i + 1, j)) : j;
 
+lock_invariant
+  Perm(initialised, 1\2) ** Perm(size, 1\2) **
+  Perm(maxvalue, 1\2) ** 0 < maxvalue **
+  (initialised ? Perm(f, 1\2) ** f != null: true) **
+  (initialised ? HPerm(f.channel, write) ** size == |f.channel| : true) **
+  (initialised ? HPerm(f.results, write) ** size == |f.results| : true) **
+  (initialised ==> (\forall int i; 0 <= i && i < size; (\forall int j; 0 <= j && j < |f.channel[i]|; 0 <= f.channel[i][j] && f.channel[i][j] < maxvalue)));
 class Program {
 	boolean initialised;
 	int size;
 	int maxvalue;
 	Elect f;
-	
-	resource lock_invariant() =
-		Perm(initialised, 1\2) ** Perm(size, 1\2) **
-		Perm(maxvalue, 1\2) ** 0 < maxvalue **
-		(initialised ? Perm(f, 1\2) ** f != null: true) **
-		(initialised ? HPerm(f.channel, write) ** size == |f.channel| : true) **
-		(initialised ? HPerm(f.results, write) ** size == |f.results| : true) **
-		(initialised ==> (\forall int i; 0 <= i && i < size; (\forall int j; 0 <= j && j < |f.channel[i]|; 0 <= f.channel[i][j] && f.channel[i][j] < maxvalue)));
-	
+
 	requires 0 < max;
 	requires f != null;
 	requires HPerm(f.channel, write);

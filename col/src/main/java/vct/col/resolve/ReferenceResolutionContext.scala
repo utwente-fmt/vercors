@@ -10,18 +10,18 @@ case class ReferenceResolutionContext(stack: Seq[Seq[Referrable]] = Nil,
                                       checkContext: CheckContext = CheckContext(),
                                       currentJavaNamespace: Option[JavaNamespace] = None,
                                       currentJavaClass: Option[JavaClassOrInterface] = None,
-                                      currentThisType: Option[Type] = None,
-                                      currentReturnType: Option[Type] = None,
+                                      currentThis: Option[ThisTarget] = None,
+                                      currentResult: Option[ResultTarget] = None,
                                      ) {
   def replace(stack: Seq[Seq[Referrable]] = stack,
               externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration] = externallyLoadedElements,
               checkContext: CheckContext = checkContext,
               currentJavaNamespace: Option[JavaNamespace] = currentJavaNamespace,
               currentJavaClass: Option[JavaClassOrInterface] = currentJavaClass,
-              currentThisType: Option[Type] = currentThisType,
-              currentReturnType: Option[Type] = currentReturnType,
+              currentThis: Option[ThisTarget] = currentThis,
+              currentResult: Option[ResultTarget] = currentResult,
              ): ReferenceResolutionContext =
-    ReferenceResolutionContext(stack, externallyLoadedElements, checkContext, currentJavaNamespace, currentJavaClass, currentThisType, currentReturnType)
+    ReferenceResolutionContext(stack, externallyLoadedElements, checkContext, currentJavaNamespace, currentJavaClass, currentThis, currentResult)
 
   def asTypeResolutionContext: TypeResolutionContext =
     TypeResolutionContext(stack, currentJavaNamespace, externallyLoadedElements)

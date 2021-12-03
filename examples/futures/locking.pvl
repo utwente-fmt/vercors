@@ -20,10 +20,9 @@ model MLock {
 	process Unlocked() = acquire() * Locked();
 }
 
+lock_invariant Value(m) ** HPerm(m.flag, write);
 class Lock {
 	MLock m;
-	
-	resource lock_invariant() = Value(m) ** HPerm(m.flag, write);
 	
 	/** constructs a new lock (with associated model `m`). */
 	requires HPerm(m.flag, write);

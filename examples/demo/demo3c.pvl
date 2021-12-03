@@ -24,10 +24,9 @@ class Worker {
 	}
 }
 
+lock_invariant Perm(this.sum, 1);
 class Main {
 	int sum;
-
-	resource lock_invariant() = Perm(this.sum, 1);
 	
 	Main() {
 	}

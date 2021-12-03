@@ -1,10 +1,9 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases WaitNotify
+lock_invariant Perm(used,1)**Perm(data,1);
 class Queue {
   int data;
   boolean used;
-  
-  resource lock_invariant()=Perm(used,1)**Perm(data,1);
   
   Queue(){
     data=37;

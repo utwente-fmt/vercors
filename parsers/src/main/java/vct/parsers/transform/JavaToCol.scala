@@ -528,6 +528,8 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       case "~" => BitNot(convert(inner))
       case "!" => Not(convert(inner))
     }
+    case JavaValPrepend(left, PrependOp0(op), right) =>
+      convert(op, convert(left), convert(right))
     case JavaMul(leftNode, mul, rightNode) =>
       val (left, right) = (convert(leftNode), convert(rightNode))
       mul match {
@@ -772,14 +774,14 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
       collector.yields += ((contract, variable))
     case ValContractClause6(_, exp, _) => collector.context_everywhere += ((contract, convert(exp)))
     case ValContractClause7(_, exp, _) =>
-      val specification = (contract, convert(exp))
-      collector.requires += specification
-      collector.ensures += specification
+      collector.requires += ((contract, convert(exp)))
+      collector.ensures += ((contract, convert(exp)))
     case ValContractClause8(_, exp, _) => collector.loop_invariant += ((contract, convert(exp)))
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(contract)))
       collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
+    case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
   }
 
   def convert(mod: ValEmbedModifierContext, collector: ModifierCollector): Unit = mod match {
@@ -995,7 +997,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
         })
       ))
     case ValModel(_, name, _, decls, _) =>
-      Seq(new Model(decls.map(convert(_)))(SourceNameOrigin(convert(name), origin(decl))))
+      Seq(new Model(decls.flatMap(convert(_)))(SourceNameOrigin(convert(name), origin(decl))))
     case ValGhostDecl(_, inner) =>
       convert(inner)
     case ValAdtDecl(_, name, typeArgs, _, decls, _) =>
@@ -1031,23 +1033,25 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValInstanceGhostDecl(_, decl) => convert(decl).map(transform)
   }
 
-  def convert(implicit decl: ValModelDeclarationContext): ModelDeclaration = decl match {
+  def convert(implicit decl: ValModelDeclarationContext): Seq[ModelDeclaration] = decl match {
     case ValModelField(t, name, _) =>
-      new ModelField(convert(t))(SourceNameOrigin(convert(name), origin(decl)))
+      convert(name).map(name => {
+        new ModelField(convert(t))(SourceNameOrigin(name, origin(decl)))
+      })
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
-      withContract(contract, c => {
+      Seq(withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
           col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
-          SourceNameOrigin(convert(name), origin(decl)))
-      })
+          blame(decl))(SourceNameOrigin(convert(name), origin(decl)))
+      }))
     case ValModelAction(contract, _, name, _, args, _, _) =>
-      withContract(contract, c => {
+      Seq(withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
           col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
-      })
+      }))
   }
 
   def convert(implicit ts: ValTypeVarsContext): Seq[Variable] = ts match {
@@ -1084,6 +1088,8 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValMapType(_, _, key, _, value, _) => TMap(convert(key), convert(value))
     case ValTupleType(_, _, t1, _, t2, _) => TTuple(Seq(convert(t1), convert(t2)))
     case ValPointerType(_, _, element, _) => TPointer(convert(element))
+    case ValTypeType(_, _, element, _) => TType(convert(element))
+    case ValEitherType(_, _, left, _, right, _) => TEither(convert(left), convert(right))
   }
 
   def convert(implicit e: ValPrimarySeqContext): Expr = e match {
@@ -1095,6 +1101,11 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValSome(_, _, v, _) => OptSome(convert(v))
   }
 
+  def convert(implicit e: ValPrimaryEitherContext): Expr = e match {
+    case ValLeft(_, _, inner, _) => EitherLeft(convert(inner))
+    case ValRight(_, _, inner, _) => EitherRight(convert(inner))
+  }
+
   // valsetcompselectors
   // valMapPairs
 
@@ -1104,7 +1115,8 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => ??(e)
-    case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) => ??(e)
+    case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) =>
+      LiteralTuple(Seq(convert(t1), convert(t2)), Seq(convert(v1), convert(v2)))
     case ValLiteralSeq(_, exprs, _) => UntypedLiteralSeq(convert(exprs))
     case ValLiteralSet(_, exprs, _) => UntypedLiteralSet(convert(exprs))
     case ValLiteralBag(_, exprs, _) => UntypedLiteralBag(convert(exprs))
@@ -1144,6 +1156,13 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
         case "\\forall" => Forall(Seq(variable), Nil, Implies(convert(cond), convert(body)))
         case "\\exists" => Exists(Seq(variable), Nil, col.And(convert(cond), convert(body)))
       }
+    case ValShortQuantifier(_, quant, bindings, _, body, _) =>
+      val variables = convert(bindings)
+      quant match {
+        case "∀" => Forall(variables, Nil, convert(body))
+        case "∀*" => Starall(variables, Nil, convert(body))
+        case "∃" => Exists(variables, Nil, convert(body))
+      }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
   }
@@ -1176,6 +1195,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValPrimary5(inner) => convert(inner)
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
+    case ValPrimary8(inner) => convert(inner)
     case ValAny(_) => Any()
     case ValIndependent(_, e, _, name, _) => ??(e)
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
@@ -1183,6 +1203,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
+    case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
   }
 

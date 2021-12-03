@@ -2,7 +2,24 @@ package vct.col.check
 
 import vct.col.ast._
 
-sealed trait CheckError
+sealed trait CheckError {
+  override def toString: String = this match {
+    case TypeError(expr, expectedType) =>
+      expr.o.messageInContext(s"Expected the type of this expression to be `$expectedType`, but got ${expr.t}.")
+    case TypeErrorText(expr, message) =>
+      expr.o.messageInContext(message(expr.t))
+    case GenericTypeError(t, expectedType) =>
+      t.o.messageInContext(s"This type variable refers to a name that is not actually a type.")
+    case OutOfScopeError(use, ref) =>
+      use.o.messageInContext(s"This usage is out of scope, ...") + "\n" +
+        ref.decl.o.messageInContext("... since it is declared here.")
+    // TODO PB: these are kind of obsolete? maybe?
+    case IncomparableTypes(left, right) =>
+      ???
+    case TupleTypeCount(tup) =>
+      ???
+  }
+}
 case class TypeError(expr: Expr, expectedType: Type) extends CheckError
 case class TypeErrorText(expr: Expr, message: Type => String) extends CheckError
 case class GenericTypeError(t: Type, expectedType: TType) extends CheckError
@@ -22,7 +39,10 @@ case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(),
     scopes.exists(_.contains(ref.decl))
 
   def checkInScope(use: Node, ref: Ref[_ <: Declaration]): Seq[CheckError] =
-    if(inScope(ref)) Nil else Seq(OutOfScopeError(use, ref))
+    if(inScope(ref))
+      Nil
+    else
+      Seq(OutOfScopeError(use, ref))
 }
 
 case class UnreachableAfterTypeCheck(message: String, at: Node) extends ASTStateError {

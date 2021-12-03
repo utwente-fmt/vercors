@@ -4,7 +4,7 @@ import hre.util.FuncTools
 import vct.col
 import vct.col.check.{CheckContext, CheckError, TupleTypeCount, TypeError, TypeErrorText, UnreachableAfterTypeCheck}
 import vct.col.coerce.Coercion
-import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefModel, SpecTypeNameTarget}
+import vct.col.resolve.{C, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefClass, RefFunction, RefInstanceFunction, RefInstanceMethod, RefJavaClass, RefJavaMethod, RefModel, RefProcedure, ResultTarget, SpecTypeNameTarget, ThisTarget}
 import vct.col.origin._
 
 sealed trait Expr extends NodeFamily {
@@ -129,15 +129,44 @@ case class ContextSensitiveNodeNotResolved(expr: Expr, message: String) extends 
 }
 
 case class AmbiguousThis()(implicit val o: Origin) extends Expr {
-  var ref: Option[Type] = None
-  override def t: Type = ref.getOrElse(throw ContextSensitiveNodeNotResolved(this,
-    "'this' encountered, but the surrounding class is not resolved."))
+  var ref: Option[ThisTarget] = None
+  override def t: Type =
+    ref.getOrElse(
+      throw ContextSensitiveNodeNotResolved(this,
+        "'this' encountered, but the surrounding class is not resolved.")
+    ) match {
+      case RefJavaClass(decl) => JavaTClass(decl.ref, Nil)
+      case RefClass(decl) => TClass(decl.ref)
+      case RefModel(decl) => TModel(decl.ref)
+    }
+}
+
+case class ThisObject(cls: Ref[Class])(implicit val o: Origin) extends Expr {
+  override def t: Type = TClass(cls)
+}
+
+case class ThisModel(cls: Ref[Model])(implicit val o: Origin) extends Expr {
+  override def t: Type = TModel(cls)
 }
 
 case class AmbiguousResult()(implicit val o: Origin) extends Expr {
-  var ref: Option[Type] = None
+  var ref: Option[ResultTarget] = None
   override def t: Type = ref.getOrElse(
-    throw ContextSensitiveNodeNotResolved(this, "'\\result' encountered, but its attached method is not resolved."))
+    throw ContextSensitiveNodeNotResolved(this, "'\\result' encountered, but its attached method is not resolved.")) match {
+    case RefCFunctionDefinition(decl) =>
+      C.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
+    case RefCGlobalDeclaration(decls, initIdx) =>
+      C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
+    case RefFunction(decl) => decl.returnType
+    case RefProcedure(decl) => decl.returnType
+    case RefJavaMethod(decl) => decl.returnType
+    case RefInstanceFunction(decl) => decl.returnType
+    case RefInstanceMethod(decl) => decl.returnType
+  }
+}
+
+case class Result(applicable: Ref[ContractApplicable])(implicit val o: Origin) extends Expr {
+  override def t: Type = applicable.decl.returnType
 }
 
 case class CurrentThreadId()(implicit val o: Origin) extends Expr {

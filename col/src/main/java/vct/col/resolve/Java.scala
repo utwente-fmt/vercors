@@ -4,7 +4,7 @@ import hre.util.FuncTools
 import vct.col.origin._
 import vct.result.VerificationResult
 import vct.col.ast.Constant._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, Ref, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
 import vct.result.VerificationResult.Unreachable
 import vct.col.util.AstBuildHelpers._
 
@@ -123,7 +123,7 @@ case object Java {
         signals = Nil,
         body = None,
         contract = ApplicableContract(true, true, true, Nil, Nil, Nil),
-      )(null)
+      )(AbstractApplicable)(SourceNameOrigin(method.getName, o))
     })
 
     val fields = cls.getFields.map(field => {
@@ -193,14 +193,11 @@ case object Java {
           }
         case _ => None
       }
-      case t @ JavaNamedType(_) => t.ref.get match {
-        case RefAxiomaticDataType(decl) => None
-        case RefModel(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {
-          case ref @ RefModelField(_) if ref.name == name => ref
-        }
-        case RefJavaClass(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
-          case ref @ RefJavaField(_, _) if ref.name == name && !ref.decls.modifiers.contains(JavaStatic()) => ref
-        }
+      case TModel(Ref(model)) => model.declarations.flatMap(Referrable.from).collectFirst {
+        case ref @ RefModelField(_) if ref.name == name => ref
+      }
+      case JavaTClass(Ref(cls), _) => cls.decls.flatMap(Referrable.from).collectFirst {
+        case ref @ RefJavaField(_, _) if ref.name == name && !ref.decls.modifiers.contains(JavaStatic()) => ref
       }
       case _ => None
     }).orElse(Spec.builtinField(obj, name, blame))
@@ -219,11 +216,7 @@ case object Java {
         case ref: RefModelAction if ref.name == method => ref
         case ref: RefModelProcess if ref.name == method => ref
       }
-      case t @ JavaNamedType(_) =>
-        t.ref.get match {
-          case RefJavaClass(decl) => findMethodInClass(decl, method, args)
-          case _ => None
-        }
+      case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
       case _ => None
     }).orElse(Spec.builtinInstanceMethod(obj, method, blame))
 
