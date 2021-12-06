@@ -1,6 +1,7 @@
 package vct.col.util
 
-import vct.col.ast.{Declaration, LazyRef}
+import vct.col.ast.Declaration
+import vct.col.ref.LazyRef
 import vct.col.util.SuccessionMap.NoSuchSuccessor
 import vct.result.VerificationResult.{SystemError, UserError}
 
@@ -27,17 +28,25 @@ case object SuccessionMap {
   }
 }
 
-case class SuccessionMap[K, V <: Declaration]() extends mutable.HashMap[K, V] {
+case class SuccessionMap[K, V <: Declaration]() {
+  private val storage = mutable.HashMap[K, V]()
+
   private def firstElementPastMe: StackTraceElement =
     Thread.currentThread().getStackTrace
       .dropWhile(element =>
         element.getClassName == "vct.col.util.SuccessionMap" ||
           element.getClassName == "java.lang.Thread" ||
-          element.getClassName == "vct.col.ast.LazyRef" ||
+          element.getClassName == "vct.col.ref.LazyRef" ||
           element.getMethodName == "succ"
       ).head
 
   val mapCreationTrace: StackTraceElement = firstElementPastMe
+
+  def get(k: K): Option[V] = storage.get(k)
+  def getOrElseUpdate(k: K, v: => V): V = storage.getOrElseUpdate(k, v)
+  def apply(k: K): V = storage(k)
+  def update(k: K, v: V): Unit = storage.update(k, v)
+  def contains(k: K): Boolean = storage.contains(k)
 
   def ref[V2 <: Declaration]
          (k: K)

@@ -14,6 +14,9 @@ object ColDefs {
    */
   val IMPORTS: List[Stat] = List(
     q"import vct.col.origin._",
+    q"import vct.col.ref.Ref",
+    q"import vct.col.resolve.Referrable",
+    q"import vct.col.rewrite.ScopeContext",
   )
 
   /**

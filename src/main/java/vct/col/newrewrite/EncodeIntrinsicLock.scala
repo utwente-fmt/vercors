@@ -4,6 +4,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.check.UnreachableAfterTypeCheck
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -53,6 +54,7 @@ case class EncodeIntrinsicLock() extends Rewriter {
     implicit val o: Origin = e.o
     e match {
       case Held(obj) => getHeld(obj)
+      case other => rewriteDefault(other)
     }
   }
 
@@ -89,6 +91,8 @@ case class EncodeIntrinsicLock() extends Rewriter {
           Fold(getInvariant(obj)),
           Exhale(getInvariant(obj))(PanicBlame("Exhaling a predicate immediately after folding it should never fail.")),
         ))
+
+      case other => rewriteDefault(other)
     }
   }
 }

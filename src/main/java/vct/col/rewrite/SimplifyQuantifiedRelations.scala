@@ -190,7 +190,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
           (expr.first, expr.operator, expr.second)
         } else if(isNameIn(decls, expr.second) && indepOf(decls, expr.first)) {
           // If the quantified variable is the second argument: flip the relation
-          @nowarn("msg=not.*?exhaustive")
+          @nowarn("msg=xhaust")
           val op = expr.operator match {
             case LT => GT
             case LTE => GTE
@@ -205,7 +205,7 @@ class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(
 
         val name = quant.asInstanceOf[NameExpression].getName
 
-        @nowarn("msg=not.*?exhaustive")
+        @nowarn("msg=xhaust")
         val x = op match {
           case LT =>
             bounds.addUpperBound(name, create expression(Minus, bound, create constant 1))

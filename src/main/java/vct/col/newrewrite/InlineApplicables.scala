@@ -4,6 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.newrewrite.util.Substitute
 import vct.col.origin.Origin
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.{Unreachable, UserError}

@@ -13,11 +13,11 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
   it should "add a label to a switch without a label" in {
     val before = {
       Switch(
-        Constant.IntegerValue(5),
+        IntegerValue(5),
         Block(Seq(
-          Case(Constant.IntegerValue(0)),
+          Case(IntegerValue(0)),
           Break(None),
-          Case(Constant.IntegerValue(5)),
+          Case(IntegerValue(5)),
           Break(None),
         ))
       )
@@ -27,11 +27,11 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       val switchLabel = new LabelDecl()
       Label(switchLabel,
         Switch(
-          Constant.IntegerValue(5),
+          IntegerValue(5),
           Block(Seq(
-            Case(Constant.IntegerValue(0)),
+            Case(IntegerValue(0)),
             Break(Some(switchLabel.ref)),
-            Case(Constant.IntegerValue(5)),
+            Case(IntegerValue(5)),
             Break(Some(switchLabel.ref)),
           ))
         )
@@ -48,11 +48,11 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       val switchLabel = new LabelDecl()
       Label(switchLabel,
         Switch(
-          Constant.IntegerValue(5),
+          IntegerValue(5),
           Block(Seq(
-            Case(Constant.IntegerValue(0)),
+            Case(IntegerValue(0)),
             Break(None),
-            Case(Constant.IntegerValue(5)),
+            Case(IntegerValue(5)),
             Break(None),
           ))
         )
@@ -63,11 +63,11 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       val switchLabel = new LabelDecl()
       Label(switchLabel,
         Switch(
-          Constant.IntegerValue(5),
+          IntegerValue(5),
           Block(Seq(
-            Case(Constant.IntegerValue(0)),
+            Case(IntegerValue(0)),
             Break(Some(switchLabel.ref)),
-            Case(Constant.IntegerValue(5)),
+            Case(IntegerValue(5)),
             Break(Some(switchLabel.ref)),
           ))
         )
@@ -84,9 +84,9 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       val switchLabel = new LabelDecl()
       Label(switchLabel,
         Switch(
-          Constant.IntegerValue(5),
+          IntegerValue(5),
           Block(Seq(
-            Case(Constant.IntegerValue(0)),
+            Case(IntegerValue(0)),
             Break(Some(switchLabel.ref)),
           ))
         )
@@ -97,9 +97,9 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       val switchLabel = new LabelDecl()
       Label(switchLabel,
         Switch(
-          Constant.IntegerValue(5),
+          IntegerValue(5),
           Block(Seq(
-            Case(Constant.IntegerValue(0)),
+            Case(IntegerValue(0)),
             Break(Some(switchLabel.ref)),
           ))
         )
@@ -116,13 +116,13 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       val switchLabelA = new LabelDecl()
       Label(switchLabelA,
         Switch(
-          Constant.IntegerValue(33),
+          IntegerValue(33),
           Switch(
-            Constant.IntegerValue(5),
+            IntegerValue(5),
             Block(Seq(
-              Case(Constant.IntegerValue(0)),
+              Case(IntegerValue(0)),
               Break(Some(switchLabelA.ref)),
-              Case(Constant.IntegerValue(5)),
+              Case(IntegerValue(5)),
               Break(None),
             ))
           )
@@ -134,13 +134,13 @@ class SpecifyImplicitLabelsSpec extends AnyFlatSpec with Matchers {
       val switchLabelA = new LabelDecl()
       val switchLabelB = new LabelDecl()
       Label(switchLabelA,
-        Switch(Constant.IntegerValue(33),
+        Switch(IntegerValue(33),
           Label(switchLabelB,
-            Switch(Constant.IntegerValue(5),
+            Switch(IntegerValue(5),
               Block(Seq(
-                Case(Constant.IntegerValue(0)),
+                Case(IntegerValue(0)),
                 Break(Some(switchLabelA.ref)),
-                Case(Constant.IntegerValue(5)),
+                Case(IntegerValue(5)),
                 Break(Some(switchLabelB.ref))
               ))
             )

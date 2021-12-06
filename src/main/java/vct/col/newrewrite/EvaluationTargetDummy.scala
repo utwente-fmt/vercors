@@ -23,5 +23,6 @@ case class EvaluationTargetDummy() extends Rewriter {
       val v = new Variable(other.t)(EvaluationOrigin)
       v.declareDefault(this)
       Assign(v.get(EvaluationOrigin), dispatch(other))(stat.o)
+    case other => rewriteDefault(other)
   }
 }

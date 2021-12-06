@@ -6,7 +6,9 @@ import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import vct.col.newrewrite.util.Substitute
 import vct.col.origin.{AssertFailed, Blame, Origin, ThrowNull}
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
+import vct.col.util.AstBuildHelpers
 
 case object EncodeTryThrowSignals {
   case class ThrowNullAssertFailed(t: Throw) extends Blame[AssertFailed] {
@@ -85,6 +87,8 @@ case class EncodeTryThrowSignals() extends Rewriter {
             EitherLeft(getExc),
           ))
         ))
+
+      case other => rewriteDefault(other)
     }
   }
 
@@ -118,7 +122,7 @@ case class EncodeTryThrowSignals() extends Rewriter {
 
         val ensures =
           (IsRight(AmbiguousResult()) ==> dispatch(method.contract.ensures)) &*
-            Star.fold(method.contract.signals.map {
+            AstBuildHelpers.foldStar(method.contract.signals.map {
               case SignalsClause(binding, assn) =>
                 (IsLeft(AmbiguousResult()) && InstanceOf(GetLeft(AmbiguousResult())(???), TypeValue(binding.t))) ==>
                   (signalsBinding.having(binding) { dispatch(assn) })
@@ -130,6 +134,8 @@ case class EncodeTryThrowSignals() extends Rewriter {
           contract = method.contract.rewrite(ensures = ensures, signals = Nil)
         )
       }
+
+    case other => rewriteDefault(other)
   }
 
   override def dispatch(e: Expr): Expr = e match {
@@ -140,5 +146,7 @@ case class EncodeTryThrowSignals() extends Rewriter {
     case AmbiguousResult() =>
       implicit val o: Origin = e.o
       GetRight(AmbiguousResult())(???)
+
+    case other => rewriteDefault(other)
   }
 }

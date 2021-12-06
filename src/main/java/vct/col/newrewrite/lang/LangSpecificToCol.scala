@@ -1,11 +1,11 @@
 package vct.col.newrewrite.lang
 
 import hre.util.{FuncTools, ScopedStack}
-import vct.col.ast.Constant._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.CGlobalStateNotSupported
 import vct.col.origin._
+import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve._
 import vct.col.rewrite.Rewriter
 import vct.result.VerificationResult.{Unreachable, UserError}
@@ -13,7 +13,7 @@ import vct.result.VerificationResult.{Unreachable, UserError}
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.SuccessionMap
+import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
 case object LangSpecificToCol {
   case class CGlobalStateNotSupported(example: CInit) extends UserError {
@@ -108,8 +108,8 @@ case class LangSpecificToCol() extends Rewriter {
         signals = Nil,
         body = Block(Nil),
         contract = ApplicableContract(
-          requires = true,
-          ensures = Star.fold(decls.collect {
+          requires = tt,
+          ensures = AstBuildHelpers.foldStar(decls.collect {
             case fields: JavaFields =>
               fields.decls.indices.map(decl => {
                 val local = JavaLocal(fields.decls(decl)._1)(DerefPerm)
@@ -117,7 +117,7 @@ case class LangSpecificToCol() extends Rewriter {
                 Perm(local, WritePerm())
               })
           }.flatten),
-          contextEverywhere = true, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
+          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
         )
       )
       javaDefaultConstructor(currentJavaClass.head) +: decls
@@ -209,7 +209,7 @@ case class LangSpecificToCol() extends Rewriter {
           }, Nil, tt)
 
           staticsClass.declareDefault(this)
-          val singleton = new Function(TClass(staticsClass.ref), Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null)
+          val singleton = new Function(TClass(staticsClass.ref), Nil, Nil, None, ApplicableContract(tt, tt, tt, Nil, Nil, Nil))(null)
           singleton.declareDefault(this)
           javaStaticsClassSuccessor(cls) = staticsClass
           javaStaticsFunctionSuccessor(cls) = singleton
@@ -274,11 +274,11 @@ case class LangSpecificToCol() extends Rewriter {
                 Return(res),
               )))),
               ApplicableContract(
-                true,
-                Star.fold(cls.declarations.collect {
+                tt,
+                AstBuildHelpers.foldStar(cls.declarations.collect {
                   case field: InstanceField =>
                     fieldPerm(currentThis.head, succ[InstanceField](field), WritePerm())
-                }), true, Nil, Nil, Nil,
+                }), tt, Nil, Nil, Nil,
               )
             )(null)
 
@@ -340,8 +340,6 @@ case class LangSpecificToCol() extends Rewriter {
   }
 
   override def dispatch(e: Expr): Expr = e match {
-    case AmbiguousThis() => currentThis.head
-
     case result @ AmbiguousResult() =>
       implicit val o: Origin = result.o
       result.ref.get match {
@@ -410,6 +408,7 @@ case class LangSpecificToCol() extends Rewriter {
         case RefJavaField(decls, idx) =>
           Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
         case BuiltinField(f) => f(dispatch(obj))
+        case RefVariable(v) => ???
       }
 
     case deref @ PVLDeref(obj, _) =>
@@ -513,10 +512,11 @@ case class LangSpecificToCol() extends Rewriter {
           }
 
           ProcedureInvocation(
-            new LazyRef[Procedure](cons.map(successionMap).getOrElse(pvlDefaultConstructor(decl))),
+            new LazyRef[Procedure](cons.map(successionMap.apply).getOrElse(pvlDefaultConstructor(decl))),
             args.map(dispatch),
             Nil, Nil,
           )(inv.blame)
+        case RefVariable(v) => ???
       }
 
     case JavaNewLiteralArray(baseType, dims, initializer) =>
@@ -529,9 +529,9 @@ case class LangSpecificToCol() extends Rewriter {
         stats += LocalDecl(v)
         es.exprs.zipWithIndex.map {
           case (e: JavaLiteralArray, i) =>
-            stats += Assign(AmbiguousSubscript(Local(v.ref), i)(JavaArrayInitializerBlame), collectArray(e, dims-1, stats))
+            stats += Assign(AmbiguousSubscript(Local(v.ref), const(i))(JavaArrayInitializerBlame), collectArray(e, dims-1, stats))
           case (other, i) =>
-            stats += Assign(AmbiguousSubscript(Local(v.ref), i)(JavaArrayInitializerBlame), dispatch(other))
+            stats += Assign(AmbiguousSubscript(Local(v.ref), const(i))(JavaArrayInitializerBlame), dispatch(other))
         }
         Local(v.ref)
       }

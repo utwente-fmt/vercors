@@ -31,7 +31,7 @@ case class FilterSpecIgnore() extends Rewriter {
   override def dispatch(decl: Declaration): Unit = decl match {
     case app: ContractApplicable =>
       app.contract.requires match {
-        case Constant(false) => // drop declaration
+        case BooleanValue(false) => // drop declaration
         case _ => rewriteDefault(decl)
       }
     case other => rewriteDefault(other)

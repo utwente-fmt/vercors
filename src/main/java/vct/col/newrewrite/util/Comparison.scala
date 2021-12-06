@@ -2,6 +2,7 @@ package vct.col.newrewrite.util
 
 import vct.col.ast._
 import vct.col.origin.Origin
+import vct.col.util.AstBuildHelpers._
 
 case object Comparison {
   val LESS: Comparison = Comparison(less = true)
@@ -42,8 +43,8 @@ case class Comparison(less: Boolean = false, eq: Boolean = false, greater: Boole
   )
 
   def make(left: Expr, right: Expr)(implicit o: Origin): Expr = this match {
-    case Comparison(false, false, false) => Constant.BooleanValue(false)
-    case Comparison(true, true, true) => Constant.BooleanValue(true)
+    case Comparison(false, false, false) => ff
+    case Comparison(true, true, true) => tt
     case Comparison(true, false, true) => Neq(left, right)
 
     case Comparison(true, false, false) => Less(left, right)

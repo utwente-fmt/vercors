@@ -6,7 +6,7 @@ public abstract class AbstractMessage implements Message {
   private Thread thread=Thread.currentThread();
  
   protected boolean fatal;
-  
+
   @Override
   public Thread getThread() {
     return thread;
@@ -21,5 +21,4 @@ public abstract class AbstractMessage implements Message {
   public boolean isFatal(){
     return fatal;
   }
-  
 }

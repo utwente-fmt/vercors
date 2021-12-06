@@ -10,7 +10,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
     classes.map(cls => Case(
       Pat.Typed(Pat.Var(q"node"), cls.typ),
       None,
-      q"node.rewrite()"
+      q"new ${cls.rewriteHelperName}(node).rewrite()"
     )).toList
   }
 

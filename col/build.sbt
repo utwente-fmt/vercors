@@ -3,26 +3,16 @@ libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.1"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test"
 
 // Disable documentation generation
-sources in (Compile, doc) := Seq()
-publishArtifact in (Compile, packageDoc) := false
+Compile / doc / sources := Nil
+Compile / packageDoc / publishArtifact := false
 
 lazy val generateHelpersTask = taskKey[Seq[File]]("Generate helpers for the COL AST")
 
 generateHelpersTask := {
-  val src = (sourceDirectory in Compile).value / "java" / "vct" / "col" / "ast"
-  val gen = (sourceManaged in Compile).value / "java"
+  val src = (Compile / sourceDirectory).value / "java" / "vct" / "col" / "ast"
+  val gen = (Compile / sourceManaged).value / "java"
   val files = Seq(
-    src / "Ast.scala",
-
-    src / "Expr.scala",
-    src / "Statement.scala",
-    src / "Type.scala",
-    src / "Declaration.scala",
-
-    src / "Silver.scala",
-    src / "C.scala",
-    src / "Java.scala",
-    src / "PVL.scala",
+    src / "Node.scala",
   )
 
   val compile = FileFunction.cached(streams.value.cacheDirectory / "removeThisToGenerate-src_managed", FilesInfo.hash)(changedSet => {
@@ -36,4 +26,4 @@ generateHelpersTask := {
   compile(files.toSet).toSeq
 }
 
-sourceGenerators in Compile += generateHelpersTask
+Compile / sourceGenerators += generateHelpersTask

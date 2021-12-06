@@ -1,6 +1,5 @@
 package vct.helper
 
-import vct.col.ast.Constant._
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.util.AstBuildHelpers._

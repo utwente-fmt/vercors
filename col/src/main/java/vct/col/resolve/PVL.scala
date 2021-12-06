@@ -1,7 +1,7 @@
 package vct.col.resolve
 
-import vct.col.ast
 import vct.col.ast._
+import vct.col.ast
 import vct.col.origin._
 
 case object PVL {

@@ -67,7 +67,7 @@ case object C {
       case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
       case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
       case Seq(CBool()) => TBool()
-      case Seq(defn @ CTypedefName(_)) => TNotAValue(defn.ref.get)
+      case Seq(defn @ CTypedefName(_)) => new TNotAValue(Some(defn.ref.get))
       case _ => throw CTypeNotSupported(context)
     }
 
@@ -92,17 +92,18 @@ case object C {
 
   def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext, blame: Blame[BuiltinError]): Option[CDerefTarget] =
     obj.t match {
-      case t @ TNotAValue() => t.decl.get match {
+      case t: TNotAValue => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
           case ref: RefADTFunction if ref.name == name => ref
         }
         case _ => Spec.builtinField(obj, name, blame)
       }
+      case _ => Spec.builtinField(obj, name, blame)
     }
 
   def resolveInvocation(obj: Expr, ctx: ReferenceResolutionContext): CInvocationTarget =
     obj.t match {
-      case t @ TNotAValue() => t.decl.get match {
+      case t: TNotAValue => t.decl.get match {
         case target: CInvocationTarget => target
         case _ => throw NotApplicable(obj)
       }

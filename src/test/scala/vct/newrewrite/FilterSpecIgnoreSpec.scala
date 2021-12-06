@@ -4,8 +4,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.origin._
-import Constant._
+import vct.col.util.AstBuildHelpers._
 import vct.col.newrewrite.FilterSpecIgnore
+import vct.col.ref.{DirectRef, LazyRef}
 import vct.helper.{ColHelper, SimpleProgramGenerator}
 
 
@@ -118,8 +119,8 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
     implicit val o: Origin = DiagnosticOrigin
 
     ColHelper.assertEquals(
-      left = Plus(1, 1),
-      right = Minus(1, 1)
+      left = Plus(const(1), const(1)),
+      right = Minus(const(1), const(1))
     )
   }
 }

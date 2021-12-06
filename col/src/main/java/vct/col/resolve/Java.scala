@@ -3,8 +3,8 @@ package vct.col.resolve
 import hre.util.FuncTools
 import vct.col.origin._
 import vct.result.VerificationResult
-import vct.col.ast.Constant._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, Ref, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
+import vct.col.ref.Ref
 import vct.result.VerificationResult.Unreachable
 import vct.col.util.AstBuildHelpers._
 
@@ -92,7 +92,7 @@ case object Java {
     case java.lang.Double.TYPE => TFloat()
     case java.lang.Void.TYPE => TVoid()
     case arr if arr.isArray => TArray(translateRuntimeType(arr.getComponentType))
-    case cls => lazyType(cls.getName.split('.'), ctx)
+    case cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)
   }
 
   def translateRuntimeParameter(param: Parameter)(implicit o: Origin, ctx: TypeResolutionContext): Variable = {
@@ -104,11 +104,11 @@ case object Java {
       new JavaConstructor(
         modifiers = Nil,
         name = cls.getSimpleName,
-        parameters = cons.getParameters.map(translateRuntimeParameter),
+        parameters = cons.getParameters.toIndexedSeq.map(translateRuntimeParameter),
         typeParameters = Nil,
         signals = Nil,
         body = Block(Nil),
-        contract = ApplicableContract(true, true, true, Nil, Nil, Nil),
+        contract = ApplicableContract(tt, tt, tt, Nil, Nil, Nil),
       )
     })
 
@@ -118,11 +118,11 @@ case object Java {
         returnType = translateRuntimeType(method.getReturnType),
         dims = 0,
         name = method.getName,
-        parameters = method.getParameters.map(translateRuntimeParameter),
+        parameters = method.getParameters.toIndexedSeq.map(translateRuntimeParameter),
         typeParameters = Nil,
         signals = Nil,
         body = None,
-        contract = ApplicableContract(true, true, true, Nil, Nil, Nil),
+        contract = ApplicableContract(tt, tt, tt, Nil, Nil, Nil),
       )(AbstractApplicable)(SourceNameOrigin(method.getName, o))
     })
 
@@ -139,8 +139,8 @@ case object Java {
         name = cls.getName.split('.').last,
         modifiers = Nil,
         typeParams = Nil,
-        ext = cls.getInterfaces.map(cls => lazyType(cls.getName.split('.'), ctx)),
-        decls = fields ++ cons ++ methods,
+        ext = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)),
+        decls = fields.toIndexedSeq ++ cons.toIndexedSeq ++ methods.toIndexedSeq,
       )(SourceNameOrigin(cls.getName.split('.').last, o))
     } else {
       new JavaClass(
@@ -148,9 +148,9 @@ case object Java {
         modifiers = Nil,
         typeParams = Nil,
         intrinsicLockInvariant = `tt`,
-        ext = Option(cls.getSuperclass).map(cls => lazyType(cls.getName.split('.'), ctx)).getOrElse(TAny()),
-        imp = cls.getInterfaces.map(cls => lazyType(cls.getName.split('.'), ctx)),
-        decls = fields ++ cons ++ methods,
+        ext = Option(cls.getSuperclass).map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)).getOrElse(TAny()),
+        imp = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)),
+        decls = fields.toIndexedSeq ++ cons.toIndexedSeq ++ methods.toIndexedSeq,
       )(SourceNameOrigin(cls.getName.split('.').last, o))
     }
   }
@@ -183,7 +183,7 @@ case object Java {
 
   def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext, blame: Blame[BuiltinError]): Option[JavaDerefTarget] =
     (obj.t match {
-      case t @ TNotAValue() => t.decl.get match {
+      case t: TNotAValue => t.decl.get match {
         case RefUnloadedJavaNamespace(pkg) =>
           Some(findJavaTypeName(pkg :+ name, ctx.asTypeResolutionContext)
             .getOrElse(RefUnloadedJavaNamespace(pkg :+ name)))

@@ -2,7 +2,7 @@ package viper.api
 
 import vct.col.ast._
 import vct.col.origin._
-import Constant._
+import vct.col.util.AstBuildHelpers._
 import org.scalatest.flatspec.AnyFlatSpec
 
 abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
@@ -34,7 +34,7 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
   def procedure(returnType: => Type = TVoid(),
                 args: => Seq[Variable] = Seq(), outArgs: => Seq[Variable] = Seq(),
                 body: => Statement = Block(Seq()),
-                requires: => Expr = true, ensures: => Expr = true, blame: => Blame[PostconditionFailed] = noErrors): Unit = {
-    decl(new Procedure(returnType, args, outArgs, Nil, Option(body), ApplicableContract(requires, ensures, true, Seq(), Seq(), Seq()))(blame))
+                requires: => Expr = tt, ensures: => Expr = tt, blame: => Blame[PostconditionFailed] = noErrors): Unit = {
+    decl(new Procedure(returnType, args, outArgs, Nil, Option(body), ApplicableContract(requires, ensures, tt, Seq(), Seq(), Seq()))(blame))
   }
 }

@@ -3,12 +3,12 @@ package vct.col.util
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.rewrite.Rewriter
-
-import scala.collection.mutable
-import scala.reflect.ClassTag
+import vct.col.ref.{DirectRef, Ref}
 
 object AstBuildHelpers {
+  val ZERO: BigInt = BigInt(0)
+  val ONE: BigInt = BigInt(1)
+
   implicit class ExprBuildHelpers(left: Expr) {
     def +(right: Expr)(implicit origin: Origin): Plus = Plus(left, right)
     def -(right: Expr)(implicit origin: Origin): Minus = Minus(left, right)
@@ -153,11 +153,11 @@ object AstBuildHelpers {
     override def messageInContext(message: String): String = s"[At generated constant]: $message"
   }
 
-  val tt: Constant.BooleanValue = Constant.BooleanValue(true)(ConstOrigin)
-  val ff: Constant.BooleanValue = Constant.BooleanValue(false)(ConstOrigin)
+  val tt: BooleanValue = BooleanValue(true)(ConstOrigin)
+  val ff: BooleanValue = BooleanValue(false)(ConstOrigin)
 
-  def const(i: Int)(implicit o: Origin): Constant.IntegerValue =
-    Constant.IntegerValue(i)
+  def const(i: Int)(implicit o: Origin): IntegerValue =
+    IntegerValue(i)
 
   def contract(requires: Expr = tt, ensures: Expr = tt, contextEverywhere: Expr = tt,
                signals: Seq[SignalsClause] = Nil, givenArgs: Seq[Variable] = Nil, yieldsArgs: Seq[Variable] = Nil)
@@ -239,4 +239,24 @@ object AstBuildHelpers {
 
   def arrayPerm(arr: Expr, index: Expr, amount: Expr)(implicit o: Origin): Perm =
     Perm(ArraySubscript(arr, index)(ArrayPerm), amount)
+
+  def foldAnd(exprs: Seq[Expr])(implicit o: Origin): Expr =
+    exprs.reduceOption(And(_, _)).getOrElse(tt)
+
+  def unfoldImplies(expr: Expr): (Seq[Expr], Expr) = expr match {
+    case Implies(left, right) =>
+      val (antecedent, consequent) = AstBuildHelpers.unfoldImplies(right)
+      (unfoldStar(left) ++ antecedent, consequent)
+    case other => (Nil, other)
+  }
+
+  def unfoldStar(expr: Expr): Seq[Expr] = expr match {
+    case Star(left, right) => AstBuildHelpers.unfoldStar(left) ++ AstBuildHelpers.unfoldStar(right)
+    case And(left, right) => AstBuildHelpers.unfoldStar(left) ++ AstBuildHelpers.unfoldStar(right)
+    case BooleanValue(true) => Nil
+    case other => Seq(other)
+  }
+
+  def foldStar(exprs: Seq[Expr])(implicit o: Origin): Expr =
+    exprs.reduceOption(Star(_, _)).getOrElse(tt)
 }

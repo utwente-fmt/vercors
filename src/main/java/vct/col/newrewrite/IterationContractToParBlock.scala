@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
 import vct.result.VerificationResult.UserError
 
@@ -43,7 +44,7 @@ case class IterationContractToParBlock() extends Rewriter {
 
   def assertIncrements(v: Variable, loop: Loop): Unit =
     loop.update match {
-      case Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), Constant(1))) =>
+      case Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE))) =>
       case _ =>
         throw InvalidLoopFormatForIterationContract(loop,
           "we could not ascertain that the iteration variable is incremented by one each iteration")

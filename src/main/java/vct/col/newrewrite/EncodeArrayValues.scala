@@ -65,6 +65,7 @@ case class EncodeArrayValues() extends Rewriter {
         val arrayType = Coercion.getAnyArrayCoercion(arr.t).get._2
         val func = valuesFunctions.getOrElseUpdate(arrayType, makeFunctionFor(arrayType))
         FunctionInvocation(func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil)(ArrayValuesPreconditionFailed(values))
+      case other => rewriteDefault(other)
     }
   }
 }

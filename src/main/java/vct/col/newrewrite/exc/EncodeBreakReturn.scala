@@ -4,6 +4,7 @@ import vct.col.ast._
 import RewriteHelpers._
 import vct.col.newrewrite.error.ExcludedByPassOrder
 import vct.col.origin.{Origin, PanicBlame}
+import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.Rewriter
 import vct.col.util.SuccessionMap
@@ -167,5 +168,6 @@ case class EncodeBreakReturn() extends Rewriter {
           }
           method.rewrite(body = Some(newBody)).succeedDefault(this, method)
       }
+    case other => rewriteDefault(other)
   }
 }

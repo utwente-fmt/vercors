@@ -26,9 +26,9 @@ silicon and carbon specify their dependencies as a regular sbt subproject: they 
 the relevant project. Instead, we replace those dependencies by a reference to the repository as above. So e.g.
 "the silver project at hg:carbon" becomes "the silver project at hg:silver". All other dependencies are left alone.
  */
-buildDependencies in Global := {
+Global / buildDependencies := {
   val log = sLog.value
-  val oldDeps = (buildDependencies in Global).value
+  val oldDeps = (Global / buildDependencies).value
   def fixDep(dep: ClasspathDep[ProjectRef]): ClasspathDep[ProjectRef] = dep.project.project match {
     case "silver" =>
       ResolvedClasspathDependency(ProjectRef(silver_url, "silver"), dep.configuration)

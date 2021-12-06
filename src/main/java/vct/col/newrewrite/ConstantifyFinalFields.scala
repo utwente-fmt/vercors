@@ -6,6 +6,7 @@ import vct.col.rewrite.Rewriter
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.{AbstractApplicable, Origin, PanicBlame}
+import vct.col.ref.Ref
 
 case class ConstantifyFinalFields() extends Rewriter {
   val currentClass: ScopedStack[Class] = ScopedStack()

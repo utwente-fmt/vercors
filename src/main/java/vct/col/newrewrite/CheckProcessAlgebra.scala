@@ -5,11 +5,12 @@ import hre.util.ScopedStack
 import vct.col.ast.{Star, _}
 import vct.col.origin._
 import vct.col.ast.RewriteHelpers._
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
 
 import scala.collection.mutable
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.SuccessionMap
+import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
 case class CheckProcessAlgebra() extends Rewriter {
   case class ModelPostconditionFailed(process: ModelProcess) extends Blame[PostconditionFailed] {
@@ -79,7 +80,7 @@ case class CheckProcessAlgebra() extends Rewriter {
       def fieldRefToPerm(p: Expr, f: Ref[ModelField]) =
         fieldPerm(currentThis, modelFieldSuccessors.ref(f.decl), p)
 
-      val fieldPerms = Star.fold(
+      val fieldPerms = AstBuildHelpers.foldStar(
         process.modifies.map(f => fieldRefToPerm(WritePerm(), f)) ++
           process.accessible.map(f => fieldRefToPerm(ReadPerm(), f)))
 
@@ -94,7 +95,7 @@ case class CheckProcessAlgebra() extends Rewriter {
           // TODO: Is reusing fieldPerms allowed?
           Star(fieldPerms, rewriteDefault(process.requires)),
           Star(fieldPerms, rewriteDefault(process.ensures)),
-          Constant.BooleanValue(true),
+          tt,
           Seq(),
           Seq(),
           Seq()
@@ -130,7 +131,7 @@ case class CheckProcessAlgebra() extends Rewriter {
 
   // TODO: How to determine at what point to rewrite EmptyProcess/ActionApply? When encountered in expandUnguarded?
 
-  def expandUnguarded(p: Expr) : ProcessExpr = p match {
+  def expandUnguarded(p: Expr) : Expr = p match {
     case p: EmptyProcess => p.rewrite()
     case p: ActionApply => p.rewrite()
     case ProcessApply(process, args) => expandUnguarded(inline(process.decl, args))

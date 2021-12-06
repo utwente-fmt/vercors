@@ -4,7 +4,9 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.resolve.Referrable
+import vct.col.util.AstBuildHelpers
 
+import scala.annotation.nowarn
 import scala.collection.mutable
 
 sealed trait Syntax
@@ -201,6 +203,8 @@ case class PrependAfterWhitespace(inner: PrinterState, prepend: PrinterState => 
   override def discardPendingNewlines()(implicit printer: Printer): PrinterState = PrependAfterWhitespace(inner.discardPendingNewlines(), prepend)
 }
 
+//PB TODO: make printer complete once we're nearing the end of making new nodes.
+@nowarn("msg=xhaust")
 case class Printer(out: Appendable,
                    syntax: Syntax = Java,
                    permissive: Boolean = true,
@@ -225,9 +229,9 @@ case class Printer(out: Appendable,
       case text: Text => state = state.say(text.text)
       case node: NodePhrase => print(node.node)
       case nodes: NodesPhrase => nodes.nodes.foreach(print)
-      case x if x == space => state = state.space()
-      case x if x == newline => state = state.newline()
-      case x if x == doubleline => state = state.doubleNewline()
+      case `space` => state = state.space()
+      case `newline` => state = state.newline()
+      case `doubleline` => state = state.doubleNewline()
       case f: Do => f.f()
     }
   }
@@ -339,7 +343,7 @@ case class Printer(out: Appendable,
   })
 
   def clauses(contract: Expr, clauseKeyword: String): Do = Do(() => {
-    for(clause <- Star.unfold(contract)) {
+    for(clause <- AstBuildHelpers.unfoldStar(contract)) {
       say(newline, clauseKeyword, space, clause, ";", newline)
     }
   })
@@ -630,8 +634,8 @@ case class Printer(out: Appendable,
       (phrase("isEmpty(", obj, ")"), 100)
     case BagMemberCount(x, xs) =>
       (phrase("(", x, "\\memberof", xs, ")"), 120)
-    case value: Constant.BooleanValue =>
-      (phrase(if(value.value) "true" else "false"), 100)
+    case BooleanValue(value) =>
+      (phrase(if(value) "true" else "false"), 100)
     case MapEq(left, right) =>
       (phrase("equalsMap(", left, ",", space, right, ")"), 100)
     case MapDisjoint(left, right) =>
@@ -698,8 +702,8 @@ case class Printer(out: Appendable,
       (phrase(assoc(30, left), space, "||", space, assoc(30, right)), 30)
     case ProcessSelect(cond, whenTrue, whenFalse) =>
       (phrase(bind(20, cond), space, "?", space, bind(20, whenTrue), space, ":", space, assoc(20, whenFalse)), 20)
-    case value: Constant.IntegerValue =>
-      (phrase(value.value.toString(radix = 10)), 110)
+    case IntegerValue(value) =>
+      (phrase(value.toString(radix = 10)), 110)
     case LiteralSeq(element, values) =>
       (phrase("seq<", element, ">{", commas(values.map(NodePhrase)), "}"), 100)
     case LiteralSet(element, values) =>
@@ -937,7 +941,7 @@ case class Printer(out: Appendable,
     /* case TVector(t) => phrase("vector<", t, ">") // FIXME does not parse (should it?) */
     case TMatrix(t) => phrase("matrix<", t, ">")
     case TType(t) => phrase(t)
-    case TNotAValue() => ???
+    case _: TNotAValue => ???
     case TAny() => phrase("any")
     case TNothing() => phrase("nothing")
     case TNull() => ???
@@ -1111,7 +1115,7 @@ case class Printer(out: Appendable,
         case Some(body) => phrase(doubleline, header, space, "=", space, newline, indent(body, ";"), doubleline)
         case None => phrase(doubleline, header, ";", doubleline)
       }
-    case field: Field =>
+    case field: InstanceField =>
       statement(field.t, space, name(field))
     case variable: Variable =>
       phrase(variable.t, space, name(variable))

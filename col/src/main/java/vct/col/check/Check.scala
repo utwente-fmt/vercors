@@ -1,6 +1,8 @@
 package vct.col.check
 
 import vct.col.ast._
+import vct.col.err.ASTStateError
+import vct.col.ref.Ref
 
 sealed trait CheckError {
   override def toString: String = this match {

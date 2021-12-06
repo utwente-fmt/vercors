@@ -16,9 +16,9 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
       Label(loopLabel,
         Loop(
           Block(Nil),
-          Constant.BooleanValue(true),
+          BooleanValue(true),
           Block(Nil),
-          LoopInvariant(Constant.BooleanValue(true)),
+          LoopInvariant(BooleanValue(true)),
           Block(Seq(
             Continue(Some(loopLabel.ref))
           ))
@@ -32,9 +32,9 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
       Label(loopLabel,
         Loop(
           Block(Nil),
-          Constant.BooleanValue(true),
+          BooleanValue(true),
           Block(Nil),
-          LoopInvariant(Constant.BooleanValue(true)),
+          LoopInvariant(BooleanValue(true)),
           Label(continueLoopLabel,
             Block(Seq(
               Break(Some(continueLoopLabel.ref))
@@ -55,15 +55,15 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
       Label(outerLoop,
         Loop(
           Block(Nil),
-          Constant.BooleanValue(true),
+          BooleanValue(true),
           Block(Nil),
-          LoopInvariant(Constant.BooleanValue(true)),
+          LoopInvariant(BooleanValue(true)),
           Label(innerLoop,
             Loop(
               Block(Nil),
-              Constant.BooleanValue(true),
+              BooleanValue(true),
               Block(Nil),
-              LoopInvariant(Constant.BooleanValue(true)),
+              LoopInvariant(BooleanValue(true)),
               Block(Seq(
                 Continue(Some(outerLoop.ref))
               ))
@@ -81,16 +81,16 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
       Label(outerLoop,
         Loop(
           Block(Nil),
-          Constant.BooleanValue(true),
+          BooleanValue(true),
           Block(Nil),
-          LoopInvariant(Constant.BooleanValue(true)),
+          LoopInvariant(BooleanValue(true)),
           Label(continueOuterLoop,
             Label(innerLoop,
               Loop(
                 Block(Nil),
-                Constant.BooleanValue(true),
+                BooleanValue(true),
                 Block(Nil),
-                LoopInvariant(Constant.BooleanValue(true)),
+                LoopInvariant(BooleanValue(true)),
                 Block(Seq(
                   Break(Some(continueOuterLoop.ref))
                 ))

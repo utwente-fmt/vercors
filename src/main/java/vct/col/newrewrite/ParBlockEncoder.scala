@@ -2,12 +2,11 @@ package vct.col.newrewrite
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import Constant._
-import vct.col.newrewrite.ParBlockEncoder.regionName
-import vct.col.util.AstBuildHelpers._
-import vct.col.newrewrite.util.{Extract, FreeVariables, Substitute}
+import vct.col.newrewrite.util.{Extract, Substitute}
 import vct.col.origin._
 import vct.col.rewrite.Rewriter
+import vct.col.util.AstBuildHelpers
+import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable
 case object ParBlockEncoder {
@@ -98,13 +97,13 @@ case class ParBlockEncoder() extends Rewriter {
   }
 
   def requires(region: ParRegion)(implicit o: Origin): Expr = region match {
-    case ParParallel(regions) => Star.fold(regions.map(requires))
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires))
     case ParSequential(regions) => regions.headOption.map(requires).getOrElse(tt)
     case block: ParBlock => quantify(block, block.requires)
   }
 
   def ensures(region: ParRegion)(implicit o: Origin): Expr = region match {
-    case ParParallel(regions) => Star.fold(regions.map(ensures))
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures))
     case ParSequential(regions) => regions.headOption.map(ensures).getOrElse(tt)
     case block: ParBlock => quantify(block, block.ensures)
   }
@@ -179,7 +178,7 @@ case class ParBlockEncoder() extends Rewriter {
       procedure(
         blame = ParPostconditionPostconditionFailed(block),
         args = vars.keys.toSeq,
-        requires = Star.fold(ranges) &* requires,
+        requires = AstBuildHelpers.foldStar(ranges) &* requires,
         ensures = ensures,
         body = Some(body),
       )(ParBlockCheck(block))

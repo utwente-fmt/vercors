@@ -25,7 +25,7 @@ case class ColHelperSubnodes(info: ColDescription) {
         }
       case Type.Name(typ) if info.supports("NodeFamily")(typ) || info.supports(DECLARATION)(typ) =>
         Some(node => q"Seq($node)")
-      case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Ref"), _) =>
+      case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("Referrable") | Type.Apply(Type.Name("Ref"), _) =>
         None
       case other =>
         MetaUtil.fail(

@@ -3,6 +3,7 @@ package vct.col.newrewrite.exc
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
 
 import scala.collection.mutable

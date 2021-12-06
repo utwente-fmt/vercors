@@ -3,12 +3,14 @@ package vct.parsers.transform
 import org.antlr.v4.runtime.ParserRuleContext
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.util.ExpectedError
+import vct.col.util.{AstBuildHelpers, ExpectedError}
 import vct.parsers.ParseError
 
+import scala.annotation.nowarn
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
+@nowarn("msg=match may not be exhaustive&msg=Some\\(")
 abstract class ToCol(val originProvider: OriginProvider, val blameProvider: BlameProvider, val errors: mutable.Map[(Int, Int), String]) {
   class ContractCollector() {
     val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
@@ -33,14 +35,14 @@ abstract class ToCol(val originProvider: OriginProvider, val blameProvider: Blam
     }
 
     def consumeApplicableContract()(implicit o: Origin): ApplicableContract = {
-      ApplicableContract(Star.fold(consume(requires)), Star.fold(consume(ensures)),
-                         Star.fold(consume(context_everywhere)),
+      ApplicableContract(AstBuildHelpers.foldStar(consume(requires)), AstBuildHelpers.foldStar(consume(ensures)),
+                         AstBuildHelpers.foldStar(consume(context_everywhere)),
                          consume(signals), consume(given), consume(yields))
     }
 
     def consumeLoopContract()(implicit o: Origin): LoopContract = {
-      if(requires.nonEmpty) IterationContract(Star.fold(consume(requires)), Star.fold(consume(ensures)))
-      else LoopInvariant(Star.fold(consume(loop_invariant)))
+      if(requires.nonEmpty) IterationContract(AstBuildHelpers.foldStar(consume(requires)), AstBuildHelpers.foldStar(consume(ensures)))
+      else LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)))
     }
 
     def nodes: Seq[ParserRuleContext] = Seq(

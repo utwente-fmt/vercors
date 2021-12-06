@@ -4,6 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
+import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.Origin
 import vct.col.rewrite.Rewriter
 
@@ -106,7 +107,6 @@ case class ResolveExpressionSideEffects() extends Rewriter {
       case inv: ParInvariant => rewriteDefault(inv)
       case atomic: ParAtomic => rewriteDefault(atomic)
       case barrier: ParBarrier => rewriteDefault(barrier)
-      case region: ParRegion => rewriteDefault(region)
       case vec: VecBlock => rewriteDefault(vec) // PB: conceivably we can support side effect in iterator ranges; let's see if someone wants that :)
       case send: Send => rewriteDefault(send)
       case recv: Recv => rewriteDefault(recv)
@@ -138,6 +138,11 @@ case class ResolveExpressionSideEffects() extends Rewriter {
       case havoc: Havoc => rewriteDefault(havoc) // PB: pretty sure you can only havoc locals?
       case break: Break => rewriteDefault(break)
       case continue: Continue => rewriteDefault(continue)
+      case commit: Commit => rewriteDefault(commit)
+      case par: ParStatement => rewriteDefault(par)
+      case _: CStatement => throw ExtraNode
+      case _: JavaStatement => throw ExtraNode
+      case _: SilverStatement => throw ExtraNode
     }
   }
 }

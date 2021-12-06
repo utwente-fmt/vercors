@@ -96,7 +96,7 @@ class ColDescription {
 
     case Type.Apply(Type.Name("Ref"), List(arg)) =>
       q"rewriter.succ[$arg]($term)"
-    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") =>
+    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("Referrable") =>
       term
 
     case _ =>

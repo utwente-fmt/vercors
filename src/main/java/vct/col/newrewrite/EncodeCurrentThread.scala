@@ -75,5 +75,6 @@ case class EncodeCurrentThread() extends Rewriter {
       } else {
         apply.rewrite()
       }
+    case other => rewriteDefault(other)
   }
 }

@@ -4,5 +4,5 @@ version := "1.0-SNAPSHOT"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test"
 
 // Disable documentation generation
-sources in (Compile, doc) := Seq()
-publishArtifact in (Compile, packageDoc) := false
+Compile / doc / sources := Nil
+Compile / packageDoc / publishArtifact := false

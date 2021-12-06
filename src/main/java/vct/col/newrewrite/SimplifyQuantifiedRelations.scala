@@ -7,7 +7,9 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.features.MemberOfRange
 import vct.col.newrewrite.util.Comparison
 import vct.col.origin.Origin
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
+import vct.col.util.AstBuildHelpers
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -20,7 +22,7 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
   }
 
   private implicit val o: Origin = SimplifyQuantifiedRelationsOrigin
-  private def one: Constant.IntegerValue = Constant.IntegerValue(1)
+  private def one: IntegerValue = IntegerValue(1)
 
   def indepOf(bindings: Seq[Variable], e: Expr): Boolean =
     e.transSubnodes.collectFirst { case Local(ref) if bindings.contains(ref.decl) => () }.isEmpty
@@ -44,7 +46,7 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
       val min = (e: Expr) => extremeValue(e, !maximizing).getOrElse(return None)
 
       Some(expr match {
-        case v: Constant.IntegerValue => v
+        case v @ IntegerValue(_) => v
         case Local(Ref(v)) =>
           if(bindings.contains(v)) {
             val bounds = if(maximizing) exclusiveUpperBound(v) else inclusiveLowerBound(v)
@@ -91,7 +93,7 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
     if(bindings.exists(_.t != TInt())) return None
 
     // We split the body of the quantifier into its conditions (lhs of implies) and the body (rhs of implies)
-    val (allConditions, body) = Implies.unfold(originalBody)
+    val (allConditions, body) = AstBuildHelpers.unfoldImplies(originalBody)
     // We filter the conditions by whether or not they contain any quantified variable
     val (globalConditions, bounds) = allConditions.partition(indepOf(bindings, _))
 
@@ -151,14 +153,14 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
         val gt = if(!comp.less) Seq(comp.make(const, maker.maximize(value).getOrElse(return None))) else Nil
         val lt = if(!comp.greater) Seq(comp.make(const, maker.minimize(value).getOrElse(return None))) else Nil
 
-        And.fold(gt ++ lt)
+        AstBuildHelpers.foldAnd(gt ++ lt)
       case None => return None
     }
 
     // Success!
 
     Some(Implies(
-      And.fold(globalConditions ++ bindings.flatMap(binding =>
+      AstBuildHelpers.foldAnd(globalConditions ++ bindings.flatMap(binding =>
         inclusiveLowerBound(binding).flatMap(lower =>
           exclusiveUpperBound(binding).map(upper =>
             lower < upper

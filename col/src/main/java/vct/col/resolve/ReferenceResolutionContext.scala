@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{Declaration, GlobalDeclaration, JavaClassOrInterface, JavaNamespace, Type}
+import vct.col.ast.{Declaration, GlobalDeclaration, JavaClassOrInterface, JavaNamespace}
 import vct.col.check.CheckContext
 
 import scala.collection.mutable

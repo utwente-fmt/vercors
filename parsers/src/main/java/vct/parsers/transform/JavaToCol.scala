@@ -8,11 +8,15 @@ import vct.antlr4.generated.JavaParserPatterns._
 import vct.col.{ast => col}
 import vct.col.origin._
 import vct.antlr4.generated.{JavaParserPatterns => parse}
-import vct.col.ast.Constant._
+import vct.col.util.AstBuildHelpers._
+import vct.col.ref.UnresolvedRef
 import vct.col.resolve.Java
+import vct.col.util.AstBuildHelpers
 
+import scala.annotation.nowarn
 import scala.collection.mutable
 
+@nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class JavaToCol(override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: mutable.Map[(Int, Int), String])
   extends ToCol(originProvider, blameProvider, errors) {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration] = unit match {
@@ -32,7 +36,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case TypeDeclaration0(mods, ClassDeclaration0(contract, _, name, args, ext, imp, ClassBody0(_, decls, _))) =>
       withContract(contract, contract => {
         Seq(new JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
-          Star.fold(contract.consume(contract.lock_invariant)),
+          AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
           ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
           imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
       })
@@ -283,7 +287,7 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
           case ForControl1(init, _, cond, _, update) =>
             Scope(Nil, Loop(
               init.map(convert(_)).getOrElse(Block(Nil)),
-              cond.map(convert(_)).getOrElse(true),
+              cond.map(convert(_)).getOrElse(tt),
               update.map(convert(_)).getOrElse(Block(Nil)),
               c.consumeLoopContract(),
               convert(body)
@@ -513,16 +517,16 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case JavaPostfixIncDec(inner, postOp) =>
       val target = convert(inner)
       postOp match {
-        case "++" => PostAssignExpression(target, Plus(target, 1))
-        case "--" => PostAssignExpression(target, Minus(target, 1))
+        case "++" => PostAssignExpression(target, Plus(target, const(1)))
+        case "--" => PostAssignExpression(target, Minus(target, const(1)))
       }
     case JavaPrefixOp(preOp, inner) =>
       val target = convert(inner)
       preOp match {
         case "+" => target // TODO PB: not sure if this is true for IEEE floats
         case "-" => UMinus(target)
-        case "++" => PreAssignExpression(target, Plus(target, 1))
-        case "--" => PreAssignExpression(target, Minus(target, 1))
+        case "++" => PreAssignExpression(target, Plus(target, const(1)))
+        case "--" => PreAssignExpression(target, Minus(target, const(1)))
       }
     case JavaPrefixOp2(preOp, inner) => preOp match {
       case "~" => BitNot(convert(inner))
@@ -648,13 +652,13 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit expr: LiteralContext): Expr = expr match {
-    case Literal0(i) => Integer.parseInt(i)
+    case Literal0(i) => const(Integer.parseInt(i))
     case Literal1(_) => ??(expr)
     case Literal2(_) => ??(expr)
     case Literal3(_) => ??(expr)
     case Literal4(value) => value match {
-      case "true" => true
-      case "false" => false
+      case "true" => tt
+      case "false" => ff
     }
     case Literal5(_) => Null()
   }
@@ -1041,14 +1045,14 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
       Seq(withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
-          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
+          AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           blame(decl))(SourceNameOrigin(convert(name), origin(decl)))
       }))
     case ValModelAction(contract, _, name, _, args, _, _) =>
       Seq(withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
-          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
+          AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       }))
@@ -1221,8 +1225,8 @@ case class JavaToCol(override val originProvider: OriginProvider, override val b
     case ValEmpty(_) => EmptyProcess()
     case ValLtid(_) => ???
     case ValGtid(_) => ???
-    case ValTrue(_) => true
-    case ValFalse(_) => false
+    case ValTrue(_) => tt
+    case ValFalse(_) => ff
   }
 
   def convert(implicit inv: ValGenericAdtInvocationContext): Expr = inv match {

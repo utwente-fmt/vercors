@@ -1,6 +1,5 @@
 package vct.col.feature
 
-import vct.col.ast.Constant._
 import vct.col.ast._
 import vct.col.origin.DiagnosticOrigin
 import vct.col.util.AstBuildHelpers._
@@ -48,6 +47,8 @@ class FeatureRainbow {
     case node: Values => BuiltinArrayOperators
     case node: OptSome => AxiomaticLibraryType
     case node: OptNone => AxiomaticLibraryType
+    case node: EitherLeft => AxiomaticLibraryType
+    case node: EitherRight => AxiomaticLibraryType
     case node: MapCons => AxiomaticLibraryType
     case node: MapEq => AxiomaticLibraryType
     case node: MapDisjoint => AxiomaticLibraryType
@@ -178,6 +179,10 @@ class FeatureRainbow {
     case node: Permutation => PermutationOperator
     case node: OptGet => AxiomaticLibraryType
     case node: OptGetOrElse => AxiomaticLibraryType
+    case node: GetLeft => AxiomaticLibraryType
+    case node: GetRight => AxiomaticLibraryType
+    case node: IsLeft => AxiomaticLibraryType
+    case node: IsRight => AxiomaticLibraryType
     case node: MapGet => AxiomaticLibraryType
     case node: TupGet => AxiomaticLibraryType
     case node: VectorSum => MatrixVector
@@ -308,6 +313,7 @@ class FeatureRainbow {
     case node: TString => TextTypes
     case node: TRef => return Nil
     case node: TOption => AxiomaticLibraryType
+    case node: TEither => AxiomaticLibraryType
     case node: TTuple => AxiomaticLibraryType
     case node: TSeq => return Nil
     case node: TSet => return Nil

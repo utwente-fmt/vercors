@@ -3,9 +3,9 @@ package vct.col.newrewrite
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.util.AstBuildHelpers._
-import Constant._
 import hre.util.ScopedStack
-import vct.col.newrewrite.error.ExcludedByPassOrder
+import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
 import vct.col.util.SuccessionMap
 
@@ -26,8 +26,6 @@ case class ClassToRef() extends Rewriter {
   override def dispatch(decl: Declaration): Unit = decl match {
     case cls: Class =>
       cls.declarations.foreach {
-        case declaration: ExtraClassDeclaration =>
-          throw ExcludedByPassOrder("Extra declarations should be resolved away already by LangSpecificToCol", Some(declaration))
         case function: InstanceFunction =>
           val thisVar = new Variable(TRef())(This)
           diz.having(thisVar) {
@@ -77,6 +75,8 @@ case class ClassToRef() extends Rewriter {
         case field: Field =>
           fieldSucc(field) = new SilverField(field.t)(field.o)
           fieldSucc(field).declareDefault(this)
+        case _ =>
+          throw ExtraNode
       }
     case decl => rewriteDefault(decl)
   }

@@ -1,6 +1,7 @@
 package vct.col.resolve
 
 import vct.col.ast._
+import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
 

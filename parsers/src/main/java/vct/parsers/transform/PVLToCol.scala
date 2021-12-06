@@ -7,13 +7,16 @@ import vct.antlr4.generated.PVLParser._
 import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.{ast => col}
 import vct.antlr4.generated.{PVLParserPatterns => parse}
-import vct.col.ast.Constant._
 import vct.col.ast.stmt.composite.ParallelRegion
 import vct.col.util.AstBuildHelpers._
 import hre.util.FuncTools
+import vct.col.ref.{Ref, UnresolvedRef}
+import vct.col.util.AstBuildHelpers
 
+import scala.annotation.nowarn
 import scala.collection.mutable
 
+@nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class PVLToCol(override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: mutable.Map[(Int, Int), String])
   extends ToCol(originProvider, blameProvider, errors) {
   def convert(implicit program: ProgramContext): Seq[GlobalDeclaration] = program match {
@@ -48,7 +51,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
         new Class(
           declarations = decls.flatMap(convert(_)),
           supports = Nil,
-          intrinsicLockInvariant = Star.fold(contract.consume(contract.lock_invariant)),
+          intrinsicLockInvariant = AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
         )(SourceNameOrigin(convert(name), origin(cls)))
       })
   }
@@ -112,7 +115,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
   }
 
   def convert(implicit exprs: InvariantListContext): Expr = exprs match {
-    case InvariantList0(invs) => Star.fold(invs.map(convert(_)))
+    case InvariantList0(invs) => AstBuildHelpers.foldStar(invs.map(convert(_)))
   }
 
   def convert(implicit dim: QuantifiedDimContext): Expr = dim match {
@@ -226,7 +229,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case Unit0(inner) => convert(inner)
     case Unit1(_) => AmbiguousThis()
     case Unit2(_) => Null()
-    case Unit3(n) => Integer.parseInt(n)
+    case Unit3(n) => const(Integer.parseInt(n))
     case Unit4(_, inner, _) => convert(inner)
     case Unit5(id, None) => convertExpr(id)
     case Unit5(id, Some(Call0(typeArgs, given, args, yields))) =>
@@ -249,7 +252,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case PvlIf(_, _, cond, _, body, Some(ElseBlock0(_, otherwise))) =>
       Branch(Seq(
         (convert(cond), convert(body)),
-        (true, convert(otherwise)),
+        (tt, convert(otherwise)),
       ))
     case PvlBarrier(_, _, block, tags, _, body) =>
       val (contract, content) = body match {
@@ -261,8 +264,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
         ParBarrier(
         block = new UnresolvedRef[ParBlockDecl](convert(block)),
           invs = tags.map(convert(_)).getOrElse(Nil),
-          Star.fold(contract.consume(contract.requires)),
-          Star.fold(contract.consume(contract.ensures)),
+          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
           content,
         )(blame(stat))
       })
@@ -282,7 +285,7 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
       Scope(Nil, Loop(
         init.map(convert(_)).getOrElse(Block(Nil)),
-        cond.map(convert(_)).getOrElse(true),
+        cond.map(convert(_)).getOrElse(tt),
         update.map(convert(_)).getOrElse(Block(Nil)),
         LoopInvariant(convert(invs)),
         convert(body)
@@ -308,8 +311,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case PvlIncDec(name, op) =>
       val target = PVLLocal(convert(name))(blame(stat))
       Eval(op match {
-        case "++" => PostAssignExpression(target, target + 1)
-        case "--" => PostAssignExpression(target, target - 1)
+        case "++" => PostAssignExpression(target, target + const(1))
+        case "--" => PostAssignExpression(target, target - const(1))
       })
     case PvlAssign(target, _, value) => Assign(convert(target), convert(value))
   }
@@ -327,8 +330,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
         ParBlock(
           decl,
           iter.map(convert(_)).getOrElse(Nil),
-          Star.fold(contract.consume(contract.requires)),
-          Star.fold(contract.consume(contract.ensures)),
+          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
           convert(impl),
         )(blame(region))
       })
@@ -351,8 +354,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
         ParBlock(
           decl,
           iter.map(convert(_)).getOrElse(Nil),
-          Star.fold(contract.consume(contract.requires)),
-          Star.fold(contract.consume(contract.ensures)),
+          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
           convert(impl),
         )(blame(par))
       })
@@ -822,14 +825,14 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
       Seq(withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
-          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
+          AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           blame(decl))(SourceNameOrigin(convert(name), origin(decl)))
       }))
     case ValModelAction(contract, _, name, _, args, _, _) =>
       Seq(withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
-          col.And.fold(c.consume(c.requires)), col.And.fold(c.consume(c.ensures)),
+          AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[ModelField](_)), c.consume(c.accessible).map(new UnresolvedRef[ModelField](_)))(
           SourceNameOrigin(convert(name), origin(decl)))
       }))
@@ -1002,8 +1005,8 @@ case class PVLToCol(override val originProvider: OriginProvider, override val bl
     case ValEmpty(_) => EmptyProcess()
     case ValLtid(_) => ???
     case ValGtid(_) => ???
-    case ValTrue(_) => true
-    case ValFalse(_) => false
+    case ValTrue(_) => tt
+    case ValFalse(_) => ff
   }
 
   def convert(implicit inv: ValGenericAdtInvocationContext): Expr = inv match {

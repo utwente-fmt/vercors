@@ -16,8 +16,8 @@ case object Spec {
     Some(BuiltinField((obj.t, field) match {
       case (TArray(_), "length") => Length(_)(blame)
 
-      case (_: CollectionType, "isEmpty") => Empty(_)
-      case (_: CollectionType, "size") => Size(_)
+      case (_: SizedType, "isEmpty") => Empty(_)
+      case (_: SizedType, "size") => Size(_)
 
       case (TSeq(_), "head") => Head(_)(blame)
       case (TSeq(_), "tail") => Tail(_)
@@ -48,8 +48,9 @@ case object Spec {
   def builtinInstanceMethod(obj: Expr, method: String, blame: Blame[BuiltinError]): Option[BuiltinInstanceMethod] = {
     implicit val o: Origin = obj.o
     Some(BuiltinInstanceMethod((obj.t, method) match {
-      case (t @ TNotAValue(), _) => (t.decl.get, method) match {
+      case (t: TNotAValue, _) => (t.decl.get, method) match {
         case (RefModel(model), "create") => _ => _ => ModelNew(model.ref)
+        case (_, _) => return None
       }
 
       case (TModel(_), "state") => argCount(2)(obj => args => ModelState(obj, args(0), args(1)))

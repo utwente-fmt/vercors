@@ -91,8 +91,8 @@ case object Coercion {
 
   def getCoercion1(source: Type, target: Type): Option[Coercion] =
     Some((source, target) match {
-      case (TNotAValue(), _) => return None
-      case (_, TNotAValue()) => return None
+      case (_: TNotAValue, _) => return None
+      case (_, _: TNotAValue) => return None
 
       case (source, target) if source == target => Identity
       case (TNothing(), _) => NothingSomething(target)
@@ -229,7 +229,7 @@ case object Coercion {
     case _ => None
   }
 
-  def getAnyCollectionCoercion(source: Type): Option[(Coercion, CollectionType)] = source match {
+  def getAnyCollectionCoercion(source: Type): Option[(Coercion, SizedType)] = source match {
     case t: CPrimitiveType => chainCCoercion(t, getAnyCollectionCoercion)
     case t: TSeq => Some((Identity, t))
     case t: TSet => Some((Identity, t))

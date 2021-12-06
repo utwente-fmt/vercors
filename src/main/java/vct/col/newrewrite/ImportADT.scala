@@ -8,10 +8,12 @@ import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, 
 import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.parsers.Parsers
 import RewriteHelpers._
+import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.coerce.{CoercingRewriter, Coercion}
 import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.result.VerificationResult.UserError
 
@@ -20,8 +22,7 @@ import scala.reflect.ClassTag
 
 case object ImportADT {
   private def typeText(t: Type): String = t match {
-    case _: ExtraType => throw ExtraNode
-    case TNotAValue() => throw ExtraNode
+    case _: TNotAValue => throw ExtraNode
     case TVoid() => "void"
     case TBool() => "bool"
     case TFloat() => "float"
@@ -53,6 +54,10 @@ case object ImportADT {
     case TMap(key, value) => "map$" + typeText(key) + "__" + typeText(value) + "$"
     case TClass(Ref(cls)) => cls.o.preferredName
     case TVar(Ref(v)) => v.o.preferredName
+    case TUnion(ts) => "union$" + ts.map(typeText).mkString("__") + "$"
+    case _: JavaType => throw ExtraNode
+    case _: CType => throw ExtraNode
+    case _: PVLType => throw ExtraNode
   }
 
   case class InvalidImportedAdt(errors: Seq[CheckError]) extends UserError {

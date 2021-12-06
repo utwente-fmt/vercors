@@ -14,5 +14,6 @@ case class CollectLocalDeclarations() extends Rewriter {
 
       local.rewrite().succeedDefault(this, local)
       Block(Nil)(stat.o)
+    case other => rewriteDefault(other)
   }
 }

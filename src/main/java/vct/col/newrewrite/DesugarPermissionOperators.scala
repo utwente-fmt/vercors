@@ -34,6 +34,7 @@ case class DesugarPermissionOperators() extends Rewriter {
         ???
       case PermPointerIndex(p, idx, perm) =>
         ???
+      case other => rewriteDefault(other)
     }
   }
 }

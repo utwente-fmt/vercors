@@ -2,6 +2,7 @@ package viper.api
 
 import hre.lang.HREExitException
 import hre.lang.System.Warning
+import vct.col.ref.Ref
 import vct.col.{ast => col}
 import viper.silver.{ast => silver}
 
@@ -67,7 +68,7 @@ case class ColToSilver(program: col.Program) {
   /**
    * Retrieve the name for this reference
    */
-  def ref(r: col.Ref[_ <: col.Declaration]): String = ref(r.decl)
+  def ref(r: Ref[_ <: col.Declaration]): String = ref(r.decl)
 
   /**
    * Retrieve the name for this declaration
@@ -122,8 +123,8 @@ case class ColToSilver(program: col.Program) {
           predicate.body.map(exp)
         )(info=NodeInfo(predicate))
       }
-    case clazz: col.Class =>
-      ??(clazz)
+    case other =>
+      ??(other)
   }
 
   def variable(v: col.Variable): silver.LocalVarDecl =
@@ -141,8 +142,8 @@ case class ColToSilver(program: col.Program) {
   }
 
   def exp(e: col.Expr): silver.Exp = e match {
-    case bool: col.Constant.BooleanValue => silver.BoolLit(bool.value)(info=NodeInfo(e))
-    case int: col.Constant.IntegerValue => silver.IntLit(int.value)(info=NodeInfo(e))
+    case col.BooleanValue(value) => silver.BoolLit(value)(info=NodeInfo(e))
+    case col.IntegerValue(value) => silver.IntLit(value)(info=NodeInfo(e))
 
     case col.NoPerm() => silver.NoPerm()(info=NodeInfo(e))
     case col.ReadPerm() => silver.WildcardPerm()(info=NodeInfo(e))

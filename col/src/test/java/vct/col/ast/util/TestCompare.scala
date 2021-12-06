@@ -2,7 +2,6 @@ package vct.col.ast.util
 
 import org.scalatest.flatspec.AnyFlatSpec
 import vct.col.ast._
-import Constant._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Compare
@@ -12,15 +11,15 @@ class TestCompare extends AnyFlatSpec {
 
   it should "judge equal non-referential expressions as equal without mappings" in {
     assert(Compare.getIsomorphism(
-      left = integer(1) + (integer(2) - integer(3)),
-      right = integer(1) + (integer(2) - integer(3)),
+      left = const(1) + (const(2) - const(3)),
+      right = const(1) + (const(2) - const(3)),
     ) == Right(Map.empty))
   }
 
   it should "judge equal declarations without references as equal without mappings" in {
     assert(Compare.getIsomorphism(
-      new Procedure(TVoid(), Nil, Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null),
-      new Procedure(TVoid(), Nil, Nil, Nil, None, ApplicableContract(true, true, true, Nil, Nil, Nil))(null),
+      new Procedure(TVoid(), Nil, Nil, Nil, None, ApplicableContract(tt, tt, tt, Nil, Nil, Nil))(null),
+      new Procedure(TVoid(), Nil, Nil, Nil, None, ApplicableContract(tt, tt, tt, Nil, Nil, Nil))(null),
     ) == Right(Map.empty[Declaration, Declaration]))
   }
 
@@ -37,16 +36,16 @@ class TestCompare extends AnyFlatSpec {
 
   it should "not judge inequal expressions as equal" in {
     assert(Compare.getIsomorphism(
-      left = integer(1) + integer(2) * integer(3),
-      right = integer(3) + integer(2) * integer(1),
+      left = const(1) + const(2) * const(3),
+      right = const(3) + const(2) * const(1),
     ).isLeft)
   }
 
   it should "indicate the inequal node in a nested expression" in {
     assert(Compare.getIsomorphism(
-      left = integer(1) * integer(2) + integer(3) * integer(100),
-      right = integer(1) * integer(2) + integer(3) * integer(200),
-    ) == Left(Seq((integer(100), integer(200)))))
+      left = const(1) * const(2) + const(3) * const(100),
+      right = const(1) * const(2) + const(3) * const(200),
+    ) == Left(Seq((const(100), const(200)))))
   }
 
   it should "indicate the inequal node in a tree, but not the first available declaration reference" in {

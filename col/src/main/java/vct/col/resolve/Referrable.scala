@@ -26,7 +26,7 @@ case object Referrable {
     case decl: InstanceFunction => RefInstanceFunction(decl)
     case decl: InstanceMethod => RefInstanceMethod(decl)
     case decl: InstancePredicate => RefInstancePredicate(decl)
-    case decl: Field => RefField(decl)
+    case decl: InstanceField => RefField(decl)
     case decl: Variable => RefVariable(decl)
     case decl: LabelDecl => RefLabelDecl(decl)
     case decl: ParBlockDecl => RefParBlockDecl(decl)
@@ -142,7 +142,7 @@ case class RefJavaMethod(decl: JavaMethod) extends Referrable with JavaInvocatio
 case class RefInstanceFunction(decl: InstanceFunction) extends Referrable with SpecInvocationTarget with ResultTarget
 case class RefInstanceMethod(decl: InstanceMethod) extends Referrable with SpecInvocationTarget with ResultTarget
 case class RefInstancePredicate(decl: InstancePredicate) extends Referrable with SpecInvocationTarget
-case class RefField(decl: Field) extends Referrable with PVLNameTarget with PVLDerefTarget
+case class RefField(decl: InstanceField) extends Referrable with PVLNameTarget with PVLDerefTarget
 case class RefVariable(decl: Variable) extends Referrable with SpecNameTarget with SpecTypeNameTarget
 case class RefLabelDecl(decl: LabelDecl) extends Referrable
 case class RefParBlockDecl(decl: ParBlockDecl) extends Referrable

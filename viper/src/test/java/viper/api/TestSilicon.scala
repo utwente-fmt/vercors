@@ -4,7 +4,6 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 
 import java.nio.file.Paths
-import vct.col.ast.Constant._
 import vct.col.origin.DiagnosticOrigin
 
 class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/vercors/src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3"))) {
@@ -13,7 +12,7 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
   }
 
   vercors should "not verify a method with postcondition false" in procedure(
-    ensures = false, blame = ExpectError()
+    ensures = ff, blame = ExpectError()
   )
 
   val r = new Variable(TRef())
@@ -29,20 +28,20 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
   )
 
   vercors should "report assignment failed when there is insufficient permission to assign to a field" in procedure(
-    args=Seq(r), body=(r.get~>int <~ 0)(ExpectError(), DiagnosticOrigin)
+    args=Seq(r), body=(r.get~>int <~ const(0))(ExpectError(), DiagnosticOrigin)
   )
 
   vercors should "assign a field with sufficient permission" in procedure(
     args=Seq(r), requires=SilverPerm(r.get, int.ref, WritePerm()),
-    body=r.get~>int <~ 0
+    body=r.get~>int <~ const(0)
   )
 
   vercors should "verify true assertions" in procedure(
-    body=Assert(true)(noErrors)
+    body=Assert(tt)(noErrors)
   )
 
   vercors should "report the failure of false assertions" in procedure(
-    body=Assert(false)(ExpectError())
+    body=Assert(ff)(ExpectError())
   )
 
   val rs = new Variable(TSeq(TRef()))
@@ -51,7 +50,7 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
     args=Seq(rs),
     body=Assert(
       Starall(Seq(i), Seq(),
-        Implies(i.get >= 0 && i.get < Size(rs.get),
+        Implies(i.get >= const(0) && i.get < Size(rs.get),
           SilverPerm(rs.get @@ i.get, int.ref, WritePerm()))))
       (ExpectError())
   )
@@ -76,5 +75,5 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
   )
 
   val validPred = new Predicate(Seq(), Some(SilverPerm(r.get, int.ref, WritePerm())))
-  val invalidPred = new Predicate(Seq(), Some(Eq(r.get~>int, 5)))
+  val invalidPred = new Predicate(Seq(), Some(Eq(r.get~>int, const(5))))
 }

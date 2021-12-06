@@ -25,6 +25,7 @@ case class DesugarCollectionOperators() extends Rewriter {
       case SubSetEq(xsPre, ysPre) =>
         val (xs, ys) = (dispatch(xsPre), dispatch(ysPre))
         SubSet(xs, ys) || xs === ys
+      case other => rewriteDefault(other)
     }
   }
 }

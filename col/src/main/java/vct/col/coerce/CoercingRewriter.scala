@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.rewrite.Rewriter
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.Types
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -45,6 +46,8 @@ abstract class CoercingRewriter() extends Rewriter {
       case Coercion.SomethingAny => e
       case Coercion.MapOption(_, _, inner) =>
         Select(Eq(e, OptNone()), OptNone(), coerce(OptGet(e)(NeverNone), inner))
+      case Coercion.MapEither(source, target, innerLeft, innerRight) =>
+        Select(IsLeft(e), coerce(GetLeft(e)(FramedGetLeft), innerLeft), coerce(GetRight(e)(FramedGetRight), innerRight))
       case Coercion.MapSeq(source, target, inner) =>
         val f = withResult(result => {
           val v = new Variable(source)
@@ -236,7 +239,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a map here, but got ${e.t}")
     }
-  def collection(e: Expr): (Expr, CollectionType) =
+  def collection(e: Expr): (Expr, SizedType) =
     Coercion.getAnyCollectionCoercion(e.t) match {
       case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a collection type here, but got ${e.t}")
@@ -358,15 +361,15 @@ abstract class CoercingRewriter() extends Rewriter {
       case AmbiguousMember(x, xs) =>
         firstOk(xs, s"Expected collection to be a sequence, set, bag or map, but got ${xs.t}.", {
           val (coercedXs, TSeq(element)) = seq(xs)
-          val sharedType = Type.leastCommonSuperType(x.t, element)
+          val sharedType = Types.leastCommonSuperType(x.t, element)
           AmbiguousMember(coerce(x, sharedType), coerce(coercedXs, TSeq(sharedType)))
         }, {
           val (coercedXs, TSet(element)) = set(xs)
-          val sharedType = Type.leastCommonSuperType(x.t, element)
+          val sharedType = Types.leastCommonSuperType(x.t, element)
           AmbiguousMember(coerce(x, sharedType), coerce(coercedXs, TSet(sharedType)))
         }, {
           val (coercedXs, TBag(element)) = bag(xs)
-          val sharedType = Type.leastCommonSuperType(x.t, element)
+          val sharedType = Types.leastCommonSuperType(x.t, element)
           AmbiguousMember(coerce(x, sharedType), coerce(coercedXs, TBag(sharedType)))
         }, {
           val (coercedXs, TMap(element, _)) = map(xs)
@@ -391,17 +394,17 @@ abstract class CoercingRewriter() extends Rewriter {
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
-            val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
+            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))(plus.blame)
           }, {
             val (coercedLeft, TSet(elementLeft)) = set(left)
             val (coercedRight, TSet(elementRight)) = set(right)
-            val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
+            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))(plus.blame)
           }, {
             val (coercedLeft, TBag(elementLeft)) = bag(left)
             val (coercedRight, TBag(elementRight)) = bag(right)
-            val sharedType = Type.leastCommonSuperType(elementLeft, elementRight)
+            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
           }
         )
@@ -425,7 +428,7 @@ abstract class CoercingRewriter() extends Rewriter {
         ArraySubscript(array(arr)._1, int(index))(a.blame)
       case BagMemberCount(x, xs) =>
         val (coercedBag, TBag(element)) = bag(xs)
-        val sharedType = Type.leastCommonSuperType(x.t, element)
+        val sharedType = Types.leastCommonSuperType(x.t, element)
         BagMemberCount(coerce(x, sharedType), coerce(coercedBag, TBag(sharedType)))
       case BitAnd(left, right) =>
         BitAnd(int(left), int(right))
@@ -446,14 +449,20 @@ abstract class CoercingRewriter() extends Rewriter {
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)
       case CLocal(name) => e
+      case ComputationalAnd(left, right) =>
+        ComputationalAnd(bool(left), bool(right))
+      case ComputationalOr(left, right) =>
+        ComputationalOr(bool(left), bool(right))
+      case ComputationalXor(left, right) =>
+        ComputationalXor(bool(left), bool(right))
       case Concat(xs, ys) =>
         val (coercedXs, TSeq(xElement)) = seq(xs)
         val (coercedYs, TSeq(yElement)) = seq(ys)
-        val sharedType = Type.leastCommonSuperType(xElement, yElement)
+        val sharedType = Types.leastCommonSuperType(xElement, yElement)
         Concat(coerce(xs, TSeq(sharedType)), coerce(ys, TSeq(sharedType)))
       case Cons(x, xs) =>
         val (coercedXs, TSeq(element)) = seq(xs)
-        val sharedType = Type.leastCommonSuperType(x.t, element)
+        val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
@@ -475,7 +484,7 @@ abstract class CoercingRewriter() extends Rewriter {
         Empty(collection(obj)._1)
       case EmptyProcess() => EmptyProcess()
       case Eq(left, right) =>
-        val sharedType = Type.leastCommonSuperType(left.t, right.t)
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Eq(coerce(left, sharedType), coerce(right, sharedType))
       case EitherLeft(e) =>
         EitherLeft(e)
@@ -506,12 +515,12 @@ abstract class CoercingRewriter() extends Rewriter {
           Greater(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
-            val sharedType = Type.leastCommonSuperType(leftSet.element, rightSet.element)
+            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
             Greater(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
           }, {
             val (coercedLeft, leftBag) = bag(left)
             val (coercedRight, rightBag) = bag(right)
-            val sharedType = Type.leastCommonSuperType(leftBag.element, rightBag.element)
+            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
             Greater(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           },
         )
@@ -521,12 +530,12 @@ abstract class CoercingRewriter() extends Rewriter {
           GreaterEq(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
-            val sharedType = Type.leastCommonSuperType(leftSet.element, rightSet.element)
+            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
             GreaterEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
           }, {
             val (coercedLeft, leftBag) = bag(left)
             val (coercedRight, rightBag) = bag(right)
-            val sharedType = Type.leastCommonSuperType(leftBag.element, rightBag.element)
+            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
             GreaterEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           },
         )
@@ -570,12 +579,12 @@ abstract class CoercingRewriter() extends Rewriter {
           Less(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
-            val sharedType = Type.leastCommonSuperType(leftSet.element, rightSet.element)
+            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
             Less(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
           }, {
             val (coercedLeft, leftBag) = bag(left)
             val (coercedRight, rightBag) = bag(right)
-            val sharedType = Type.leastCommonSuperType(leftBag.element, rightBag.element)
+            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
             Less(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           },
         )
@@ -585,12 +594,12 @@ abstract class CoercingRewriter() extends Rewriter {
           LessEq(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
-            val sharedType = Type.leastCommonSuperType(leftSet.element, rightSet.element)
+            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
             LessEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
           }, {
             val (coercedLeft, leftBag) = bag(left)
             val (coercedRight, rightBag) = bag(right)
-            val sharedType = Type.leastCommonSuperType(leftBag.element, rightBag.element)
+            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
             LessEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           },
         )
@@ -614,7 +623,7 @@ abstract class CoercingRewriter() extends Rewriter {
         Local(ref)
       case MapCons(m, k, v) =>
         val (coercedMap, mapType) = map(m)
-        val sharedType = Type.leastCommonSuperType(mapType.value, v.t)
+        val sharedType = Types.leastCommonSuperType(mapType.value, v.t)
         MapCons(coerce(coercedMap, TMap(mapType.key, sharedType)), coerce(k, mapType.key), coerce(v, sharedType))
       case MapDisjoint(left, right) =>
         val (coercedLeft, leftType) = map(left)
@@ -624,7 +633,7 @@ abstract class CoercingRewriter() extends Rewriter {
           throw IncoercibleText(e, s"Expected both operands to have a map type of which the key type is equal, " +
             s"but got ${leftType.key} and ${rightType.key}")
 
-        val sharedType = Type.leastCommonSuperType(leftType.value, rightType.value)
+        val sharedType = Types.leastCommonSuperType(leftType.value, rightType.value)
         val mapType = TMap(leftType.key, sharedType)
         MapDisjoint(coerce(coercedLeft, mapType), coerce(coercedRight, mapType))
       case MapEq(left, right) =>
@@ -635,7 +644,7 @@ abstract class CoercingRewriter() extends Rewriter {
           throw IncoercibleText(e, s"Expected both operands to have a map type of which the key type is equal, " +
             s"but got ${leftType.key} and ${rightType.key}")
 
-        val sharedType = Type.leastCommonSuperType(leftType.value, rightType.value)
+        val sharedType = Types.leastCommonSuperType(leftType.value, rightType.value)
         val mapType = TMap(leftType.key, sharedType)
         MapEq(coerce(coercedLeft, mapType), coerce(coercedRight, mapType))
       case get @ MapGet(m, k) =>
@@ -658,7 +667,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case MatrixCompare(left, right) =>
         val (coercedLeft, leftType) = matrix(left)
         val (coercedRight, rightType) = matrix(right)
-        val sharedType = Type.leastCommonSuperType(leftType.element, rightType.element)
+        val sharedType = Types.leastCommonSuperType(leftType.element, rightType.element)
         MatrixCompare(coerce(coercedLeft, TMatrix(sharedType)), coerce(coercedRight, TMatrix(sharedType)))
       case MatrixRepeat(e) =>
         MatrixRepeat(e)
@@ -702,7 +711,7 @@ abstract class CoercingRewriter() extends Rewriter {
           Mult(rat(left), rat(right)),
         )
       case Neq(left, right) =>
-        val sharedType = Type.leastCommonSuperType(left.t, right.t)
+        val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))
       case NewArray(element, dims, moreDims) =>
         NewArray(element, dims.map(int), moreDims)
@@ -720,7 +729,7 @@ abstract class CoercingRewriter() extends Rewriter {
         OptGet(option(opt)._1)(get.blame)
       case OptGetOrElse(opt, alt) =>
         val (coercedOpt, optType) = option(opt)
-        val sharedType = Type.leastCommonSuperType(alt.t, optType.element)
+        val sharedType = Types.leastCommonSuperType(alt.t, optType.element)
         OptGetOrElse(coerce(coercedOpt, TOption(sharedType)), coerce(alt, sharedType))
       case OptNone() =>
         OptNone()
@@ -737,7 +746,7 @@ abstract class CoercingRewriter() extends Rewriter {
       case Permutation(left, right) =>
         val (coercedLeft, leftType) = seq(left)
         val (coercedRight, rightType) = seq(right)
-        val sharedType = Type.leastCommonSuperType(leftType.element, rightType.element)
+        val sharedType = Types.leastCommonSuperType(leftType.element, rightType.element)
         Permutation(coerce(left, TSeq(sharedType)), coerce(right, TSeq(sharedType)))
       case Plus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
@@ -785,21 +794,21 @@ abstract class CoercingRewriter() extends Rewriter {
       case Scale(scale, r) =>
         Scale(rat(scale), res(r))
       case Select(condition, whenTrue, whenFalse) =>
-        val sharedType = Type.leastCommonSuperType(whenTrue.t, whenFalse.t)
+        val sharedType = Types.leastCommonSuperType(whenTrue.t, whenFalse.t)
         Select(bool(condition), coerce(whenTrue, sharedType), coerce(whenFalse, sharedType))
       case SeqMember(x, xs) =>
         val (coercedSeq, seqType) = seq(xs)
-        val sharedType = Type.leastCommonSuperType(x.t, seqType.element)
+        val sharedType = Types.leastCommonSuperType(x.t, seqType.element)
         SeqMember(coerce(x, sharedType), coerce(coercedSeq, TSeq(sharedType)))
       case get @ SeqSubscript(xs, index) =>
         SeqSubscript(seq(xs)._1, int(index))(get.blame)
       case update @ SeqUpdate(xs, i, x) =>
         val (coercedSeq, seqType) = seq(xs)
-        val sharedType = Type.leastCommonSuperType(x.t, seqType.element)
+        val sharedType = Types.leastCommonSuperType(x.t, seqType.element)
         SeqUpdate(coerce(coercedSeq, TSeq(sharedType)), int(i), coerce(x, sharedType))
       case SetMember(x, xs) =>
         val (coercedSet, setType) = set(xs)
-        val sharedType = Type.leastCommonSuperType(x.t, setType.element)
+        val sharedType = Types.leastCommonSuperType(x.t, setType.element)
         SetMember(coerce(x, sharedType), coerce(coercedSet, TSet(sharedType)))
       case SilverCurFieldPerm(obj, field) =>
         SilverCurFieldPerm(ref(obj), field)
@@ -825,24 +834,24 @@ abstract class CoercingRewriter() extends Rewriter {
         firstOk(e, s"Expected both operands to be a set or bag, but got ${left.t} and ${right.t}.", {
           val (coercedLeft, leftSet) = set(left)
           val (coercedRight, rightSet) = set(right)
-          val sharedType = Type.leastCommonSuperType(leftSet.element, rightSet.element)
+          val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
           SubSet(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
         }, {
           val (coercedLeft, leftBag) = bag(left)
           val (coercedRight, rightBag) = bag(right)
-          val sharedType = Type.leastCommonSuperType(leftBag.element, rightBag.element)
+          val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
           SubSet(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
         })
       case SubSetEq(left, right) =>
         firstOk(e, s"Expected both operands to be a set or bag, but got ${left.t} and ${right.t}.", {
           val (coercedLeft, leftSet) = set(left)
           val (coercedRight, rightSet) = set(right)
-          val sharedType = Type.leastCommonSuperType(leftSet.element, rightSet.element)
+          val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
           SubSetEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
         }, {
           val (coercedLeft, leftBag) = bag(left)
           val (coercedRight, rightBag) = bag(right)
-          val sharedType = Type.leastCommonSuperType(leftBag.element, rightBag.element)
+          val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
           SubSetEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
         })
       case SubType(left, right) =>
@@ -875,26 +884,26 @@ abstract class CoercingRewriter() extends Rewriter {
       case Unfolding(pred, body) =>
         Unfolding(res(pred), body)
       case UntypedLiteralBag(values) =>
-        val sharedType = Type.leastCommonSuperType(values.map(_.t))
+        val sharedType = Types.leastCommonSuperType(values.map(_.t))
         UntypedLiteralBag(values.map(coerce(_, sharedType)))
       case UntypedLiteralSeq(values) =>
-        val sharedType = Type.leastCommonSuperType(values.map(_.t))
+        val sharedType = Types.leastCommonSuperType(values.map(_.t))
         UntypedLiteralSeq(values.map(coerce(_, sharedType)))
       case UntypedLiteralSet(values) =>
-        val sharedType = Type.leastCommonSuperType(values.map(_.t))
+        val sharedType = Types.leastCommonSuperType(values.map(_.t))
         UntypedLiteralSet(values.map(coerce(_, sharedType)))
       case ValidArray(arr, len) =>
         ValidArray(array(arr)._1, int(len))
       case ValidMatrix(mat, w, h) =>
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
-      case value: Constant.BooleanValue => e
-      case value: Constant.IntegerValue => e
+      case value: BooleanValue => e
+      case value: IntegerValue => e
       case values @ Values(arr, from, to) =>
         Values(array(arr)._1, int(from), int(to))(values.blame)
       case VectorCompare(left, right) =>
         val (coercedLeft, leftType) = seq(left)
         val (coercedRight, rightType) = seq(right)
-        val sharedType = Type.leastCommonSuperType(leftType.element, rightType.element)
+        val sharedType = Types.leastCommonSuperType(leftType.element, rightType.element)
         val seqType = TSeq(sharedType)
         VectorCompare(coerce(coercedLeft, seqType), coerce(coercedRight, seqType))
       case VectorRepeat(e) =>

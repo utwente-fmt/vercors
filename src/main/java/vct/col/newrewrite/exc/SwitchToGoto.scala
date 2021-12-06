@@ -65,5 +65,7 @@ case class SwitchToGoto() extends Rewriter {
           buf += ((c, replacementLabel))
           Label(replacementLabel, Block(Nil))
       }
+
+    case other => rewriteDefault(other)
   }
 }

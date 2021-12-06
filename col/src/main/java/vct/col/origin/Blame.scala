@@ -235,6 +235,8 @@ object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...
 object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
 object FramedArrLength extends PanicBlame("length query in `arr == null ? _ : arr.length` should always be ok.")
 object FramedMapGet extends PanicBlame("access in `∀k. k \\in m.keys ==> ...m[k]...` should always be ok.")
+object FramedGetLeft extends PanicBlame("left in `e.isLeft ? e.left : ...` should always be ok.")
+object FramedGetRight extends PanicBlame("right in `e.isLeft ? ... : e.right` should always be ok.")
 object AbstractApplicable extends PanicBlame("the postcondition of an abstract applicable is not checked, and hence cannot fail.")
 object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
 

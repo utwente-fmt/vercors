@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.rewrite.Rewriter
 import vct.col.ast.RewriteHelpers._
+import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
 
