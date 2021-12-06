@@ -46,7 +46,7 @@ case class EncodeIntrinsicLock() extends Rewriter {
         invariant(cls).declareDefault(this)
         held(cls).declareDefault(this)
         cls.declarations.foreach(dispatch)
-      })
+      }, intrinsicLockInvariant = tt)
     case other => rewriteDefault(other)
   }
 

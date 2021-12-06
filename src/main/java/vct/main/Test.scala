@@ -1,18 +1,16 @@
 package vct.main
 
-import vct.col.ast.{PVLInvocation, Program}
-import vct.col.check.{CheckError, IncomparableTypes, OutOfScopeError, TypeError, TypeErrorText}
-import vct.col.feature.FeatureRainbow
-import vct.col.newrewrite.ImportADT
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.ast.Program
+import vct.col.check.CheckError
+import vct.col.newrewrite._
+import vct.col.newrewrite.lang._
+import vct.col.newrewrite.exc._
 import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.parsers.{ParseResult, Parsers}
-import vct.result.VerificationResult
 import vct.result.VerificationResult.{SystemError, UserError}
 import vct.test.CommandLineTesting
 
-import java.io.File
 import java.nio.file.Path
 import scala.jdk.CollectionConverters._
 
@@ -48,10 +46,12 @@ case object Test {
     }
   }
 
-  def printErrorsOr(errors: Seq[CheckError])(otherwise: => Unit): Unit = {
+  case object Exit extends RuntimeException
+
+  def printErrors(errors: Seq[CheckError]): Unit = {
     errorCount += errors.size
-    if(errors.isEmpty) otherwise
-    else errors.foreach(println)
+    errors.foreach(println)
+    if(errors.nonEmpty) throw Exit
   }
 
   def tryParse(paths: Seq[Path]): Unit = try {
@@ -64,22 +64,72 @@ case object Test {
     val typesToCol = LangTypesToCol()
     program = typesToCol.dispatch(program)
     val errors = ResolveReferences.resolve(program)
-    printErrorsOr(errors) {
-      program = LangSpecificToCol().dispatch(program)
-      printErrorsOr(program.check) {
-        program.transSubnodes.filter(_.subnodes.collect { case _: PVLInvocation => () }.nonEmpty).foreach(println)
-        val features = new FeatureRainbow()
-        features.scan(program)
-        println(features.features)
-        program = ImportADT().dispatch(program)
-        printErrorsOr(program.check) {}
-      }
+    printErrors(errors)
+
+    val passes = Seq(
+      // Language-specific nodes -> COL (because of fragile references)
+      LangSpecificToCol(),
+
+      // Delete stuff that may be declared unsupported at a later stage
+      FilterSpecIgnore(),
+
+      // Normalize AST
+      Disambiguate(), // Resolve overloaded operators (+, subscript, etc.)
+      CollectLocalDeclarations(), // all decls in Scope
+      DesugarPermissionOperators(), // no PointsTo, \pointer, etc.
+      PinCollectionTypes(), // no anonymous sequences, sets, etc.
+      QuantifySubscriptAny(), // no arr[*]
+
+      CheckProcessAlgebra(),
+
+      SwitchToGoto(),
+      EncodeCurrentThread(),
+      EncodeIntrinsicLock(),
+      InlineApplicables(),
+      PureMethodsToFunctions(),
+
+      // Encode parallel blocks
+      IterationContractToParBlock(),
+      ParBlockEncoder(),
+
+      // Encode exceptional behaviour (no more continue/break/return/try/throw)
+      ContinueToBreak(),
+      EncodeBreakReturn(),
+      EncodeTryThrowSignals(),
+
+      // No more classes
+      ConstantifyFinalFields(),
+      ClassToRef(),
+
+      // Simplify pure expressions (no more new complex expressions)
+      ApplyTermRewriter(Nil),
+      SimplifyQuantifiedRelations(),
+
+      EncodeArrayValues(), // maybe don't target shift lemmas on generated function for \values
+
+      // Translate internal types to domains
+      ImportADT(),
+
+      // Silver compat (basically no new nodes)
+      ForLoopToWhileLoop(),
+      BranchToIfElse(),
+      DesugarCollectionOperators(),
+      ResolveExpressionSideEffects(),
+      EvaluationTargetDummy(),
+    )
+
+    for(pass <- passes) {
+      println(s"    ${pass.getClass.getSimpleName}")
+      program = pass.dispatch(program)
+      printErrors(program.check)
     }
+
   } catch {
+    case Exit =>
     case err: SystemError =>
       println(err.text)
       systemErrors += 1
-    case res: VerificationResult =>
+    case res: UserError =>
       errorCount += 1
       println(res.text)
     case e: Throwable =>
