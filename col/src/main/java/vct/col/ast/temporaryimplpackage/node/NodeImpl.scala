@@ -18,7 +18,7 @@ trait NodeImpl { this: Node =>
     subnodes */
   def checkTrans(context: CheckContext): Seq[CheckError] = {
     val innerContext = enterCheckContext(context)
-    val childrenErrors = subnodes.flatMap(_.check(innerContext))
+    val childrenErrors = subnodes.flatMap(_.checkTrans(innerContext))
 
     if(childrenErrors.nonEmpty) {
       childrenErrors

@@ -3,6 +3,7 @@ package vct.col.ast.temporaryimplpackage.declaration
 import vct.col.ast.Declaration
 import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
 import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
+import vct.col.debug.Dropped
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.ScopeContext
 
@@ -15,6 +16,8 @@ trait DeclarationImpl { this: Declaration =>
   }
 
   def declareDefault(scope: ScopeContext): Unit
+
+  def drop(): Unit = debugRewriteState = Dropped
 
   /**
     * Create a Ref to this declaration. This is often useful in a place where the type of the ref can be directly

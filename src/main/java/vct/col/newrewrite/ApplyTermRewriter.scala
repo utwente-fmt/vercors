@@ -55,5 +55,5 @@ case class ApplyTermRewriter(ruleNodes: Seq[SimplificationRule]) extends Rewrite
     }
 
   override def dispatch(e: Expr): Expr =
-    applyExhaustively(rewriteDefault(e))
+    rewriteDefault(applyExhaustively(e))
 }

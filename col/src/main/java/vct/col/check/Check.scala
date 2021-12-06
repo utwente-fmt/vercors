@@ -1,8 +1,17 @@
 package vct.col.check
 
 import vct.col.ast._
+import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.err.ASTStateError
 import vct.col.ref.Ref
+
+case object Check {
+  def inOrder(check1: => Seq[CheckError], check2: => Seq[CheckError]): Seq[CheckError] =
+    check1 match {
+      case Nil => check2
+      case more => more
+    }
+}
 
 sealed trait CheckError {
   override def toString: String = this match {
@@ -15,6 +24,10 @@ sealed trait CheckError {
     case OutOfScopeError(use, ref) =>
       use.o.messageInContext(s"This usage is out of scope, ...") + "\n" +
         ref.decl.o.messageInContext("... since it is declared here.")
+    case DoesNotDefine(declarator, declaration, use) =>
+      use.o.messageInContext("This uses a declaration, which is declared ...") + "\n" +
+        declaration.o.messageInContext("... here, but it was expected to be declared ...") + "\n" +
+        declarator.o.messageInContext("... in this declarator.")
     // TODO PB: these are kind of obsolete? maybe?
     case IncomparableTypes(left, right) =>
       ???
@@ -26,6 +39,7 @@ case class TypeError(expr: Expr, expectedType: Type) extends CheckError
 case class TypeErrorText(expr: Expr, message: Type => String) extends CheckError
 case class GenericTypeError(t: Type, expectedType: TType) extends CheckError
 case class OutOfScopeError(use: Node, ref: Ref[_ <: Declaration]) extends CheckError
+case class DoesNotDefine(declarator: Declarator, declaration: Declaration, use: Node) extends CheckError
 case class IncomparableTypes(left: Expr, right: Expr) extends CheckError
 case class TupleTypeCount(tup: LiteralTuple) extends CheckError
 

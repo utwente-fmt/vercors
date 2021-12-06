@@ -68,11 +68,13 @@ case class LangSpecificToCol() extends Rewriter {
     // First, declare all the fields, so we can refer to them.
     decls.foreach {
       case fields: JavaFields =>
-        for(((_, dims, _), idx) <- fields.decls.zipWithIndex) {
+        fields.drop()
+        for(((sourceName, dims, _), idx) <- fields.decls.zipWithIndex) {
           javaFieldsSuccessor((fields, idx)) =
             new InstanceField(
-              t = FuncTools.repeat(TArray(_), dims, fields.t),
-              flags = fields.modifiers.collect { case JavaFinal() => new Final() }.toSet)
+              t = FuncTools.repeat(TArray(_), dims, dispatch(fields.t)),
+              flags = fields.modifiers.collect { case JavaFinal() => new Final() }.toSet)(SourceNameOrigin(sourceName, fields.o))
+          javaFieldsSuccessor((fields, idx)).declareDefault(this)
         }
       case _ =>
     }
@@ -169,6 +171,7 @@ case class LangSpecificToCol() extends Rewriter {
       }
 
     case ns: JavaNamespace =>
+      ns.drop()
       namespace.having(ns) {
         // Do not enter a scope, so classes of the namespace are declared to the program.
         ns.declarations.foreach(dispatch)

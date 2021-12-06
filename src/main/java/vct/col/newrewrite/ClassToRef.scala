@@ -25,6 +25,7 @@ case class ClassToRef() extends Rewriter {
 
   override def dispatch(decl: Declaration): Unit = decl match {
     case cls: Class =>
+      cls.drop()
       cls.declarations.foreach {
         case function: InstanceFunction =>
           val thisVar = new Variable(TRef())(This)
@@ -81,6 +82,12 @@ case class ClassToRef() extends Rewriter {
     case decl => rewriteDefault(decl)
   }
 
+  override def dispatch(stat: Statement): Statement = stat match {
+    case Assign(Local(Ref(v)), NewObject(Ref(cls))) =>
+      SilverNewRef(succ(v), cls.declarations.collect { case field: InstanceField => fieldSucc.ref(field) })(stat.o)
+    case other => rewriteDefault(other)
+  }
+
   override def dispatch(e: Expr): Expr = e match {
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
       ProcedureInvocation(
@@ -97,6 +104,7 @@ case class ClassToRef() extends Rewriter {
       Local(diz.head.ref)(e.o)
     case deref @ Deref(obj, Ref(field)) =>
       SilverDeref(dispatch(obj), fieldSucc.ref(field))(deref.blame)(deref.o)
+    case NewObject(_) => ???
     case _ => rewriteDefault(e)
   }
 

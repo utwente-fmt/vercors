@@ -51,6 +51,7 @@ import vct.col.ast.temporaryimplpackage.statement.exceptional._
 import vct.col.ast.temporaryimplpackage.statement.nonexecutable._
 import vct.col.ast.temporaryimplpackage.statement.terminal._
 import vct.col.ast.temporaryimplpackage.util.Declarator
+import vct.col.debug._
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
@@ -178,7 +179,9 @@ case class VecBlock(iters: Seq[IterVariable], requires: Expr, ensures: Expr, con
 case class WandCreate(statements: Seq[Statement])(implicit val o: Origin) extends Statement with WandCreateImpl
 case class ModelDo(model: Expr, perm: Expr, after: Expr, action: Expr, impl: Statement)(implicit val o: Origin) extends Statement with ModelDoImpl
 
-sealed abstract class Declaration extends Node with DeclarationImpl
+sealed abstract class Declaration extends Node with DeclarationImpl {
+  var debugRewriteState: DebugRewriteState = NotProcessed
+}
 
 sealed abstract class GlobalDeclaration extends Declaration with GlobalDeclarationImpl
 class SimplificationRule(val axiom: Expr)(implicit val o: Origin) extends GlobalDeclaration with SimplificationRuleImpl

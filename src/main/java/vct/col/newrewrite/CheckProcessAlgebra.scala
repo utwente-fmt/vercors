@@ -109,7 +109,7 @@ case class CheckProcessAlgebra() extends Rewriter {
       instanceField.declareDefault(this)
       modelFieldSuccessors(modelField) = instanceField
 
-    case _ =>
+    case other => rewriteDefault(other)
   }
 
   override def dispatch(expr: Expr): Expr = expr match {
@@ -124,7 +124,7 @@ case class CheckProcessAlgebra() extends Rewriter {
       val blame = InsufficientPermissionForModelField(modelDeref)
       Deref(dispatch(modelDeref.obj), modelFieldSuccessors.ref(modelDeref.ref.decl))(blame)
 
-    case x => dispatch(x)
+    case x => rewriteDefault(x)
   }
 
   def inline(a: ModelProcess, b: Seq[Expr]): Nothing = ???

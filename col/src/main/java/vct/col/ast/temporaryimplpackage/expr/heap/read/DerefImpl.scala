@@ -1,10 +1,14 @@
 package vct.col.ast.temporaryimplpackage.expr.heap.read
 
+import vct.col.ast.temporaryimplpackage.expr.ExprImpl
 import vct.col.ast.{Deref, Type}
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{Check, CheckContext, CheckError}
 
-trait DerefImpl { this: Deref =>
+trait DerefImpl extends ExprImpl { this: Deref =>
   override def t: Type = ref.decl.t
   override def check(context: CheckContext): Seq[CheckError] =
-    context.checkInScope(this, ref)
+    Check.inOrder(
+      super.check(context),
+      obj.t.asClass.get.cls.decl.checkDefines(ref.decl, this)
+    )
 }

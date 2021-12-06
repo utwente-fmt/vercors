@@ -19,6 +19,11 @@ object Types {
     // Covariant types can apply the least common supertype in their type argument
     case (TOption(left), TOption(right)) =>
       TOption(leastCommonSuperType(left, right))
+    case (TEither(leftLeft, leftRight), TEither(rightLeft, rightRight)) =>
+      TEither(
+        leastCommonSuperType(leftLeft, rightLeft),
+        leastCommonSuperType(leftRight, rightRight),
+      )
     case (TTuple(left), TTuple(right)) if left.size == right.size =>
       TTuple(left.zip(right).map { case (l, r) => leastCommonSuperType(l, r) })
     case (TSeq(left), TSeq(right)) =>

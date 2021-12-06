@@ -22,6 +22,7 @@ trait TypeImpl { this: Type =>
   def asTuple: Option[TTuple] = Coercion.getAnyTupleCoercion(this).map(_._2)
   def asMatrix: Option[TMatrix] = Coercion.getAnyMatrixCoercion(this).map(_._2)
   def asModel: Option[TModel] = Coercion.getAnyModelCoercion(this).map(_._2)
+  def asClass: Option[TClass] = Coercion.getAnyClassCoercion(this).map(_._2)
   def asEither: Option[TEither] = Coercion.getAnyEitherCoercion(this).map(_._2)
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
 

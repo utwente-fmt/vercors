@@ -5,7 +5,7 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import vct.col.newrewrite.util.Substitute
-import vct.col.origin.{AssertFailed, Blame, Origin, ThrowNull}
+import vct.col.origin.{AssertFailed, Blame, FramedGetLeft, FramedGetRight, Origin, ThrowNull}
 import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
 import vct.col.util.AstBuildHelpers
@@ -24,7 +24,7 @@ case class EncodeTryThrowSignals() extends Rewriter {
   val exceptionalHandlerEntry: ScopedStack[LabelDecl] = ScopedStack()
   val returnHandler: ScopedStack[LabelDecl] = ScopedStack()
 
-  val signalsBinding: ScopedStack[Variable] = ScopedStack()
+  val signalsBinding: ScopedStack[(Variable, Result)] = ScopedStack()
 
   def getExc(implicit o: Origin): Expr =
     currentException.last.get
@@ -96,7 +96,7 @@ case class EncodeTryThrowSignals() extends Rewriter {
     case method: AbstractMethod =>
       implicit val o: Origin = method.o
 
-      val exc = new Variable(TClass(???))
+      val exc = new Variable(TAny()) // PB TODO: TClass(?)
 
       currentException.having(exc) {
         val body = method.body.map(body => {
@@ -121,31 +121,35 @@ case class EncodeTryThrowSignals() extends Rewriter {
         })
 
         val ensures =
-          (IsRight(AmbiguousResult()) ==> dispatch(method.contract.ensures)) &*
+          (IsRight(Result(succ(method))) ==> dispatch(method.contract.ensures)) &*
             AstBuildHelpers.foldStar(method.contract.signals.map {
               case SignalsClause(binding, assn) =>
-                (IsLeft(AmbiguousResult()) && InstanceOf(GetLeft(AmbiguousResult())(???), TypeValue(binding.t))) ==>
-                  (signalsBinding.having(binding) { dispatch(assn) })
+                binding.drop()
+                (IsLeft(Result(succ(method))) && InstanceOf(GetLeft(Result(succ(method)))(FramedGetLeft), TypeValue(binding.t))) ==>
+                  (signalsBinding.having((binding, Result(succ(method)))) { dispatch(assn) })
             })
 
         method.rewrite(
-          returnType = TEither(TClass(???), dispatch(method.returnType)),
+          returnType = TEither(TAny(), dispatch(method.returnType)),
           body = body,
           contract = method.contract.rewrite(ensures = ensures, signals = Nil)
-        )
+        ).succeedDefault(this, method)
       }
 
     case other => rewriteDefault(other)
   }
 
   override def dispatch(e: Expr): Expr = e match {
-    case Local(Ref(v)) if signalsBinding.nonEmpty && signalsBinding.last == v =>
+    case Local(Ref(v)) if signalsBinding.nonEmpty && signalsBinding.last._1 == v =>
       implicit val o: Origin = e.o
-      GetLeft(AmbiguousResult())(???)
+      GetLeft(signalsBinding.last._2)(FramedGetLeft)
 
-    case AmbiguousResult() =>
+    case Result(Ref(app)) =>
       implicit val o: Origin = e.o
-      GetRight(AmbiguousResult())(???)
+      app match {
+        case _: AbstractMethod => GetRight(Result(succ(app)))(FramedGetRight)
+        case _ => Result(succ(app))
+      }
 
     case other => rewriteDefault(other)
   }

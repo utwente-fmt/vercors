@@ -1,12 +1,14 @@
 package vct.main
 
-import vct.col.ast.Program
+import vct.col.ast.{Declaration, Program}
 import vct.col.check.CheckError
+import vct.col.debug.NotProcessed
 import vct.col.newrewrite._
 import vct.col.newrewrite.lang._
 import vct.col.newrewrite.exc._
 import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
+import vct.col.util.SuccessionMap
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult.{SystemError, UserError}
 import vct.test.CommandLineTesting
@@ -58,12 +60,12 @@ case object Test {
     files += 1
     println(paths.mkString(", "))
     val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse))
-    var program = Program(decls)(DiagnosticOrigin)(DiagnosticOrigin)
-    val extraDecls = ResolveTypes.resolve(program)
-    program = Program(program.declarations ++ extraDecls)(DiagnosticOrigin)(DiagnosticOrigin)
+    var input = Program(decls)(DiagnosticOrigin)(DiagnosticOrigin)
+    val extraDecls = ResolveTypes.resolve(input)
+    input = Program(input.declarations ++ extraDecls)(DiagnosticOrigin)(DiagnosticOrigin)
     val typesToCol = LangTypesToCol()
-    program = typesToCol.dispatch(program)
-    val errors = ResolveReferences.resolve(program)
+    input = typesToCol.dispatch(input)
+    val errors = ResolveReferences.resolve(input)
     printErrors(errors)
 
     val passes = Seq(
@@ -118,12 +120,25 @@ case object Test {
       EvaluationTargetDummy(),
     )
 
-    for(pass <- passes) {
-      println(s"    ${pass.getClass.getSimpleName}")
-      program = pass.dispatch(program)
-      printErrors(program.check)
+    SuccessionMap.breakOnMissingPredecessor {
+      var program = input
+      for(pass <- passes) {
+        println(s"    ${pass.getClass.getSimpleName}")
+        val oldProgram = program
+        program = pass.dispatch(program)
+        oldProgram.transSubnodes.foreach {
+          case decl: Declaration =>
+            if(decl.debugRewriteState == NotProcessed) {
+              println(s"Dropped without notice: $decl")
+              throw Exit
+            }
+          case _ =>
+        }
+        assert(program.declarations.nonEmpty)
+        printErrors(program.check)
+      }
+      println(program)
     }
-
   } catch {
     case Exit =>
     case err: SystemError =>

@@ -39,14 +39,14 @@ case class EncodeIntrinsicLock() extends Rewriter {
     InstancePredicateApply(dispatch(obj), held.ref(getClass(obj)), Nil)
 
   override def dispatch(decl: Declaration): Unit = decl match {
-    case cls: Class if cls.intrinsicLockInvariant != tt =>
+    case cls: Class =>
       cls.rewrite(declarations = collectInScope(classScopes) {
         invariant(cls) = new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(cls.intrinsicLockInvariant.o)
         held(cls) = new InstancePredicate(Nil, None)(cls.intrinsicLockInvariant.o)
         invariant(cls).declareDefault(this)
         held(cls).declareDefault(this)
         cls.declarations.foreach(dispatch)
-      }, intrinsicLockInvariant = tt)
+      }, intrinsicLockInvariant = tt).succeedDefault(this, decl)
     case other => rewriteDefault(other)
   }
 

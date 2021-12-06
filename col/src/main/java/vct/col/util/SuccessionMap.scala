@@ -1,6 +1,8 @@
 package vct.col.util
 
+import hre.util.ScopedStack
 import vct.col.ast.Declaration
+import vct.col.debug.Succeeded
 import vct.col.ref.LazyRef
 import vct.col.util.SuccessionMap.NoSuchSuccessor
 import vct.result.VerificationResult.{SystemError, UserError}
@@ -9,67 +11,80 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object SuccessionMap {
-  private var counter: Int = 0
+  case class Scope(var idx: Int = 0, var triggerIdx: Option[Int] = None) {
+    def next(): Int = this.synchronized {
+      val result = idx
 
-  case class NoSuchSuccessor[K, V <: Declaration](map: SuccessionMap[K, V],
-                                                  missingKey: K,
-                                                  mapTrace: StackTraceElement,
-                                                  refTrace: StackTraceElement,
-                                                  queryTrace: StackTraceElement,
-                                                  count: Int) extends SystemError {
-    private def stackTraceString(trace: Seq[StackTraceElement]): String =
-      trace.map(element => element.toString).mkString("\n")
+      if(triggerIdx.nonEmpty && triggerIdx.get == result) {
+        throw MissingPredecessor
+      }
 
-    override def text: String =
-      "For the map created at: " + mapTrace.toString +
-        "\nA lazy reference was created at: " + refTrace.toString +
-        "\nBut when it was queried at: " + queryTrace.toString +
-        s"\nThe key was not found: $missingKey.\nFor debug purposes the reference number is $count."
+      idx += 1
+      result
+    }
+  }
+
+  val scopes: ScopedStack[Scope] = ScopedStack()
+
+  def breakOnMissingPredecessor[T](f: => T): T = {
+    scopes.having(Scope()) {
+      try {
+        f // First computation
+      } catch {
+        case NoSuchSuccessor(_, _, debugIdx) =>
+          println("== Error; restarting computation to determine cause. ==")
+          scopes.head.triggerIdx = Some(debugIdx)
+          scopes.head.idx = 0
+
+          try {
+            f // Second computation, expect throw MissingPredecessor
+          } catch {
+            case MissingPredecessor => throw MissingPredecessor
+            case _: Throwable => throw NonDeterminsticEvaluation
+          }
+
+          throw NonDeterminsticEvaluation
+      }
+    }
+  }
+
+  case object NonDeterminsticEvaluation extends SystemError {
+    override def text: String = "We tried to derive the creation of a reference pointing to a successor that will not be populated, " +
+      "but the second computation does not yield the same error. Is the function supplied to breakOnMissingPredecessor not deterministic?"
+  }
+
+  case object MissingPredecessor extends SystemError {
+    override def text: String = "Stack trace for the location that creates a reference for a successor that will not be populated."
+  }
+
+  case class NoSuchSuccessor[K, V <: Declaration](map: SuccessionMap[K, V], missingKey: K, debugIdx: Int) extends SystemError {
+    override def text: String = s"Key not found: $missingKey"
   }
 }
 
 case class SuccessionMap[K, V <: Declaration]() {
   private val storage = mutable.HashMap[K, V]()
 
-  private def firstElementPastMe: StackTraceElement =
-    Thread.currentThread().getStackTrace
-      .dropWhile(element =>
-        element.getClassName == "vct.col.util.SuccessionMap" ||
-          element.getClassName == "java.lang.Thread" ||
-          element.getClassName == "vct.col.ref.LazyRef" ||
-          element.getMethodName == "succ"
-      ).head
-
-  val mapCreationTrace: StackTraceElement = firstElementPastMe
-
   def get(k: K): Option[V] = storage.get(k)
   def getOrElseUpdate(k: K, v: => V): V = storage.getOrElseUpdate(k, v)
   def apply(k: K): V = storage(k)
-  def update(k: K, v: V): Unit = storage.update(k, v)
+  def update(k: K, v: V): Unit = {
+    k match {
+      case decl: Declaration => decl.debugRewriteState = Succeeded
+      case _ =>
+    }
+
+    storage.update(k, v)
+  }
   def contains(k: K): Boolean = storage.contains(k)
 
-  def ref[V2 <: Declaration]
-         (k: K)
-         (implicit tag: ClassTag[V2])
-         : LazyRef[V2] = {
-    val refCreationTrace = firstElementPastMe
-
-    val count = SuccessionMap.synchronized {
-      val value = SuccessionMap.counter
-      SuccessionMap.counter += 1
-      value
-    }
+  def ref[V2 <: Declaration](k: K)(implicit tag: ClassTag[V2]): LazyRef[V2] = {
+    val debugIdx = SuccessionMap.scopes.headOption.map(_.next()).getOrElse(-1)
 
     new LazyRef[V2](
       get(k) match {
         case Some(value) => value
-        case None => throw NoSuchSuccessor(
-          map = this,
-          missingKey = k,
-          mapTrace = mapCreationTrace,
-          refTrace = refCreationTrace,
-          queryTrace = firstElementPastMe,
-          count = count)
+        case None => throw NoSuchSuccessor(this, k, debugIdx)
       }
     )
   }

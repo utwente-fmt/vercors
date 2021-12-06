@@ -4,12 +4,13 @@ import vct.col.ast._
 import RewriteHelpers._
 import vct.col.newrewrite.error.ExcludedByPassOrder
 import vct.col.origin.{Origin, PanicBlame}
-import vct.col.ref.Ref
+import vct.col.ref.{LazyRef, Ref}
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.Rewriter
 import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 case object EncodeBreakReturn {
   case class PostLabeledStatementOrigin(label: LabelDecl) extends Origin {
@@ -56,6 +57,7 @@ case class EncodeBreakReturn() extends Rewriter {
   case class BreakReturnToGoto(returnTarget: LabelDecl, resultVariable: Local) extends Rewriter {
     val breakLabels: mutable.Set[LabelDecl] = mutable.Set()
     val postLabeledStatement: SuccessionMap[LabelDecl, LabelDecl] = SuccessionMap()
+    override val successionMap: SuccessionMap[Declaration, Declaration] = EncodeBreakReturn.this.successionMap
 
     override def dispatch(stat: Statement): Statement = {
       implicit val o: Origin = stat.o
@@ -150,16 +152,16 @@ case class EncodeBreakReturn() extends Rewriter {
         case None => rewriteDefault(method)
         case Some(body) =>
           val newBody: Statement = if(hasFinally(body)) {
-            val returnField = new InstanceField(method.returnType, Set.empty)(ReturnField)
+            val returnField = new InstanceField(dispatch(method.returnType), Set.empty)(ReturnField)
             val returnClass = new Class(Seq(returnField), Nil, tt)(ReturnClass)
             returnClass.declareDefault(this)
 
             BreakReturnToException(returnClass, returnField).dispatch(body)
           } else {
             val resultTarget = new LabelDecl()(ReturnTarget)
-            val resultVar = new Variable(method.returnType)(ReturnVariable)
+            val resultVar = new Variable(dispatch(method.returnType))(ReturnVariable)
             val newBody = BreakReturnToGoto(resultTarget, resultVar.get(ReturnVariable)).dispatch(body)
-            implicit val o: Origin = ???
+            implicit val o: Origin = body.o
             Scope(Seq(resultVar), Block(Seq(
               newBody,
               Label(resultTarget, Block(Nil)),

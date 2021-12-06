@@ -48,7 +48,7 @@ class ScopeContext {
   def succ[T <: Declaration](ref: Ref[T])(implicit tag: ClassTag[T]): Ref[T] =
     succ(ref.decl)
 
-  def succ[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): LazyRef[T] =
+  def succ[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): Ref[T] =
     successionMap.ref(decl)
 }
 
