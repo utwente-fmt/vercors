@@ -256,12 +256,12 @@ case class ImportADT() extends CoercingRewriter {
       FunctionInvocation(zfracNew.ref, Seq(rat), Nil)(PanicBlame("a frac always fits in a zfrac."))
 
     case Coercion.RatZFrac =>
-      FunctionInvocation(zfracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.head, e))
+      FunctionInvocation(zfracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.top, e))
     case Coercion.Compose(Coercion.ZFracFrac, Coercion.RatZFrac) =>
-      FunctionInvocation(fracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.head, e))
+      FunctionInvocation(fracNew.ref, Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.top, e))
     case Coercion.ZFracFrac =>
       val rat = ADTFunctionInvocation(Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
-      FunctionInvocation(fracNew.ref, Seq(rat), Nil)(ZFracFracPreconditionFailed(globalBlame.head, e))
+      FunctionInvocation(fracNew.ref, Seq(rat), Nil)(ZFracFracPreconditionFailed(globalBlame.top, e))
 
     case _ => super.coerce(e, coercion)
   }

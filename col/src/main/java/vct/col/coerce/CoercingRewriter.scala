@@ -9,7 +9,7 @@ import vct.col.util.Types
 import scala.collection.mutable.ArrayBuffer
 
 case object NopCoercingRewriter extends CoercingRewriter() {
-  globalScopes += ArrayBuffer()
+  globalScopes.push(ArrayBuffer())
 
   override def coerce(e: Expr, coercion: Coercion)(implicit o: Origin): Expr = e
 }

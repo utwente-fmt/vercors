@@ -37,7 +37,7 @@ case class LangSpecificToCol() extends Rewriter {
   val javaFieldsSuccessor: SuccessionMap[(JavaFields, Int), InstanceField] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration, Int), Variable] = SuccessionMap()
 
-  val javaDefaultConstructor: mutable.Map[JavaClassOrInterface, JavaConstructor] = mutable.Map()
+  val javaDefaultConstructor: SuccessionMap[JavaClassOrInterface, JavaConstructor] = SuccessionMap()
   val pvlDefaultConstructor: SuccessionMap[Class, Procedure] = SuccessionMap()
 
   val cFunctionSuccessor: SuccessionMap[CInvocationTarget, Procedure] = SuccessionMap()
@@ -102,7 +102,7 @@ case class LangSpecificToCol() extends Rewriter {
     // 3. the body of the constructor
 
     val declsDefault = if(decls.collect { case _: JavaConstructor => () }.isEmpty) {
-      javaDefaultConstructor(currentJavaClass.head) = new JavaConstructor(
+      javaDefaultConstructor(currentJavaClass.top) = new JavaConstructor(
         modifiers = Nil,
         name = "",
         parameters = Nil,
@@ -122,7 +122,7 @@ case class LangSpecificToCol() extends Rewriter {
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
         )
       )
-      javaDefaultConstructor(currentJavaClass.head) +: decls
+      javaDefaultConstructor(currentJavaClass.top) +: decls
     } else decls
 
     declsDefault.foreach {
@@ -280,7 +280,7 @@ case class LangSpecificToCol() extends Rewriter {
                 tt,
                 AstBuildHelpers.foldStar(cls.declarations.collect {
                   case field: InstanceField =>
-                    fieldPerm(currentThis.head, succ[InstanceField](field), WritePerm())
+                    fieldPerm(currentThis.top, succ[InstanceField](field), WritePerm())
                 }), tt, Nil, Nil, Nil,
               )
             )(null)
@@ -301,6 +301,7 @@ case class LangSpecificToCol() extends Rewriter {
       def scanScope(node: Node): Unit = node match {
         case Scope(_, _) =>
         case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration) =>
+          locals.drop()
           implicit val o: Origin = node.o
           locals.decls.zipWithIndex.foreach {
             case ((_, dims, _), idx) =>
@@ -376,14 +377,14 @@ case class LangSpecificToCol() extends Rewriter {
         case RefJavaField(decls, idx) =>
           if(decls.modifiers.contains(JavaStatic())) {
             Deref(
-              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil, Nil)(null),
+              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil)(null),
               ref = javaFieldsSuccessor.ref((decls, idx)),
             )(local.blame)
           } else {
-            Deref(currentThis.head, javaFieldsSuccessor.ref((decls, idx)))(local.blame)
+            Deref(currentThis.top, javaFieldsSuccessor.ref((decls, idx)))(local.blame)
           }
         case RefModelField(field) =>
-          ModelDeref(currentThis.head, succ[ModelField](field))(local.blame)
+          ModelDeref(currentThis.top, succ[ModelField](field))(local.blame)
         case RefJavaLocalDeclaration(decls, idx) =>
           Local(javaLocalsSuccessor.ref((decls, idx)))
       }
@@ -394,9 +395,9 @@ case class LangSpecificToCol() extends Rewriter {
       local.ref.get match {
         case RefAxiomaticDataType(decl) => throw NotAValue(local)
         case RefVariable(decl) => Local(succ[Variable](decl))
-        case RefModelField(decl) => ModelDeref(currentThis.head, succ[ModelField](decl))(local.blame)
+        case RefModelField(decl) => ModelDeref(currentThis.top, succ[ModelField](decl))(local.blame)
         case RefClass(decl) => throw NotAValue(local)
-        case RefField(decl) => Deref(currentThis.head, succ[InstanceField](decl))(local.blame)
+        case RefField(decl) => Deref(currentThis.top, succ[InstanceField](decl))(local.blame)
       }
 
     case deref @ JavaDeref(obj, _) =>
@@ -435,11 +436,11 @@ case class LangSpecificToCol() extends Rewriter {
         case RefPredicate(decl) =>
           PredicateApply(succ[Predicate](decl), args.map(dispatch))
         case RefInstanceFunction(decl) =>
-          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.head), succ[InstanceFunction](decl), args.map(dispatch), typeParams.map(dispatch))(null)
+          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.top), succ[InstanceFunction](decl), args.map(dispatch), typeParams.map(dispatch))(null)
         case RefInstanceMethod(decl) =>
-          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), succ[InstanceMethod](decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
+          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.top), succ[InstanceMethod](decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
         case RefInstancePredicate(decl) =>
-          InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.head), succ[InstancePredicate](decl), args.map(dispatch))
+          InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.top), succ[InstancePredicate](decl), args.map(dispatch))
         case RefADTFunction(decl) =>
           ADTFunctionInvocation(None, succ[ADTFunction](decl), args.map(dispatch))
         case RefModelProcess(decl) =>
@@ -449,12 +450,12 @@ case class LangSpecificToCol() extends Rewriter {
         case RefJavaMethod(decl) =>
           if(decl.modifiers.contains(JavaStatic())) {
             MethodInvocation(
-              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.head), Nil, Nil)(null),
+              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil)(null),
               ref = succ[InstanceMethod](decl),
               args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch))(null)
           } else {
             MethodInvocation(
-              obj = obj.map(dispatch).getOrElse(currentThis.head),
+              obj = obj.map(dispatch).getOrElse(currentThis.top),
               ref = succ[InstanceMethod](decl),
               args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch))(null)
           }
@@ -474,14 +475,14 @@ case class LangSpecificToCol() extends Rewriter {
           PredicateApply(succ[Predicate](decl), args.map(dispatch))
         case RefInstanceFunction(decl) =>
           InstanceFunctionInvocation(
-            obj.map(dispatch).getOrElse(currentThis.head),
+            obj.map(dispatch).getOrElse(currentThis.top),
             succ[InstanceFunction](decl),
             args.map(dispatch),
             typeArgs.map(dispatch))(inv.blame)
         case RefInstanceMethod(decl) =>
-          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.head), succ[InstanceMethod](decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
+          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.top), succ[InstanceMethod](decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
         case RefInstancePredicate(decl) =>
-          InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.head), succ[InstancePredicate](decl), args.map(dispatch))
+          InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.top), succ[InstancePredicate](decl), args.map(dispatch))
         case RefADTFunction(decl) =>
           ADTFunctionInvocation(None, succ[ADTFunction](decl), args.map(dispatch))
         case RefModelProcess(decl) =>

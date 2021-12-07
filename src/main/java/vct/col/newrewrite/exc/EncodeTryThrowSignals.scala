@@ -27,7 +27,7 @@ case class EncodeTryThrowSignals() extends Rewriter {
   val signalsBinding: ScopedStack[(Variable, Result)] = ScopedStack()
 
   def getExc(implicit o: Origin): Expr =
-    currentException.last.get
+    currentException.top.get
 
   override def dispatch(stat: Statement): Statement = {
     implicit val o: Origin = stat.o
@@ -42,6 +42,7 @@ case class EncodeTryThrowSignals() extends Rewriter {
 
         val catchImpl = Block(catches.map {
           case CatchClause(decl, body) =>
+            decl.drop()
             Branch(Seq((
               getExc !== Null() && InstanceOf(getExc, TypeValue(decl.t)),
               Block(Seq(
@@ -60,7 +61,7 @@ case class EncodeTryThrowSignals() extends Rewriter {
           dispatch(after),
           Branch(Seq((
             getExc !== Null(),
-            Goto(exceptionalHandlerEntry.last.ref),
+            Goto(exceptionalHandlerEntry.top.ref),
           ))),
         ))
 
@@ -75,12 +76,12 @@ case class EncodeTryThrowSignals() extends Rewriter {
         Block(Seq(
           Assign(getExc, dispatch(obj)),
           Assert(getExc !== Null())(ThrowNullAssertFailed(t)),
-          Goto(exceptionalHandlerEntry.last.ref),
+          Goto(exceptionalHandlerEntry.top.ref),
         ))
 
       case Return(result) =>
         Block(Seq(
-          Label(returnHandler.last, Block(Nil)),
+          Label(returnHandler.top, Block(Nil)),
           Return(Select(
             getExc === Null(),
             EitherRight(dispatch(result)),
@@ -140,9 +141,9 @@ case class EncodeTryThrowSignals() extends Rewriter {
   }
 
   override def dispatch(e: Expr): Expr = e match {
-    case Local(Ref(v)) if signalsBinding.nonEmpty && signalsBinding.last._1 == v =>
+    case Local(Ref(v)) if signalsBinding.nonEmpty && signalsBinding.top._1 == v =>
       implicit val o: Origin = e.o
-      GetLeft(signalsBinding.last._2)(FramedGetLeft)
+      GetLeft(signalsBinding.top._2)(FramedGetLeft)
 
     case Result(Ref(app)) =>
       implicit val o: Origin = e.o

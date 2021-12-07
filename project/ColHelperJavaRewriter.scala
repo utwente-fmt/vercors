@@ -9,17 +9,19 @@ case class ColHelperJavaRewriter(info: ColDescription) {
 
   def javaRewrite(ret: Type.Name)(cls: ClassDef): Stat = q"""
     def rewrite(node: ${cls.typ}): $ret = {
-      val builder = new RewriteBuilders.${cls.rewriteBuilderName}(node)
-      rewrite(builder)
-      builder.build()
+      ???
+      // val builder = new RewriteBuilders.^{cls.rewriteBuilderName}(node)
+      // rewrite(builder)
+      // builder.build()
     }
   """
 
   def javaRewriteDecl(cls: ClassDef): Stat = q"""
     def rewrite(node: ${cls.typ}): Unit = {
-      val builder = new RewriteBuilders.${cls.rewriteBuilderName}(node)
-      rewrite(builder)
-      builder.build().succeedDefault(this, node)
+      ???
+//      val builder = new RewriteBuilders.^{cls.rewriteBuilderName}(node)
+//      rewrite(builder)
+//      builder.build().succeedDefault(this, node)
     }
   """
 

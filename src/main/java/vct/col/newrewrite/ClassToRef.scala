@@ -101,7 +101,7 @@ case class ClassToRef() extends Rewriter {
     case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs) =>
       FunctionInvocation(functionSucc.ref(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
     case AmbiguousThis() =>
-      Local(diz.head.ref)(e.o)
+      Local(diz.top.ref)(e.o)
     case deref @ Deref(obj, Ref(field)) =>
       SilverDeref(dispatch(obj), fieldSucc.ref(field))(deref.blame)(deref.o)
     case NewObject(_) => ???

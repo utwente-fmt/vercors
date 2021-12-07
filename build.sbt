@@ -94,6 +94,7 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.7",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test",
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
+    libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
 
     // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
     // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.
@@ -104,6 +105,15 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation",
       "-feature",
       "-unchecked",
+//      "-Xno-patmat-analysis",
+//      "-Ystatistics",
+//      "-Xprint:typer",
+//      "-Ycache-plugin-class-loader:last-modified",
+//      "-Xplugin:/home/pieter/.cache/coursier/v1/https/repo1.maven.org/maven2/io/leonard/scalac-profiling_2.13/0.0.1/scalac-profiling_2.13-0.0.1.jar",
+//      "-P:scalac-profiling:no-profiledb",
+//      "-P:scalac-profiling:show-profiles",
+//      "-P:scalac-profiling:sourceroot:/home/pieter/vercors/",
+//      "-Ypatmat-debug",
     ),
 
     Compile / javacOptions ++= Seq(

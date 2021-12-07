@@ -386,7 +386,7 @@ case class Printer(out: Appendable,
     while(usedNames.exists(_.contains((baseName, idx)))) {
       idx += 1
     }
-    usedNames.head += ((baseName, idx))
+    usedNames.top += ((baseName, idx))
 
     if(idx == -1) baseName
     else s"$baseName$idx"
@@ -397,7 +397,7 @@ case class Printer(out: Appendable,
 
   def name(decl: Referrable)(preferredName: String = decl.name): String =
     names.find(_.contains(decl))
-      .getOrElse(names.head)
+      .getOrElse(names.top)
       .getOrElseUpdate(decl, nextName(preferredName))
 
   def printBlock(block: Block, newline: Boolean) = ???

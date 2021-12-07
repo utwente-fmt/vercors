@@ -1,6 +1,6 @@
 package vct.col.util
 
-import hre.util.ScopedStack
+import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.Declaration
 import vct.col.debug.Succeeded
 import vct.col.ref.LazyRef
@@ -8,6 +8,7 @@ import vct.col.util.SuccessionMap.NoSuchSuccessor
 import vct.result.VerificationResult.{SystemError, UserError}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 case object SuccessionMap {
@@ -33,8 +34,8 @@ case object SuccessionMap {
       } catch {
         case NoSuchSuccessor(_, _, debugIdx) =>
           println("== Error; restarting computation to determine cause. ==")
-          scopes.head.triggerIdx = Some(debugIdx)
-          scopes.head.idx = 0
+          scopes.top.triggerIdx = Some(debugIdx)
+          scopes.top.idx = 0
 
           try {
             f // Second computation, expect throw MissingPredecessor
@@ -63,11 +64,29 @@ case object SuccessionMap {
 }
 
 case class SuccessionMap[K, V <: Declaration]() {
-  private val storage = mutable.HashMap[K, V]()
+  private val storages: ArrayBuffer[mutable.HashMap[K, V]] = ArrayBuffer()
+  private val localStorage: ThreadLocal[mutable.HashMap[K, V]] =
+    ThreadLocal.withInitial(() => storages.synchronized {
+      val store = mutable.HashMap[K, V]()
+      storages += store
+      store
+    })
 
-  def get(k: K): Option[V] = storage.get(k)
-  def getOrElseUpdate(k: K, v: => V): V = storage.getOrElseUpdate(k, v)
-  def apply(k: K): V = storage(k)
+  private def storage: mutable.HashMap[K, V] = localStorage.get()
+
+  def get(k: K): Option[V] = storages.synchronized {
+    FuncTools.firstOption(storages.toSeq, (store: mutable.HashMap[K, V]) => store.get(k))
+  }
+
+  def apply(k: K): V = get(k).get
+
+  def getOrElseUpdate(k: K, v: => V): V = storages.synchronized {
+    get(k).getOrElse {
+      storage(k) = v
+      v
+    }
+  }
+
   def update(k: K, v: V): Unit = {
     k match {
       case decl: Declaration => decl.debugRewriteState = Succeeded
@@ -76,10 +95,11 @@ case class SuccessionMap[K, V <: Declaration]() {
 
     storage.update(k, v)
   }
-  def contains(k: K): Boolean = storage.contains(k)
+
+  def contains(k: K): Boolean = get(k).isDefined
 
   def ref[V2 <: Declaration](k: K)(implicit tag: ClassTag[V2]): LazyRef[V2] = {
-    val debugIdx = SuccessionMap.scopes.headOption.map(_.next()).getOrElse(-1)
+    val debugIdx = SuccessionMap.scopes.topOption.map(_.next()).getOrElse(-1)
 
     new LazyRef[V2](
       get(k) match {

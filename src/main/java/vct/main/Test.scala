@@ -96,6 +96,7 @@ case object Test {
 
       // Encode exceptional behaviour (no more continue/break/return/try/throw)
       ContinueToBreak(),
+      SpecifyImplicitLabels(),
       EncodeBreakReturn(),
       EncodeTryThrowSignals(),
 

@@ -1,9 +1,13 @@
 package vct.col.rewrite
 
 import vct.col.ast._
+import scala.collection.parallel.CollectionConverters._
 
 class Rewriter extends AbstractRewriter {
-  override def dispatch(program: Program): Program = rewriteDefault(program)
+  override def dispatch(program: Program): Program =
+    Program(program.declarations.flatMap(
+      decl => collectInScope(globalScopes) { dispatch(decl) }
+    ).toIndexedSeq)(program.blame)(program.o)
 
   override def dispatch(stat: Statement): Statement = rewriteDefault(stat)
   override def dispatch(e: Expr): Expr = rewriteDefault(e)

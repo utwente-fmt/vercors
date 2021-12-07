@@ -57,7 +57,7 @@ case class SwitchToGoto() extends Rewriter {
       ))
 
     case c: SwitchCase =>
-      currentCases.lastOption match {
+      currentCases.topOption match {
         case None => throw CaseOutsideSwitch(c)
         case Some(buf) =>
           implicit val o: Origin = c.o
