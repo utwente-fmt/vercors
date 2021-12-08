@@ -158,6 +158,8 @@ final case class Havoc(loc: Expr)(implicit val o: Origin) extends NormallyComple
 
 sealed trait ExceptionalStatement extends Statement with ExceptionalStatementImpl
 final case class Eval(expr: Expr)(implicit val o: Origin) extends ExceptionalStatement with EvalImpl
+final case class InvokeProcedure(ref: Ref[Procedure], args: Seq[Expr], outArgs: Seq[Ref[Variable]], typeArgs: Seq[Type])(val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends ExceptionalStatement with InvokeProcedureImpl
+final case class InvokeMethod(obj: Expr, ref: Ref[InstanceMethod], args: Seq[Expr], outArgs: Seq[Ref[Variable]], typeArgs: Seq[Type])(val blame: Blame[PreconditionFailed])(implicit val o: Origin) extends ExceptionalStatement with InvokeMethodImpl
 final case class Return(result: Expr)(implicit val o: Origin) extends ExceptionalStatement with ReturnImpl
 final case class Throw(obj: Expr)(val blame: Blame[ThrowNull])(implicit val o: Origin) extends ExceptionalStatement with ThrowImpl
 final case class Break(label: Option[Ref[LabelDecl]])(implicit val o: Origin) extends ExceptionalStatement with BreakImpl

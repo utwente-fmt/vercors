@@ -96,6 +96,9 @@ case object Test {
       IterationContractToParBlock(),
       ParBlockEncoder(),
 
+      // Resolve side effects including method invocations, for encodetrythrowsignals.
+      ResolveExpressionSideEffects(),
+
       // Encode exceptional behaviour (no more continue/break/return/try/throw)
       ContinueToBreak(),
       SpecifyImplicitLabels(),
@@ -119,7 +122,6 @@ case object Test {
       ForLoopToWhileLoop(),
       BranchToIfElse(),
       DesugarCollectionOperators(),
-      ResolveExpressionSideEffects(),
       EvaluationTargetDummy(),
     )
 

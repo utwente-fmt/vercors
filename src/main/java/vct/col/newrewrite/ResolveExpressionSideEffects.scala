@@ -6,10 +6,13 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.Origin
+import vct.col.ref.Ref
 import vct.col.rewrite.Rewriter
+import vct.result.VerificationResult.Unreachable
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 
 case object ResolveExpressionSideEffects {
   case object SideEffectOrigin extends Origin {
@@ -22,15 +25,60 @@ case object ResolveExpressionSideEffects {
 case class ResolveExpressionSideEffects() extends Rewriter {
   import ResolveExpressionSideEffects._
 
+  // executionContext contains an acceptor of statements, if side effects in expressions currently have a logical
+  // place to be put.
   val executionContext: ScopedStack[Statement => Unit] = ScopedStack()
+
+  def inPure: Boolean = executionContext.isEmpty
+
+  // All expressions are in principle extracted:
+  // 1 + 2 --> flat1 = 1; flat2 = 2; flat3 = flat1 + flat2; flat3
+  // However, extractions are first stored in this map, and are only flushed to the executionContext if an actual
+  // side effect occurs. If not, they are removed from the map and inlined again.
+  val currentlyExtracted: mutable.Map[Variable, Expr] = mutable.Map()
+
+  // When an actual side effect occurs, this flushes out the extracted pure expressions as side effects.
+  def flushExtractedExpressions(): Unit = {
+    currentlyExtracted.foreach {
+      case (flat, pureExpr) => executionContext.topOption match {
+        case None => throw Unreachable("flushExtractedExpressions is not called from pure context.")
+        case Some(acceptor) =>
+          implicit val o: Origin = SideEffectOrigin
+          acceptor(Assign(Local(flat.ref), pureExpr))
+      }
+    }
+    currentlyExtracted.clear()
+  }
+
+  def effect(stat: Statement): Unit = executionContext.top(stat)
+
+  case class ReInliner() extends Rewriter {
+    // ReInliner does not latch declarations ...
+    override def succ[T <: Declaration](ref: Ref[T])(implicit tag: ClassTag[T]): Ref[T] =
+      ref
+
+    // ... but since we need to be able to unpack locals, we latch those, and they are not latched in
+    // ResolveExpressionSideEffects.
+    override def dispatch(e: Expr): Expr = e match {
+      case Local(Ref(v)) =>
+        currentlyExtracted.remove(v) match {
+          case Some(pureExpression) => pureExpression
+          case None => Local(ResolveExpressionSideEffects.this.succ(v))(e.o)
+        }
+      case other => rewriteDefault(other)
+    }
+
+  }
 
   def evaluateOne(e: Expr): (Seq[Variable], Seq[Statement], Expr) = {
     val statements = ArrayBuffer[Statement]()
     variableScopes.push(ArrayBuffer[Variable]())
 
     val result = executionContext.having(statements.append) {
-      dispatch(e)
+      ReInliner().dispatch(dispatch(e))
     }
+
+    assert(currentlyExtracted.isEmpty)
 
     (variableScopes.pop().toSeq, statements.toSeq, result)
   }
@@ -144,5 +192,51 @@ case class ResolveExpressionSideEffects() extends Rewriter {
       case _: JavaStatement => throw ExtraNode
       case _: SilverStatement => throw ExtraNode
     }
+  }
+
+  override def dispatch(e: Expr): Expr =
+    if(inPure) dispatchPure(e)
+    else dispatchImpure(e)
+
+  def dispatchPure(e: Expr): Expr = e match {
+    case other => rewriteDefault(other)
+  }
+
+  def inlined(e: Expr): Expr =
+    ReInliner().dispatch(dispatchImpure(e))
+
+  def stored(e: Expr, t: Type): Local = {
+    val v = new Variable(dispatch(t))(SideEffectOrigin)
+    currentlyExtracted(v) = e
+    Local(v.ref)(SideEffectOrigin)
+  }
+
+  def dispatchImpure(e: Expr): Local = e match {
+    case Local(Ref(v)) =>
+      // We do not take the successor here: ReInliner will do that.
+      Local(v.ref)(e.o)
+    case PreAssignExpression(oldTarget, oldValue) =>
+      // target and value could be inline, if it were not for the fast that we need value to return it (since value
+      // may have a more specific type than the target type)
+      val target = dispatchImpure(oldTarget)
+      val value = dispatchImpure(oldValue)
+      flushExtractedExpressions()
+      effect(Assign(target, value)(e.o))
+      stored(value, oldValue.t)
+    case PostAssignExpression(oldTarget, value) =>
+      val target = dispatchImpure(oldTarget)
+      effect(Assign(target, inlined(value))(e.o))
+      stored(target, oldTarget.t)
+    case With(pre, value) =>
+      flushExtractedExpressions()
+      effect(dispatch(pre))
+      dispatchImpure(value)
+    case Then(oldValue, post) =>
+      val value = dispatchImpure(oldValue)
+      flushExtractedExpressions()
+      effect(dispatch(post))
+      stored(value, oldValue.t)
+    case other =>
+      stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
   }
 }
