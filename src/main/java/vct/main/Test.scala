@@ -15,6 +15,8 @@ import vct.test.CommandLineTesting
 
 import java.nio.file.Path
 import scala.jdk.CollectionConverters._
+import scala.collection.parallel.CollectionConverters._
+
 
 case object Test {
   var files = 0
@@ -127,14 +129,14 @@ case object Test {
         println(s"    ${pass.getClass.getSimpleName}")
         val oldProgram = program
         program = pass.dispatch(program)
-        oldProgram.transSubnodes.foreach {
+        oldProgram.declarations.par.foreach(_.transSubnodes.foreach {
           case decl: Declaration =>
             if(decl.debugRewriteState == NotProcessed) {
               println(s"Dropped without notice: $decl")
               throw Exit
             }
           case _ =>
-        }
+        })
         assert(program.declarations.nonEmpty)
         printErrors(program.check)
       }

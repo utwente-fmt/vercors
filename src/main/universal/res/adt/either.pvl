@@ -19,8 +19,8 @@ adt `either`<L, R> {
   axiom (\forall L l; true; !is_right(left(l)));
   axiom (\forall R r; true; is_right(right(r)));
 
-  axiom (\forall L l; true; get_left(left(l)) == l);
-  axiom (\forall R r; true; get_right(right(r)) == r);
+  axiom (\forall L l; true; either_get_left(left(l)) == l);
+  axiom (\forall R r; true; either_get_right(right(r)) == r);
 }
 
 requires !`either`<L, R>.is_right(e);

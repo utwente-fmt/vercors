@@ -16,9 +16,6 @@ case class ClassToRef() extends Rewriter {
       s"[At generated parameter for 'this']: $message"
   }
 
-  val functionSucc: SuccessionMap[InstanceFunction, Function] = SuccessionMap()
-  val methodSucc: SuccessionMap[InstanceMethod, Procedure] = SuccessionMap()
-  val predicateSucc: SuccessionMap[InstancePredicate, Predicate] = SuccessionMap()
   val fieldSucc: SuccessionMap[Field, SilverField] = SuccessionMap()
 
   val diz: ScopedStack[Variable] = ScopedStack()
@@ -30,7 +27,7 @@ case class ClassToRef() extends Rewriter {
         case function: InstanceFunction =>
           val thisVar = new Variable(TRef())(This)
           diz.having(thisVar) {
-            functionSucc(function) = new Function(
+            new Function(
               returnType = dispatch(function.returnType),
               args = collectInScope(variableScopes) {
                 thisVar.declareDefault(this)
@@ -40,13 +37,12 @@ case class ClassToRef() extends Rewriter {
               body = function.body.map(dispatch),
               contract = dispatch(function.contract),
               inline = function.inline,
-            )(function.blame)(function.o)
-            functionSucc(function).declareDefault(this)
+            )(function.blame)(function.o).succeedDefault(this, function)
           }
         case method: InstanceMethod =>
           val thisVar = new Variable(TRef())(This)
           diz.having(thisVar) {
-            methodSucc(method) = new Procedure(
+            new Procedure(
               returnType = dispatch(method.returnType),
               args = collectInScope(variableScopes) {
                 thisVar.declareDefault(this)
@@ -58,12 +54,12 @@ case class ClassToRef() extends Rewriter {
               contract = dispatch(method.contract),
               inline = method.inline,
               pure = method.pure,
-            )(method.blame)(method.o)
+            )(method.blame)(method.o).succeedDefault(this, method)
           }
         case predicate: InstancePredicate =>
           val thisVar = new Variable(TRef())(This)
           diz.having(thisVar) {
-            predicateSucc(predicate) = new Predicate(
+            new Predicate(
               args = collectInScope(variableScopes) {
                 thisVar.declareDefault(this)
                 predicate.args.foreach(dispatch)
@@ -71,10 +67,10 @@ case class ClassToRef() extends Rewriter {
               body = predicate.body.map(dispatch),
               threadLocal = predicate.threadLocal,
               inline = predicate.inline,
-            )(predicate.o)
+            )(predicate.o).succeedDefault(this, predicate)
           }
         case field: Field =>
-          fieldSucc(field) = new SilverField(field.t)(field.o)
+          fieldSucc(field) = new SilverField(dispatch(field.t))(field.o)
           fieldSucc(field).declareDefault(this)
         case _ =>
           throw ExtraNode
@@ -91,15 +87,15 @@ case class ClassToRef() extends Rewriter {
   override def dispatch(e: Expr): Expr = e match {
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
       ProcedureInvocation(
-        ref = methodSucc.ref(method),
+        ref = succ(method),
         args = dispatch(obj) +: args.map(dispatch),
         outArgs = outArgs.map(r => succ[Variable](r.decl)),
         typeArgs = typeArgs.map(dispatch),
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args) =>
-      PredicateApply(predicateSucc.ref(pred), dispatch(obj) +: args.map(dispatch))(inv.o)
+      PredicateApply(succ(pred), dispatch(obj) +: args.map(dispatch))(inv.o)
     case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs) =>
-      FunctionInvocation(functionSucc.ref(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
+      FunctionInvocation(succ(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
     case AmbiguousThis() =>
       Local(diz.top.ref)(e.o)
     case deref @ Deref(obj, Ref(field)) =>
