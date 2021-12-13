@@ -58,12 +58,12 @@ case object SuccessionMap {
     override def text: String = "Stack trace for the location that creates a reference for a successor that will not be populated."
   }
 
-  case class NoSuchSuccessor[K, V <: Declaration](map: SuccessionMap[K, V], missingKey: K, debugIdx: Int) extends SystemError {
+  case class NoSuchSuccessor[K, V <: Declaration[_]](map: SuccessionMap[K, V], missingKey: K, debugIdx: Int) extends SystemError {
     override def text: String = s"Key not found: $missingKey"
   }
 }
 
-case class SuccessionMap[K, V <: Declaration]() {
+case class SuccessionMap[K, V <: Declaration[_]]() {
   private val storages: ArrayBuffer[mutable.HashMap[K, V]] = ArrayBuffer()
   private val localStorage: ThreadLocal[mutable.HashMap[K, V]] =
     ThreadLocal.withInitial(() => storages.synchronized {
@@ -89,7 +89,7 @@ case class SuccessionMap[K, V <: Declaration]() {
 
   def update(k: K, v: V): Unit = {
     k match {
-      case decl: Declaration => decl.debugRewriteState = Succeeded
+      case decl: Declaration[_] => decl.debugRewriteState = Succeeded
       case _ =>
     }
 
@@ -98,10 +98,10 @@ case class SuccessionMap[K, V <: Declaration]() {
 
   def contains(k: K): Boolean = get(k).isDefined
 
-  def ref[V2 <: Declaration](k: K)(implicit tag: ClassTag[V2]): LazyRef[V2] = {
+  def ref[G, V2 <: Declaration[G]](k: K)(implicit tag: ClassTag[V2], witness: V <:< Declaration[G]): LazyRef[G, V2] = {
     val debugIdx = SuccessionMap.scopes.topOption.map(_.next()).getOrElse(-1)
 
-    new LazyRef[V2](
+    new LazyRef[G, V2](
       get(k) match {
         case Some(value) => value
         case None => throw NoSuchSuccessor(this, k, debugIdx)

@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.`type`.typeclass
 
 import vct.col.ast.PrimitiveType
 
-trait PrimitiveTypeImpl { this: PrimitiveType =>
+trait PrimitiveTypeImpl[G] { this: PrimitiveType[G] =>
 
 }

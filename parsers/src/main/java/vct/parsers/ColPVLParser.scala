@@ -6,7 +6,7 @@ import vct.col.ast.GlobalDeclaration
 import vct.parsers.transform.{BlameProvider, OriginProvider, PVLToCol}
 
 case class ColPVLParser() extends Parser {
-  override def parse(stream: CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult = {
+  override def parse[G](stream: CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] = {
     try {
       val lexer = new LangPVLLexer(stream)
       val tokens = new CommonTokenStream(lexer)
@@ -15,7 +15,7 @@ case class ColPVLParser() extends Parser {
       val ec = errorCounter(parser, lexer, originProvider)
 
       val tree = parser.program()
-      val decls = PVLToCol(originProvider, blameProvider, errors).convert(tree)
+      val decls = PVLToCol[G](originProvider, blameProvider, errors).convert(tree)
       ParseResult(decls, Nil)
     } catch {
       case m: MatchError =>

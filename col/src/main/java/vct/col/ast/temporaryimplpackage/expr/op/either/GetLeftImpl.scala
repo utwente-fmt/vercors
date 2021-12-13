@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.op.either
 
 import vct.col.ast.{GetLeft, Type}
 
-trait GetLeftImpl { this: GetLeft =>
-  override def t: Type = eitherType.left
+trait GetLeftImpl[G] { this: GetLeft[G] =>
+  override def t: Type[G] = eitherType.left
 }

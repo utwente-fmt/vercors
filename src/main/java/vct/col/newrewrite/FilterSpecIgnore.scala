@@ -4,14 +4,16 @@ import vct.col.ast._
 
 import scala.collection.mutable.ArrayBuffer
 import RewriteHelpers._
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.UserError
 
-case class FilterSpecIgnore() extends Rewriter {
-  override def dispatch(stat: Statement): Statement = stat match {
+case object FilterSpecIgnore extends RewriterBuilder
+
+case class FilterSpecIgnore[Pre <: Generation]() extends Rewriter[Pre] {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case block@Block(statements) =>
       var level = 0
-      val result = ArrayBuffer[Statement]()
+      val result = ArrayBuffer[Statement[Post]]()
 
       statements.foreach {
         case SpecIgnoreStart() =>
@@ -28,8 +30,8 @@ case class FilterSpecIgnore() extends Rewriter {
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(decl: Declaration): Unit = decl match {
-    case app: ContractApplicable =>
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case app: ContractApplicable[Pre] =>
       app.contract.requires match {
         case BooleanValue(false) => // drop declaration
         case _ => rewriteDefault(decl)

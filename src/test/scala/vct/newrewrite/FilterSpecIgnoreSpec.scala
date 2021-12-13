@@ -7,39 +7,40 @@ import vct.col.origin._
 import vct.col.util.AstBuildHelpers._
 import vct.col.newrewrite.FilterSpecIgnore
 import vct.col.ref.{DirectRef, LazyRef}
+import vct.col.rewrite.{InitialGeneration, Rewritten}
 import vct.helper.{ColHelper, SimpleProgramGenerator}
 
 
 class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
-
+  type G = InitialGeneration
   //nothing should change
   //should remove something
   //throw error with unbalanced tree 2x
 
-  val rewriter = FilterSpecIgnore()
+  val rewriter = FilterSpecIgnore[G]()
 
   it should "not change anything given tree without filterSpecIgnore expect for DirectRef to LazyRef" in {
-    var programInput: Program = null
-    var programExpectedOutput: Program = null
+    var programInput: Program[G] = null
+    var programExpectedOutput: Program[G] = null
 
     {
       implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
-      val variable = new Variable(TInt())
-      val body = Block(Seq(
+      val variable = new Variable[G](TInt())
+      val body = Block(Seq[Statement[G]](
         LocalDecl(variable),
-        Eval(Plus(Local(new DirectRef[Variable](variable)), Local(new DirectRef[Variable](variable)))),
-        Return(Local(new DirectRef[Variable](variable)))
+        Eval(Plus(Local(new DirectRef[G, Variable[G]](variable)), Local(new DirectRef[G, Variable[G]](variable)))),
+        Return(Local(new DirectRef[G, Variable[G]](variable)))
       ))
       programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
     {
       implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
-      val variable = new Variable(TInt())
-      val body = Block(Seq(
+      val variable = new Variable[G](TInt())
+      val body = Block(Seq[Statement[G]](
         LocalDecl(variable),
-        Eval(Plus(Local(new LazyRef[Variable](variable)), Local(new LazyRef[Variable](variable)))),
-        Return(Local(new LazyRef[Variable](variable)))
+        Eval(Plus(Local(new LazyRef[G, Variable[G]](variable)), Local(new LazyRef[G, Variable[G]](variable)))),
+        Return(Local(new LazyRef[G, Variable[G]](variable)))
       ))
       programExpectedOutput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
@@ -47,28 +48,28 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "remove nodes within filterSpecIgnore" in {
-    var programInput: Program = null
-    var programExpectedOutput: Program = null
+    var programInput: Program[G] = null
+    var programExpectedOutput: Program[G] = null
 
     {
       implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
-      val variable = new Variable(TInt())
-      val body = Block(Seq(
+      val variable = new Variable[G](TInt())
+      val body = Block(Seq[Statement[G]](
         LocalDecl(variable),
         SpecIgnoreStart(),
-        Eval(Plus(Local(new DirectRef[Variable](variable)), Local(new DirectRef[Variable](variable)))),
+        Eval(Plus(Local(new DirectRef[G, Variable[G]](variable)), Local(new DirectRef[G, Variable[G]](variable)))),
         SpecIgnoreEnd(),
-        Return(Local(new DirectRef[Variable](variable)))
+        Return(Local(new DirectRef[G, Variable[G]](variable)))
       ))
       programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
     {
       implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
-      val variable = new Variable(TInt())
-      val body = Block(Seq(
+      val variable = new Variable[G](TInt())
+      val body = Block(Seq[Statement[G]](
         LocalDecl(variable),
-        Return(Local(new LazyRef[Variable](variable)))
+        Return(Local(new LazyRef[G, Variable[G]](variable)))
       ))
       programExpectedOutput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
@@ -76,17 +77,17 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "throw error with two many SpecIgnoreStart" in {
-    var programInput: Program = null
-    var programExpectedOutput: Program = null
+    var programInput: Program[G] = null
+    var programExpectedOutput: Program[G] = null
 
     {
       implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
-      val variable = new Variable(TInt())
-      val body = Block(Seq(
+      val variable = new Variable[G](TInt())
+      val body = Block(Seq[Statement[G]](
         LocalDecl(variable),
         SpecIgnoreStart(),
-        Eval(Plus(Local(new DirectRef[Variable](variable)), Local(new DirectRef[Variable](variable)))),
-        Return(Local(new DirectRef[Variable](variable)))
+        Eval(Plus(Local(new DirectRef[G, Variable[G]](variable)), Local(new DirectRef[G, Variable[G]](variable)))),
+        Return(Local(new DirectRef[G, Variable[G]](variable)))
       ))
       programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
@@ -96,17 +97,17 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "throw error with two many SpecIgnoreEnd" in {
-    var programInput: Program = null
-    var programExpectedOutput: Program = null
+    var programInput: Program[G] = null
+    var programExpectedOutput: Program[G] = null
 
     {
       implicit val origin: Origin = SimpleProgramGenerator.generateSimpleInputOrigin()
-      val variable = new Variable(TInt())
-      val body = Block(Seq(
+      val variable = new Variable[G](TInt())
+      val body = Block(Seq[Statement[G]](
         LocalDecl(variable),
-        Eval(Plus(Local(new DirectRef[Variable](variable)), Local(new DirectRef[Variable](variable)))),
+        Eval(Plus(Local(new DirectRef[G, Variable[G]](variable)), Local(new DirectRef[G, Variable[G]](variable)))),
         SpecIgnoreEnd(),
-        Return(Local(new DirectRef[Variable](variable)))
+        Return(Local(new DirectRef[G, Variable[G]](variable)))
       ))
       programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }

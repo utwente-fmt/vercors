@@ -10,21 +10,21 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object ColToSilver {
-  def transform(program: col.Program): silver.Program =
+  def transform(program: col.Program[_]): silver.Program =
     ColToSilver(program).transform()
 }
 
-case class ColToSilver(program: col.Program) {
+case class ColToSilver(program: col.Program[_]) {
   val domains: ArrayBuffer[silver.Domain] = ArrayBuffer()
-  val fields: mutable.Map[col.SilverField, silver.Field] = mutable.Map()
+  val fields: mutable.Map[col.SilverField[_], silver.Field] = mutable.Map()
   val functions: ArrayBuffer[silver.Function] = ArrayBuffer()
   val predicates: ArrayBuffer[silver.Predicate] = ArrayBuffer()
   val methods: ArrayBuffer[silver.Method] = ArrayBuffer()
 
-  val nameStack: mutable.Stack[mutable.Map[col.Declaration, String]] = mutable.Stack()
-  var names: mutable.Map[col.Declaration, String] = mutable.Map()
+  val nameStack: mutable.Stack[mutable.Map[col.Declaration[_], String]] = mutable.Stack()
+  var names: mutable.Map[col.Declaration[_], String] = mutable.Map()
 
-  def ??(node: col.Node): Nothing = {
+  def ??(node: col.Node[_]): Nothing = {
     Warning("Node not supported: %s", node)
     throw new HREExitException(1)
   }
@@ -35,7 +35,7 @@ case class ColToSilver(program: col.Program) {
   /**
    * Give the declaration a silver-appropriate name that is as close as possible to the preferred name
    */
-  def name(decl: col.Declaration): String =
+  def name(decl: col.Declaration[_]): String =
     if(names.contains(decl)) {
       ???
     } else {
@@ -60,7 +60,7 @@ case class ColToSilver(program: col.Program) {
   /**
    * Name decl in the current scope, then evaluate f within a new scope
    */
-  def scoped[T](decl: col.Declaration)(f: => T): T = {
+  def scoped[T](decl: col.Declaration[_])(f: => T): T = {
     name(decl)
     scoped(f)
   }
@@ -68,12 +68,12 @@ case class ColToSilver(program: col.Program) {
   /**
    * Retrieve the name for this reference
    */
-  def ref(r: Ref[_ <: col.Declaration]): String = ref(r.decl)
+  def ref[G](r: Ref[G, _ <: col.Declaration[G]]): String = ref(r.decl)
 
   /**
    * Retrieve the name for this declaration
    */
-  def ref(decl: col.Declaration): String =
+  def ref(decl: col.Declaration[_]): String =
     if(names.contains(decl)) {
       names(decl)
     } else {
@@ -85,12 +85,12 @@ case class ColToSilver(program: col.Program) {
     silver.Program(domains.toSeq, fields.values.toSeq, functions.toSeq, predicates.toSeq, methods.toSeq, extensions=Seq())()
   }
 
-  def collect(decl: col.GlobalDeclaration): Unit = decl match {
-    case field: col.SilverField =>
+  def collect(decl: col.GlobalDeclaration[_]): Unit = decl match {
+    case field: col.SilverField[_] =>
       fields(field) = silver.Field(name(field), typ(field.t))(info=NodeInfo(field))
-    case rule: col.SimplificationRule =>
+    case rule: col.SimplificationRule[_] =>
       ??(rule)
-    case function: col.Function =>
+    case function: col.Function[_] =>
       scoped(function) {
         functions += silver.Function(
           ref(function),
@@ -101,10 +101,10 @@ case class ColToSilver(program: col.Program) {
           function.body.map(exp),
         )(info=NodeInfo(function))
       }
-    case procedure: col.Procedure if procedure.returnType == col.TVoid() =>
+    case procedure: col.Procedure[_] if (procedure.returnType match { case col.TVoid() => true; case _ => false }) =>
       scoped(procedure) {
         val labelDecls = procedure.body.toSeq.flatMap(_.transSubnodes.collect {
-          case l: col.LabelDecl => silver.Label(name(l), Seq())(info=NodeInfo(l))
+          case l: col.LabelDecl[_] => silver.Label(name(l), Seq())(info=NodeInfo(l))
         })
         methods += silver.Method(
           ref(procedure),
@@ -115,7 +115,7 @@ case class ColToSilver(program: col.Program) {
           procedure.body.map(body => silver.Seqn(Seq(block(body)), labelDecls)(info=NodeInfo(body)))
         )(info=NodeInfo(procedure))
       }
-    case predicate: col.Predicate =>
+    case predicate: col.Predicate[_] =>
       scoped(predicate) {
         predicates += silver.Predicate(
           ref(predicate),
@@ -127,10 +127,10 @@ case class ColToSilver(program: col.Program) {
       ??(other)
   }
 
-  def variable(v: col.Variable): silver.LocalVarDecl =
+  def variable(v: col.Variable[_]): silver.LocalVarDecl =
     silver.LocalVarDecl(name(v), typ(v.t))(info=NodeInfo(v))
 
-  def typ(t: col.Type): silver.Type = t match {
+  def typ(t: col.Type[_]): silver.Type = t match {
     case col.TBool() => silver.Bool
     case col.TInt() => silver.Int
     case col.TRational() => silver.Perm
@@ -141,7 +141,7 @@ case class ColToSilver(program: col.Program) {
     case other => ??(other)
   }
 
-  def exp(e: col.Expr): silver.Exp = e match {
+  def exp(e: col.Expr[_]): silver.Exp = e match {
     case col.BooleanValue(value) => silver.BoolLit(value)(info=NodeInfo(e))
     case col.IntegerValue(value) => silver.IntLit(value)(info=NodeInfo(e))
 
@@ -215,13 +215,13 @@ case class ColToSilver(program: col.Program) {
     case other => ??(other)
   }
 
-  def trigger(patterns: Seq[col.Expr]): silver.Trigger =
+  def trigger(patterns: Seq[col.Expr[_]]): silver.Trigger =
     silver.Trigger(patterns.map(exp))()
 
-  def pred(p: col.SilverPredicateAccess): silver.PredicateAccessPredicate =
+  def pred(p: col.SilverPredicateAccess[_]): silver.PredicateAccessPredicate =
     silver.PredicateAccessPredicate(silver.PredicateAccess(p.args.map(exp), ref(p.ref))(info=NodeInfo(p)), exp(p.perm))(info=NodeInfo(p))
 
-  def stat(s: col.Statement): silver.Stmt = s match {
+  def stat(s: col.Statement[_]): silver.Stmt = s match {
     case col.Eval(inv@col.ProcedureInvocation(method, args, outArgs, Nil)) =>
       silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
         silver.NoPosition, NodeInfo(inv), silver.NoTrafos)
@@ -247,7 +247,7 @@ case class ColToSilver(program: col.Program) {
     case other => ??(other)
   }
 
-  def block(s: col.Statement): silver.Seqn = stat(s) match {
+  def block(s: col.Statement[_]): silver.Seqn = stat(s) match {
     case seqn: silver.Seqn => seqn
     case other => silver.Seqn(Seq(other), Seq())(info=NodeInfo(s))
   }

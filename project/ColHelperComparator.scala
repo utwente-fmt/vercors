@@ -1,3 +1,4 @@
+import ColDefs._
 import MetaUtil.NonemptyMatch
 
 import scala.meta._
@@ -7,11 +8,11 @@ case class ColHelperComparator(info: ColDescription) {
   var extra: List[Stat] = Nil
 
   def valueEqual(t: Type, left: Term, right: Term): Term = t match {
-    case Type.Name(name) if info.supports("Node")(name) => q"true"
+    case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"true"
 
     case Type.Apply(Type.Name("Ref"), _) => q"true"
 
-    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Name("Referrable") => q"$left == $right"
+    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) => q"$left == $right"
 
     case Type.Apply(Type.Name("Seq"), List(inner)) =>
       q"$left.size == $right.size && $left.zip($right).forall { case (left, right) => ${valueEqual(inner, q"left", q"right")} }"
@@ -33,8 +34,8 @@ case class ColHelperComparator(info: ColDescription) {
   def refEqual(t: Type, left: Term, right: Term): Term = t match {
     case Type.Apply(Type.Name("Ref"), _) => q"if($left.decl == $right.decl) Nil else Seq(($left.decl, $right.decl))"
 
-    case Type.Name(name) if info.supports("Node")(name) => q"Nil"
-    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Name("Referrable") => q"Nil"
+    case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"Nil"
+    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) => q"Nil"
 
     case Type.Apply(Type.Name("Seq"), List(inner)) =>
       q"$left.zip($right).flatMap { case (left, right) => ${refEqual(inner, q"left", q"right")} }"
@@ -53,10 +54,10 @@ case class ColHelperComparator(info: ColDescription) {
   }
 
   def nodeEqual(t: Type, left: Term, right: Term): Term = t match {
-    case Type.Name(name) if info.supports("Node")(name) => q"compare($left, $right)"
+    case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"compare($left, $right)"
 
     case Type.Apply(Type.Name("Ref"), _) => q"LazyList.empty"
-    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Name("Referrable") => q"LazyList.empty"
+    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) => q"LazyList.empty"
 
     case Type.Apply(Type.Name("Seq"), List(inner)) =>
       q"$left.zip($right).to(LazyList).flatMap { case (left, right) => ${nodeEqual(inner, q"left", q"right")} }"
@@ -98,18 +99,21 @@ case class ColHelperComparator(info: ColDescription) {
       .reduceOption[Term]((l, r) => q"$l #::: $r").getOrElse(q"LazyList.empty")
 
     val params = List(
-      Term.Param(Nil, Term.Name("left"), Some(defn.typ), None),
-      Term.Param(Nil, Term.Name("right"), Some(defn.typ), None))
+      Term.Param(Nil, Term.Name("left"), Some(t"${defn.typ}[L]"), None),
+      Term.Param(Nil, Term.Name("right"), Some(t"${defn.typ}[R]"), None),
+    )
 
     split += 1
 
-    val splitMethod = Defn.Def(Nil, Term.Name(s"split$split"), Nil, List(params), Some(t"LazyList[(Node, Node)]"),
-      q"if($equal) $refCmp.to(LazyList) #::: $children else LazyList((left, right))")
+    val splitMethod =q"""
+      def ${Term.Name(s"split$split")}[L, R](..$params): LazyList[(Node[L], Node[R])] =
+        if($equal) $refCmp.to(LazyList) #::: $children else LazyList((left, right))
+    """
 
     extra +:= splitMethod
 
     Case(
-      pat = Pat.Tuple(List(Pat.Typed(Pat.Var(left), defn.typ), Pat.Typed(Pat.Var(right), defn.typ))),
+      pat = Pat.Tuple(List(Pat.Typed(Pat.Var(left), t"${defn.typ}[L]"), Pat.Typed(Pat.Var(right), t"${defn.typ}[R]"))),
       cond = None,
       body = Term.Apply(Term.Name(s"split$split"), List(q"left", q"right")))
   }
@@ -118,7 +122,7 @@ case class ColHelperComparator(info: ColDescription) {
 
   def make(): List[Stat] = List(q"""
     object Comparator {
-      def compare(left: Node, right: Node): LazyList[(Node, Node)] = ${NonemptyMatch("comparator", q"(left, right)", cases)}
+      def compare[L, R](left: Node[L], right: Node[R]): LazyList[(Node[L], Node[R])] = ${NonemptyMatch("comparator", q"(left, right)", cases)}
 
       ..$extra
     }

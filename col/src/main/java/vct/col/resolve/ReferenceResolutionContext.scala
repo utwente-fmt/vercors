@@ -5,27 +5,28 @@ import vct.col.check.CheckContext
 
 import scala.collection.mutable
 
-case class ReferenceResolutionContext(stack: Seq[Seq[Referrable]] = Nil,
-                                      externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration] = mutable.ArrayBuffer(),
-                                      checkContext: CheckContext = CheckContext(),
-                                      currentJavaNamespace: Option[JavaNamespace] = None,
-                                      currentJavaClass: Option[JavaClassOrInterface] = None,
-                                      currentThis: Option[ThisTarget] = None,
-                                      currentResult: Option[ResultTarget] = None,
+case class ReferenceResolutionContext[G]
+                                     (stack: Seq[Seq[Referrable[G]]] = Nil,
+                                      externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),
+                                      checkContext: CheckContext[G] = CheckContext[G](),
+                                      currentJavaNamespace: Option[JavaNamespace[G]] = None,
+                                      currentJavaClass: Option[JavaClassOrInterface[G]] = None,
+                                      currentThis: Option[ThisTarget[G]] = None,
+                                      currentResult: Option[ResultTarget[G]] = None,
                                      ) {
-  def replace(stack: Seq[Seq[Referrable]] = stack,
-              externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration] = externallyLoadedElements,
-              checkContext: CheckContext = checkContext,
-              currentJavaNamespace: Option[JavaNamespace] = currentJavaNamespace,
-              currentJavaClass: Option[JavaClassOrInterface] = currentJavaClass,
-              currentThis: Option[ThisTarget] = currentThis,
-              currentResult: Option[ResultTarget] = currentResult,
-             ): ReferenceResolutionContext =
+  def replace(stack: Seq[Seq[Referrable[G]]] = stack,
+              externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = externallyLoadedElements,
+              checkContext: CheckContext[G] = checkContext,
+              currentJavaNamespace: Option[JavaNamespace[G]] = currentJavaNamespace,
+              currentJavaClass: Option[JavaClassOrInterface[G]] = currentJavaClass,
+              currentThis: Option[ThisTarget[G]] = currentThis,
+              currentResult: Option[ResultTarget[G]] = currentResult,
+             ): ReferenceResolutionContext[G] =
     ReferenceResolutionContext(stack, externallyLoadedElements, checkContext, currentJavaNamespace, currentJavaClass, currentThis, currentResult)
 
-  def asTypeResolutionContext: TypeResolutionContext =
+  def asTypeResolutionContext: TypeResolutionContext[G] =
     TypeResolutionContext(stack, currentJavaNamespace, externallyLoadedElements)
 
-  def declare(decls: Seq[Declaration]): ReferenceResolutionContext =
+  def declare(decls: Seq[Declaration[G]]): ReferenceResolutionContext[G] =
     replace(stack=decls.flatMap(Referrable.from) +: stack)
 }

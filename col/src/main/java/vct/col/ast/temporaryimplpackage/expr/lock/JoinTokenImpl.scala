@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.lock
 
 import vct.col.ast.{JoinToken, TResource, Type}
 
-trait JoinTokenImpl { this: JoinToken =>
-  override def t: Type = TResource()
+trait JoinTokenImpl[G] { this: JoinToken[G] =>
+  override def t: Type[G] = TResource()
 }

@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.op.bool
 
 import vct.col.ast.{ComputationalAnd, TBool, Type}
 
-trait ComputationalAndImpl { this: ComputationalAnd =>
-  override def t: Type = TBool()
+trait ComputationalAndImpl[G] { this: ComputationalAnd[G] =>
+  override def t: Type[G] = TBool()
 }

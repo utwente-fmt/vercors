@@ -3,6 +3,6 @@ package vct.col.ast.temporaryimplpackage.declaration.global
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.ast.{AxiomaticDataType, Declaration}
 
-trait AxiomaticDataTypeImpl extends Declarator { this: AxiomaticDataType =>
-  override def declarations: Seq[Declaration] = decls ++ typeArgs
+trait AxiomaticDataTypeImpl[G] extends Declarator[G] { this: AxiomaticDataType[G] =>
+  override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 }

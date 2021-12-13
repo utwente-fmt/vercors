@@ -3,7 +3,7 @@ package vct.col.newrewrite.error
 import vct.col.ast.Node
 import vct.result.VerificationResult.SystemError
 
-case class ExcludedByPassOrder(message: String, node: Option[Node]) extends SystemError {
+case class ExcludedByPassOrder(message: String, node: Option[Node[_]]) extends SystemError {
   override def text: String = {
     node match {
       case Some(node) =>

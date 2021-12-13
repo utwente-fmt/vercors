@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.statement.terminal
 
 import vct.col.ast.NormallyCompletingStatement
 
-trait NormallyCompletingStatementImpl { this: NormallyCompletingStatement =>
+trait NormallyCompletingStatementImpl[G] { this: NormallyCompletingStatement[G] =>
 
 }

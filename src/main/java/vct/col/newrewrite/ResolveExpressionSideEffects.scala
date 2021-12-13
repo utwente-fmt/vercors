@@ -7,14 +7,14 @@ import vct.col.ast._
 import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.Origin
 import vct.col.ref.Ref
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.Unreachable
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-case object ResolveExpressionSideEffects {
+case object ResolveExpressionSideEffects extends RewriterBuilder {
   case object SideEffectOrigin extends Origin {
     override def preferredName: String = "flatten"
     override def messageInContext(message: String): String =
@@ -22,12 +22,12 @@ case object ResolveExpressionSideEffects {
   }
 }
 
-case class ResolveExpressionSideEffects() extends Rewriter {
+case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pre] {
   import ResolveExpressionSideEffects._
 
   // executionContext contains an acceptor of statements, if side effects in expressions currently have a logical
   // place to be put.
-  val executionContext: ScopedStack[Statement => Unit] = ScopedStack()
+  val executionContext: ScopedStack[Statement[Post] => Unit] = ScopedStack()
 
   def inPure: Boolean = executionContext.isEmpty
 
@@ -35,7 +35,7 @@ case class ResolveExpressionSideEffects() extends Rewriter {
   // 1 + 2 --> flat1 = 1; flat2 = 2; flat3 = flat1 + flat2; flat3
   // However, extractions are first stored in this map, and are only flushed to the executionContext if an actual
   // side effect occurs. If not, they are removed from the map and inlined again.
-  val currentlyExtracted: mutable.Map[Variable, Expr] = mutable.Map()
+  val currentlyExtracted: mutable.Map[Variable[Post], Expr[Post]] = mutable.Map()
 
   // When an actual side effect occurs, this flushes out the extracted pure expressions as side effects.
   def flushExtractedExpressions(): Unit = {
@@ -43,6 +43,7 @@ case class ResolveExpressionSideEffects() extends Rewriter {
       case (flat, pureExpr) => executionContext.topOption match {
         case None => throw Unreachable("flushExtractedExpressions is not called from pure context.")
         case Some(acceptor) =>
+          flat.declareDefault(this)
           implicit val o: Origin = SideEffectOrigin
           acceptor(Assign(Local(flat.ref), pureExpr))
       }
@@ -50,29 +51,32 @@ case class ResolveExpressionSideEffects() extends Rewriter {
     currentlyExtracted.clear()
   }
 
-  def effect(stat: Statement): Unit = executionContext.top(stat)
+  def effect(stat: Statement[Post]): Unit = executionContext.top(stat)
 
-  case class ReInliner() extends Rewriter {
+  case class ReInliner() extends NonLatchingRewriter[Post, Post] {
     // ReInliner does not latch declarations ...
-    override def succ[T <: Declaration](ref: Ref[T])(implicit tag: ClassTag[T]): Ref[T] =
-      ref
+    override def succ[DPre <: Declaration[Post], DPost <: Declaration[Post]](ref: Ref[Post, DPre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
+      ref.asInstanceOf
 
     // ... but since we need to be able to unpack locals, we latch those, and they are not latched in
     // ResolveExpressionSideEffects.
-    override def dispatch(e: Expr): Expr = e match {
+    override def dispatch(e: Expr[Post]): Expr[Post] = e match {
       case Local(Ref(v)) =>
         currentlyExtracted.remove(v) match {
-          case Some(pureExpression) => pureExpression
-          case None => Local(ResolveExpressionSideEffects.this.succ(v))(e.o)
+          case Some(pureExpression) =>
+            pureExpression
+          case None =>
+            val preV = (v: Variable[Post]).asInstanceOf[Variable[Pre]]
+            Local[Post](ResolveExpressionSideEffects.this.succ(preV))(e.o)
         }
       case other => rewriteDefault(other)
     }
 
   }
 
-  def evaluateOne(e: Expr): (Seq[Variable], Seq[Statement], Expr) = {
-    val statements = ArrayBuffer[Statement]()
-    variableScopes.push(ArrayBuffer[Variable]())
+  def evaluateOne(e: Expr[Pre]): (Seq[Variable[Post]], Seq[Statement[Post]], Expr[Post]) = {
+    val statements = ArrayBuffer[Statement[Post]]()
+    variableScopes.push(ArrayBuffer[Variable[Post]]())
 
     val result = executionContext.having(statements.append) {
       ReInliner().dispatch(dispatch(e))
@@ -83,7 +87,7 @@ case class ResolveExpressionSideEffects() extends Rewriter {
     (variableScopes.pop().toSeq, statements.toSeq, result)
   }
 
-  def evaluateAll(es: Seq[Expr]): (Seq[Variable], Seq[Statement], Seq[Expr]) = {
+  def evaluateAll(es: Seq[Expr[Pre]]): (Seq[Variable[Post]], Seq[Statement[Post]], Seq[Expr[Post]]) = {
     implicit val o: Origin = SideEffectOrigin
     /* PB: We do a bit of a hack here, and place all the expressions we want to evaluate into one tuple. This ensures
        that we don't have to think about manually joining the side effects of two subsequent evaluations. For example,
@@ -93,10 +97,10 @@ case class ResolveExpressionSideEffects() extends Rewriter {
        we do not duplicate the logic here.
      */
     val (variables, sideEffects, result) = evaluateOne(LiteralTuple(Nil, es))
-    (variables, sideEffects, result.asInstanceOf[LiteralTuple].values)
+    (variables, sideEffects, result.asInstanceOf[LiteralTuple[Post]].values)
   }
 
-  def frameAll(exprs: Seq[Expr], make: Seq[Expr] => Statement): Statement = {
+  def frameAll(exprs: Seq[Expr[Pre]], make: Seq[Expr[Post]] => Statement[Post]): Statement[Post] = {
     implicit val o: Origin = SideEffectOrigin
     val (variables, sideEffects, result) = evaluateAll(exprs)
     val statement = make(result)
@@ -109,12 +113,12 @@ case class ResolveExpressionSideEffects() extends Rewriter {
     else Scope(variables, allStements)
   }
 
-  def frame(expr: Expr, make: Expr => Statement): Statement =
+  def frame(expr: Expr[Pre], make: Expr[Post] => Statement[Post]): Statement[Post] =
     frameAll(Seq(expr), es => make(es.head))
-  def frame(e1: Expr, e2: Expr, make: (Expr, Expr) => Statement): Statement =
+  def frame(e1: Expr[Pre], e2: Expr[Pre], make: (Expr[Post], Expr[Post]) => Statement[Post]): Statement[Post] =
     frameAll(Seq(e1, e2), es => make(es(0), es(1)))
 
-  def doBranches(branches: Seq[(Expr, Statement)])(implicit o: Origin): Statement =
+  def doBranches(branches: Seq[(Expr[Pre], Statement[Pre])])(implicit o: Origin): Statement[Post] =
     branches match {
       case Nil => Branch(Nil)
       case (cond, impl) :: tail =>
@@ -126,15 +130,15 @@ case class ResolveExpressionSideEffects() extends Rewriter {
         }
     }
 
-  override def dispatch(stat: Statement): Statement = {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = stat.o
     stat match {
       case Eval(e) => frame(e, Eval(_))
-      case decl: LocalDecl => rewriteDefault(decl)
+      case decl: LocalDecl[Pre] => rewriteDefault(decl)
       case Return(result) => frame(result, Return(_))
       case Assign(target, value) => frame(target, value, Assign(_, _))
-      case block: Block => rewriteDefault(block)
-      case scope: Scope => rewriteDefault(scope)
+      case block: Block[Pre] => rewriteDefault(block)
+      case scope: Scope[Pre] => rewriteDefault(scope)
       case Branch(branches) => doBranches(branches)
       case Switch(expr, body) => frame(expr, Switch(_, dispatch(body)))
       case Loop(init, cond, update, contract, body) =>
@@ -150,25 +154,25 @@ case class ResolveExpressionSideEffects() extends Rewriter {
               body = dispatch(body),
             ))
         }
-      case attempt: TryCatchFinally => rewriteDefault(attempt)
+      case attempt: TryCatchFinally[Pre] => rewriteDefault(attempt)
       case sync @ Synchronized(obj, body) => frame(obj, Synchronized(_, dispatch(body))(sync.blame))
-      case inv: ParInvariant => rewriteDefault(inv)
-      case atomic: ParAtomic => rewriteDefault(atomic)
-      case barrier: ParBarrier => rewriteDefault(barrier)
-      case vec: VecBlock => rewriteDefault(vec) // PB: conceivably we can support side effect in iterator ranges; let's see if someone wants that :)
-      case send: Send => rewriteDefault(send)
-      case recv: Recv => rewriteDefault(recv)
-      case default: DefaultCase => rewriteDefault(default)
+      case inv: ParInvariant[Pre] => rewriteDefault(inv)
+      case atomic: ParAtomic[Pre] => rewriteDefault(atomic)
+      case barrier: ParBarrier[Pre] => rewriteDefault(barrier)
+      case vec: VecBlock[Pre] => rewriteDefault(vec) // PB: conceivably we can support side effect in iterator ranges; let's see if someone wants that :)
+      case send: Send[Pre] => rewriteDefault(send)
+      case recv: Recv[Pre] => rewriteDefault(recv)
+      case default: DefaultCase[Pre] => rewriteDefault(default)
       case Case(pattern) => Case(dispatch(pattern))
-      case label: Label => rewriteDefault(label)
-      case goto: Goto => rewriteDefault(goto)
-      case exhale: Exhale => rewriteDefault(exhale)
-      case assert: Assert => rewriteDefault(assert)
-      case refute: Refute => rewriteDefault(refute)
-      case inhale: Inhale => rewriteDefault(inhale)
-      case assume: Assume => rewriteDefault(assume)
-      case ignore: SpecIgnoreStart => rewriteDefault(ignore)
-      case ignore: SpecIgnoreEnd => rewriteDefault(ignore)
+      case label: Label[Pre] => rewriteDefault(label)
+      case goto: Goto[Pre] => rewriteDefault(goto)
+      case exhale: Exhale[Pre] => rewriteDefault(exhale)
+      case assert: Assert[Pre] => rewriteDefault(assert)
+      case refute: Refute[Pre] => rewriteDefault(refute)
+      case inhale: Inhale[Pre] => rewriteDefault(inhale)
+      case assume: Assume[Pre] => rewriteDefault(assume)
+      case ignore: SpecIgnoreStart[Pre] => rewriteDefault(ignore)
+      case ignore: SpecIgnoreEnd[Pre] => rewriteDefault(ignore)
       case t @ Throw(obj) => frame(obj, Throw(_)(t.blame))
       case wait @ Wait(obj) => frame(obj, Wait(_)(wait.blame))
       case notify @ Notify(obj) => frame(obj, Notify(_)(notify.blame))
@@ -176,45 +180,46 @@ case class ResolveExpressionSideEffects() extends Rewriter {
       case Join(obj) => frame(obj, Join(_))
       case Lock(obj) => frame(obj, Lock(_))
       case unlock @ Unlock(obj) => frame(obj, Unlock(_)(unlock.blame))
-      case fold: Fold => rewriteDefault(fold)
-      case unfold: Unfold => rewriteDefault(unfold)
-      case create: WandCreate => rewriteDefault(create)
-      case qed: WandQed => rewriteDefault(qed)
-      case apply: WandApply => rewriteDefault(apply)
-      case use: WandUse => rewriteDefault(use)
-      case modelDo: ModelDo => rewriteDefault(modelDo)
-      case havoc: Havoc => rewriteDefault(havoc) // PB: pretty sure you can only havoc locals?
-      case break: Break => rewriteDefault(break)
-      case continue: Continue => rewriteDefault(continue)
-      case commit: Commit => rewriteDefault(commit)
-      case par: ParStatement => rewriteDefault(par)
-      case _: CStatement => throw ExtraNode
-      case _: JavaStatement => throw ExtraNode
-      case _: SilverStatement => throw ExtraNode
+      case fold: Fold[Pre] => rewriteDefault(fold)
+      case unfold: Unfold[Pre] => rewriteDefault(unfold)
+      case create: WandCreate[Pre] => rewriteDefault(create)
+      case qed: WandQed[Pre] => rewriteDefault(qed)
+      case apply: WandApply[Pre] => rewriteDefault(apply)
+      case use: WandUse[Pre] => rewriteDefault(use)
+      case modelDo: ModelDo[Pre] => rewriteDefault(modelDo)
+      case havoc: Havoc[Pre] => rewriteDefault(havoc) // PB: pretty sure you can only havoc locals?
+      case break: Break[Pre] => rewriteDefault(break)
+      case continue: Continue[Pre] => rewriteDefault(continue)
+      case commit: Commit[Pre] => rewriteDefault(commit)
+      case par: ParStatement[Pre] => rewriteDefault(par)
+      case _: CStatement[Pre] => throw ExtraNode
+      case _: JavaStatement[Pre] => throw ExtraNode
+      case _: SilverStatement[Pre] => throw ExtraNode
     }
   }
 
-  override def dispatch(e: Expr): Expr =
+  override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(inPure) dispatchPure(e)
     else dispatchImpure(e)
 
-  def dispatchPure(e: Expr): Expr = e match {
+  def dispatchPure(e: Expr[Pre]): Expr[Post] = e match {
     case other => rewriteDefault(other)
   }
 
-  def inlined(e: Expr): Expr =
+  def inlined(e: Expr[Pre]): Expr[Post] =
     ReInliner().dispatch(dispatchImpure(e))
 
-  def stored(e: Expr, t: Type): Local = {
-    val v = new Variable(dispatch(t))(SideEffectOrigin)
+  def stored(e: Expr[Post], t: Type[Pre]): Local[Post] = {
+    val v = new Variable[Post](dispatch(t))(SideEffectOrigin)
     currentlyExtracted(v) = e
-    Local(v.ref)(SideEffectOrigin)
+    Local[Post](v.ref)(SideEffectOrigin)
   }
 
-  def dispatchImpure(e: Expr): Local = e match {
+  def dispatchImpure(e: Expr[Pre]): Local[Post] = e match {
     case Local(Ref(v)) =>
       // We do not take the successor here: ReInliner will do that.
-      Local(v.ref)(e.o)
+      val postV = (v : Variable[Pre]).asInstanceOf[Variable[Post]]
+      Local[Post](postV.ref)(e.o)
     case PreAssignExpression(oldTarget, oldValue) =>
       // target and value could be inline, if it were not for the fast that we need value to return it (since value
       // may have a more specific type than the target type)

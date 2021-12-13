@@ -6,14 +6,14 @@ import vct.col.newrewrite.error.ExcludedByPassOrder
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.util.AstBuildHelpers._
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-case object EncodeBreakReturn {
-  case class PostLabeledStatementOrigin(label: LabelDecl) extends Origin {
+case object EncodeBreakReturn extends RewriterBuilder {
+  case class PostLabeledStatementOrigin(label: LabelDecl[_]) extends Origin {
     override def preferredName: String = "post_" + label.o.preferredName
     override def messageInContext(message: String): String =
       s"[At node generated to jump past a statement]: $message"
@@ -44,22 +44,22 @@ case object EncodeBreakReturn {
   }
 }
 
-case class EncodeBreakReturn() extends Rewriter {
+case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
   import EncodeBreakReturn._
 
-  def hasFinally(stat: Statement): Boolean =
+  def hasFinally(stat: Statement[Pre]): Boolean =
     stat.transSubnodes.exists {
       case TryCatchFinally(_, Block(Nil), _) => false
       case TryCatchFinally(_, _, _) => true
       case _ => false
     }
 
-  case class BreakReturnToGoto(returnTarget: LabelDecl, resultVariable: Local) extends Rewriter {
-    val breakLabels: mutable.Set[LabelDecl] = mutable.Set()
-    val postLabeledStatement: SuccessionMap[LabelDecl, LabelDecl] = SuccessionMap()
-    override val successionMap: SuccessionMap[Declaration, Declaration] = EncodeBreakReturn.this.successionMap
+  case class BreakReturnToGoto(returnTarget: LabelDecl[Post], resultVariable: Local[Post]) extends Rewriter[Pre] {
+    val breakLabels: mutable.Set[LabelDecl[Pre]] = mutable.Set()
+    val postLabeledStatement: SuccessionMap[LabelDecl[Pre], LabelDecl[Post]] = SuccessionMap()
+    override val successionMap: SuccessionMap[Declaration[Pre], Declaration[Post]] = EncodeBreakReturn.this.successionMap
 
-    override def dispatch(stat: Statement): Statement = {
+    override def dispatch(stat: Statement[Pre]): Statement[Post] = {
       implicit val o: Origin = stat.o
       stat match {
         case Label(decl, stat) =>
@@ -97,10 +97,10 @@ case class EncodeBreakReturn() extends Rewriter {
     }
   }
 
-  case class BreakReturnToException(returnClass: Class, valueField: InstanceField) extends Rewriter {
-    val breakLabelException: SuccessionMap[LabelDecl, Class] = SuccessionMap()
+  case class BreakReturnToException(returnClass: Class[Post], valueField: InstanceField[Post]) extends Rewriter[Pre] {
+    val breakLabelException: SuccessionMap[LabelDecl[Pre], Class[Post]] = SuccessionMap()
 
-    override def dispatch(stat: Statement): Statement = {
+    override def dispatch(stat: Statement[Pre]): Statement[Post] = {
       implicit val o: Origin = stat.o
       stat match {
         case Label(decl, stat) =>
@@ -127,14 +127,14 @@ case class EncodeBreakReturn() extends Rewriter {
 
         case Break(Some(Ref(label))) =>
           val cls = breakLabelException.getOrElseUpdate(label, {
-            val cls = new Class(Nil, Nil, tt)
-            cls.declareDefault(this)
-            cls
+            val cls1 = new Class[Post](Nil, Nil, tt)
+            cls1.declareDefault(this)
+            cls1
           })
-          Throw(NewObject(cls.ref))(PanicBlame("The result of NewObject is never null"))
+          Throw(NewObject[Post](cls.ref))(PanicBlame("The result of NewObject is never null"))
 
         case Return(result) =>
-          val exc = new Variable(TClass(returnClass.ref))
+          val exc = new Variable[Post](TClass(returnClass.ref))
           Scope(Seq(exc), Block(Seq(
             Assign(exc.get, NewObject(returnClass.ref)),
             assignField(exc.get, valueField.ref, dispatch(result)),
@@ -146,19 +146,19 @@ case class EncodeBreakReturn() extends Rewriter {
     }
   }
 
-  override def dispatch(decl: Declaration): Unit = decl match {
-    case method: AbstractMethod =>
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case method: AbstractMethod[Pre] =>
       method.body match {
         case None => rewriteDefault(method)
         case Some(body) =>
-          val newBody: Statement = if(hasFinally(body)) {
-            val returnField = new InstanceField(dispatch(method.returnType), Set.empty)(ReturnField)
-            val returnClass = new Class(Seq(returnField), Nil, tt)(ReturnClass)
+          val newBody: Statement[Post] = if(hasFinally(body)) {
+            val returnField = new InstanceField[Post](dispatch(method.returnType), Set.empty)(ReturnField)
+            val returnClass = new Class[Post](Seq(returnField), Nil, tt)(ReturnClass)
             returnClass.declareDefault(this)
 
             BreakReturnToException(returnClass, returnField).dispatch(body)
           } else {
-            val resultTarget = new LabelDecl()(ReturnTarget)
+            val resultTarget = new LabelDecl[Post]()(ReturnTarget)
             val resultVar = new Variable(dispatch(method.returnType))(ReturnVariable)
             val newBody = BreakReturnToGoto(resultTarget, resultVar.get(ReturnVariable)).dispatch(body)
             implicit val o: Origin = body.o

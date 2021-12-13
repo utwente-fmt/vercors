@@ -6,49 +6,51 @@ import vct.col.ast.{Star, _}
 import vct.col.origin._
 import vct.col.ast.RewriteHelpers._
 import vct.col.ref.Ref
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 import scala.collection.mutable
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
-case class CheckProcessAlgebra() extends Rewriter {
-  case class ModelPostconditionFailed(process: ModelProcess) extends Blame[PostconditionFailed] {
+case object CheckProcessAlgebra extends RewriterBuilder
+
+case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
+  case class ModelPostconditionFailed(process: ModelProcess[_]) extends Blame[PostconditionFailed] {
     override def blame(error: PostconditionFailed): Unit = process.blame.blame(error)
   }
 
-  case class InsufficientPermissionForModelField(modelDeref: ModelDeref) extends Blame[InsufficientPermission] {
+  case class InsufficientPermissionForModelField(modelDeref: ModelDeref[_]) extends Blame[InsufficientPermission] {
     override def blame(error: InsufficientPermission): Unit = modelDeref.blame.blame(ModelInsufficientPermission(modelDeref))
   }
 
-  val modelFieldSuccessors: SuccessionMap[ModelField, InstanceField] = SuccessionMap()
-  val processSuccessors: SuccessionMap[ModelProcess, InstanceMethod] = SuccessionMap()
-  val modelSuccessors: SuccessionMap[Model, Class] = SuccessionMap()
-  val currentModel: ScopedStack[Model] = ScopedStack()
+  val modelFieldSuccessors: SuccessionMap[ModelField[Pre], InstanceField[Post]] = SuccessionMap()
+  val processSuccessors: SuccessionMap[ModelProcess[Pre], InstanceMethod[Post]] = SuccessionMap()
+  val modelSuccessors: SuccessionMap[Model[Pre], Class[Post]] = SuccessionMap()
+  val currentModel: ScopedStack[Model[Pre]] = ScopedStack()
 
-  override def dispatch(model: Declaration): Unit = model match {
+  override def dispatch(model: Declaration[Pre]): Unit = model match {
     //      val x = Function().declareDefault()
     //      model.succeedDefault(this, x)
     //      model.rewrite().declareDefault()
-    case model: Model =>
+    case model: Model[Pre] =>
       // We put all permutations of every top-level parallel process
       // in a map to detect overlapping ones.
       // I think I'd prefer this to be done on the fly, instead of generating _all_ permutations.
       // Putting all processes in a set and comparing two sets is better
-      val compositeMap: mutable.Map[Set[Expr], ModelProcess] = mutable.Map()
+      val compositeMap: mutable.Map[Set[Expr[Pre]], ModelProcess[Pre]] = mutable.Map()
 
       // TODO: Refactor this to separate method. Or, maybe in typechecker/frontend? As it could be part of a well-formedness requirement
       model.declarations.foreach {
-        case process: ModelProcess =>
+        case process: ModelProcess[Pre] =>
           process.impl match {
-            case processPar: ProcessPar =>
+            case processPar: ProcessPar[Pre] =>
               val parallelCompositionElems = processPar.unfoldProcessPar.toSet
-              if (parallelCompositionElems.forall(_.isInstanceOf[ProcessApply])) {
+              if (parallelCompositionElems.forall(_.isInstanceOf[ProcessApply[Pre]])) {
                 if (compositeMap.contains(parallelCompositionElems)) {
                   Warning(
                     "Collision detected: %s vs. %s have same set of process elements composed in parallel",
                     process.o.preferredName,
-                    compositeMap.get(parallelCompositionElems).get.o.preferredName
+                    compositeMap(parallelCompositionElems).o.preferredName
                   )
                 } else {
                   compositeMap.put(parallelCompositionElems, process)
@@ -72,13 +74,13 @@ case class CheckProcessAlgebra() extends Rewriter {
       newClass.declareDefault(this)
       modelSuccessors(model) = newClass
 
-    case process: ModelProcess =>
+    case process: ModelProcess[Pre] =>
       implicit val o = process.o
 
-      val currentThis = ThisObject(modelSuccessors.ref(currentModel.top))
+      val currentThis = ThisObject[Post](modelSuccessors.ref(currentModel.top))
 
-      def fieldRefToPerm(p: Expr, f: Ref[ModelField]) =
-        fieldPerm(currentThis, modelFieldSuccessors.ref(f.decl), p)
+      def fieldRefToPerm(p: Expr[Post], f: Ref[Pre, ModelField[Pre]]) =
+        fieldPerm[Post](currentThis, modelFieldSuccessors.ref(f.decl), p)
 
       val fieldPerms = AstBuildHelpers.foldStar(
         process.modifies.map(f => fieldRefToPerm(WritePerm(), f)) ++
@@ -86,7 +88,7 @@ case class CheckProcessAlgebra() extends Rewriter {
 
       val args = collectInScope(variableScopes)(process.args.foreach(dispatch(_)))
 
-      new InstanceMethod(
+      new InstanceMethod[Post](
         TVoid(),
         args,
         Nil, Nil,
@@ -104,40 +106,41 @@ case class CheckProcessAlgebra() extends Rewriter {
         false
       )(ModelPostconditionFailed(process)).declareDefault(this)
 
-    case modelField: ModelField =>
-      val instanceField = new InstanceField(modelField.t, Set())(modelField.o)
+    case modelField: ModelField[Pre] =>
+      val instanceField = new InstanceField[Post](dispatch(modelField.t), Set())(modelField.o)
       instanceField.declareDefault(this)
       modelFieldSuccessors(modelField) = instanceField
 
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(expr: Expr): Expr = expr match {
-    case p @ ProcessApply(process, args) => MethodInvocation(
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
+    case p @ ProcessApply(process, args) => MethodInvocation[Post](
         AmbiguousThis()(p.o),
         processSuccessors.ref(process.decl),
         args.map(dispatch(_)), Nil, Nil,
       )(null)(p.o)
 
-    case modelDeref: ModelDeref =>
+    case modelDeref: ModelDeref[Pre] =>
       implicit val o = modelDeref.o
       val blame = InsufficientPermissionForModelField(modelDeref)
-      Deref(dispatch(modelDeref.obj), modelFieldSuccessors.ref(modelDeref.ref.decl))(blame)
+      Deref[Post](dispatch(modelDeref.obj), modelFieldSuccessors.ref(modelDeref.ref.decl))(blame)
 
     case x => rewriteDefault(x)
   }
 
-  def inline(a: ModelProcess, b: Seq[Expr]): Nothing = ???
+  def inline(a: ModelProcess[Pre], b: Seq[Expr[_]]): Nothing = ???
 
   // TODO: How to determine at what point to rewrite EmptyProcess/ActionApply? When encountered in expandUnguarded?
 
-  def expandUnguarded(p: Expr) : Expr = p match {
-    case p: EmptyProcess => p.rewrite()
-    case p: ActionApply => p.rewrite()
+  // PB: added dispatch arbitrarily where demanded
+  def expandUnguarded(p: Expr[Pre]) : Expr[Post] = p match {
+    case p: EmptyProcess[Pre] => p.rewrite()
+    case p: ActionApply[Pre] => p.rewrite()
     case ProcessApply(process, args) => expandUnguarded(inline(process.decl, args))
-    case ProcessSeq(q, r) => ProcessSeq(expandUnguarded(q), r)(p.o)
+    case ProcessSeq(q, r) => ProcessSeq(expandUnguarded(q), dispatch(r))(p.o)
     case ProcessChoice(q, r) => ProcessChoice(expandUnguarded(q), expandUnguarded(r))(p.o)
-    case ProcessPar(q, r) => ProcessChoice(leftMerge(expandUnguarded(q), r), leftMerge(expandUnguarded(r), q))(p.o)
+    case ProcessPar(q, r) => ProcessChoice[Post](leftMerge(expandUnguarded(q), dispatch(r)), leftMerge(expandUnguarded(r), dispatch(q)))(p.o)
     case ProcessSelect(cond, q, r) =>
       ProcessSelect(dispatch(cond), expandUnguarded(q), expandUnguarded(r))(p.o)
     case _ => ???
@@ -145,9 +148,9 @@ case class CheckProcessAlgebra() extends Rewriter {
 
 
 
-  def leftMerge(p: Expr, q: Expr): Expr = p match {
+  def leftMerge[G](p: Expr[G], q: Expr[G]): Expr[G] = p match {
     case EmptyProcess() => q
-    case p: ActionApply => ProcessSeq(p, q)(DiagnosticOrigin)
+    case p: ActionApply[G] => ProcessSeq(p, q)(DiagnosticOrigin)
     case ProcessChoice(pLeft, pRight) => ProcessChoice(leftMerge(pLeft, q), leftMerge(pRight, q))(DiagnosticOrigin)
     case ProcessSeq(pLeft, pRight) => // TODO
       ???

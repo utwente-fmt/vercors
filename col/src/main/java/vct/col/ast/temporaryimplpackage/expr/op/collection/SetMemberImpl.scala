@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.op.collection
 
 import vct.col.ast.{SetMember, TBool, Type}
 
-trait SetMemberImpl { this: SetMember =>
-  override def t: Type = TBool()
+trait SetMemberImpl[G] { this: SetMember[G] =>
+  override def t: Type[G] = TBool()
 }

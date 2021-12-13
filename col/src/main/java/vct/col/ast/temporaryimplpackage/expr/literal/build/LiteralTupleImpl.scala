@@ -4,10 +4,10 @@ import vct.col.ast.temporaryimplpackage.expr.ExprImpl
 import vct.col.ast.{LiteralTuple, TTuple, Type}
 import vct.col.check.{CheckContext, CheckError, TupleTypeCount}
 
-trait LiteralTupleImpl extends ExprImpl { this: LiteralTuple =>
-  override def t: Type = TTuple(ts)
+trait LiteralTupleImpl[G] extends ExprImpl[G] { this: LiteralTuple[G] =>
+  override def t: Type[G] = TTuple(ts)
 
-  override def check(context: CheckContext): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckError] =
     if(ts.size == values.size) {
       super.check(context)
     } else {

@@ -35,33 +35,33 @@ sealed trait CheckError {
       ???
   }
 }
-case class TypeError(expr: Expr, expectedType: Type) extends CheckError
-case class TypeErrorText(expr: Expr, message: Type => String) extends CheckError
-case class GenericTypeError(t: Type, expectedType: TType) extends CheckError
-case class OutOfScopeError(use: Node, ref: Ref[_ <: Declaration]) extends CheckError
-case class DoesNotDefine(declarator: Declarator, declaration: Declaration, use: Node) extends CheckError
-case class IncomparableTypes(left: Expr, right: Expr) extends CheckError
-case class TupleTypeCount(tup: LiteralTuple) extends CheckError
+case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
+case class TypeErrorText(expr: Expr[_], message: Type[_] => String) extends CheckError
+case class GenericTypeError(t: Type[_], expectedType: TType[_]) extends CheckError
+case class OutOfScopeError[G](use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
+case class DoesNotDefine(declarator: Declarator[_], declaration: Declaration[_], use: Node[_]) extends CheckError
+case class IncomparableTypes(left: Expr[_], right: Expr[_]) extends CheckError
+case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError
 
-case class CheckContext(scopes: Seq[Set[Declaration]] = Seq(),
-                        currentApplicable: Option[Applicable] = None) {
-  def withScope(decls: Set[Declaration]): CheckContext =
+case class CheckContext[G](scopes: Seq[Set[Declaration[G]]] = Seq(),
+                           currentApplicable: Option[Applicable[G]] = None) {
+  def withScope(decls: Set[Declaration[G]]): CheckContext[G] =
     CheckContext(scopes :+ decls, currentApplicable)
 
-  def withApplicable(applicable: Applicable): CheckContext =
+  def withApplicable(applicable: Applicable[G]): CheckContext[G] =
     CheckContext(scopes, Some(applicable))
 
-  def inScope(ref: Ref[_ <: Declaration]): Boolean =
+  def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     scopes.exists(_.contains(ref.decl))
 
-  def checkInScope(use: Node, ref: Ref[_ <: Declaration]): Seq[CheckError] =
+  def checkInScope[Decl <: Declaration[G]](use: Node[G], ref: Ref[G, Decl]): Seq[CheckError] =
     if(inScope(ref))
       Nil
     else
       Seq(OutOfScopeError(use, ref))
 }
 
-case class UnreachableAfterTypeCheck(message: String, at: Node) extends ASTStateError {
+case class UnreachableAfterTypeCheck(message: String, at: Node[_]) extends ASTStateError {
   override def text: String = "A condition was reached that should have been excluded by the type check. " +
     "Either a property of a node was queried before the type check, or the type check is missing a condition. " +
     f"The node says: $message"

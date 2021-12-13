@@ -5,41 +5,41 @@ import vct.col.ast._
 import vct.col.check.UnreachableAfterTypeCheck
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 
-case object EncodeIntrinsicLock {
-  case class UnlockInvariantExhaleFailed(unlock: Unlock) extends Blame[ExhaleFailed] {
+case object EncodeIntrinsicLock extends RewriterBuilder {
+  case class UnlockInvariantExhaleFailed(unlock: Unlock[_]) extends Blame[ExhaleFailed] {
     override def blame(error: ExhaleFailed): Unit =
       unlock.blame.blame(UnlockInvariantFailed(unlock, error.failure))
   }
 
-  case class NotifyAssertFailed(not: Notify) extends Blame[AssertFailed] {
+  case class NotifyAssertFailed(not: Notify[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       not.blame.blame(NotifyFailed(not, error.failure))
   }
 }
 
-case class EncodeIntrinsicLock() extends Rewriter {
+case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   import EncodeIntrinsicLock._
 
-  val invariant: SuccessionMap[Class, InstancePredicate] = SuccessionMap()
-  val held: SuccessionMap[Class, InstancePredicate] = SuccessionMap()
+  val invariant: SuccessionMap[Class[Pre], InstancePredicate[Post]] = SuccessionMap()
+  val held: SuccessionMap[Class[Pre], InstancePredicate[Post]] = SuccessionMap()
 
-  def getClass(obj: Expr): Class = obj.t match {
+  def getClass(obj: Expr[Pre]): Class[Pre] = obj.t match {
     case TClass(Ref(cls)) => cls
     case _ => throw UnreachableAfterTypeCheck("This argument is not a class type.", obj)
   }
 
-  def getInvariant(obj: Expr)(implicit o: Origin): InstancePredicateApply =
+  def getInvariant(obj: Expr[Pre])(implicit o: Origin): InstancePredicateApply[Post] =
     InstancePredicateApply(dispatch(obj), invariant.ref(getClass(obj)), Nil)
 
-  def getHeld(obj: Expr)(implicit o: Origin): InstancePredicateApply =
+  def getHeld(obj: Expr[Pre])(implicit o: Origin): InstancePredicateApply[Post] =
     InstancePredicateApply(dispatch(obj), held.ref(getClass(obj)), Nil)
 
-  override def dispatch(decl: Declaration): Unit = decl match {
-    case cls: Class =>
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case cls: Class[Pre] =>
       cls.rewrite(declarations = collectInScope(classScopes) {
         invariant(cls) = new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(cls.intrinsicLockInvariant.o)
         held(cls) = new InstancePredicate(Nil, None)(cls.intrinsicLockInvariant.o)
@@ -50,7 +50,7 @@ case class EncodeIntrinsicLock() extends Rewriter {
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(e: Expr): Expr = {
+  override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
       case Held(obj) => getHeld(obj)
@@ -58,7 +58,7 @@ case class EncodeIntrinsicLock() extends Rewriter {
     }
   }
 
-  override def dispatch(stat: Statement): Statement = {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = stat.o
     stat match {
       case sync @ Synchronized(obj, body) =>

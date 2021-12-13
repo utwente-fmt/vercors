@@ -7,16 +7,16 @@ import vct.col.print.Printer
 
 import scala.runtime.ScalaRunTime
 
-trait NodeImpl { this: Node =>
-  def check(context: CheckContext): Seq[CheckError]
+trait NodeImpl[G] { this: Node[G] =>
+  def check(context: CheckContext[G]): Seq[CheckError]
   def o: Origin
 
-  def enterCheckContext(context: CheckContext): CheckContext =
+  def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     context
 
   /* Check children first, so that the check of nodes higher in the tree may depend on the type and correctness of
     subnodes */
-  def checkTrans(context: CheckContext): Seq[CheckError] = {
+  def checkTrans(context: CheckContext[G]): Seq[CheckError] = {
     val innerContext = enterCheckContext(context)
     val childrenErrors = subnodes.flatMap(_.checkTrans(innerContext))
 
@@ -27,10 +27,14 @@ trait NodeImpl { this: Node =>
     }
   }
 
-  def transSubnodes: LazyList[Node] =
+  def transSubnodes: LazyList[Node[G]] =
     this #:: subnodes.to(LazyList).flatMap(_.transSubnodes)
 
-  def subnodes: Seq[Node] = Subnodes.subnodes(this)
+  def subnodes: Seq[Node[G]] = Subnodes.subnodes(this)
+
+  def unsafeTransmuteGeneration[TNode[_] <: Node[_], G2]
+                               (implicit witness: this.type <:< TNode[G])
+                               : TNode[G2] = (this : TNode[G]).asInstanceOf[TNode[G2]]
 
   override def toString: String = {
     try {
@@ -42,7 +46,7 @@ trait NodeImpl { this: Node =>
       // If the printer has a bug, try to print a useful representation
       case t: Throwable => (this match {
         // Case classes are automatically a product type, which produces the nice Type(arg1, arg2) representation.
-        case p: Product => ScalaRunTime._toString(p)
+        case p: Product[_] => ScalaRunTime._toString(p)
         // Otherwise, fall back to the ugly Type@hexAdress notation
         case _ => super.toString
       }) + s" (err: ${t.getClass.getCanonicalName})"

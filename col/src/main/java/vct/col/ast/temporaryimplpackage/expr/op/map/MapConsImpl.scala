@@ -2,7 +2,7 @@ package vct.col.ast.temporaryimplpackage.expr.op.map
 
 import vct.col.ast.{MapCons, TMap, Type}
 
-trait MapConsImpl { this: MapCons =>
-  override def t: Type = tailType
-  def tailType: TMap = map.t.asMap.get
+trait MapConsImpl[G] { this: MapCons[G] =>
+  override def t: Type[G] = tailType
+  def tailType: TMap[G] = map.t.asMap.get
 }

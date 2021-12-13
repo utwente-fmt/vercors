@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.resource
 
 import vct.col.ast.{PermPointerIndex, TResource, Type}
 
-trait PermPointerIndexImpl { this: PermPointerIndex =>
-  override def t: Type = TResource()
+trait PermPointerIndexImpl[G] { this: PermPointerIndex[G] =>
+  override def t: Type[G] = TResource()
 }

@@ -20,4 +20,14 @@ object MetaUtil {
     }
     ???
   }
+
+  def substituteTypeName(name: String, replacement: Type.Name)(subject: Type): Type = {
+    val recurse = substituteTypeName(name, replacement)(_)
+    subject match {
+      case Type.Apply(t, ts) => Type.Apply(recurse(t), ts.map(recurse))
+      case Type.Name(value) => if(value == name) replacement else Type.Name(value)
+      case Type.Tuple(ts) => Type.Tuple(ts.map(recurse))
+      case _ => fail("I don't know how to recurse into this kind of type:", node = Some(subject))
+    }
+  }
 }

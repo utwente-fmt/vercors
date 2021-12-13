@@ -8,6 +8,7 @@ import vct.col.newrewrite.lang._
 import vct.col.newrewrite.exc._
 import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
+import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.col.util.SuccessionMap
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult.{SystemError, UserError}
@@ -61,78 +62,77 @@ case object Test {
   def tryParse(paths: Seq[Path]): Unit = try {
     files += 1
     println(paths.mkString(", "))
-    val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse))
-    var input = Program(decls)(DiagnosticOrigin)(DiagnosticOrigin)
-    val extraDecls = ResolveTypes.resolve(input)
-    input = Program(input.declarations ++ extraDecls)(DiagnosticOrigin)(DiagnosticOrigin)
-    val typesToCol = LangTypesToCol()
-    input = typesToCol.dispatch(input)
-    val errors = ResolveReferences.resolve(input)
+    val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration]))
+    var parsedProgram = Program(decls)(DiagnosticOrigin)(DiagnosticOrigin)
+    val extraDecls = ResolveTypes.resolve(parsedProgram)
+    val untypedProgram = Program(parsedProgram.declarations ++ extraDecls)(DiagnosticOrigin)(DiagnosticOrigin)
+    val typedProgram = LangTypesToCol().dispatch(untypedProgram)
+    val errors = ResolveReferences.resolve(typedProgram)
     printErrors(errors)
 
-    val passes = Seq(
+    val passes: Seq[RewriterBuilder] = Seq(
       // Language-specific nodes -> COL (because of fragile references)
-      LangSpecificToCol(),
+      LangSpecificToCol,
 
       // Delete stuff that may be declared unsupported at a later stage
-      FilterSpecIgnore(),
+      FilterSpecIgnore,
 
       // Normalize AST
-      Disambiguate(), // Resolve overloaded operators (+, subscript, etc.)
-      CollectLocalDeclarations(), // all decls in Scope
-      DesugarPermissionOperators(), // no PointsTo, \pointer, etc.
-      PinCollectionTypes(), // no anonymous sequences, sets, etc.
-      QuantifySubscriptAny(), // no arr[*]
+      Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
+      CollectLocalDeclarations, // all decls in Scope
+      DesugarPermissionOperators, // no PointsTo, \pointer, etc.
+      PinCollectionTypes, // no anonymous sequences, sets, etc.
+      QuantifySubscriptAny, // no arr[*]
 
-      CheckProcessAlgebra(),
+      CheckProcessAlgebra,
 
-      SwitchToGoto(),
-      EncodeCurrentThread(),
-      EncodeIntrinsicLock(),
-      InlineApplicables(),
-      PureMethodsToFunctions(),
+      SwitchToGoto,
+      EncodeCurrentThread,
+      EncodeIntrinsicLock,
+      InlineApplicables,
+      PureMethodsToFunctions,
 
       // Encode parallel blocks
-      IterationContractToParBlock(),
-      ParBlockEncoder(),
+      IterationContractToParBlock,
+      ParBlockEncoder,
 
       // Resolve side effects including method invocations, for encodetrythrowsignals.
-      ResolveExpressionSideEffects(),
+      ResolveExpressionSideEffects,
 
       // Encode exceptional behaviour (no more continue/break/return/try/throw)
-      ContinueToBreak(),
-      SpecifyImplicitLabels(),
-      EncodeBreakReturn(),
-      EncodeTryThrowSignals(),
+      ContinueToBreak,
+      SpecifyImplicitLabels,
+      EncodeBreakReturn,
+      EncodeTryThrowSignals,
 
       // No more classes
-      ConstantifyFinalFields(),
-      ClassToRef(),
+      ConstantifyFinalFields,
+      ClassToRef,
 
       // Simplify pure expressions (no more new complex expressions)
-      ApplyTermRewriter(Nil),
-      SimplifyQuantifiedRelations(),
+      ApplyTermRewriter.BuilderFor[InitialGeneration](Nil),
+      SimplifyQuantifiedRelations,
 
-      EncodeArrayValues(), // maybe don't target shift lemmas on generated function for \values
+      EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
 
       // Translate internal types to domains
-      ImportADT(),
+      ImportADT,
 
       // Silver compat (basically no new nodes)
-      ForLoopToWhileLoop(),
-      BranchToIfElse(),
-      DesugarCollectionOperators(),
-      EvaluationTargetDummy(),
+      ForLoopToWhileLoop,
+      BranchToIfElse,
+      DesugarCollectionOperators,
+      EvaluationTargetDummy,
     )
 
     SuccessionMap.breakOnMissingPredecessor {
-      var program = input
+      var program: Program[_ <: Generation] = typedProgram
       for(pass <- passes) {
         println(s"    ${pass.getClass.getSimpleName}")
         val oldProgram = program
-        program = pass.dispatch(program)
+        program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {
-          case decl: Declaration =>
+          case decl: Declaration[_] =>
             if(decl.debugRewriteState == NotProcessed) {
               println(s"Dropped without notice: $decl")
               throw Exit

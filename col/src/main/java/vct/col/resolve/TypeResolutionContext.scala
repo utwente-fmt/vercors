@@ -5,12 +5,13 @@ import vct.col.ast.{GlobalDeclaration, JavaClass, JavaNamespace}
 
 import scala.collection.mutable
 
-case class TypeResolutionContext(stack: Seq[Seq[Referrable]] = Nil,
-                                 namespace: Option[JavaNamespace] = None,
-                                 externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration] = mutable.ArrayBuffer(),
+case class TypeResolutionContext[G]
+                                (stack: Seq[Seq[Referrable[G]]] = Nil,
+                                 namespace: Option[JavaNamespace[G]] = None,
+                                 externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),
                                 ) {
-  def replace(stack: Seq[Seq[Referrable]] = stack,
-              namespace: Option[JavaNamespace] = namespace): TypeResolutionContext = {
+  def replace(stack: Seq[Seq[Referrable[G]]] = stack,
+              namespace: Option[JavaNamespace[G]] = namespace): TypeResolutionContext[G] = {
     TypeResolutionContext(stack, namespace, externallyLoadedElements)
   }
 }

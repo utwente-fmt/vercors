@@ -4,8 +4,8 @@ import vct.col.ast.{CInvocation, CStructAccess, Type}
 import vct.col.resolve.{BuiltinInstanceMethod, C, RefADTFunction, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelProcess, RefPredicate, RefProcedure}
 import vct.result.VerificationResult.Unreachable
 
-trait CInvocationImpl { this: CInvocation =>
-  override def t: Type = ref.get match {
+trait CInvocationImpl[G] { this: CInvocation[G] =>
+  override def t: Type[G] = ref.get match {
     case RefFunction(decl) =>  decl.returnType
     case RefProcedure(decl) => decl.returnType
     case RefPredicate(decl) => decl.returnType

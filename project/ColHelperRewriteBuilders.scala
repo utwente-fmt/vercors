@@ -4,11 +4,11 @@ import scala.meta._
 
 case class ColHelperRewriteBuilders(info: ColDescription) {
   def builderVar(param: Term.Param): Stat =
-    q"var ${Pat.Var(Term.Name(param.name.value))}: Option[${param.decltpe.get}] = None"
+    q"var ${Pat.Var(Term.Name(param.name.value))}: Option[${MetaUtil.substituteTypeName("G", t"Post")(param.decltpe.get)}] = None"
 
   def setBuilderVar(param: Term.Param): Stat = {
     val term = Term.Name(param.name.value)
-    q"def $term(replacementValue: ${param.decltpe.get}): this.type = { $term = Some(replacementValue); this }"
+    q"def $term(replacementValue: ${MetaUtil.substituteTypeName("G", t"Post")(param.decltpe.get)}): this.type = { $term = Some(replacementValue); this }"
   }
 
   def builderMakeArg(param: Term.Param): Term = {
@@ -17,8 +17,8 @@ case class ColHelperRewriteBuilders(info: ColDescription) {
   }
 
   def rewriteBuilder(cls: ClassDef): Stat = q"""
-    class ${cls.rewriteBuilderName}(subject: ${cls.typ})(implicit val rewriter: AbstractRewriter) {
-      def build(): ${cls.typ} = {
+    class ${cls.rewriteBuilderName}[Pre, Post](subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post]) {
+      def build(): ${cls.typ}[Post] = {
         ${cls.make(cls.params.map(builderMakeArg), q"$BLAME_TERM.getOrElse(subject.$BLAME_TERM)", q"$ORIGIN_TERM.getOrElse(subject.$ORIGIN_TERM)")}
       }
 

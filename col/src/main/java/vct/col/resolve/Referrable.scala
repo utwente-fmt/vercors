@@ -4,55 +4,55 @@ import vct.col.ast._
 import vct.col.origin.SourceNameOrigin
 
 case object Referrable {
-  def from(decl: Declaration): Seq[Referrable] = Seq(decl match {
-    case decl: CParam => RefCParam(decl)
-    case decl: CFunctionDefinition => RefCFunctionDefinition(decl)
-    case decl: CGlobalDeclaration => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
-    case decl: JavaNamespace => RefJavaNamespace(decl)
-    case decl: JavaClass => RefJavaClass(decl)
-    case decl: JavaInterface => RefJavaClass(decl)
-    case decl: SilverField => RefSilverField(decl)
-    case decl: SimplificationRule => RefSimplificationRule(decl)
-    case decl: AxiomaticDataType => RefAxiomaticDataType(decl)
-    case decl: Function => RefFunction(decl)
-    case decl: Procedure => RefProcedure(decl)
-    case decl: Predicate => RefPredicate(decl)
-    case decl: Class => RefClass(decl)
-    case decl: Model => RefModel(decl)
-    case decl: JavaSharedInitialization => RefJavaSharedInitialization(decl)
-    case decl: JavaFields => return decl.decls.indices.map(RefJavaField(decl, _))
-    case decl: JavaConstructor => RefJavaConstructor(decl)
-    case decl: JavaMethod => RefJavaMethod(decl)
-    case decl: InstanceFunction => RefInstanceFunction(decl)
-    case decl: InstanceMethod => RefInstanceMethod(decl)
-    case decl: InstancePredicate => RefInstancePredicate(decl)
-    case decl: InstanceField => RefField(decl)
-    case decl: Variable => RefVariable(decl)
-    case decl: LabelDecl => RefLabelDecl(decl)
-    case decl: ParBlockDecl => RefParBlockDecl(decl)
-    case decl: ParInvariantDecl => RefParInvariantDecl(decl)
-    case decl: ADTAxiom => RefADTAxiom(decl)
-    case decl: ADTFunction => RefADTFunction(decl)
-    case decl: ModelField => RefModelField(decl)
-    case decl: ModelProcess => RefModelProcess(decl)
-    case decl: ModelAction => RefModelAction(decl)
-    case decl: CDeclaration => return decl.inits.indices.map(RefCDeclaration(decl, _))
-    case decl: JavaLocalDeclaration => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
-    case decl: PVLConstructor => RefPVLConstructor(decl)
+  def from[G](decl: Declaration[G]): Seq[Referrable[G]] = Seq[Referrable[G]](decl match {
+    case decl: CParam[G] => RefCParam(decl)
+    case decl: CFunctionDefinition[G] => RefCFunctionDefinition(decl)
+    case decl: CGlobalDeclaration[G] => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
+    case decl: JavaNamespace[G] => RefJavaNamespace(decl)
+    case decl: JavaClass[G] => RefJavaClass(decl)
+    case decl: JavaInterface[G] => RefJavaClass(decl)
+    case decl: SilverField[G] => RefSilverField(decl)
+    case decl: SimplificationRule[G] => RefSimplificationRule(decl)
+    case decl: AxiomaticDataType[G] => RefAxiomaticDataType(decl)
+    case decl: Function[G] => RefFunction(decl)
+    case decl: Procedure[G] => RefProcedure(decl)
+    case decl: Predicate[G] => RefPredicate(decl)
+    case decl: Class[G] => RefClass(decl)
+    case decl: Model[G] => RefModel(decl)
+    case decl: JavaSharedInitialization[G] => RefJavaSharedInitialization(decl)
+    case decl: JavaFields[G] => return decl.decls.indices.map(RefJavaField(decl, _))
+    case decl: JavaConstructor[G] => RefJavaConstructor(decl)
+    case decl: JavaMethod[G] => RefJavaMethod(decl)
+    case decl: InstanceFunction[G] => RefInstanceFunction(decl)
+    case decl: InstanceMethod[G] => RefInstanceMethod(decl)
+    case decl: InstancePredicate[G] => RefInstancePredicate(decl)
+    case decl: InstanceField[G] => RefField(decl)
+    case decl: Variable[G] => RefVariable(decl)
+    case decl: LabelDecl[G] => RefLabelDecl(decl)
+    case decl: ParBlockDecl[G] => RefParBlockDecl(decl)
+    case decl: ParInvariantDecl[G] => RefParInvariantDecl(decl)
+    case decl: ADTAxiom[G] => RefADTAxiom(decl)
+    case decl: ADTFunction[G] => RefADTFunction(decl)
+    case decl: ModelField[G] => RefModelField(decl)
+    case decl: ModelProcess[G] => RefModelProcess(decl)
+    case decl: ModelAction[G] => RefModelAction(decl)
+    case decl: CDeclaration[G] => return decl.inits.indices.map(RefCDeclaration(decl, _))
+    case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
+    case decl: PVLConstructor[G] => RefPVLConstructor(decl)
   })
 
-  def originName(decl: Declaration): String = decl.o match {
+  def originName(decl: Declaration[_]): String = decl.o match {
     case SourceNameOrigin(name, _) => name
     case _ => throw NameLost(decl.o)
   }
 
-  def originNameOrEmpty(decl: Declaration): String = decl.o match {
+  def originNameOrEmpty(decl: Declaration[_]): String = decl.o match {
     case SourceNameOrigin(name, _) => name
     case _ => ""
   }
 }
 
-sealed trait Referrable {
+sealed trait Referrable[G] {
   def name: String = this match {
     case RefCParam(decl) => C.nameFromDeclarator(decl.declarator)
     case RefCFunctionDefinition(decl) => C.nameFromDeclarator(decl.declarator)
@@ -92,67 +92,67 @@ sealed trait Referrable {
     case RefPVLConstructor(decl) => ""
   }
 }
-sealed trait JavaTypeNameTarget extends Referrable with JavaDerefTarget
-sealed trait CTypeNameTarget extends Referrable
-sealed trait PVLTypeNameTarget extends Referrable
-sealed trait SpecTypeNameTarget extends JavaTypeNameTarget with CTypeNameTarget with PVLTypeNameTarget
+sealed trait JavaTypeNameTarget[G] extends Referrable[G] with JavaDerefTarget[G]
+sealed trait CTypeNameTarget[G] extends Referrable[G]
+sealed trait PVLTypeNameTarget[G] extends Referrable[G]
+sealed trait SpecTypeNameTarget[G] extends JavaTypeNameTarget[G] with CTypeNameTarget[G] with PVLTypeNameTarget[G]
 
-sealed trait JavaNameTarget extends Referrable
-sealed trait CNameTarget extends Referrable
-sealed trait PVLNameTarget extends Referrable
-sealed trait SpecNameTarget extends CNameTarget with JavaNameTarget with PVLNameTarget
+sealed trait JavaNameTarget[G] extends Referrable[G]
+sealed trait CNameTarget[G] extends Referrable[G]
+sealed trait PVLNameTarget[G] extends Referrable[G]
+sealed trait SpecNameTarget[G] extends CNameTarget[G] with JavaNameTarget[G] with PVLNameTarget[G]
 
-sealed trait CDerefTarget extends Referrable
-sealed trait JavaDerefTarget extends Referrable
-sealed trait PVLDerefTarget extends Referrable
-sealed trait SpecDerefTarget extends CDerefTarget with JavaDerefTarget with PVLDerefTarget
+sealed trait CDerefTarget[G] extends Referrable[G]
+sealed trait JavaDerefTarget[G] extends Referrable[G]
+sealed trait PVLDerefTarget[G] extends Referrable[G]
+sealed trait SpecDerefTarget[G] extends CDerefTarget[G] with JavaDerefTarget[G] with PVLDerefTarget[G]
 
-sealed trait JavaInvocationTarget extends Referrable
-sealed trait CInvocationTarget extends Referrable
-sealed trait PVLInvocationTarget extends Referrable
-sealed trait SpecInvocationTarget
-  extends JavaInvocationTarget
-    with CDerefTarget with CInvocationTarget
-    with PVLInvocationTarget
+sealed trait JavaInvocationTarget[G] extends Referrable[G]
+sealed trait CInvocationTarget[G] extends Referrable[G]
+sealed trait PVLInvocationTarget[G] extends Referrable[G]
+sealed trait SpecInvocationTarget[G]
+  extends JavaInvocationTarget[G]
+    with CDerefTarget[G] with CInvocationTarget[G]
+    with PVLInvocationTarget[G]
 
-sealed trait ThisTarget extends Referrable
+sealed trait ThisTarget[G] extends Referrable[G]
 
-sealed trait ResultTarget extends Referrable
+sealed trait ResultTarget[G] extends Referrable[G]
 
-case class RefCParam(decl: CParam) extends Referrable with CNameTarget
-case class RefCFunctionDefinition(decl: CFunctionDefinition) extends Referrable with CNameTarget with CInvocationTarget with ResultTarget
-case class RefCGlobalDeclaration(decls: CGlobalDeclaration, initIdx: Int) extends Referrable with CNameTarget with CInvocationTarget with ResultTarget
-case class RefCDeclaration(decls: CDeclaration, initIdx: Int) extends Referrable with CNameTarget with CInvocationTarget
-case class RefJavaNamespace(decl: JavaNamespace) extends Referrable
-case class RefUnloadedJavaNamespace(names: Seq[String]) extends Referrable with JavaNameTarget with JavaDerefTarget
-case class RefJavaClass(decl: JavaClassOrInterface) extends Referrable with JavaTypeNameTarget with JavaNameTarget with JavaDerefTarget with ThisTarget
-case class RefSilverField(decl: SilverField) extends Referrable
-case class RefSimplificationRule(decl: SimplificationRule) extends Referrable
-case class RefAxiomaticDataType(decl: AxiomaticDataType) extends Referrable with SpecTypeNameTarget with SpecNameTarget with JavaDerefTarget
-case class RefFunction(decl: Function) extends Referrable with SpecInvocationTarget with ResultTarget
-case class RefProcedure(decl: Procedure) extends Referrable with SpecInvocationTarget with ResultTarget
-case class RefPredicate(decl: Predicate) extends Referrable with SpecInvocationTarget
-case class RefClass(decl: Class) extends Referrable with PVLTypeNameTarget with PVLNameTarget with ThisTarget
-case class RefModel(decl: Model) extends Referrable with SpecTypeNameTarget with ThisTarget
-case class RefJavaSharedInitialization(decl: JavaSharedInitialization) extends Referrable
-case class RefJavaField(decls: JavaFields, idx: Int) extends Referrable with JavaNameTarget with JavaDerefTarget
-case class RefJavaLocalDeclaration(decls: JavaLocalDeclaration, idx: Int) extends Referrable with JavaNameTarget
-case class RefJavaConstructor(decl: JavaConstructor) extends Referrable
-case class RefJavaMethod(decl: JavaMethod) extends Referrable with JavaInvocationTarget with ResultTarget
-case class RefInstanceFunction(decl: InstanceFunction) extends Referrable with SpecInvocationTarget with ResultTarget
-case class RefInstanceMethod(decl: InstanceMethod) extends Referrable with SpecInvocationTarget with ResultTarget
-case class RefInstancePredicate(decl: InstancePredicate) extends Referrable with SpecInvocationTarget
-case class RefField(decl: InstanceField) extends Referrable with PVLNameTarget with PVLDerefTarget
-case class RefVariable(decl: Variable) extends Referrable with SpecNameTarget with SpecTypeNameTarget
-case class RefLabelDecl(decl: LabelDecl) extends Referrable
-case class RefParBlockDecl(decl: ParBlockDecl) extends Referrable
-case class RefParInvariantDecl(decl: ParInvariantDecl) extends Referrable
-case class RefADTAxiom(decl: ADTAxiom) extends Referrable
-case class RefADTFunction(decl: ADTFunction) extends Referrable with SpecInvocationTarget
-case class RefModelField(decl: ModelField) extends Referrable with SpecDerefTarget with SpecNameTarget
-case class RefModelProcess(decl: ModelProcess) extends Referrable with SpecInvocationTarget
-case class RefModelAction(decl: ModelAction) extends Referrable with SpecInvocationTarget
-case class RefPVLConstructor(decl: PVLConstructor) extends Referrable
+case class RefCParam[G](decl: CParam[G]) extends Referrable[G] with CNameTarget[G]
+case class RefCFunctionDefinition[G](decl: CFunctionDefinition[G]) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
+case class RefCGlobalDeclaration[G](decls: CGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
+case class RefCDeclaration[G](decls: CDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G]
+case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
+case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
+case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]
+case class RefSilverField[G](decl: SilverField[G]) extends Referrable[G]
+case class RefSimplificationRule[G](decl: SimplificationRule[G]) extends Referrable[G]
+case class RefAxiomaticDataType[G](decl: AxiomaticDataType[G]) extends Referrable[G] with SpecTypeNameTarget[G] with SpecNameTarget[G] with JavaDerefTarget[G]
+case class RefFunction[G](decl: Function[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
+case class RefProcedure[G](decl: Procedure[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
+case class RefPredicate[G](decl: Predicate[G]) extends Referrable[G] with SpecInvocationTarget[G]
+case class RefClass[G](decl: Class[G]) extends Referrable[G] with PVLTypeNameTarget[G] with PVLNameTarget[G] with ThisTarget[G]
+case class RefModel[G](decl: Model[G]) extends Referrable[G] with SpecTypeNameTarget[G] with ThisTarget[G]
+case class RefJavaSharedInitialization[G](decl: JavaSharedInitialization[G]) extends Referrable[G]
+case class RefJavaField[G](decls: JavaFields[G], idx: Int) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
+case class RefJavaLocalDeclaration[G](decls: JavaLocalDeclaration[G], idx: Int) extends Referrable[G] with JavaNameTarget[G]
+case class RefJavaConstructor[G](decl: JavaConstructor[G]) extends Referrable[G]
+case class RefJavaMethod[G](decl: JavaMethod[G]) extends Referrable[G] with JavaInvocationTarget[G] with ResultTarget[G]
+case class RefInstanceFunction[G](decl: InstanceFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
+case class RefInstanceMethod[G](decl: InstanceMethod[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
+case class RefInstancePredicate[G](decl: InstancePredicate[G]) extends Referrable[G] with SpecInvocationTarget[G]
+case class RefField[G](decl: InstanceField[G]) extends Referrable[G] with PVLNameTarget[G] with PVLDerefTarget[G]
+case class RefVariable[G](decl: Variable[G]) extends Referrable[G] with SpecNameTarget[G] with SpecTypeNameTarget[G]
+case class RefLabelDecl[G](decl: LabelDecl[G]) extends Referrable[G]
+case class RefParBlockDecl[G](decl: ParBlockDecl[G]) extends Referrable[G]
+case class RefParInvariantDecl[G](decl: ParInvariantDecl[G]) extends Referrable[G]
+case class RefADTAxiom[G](decl: ADTAxiom[G]) extends Referrable[G]
+case class RefADTFunction[G](decl: ADTFunction[G]) extends Referrable[G] with SpecInvocationTarget[G]
+case class RefModelField[G](decl: ModelField[G]) extends Referrable[G] with SpecDerefTarget[G] with SpecNameTarget[G]
+case class RefModelProcess[G](decl: ModelProcess[G]) extends Referrable[G] with SpecInvocationTarget[G]
+case class RefModelAction[G](decl: ModelAction[G]) extends Referrable[G] with SpecInvocationTarget[G]
+case class RefPVLConstructor[G](decl: PVLConstructor[G]) extends Referrable[G]
 
-case class BuiltinField(f: Expr => Expr) extends Referrable with SpecDerefTarget
-case class BuiltinInstanceMethod(f: Expr => Seq[Expr] => Expr) extends Referrable with SpecInvocationTarget
+case class BuiltinField[G](f: Expr[G] => Expr[G]) extends Referrable[G] with SpecDerefTarget[G]
+case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with SpecInvocationTarget[G]

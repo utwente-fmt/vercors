@@ -11,7 +11,7 @@ import vct.parsers.transform.{BlameProvider, JavaToCol, OriginProvider}
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 case class ColJavaParser(val topLevelSpecs: Boolean) extends Parser {
-  override def parse(stream: CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult = {
+  override def parse[G](stream: CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] = {
     try {
       val lexer = new LangJavaLexer(stream)
       val tokens = new CommonTokenStream(lexer)
@@ -23,7 +23,7 @@ case class ColJavaParser(val topLevelSpecs: Boolean) extends Parser {
 
       val tree = parser.compilationUnit()
       ec.report()
-      val decls = JavaToCol(originProvider, blameProvider, errors).convert(tree)
+      val decls = JavaToCol[G](originProvider, blameProvider, errors).convert(tree)
       ParseResult(decls, Nil)
     } catch {
       case m: MatchError =>

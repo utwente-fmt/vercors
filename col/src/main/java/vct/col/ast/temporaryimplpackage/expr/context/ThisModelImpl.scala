@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.context
 
 import vct.col.ast.{TModel, ThisModel, Type}
 
-trait ThisModelImpl { this: ThisModel =>
-  override def t: Type = TModel(cls)
+trait ThisModelImpl[G] { this: ThisModel[G] =>
+  override def t: Type[G] = TModel(cls)
 }

@@ -4,39 +4,38 @@ import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.coerce.Coercion
 import vct.col.ref.Ref
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{NonLatchingRewriter, Rewriter}
 
-trait TypeImpl { this: Type =>
-  def superTypeOf(other: Type): Boolean =
+import scala.reflect.ClassTag
+
+trait TypeImpl[G] { this: Type[G] =>
+  def superTypeOf(other: Type[G]): Boolean =
     Coercion.getCoercion(other, this).isDefined
 
-  override def check(context: CheckContext): Seq[CheckError] = Nil
+  override def check(context: CheckContext[G]): Seq[CheckError] = Nil
 
-  def asSeq: Option[TSeq] = Coercion.getAnySeqCoercion(this).map(_._2)
-  def asSet: Option[TSet] = Coercion.getAnySetCoercion(this).map(_._2)
-  def asBag: Option[TBag] = Coercion.getAnyBagCoercion(this).map(_._2)
-  def asPointer: Option[TPointer] = Coercion.getAnyPointerCoercion(this).map(_._2)
-  def asArray: Option[TArray] = Coercion.getAnyArrayCoercion(this).map(_._2)
-  def asOption: Option[TOption] = Coercion.getAnyOptionCoercion(this).map(_._2)
-  def asMap: Option[TMap] = Coercion.getAnyMapCoercion(this).map(_._2)
-  def asTuple: Option[TTuple] = Coercion.getAnyTupleCoercion(this).map(_._2)
-  def asMatrix: Option[TMatrix] = Coercion.getAnyMatrixCoercion(this).map(_._2)
-  def asModel: Option[TModel] = Coercion.getAnyModelCoercion(this).map(_._2)
-  def asClass: Option[TClass] = Coercion.getAnyClassCoercion(this).map(_._2)
-  def asEither: Option[TEither] = Coercion.getAnyEitherCoercion(this).map(_._2)
+  def asSeq: Option[TSeq[G]] = Coercion.getAnySeqCoercion(this).map(_._2)
+  def asSet: Option[TSet[G]] = Coercion.getAnySetCoercion(this).map(_._2)
+  def asBag: Option[TBag[G]] = Coercion.getAnyBagCoercion(this).map(_._2)
+  def asPointer: Option[TPointer[G]] = Coercion.getAnyPointerCoercion(this).map(_._2)
+  def asArray: Option[TArray[G]] = Coercion.getAnyArrayCoercion(this).map(_._2)
+  def asOption: Option[TOption[G]] = Coercion.getAnyOptionCoercion(this).map(_._2)
+  def asMap: Option[TMap[G]] = Coercion.getAnyMapCoercion(this).map(_._2)
+  def asTuple: Option[TTuple[G]] = Coercion.getAnyTupleCoercion(this).map(_._2)
+  def asMatrix: Option[TMatrix[G]] = Coercion.getAnyMatrixCoercion(this).map(_._2)
+  def asModel: Option[TModel[G]] = Coercion.getAnyModelCoercion(this).map(_._2)
+  def asClass: Option[TClass[G]] = Coercion.getAnyClassCoercion(this).map(_._2)
+  def asEither: Option[TEither[G]] = Coercion.getAnyEitherCoercion(this).map(_._2)
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
 
-  def particularize(substitutions: Map[Variable, Type]): Type = {
-    case object Particularize extends Rewriter {
-      override def dispatch(t: Type): Type = t match {
+  def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {
+    case object Particularize extends NonLatchingRewriter[G, G] {
+      override def succ[DPre <: Declaration[G], DPost <: Declaration[G]](decl: DPre)(implicit tag: ClassTag[DPost]): Ref[G, DPost] =
+        decl.asInstanceOf[DPost].ref
+
+      override def dispatch(t: Type[G]): Type[G] = t match {
         case TVar(Ref(v)) => substitutions(v)
-        case _ => t match {
-          case JavaTClass(ref, args) => JavaTClass(ref, args)
-          case TModel(ref) => TModel(ref)
-          case TClass(ref) => TClass(ref)
-          case TAxiomatic(ref, args) => TAxiomatic(ref, args.map(dispatch))
-          case other => rewriteDefault(other)
-        }
+        case other => rewriteDefault(other)
       }
     }
     Particularize.dispatch(this)

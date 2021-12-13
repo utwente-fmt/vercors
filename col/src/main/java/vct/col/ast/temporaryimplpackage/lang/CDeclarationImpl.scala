@@ -4,7 +4,7 @@ import vct.col.ast.{CDeclaration, TResource}
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.rewrite.ScopeContext
 
-trait CDeclarationImpl { this: CDeclaration =>
-  override def declareDefault(scope: ScopeContext): Unit = scope.cLocalScopes.top += this
-  override def check(context: CheckContext): Seq[CheckError] = kernelInvariant.checkSubType(TResource())
+trait CDeclarationImpl[G] { this: CDeclaration[G] =>
+  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): Unit = scope.cLocalScopes.top += this
+  override def check(context: CheckContext[G]): Seq[CheckError] = kernelInvariant.checkSubType(TResource())
 }

@@ -2,13 +2,13 @@ package vct.col.newrewrite
 
 import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
 
-case object PureMethodsToFunctions {
+case object PureMethodsToFunctions extends RewriterBuilder {
   case object PureMethodOrigin extends Origin {
     override def preferredName: String = "unknown"
     override def messageInContext(message: String): String =
@@ -22,10 +22,10 @@ case object PureMethodsToFunctions {
   }
 }
 
-case class PureMethodsToFunctions() extends Rewriter {
+case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
   import PureMethodsToFunctions._
 
-  def toExpression(stat: Statement, alt: => Option[Expr]): Option[Expr] = {
+  def toExpression(stat: Statement[Pre], alt: => Option[Expr[Post]]): Option[Expr[Post]] = {
     implicit val o: Origin = DiagnosticOrigin
     stat match {
       case Return(e) => Some(dispatch(e))
@@ -33,7 +33,7 @@ case class PureMethodsToFunctions() extends Rewriter {
       case Block(stat :: tail) =>
         toExpression(stat, toExpression(Block(tail), alt))
       case Branch(Nil) => alt
-      case Branch((`tt`, impl) +: _) => toExpression(impl, alt)
+      case Branch((BooleanValue(true), impl) +: _) => toExpression(impl, alt)
       case Branch((cond, impl) +: branches) =>
         Some(Select(dispatch(cond),
           toExpression(impl, alt).getOrElse(return None),
@@ -43,10 +43,10 @@ case class PureMethodsToFunctions() extends Rewriter {
     }
   }
 
-  override def dispatch(decl: Declaration): Unit = {
+  override def dispatch(decl: Declaration[Pre]): Unit = {
     implicit val o: Origin = decl.o
     decl match {
-      case proc: Procedure if proc.pure =>
+      case proc: Procedure[Pre] if proc.pure =>
         if(proc.outArgs.nonEmpty) throw MethodCannotIntoFunction("the method has out parameters")
         if(proc.contract.signals.nonEmpty) throw MethodCannotIntoFunction("the method contract contains a signals declaration")
         new Function(
@@ -58,7 +58,7 @@ case class PureMethodsToFunctions() extends Rewriter {
           contract = dispatch(proc.contract),
           inline = proc.inline
         )(proc.blame)(proc.o).succeedDefault(this, proc)
-      case method: InstanceMethod if method.pure =>
+      case method: InstanceMethod[Pre] if method.pure =>
         if(method.outArgs.nonEmpty) throw MethodCannotIntoFunction("the method has out parameters")
         if(method.contract.signals.nonEmpty) throw MethodCannotIntoFunction("the method contract contains a signals declaration")
         new InstanceFunction(
@@ -74,14 +74,14 @@ case class PureMethodsToFunctions() extends Rewriter {
     }
   }
 
-  override def dispatch(e: Expr): Expr = e match {
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case inv @ ProcedureInvocation(Ref(proc), args, outArgs, typeArgs) =>
       if(proc.pure)
-        FunctionInvocation(succ(proc), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(e.o)
+        FunctionInvocation[Post](succ(proc), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(e.o)
       else rewriteDefault(inv)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
       if(method.pure)
-        InstanceFunctionInvocation(dispatch(obj), succ(method), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(e.o)
+        InstanceFunctionInvocation[Post](dispatch(obj), succ(method), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(e.o)
       else rewriteDefault(inv)
     case other => rewriteDefault(other)
   }

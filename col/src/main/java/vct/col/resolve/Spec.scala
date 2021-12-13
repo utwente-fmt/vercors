@@ -5,19 +5,19 @@ import vct.col.origin._
 import vct.result.VerificationResult.UserError
 
 case object Spec {
-  case class BuiltinArgumentCountError(obj: Expr, expected: Int) extends UserError {
+  case class BuiltinArgumentCountError(obj: Expr[_], expected: Int) extends UserError {
     override def text: String =
       obj.o.messageInContext(s"Builtin method invocation has wrong argument count: expected $expected argument(s).")
     override def code: String = "builtinArgCount"
   }
 
-  def builtinField(obj: Expr, field: String, blame: Blame[BuiltinError]): Option[BuiltinField] = {
+  def builtinField[G](obj: Expr[G], field: String, blame: Blame[BuiltinError]): Option[BuiltinField[G]] = {
     implicit val o: Origin = obj.o
     Some(BuiltinField((obj.t, field) match {
       case (TArray(_), "length") => Length(_)(blame)
 
-      case (_: SizedType, "isEmpty") => Empty(_)
-      case (_: SizedType, "size") => Size(_)
+      case (_: SizedType[G], "isEmpty") => Empty(_)
+      case (_: SizedType[G], "size") => Size(_)
 
       case (TSeq(_), "head") => Head(_)(blame)
       case (TSeq(_), "tail") => Tail(_)
@@ -40,15 +40,15 @@ case object Spec {
     }))
   }
 
-  def argCount(n: Int)(f: Expr => Seq[Expr] => Expr): Expr => Seq[Expr] => Expr =
+  def argCount[G](n: Int)(f: Expr[G] => Seq[Expr[G]] => Expr[G]): Expr[G] => Seq[Expr[G]] => Expr[G] =
     obj => args =>
       if(args.size == n) f(obj)(args)
       else throw BuiltinArgumentCountError(obj, n)
 
-  def builtinInstanceMethod(obj: Expr, method: String, blame: Blame[BuiltinError]): Option[BuiltinInstanceMethod] = {
+  def builtinInstanceMethod[G](obj: Expr[G], method: String, blame: Blame[BuiltinError]): Option[BuiltinInstanceMethod[G]] = {
     implicit val o: Origin = obj.o
     Some(BuiltinInstanceMethod((obj.t, method) match {
-      case (t: TNotAValue, _) => (t.decl.get, method) match {
+      case (t: TNotAValue[G], _) => (t.decl.get, method) match {
         case (RefModel(model), "create") => _ => _ => ModelNew(model.ref)
         case (_, _) => return None
       }
@@ -75,42 +75,42 @@ case object Spec {
     }))
   }
 
-  def findLabel(name: String, ctx: ReferenceResolutionContext): Option[LabelDecl] =
+  def findLabel[G](name: String, ctx: ReferenceResolutionContext[G]): Option[LabelDecl[G]] =
     ctx.stack.flatten.collectFirst {
       case ref @ RefLabelDecl(decl) if ref.name == name => decl
     }
 
-  def findLocal(name: String, ctx: ReferenceResolutionContext): Option[Variable] =
+  def findLocal[G](name: String, ctx: ReferenceResolutionContext[G]): Option[Variable[G]] =
     ctx.stack.flatten.collectFirst {
       case ref @ RefVariable(decl) if ref.name == name => decl
     }
 
-  def findClass(name: String, ctx: TypeResolutionContext): Option[Class] =
+  def findClass[G](name: String, ctx: TypeResolutionContext[G]): Option[Class[G]] =
     ctx.stack.flatten.collectFirst {
       case ref @ RefClass(decl) if ref.name == name => decl
     }
 
-  def findModelField(name: String, ctx: ReferenceResolutionContext): Option[ModelField] =
+  def findModelField[G](name: String, ctx: ReferenceResolutionContext[G]): Option[ModelField[G]] =
     ctx.stack.flatten.collectFirst {
       case ref @ RefModelField(decl) if ref.name == name => decl
     }
 
-  def findParBlock(name: String, ctx: ReferenceResolutionContext): Option[ParBlockDecl] =
+  def findParBlock[G](name: String, ctx: ReferenceResolutionContext[G]): Option[ParBlockDecl[G]] =
     ctx.stack.flatten.collectFirst {
       case ref @ RefParBlockDecl(decl) if ref.name == name => decl
     }
 
-  def findParInvariant(name: String, ctx: ReferenceResolutionContext): Option[ParInvariantDecl] =
+  def findParInvariant[G](name: String, ctx: ReferenceResolutionContext[G]): Option[ParInvariantDecl[G]] =
     ctx.stack.flatten.collectFirst {
       case ref @ RefParInvariantDecl(decl) if ref.name == name => decl
     }
 
-  def findAdt(ctx: ReferenceResolutionContext, name: String): Option[AxiomaticDataType] =
+  def findAdt[G](ctx: ReferenceResolutionContext[G], name: String): Option[AxiomaticDataType[G]] =
     ctx.stack.flatten.collectFirst {
       case ref @ RefAxiomaticDataType(decl) if ref.name == name => decl
     }
 
-  def findAdtFunction(decl: AxiomaticDataType, name: String): Option[ADTFunction] =
+  def findAdtFunction[G](decl: AxiomaticDataType[G], name: String): Option[ADTFunction[G]] =
     decl.decls.flatMap(Referrable.from).collectFirst {
       case ref @ RefADTFunction(f) if ref.name == name => f
     }

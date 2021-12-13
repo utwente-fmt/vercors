@@ -215,8 +215,8 @@ case class Printer(out: Appendable,
 
   sealed trait Phrase
   implicit class Text(val text: String) extends Phrase
-  implicit class NodePhrase(val node: Node) extends Phrase
-  implicit class NodesPhrase(val nodes: Seq[Node]) extends Phrase
+  implicit class NodePhrase(val node: Node[_]) extends Phrase
+  implicit class NodesPhrase(val nodes: Seq[Node[_]]) extends Phrase
   case object space extends Phrase
   case object newline extends Phrase
   case object doubleline extends Phrase
@@ -268,14 +268,14 @@ case class Printer(out: Appendable,
     state = state.closeBanNewlines()
   })
 
-  def controls(branches: Seq[(Phrase, Node)]): Phrase = Do(() => {
+  def controls(branches: Seq[(Phrase, Node[_])]): Phrase = Do(() => {
     say(doubleline)
 
     var lastWasBlock = false
 
     say(branches.head._1)
     branches.head._2 match {
-      case block: Block =>
+      case block: Block[_] =>
         printBlock(block, newline = false)
         lastWasBlock = true
       case other =>
@@ -291,7 +291,7 @@ case class Printer(out: Appendable,
       say(control)
 
       impl match {
-        case block: Block =>
+        case block: Block[_] =>
           printBlock(block, newline = false)
           lastWasBlock = true
         case other =>
@@ -303,7 +303,7 @@ case class Printer(out: Appendable,
     say(doubleline)
   })
 
-  def control(control: Phrase, impl: Node): Phrase =
+  def control(control: Phrase, impl: Node[_]): Phrase =
     controls(Seq((control, impl)))
 
   def intersperse(spacing: Phrase, nodes: Seq[Phrase]): Do = Do(() => {
@@ -342,7 +342,7 @@ case class Printer(out: Appendable,
     } else say(f.get)
   })
 
-  def clauses(contract: Expr, clauseKeyword: String): Do = Do(() => {
+  def clauses(contract: Expr[_], clauseKeyword: String): Do = Do(() => {
     for(clause <- AstBuildHelpers.unfoldStar(contract)) {
       say(newline, clauseKeyword, space, clause, ";", newline)
     }
@@ -360,14 +360,14 @@ case class Printer(out: Appendable,
     say(newline)
   })
 
-  def javaDecls(decls: Seq[(String, Int, Option[Expr])]): Phrase = commas(for((name, dims, init) <- decls)
+  def javaDecls(decls: Seq[(String, Int, Option[Expr[_]])]): Phrase = commas(for((name, dims, init) <- decls)
     yield init match {
       case Some(value) => phrase(name, "[]".repeat(dims), space, "=", space, value)
       case None => phrase(name, "[]".repeat(dims))
     }
   )
 
-  var names: ScopedStack[mutable.Map[Referrable, String]] = ScopedStack()
+  var names: ScopedStack[mutable.Map[Referrable[_], String]] = ScopedStack()
   names.push(mutable.Map())
   var usedNames: ScopedStack[mutable.Set[(String, Int)]] = ScopedStack()
   usedNames.push(mutable.Set())
@@ -392,20 +392,20 @@ case class Printer(out: Appendable,
     else s"$baseName$idx"
   }
 
-  def name(decl: Declaration): String =
+  def name(decl: Declaration[_]): String =
     name(Referrable.from(decl).head)(decl.o.preferredName)
 
-  def name(decl: Referrable)(preferredName: String = decl.name): String =
+  def name(decl: Referrable[_])(preferredName: String = decl.name): String =
     names.find(_.contains(decl))
       .getOrElse(names.top)
       .getOrElseUpdate(decl, nextName(preferredName))
 
-  def printBlock(block: Block, newline: Boolean) = ???
+  def printBlock(block: Block[_], newline: Boolean) = ???
 
-  def printProgram(program: Program): Unit =
+  def printProgram(program: Program[_]): Unit =
     say(program.declarations)
 
-  def printStatement(stat: Statement): Unit = say(stat match {
+  def printStatement(stat: Statement[_]): Unit = say(stat match {
     case CDeclarationStatement(decl) =>
       statement(syntax(C -> phrase(decl.specs, commas(decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
@@ -451,7 +451,7 @@ case class Printer(out: Appendable,
       statement("return", space, result)
     case Assign(target, value) =>
       statement(target, space, "=", space, value)
-    case block: Block =>
+    case block: Block[_] =>
       printBlock(block, newline = true)
     case Scope(locals, body) =>
       implicit val o: Origin = DiagnosticOrigin
@@ -571,19 +571,19 @@ case class Printer(out: Appendable,
       }
   })
 
-  def printExpr(e: Expr): Unit =
+  def printExpr(e: Expr[_]): Unit =
     say(expr(e)._1)
 
-  def bind(wantPrecedence: Int, e: Expr): Phrase = {
+  def bind(wantPrecedence: Int, e: Expr[_]): Phrase = {
     val (output, precedence) = expr(e)
     if(precedence > wantPrecedence) output
     else phrase("(", output, ")")
   }
 
-  def assoc(wantPrecedence: Int, e: Expr): Phrase =
+  def assoc(wantPrecedence: Int, e: Expr[_]): Phrase =
     bind(wantPrecedence - 1, e)
 
-  def expr(e: Expr): (Phrase, Int) = e match {
+  def expr(e: Expr[_]): (Phrase, Int) = e match {
     case CLocal(nodeName) => (phrase(nodeName), 110)
     case PVLLocal(name) => (phrase(name), 110)
     case CInvocation(applicable, args, _, _) =>
@@ -903,7 +903,7 @@ case class Printer(out: Appendable,
     case Then(value, post) => ???
   }
 
-  def printType(t: Type): Unit = say(t match {
+  def printType(t: Type[_]): Unit = say(t match {
     case CPrimitiveType(specifiers) =>
       spaced(specifiers.map(NodePhrase))
     case TUnion(types) =>
@@ -941,7 +941,7 @@ case class Printer(out: Appendable,
     /* case TVector(t) => phrase("vector<", t, ">") // FIXME does not parse (should it?) */
     case TMatrix(t) => phrase("matrix<", t, ">")
     case TType(t) => phrase(t)
-    case _: TNotAValue => ???
+    case _: TNotAValue[_] => ???
     case TAny() => phrase("any")
     case TNothing() => phrase("nothing")
     case TNull() => ???
@@ -954,27 +954,27 @@ case class Printer(out: Appendable,
     case TClass(cls) => phrase(name(cls.decl))
   })
 
-  def printDeclaration(decl: Declaration): Unit = say(decl match {
-    case decl: CDeclaration =>
+  def printDeclaration(decl: Declaration[_]): Unit = say(decl match {
+    case decl: CDeclaration[_] =>
       phrase(doubleline,
         spec(decl.contract, clauses(decl.kernelInvariant, "kernel_invariant")),
         spaced(decl.specs.map(NodePhrase)), space, spaced(decl.inits.map(NodePhrase)),
         doubleline)
-    case param: CParam =>
+    case param: CParam[_] =>
       phrase(spaced(param.specifiers.map(NodePhrase)), space, param.declarator)
-    case local: JavaLocalDeclaration =>
+    case local: JavaLocalDeclaration[_] =>
       phrase(spaced(local.modifiers.map(NodePhrase)), space, local.t, space, javaDecls(local.decls))
-    case defn: CFunctionDefinition =>
+    case defn: CFunctionDefinition[_] =>
       control(phrase(spaced(defn.specs.map(NodePhrase)), space, defn.declarator), defn.body)
-    case decl: CGlobalDeclaration => decl
-    case ns: JavaNamespace =>
+    case decl: CGlobalDeclaration[_] => decl
+    case ns: JavaNamespace[_] =>
       phrase(
         if(ns.pkg.nonEmpty) statement("package", space, ns.pkg.get) else phrase(),
         phrase(ns.imports.map(NodePhrase):_*),
         doubleline,
         phrase(ns.declarations.map(NodePhrase):_*),
       )
-    case cls: JavaClass =>
+    case cls: JavaClass[_] =>
       phrase(
         doubleline,
         phrase(cls.modifiers.map(NodePhrase):_*), space, "class", space, cls.name, space,
@@ -986,7 +986,7 @@ case class Printer(out: Appendable,
         "}",
         doubleline,
       )
-    case int: JavaInterface =>
+    case int: JavaInterface[_] =>
       phrase(
         doubleline,
         phrase(int.modifiers.map(NodePhrase):_*), space, "interface", space, int.name,
@@ -998,13 +998,13 @@ case class Printer(out: Appendable,
         "}",
         doubleline,
       )
-    case field: SilverField =>
+    case field: SilverField[_] =>
       statement("field ", name(field), ": ", field.t)
-    case rule: SimplificationRule =>
+    case rule: SimplificationRule[_] =>
       statement("axiom", space, name(rule), space, "{", newline, indent(rule.axiom), "}")
-    case dataType: AxiomaticDataType =>
+    case dataType: AxiomaticDataType[_] =>
       ???
-    case function: Function =>
+    case function: Function[_] =>
       phrase(
         doubleline,
         spec(function.contract),
@@ -1016,7 +1016,7 @@ case class Printer(out: Appendable,
         },
         doubleline,
       )
-    case procedure: Procedure =>
+    case procedure: Procedure[_] =>
       val header = phrase(
         spec(procedure.contract),
         procedure.returnType, space, name(procedure), "(", commas(procedure.args.map(NodePhrase)), ")",
@@ -1026,7 +1026,7 @@ case class Printer(out: Appendable,
         case Some(body) =>  control(header, body)
         case None => phrase(doubleline, header, ";", doubleline)
       }
-    case predicate: Predicate =>
+    case predicate: Predicate[_] =>
       val header = phrase(
         "resource", space, name(predicate), "(", commas(predicate.args.map(NodePhrase)), ")",
       )
@@ -1035,7 +1035,7 @@ case class Printer(out: Appendable,
         case Some(body) => control(header, body)
         case None => phrase(doubleline, header, ";", doubleline)
       }
-    case clazz: Class =>
+    case clazz: Class[_] =>
       phrase(
         doubleline,
         "class", space, name(clazz), space, "{",
@@ -1043,7 +1043,7 @@ case class Printer(out: Appendable,
         "}",
         doubleline,
       )
-    case model: Model =>
+    case model: Model[_] =>
       phrase(
         doubleline,
         spec(
@@ -1053,24 +1053,24 @@ case class Printer(out: Appendable,
         ),
         doubleline,
       )
-    case init: JavaSharedInitialization =>
+    case init: JavaSharedInitialization[_] =>
       phrase(
         doubleline,
         if(init.isStatic) phrase("static", space) else phrase(),
         init.initialization,
         doubleline,
       )
-    case fields: JavaFields =>
+    case fields: JavaFields[_] =>
       statement(spaced(fields.modifiers.map(NodePhrase)), space, fields.t, space, spaced(fields.decls.map {
         case (name, dims, init) =>
           phrase(name, "[]".repeat(dims), if(init.isEmpty) phrase() else phrase(space, "=", space, init.get))
       }))
-    case cons: JavaConstructor =>
+    case cons: JavaConstructor[_] =>
       control(
         phrase(cons.contract, spaced(cons.modifiers.map(NodePhrase)), space, cons.name, "(", commas(cons.parameters.map(NodePhrase)), ")"),
         cons.body,
       )
-    case method: JavaMethod =>
+    case method: JavaMethod[_] =>
       val header = phrase(
         method.contract,
         spaced(method.modifiers.map(NodePhrase)), space, method.returnType, space, method.name, "[]".repeat(method.dims),
@@ -1081,7 +1081,7 @@ case class Printer(out: Appendable,
         case Some(body) => control(header, body)
         case None => phrase(doubleline, header, ";", doubleline)
       }
-    case function: InstanceFunction =>
+    case function: InstanceFunction[_] =>
       val header = phrase(
         function.contract,
         if(function.inline) phrase("inline", space) else phrase(),
@@ -1092,7 +1092,7 @@ case class Printer(out: Appendable,
         case Some(body) => phrase(doubleline, header, space, "=", space, newline, indent(body, ";"), doubleline)
         case None => phrase(doubleline, header, ";", doubleline)
       }
-    case method: InstanceMethod =>
+    case method: InstanceMethod[_] =>
       val header = phrase(
         method.contract,
         if(method.inline) phrase("inline", space) else phrase(),
@@ -1104,7 +1104,7 @@ case class Printer(out: Appendable,
         case Some(body) => control(header, body)
         case None => phrase(doubleline, header, ";", doubleline)
       }
-    case predicate: InstancePredicate =>
+    case predicate: InstancePredicate[_] =>
       val header = phrase(
         if(predicate.threadLocal) phrase("thread_local") else phrase(),
         if(predicate.inline) phrase("inline", space) else phrase(),
@@ -1115,29 +1115,29 @@ case class Printer(out: Appendable,
         case Some(body) => phrase(doubleline, header, space, "=", space, newline, indent(body, ";"), doubleline)
         case None => phrase(doubleline, header, ";", doubleline)
       }
-    case field: InstanceField =>
+    case field: InstanceField[_] =>
       statement(field.t, space, name(field))
-    case variable: Variable =>
+    case variable: Variable[_] =>
       phrase(variable.t, space, name(variable))
-    case decl: LabelDecl =>
+    case decl: LabelDecl[_] =>
       ???
-    case decl: ParBlockDecl =>
+    case decl: ParBlockDecl[_] =>
       ???
-    case decl: ParInvariantDecl =>
+    case decl: ParInvariantDecl[_] =>
       ???
-    case axiom: ADTAxiom =>
+    case axiom: ADTAxiom[_] =>
       ???
-    case function: ADTFunction =>
+    case function: ADTFunction[_] =>
       ???
-    case process: ModelProcess =>
+    case process: ModelProcess[_] =>
       ???
-    case action: ModelAction =>
+    case action: ModelAction[_] =>
       ???
-    case field: ModelField =>
+    case field: ModelField[_] =>
       ???
   })
 
-  def printApplicableContract(node: ApplicableContract): Unit =
+  def printApplicableContract(node: ApplicableContract[_]): Unit =
     say(spec(
       phrase(node.givenArgs.map(v => phrase(newline, "given", space, v, ";", newline)):_*),
       clauses(node.contextEverywhere, "context_everywhere"),
@@ -1147,7 +1147,7 @@ case class Printer(out: Appendable,
       phrase(node.yieldsArgs.map(v => phrase(newline, "yields", space, v, ";", newline)):_*),
     ))
 
-  def printParBlock(parBlock: ParBlock, label: String): Unit = {
+  def printParBlock(parBlock: ParBlock[_], label: String): Unit = {
     val header = phrase(label, space, name(parBlock.decl), "(", commas(parBlock.iters.map(NodePhrase)), ")")
     val contract = spec(clauses(parBlock.requires, "requires"), clauses(parBlock.ensures, "ensures"))
     say(
@@ -1160,23 +1160,23 @@ case class Printer(out: Appendable,
     )
   }
 
-  def printCatchClause(catchClause: CatchClause): Unit =
+  def printCatchClause(catchClause: CatchClause[_]): Unit =
     ???
 
-  def printSignalsClause(node: SignalsClause): Unit =
+  def printSignalsClause(node: SignalsClause[_]): Unit =
     say(phrase(newline, "signals", space, "(", node.binding, ")", space, node.assn, ";", newline))
 
-  def printFieldFlag(fieldFlag: FieldFlag): Unit = fieldFlag match {
-    case value: Final => say("final")
+  def printFieldFlag(fieldFlag: FieldFlag[_]): Unit = fieldFlag match {
+    case value: Final[_] => say("final")
   }
 
-  def printIterVariable(iterVariable: IterVariable): Unit =
+  def printIterVariable(iterVariable: IterVariable[_]): Unit =
     say(iterVariable.variable, space, "=", space, iterVariable.from, space, "..", space, iterVariable.to)
 
-  def printSilverPredicateAccess(silverPredAcc: SilverPredicateAccess): Unit =
+  def printSilverPredicateAccess(silverPredAcc: SilverPredicateAccess[_]): Unit =
     ???
 
-  def printCDeclarator(node: CDeclarator): Unit = node match {
+  def printCDeclarator(node: CDeclarator[_]): Unit = node match {
     case CPointerDeclarator(pointers, inner) =>
       say("*".repeat(pointers.size), inner)
     case CArrayDeclarator(qualifiers, size, inner) =>
@@ -1188,7 +1188,7 @@ case class Printer(out: Appendable,
     case CName(name) => say(name)
   }
 
-  def printCDeclarationSpecifier(cDeclSpec: CDeclarationSpecifier): Unit = cDeclSpec match {
+  def printCDeclarationSpecifier(cDeclSpec: CDeclarationSpecifier[_]): Unit = cDeclSpec match {
     case CPure() => say("pure")
     case CInline() => say("inline")
     case CTypedef() => say("typedef")
@@ -1209,23 +1209,23 @@ case class Printer(out: Appendable,
     case CKernel() => say("__kernel")
   }
 
-  def printCTypeQualifier(node: CTypeQualifier): Unit = node match {
+  def printCTypeQualifier(node: CTypeQualifier[_]): Unit = node match {
     case CConst() => say("const")
     case CRestrict() => say("restrict")
     case CVolatile() => say("volatile")
     case CAtomic() => say("_Atomic")
   }
 
-  def printCPointer(node: CPointer): Unit =
+  def printCPointer(node: CPointer[_]): Unit =
     ???
 
-  def printCInit(node: CInit): Unit =
+  def printCInit(node: CInit[_]): Unit =
     node.init match {
       case Some(value) => say(node.decl, space, "=", space, value)
       case None => say(node.decl)
     }
 
-  def printJavaModifier(node: JavaModifier): Unit = node match {
+  def printJavaModifier(node: JavaModifier[_]): Unit = node match {
     case JavaPublic() => say("public")
     case JavaProtected() => say("protected")
     case JavaPrivate() => say("private")
@@ -1241,36 +1241,36 @@ case class Printer(out: Appendable,
     case JavaInline() => say(inlineSpec("inline"))
   }
 
-  def printJavaImport(node: JavaImport): Unit =
+  def printJavaImport(node: JavaImport[_]): Unit =
     say(statement(
       "import", space,
       if(node.isStatic) phrase("static", space) else phrase(),
       node.name,
       if(node.star) phrase(".*") else phrase()))
 
-  def printJavaName(node: JavaName): Unit =
+  def printJavaName(node: JavaName[_]): Unit =
     say(node.names.mkString("."))
 
-  def print(node: Node): Unit = node match {
-    case program: Program => printProgram(program)
-    case stat: Statement => printStatement(stat)
-    case e: Expr => printExpr(e)
-    case t: Type => printType(t)
-    case decl: Declaration => printDeclaration(decl)
-    case node: ApplicableContract => printApplicableContract(node)
-    case parBlock: ParBlock => printParBlock(parBlock, "par")
-    case catchClause: CatchClause => printCatchClause(catchClause)
-    case node: SignalsClause => printSignalsClause(node)
-    case fieldFlag: FieldFlag => printFieldFlag(fieldFlag)
-    case iterVariable: IterVariable => printIterVariable(iterVariable)
-    case silverPredAcc: SilverPredicateAccess => printSilverPredicateAccess(silverPredAcc)
-    case node: CDeclarator => printCDeclarator(node)
-    case cDeclSpec: CDeclarationSpecifier => printCDeclarationSpecifier(cDeclSpec)
-    case node: CTypeQualifier => printCTypeQualifier(node)
-    case node: CPointer => printCPointer(node)
-    case node: CInit => printCInit(node)
-    case node: JavaModifier => printJavaModifier(node)
-    case node: JavaImport => printJavaImport(node)
-    case node: JavaName => printJavaName(node)
+  def print(node: Node[_]): Unit = node match {
+    case program: Program[_] => printProgram(program)
+    case stat: Statement[_] => printStatement(stat)
+    case e: Expr[_] => printExpr(e)
+    case t: Type[_] => printType(t)
+    case decl: Declaration[_] => printDeclaration(decl)
+    case node: ApplicableContract[_] => printApplicableContract(node)
+    case parBlock: ParBlock[_] => printParBlock(parBlock, "par")
+    case catchClause: CatchClause[_] => printCatchClause(catchClause)
+    case node: SignalsClause[_] => printSignalsClause(node)
+    case fieldFlag: FieldFlag[_] => printFieldFlag(fieldFlag)
+    case iterVariable: IterVariable[_] => printIterVariable(iterVariable)
+    case silverPredAcc: SilverPredicateAccess[_] => printSilverPredicateAccess(silverPredAcc)
+    case node: CDeclarator[_] => printCDeclarator(node)
+    case cDeclSpec: CDeclarationSpecifier[_] => printCDeclarationSpecifier(cDeclSpec)
+    case node: CTypeQualifier[_] => printCTypeQualifier(node)
+    case node: CPointer[_] => printCPointer(node)
+    case node: CInit[_] => printCInit(node)
+    case node: JavaModifier[_] => printJavaModifier(node)
+    case node: JavaImport[_] => printJavaImport(node)
+    case node: JavaName[_] => printJavaName(node)
   }
 }

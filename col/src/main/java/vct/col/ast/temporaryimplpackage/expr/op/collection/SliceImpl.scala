@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.op.collection
 
 import vct.col.ast.{Slice, Type}
 
-trait SliceImpl { this: Slice =>
-  override def t: Type = xs.t
+trait SliceImpl[G] { this: Slice[G] =>
+  override def t: Type[G] = xs.t
 }

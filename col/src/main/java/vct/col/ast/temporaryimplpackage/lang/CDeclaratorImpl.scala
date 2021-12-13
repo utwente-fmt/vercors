@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.lang
 
 import vct.col.ast.CDeclarator
 
-trait CDeclaratorImpl { this: CDeclarator =>
+trait CDeclaratorImpl[G] { this: CDeclarator[G] =>
 
 }

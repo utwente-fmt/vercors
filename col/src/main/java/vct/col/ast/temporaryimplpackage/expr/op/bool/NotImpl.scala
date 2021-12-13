@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.op.bool
 
 import vct.col.ast.{Not, TBool, Type}
 
-trait NotImpl { this: Not =>
-  override def t: Type = TBool()
+trait NotImpl[G] { this: Not[G] =>
+  override def t: Type[G] = TBool()
 }

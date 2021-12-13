@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.resource
 
 import vct.col.ast.{Implies, Type}
 
-trait ImpliesImpl { this: Implies =>
-  override def t: Type = right.t
+trait ImpliesImpl[G] { this: Implies[G] =>
+  override def t: Type[G] = right.t
 }

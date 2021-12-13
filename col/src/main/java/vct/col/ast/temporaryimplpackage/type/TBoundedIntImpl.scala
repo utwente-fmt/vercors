@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.`type`
 
 import vct.col.ast.TBoundedInt
 
-trait TBoundedIntImpl { this: TBoundedInt =>
+trait TBoundedIntImpl[G] { this: TBoundedInt[G] =>
 
 }

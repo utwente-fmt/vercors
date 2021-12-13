@@ -6,26 +6,28 @@ import vct.col.util.AstBuildHelpers._
 import hre.util.ScopedStack
 import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
 import vct.col.ref.Ref
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.SuccessionMap
 
-case class ClassToRef() extends Rewriter {
+case object ClassToRef extends RewriterBuilder
+
+case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   case object This extends Origin {
     override def preferredName: String = "this"
     override def messageInContext(message: String): String =
       s"[At generated parameter for 'this']: $message"
   }
 
-  val fieldSucc: SuccessionMap[Field, SilverField] = SuccessionMap()
+  val fieldSucc: SuccessionMap[Field[Pre], SilverField[Post]] = SuccessionMap()
 
-  val diz: ScopedStack[Variable] = ScopedStack()
+  val diz: ScopedStack[Variable[Post]] = ScopedStack()
 
-  override def dispatch(decl: Declaration): Unit = decl match {
-    case cls: Class =>
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case cls: Class[Pre] =>
       cls.drop()
       cls.declarations.foreach {
-        case function: InstanceFunction =>
-          val thisVar = new Variable(TRef())(This)
+        case function: InstanceFunction[Pre] =>
+          val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar) {
             new Function(
               returnType = dispatch(function.returnType),
@@ -39,8 +41,8 @@ case class ClassToRef() extends Rewriter {
               inline = function.inline,
             )(function.blame)(function.o).succeedDefault(this, function)
           }
-        case method: InstanceMethod =>
-          val thisVar = new Variable(TRef())(This)
+        case method: InstanceMethod[Pre] =>
+          val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar) {
             new Procedure(
               returnType = dispatch(method.returnType),
@@ -56,8 +58,8 @@ case class ClassToRef() extends Rewriter {
               pure = method.pure,
             )(method.blame)(method.o).succeedDefault(this, method)
           }
-        case predicate: InstancePredicate =>
-          val thisVar = new Variable(TRef())(This)
+        case predicate: InstancePredicate[Pre] =>
+          val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar) {
             new Predicate(
               args = collectInScope(variableScopes) {
@@ -69,7 +71,7 @@ case class ClassToRef() extends Rewriter {
               inline = predicate.inline,
             )(predicate.o).succeedDefault(this, predicate)
           }
-        case field: Field =>
+        case field: Field[Pre] =>
           fieldSucc(field) = new SilverField(dispatch(field.t))(field.o)
           fieldSucc(field).declareDefault(this)
         case _ =>
@@ -78,33 +80,33 @@ case class ClassToRef() extends Rewriter {
     case decl => rewriteDefault(decl)
   }
 
-  override def dispatch(stat: Statement): Statement = stat match {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Assign(Local(Ref(v)), NewObject(Ref(cls))) =>
-      SilverNewRef(succ(v), cls.declarations.collect { case field: InstanceField => fieldSucc.ref(field) })(stat.o)
+      SilverNewRef[Post](succ(v), cls.declarations.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) })(stat.o)
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(e: Expr): Expr = e match {
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
-      ProcedureInvocation(
+      ProcedureInvocation[Post](
         ref = succ(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = outArgs.map(r => succ[Variable](r.decl)),
+        outArgs = outArgs.map(succ[Variable[Pre], Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args) =>
-      PredicateApply(succ(pred), dispatch(obj) +: args.map(dispatch))(inv.o)
+      PredicateApply[Post](succ(pred), dispatch(obj) +: args.map(dispatch))(inv.o)
     case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs) =>
-      FunctionInvocation(succ(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
+      FunctionInvocation[Post](succ(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
     case AmbiguousThis() =>
-      Local(diz.top.ref)(e.o)
+      Local[Post](diz.top.ref)(e.o)
     case deref @ Deref(obj, Ref(field)) =>
-      SilverDeref(dispatch(obj), fieldSucc.ref(field))(deref.blame)(deref.o)
+      SilverDeref[Post](dispatch(obj), fieldSucc.ref(field))(deref.blame)(deref.o)
     case NewObject(_) => ???
     case _ => rewriteDefault(e)
   }
 
-  override def dispatch(t: Type): Type = t match {
+  override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case TClass(_) => TRef()
     case t => rewriteDefault(t)
   }

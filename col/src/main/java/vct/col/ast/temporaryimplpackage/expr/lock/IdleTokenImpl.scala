@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.lock
 
 import vct.col.ast.{IdleToken, TResource, Type}
 
-trait IdleTokenImpl { this: IdleToken =>
-  override def t: Type = TResource()
+trait IdleTokenImpl[G] { this: IdleToken[G] =>
+  override def t: Type[G] = TResource()
 }

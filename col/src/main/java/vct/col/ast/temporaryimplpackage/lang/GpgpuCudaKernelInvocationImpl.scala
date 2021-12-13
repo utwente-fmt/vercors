@@ -3,8 +3,8 @@ package vct.col.ast.temporaryimplpackage.lang
 import vct.col.ast.{GpgpuCudaKernelInvocation, Type}
 import vct.col.resolve.{BuiltinInstanceMethod, C, RefADTFunction, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelProcess, RefPredicate, RefProcedure}
 
-trait GpgpuCudaKernelInvocationImpl { this: GpgpuCudaKernelInvocation =>
-  override def t: Type = ref.get match {
+trait GpgpuCudaKernelInvocationImpl[G] { this: GpgpuCudaKernelInvocation[G] =>
+  override def t: Type[G] = ref.get match {
     case RefFunction(decl) => decl.returnType
     case RefProcedure(decl) => decl.returnType
     case RefPredicate(decl) => decl.returnType

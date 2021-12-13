@@ -4,8 +4,8 @@ import vct.col.ast._
 import vct.col.err.ContextSensitiveNodeNotResolved
 import vct.col.resolve.{RefClass, RefJavaClass, RefModel}
 
-trait AmbiguousThisImpl { this: AmbiguousThis =>
-  override def t: Type =
+trait AmbiguousThisImpl[G] { this: AmbiguousThis[G] =>
+  override def t: Type[G] =
     ref.getOrElse(
       throw ContextSensitiveNodeNotResolved(this,
         "'this' encountered, but the surrounding class is not resolved.")

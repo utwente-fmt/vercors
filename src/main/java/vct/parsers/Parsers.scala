@@ -22,6 +22,6 @@ object Parsers {
     case other => throw UnknownFileExtension(other)
   }
 
-  def parse(path: Path): ParseResult =
+  def parse[G](path: Path): ParseResult[G] =
     getByExtension(path.toString.split('.').last).parse(path.toFile)()
 }

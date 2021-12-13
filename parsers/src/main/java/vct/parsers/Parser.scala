@@ -38,13 +38,13 @@ abstract class Parser {
     errors
   }
 
-  def parse(stream: runtime.CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult
+  def parse[G](stream: runtime.CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G]
 
-  def parse(stream: InputStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult =
+  def parse[G](stream: InputStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] =
     parse(runtime.CharStreams.fromStream(stream), originProvider, blameProvider)
 
-  def parse(f: File)(originProvider: OriginProvider = FileOriginProvider(f.toPath),
-                     blameProvider: BlameProvider = FileOriginProvider(f.toPath)): ParseResult = {
+  def parse[G](f: File)(originProvider: OriginProvider = FileOriginProvider(f.toPath),
+                     blameProvider: BlameProvider = FileOriginProvider(f.toPath)): ParseResult[G] = {
     val name = f.toString
     try {
       parse(new FileInputStream(f), originProvider, blameProvider)

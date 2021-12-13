@@ -2,7 +2,7 @@ package vct.col.ast.temporaryimplpackage.expr.binder
 
 import vct.col.ast.{Let, Type, Variable}
 
-trait LetImpl { this: Let =>
-  override def t: Type = main.t
-  override def bindings: Seq[Variable] = Seq(binding)
+trait LetImpl[G] { this: Let[G] =>
+  override def t: Type[G] = main.t
+  override def bindings: Seq[Variable[G]] = Seq(binding)
 }

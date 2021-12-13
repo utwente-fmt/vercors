@@ -5,17 +5,17 @@ import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
 import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
 import vct.col.debug.Dropped
 import vct.col.ref.{DirectRef, Ref}
-import vct.col.rewrite.ScopeContext
+import vct.col.rewrite.{InitialGeneration, ScopeContext}
 
 import scala.reflect.ClassTag
 
-trait DeclarationImpl { this: Declaration =>
-  def succeedDefault(scope: ScopeContext, pred: Declaration): Unit = {
+trait DeclarationImpl[G] { this: Declaration[G] =>
+  def succeedDefault[Pre](scope: ScopeContext[Pre, G], pred: Declaration[Pre]): Unit = {
     declareDefault(scope)
     scope.successionMap(pred) = this
   }
 
-  def declareDefault(scope: ScopeContext): Unit
+  def declareDefault[Pre](scope: ScopeContext[Pre, G]): Unit
 
   def drop(): Unit = debugRewriteState = Dropped
 
@@ -24,11 +24,11 @@ trait DeclarationImpl { this: Declaration =>
     * inferred, e.g. `FunctionInvocation(func.ref, ...)`. The witness to `this.type <:< T` demands that the
     * inferred T at least supports the type of this declaration.
     */
-  def ref[T <: Declaration](implicit tag: ClassTag[T], witness: this.type <:< T): Ref[T] = new DirectRef[T](this)
+  def ref[Decl <: Declaration[G]](implicit tag: ClassTag[Decl], witness: this.type <:< Decl): Ref[G, Decl] = new DirectRef[G, Decl](this)
 
-  override def check(context: CheckContext): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckError] =
     try {
-      NopCoercingRewriter.coerce(this)
+      NopCoercingRewriter().coerce(this.asInstanceOf[Declaration[InitialGeneration]])
       Nil
     } catch {
       case CoercingRewriter.Incoercible(e, t) => Seq(TypeError(e, t))

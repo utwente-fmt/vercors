@@ -5,7 +5,7 @@ import vct.col.ast.{Node, Program}
 import vct.col.util.Compare
 
 object ColHelper {
-  def assertEquals(left: Node, right: Node): Unit = {
+  def assertEquals[L, R](left: Node[L], right: Node[R]): Unit = {
     Compare.getIsomorphism(left, right) match {
       case Left(diffs) =>
         diffs.foreach {

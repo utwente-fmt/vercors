@@ -1,15 +1,25 @@
 package vct.col.util
 
 import vct.col.ast._
+import vct.col.origin.Origin
+import vct.col.resolve.Referrable
 
 object Types {
-  def leastCommonSuperType(ts: Seq[Type]): Type =
-    ts.foldLeft[Type](TNothing())(leastCommonSuperType)
+  def notAValue[G](ref: Referrable[G])(implicit o: Origin): TNotAValue[G] = {
+    val result = new TNotAValue[G]()
+    result.decl = Some(ref)
+    result
+  }
 
-  def leastCommonSuperType(left: Type, right: Type): Type = (left, right) match {
+  def notAValue[G]()(implicit o: Origin): TNotAValue[G] = new TNotAValue[G]()
+
+  def leastCommonSuperType[G](ts: Seq[Type[G]]): Type[G] =
+    ts.foldLeft[Type[G]](TNothing())(leastCommonSuperType[G])
+
+  def leastCommonSuperType[G](left: Type[G], right: Type[G]): Type[G] = (left, right) match {
     // The result for NotAValue should not matter, since they should be filtered out by LangSpecificToCol.
-    case (_: TNotAValue, _) => new TNotAValue(None)
-    case (_, _: TNotAValue) => new TNotAValue(None)
+    case (left: TNotAValue[_], _) => left
+    case (_, right: TNotAValue[_]) => right
 
     // Any other types are below Any, so we can safely default to that from here.
     // First the simple case where either type is a supertype of the other

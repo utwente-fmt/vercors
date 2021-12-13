@@ -4,23 +4,25 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 case class ImplicitLabelOrigin(inner: Origin) extends Origin {
   override def preferredName: String = "implicitLabel"
   override def messageInContext(message: String): String = inner.messageInContext(message)
 }
 
-case class SpecifyImplicitLabels() extends Rewriter {
-  val labelStack = new ScopedStack[LabelDecl]()
+case object SpecifyImplicitLabels extends RewriterBuilder
 
-  def isBreakable(s: Statement) = s match {
-    case _: Loop => true
-    case _: Switch => true
+case class SpecifyImplicitLabels[Pre <: Generation]() extends Rewriter[Pre] {
+  val labelStack = new ScopedStack[LabelDecl[Post]]()
+
+  def isBreakable(s: Statement[_]) = s match {
+    case _: Loop[_] => true
+    case _: Switch[_] => true
     case _ => false
   }
 
-  override def dispatch(stat: Statement): Statement = stat match {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Label(decl, impl) if isBreakable(impl) =>
       val newLabel = decl.rewrite()
       val newImpl = labelStack.having(newLabel) {
@@ -29,7 +31,7 @@ case class SpecifyImplicitLabels() extends Rewriter {
       Label(newLabel, newImpl)(stat.o)
     case stat if isBreakable(stat) =>
       implicit val o: Origin = stat.o
-      val labelDecl = new LabelDecl()(ImplicitLabelOrigin(o))
+      val labelDecl = new LabelDecl[Post]()(ImplicitLabelOrigin(o))
       labelStack.having(labelDecl) {
         Label(labelDecl, rewriteDefault(stat))
       }

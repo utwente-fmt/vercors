@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.lang
 
 import vct.col.ast.JavaStrictFP
 
-trait JavaStrictFPImpl { this: JavaStrictFP =>
+trait JavaStrictFPImpl[G] { this: JavaStrictFP[G] =>
 
 }

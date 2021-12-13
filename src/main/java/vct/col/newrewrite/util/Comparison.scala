@@ -15,7 +15,7 @@ case object Comparison {
   val TRUE: Comparison = Comparison(less = true, eq = true, greater = true)
   val FALSE: Comparison = Comparison()
 
-  def of(comparison: Expr): Option[(Expr, Comparison, Expr)] = Some(comparison match {
+  def of[G](comparison: Expr[G]): Option[(Expr[G], Comparison, Expr[G])] = Some(comparison match {
     case Less(left, right) => (left, LESS, right)
     case LessEq(left, right) => (left, LESS_EQ, right)
     case Eq(left, right) => (left, EQ, right)
@@ -25,7 +25,7 @@ case object Comparison {
     case _ => return None
   })
 
-  def matching(comparand: Expr, comparison: Expr): Option[(Comparison, Expr)] =
+  def matching[G](comparand: Expr[G], comparison: Expr[G]): Option[(Comparison, Expr[G])] =
     of(comparison) match {
       case Some((left, comp, right)) =>
         if(left == comparand) Some((comp, right))
@@ -42,7 +42,7 @@ case class Comparison(less: Boolean = false, eq: Boolean = false, greater: Boole
     greater = less,
   )
 
-  def make(left: Expr, right: Expr)(implicit o: Origin): Expr = this match {
+  def make[G](left: Expr[G], right: Expr[G])(implicit o: Origin): Expr[G] = this match {
     case Comparison(false, false, false) => ff
     case Comparison(true, true, true) => tt
     case Comparison(true, false, true) => Neq(left, right)

@@ -8,7 +8,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
     val classes = info.defs.filter(cls => info.supports(baseType)(cls.baseName))
 
     classes.map(cls => Case(
-      Pat.Typed(Pat.Var(q"node"), cls.typ),
+      Pat.Typed(Pat.Var(q"node"), t"${cls.typ}[Pre]"),
       None,
       q"new ${cls.rewriteHelperName}(node).rewrite()"
     )).toList
@@ -16,21 +16,21 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
 
   def make(): List[Stat] = q"""
     import RewriteHelpers._
-    abstract class AbstractRewriter extends $SCOPE_CONTEXT() {
-      implicit val rewriter: AbstractRewriter = this
+    abstract class AbstractRewriter[Pre, Post] extends $SCOPE_CONTEXT() {
+      implicit val rewriter: AbstractRewriter[Pre, Post] = this
 
-      def dispatch(decl: $DECLARATION_TYPE): Unit
+      def dispatch(decl: $DECLARATION_TYPE[Pre]): Unit
 
-      def rewriteDefault(decl: $DECLARATION_TYPE): Unit = ${
+      def rewriteDefault(decl: $DECLARATION_TYPE[Pre]): Unit = ${
         NonemptyMatch("declaration rewriteDefault", q"decl", rewriteDefaultCases(DECLARATION))
       }.succeedDefault(this, decl)
 
       ..${info.families.map(family => q"""
-        def dispatch(node: ${Type.Name(family)}): ${Type.Name(family)}
+        def dispatch(node: ${Type.Name(family)}[Pre]): ${Type.Name(family)}[Post]
       """).toList}
 
       ..${info.families.map(family => q"""
-        def rewriteDefault(node: ${Type.Name(family)}): ${Type.Name(family)} = ${
+        def rewriteDefault(node: ${Type.Name(family)}[Pre]): ${Type.Name(family)}[Post] = ${
           NonemptyMatch(s"$family rewriteDefault", q"node", rewriteDefaultCases(family))
         }
       """).toList}

@@ -5,33 +5,33 @@ import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.UserError
 
-case object IterationContractToParBlock {
+case object IterationContractToParBlock extends RewriterBuilder {
   case object IterationContractOrigin extends Origin {
     override def preferredName: String = ???
     override def messageInContext(message: String): String = ???
   }
 
-  case class InvalidLoopFormatForIterationContract(loop: Loop, message: String) extends UserError {
+  case class InvalidLoopFormatForIterationContract(loop: Loop[_], message: String) extends UserError {
     override def code: String = "invalidIterationLoop"
     override def text: String =
       loop.o.messageInContext(s"This loop has an iteration contract, but $message.")
   }
 }
 
-case class IterationContractToParBlock() extends Rewriter {
+case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre] {
   import IterationContractToParBlock._
 
-  def getVariableAndLowerBound(init: Statement): Option[(Variable, Expr)] =
+  def getVariableAndLowerBound(init: Statement[Pre]): Option[(Variable[Pre], Expr[Pre])] =
     init match {
       case Scope(Seq(v), Block(Seq(Assign(Local(Ref(v1)), low)))) if v == v1 =>
         Some((v, low))
       case _ => None
     }
 
-  def getExclusiveUpperBound(v: Variable, cond: Expr): Option[Expr] = {
+  def getExclusiveUpperBound(v: Variable[Pre], cond: Expr[Pre]): Option[Expr[Pre]] = {
     implicit val o: Origin = IterationContractOrigin
     cond match {
       case Less(Local(Ref(`v`)), high) => Some(high)
@@ -42,7 +42,7 @@ case class IterationContractToParBlock() extends Rewriter {
     }
   }
 
-  def assertIncrements(v: Variable, loop: Loop): Unit =
+  def assertIncrements(v: Variable[Pre], loop: Loop[Pre]): Unit =
     loop.update match {
       case Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE))) =>
       case _ =>
@@ -50,7 +50,7 @@ case class IterationContractToParBlock() extends Rewriter {
           "we could not ascertain that the iteration variable is incremented by one each iteration")
     }
 
-  override def dispatch(stat: Statement): Statement = stat match {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case loop @ Loop(init, cond, update, IterationContract(requires, ensures), body) =>
       val (v, low) = getVariableAndLowerBound(init).getOrElse(throw InvalidLoopFormatForIterationContract(loop,
         "we could not derive the iteration variable or its lower bound from the initialization portion of the loop"))

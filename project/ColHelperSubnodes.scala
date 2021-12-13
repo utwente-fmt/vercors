@@ -23,9 +23,9 @@ case class ColHelperSubnodes(info: ColDescription) {
           case Nil => None
           case x :: xs => Some(arg => xs.foldLeft(x(arg))((init, next) => q"$init ++ ${next(arg)}"))
         }
-      case Type.Name(typ) if info.supports("NodeFamily")(typ) || info.supports(DECLARATION)(typ) =>
+      case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if info.supports("NodeFamily")(typ) || info.supports(DECLARATION)(typ) =>
         Some(node => q"Seq($node)")
-      case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("Referrable") | Type.Apply(Type.Name("Ref"), _) =>
+      case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Apply(Type.Name("Ref"), _) =>
         None
       case other =>
         MetaUtil.fail(
@@ -53,7 +53,7 @@ case class ColHelperSubnodes(info: ColDescription) {
       )
     } else {
       Case(
-        Pat.Typed(Pat.Var(q"node"), cls.typ),
+        Pat.Typed(Pat.Var(q"node"), t"${cls.typ}[G]"),
         None,
         cls.params.zip(subnodesByField).collect {
           case (param, Some(nodes)) => nodes(Term.Select(q"node", Term.Name(param.name.value)))
@@ -67,7 +67,7 @@ case class ColHelperSubnodes(info: ColDescription) {
 
   def make(): List[Stat] = List(q"""
     object Subnodes {
-      def subnodes(node: Node): Seq[Node] = ${NonemptyMatch("subnodes", q"node", info.defs.map(subnodePattern).toList)}
+      def subnodes[G](node: Node[G]): Seq[Node[G]] = ${NonemptyMatch("subnodes", q"node", info.defs.map(subnodePattern).toList)}
     }
   """)
 }

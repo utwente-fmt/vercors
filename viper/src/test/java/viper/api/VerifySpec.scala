@@ -5,6 +5,8 @@ import vct.col.origin._
 import vct.col.util.AstBuildHelpers._
 import org.scalatest.flatspec.AnyFlatSpec
 
+sealed trait G
+
 abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
   implicit val noErrors: Blame[VerificationFailure] = NoErrors
   implicit val origin: Origin = DiagnosticOrigin
@@ -12,29 +14,29 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
 
   val vercors: ItWord = it
 
-  val ref: SilverField = new SilverField(TRef())
-  val int: SilverField = new SilverField(TInt())
+  val ref: SilverField[G] = new SilverField(TRef())
+  val int: SilverField[G] = new SilverField(TInt())
 
   implicit def reg: ExpectedErrorsRegistry = _registry match {
     case Some(value) => value
     case None => fail(s"registry is only available while within a test")
   }
 
-  def program(program: => Program): Unit = {
+  def program(program: => Program[G]): Unit = {
     _registry = Some(new ExpectedErrorsRegistry())
     backend.submit(program)
     _registry.get.check()
     _registry = None
   }
 
-  def decl(global: => GlobalDeclaration): Unit = {
+  def decl(global: => GlobalDeclaration[G]): Unit = {
     program(Program(Seq(ref, int, global))(noErrors))
   }
 
-  def procedure(returnType: => Type = TVoid(),
-                args: => Seq[Variable] = Seq(), outArgs: => Seq[Variable] = Seq(),
-                body: => Statement = Block(Seq()),
-                requires: => Expr = tt, ensures: => Expr = tt, blame: => Blame[PostconditionFailed] = noErrors): Unit = {
+  def procedure(returnType: => Type[G] = TVoid(),
+                args: => Seq[Variable[G]] = Seq(), outArgs: => Seq[Variable[G]] = Seq(),
+                body: => Statement[G] = Block(Seq()),
+                requires: => Expr[G] = tt, ensures: => Expr[G] = tt, blame: => Blame[PostconditionFailed] = noErrors): Unit = {
     decl(new Procedure(returnType, args, outArgs, Nil, Option(body), ApplicableContract(requires, ensures, tt, Seq(), Seq(), Seq()))(blame))
   }
 }

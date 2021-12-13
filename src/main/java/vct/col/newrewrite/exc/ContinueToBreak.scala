@@ -4,7 +4,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 import scala.collection.mutable
 
@@ -16,11 +16,13 @@ case class ContinueToBreakOrigin(labelDeclOrigin: Origin) extends Origin {
   override def messageInContext(message: String): String = labelDeclOrigin.messageInContext(message)
 }
 
-case class ContinueToBreak() extends Rewriter {
-  val loopLabelToInnerLabel = new mutable.HashMap[LabelDecl, LabelDecl]()
+case object ContinueToBreak extends RewriterBuilder
 
-  override def dispatch(stat: Statement): Statement = stat match {
-    case Label(labelDecl, loop: Loop) =>
+case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
+  val loopLabelToInnerLabel = new mutable.HashMap[LabelDecl[Pre], LabelDecl[Post]]()
+
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
+    case Label(labelDecl, loop: Loop[Pre]) =>
       val rewrittenBody = dispatch(loop.body)
 
       // If the loop label appears in the mapping, it means it contains some continue that wants to break

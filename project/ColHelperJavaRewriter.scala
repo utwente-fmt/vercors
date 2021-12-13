@@ -5,32 +5,30 @@ import scala.meta._
 
 case class ColHelperJavaRewriter(info: ColDescription) {
   def dispatchCase(cls: ClassDef): Case =
-    Case(Pat.Typed(Pat.Var(q"node"), cls.typ), None, q"rewrite(node)")
+    Case(Pat.Typed(Pat.Var(q"node"), t"${cls.typ}[Pre]"), None, q"rewrite(node)")
 
   def javaRewrite(ret: Type.Name)(cls: ClassDef): Stat = q"""
-    def rewrite(node: ${cls.typ}): $ret = {
-      ???
-      // val builder = new RewriteBuilders.^{cls.rewriteBuilderName}(node)
-      // rewrite(builder)
-      // builder.build()
+    def rewrite(node: ${cls.typ}[Pre]): $ret[Post] = {
+      val builder = new RewriteBuilders.${cls.rewriteBuilderName}(node)
+      rewrite(builder)
+      builder.build()
     }
   """
 
   def javaRewriteDecl(cls: ClassDef): Stat = q"""
-    def rewrite(node: ${cls.typ}): Unit = {
-      ???
-//      val builder = new RewriteBuilders.^{cls.rewriteBuilderName}(node)
-//      rewrite(builder)
-//      builder.build().succeedDefault(this, node)
+    def rewrite(node: ${cls.typ}[Pre]): Unit = {
+      val builder = new RewriteBuilders.${cls.rewriteBuilderName}[Pre, Post](node)
+      rewrite(builder)
+      builder.build().succeedDefault(this, node)
     }
   """
 
   def javaRewriteBuilder(cls: ClassDef): Stat =
-    q"def rewrite(builder: RewriteBuilders.${cls.rewriteBuilderName}): Unit = {}"
+    q"def rewrite(builder: RewriteBuilders.${cls.rewriteBuilderName}[Pre, Post]): Unit = {}"
 
   def make(): List[Stat] = List(q"""
-    abstract class JavaRewriter extends AbstractRewriter {
-      def dispatch(decl: $DECLARATION_TYPE): Unit =
+    abstract class JavaRewriter[Pre, Post] extends AbstractRewriter[Pre, Post] {
+      def dispatch(decl: $DECLARATION_TYPE[Pre]): Unit =
         ${NonemptyMatch("declaration dispatch", q"decl", info.defs.filter(cls => info.supports(DECLARATION)(cls.baseName)).map(dispatchCase).toList)}
 
       ..${
@@ -39,7 +37,7 @@ case class ColHelperJavaRewriter(info: ColDescription) {
       }
 
       ..${info.families.map(family => q"""
-        def dispatch(node: ${Type.Name(family)}): ${Type.Name(family)} =
+        def dispatch(node: ${Type.Name(family)}[Pre]): ${Type.Name(family)}[Post] =
           ${NonemptyMatch(s"$family dispatch", q"node", info.defs.filter(cls => info.supports(family)(cls.baseName)).map(dispatchCase).toList)}
       """).toList}
 

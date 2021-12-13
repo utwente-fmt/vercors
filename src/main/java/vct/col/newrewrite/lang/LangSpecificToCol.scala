@@ -7,7 +7,7 @@ import vct.col.newrewrite.lang.LangSpecificToCol.CGlobalStateNotSupported
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve._
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.{Unreachable, UserError}
 
 import scala.collection.mutable
@@ -15,65 +15,65 @@ import scala.collection.mutable.ArrayBuffer
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
-case object LangSpecificToCol {
-  case class CGlobalStateNotSupported(example: CInit) extends UserError {
+case object LangSpecificToCol extends RewriterBuilder {
+  case class CGlobalStateNotSupported(example: CInit[_]) extends UserError {
     override def code: String = "notSupported"
     override def text: String =
       example.o.messageInContext("Global variables in C are not supported.")
   }
 }
 
-case class LangSpecificToCol() extends Rewriter {
-  case class NotAValue(value: Expr) extends UserError {
+case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
+  case class NotAValue(value: Expr[_]) extends UserError {
     override def code: String = "notAValue"
     override def text: String = value.o.messageInContext("Could not resolve this expression to a value.")
   }
 
-  val namespace: ScopedStack[JavaNamespace] = ScopedStack()
-  val javaInstanceClassSuccessor: SuccessionMap[JavaClassOrInterface, Class] = SuccessionMap()
-  val javaStaticsClassSuccessor: SuccessionMap[JavaClassOrInterface, Class] = SuccessionMap()
-  val javaStaticsFunctionSuccessor: SuccessionMap[JavaClassOrInterface, Function] = SuccessionMap()
+  val namespace: ScopedStack[JavaNamespace[Pre]] = ScopedStack()
+  val javaInstanceClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
+  val javaStaticsClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
+  val javaStaticsFunctionSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Function[Post]] = SuccessionMap()
 
-  val javaFieldsSuccessor: SuccessionMap[(JavaFields, Int), InstanceField] = SuccessionMap()
-  val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration, Int), Variable] = SuccessionMap()
+  val javaFieldsSuccessor: SuccessionMap[(JavaFields[Pre], Int), InstanceField[Post]] = SuccessionMap()
+  val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
 
-  val javaDefaultConstructor: SuccessionMap[JavaClassOrInterface, JavaConstructor] = SuccessionMap()
-  val pvlDefaultConstructor: SuccessionMap[Class, Procedure] = SuccessionMap()
+  val javaDefaultConstructor: SuccessionMap[JavaClassOrInterface[Pre], JavaConstructor[Pre]] = SuccessionMap()
+  val pvlDefaultConstructor: SuccessionMap[Class[Pre], Procedure[Post]] = SuccessionMap()
 
-  val cFunctionSuccessor: SuccessionMap[CInvocationTarget, Procedure] = SuccessionMap()
-  val cNameSuccessor: SuccessionMap[CNameTarget, Variable] = SuccessionMap()
+  val cFunctionSuccessor: SuccessionMap[CInvocationTarget[Pre], Procedure[Post]] = SuccessionMap()
+  val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] = SuccessionMap()
 
-  val currentThis: ScopedStack[Expr] = ScopedStack()
-  val currentJavaClass: ScopedStack[JavaClassOrInterface] = ScopedStack()
+  val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
+  val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
 
   case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
     override def preferredName: String = "arrayInitializer"
     override def messageInContext(message: String): String = inner.messageInContext(message)
   }
 
-  case class InvalidArrayInitializerNesting(initializer: JavaLiteralArray) extends UserError {
+  case class InvalidArrayInitializerNesting(initializer: JavaLiteralArray[_]) extends UserError {
     override def text: String = initializer.o.messageInContext("This literal array is nested more deeply than its indicated type allows.")
     override def code: String = "invalidNesting"
   }
 
-  def isJavaStatic(decl: ClassDeclaration): Boolean = decl match {
-    case init: JavaSharedInitialization => init.isStatic
-    case fields: JavaFields => fields.modifiers.contains(JavaStatic()(DiagnosticOrigin))
-    case method: JavaMethod => method.modifiers.contains(JavaStatic()(DiagnosticOrigin))
-    case _: JavaConstructor => false
-    case _: ClassDeclaration => false // FIXME we should have a way of translating static specification-type declarations
+  def isJavaStatic(decl: ClassDeclaration[_]): Boolean = decl match {
+    case init: JavaSharedInitialization[_] => init.isStatic
+    case fields: JavaFields[_] => fields.modifiers.collectFirst { case JavaStatic() => () }.nonEmpty
+    case method: JavaMethod[_] => method.modifiers.collectFirst { case JavaStatic() => () }.nonEmpty
+    case _: JavaConstructor[_] => false
+    case _: ClassDeclaration[_] => false // FIXME we should have a way of translating static specification-type declarations
   }
 
-  def makeJavaClass(decls: Seq[ClassDeclaration], ref: Ref[Class])(implicit o: Origin): Unit = {
+  def makeJavaClass(decls: Seq[ClassDeclaration[Pre]], ref: Ref[Post, Class[Post]])(implicit o: Origin): Unit = {
     // First, declare all the fields, so we can refer to them.
     decls.foreach {
-      case fields: JavaFields =>
+      case fields: JavaFields[Pre] =>
         fields.drop()
         for(((sourceName, dims, _), idx) <- fields.decls.zipWithIndex) {
           javaFieldsSuccessor((fields, idx)) =
             new InstanceField(
-              t = FuncTools.repeat(TArray(_), dims, dispatch(fields.t)),
-              flags = fields.modifiers.collect { case JavaFinal() => new Final() }.toSet)(SourceNameOrigin(sourceName, fields.o))
+              t = FuncTools.repeat(TArray[Post](_), dims, dispatch(fields.t)),
+              flags = fields.modifiers.collect { case JavaFinal() => new Final[Post]() }.toSet[FieldFlag[Post]])(SourceNameOrigin(sourceName, fields.o))
           javaFieldsSuccessor((fields, idx)).declareDefault(this)
         }
       case _ =>
@@ -82,26 +82,26 @@ case class LangSpecificToCol() extends Rewriter {
     // Each constructor performs in order:
     // 1. the inline initialization of all fields
 
-    val fieldInit = (diz: Expr) => Block(decls.collect {
-      case fields: JavaFields =>
+    val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
+      case fields: JavaFields[Pre] =>
         Block(for(((_, _, init), idx) <- fields.decls.zipWithIndex if init.nonEmpty)
-          yield assignField(diz, javaFieldsSuccessor.ref((fields, idx)), dispatch(init.get))
+          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), dispatch(init.get))
         )
     })
 
     // 2. the shared initialization blocks
 
-    val sharedInit = (diz: Expr) => {
+    val sharedInit = (diz: Expr[Post]) => {
       currentThis.having(diz) {
         Block(decls.collect {
-          case init: JavaSharedInitialization => dispatch(init.initialization)
+          case init: JavaSharedInitialization[Pre] => dispatch(init.initialization)
         })
       }
     }
 
     // 3. the body of the constructor
 
-    val declsDefault = if(decls.collect { case _: JavaConstructor => () }.isEmpty) {
+    val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
       javaDefaultConstructor(currentJavaClass.top) = new JavaConstructor(
         modifiers = Nil,
         name = "",
@@ -112,10 +112,10 @@ case class LangSpecificToCol() extends Rewriter {
         contract = ApplicableContract(
           requires = tt,
           ensures = AstBuildHelpers.foldStar(decls.collect {
-            case fields: JavaFields =>
+            case fields: JavaFields[Pre] =>
               fields.decls.indices.map(decl => {
-                val local = JavaLocal(fields.decls(decl)._1)(DerefPerm)
-                local.ref = Some(RefJavaField(fields, decl))
+                val local = JavaLocal[Pre](fields.decls(decl)._1)(DerefPerm)
+                local.ref = Some(RefJavaField[Pre](fields, decl))
                 Perm(local, WritePerm())
               })
           }.flatten),
@@ -126,11 +126,11 @@ case class LangSpecificToCol() extends Rewriter {
     } else decls
 
     declsDefault.foreach {
-      case cons: JavaConstructor =>
+      case cons: JavaConstructor[Pre] =>
         implicit val o: Origin = cons.o
         val t = TClass(ref)
-        val resVar = new Variable(t)
-        val res = Local(resVar.ref)
+        val resVar = new Variable[Post](t)
+        val res = Local[Post](resVar.ref)
         currentThis.having(res) {
           new Procedure(
             returnType = t,
@@ -149,7 +149,7 @@ case class LangSpecificToCol() extends Rewriter {
             contract = dispatch(cons.contract),
           )(null).succeedDefault(this, cons)
         }
-      case method: JavaMethod =>
+      case method: JavaMethod[Pre] =>
         new InstanceMethod(
           returnType = dispatch(method.returnType),
           args = collectInScope(variableScopes) { method.parameters.foreach(dispatch) },
@@ -157,27 +157,27 @@ case class LangSpecificToCol() extends Rewriter {
           body = method.body.map(dispatch),
           contract = dispatch(method.contract),
         )(null).succeedDefault(this, method)
-      case _: JavaSharedInitialization =>
-      case _: JavaFields =>
+      case _: JavaSharedInitialization[Pre] =>
+      case _: JavaFields[Pre] =>
       case other => dispatch(other)
     }
   }
 
-  override def dispatch(decl: Declaration): Unit = decl match {
-    case model: Model =>
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case model: Model[Pre] =>
       implicit val o: Origin = model.o
-      currentThis.having(ThisModel(model.ref)) {
+      currentThis.having(ThisModel[Post](succ(model))) {
         model.rewrite().succeedDefault(this, model)
       }
 
-    case ns: JavaNamespace =>
+    case ns: JavaNamespace[Pre] =>
       ns.drop()
       namespace.having(ns) {
         // Do not enter a scope, so classes of the namespace are declared to the program.
         ns.declarations.foreach(dispatch)
       }
 
-    case cls: JavaClassOrInterface =>
+    case cls: JavaClassOrInterface[Pre] =>
       implicit val o: Origin = cls.o
 
       currentJavaClass.having(cls) {
@@ -191,42 +191,42 @@ case class LangSpecificToCol() extends Rewriter {
         val staticDecls = cls.decls.filter(isJavaStatic)
 
         val lockInvariant = cls match {
-          case clazz: JavaClass => clazz.intrinsicLockInvariant
-          case _: JavaInterface => tt
+          case clazz: JavaClass[Pre] => clazz.intrinsicLockInvariant
+          case _: JavaInterface[Pre] => tt[Pre]
         }
 
-        val instanceClass = new Class(collectInScope(classScopes) {
+        val instanceClass = new Class[Post](collectInScope(classScopes) {
           currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
             makeJavaClass(instDecls, javaInstanceClassSuccessor.ref(cls))
           }
-        }, supports, lockInvariant)
+        }, supports, dispatch(lockInvariant))
 
         instanceClass.declareDefault(this)
         javaInstanceClassSuccessor(cls) = instanceClass
 
         if(staticDecls.nonEmpty) {
-          val staticsClass = new Class(collectInScope(classScopes) {
+          val staticsClass = new Class[Post](collectInScope(classScopes) {
             currentThis.having(ThisObject(javaStaticsClassSuccessor.ref(cls))) {
               makeJavaClass(staticDecls, javaStaticsClassSuccessor.ref(cls))
             }
           }, Nil, tt)
 
           staticsClass.declareDefault(this)
-          val singleton = new Function(TClass(staticsClass.ref), Nil, Nil, None, ApplicableContract(tt, tt, tt, Nil, Nil, Nil))(null)
+          val singleton = new Function(TClass[Post](staticsClass.ref), Nil, Nil, None, ApplicableContract(tt, tt, tt, Nil, Nil, Nil))(null)
           singleton.declareDefault(this)
           javaStaticsClassSuccessor(cls) = staticsClass
           javaStaticsFunctionSuccessor(cls) = singleton
         }
       }
 
-    case cParam: CParam =>
-      val v = new Variable(cParam.specifiers.collectFirst { case t: CSpecificationType => t }.getOrElse(???).t)(cParam.o)
+    case cParam: CParam[Pre] =>
+      val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => dispatch(t.t) }.getOrElse(???))(cParam.o)
       cNameSuccessor(RefCParam(cParam)) = v
       v.declareDefault(this)
 
-    case func: CFunctionDefinition =>
+    case func: CFunctionDefinition[Pre] =>
       val info = C.getDeclaratorInfo(func.declarator)
-      val returnType = func.specs.collectFirst { case t: CSpecificationType => t }.getOrElse(???).t
+      val returnType = func.specs.collectFirst { case t: CSpecificationType[Pre] => dispatch(t.t) }.getOrElse(???)
       val params = collectInScope(variableScopes) { info.params.get.foreach(dispatch) }
       cFunctionSuccessor(RefCFunctionDefinition(func)) = new Procedure(
         returnType = returnType,
@@ -237,13 +237,13 @@ case class LangSpecificToCol() extends Rewriter {
         contract = contract()(func.o),
       )(func.blame)(func.o)
 
-    case decl: CGlobalDeclaration =>
-      val t = decl.decl.specs.collectFirst { case t: CSpecificationType => t }.getOrElse(???).t
+    case decl: CGlobalDeclaration[Pre] =>
+      val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => dispatch(t.t) }.getOrElse(???)
       for((init, idx) <- decl.decl.inits.zipWithIndex) {
         val info = C.getDeclaratorInfo(init.decl)
         info.params match {
           case Some(params) =>
-            cFunctionSuccessor(RefCGlobalDeclaration(decl, idx)) = new Procedure(
+            cFunctionSuccessor(RefCGlobalDeclaration(decl, idx)) = new Procedure[Post](
               returnType = t,
               args = collectInScope(variableScopes) { params.foreach(dispatch) },
               outArgs = Nil,
@@ -256,31 +256,31 @@ case class LangSpecificToCol() extends Rewriter {
         }
       }
 
-    case decl: CDeclaration => ???
+    case decl: CDeclaration[Pre] => ???
 
-    case cls: Class =>
-      currentThis.having(ThisObject(succ(cls))(cls.o)) {
+    case cls: Class[Pre] =>
+      currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
         val decls = collectInScope(classScopes) {
           cls.declarations.foreach(dispatch)
 
-          if(cls.declarations.collectFirst { case _: PVLConstructor => () }.isEmpty) {
+          if(cls.declarations.collectFirst { case _: PVLConstructor[Pre] => () }.isEmpty) {
             implicit val o: Origin = cls.o
-            val t = TClass(succ[Class](cls))
-            val resVar = new Variable(t)
-            val res = Local(resVar.ref)
+            val t = TClass[Post](succ(cls))
+            val resVar = new Variable[Post](t)
+            val res = Local[Post](resVar.ref)
 
             pvlDefaultConstructor(cls) = new Procedure(
-              TClass(succ[Class](cls)),
+              t,
               Nil, Nil, Nil,
               Some(Scope(Seq(resVar), Block(Seq(
-                Assign(res, NewObject(succ[Class](cls))),
+                Assign(res, NewObject[Post](succ(cls))),
                 Return(res),
               )))),
               ApplicableContract(
                 tt,
                 AstBuildHelpers.foldStar(cls.declarations.collect {
-                  case field: InstanceField =>
-                    fieldPerm(currentThis.top, succ[InstanceField](field), WritePerm())
+                  case field: InstanceField[Pre] =>
+                    fieldPerm[Post](currentThis.top, succ(field), WritePerm())
                 }), tt, Nil, Nil, Nil,
               )
             )(null)
@@ -296,16 +296,16 @@ case class LangSpecificToCol() extends Rewriter {
   }
 
 
-  override def dispatch(stat: Statement): Statement = stat match {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case scope @ Scope(locals, body) =>
-      def scanScope(node: Node): Unit = node match {
+      def scanScope(node: Node[Pre]): Unit = node match {
         case Scope(_, _) =>
-        case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration) =>
+        case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration[Pre]) =>
           locals.drop()
           implicit val o: Origin = node.o
           locals.decls.zipWithIndex.foreach {
             case ((_, dims, _), idx) =>
-              val v = new Variable(FuncTools.repeat(TArray(_), dims, dispatch(locals.t)))
+              val v = new Variable[Post](FuncTools.repeat(TArray[Post](_), dims, dispatch(locals.t)))
               javaLocalsSuccessor((locals, idx)) = v
               v.declareDefault(this)
           }
@@ -317,7 +317,7 @@ case class LangSpecificToCol() extends Rewriter {
         scanScope(body)
       })
 
-    case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration) =>
+    case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration[Pre]) =>
       implicit val o: Origin = locals.o
       Block(for(((_, _, init), i) <- locals.decls.zipWithIndex if init.nonEmpty)
         yield Assign(Local(javaLocalsSuccessor.ref((locals, i))), dispatch(init.get))
@@ -325,32 +325,32 @@ case class LangSpecificToCol() extends Rewriter {
 
     case CDeclarationStatement(decl) =>
       // PB: this is correct because Seq[CInit]'s are flattened, but the structure is a bit stupid.
-      val t = decl.specs.collectFirst { case t: CSpecificationType => t }.getOrElse(???).t
+      val t = decl.specs.collectFirst { case t: CSpecificationType[Pre] => dispatch(t.t) }.getOrElse(???)
       Block(for((init, idx) <- decl.inits.zipWithIndex) yield {
         val info = C.getDeclaratorInfo(init.decl)
         info.params match {
           case Some(params) => ???
           case None =>
-            val v = new Variable(t)(init.o)
+            val v = new Variable[Post](t)(init.o)
             cNameSuccessor(RefCDeclaration(decl, idx)) = v
             LocalDecl(v)(init.o)
         }
       })(decl.o)
 
-    case goto: CGoto =>
-      Goto(succ(goto.ref.getOrElse(???)))(goto.o)
+    case goto: CGoto[Pre] =>
+      Goto[Post](succ(goto.ref.getOrElse(???)))(goto.o)
 
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(e: Expr): Expr = e match {
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case result @ AmbiguousResult() =>
       implicit val o: Origin = result.o
       result.ref.get match {
-        case ref: RefCFunctionDefinition =>
-          Result(cFunctionSuccessor.ref(ref))
-        case ref: RefCGlobalDeclaration =>
-          Result(cFunctionSuccessor.ref(ref))
+        case ref: RefCFunctionDefinition[Pre] =>
+          Result[Post](cFunctionSuccessor.ref(ref))
+        case ref: RefCGlobalDeclaration[Pre] =>
+          Result[Post](cFunctionSuccessor.ref(ref))
         case RefFunction(decl) => Result(succ(decl))
         case RefProcedure(decl) => Result(succ(decl))
         case RefJavaMethod(decl) => Result(succ(decl))
@@ -361,7 +361,7 @@ case class LangSpecificToCol() extends Rewriter {
     case diz @ AmbiguousThis() =>
       implicit val o: Origin = diz.o
       diz.ref.get match {
-        case RefJavaClass(decl) => ThisObject(javaInstanceClassSuccessor.ref(decl))
+        case RefJavaClass(decl) => ThisObject[Post](javaInstanceClassSuccessor.ref(decl))
         case RefClass(decl) => ThisObject(succ(decl))
         case RefModel(decl) => ThisModel(succ(decl))
       }
@@ -371,20 +371,20 @@ case class LangSpecificToCol() extends Rewriter {
 
       local.ref.get match {
         case RefAxiomaticDataType(decl) => throw NotAValue(local)
-        case RefVariable(decl) => Local(succ[Variable](decl))
+        case RefVariable(decl) => Local(succ(decl))
         case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
         case RefJavaClass(decl) => throw NotAValue(local)
         case RefJavaField(decls, idx) =>
           if(decls.modifiers.contains(JavaStatic())) {
-            Deref(
-              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil)(null),
+            Deref[Post](
+              obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil)(null),
               ref = javaFieldsSuccessor.ref((decls, idx)),
             )(local.blame)
           } else {
-            Deref(currentThis.top, javaFieldsSuccessor.ref((decls, idx)))(local.blame)
+            Deref[Post](currentThis.top, javaFieldsSuccessor.ref((decls, idx)))(local.blame)
           }
         case RefModelField(field) =>
-          ModelDeref(currentThis.top, succ[ModelField](field))(local.blame)
+          ModelDeref[Post](currentThis.top, succ(field))(local.blame)
         case RefJavaLocalDeclaration(decls, idx) =>
           Local(javaLocalsSuccessor.ref((decls, idx)))
       }
@@ -394,10 +394,10 @@ case class LangSpecificToCol() extends Rewriter {
 
       local.ref.get match {
         case RefAxiomaticDataType(decl) => throw NotAValue(local)
-        case RefVariable(decl) => Local(succ[Variable](decl))
-        case RefModelField(decl) => ModelDeref(currentThis.top, succ[ModelField](decl))(local.blame)
+        case RefVariable(decl) => Local(succ(decl))
+        case RefModelField(decl) => ModelDeref[Post](currentThis.top, succ(decl))(local.blame)
         case RefClass(decl) => throw NotAValue(local)
-        case RefField(decl) => Deref(currentThis.top, succ[InstanceField](decl))(local.blame)
+        case RefField(decl) => Deref[Post](currentThis.top, succ(decl))(local.blame)
       }
 
     case deref @ JavaDeref(obj, _) =>
@@ -407,11 +407,11 @@ case class LangSpecificToCol() extends Rewriter {
         case RefAxiomaticDataType(decl) => throw NotAValue(deref)
         case RefModel(decl) => throw NotAValue(deref)
         case RefJavaClass(decl) => throw NotAValue(deref)
-        case RefModelField(decl) => ModelDeref(dispatch(obj), succ[ModelField](decl))(deref.blame)
+        case RefModelField(decl) => ModelDeref[Post](dispatch(obj), succ(decl))(deref.blame)
         case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
         case RefJavaField(decls, idx) =>
-          Deref(dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
-        case BuiltinField(f) => f(dispatch(obj))
+          Deref[Post](dispatch(obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
+        case BuiltinField(f) => dispatch(f(obj))
         case RefVariable(v) => ???
       }
 
@@ -419,9 +419,9 @@ case class LangSpecificToCol() extends Rewriter {
       implicit val o: Origin = deref.o
 
       deref.ref.get match {
-        case RefModelField(decl) => ModelDeref(dispatch(obj), succ[ModelField](decl))(deref.blame)
-        case BuiltinField(f) => f(dispatch(obj))
-        case RefField(decl) => Deref(dispatch(obj), succ[InstanceField](decl))(deref.blame)
+        case RefModelField(decl) => ModelDeref[Post](dispatch(obj), succ(decl))(deref.blame)
+        case BuiltinField(f) => dispatch(f(obj))
+        case RefField(decl) => Deref[Post](dispatch(obj), succ(decl))(deref.blame)
       }
 
     case JavaLiteralArray(_) => ???
@@ -430,37 +430,37 @@ case class LangSpecificToCol() extends Rewriter {
       implicit val o: Origin = inv.o
       inv.ref.get match {
         case RefFunction(decl) =>
-          FunctionInvocation(succ[Function](decl), args.map(dispatch), Nil)(null)
+          FunctionInvocation[Post](succ(decl), args.map(dispatch), Nil)(null)
         case RefProcedure(decl) =>
-          ProcedureInvocation(succ[Procedure](decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
+          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
         case RefPredicate(decl) =>
-          PredicateApply(succ[Predicate](decl), args.map(dispatch))
+          PredicateApply[Post](succ(decl), args.map(dispatch))
         case RefInstanceFunction(decl) =>
-          InstanceFunctionInvocation(obj.map(dispatch).getOrElse(currentThis.top), succ[InstanceFunction](decl), args.map(dispatch), typeParams.map(dispatch))(null)
+          InstanceFunctionInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), typeParams.map(dispatch))(null)
         case RefInstanceMethod(decl) =>
-          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.top), succ[InstanceMethod](decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
+          MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
         case RefInstancePredicate(decl) =>
-          InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.top), succ[InstancePredicate](decl), args.map(dispatch))
+          InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch))
         case RefADTFunction(decl) =>
-          ADTFunctionInvocation(None, succ[ADTFunction](decl), args.map(dispatch))
+          ADTFunctionInvocation[Post](None, succ(decl), args.map(dispatch))
         case RefModelProcess(decl) =>
-          ProcessApply(succ[ModelProcess](decl), args.map(dispatch))
+          ProcessApply[Post](succ(decl), args.map(dispatch))
         case RefModelAction(decl) =>
-          ActionApply(succ[ModelAction](decl), args.map(dispatch))
+          ActionApply[Post](succ(decl), args.map(dispatch))
         case RefJavaMethod(decl) =>
           if(decl.modifiers.contains(JavaStatic())) {
-            MethodInvocation(
-              obj = FunctionInvocation(javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil)(null),
-              ref = succ[InstanceMethod](decl),
+            MethodInvocation[Post](
+              obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil)(null),
+              ref = succ(decl),
               args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch))(null)
           } else {
-            MethodInvocation(
+            MethodInvocation[Post](
               obj = obj.map(dispatch).getOrElse(currentThis.top),
-              ref = succ[InstanceMethod](decl),
+              ref = succ(decl),
               args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch))(null)
           }
         case BuiltinInstanceMethod(f) =>
-          f(dispatch(obj.get))(args.map(dispatch))
+          dispatch(f(obj.get)(args))
       }
 
     case inv @ PVLInvocation(obj, _, args, typeArgs, givenArgs, yields) =>
@@ -468,39 +468,41 @@ case class LangSpecificToCol() extends Rewriter {
 
       inv.ref.get match {
         case RefFunction(decl) =>
-          FunctionInvocation(succ[Function](decl), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)
+          FunctionInvocation[Post](succ(decl), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)
         case RefProcedure(decl) =>
-          ProcedureInvocation(succ[Procedure](decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
+          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
         case RefPredicate(decl) =>
-          PredicateApply(succ[Predicate](decl), args.map(dispatch))
+          PredicateApply[Post](succ(decl), args.map(dispatch))
         case RefInstanceFunction(decl) =>
-          InstanceFunctionInvocation(
+          InstanceFunctionInvocation[Post](
             obj.map(dispatch).getOrElse(currentThis.top),
-            succ[InstanceFunction](decl),
+            succ(decl),
             args.map(dispatch),
             typeArgs.map(dispatch))(inv.blame)
         case RefInstanceMethod(decl) =>
-          MethodInvocation(obj.map(dispatch).getOrElse(currentThis.top), succ[InstanceMethod](decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
+          MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
         case RefInstancePredicate(decl) =>
-          InstancePredicateApply(obj.map(dispatch).getOrElse(currentThis.top), succ[InstancePredicate](decl), args.map(dispatch))
+          InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch))
         case RefADTFunction(decl) =>
-          ADTFunctionInvocation(None, succ[ADTFunction](decl), args.map(dispatch))
+          ADTFunctionInvocation[Post](None, succ(decl), args.map(dispatch))
         case RefModelProcess(decl) =>
-          ProcessApply(succ[ModelProcess](decl), args.map(dispatch))
+          ProcessApply[Post](succ(decl), args.map(dispatch))
         case RefModelAction(decl) =>
-          ActionApply(succ[ModelAction](decl), args.map(dispatch))
+          ActionApply[Post](succ(decl), args.map(dispatch))
         case BuiltinInstanceMethod(f) =>
-          f(dispatch(obj.get))(args.map(dispatch))
+          dispatch(f(obj.get)(args))
       }
 
     case inv @ JavaNewClass(args, typeParams, t @ JavaTClass(Ref(decl), _)) =>
       implicit val o: Origin = inv.o
       val cons = decl.decls.collectFirst {
-        case cons: JavaConstructor if Util.compat(args, cons.parameters) => cons
+        case cons: JavaConstructor[Pre] if Util.compat(args, cons.parameters) => cons
       }
 
-      val consRef = cons.map(succ[Procedure]).getOrElse(
-        new LazyRef[Procedure](successionMap(javaDefaultConstructor(decl))))
+      val consRef = cons match {
+        case Some(cons) => succ[JavaConstructor[Pre], Procedure[Post]](cons)
+        case None => new LazyRef[Post, Procedure[Post]](successionMap(javaDefaultConstructor(decl)))
+      }
 
       ProcedureInvocation(consRef, args.map(dispatch), Nil, typeParams.map(dispatch))(null)
 
@@ -509,14 +511,14 @@ case class LangSpecificToCol() extends Rewriter {
 
       t.ref.get match {
         case RefAxiomaticDataType(decl) =>  ???
-        case RefModel(decl) => ModelNew(succ[Model](decl))
+        case RefModel(decl) => ModelNew[Post](succ(decl))
         case RefClass(decl) =>
           val cons = decl.declarations.collectFirst {
-            case cons: PVLConstructor if Util.compat(args, cons.args) => cons
+            case cons: PVLConstructor[Pre] if Util.compat(args, cons.args) => cons
           }
 
-          ProcedureInvocation(
-            new LazyRef[Procedure](cons.map(successionMap.apply).getOrElse(pvlDefaultConstructor(decl))),
+          ProcedureInvocation[Post](
+            new LazyRef[Post, Procedure[Post]](cons.map(successionMap.apply).getOrElse(pvlDefaultConstructor(decl))),
             args.map(dispatch),
             Nil, Nil,
           )(inv.blame)
@@ -525,24 +527,24 @@ case class LangSpecificToCol() extends Rewriter {
 
     case JavaNewLiteralArray(baseType, dims, initializer) =>
       // Recursively rewrite an array initializer as a list of assignments
-      def collectArray(es: JavaLiteralArray, dims: Int, stats: ArrayBuffer[Statement]): Expr = {
+      def collectArray(es: JavaLiteralArray[Pre], dims: Int, stats: ArrayBuffer[Statement[Post]]): Expr[Post] = {
         if (dims < 1) throw InvalidArrayInitializerNesting(es)
 
         implicit val o: Origin = JavaInlineArrayInitializerOrigin(es.o)
-        val v = new Variable(FuncTools.repeat(TArray(_), dims, baseType))
+        val v = new Variable[Post](FuncTools.repeat[Type[Post]](TArray[Post](_), dims, dispatch(baseType)))
         stats += LocalDecl(v)
         es.exprs.zipWithIndex.map {
-          case (e: JavaLiteralArray, i) =>
-            stats += Assign(AmbiguousSubscript(Local(v.ref), const(i))(JavaArrayInitializerBlame), collectArray(e, dims-1, stats))
+          case (e: JavaLiteralArray[Pre], i) =>
+            stats += Assign(AmbiguousSubscript(Local[Post](v.ref), const(i))(JavaArrayInitializerBlame), collectArray(e, dims-1, stats))
           case (other, i) =>
-            stats += Assign(AmbiguousSubscript(Local(v.ref), const(i))(JavaArrayInitializerBlame), dispatch(other))
+            stats += Assign(AmbiguousSubscript(Local[Post](v.ref), const(i))(JavaArrayInitializerBlame), dispatch(other))
         }
-        Local(v.ref)
+        Local[Post](v.ref)
       }
 
-      val stats = ArrayBuffer[Statement]()
+      val stats = ArrayBuffer[Statement[Post]]()
       val value = collectArray(initializer match {
-        case init: JavaLiteralArray => init
+        case init: JavaLiteralArray[Pre] => init
         case _ => throw Unreachable("The top level expression of a JavaNewLiteralArray is never not a LiteralArray.")
       }, dims, stats)
       With(Block(stats.toSeq)(e.o), value)(e.o)
@@ -552,7 +554,7 @@ case class LangSpecificToCol() extends Rewriter {
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(t: Type): Type = t match {
+  override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case JavaTClass(Ref(cls), _) => TClass(javaInstanceClassSuccessor.ref(cls))
     case other => rewriteDefault(other)
   }

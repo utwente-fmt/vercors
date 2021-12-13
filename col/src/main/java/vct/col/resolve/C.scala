@@ -3,12 +3,13 @@ package vct.col.resolve
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.util.Types
 import vct.result.VerificationResult.UserError
 
 case object C {
   implicit private val o: Origin = DiagnosticOrigin
 
-  case class CTypeNotSupported(node: Option[Node]) extends UserError {
+  case class CTypeNotSupported(node: Option[Node[_]]) extends UserError {
     override def code: String = "cTypeNotSupported"
     override def text: String = {
       (node match {
@@ -18,13 +19,13 @@ case object C {
     }
   }
 
-  val NUMBER_LIKE_PREFIXES: Seq[Seq[CDeclarationSpecifier]] = Seq(
+  val NUMBER_LIKE_PREFIXES: Seq[Seq[CDeclarationSpecifier[_]]] = Seq(
     Nil,
     Seq(CUnsigned()),
     Seq(CSigned()),
   )
 
-  val NUMBER_LIKE_TYPES: Seq[Seq[CDeclarationSpecifier]] = Seq(
+  val NUMBER_LIKE_TYPES: Seq[Seq[CDeclarationSpecifier[_]]] = Seq(
     Seq(CInt()),
     Seq(CLong()),
     Seq(CLong(), CInt()),
@@ -32,18 +33,18 @@ case object C {
     Seq(CLong(), CLong(), CInt()),
   )
 
-  val NUMBER_LIKE_SPECIFIERS: Seq[Seq[CDeclarationSpecifier]] =
+  val NUMBER_LIKE_SPECIFIERS: Seq[Seq[CDeclarationSpecifier[_]]] =
     for (prefix <- NUMBER_LIKE_PREFIXES; t <- NUMBER_LIKE_TYPES)
       yield prefix ++ t
 
-  case class DeclaratorInfo(params: Option[Seq[CParam]], typeOrReturnType: Type => Type, name: String)
+  case class DeclaratorInfo[G](params: Option[Seq[CParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String)
 
-  def getDeclaratorInfo(decl: CDeclarator): DeclaratorInfo = decl match {
+  def getDeclaratorInfo[G](decl: CDeclarator[G]): DeclaratorInfo[G] = decl match {
     case CPointerDeclarator(pointers, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(
         innerInfo.params,
-        t => FuncTools.repeat(TPointer(_), pointers.size, innerInfo.typeOrReturnType(t)),
+        t => FuncTools.repeat[Type[G]](TPointer(_), pointers.size, innerInfo.typeOrReturnType(t)),
         innerInfo.name)
     case CArrayDeclarator(_, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
@@ -60,51 +61,51 @@ case object C {
     case CName(name) => DeclaratorInfo(params=None, typeOrReturnType=(t => t), name)
   }
 
-  def getPrimitiveType(specs: Seq[CDeclarationSpecifier], context: Option[Node] = None): Type =
-    specs.collect { case spec: CTypeSpecifier => spec } match {
+  def getPrimitiveType[G](specs: Seq[CDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] =
+    specs.collect { case spec: CTypeSpecifier[G] => spec } match {
       case Seq(CVoid()) => TVoid()
       case Seq(CChar()) => TChar()
       case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
       case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
       case Seq(CBool()) => TBool()
-      case Seq(defn @ CTypedefName(_)) => new TNotAValue(Some(defn.ref.get))
+      case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
       case _ => throw CTypeNotSupported(context)
     }
 
-  def nameFromDeclarator(declarator: CDeclarator): String =
+  def nameFromDeclarator(declarator: CDeclarator[_]): String =
     getDeclaratorInfo(declarator).name
 
-  def typeOrReturnTypeFromDeclaration(specs: Seq[CDeclarationSpecifier], decl: CDeclarator): Type =
+  def typeOrReturnTypeFromDeclaration[G](specs: Seq[CDeclarationSpecifier[G]], decl: CDeclarator[G]): Type[G] =
     getDeclaratorInfo(decl).typeOrReturnType(CPrimitiveType(specs))
 
-  def paramsFromDeclarator(declarator: CDeclarator): Seq[CParam] =
+  def paramsFromDeclarator[G](declarator: CDeclarator[G]): Seq[CParam[G]] =
     getDeclaratorInfo(declarator).params.get
 
-  def findCTypeName(name: String, ctx: TypeResolutionContext): Option[CTypeNameTarget] =
+  def findCTypeName[G](name: String, ctx: TypeResolutionContext[G]): Option[CTypeNameTarget[G]] =
     ctx.stack.flatten.collectFirst {
-      case target: CTypeNameTarget if target.name == name => target
+      case target: CTypeNameTarget[G] if target.name == name => target
     }
 
-  def findCName(name: String, ctx: ReferenceResolutionContext): Option[CNameTarget] =
+  def findCName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[CNameTarget[G]] =
     ctx.stack.flatten.collectFirst {
-      case target: CNameTarget if target.name == name => target
+      case target: CNameTarget[G] if target.name == name => target
     }
 
-  def findDeref(obj: Expr, name: String, ctx: ReferenceResolutionContext, blame: Blame[BuiltinError]): Option[CDerefTarget] =
+  def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
     obj.t match {
-      case t: TNotAValue => t.decl.get match {
+      case t: TNotAValue[G] => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
-          case ref: RefADTFunction if ref.name == name => ref
+          case ref: RefADTFunction[G] if ref.name == name => ref
         }
         case _ => Spec.builtinField(obj, name, blame)
       }
       case _ => Spec.builtinField(obj, name, blame)
     }
 
-  def resolveInvocation(obj: Expr, ctx: ReferenceResolutionContext): CInvocationTarget =
+  def resolveInvocation[G](obj: Expr[G], ctx: ReferenceResolutionContext[G]): CInvocationTarget[G] =
     obj.t match {
-      case t: TNotAValue => t.decl.get match {
-        case target: CInvocationTarget => target
+      case t: TNotAValue[G] => t.decl.get match {
+        case target: CInvocationTarget[G] => target
         case _ => throw NotApplicable(obj)
       }
       case _ => throw NotApplicable(obj)

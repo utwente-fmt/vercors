@@ -3,9 +3,9 @@ package vct.col.ast.temporaryimplpackage.expr.apply
 import vct.col.ast.{Applicable, Apply, Expr, Type}
 import vct.col.ref.Ref
 
-trait ApplyImpl { this: Apply =>
-  def ref: Ref[_ <: Applicable]
-  def args: Seq[Expr]
+trait ApplyImpl[G] { this: Apply[G] =>
+  def ref: Ref[G, _ <: Applicable[G]]
+  def args: Seq[Expr[G]]
 
-  override def t: Type = ref.decl.returnType
+  override def t: Type[G] = ref.decl.returnType
 }

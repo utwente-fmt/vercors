@@ -11,22 +11,22 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-abstract class ToCol(val originProvider: OriginProvider, val blameProvider: BlameProvider, val errors: mutable.Map[(Int, Int), String]) {
-  class ContractCollector() {
+abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: BlameProvider, val errors: mutable.Map[(Int, Int), String]) {
+  class ContractCollector[G1]() {
     val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
     val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
-    val signals: mutable.ArrayBuffer[(ParserRuleContext, SignalsClause)] = mutable.ArrayBuffer()
+    val signals: mutable.ArrayBuffer[(ParserRuleContext, SignalsClause[G1])] = mutable.ArrayBuffer()
 
-    val requires: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
-    val ensures: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
-    val context_everywhere: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
-    val kernel_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
-    val lock_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
+    val requires: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
+    val ensures: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
+    val context_everywhere: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
+    val kernel_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
+    val lock_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
 
-    val given: mutable.ArrayBuffer[(ParserRuleContext, Variable)] = mutable.ArrayBuffer()
-    val yields: mutable.ArrayBuffer[(ParserRuleContext, Variable)] = mutable.ArrayBuffer()
+    val given: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] = mutable.ArrayBuffer()
+    val yields: mutable.ArrayBuffer[(ParserRuleContext, Variable[G1])] = mutable.ArrayBuffer()
 
-    val loop_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr)] = mutable.ArrayBuffer()
+    val loop_invariant: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
 
     def consume[T](buffer: mutable.ArrayBuffer[(ParserRuleContext, T)]): Seq[T] = {
       val result = buffer.map(_._2)
@@ -34,13 +34,13 @@ abstract class ToCol(val originProvider: OriginProvider, val blameProvider: Blam
       result.toSeq
     }
 
-    def consumeApplicableContract()(implicit o: Origin): ApplicableContract = {
+    def consumeApplicableContract()(implicit o: Origin): ApplicableContract[G1] = {
       ApplicableContract(AstBuildHelpers.foldStar(consume(requires)), AstBuildHelpers.foldStar(consume(ensures)),
                          AstBuildHelpers.foldStar(consume(context_everywhere)),
                          consume(signals), consume(given), consume(yields))
     }
 
-    def consumeLoopContract()(implicit o: Origin): LoopContract = {
+    def consumeLoopContract()(implicit o: Origin): LoopContract[G1] = {
       if(requires.nonEmpty) IterationContract(AstBuildHelpers.foldStar(consume(requires)), AstBuildHelpers.foldStar(consume(ensures)))
       else LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)))
     }

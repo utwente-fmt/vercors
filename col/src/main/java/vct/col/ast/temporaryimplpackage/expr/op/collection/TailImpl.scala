@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.op.collection
 
 import vct.col.ast.{Tail, Type}
 
-trait TailImpl { this: Tail =>
-  override def t: Type = xs.t
+trait TailImpl[G] { this: Tail[G] =>
+  override def t: Type[G] = xs.t
 }

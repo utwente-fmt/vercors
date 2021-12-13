@@ -3,6 +3,6 @@ package vct.col.ast.temporaryimplpackage.declaration.singular
 import vct.col.ast.Variable
 import vct.col.rewrite.ScopeContext
 
-trait VariableImpl { this: Variable =>
-  override def declareDefault(scope: ScopeContext): Unit = scope.variableScopes.top += this
+trait VariableImpl[G] { this: Variable[G] =>
+  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): Unit = scope.variableScopes.top += this
 }

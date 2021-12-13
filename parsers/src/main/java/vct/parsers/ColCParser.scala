@@ -26,20 +26,20 @@ case class ColCParser() extends Parser {
     new ProcessBuilder(command:_*).start()
   }
 
-  override def parse(stream: CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult = {
+  override def parse[G](stream: CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] = {
     throw Unreachable("Should not parse C files from an ANTLR CharStream: they need to be interpreted first!")
   }
 
-  override def parse(stream: InputStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult = {
+  override def parse[G](stream: InputStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] = {
     val process = interpret(localInclude=Nil, input="-", output="-")
     new Thread(() => stream.transferTo(process.getOutputStream)).start()
-    val result = ColIParser().parse(process.getInputStream, originProvider, blameProvider)
+    val result = ColIParser().parse[G](process.getInputStream, originProvider, blameProvider)
     process.destroy()
     result
   }
 
-  override def parse(f: File)(originProvider: OriginProvider = null,
-                              blameProvider: BlameProvider = null): ParseResult = {
+  override def parse[G](f: File)(originProvider: OriginProvider = null,
+                              blameProvider: BlameProvider = null): ParseResult[G] = {
     // TODO PB: this needs some more thinking: we're ignoring the providers here. Really this whole abstraction doesn't fit for C.
     val interpreted = File.createTempFile("vercors-interpreted-", ".i")
     val process = interpret(localInclude=Option(f.toPath.getParent).toSeq, input=f.getAbsolutePath, output=interpreted.getAbsolutePath)

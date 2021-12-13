@@ -3,10 +3,10 @@ package vct.col.ast.temporaryimplpackage.declaration.model
 import vct.col.ast.{ModelAction, Node, TBool, TProcess, Type}
 import vct.col.check.{CheckContext, CheckError}
 
-trait ModelActionImpl { this: ModelAction =>
-  override def returnType: Type = TProcess()
-  override def body: Option[Node] = None
+trait ModelActionImpl[G] { this: ModelAction[G] =>
+  override def returnType: Type[G] = TProcess()
+  override def body: Option[Node[G]] = None
 
-  override def check(context: CheckContext): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckError] =
     requires.checkSubType(TBool()) ++ ensures.checkSubType(TBool())
 }

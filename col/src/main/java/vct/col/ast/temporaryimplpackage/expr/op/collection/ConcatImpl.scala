@@ -3,10 +3,10 @@ package vct.col.ast.temporaryimplpackage.expr.op.collection
 import vct.col.ast.{Concat, TSeq, Type}
 import vct.col.util.Types
 
-trait ConcatImpl { this: Concat =>
-  def leftType: TSeq = xs.t.asSeq.get
+trait ConcatImpl[G] { this: Concat[G] =>
+  def leftType: TSeq[G] = xs.t.asSeq.get
 
-  def rightType: TSeq = ys.t.asSeq.get
+  def rightType: TSeq[G] = ys.t.asSeq.get
 
-  override def t: Type = TSeq(Types.leastCommonSuperType(leftType.element, rightType.element))
+  override def t: Type[G] = TSeq(Types.leastCommonSuperType(leftType.element, rightType.element))
 }

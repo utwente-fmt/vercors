@@ -4,13 +4,13 @@ import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.ast.{Applicable, Declaration, Node, Type, Variable}
 import vct.col.check.CheckContext
 
-trait ApplicableImpl extends Declarator { this: Applicable =>
-  def args: Seq[Variable]
-  def returnType: Type
-  def body: Option[Node]
+trait ApplicableImpl[G] extends Declarator[G] { this: Applicable[G] =>
+  def args: Seq[Variable[G]]
+  def returnType: Type[G]
+  def body: Option[Node[G]]
 
-  override def declarations: Seq[Declaration] = args
+  override def declarations: Seq[Declaration[G]] = args
 
-  override def enterCheckContext(context: CheckContext): CheckContext =
+  override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     super.enterCheckContext(context).withApplicable(this)
 }

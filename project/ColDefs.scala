@@ -45,7 +45,9 @@ object ColDefs {
   /**
    * The type that is the direct superclass of AbstractRewriter, and contains the default scopes mentioned above.
    */
-  val SCOPE_CONTEXT: Type.Name = Type.Name("ScopeContext")
+  val PRE: Type.Name = Type.Name("Pre")
+  val POST: Type.Name = Type.Name("Post")
+  val SCOPE_CONTEXT: Type.Apply = Type.Apply(Type.Name("ScopeContext"), List(PRE, POST))
 
   /**
    * The fields that occupy blame and the origin of the node respectively.

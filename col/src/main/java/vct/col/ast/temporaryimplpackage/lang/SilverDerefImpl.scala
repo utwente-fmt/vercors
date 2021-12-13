@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.lang
 
 import vct.col.ast.{SilverDeref, Type}
 
-trait SilverDerefImpl { this: SilverDeref =>
-  override def t: Type = field.decl.t
+trait SilverDerefImpl[G] { this: SilverDeref[G] =>
+  override def t: Type[G] = field.decl.t
 }

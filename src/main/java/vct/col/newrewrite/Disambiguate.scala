@@ -4,11 +4,13 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.Origin
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.Unreachable
 
-case class Disambiguate() extends Rewriter {
-  override def dispatch(e: Expr): Expr = {
+case object Disambiguate extends RewriterBuilder
+
+case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
+  override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
       case op @ AmbiguousMult(left, right) =>
@@ -23,15 +25,15 @@ case class Disambiguate() extends Rewriter {
       case op @ AmbiguousOr(left, right) =>
         if(op.isProcessOp) ProcessPar(dispatch(left), dispatch(right))
         else Or(dispatch(left), dispatch(right))
-      case op: BitOp =>
+      case op: BitOp[Pre] =>
         val cons = if(op.isBoolOp) op match {
-          case _: AmbiguousComputationalOr => Or(_, _)
-          case _: AmbiguousComputationalXor => Neq(_, _)
-          case _: AmbiguousComputationalAnd => And(_, _)
+          case _: AmbiguousComputationalOr[Pre] => Or[Post](_, _)
+          case _: AmbiguousComputationalXor[Pre] => Neq[Post](_, _)
+          case _: AmbiguousComputationalAnd[Pre] => And[Post](_, _)
         } else op match {
-          case _: AmbiguousComputationalOr => ComputationalOr(_, _)
-          case _: AmbiguousComputationalXor => ComputationalXor(_, _)
-          case _: AmbiguousComputationalAnd => ComputationalAnd(_, _)
+          case _: AmbiguousComputationalOr[Pre] => ComputationalOr[Post](_, _)
+          case _: AmbiguousComputationalXor[Pre] => ComputationalXor[Post](_, _)
+          case _: AmbiguousComputationalAnd[Pre] => ComputationalAnd[Post](_, _)
         }
 
         cons(dispatch(op.left), dispatch(op.right))

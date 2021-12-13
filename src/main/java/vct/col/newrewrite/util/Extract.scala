@@ -16,35 +16,35 @@ case object Extract {
       s"At: [extracted expression]\n$message"
   }
 
-  def extract(nodes: Expr*): (Seq[Expr], Map[Variable, Expr]) = {
-    val extract = Extract()
+  def extract[G](nodes: Expr[G]*): (Seq[Expr[G]], Map[Variable[G], Expr[G]]) = {
+    val extract = Extract[G]()
     val result = nodes.map(extract.extract)
     (result, extract.finish())
   }
 }
 
-case class Extract() {
+case class Extract[G]() {
   import Extract._
 
-  private val map = mutable.Map[FreeVariables.FreeVariable, Variable]()
+  private val map = mutable.Map[FreeVariables.FreeVariable[G], Variable[G]]()
 
-  private def update(node: Node): Map[Expr, Expr] =
+  private def update(node: Node[G]): Map[Expr[G], Expr[G]] =
     FreeVariables.freeVariables(node).map {
       case free @ FreeVar(v) => v ->
-        Local(map.getOrElseUpdate(free, new Variable(v.t)(v.ref.decl.o)).ref)(ExtractOrigin(""))
+        Local(map.getOrElseUpdate(free, new Variable(v.t)(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisObject(t) => t ->
-        Local(map.getOrElseUpdate(free, new Variable(TClass(t.cls))(ExtractOrigin("this"))).ref)(ExtractOrigin(""))
+        Local(map.getOrElseUpdate(free, new Variable(TClass(t.cls))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisModel(t) => t ->
-        Local(map.getOrElseUpdate(free, new Variable(TModel(t.cls))(ExtractOrigin("this"))).ref)(ExtractOrigin(""))
-    }.toMap[Expr, Expr]
+        Local(map.getOrElseUpdate(free, new Variable(TModel(t.cls))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
+    }.toMap[Expr[G], Expr[G]]
 
-  def extract(expr: Expr): Expr =
+  def extract(expr: Expr[G]): Expr[G] =
     Substitute(update(expr)).dispatch(expr)
 
-  def extract(stat: Statement): Statement =
+  def extract(stat: Statement[G]): Statement[G] =
     Substitute(update(stat)).dispatch(stat)
 
-  def finish(): Map[Variable, Expr] = {
+  def finish(): Map[Variable[G], Expr[G]] = {
     map.map {
       case (FreeVar(v), extracted) => extracted -> v
       case (FreeThisObject(t), extracted) => extracted -> t

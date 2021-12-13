@@ -8,13 +8,15 @@ import vct.col.features.MemberOfRange
 import vct.col.newrewrite.util.Comparison
 import vct.col.origin.Origin
 import vct.col.ref.Ref
-import vct.col.rewrite.Rewriter
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-case class SimplifyQuantifiedRelations() extends Rewriter {
+case object SimplifyQuantifiedRelations extends RewriterBuilder
+
+case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre] {
   case object SimplifyQuantifiedRelationsOrigin extends Origin {
     override def preferredName: String = "unknown"
     override def messageInContext(message: String): String =
@@ -22,16 +24,16 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
   }
 
   private implicit val o: Origin = SimplifyQuantifiedRelationsOrigin
-  private def one: IntegerValue = IntegerValue(1)
+  private def one: IntegerValue[Pre] = IntegerValue(1)
 
-  def indepOf(bindings: Seq[Variable], e: Expr): Boolean =
+  def indepOf[G](bindings: Seq[Variable[G]], e: Expr[G]): Boolean =
     e.transSubnodes.collectFirst { case Local(ref) if bindings.contains(ref.decl) => () }.isEmpty
 
-  case class ExtremeValue(bindings: Seq[Variable],
-                          inclusiveLowerBound: Map[Variable, ArrayBuffer[Expr]],
-                          exclusiveUpperBound: Map[Variable, ArrayBuffer[Expr]])
+  case class ExtremeValue(bindings: Seq[Variable[Pre]],
+                          inclusiveLowerBound: Map[Variable[Pre], ArrayBuffer[Expr[Pre]]],
+                          exclusiveUpperBound: Map[Variable[Pre], ArrayBuffer[Expr[Pre]]])
   {
-    def extremeValue(exprs: Seq[Expr], maximizing: Boolean): Expr = exprs match {
+    def extremeValue(exprs: Seq[Expr[Pre]], maximizing: Boolean): Expr[Pre] = exprs match {
       case expr :: Nil => expr
       case left :: right :: tail =>
         Select(
@@ -41,9 +43,9 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
         )
     }
 
-    def extremeValue(expr: Expr, maximizing: Boolean): Option[Expr] = {
-      val max = (e: Expr) => extremeValue(e, maximizing).getOrElse(return None)
-      val min = (e: Expr) => extremeValue(e, !maximizing).getOrElse(return None)
+    def extremeValue(expr: Expr[Pre], maximizing: Boolean): Option[Expr[Pre]] = {
+      val max = (e: Expr[Pre]) => extremeValue(e, maximizing).getOrElse(return None)
+      val min = (e: Expr[Pre]) => extremeValue(e, !maximizing).getOrElse(return None)
 
       Some(expr match {
         case v @ IntegerValue(_) => v
@@ -85,11 +87,11 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
       })
     }
 
-    def maximize(expr: Expr): Option[Expr] = extremeValue(expr, maximizing = true)
-    def minimize(expr: Expr): Option[Expr] = extremeValue(expr, maximizing = false)
+    def maximize(expr: Expr[Pre]): Option[Expr[Pre]] = extremeValue(expr, maximizing = true)
+    def minimize(expr: Expr[Pre]): Option[Expr[Pre]] = extremeValue(expr, maximizing = false)
   }
 
-  def trySimplify(bindings: Seq[Variable], originalBody: Expr): Option[Expr] = {
+  def trySimplify(bindings: Seq[Variable[Pre]], originalBody: Expr[Pre]): Option[Expr[Pre]] = {
     if(bindings.exists(_.t != TInt())) return None
 
     // We split the body of the quantifier into its conditions (lhs of implies) and the body (rhs of implies)
@@ -98,8 +100,8 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
     val (globalConditions, bounds) = allConditions.partition(indepOf(bindings, _))
 
     // The hope is now that *every* condition in bounds is in the form `i (<|<=|==|>=|>) (bound!i)`
-    val inclusiveLowerBound = bindings.map(_ -> mutable.ArrayBuffer[Expr]()).toMap
-    val exclusiveUpperBound = bindings.map(_ -> mutable.ArrayBuffer[Expr]()).toMap
+    val inclusiveLowerBound = bindings.map(_ -> mutable.ArrayBuffer[Expr[Pre]]()).toMap
+    val exclusiveUpperBound = bindings.map(_ -> mutable.ArrayBuffer[Expr[Pre]]()).toMap
 
     for(bound <- bounds) {
       // First try to match a simple comparison
@@ -171,11 +173,11 @@ case class SimplifyQuantifiedRelations() extends Rewriter {
     ))
   }
 
-  override def dispatch(e: Expr): Expr = e match {
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case e @ Forall(bindings, _, body) =>
       trySimplify(bindings, body) match {
         case None => e.rewrite()
-        case Some(e) => e
+        case Some(e) => dispatch(e)
       }
     case other => rewriteDefault(other)
   }

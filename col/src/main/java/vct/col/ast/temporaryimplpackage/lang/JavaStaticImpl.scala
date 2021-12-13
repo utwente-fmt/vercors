@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.lang
 
 import vct.col.ast.JavaStatic
 
-trait JavaStaticImpl { this: JavaStatic =>
+trait JavaStaticImpl[G] { this: JavaStatic[G] =>
 
 }

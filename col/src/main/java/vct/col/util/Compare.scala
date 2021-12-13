@@ -5,16 +5,16 @@ import vct.col.ast.{Comparator, Declaration, Node}
 import scala.collection.mutable
 
 case object Compare {
-  def equals(left: Node, right: Node): Boolean = {
+  def equals[L, R](left: Node[L], right: Node[R]): Boolean = {
     Comparator.compare(left, right).isEmpty
   }
 
-  def getIsomorphism(left: Node, right: Node): Either[Seq[(Node, Node)], Map[Declaration, Declaration]] = {
-    val isomorphism = mutable.Map[Declaration, Declaration]()
-    val valueSet = mutable.Set[Declaration]()
-    val irreconcilableDiffs = mutable.ArrayBuffer[(Node, Node)]()
+  def getIsomorphism[L, R](left: Node[L], right: Node[R]): Either[Seq[(Node[L], Node[R])], Map[Declaration[L], Declaration[R]]] = {
+    val isomorphism = mutable.Map[Declaration[L], Declaration[R]]()
+    val valueSet = mutable.Set[Declaration[R]]()
+    val irreconcilableDiffs = mutable.ArrayBuffer[(Node[L], Node[R])]()
     Comparator.compare(left, right).foreach {
-      case (left: Declaration, right: Declaration) =>
+      case (left: Declaration[L], right: Declaration[R]) =>
         isomorphism.get(left) match {
           case None if !valueSet.contains(right) =>
             isomorphism(left) = right
@@ -29,6 +29,6 @@ case object Compare {
     else Left(irreconcilableDiffs.toSeq)
   }
 
-  def isIsomorphic(left: Node, right: Node): Boolean =
+  def isIsomorphic[L, R](left: Node[L], right: Node[R]): Boolean =
     getIsomorphism(left, right).isRight
 }

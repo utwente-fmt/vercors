@@ -10,25 +10,25 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-class ScopeContext {
+class ScopeContext[Pre, Post] {
 
   import ScopeContext._
 
   // The default action for declarations is to be succeeded by a similar declaration, for example a copy.
-  val successionMap: SuccessionMap[Declaration, Declaration] = SuccessionMap()
+  val successionMap: SuccessionMap[Declaration[Pre], Declaration[Post]] = SuccessionMap()
 
-  val globalScopes: ScopedStack[ArrayBuffer[GlobalDeclaration]] = ScopedStack()
-  val classScopes: ScopedStack[ArrayBuffer[ClassDeclaration]] = ScopedStack()
-  val adtScopes: ScopedStack[ArrayBuffer[ADTDeclaration]] = ScopedStack()
-  val variableScopes: ScopedStack[ArrayBuffer[Variable]] = ScopedStack()
-  val labelScopes: ScopedStack[ArrayBuffer[LabelDecl]] = ScopedStack()
-  val parBlockScopes: ScopedStack[ArrayBuffer[ParBlockDecl]] = ScopedStack()
-  val parInvariantScopes: ScopedStack[ArrayBuffer[ParInvariantDecl]] = ScopedStack()
-  val modelScopes: ScopedStack[ArrayBuffer[ModelDeclaration]] = ScopedStack()
+  val globalScopes: ScopedStack[ArrayBuffer[GlobalDeclaration[Post]]] = ScopedStack()
+  val classScopes: ScopedStack[ArrayBuffer[ClassDeclaration[Post]]] = ScopedStack()
+  val adtScopes: ScopedStack[ArrayBuffer[ADTDeclaration[Post]]] = ScopedStack()
+  val variableScopes: ScopedStack[ArrayBuffer[Variable[Post]]] = ScopedStack()
+  val labelScopes: ScopedStack[ArrayBuffer[LabelDecl[Post]]] = ScopedStack()
+  val parBlockScopes: ScopedStack[ArrayBuffer[ParBlockDecl[Post]]] = ScopedStack()
+  val parInvariantScopes: ScopedStack[ArrayBuffer[ParInvariantDecl[Post]]] = ScopedStack()
+  val modelScopes: ScopedStack[ArrayBuffer[ModelDeclaration[Post]]] = ScopedStack()
 
-  val javaLocalScopes: ScopedStack[ArrayBuffer[JavaLocalDeclaration]] = ScopedStack()
-  val cLocalScopes: ScopedStack[ArrayBuffer[CDeclaration]] = ScopedStack()
-  val cParams: ScopedStack[ArrayBuffer[CParam]] = ScopedStack()
+  val javaLocalScopes: ScopedStack[ArrayBuffer[JavaLocalDeclaration[Post]]] = ScopedStack()
+  val cLocalScopes: ScopedStack[ArrayBuffer[CDeclaration[Post]]] = ScopedStack()
+  val cParams: ScopedStack[ArrayBuffer[CParam[Post]]] = ScopedStack()
 
   def collectInScope[T](scope: ScopedStack[ArrayBuffer[T]])(f: => Unit): Seq[T] = {
     scope.push(ArrayBuffer())
@@ -46,11 +46,20 @@ class ScopeContext {
     result.head
   }
 
-  def succ[T <: Declaration](ref: Ref[T])(implicit tag: ClassTag[T]): Ref[T] =
+  def succ[DPre <: Declaration[Pre], DPost <: Declaration[Post]](ref: Ref[Pre, DPre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
     succ(ref.decl)
 
-  def succ[T <: Declaration](decl: Declaration)(implicit tag: ClassTag[T]): Ref[T] =
+  def succ[DPre <: Declaration[Pre], DPost <: Declaration[Post]](decl: DPre)(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
     successionMap.ref(decl)
+
+  def transmutePostRef
+    [Decl[_] <: Declaration[_], DPre <: Declaration[Pre], DPost <: Declaration[Post]]
+    (ref: Ref[Post, DPost])
+    (implicit w1: DPost <:< Decl[Post], w2: Decl[Pre] <:< DPre, tag: ClassTag[DPre])
+    : Ref[Pre, DPre] = {
+    successionMap((ref.decl : Declaration[Post]).asInstanceOf[Declaration[Pre]]) = ref.decl
+    Ref.transmute[Post, Pre, Decl, DPost, DPre](ref)
+  }
 }
 
 object ScopeContext {

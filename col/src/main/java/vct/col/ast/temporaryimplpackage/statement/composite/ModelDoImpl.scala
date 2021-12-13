@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.statement.composite
 
 import vct.col.ast.ModelDo
 
-trait ModelDoImpl { this: ModelDo =>
+trait ModelDoImpl[G] { this: ModelDo[G] =>
 
 }

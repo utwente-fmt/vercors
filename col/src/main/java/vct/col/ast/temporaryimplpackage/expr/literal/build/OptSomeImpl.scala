@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.literal.build
 
 import vct.col.ast.{OptSome, TOption, Type}
 
-trait OptSomeImpl { this: OptSome =>
-  override def t: Type = TOption(e.t)
+trait OptSomeImpl[G] { this: OptSome[G] =>
+  override def t: Type[G] = TOption(e.t)
 }

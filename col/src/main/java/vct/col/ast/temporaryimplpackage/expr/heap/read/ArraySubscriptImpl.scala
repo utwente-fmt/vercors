@@ -2,6 +2,6 @@ package vct.col.ast.temporaryimplpackage.expr.heap.read
 
 import vct.col.ast.{ArraySubscript, Type}
 
-trait ArraySubscriptImpl { this: ArraySubscript =>
-  override def t: Type = arr.t.asArray.get.element
+trait ArraySubscriptImpl[G] { this: ArraySubscript[G] =>
+  override def t: Type[G] = arr.t.asArray.get.element
 }

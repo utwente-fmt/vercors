@@ -89,14 +89,14 @@ class ColDescription {
     case Type.Tuple(other) =>
       MetaUtil.fail(s"Oops, this tuple is too long for me! size=${other.size}", node=Some(typ))
 
-    case Type.Name(declKind) if DECLARATION_KINDS.contains(declKind) =>
+    case Type.Apply(Type.Name(declKind), List(Type.Name("G"))) if DECLARATION_KINDS.contains(declKind) =>
       q"rewriter.collectOneInScope(rewriter.${DECLARATION_KINDS(declKind)}){rewriter.dispatch($term)}"
-    case Type.Name(typ) if families.contains(typ) =>
+    case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if families.contains(typ) =>
       q"rewriter.dispatch($term)"
 
-    case Type.Apply(Type.Name("Ref"), List(arg)) =>
-      q"rewriter.succ[$arg]($term)"
-    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("Referrable") =>
+    case Type.Apply(Type.Name("Ref"), List(gen, tDecl)) =>
+      q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Pre")(tDecl)}, ${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term)"
+    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) =>
       term
 
     case _ =>
@@ -121,7 +121,7 @@ class ColDescription {
    */
   def collectNode(path: Seq[String])(stat: Stat): Unit = stat match {
     case Defn.Class(
-    mods, name, _,
+    mods, name, List(Type.Param(_, Type.Name("G"), _, _, _, _)),
     Ctor.Primary(_, _, parameterLists), _)
       if mods.collectFirst { case Mod.Abstract() => () }.isEmpty && Set(2, 3).contains(parameterLists.size) =>
       val originList = if(parameterLists.size == 2) parameterLists(1) else parameterLists(2)
@@ -137,6 +137,8 @@ class ColDescription {
           }
         case _ =>
       }
+    case otherCls: Defn.Class if otherCls.mods.collectFirst { case Mod.Abstract() => () }.isEmpty =>
+      MetaUtil.fail("Could not parse the following class. Is the class in the right format?", node = Some(otherCls))
     case Defn.Object(_, name, Template(_, _, _, stats)) =>
       stats.foreach(collectNode(path :+ name.value))
     case _ =>
@@ -168,12 +170,12 @@ class ColDescription {
   def collectFamily(stat: Stat): Unit = stat match {
     case Defn.Class(_, name, _, _, Template(_, inits, _, _)) =>
       if(inits.collectFirst {
-        case Init(Type.Name("NodeFamily"), _, _) => ()
+        case Init(Type.Apply(Type.Name("NodeFamily"), List(Type.Name("G"))), _, _) => ()
       }.nonEmpty)
         families += name.value
     case Defn.Trait(_, name, _, _, Template(_, inits, _, _)) =>
       if(inits.collectFirst {
-        case Init(Type.Name("NodeFamily"), _, _) => ()
+        case Init(Type.Apply(Type.Name("NodeFamily"), List(Type.Name("G"))), _, _) => ()
       }.nonEmpty)
         families += name.value
     case Defn.Object(_, _, Template(_, _, _, stats)) =>
