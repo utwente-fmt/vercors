@@ -4,11 +4,13 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
+import vct.col.newrewrite.error.ExcludedByPassOrder
 import vct.col.newrewrite.util.Substitute
 import vct.col.origin.{AssertFailed, Blame, FramedGetLeft, FramedGetRight, Origin, ThrowNull}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers
+import RewriteHelpers._
 
 case object EncodeTryThrowSignals extends RewriterBuilder {
   case class ThrowNullAssertFailed(t: Throw[_]) extends Blame[AssertFailed] {
@@ -24,7 +26,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
   val exceptionalHandlerEntry: ScopedStack[LabelDecl[Post]] = ScopedStack()
   val returnHandler: ScopedStack[LabelDecl[Post]] = ScopedStack()
 
-  val signalsBinding: ScopedStack[(Variable[Pre], Result[Post])] = ScopedStack()
+  val signalsBinding: ScopedStack[(Variable[Pre], Expr[Post])] = ScopedStack()
 
   def getExc(implicit o: Origin): Expr[Post] =
     currentException.top.get
@@ -42,9 +44,9 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
         val catchImpl = Block[Post](catches.map {
           case CatchClause(decl, body) =>
-            currentException.top.succeedDefault(this, decl)
+            successionMap(decl) = currentException.top
             Branch(Seq((
-              getExc !== Null[Post]() && InstanceOf(getExc, TypeValue(dispatch(decl.t))),
+              (getExc !== Null[Post]()) && InstanceOf(getExc, TypeValue(dispatch(decl.t))),
               Block(Seq(
                 exceptionalHandlerEntry.having(finallyEntry) { dispatch(body) },
                 Assign(getExc, Null()),
@@ -76,13 +78,21 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         ))
 
       case Return(result) =>
-        Block(Seq(
-          Label(returnHandler.top, Block(Nil)),
-          Return(Select(
-            getExc === Null(),
-            EitherRight(dispatch(result)),
-            EitherLeft(getExc),
+        result match {
+          case Void() => Block(Seq(
+            Label(returnHandler.top, Block(Nil)),
+            Return(Void()),
           ))
+          case other => throw ExcludedByPassOrder("Return values that are not void cannot be evaluated at the return site for EncodeTryThrowSignals.", Some(other))
+        }
+
+      case inv: InvokeMethod[Pre] =>
+        Block(Seq(
+          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(succ[Variable[Post]])),
+          Branch(Seq((
+            getExc !== Null(),
+            Goto(exceptionalHandlerEntry.top.ref),
+          ))),
         ))
 
       case other => rewriteDefault(other)
@@ -105,7 +115,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
           // However, we should figure out a better way of doing this. Perhaps first translating to out-parameters is
           // the way to go? But then we should perhaps add an out-parameter option<exception> or so, instead of changing
           // the return type to either<exc, _>.
-          Scope(Seq(exc), Block(Seq(
+          Block(Seq(
             Assign(exc.get, Null()),
             returnHandler.having(returnPoint) {
               exceptionalHandlerEntry.having(returnPoint) {
@@ -114,24 +124,22 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
                 }
               }
             },
-          )))
+          ))
         })
 
-        val result = Result[Post](succ(method))
-
         val ensures: Expr[Post] =
-          (IsRight(result) ==> dispatch(method.contract.ensures)) &*
+          ((exc.get === Null()) ==> dispatch(method.contract.ensures)) &*
             AstBuildHelpers.foldStar(method.contract.signals.map {
               case SignalsClause(binding, assn) =>
                 binding.drop()
-                (IsLeft(result) && InstanceOf(GetLeft(result)(FramedGetLeft), TypeValue(dispatch(binding.t)))) ==>
-                  (signalsBinding.having((binding, Result(succ(method)))) { dispatch(assn) })
+                ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
+                  signalsBinding.having((binding, exc.get)) { dispatch(assn) }
             })
 
         method.rewrite(
-          returnType = TEither(TAny(), dispatch(method.returnType)),
           body = body,
-          contract = method.contract.rewrite(ensures = ensures, signals = Nil)
+          outArgs = collectInScope(variableScopes) { exc.declareDefault(this); method.outArgs.foreach(dispatch) },
+          contract = method.contract.rewrite(ensures = ensures, signals = Nil),
         ).succeedDefault(this, method)
       }
 
@@ -141,14 +149,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case Local(Ref(v)) if signalsBinding.nonEmpty && signalsBinding.top._1 == v =>
       implicit val o: Origin = e.o
-      GetLeft(signalsBinding.top._2)(FramedGetLeft)
-
-    case Result(Ref(app)) =>
-      implicit val o: Origin = e.o
-      app match {
-        case _: AbstractMethod[Pre] => GetRight(Result[Post](succ(app)))(FramedGetRight)
-        case _ => Result(succ(app))
-      }
+      signalsBinding.top._2
 
     case other => rewriteDefault(other)
   }

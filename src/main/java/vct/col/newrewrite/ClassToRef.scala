@@ -91,14 +91,14 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       ProcedureInvocation[Post](
         ref = succ(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = outArgs.map(succ[Variable[Pre], Variable[Post]]),
+        outArgs = outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args) =>
       PredicateApply[Post](succ(pred), dispatch(obj) +: args.map(dispatch))(inv.o)
     case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs) =>
       FunctionInvocation[Post](succ(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
-    case AmbiguousThis() =>
+    case ThisObject(_) =>
       Local[Post](diz.top.ref)(e.o)
     case deref @ Deref(obj, Ref(field)) =>
       SilverDeref[Post](dispatch(obj), fieldSucc.ref(field))(deref.blame)(deref.o)

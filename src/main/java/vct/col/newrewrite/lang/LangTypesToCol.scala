@@ -13,10 +13,10 @@ import scala.reflect.ClassTag
 case object LangTypesToCol extends RewriterBuilder
 
 case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
-  override def succ[DPre <: Declaration[Pre], DPost <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, DPre])(implicit tag: ClassTag[DPost]): Ref[Rewritten[Pre], DPost] =
+  override def succ[DPost <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, _ <: Declaration[Pre]])(implicit tag: ClassTag[DPost]): Ref[Rewritten[Pre], DPost] =
     ref match {
       // Retain unresolved references to be resolved by LangSpecificToCol
-      case unresolved: UnresolvedRef[Pre, DPre] => new UnresolvedRef[Post, DPost](unresolved.name)
+      case unresolved: UnresolvedRef[_, _] => new UnresolvedRef[Post, DPost](unresolved.name)
       case other => succ(other.decl)
     }
 

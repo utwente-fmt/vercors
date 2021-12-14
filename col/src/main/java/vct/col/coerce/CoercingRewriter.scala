@@ -198,7 +198,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     postCoerce(coerce(preCoerce(decl)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
-    coerce(value, Coercion.getCoercion(value.t, target).getOrElse(throw Incoercible(value, target)))(CoercionOrigin)
+    coerce(value, Coercion.getCoercion(value.t, target) match {
+      case Some(coercion) => coercion
+      case None => throw Incoercible(value, target)
+    })(CoercionOrigin)
 
   def coerceArgs(args: Seq[Expr[Pre]], app: Applicable[Pre]): Seq[Expr[Pre]] =
     args.zip(app.args).map {

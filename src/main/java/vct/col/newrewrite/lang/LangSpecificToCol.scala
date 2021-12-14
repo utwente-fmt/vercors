@@ -500,7 +500,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       }
 
       val consRef = cons match {
-        case Some(cons) => succ[JavaConstructor[Pre], Procedure[Post]](cons)
+        case Some(cons) => succ[Procedure[Post]](cons)
         case None => new LazyRef[Post, Procedure[Post]](successionMap(javaDefaultConstructor(decl)))
       }
 

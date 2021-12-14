@@ -46,10 +46,10 @@ class ScopeContext[Pre, Post] {
     result.head
   }
 
-  def succ[DPre <: Declaration[Pre], DPost <: Declaration[Post]](ref: Ref[Pre, DPre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
+  def succ[DPost <: Declaration[Post]](ref: Ref[Pre, _ <: Declaration[Pre]])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
     succ(ref.decl)
 
-  def succ[DPre <: Declaration[Pre], DPost <: Declaration[Post]](decl: DPre)(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
+  def succ[DPost <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
     successionMap.ref(decl)
 
   def transmutePostRef

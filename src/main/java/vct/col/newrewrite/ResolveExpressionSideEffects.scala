@@ -4,6 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
+import vct.col.ast.expr.MethodInvokation
 import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.Origin
 import vct.col.ref.Ref
@@ -20,10 +21,18 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
     override def messageInContext(message: String): String =
       s"[At node generated to collect side effects]: $message"
   }
+
+  case object ResultVar extends Origin {
+    override def preferredName: String = "res"
+    override def messageInContext(message: String): String =
+      s"[At node generated to contain the result of a method]: $message"
+  }
 }
 
 case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pre] {
   import ResolveExpressionSideEffects._
+
+  val currentResultVar: ScopedStack[Local[Post]] = ScopedStack()
 
   // executionContext contains an acceptor of statements, if side effects in expressions currently have a logical
   // place to be put.
@@ -51,12 +60,13 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     currentlyExtracted.clear()
   }
 
-  def effect(stat: Statement[Post]): Unit = executionContext.top(stat)
+  def effect(stat: Statement[Post]): Unit =
+    executionContext.top(stat)
 
   case class ReInliner() extends NonLatchingRewriter[Post, Post] {
     // ReInliner does not latch declarations ...
-    override def succ[DPre <: Declaration[Post], DPost <: Declaration[Post]](ref: Ref[Post, DPre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
-      ref.asInstanceOf
+    override def succ[DPost <: Declaration[Post]](ref: Ref[Post, _ <: Declaration[Post]])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
+      ref.asInstanceOf[Ref[Post, DPost]]
 
     // ... but since we need to be able to unpack locals, we latch those, and they are not latched in
     // ResolveExpressionSideEffects.
@@ -134,8 +144,19 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     implicit val o: Origin = stat.o
     stat match {
       case Eval(e) => frame(e, Eval(_))
+      case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs) =>
+        frameAll(obj +: args, {
+          case obj :: args => InvokeMethod[Post](obj, succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch))(inv.blame)
+        })
+      case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs) =>
+        frameAll(args, args =>
+          InvokeProcedure[Post](succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch))(inv.blame))
       case decl: LocalDecl[Pre] => rewriteDefault(decl)
-      case Return(result) => frame(result, Return(_))
+      case Return(result) =>
+        frame(result, e => Block(Seq(
+          Assign(currentResultVar.top, e),
+          Return(Void()),
+        )))
       case Assign(target, value) => frame(target, value, Assign(_, _))
       case block: Block[Pre] => rewriteDefault(block)
       case scope: Scope[Pre] => rewriteDefault(scope)
@@ -198,6 +219,21 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     }
   }
 
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case method: AbstractMethod[Pre] =>
+      val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
+      currentResultVar.having(Local[Post](res.ref)(ResultVar)) {
+        method.rewrite(
+          returnType = TVoid()(method.o),
+          outArgs = collectInScope(variableScopes) {
+            res.declareDefault(this)
+            method.outArgs.foreach(dispatch)
+          },
+        ).succeedDefault(this, method)
+      }
+    case other => rewriteDefault(other)
+  }
+
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(inPure) dispatchPure(e)
     else dispatchImpure(e)
@@ -221,7 +257,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       val postV = (v : Variable[Pre]).asInstanceOf[Variable[Post]]
       Local[Post](postV.ref)(e.o)
     case PreAssignExpression(oldTarget, oldValue) =>
-      // target and value could be inline, if it were not for the fast that we need value to return it (since value
+      // target and value could be inline, if it were not for the fact that we need value to return it (since value
       // may have a more specific type than the target type)
       val target = dispatchImpure(oldTarget)
       val value = dispatchImpure(oldValue)
@@ -241,6 +277,29 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       flushExtractedExpressions()
       effect(dispatch(post))
       stored(value, oldValue.t)
+    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
+      val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
+      res.declareDefault(this)
+      currentlyExtracted(res) = res.get(ResultVar)
+      effect(InvokeMethod[Post](
+        obj = inlined(obj),
+        ref = succ(method),
+        args = args.map(inlined),
+        outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
+        typeArgs = typeArgs.map(dispatch)
+      )(inv.blame)(e.o))
+      Local[Post](res.ref)(ResultVar)
+    case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs) =>
+      val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
+      res.declareDefault(this)
+      currentlyExtracted(res) = res.get(ResultVar)
+      effect(InvokeProcedure[Post](
+        ref = succ(method),
+        args = args.map(inlined),
+        outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
+        typeArgs = typeArgs.map(dispatch),
+      )(inv.blame)(e.o))
+      Local[Post](res.ref)(ResultVar)
     case other =>
       stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
   }

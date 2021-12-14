@@ -96,13 +96,12 @@ case object Test {
       IterationContractToParBlock,
       ParBlockEncoder,
 
-      // Resolve side effects including method invocations, for encodetrythrowsignals.
-      ResolveExpressionSideEffects,
-
       // Encode exceptional behaviour (no more continue/break/return/try/throw)
       ContinueToBreak,
       SpecifyImplicitLabels,
       EncodeBreakReturn,
+      // Resolve side effects including method invocations, for encodetrythrowsignals.
+      ResolveExpressionSideEffects,
       EncodeTryThrowSignals,
 
       // No more classes

@@ -18,7 +18,7 @@ case object InlineApplicables extends RewriterBuilder {
   }
 
   case class ReplaceReturn[G](newStatement: Expr[G] => Statement[G]) extends NonLatchingRewriter[G, G] {
-    override def succ[DPre <: Declaration[G], DPost <: Declaration[G]](ref: Ref[G, DPre])(implicit tag: ClassTag[DPost]): Ref[G, DPost] =
+    override def succ[DPost <: Declaration[G]](ref: Ref[G, _ <: Declaration[G]])(implicit tag: ClassTag[DPost]): Ref[G, DPost] =
       ref.asInstanceOf
 
     override def dispatch(stat: Statement[G]): Statement[G] = stat match {

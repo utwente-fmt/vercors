@@ -77,7 +77,7 @@ class ColDescription {
    * Provides the default way to rewrite a term with a fixed type
    */
   def rewriteDefault(term: Term, typ: Type): Term = typ match {
-    case Type.Apply(Type.Name("Seq"), List(Type.Name(declKind))) if DECLARATION_KINDS.contains(declKind) =>
+    case Type.Apply(Type.Name("Seq"), List(Type.Apply(Type.Name(declKind), List(Type.Name("G"))))) if DECLARATION_KINDS.contains(declKind) =>
       q"rewriter.collectInScope(rewriter.${DECLARATION_KINDS(declKind)}){$term.foreach(rewriter.dispatch)}"
     case Type.Apply(Type.Name(collectionType), List(arg)) if Set("Seq", "Set", "Option").contains(collectionType) =>
       q"$term.map(element => ${rewriteDefault(q"element", arg)})"
@@ -95,7 +95,7 @@ class ColDescription {
       q"rewriter.dispatch($term)"
 
     case Type.Apply(Type.Name("Ref"), List(gen, tDecl)) =>
-      q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Pre")(tDecl)}, ${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term)"
+      q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term)"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) =>
       term
 
