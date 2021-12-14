@@ -73,8 +73,10 @@ class FeatureRainbow[G] {
     case node: InstancePredicateApply[G] => Classes
     case node: ADTFunctionInvocation[G] => return Nil
     case node: ProcedureInvocation[G] => return Nil
+    case node: InvokeProcedure[G] => return Nil
     case node: FunctionInvocation[G] => return Nil
     case node: MethodInvocation[G] => return Nil
+    case node: InvokeMethod[G] => return Nil
     case node: InstanceFunctionInvocation[G] => Classes
     case node: UMinus[G] => return Nil
     case node: BitNot[G] => BitOperators

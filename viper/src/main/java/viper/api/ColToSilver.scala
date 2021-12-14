@@ -4,6 +4,8 @@ import hre.lang.HREExitException
 import hre.lang.System.Warning
 import vct.col.ref.Ref
 import vct.col.{ast => col}
+import vct.result.VerificationResult.SystemError
+import viper.api.ColToSilver.NotSupported
 import viper.silver.{ast => silver}
 
 import scala.collection.mutable
@@ -12,6 +14,11 @@ import scala.collection.mutable.ArrayBuffer
 object ColToSilver {
   def transform(program: col.Program[_]): silver.Program =
     ColToSilver(program).transform()
+
+  case class NotSupported(node: col.Node[_]) extends SystemError {
+    override def text: String =
+      node.o.messageInContext("This kind of node is not supported by silver directly. Is there a rewrite missing?")
+  }
 }
 
 case class ColToSilver(program: col.Program[_]) {
@@ -24,10 +31,8 @@ case class ColToSilver(program: col.Program[_]) {
   val nameStack: mutable.Stack[mutable.Map[col.Declaration[_], String]] = mutable.Stack()
   var names: mutable.Map[col.Declaration[_], String] = mutable.Map()
 
-  def ??(node: col.Node[_]): Nothing = {
-    Warning("Node not supported: %s", node)
-    throw new HREExitException(1)
-  }
+  def ??(node: col.Node[_]): Nothing =
+    throw NotSupported(node)
 
   def push(): Unit = nameStack.push(names.clone())
   def pop(): Unit = names = nameStack.pop()

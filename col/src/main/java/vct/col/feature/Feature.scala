@@ -1,5 +1,15 @@
 package vct.col.feature
 
+import vct.col.ast.Node
+
+case object Feature {
+  def scan[G](node: Node[G]): Set[Feature] = {
+    val scanner = new FeatureRainbow[G]()
+    scanner.scan(node)
+    scanner.features.toSet
+  }
+}
+
 sealed trait Feature
 
 case object ApplicableToBeInlined extends Feature // InlineApplicables

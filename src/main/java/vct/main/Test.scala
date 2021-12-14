@@ -3,6 +3,7 @@ package vct.main
 import vct.col.ast.{Declaration, Program}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
+import vct.col.feature.Feature
 import vct.col.newrewrite._
 import vct.col.newrewrite.lang._
 import vct.col.newrewrite.exc._
@@ -13,8 +14,9 @@ import vct.col.util.SuccessionMap
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult.{SystemError, UserError}
 import vct.test.CommandLineTesting
+import viper.api.Silicon
 
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 import scala.jdk.CollectionConverters._
 import scala.collection.parallel.CollectionConverters._
 
@@ -141,7 +143,8 @@ case object Test {
         assert(program.declarations.nonEmpty)
         printErrors(program.check)
       }
-      println(program)
+      println(Feature.scan(program))
+      Silicon(Map.empty, Paths.get("/home/pieter/vercors/src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3")).submit(program)
     }
   } catch {
     case Exit =>
