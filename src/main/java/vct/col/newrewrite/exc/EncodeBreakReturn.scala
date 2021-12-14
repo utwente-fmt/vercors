@@ -6,7 +6,7 @@ import vct.col.newrewrite.error.ExcludedByPassOrder
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.util.AstBuildHelpers._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
@@ -98,6 +98,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   case class BreakReturnToException(returnClass: Class[Post], valueField: InstanceField[Post]) extends Rewriter[Pre] {
+    override val successionMap: SuccessionMap[Declaration[Pre], Declaration[Post]] = EncodeBreakReturn.this.successionMap
     val breakLabelException: SuccessionMap[LabelDecl[Pre], Class[Post]] = SuccessionMap()
 
     override def dispatch(stat: Statement[Pre]): Statement[Post] = {

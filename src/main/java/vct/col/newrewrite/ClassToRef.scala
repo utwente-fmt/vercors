@@ -83,6 +83,13 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Assign(Local(Ref(v)), NewObject(Ref(cls))) =>
       SilverNewRef[Post](succ(v), cls.declarations.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) })(stat.o)
+    case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs) =>
+      InvokeProcedure[Post](
+        ref = succ(method),
+        args = dispatch(obj) +: args.map(dispatch),
+        outArgs = outArgs.map(succ[Variable[Post]]),
+        typeArgs = typeArgs.map(dispatch),
+      )(inv.blame)(inv.o)
     case other => rewriteDefault(other)
   }
 

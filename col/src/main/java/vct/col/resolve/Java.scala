@@ -109,7 +109,7 @@ case object Java {
         signals = Nil,
         body = Block(Nil),
         contract = ApplicableContract(tt, tt, tt, Nil, Nil, Nil),
-      )
+      )(SourceNameOrigin(cls.getSimpleName, o))
     })
 
     val methods = cls.getMethods.map(method => {
