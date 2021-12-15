@@ -143,7 +143,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
               fieldInit(res),
               sharedInit(res),
               dispatch(cons.body),
-              Commit(res),
+              Commit(res)(null),
               Return(res),
             )))),
             contract = dispatch(cons.contract),
@@ -434,13 +434,13 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefProcedure(decl) =>
           ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
         case RefPredicate(decl) =>
-          PredicateApply[Post](succ(decl), args.map(dispatch))
+          PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
         case RefInstanceFunction(decl) =>
           InstanceFunctionInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), typeParams.map(dispatch))(null)
         case RefInstanceMethod(decl) =>
           MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch))(null)
         case RefInstancePredicate(decl) =>
-          InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch))
+          InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), WritePerm())
         case RefADTFunction(decl) =>
           ADTFunctionInvocation[Post](None, succ(decl), args.map(dispatch))
         case RefModelProcess(decl) =>
@@ -472,7 +472,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefProcedure(decl) =>
           ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
         case RefPredicate(decl) =>
-          PredicateApply[Post](succ(decl), args.map(dispatch))
+          PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
         case RefInstanceFunction(decl) =>
           InstanceFunctionInvocation[Post](
             obj.map(dispatch).getOrElse(currentThis.top),
@@ -482,7 +482,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefInstanceMethod(decl) =>
           MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
         case RefInstancePredicate(decl) =>
-          InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch))
+          InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), WritePerm())
         case RefADTFunction(decl) =>
           ADTFunctionInvocation[Post](None, succ(decl), args.map(dispatch))
         case RefModelProcess(decl) =>

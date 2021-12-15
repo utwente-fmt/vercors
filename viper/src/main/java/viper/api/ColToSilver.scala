@@ -2,6 +2,7 @@ package viper.api
 
 import hre.lang.HREExitException
 import hre.lang.System.Warning
+import vct.col.ast.PredicateApply
 import vct.col.ref.Ref
 import vct.col.{ast => col}
 import vct.result.VerificationResult.SystemError
@@ -149,6 +150,7 @@ case class ColToSilver(program: col.Program[_]) {
   def exp(e: col.Expr[_]): silver.Exp = e match {
     case col.BooleanValue(value) => silver.BoolLit(value)(info=NodeInfo(e))
     case col.IntegerValue(value) => silver.IntLit(value)(info=NodeInfo(e))
+    case col.Null() => silver.NullLit()(info=NodeInfo(e))
 
     case col.NoPerm() => silver.NoPerm()(info=NodeInfo(e))
     case col.ReadPerm() => silver.WildcardPerm()(info=NodeInfo(e))
@@ -170,13 +172,13 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Implies(left, right) => silver.Implies(exp(left), exp(right))(info=NodeInfo(e))
     case col.Or(left, right) => silver.Or(exp(left), exp(right))(info=NodeInfo(e))
 
-    case resource@col.SilverPerm(obj, field, perm) =>
-      val permissionValue = exp(perm)
-      permissionValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(resource)
-      silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field.decl))(info=NodeInfo(e)), permissionValue)(info=NodeInfo(e))
-    case resource@col.SilverPredPerm(access) =>
-      val silver = pred(access)
-      silver.perm.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(resource)
+    case res @ col.Perm(col.SilverDeref(obj, Ref(field)), perm) =>
+      val permValue = exp(perm)
+      permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
+      silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field))(info=NodeInfo(res)), permValue)(info=NodeInfo(res))
+    case res: PredicateApply[_] =>
+      val silver = pred(res)
+      silver.perm.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver
     case col.SilverCurPredPerm(p, args) => silver.CurrentPerm(silver.PredicateAccess(args.map(exp), ref(p))(info=NodeInfo(e)))(info=NodeInfo(e))
     case col.SilverCurFieldPerm(obj, field) => silver.CurrentPerm(silver.FieldAccess(exp(obj), fields(field.decl))(info=NodeInfo(e)))(info=NodeInfo(e))
@@ -184,7 +186,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(info=NodeInfo(e))
     case col.FunctionInvocation(f, args, Nil) =>
       silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, silver.NoInfo, typ(f.decl.returnType), silver.NoTrafos)
-    case col.SilverUnfolding(p, body) => silver.Unfolding(pred(p), exp(body))(info=NodeInfo(e))
+    case col.Unfolding(p: PredicateApply[_], body) => silver.Unfolding(pred(p), exp(body))(info=NodeInfo(e))
     case col.Select(condition, whenTrue, whenFalse) => silver.CondExp(exp(condition), exp(whenTrue), exp(whenFalse))(info=NodeInfo(e))
     case col.Old(expr, None) => silver.Old(exp(expr))(info=NodeInfo(e))
     case col.Old(expr, Some(lbl)) => silver.LabelledOld(exp(expr), ref(lbl))(info=NodeInfo(e))
@@ -223,8 +225,14 @@ case class ColToSilver(program: col.Program[_]) {
   def trigger(patterns: Seq[col.Expr[_]]): silver.Trigger =
     silver.Trigger(patterns.map(exp))()
 
-  def pred(p: col.SilverPredicateAccess[_]): silver.PredicateAccessPredicate =
+  def pred(p: col.PredicateApply[_]): silver.PredicateAccessPredicate =
     silver.PredicateAccessPredicate(silver.PredicateAccess(p.args.map(exp), ref(p.ref))(info=NodeInfo(p)), exp(p.perm))(info=NodeInfo(p))
+
+  def acc(e: col.Expr[_]): silver.LocationAccess = e match {
+    case col.PredicateApply(Ref(pred), args, _) => silver.PredicateAccess(args.map(exp), ref(pred))(info=NodeInfo(pred))
+    case col.SilverDeref(obj, Ref(field)) => silver.FieldAccess(exp(obj), fields(field))(info=NodeInfo(e))
+    case other => ??(other)
+  }
 
   def stat(s: col.Statement[_]): silver.Stmt = s match {
     case col.Eval(inv@col.ProcedureInvocation(method, args, outArgs, Nil)) =>
@@ -238,16 +246,17 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Scope(locals, body) =>
       val silverLocals = locals.map(variable)
       silver.Seqn(Seq(stat(body)), silverLocals)(info=NodeInfo(s))
-    case col.SilverIf(cond, whenTrue, whenFalse) => silver.If(exp(cond), block(whenTrue), block(whenFalse))(info=NodeInfo(s))
-    case col.SilverWhile(cond, inv, body) => silver.While(exp(cond), Seq(exp(inv)), block(body))(info=NodeInfo(s))
+    case col.Branch(Seq((cond, whenTrue), (col.BooleanValue(true), whenFalse))) => silver.If(exp(cond), block(whenTrue), block(whenFalse))(info=NodeInfo(s))
+    case col.Loop(col.Block(Nil), cond, col.Block(Nil), col.LoopInvariant(inv), body) =>
+      silver.While(exp(cond), Seq(exp(inv)), block(body))(info=NodeInfo(s))
     case col.Label(decl, col.Block(Nil)) => silver.Label(ref(decl), Seq())(info=NodeInfo(s))
     case col.Goto(lbl) => silver.Goto(ref(lbl))(info=NodeInfo(s))
     case col.Exhale(res) => silver.Exhale(exp(res))(info=NodeInfo(s))
     case col.Assert(assn) => silver.Assert(exp(assn))(info=NodeInfo(s))
     case col.Inhale(res) => silver.Inhale(exp(res))(info=NodeInfo(s))
     case col.Assume(assn) => silver.Assume(exp(assn))(info=NodeInfo(s))
-    case col.SilverFold(p) => silver.Fold(pred(p))(info=NodeInfo(s))
-    case col.SilverUnfold(p) => silver.Unfold(pred(p))(info=NodeInfo(s))
+    case col.Fold(p: col.PredicateApply[_]) => silver.Fold(pred(p))(info=NodeInfo(s))
+    case col.Unfold(p: col.PredicateApply[_]) => silver.Unfold(pred(p))(info=NodeInfo(s))
     case col.SilverNewRef(v, fs) => silver.NewStmt(silver.LocalVar(ref(v), typ(v.decl.t))(), fs.map(ref => fields(ref.decl)))(info=NodeInfo(s))
     case other => ??(other)
   }

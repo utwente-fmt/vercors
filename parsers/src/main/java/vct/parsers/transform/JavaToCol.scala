@@ -291,7 +291,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
               update.map(convert(_)).getOrElse(Block(Nil)),
               c.consumeLoopContract(),
               convert(body)
-            ))
+            )(blame(stat)))
         }
       })
 
@@ -301,7 +301,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       }
     case Statement4(contract1, label, _, cond, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
-        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(), convert(body)))
+        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(), convert(body))(blame(stat)))
       })
 
       label match {
@@ -930,9 +930,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValApplyWand(_, wand, _) => WandApply(convert(wand))
     case ValUseWand(_, wand, _) => WandUse(convert(wand))
     case ValFold(_, predicate, _) =>
-      Fold(convert(predicate))
+      Fold(convert(predicate))(blame(stat))
     case ValUnfold(_, predicate, _) =>
-      Unfold(convert(predicate))
+      Unfold(convert(predicate))(blame(stat))
     case ValOpen(_, _, _) => ??(stat)
     case ValClose(_, _, _) => ??(stat)
     case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))

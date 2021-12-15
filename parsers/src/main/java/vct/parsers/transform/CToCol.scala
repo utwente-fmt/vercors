@@ -251,16 +251,16 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit stat: IterationStatementContext): Statement[G] = stat match {
     case IterationStatement0(contract1, _, _, cond, _, contract2, body) => withContract(contract1, contract2, c => {
-      Scope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(), convert(body)))
+      Scope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(), convert(body))(blame(stat)))
     })
     case IterationStatement1(_, _, _, _, _, _, _) => ??(stat)
     case IterationStatement2(contract1, maybePragma, _, _, init, _, cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Scope(Nil, Loop[G](evalOrNop(init), cond.map(convert(_)) getOrElse tt, evalOrNop(update), c.consumeLoopContract(), convert(body)))
+        Scope(Nil, Loop[G](evalOrNop(init), cond.map(convert(_)) getOrElse tt, evalOrNop(update), c.consumeLoopContract(), convert(body))(blame(stat)))
       })
     case IterationStatement3(contract1, maybePragma, _, _, init, cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Scope(Nil, Loop[G](CDeclarationStatement(convert(init)), cond.map(convert(_)) getOrElse tt, evalOrNop(update), c.consumeLoopContract(), convert(body)))
+        Scope(Nil, Loop[G](CDeclarationStatement(convert(init)), cond.map(convert(_)) getOrElse tt, evalOrNop(update), c.consumeLoopContract(), convert(body))(blame(stat)))
       })
   }
 
@@ -739,9 +739,9 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValApplyWand(_, wand, _) => WandApply(convert(wand))
     case ValUseWand(_, wand, _) => WandUse(convert(wand))
     case ValFold(_, predicate, _) =>
-      Fold(convert(predicate))
+      Fold(convert(predicate))(blame(stat))
     case ValUnfold(_, predicate, _) =>
-      Unfold(convert(predicate))
+      Unfold(convert(predicate))(blame(stat))
     case ValOpen(_, _, _) => ??(stat)
     case ValClose(_, _, _) => ??(stat)
     case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))

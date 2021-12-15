@@ -8,7 +8,7 @@ import vct.col.newrewrite._
 import vct.col.newrewrite.lang._
 import vct.col.newrewrite.exc._
 import vct.col.origin.DiagnosticOrigin
-import vct.col.resolve.{ResolveReferences, ResolveTypes}
+import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.col.util.SuccessionMap
 import vct.parsers.{ParseResult, Parsers}
@@ -65,9 +65,9 @@ case object Test {
     files += 1
     println(paths.mkString(", "))
     val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration]))
-    var parsedProgram = Program(decls)(DiagnosticOrigin)(DiagnosticOrigin)
+    var parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
     val extraDecls = ResolveTypes.resolve(parsedProgram)
-    val untypedProgram = Program(parsedProgram.declarations ++ extraDecls)(DiagnosticOrigin)(DiagnosticOrigin)
+    val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
     val typedProgram = LangTypesToCol().dispatch(untypedProgram)
     val errors = ResolveReferences.resolve(typedProgram)
     printErrors(errors)
@@ -85,6 +85,7 @@ case object Test {
       DesugarPermissionOperators, // no PointsTo, \pointer, etc.
       PinCollectionTypes, // no anonymous sequences, sets, etc.
       QuantifySubscriptAny, // no arr[*]
+      ResolveScale, // inline predicate scaling into predicate applications
 
       CheckProcessAlgebra,
 
@@ -124,6 +125,9 @@ case object Test {
       BranchToIfElse,
       DesugarCollectionOperators,
       EvaluationTargetDummy,
+
+      // Final translation to rigid silver nodes
+      PinSilverNodes,
     )
 
     SuccessionMap.breakOnMissingPredecessor {

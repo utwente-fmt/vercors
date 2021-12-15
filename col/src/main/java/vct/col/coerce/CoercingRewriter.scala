@@ -565,8 +565,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         InstanceFunctionInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), typeArgs)(inv.blame)
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
-      case InstancePredicateApply(obj, ref, args) =>
-        InstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl))
+      case InstancePredicateApply(obj, ref, args, perm) =>
+        InstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl), rat(perm))
       case IsLeft(e) =>
         IsLeft(either(e)._1)
       case IsRight(e) =>
@@ -773,8 +773,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         PostAssignExpression(target, coerce(value, target.t))
       case PreAssignExpression(target, value) =>
         PreAssignExpression(target, coerce(value, target.t))
-      case PredicateApply(ref, args) =>
-        PredicateApply(ref, coerceArgs(args, ref.decl))
+      case PredicateApply(ref, args, perm) =>
+        PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs) =>
         ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
       case ProcessApply(process, args) =>
@@ -826,12 +826,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         SilverCurPredPerm(ref, coerceArgs(args, ref.decl))
       case deref @ SilverDeref(obj, field) =>
         SilverDeref(ref(obj), field)(deref.blame)
-      case SilverPerm(obj, field, perm) =>
-        SilverPerm(ref(obj), field, rat(perm))
-      case SilverPredPerm(access) =>
-        SilverPredPerm(access)
-      case SilverUnfolding(access, body) =>
-        SilverUnfolding(access, body)
       case Size(obj) =>
         Size(collection(obj)._1)
       case Slice(xs, from, to) =>

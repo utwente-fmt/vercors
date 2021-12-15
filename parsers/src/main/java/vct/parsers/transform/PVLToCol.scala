@@ -281,7 +281,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlAtomic(_, _, invs, _, body) =>
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))
     case PvlWhile(invs, _, _, cond, _, body) =>
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs)), convert(body)))
+      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs)), convert(body))(blame(stat)))
     case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
       Scope(Nil, Loop(
         init.map(convert(_)).getOrElse(Block(Nil)),
@@ -289,7 +289,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         update.map(convert(_)).getOrElse(Block(Nil)),
         LoopInvariant(convert(invs)),
         convert(body)
-      ))
+      )(blame(stat)))
     case PvlBlock(inner) => convert(inner)
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
@@ -710,9 +710,9 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValApplyWand(_, wand, _) => WandApply(convert(wand))
     case ValUseWand(_, wand, _) => WandUse(convert(wand))
     case ValFold(_, predicate, _) =>
-      Fold(convert(predicate))
+      Fold(convert(predicate))(blame(stat))
     case ValUnfold(_, predicate, _) =>
-      Unfold(convert(predicate))
+      Unfold(convert(predicate))(blame(stat))
     case ValOpen(_, _, _) => ??(stat)
     case ValClose(_, _, _) => ??(stat)
     case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))

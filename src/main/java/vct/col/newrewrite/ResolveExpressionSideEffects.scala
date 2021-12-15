@@ -162,10 +162,10 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case scope: Scope[Pre] => rewriteDefault(scope)
       case Branch(branches) => doBranches(branches)
       case Switch(expr, body) => frame(expr, Switch(_, dispatch(body)))
-      case Loop(init, cond, update, contract, body) =>
+      case loop @ Loop(init, cond, update, contract, body) =>
         evaluateOne(cond) match {
           case (Nil, Nil, cond) =>
-            Loop(dispatch(init), cond, dispatch(update), dispatch(contract), dispatch(body))
+            Loop(dispatch(init), cond, dispatch(update), dispatch(contract), dispatch(body))(loop.blame)
           case (variables, sideEffects, cond) =>
             Scope(variables, Loop(
               init = Block(dispatch(init) +: sideEffects),
@@ -173,7 +173,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
               update = Block(dispatch(update) +: sideEffects),
               contract = dispatch(contract),
               body = dispatch(body),
-            ))
+            )(loop.blame))
         }
       case attempt: TryCatchFinally[Pre] => rewriteDefault(attempt)
       case sync @ Synchronized(obj, body) => frame(obj, Synchronized(_, dispatch(body))(sync.blame))

@@ -101,8 +101,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         outArgs = outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
       )(inv.blame)(inv.o)
-    case inv @ InstancePredicateApply(obj, Ref(pred), args) =>
-      PredicateApply[Post](succ(pred), dispatch(obj) +: args.map(dispatch))(inv.o)
+    case inv @ InstancePredicateApply(obj, Ref(pred), args, perm) =>
+      PredicateApply[Post](succ(pred), dispatch(obj) +: args.map(dispatch), dispatch(perm))(inv.o)
     case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs) =>
       FunctionInvocation[Post](succ(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
     case ThisObject(_) =>

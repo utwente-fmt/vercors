@@ -370,15 +370,8 @@ class FeatureRainbow[G] {
     case node: Model[G] => Models
     case node: SilverPredicateAccess[G] => return Nil
     case node: SilverDeref[G] => return Nil
-    case node: SilverPerm[G] => return Nil
-    case node: SilverPredPerm[G] => return Nil
-    case node: SilverUnfolding[G] => return Nil
     case node: SilverCurFieldPerm[G] => return Nil
     case node: SilverCurPredPerm[G] => return Nil
-    case node: SilverUnfold[G] => return Nil
-    case node: SilverFold[G] => return Nil
-    case node: SilverWhile[G] => return Nil
-    case node: SilverIf[G] => return Nil
     case node: SilverNewRef[G] => return Nil
     case node: SilverFieldAssign[G] => return Nil
     case node: SilverLocalAssign[G] => return Nil

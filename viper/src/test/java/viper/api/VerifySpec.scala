@@ -30,7 +30,7 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
   }
 
   def decl(global: => GlobalDeclaration[G]): Unit = {
-    program(Program(Seq(ref, int, global))(noErrors))
+    program(Program(Seq(ref, int, global), None)(noErrors))
   }
 
   def procedure(returnType: => Type[G] = TVoid(),

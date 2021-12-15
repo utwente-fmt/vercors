@@ -152,8 +152,8 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
 
   private def parse(name: String): Seq[GlobalDeclaration[Post]] = {
     val decls = Parsers.parse[InitialGeneration](Configuration.getAdtFile(s"$name.pvl").toPath).decls
-    val moreDecls = ResolveTypes.resolve(Program(decls)(DiagnosticOrigin)(DiagnosticOrigin))
-    val typedProgram = LangTypesToCol().dispatch(Program(decls ++ moreDecls)(DiagnosticOrigin)(DiagnosticOrigin))
+    val moreDecls = ResolveTypes.resolve(Program(decls, None)(DiagnosticOrigin)(DiagnosticOrigin))
+    val typedProgram = LangTypesToCol().dispatch(Program(decls ++ moreDecls, None)(DiagnosticOrigin)(DiagnosticOrigin))
     val errors = ResolveReferences.resolve(typedProgram)
     if(errors.nonEmpty) throw InvalidImportedAdt(errors)
     val regularProgram = LangSpecificToCol().dispatch(typedProgram)

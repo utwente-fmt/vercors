@@ -10,9 +10,19 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 
 case object EncodeIntrinsicLock extends RewriterBuilder {
-  case class UnlockInvariantExhaleFailed(unlock: Unlock[_]) extends Blame[ExhaleFailed] {
-    override def blame(error: ExhaleFailed): Unit =
+  case class UnlockInvariantFoldFailed(unlock: Unlock[_]) extends Blame[FoldFailed] {
+    override def blame(error: FoldFailed): Unit =
       unlock.blame.blame(UnlockInvariantFailed(unlock, error.failure))
+  }
+
+  case class UnlockHeldExhaleFailed(unlock: Unlock[_]) extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit =
+      unlock.blame.blame(LockTokenNotHeld(unlock, error.failure))
+  }
+
+  case class CommitFailedFoldFailed(commit: Commit[_]) extends Blame[FoldFailed] {
+    override def blame(error: FoldFailed): Unit =
+      commit.blame.blame(CommitFailed(commit, error.failure))
   }
 
   case class NotifyAssertFailed(not: Notify[_]) extends Blame[AssertFailed] {
@@ -33,10 +43,10 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def getInvariant(obj: Expr[Pre])(implicit o: Origin): InstancePredicateApply[Post] =
-    InstancePredicateApply(dispatch(obj), invariant.ref(getClass(obj)), Nil)
+    InstancePredicateApply(dispatch(obj), invariant.ref(getClass(obj)), Nil, WritePerm())
 
   def getHeld(obj: Expr[Pre])(implicit o: Origin): InstancePredicateApply[Post] =
-    InstancePredicateApply(dispatch(obj), held.ref(getClass(obj)), Nil)
+    InstancePredicateApply(dispatch(obj), held.ref(getClass(obj)), Nil, WritePerm())
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
@@ -70,14 +80,14 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
       case Lock(obj) => Block(Seq(
         Inhale(getInvariant(obj)),
-        Unfold(getInvariant(obj)),
+        Unfold(getInvariant(obj))(PanicBlame("Unfolding a predicate immediately after inhaling it should never fail.")),
         Inhale(getHeld(obj)),
       ))
 
       case unlock @ Unlock(obj) => Block(Seq(
-        Fold(getInvariant(obj)),
+        Fold(getInvariant(obj))(UnlockInvariantFoldFailed(unlock)),
         Exhale(getInvariant(obj))(PanicBlame("Exhaling a predicate immediately after folding it should never fail.")),
-        Exhale(getHeld(obj))(UnlockInvariantExhaleFailed(unlock)),
+        Exhale(getHeld(obj))(UnlockHeldExhaleFailed(unlock)),
       ))
 
       case wait @ Wait(obj) =>
@@ -88,7 +98,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
       case commit @ Commit(obj) =>
         Block(Seq(
-          Fold(getInvariant(obj)),
+          Fold(getInvariant(obj))(CommitFailedFoldFailed(commit)),
           Exhale(getInvariant(obj))(PanicBlame("Exhaling a predicate immediately after folding it should never fail.")),
         ))
 

@@ -8,13 +8,13 @@ sealed trait ContractFailure
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
   override def toString: String = s"it may be false"
 }
-case class InsufficientPermissionToExhale(node: SilverResource[_]) extends ContractFailure {
+case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
   override def toString: String = s"there might not be enough permission to exhale this amount"
 }
-case class ReceiverNotInjective(node: SilverResource[_]) extends ContractFailure {
+case class ReceiverNotInjective(node: Expr[_]) extends ContractFailure {
   override def toString: String = s"the location in this permission predicate may not be injective with regards to the quantified variables"
 }
-case class NegativePermissionValue(node: SilverResource[_]) extends ContractFailure {
+case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
   override def toString: String = s"the amount of permission in this permission predicate may be negative"
 }
 
@@ -48,11 +48,11 @@ case class ExhaleFailed(failure: ContractFailure, exhale: Exhale[_]) extends Ver
   override def toString: String = s"Exhale may fail, since $failure."
   override def code: String = "failed"
 }
-case class SilverUnfoldFailed(failure: ContractFailure, unfold: SilverUnfold[_]) extends VerificationFailure {
+case class UnfoldFailed(failure: ContractFailure, unfold: Unfold[_]) extends VerificationFailure {
   override def toString: String = s"Unfold may fail, since $failure."
   override def code: String = "failed"
 }
-case class SilverFoldFailed(failure: ContractFailure, fold: SilverFold[_]) extends VerificationFailure {
+case class FoldFailed(failure: ContractFailure, fold: Fold[_]) extends VerificationFailure {
   override def toString: String = s"Fold may fail, since $failure"
   override def code: String = "failed"
 }
@@ -65,12 +65,12 @@ case class PostconditionFailed(failure: ContractFailure, invokable: ContractAppl
   override def toString: String = s"Postcondition may not hold, since $failure."
   override def code: String = "postFailed"
 }
-sealed trait SilverWhileInvariantFailure extends VerificationFailure
-case class SilverWhileInvariantNotEstablished(failure: ContractFailure, loop: SilverWhile[_]) extends SilverWhileInvariantFailure {
+sealed trait LoopInvariantFailure extends VerificationFailure
+case class LoopInvariantNotEstablished(failure: ContractFailure, loop: Loop[_]) extends LoopInvariantFailure {
   override def toString: String = s"This invariant may not be established, since $failure."
   override def code: String = "notEstablished"
 }
-case class SilverWhileInvariantNotMaintained(failure: ContractFailure, loop: SilverWhile[_]) extends SilverWhileInvariantFailure {
+case class LoopInvariantNotMaintained(failure: ContractFailure, loop: Loop[_]) extends LoopInvariantFailure {
   override def toString: String = s"This invariant may not be maintained, since $failure."
   override def code: String = "notMaintained"
 }
@@ -192,6 +192,11 @@ case class UnlockInvariantFailed(unlock: Unlock[_], failure: ContractFailure) ex
 case class LockTokenNotHeld(unlock: Unlock[_], failure: ContractFailure) extends UnlockFailure {
   override def code: String = "heldFailed"
   override def toString: String = s"The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since $failure."
+}
+
+case class CommitFailed(commit: Commit[_], failure: ContractFailure) extends VerificationFailure {
+  override def code: String = "commitFailed"
+  override def toString: String = s"Committing the defined resources to the lock invariant may not be possible here, since $failure."
 }
 
 case class NotifyFailed(not: Notify[_], failure: ContractFailure) extends VerificationFailure {

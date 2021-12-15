@@ -8,9 +8,10 @@ import vct.col.newrewrite.error.ExcludedByPassOrder
 import vct.col.newrewrite.util.Substitute
 import vct.col.origin.{AssertFailed, Blame, FramedGetLeft, FramedGetRight, Origin, ThrowNull}
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers
 import RewriteHelpers._
+import vct.result.VerificationResult.Unreachable
 
 case object EncodeTryThrowSignals extends RewriterBuilder {
   case class ThrowNullAssertFailed(t: Throw[_]) extends Blame[AssertFailed] {
@@ -28,8 +29,19 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
   val signalsBinding: ScopedStack[(Variable[Pre], Expr[Post])] = ScopedStack()
 
+  val rootClass: ScopedStack[Ref[Post, Class[Post]]] = ScopedStack()
+
   def getExc(implicit o: Origin): Expr[Post] =
     currentException.top.get
+
+  override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] =
+    program.rootClass match {
+      case Some(TClass(Ref(cls))) =>
+        rootClass.having(succ[Class[Post]](cls)) {
+          program.rewrite()
+        }
+      case _ => throw Unreachable("Root class unknown or not a class.")
+    }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = stat.o
@@ -103,7 +115,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
     case method: AbstractMethod[Pre] =>
       implicit val o: Origin = method.o
 
-      val exc = new Variable[Post](TAny()) // PB TODO: TClass(?)
+      val exc = new Variable[Post](TClass(rootClass.top)) // PB TODO: TClass(?)
 
       currentException.having(exc) {
         val body = method.body.map(body => {

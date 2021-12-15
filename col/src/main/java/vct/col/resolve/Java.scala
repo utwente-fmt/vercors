@@ -156,16 +156,21 @@ case object Java {
   }
 
   def findJavaTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
-    val namespace = ctx.namespace.getOrElse(throw VerificationResult.Unreachable("A JavaClass declared outside a JavaNamespace is invalid."))
     val potentialFQNames: Seq[Seq[String]] = names match {
       case Seq(singleName) =>
-        val inThisPackage = namespace.pkg match {
-          case Some(pkg) => pkg.names :+ singleName
-          case None => Seq(singleName)
+        val inThisPackage = ctx.namespace match {
+          case Some(ns) => ns.pkg match {
+            case Some(pkg) => pkg.names :+ singleName
+            case None => Seq(singleName)
+          }
+          case None => Nil
         }
-        val fromImport = namespace.imports.collect {
-          case JavaImport(false, name, /*star = */ true) => name.names :+ singleName
-          case JavaImport(false, name, /*star = */ false) if name.names.last == singleName => name.names
+        val fromImport = ctx.namespace match {
+          case Some(ns) => ns.imports.collect {
+            case JavaImport(false, name, /*star = */ true) => name.names :+ singleName
+            case JavaImport(false, name, /*star = */ false) if name.names.last == singleName => name.names
+          }
+          case None => Nil
         }
         val fromPredef = Seq("java", "lang", singleName)
         fromImport :+ inThisPackage :+ fromPredef

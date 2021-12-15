@@ -24,7 +24,7 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Seq(
             Continue[G](Some(loopLabel.ref))
           ))
-        )
+        )(o)
       )
     }
 
@@ -42,7 +42,7 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
               Break[G](Some(continueLoopLabel.ref))
             ))
           )
-        )
+        )(o)
       )
     }
 
@@ -69,9 +69,9 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
               Block(Seq(
                 Continue(Some(outerLoop.ref))
               ))
-            )
+            )(o)
           )
-        )
+        )(o)
       )
     }
 
@@ -96,10 +96,10 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
                 Block(Seq(
                   Break(Some(continueOuterLoop.ref))
                 ))
-              )
+              )(o)
             )
           )
-        )
+        )(o)
       )
     }
 

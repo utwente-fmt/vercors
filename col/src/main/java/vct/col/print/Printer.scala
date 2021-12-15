@@ -424,19 +424,6 @@ case class Printer(out: Appendable,
         spec("with", space, before, space, "then", space, before)))
     case JavaLocalDeclarationStatement(decl) =>
       statement(decl.t, space, javaDecls(decl.decls))
-    case SilverUnfold(access) =>
-      syntax(Silver -> statement("unfold", space, access))
-    case SilverFold(access) =>
-      syntax(Silver -> statement("fold", space, access))
-    case SilverWhile(cond, invariant, body) =>
-      syntax(Silver -> phrase(doubleline, "while(", cond, ")", newline, clauses(invariant, "invariant"), body, doubleline))
-    case SilverIf(cond, whenTrue, Block(Nil)) =>
-      syntax(Silver -> control(phrase("if(", cond, ")"), whenTrue))
-    case SilverIf(cond, whenTrue, whenFalse) =>
-      syntax(Silver -> controls(Seq(
-        (phrase("if(", cond, ")"), whenTrue),
-        (phrase("else"), whenFalse),
-      )))
     case SilverNewRef(v, fields) =>
       syntax(Silver -> statement(name(v.decl), space, ":=", space, "new(", commas(fields.map(_.decl).map(name).map(Text))))
     case SilverFieldAssign(obj, field, value) =>
@@ -615,9 +602,6 @@ case class Printer(out: Appendable,
     case JavaNewDefaultArray(baseType, specifiedDims, moreDims) =>
       (phrase("new", space, baseType, phrase(specifiedDims.map(phrase("[", _, "]")):_*), "[]".repeat(moreDims)), 100)
     case SilverDeref(obj, field) => ???
-    case SilverPerm(obj, field, perm) => ???
-    case SilverPredPerm(access) => ???
-    case SilverUnfolding(access, body) => ???
     case SilverCurFieldPerm(obj, field) => ???
     case SilverCurPredPerm(ref, args) => ???
     case MapSize(map) =>
@@ -756,9 +740,9 @@ case class Printer(out: Appendable,
       (phrase("*", assoc(90, pointer)), 90)
     case AddrOf(e) =>
       (phrase("&", assoc(90, e)), 90)
-    case PredicateApply(ref, args) =>
+    case PredicateApply(ref, args, perm) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case InstancePredicateApply(obj, ref, args) =>
+    case InstancePredicateApply(obj, ref, args, perm) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case ADTFunctionInvocation(tArgs, ref, args) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)

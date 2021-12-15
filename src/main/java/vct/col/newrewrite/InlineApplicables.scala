@@ -50,8 +50,9 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
         val replacements = apply.ref.decl.args.map(_.get).zip(apply.args).toMap[Expr[Pre], Expr[Pre]]
         // TODO: consider type arguments and out-arguments
         apply match {
-          case PredicateApply(Ref(pred), _) =>
+          case PredicateApply(Ref(pred), _, WritePerm()) => // TODO inline predicates with non-write perm
             dispatch(Substitute(replacements).dispatch(pred.body.getOrElse(???)))
+          case PredicateApply(Ref(pred), _, _) => ???
           case ProcedureInvocation(Ref(proc), _, outArgs, typeArgs) =>
             val done = Label[Pre](new LabelDecl(), Block(Nil))
             val v = new Variable[Pre](proc.returnType)
@@ -73,9 +74,10 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
           case InstanceFunctionInvocation(obj, Ref(func), _, typeArgs) =>
             val replacementsWithObj = replacements ++ Map(AmbiguousThis[Pre]() -> obj)
             dispatch(Substitute(replacementsWithObj).dispatch(func.body.getOrElse(???)))
-          case InstancePredicateApply(obj, Ref(pred), _) =>
+          case InstancePredicateApply(obj, Ref(pred), _, WritePerm()) =>
             val replacementsWithObj = replacements ++ Map(AmbiguousThis[Pre]() -> obj)
             dispatch(Substitute(replacementsWithObj).dispatch(pred.body.getOrElse(???)))
+          case InstancePredicateApply(obj, Ref(pred), _, _) => ???
         }
       }
 
