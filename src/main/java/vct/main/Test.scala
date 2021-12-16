@@ -120,7 +120,11 @@ case object Test {
       // Translate internal types to domains
       ImportADT,
 
+      ExtractInlineQuantifierPatterns,
+      MonomorphizeContractApplicables,
+
       // Silver compat (basically no new nodes)
+      ExplicitADTTypeArgs,
       ForLoopToWhileLoop,
       BranchToIfElse,
       DesugarCollectionOperators,

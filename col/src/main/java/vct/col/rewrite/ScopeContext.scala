@@ -14,8 +14,11 @@ class ScopeContext[Pre, Post] {
 
   import ScopeContext._
 
+  protected val successionMap: SuccessionMap[Declaration[Pre], Declaration[Post]] = SuccessionMap()
+
   // The default action for declarations is to be succeeded by a similar declaration, for example a copy.
-  val successionMap: SuccessionMap[Declaration[Pre], Declaration[Post]] = SuccessionMap()
+  def succeed(predecessor: Declaration[Pre], successor: Declaration[Post]): Unit =
+    successionMap(predecessor) = successor
 
   val globalScopes: ScopedStack[ArrayBuffer[GlobalDeclaration[Post]]] = ScopedStack()
   val classScopes: ScopedStack[ArrayBuffer[ClassDeclaration[Post]]] = ScopedStack()

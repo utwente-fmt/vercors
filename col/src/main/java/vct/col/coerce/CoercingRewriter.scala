@@ -43,7 +43,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case Coercion.Identity() => e
       case Coercion.Compose(left, right) => coerce(coerce(e, right), left)
       case Coercion.NothingSomething(_) => e
-      case Coercion.SomethingAny() => e
+      case Coercion.SomethingAny(_) => e
       case Coercion.MapOption(_, _, inner) =>
         Select(Eq(e, OptNone()), OptNone(), coerce(OptGet(e)(NeverNone), inner))
       case Coercion.MapEither(source, target, innerLeft, innerRight) =>

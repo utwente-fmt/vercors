@@ -1,0 +1,3 @@
+adt `any` {}
+
+pure `any` as_any<T>(T t);

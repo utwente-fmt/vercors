@@ -12,7 +12,7 @@ import scala.reflect.ClassTag
 trait DeclarationImpl[G] { this: Declaration[G] =>
   def succeedDefault[Pre](scope: ScopeContext[Pre, G], pred: Declaration[Pre]): Unit = {
     declareDefault(scope)
-    scope.successionMap(pred) = this
+    scope.succeed(pred, this)
   }
 
   def declareDefault[Pre](scope: ScopeContext[Pre, G]): Unit

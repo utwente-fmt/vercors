@@ -2,13 +2,15 @@ package viper.api
 
 import hre.lang.HREExitException
 import hre.lang.System.Warning
-import vct.col.ast.PredicateApply
+import vct.col.ast.{AxiomaticDataType, PredicateApply}
 import vct.col.ref.Ref
 import vct.col.{ast => col}
 import vct.result.VerificationResult.SystemError
 import viper.api.ColToSilver.NotSupported
+import viper.silver.ast.TypeVar
 import viper.silver.{ast => silver}
 
+import scala.collection.immutable.{ListMap, SortedMap}
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -29,14 +31,27 @@ case class ColToSilver(program: col.Program[_]) {
   val predicates: ArrayBuffer[silver.Predicate] = ArrayBuffer()
   val methods: ArrayBuffer[silver.Method] = ArrayBuffer()
 
-  val nameStack: mutable.Stack[mutable.Map[col.Declaration[_], String]] = mutable.Stack()
-  var names: mutable.Map[col.Declaration[_], String] = mutable.Map()
+  val nameStack: mutable.Stack[mutable.Map[col.Declaration[_], (String, Int)]] = mutable.Stack()
+  var names: mutable.Map[col.Declaration[_], (String, Int)] = mutable.Map()
 
   def ??(node: col.Node[_]): Nothing =
     throw NotSupported(node)
 
   def push(): Unit = nameStack.push(names.clone())
   def pop(): Unit = names = nameStack.pop()
+
+  def unpackName(name: String): (String, Int) = {
+    val m = "^(.*?)([1-9][0-9]*)?$".r.findFirstMatchIn(name).get
+    if(Option(m.group(2)).isDefined) {
+      (m.group(1), Integer.parseInt(m.group(2)))
+    } else {
+      (m.group(1), 0)
+    }
+  }
+
+  def packName(name: String, index: Int): String =
+    if(index == 0) name
+    else s"$name$index"
 
   /**
    * Give the declaration a silver-appropriate name that is as close as possible to the preferred name
@@ -45,12 +60,12 @@ case class ColToSilver(program: col.Program[_]) {
     if(names.contains(decl)) {
       ???
     } else {
-      var name = decl.o.preferredName
-      while(names.values.exists(_ == name) || silver.utility.Consistency.reservedNames.contains(name)) {
-        name += "$"
+      var (name, index) = unpackName(decl.o.preferredName)
+      while(names.values.exists(_ == (name, index)) || silver.utility.Consistency.reservedNames.contains(packName(name, index))) {
+        index += 1
       }
-      names(decl) = name
-      name
+      names(decl) = (name, index)
+      packName(name, index)
     }
 
   /**
@@ -64,7 +79,7 @@ case class ColToSilver(program: col.Program[_]) {
   }
 
   /**
-   * Name decl in the current scope, then evaluate f within a new scope
+   * Name decl in the current scope, then evaluate f within a new scopegroupCount
    */
   def scoped[T](decl: col.Declaration[_])(f: => T): T = {
     name(decl)
@@ -81,23 +96,28 @@ case class ColToSilver(program: col.Program[_]) {
    */
   def ref(decl: col.Declaration[_]): String =
     if(names.contains(decl)) {
-      names(decl)
+      val (name, index) = names(decl)
+      packName(name, index)
     } else {
       ???
     }
 
   def transform(): silver.Program = {
+    program.declarations.foreach(name)
+    program.declarations.collect { case adt: col.AxiomaticDataType[_] => adt }.flatMap(_.typeArgs).foreach(name)
+    program.declarations.collect { case adt: col.AxiomaticDataType[_] => adt }.flatMap(_.decls).collect { case func: col.ADTFunction[_] => func }.foreach(name)
+    program.declarations.collect { case field: col.SilverField[_] => field }.foreach(field => fields(field) = silver.Field(ref(field), typ(field.t))(info=NodeInfo(field)))
     program.declarations.foreach(collect)
     silver.Program(domains.toSeq, fields.values.toSeq, functions.toSeq, predicates.toSeq, methods.toSeq, extensions=Seq())()
   }
 
   def collect(decl: col.GlobalDeclaration[_]): Unit = decl match {
     case field: col.SilverField[_] =>
-      fields(field) = silver.Field(name(field), typ(field.t))(info=NodeInfo(field))
+      // nop
     case rule: col.SimplificationRule[_] =>
       ??(rule)
-    case function: col.Function[_] =>
-      scoped(function) {
+    case function: col.Function[_] if !function.inline && function.typeArgs.isEmpty=>
+      scoped {
         functions += silver.Function(
           ref(function),
           function.args.map(variable),
@@ -107,8 +127,8 @@ case class ColToSilver(program: col.Program[_]) {
           function.body.map(exp),
         )(info=NodeInfo(function))
       }
-    case procedure: col.Procedure[_] if (procedure.returnType match { case col.TVoid() => true; case _ => false }) =>
-      scoped(procedure) {
+    case procedure: col.Procedure[_] if procedure.returnType == col.TVoid() && !procedure.inline && !procedure.pure && procedure.typeArgs.isEmpty =>
+      scoped {
         val labelDecls = procedure.body.toSeq.flatMap(_.transSubnodes.collect {
           case l: col.LabelDecl[_] => silver.Label(name(l), Seq())(info=NodeInfo(l))
         })
@@ -121,20 +141,36 @@ case class ColToSilver(program: col.Program[_]) {
           procedure.body.map(body => silver.Seqn(Seq(block(body)), labelDecls)(info=NodeInfo(body)))
         )(info=NodeInfo(procedure))
       }
-    case predicate: col.Predicate[_] =>
-      scoped(predicate) {
+    case predicate: col.Predicate[_] if !predicate.inline && !predicate.threadLocal =>
+      scoped {
         predicates += silver.Predicate(
           ref(predicate),
           predicate.args.map(variable),
           predicate.body.map(exp)
         )(info=NodeInfo(predicate))
       }
+    case adt: col.AxiomaticDataType[_] =>
+      domains += silver.Domain(
+        name = ref(adt),
+        typVars = adt.typeArgs.map(v => silver.TypeVar(ref(v))),
+        functions = adt.decls.collect {
+          case func: col.ADTFunction[_] =>
+            silver.DomainFunc(ref(func), func.args.map(variable), typ(func.returnType), unique = false)(info=NodeInfo(func), domainName=ref(adt))
+        },
+        axioms = adt.decls.collect {
+          case ax: col.ADTAxiom[_] =>
+            silver.AnonymousDomainAxiom(exp(ax.axiom))(info=NodeInfo(ax), domainName=ref(adt))
+        },
+      )(info=NodeInfo(adt))
     case other =>
       ??(other)
   }
 
   def variable(v: col.Variable[_]): silver.LocalVarDecl =
     silver.LocalVarDecl(name(v), typ(v.t))(info=NodeInfo(v))
+
+  def adtTypeArgs(adt: AxiomaticDataType[_]): Seq[TypeVar] =
+    adt.typeArgs.map(v => silver.TypeVar(ref(v)))
 
   def typ(t: col.Type[_]): silver.Type = t match {
     case col.TBool() => silver.Bool
@@ -144,6 +180,10 @@ case class ColToSilver(program: col.Program[_]) {
     case col.TSeq(element) => silver.SeqType(typ(element))
     case col.TSet(element) => silver.SetType(typ(element))
     case col.TBag(element) => silver.MultisetType(typ(element))
+    case col.TVar(Ref(v)) => silver.TypeVar(ref(v))
+    case col.TAxiomatic(Ref(adt), args) =>
+      val typeArgs = adtTypeArgs(adt)
+      silver.DomainType(ref(adt), ListMap(typeArgs.zip(args.map(typ)) : _*))(typeArgs)
     case other => ??(other)
   }
 
@@ -151,6 +191,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.BooleanValue(value) => silver.BoolLit(value)(info=NodeInfo(e))
     case col.IntegerValue(value) => silver.IntLit(value)(info=NodeInfo(e))
     case col.Null() => silver.NullLit()(info=NodeInfo(e))
+    case col.Result(Ref(app)) => silver.Result(typ(app.returnType))(info=NodeInfo(e))
 
     case col.NoPerm() => silver.NoPerm()(info=NodeInfo(e))
     case col.ReadPerm() => silver.WildcardPerm()(info=NodeInfo(e))
@@ -186,6 +227,11 @@ case class ColToSilver(program: col.Program[_]) {
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(info=NodeInfo(e))
     case col.FunctionInvocation(f, args, Nil) =>
       silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, silver.NoInfo, typ(f.decl.returnType), silver.NoTrafos)
+    case inv @ col.ADTFunctionInvocation(typeArgs, Ref(func), args) => typeArgs match {
+      case Some((Ref(adt), typeArgs)) =>
+        silver.DomainFuncApp(ref(func), args.map(exp), ListMap(adtTypeArgs(adt).zip(typeArgs.map(typ)) : _*))(silver.NoPosition, NodeInfo(e), typ(inv.t), ref(adt), silver.NoTrafos)
+      case None => ??(inv)
+    }
     case col.Unfolding(p: PredicateApply[_], body) => silver.Unfolding(pred(p), exp(body))(info=NodeInfo(e))
     case col.Select(condition, whenTrue, whenFalse) => silver.CondExp(exp(condition), exp(whenTrue), exp(whenFalse))(info=NodeInfo(e))
     case col.Old(expr, None) => silver.Old(exp(expr))(info=NodeInfo(e))
@@ -251,6 +297,7 @@ case class ColToSilver(program: col.Program[_]) {
       silver.While(exp(cond), Seq(exp(inv)), block(body))(info=NodeInfo(s))
     case col.Label(decl, col.Block(Nil)) => silver.Label(ref(decl), Seq())(info=NodeInfo(s))
     case col.Goto(lbl) => silver.Goto(ref(lbl))(info=NodeInfo(s))
+    case col.Return(col.Void()) => silver.Seqn(Nil, Nil)(info=NodeInfo(s))
     case col.Exhale(res) => silver.Exhale(exp(res))(info=NodeInfo(s))
     case col.Assert(assn) => silver.Assert(exp(assn))(info=NodeInfo(s))
     case col.Inhale(res) => silver.Inhale(exp(res))(info=NodeInfo(s))

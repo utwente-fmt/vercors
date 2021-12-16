@@ -29,7 +29,7 @@ case object Coercion {
   }
 
   case class NothingSomething[G](target: Type[G]) extends Promotion[G]
-  case class SomethingAny[G]() extends Promotion[G]
+  case class SomethingAny[G](source: Type[G]) extends Promotion[G]
   case class MapOption[G](source: TOption[G], target: TOption[G], inner: Coercion[G]) extends MappingCoercion[G]
   case class MapTuple[G](source: TTuple[G], target: TTuple[G], left: Coercion[G], right: Coercion[G]) extends Coercion[G] {
     override def isPromoting: Boolean = left.isPromoting && right.isPromoting
@@ -96,7 +96,7 @@ case object Coercion {
 
       case (source, target) if source == target => Identity()
       case (TNothing(), _) => NothingSomething(target)
-      case (_, TAny()) => SomethingAny()
+      case (_, TAny()) => SomethingAny(source)
 
       case (source @ TOption(innerSource), target @ TOption(innerTarget)) =>
         MapOption(source, target, getCoercion(innerSource, innerTarget).getOrElse(return None))

@@ -36,4 +36,11 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
     }
     case other => rewriteDefault(other)
   }
+
+  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+    case TFloat() => TRational()
+    case TChar() => TInt()
+    case TBoundedInt(_, _) => TInt()
+    case other => rewriteDefault(other)
+  }
 }

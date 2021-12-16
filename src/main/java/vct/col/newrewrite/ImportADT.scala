@@ -13,9 +13,10 @@ import vct.col.check.CheckError
 import vct.col.coerce.{CoercingRewriter, Coercion}
 import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin._
-import vct.col.ref.Ref
+import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, Rewritten}
+import vct.col.util.AstBuildHelpers.MethodBuildHelpers
 import vct.result.VerificationResult.UserError
 
 import scala.collection.mutable
@@ -162,6 +163,9 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     program.declarations.map(successionMap(_).asInstanceOf[GlobalDeclaration[Post]])
   }
 
+  private lazy val nothingFile = parse("nothing")
+  private lazy val voidFile = parse("void")
+  private lazy val anyFile = parse("any")
   private lazy val fracFile = parse("frac")
   private lazy val zfracFile = parse("zfrac")
   private lazy val tupleFile = parse("tuple")
@@ -179,6 +183,15 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
 
   def find[T](decls: Declarator[Post], name: String)(implicit tag: ClassTag[T]): T =
     find(decls.declarations, name)(tag)
+
+  private lazy val nothingAdt = find[AxiomaticDataType[Post]](nothingFile, "nothing")
+  private lazy val nothingAs = find[Function[Post]](nothingFile, "nothing_as")
+
+  private lazy val voidAdt = find[AxiomaticDataType[Post]](voidFile, "void")
+  private lazy val voidUnit = find[ADTFunction[Post]](voidAdt, "unit")
+
+  private lazy val anyAdt = find[AxiomaticDataType[Post]](anyFile, "any")
+  private lazy val anyFrom = find[Function[Post]](anyFile, "as_any")
 
   private lazy val fracAdt = find[AxiomaticDataType[Post]](fracFile, "frac")
   private lazy val fracVal = find[ADTFunction[Post]](fracAdt, "frac_val")
@@ -255,6 +268,11 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     transmutePostRef[Function, Function[Pre], Function[Post]](ref)
 
   override def coerce(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = coercion match {
+    case Coercion.NothingSomething(target) =>
+      FunctionInvocation(preFunc(nothingAs.ref), Seq(e), Seq(target))(PanicBlame("coercing from nothing requires nothing."))
+    case Coercion.SomethingAny(source) =>
+      FunctionInvocation(preFunc(anyFrom.ref), Seq(e), Seq(source))(PanicBlame("coercing to any requires nothing."))
+
     case Coercion.NullArray(_) => OptNone()
     case Coercion.NullPointer(_) => OptNone()
 
@@ -277,14 +295,22 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     case _ => super.coerce(e, coercion)
   }
 
-  override def dispatch(program: Program[Pre]): Program[Post] =
+  override def dispatch(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
-      program.rewrite()
+      program.rewrite(declarations = collectInScope(globalScopes) {
+        anyFile
+        program.declarations.foreach(dispatch)
+      })
     }
+  }
 
   override def dispatch(t: Type[Pre]): Type[Post] = {
     implicit val o: Origin = t.o
     t match {
+      case TType(TAny()) => TType(TAxiomatic(new LazyRef(anyAdt), Nil))
+      case TNothing() => TAxiomatic(nothingAdt.ref, Nil)
+      case TVoid() => TAxiomatic(voidAdt.ref, Nil)
+      case TAny() => TAxiomatic(anyAdt.ref, Nil)
       case TFraction() => TAxiomatic(fracAdt.ref, Nil)
       case TZFraction() => TAxiomatic(zfracAdt.ref, Nil)
       case TTuple(Seq(t1, t2)) => TAxiomatic(tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))
@@ -324,6 +350,8 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     implicit val o: Origin = e.o
 
     e match {
+      case Void() =>
+        ADTFunctionInvocation(None, voidUnit.ref, Nil)
       case LiteralTuple(Seq(t1, t2), Seq(v1, v2)) =>
         ADTFunctionInvocation(
           Some((tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))),
@@ -470,5 +498,17 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
         )(PointerFieldInsufficientPermission(deref.blame, deref))
       case other => rewriteDefault(other)
     }
+  }
+
+  // PB: dumb hack alert: TVoid and Return(Void()) is (for viper) a marker to indicate that there is no return type.
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case method: AbstractMethod[Pre] if method.returnType == TVoid[Pre]() =>
+      method.rewrite(returnType = TVoid()).succeedDefault(this, decl)
+    case other => rewriteDefault(other)
+  }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
+    case ret @ Return(v @ Void()) => ret.rewrite(result=Void()(v.o))
+    case other => rewriteDefault(other)
   }
 }
