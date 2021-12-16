@@ -29,6 +29,18 @@ case object EncodeIntrinsicLock extends RewriterBuilder {
     override def blame(error: AssertFailed): Unit =
       not.blame.blame(NotifyFailed(not, error.failure))
   }
+
+  case class LockInvariantOrigin(cls: Class[_]) extends Origin {
+    override def preferredName: String = "lock_inv_" + cls.o.preferredName
+    override def messageInContext(message: String): String =
+      cls.intrinsicLockInvariant.o.messageInContext(message)
+  }
+
+  case class HeldTokenOrigin(cls: Class[_]) extends Origin {
+    override def preferredName: String = "lock_held_" + cls.o.preferredName
+    override def messageInContext(message: String): String =
+      cls.intrinsicLockInvariant.o.messageInContext(message)
+  }
 }
 
 case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
@@ -51,8 +63,8 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
       cls.rewrite(declarations = collectInScope(classScopes) {
-        invariant(cls) = new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(cls.intrinsicLockInvariant.o)
-        held(cls) = new InstancePredicate(Nil, None)(cls.intrinsicLockInvariant.o)
+        invariant(cls) = new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(LockInvariantOrigin(cls))
+        held(cls) = new InstancePredicate(Nil, None)(HeldTokenOrigin(cls))
         invariant(cls).declareDefault(this)
         held(cls).declareDefault(this)
         cls.declarations.foreach(dispatch)

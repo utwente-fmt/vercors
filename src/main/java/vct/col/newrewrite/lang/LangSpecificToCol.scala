@@ -3,7 +3,7 @@ package vct.col.newrewrite.lang
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.lang.LangSpecificToCol.CGlobalStateNotSupported
+import vct.col.newrewrite.lang.LangSpecificToCol.{CGlobalStateNotSupported, ThisVar}
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve._
@@ -20,6 +20,12 @@ case object LangSpecificToCol extends RewriterBuilder {
     override def code: String = "notSupported"
     override def text: String =
       example.o.messageInContext("Global variables in C are not supported.")
+  }
+
+  case object ThisVar extends Origin {
+    override def preferredName: String = "this"
+    override def messageInContext(message: String): String =
+      s"[At node generated to store the this value for constructors]: $message"
   }
 }
 
@@ -129,7 +135,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case cons: JavaConstructor[Pre] =>
         implicit val o: Origin = cons.o
         val t = TClass(ref)
-        val resVar = new Variable[Post](t)
+        val resVar = new Variable[Post](t)(ThisVar)
         val res = Local[Post](resVar.ref)
         currentThis.having(res) {
           new Procedure(
@@ -267,7 +273,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
             implicit val o: Origin = cls.o
             val t = TClass[Post](succ(cls))
             val resVar = new Variable[Post](t)
-            val res = Local[Post](resVar.ref)
+            val res = Local[Post](resVar.ref)(ThisVar)
 
             pvlDefaultConstructor(cls) = new Procedure(
               t,

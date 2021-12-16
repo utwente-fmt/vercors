@@ -18,6 +18,12 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
     override def blame(error: AssertFailed): Unit =
       t.blame.blame(ThrowNull(t))
   }
+
+  case object ExcVar extends Origin {
+    override def preferredName: String = "exc"
+    override def messageInContext(message: String): String =
+      s"[At variable generated to contain thrown exception]: $message"
+  }
 }
 
 case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
@@ -115,7 +121,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
     case method: AbstractMethod[Pre] =>
       implicit val o: Origin = method.o
 
-      val exc = new Variable[Post](TClass(rootClass.top)) // PB TODO: TClass(?)
+      val exc = new Variable[Post](TClass(rootClass.top))(ExcVar)
 
       currentException.having(exc) {
         val body = method.body.map(body => {

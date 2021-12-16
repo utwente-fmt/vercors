@@ -281,7 +281,7 @@ case class ColToSilver(program: col.Program[_]) {
   }
 
   def stat(s: col.Statement[_]): silver.Stmt = s match {
-    case col.Eval(inv@col.ProcedureInvocation(method, args, outArgs, Nil)) =>
+    case inv@col.InvokeProcedure(method, args, outArgs, Nil) =>
       silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
         silver.NoPosition, NodeInfo(inv), silver.NoTrafos)
     case col.SilverFieldAssign(obj, field, value) =>
