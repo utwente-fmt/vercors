@@ -14,7 +14,7 @@ import scala.reflect.ClassTag
 
 case object EncodeBreakReturn extends RewriterBuilder {
   case class PostLabeledStatementOrigin(label: LabelDecl[_]) extends Origin {
-    override def preferredName: String = "post_" + label.o.preferredName
+    override def preferredName: String = "break_" + label.o.preferredName
     override def messageInContext(message: String): String =
       s"[At node generated to jump past a statement]: $message"
   }

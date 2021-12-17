@@ -3,7 +3,7 @@ package vct.col.resolve
 import hre.util.FuncTools
 import vct.col.origin._
 import vct.result.VerificationResult
-import vct.col.ast.{ApplicableContract, Block, ClassDeclaration, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
+import vct.col.ast.{ApplicableContract, Block, ClassDeclaration, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
 import vct.col.ref.Ref
 import vct.result.VerificationResult.Unreachable
 import vct.col.util.AstBuildHelpers._
@@ -128,7 +128,9 @@ case object Java {
 
     val fields = cls.getFields.map(field => {
        new JavaFields(
-         modifiers = if((field.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic[G]()) else Nil,
+         modifiers =
+           (if((field.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic[G]()) else Nil) ++
+           (if((field.getModifiers & Modifier.FINAL) != 0) Seq(JavaFinal[G]()) else Nil),
          t = translateRuntimeType(field.getType),
          decls = Seq((field.getName, 0, None)),
        )

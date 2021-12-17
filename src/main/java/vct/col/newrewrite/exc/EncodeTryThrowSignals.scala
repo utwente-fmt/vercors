@@ -24,6 +24,24 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
     override def messageInContext(message: String): String =
       s"[At variable generated to contain thrown exception]: $message"
   }
+
+  case object ReturnPoint extends Origin {
+    override def preferredName: String = "bubble"
+    override def messageInContext(message: String): String =
+      s"[At label generated to bubble an exception]: $message"
+  }
+
+  case object CatchLabel extends Origin {
+    override def preferredName: String = "catches"
+    override def messageInContext(message: String): String =
+      s"[At label generated for catch blocks]: $message"
+  }
+
+  case object FinallyLabel extends Origin {
+    override def preferredName: String = "finally"
+    override def messageInContext(message: String): String =
+      s"[At label generated for finally]: $message"
+  }
 }
 
 case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
@@ -53,8 +71,8 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = stat.o
     stat match {
       case TryCatchFinally(body, after, catches) =>
-        val handlersEntry = new LabelDecl[Post]()
-        val finallyEntry = new LabelDecl[Post]()
+        val handlersEntry = new LabelDecl[Post]()(CatchLabel)
+        val finallyEntry = new LabelDecl[Post]()(FinallyLabel)
 
         val newBody = exceptionalHandlerEntry.having(handlersEntry) {
           dispatch(body)
@@ -125,7 +143,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
       currentException.having(exc) {
         val body = method.body.map(body => {
-          val returnPoint = new LabelDecl[Post]()
+          val returnPoint = new LabelDecl[Post]()(ReturnPoint)
           // The return point is at this moment guaranteed to be the last logical statement of the method, since either
           // all return statements are encoded as a goto to the end of the method, or they are encoded as exceptions.
           // Because of that, we can designate the (only) return statement as the outermost exception handler, returning

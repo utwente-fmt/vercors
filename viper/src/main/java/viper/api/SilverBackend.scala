@@ -16,7 +16,6 @@ trait SilverBackend extends Backend {
 
   override def submit(program: col.Program[_]): Unit = {
     val silver = ColToSilver.transform(program)
-    println(silver)
     createVerifier.verify(silver) match {
       case Success =>
       case Failure(errors) => errors.foreach {

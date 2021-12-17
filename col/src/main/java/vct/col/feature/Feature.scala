@@ -8,6 +8,12 @@ case object Feature {
     scanner.scan(node)
     scanner.features.toSet
   }
+
+  def examples[G](node: Node[G]): Map[Feature, Seq[Node[G]]] = {
+    val scanner = new FeatureRainbow[G]()
+    scanner.scan(node)
+    scanner.examples.toMap.map { case (k, v) => k -> v.toSeq }
+  }
 }
 
 sealed trait Feature

@@ -118,7 +118,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         contract = ApplicableContract(
           requires = tt,
           ensures = AstBuildHelpers.foldStar(decls.collect {
-            case fields: JavaFields[Pre] =>
+            case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
               fields.decls.indices.map(decl => {
                 val local = JavaLocal[Pre](fields.decls(decl)._1)(DerefPerm)
                 local.ref = Some(RefJavaField[Pre](fields, decl))

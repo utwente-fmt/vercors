@@ -151,7 +151,12 @@ case object Test {
         assert(program.declarations.nonEmpty)
         printErrors(program.check)
       }
-      println(Feature.scan(program))
+      for((feature, examples) <- Feature.examples(program)) {
+        println(f"$feature:")
+        for(example <- examples.take(5)) {
+          println(f"  $example")
+        }
+      }
       Silicon(Map.empty, Paths.get("/home/pieter/vercors/src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3")).submit(program)
     }
   } catch {
