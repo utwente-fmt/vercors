@@ -212,6 +212,8 @@ class Main {
     Seq(
       BY_KEY("VeyMontStructCheck"),
       BY_KEY("VeyMontTerminationCheck"),
+      BY_KEY("VeyMontGlobalProgPerms"),
+      BY_KEY("printGlobProg"),
       BY_KEY("VeyMontDecompose"),
       BY_KEY("removeEmptyBlocks"),
       BY_KEY("VeyMontLocalProgConstr"),

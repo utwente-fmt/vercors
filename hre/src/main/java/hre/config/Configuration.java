@@ -128,7 +128,6 @@ public class Configuration {
                         "The program from the input files has to adhere to the syntax of a 'global program'. Syntax violations result in VeyMont Fail messages. " +
                         "The decomposition preserves the behaviour of the global program. " +
                         "This implies that all functional properties proven (with VerCors) for the global program also hold for the local program. " +
-                        "Memory and thread safety can be checked by running VerCors on the file produced by VeyMont. " +
                         "Also, both global programs and their decomposed local programs are deadlock-free by construction." +
                         "For more information on VeyMont, please check the VerCors Wiki."),"veymont");
     }
