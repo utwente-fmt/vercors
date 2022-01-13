@@ -40,7 +40,8 @@ class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with F
   }
   override def inhale(o:O, e:Exp) : Stmt = Inhale(e)(NoPosition,new OriginInfo(o))
   override def exhale(o:O, e:Exp) : Stmt = Exhale(e)(NoPosition,new OriginInfo(o))
-  override def assert_(o:O, e:Exp) : Stmt = Assert(e)(NoPosition,new OriginInfo(o,Seq("assert")))
+  override def assert_(o:O, e:Exp) : Stmt = Assert(e)(VirtualPosition(o.toString),new OriginInfo(o,Seq("assert")))
+
   override def refute(o:O, e:Exp) : Stmt = {
     Assert(Not(e)(NoPosition,new RefuteInfo(o)))(NoPosition,new OriginInfo(o,Seq("refute")))
   }
