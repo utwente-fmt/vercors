@@ -34,7 +34,7 @@ case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
         case None => rewrittenBody
       }
 
-      Label(labelDecl.rewrite(), loop.rewrite(body = possiblyWrappedBody))(stat.o)
+      Label(collectOneInScope(labelScopes) { rewriteDefault(labelDecl) }, loop.rewrite(body = possiblyWrappedBody))(stat.o)
 
     case c@Continue(Some(Ref(labelDecl))) =>
       // Reuse an already created inner label or create one

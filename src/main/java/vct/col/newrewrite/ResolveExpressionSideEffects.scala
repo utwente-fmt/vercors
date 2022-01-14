@@ -54,7 +54,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         case Some(acceptor) =>
           flat.declareDefault(this)
           implicit val o: Origin = SideEffectOrigin
-          acceptor(Assign(Local(flat.ref), pureExpr))
+          acceptor(assignLocal(Local(flat.ref), pureExpr))
       }
     }
     currentlyExtracted.clear()
@@ -154,10 +154,10 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case decl: LocalDecl[Pre] => rewriteDefault(decl)
       case Return(result) =>
         frame(result, e => Block(Seq(
-          Assign(currentResultVar.top, e),
+          assignLocal(currentResultVar.top, e),
           Return(Void()),
         )))
-      case Assign(target, value) => frame(target, value, Assign(_, _))
+      case ass @ Assign(target, value) => frame(target, value, Assign(_, _)(ass.blame))
       case block: Block[Pre] => rewriteDefault(block)
       case scope: Scope[Pre] => rewriteDefault(scope)
       case Branch(branches) => doBranches(branches)
@@ -239,11 +239,20 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     else dispatchImpure(e)
 
   def dispatchPure(e: Expr[Pre]): Expr[Post] = e match {
+    case Result(_) if currentResultVar.nonEmpty => currentResultVar.top
     case other => rewriteDefault(other)
   }
 
   def inlined(e: Expr[Pre]): Expr[Post] =
     ReInliner().dispatch(dispatchImpure(e))
+
+  def notInlined(e: Expr[Pre]): Expr[Post] =
+    dispatchImpure(e) match {
+      case Local(Ref(v)) if !currentlyExtracted.contains(v) =>
+        val preV = (v: Variable[Post]).asInstanceOf[Variable[Pre]]
+        Local[Post](succ(preV))(e.o)
+      case other => other
+    }
 
   def stored(e: Expr[Post], t: Type[Pre]): Local[Post] = {
     val v = new Variable[Post](dispatch(t))(SideEffectOrigin)
@@ -256,24 +265,25 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       // We do not take the successor here: ReInliner will do that.
       val postV = (v : Variable[Pre]).asInstanceOf[Variable[Post]]
       Local[Post](postV.ref)(e.o)
-    case PreAssignExpression(oldTarget, oldValue) =>
+    case Result(_) if currentResultVar.nonEmpty => currentResultVar.top
+    case ass @ PreAssignExpression(oldTarget, oldValue) =>
       // target and value could be inline, if it were not for the fact that we need value to return it (since value
       // may have a more specific type than the target type)
-      val target = dispatchImpure(oldTarget)
-      val value = dispatchImpure(oldValue)
+      val target = notInlined(oldTarget)
+      val value = notInlined(oldValue)
       flushExtractedExpressions()
-      effect(Assign(target, value)(e.o))
+      effect(Assign(target, value)(ass.blame)(e.o))
       stored(value, oldValue.t)
-    case PostAssignExpression(oldTarget, value) =>
-      val target = dispatchImpure(oldTarget)
-      effect(Assign(target, inlined(value))(e.o))
+    case ass @ PostAssignExpression(oldTarget, value) =>
+      val target = notInlined(oldTarget)
+      effect(Assign(target, inlined(value))(ass.blame)(e.o))
       stored(target, oldTarget.t)
     case With(pre, value) =>
       flushExtractedExpressions()
       effect(dispatch(pre))
       dispatchImpure(value)
     case Then(oldValue, post) =>
-      val value = dispatchImpure(oldValue)
+      val value = notInlined(oldValue)
       flushExtractedExpressions()
       effect(dispatch(post))
       stored(value, oldValue.t)

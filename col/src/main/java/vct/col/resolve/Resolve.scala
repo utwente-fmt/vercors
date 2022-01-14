@@ -6,15 +6,15 @@ import vct.col.check.CheckError
 import vct.col.origin._
 
 case object Resolve {
-  def resolve(program: Program[_]): Seq[CheckError] = {
-    ResolveTypes.resolve(program)
+  def resolve(program: Program[_], externalJavaLoader: Option[ExternalJavaLoader] = None): Seq[CheckError] = {
+    ResolveTypes.resolve(program, externalJavaLoader)
     ResolveReferences.resolve(program)
   }
 }
 
 case object ResolveTypes {
-  def resolve[G](program: Program[G]): Seq[GlobalDeclaration[G]] = {
-    val ctx = TypeResolutionContext[G]()
+  def resolve[G](program: Program[G], externalJavaLoader: Option[ExternalJavaLoader] = None): Seq[GlobalDeclaration[G]] = {
+    val ctx = TypeResolutionContext[G](externalJavaLoader = externalJavaLoader)
     resolve(program, ctx)
     ctx.externallyLoadedElements.toSeq
   }

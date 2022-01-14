@@ -278,6 +278,8 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
 
     case Coercion.ZFracRat() =>
       ADTFunctionInvocation(Some((preAdt(zfracAdt.ref), Nil)), preAdtFunc(zfracVal.ref), Seq(e))
+    case Coercion.Compose(Coercion.ZFracRat(), Coercion.FracZFrac()) if e == ReadPerm[Pre]() =>
+      e
     case Coercion.Compose(Coercion.ZFracRat(), Coercion.FracZFrac()) =>
       ADTFunctionInvocation(Some((preAdt(fracAdt.ref), Nil)), preAdtFunc(fracVal.ref), Seq(e))
     case Coercion.FracZFrac() =>
@@ -369,7 +371,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
         )
       case OptNone() =>
         ADTFunctionInvocation(
-          Some((optionAdt.ref, Seq(TNothing()))),
+          Some((optionAdt.ref, Seq(TAxiomatic(nothingAdt.ref, Nil)))),
           optionNone.ref, Nil,
         )
       case OptSome(element) =>

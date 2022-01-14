@@ -245,6 +245,8 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Mod(left, right) => silver.Mod(exp(left), exp(right))(info=NodeInfo(e))
     case col.FloorDiv(left, right) => silver.Div(exp(left), exp(right))(info=NodeInfo(e))
 
+    case col.SilverIntToRat(perm) => silver.IntPermMul(exp(perm), silver.FullPerm()(info=NodeInfo(e)))(info=NodeInfo(e))
+
     case col.Eq(left, right) => silver.EqCmp(exp(left), exp(right))(info=NodeInfo(e))
     case col.Neq(left, right) => silver.NeCmp(exp(left), exp(right))(info=NodeInfo(e))
     case col.Greater(left, right) => silver.GtCmp(exp(left), exp(right))(info=NodeInfo(e))

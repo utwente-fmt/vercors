@@ -204,7 +204,7 @@ case class PrependAfterWhitespace(inner: PrinterState, prepend: PrinterState => 
 }
 
 //PB TODO: make printer complete once we're nearing the end of making new nodes.
-@nowarn("msg=xhaust")
+//@nowarn("msg=xhaust")
 case class Printer(out: Appendable,
                    syntax: Syntax = Java,
                    permissive: Boolean = true,
@@ -276,10 +276,10 @@ case class Printer(out: Appendable,
     say(branches.head._1)
     branches.head._2 match {
       case block: Block[_] =>
-        printBlock(block, newline = false)
+        say(printBlock(block, newline = false))
         lastWasBlock = true
       case other =>
-        indent(other)
+        say(indent(other))
     }
 
     for((control, impl) <- branches.tail) {
@@ -292,10 +292,10 @@ case class Printer(out: Appendable,
 
       impl match {
         case block: Block[_] =>
-          printBlock(block, newline = false)
+          say(printBlock(block, newline = false))
           lastWasBlock = true
         case other =>
-          indent(other)
+          say(indent(other))
           lastWasBlock = false
       }
     }
@@ -351,12 +351,12 @@ case class Printer(out: Appendable,
   def statement(phrases: Phrase*): Do = Do(() => {
     say(newline)
     say(phrases:_*)
-    syntax(
+    say(syntax(
       C -> phrase(";"),
       Java -> phrase(";"),
       PVL -> phrase(";"),
       Silver -> phrase(),
-    )
+    ))
     say(newline)
   })
 
@@ -400,7 +400,8 @@ case class Printer(out: Appendable,
       .getOrElse(names.top)
       .getOrElseUpdate(decl, nextName(preferredName))
 
-  def printBlock(block: Block[_], newline: Boolean) = ???
+  def printBlock(block: Block[_], newline: Boolean): Phrase =
+    phrase(if(newline) doubleline else space, "{", indent(block.statements.map(NodePhrase) : _*), "}", if(newline) doubleline else space)
 
   def printProgram(program: Program[_]): Unit =
     say(program.declarations)
@@ -442,7 +443,10 @@ case class Printer(out: Appendable,
       printBlock(block, newline = true)
     case Scope(locals, body) =>
       implicit val o: Origin = DiagnosticOrigin
-      printBlock(Block(locals.map(LocalDecl(_)(o)) :+ body), newline = true)
+      if(locals.nonEmpty)
+        printBlock(Block(locals.map(LocalDecl(_)(o)) :+ body), newline = true)
+      else
+        NodePhrase(body)
     case Branch(branches) =>
       val `if` = (phrase("if(", branches.head._1, ")"), branches.head._2)
       val others = branches.tail.map {
@@ -499,8 +503,8 @@ case class Printer(out: Appendable,
       )
     case Label(decl, impl) =>
       statement(syntax(
-        Java -> phrase(name(decl), ": {}"),
-        C -> phrase(name(decl), ": {}"),
+        Java -> control(phrase(name(decl), ":"), impl),
+        C -> control(phrase(name(decl), ":"), impl),
         Silver -> phrase("label", space, name(decl)),
         PVL -> phrase("label", space, name(decl)),
       ))
@@ -533,9 +537,9 @@ case class Printer(out: Appendable,
     case Unlock(obj) =>
       syntax(PVL -> statement("unlock", space, obj))
     case Fold(pred) =>
-      spec(statement("fold", pred))
+      spec(statement("fold", space, pred))
     case Unfold(pred) =>
-      spec(statement("unfold", pred))
+      spec(statement("unfold", space, pred))
     case WandCreate(statements) =>
       spec(control(phrase("create"), Block(statements)(DiagnosticOrigin)))
     case WandQed(wand) =>
@@ -556,6 +560,10 @@ case class Printer(out: Appendable,
         case Some(label) => statement("continue", space, name(label.decl))
         case None => statement("continue")
       }
+    case InvokeMethod(obj, ref, args, outArgs, typeArgs) =>
+      statement(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
+    case InvokeProcedure(ref, args, outArgs, typeArgs) =>
+      statement(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
   })
 
   def printExpr(e: Expr[_]): Unit =
@@ -699,7 +707,7 @@ case class Printer(out: Appendable,
     case UntypedLiteralBag(values) =>
       (phrase("b{", commas(values.map(NodePhrase)), "}"), 120)
     case Void() =>
-      ???
+      (phrase("void"), 110)
     case AmbiguousThis() =>
       (phrase("this"), 110)
     case AmbiguousResult() =>
@@ -881,8 +889,10 @@ case class Printer(out: Appendable,
       }
     case SubType(left, right) => ???
     case SuperType(left, right) => ???
-    case PreAssignExpression(target, value) => ???
-    case PostAssignExpression(target, value) => ???
+    case PreAssignExpression(target, value) =>
+      (phrase(bind(10, target), space, "=", space, bind(10, value)), 10)
+    case PostAssignExpression(target, value) =>
+      (phrase(bind(10, target), space, "=", space, bind(10, value)), 10)
     case With(pre, value) => ???
     case Then(value, post) => ???
   }

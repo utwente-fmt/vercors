@@ -136,11 +136,11 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaFields(mods, convert(t), convert(decls)))
     case MemberDeclaration3(ConstructorDeclaration0(name, params, signals, ConstructorBody0(body))) =>
       Seq(new JavaConstructor(mods, convert(name), convert(params), Nil,
-        signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract()))
+        signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract())(blame(decl)))
     case MemberDeclaration4(GenericConstructorDeclaration0(typeParams,
       ConstructorDeclaration0(name, params, signals, ConstructorBody0(body)))) =>
       Seq(new JavaConstructor(mods, convert(name), convert(params), convert(typeParams),
-        signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract()))
+        signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract())(blame(decl)))
     case MemberDeclaration5(interface) => fail(interface, "Inner interfaces are not supported.")
     case MemberDeclaration6(annotation) => fail(annotation, "Annotations are not supported.")
     case MemberDeclaration7(cls) => fail(cls, "Inner classes are not supported.")
@@ -517,16 +517,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case JavaPostfixIncDec(inner, postOp) =>
       val target = convert(inner)
       postOp match {
-        case "++" => PostAssignExpression(target, Plus(target, const(1)))
-        case "--" => PostAssignExpression(target, Minus(target, const(1)))
+        case "++" => PostAssignExpression(target, Plus(target, const(1)))(blame(expr))
+        case "--" => PostAssignExpression(target, Minus(target, const(1)))(blame(expr))
       }
     case JavaPrefixOp(preOp, inner) =>
       val target = convert(inner)
       preOp match {
         case "+" => target // TODO PB: not sure if this is true for IEEE floats
         case "-" => UMinus(target)
-        case "++" => PreAssignExpression(target, Plus(target, const(1)))
-        case "--" => PreAssignExpression(target, Minus(target, const(1)))
+        case "++" => PreAssignExpression(target, Plus(target, const(1)))(blame(expr))
+        case "--" => PreAssignExpression(target, Minus(target, const(1)))(blame(expr))
       }
     case JavaPrefixOp2(preOp, inner) => preOp match {
       case "~" => BitNot(convert(inner))
@@ -594,7 +594,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         case ">>>=" => BitUShr(target, value)
         case "<<=" => BitShl(target, value)
         case "%=" => Mod(target, value)(blame(expr))
-      })
+      })(blame(expr))
   }
 
   def convert(implicit invocation: ExplicitGenericInvocationSuffixContext,

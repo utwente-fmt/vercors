@@ -21,8 +21,7 @@ case class EvaluationTargetDummy[Pre <: Generation]() extends Rewriter[Pre] {
     case Eval(_: ProcedureInvocation[Pre] | _: MethodInvocation[Pre]) => rewriteDefault(stat)
     case Eval(other) =>
       val v = new Variable[Post](dispatch(other.t))(EvaluationOrigin)
-      v.declareDefault(this)
-      Assign(v.get(EvaluationOrigin), dispatch(other))(stat.o)
+      Scope(Seq(v), assignLocal(v.get(EvaluationOrigin), dispatch(other))(stat.o))(stat.o)
     case other => rewriteDefault(other)
   }
 }

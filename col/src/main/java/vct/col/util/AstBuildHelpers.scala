@@ -41,7 +41,7 @@ object AstBuildHelpers {
   }
 
   implicit class FieldBuildHelpers[G](left: SilverDeref[G]) {
-    def <~(right: Expr[G])(implicit blame: Blame[SilverAssignFailed], origin: Origin): SilverFieldAssign[G] = SilverFieldAssign(left.obj, left.field, right)(blame)
+    def <~(right: Expr[G])(implicit blame: Blame[AssignFailed], origin: Origin): SilverFieldAssign[G] = SilverFieldAssign(left.obj, left.field, right)(blame)
   }
 
   implicit class ApplicableBuildHelpers[Pre, Post](applicable: Applicable[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
@@ -236,8 +236,11 @@ object AstBuildHelpers {
     )
   }
 
-  def assignField[G](obj: Expr[G], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit o: Origin): Assign[G] =
-    Assign(Deref(obj, field)(DerefAssignTarget), value)
+  def assignLocal[G](local: Local[G], value: Expr[G])(implicit o: Origin): Assign[G] =
+    Assign(local, value)(AssignLocalOk)
+
+  def assignField[G](obj: Expr[G], field: Ref[G, InstanceField[G]], value: Expr[G], blame: Blame[AssignFailed])(implicit o: Origin): Assign[G] =
+    Assign(Deref(obj, field)(DerefAssignTarget), value)(blame)
 
   def fieldPerm[G](obj: Expr[G], field: Ref[G, InstanceField[G]], amount: Expr[G])(implicit o: Origin): Perm[G] =
     Perm(Deref(obj, field)(DerefPerm), amount)
@@ -264,4 +267,7 @@ object AstBuildHelpers {
 
   def foldStar[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(Star(_, _)).getOrElse(tt)
+
+  def foldOr[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
+    exprs.reduceOption(Or(_, _)).getOrElse(ff)
 }

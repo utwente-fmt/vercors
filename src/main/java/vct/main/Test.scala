@@ -5,20 +5,22 @@ import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
 import vct.col.feature.Feature
 import vct.col.newrewrite._
-import vct.col.newrewrite.lang._
 import vct.col.newrewrite.exc._
+import vct.col.newrewrite.lang._
 import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.col.util.SuccessionMap
+import vct.java.JavaLibraryLoader
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult.{SystemError, UserError}
 import vct.test.CommandLineTesting
 import viper.api.Silicon
 
-import java.nio.file.{Path, Paths}
 import scala.jdk.CollectionConverters._
+import java.nio.file.{Path, Paths}
 import scala.collection.parallel.CollectionConverters._
+import scala.collection.parallel.ForkJoinTasks
 
 
 case object Test {
@@ -46,10 +48,11 @@ case object Test {
         }
       })
 
-//      tryParse(Seq(Path.of("examples/demo/demo3d.pvl")))
+//      tryParse(Seq(Path.of("examples/abrupt/OnlyCatch.java")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
+      ForkJoinTasks.defaultForkJoinPool.shutdown()
     }
   }
 
@@ -66,7 +69,7 @@ case object Test {
     println(paths.mkString(", "))
     val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration]))
     var parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
-    val extraDecls = ResolveTypes.resolve(parsedProgram)
+    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
     val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
     val typedProgram = LangTypesToCol().dispatch(untypedProgram)
     val errors = ResolveReferences.resolve(typedProgram)
@@ -75,6 +78,8 @@ case object Test {
     val passes: Seq[RewriterBuilder] = Seq(
       // Language-specific nodes -> COL (because of fragile references)
       LangSpecificToCol,
+      // Remove the java.lang.Object -> java.lang.Object inheritance loop
+      NoSupportSelfLoop,
 
       // Delete stuff that may be declared unsupported at a later stage
       FilterSpecIgnore,
@@ -86,10 +91,10 @@ case object Test {
       PinCollectionTypes, // no anonymous sequences, sets, etc.
       QuantifySubscriptAny, // no arr[*]
       ResolveScale, // inline predicate scaling into predicate applications
+      PropagateContextEverywhere, // inline context_everywhere into loop invariants
 
       CheckProcessAlgebra,
 
-      SwitchToGoto,
       EncodeCurrentThread,
       EncodeIntrinsicLock,
       InlineApplicables,
@@ -100,8 +105,9 @@ case object Test {
       ParBlockEncoder,
 
       // Encode exceptional behaviour (no more continue/break/return/try/throw)
-      ContinueToBreak,
       SpecifyImplicitLabels,
+      SwitchToGoto,
+      ContinueToBreak,
       EncodeBreakReturn,
       // Resolve side effects including method invocations, for encodetrythrowsignals.
       ResolveExpressionSideEffects,
@@ -131,13 +137,14 @@ case object Test {
       EvaluationTargetDummy,
 
       // Final translation to rigid silver nodes
+      SilverIntRatCoercion,
       PinSilverNodes,
     )
 
     SuccessionMap.breakOnMissingPredecessor {
       var program: Program[_ <: Generation] = typedProgram
       for(pass <- passes) {
-        println(s"    ${pass.getClass.getSimpleName}")
+//        println(s"    ${pass.getClass.getSimpleName}")
         val oldProgram = program
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {
@@ -150,6 +157,7 @@ case object Test {
         })
         assert(program.declarations.nonEmpty)
         printErrors(program.check)
+        program = PrettifyBlocks().dispatch(program)
       }
       for((feature, examples) <- Feature.examples(program)) {
         println(f"$feature:")

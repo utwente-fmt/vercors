@@ -455,7 +455,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case BitXor(left, right) =>
         BitXor(int(left), int(right))
       case Cast(value, typeValue) =>
-        ???
+        Cast(value, typeValue)
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)
       case CLocal(name) => e
@@ -487,7 +487,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
       case div @ Div(left, right) =>
-        Div(rat(left), rat(right))(div.blame)
+        firstOk(e, s"Expected both operands to be rational.",
+          Div(int(left), int(right))(div.blame),
+          Div(int(left), rat(right))(div.blame),
+          Div(rat(left), int(right))(div.blame),
+          Div(rat(left), rat(right))(div.blame),
+        )
       case Drop(xs, count) =>
         Drop(seq(xs)._1, int(count))
       case Empty(obj) =>
@@ -769,10 +774,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointsTo(loc, perm, value) =>
         PointsTo(loc, rat(perm), coerce(value, loc.t))
-      case PostAssignExpression(target, value) =>
-        PostAssignExpression(target, coerce(value, target.t))
-      case PreAssignExpression(target, value) =>
-        PreAssignExpression(target, coerce(value, target.t))
+      case ass @ PostAssignExpression(target, value) =>
+        PostAssignExpression(target, coerce(value, target.t))(ass.blame)
+      case ass @ PreAssignExpression(target, value) =>
+        PreAssignExpression(target, coerce(value, target.t))(ass.blame)
       case PredicateApply(ref, args, perm) =>
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs) =>
@@ -826,6 +831,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         SilverCurPredPerm(ref, coerceArgs(args, ref.decl))
       case deref @ SilverDeref(obj, field) =>
         SilverDeref(ref(obj), field)(deref.blame)
+      case SilverIntToRat(perm) =>
+        SilverIntToRat(int(perm))
       case Size(obj) =>
         Size(collection(obj)._1)
       case Slice(xs, from, to) =>

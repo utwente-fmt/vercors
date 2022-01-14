@@ -82,8 +82,9 @@ case class SuccessionMap[K, V <: Declaration[_]]() {
 
   def getOrElseUpdate(k: K, v: => V): V = storages.synchronized {
     get(k).getOrElse {
-      storage(k) = v
-      v
+      val computed = v
+      storage(k) = computed
+      computed
     }
   }
 

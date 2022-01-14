@@ -49,12 +49,12 @@ case class SwitchToGoto[Pre <: Generation]() extends Rewriter[Pre] {
         (Block(Seq(rewrittenBody, Label(pastSwitch, Block(Nil)))), pastSwitch)
       }
 
-      Block(Seq(
-        Assign(switchValue, dispatch(expr)),
+      Scope(Seq(switchValueVariable), Block(Seq(
+        assignLocal(switchValue, dispatch(expr)),
         normalCaseIfs,
         Goto(defaultLabel.ref),
         newBody,
-      ))
+      )))
 
     case c: SwitchCase[Pre] =>
       currentCases.topOption match {

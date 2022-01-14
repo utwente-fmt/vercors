@@ -59,7 +59,7 @@ case object Java {
     implicit val o: Origin = JavaSystemOrigin("unknown_jre")
     currentlyLoading(potentialFQName) = mutable.ArrayBuffer()
 
-//    println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim will be loaded from the JRE.")
+    println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim will be loaded from the JRE.")
 
     try {
       val classLoader = this.getClass.getClassLoader
@@ -150,12 +150,28 @@ case object Java {
         modifiers = Nil,
         typeParams = Nil,
         intrinsicLockInvariant = `tt`,
-        ext = Option(cls.getSuperclass).map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)).getOrElse(TAny()),
+        ext = Option(cls.getSuperclass).map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)).getOrElse(JAVA_LANG_OBJECT),
         imp = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)),
         decls = fields.toIndexedSeq ++ cons.toIndexedSeq ++ methods.toIndexedSeq,
       )(SourceNameOrigin(cls.getName.split('.').last, o))
     }
   }
+
+  def findLibraryJavaType[G](name: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] =
+    ctx.externalJavaLoader match {
+      case Some(loader) =>
+        loader.load[G](name) match {
+          case Some(ns) =>
+            ctx.externallyLoadedElements += ns
+            ResolveTypes.resolve(ns, ctx)
+            ns.declarations match {
+              case Seq(cls: JavaClass[G]) => Some(RefJavaClass(cls))
+              case _ => ???
+            }
+          case None => None
+        }
+      case None => None
+    }
 
   def findJavaTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     val potentialFQNames: Seq[Seq[String]] = names match {
@@ -180,6 +196,7 @@ case object Java {
     }
 
     FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx))
+      .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
   }
 

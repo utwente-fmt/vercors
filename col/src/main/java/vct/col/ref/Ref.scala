@@ -38,7 +38,7 @@ object Ref {
     def asRegular[Decl2 <: Declaration[G]](implicit witness: Decl[G] <:< Decl2, tag: ClassTag[Decl2]): Ref[G, Decl2] =
       new LazyRef(decl)
 
-    def unsafeTransmuteGeneration[Post]: TransmutableRef[Post, Decl] = asInstanceOf
+    def unsafeTransmuteGeneration[Post]: TransmutableRef[Post, Decl] = asInstanceOf[TransmutableRef[Post, Decl]]
   }
 
   def transmute

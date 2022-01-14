@@ -1,6 +1,6 @@
 package vct.col.ast.temporaryimplpackage.declaration.category
 
-import vct.col.ast.{AbstractMethod, Declaration, Return, Statement, Variable}
+import vct.col.ast.{AbstractMethod, Declaration, LabelDecl, Return, Statement, Variable}
 import vct.col.check.{CheckContext, CheckError}
 
 trait AbstractMethodImpl[G] extends ContractApplicableImpl[G] { this: AbstractMethod[G] =>

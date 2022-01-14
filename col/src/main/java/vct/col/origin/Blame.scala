@@ -36,7 +36,7 @@ case class InternalError(description: String) extends VerificationFailure {
   override def toString: String = s"An internal error occurred: $description."
   override def code: String = "internal"
 }
-case class SilverAssignFailed(assign: SilverFieldAssign[_]) extends VerificationFailure {
+case class AssignFailed(assign: SilverFieldAssign[_]) extends VerificationFailure {
   override def toString: String = s"Insufficient permission to assign to field."
   override def code: String = "failed"
 }
@@ -61,7 +61,7 @@ case class PreconditionFailed(failure: ContractFailure, invocation: Invocation[_
   override def toString: String = s"Precondition may not hold, since $failure."
   override def code: String = "preFailed"
 }
-case class PostconditionFailed(failure: ContractFailure, invokable: ContractApplicable[_]) extends VerificationFailure {
+case class PostconditionFailed(failure: ContractFailure, invokable: ContractApplicable[_]) extends ConstructorFailure {
   override def toString: String = s"Postcondition may not hold, since $failure."
   override def code: String = "postFailed"
 }
@@ -194,7 +194,8 @@ case class LockTokenNotHeld(unlock: Unlock[_], failure: ContractFailure) extends
   override def toString: String = s"The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since $failure."
 }
 
-case class CommitFailed(commit: Commit[_], failure: ContractFailure) extends VerificationFailure {
+sealed trait ConstructorFailure extends VerificationFailure
+case class CommitFailed(commit: Commit[_], failure: ContractFailure) extends ConstructorFailure {
   override def code: String = "commitFailed"
   override def toString: String = s"Committing the defined resources to the lock invariant may not be possible here, since $failure."
 }
@@ -245,6 +246,7 @@ object FramedGetRight extends PanicBlame("right in `e.isLeft ? ... : e.right` sh
 object AbstractApplicable extends PanicBlame("the postcondition of an abstract applicable is not checked, and hence cannot fail.")
 object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
 
+object AssignLocalOk extends PanicBlame("Assigning to a local can never fail.")
 object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")
 object DerefPerm extends PanicBlame("Dereferencing a field in a permission should trigger an error on the permission, not on the dereference.")
 object ArrayPerm extends PanicBlame("Subscripting an array in a permission should trigger an error on the permission, not on the dereference.")

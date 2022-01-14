@@ -5,6 +5,8 @@ import viper.silver.verifier.errors._
 import viper.silver.verifier._
 import viper.silver.{ast => silver}
 
+import java.io.{File, PrintWriter}
+
 trait SilverBackend extends Backend {
   case class NotSupported(text: String) extends SystemError
   case class ViperCrashed(text: String) extends SystemError
@@ -16,6 +18,11 @@ trait SilverBackend extends Backend {
 
   override def submit(program: col.Program[_]): Unit = {
     val silver = ColToSilver.transform(program)
+
+    val w = new PrintWriter(new File("tmp/output.sil"))
+    w.write(silver.toString())
+    w.close()
+
     createVerifier.verify(silver) match {
       case Success =>
       case Failure(errors) => errors.foreach {
@@ -27,7 +34,7 @@ trait SilverBackend extends Backend {
               case fieldAssign@col.SilverFieldAssign(_, _, _) =>
                 reason match {
                   case reasons.InsufficientPermission(access) if get[col.Node[_]](access) == fieldAssign =>
-                    fieldAssign.blame.blame(blame.SilverAssignFailed(fieldAssign))
+                    fieldAssign.blame.blame(blame.AssignFailed(fieldAssign))
                   case otherReason =>
                     defer(otherReason)
                 }

@@ -310,7 +310,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         case "&=" => BitAnd(target, value)
         case "^=" => BitXor(target, value)
         case "|=" => BitOr(target, value)
-      })
+      })(blame(expr))
 
       convertEmbedWith(pre, convertEmbedThen(post, e))
   }
@@ -410,10 +410,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case UnaryExpression0(inner) => convert(inner)
     case UnaryExpression1(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.Plus(target, const(1)))
+      PreAssignExpression(target, col.Plus(target, const(1)))(blame(expr))
     case UnaryExpression2(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.Minus(target, const(1)))
+      PreAssignExpression(target, col.Minus(target, const(1)))(blame(expr))
     case UnaryExpression3(UnaryOperator0(op), arg) => op match {
       case "&" => AddrOf(convert(arg))
       case "*" => DerefPointer(convert(arg))(blame(expr))
@@ -438,10 +438,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.Plus(target, const(1)))
+      PostAssignExpression(target, col.Plus(target, const(1)))(blame(expr))
     case PostfixExpression6(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.Minus(target, const(1)))
+      PostAssignExpression(target, col.Minus(target, const(1)))(blame(expr))
     case PostfixExpression7(e, SpecPostfix0(postfix)) => convert(postfix, convert(e))
     case PostfixExpression8(_, _, _, _, _, _) => ??(expr)
     case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)

@@ -56,7 +56,7 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
           case ProcedureInvocation(Ref(proc), _, outArgs, typeArgs) =>
             val done = Label[Pre](new LabelDecl(), Block(Nil))
             val v = new Variable[Pre](proc.returnType)
-            val returnReplacement = (result: Expr[Pre]) => Block(Seq(Assign(v.get, result), Goto[Pre](done.decl.ref)))
+            val returnReplacement = (result: Expr[Pre]) => Block(Seq(assignLocal(v.get, result), Goto[Pre](done.decl.ref)))
             val replacedArgumentsBody = Substitute(replacements).dispatch(proc.body.getOrElse(???))
             val body = ReplaceReturn(returnReplacement).dispatch(replacedArgumentsBody)
             dispatch(With(Block(Seq(body, done)), v.get))
@@ -67,7 +67,7 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
             val done = Label[Pre](new LabelDecl(), Block(Nil))
             val v = new Variable[Pre](method.returnType)
             val replacementsWithObj = replacements ++ Map[Expr[Pre], Expr[Pre]](AmbiguousThis[Pre]() -> obj)
-            val returnReplacement = (result: Expr[Pre]) => Block(Seq(Assign(v.get, result), Goto[Pre](done.decl.ref)))
+            val returnReplacement = (result: Expr[Pre]) => Block(Seq(assignLocal(v.get, result), Goto[Pre](done.decl.ref)))
             val replacedArgumentsObjBody = Substitute[Pre](replacementsWithObj).dispatch(method.body.getOrElse(???))
             val body = ReplaceReturn(returnReplacement).dispatch(replacedArgumentsObjBody)
             dispatch(With(Block(Seq(body, done)), v.get))

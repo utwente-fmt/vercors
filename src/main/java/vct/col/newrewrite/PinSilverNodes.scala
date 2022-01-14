@@ -21,7 +21,7 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case assn @ Assign(target, value) => target match {
       case Local(Ref(v)) => SilverLocalAssign[Post](succ(v), dispatch(value))(stat.o)
-      case SilverDeref(obj, Ref(field)) => SilverFieldAssign[Post](dispatch(obj), succ(field), dispatch(value))(???)(stat.o)
+      case SilverDeref(obj, Ref(field)) => SilverFieldAssign[Post](dispatch(obj), succ(field), dispatch(value))(assn.blame)(stat.o)
       case other => throw Unreachable("Invalid assignment target (check missing?)")
     }
     case other => rewriteDefault(other)

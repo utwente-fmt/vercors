@@ -13,6 +13,8 @@ import vct.col.util.AstBuildHelpers
 import RewriteHelpers._
 import vct.result.VerificationResult.Unreachable
 
+import scala.collection.mutable
+
 case object EncodeTryThrowSignals extends RewriterBuilder {
   case class ThrowNullAssertFailed(t: Throw[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
@@ -23,6 +25,12 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
     override def preferredName: String = "exc"
     override def messageInContext(message: String): String =
       s"[At variable generated to contain thrown exception]: $message"
+  }
+
+  case object CurrentlyHandling extends Origin {
+    override def preferredName: String = "currently_handling_exc"
+    override def messageInContext(message: String): String =
+      s"[At variable generated to remember exception currently being handled]: $message"
   }
 
   case object ReturnPoint extends Origin {
@@ -51,11 +59,15 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
   val exceptionalHandlerEntry: ScopedStack[LabelDecl[Post]] = ScopedStack()
   val returnHandler: ScopedStack[LabelDecl[Post]] = ScopedStack()
 
+  val needCurrentExceptionRestoration: ScopedStack[Boolean] = ScopedStack()
+  needCurrentExceptionRestoration.push(false)
+
   val signalsBinding: ScopedStack[(Variable[Pre], Expr[Post])] = ScopedStack()
+  val catchBindings: mutable.Set[Variable[Pre]] = mutable.Set()
 
   val rootClass: ScopedStack[Ref[Post, Class[Post]]] = ScopedStack()
 
-  def getExc(implicit o: Origin): Expr[Post] =
+  def getExc(implicit o: Origin): Local[Post] =
     currentException.top.get
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] =
@@ -75,52 +87,73 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         val finallyEntry = new LabelDecl[Post]()(FinallyLabel)
 
         val newBody = exceptionalHandlerEntry.having(handlersEntry) {
-          dispatch(body)
+          needCurrentExceptionRestoration.having(false) {
+            dispatch(body)
+          }
         }
 
         val catchImpl = Block[Post](catches.map {
           case CatchClause(decl, body) =>
-            successionMap(decl) = currentException.top
+            decl.drop()
+            catchBindings += decl
             Branch(Seq((
               (getExc !== Null[Post]()) && InstanceOf(getExc, TypeValue(dispatch(decl.t))),
               Block(Seq(
-                exceptionalHandlerEntry.having(finallyEntry) { dispatch(body) },
-                Assign(getExc, Null()),
+                exceptionalHandlerEntry.having(finallyEntry) {
+                  needCurrentExceptionRestoration.having(true) {
+                    dispatch(body)
+                  }
+                },
+                assignLocal(getExc, Null()),
               ),
             ))))
         })
 
         val finallyImpl = Block[Post](Seq(
           Label(finallyEntry, Block(Nil)),
-          dispatch(after),
+          needCurrentExceptionRestoration.having(true) { dispatch(after) },
           Branch(Seq((
             getExc !== Null(),
             Goto(exceptionalHandlerEntry.top.ref),
           ))),
         ))
 
-        Block(Seq(
+        val (store: Statement[Post], restore: Statement[Post], vars: Seq[Variable[Post]]) = if(needCurrentExceptionRestoration.top) {
+          val tmp = new Variable[Post](TClass(rootClass.top))(CurrentlyHandling)
+          (
+            Block[Post](Seq(
+              assignLocal(tmp.get, getExc),
+              assignLocal(getExc, Null()),
+            )),
+            assignLocal[Post](getExc, tmp.get),
+            Seq(tmp),
+          )
+        } else (Block[Post](Nil), Block[Post](Nil), Nil)
+
+        Scope(vars, Block(Seq(
+          store,
           newBody,
           Label(handlersEntry, Block(Nil)),
           catchImpl,
           finallyImpl,
-        ))
+          restore,
+        )))
 
       case t @ Throw(obj) =>
         Block(Seq(
-          Assign(getExc, dispatch(obj)),
+          assignLocal(getExc, dispatch(obj)),
           Assert(getExc !== Null())(ThrowNullAssertFailed(t)),
           Goto(exceptionalHandlerEntry.top.ref),
         ))
 
-      case Return(result) =>
-        result match {
-          case Void() => Block(Seq(
-            Label(returnHandler.top, Block(Nil)),
-            Return(Void()),
-          ))
-          case other => throw ExcludedByPassOrder("Return values that are not void cannot be evaluated at the return site for EncodeTryThrowSignals.", Some(other))
-        }
+      case inv: InvokeProcedure[Pre] =>
+        Block(Seq(
+          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(succ[Variable[Post]])),
+          Branch(Seq((
+            getExc !== Null(),
+            Goto(exceptionalHandlerEntry.top.ref),
+          ))),
+        ))
 
       case inv: InvokeMethod[Pre] =>
         Block(Seq(
@@ -143,34 +176,30 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
       currentException.having(exc) {
         val body = method.body.map(body => {
-          val returnPoint = new LabelDecl[Post]()(ReturnPoint)
-          // The return point is at this moment guaranteed to be the last logical statement of the method, since either
-          // all return statements are encoded as a goto to the end of the method, or they are encoded as exceptions.
-          // Because of that, we can designate the (only) return statement as the outermost exception handler, returning
-          // Left(exc) if an exception is being handled, Right(result) otherwise.
-          // However, we should figure out a better way of doing this. Perhaps first translating to out-parameters is
-          // the way to go? But then we should perhaps add an out-parameter option<exception> or so, instead of changing
-          // the return type to either<exc, _>.
+          val bubble = new LabelDecl[Post]()(ReturnPoint)
+
           Block(Seq(
-            Assign(exc.get, Null()),
-            returnHandler.having(returnPoint) {
-              exceptionalHandlerEntry.having(returnPoint) {
-                currentException.having(exc) {
-                  dispatch(body)
-                }
+            assignLocal(exc.get, Null()),
+            exceptionalHandlerEntry.having(bubble) {
+              currentException.having(exc) {
+                dispatch(body)
               }
             },
+            Label(bubble, Block(Nil)),
           ))
         })
 
         val ensures: Expr[Post] =
+          ((exc.get !== Null()) ==> foldOr(method.contract.signals.map {
+            case SignalsClause(binding, _) => InstanceOf(exc.get, TypeValue(dispatch(binding.t)))
+          })) &*
           ((exc.get === Null()) ==> dispatch(method.contract.ensures)) &*
-            AstBuildHelpers.foldStar(method.contract.signals.map {
-              case SignalsClause(binding, assn) =>
-                binding.drop()
-                ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
-                  signalsBinding.having((binding, exc.get)) { dispatch(assn) }
-            })
+          AstBuildHelpers.foldStar(method.contract.signals.map {
+            case SignalsClause(binding, assn) =>
+              binding.drop()
+              ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
+                signalsBinding.having((binding, exc.get)) { dispatch(assn) }
+          })
 
         method.rewrite(
           body = body,
@@ -186,6 +215,10 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
     case Local(Ref(v)) if signalsBinding.nonEmpty && signalsBinding.top._1 == v =>
       implicit val o: Origin = e.o
       signalsBinding.top._2
+
+    case Local(Ref(v)) if catchBindings.contains(v) =>
+      implicit val o: Origin = e.o
+      Cast(getExc, TypeValue(dispatch(v.t)))
 
     case other => rewriteDefault(other)
   }

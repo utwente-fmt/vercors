@@ -87,7 +87,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration[G]] = constructor match {
     case Constructor0(contract, _, _, args, _, body) =>
       Seq(withContract(contract, contract =>
-        new PVLConstructor(contract.consumeApplicableContract(), args.map(convert(_)).getOrElse(Nil), convert(body))))
+        new PVLConstructor(contract.consumeApplicableContract(), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
   }
 
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
@@ -311,10 +311,10 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlIncDec(name, op) =>
       val target = PVLLocal[G](convert(name))(blame(stat))
       Eval(op match {
-        case "++" => PostAssignExpression[G](target, target + const(1))
-        case "--" => PostAssignExpression[G](target, target - const(1))
+        case "++" => PostAssignExpression[G](target, target + const(1))(blame(stat))
+        case "--" => PostAssignExpression[G](target, target - const(1))(blame(stat))
       })
-    case PvlAssign(target, _, value) => Assign(convert(target), convert(value))
+    case PvlAssign(target, _, value) => Assign(convert(target), convert(value))(blame(stat))
   }
 
   def convert(implicit region: ParRegionContext): ParRegion[G] = region match {
@@ -372,7 +372,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       val v = new Variable(t)(SourceNameOrigin(convert(name), origin(name)))
       Seq(
         LocalDecl(v),
-        Assign(Local(v.ref), convert(init))
+        Assign(Local(v.ref[Variable[G]]), convert(init))(AssignLocalOk)
       )
     case DeclList1(name, None, _, more) =>
       LocalDecl(new Variable(t)(SourceNameOrigin(convert(name), origin(name)))) +:
@@ -381,7 +381,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       val v = new Variable[G](t)(SourceNameOrigin(convert(name), origin(name)))
       Seq(
         LocalDecl[G](v),
-        Assign[G](Local(v.ref), convert(init))
+        Assign[G](Local(v.ref), convert(init))(AssignLocalOk)
       ) ++ convert(more, t)
   }
 

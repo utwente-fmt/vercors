@@ -50,7 +50,7 @@ abstract class Parser {
       parse(new FileInputStream(f), originProvider, blameProvider)
     } catch {
       case _: FileNotFoundException =>
-        throw Failure("Could not find file: %s", name)
+        throw FileNotFound(f.toPath)
     }
   }
 
