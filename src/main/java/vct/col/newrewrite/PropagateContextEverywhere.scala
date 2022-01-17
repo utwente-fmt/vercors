@@ -24,15 +24,21 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
 
   def freshInvariants()(implicit o: Origin): Expr[Post] = foldStar(invariants.toSeq.map(inv => ClosedCopier().dispatch(inv)))
 
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case app: ContractApplicable[Pre] =>
+      invariants.having(app.contract.contextEverywhere) {
+        rewriteDefault(app)
+      }
+    case other => rewriteDefault(other)
+  }
+
   override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
     implicit val o: Origin = contract.o
-    invariants.having(contract.contextEverywhere) {
-      contract.rewrite(
-        contextEverywhere = tt,
-        requires = freshInvariants() &* dispatch(contract.requires),
-        ensures = freshInvariants() &* dispatch(contract.ensures),
-      )
-    }
+    contract.rewrite(
+      contextEverywhere = tt,
+      requires = freshInvariants() &* dispatch(contract.requires),
+      ensures = freshInvariants() &* dispatch(contract.ensures),
+    )
   }
 
   override def dispatch(node: LoopContract[Pre]): LoopContract[Post] = node match {

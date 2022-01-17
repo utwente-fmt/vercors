@@ -617,7 +617,7 @@ final case class JavaAbstract[G]()(implicit val o: Origin) extends JavaModifier[
 final case class JavaFinal[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaFinalImpl[G]
 final case class JavaStrictFP[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaStrictFPImpl[G]
 final case class JavaNative[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaNativeImpl[G]
-final case class JavaSynchronized[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaSynchronizedImpl[G]
+final case class JavaSynchronized[G]()(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends JavaModifier[G] with JavaSynchronizedImpl[G]
 final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaTransientImpl[G]
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
 

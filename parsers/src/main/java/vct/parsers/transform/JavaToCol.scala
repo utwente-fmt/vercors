@@ -53,7 +53,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case Modifier0(modifier) => convert(modifier)
     case Modifier1(name) => name match {
       case "native" => JavaNative()
-      case "synchronized" => JavaSynchronized()
+      case "synchronized" => JavaSynchronized()(blame(modifier))
       case "transient" => JavaTransient()
       case "volatile" => JavaVolatile()
     }

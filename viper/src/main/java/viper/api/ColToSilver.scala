@@ -226,7 +226,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(info=NodeInfo(e))
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(info=NodeInfo(e))
     case col.FunctionInvocation(f, args, Nil) =>
-      silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, silver.NoInfo, typ(f.decl.returnType), silver.NoTrafos)
+      silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, NodeInfo(e), typ(f.decl.returnType), silver.NoTrafos)
     case inv @ col.ADTFunctionInvocation(typeArgs, Ref(func), args) => typeArgs match {
       case Some((Ref(adt), typeArgs)) =>
         silver.DomainFuncApp(ref(func), args.map(exp), ListMap(adtTypeArgs(adt).zip(typeArgs.map(typ)) : _*))(silver.NoPosition, NodeInfo(e), typ(inv.t), ref(adt), silver.NoTrafos)

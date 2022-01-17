@@ -6,7 +6,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.ast.expr.MethodInvokation
 import vct.col.newrewrite.error.ExtraNode
-import vct.col.origin.Origin
+import vct.col.origin.{DerefAssignTarget, Origin, SubscriptAssignTarget}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.Unreachable
@@ -246,7 +246,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   def inlined(e: Expr[Pre]): Expr[Post] =
     ReInliner().dispatch(dispatchImpure(e))
 
-  def notInlined(e: Expr[Pre]): Expr[Post] =
+  def notInlined(e: Expr[Pre]): Local[Post] =
     dispatchImpure(e) match {
       case Local(Ref(v)) if !currentlyExtracted.contains(v) =>
         val preV = (v: Variable[Post]).asInstanceOf[Variable[Pre]]
@@ -260,6 +260,18 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     Local[Post](v.ref)(SideEffectOrigin)
   }
 
+  def assignTarget(target: Expr[Pre]): Expr[Post] = {
+    val result = target match {
+      case Local(Ref(v)) => Local[Post](succ(v))(target.o)
+      case Deref(obj, Ref(f)) => Deref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(target.o)
+      case ArraySubscript(arr, index) => ArraySubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
+      case PointerSubscript(arr, index) => PointerSubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
+      case other => ???
+    }
+    flushExtractedExpressions()
+    result
+  }
+
   def dispatchImpure(e: Expr[Pre]): Local[Post] = e match {
     case Local(Ref(v)) =>
       // We do not take the successor here: ReInliner will do that.
@@ -269,15 +281,17 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     case ass @ PreAssignExpression(oldTarget, oldValue) =>
       // target and value could be inline, if it were not for the fact that we need value to return it (since value
       // may have a more specific type than the target type)
-      val target = notInlined(oldTarget)
+      val target = assignTarget(oldTarget)
       val value = notInlined(oldValue)
       flushExtractedExpressions()
       effect(Assign(target, value)(ass.blame)(e.o))
       stored(value, oldValue.t)
     case ass @ PostAssignExpression(oldTarget, value) =>
-      val target = notInlined(oldTarget)
+      val target = assignTarget(oldTarget)
+      val cachedTarget = stored(target, oldTarget.t)
+      flushExtractedExpressions()
       effect(Assign(target, inlined(value))(ass.blame)(e.o))
-      stored(target, oldTarget.t)
+      stored(cachedTarget, oldTarget.t)
     case With(pre, value) =>
       flushExtractedExpressions()
       effect(dispatch(pre))

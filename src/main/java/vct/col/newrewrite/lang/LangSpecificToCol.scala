@@ -193,7 +193,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           returnType = dispatch(method.returnType),
           args = collectInScope(variableScopes) { method.parameters.foreach(dispatch) },
           outArgs = Nil, typeArgs = Nil,
-          body = method.body.map(dispatch),
+          body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
+            case Some(sync) => method.body.map(body => Synchronized(currentThis.top, dispatch(body))(sync.blame))
+            case None => method.body.map(dispatch)
+          },
           contract = dispatch(method.contract),
         )(method.blame)(JavaMethodOrigin(method)).succeedDefault(this, method)
       case _: JavaSharedInitialization[Pre] =>

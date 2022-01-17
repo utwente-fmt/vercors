@@ -273,8 +273,22 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     case Coercion.SomethingAny(source) =>
       FunctionInvocation(preFunc(anyFrom.ref), Seq(e), Seq(source))(PanicBlame("coercing to any requires nothing."))
 
-    case Coercion.NullArray(_) => OptNone()
-    case Coercion.NullPointer(_) => OptNone()
+    case Coercion.NullArray(_) =>
+      ADTFunctionInvocation(
+        Some((
+          preAdt(optionAdt.ref),
+          Seq(TAxiomatic(preAdt(arrayAdt.ref), Nil)),
+        )),
+        preAdtFunc(optionNone.ref), Nil
+      )
+    case Coercion.NullPointer(_) =>
+      ADTFunctionInvocation(
+        Some((
+          preAdt(optionAdt.ref),
+          Seq(TAxiomatic(preAdt(pointerAdt.ref), Nil)),
+        )),
+        preAdtFunc(optionNone.ref), Nil
+      )
 
     case Coercion.ZFracRat() =>
       ADTFunctionInvocation(Some((preAdt(zfracAdt.ref), Nil)), preAdtFunc(zfracVal.ref), Seq(e))
