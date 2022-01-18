@@ -35,7 +35,8 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     }
 
     def consumeApplicableContract()(implicit o: Origin): ApplicableContract[G1] = {
-      ApplicableContract(AstBuildHelpers.foldStar(consume(requires)), AstBuildHelpers.foldStar(consume(ensures)),
+      ApplicableContract(UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(requires))),
+                         UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(ensures))),
                          AstBuildHelpers.foldStar(consume(context_everywhere)),
                          consume(signals), consume(given), consume(yields))
     }

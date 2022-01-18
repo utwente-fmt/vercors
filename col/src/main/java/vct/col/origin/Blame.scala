@@ -3,6 +3,7 @@ package vct.col.origin
 import vct.result.VerificationResult
 import vct.col.util.ExpectedError
 import vct.col.ast._
+import vct.result.VerificationResult.SystemError
 
 sealed trait ContractFailure
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
@@ -56,14 +57,28 @@ case class FoldFailed(failure: ContractFailure, fold: Fold[_]) extends Verificat
   override def toString: String = s"Fold may fail, since $failure"
   override def code: String = "failed"
 }
+
+sealed trait AccountedDirection
+case object FailLeft extends AccountedDirection
+case object FailRight extends AccountedDirection
+
 sealed trait FrontendInvocationError extends VerificationFailure
-case class PreconditionFailed(failure: ContractFailure, invocation: Invocation[_]) extends FrontendInvocationError {
+case class PreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, invocation: InvokingNode[_]) extends FrontendInvocationError {
   override def toString: String = s"Precondition may not hold, since $failure."
   override def code: String = "preFailed"
 }
-case class PostconditionFailed(failure: ContractFailure, invokable: ContractApplicable[_]) extends ConstructorFailure {
+sealed trait ImplementationFailure extends ConstructorFailure
+case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, invokable: ContractApplicable[_]) extends ImplementationFailure {
   override def toString: String = s"Postcondition may not hold, since $failure."
   override def code: String = "postFailed"
+}
+case class SignalsFailed(failure: ContractFailure, invokable: AbstractMethod[_]) extends ImplementationFailure {
+  override def toString: String = s"Signals clause may not hold, since $failure."
+  override def code: String = "signals"
+}
+case class ExceptionNotInSignals(failure: ContractFailure, invokable: AbstractMethod[_]) extends ImplementationFailure {
+  override def toString: String = s"Method may throw exception not included in signals clauses."
+  override def code: String = "extraExc"
 }
 sealed trait LoopInvariantFailure extends VerificationFailure
 case class LoopInvariantNotEstablished(failure: ContractFailure, loop: Loop[_]) extends LoopInvariantFailure {
@@ -127,6 +142,10 @@ case class ParPreconditionFailed(failure: ContractFailure, region: ParRegion[_])
 case class ParBlockPostconditionFailed(failure: ContractFailure, block: ParBlock[_]) extends ParBlockFailure {
   override def toString: String = s"The postcondition of this parallel block may not hold, since $failure."
   override def code: String = "parPostFailed"
+}
+case class ParBlockMayNotThrow(failure: ContractFailure, block: ParBlock[_]) extends ParBlockFailure {
+  override def toString: String = s"The implementation of this parallel block may throw an exception."
+  override def code: String = "parThrows"
 }
 
 sealed trait BuiltinError extends FrontendDerefError with FrontendInvocationError
@@ -226,6 +245,51 @@ case class CoerceZFracFracFailed(zfrac: Expr[_]) extends UnsafeCoercion {
 
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
+}
+
+case object BlamePathError extends SystemError {
+  override def text: String = "The accounting for a pre- or postcondition is wrong: the path is empty before the layered blames are resolved, or an empty path was expected but it is not."
+}
+
+case class PostSplit(left: Blame[PostconditionFailed], right: Blame[PostconditionFailed]) extends Blame[PostconditionFailed] {
+  override def blame(error: PostconditionFailed): Unit =
+    error.path match {
+      case Nil => throw BlamePathError
+      case FailLeft :: tail => left.blame(PostconditionFailed(tail, error.failure, error.invokable))
+      case FailRight :: tail => right.blame(PostconditionFailed(tail, error.failure, error.invokable))
+    }
+}
+
+case object ImplBlameSplit {
+  def apply(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[ImplementationFailure]): ImplBlameSplit =
+    new ImplBlameSplit(blames, default)
+
+  def left(left: Blame[PostconditionFailed], right: Blame[ImplementationFailure]): ImplBlameSplit =
+    new ImplBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
+
+  def right(left: Blame[ImplementationFailure], right: Blame[ImplementationFailure]): ImplBlameSplit =
+    new ImplBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
+}
+
+case class ImplBlameSplit(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[ImplementationFailure]) extends Blame[ImplementationFailure] {
+  override def blame(error: ImplementationFailure): Unit = error match {
+    case PostconditionFailed(path, failure, invokable) => path match {
+      case Nil => throw BlamePathError
+      case FailLeft :: tail => blames(FailLeft).blame(PostconditionFailed(tail, failure, invokable))
+      case FailRight :: tail => blames(FailRight).blame(PostconditionFailed(tail, failure, invokable))
+    }
+    case signals: SignalsFailed => default.blame(signals)
+    case signals: ExceptionNotInSignals => default.blame(signals)
+  }
+}
+
+case class PreSplit(left: Blame[PreconditionFailed], right: Blame[PreconditionFailed]) extends Blame[PreconditionFailed] {
+  override def blame(error: PreconditionFailed): Unit =
+    error.path match {
+      case Nil => throw BlamePathError
+      case FailLeft :: tail => left.blame(PreconditionFailed(tail, error.failure, error.invocation))
+      case FailRight :: tail => right.blame(PreconditionFailed(tail, error.failure, error.invocation))
+    }
 }
 
 case class BlameUnreachable(message: String, failure: VerificationFailure) extends VerificationResult.SystemError {

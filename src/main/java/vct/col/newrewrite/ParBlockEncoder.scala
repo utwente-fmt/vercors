@@ -62,9 +62,23 @@ case object ParBlockEncoder extends RewriterBuilder {
       region.blame.blame(ParPreconditionFailed(error.failure, region))
   }
 
-  case class ParPostconditionPostconditionFailed(block: ParBlock[_]) extends Blame[PostconditionFailed] {
-    override def blame(error: PostconditionFailed): Unit =
-      block.blame.blame(ParBlockPostconditionFailed(error.failure, block))
+  case class ParPostconditionImplementationFailure(block: ParBlock[_]) extends Blame[ImplementationFailure] {
+    override def blame(error: ImplementationFailure): Unit = error match {
+      case PostconditionFailed(_, failure, _) =>
+        block.blame.blame(ParBlockPostconditionFailed(failure, block))
+      case SignalsFailed(failure, _) =>
+        block.blame.blame(ParBlockMayNotThrow(failure, block))
+      case ExceptionNotInSignals(failure, _) =>
+        block.blame.blame(ParBlockMayNotThrow(failure, block))
+    }
+  }
+
+  case class EmptyHintCannotThrow(inner: Blame[PostconditionFailed]) extends Blame[ImplementationFailure] {
+    override def blame(error: ImplementationFailure): Unit = error match {
+      case err: PostconditionFailed => inner.blame(err)
+      case _: SignalsFailed | _: ExceptionNotInSignals =>
+        PanicBlame("A procedure that proves an implication, of which the body is the nop statement cannot throw an exception.").blame(error)
+    }
   }
 }
 
@@ -83,16 +97,20 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     })
   }
 
-  def proveImplies(blame: Blame[PostconditionFailed], antecedent: Expr[Post], consequent: Expr[Post], hint: Option[Statement[Post]] = None)(implicit origin: Origin): Unit = {
+  def proveImplies(blame: Blame[PostconditionFailed], antecedent: Expr[Post], consequent: Expr[Post])(implicit origin: Origin): Unit = {
+    proveImplies(EmptyHintCannotThrow(blame), antecedent, consequent, Block(Nil))
+  }
+
+  def proveImplies(blame: Blame[ImplementationFailure], antecedent: Expr[Post], consequent: Expr[Post], hint: Statement[Post])(implicit origin: Origin): Unit = {
     val (Seq(req, ens), bindings) =
       Extract.extract(antecedent, consequent)
 
     procedure[Post](
       blame = blame,
-      requires = req,
-      ensures = ens,
+      requires = UnitAccountedPredicate(req),
+      ensures = UnitAccountedPredicate(ens),
       args = bindings.keys.toSeq,
-      body = Some(hint.getOrElse(Block(Nil))),
+      body = Some(hint),
     ).declareDefault(this)
   }
 
@@ -118,8 +136,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         val result = procedure[Post](
           blame = AbstractApplicable,
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-          requires = dispatch(req),
-          ensures = dispatch(ens),
+          requires = UnitAccountedPredicate(dispatch(req)),
+          ensures = UnitAccountedPredicate(dispatch(ens)),
         )(ParRegionImpl(region))
         result.declareDefault(this)
         (result, vars.values.map(dispatch).toSeq)
@@ -129,8 +147,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         val result = procedure[Post](
           blame = AbstractApplicable,
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-          requires = dispatch(req),
-          ensures = dispatch(ens),
+          requires = UnitAccountedPredicate(dispatch(req)),
+          ensures = UnitAccountedPredicate(dispatch(ens)),
         )(ParRegionImpl(region))
         result.declareDefault(this)
         (result, vars.values.map(dispatch).toSeq)
@@ -140,8 +158,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         val result = procedure[Post](
           blame = AbstractApplicable,
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-          requires = dispatch(req),
-          ensures = dispatch(ens),
+          requires = UnitAccountedPredicate(dispatch(req)),
+          ensures = UnitAccountedPredicate(dispatch(ens)),
         )(ParRegionImpl(region))
         result.declareDefault(this)
         (result, vars.values.map(dispatch).toSeq)
@@ -176,14 +194,13 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       val vars = extract.finish()
 
       procedure(
-        blame = ParPostconditionPostconditionFailed(block),
+        blame = ParPostconditionImplementationFailure(block),
         args = vars.keys.toSeq,
-        requires = AstBuildHelpers.foldStar(ranges) &* requires,
-        ensures = ensures,
+        requires = UnitAccountedPredicate(AstBuildHelpers.foldStar(ranges) &* requires),
+        ensures = UnitAccountedPredicate(ensures),
         body = Some(body),
       )(ParBlockCheck(block))
   }
-
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case parInv @ ParInvariant(_, inv, content) =>
@@ -204,7 +221,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = parBarrier.o
       val block = parDecls(blockRef.decl)
       // TODO: it is a type-check error to have an invariant reference be out of scope in a barrier
-      proveImplies(ParBarrierPostconditionFailed(parBarrier), dispatch(quantify(block, requires)), dispatch(quantify(block, ensures)), hint = Some(dispatch(content)))
+      proveImplies(ParBarrierPostconditionFailed(parBarrier), dispatch(quantify(block, requires)), dispatch(quantify(block, ensures)), hint = dispatch(content))
 
       Block(Seq(
         Exhale(dispatch(requires))(ParBarrierExhaleFailed(parBarrier)),

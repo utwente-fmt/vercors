@@ -52,10 +52,11 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       blame = AbstractApplicable,
       returnType = TInt(),
       args = Seq(obj),
-      ensures =
+      ensures = UnitAccountedPredicate(
         (result >= const(0) && result <= const(typeNumberStore.size)) &&
           ((obj.get === Null()) ==> (result === const(0))) &&
           ((obj.get !== Null()) ==> (result !== const(0)))
+      ),
     ))
   }
 
@@ -67,7 +68,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       blame = PanicBlame("instanceof has no postcondition."),
       returnType = TBool(),
       args = Seq(sub, sup),
-      requires = sub.get >= const(0) && sub.get <= const(typeNumberStore.size) && sup.get >= const(0) && sup.get <= const(typeNumberStore.size),
+      requires = UnitAccountedPredicate(
+        sub.get >= const(0) && sub.get <= const(typeNumberStore.size) && sup.get >= const(0) && sup.get <= const(typeNumberStore.size)
+      ),
       body = Some(
         ((sub.get === const(0)) ==> tt) &&
           foldAnd(typeNumberStore.map {

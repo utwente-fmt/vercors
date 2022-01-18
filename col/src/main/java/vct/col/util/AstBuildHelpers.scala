@@ -160,8 +160,11 @@ object AstBuildHelpers {
     IntegerValue(i)
 
   def contract[G]
-              (requires: Expr[G] = tt[G], ensures: Expr[G] = tt[G], contextEverywhere: Expr[G] = tt[G],
-               signals: Seq[SignalsClause[G]] = Nil, givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil)
+              (requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin),
+               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin),
+               contextEverywhere: Expr[G] = tt[G],
+               signals: Seq[SignalsClause[G]] = Nil,
+               givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil)
               (implicit o: Origin): ApplicableContract[G] =
     ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs)
 
@@ -174,11 +177,12 @@ object AstBuildHelpers {
   }
 
   def procedure[G]
-               (blame: Blame[PostconditionFailed],
+               (blame: Blame[ImplementationFailure],
                 returnType: Type[G] = TVoid[G](),
                 args: Seq[Variable[G]] = Nil, outArgs: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                 body: Option[Statement[G]] = None,
-                requires: Expr[G] = tt[G], ensures: Expr[G] = tt[G],
+                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin),
+                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin),
                 contextEverywhere: Expr[G] = tt[G],
                 signals: Seq[SignalsClause[G]] = Nil,
                 givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
@@ -193,8 +197,11 @@ object AstBuildHelpers {
                returnType: Type[G] = TVoid(),
                args: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                body: Option[Expr[G]] = None,
-               requires: Expr[G] = tt[G], ensures: Expr[G] = tt[G], contextEverywhere: Expr[G] = tt[G],
-               signals: Seq[SignalsClause[G]] = Nil, givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
+               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin),
+               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin),
+               contextEverywhere: Expr[G] = tt[G],
+               signals: Seq[SignalsClause[G]] = Nil,
+               givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
                inline: Boolean = false)(implicit o: Origin): Function[G] =
     new Function(returnType, args, typeArgs, body,
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
@@ -267,6 +274,11 @@ object AstBuildHelpers {
 
   def foldStar[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(Star(_, _)).getOrElse(tt)
+
+  def foldStar[G](predicate: AccountedPredicate[G])(implicit o: Origin): Expr[G] = predicate match {
+    case UnitAccountedPredicate(pred) => pred
+    case SplitAccountedPredicate(left, right) => Star(foldStar(left), foldStar(right))
+  }
 
   def foldOr[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(Or(_, _)).getOrElse(ff)

@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.resolve.Referrable
 import vct.col.util.AstBuildHelpers
+import vct.col.util.AstBuildHelpers.foldStar
 
 import scala.annotation.nowarn
 import scala.collection.mutable
@@ -347,6 +348,9 @@ case class Printer(out: Appendable,
       say(newline, clauseKeyword, space, clause, ";", newline)
     }
   })
+
+  def clauses(contract: AccountedPredicate[_], clauseKeyword: String): Do =
+    clauses(foldStar(contract)(DiagnosticOrigin), clauseKeyword)
 
   def statement(phrases: Phrase*): Do = Do(() => {
     say(newline)

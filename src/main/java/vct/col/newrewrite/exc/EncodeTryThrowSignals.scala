@@ -6,7 +6,7 @@ import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import vct.col.newrewrite.error.ExcludedByPassOrder
 import vct.col.newrewrite.util.Substitute
-import vct.col.origin.{AssertFailed, Blame, FramedGetLeft, FramedGetRight, Origin, ThrowNull}
+import vct.col.origin.{AssertFailed, Blame, FramedGetLeft, FramedGetRight, ImplBlameSplit, Origin, ThrowNull}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers
@@ -189,19 +189,23 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
           ))
         })
 
-        val ensures: Expr[Post] =
-          ((exc.get !== Null()) ==> foldOr(method.contract.signals.map {
+        val ensures: AccountedPredicate[Post] = SplitAccountedPredicate(
+          left = UnitAccountedPredicate((exc.get !== Null()) ==> foldOr(method.contract.signals.map {
             case SignalsClause(binding, _) => InstanceOf(exc.get, TypeValue(dispatch(binding.t)))
-          })) &*
-          ((exc.get === Null()) ==> dispatch(method.contract.ensures)) &*
-          AstBuildHelpers.foldStar(method.contract.signals.map {
-            case SignalsClause(binding, assn) =>
-              binding.drop()
-              ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
-                signalsBinding.having((binding, exc.get)) { dispatch(assn) }
-          })
+          })),
+          right = SplitAccountedPredicate(
+            left = (exc.get === Null()) ==> dispatch(method.contract.ensures),
+            right = UnitAccountedPredicate(AstBuildHelpers.foldStar(method.contract.signals.map {
+              case SignalsClause(binding, assn) =>
+                binding.drop()
+                ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
+                  signalsBinding.having((binding, exc.get)) { dispatch(assn) }
+            }))
+          ),
+        )
 
         method.rewrite(
+          blame = ImplBlameSplit.left(),
           body = body,
           outArgs = collectInScope(variableScopes) { exc.declareDefault(this); method.outArgs.foreach(dispatch) },
           contract = method.contract.rewrite(ensures = ensures, signals = Nil),

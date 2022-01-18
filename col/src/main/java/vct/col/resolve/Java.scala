@@ -3,7 +3,7 @@ package vct.col.resolve
 import hre.util.FuncTools
 import vct.col.origin._
 import vct.result.VerificationResult
-import vct.col.ast.{ApplicableContract, Block, ClassDeclaration, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, Variable}
+import vct.col.ast.{ApplicableContract, Block, ClassDeclaration, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
 import vct.result.VerificationResult.Unreachable
 import vct.col.util.AstBuildHelpers._
@@ -108,7 +108,7 @@ case object Java {
         typeParameters = Nil,
         signals = Nil,
         body = Block(Nil),
-        contract = ApplicableContract(tt, tt, tt, Nil, Nil, Nil),
+        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil),
       )(SourceNameOrigin(cls.getSimpleName, o))
     })
 
@@ -122,7 +122,7 @@ case object Java {
         typeParameters = Nil,
         signals = Nil,
         body = None,
-        contract = ApplicableContract(tt, tt, tt, Nil, Nil, Nil),
+        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil),
       )(AbstractApplicable)(SourceNameOrigin(method.getName, o))
     })
 

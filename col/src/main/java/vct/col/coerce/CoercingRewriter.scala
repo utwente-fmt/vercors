@@ -62,11 +62,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
             blame = AbstractApplicable,
             returnType = dispatch(target),
             args = Seq(v),
-            ensures =
+            ensures = UnitAccountedPredicate(
               Eq(Size(v.get), Size(result)) &&
               Forall(Seq(i), Seq(Seq(result_i)),
                 (const[Post](0) < i.get && i.get < Size(result)) ==>
-                  result_i === dispatch(coerce(pre_v_i, inner))),
+                  result_i === dispatch(coerce(pre_v_i, inner)))
+            ),
           )
         })
 
@@ -82,10 +83,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
             blame = AbstractApplicable,
             returnType = dispatch(target),
             args = Seq(v),
-            ensures =
+            ensures = UnitAccountedPredicate(
               Eq(Size(result), Size(v.get)) &&
                 Forall(Seq(elem), Seq(Seq(SetMember(elem.get, result))),
                   Eq(SetMember(dispatch(coerce(pre_elem, inner)), result), SetMember(elem.get, v.get)))
+            ),
           )
         })
 
@@ -101,10 +103,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
             blame = AbstractApplicable,
             returnType = dispatch(target),
             args = Seq(v),
-            ensures =
+            ensures = UnitAccountedPredicate(
               Eq(Size(result), Size(v.get)) &&
                 Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
                   Eq(BagMemberCount(dispatch(coerce(pre_elem, inner)), result), BagMemberCount(elem.get, v.get)))
+            ),
           )
         })
 
@@ -123,10 +126,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
             blame = AbstractApplicable,
             returnType = dispatch(target),
             args = Seq(v),
-            ensures =
+            ensures = UnitAccountedPredicate(
               Eq(MapKeySet(result), MapKeySet(v.get)) &&
                 Forall(Seq(k), Seq(Seq(MapGet(result, k.get)(TriggerPatternBlame))),
                   SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), dispatch(MapGet(pre_v, pre_k)(FramedMapGet))))
+            ),
           )
         })
 
@@ -169,6 +173,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     case node: Statement[Pre] => node
     case node: Expr[Pre] => coerce(node)
     case node: Type[Pre] => node
+    case node: AccountedPredicate[Pre] => node
     case node: ApplicableContract[Pre] => node
     case node: LoopContract[Pre] => node
     case node: ParRegion[Pre] => node

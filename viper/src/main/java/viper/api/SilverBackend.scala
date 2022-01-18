@@ -1,4 +1,5 @@
 package viper.api
+import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationResult.SystemError
 import viper.silver.verifier.errors._
@@ -16,14 +17,17 @@ trait SilverBackend extends Backend {
   private def get[T <: col.Node[_]](node: silver.Infoed): T =
     node.info.asInstanceOf[NodeInfo[T]].node
 
-  override def submit(program: col.Program[_]): Unit = {
-    val silver = ColToSilver.transform(program)
+  private def path(node: silver.Node): Seq[AccountedDirection] =
+    node.asInstanceOf[silver.Infoed].info.asInstanceOf[NodeInfo[_]].predicatePath.get
+
+  override def submit(colProgram: col.Program[_]): Unit = {
+    val silverProgram = ColToSilver.transform(colProgram)
 
     val w = new PrintWriter(new File("tmp/output.sil"))
-    w.write(silver.toString())
+    w.write(silverProgram.toString())
     w.close()
 
-    createVerifier.verify(silver) match {
+    createVerifier.verify(silverProgram) match {
       case Success =>
       case Failure(errors) => errors.foreach {
         case err: AbstractVerificationError => err match {
@@ -46,11 +50,11 @@ trait SilverBackend extends Backend {
           case ContractNotWellformed(node, reason, _) =>
             defer(reason)
           case PreconditionInCallFalse(node, reason, _) =>
-            val invocation = get[col.MethodInvocation[_]](node)
-            invocation.blame.blame(blame.PreconditionFailed(getFailure(reason), invocation))
+            val invocation = get[col.InvokeProcedure[_]](node)
+            invocation.blame.blame(blame.PreconditionFailed(path(reason.offendingNode), getFailure(reason), invocation))
           case PreconditionInAppFalse(node, reason, _) =>
             val invocation = get[col.FunctionInvocation[_]](node)
-            invocation.blame.blame(blame.PreconditionFailed(getFailure(reason), invocation))
+            invocation.blame.blame(blame.PreconditionFailed(path(reason.offendingNode), getFailure(reason), invocation))
           case ExhaleFailed(node, reason, _) =>
             val exhale = get[col.Exhale[_]](node)
             reason match {
@@ -87,7 +91,7 @@ trait SilverBackend extends Backend {
             }
           case PostconditionViolated(_, member, reason, _) =>
             val applicable = get[col.ContractApplicable[_]](member)
-            applicable.blame.blame(blame.PostconditionFailed(getFailure(reason), applicable))
+            applicable.blame.blame(blame.PostconditionFailed(path(reason.offendingNode), getFailure(reason), applicable))
           case FoldFailed(node, reason, _) =>
             val fold = get[col.Fold[_]](node)
             reason match {

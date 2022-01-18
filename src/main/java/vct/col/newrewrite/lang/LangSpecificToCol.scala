@@ -147,15 +147,15 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         signals = Nil,
         body = Block(Nil),
         contract = ApplicableContract(
-          requires = tt,
-          ensures = AstBuildHelpers.foldStar(decls.collect {
+          requires = UnitAccountedPredicate(tt),
+          ensures = UnitAccountedPredicate(AstBuildHelpers.foldStar(decls.collect {
             case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
               fields.decls.indices.map(decl => {
                 val local = JavaLocal[Pre](fields.decls(decl)._1)(DerefPerm)
                 local.ref = Some(RefJavaField[Pre](fields, decl))
                 Perm(local, WritePerm())
               })
-          }.flatten),
+          }.flatten)),
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
         )
       )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
@@ -184,9 +184,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
               Return(res),
             )))) },
             contract = currentThis.having(result) { cons.contract.rewrite(
-              ensures = (result !== Null()) && (TypeOf(result) === TypeValue(t)) &* dispatch(cons.contract.ensures)
+              ensures = SplitAccountedPredicate(
+                left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
+                right = dispatch(cons.contract.ensures),
+              ),
             ) },
-          )(cons.blame)(JavaConstructorOrigin(cons))
+          )(ImplBlameSplit.right(cons.blame, PanicBlame("Constructor cannot return null value or value of wrong type.")))(JavaConstructorOrigin(cons))
         ).succeedDefault(this, cons)
       case method: JavaMethod[Pre] =>
         new InstanceMethod(
@@ -318,11 +321,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
                 Return(res),
               )))),
               ApplicableContract(
-                tt,
-                AstBuildHelpers.foldStar(cls.declarations.collect {
+                UnitAccountedPredicate(tt),
+                UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
                   case field: InstanceField[Pre] =>
                     fieldPerm[Post](currentThis.top, succ(field), WritePerm())
-                }), tt, Nil, Nil, Nil,
+                })), tt, Nil, Nil, Nil,
               )
             )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
 
