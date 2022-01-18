@@ -10,7 +10,7 @@ import vct.col.features
 import vct.col.features.Feature
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{ChannelPerms, Decompose, GenerateForkJoinMain, GenerateLTS, GlobalProgPems, JavaForkJoin, LocalProgConstructors, PrintVeyMontProg, RemoveTaus, StructureCheck, TerminationCheck}
+import vct.col.veymont.{ChannelPerms, Decompose, GenerateForkJoinMain, GenerateLTS, GlobalProgPerms, JavaForkJoin, LocalProgConstructors, PrintVeyMontProg, RemoveTaus, StructureCheck, TerminationCheck}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
@@ -928,7 +928,7 @@ object Passes {
     SimplePass("VeyMontTerminationCheck", "check absence non-terminating statements",
       arg => { new TerminationCheck(arg); arg}),
     SimplePass("VeyMontGlobalProgPerms","add all permissions to global program",
-      new GlobalProgPems(_).rewriteAll()),
+      new GlobalProgPerms(_).rewriteAll()),
     SimplePass("printGlobProg", "print global program with generated permissions",
       arg => {
         var f = Configuration.veymont_file.get()
