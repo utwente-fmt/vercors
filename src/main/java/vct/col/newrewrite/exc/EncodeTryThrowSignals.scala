@@ -6,7 +6,7 @@ import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import vct.col.newrewrite.error.ExcludedByPassOrder
 import vct.col.newrewrite.util.Substitute
-import vct.col.origin.{AssertFailed, Blame, FramedGetLeft, FramedGetRight, ImplBlameSplit, Origin, ThrowNull}
+import vct.col.origin.{AssertFailed, Blame, ExceptionNotInSignals, FramedGetLeft, FramedGetRight, ImplBlameSplit, Origin, PostconditionFailed, SignalsFailed, ThrowNull}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers
@@ -49,6 +49,16 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
     override def preferredName: String = "finally"
     override def messageInContext(message: String): String =
       s"[At label generated for finally]: $message"
+  }
+
+  case class SignalsClosedPostconditionFailed(method: AbstractMethod[_]) extends Blame[PostconditionFailed] {
+    override def blame(error: PostconditionFailed): Unit =
+      method.blame.blame(ExceptionNotInSignals(error.failure, method))
+  }
+
+  case class SignalsFailedPostconditionFailed(method: AbstractMethod[_]) extends Blame[PostconditionFailed] {
+    override def blame(error: PostconditionFailed): Unit =
+      method.blame.blame(SignalsFailed(error.failure, method))
   }
 }
 
@@ -168,6 +178,11 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
+  def inlineExtraCondition(condition: Expr[Post], clause: AccountedPredicate[Pre])(implicit o: Origin): AccountedPredicate[Post] = clause match {
+    case UnitAccountedPredicate(pred) => UnitAccountedPredicate[Post](condition ==> dispatch(pred))(clause.o)
+    case SplitAccountedPredicate(left, right) => SplitAccountedPredicate[Post](inlineExtraCondition(condition, left), inlineExtraCondition(condition, right))(clause.o)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case method: AbstractMethod[Pre] =>
       implicit val o: Origin = method.o
@@ -194,7 +209,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
             case SignalsClause(binding, _) => InstanceOf(exc.get, TypeValue(dispatch(binding.t)))
           })),
           right = SplitAccountedPredicate(
-            left = (exc.get === Null()) ==> dispatch(method.contract.ensures),
+            left = inlineExtraCondition(exc.get === Null(), method.contract.ensures),
             right = UnitAccountedPredicate(AstBuildHelpers.foldStar(method.contract.signals.map {
               case SignalsClause(binding, assn) =>
                 binding.drop()
@@ -205,7 +220,13 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         )
 
         method.rewrite(
-          blame = ImplBlameSplit.left(),
+          blame = ImplBlameSplit.left(
+            left = SignalsClosedPostconditionFailed(method),
+            right = ImplBlameSplit.right(
+              left = method.blame,
+              right = SignalsFailedPostconditionFailed(method),
+            ),
+          ),
           body = body,
           outArgs = collectInScope(variableScopes) { exc.declareDefault(this); method.outArgs.foreach(dispatch) },
           contract = method.contract.rewrite(ensures = ensures, signals = Nil),

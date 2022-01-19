@@ -63,20 +63,31 @@ case object FailLeft extends AccountedDirection
 case object FailRight extends AccountedDirection
 
 sealed trait FrontendInvocationError extends VerificationFailure
-case class PreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, invocation: InvokingNode[_]) extends FrontendInvocationError {
+sealed trait InvocationFailure extends FrontendInvocationError
+case class PreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, invocation: InvokingNode[_]) extends InvocationFailure {
   override def toString: String = s"Precondition may not hold, since $failure."
   override def code: String = "preFailed"
 }
-sealed trait ImplementationFailure extends ConstructorFailure
-case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, invokable: ContractApplicable[_]) extends ImplementationFailure {
+case class ContextEverywhereFailedInPre(failure: ContractFailure, invocation: InvokingNode[_]) extends InvocationFailure {
+  override def toString: String = s"Context may not hold in precondition, since $failure."
+  override def code: String = "contextPreFailed"
+}
+
+sealed trait CallableFailure extends ConstructorFailure
+sealed trait ContractedFailure extends CallableFailure
+case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, invokable: ContractApplicable[_]) extends ContractedFailure {
   override def toString: String = s"Postcondition may not hold, since $failure."
   override def code: String = "postFailed"
 }
-case class SignalsFailed(failure: ContractFailure, invokable: AbstractMethod[_]) extends ImplementationFailure {
+case class ContextEverywhereFailedInPost(failure: ContractFailure, invokable: ContractApplicable[_]) extends ContractedFailure {
+  override def toString: String = s"Context may not hold in postcondition, since $failure."
+  override def code: String = "contextPostFailed"
+}
+case class SignalsFailed(failure: ContractFailure, invokable: AbstractMethod[_]) extends CallableFailure {
   override def toString: String = s"Signals clause may not hold, since $failure."
   override def code: String = "signals"
 }
-case class ExceptionNotInSignals(failure: ContractFailure, invokable: AbstractMethod[_]) extends ImplementationFailure {
+case class ExceptionNotInSignals(failure: ContractFailure, invokable: AbstractMethod[_]) extends CallableFailure {
   override def toString: String = s"Method may throw exception not included in signals clauses."
   override def code: String = "extraExc"
 }
@@ -133,6 +144,10 @@ case class ParBarrierInconsistent(failure: ContractFailure, barrier: ParBarrier[
   override def toString: String = s"The precondition of this barrier is not consistent with the postcondition, since this postcondition may not hold, because $failure."
   override def code: String = "inconsistent"
 }
+case class ParBarrierMayNotThrow(barrier: ParBarrier[_]) extends ParBarrierFailed {
+  override def toString: String = "The proof hint for this barrier may throw an exception."
+  override def code: String = "barrierThrows"
+}
 
 sealed trait ParBlockFailure extends VerificationFailure
 case class ParPreconditionFailed(failure: ContractFailure, region: ParRegion[_]) extends ParBlockFailure {
@@ -178,15 +193,34 @@ case class ArrayInsufficientPermission(arr: Expr[_]) extends ArraySubscriptError
   override def code: String = "arrayPerm"
   override def toString: String = "There may be insufficient permission to access the array."
 }
-case class ArrayValuesError(values: Values[_]) extends VerificationFailure {
-  override def code: String = "arrayValues"
-  override def toString: String =
-    "Array values invocation may fail, since:\n" +
-      "- The array may be null, or;\n" +
-      "- The specified bounds may exceed the bounds of the array, or;\n" +
-      "- The lower bound may exceed the upper bound, or;\n" +
-      "- There may be insufficient permission to access the array at the specified range."
+
+sealed trait ArrayValuesError extends VerificationFailure {
+  def values: Values[_]
+  override def toString: String = s"Array values invocation may fail, since $reason."
+  def reason: String
 }
+
+case class ArrayValuesNull(values: Values[_]) extends ArrayValuesError {
+  override def reason = "the array value may be null"
+  override def code: String = "valuesNull"
+}
+case class ArrayValuesFromNegative(values: Values[_]) extends ArrayValuesError {
+  override def reason = "the start of the range may be negative"
+  override def code: String = "fromNeg"
+}
+case class ArrayValuesFromToOrder(values: Values[_]) extends ArrayValuesError {
+  override def reason = "the start of the range may exceed the end of the range"
+  override def code: String = "fromCrossesTo"
+}
+case class ArrayValuesToLength(values: Values[_]) extends ArrayValuesError {
+  override def reason = "the end of the range may exceed the length of the array"
+  override def code: String = "toLength"
+}
+case class ArrayValuesPerm(values: Values[_]) extends ArrayValuesError {
+  override def reason = "there may be insufficient permission to access the array at the specified range"
+  override def code: String = "valuesPerm"
+}
+
 sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError extends PointerSubscriptError
 sealed trait PointerAddError extends FrontendPlusError
@@ -251,35 +285,72 @@ case object BlamePathError extends SystemError {
   override def text: String = "The accounting for a pre- or postcondition is wrong: the path is empty before the layered blames are resolved, or an empty path was expected but it is not."
 }
 
-case class PostSplit(left: Blame[PostconditionFailed], right: Blame[PostconditionFailed]) extends Blame[PostconditionFailed] {
-  override def blame(error: PostconditionFailed): Unit =
-    error.path match {
-      case Nil => throw BlamePathError
-      case FailLeft :: tail => left.blame(PostconditionFailed(tail, error.failure, error.invokable))
-      case FailRight :: tail => right.blame(PostconditionFailed(tail, error.failure, error.invokable))
-    }
-}
-
 case object ImplBlameSplit {
-  def apply(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[ImplementationFailure]): ImplBlameSplit =
+  def apply(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[CallableFailure]): ImplBlameSplit =
     new ImplBlameSplit(blames, default)
 
-  def left(left: Blame[PostconditionFailed], right: Blame[ImplementationFailure]): ImplBlameSplit =
+  def left(left: Blame[PostconditionFailed], right: Blame[CallableFailure]): ImplBlameSplit =
     new ImplBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
 
-  def right(left: Blame[ImplementationFailure], right: Blame[ImplementationFailure]): ImplBlameSplit =
+  def right(left: Blame[CallableFailure], right: Blame[PostconditionFailed]): ImplBlameSplit =
     new ImplBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
 }
 
-case class ImplBlameSplit(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[ImplementationFailure]) extends Blame[ImplementationFailure] {
-  override def blame(error: ImplementationFailure): Unit = error match {
+case class ImplBlameSplit(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[CallableFailure]) extends Blame[CallableFailure] {
+  override def blame(error: CallableFailure): Unit = error match {
     case PostconditionFailed(path, failure, invokable) => path match {
       case Nil => throw BlamePathError
       case FailLeft :: tail => blames(FailLeft).blame(PostconditionFailed(tail, failure, invokable))
       case FailRight :: tail => blames(FailRight).blame(PostconditionFailed(tail, failure, invokable))
     }
+    case context: ContextEverywhereFailedInPost => default.blame(context)
     case signals: SignalsFailed => default.blame(signals)
     case signals: ExceptionNotInSignals => default.blame(signals)
+  }
+}
+
+case object ContractedBlameSplit {
+  def apply(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[ContractedFailure]): ContractedBlameSplit =
+    new ContractedBlameSplit(blames, default)
+
+  def left(left: Blame[PostconditionFailed], right: Blame[ContractedFailure]): ContractedBlameSplit =
+    new ContractedBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
+
+  def right(left: Blame[ContractedFailure], right: Blame[PostconditionFailed]): ContractedBlameSplit =
+    new ContractedBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
+}
+
+case class ContractedBlameSplit(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[ContractedFailure]) extends Blame[ContractedFailure] {
+  override def blame(error: ContractedFailure): Unit = error match {
+    case PostconditionFailed(path, failure, invokable) => path match {
+      case Nil => throw BlamePathError
+      case FailLeft :: tail => blames(FailLeft).blame(PostconditionFailed(tail, failure, invokable))
+      case FailRight :: tail => blames(FailRight).blame(PostconditionFailed(tail, failure, invokable))
+    }
+    case context: ContextEverywhereFailedInPost => default.blame(context)
+  }
+}
+
+case object InvBlameSplit {
+  def apply(blames: Map[AccountedDirection, Blame[PreconditionFailed]], default: Blame[InvocationFailure]): InvBlameSplit =
+    new InvBlameSplit(blames, default)
+
+  def left(left: Blame[PreconditionFailed], right: Blame[InvocationFailure]): InvBlameSplit =
+    new InvBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
+
+  def right(left: Blame[InvocationFailure], right: Blame[PreconditionFailed]): InvBlameSplit =
+    new InvBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
+}
+
+
+case class InvBlameSplit(blames: Map[AccountedDirection, Blame[PreconditionFailed]], default: Blame[InvocationFailure]) extends Blame[InvocationFailure] {
+  override def blame(error: InvocationFailure): Unit = error match {
+    case PreconditionFailed(path, failure, invocation) => path match {
+      case Nil => throw BlamePathError
+      case FailLeft :: tail => blames(FailLeft).blame(PreconditionFailed(tail, failure, invocation))
+      case FailRight :: tail => blames(FailRight).blame(PreconditionFailed(tail, failure, invocation))
+    }
+    case context: ContextEverywhereFailedInPre => default.blame(context)
   }
 }
 
@@ -318,3 +389,10 @@ object ArrayPerm extends PanicBlame("Subscripting an array in a permission shoul
 object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")
 
 object JavaArrayInitializerBlame extends PanicBlame("The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array")
+
+case class NoContext(inner: Blame[PreconditionFailed]) extends Blame[InvocationFailure] {
+  override def blame(error: InvocationFailure): Unit = error match {
+    case pre: PreconditionFailed => inner.blame(pre)
+    case ctx: ContextEverywhereFailedInPre => PanicBlame("Function or method does not list any context_everywhere clauses, so cannot fail on a context_everywhere clause.").blame(ctx)
+  }
+}

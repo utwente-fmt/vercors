@@ -15,8 +15,14 @@ import vct.col.util.{AstBuildHelpers, SuccessionMap}
 case object CheckProcessAlgebra extends RewriterBuilder
 
 case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
-  case class ModelPostconditionFailed(process: ModelProcess[_]) extends Blame[PostconditionFailed] {
-    override def blame(error: PostconditionFailed): Unit = process.blame.blame(error)
+  case class ModelPostconditionFailed(process: ModelProcess[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case post: PostconditionFailed => process.blame.blame(post)
+      case ctx: ContextEverywhereFailedInPost =>
+        PanicBlame("Generated methods for models do not have context_everywhere clauses.").blame(ctx)
+      case _: SignalsFailed | _: ExceptionNotInSignals =>
+        PanicBlame("Generated methods for models do not throw exceptions.").blame(error)
+    }
   }
 
   case class InsufficientPermissionForModelField(modelDeref: ModelDeref[_]) extends Blame[InsufficientPermission] {
@@ -95,8 +101,8 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
         None, // TODO: Body
         ApplicableContract(
           // TODO: Is reusing fieldPerms allowed?
-          Star(fieldPerms, rewriteDefault(process.requires)),
-          Star(fieldPerms, rewriteDefault(process.ensures)),
+          UnitAccountedPredicate(Star(fieldPerms, rewriteDefault(process.requires))),
+          UnitAccountedPredicate(Star(fieldPerms, rewriteDefault(process.ensures))),
           tt,
           Seq(),
           Seq(),

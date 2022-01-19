@@ -339,6 +339,8 @@ class FeatureRainbow[G] {
     case node: ADTAxiom[G] => return Nil
     case node: SignalsClause[G] => Exceptions
     case node: ApplicableContract[G] => return Nil
+    case node: SplitAccountedPredicate[G] => return Nil
+    case node: UnitAccountedPredicate[G] => return Nil
     case node: Function[G] =>
       return (if(node.inline) Seq(ApplicableToBeInlined) else Nil) ++
         (if(node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil)

@@ -42,9 +42,15 @@ case object ParBlockEncoder extends RewriterBuilder {
       invariant.blame.blame(ParInvariantNotEstablished(error.failure, invariant))
   }
 
-  case class ParBarrierPostconditionFailed(barrier: ParBarrier[_]) extends Blame[PostconditionFailed] {
-    override def blame(error: PostconditionFailed): Unit =
-      barrier.blame.blame(ParBarrierInconsistent(error.failure, barrier))
+  case class ParBarrierPostconditionFailed(barrier: ParBarrier[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case PostconditionFailed(_, failure, _) =>
+        barrier.blame.blame(ParBarrierInconsistent(failure, barrier))
+      case ctx: ContextEverywhereFailedInPost =>
+        PanicBlame("the generated method for a barrier proof does not include context_everywhere clauses.").blame(ctx)
+      case _: SignalsFailed | _: ExceptionNotInSignals =>
+        barrier.blame.blame(ParBarrierMayNotThrow(barrier))
+    }
   }
 
   case class ParBarrierExhaleFailed(barrier: ParBarrier[_]) extends Blame[ExhaleFailed] {
@@ -62,10 +68,12 @@ case object ParBlockEncoder extends RewriterBuilder {
       region.blame.blame(ParPreconditionFailed(error.failure, region))
   }
 
-  case class ParPostconditionImplementationFailure(block: ParBlock[_]) extends Blame[ImplementationFailure] {
-    override def blame(error: ImplementationFailure): Unit = error match {
+  case class ParPostconditionImplementationFailure(block: ParBlock[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
       case PostconditionFailed(_, failure, _) =>
         block.blame.blame(ParBlockPostconditionFailed(failure, block))
+      case ctx: ContextEverywhereFailedInPost =>
+        PanicBlame("the generated method for a parallel block thread does not include context_everywhere clauses.").blame(ctx)
       case SignalsFailed(failure, _) =>
         block.blame.blame(ParBlockMayNotThrow(failure, block))
       case ExceptionNotInSignals(failure, _) =>
@@ -73,9 +81,11 @@ case object ParBlockEncoder extends RewriterBuilder {
     }
   }
 
-  case class EmptyHintCannotThrow(inner: Blame[PostconditionFailed]) extends Blame[ImplementationFailure] {
-    override def blame(error: ImplementationFailure): Unit = error match {
+  case class EmptyHintCannotThrow(inner: Blame[PostconditionFailed]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
       case err: PostconditionFailed => inner.blame(err)
+      case _: ContextEverywhereFailedInPost =>
+        PanicBlame("A procedure generated to prove an implication does not have context_everywhere clauses.").blame(error)
       case _: SignalsFailed | _: ExceptionNotInSignals =>
         PanicBlame("A procedure that proves an implication, of which the body is the nop statement cannot throw an exception.").blame(error)
     }
@@ -101,7 +111,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     proveImplies(EmptyHintCannotThrow(blame), antecedent, consequent, Block(Nil))
   }
 
-  def proveImplies(blame: Blame[ImplementationFailure], antecedent: Expr[Post], consequent: Expr[Post], hint: Statement[Post])(implicit origin: Origin): Unit = {
+  def proveImplies(blame: Blame[CallableFailure], antecedent: Expr[Post], consequent: Expr[Post], hint: Statement[Post])(implicit origin: Origin): Unit = {
     val (Seq(req, ens), bindings) =
       Extract.extract(antecedent, consequent)
 
@@ -215,7 +225,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = parRegion.o
       val (proc, args) = getRegionMethod(impl)
       emitChecks(impl)
-      Eval(ProcedureInvocation[Post](proc.ref, args, Nil, Nil)(ParPreconditionPreconditionFailed(impl)))
+      Eval(ProcedureInvocation[Post](proc.ref, args, Nil, Nil)(NoContext(ParPreconditionPreconditionFailed(impl))))
 
     case parBarrier @ ParBarrier(blockRef, invs, requires, ensures, content) =>
       implicit val o: Origin = parBarrier.o

@@ -301,12 +301,12 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
       FunctionInvocation(preFunc(zfracNew.ref), Seq(rat), Nil)(PanicBlame("a frac always fits in a zfrac."))
 
     case Coercion.RatZFrac() =>
-      FunctionInvocation(preFunc(zfracNew.ref), Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.top, e))
+      FunctionInvocation(preFunc(zfracNew.ref), Seq(e), Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
     case Coercion.Compose(Coercion.ZFracFrac(), Coercion.RatZFrac()) =>
-      FunctionInvocation(preFunc(fracNew.ref), Seq(e), Nil)(RatZFracPreconditionFailed(globalBlame.top, e))
+      FunctionInvocation(preFunc(fracNew.ref), Seq(e), Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
     case Coercion.ZFracFrac() =>
       val rat = ADTFunctionInvocation(Some((preAdt(zfracAdt.ref), Nil)), preAdtFunc(zfracVal.ref), Seq(e))
-      FunctionInvocation(preFunc(fracNew.ref), Seq(rat), Nil)(ZFracFracPreconditionFailed(globalBlame.top, e))
+      FunctionInvocation(preFunc(fracNew.ref), Seq(rat), Nil)(NoContext(ZFracFracPreconditionFailed(globalBlame.top, e)))
 
     case _ => super.coerce(e, coercion)
   }
@@ -396,7 +396,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
         )
       case access @ OptGet(opt) =>
         FunctionInvocation[Post](optionGet.ref, Seq(dispatch(opt)), Seq(dispatch(opt.t.asOption.get.element)))(
-          OptionNonePreconditionFailed(access))
+          NoContext(OptionNonePreconditionFailed(access)))
       case get @ OptGetOrElse(opt, alt) =>
         FunctionInvocation[Post](optionGetOrElse.ref,
           Seq(dispatch(opt), dispatch(alt)),
@@ -406,12 +406,12 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
         FunctionInvocation[Post](eitherGetLeft.ref,
           Seq(dispatch(e)),
           Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)),
-        )(NotLeftPreconditionFailed(get))
+        )(NoContext(NotLeftPreconditionFailed(get)))
       case get @ GetRight(e) =>
         FunctionInvocation[Post](eitherGetRight.ref,
           Seq(dispatch(e)),
           Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)),
-        )(NotRightPreconditionFailed(get))
+        )(NoContext(NotRightPreconditionFailed(get)))
       case is @ IsLeft(e) =>
         Not(ADTFunctionInvocation(
           Some((
@@ -447,7 +447,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
         FunctionInvocation[Post](mapSize.ref, Seq(dispatch(map)), mapTypeArgs(map))(PanicBlame("map_size requires nothing."))
       case access @ MapGet(map, k) =>
         FunctionInvocation[Post](mapGet.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map))(
-          MapKeyErrorPreconditionFailed(access))
+          NoContext(MapKeyErrorPreconditionFailed(access)))
       case MapValueSet(map) =>
         FunctionInvocation[Post](mapValues.ref, Seq(dispatch(map)), mapTypeArgs(map))(PanicBlame("map_values requires nothing."))
       case MapItemSet(map) =>
@@ -464,14 +464,14 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
             ref = arrayLoc.ref,
             args = Seq(
               FunctionInvocation[Post](optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic(arrayAdt.ref, Nil)))(
-                ArrayNullPreconditionFailed(sub.blame, arr)),
+                NoContext(ArrayNullPreconditionFailed(sub.blame, arr))),
               dispatch(index)),
-            typeArgs = Nil)(ArrayBoundsPreconditionFailed(sub.blame, index)),
+            typeArgs = Nil)(NoContext(ArrayBoundsPreconditionFailed(sub.blame, index))),
           field = getArrayField(arr))(ArrayFieldInsufficientPermission(sub.blame, sub))
       case length @ Length(arr) =>
         ADTFunctionInvocation(None, arrayLen.ref, Seq(
           FunctionInvocation[Post](optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic[Post](arrayAdt.ref, Nil)))(
-            ArrayNullPreconditionFailed(length.blame, length))
+            NoContext(ArrayNullPreconditionFailed(length.blame, length)))
         ))
       case sub @ PointerSubscript(pointer, index) =>
         SilverDeref(
@@ -483,8 +483,8 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
                 ref = optionGet.ref,
                 args = Seq(dispatch(pointer)),
                 typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)),
-              )(PointerNullPreconditionFailed(sub.blame, pointer)), dispatch(index)),
-              typeArgs = Nil)(PointerBoundsPreconditionFailed(sub.blame, index))),
+              )(NoContext(PointerNullPreconditionFailed(sub.blame, pointer))), dispatch(index)),
+              typeArgs = Nil)(NoContext(PointerBoundsPreconditionFailed(sub.blame, index)))),
             typeArgs = Nil,
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer),
@@ -496,9 +496,9 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
             ref = optionGet.ref,
             args = Seq(dispatch(pointer)),
             typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)),
-          )(PointerNullPreconditionFailed(add.blame, pointer)), dispatch(offset)),
+          )(NoContext(PointerNullPreconditionFailed(add.blame, pointer))), dispatch(offset)),
           typeArgs = Nil,
-        )(PointerBoundsPreconditionFailed(add.blame, pointer))
+        )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
       case deref @ DerefPointer(pointer) =>
         SilverDeref(
           obj = FunctionInvocation[Post](
@@ -507,7 +507,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
               ref = optionGet.ref,
               args = Seq(dispatch(pointer)),
               typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)),
-            )(PointerNullPreconditionFailed(deref.blame, pointer))),
+            )(NoContext(PointerNullPreconditionFailed(deref.blame, pointer)))),
             typeArgs = Nil,
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer),

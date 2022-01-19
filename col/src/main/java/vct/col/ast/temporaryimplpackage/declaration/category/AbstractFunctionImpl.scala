@@ -2,6 +2,7 @@ package vct.col.ast.temporaryimplpackage.declaration.category
 
 import vct.col.ast.{AbstractFunction, Expr}
 import vct.col.check.{CheckContext, CheckError}
+import vct.col.origin.{Blame, ContractedFailure}
 
 trait AbstractFunctionImpl[G] extends ContractApplicableImpl[G] { this: AbstractFunction[G] =>
   override def body: Option[Expr[G]]

@@ -33,7 +33,7 @@ case class FilterSpecIgnore[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] =>
       app.contract.requires match {
-        case BooleanValue(false) => // drop declaration
+        case UnitAccountedPredicate(BooleanValue(false)) => app.drop()
         case _ => rewriteDefault(decl)
       }
     case other => rewriteDefault(other)
