@@ -26,7 +26,7 @@ import java.nio.file.Paths
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
-  def main(args: Array[String]): Unit = System.exit(new Main().run(args))
+  def main(args: Array[String]): Unit = new Main().run(args)
 }
 
 class Main {

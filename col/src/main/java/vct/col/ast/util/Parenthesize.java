@@ -54,7 +54,7 @@ public class Parenthesize extends AbstractRewriter {
             ){
               prio++;
             }
-            if (prio<=syntax.getPrecedence(op)){
+            if (prio<=syntax.getPrecedence(op) || op.toString().equals("Or")){ // FIXME
               args[i]=create.expression(StandardOperator.Wrap,args[i]);
             }
           }
