@@ -16,6 +16,7 @@ import vct.main.Main;
 import vct.parsers.PVLtoCOL;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -89,9 +90,219 @@ public class Preprocessor {
         boolean isClassType(String type) {
             return type.matches("[a-zA-Z]*");
         }
+
+    }
+
+    static class CountingListener extends PVLParserBaseListener {
+        public int locProgram;
+        public int locAnnotations;
+
+        public void incProgram(ParseTree t) {
+            locProgram++;
+        }
+
+        private void incAnnotations(ParseTree t) {
+            locAnnotations++;
+        }
+
+        @Override
+        public void enterClaz0(PVLParser.Claz0Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterField0(PVLParser.Field0Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterConstructor0(PVLParser.Constructor0Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterMethodDecl0(PVLParser.MethodDecl0Context ctx) {
+            String type = ctx.type().getText();
+            if (Objects.equals(type, "resource")) {
+                incAnnotations(ctx);
+            } else {
+                incProgram(ctx);
+            }
+        }
+
+        @Override
+        public void enterStatement0(PVLParser.Statement0Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement1(PVLParser.Statement1Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement2(PVLParser.Statement2Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement3(PVLParser.Statement3Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement4(PVLParser.Statement4Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement5(PVLParser.Statement5Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement6(PVLParser.Statement6Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement7(PVLParser.Statement7Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement8(PVLParser.Statement8Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement9(PVLParser.Statement9Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement10(PVLParser.Statement10Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement11(PVLParser.Statement11Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement12(PVLParser.Statement12Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement13(PVLParser.Statement13Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement14(PVLParser.Statement14Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement15(PVLParser.Statement15Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement16(PVLParser.Statement16Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement17(PVLParser.Statement17Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement18(PVLParser.Statement18Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement19(PVLParser.Statement19Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement20(PVLParser.Statement20Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterStatement21(PVLParser.Statement21Context ctx) {
+            incProgram(ctx);
+        }
+
+        @Override
+        public void enterInvariant0(PVLParser.Invariant0Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause0(PVLParser.ValContractClause0Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause1(PVLParser.ValContractClause1Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause2(PVLParser.ValContractClause2Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause3(PVLParser.ValContractClause3Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause4(PVLParser.ValContractClause4Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause5(PVLParser.ValContractClause5Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause6(PVLParser.ValContractClause6Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause7(PVLParser.ValContractClause7Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause8(PVLParser.ValContractClause8Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause9(PVLParser.ValContractClause9Context ctx) {
+            incAnnotations(ctx);
+        }
+
+        @Override
+        public void enterValContractClause10(PVLParser.ValContractClause10Context ctx) {
+            incAnnotations(ctx);
+        }
     }
 
     static class Listener extends PVLParserBaseListener {
+
         private String tempClassName;
         private Map<String, List<String>> tempFields;
         private Map<String, List<String>> tempArgs;
@@ -162,7 +373,7 @@ public class Preprocessor {
             assert tempArgs != null;
 
             String s1 = "requires " + new AllPermissions().apply(tempArgs, false) + ";";
-            String s2 = "ensures ownership();";
+            String s2 = "ensures this.ownership();";
             ParseTree t1 = parse(s1, (tokens, parser) -> parser.valContractClause());
             ParseTree t2 = parse(s2, (tokens, parser) -> parser.valContractClause());
 
@@ -218,21 +429,24 @@ public class Preprocessor {
         public void exitMethodDecl0(PVLParser.MethodDecl0Context methodDecl) {
             assert tempArgs != null;
 
-            boolean isPure = methodDecl.modifier().stream()
-                    .map(RuleContext::getText)
-                    .anyMatch(s -> Objects.equals(s, "pure"));
+            String type = methodDecl.type().getText();
+            if (!Objects.equals(type, "resource")) {
+                boolean isPure = methodDecl.modifier().stream()
+                        .map(RuleContext::getText)
+                        .anyMatch(s -> Objects.equals(s, "pure"));
 
-            String s1 = isPure ? "requires ownership();" : "context ownership();";
-            String s2 = "requires " + new AllPermissions().apply(tempArgs, false) + ";";
-            ParseTree t1 = parse(s1, (tokens, parser) -> parser.valContractClause());
-            ParseTree t2 = parse(s2, (tokens, parser) -> parser.valContractClause());
+                String s1 = isPure ? "requires this.ownership();" : "context this.ownership();";
+                String s2 = "requires " + new AllPermissions().apply(tempArgs, false) + ";";
+                ParseTree t1 = parse(s1, (tokens, parser) -> parser.valContractClause());
+                ParseTree t2 = parse(s2, (tokens, parser) -> parser.valContractClause());
 
-            PVLParser.Contract0Context contract = (PVLParser.Contract0Context) methodDecl.contract();
-            if (contract.children == null) {
-                contract.children = new ArrayList<>();
+                PVLParser.Contract0Context contract = (PVLParser.Contract0Context) methodDecl.contract();
+                if (contract.children == null) {
+                    contract.children = new ArrayList<>();
+                }
+                contract.children.add(0, t2);
+                contract.children.add(0, t1);
             }
-            contract.children.add(0, t2);
-            contract.children.add(0, t1);
 
             tempArgs = null;
         }
@@ -262,6 +476,7 @@ public class Preprocessor {
             String identifier = args.identifier().getText();
             tempArgs.get(type).add(identifier);
         }
+
 
         @Override
         public void enterStatement9(PVLParser.Statement9Context statement) {
@@ -294,7 +509,7 @@ public class Preprocessor {
             ParseTree t;
             List<ParseTree> invariants = statement.invariantList().children;
 
-            s = "loop_invariant ownership() ** " + new AllPermissions().apply(tempArgs, false) + ";";
+            s = "loop_invariant this.ownership() ** " + new AllPermissions().apply(tempArgs, false) + ";";
             t = parse(s, (tokens, parser) -> parser.invariant());
             invariants.add(0, t);
 
@@ -323,7 +538,7 @@ public class Preprocessor {
             ParseTree t;
             List<ParseTree> invariants = statement.invariantList().children;
 
-            s = "loop_invariant ownership() ** " + new AllPermissions().apply(tempArgs, false) + ";";
+            s = "loop_invariant this.ownership() ** " + new AllPermissions().apply(tempArgs, false) + ";";
             t = parse(s, (tokens, parser) -> parser.invariant());
             invariants.add(0, t);
         }
@@ -384,29 +599,60 @@ public class Preprocessor {
 
     public static void main(String[] args) {
         String fileName = "/Users/sungshik/Desktop/vercors-sessiontypes/papercav/casestudies/pvl/election-3.pvl";
-        System.out.println(fileName);
         new Preprocessor().run(fileName);
+        System.exit(0);
     }
 
     public void run(String fileName) {
-        try {
-            Path inputPath = Path.of(fileName);
-            Path outputPath1 = Path.of(fileName.replaceAll("\\.pvl", "-preprocessed.pvl"));
-            Path outputPath2 = Path.of(fileName.replaceAll("\\.pvl", "-preprocessed-pretty.pvl"));
-            Path outputPath3 = Path.of(fileName.replaceAll("\\.pvl", ".java"));
+        String[] args = null;
+        PrintStream out = System.out;
+        PrintStream err = System.err;
+        Mode mode = Mode.SMALL;
 
-            // Note: null fields/arguments/local variables are *not* supported
+        Path inputPath = Path.of(fileName);
+        Path outputPath1 = Path.of(fileName.replaceAll("\\.pvl", "-preprocessed.pvl"));
+        Path outputPath2 = Path.of(fileName.replaceAll("\\.pvl", "-preprocessed-pretty.pvl"));
+        Path outputPath3 = Path.of(fileName.replaceAll("\\.pvl", ".java"));
+
+        try {
+            class Clock {
+                long begin = System.nanoTime();
+
+                void reset() {
+                    begin = System.nanoTime();
+                }
+
+                long getTime() {
+                    long end = System.nanoTime();
+                    return (end - begin);// / 1_000_000;
+                }
+            }
+
+            List<String> report = new ArrayList<>();
+            Clock clock = new Clock();
+            long time;
+
+            /*
+             * Step 1b
+             */
+
+            clock.reset();
 
             String input, output;
 
             input = Files.readString(inputPath);
             output = parse(input, (tokens, parser) -> {
                 PVLParser.Program0Context program = (PVLParser.Program0Context) parser.program();
+
+                CountingListener listener = new CountingListener();
+                ParseTreeWalker.DEFAULT.walk(listener, program);
+                report.add(Integer.toString(listener.locAnnotations));
+                report.add(Integer.toString(listener.locProgram));
+
                 ParseTreeWalker.DEFAULT.walk(new Listener(), program);
                 return toText(program);
             });
 
-            //System.out.println(output);
             Files.writeString(outputPath1, output);
 
             input = output;
@@ -416,39 +662,71 @@ public class Preprocessor {
                 return PVLSyntax.get().print(pu).toString();
             });
 
-            //System.out.println(output);
             Files.writeString(outputPath2, output);
 
+            time = clock.getTime();
+            report.add(Long.toString(time));
 
+            /*
+             * Step 1c (VerCors)
+             */
 
-            String[] args;
-/*
+            clock.reset();
 
-            args = new String[] {
-//                    "--debug",
-//                    "vct.main.Main",
-                    "--silicon",
-                    "--progress",
-                    outputPath2.toString()
-            };
+            switch (mode) {
+                case SMALL:
+                    args = new String[]{"--silent", "--silicon", outputPath1.toString()};
+                    break;
+                case MEDIUM:
+                    args = new String[]{"--progress", "--silicon", outputPath1.toString()};
+                    break;
+                case LARGE:
+                    args = new String[]{"--debug", "vct.main.Main", "--progress", "--silicon", outputPath2.toString()};
+                    break;
+            }
+
             Main.main(args);
+            System.setOut(out);
+            System.setErr(err);
 
-*/
-            args = new String[] {
-//                    "--debug",
-//                    "vct.main.Main",
-                    "--progress",
-                    "--veymont",
-                    outputPath3.toString(),
-                    outputPath2.toString()
-            };
+            time = clock.getTime();
+            report.add(Long.toString(time));
+
+            /*
+             * Steps 1a, 2
+             */
+
+            clock.reset();
+
+            switch (mode) {
+                case SMALL:
+                    args = new String[]{"--silent", "--veymont", outputPath3.toString(), outputPath1.toString()};
+                    break;
+                case MEDIUM:
+                    args = new String[]{"--progress", "--veymont", outputPath3.toString(), outputPath1.toString()};
+                    break;
+                case LARGE:
+                    args = new String[]{"--debug", "vct.main.Main", "--progress", "--veymont", outputPath3.toString(), outputPath1.toString()};
+                    break;
+            }
+
             Main.main(args);
+            System.setOut(out);
+            System.setErr(err);
 
+            time = clock.getTime();
+            report.add(Long.toString(time));
 
+            /*
+             * Done
+             */
 
+            System.out.println(String.join(" ", report));
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
+    enum Mode {SMALL, MEDIUM, LARGE}
 }
