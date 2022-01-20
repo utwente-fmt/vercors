@@ -175,7 +175,7 @@ public class Preprocessor {
 
         @Override
         public void enterStatement8(PVLParser.Statement8Context ctx) {
-            incProgram(ctx);
+            incAnnotations(ctx);
         }
 
         @Override
