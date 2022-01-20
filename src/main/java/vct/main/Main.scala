@@ -16,6 +16,7 @@ import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
 import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.veymont.Preprocessor
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
@@ -26,7 +27,8 @@ import java.nio.file.Paths
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
-  def main(args: Array[String]): Unit = new Main().run(args)
+  //def main(args: Array[String]): Unit = new Main().run(args)
+  def main(args: Array[String]): Unit = Preprocessor.main(args)
 }
 
 class Main {
@@ -452,7 +454,7 @@ class Main {
     }
   }
 
-  private def doPasses(passes: Seq[AbstractPass]): Unit = {
+  private def doPasses(passes: Seq[AbstractPass]): Int = {
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
@@ -466,7 +468,7 @@ class Main {
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
-        return
+        return report.getFatal
       }
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
@@ -479,7 +481,7 @@ class Main {
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
-        return
+        return report.getFatal
       }
 
       if(strictInternalConditions.get()) {
@@ -519,9 +521,10 @@ class Main {
     }
 
     Verdict("The final verdict is Pass")
+    0
   }
 
-  private def run(args: Array[String]): Int = {
+  def run(args: Array[String]): Int = {
     var exit = 0
     val wallStart = System.currentTimeMillis
     tk = new TimeKeeper
@@ -534,7 +537,7 @@ class Main {
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
         parseInputs(inputPaths)
-        doPasses(getPasses)
+        exit = doPasses(getPasses)
       }
     } catch {
       case e: HREExitException =>
@@ -542,6 +545,7 @@ class Main {
         if(exit != 0)
           Verdict("The final verdict is Error")
       case e: Throwable =>
+        exit = -180614
         DebugException(e)
         Warning("An unexpected error occured in VerCors! "
               + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. "
