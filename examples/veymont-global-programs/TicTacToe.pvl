@@ -3,7 +3,7 @@
 //:: tools veymont
 //:: verdict Pass
 
-class Main {
+class SeqProgram {
 	
 	Player p1,p2;
 	
@@ -32,10 +32,10 @@ class Main {
 			assert p1.turn == !p2.turn;
 			if(p1.turn && !p2.turn) {
 				p1.createNewMove();
-				p2.move = p1.move;
+				p2.move = p1.move.clone();
 			} else {
 				p2.createNewMove();
-				p1.move = p2.move;
+				p1.move = p2.move.clone();
 			}
 			p1.doMove();
 			p2.doMove();
@@ -45,7 +45,7 @@ class Main {
 	}
 	
 	void main() {
-		Main m = new Main();
+		SeqProgram m = new SeqProgram();
 		m.run();
 	}
 

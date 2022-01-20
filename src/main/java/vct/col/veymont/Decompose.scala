@@ -24,7 +24,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
 
   private var chans = Set.empty[ChannelRepr]
   private var allChans = Set.empty[ChannelRepr]
-  private var cloneClasses = Set.empty[ASTDeclaration]
 
   def addThreadClasses() : ProgramUnit = {
     roleNames.foreach(role => {
@@ -52,8 +51,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         val newChansClasses = chanTypes.map(t => new GenerateTypedChannel(chanClassProg,t).rewriteAll().get(0))
         newChansClasses.foreach(target().add(_))
       }
-      else if(cloneClasses.exists(_.name == c.name))
-        target().add(rewrite(addClone(c.asInstanceOf[ASTClass])))
       else
         target().add(rewrite(c))}
     target()
@@ -72,61 +69,6 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     rewMethods.foreach(thread.add)
     create.leave()
     thread
-  }
-
-  private def addClone(c : ASTClass) : ASTClass = {
-    c.methods().asScala.find(_.name == cloneMethod) match {
-      case Some(_) => throw Failure("VeyMont Fail: Class %s is not allowed to have a method with name '%s'",c.name,cloneMethod)
-      case None => {
-        create.enter()
-        create.setOrigin(new MessageOrigin("Generated clone method in class " + c.name))
-        val contract = new ContractBuilder()
-        val classFieldNames = c.fields().asScala.map(f => create.field_name(f.name))
-        classFieldNames.foreach(f => contract.context(create.expression(StandardOperator.Perm,f,create.reserved_name(ASTReserved.ReadPerm))))
-        c.fields().forEach(f => contract.ensures(create.expression(StandardOperator.Perm,create.dereference(create.reserved_name(ASTReserved.Result),f.name),create.constant(1))))
-        val classType = create.class_type(c.name,Array.empty[DeclarationStatement]:_*)
-        val body = getConstrFieldArgs(classFieldNames,c) match {
-          case Some(args) =>
-            val ret = create.return_statement(create.new_object(classType,classFieldNames.toArray:_*))
-            val body = new BlockStatement()
-            body.add(ret)
-            body
-          case None => null//do nothing; body of clone is empty
-        }
-        val m = create.method_decl(classType,contract.getContract,cloneMethod,Array.empty[DeclarationStatement] ,body)
-        m.attach(create.reserved_name(ASTReserved.Protected))
-        c.add_dynamic(m)
-        create.leave()
-        c
-      }
-    }
-  }
-
-  private def getConstrFieldArgs(classFieldNames : Iterable[NameExpression], channelClass : ASTClass) : Option[Array[NameExpression]] = {
-    val constrMethod = channelClass.methods().asScala.find(_.kind == Method.Kind.Constructor).get
-    constrMethod.getBody match {
-      case b : BlockStatement => {
-        val constrStats = b.getStatements
-        val assignStats : Array[AssignmentStatement] = constrStats.collect{
-          case a : AssignmentStatement if (a.location match {
-            case NameExpression(name, _, _) => classFieldNames.exists(_.name == name)
-            case _ => false
-          }) => a
-        }
-        val constrArgFields = constrMethod.getArgs.map(arg => assignStats.find(_.expression match {
-          case ne : NameExpression => arg.name == ne.name
-          case _ => false
-        }) match {
-          case Some(a) => Some(a.location.asInstanceOf[NameExpression])
-          case None => None
-        })
-        if(constrArgFields.forall(_.isDefined))
-          Some(constrArgFields.map(_.get))
-        else None
-      }
-      case _ => None
-    }
-
   }
 
   override def visit(m : Method) : Unit = { //assume ony pre and postconditions
@@ -210,7 +152,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
           allChans += chanRepr
           chanType match {
             case p : PrimitiveType => checkChanPrimitiveType(p,writeChanName,sendExpression,a)
-            case cl : ClassType => checkChanClassType(cl,writeChanName,sendExpression)
+            case cl : ClassType => checkChanClassClone(sendExpression,writeChanName)
           }
         }
         case Tau => //result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
@@ -234,18 +176,15 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       //  result = getCloneWriteInvocation(writeChanName,sendExpression)
     } else Fail("VeyMont Fail: channel of type %s not supported", p)
 
-  private def checkChanClassType(cl : ClassType, writeChanName : String, sendExpression : ASTNode) : Unit =
-    roleOrOtherClass.find(c => c.name == cl.getName) match {
-      case Some(c) => {
-        //if(!c.fields().asScala.forall(_.`type` match{ case p : PrimitiveType => isAllowedPrimitive(p); case _ => false}))
-        //  Warning("VeyMont Warning: channel of type %s not fully supported, permission annotations will be incomplete!",cl.getType.toString)
-        cloneClasses = cloneClasses + c
-        result = getCloneWriteInvocation(writeChanName,sendExpression)
-      }
-      case None =>
-        if(cl.getName != "String")
-          Fail("VeyMont Fail: channel of type %s not supported", cl)
+  private def checkChanClassClone(sendExpression : ASTNode, writeChanName : String) : Unit = {
+    sendExpression match {
+      case m : MethodInvokation =>
+        if(m.method == "clone")
+          result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, sendExpression)
+        else Fail("VeyMont Fail: send object %s must be cloned for sending", m.`object`.toString)
+      case _ => Fail("VeyMont Fail: send object %s must be cloned for sending", sendExpression.toString)
     }
+  }
 
   private def getCloneWriteInvocation(writeChanName : String, sendExpression : ASTNode) : MethodInvokation =
     create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
