@@ -15,7 +15,7 @@ import scala.sys.error
 
 object Util {
 
-  val mainClassName: String = "Main"
+  val mainClassName: String = "SeqProgram"
   val localMainClassName : String = "MainFJ"
   val localMainMethodName : String = "mainFJ"
   val runMethodName: String = "run"
