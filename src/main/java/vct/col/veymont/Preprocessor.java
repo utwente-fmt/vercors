@@ -70,27 +70,30 @@ public class Preprocessor {
             }
             return b.toString();
         }
+    }
 
-        boolean isPrimitiveType(String s) {
-            return Objects.equals(s, "int") || Objects.equals(s, "boolean");
-        }
+    static boolean isVoidType(String s) {
+        return Objects.equals(s, "void");
+    }
 
-        boolean isPrimitiveArrayType(String type) {
-            return type != null && (type.startsWith("int[") || type.startsWith("boolean["));
-        }
+    static boolean isPrimitiveType(String s) {
+        return Objects.equals(s, "int") || Objects.equals(s, "boolean");
+    }
 
-        boolean isArray1DType(String type) {
-            return type != null && type.endsWith("[]") && type.indexOf("]") == type.lastIndexOf("]");
-        }
+    static boolean isPrimitiveArrayType(String type) {
+        return type != null && (type.startsWith("int[") || type.startsWith("boolean["));
+    }
 
-        boolean isArray2DType(String type) {
-            return type != null && type.endsWith("[][]") && type.indexOf("]") == type.lastIndexOf("]") - 2;
-        }
+    static boolean isArray1DType(String type) {
+        return type != null && type.endsWith("[]") && type.indexOf("]") == type.lastIndexOf("]");
+    }
 
-        boolean isClassType(String type) {
-            return type.matches("[a-zA-Z]*");
-        }
+    static boolean isArray2DType(String type) {
+        return type != null && type.endsWith("[][]") && type.indexOf("]") == type.lastIndexOf("]") - 2;
+    }
 
+    static boolean isClassType(String type) {
+        return type.matches("[a-zA-Z]*");
     }
 
     static class CountingListener extends PVLParserBaseListener {
@@ -437,13 +440,16 @@ public class Preprocessor {
 
                 String s1 = isPure ? "requires this.ownership();" : "context this.ownership();";
                 String s2 = "requires " + new AllPermissions().apply(tempArgs, false) + ";";
+                String s3 = isVoidType(type) || isPrimitiveType(type) ? "ensures true;" : "ensures \\result.ownership();";
                 ParseTree t1 = parse(s1, (tokens, parser) -> parser.valContractClause());
                 ParseTree t2 = parse(s2, (tokens, parser) -> parser.valContractClause());
+                ParseTree t3 = parse(s3, (tokens, parser) -> parser.valContractClause());
 
                 PVLParser.Contract0Context contract = (PVLParser.Contract0Context) methodDecl.contract();
                 if (contract.children == null) {
                     contract.children = new ArrayList<>();
                 }
+                contract.children.add(0, t3);
                 contract.children.add(0, t2);
                 contract.children.add(0, t1);
             }
@@ -598,16 +604,33 @@ public class Preprocessor {
     }
 
     public static void main(String[] args) {
-        String fileName = "/Users/sungshik/Desktop/vercors-sessiontypes/papercav/casestudies/pvl/election-3.pvl";
-        new Preprocessor().run(fileName);
+        Mode outputLevel;
+        String fileName;
+        switch (args.length) {
+            case 1:
+                outputLevel = Mode.SMALL;
+                fileName = args[0];
+                new Preprocessor().run(outputLevel, fileName);
+                break;
+            case 2:
+                if (Objects.equals(args[0], "--debug")) {
+                    outputLevel = Mode.LARGE;
+                } else if (Objects.equals(args[0], "--progress")) {
+                    outputLevel = Mode.MEDIUM;
+                } else {
+                    outputLevel = Mode.SMALL;
+                }
+                fileName = args[1];
+                new Preprocessor().run(outputLevel, fileName);
+                break;
+        }
         System.exit(0);
     }
 
-    public void run(String fileName) {
+    public void run(Mode outputLevel, String fileName) {
         String[] args = null;
         PrintStream out = System.out;
         PrintStream err = System.err;
-        Mode mode = Mode.SMALL;
 
         Path inputPath = Path.of(fileName);
         Path outputPath1 = Path.of(fileName.replaceAll("\\.pvl", "-preprocessed.pvl"));
@@ -624,13 +647,12 @@ public class Preprocessor {
 
                 long getTime() {
                     long end = System.nanoTime();
-                    return (end - begin);// / 1_000_000;
+                    return (end - begin) / 1_000_000;
                 }
             }
 
             List<String> report = new ArrayList<>();
             Clock clock = new Clock();
-            long time;
 
             /*
              * Step 1b
@@ -664,8 +686,7 @@ public class Preprocessor {
 
             Files.writeString(outputPath2, output);
 
-            time = clock.getTime();
-            report.add(Long.toString(time));
+            long time1b = clock.getTime();
 
             /*
              * Step 1c (VerCors)
@@ -673,7 +694,7 @@ public class Preprocessor {
 
             clock.reset();
 
-            switch (mode) {
+            switch (outputLevel) {
                 case SMALL:
                     args = new String[]{"--silent", "--silicon", outputPath1.toString()};
                     break;
@@ -685,12 +706,11 @@ public class Preprocessor {
                     break;
             }
 
-            Main.main(args);
+            int exit1c = new Main().run(args);
             System.setOut(out);
             System.setErr(err);
 
-            time = clock.getTime();
-            report.add(Long.toString(time));
+            long time1c = clock.getTime();
 
             /*
              * Steps 1a, 2
@@ -698,7 +718,7 @@ public class Preprocessor {
 
             clock.reset();
 
-            switch (mode) {
+            switch (outputLevel) {
                 case SMALL:
                     args = new String[]{"--silent", "--veymont", outputPath3.toString(), outputPath1.toString()};
                     break;
@@ -710,17 +730,19 @@ public class Preprocessor {
                     break;
             }
 
-            Main.main(args);
+            int exit2 = new Main().run(args);
             System.setOut(out);
             System.setErr(err);
 
-            time = clock.getTime();
-            report.add(Long.toString(time));
+            long time2 = clock.getTime();
 
             /*
              * Done
              */
 
+            report.add(Long.toString(time1c));
+            report.add(Long.toString(time1b + time1c + time2));
+            report.add("(" + exit1c + "," + exit2 + ")");
             System.out.println(String.join(" ", report));
 
         } catch (IOException e) {
