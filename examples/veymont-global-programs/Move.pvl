@@ -11,4 +11,8 @@ class Move {
 		j = mj;
 		token = mt;
 	}
+	
+	Move clone() {
+	    return new Move(i,j,token);
+	}
 }

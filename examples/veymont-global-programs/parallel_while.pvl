@@ -16,7 +16,7 @@ class Role {
 }
 
 
-class Main {
+class SeqProgram {
 	
 	Role a, b, c;
 	
@@ -95,7 +95,7 @@ class Main {
     
     requires vb - vc == vc - va;
 	void main(int va, int vb, int vc) {
-		Main m = new Main(va,vb,vc);
+		SeqProgram m = new SeqProgram(va,vb,vc);
 		m.run();
 	}
 	

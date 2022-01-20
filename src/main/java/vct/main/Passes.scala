@@ -950,7 +950,7 @@ object Passes {
     SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
       new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
-      new GenerateForkJoinMain(_).addStartThreadClass(false)), //TODO: put this argument in VeyMont Configuration
+      new GenerateForkJoinMain(_).addStartThreadClass(true)), //TODO: put this argument in VeyMont Configuration
     SimplePass("printVeyMontOutput", "print AST produced by VeyMont in PVL or Java syntax",
       PrintVeyMontProg.print(_,Configuration.veymont_file.get())
       , introduces=Set(), permits=Feature.ALL),
