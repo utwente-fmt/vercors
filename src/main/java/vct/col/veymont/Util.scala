@@ -35,6 +35,7 @@ object Util {
   val chanSentFieldName = "sent"
   val chanRecvdFieldName = "recvd"
   val chanValueFieldName = "exchangeValue"
+  val stringType = "String"
 
   def getThreadClassName(roleName: String): String = roleName.toUpperCase() + threadName
 

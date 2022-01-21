@@ -152,7 +152,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
           allChans += chanRepr
           chanType match {
             case p : PrimitiveType => checkChanPrimitiveType(p,writeChanName,sendExpression,a)
-            case cl : ClassType => checkChanClassClone(sendExpression,writeChanName)
+            case cl : ClassType => checkChanClassClone(sendExpression,writeChanName,chanType)
           }
         }
         case Tau => //result = create.special(ASTSpecial.Kind.TauAction, Array.empty[ASTNode]: _*)
@@ -176,13 +176,13 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       //  result = getCloneWriteInvocation(writeChanName,sendExpression)
     } else Fail("VeyMont Fail: channel of type %s not supported", p)
 
-  private def checkChanClassClone(sendExpression : ASTNode, writeChanName : String) : Unit = {
+  private def checkChanClassClone(sendExpression : ASTNode, writeChanName : String, chanType : Type) : Unit = {
     sendExpression match {
       case m : MethodInvokation =>
         if(m.method == Util.cloneMethod)
           result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, sendExpression)
         else Fail("VeyMont Fail: send object %s must be cloned for sending", m.`object`.toString)
-      case _ => Fail("VeyMont Fail: send object %s must be cloned for sending", sendExpression.toString)
+      case _ => if(chanType.toString != Util.stringType) Fail("VeyMont Fail: send object %s must be cloned for sending", sendExpression.toString)
     }
   }
 
