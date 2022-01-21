@@ -622,6 +622,10 @@ public class Preprocessor {
         boolean step1c = true;
         boolean step2 = true;
 
+        if (arguments.contains("--skip1c")) {
+            step1c = false;
+        }
+
         if (arguments.contains("--only2")) {
             step1b = false;
             step1c = false;
