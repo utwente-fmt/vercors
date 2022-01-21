@@ -179,15 +179,12 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   private def checkChanClassClone(sendExpression : ASTNode, writeChanName : String) : Unit = {
     sendExpression match {
       case m : MethodInvokation =>
-        if(m.method == "clone")
+        if(m.method == Util.cloneMethod)
           result = create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, sendExpression)
         else Fail("VeyMont Fail: send object %s must be cloned for sending", m.`object`.toString)
       case _ => Fail("VeyMont Fail: send object %s must be cloned for sending", sendExpression.toString)
     }
   }
-
-  private def getCloneWriteInvocation(writeChanName : String, sendExpression : ASTNode) : MethodInvokation =
-    create.invokation(create.field_name(writeChanName), null, chanWriteMethodName, create.invokation(sendExpression, null, "clone"))
 
   def getLocalAction(a: AssignmentStatement, roleName : String, roleNames : Iterable[String]) : LocalAction = {
     val expRole = getNamesFromExpression(a.expression).filter(n => roleNames.exists(_ == n.name))
@@ -236,6 +233,12 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
     }
   }
 
+  override def visit(a : ASTSpecial) : Unit = {
+    if(a.kind != ASTSpecial.Kind.Assert) { //don't project assertions
+      super.visit(a)
+    }
+  }
+
   override def visit(n : NameExpression) : Unit = if(roleName.isEmpty) super.visit(n) else rewriteExpression(n)
 
   override def visit(d : Dereference) : Unit = if(roleName.isEmpty) super.visit(d) else rewriteExpression(d)
@@ -245,8 +248,8 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
       result = copy_rw.rewrite(e)
     else result = create.constant(true)
 
-  private def selectResourceAnnotation(n :ASTNode) : ASTNode =
-    n match {
+  private def selectResourceAnnotation(n :ASTNode) : ASTNode = create.constant(true)
+    /* n match {
       case e : OperatorExpression => e.operator match {
         case StandardOperator.Perm => n
         case StandardOperator.NEQ => if (isNullNode(e.first) || isNullNode(e.second)) n else create.constant(true)
@@ -265,7 +268,7 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
         case _ => create.constant(true)
       }
       case _ => create.constant(true)
-    }
+    } */
 
   private def isNullNode(n : ASTNode) : Boolean =
     n match {

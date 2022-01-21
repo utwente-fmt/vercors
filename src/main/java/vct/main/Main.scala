@@ -215,11 +215,10 @@ class Main {
       BY_KEY("VeyMontStructCheck"),
       BY_KEY("VeyMontTerminationCheck"),
       BY_KEY("VeyMontGlobalProgPerms"),
-      BY_KEY("printGlobProg"),
       BY_KEY("VeyMontDecompose"),
       BY_KEY("removeEmptyBlocks"),
       BY_KEY("VeyMontLocalProgConstr"),
-      BY_KEY("VeyMontAddChannelPerms"),
+      //BY_KEY("VeyMontAddChannelPerms"),
       BY_KEY("VeyMontAddStartThreads"),
       BY_KEY("printVeyMontOutput"))
   }

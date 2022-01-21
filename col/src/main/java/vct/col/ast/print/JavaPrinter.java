@@ -806,7 +806,7 @@ public class JavaPrinter extends AbstractPrinter {
       out.lnprintf("*/");
     } else {
       out.println("{");
-      if(body instanceof OperatorExpression) {
+      if(body instanceof OperatorExpression || body instanceof ConstantExpression) {
         out.println("return ");
       }
       nextExpr();

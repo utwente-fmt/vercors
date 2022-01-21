@@ -30,12 +30,7 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(n
       result = thread
     } else if(c.getName == Util.localMainClassName) {
       val arrayArgs = Array(create.field_decl("args",create.primitive_type(PrimitiveSort.Array,create.primitive_type(PrimitiveSort.String))))
-      val body = new BlockStatement
-      getDefaultArgs(c.methods().asScala.find(_.name == Util.localMainMethodName).get) match {
-        case Some(initArgs) => body.add(create.invokation(null,null,Util.localMainMethodName,initArgs:_*))
-        case None => //do nothing
-      }
-      val mainargsmethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),Array(create.class_type("InterruptedException")),new ContractBuilder().getContract,"main",arrayArgs, body)
+      val mainargsmethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),Array(create.class_type("InterruptedException")),new ContractBuilder().getContract,"main",arrayArgs, null)
       mainargsmethod.setFlag(ASTFlags.PUBLIC,true)
       c.add_static(mainargsmethod)
       result = c
@@ -43,25 +38,16 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(n
     else super.visit(c)
   }
 
-  def getDefaultArgs(m : Method) : Option[Array[ConstantExpression]] = {
-    val methodArgTypes = m.getArgs.map(_.`type`)
-    if (methodArgTypes.forall {
-      case p: PrimitiveType => p.sort == PrimitiveSort.Boolean || p.sort == PrimitiveSort.Integer || p.sort == PrimitiveSort.Double
-      case _ => false
-    }) {
-      Some(methodArgTypes.map(p => p.asInstanceOf[PrimitiveType].sort match {
-        case PrimitiveSort.Boolean => create.constant(true)
-        case PrimitiveSort.Integer => create.constant(0) //create.invokation(null,null,"Integer.parseInt",create.expression(StandardOperator.Subscript,create.argument_name("args"),create.constant(0)))
-        case PrimitiveSort.Double => create.constant(0.0)
-      }))
-    } else None
-  }
-
   override def visit(m : Method) : Unit = {
     if(m.name == Util.runMethodName) {
       m.attach(create.reserved_name(ASTReserved.Protected))
       result = create.method_kind(m.kind,m.getReturnType,m.getContract,Util.javaRunMethodName,m.getArgs,rewrite(m.getBody))
-    } else super.visit(m)
+    } else {
+      if (m.name == Util.cloneMethod) {
+        m.attach(create.reserved_name(ASTReserved.Protected))
+      }
+      super.visit(m)
+    }
   }
 
   override def visit(b : BlockStatement) : Unit = {

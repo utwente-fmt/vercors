@@ -37,9 +37,9 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val mainFJArgs = mainClass.methods().asScala.find(_.kind == Method.Kind.Constructor).get.getArgs
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
       chansVars ++ threadVars ++ spawnThreads:_*) //++ threadJoins
-    val mainMethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),Array(create.class_type("InterruptedException")),rewrite(mainFJContract),
-      localMainMethodName,mainFJArgs,body)
-    mainFJClass.add_static(mainMethod)
+    val mainMethod = create.method_kind(Method.Kind.Constructor,create.primitive_type(PrimitiveSort.Void),rewrite(mainFJContract),localMainMethodName,mainFJArgs,body)
+    //Array(create.class_type("InterruptedException"))
+    mainFJClass.add(mainMethod)
     create.leave()
     mainFJClass
   }

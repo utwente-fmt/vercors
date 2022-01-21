@@ -52,8 +52,7 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
       create.setOrigin(new MessageOrigin("Generated constructor " + m.name))
       val chans = chanMap.get(m.name).get
       val chanArgs : Set[DeclarationStatement] = chans.map(chan => create.field_decl(chan.getArgChanName,chan.chanType))
-      val newContract = getRoleConstructorContract(chans)
-      rewrite(m.getContract,newContract)
+      //val newContract = getRoleConstructorContract(chans)
       val chanDecls : Array[ASTNode] = chans.map(chan =>
         create.assignment(create.field_name(chan.channel),
                           create.argument_name(chan.getArgChanName))).toArray
@@ -62,7 +61,7 @@ class LocalProgConstructors(override val source: ProgramUnit)  extends AbstractR
       val allStats = rewrite(threadDecl) ++ chanDecls
       val args : Array[DeclarationStatement] = chanArgs.toArray[DeclarationStatement] ++ rewrite(m.getArgs)
       val body : BlockStatement = create.block(allStats:_*)
-      val myNewMethod = create.method_kind(m.kind,m.getReturnType,newContract.getContract,m.name,args,body)
+      val myNewMethod = create.method_kind(m.kind,m.getReturnType,rewrite(m.getContract),m.name,args,body)
       create.leave()
       result = myNewMethod
     } else {
