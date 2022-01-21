@@ -604,30 +604,34 @@ public class Preprocessor {
     }
 
     public static void main(String[] args) {
-        Mode outputLevel;
-        String fileName;
-        switch (args.length) {
-            case 1:
-                outputLevel = Mode.SMALL;
-                fileName = args[0];
-                new Preprocessor().run(outputLevel, fileName);
-                break;
-            case 2:
-                if (Objects.equals(args[0], "--debug")) {
-                    outputLevel = Mode.LARGE;
-                } else if (Objects.equals(args[0], "--progress")) {
-                    outputLevel = Mode.MEDIUM;
-                } else {
-                    outputLevel = Mode.SMALL;
-                }
-                fileName = args[1];
-                new Preprocessor().run(outputLevel, fileName);
-                break;
+        if (args.length == 0) {
+            return;
         }
+
+        List<String> arguments = Arrays.asList(args);
+        String fileName = arguments.get(arguments.size() - 1);
+        Mode outputLevel = Mode.SMALL;
+        if (arguments.contains("--progress")) {
+            outputLevel = Mode.MEDIUM;
+        }
+        if (arguments.contains("--debug")) {
+            outputLevel = Mode.LARGE;
+        }
+
+        boolean step1b = true;
+        boolean step1c = true;
+        boolean step2 = true;
+
+        if (arguments.contains("--only2")) {
+            step1b = false;
+            step1c = false;
+        }
+
+        new Preprocessor().run(outputLevel, step1b, step1c, step2, fileName);
         System.exit(0);
     }
 
-    public void run(Mode outputLevel, String fileName) {
+    public void run(Mode outputLevel, boolean step1b, boolean step1c, boolean step2, String fileName) {
         String[] args = null;
         PrintStream out = System.out;
         PrintStream err = System.err;
@@ -651,90 +655,107 @@ public class Preprocessor {
                 }
             }
 
-            List<String> report = new ArrayList<>();
             Clock clock = new Clock();
+
+            long exit1c = 0;
+            long exit2 = 0;
+            long time1b = 0;
+            long time1c = 0;
+            long time2 = 0;
+            List<String> report = new ArrayList<>();
 
             /*
              * Step 1b
              */
 
-            clock.reset();
+            if (step1b) {
+                clock.reset();
 
-            String input, output;
+                String input, output;
 
-            input = Files.readString(inputPath);
-            output = parse(input, (tokens, parser) -> {
-                PVLParser.Program0Context program = (PVLParser.Program0Context) parser.program();
+                input = Files.readString(inputPath);
+                output = parse(input, (tokens, parser) -> {
+                    PVLParser.Program0Context program = (PVLParser.Program0Context) parser.program();
 
-                CountingListener listener = new CountingListener();
-                ParseTreeWalker.DEFAULT.walk(listener, program);
-                report.add(Integer.toString(listener.locAnnotations));
-                report.add(Integer.toString(listener.locProgram));
+                    CountingListener listener = new CountingListener();
+                    ParseTreeWalker.DEFAULT.walk(listener, program);
+                    report.add(Integer.toString(listener.locAnnotations));
+                    report.add(Integer.toString(listener.locProgram));
 
-                ParseTreeWalker.DEFAULT.walk(new Listener(), program);
-                return toText(program);
-            });
+                    ParseTreeWalker.DEFAULT.walk(new Listener(), program);
+                    return toText(program);
+                });
 
-            Files.writeString(outputPath1, output);
+                Files.writeString(outputPath1, output);
 
-            input = output;
-            output = parse(input, (tokens, parser) -> {
-                PVLParser.Program0Context program = (PVLParser.Program0Context) parser.program();
-                ProgramUnit pu = PVLtoCOL.convert(program, "-", tokens, parser);
-                return PVLSyntax.get().print(pu).toString();
-            });
+                input = output;
+                output = parse(input, (tokens, parser) -> {
+                    PVLParser.Program0Context program = (PVLParser.Program0Context) parser.program();
+                    ProgramUnit pu = PVLtoCOL.convert(program, "-", tokens, parser);
+                    return PVLSyntax.get().print(pu).toString();
+                });
 
-            Files.writeString(outputPath2, output);
+                Files.writeString(outputPath2, output);
 
-            long time1b = clock.getTime();
+                time1b = clock.getTime();
+            }
+
+            else {
+                outputPath1 = inputPath;
+                outputPath2 = inputPath;
+            }
 
             /*
              * Step 1c (VerCors)
              */
 
-            clock.reset();
+            if (step1c) {
+                clock.reset();
 
-            switch (outputLevel) {
-                case SMALL:
-                    args = new String[]{"--silent", "--silicon", outputPath1.toString()};
-                    break;
-                case MEDIUM:
-                    args = new String[]{"--progress", "--silicon", outputPath1.toString()};
-                    break;
-                case LARGE:
-                    args = new String[]{"--debug", "vct.main.Main", "--progress", "--silicon", outputPath2.toString()};
-                    break;
+                switch (outputLevel) {
+                    case SMALL:
+                        args = new String[]{"--silent", "--silicon", outputPath1.toString()};
+                        break;
+                    case MEDIUM:
+                        args = new String[]{"--progress", "--silicon", outputPath1.toString()};
+                        break;
+                    case LARGE:
+                        args = new String[]{"--debug", "vct.main.Main", "--progress", "--silicon", outputPath2.toString()};
+                        break;
+                }
+
+                exit1c = new Main().run(args);
+                time1c = clock.getTime();
+
+                System.setOut(out);
+                System.setErr(err);
             }
-
-            int exit1c = new Main().run(args);
-            System.setOut(out);
-            System.setErr(err);
-
-            long time1c = clock.getTime();
 
             /*
              * Steps 1a, 2
              */
 
-            clock.reset();
+            if (step2) {
+                clock.reset();
 
-            switch (outputLevel) {
-                case SMALL:
-                    args = new String[]{"--silent", "--veymont", outputPath3.toString(), outputPath1.toString()};
-                    break;
-                case MEDIUM:
-                    args = new String[]{"--progress", "--veymont", outputPath3.toString(), outputPath1.toString()};
-                    break;
-                case LARGE:
-                    args = new String[]{"--debug", "vct.main.Main", "--progress", "--veymont", outputPath3.toString(), outputPath1.toString()};
-                    break;
+                switch (outputLevel) {
+                    case SMALL:
+                        args = new String[]{"--silent", "--veymont", outputPath3.toString(), outputPath1.toString()};
+                        break;
+                    case MEDIUM:
+                        args = new String[]{"--progress", "--veymont", outputPath3.toString(), outputPath1.toString()};
+                        break;
+                    case LARGE:
+                        args = new String[]{"--debug", "vct.main.Main", "--progress", "--veymont", outputPath3.toString(), outputPath1.toString()};
+                        break;
+                }
+
+                exit2 = new Main().run(args);
+                time2 = clock.getTime();
+
+                System.setOut(out);
+                System.setErr(err);
             }
-
-            int exit2 = new Main().run(args);
-            System.setOut(out);
-            System.setErr(err);
-
-            long time2 = clock.getTime();
 
             /*
              * Done
@@ -742,7 +763,7 @@ public class Preprocessor {
 
             report.add(Long.toString(time1c));
             report.add(Long.toString(time1b + time1c + time2));
-            report.add("(" + exit1c + "," + exit2 + ")");
+            report.add("(" + (step1c ? exit1c : "-") + "," + (step2 ? exit2 : "-") + ")");
             System.out.println(String.join(" ", report));
 
         } catch (IOException e) {
