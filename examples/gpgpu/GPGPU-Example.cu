@@ -1,3 +1,11 @@
+//:: case GPGPUExample
+//:: tool silicon
+
+/* This is the verifiable version of GPGPU-Example-updates.cu, with the difference being that we use custom functions
+ * for modelling the GPU here (vercorsCudaMalloc, vercorsCudaFreeInt, etc.) instead of actual CUDA functions. This
+ * example is verified to be memory safe and has some functional properties.
+ */
+
 /***********************************************************************************
 Created by Mohsen Safari.
 ************************************************************************************/
@@ -21,7 +29,7 @@ __global__ void CUDAKernel(int* g_array1, int* g_array2, int N)
 {
   int tid = blockIdx.x * N + threadIdx.x;
   //@ assert tid == \gtid;
-  atomicMin(g_array1 + tid, g_array2[tid]) /*@ then { assert false && false; } */;
+  atomicMin(g_array1 + tid, g_array2[tid]);
 }
 
 //@ ensures \pointer(\result, N, write);

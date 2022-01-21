@@ -31,7 +31,10 @@ parser grammar C;
 import LangOMPParser, LangGPGPUParser;
 
 primaryExpression
-    :   clangIdentifier
+    /* valPrimary has to be before even identifier, so we consume `reserved arguments` instead of greedily matching
+     * the identifier first. */
+    :   {specLevel>0}? valPrimary
+    |   clangIdentifier
     |   Constant
     |   StringLiteral+
     |   '(' expression ')'
@@ -39,7 +42,6 @@ primaryExpression
     |   '__extension__'? '(' compoundStatement ')' // Blocks (GCC extension)
     |   '__builtin_va_arg' '(' unaryExpression ',' typeName ')'
     |   '__builtin_offsetof' '(' typeName ',' unaryExpression ')'
-    |   {specLevel>0}? valPrimary
     ;
 
 genericSelection
@@ -366,21 +368,22 @@ gccAttributeSpecifier
     ;
 
 gccAttributeList
-    :   gccAttribute (',' gccAttribute)*
+    :   gccAttributeListNonEmpty
     |   // empty
+    ;
+
+gccAttributeListNonEmpty
+    :   gccAttributeListNonEmpty ',' gccAttribute
+    |   gccAttribute
     ;
 
 gccAttribute
     :   ~(',' | '(' | ')') // relaxed def for "identifier or reserved word"
-        ('(' argumentExpressionList? ')')?
+        parenthesizedArgumentExpressionList?
     |   // empty
     ;
 
-nestedParenthesesBlock
-    :   (   ~('(' | ')')
-        |   '(' nestedParenthesesBlock ')'
-        )*
-    ;
+parenthesizedArgumentExpressionList : '(' argumentExpressionList? ')' ;
 
 pointer
     :   '*' typeQualifierList?
@@ -480,7 +483,17 @@ statement
     |   selectionStatement
     |   iterationStatement
     |   jumpStatement
-    |   ('__asm' | '__asm__') ('volatile' | '__volatile__') '(' (logicalOrExpression (',' logicalOrExpression)*)? (':' (logicalOrExpression (',' logicalOrExpression)*)?)* ')' ';'
+    |   ('__asm' | '__asm__') ('volatile' | '__volatile__') '(' logicalOrExpressionList? logicalOrExpressionListColonList ')' ';'
+    ;
+
+logicalOrExpressionListColonList
+    :   ':' logicalOrExpressionList? logicalOrExpressionListColonList
+    |   // empty
+    ;
+
+logicalOrExpressionList
+    :   logicalOrExpression
+    |   logicalOrExpressionList ',' logicalOrExpression
     ;
 
 labeledStatement

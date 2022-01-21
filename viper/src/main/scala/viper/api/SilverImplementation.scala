@@ -2,22 +2,14 @@ package viper.api
 
 import viper.silver.ast._
 
-import scala.collection.JavaConverters._
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
 import java.util.Properties
-import java.util.SortedMap
-
-import scala.math.BigInt.int2bigInt
-import viper.silver.ast.SeqAppend
 import java.nio.file.Path
 
 import hre.ast.OriginFactory
-import viper.silver.parser.PLocalVarDecl
-
-import scala.collection.mutable.WrappedArray
-import hre.lang.System.Output
+import hre.lang.System.{Warning}
 
 class SilverImplementation[O](o:OriginFactory[O])
   extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,
@@ -35,10 +27,8 @@ class SilverImplementation[O](o:OriginFactory[O])
     pw.write(program.toString())
   }
   
-  private def getOrigin(e : Object) : O = e.asInstanceOf[Infoed].info.asInstanceOf[O]
-  
- 
-  private def show(text: String, obj: Any) {
+
+  private def show(text: String, obj: Any): Unit = {
     println(s"$text (${obj.getClass.getSimpleName}): $obj")
   }
   
@@ -67,7 +57,37 @@ class SilverImplementation[O](o:OriginFactory[O])
               prog.methods.asScala.toList, Seq(/* no extension members */))()
               
     //println("=============\n" + program + "\n=============\n")
-    
+
+    val consistencyErrors = program.checkTransitively
+
+    if(consistencyErrors.nonEmpty) {
+      Warning("These errors may indicate a bug in VerCors:")
+      consistencyErrors.foreach(Warning("%s", _))
+    }
+
+    val sugarErrors = SilverTreeCompare.syntacticSugarIssues(program)
+
+    sugarErrors match {
+      case Left(errors) =>
+        if(consistencyErrors.nonEmpty) {
+          Warning("(cannot determine parsing idempotency issues due to consistency errors)")
+        } else {
+          Warning("There are no consistency errors, but re-parsing as text leads to errors. This may indicate a bug in Viper:")
+          errors.foreach(Warning("%s", _))
+        }
+      case Right(sugarErrors) =>
+        if(sugarErrors.nonEmpty) {
+          Warning("Some nodes in the silver AST are not idempotent when re-parsing as text. This may indicate we are submitting invalid silver ASTs to Viper.")
+          for ((left, right) <- sugarErrors) {
+            Warning("[%s with %d children] Our AST was:", left.getClass.getSimpleName, scala.Int.box(left.subnodes.size))
+            Warning("%s", left)
+            Warning("[%s with %d children] After re-parsing:", right.getClass.getSimpleName, scala.Int.box(right.subnodes.size))
+            Warning("%s", right)
+            Warning("")
+          }
+        }
+    }
+
     Reachable.gonogo = control.asInstanceOf[VerificationControl[Object]];
     
     val detail = Reachable.gonogo.detail();
@@ -97,7 +117,7 @@ class SilverImplementation[O](o:OriginFactory[O])
                  case in: viper.silver.ast.Infoed =>
                   locFromInfo(in.info) match {
                     case Some(loc) => new viper.api.ViperErrorImpl[O](loc,err)
-                    case None => new viper.api.ViperErrorImpl[O](in.pos+": "+err)
+                    case None => new viper.api.ViperErrorImpl[O](s"${in.pos}: $err")
                   }
                 case _ =>
                   new viper.api.ViperErrorImpl[O](err)
@@ -115,7 +135,7 @@ class SilverImplementation[O](o:OriginFactory[O])
                       error.add_extra(loc,because);
                     }
                     case _ => {
-                      error.add_extra(in.pos+": "+because)
+                      error.add_extra(s"${in.pos}: $because")
                       //throw new Error("info is not an origin!")
                     }
                   }

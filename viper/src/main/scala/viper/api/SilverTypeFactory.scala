@@ -1,17 +1,7 @@
 package viper.api
 
 import viper.silver.ast._
-import scala.collection.JavaConverters._
-import scala.collection.JavaConverters._
-import viper.silver.verifier.{Failure, Success, AbortedExceptionally, VerificationError}
-import java.util.List
-import java.util.Properties
-import java.util.SortedMap
-import scala.math.BigInt.int2bigInt
-import viper.silver.ast.SeqAppend
-import java.nio.file.Path
-import viper.silver.parser.PLocalVarDecl
-import scala.collection.mutable.WrappedArray
+import scala.jdk.CollectionConverters._
 
 class SilverTypeFactory extends TypeFactory[Type] {
   
@@ -24,7 +14,6 @@ class SilverTypeFactory extends TypeFactory[Type] {
   override def Set(t: Type): Type = SetType(t)
   override def domain_type(name:String,args:java.util.Map[String,Type]):Type = {
     val vars = args.keySet().asScala.toSeq map { x => TypeVar(x) }
-    val tmp = args.asScala
     val pars:Map[viper.silver.ast.TypeVar,viper.silver.ast.Type] = 
      args.asScala.toMap map { case (k,v) => (TypeVar(k),v) }
     DomainType(name,pars)(vars)

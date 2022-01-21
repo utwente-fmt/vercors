@@ -1,11 +1,8 @@
 package vct.col.ast.util;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 import vct.col.ast.langspecific.c.*;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
@@ -28,16 +25,10 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   public RecursiveVisitor(ProgramUnit source) {
-    super(source,false);
+    super(source);
   }
   public RecursiveVisitor(ProgramUnit source, ProgramUnit target) {
-    super(source, target,false);
-  }
-  public RecursiveVisitor(ProgramUnit source,boolean do_scope) {
-    super(source,do_scope);
-  }
-  public RecursiveVisitor(ProgramUnit source, ProgramUnit target,boolean do_scope) {
-    super(source, target,do_scope);
+    super(source, target);
   }
 
   @Override
@@ -136,6 +127,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(MethodInvokation e) {
     // TODO: fix dispatch(e.get_before());
     dispatch(e.object());
+    dispatch(e.dispatch());
     for(ASTNode arg:e.getArgs()){
       arg.accept(this);
     }
@@ -146,7 +138,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(KernelInvocation e) {
     e.blockCount().accept(this);
     e.threadCount().accept(this);
-    dispatch(e.args());
+    dispatch(e.javaArgs());
   }
 
   private void dispatch(Contract c){
@@ -170,16 +162,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     }
   }
 
-  private <R extends ASTNode> void dispatch(Seq<R> nodes) {
-    for (R node : JavaConverters.seqAsJavaList(nodes)) {
-      if (node != null) {
-        node.accept(this);
-      }
-    }
-  }
-
   public <E extends ASTNode, F extends ASTNode> void dispatch(Map<E,F> map){
-    HashMap<E, F> res=new HashMap<E,F>();
     for(Map.Entry<E, F> entry:map.entrySet()){
       if (entry.getKey() != null) dispatch(entry.getKey());
       if (entry.getValue() != null) dispatch(entry.getValue());
@@ -237,11 +220,9 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
 
   @Override
   public void visit(Method m) {
-//    dispatch(m.getContract());
-//    if (c!=null){
-//      dispatch(c.pre_condition);
-//      dispatch(c.post_condition);
-//    }
+      dispatch(m.getReturnType());
+    dispatch(m.getArgs());
+    dispatch(m.signals);
     Contract c=m.getContract();
     if (c!=null){
       dispatch(c.given);
@@ -251,7 +232,6 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(c.yields);
       dispatch(c.signals);
     }
-    dispatch(m.getArgs());
     dispatch(m.getBody());
     if (c!=null) {
       // TODO: this is where \result should be declared.
@@ -266,20 +246,16 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
     dispatch(ab.process());
     dispatch(ab.action());
     // TODO: enable visiting map elements.
-    //dispatch(ab.map().values().to);
     dispatch(ab.block());
   }
   
   @Override
   public void visit(ASTClass c){
-    int N;
-    N=c.getStaticCount();
-    for(int i=0;i<N;i++){
-      c.getStatic(i).accept(this);
-    }
-    N=c.getDynamicCount();
-    for(int i=0;i<N;i++){
-      c.getDynamic(i).accept(this);
+    dispatch(c.parameters);
+    dispatch(c.implemented_classes);
+    dispatch(c.super_classes);
+    for(ASTNode decl : c) {
+      decl.accept(this);
     }
   }
 
@@ -396,7 +372,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   @Override
   public void visit(TryCatchBlock tcb) {
     dispatch(tcb.main());
-    for (CatchClause cc : tcb.catches()) {
+    for (CatchClause cc : tcb.catchesJava()) {
         dispatch(cc);
     }
     dispatch(tcb.after());
@@ -429,7 +405,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   public void visit(CFunctionType t) {
     dispatch(t.returnType());
 
-    for(ParamSpec param : JavaConverters.seqAsJavaList(t.params())) {
+    for(ParamSpec param : t.paramsJava()) {
       if(param.t().isDefined()) {
         dispatch(param.t().get());
       }

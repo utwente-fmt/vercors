@@ -18,7 +18,6 @@ import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
@@ -207,7 +206,7 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     if (s.getExitGuard()!=null) Abort("not a while loop");
     ArrayList<Triple<Origin,String,T>> locals=new ArrayList<Triple<Origin,String,T>>();
     ArrayList<S> stats=new ArrayList<S>();
-    VerCorsProgramFactory.split_block(ef, type, this, locals,(BlockStatement) s.getBody(), stats);
+    VerCorsProgramFactory.split_block(type, this, (BlockStatement) s.getBody(), locals, stats);
     ArrayList<E> invs=new ArrayList<E>();
     for(ASTNode inv:ASTUtils.conjuncts(s.getContract().invariant,StandardOperator.Star)){
       invs.add(inv.apply(expr));
@@ -266,9 +265,6 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   @Override
   public S map(ASTSpecial special) {
     switch(special.kind){
-    case Comment:
-      valid_null=true;
-      return null;
     case Goto:
       return create.goto_(special.getOrigin(),special.args[0].toString());
     case Label:
@@ -291,7 +287,6 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
     case Unfold: return create.unfold(special.getOrigin(),special.args[0].apply(expr));
     case Fresh:
       throw new HREError("Fresh is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");
-      // Old implementation: return create.fresh(special.getOrigin(),do_names(special.args));
     default:
       throw new HREError("cannot map special %s",special.kind);
     }
@@ -396,23 +391,10 @@ public class SilverStatementMap<T,E,S> implements ASTMapping<S> {
   public S map(VectorBlock vb) {
     return null;
   }
-  
-  private <F extends ASTNode> ArrayList<E> do_names(List<F> args){
-    ArrayList<E> names = new ArrayList<E>();
-    for (ASTNode n : args) {
-      names.add(n.apply(expr));
-    }
-    return names;
-  }
-  
-  private <F extends ASTNode> ArrayList<E> do_names(F args[]){
-	return do_names(Arrays.asList(args));
-  }
 
   @Override
   public S map(Constraining c) {
     throw new HREError("Constraining is no longer supported in viper. See https://github.com/utwente-fmt/vercors/issues/383");
-    // Old implementation: return create.constraining(c.getOrigin(), do_names(c.varsJava()), c.block().apply(this));
   }
 
   @Override

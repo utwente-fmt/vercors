@@ -60,7 +60,7 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   public E map(ConstantExpression e) {
     if (e.value() instanceof IntegerValue) {
       int v = ((IntegerValue) e.value()).value();
-      if (e.getType().isPrimitive(PrimitiveSort.Rational)) {
+      if (e.getType().isFraction()) {
         switch (v) {
           case 0:
             return create.no_perm(e.getOrigin());
@@ -124,9 +124,6 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         if (e.arg(1).getType().isBoolean()) {
           return create.and(o, e1, e2);
         }
-//        } else if (e.arg(1).getType().isPrimitive(PrimitiveSort.Byte)) {
-//          break;
-//        }
         // fall through
       }
 
@@ -134,9 +131,6 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         if (e.arg(1).getType().isBoolean()) {
           return create.neq(o, e1, e2);
         }
-//        } else if (e.arg(1).getType().isPrimitive(PrimitiveSort.Byte)) {
-//          break;
-//        }
         // fall through
       }
 
@@ -144,9 +138,6 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
         if (e.arg(1).getType().isBoolean()) {
           return create.or(o, e1, e2);
         }
-//        } else if (e.arg(1).getType().isPrimitive(PrimitiveSort.Byte)) {
-//
-//        }
         // fall through
       }
       case Size:
@@ -360,53 +351,44 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     Origin o = e.getOrigin();
     switch (e.binder()) {
     case Star:
-      if ((e.main() instanceof BindingExpression)||e.getDeclarations().length>1){
-        hre.lang.System.Warning("Simplification failure: %s",e);
-        failure=true;
-      } else {
-        boolean good=false;
-        if (e.main().getType().isBoolean()){
-          good=true;
-        } else if (e.main().isa(StandardOperator.Perm)||e.main().isa(StandardOperator.Value)){
-          ASTNode loc=((OperatorExpression)e.main()).arg(0);
-          while (loc instanceof Dereference){
-            loc=((Dereference)loc).obj();
-          }
-          if (loc instanceof MethodInvokation
-                  && ((MethodInvokation) loc).object() instanceof ClassType
-                  && ((ClassType) ((MethodInvokation) loc).object()).getName().equals("VCTArray")
-                  && ((MethodInvokation) loc).method().startsWith("loc")) {
-            loc = ((MethodInvokation) loc).getArg(0);
-          }
-          if(loc instanceof MethodInvokation && ((MethodInvokation) loc).method().startsWith("getVCTOption")) {
-            loc = ((MethodInvokation) loc).getArg(0);
-          }
-          good=loc instanceof NameExpression;
-        }
-        if(!good){
-          hre.lang.System.Warning("Possible simplification failure: %s",e);
-        }
-      }
-    case Forall:
+    case Forall: {
       E expr;
-      if (e.select().isConstant(true)){
-        expr=e.main().apply(this);
+      if (e.select().isConstant(true)) {
+        expr = e.main().apply(this);
       } else {
-        expr=create.implies(o, e.select().apply(this), e.main().apply(this));
+        expr = create.implies(o, e.select().apply(this), e.main().apply(this));
       }
-      List<List<E>> triggers=new ArrayList<List<E>>();
-      if (e.triggers()!=null){
-        for (ASTNode trigger[]:e.javaTriggers()){
-          List<E> tmp=new ArrayList<E>();
-          for (ASTNode node:trigger){
+      List<List<E>> triggers = new ArrayList<List<E>>();
+      if (e.triggers() != null) {
+        for (ASTNode trigger[] : e.javaTriggers()) {
+          List<E> tmp = new ArrayList<E>();
+          for (ASTNode node : trigger) {
             tmp.add(node.apply(this));
           }
           triggers.add(tmp);
         }
       }
-      return create.forall(o, convert(e.getDeclarations()),triggers ,expr);
-    case Exists:
-      return create.exists(o, convert(e.getDeclarations()),create.and(o, e.select().apply(this), e.main().apply(this)));
+      return create.forall(o, convert(e.getDeclarations()), triggers, expr);
+    }
+    case Exists: {
+      E expr;
+      if (e.select().isConstant(true)) {
+        expr = e.main().apply(this);
+      } else {
+        expr = create.and(o, e.select().apply(this), e.main().apply(this));
+      }
+      List<List<E>> triggers = new ArrayList<List<E>>();
+      if (e.triggers() != null) {
+        for (ASTNode trigger[] : e.javaTriggers()) {
+          List<E> tmp = new ArrayList<E>();
+          for (ASTNode node : trigger) {
+            tmp.add(node.apply(this));
+          }
+          triggers.add(tmp);
+        }
+      }
+      return create.exists(o, convert(e.getDeclarations()), triggers, expr);
+    }
     case Let:{
       DeclarationStatement decls[]=e.getDeclarations();
       E res=e.main().apply(this);

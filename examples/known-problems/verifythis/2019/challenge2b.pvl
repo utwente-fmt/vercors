@@ -1,0 +1,120 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases VerifyThis19TwoB
+//:: tools silicon
+//:: suite medium problem-fail
+//:: verdict Pass
+
+class CartTree {
+  
+  pure boolean distinct(seq<int> s)
+    = (\forall int i; 0 <= i && i < s.length; (\forall int j; 0 <= j && j < s.length; s[i]==s[j] ==> i==j ));
+  
+  requires 0 <= x && x < s.length;
+  ensures \result < x;
+  ensures \result >=0 ==> s[\result] < s[x];
+  ensures \result < 0 ==> \result == -1;
+  ensures (\forall int i;\result < i && i <= x; s[i] >= s[x]);
+  pure int leftNeighbor(seq<int> s, int x);
+  
+  requires 0 <= x && x < s.length;
+  ensures \result > x;
+  ensures \result < s.length ==> s[\result] < s[x];
+  ensures \result >= s.length ==> \result == s.length;
+  ensures (\forall int i;x <= i && i < \result; s[i] >= s[x]);
+  pure int rightNeighbor(seq<int> s, int x);
+  
+  requires left!= null && right!=null && parent!=null;
+  requires s.length == parent.length && s.length == left.length && s.length == right.length;
+  requires (\forall* int j;0<=j && j < s.length; 
+              Perm(left[j],1) **  Perm(right[j],1)** Perm(parent[j],1));
+  requires correctness_invar(s,parent,left,right);
+  requires (\forall int i;0<=i && i < s.length; parent[i]!=-1 ==> 0 <= parent[i] && parent[i] < s.length);
+  requires i <= s.length;
+  pure boolean correctness_upto(seq<int> s,int[] parent,int[] left,int[] right, int root, int i)
+   = (\forall int j; 0<= j && j < i; parent[j] != -1 ==> (left[parent[j]] == j || right[parent[j]] == j))
+   && (\forall int j;0<= j && j < i; parent[j] == -1 ==> root == j)
+   && (\forall int j;0<= j && j < i; parent[j] != -1 ==> s[parent[j]] < s[j]); // property 2
+  
+  requires left!= null && right!=null&&parent!=null;
+  requires s.length == parent.length && s.length == left.length && s.length == right.length;
+  requires (\forall* int i;0<=i && i < s.length; Perm(left[i],1) **  Perm(right[i],1)**  Perm(parent[i],1));
+  pure boolean correctness_invar(seq<int> s,int[] parent,int[] left,int[] right)
+   =  (\forall int i;0<=i && i < s.length; left[i] != -1 ==> 0 <= left[i] && left[i] < s.length && parent[left[i]] == i) 
+   && (\forall int i;0<=i && i < s.length; right[i] != -1 ==> 0 <= right[i] && right[i] < s.length && parent[right[i]] == i)
+   && (\forall int i;0<=i && i < s.length; parent[i]!=-1 ==> 0 <= parent[i] && parent[i] < s.length)
+   && (\forall int j;0<= j && j < s.length; left[j] != -1 ==> left[j] < j)   // easy part of property 3
+   && (\forall int j;0<= j && j < s.length; right[j] != -1 ==> right[j] > j) // easy part of property 3
+   && left!= null && right!=null&&parent!=null;
+  
+  
+  yields int[] parent;
+  yields int[] left;
+  yields int[] right;
+  yields int root;
+  ensures right!=null;
+  ensures parent!=null;
+  ensures left!= null;
+  ensures s.length == parent.length && s.length == left.length && s.length == right.length;
+  ensures (\forall* int i;0<=i && i < s.length; Perm(left[i],1) **  Perm(right[i],1)**  Perm(parent[i],1));  
+  ensures correctness_invar(s,parent,left,right);
+  ensures (\forall int i;0<=i && i < s.length; parent[i]!=-1 ==> 0 <= parent[i] && parent[i] < s.length);
+  ensures correctness_upto(s,parent,left,right,root,s.length);
+  cartTree(seq<int> s){
+    
+    parent = new int[s.length];
+    left = new int[s.length];
+    right = new int[s.length];
+    int root = -1;
+    int i=0;
+    
+    loop_invariant 0 <= i && i <= s.length;
+    loop_invariant parent.length == s.length;
+    loop_invariant left.length == s.length;
+    loop_invariant right.length == s.length;
+    loop_invariant left!=null && right!=null && parent!=null;
+    loop_invariant (\forall* int j;0 <= j && j < s.length; Perm(parent[j],1));
+    loop_invariant (\forall* int j;0 <= j && j < s.length; Perm(left[j],1));
+    loop_invariant (\forall* int j;0 <= j && j < s.length; Perm(right[j],1));
+    while(i<s.length){
+      left[i] = -1;
+      right[i] = -1;
+    }
+    
+    i = 0;
+    loop_invariant 0 <= i && i <= s.length;
+    loop_invariant parent.length == s.length;
+    loop_invariant left.length == s.length;
+    loop_invariant right.length == s.length;
+    loop_invariant left!=null && right!=null && parent!=null;
+    loop_invariant (\forall* int j;0 <= j && j < s.length; Perm(parent[j],1));
+    loop_invariant (\forall* int j;0 <= j && j < s.length; Perm(left[j],1));
+    loop_invariant (\forall* int j;0 <= j && j < s.length; Perm(right[j],1));
+    loop_invariant correctness_invar(s,parent,left,right);
+    loop_invariant correctness_upto(s,parent,left,right,root,i);
+    while(i<s.length){
+      if(rightNeighbor(s,i)==s.length){
+        if(leftNeighbor(s,i)==-1){
+          parent[i] = -1;
+          root = i;
+        }else{
+          parent[i] = leftNeighbor(s,i); // not -1
+          right[leftNeighbor(s,i)] = i;
+        }
+      } else {
+        if(leftNeighbor(s,i)==-1){
+          parent[i] = rightNeighbor(s,i); // not s.length
+          left[rightNeighbor(s,i)] = i;
+        }else{
+          if (s[leftNeighbor(s,i)] > s [rightNeighbor(s,i)]){
+            parent[i] = leftNeighbor(s,i); // not -1
+            right[leftNeighbor(s,i)] = i;
+          }else{
+            parent[i] = rightNeighbor(s,i); // not s.length
+            left[rightNeighbor(s,i)] = i;
+          }
+        }
+      }
+      i++;
+    }
+  }
+}

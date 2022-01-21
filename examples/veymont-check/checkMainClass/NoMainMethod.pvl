@@ -1,0 +1,23 @@
+//:: cases MainMethod
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+class Main {
+
+	Role a;
+	
+	Main() {
+		a = new Role();
+	}
+	
+	void run() {
+		
+	}
+
+}
+
+class Role {
+
+
+}

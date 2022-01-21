@@ -1,9 +1,7 @@
 package vct.col.ast.type;
 
+import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
-import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -13,15 +11,11 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.TypeMapping;
-import scala.collection.JavaConverters.*;
 
 import static hre.lang.System.Abort;
 import static hre.lang.System.Debug;
 import static hre.lang.System.Fail;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 
 public final class PrimitiveType extends Type {
@@ -158,7 +152,7 @@ public final class PrimitiveType extends Type {
           return true;
         }
 
-        return t.isPrimitive(PrimitiveSort.Option) && ((Type)firstarg()).supertypeof(context, ((Type)((PrimitiveType) t).firstarg()));
+        return t.isPrimitive(PrimitiveSort.Option) && ((Type)firstarg()).supertypeof(context, ((Type)(t).firstarg()));
       case Cell:
         if(firstarg().equals(t)) {
           return true;
@@ -170,7 +164,7 @@ public final class PrimitiveType extends Type {
         }
         // fallthrough
       case Array:
-        return t.isPrimitive(this.sort) && firstarg().equals(((PrimitiveType) t).firstarg());
+        return t.isPrimitive(this.sort) && firstarg().equals(t.firstarg());
       case Pointer:
         if(t.isNull()) {
           return true;
@@ -189,7 +183,6 @@ public final class PrimitiveType extends Type {
     }
     if (t instanceof PrimitiveType){
       PrimitiveType pt=(PrimitiveType)t;
-      //Warning("testing (%s/%s)",this.sort,pt.sort);
       if (equals(pt)) return true;
       switch(this.sort){
       case Void:
@@ -382,11 +375,11 @@ public final class PrimitiveType extends Type {
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("args"));
+    return ScalaHelper.toIterable("args");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("sort"));
+    return ScalaHelper.toIterable("sort");
   }
 }

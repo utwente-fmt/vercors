@@ -2,7 +2,7 @@ package hre.util;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
+
 import scala.Function1;
 import scala.Function2;
 import scala.runtime.AbstractFunction1;

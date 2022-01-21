@@ -4,10 +4,15 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl.Contract
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
+import scala.jdk.CollectionConverters._
 
 sealed trait OMPOption
-case class OMPPrivate(names: Seq[String]) extends OMPOption
-case class OMPShared(names: Seq[String]) extends OMPOption
+case class OMPPrivate(names: Seq[String]) extends OMPOption {
+  def namesJava: java.util.List[String] = names.asJava
+}
+case class OMPShared(names: Seq[String]) extends OMPOption {
+  def namesJava: java.util.List[String] = names.asJava
+}
 case object OMPNoWait extends OMPOption
 case class OMPSimdLen(len: Int) extends OMPOption
 case class OMPNumThreads(len: Int) extends OMPOption
@@ -37,7 +42,9 @@ sealed abstract class OMPBlock(block: BlockStatement) extends ASTNode {
   override def debugTreePropertyFields: Iterable[String] = Seq()
 }
 
-case class OMPParallel(block: BlockStatement, options: Seq[OMPOption], contract: Contract) extends OMPBlock(block)
+case class OMPParallel(block: BlockStatement, options: Seq[OMPOption], contract: Contract) extends OMPBlock(block) {
+  def optionsJava: java.util.List[OMPOption] = options.asJava
+}
 case class OMPSection(block: BlockStatement) extends OMPBlock(block)
 case class OMPSections(block: BlockStatement) extends OMPBlock(block)
 
@@ -62,6 +69,12 @@ sealed abstract class OMPLoop(val loop: LoopStatement, val options: Seq[OMPOptio
   override def debugTreePropertyFields: Iterable[String] = Seq()
 }
 
-case class OMPFor(override val loop: LoopStatement, override val options: Seq[OMPOption]) extends OMPLoop(loop, options)
-case class OMPParallelFor(override val loop: LoopStatement, override val options: Seq[OMPOption]) extends OMPLoop(loop, options)
-case class OMPForSimd(override val loop: LoopStatement, override val options: Seq[OMPOption]) extends OMPLoop(loop, options)
+case class OMPFor(override val loop: LoopStatement, override val options: Seq[OMPOption]) extends OMPLoop(loop, options) {
+  def optionsJava: java.util.List[OMPOption] = options.asJava
+}
+case class OMPParallelFor(override val loop: LoopStatement, override val options: Seq[OMPOption]) extends OMPLoop(loop, options) {
+  def optionsJava: java.util.List[OMPOption] = options.asJava
+}
+case class OMPForSimd(override val loop: LoopStatement, override val options: Seq[OMPOption]) extends OMPLoop(loop, options) {
+  def optionsJava: java.util.List[OMPOption] = options.asJava
+}

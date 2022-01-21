@@ -2,21 +2,13 @@ package viper.api
 
 import viper.silver.ast._
 
-import scala.collection.JavaConverters._
-import scala.collection.JavaConverters._
-import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
+import scala.jdk.CollectionConverters._
 import java.util.List
-import java.util.Properties
-import java.util.SortedMap
 
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
-import java.nio.file.Path
 
 import hre.util
-import viper.silver.parser.PLocalVarDecl
-
-import scala.collection.mutable.WrappedArray
 
 
 class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with FactoryUtils[O] {
@@ -36,13 +28,13 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   override def explicit_set(o:O,t:Type,elems:List[Exp]): Exp =
     if (elems.size() == 0) EmptySet(t)(NoPosition,new OriginInfo(o))
-    else ExplicitSet(elems.asScala)(NoPosition,new OriginInfo(o))
+    else ExplicitSet(elems.asScala.toSeq)(NoPosition,new OriginInfo(o))
   override def explicit_bag(o:O,t:Type,elems:List[Exp]): Exp =
     if (elems.size() == 0) EmptyMultiset(t)(NoPosition,new OriginInfo(o))
-    else ExplicitMultiset(elems.asScala)(NoPosition,new OriginInfo(o))
+    else ExplicitMultiset(elems.asScala.toSeq)(NoPosition,new OriginInfo(o))
   override def explicit_seq(o:O,t:Type,elems:List[Exp]): Exp =
     if (elems.size() == 0) EmptySeq(t)(NoPosition,new OriginInfo(o))
-    else ExplicitSeq(elems.asScala)(NoPosition,new OriginInfo(o))
+    else ExplicitSeq(elems.asScala.toSeq)(NoPosition,new OriginInfo(o))
    
   override def range(o:O, e1:Exp, e2:Exp): Exp = RangeSeq(e1, e2)(NoPosition,new OriginInfo(o))
   override def index(o:O, e1:Exp, e2:Exp): Exp = SeqIndex(e1, e2)(NoPosition,new OriginInfo(o))
@@ -109,45 +101,32 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   override def neq(o:O,e1:Exp,e2:Exp) :Exp = NeCmp(e1,e2)(NoPosition,new OriginInfo(o))
   override def eq(o:O,e1:Exp,e2:Exp) :Exp = EqCmp(e1,e2)(NoPosition,new OriginInfo(o))
-  
+
   override def gt(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermGtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          GtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermGtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => GtCmp(e1,e2)(NoPosition,new OriginInfo(o))
+    e1.typ match {
+      case Perm => PermGtCmp(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => GtCmp(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
-  override def lt(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermLtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          LtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermLtCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => LtCmp(e1,e2)(NoPosition,new OriginInfo(o))
+
+  override def lt(o: O, e1: Exp, e2: Exp): Exp = {
+    e1.typ match {
+      case Perm => PermLtCmp(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => LtCmp(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
+
   override def gte(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermGeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          GeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermGeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => GeCmp(e1,e2)(NoPosition,new OriginInfo(o))
+    e1.typ match {
+      case Perm => PermGeCmp(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => GeCmp(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
-  override def lte(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermLeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          LeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermLeCmp(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => LeCmp(e1,e2)(NoPosition,new OriginInfo(o))
+
+  override def lte(o: O, e1: Exp, e2: Exp): Exp = {
+    e1.typ match {
+      case Perm => PermLeCmp(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => LeCmp(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
     
@@ -160,9 +139,9 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   def perm_exp(e:Exp):Boolean = {
     e match {
-      case LocalVar(n, typ) => typ==Perm
-      case e:PermExp => true
-      case CondExp(g,x,y) => perm_exp(x) || perm_exp(y)
+      case LocalVar(_, typ) => typ==Perm
+      case _:PermExp => true
+      case CondExp(_,x,y) => perm_exp(x) || perm_exp(y)
       case _  => false
     }
   }
@@ -186,24 +165,20 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
     PermDiv(e1, e2)(NoPosition, new OriginInfo(o))
   }
 
-  override def frac(o:O,e1:Exp,e2:Exp) :Exp = {
-    e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
-          PermDiv(e1,e2)(NoPosition,new OriginInfo(o))
-        else
-          FractionalPerm(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermDiv(e1,e2)(NoPosition,new OriginInfo(o))
-      case _  => FractionalPerm(e1,e2)(NoPosition,new OriginInfo(o))
+  override def frac(o: O, e1: Exp, e2: Exp): Exp = {
+    e1.typ match {
+      case Int => FractionalPerm(e1, e2)(NoPosition, new OriginInfo(o))
+      case _ => PermDiv(e1, e2)(NoPosition, new OriginInfo(o))
     }
   }
   override def mod(o:O,e1:Exp,e2:Exp) :Exp = Mod(e1,e2)(NoPosition,new OriginInfo(o))
   override def add(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
+      case LocalVar(_, typ) => if (typ==Perm)
           PermAdd(e1,e2)(NoPosition,new OriginInfo(o))
         else
           Add(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermAdd(e1,e2)(NoPosition,new OriginInfo(o))
+      case _:PermExp => PermAdd(e1,e2)(NoPosition,new OriginInfo(o))
       case _  => Add(e1,e2)(NoPosition,new OriginInfo(o))
     }
   }
@@ -212,11 +187,11 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def sub(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
+      case LocalVar(_, typ) => if (typ==Perm)
           PermSub(e1,e2)(NoPosition,new OriginInfo(o))
         else
           Sub(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermSub(e1,e2)(NoPosition,new OriginInfo(o))
+      case _:PermExp => PermSub(e1,e2)(NoPosition,new OriginInfo(o))
       case _  => Sub(e1,e2)(NoPosition,new OriginInfo(o))
     }
   }
@@ -228,13 +203,16 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   override def forall(o:O, vars:List[util.Triple[O,String,Type]], triggers:List[List[Exp]], e:Exp):Exp = {
     val tmp=triggers.asScala map {
-      l => Trigger(l.asScala)(NoPosition,new OriginInfo(o))
+      l => Trigger(l.asScala.toSeq)(NoPosition,new OriginInfo(o))
     }
-    Forall(to_decls(o,vars),tmp,e)(NoPosition,new OriginInfo(o))
+    Forall(to_decls(o,vars),tmp.toSeq,e)(NoPosition,new OriginInfo(o))
   }
   
-  override def exists(o:O, vars:List[util.Triple[O,String,Type]], e:Exp):Exp = {
-    Exists(to_decls(o,vars),Seq(),e)(NoPosition,new OriginInfo(o))
+  override def exists(o:O, vars:List[util.Triple[O,String,Type]], triggers: List[List[Exp]], e:Exp):Exp = {
+    val tmp=triggers.asScala map {
+      l => Trigger(l.asScala.toSeq)(NoPosition,new OriginInfo(o))
+    }
+    Exists(to_decls(o,vars),tmp.toSeq,e)(NoPosition,new OriginInfo(o))
   }
   override def old(o:O,e:Exp):Exp = Old(e)(NoPosition,new OriginInfo(o))
  

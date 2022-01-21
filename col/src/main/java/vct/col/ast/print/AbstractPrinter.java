@@ -10,11 +10,18 @@ import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.Hole;
 import vct.col.ast.stmt.decl.ASTSpecial;
+import vct.col.ast.stmt.decl.Contract;
+import vct.col.ast.stmt.decl.DeclarationStatement;
+import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveType;
 import vct.col.ast.type.TypeExpression;
+import vct.col.ast.util.ASTUtils;
 import vct.col.ast.util.AbstractVisitor;
 import vct.col.ast.syntax.Syntax;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class contains the generic code for pretty printing expressions
@@ -48,18 +55,11 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
       expr_level=0;
     }
   }
-  
-  private static final Origin missing=new MessageOrigin("unknown location");
-  
+
   public void pre_visit(ASTNode node){
     super.pre_visit(node);
     if (in_expr) {
       expr_level++;
-    }
-    Origin o=node.getOrigin();
-    if (o==null){
-      //throw new Error("found "+node.getClass()+" without origin");
-      o=missing;
     }
     out.enter(node.getOrigin());
   }
@@ -146,7 +146,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
   }
 
   public void visit(MethodInvokation e){
-    //boolean statement=!in_expr;
     setExpr();
     if (e.object()!=null) {
       // TODO: manage precedence properly.
@@ -227,21 +226,6 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
   
   public void visit(ASTSpecial s){
     switch(s.kind){
-    case Comment:
-      String lines[]=s.args[0].toString().split("\n");
-      for(int i=0;i<lines.length;i++){
-        out.println(lines[i]);
-      }
-      break;
-    case Pragma:
-      out.printf("@pragma(\"%s\")%n", s.args[0]);
-      break;
-    case Modifies:
-      out.println("modifies ...");
-      break;
-    case Accessible:
-      out.println("accessible ...");
-      break;
     default:
       if (s.args.length==0){
         out.printf("%s;%n",s.kind);
@@ -265,6 +249,91 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
       }
       break;
     }
+  }
+
+  @Override
+  public void visit(Contract contract) {
+    if (contract!=null) {
+      for (DeclarationStatement d : contract.given) {
+        out.printf("given ");
+        d.accept(this);
+        out.lnprintf("");
+      }
+      for (ASTNode e : ASTUtils.conjuncts(contract.invariant, StandardOperator.Star)) {
+        out.printf("loop_invariant ");
+        nextExpr();
+        e.accept(this);
+        out.lnprintf(";");
+      }
+      List<ASTNode> contextElems = new ArrayList<>();
+      for (ASTNode pre : ASTUtils.conjuncts(contract.pre_condition, StandardOperator.Star)) {
+        boolean added = false;
+        for (ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
+          if (pre.equals(post)) {
+            contextElems.add(pre);
+            printContractElement(pre, "context");
+            added = true;
+          }
+        }
+        if (!added) {
+          printContractElement(pre, "requires");
+        }
+      }
+      for (ASTNode post : ASTUtils.conjuncts(contract.post_condition, StandardOperator.Star)) {
+        if (!contextElems.contains(post)) {
+          printContractElement(post, "ensures");
+        }
+      }
+      for (DeclarationStatement d : contract.yields) {
+        out.printf("yields ");
+        d.accept(this);
+        out.lnprintf("");
+      }
+      for (SignalsClause sc : contract.signals) {
+        sc.accept(this);
+      }
+      if (contract.modifies != null) {
+        out.printf("modifies ");
+        if (contract.modifies.length == 0) {
+          out.lnprintf("\\nothing;");
+        } else {
+          nextExpr();
+          contract.modifies[0].accept(this);
+          for (int i = 1; i < contract.modifies.length; i++) {
+            out.printf(", ");
+            nextExpr();
+            contract.modifies[i].accept(this);
+          }
+          out.lnprintf(";");
+        }
+      }
+      if (contract.accesses != null) {
+        out.printf("accessible ");
+        if (contract.accesses.length == 0) {
+          out.lnprintf("\\nothing;");
+        } else {
+          nextExpr();
+          contract.accesses[0].accept(this);
+          for (int i = 1; i < contract.accesses.length; i++) {
+            out.printf(", ");
+            nextExpr();
+            contract.accesses[i].accept(this);
+          }
+          out.lnprintf(";");
+        }
+      }
+    }
+  }
+
+  protected void printContractElement(ASTNode expr, String contractHead) {
+    out.printf(contractHead + " ");
+    nextExpr();
+    if(expr instanceof MethodInvokation)
+      out.print("(");
+    expr.accept(this);
+    if(expr instanceof MethodInvokation)
+      out.print(")");
+    out.lnprintf(";");
   }
 }
 

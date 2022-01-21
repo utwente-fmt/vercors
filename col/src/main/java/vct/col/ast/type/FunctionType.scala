@@ -1,8 +1,8 @@
 package vct.col.ast.`type`
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import vct.col.ast.stmt.decl.ProgramUnit
-import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping, VisitorHelper}
+import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping}
 import vct.col.ast.util.VisitorHelper
 
 /**

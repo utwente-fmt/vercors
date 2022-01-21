@@ -1,24 +1,26 @@
 package vct.col.rewrite
 
-import vct.col.ast.`type`.ASTReserved
-import vct.col.ast.expr.{Binder, BindingExpression, Dereference, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
-import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.{ASTSpecial, DeclarationStatement, ProgramUnit}
-import vct.col.ast.util.AbstractRewriter
-import vct.col.ast.expr.StandardOperator.{EQ, GT, GTE, Implies, LT, LTE, Member, NEQ, Scale, Size, Subscript}
+import hre.lang.System.{Output, Warning}
+import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
+import vct.col.ast.expr.StandardOperator._
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
+import vct.col.ast.expr._
+import vct.col.ast.generic.ASTNode
+import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
+import vct.col.ast.util.AbstractRewriter
 
 case class UnrecognizedExpression(node: ASTNode) extends Exception
 
-/**
-  * Tries to add triggers to binding expressions that have none using some heuristics.
-  */
-case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
+object Triggers {
+  val allowedInTrigger = Set(Scale, /*sequence*/ Subscript, Member, Size, UPlus, Head, Tail, SubSet, SubSetEq, Member, Old, RangeSeq, FoldPlus)
+  // Minus is handled specially because we have no specific set minus operator. See below.
+  val forbiddenInTrigger = Set(UMinus, Plus, Mult, FloorDiv, Div, Mod, And, Or, Not, Implies, IFF, EQ, NEQ, GT, GTE, LT, LTE, ITE, Star, Wand, Perm, Value)
+
   /**
-    * Collect potentially admissible patterns from an expression
-    * @param node the expression to collect
-    * @return A set of viable patterns, and whether the node itself may be contained in a pattern
-    */
+   * Collect potentially admissible patterns from an expression
+   * @param node the expression to collect
+   * @return A set of viable patterns, and whether the node itself may be contained in a pattern
+   */
   def collectPatterns(node: ASTNode): (Set[ASTNode], Boolean) = node match {
     case NameExpression(_, reserved, NameExpressionKind.Reserved) => reserved match {
       case ASTReserved.Result =>
@@ -28,25 +30,31 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
       case _ =>
         throw UnrecognizedExpression(node)
     }
-    case NameExpression(name, _, _) =>
+    case NameExpression(_, _, _) =>
       (Set(), true)
-    case ConstantExpression(value) =>
+    case ConstantExpression(_) =>
       (Set(), false)
-    case MethodInvokation(_, _, method, args) =>
+    case MethodInvokation(_, _, _, args) =>
       val childPatterns = args.map(collectPatterns)
       val childOK = childPatterns.forall(_._2)
       val myPattern = if(childOK) Set(node) else Set()
       (childPatterns.map(_._1).foldLeft(Set[ASTNode]())(_ ++ _) ++ myPattern, childOK)
-    case OperatorExpression(op, args) =>
-      if(Set(Scale, /*sequence*/ Subscript, Member, Size).contains(op)) {
+    case e @ OperatorExpression(op, args) =>
+      val isSetMinus = op == StandardOperator.Minus && e.getType != null && (e.getType.isPrimitive(PrimitiveSort.Set) || e.getType.isPrimitive(PrimitiveSort.Bag))
+      // Assuming there are no other uses of binary minus
+      val isNumericMinus = op == StandardOperator.Minus && !isSetMinus
+
+      if (allowedInTrigger.contains(op) || isSetMinus) {
         val childPatterns = args.map(collectPatterns)
         val childOK = childPatterns.forall(_._2)
         val myPattern = if(childOK) Set(node) else Set()
         (childPatterns.foldLeft(Set[ASTNode]())(_ ++ _._1) ++ myPattern, childOK)
-      } else {
+      } else if (forbiddenInTrigger.contains(op) || isNumericMinus) {
         (args.map(collectPatterns).foldLeft(Set[ASTNode]())(_ ++ _._1), false)
+      } else {
+        throw UnrecognizedExpression(node)
       }
-    case Dereference(obj, field) =>
+    case Dereference(obj, _) =>
       collectPatterns(obj) match {
         case (pats, false) =>
           (pats, false)
@@ -76,6 +84,7 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
       case MethodInvokation(_, _, _, args) => args.exists(contains(_, element))
       case OperatorExpression(_, args) => args.exists(contains(_, element))
       case Dereference(obj, _) => contains(obj, element)
+      case StructValue(_, _, values) => values.exists(contains(_, element))
     })
 
   def powerset[T](x: Set[T]): Seq[Set[T]] = {
@@ -102,60 +111,76 @@ case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(s
     triggers
   }
 
-  def tryComputeTrigger(decls: Array[DeclarationStatement], cond: ASTNode, body: ASTNode): Option[Set[Set[ASTNode]]] = {
+  def tryComputeTrigger(decls: Array[DeclarationStatement], cond: ASTNode, body: ASTNode): Either[Set[ASTNode], Set[Set[ASTNode]]] = {
     val names = decls.map(_.name).toSet
 
     try {
-      computeTriggers(names, create.expression(StandardOperator.Implies, cond, body)) match {
-        case Seq() => None
-        case Seq(set) => Some(Set(set))
+      computeTriggers(names, new OperatorExpression(StandardOperator.Implies, Array(cond, body))) match {
+        case Seq() => Left(Set())
+        case Seq(set) => Right(Set(set))
         case triggers => body match {
           case op@OperatorExpression(EQ | NEQ | LT | GT | LTE | GTE, List(left, right)) =>
             val leftTriggers = triggers.filter(_.forall(contains(left, _)))
             val rightTriggers = triggers.filter(_.forall(contains(right, _)))
             if (leftTriggers.size == 1 && rightTriggers.size == 1) {
               // Allow relational operators at the top if both sides generate exactly one trigger
-              Some((leftTriggers ++ rightTriggers).toSet)
+              Right((leftTriggers ++ rightTriggers).toSet)
             } else if (leftTriggers.size == 1 && op.operator == EQ) {
-              Some(leftTriggers.toSet)
+              Right(leftTriggers.toSet)
             } else {
-              None
+              Left(triggers.flatten.toSet)
             }
-          case _ => None
+          case _ => Left(triggers.flatten.toSet)
         }
       }
     } catch {
       case unrecognized: UnrecognizedExpression =>
         Warning("Cannot determine whether this expression may or may not occur in a trigger: %s", unrecognized.node)
-        None
+        Left(Set())
     }
   }
+}
 
+/**
+  * Tries to add triggers to binding expressions that have none using some heuristics.
+  */
+case class Triggers(override val source: ProgramUnit) extends AbstractRewriter(source) {
   override def visit(expr: BindingExpression): Unit = {
     expr.binder match {
       case Binder.Forall | Binder.Star if expr.triggers == null || expr.triggers.isEmpty =>
-        val select = rewrite(expr.select)
-        val main = rewrite(expr.main)
-        tryComputeTrigger(expr.getDeclarations, select, main) match {
-          case Some(trigger) =>
+        val select = expr.select
+        val main = expr.main
+        Triggers.tryComputeTrigger(expr.getDeclarations, select, main) match {
+          case Right(trigger) =>
             result = create binder(
               expr.binder,
               expr.result_type,
               expr.getDeclarations,
               trigger.map(_.toArray).toArray,
-              select,
-              main
+              rewrite(select),
+              rewrite(main)
             )
-          case None =>
-            Warning("Could not find a trigger for this expression:")
-            Warning("[!!] %s", expr)
+          case Left(triggers) =>
+            if (triggers.isEmpty) {
+              hre.lang.System.Warning("Could not find a trigger for an expression", expr.getOrigin)
+              hre.lang.System.Warning("Location: %s", expr.getOrigin)
+              hre.lang.System.Warning("Expression: %s", expr)
+            } else {
+              hre.lang.System.Warning("More than one trigger found for an expression")
+              hre.lang.System.Warning("Location: %s", expr.getOrigin)
+              hre.lang.System.Warning("Expression: %s", expr)
+              hre.lang.System.Warning("Possible triggers:")
+              triggers.foreach(t => {
+                hre.lang.System.Warning("- %s", t)
+              })
+            }
             result = create binder(
               expr.binder,
               expr.result_type,
               expr.getDeclarations,
               null,
-              select,
-              main
+              rewrite(select),
+              rewrite(main)
             )
         }
       case _ =>

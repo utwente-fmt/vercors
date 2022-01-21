@@ -1,34 +1,19 @@
 package viper.api;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Set;
-
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import hre.tools.TimeKeeper;
-import vct.col.ast.stmt.decl.ASTFlags;
-import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTSpecial;
-import vct.col.ast.stmt.decl.ASTClass;
-import vct.col.ast.stmt.decl.Axiom;
-import vct.col.ast.stmt.decl.AxiomaticDataType;
-import vct.col.ast.stmt.composite.BlockStatement;
-import vct.col.ast.stmt.decl.Contract;
-import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.util.Configuration;
-import vct.col.ast.util.ContractBuilder;
-import vct.col.ast.stmt.decl.DeclarationStatement;
-import vct.col.ast.stmt.decl.Method;
-import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.col.ast.expr.StandardOperator;
-import vct.col.ast.type.Type;
-import vct.col.ast.util.ASTFactory;
-import vct.col.ast.util.ASTUtils;
 import hre.util.Triple;
+import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.decl.*;
+import vct.col.ast.type.PrimitiveSort;
+import vct.col.ast.type.Type;
+import vct.col.ast.util.*;
+
+import java.util.*;
 
 public class VerCorsProgramFactory implements
     ProgramFactory<Origin, Type, ASTNode, ASTNode,
@@ -89,7 +74,10 @@ public class VerCorsProgramFactory implements
       java.util.List<ASTNode> pres, java.util.List<ASTNode> posts,
       List<Triple<Origin,String,Type>> in,
       List<Triple<Origin,String,Type>> out,
-      List<Triple<Origin,String,Type>> local, ASTNode body) {
+      List<Triple<Origin,String,Type>> local,
+      List<String> labels, // ignored
+      ASTNode body
+  ) {
     enter(o);
     ContractBuilder cb=new ContractBuilder();
     for(ASTNode c:pres){
@@ -207,11 +195,12 @@ public class VerCorsProgramFactory implements
             }
           }
           ArrayList<Triple<Origin,String,T>> locals=new ArrayList<Triple<Origin,String,T>>();
+          List<String> labels = NameScanner.labelsJava(m);
           S body;
           if (m.getBody() instanceof BlockStatement){
             BlockStatement block=(BlockStatement)m.getBody();
             ArrayList<S> stats=new ArrayList<S>();
-            VerCorsProgramFactory.split_block(api.expr, type, stat, locals, block, stats);
+            VerCorsProgramFactory.split_block(type, stat, block, locals, stats);
             body=api.stat.block(block.getOrigin(),stats);
           } else if (m.getBody()==null){
             Origin o=m.getOrigin();
@@ -236,7 +225,7 @@ public class VerCorsProgramFactory implements
               posts.add(n.apply(expr));
             }
           }
-          api.prog.add_method(program,m.getOrigin(),m.name(),pres,posts,in,out,locals,body);
+          api.prog.add_method(program,m.getOrigin(),m.name(),pres,posts,in,out,locals,labels,body);
           // TODO: fix refuted accounting.
           refuted.put(m.name(),stat.refuted);
           stat.refuted=null;
@@ -314,14 +303,7 @@ public class VerCorsProgramFactory implements
         api.prog.add_adt(program,adt.getOrigin(), adt.name(), funcs,axioms,pars);
       } else if(entry instanceof ASTSpecial){
         ASTSpecial s=(ASTSpecial)entry;
-        switch(s.kind){
-          case Comment:
-            // comments are not supported in silver.
-            continue;
-          default:
-            throw new HREError("bad special declaration entry: %s",s.kind);
-
-        }
+        throw new HREError("bad special declaration entry: %s",s.kind);
       } else {
         throw new HREError("bad entry: %s",entry.getClass());
       }
@@ -330,29 +312,22 @@ public class VerCorsProgramFactory implements
     // Save the encountered sat check assert origins for later
     satCheckAsserts = stat.satCheckAsserts;
 
-    hre.lang.System.Progress("conversion took %dms", tk.show());
+    hre.lang.System.Progress("Conversion to silver AST took %dms", tk.show());
     return program;
   }
 
   protected static <T, E, S, Program> void split_block(
-      ExpressionFactory<Origin,T, E> verifier,
-      SilverTypeMap<T> type, SilverStatementMap<T, E, S> stat,
-      List<Triple<Origin,String,T>> locals, BlockStatement block, ArrayList<S> stats)
-      throws HREError {
-    int i=0;
-    int N=block.getLength();
-    while(i<N && (block.get(i) instanceof DeclarationStatement)){
-      DeclarationStatement decl=(DeclarationStatement)block.get(i);
-      locals.add(new Triple<Origin, String, T>(decl.getOrigin(),decl.name(),decl.getType().apply(type)));
-      i=i+1;
-    }
-    for(;i<N;i++){
-      if (block.get(i) instanceof DeclarationStatement) {
-        throw new HREError("illegal declaration");
-      }
-      S s=block.get(i).apply(stat);
-      if (s!=null){
-        stats.add(s);
+      SilverTypeMap<T> type,
+      SilverStatementMap<T, E, S> stat,
+      BlockStatement block,
+      List<Triple<Origin,String,T>> locals,
+      ArrayList<S> stats
+  ) throws HREError {
+    for(ASTNode node : block) {
+      if(node instanceof DeclarationStatement) {
+        locals.add(new Triple<>(node.getOrigin(), ((DeclarationStatement) node).name(), node.getType().apply(type)));
+      } else {
+        stats.add(node.apply(stat));
       }
     }
   }

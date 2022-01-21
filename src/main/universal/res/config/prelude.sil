@@ -8,7 +8,7 @@ domain frac {
     }
 
     axiom frac_bound {
-        forall a: frac :: 0/1 < frac_val(a) && frac_val(a) <= 1/1
+        forall a: frac :: {frac_val(a)} 0/1 < frac_val(a) && frac_val(a) <= 1/1
     }
 }
 
@@ -25,7 +25,7 @@ domain zfrac {
     }
 
     axiom zfrac_bound {
-        forall a: zfrac :: 0/1 <= zfrac_val(a) && zfrac_val(a) <= 1/1
+        forall a: zfrac :: {zfrac_val(a)} 0/1 <= zfrac_val(a) && zfrac_val(a) <= 1/1
     }
 }
 
@@ -59,7 +59,11 @@ domain VCTOption[T] {
   function getVCTOptionOrElse(o:VCTOption[T], default:T): T
 
   axiom not_equal_vct {
-    forall x: T :: VCTNone() != VCTSome(x)
+    forall x: T :: {VCTSome(x)} VCTNone() != VCTSome(x)
+  }
+
+  axiom equal_vct {
+    forall x: T, y: T :: {VCTSome(x), VCTSome(y)} (VCTSome(x) == VCTSome(y)) == (x == y)
   }
 
   axiom get_axiom_vct {
@@ -161,7 +165,7 @@ domain VectorExpression[T] {
     forall xs: VectorExpression[T], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= 0 && j > i) ==> vsum(vrange(i, j), xs) == vadd(vsum(vrange(i, j-1), xs), vget(xs, j-1))
   }
   axiom extend_vsum_r2 {
-    forall xs: VectorExpression[Int], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i < 0 || i >= j || j >= vsize(xs)) ==> (vsum(vrange(i, j), xs) == 0)
+    forall xs: VectorExpression[Int], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= j) ==> (vsum(vrange(i, j), xs) == 0)
   }
 }
 
@@ -171,7 +175,7 @@ domain VCTFloat {
   function fadd(f1 : VCTFloat,f2:VCTFloat):VCTFloat
 
   axiom commutative_add {
-    forall f1 : VCTFloat, f2 : VCTFloat :: fadd(f1,f2)==fadd(f2,f1)
+    forall f1 : VCTFloat, f2 : VCTFloat :: {fadd(f1,f2) /* does this cycle? */} fadd(f1,f2)==fadd(f2,f1)
   }
 
   axiom zero_int {
@@ -179,7 +183,7 @@ domain VCTFloat {
   }
 
   axiom zero_add {
-    forall f1 : VCTFloat :: fadd(f1,zero()) == f1
+    forall f1 : VCTFloat :: {fadd(f1,zero())} fadd(f1,zero()) == f1
   }
 
 }

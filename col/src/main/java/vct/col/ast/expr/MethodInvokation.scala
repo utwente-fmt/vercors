@@ -8,8 +8,6 @@ import vct.col.ast.stmt.decl.Method
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 import hre.lang.System._
 
-import scala.collection.JavaConverters
-
 /**
   * This AST node stores method invokations on objects.
   * A function call is seen as invoking a static method on a class.

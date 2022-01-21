@@ -47,7 +47,6 @@ public class AddSimpleTriggers extends AbstractRewriter {
     ASTNode[] nodes = res.toArray(new ASTNode[res.size()]);
     HashSet<HashSet<ASTNode>> sets = powerSet(0, nodes);
     sets = validSets(sets, declarations);
-    // sets = minimumSets(sets, nodes);
     for (HashSet<ASTNode> set : sets) {
       triggerSets.add(set.toArray(new ASTNode[set.size()]));
     }
@@ -86,38 +85,6 @@ public class AddSimpleTriggers extends AbstractRewriter {
     return res;
   }
   
-  private HashSet<HashSet<ASTNode>> minimumSets(HashSet<HashSet<ASTNode>> sets, ASTNode[] nodes) {
-    HashSet<HashSet<ASTNode>> res = new HashSet<HashSet<ASTNode>>();
-    for (ASTNode trigger : nodes) {
-      HashSet<ASTNode> minSet = null;
-      for (HashSet<ASTNode> set : sets) {
-        if (set.contains(trigger)) {
-          if (minSet == null || set.size() < minSet.size()) {
-            minSet = set;
-          }
-        }
-      }
-      res.add(minSet);
-    }
-    return res;
-  }
-  
-  private HashSet<HashSet<ASTNode>> maximumSets(HashSet<HashSet<ASTNode>> sets, ASTNode[] nodes) {
-    HashSet<HashSet<ASTNode>> res = new HashSet<HashSet<ASTNode>>();
-    for (ASTNode trigger : nodes) {
-      HashSet<ASTNode> maxTriggerSet = null;
-      for (HashSet<ASTNode> set : sets) {
-        if (set.contains(trigger)) {
-          if (maxTriggerSet == null || set.containsAll(maxTriggerSet)) {
-            maxTriggerSet = set;
-          }
-        }
-      }
-      res.add(maxTriggerSet);
-    }
-    return res;
-  }
-  
   private void collectTriggersFor(DeclarationStatement[] decls, ASTNode main, HashSet<ASTNode> triggers) {
     RecursiveVisitor<Boolean> scanner = new RecursiveVisitor<Boolean>((ProgramUnit) null) {
       public void visit(OperatorExpression e) {
@@ -137,7 +104,6 @@ public class AddSimpleTriggers extends AbstractRewriter {
       }
       
       public void visit(BindingExpression e) {
-        return;
       }
     };
     main.accept(scanner);
@@ -201,7 +167,6 @@ public class AddSimpleTriggers extends AbstractRewriter {
         // assume every operation is illigal except ...
         switch (e.operator()) {
         case Subscript:
-        case Get:
         case OptionGet:
         case Length:
         case Size:

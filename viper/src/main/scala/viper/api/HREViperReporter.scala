@@ -1,8 +1,7 @@
 package viper.api
 
-import viper.silver.reporter.{ConfigurationConfirmation, CopyrightReport, EntityFailureMessage, EntitySuccessMessage, ExceptionReport, ExternalDependenciesReport, InternalWarningMessage, InvalidArgumentsReport, Message, OverallFailureMessage, OverallSuccessMessage, Reporter, SimpleMessage, Time, format}
 import hre.lang.System.{DebugException, Output}
-import viper.silver.plugin.PluginAwareReporter
+import viper.silver.reporter._
 
 case class HREViperReporter(name: String = "hre_reporter", timeInfo: Boolean = true) extends Reporter {
   // Code below adapted from viper.silver.reporter.StdIOReporter
@@ -47,20 +46,20 @@ case class HREViperReporter(name: String = "hre_reporter", timeInfo: Boolean = t
         })).mkString("\n")
         Output( s"The following dependencies are used:\n$s" )
 
-      case InvalidArgumentsReport(tool_sig, errors) =>
+      case InvalidArgumentsReport(_, errors) =>
         errors.foreach(e => Output(s"  ${e.readableMessage}"))
         Output( s"Run with just --help for usage and options" )
 
       case CopyrightReport(text) =>
         Output( text )
 
-      case EntitySuccessMessage(_, _, _) =>    // FIXME Currently, we only print overall verification results to STDOUT.
-      case EntityFailureMessage(_, _, _, _) => // FIXME Currently, we only print overall verification results to STDOUT.
+      case EntitySuccessMessage(_, _, _, _) =>    // FIXME Currently, we only print overall verification results to STDOUT.
+      case EntityFailureMessage(_, _, _, _, _) => // FIXME Currently, we only print overall verification results to STDOUT.
       case ConfigurationConfirmation(_) =>     // TODO  use for progress reporting
         //Output( s"Configuration confirmation: $text" )
       case InternalWarningMessage(_) =>        // TODO  use for progress reporting
         //Output( s"Internal warning: $text" )
-      case sm:SimpleMessage =>
+      case _:SimpleMessage =>
         //Output( sm.text )
       case _ =>
         //Output( s"Cannot properly print message of unsupported type: $msg" )

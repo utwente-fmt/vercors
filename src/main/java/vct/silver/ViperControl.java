@@ -39,7 +39,6 @@ public class ViperControl implements VerificationControl<Origin> {
         old_origin=current_origin;
         count=0;
       }
-      //future.cancel(false);
     }
   };
 
@@ -115,7 +114,6 @@ public class ViperControl implements VerificationControl<Origin> {
   @Override
   public void profile(Origin o,String task){
     if (Configuration.profiling_option.used()){
-      //hre.System.Progress("verifying %s at %s",task,o);
       current_origin=o;
       current_task=task;
     }

@@ -1,14 +1,10 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
 class simplify_quant_pass2 {
-
   int e1,e2,e3,e4,e5,e6,e7,e8;
   boolean b1,b2,b3,b4;
   resource r1,r2;
   int i,j,k;
   rational p1,p2;
-  
-  int ar[];
+  int[] ar;
   
   axiom aunitr { e1+0 == e1 }
   axiom aunitl { 0+e1 == e1 }
@@ -26,67 +22,64 @@ class simplify_quant_pass2 {
   // simplify x*a+b index.
   // PROBLEM: this is wrong if e3 < 0!
   axiom simplify_linear_ab {
-    (\forall* int i;( i \memberof {e1 .. e2}) ; Perm( ar [ i*(e3!i) +(e4!i) ] , (p1!i) ))
+    (\forall* int i; (i \memberof {e1..e2}); Perm(ar[i*(e3!i) + (e4!i)], (p1!i)))
      ==
-    (\forall* int i;( i \memberof {e1*e3+e4 .. e2*e3+e4}) && (i - e4) % e3 == 0 ; Perm( ar [ i ] , p1 ))
+    (\forall* int i; (i \memberof {e1*e3+e4..e2*e3+e4}) && (i-e4) % e3 == 0; Perm(ar[i], p1))
   }
   
   // completion for b==0.
   axiom simplify_linear_a {
-    (\forall* int i;( i \memberof {e1 .. e2}) ; Perm( ar [ i*(e3!i)] , (e5!i) ))
+    (\forall* int i; (i \memberof {e1..e2}); Perm(ar[i*(e3!i)], (p1!i)))
      ==
-    (\forall* int i;( i \memberof {e1*e3 .. e2*e3}) && i % e3 == 0 ; Perm( ar [ i ] , e5 ))
+    (\forall* int i; (i \memberof {e1*e3..e2*e3}) && i % e3 == 0; Perm(ar[i], p1))
   }
   
   // completion for a==1.
   axiom simplify_linear_b {
-    (\forall* int i;( i \memberof {e1 .. e2}) ; Perm( ar [ i +(e4!i) ] , (e5!i) ))
+    (\forall* int i; (i \memberof {e1..e2}) ; Perm(ar[i + (e4!i)], (p1!i)))
      ==
-    (\forall* int i;( i \memberof {e1+e4 .. e2+e4}) ; Perm( ar [ i ] , e5 ))
+    (\forall* int i; (i \memberof {e1+e4..e2+e4}); Perm(ar[i], p1))
   }
   
   axiom simplify_shift_1 {
-    (\forall* int i; b1 ; Perm( ar [ (e1!i) + i ] , (e2!i) ))
+    (\forall* int i; b1; Perm(ar[(e1!i) + i] , (p1!i)))
       ==
-    (\forall* int k_fresh ; (\let int i=k_fresh-e1;b1) ; Perm( ar [ k_fresh ] , e2 ))
+    (\forall* int k_fresh; (\let int i=k_fresh-e1; b1); Perm(ar[k_fresh], p1))
   }
   
   axiom simplify_shift_2 {
-    (\forall* int i; b1 ; Perm( ar [ i + (e1!i) ] , (e2!i) ))
+    (\forall* int i; b1; Perm(ar[i + (e1!i)], (p1!i)))
       ==
-    (\forall* int k_fresh ; (\let int i=k_fresh-e1;b1) ; Perm( ar [ k_fresh ] , e2 ))
+    (\forall* int k_fresh; (\let int i=k_fresh-e1; b1); Perm(ar[k_fresh], p1))
   }
   
   axiom simplify_shift_3 {
-    (\forall* int i; b1 ; Perm( ar [ i - (e1!i) ] , (p1!i) ))
+    (\forall* int i; b1; Perm(ar[i - (e1!i)], (p1!i)))
       ==
-    (\forall* int k_fresh ; (\let int i=k_fresh+e1;b1) ; Perm( ar [ k_fresh ] , p1 ))
+    (\forall* int k_fresh; (\let int i=k_fresh+e1; b1); Perm(ar[k_fresh], p1))
   }
   
   axiom simplify_shift_scale_1 {
-    (\forall* int i; b1 ; Perm( ar [ (e1!i) + i * (e2!i) ] , (e3!i) ))
+    (\forall* int i; b1; Perm(ar[(e1!i) + i * (e2!i)], (p1!i)))
       ==
-    (\forall* int k_fresh ; (\let int i=(k_fresh/e2)-e1;b1) && k_fresh % e2 == 0; Perm( ar [ k_fresh ] , e3 ))
+    (\forall* int k_fresh; (\let int i=(k_fresh/e2)-e1; b1) && k_fresh % e2 == 0; Perm(ar[k_fresh], p1))
   }
 
-
   axiom unfold_2 {
-    (\forall* int i; ( i \memberof {0 .. 2}) ; r1)
+    (\forall* int i; (i \memberof {0 .. 2}); r1)
     ==
     (\let int i=0; r1) ** (\let int i=1; r1)
   }
 
   axiom unfold_4 {
-    (\forall* int i; ( i \memberof {0 .. 4}) ; r1)
+    (\forall* int i; (i \memberof {0 .. 4}) ; r1)
     ==
     (\let int i=0; r1) ** (\let int i=1; r1) ** (\let int i=2; r1) ** (\let int i=3; r1)
   }
   
-  axiom simplify_distributed_perm{
+  axiom simplify_distributed_perm {
     (\forall* int i; (i \memberof {0 .. e1} ); (\forall* int j;(j \memberof {i*e2 .. (i+1)*e2} ); (r1!i) ))
     ==
     (e1 > 0) ==> (\forall* int j;(j \memberof {0 .. (e1*e2)} ); r1)
   }
-
 }
-

@@ -8,7 +8,7 @@ import hre.lang.System.Output
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class DebugSession() {
   val seen: mutable.HashSet[AnyRef] = mutable.HashSet()
@@ -30,7 +30,7 @@ case class DebugSession() {
       try {
         return cls.getDeclaredField(fieldName)
       } catch {
-        case e: NoSuchFieldException =>
+        case _: NoSuchFieldException =>
           cls = cls.getSuperclass
       }
     }
@@ -47,7 +47,7 @@ case class DebugSession() {
   private def shouldBeShortcut(obj: AnyRef): Boolean = obj match {
     case null => true
     case node: DebugNode => isOnlyShortcut(node)
-    case s: String => true
+    case _: String => true
     case map: util.HashMap[_, _] => map.isEmpty
     case arr: Array[_] => arr.isEmpty
     case arr: util.ArrayList[_] => arr.isEmpty

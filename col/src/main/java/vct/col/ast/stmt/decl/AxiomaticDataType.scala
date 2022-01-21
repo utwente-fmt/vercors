@@ -1,6 +1,6 @@
 package vct.col.ast.stmt.decl
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import hre.lang.System.Abort
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, ClassName, VisitorHelper}
 
@@ -23,9 +23,9 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
   private val constructors = new ArrayBuffer[Method]()
   private val mappings = new ArrayBuffer[Method]()
 
-  def axiomsJava = axioms.toIterable.asJava
-  def constructorsJava = constructors.toIterable.asJava
-  def mappingsJava = mappings.toIterable.asJava
+  def axiomsJava = axioms.asJava
+  def constructorsJava = constructors.asJava
+  def mappingsJava = mappings.asJava
 
   def add_map(m:Method) : Unit = {
     m.setFlag(ASTFlags.STATIC, true)
@@ -41,16 +41,17 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
 
   def add_unique_cons(m:Method) : Unit = {
     if (m.getArgs.length != 0) {
-      Abort("Unique constructors cannot have any formal parameters");
+      Abort("Unique constructors cannot have any formal parameters")
     }
 
-    m.setFlag(ASTFlags.UNIQUE, true);
+    m.setFlag(ASTFlags.UNIQUE, true)
+    m.setFlag(ASTFlags.STATIC, true)
     m.setParent(this)
     constructors += m
   }
 
   def add_axiom(ax:Axiom) : Unit = {
-    ax.setParent(this);
+    ax.setParent(this)
     axioms += ax
   }
 
@@ -59,6 +60,6 @@ case class AxiomaticDataType(override val name:String, val parameters:List[Decla
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
   override def getDeclName = new ClassName(name)
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("parameters")
-  override def debugTreePropertyFields(): Iterable[String] = Seq("name")
+  override def debugTreeChildrenFields: Iterable[String] = Seq("parameters")
+  override def debugTreePropertyFields: Iterable[String] = Seq("name")
 }

@@ -5,15 +5,14 @@ set -e
 # proceeds to run a class from the arguments. Other scripts in this directory
 # refer to this script to run classes from the vercors project.
 
-BIN=$(dirname $0)
+SCRIPT=$(realpath $0)
+BIN=$(dirname $SCRIPT)
+ROOT=$(dirname $BIN)
 if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
-    #    Instruct sbt to export the classpath
-    #    |                               Duplicate stdout to...
-    #    |                               |     grep, filtering _out_ lines starting with "["
-    #    |                               |     |              save that to .classpath
-    #    |                               |     |              |                      display _only_ lines starting with "["
-    sbt "export compile:fullClasspath" | tee >(grep -v "^\\[" > "$BIN/.classpath") | grep "^\\["
+    printf "Extracting classpath from SBT. This might take a moment.\n"
+    (cd $ROOT && sbt --error "Global / printMainClasspath" > "$BIN/.classpath")
+    printf "Classpath extracted\n"
 fi
 
-CLASSPATH=$(cat "$BIN/.classpath")
+CLASSPATH=$(cat "$BIN/.classpath" | tr -d "\n\r")
 java -Xss128M -cp $CLASSPATH "$@"

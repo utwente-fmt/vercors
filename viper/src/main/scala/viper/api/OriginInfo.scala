@@ -4,7 +4,7 @@ import viper.silver.ast.Info
 
 class OriginInfo[O](origin : O, comments : Seq[String]) extends Info {
   
-  def this(origin : O){
+  def this(origin : O) = {
     this(origin,Nil)
   }
   
@@ -26,81 +26,81 @@ class RefuteInfo[O](origin : O) extends OriginInfo[O](origin,Nil) {
 object Reachable {
   var reachable = scala.collection.mutable.Set[Info]()
   
-  var gonogo : viper.api.VerificationControl[Object] = AlwaysGo;
+  var gonogo : viper.api.VerificationControl[Object] = AlwaysGo
 
 }
 
 object VControl {
 
-  def profile(node : viper.silver.ast.Infoed,task : String){
+  def profile(node : viper.silver.ast.Infoed,task : String): Unit = {
     Reachable.gonogo.profile(get_origin(node.info),task)
   }
   
-  def get_origin[O](info : viper.silver.ast.Info):O ={
+  def get_origin[O](info : viper.silver.ast.Info):O = {
     if (info.isInstanceOf[OriginInfo[O]@unchecked]){
-      info.asInstanceOf[OriginInfo[O]].loc;
+      info.asInstanceOf[OriginInfo[O]].loc
     } else {
-      null.asInstanceOf[O];
+      null.asInstanceOf[O]
     }
   }
 
-  var time : Long=0;
-  
+  var time : Long=0
+
   def gonogo(fun : viper.silver.ast.Function):Boolean={
-    time=System.currentTimeMillis();
+    time=System.currentTimeMillis()
     val res=Reachable.gonogo.function(get_origin(fun.info),fun.name)
-    Reachable.gonogo.progress("function %s: %s",fun.name,if (res) "Go" else "Skip");
+    Reachable.gonogo.progress("function %s: %s",fun.name,if (res) "Go" else "Skip")
     res
   }
   
   def report(fun : viper.silver.ast.Function,result : Boolean)={
     if (result) {
-      Reachable.gonogo.pass(get_origin(fun.info));
+      Reachable.gonogo.pass(get_origin(fun.info))
     } else {
-      Reachable.gonogo.fail(get_origin(fun.info));
+      Reachable.gonogo.fail(get_origin(fun.info))
     }
     Reachable.gonogo.progress("function %s: %s (%dms)",
         fun.name,
-        (if (result) "Pass" else "Fail"),
-        Long.box(System.currentTimeMillis()-time));
+        if (result) "Pass" else "Fail",
+        Long.box(System.currentTimeMillis()-time))
   }
   
   def gonogo(fun : viper.silver.ast.Predicate):Boolean={
-    time=System.currentTimeMillis();
+    time=System.currentTimeMillis()
     val res=Reachable.gonogo.predicate(get_origin(fun.info),fun.name)
-    Reachable.gonogo.progress("predicate %s: %s",fun.name,if (res) "Go" else "Skip");
+    Reachable.gonogo.progress("predicate %s: %s",fun.name,if (res) "Go" else "Skip")
     res
   }
   
   def report(fun : viper.silver.ast.Predicate,result : Boolean)={
     if (result) {
-      Reachable.gonogo.pass(get_origin(fun.info));
+      Reachable.gonogo.pass(get_origin(fun.info))
     } else {
-      Reachable.gonogo.fail(get_origin(fun.info));
+      Reachable.gonogo.fail(get_origin(fun.info))
     }
     Reachable.gonogo.progress("predicate %s: %s (%dms)",
         fun.name,
-        (if (result) "Pass" else "Fail"),
-        Long.box(System.currentTimeMillis()-time));
+        if (result) "Pass" else "Fail",
+        Long.box(System.currentTimeMillis()-time))
   }
   
   def gonogo(fun : viper.silver.ast.Method):Boolean={
-    time=System.currentTimeMillis();
+    time=System.currentTimeMillis()
     val res=Reachable.gonogo.method(get_origin(fun.info),fun.name)
-    Reachable.gonogo.progress("method %s: %s",fun.name,if (res) "Go" else "Skip");
+    Reachable.gonogo.progress("method %s: %s",fun.name,if (res) "Go" else "Skip")
     res
   }
   
   def report(fun : viper.silver.ast.Method,result : Boolean)={
     if (result) {
-      Reachable.gonogo.pass(get_origin(fun.info));
+      Reachable.gonogo.pass(get_origin(fun.info))
     } else {
-      Reachable.gonogo.fail(get_origin(fun.info));
+      Reachable.gonogo.fail(get_origin(fun.info))
     }
     Reachable.gonogo.progress("method %s: %s (%dms)",
         fun.name,
-        (if (result) "Pass" else "Fail"),
-        Long.box(System.currentTimeMillis()-time));
+        if (result) "Pass" else "Fail",
+        Long.box(System.currentTimeMillis()-time))
   }
   
 }

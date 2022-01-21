@@ -1,0 +1,19 @@
+//:: cases MainConstructorBlock
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: tool veymont
+//:: verdict Error
+class Main {
+
+	Main();
+
+	void run() {
+	
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+

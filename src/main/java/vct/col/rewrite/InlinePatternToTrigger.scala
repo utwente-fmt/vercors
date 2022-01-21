@@ -5,35 +5,32 @@ import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.ProgramUnit
 import vct.col.ast.util.AbstractRewriter
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(source) {
-  var patternStack: mutable.ArrayStack[ArrayBuffer[ASTNode]] = mutable.ArrayStack()
+  var patternStack: ArrayBuffer[ArrayBuffer[ASTNode]] = ArrayBuffer()
+  // Add a bottom element, to support floating patterns
+  patternStack += new ArrayBuffer()
 
   override def visit(pattern: InlineQuantifierPattern): Unit = {
     result = rewrite(pattern.inner)
 
-    /* Parallel block contracts are propagated in quantified and un-quantified form, hence the check and no
-        error condition. */
-    if(patternStack.nonEmpty) {
-      patternStack.top += result
-    }
+    /* Parallel block contracts are propagated in quantified and un-quantified form, so floating patterns are allowed. */
+    patternStack(patternStack.size - 1) += result
   }
 
   override def visit(quantifier: BindingExpression): Unit = {
-    patternStack.push(ArrayBuffer())
+    patternStack += new ArrayBuffer()
+
     val select = rewrite(quantifier.select)
     val main = rewrite(quantifier.main)
+
+    val patterns = patternStack.remove(patternStack.size - 1)
 
     val triggers = (Option(quantifier.triggers) match {
       case None => Array[Array[ASTNode]]()
       case Some(_) => rewrite(quantifier.javaTriggers)
-    }) ++ (if(patternStack.top.nonEmpty) {
-      Array(patternStack.top.toArray)
-    } else {
-      Array[Array[ASTNode]]()
-    })
+    }) ++ (if(patterns.nonEmpty) Array(patterns.toArray) else Array.empty[Array[ASTNode]])
 
     quantifier match {
       case comprehension: SetComprehension =>
@@ -52,7 +49,5 @@ class InlinePatternToTrigger(source: ProgramUnit) extends AbstractRewriter(sourc
           select,
           main)
     }
-
-    patternStack.pop()
   }
 }

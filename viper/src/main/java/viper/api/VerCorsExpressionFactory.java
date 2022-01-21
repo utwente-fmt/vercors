@@ -210,9 +210,9 @@ public class VerCorsExpressionFactory implements
 
   @Override
   public ASTNode exists(Origin o, java.util.List<Triple<Origin,String,Type>> vars,
-      ASTNode e) {
+        java.util.List<java.util.List<ASTNode>> triggers, ASTNode e) {
     enter(o);
-    ASTNode res=create.exists(e, vars);
+    ASTNode res=create.exists(toAofA(triggers), create.constant(true), e, create.to_decls(vars));
     leave();
     return res;
   }

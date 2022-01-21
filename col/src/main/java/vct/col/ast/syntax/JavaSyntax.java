@@ -97,6 +97,9 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(MapRemoveKey, "removeFromMap");
         syntax.addFunction(MapItemSet, "itemsMap");
 
+        syntax.addFunction(TupleFst, "getFst");
+        syntax.addFunction(TupleSnd, "getSnd");
+
         JavaVerCorsSyntax=syntax;
         
       }
@@ -172,7 +175,7 @@ public class JavaSyntax extends Syntax {
     syntax.addRightFix(AddAssign,"+=",10);
     syntax.addRightFix(SubAssign,"-=",10);
     syntax.addRightFix(MulAssign,"*= ",10);
-    syntax.addRightFix(DivAssign,"/=",10);
+    syntax.addRightFix(FloorDivAssign,"/=",10);
     syntax.addRightFix(RemAssign,"%=",10);
     syntax.addRightFix(AndAssign,"&=",10);
     syntax.addRightFix(XorAssign,"^=",10);

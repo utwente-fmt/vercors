@@ -1,12 +1,14 @@
 package vct.col.rewrite
 
 import vct.col.ast.`type`.Type
+import vct.col.ast.expr.constant.{ConstantExpression, IntegerValue}
 import vct.col.ast.expr.{NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.langspecific.c._
 import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement, ParallelBlock}
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, DeclarationStatement, ProgramUnit}
-import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
+import vct.col.ast.stmt.terminal.AssignmentStatement
+import vct.col.ast.util.AbstractRewriter
 import vct.col.util.FeatureScanner
 
 class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
@@ -23,7 +25,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       val labels = (blocks zip blocks.indices.map("omp_" + _.toString)).toMap
       val deps = getDeps
 
-      create region(contract, blocks.map((block) => {
+      create region(contract, blocks.map(block => {
         block.toParBlock(
           labels(block),
           deps.filter(_.next == block).map(_.asCOLDep(labels)).toArray)
@@ -142,12 +144,26 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       case other => other
     }
 
-    updateStatement match {
-      case incr: OperatorExpression if Set(StandardOperator.PostIncr, StandardOperator.PreIncr).contains(incr.operator) =>
-        if (!incr.arg(0).isName(name)) {
-          return None
-        }
+    val incremented: NameExpression = updateStatement match {
+      case OperatorExpression(StandardOperator.PostIncr, List(incrName: NameExpression)) => incrName
+      case OperatorExpression(StandardOperator.PreIncr, List(incrName: NameExpression)) => incrName
+      case OperatorExpression(StandardOperator.AddAssign,
+        List(incrName: NameExpression, ConstantExpression(IntegerValue(1)))
+      ) => incrName
+      case OperatorExpression(StandardOperator.Assign, List(
+        incrName: NameExpression,
+        OperatorExpression(StandardOperator.Plus, List(otherName: NameExpression, ConstantExpression(IntegerValue(1))))
+      )) if incrName == otherName => incrName
+      case assign: AssignmentStatement => assign.expression match {
+        case OperatorExpression(StandardOperator.Plus, List(otherName: NameExpression, ConstantExpression(IntegerValue(1))))
+          if assign.location == otherName => otherName
+        case _ => return None
+      }
       case _ => return None
+    }
+
+    if(incremented.name != name) {
+      return None
     }
 
     // The variable must be in the range {start..end}
@@ -184,7 +200,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       case None => throw Failure("For loop not representable as parallel block")
     }
 
-    val len = create constant (lenValue)
+    val len = create constant lenValue
 
     /* inner is a vector block of `len` threads
        outer is a PPLParallel of `(end - start) / len` threads */
@@ -202,7 +218,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
     ))
     val inner = create vector_block(innerDecl, rewrite(loop.loop.getBody).asInstanceOf[BlockStatement])
 
-    val outerBody = create block()
+    val outerBody = create.block()
     outerBody.add(create special(ASTSpecial.Kind.Assume,
       create.expression(StandardOperator.LTE,
         create expression(StandardOperator.Mult, outerInc, len),
@@ -213,7 +229,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
     PPLBlock(Seq(outerDecl), outerBody, rewrite(loop.loop.getContract), loop)
   }
 
-  def translate(block: BlockStatement): Seq[PPL] = block.getStatements.map(matchNode)
+  def translate(block: BlockStatement): Seq[PPL] = block.getStatements.toIndexedSeq.map(matchNode)
 
   def matchNode(node: ASTNode): PPL = node match {
     case loop@OMPFor(_, _) => forLoopToPPL(loop)
@@ -223,7 +239,7 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
       case OMPSection(block) => compose(translate(block))
       case _ => throw Failure("omp sections block may only contain omp section blocks")
     }.reduce(PPLPar)
-    case OMPParallel(block, options, contract) => compose(translate(block))
+    case OMPParallel(block, _, _) => compose(translate(block))
     case _ => throw Failure("??")
   }
 
@@ -252,19 +268,19 @@ class OpenMPToPVL(source: ProgramUnit) extends AbstractRewriter(source) {
   }
 
   override def visit(sections: OMPSections): Unit = {
-    throw Failure("omp sections block is only allowed in omp parallel block");
+    throw Failure("omp sections block is only allowed in omp parallel block")
   }
 
   override def visit(section: OMPSection): Unit = {
-    throw Failure("omp section block is only allowed in omp sections block");
+    throw Failure("omp section block is only allowed in omp sections block")
   }
 
   override def visit(par: OMPForSimd): Unit = {
-    throw Failure("omp for simd cannot be at the top level");
+    throw Failure("omp for simd cannot be at the top level")
   }
 
   override def visit(fr: OMPFor): Unit = {
-    throw Failure("omp for cannot be at the top level");
+    throw Failure("omp for cannot be at the top level")
   }
 
   def tryParallel(loop: LoopStatement): Option[(Seq[DeclarationStatement], ASTNode, Contract)] = {

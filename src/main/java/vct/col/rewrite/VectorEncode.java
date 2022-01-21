@@ -27,8 +27,6 @@ import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.SequenceUtils;
 
-import static vct.col.rewrite.VectorEncode.Op.*;
-
 public class VectorEncode extends AbstractRewriter {
   protected enum Op {AssignConst, Add}
   private static class Pair<E1,E2>{
@@ -59,14 +57,8 @@ public class VectorEncode extends AbstractRewriter {
   
   private HashSet<Pair<Op,Type>> ops=new HashSet<>();
   private HashMap<String, Type> locals;
-  
-  //static ProgramUnit vector_lib;
-  //static {
-  //  File file=new File(new File(Configuration.getHome().toFile(),"config"),"vectorlib.pvl");
-  //  vector_lib=Parsers.getParser("pvl").parse(file);
-  //}
 
-  public VectorEncode(ProgramUnit source) {
+    public VectorEncode(ProgramUnit source) {
     super(source);
   }
   
@@ -93,7 +85,7 @@ public class VectorEncode extends AbstractRewriter {
       cb.context(create.expression(StandardOperator.LTE,create.constant(0),create.local_name("from")));
       cb.context(create.expression(StandardOperator.LTE,create.local_name("from"),create.local_name("upto")));
       cb.context(create.expression(StandardOperator.LTE,create.local_name("upto"),
-          create.dereference(create.local_name("ar"), "length")));
+          create.array_length_dereference(create.local_name("ar"))));
       ASTNode range=create.expression(StandardOperator.And,
           create.expression(StandardOperator.LTE,create.local_name("from"),create.local_name("i")),
           create.expression(StandardOperator.LT,create.local_name("i"),create.local_name("upto"))
@@ -173,14 +165,14 @@ public class VectorEncode extends AbstractRewriter {
         ArrayList<ASTNode> args=new ArrayList<ASTNode>();
         Op op=null;
         if (expr instanceof ConstantExpression){
-          op=AssignConst;
+          op=Op.AssignConst;
           args.add(expr);
         }
         if (expr.isa(StandardOperator.Plus)){
           OperatorExpression rhs=(OperatorExpression)expr;
           Pair<String, Type> left = detectArray(rhs.arg(0), iterVarName);
           Pair<String, Type> right = detectArray(rhs.arg(1), iterVarName);
-          op=Add;
+          op=Op.Add;
           args.add(create.expression(StandardOperator.Values,create.local_name(left.e1),from,upto));
           args.add(create.expression(StandardOperator.Values,create.local_name(right.e1),from,upto));
         }

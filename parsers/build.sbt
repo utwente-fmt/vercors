@@ -1,14 +1,13 @@
 lazy val antlrTask = taskKey[Seq[File]]("Generate visitors and listeners from ANTLR grammars")
 
-libraryDependencies += "antlr" % "antlr" % "4.8-extractors-1" from
-  "https://github.com/niomaster/antlr4/releases/download/4.8-extractors-1/antlr4.jar"
-libraryDependencies += "io.github.nicolasstucki" %% "multisets" % "0.4"
+libraryDependencies += "antlr" % "antlr" % "4.8-extractors-2" from
+  "https://github.com/niomaster/antlr4/releases/download/4.8-extractors-2/antlr4.jar"
 
 antlrTask := {
-    val cp = (dependencyClasspath in Compile).value.files
-    val src = (sourceDirectory in Compile).value / "antlr4"
-    val lib = (unmanagedBase in Compile).value / "antlr4"
-    val target = (sourceManaged in Compile).value / "antlr4" / "vct" / "antlr4" / "generated"
+    val cp = (Compile / dependencyClasspath ).value.files
+    val src = (Compile / sourceDirectory ).value / "antlr4"
+    val lib = (Compile / unmanagedBase ).value / "antlr4"
+    val target = (Compile / sourceManaged ).value / "antlr4" / "vct" / "antlr4" / "generated"
     val log = streams.value.log
 
     val compileSets: Seq[(java.io.File, Boolean, Set[java.io.File])] = Seq(
@@ -19,7 +18,7 @@ antlrTask := {
           Set(lib / "TestNoSpecLexer.g4")),
         (lib / "LangJavaLexer.g4", false,
           Set(lib / "TestNoSpecLexer.g4")),
-        (src / "PVL.g4", true,
+        (src / "PVLParser.g4", true,
           Set(lib / "TestNoSpecParser.g4", lib / "TestNoSpecLexer.g4")),
         (src / "CParser.g4", true,
           Set(lib / "TestNoSpecParser.g4", lib / "TestNoSpecLexer.g4",
@@ -38,8 +37,11 @@ antlrTask := {
           Set(lib / "SpecLexer.g4", lib / "LangOMPLexer.g4")),
         (lib / "LangJavaLexer.g4", false,
           Set(lib / "SpecLexer.g4")),
-        (src / "PVL.g4", true,
-          Set(lib / "SpecParser.g4", lib / "SpecLexer.g4")),
+        (lib / "LangPVLLexer.g4", false,
+          Set(lib / "SpecLexer.g4")),
+        (src / "PVLParser.g4", true,
+          Set(lib / "LangPVLParser.g4", lib / "LangPVLLexer.g4",
+              lib / "SpecParser.g4", lib / "SpecLexer.g4")),
         (src / "CParser.g4", true,
           Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",
               lib / "LangCParser.g4", lib / "LangCLexer.g4",
@@ -48,7 +50,6 @@ antlrTask := {
         (src / "JavaParser.g4", true,
           Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",
               lib / "LangJavaParser.g4", lib / "LangJavaLexer.g4")),
-        (src / "omp.g4", true, Set()),
     )
 
     val allInputFiles: Set[java.io.File] =
@@ -89,6 +90,9 @@ antlrTask := {
     cachedCompile(allInputFiles).toSeq
 }
 
-sourceGenerators in Compile += (antlrTask in Compile).taskValue
-managedSourceDirectories in Compile += (sourceManaged in Compile).value / "antlr4"
-sources in (Compile, doc) := Seq()
+Compile / sourceGenerators  += (Compile / antlrTask ).taskValue
+Compile / managedSourceDirectories  += (Compile / sourceManaged ).value / "antlr4"
+
+// Disable documentation generation
+Compile / doc / sources := Seq()
+Compile / packageDoc / publishArtifact := false

@@ -22,12 +22,33 @@ public class PropagateInvariants extends AbstractRewriter {
   
   @Override
   public void visit(Method m){
-    Contract c=m.getContract();
-    if (c!=null){
+    if(m.getContract() == null) {
+      super.visit(m);
+    } else {
+      Contract c = m.getContract();
+      ContractBuilder builder = new ContractBuilder();
+      if(c.given != null) builder.given(rewrite(c.given));
+      if(c.yields != null) builder.yields(rewrite(c.yields));
+      if(c.modifies != null) builder.modifies(rewrite(c.modifies));
+      if(c.accesses != null) builder.accesses(rewrite(c.accesses));
+      builder.context(rewrite(c.invariant));
+      builder.requires(rewrite(c.pre_condition));
+      builder.ensures(rewrite(c.post_condition));
+      builder.signals(rewrite(c.signals));
+
       invariants.push(c.invariant);
-    }
-    super.visit(m);
-    if(c!=null){
+
+      result = create.method_kind(
+              m.kind,
+              rewrite(m.getReturnType()),
+              rewrite(m.signals),
+              builder.getContract(),
+              m.name(),
+              rewrite(m.getArgs()),
+              m.usesVarArgs(),
+              rewrite(m.getBody())
+      );
+
       invariants.pop();
     }
   }
@@ -80,7 +101,7 @@ public class PropagateInvariants extends AbstractRewriter {
     ContractBuilder cb=new ContractBuilder();
     for(ASTNode inv:invariants) { cb.prependInvariant(inv); }
     rewrite(pb.contract(), cb);
-    ParallelBlock res=create.parallel_block(
+    result= create.parallel_block(
         pb.label(),
         // Make sure the contract remains null if the original contract is null,
         // and non-null if the original contract is
@@ -89,6 +110,5 @@ public class PropagateInvariants extends AbstractRewriter {
         rewrite(pb.block()),
         rewrite(pb.deps())
     );
-    result=res;
   }
 }

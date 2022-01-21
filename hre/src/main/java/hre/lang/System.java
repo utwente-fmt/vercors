@@ -1,10 +1,11 @@
 package hre.lang;
 
-import ch.qos.logback.classic.LoggerContext;
-import org.slf4j.LoggerFactory;
+import hre.config.Configuration;
 
-import java.io.*;
-import java.lang.Thread.UncaughtExceptionHandler;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -96,7 +97,7 @@ public class System {
         }
 
         @Override
-        public void flush() throws IOException {
+        public void flush() {
             // Refuse, as flushing in this context may cause an additional unwanted newline.
         }
 
@@ -147,6 +148,8 @@ public class System {
         debugfilterByLine.add(classLineCombo);
     }
 
+    private static boolean needLineClear = false;
+
     private static void log(LogLevel level, Map<Appendable, LogLevel> outputs, String format, Object... args) {
         // Only format the string (expensive) when the message is actually outputted
         String message = null;
@@ -158,11 +161,22 @@ public class System {
                         for (LogWriter writer : activeLogWriters) {
                             writer.doFlush();
                         }
+                        message = level.getShorthand() + String.format(format, args);
+                    }
 
-                        message = level.getShorthand() + String.format(format + "%n", args);
+                    if(needLineClear) {
+                        entry.getKey().append("\033[0K");
+                        needLineClear = false;
                     }
 
                     entry.getKey().append(message);
+
+                    if(level == LogLevel.Progress && Configuration.ansi.get()) {
+                        entry.getKey().append("\r");
+                        needLineClear = true;
+                    } else {
+                        entry.getKey().append("\r\n");
+                    }
                 } catch (IOException e) {
                     if (level != LogLevel.Abort) {
                         Abort("IO Error: %s", e);
@@ -277,18 +291,4 @@ public class System {
         log(LogLevel.Result, outputStreams, format, args);
         return new Failure(String.format(format, args));
     }
-
-//    static {
-//        final UncaughtExceptionHandler parent = Thread.getDefaultUncaughtExceptionHandler();
-//        UncaughtExceptionHandler eh = new UncaughtExceptionHandler() {
-//            @Override
-//            public void uncaughtException(Thread t, Throwable e) {
-//                if (e instanceof HREExitException) {
-//                    java.lang.System.exit(((HREExitException) e).exit);
-//                }
-//                parent.uncaughtException(t, e);
-//            }
-//        };
-//        Thread.setDefaultUncaughtExceptionHandler(eh);
-//    }
 }

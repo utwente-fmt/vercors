@@ -1,14 +1,12 @@
 package vct.col.ast.stmt.decl;
 
 import java.util.Arrays;
-import java.util.Collections;
 
+import hre.util.ScalaHelper;
 import scala.collection.Iterable;
-import scala.collection.JavaConverters;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTDeclaration;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.ClassName;
 
@@ -27,15 +25,16 @@ public class ASTSpecial extends ASTDeclaration {
 
   @Override
   public Iterable<String> debugTreeChildrenFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("args"));
+    // Ideally this class should be rewritten into Scala. But that is a bit too much work for now.
+    return ScalaHelper.toIterable("args");
   }
 
   @Override
   public Iterable<String> debugTreePropertyFields() {
-    return JavaConverters.iterableAsScalaIterable(Collections.singletonList("kind"));
+    return ScalaHelper.toIterable("kind");
   }
 
-  public static enum Kind {
+  public enum Kind {
     Expression,
     With,
     Then,
@@ -62,11 +61,6 @@ public class ASTSpecial extends ASTDeclaration {
     Notify,
     Fork,
     Join,
-    Comment,
-    Invariant,
-    Contract, Requires, Ensures, Given(-1), Yields(-1), Modifies(-1), Pragma,
-    RequiresAndEnsures(1),
-    Accessible(-1),
     StaticEntry(0),
     InlineEntry(0),
     VolatileEntry(0),
@@ -121,7 +115,11 @@ public class ASTSpecial extends ASTDeclaration {
     /**
      * Continue a loop.
      */
-    Continue(-1)
+    Continue(-1),
+    /**
+     * Represents unobservable action
+     */
+    TauAction(0)
     ;
 
     
@@ -138,7 +136,7 @@ public class ASTSpecial extends ASTDeclaration {
     public int arity(){ return arity; }
 
 
-  };
+  }
 
   public final Kind kind;
   

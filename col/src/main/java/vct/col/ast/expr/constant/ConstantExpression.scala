@@ -39,6 +39,6 @@ case class ConstantExpression(val value:Value) extends ASTNode with VisitorHelpe
     case _ => ast.equals(value)
   }
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq()
-  override def debugTreePropertyFields(): Iterable[String] = Seq("value")
+  override def debugTreeChildrenFields: Iterable[String] = Seq()
+  override def debugTreePropertyFields: Iterable[String] = Seq("value")
 }

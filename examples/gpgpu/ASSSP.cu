@@ -1,3 +1,10 @@
+//:: case ASSSP
+
+/* Currently this file does not pass because of some renaming errors. Mohsen Safari might have a version in which
+ * data-race freedom is verified, and which was also used in his ASSSP paper. This file might be included in the future,
+ * and can then replace this file.
+ */
+
 /***********************************************************************************
 Created by Mohsen Safari.
 ************************************************************************************/

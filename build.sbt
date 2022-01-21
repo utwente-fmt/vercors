@@ -1,11 +1,15 @@
 import NativePackagerHelper._
 import sys.process._
+import java.io.File.pathSeparator
 import java.nio.file.{Files, Path, Paths}
 import java.net.URL
 import java.util.Comparator
 import sbt.internal._
 
+
+
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
+ThisBuild / scalaVersion := "2.13.5"
 
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
@@ -13,9 +17,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#v.20.07-release")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.20.07-release")
-val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.20.07-release")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#v.21.07-release")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.21.07-release")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.21.07-release")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -48,15 +52,35 @@ lazy val col = (project in file("col")).dependsOn(hre)
 lazy val parsers = (project in file("parsers")).dependsOn(hre, col)
 lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, carbon_ref, silicon_ref)
 
-lazy val vercors = (project in file("."))
-  .dependsOn(hre)
-  .dependsOn(col)
-  .dependsOn(viper_api)
-  .dependsOn(parsers)
+// We fix the scalaVersion of all viper components to be silver's scalaVersion, because
+// it seems that in some cases the scalaVersion of the other components is lost.
+// SBT then assumes the version we want for those components is 2.10, and then
+// suddenly it can't find the dependencies anymore! Smart move, sbt.
+// If Viper ever moves to maven central or some other proper dependency mechanism,
+// this can probably be removed.
+carbon_ref / scalaVersion := (silver_ref / scalaVersion).value
+silicon_ref / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(silver_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(carbon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
+ProjectRef(silicon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
+
+// Disable doc generation in all viper projects
+carbon_ref / packageDoc / publishArtifact := false
+silver_ref / packageDoc / publishArtifact := false
+silicon_ref / packageDoc / publishArtifact := false
+ProjectRef(silver_url, "common") / packageDoc / publishArtifact := false
+ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
+ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
+
+lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
+
+lazy val vercors: Project = (project in file("."))
+  .dependsOn(hre, col, viper_api, parsers)
+  .aggregate(hre, col, viper_api, parsers)
   .settings(
     name := "Vercors",
     organization := "University of Twente",
-    version := "1.3.0",
+    version := "1.4.0",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -68,26 +92,28 @@ lazy val vercors = (project in file("."))
         |PVL. """.stripMargin.replaceAll("\n", ""),
 
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
-    libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-    libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test,
+    libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.2",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
+    libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
 
-    scalaVersion := "2.12.10",
+    // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
+    // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.
+    libraryDependencies += "org.jacoco" % "org.jacoco.cli" % "0.8.7" classifier "nodeps",
+    libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
-    scalacOptions in ThisBuild += "-deprecation",
-    scalacOptions in ThisBuild += "-feature",
-    scalacOptions in ThisBuild += "-unchecked",
-    scalacOptions in ThisBuild ++= Seq("-Ypatmat-exhaust-depth", "off"),
+      ThisBuild / scalacOptions ++= Seq(
+      "-deprecation",
+      "-feature",
+      "-unchecked",
+      "-Ypatmat-exhaust-depth",
+      "off"
+    ),
 
-    javacOptions in Compile += "-Xlint:deprecation",
-    javacOptions in Compile += "-Xlint:unchecked",
-    javacOptions in Compile += "-deprecation",
-    javacOptions in doc := Seq(),
-
-    javaOptions in (Compile, run) += "-J-Xss128M",
-    /* The run script from universal can accept both JVM arguments and application (VerCors) arguments. They are
-    separated by "--". We instead want to accept only VerCors arguments, so we force "--" into the arguments. */
-    javaOptions in Universal ++= Seq("-J-Xss128M", "--"),
+    Compile / javacOptions ++= Seq(
+      "-Xlint:deprecation",
+      "-Xlint:unchecked",
+      "-deprecation"
+    ),
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
@@ -98,32 +124,60 @@ lazy val vercors = (project in file("."))
       },
       BuildInfoKey.action("gitHasChanges") {
         Git.gitHasChanges
-      }
+      },
+      "silverCommit" -> BuildUtil.commitFromGitUrl(silver_url.toString),
+      "siliconCommit" -> BuildUtil.commitFromGitUrl(silicon_url.toString),
+      "carbonCommit" -> BuildUtil.commitFromGitUrl(carbon_url.toString)
     ),
     buildInfoOptions += BuildInfoOption.BuildTime,
     buildInfoPackage := "vct.main",
 
     /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
     the classpath. That way the resources are not packed into the jar. */
-    unmanagedClasspath in Compile += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
 
     // Disable documentation generation
-    sources in (Compile, doc) := Seq(),
+    Compile / packageDoc / publishArtifact := false,
+    Compile / doc / sources := Seq(),
 
-    mappings in Universal += file("README.md") -> "README.md",
-    mappings in Universal ++= directory("examples"),
+    Universal / mappings ++= Seq(file("README.md") -> "README.md")
+      ++ directory("examples")
+      // Copy the resources not in the jar and add them to the classpath.
+      ++ directory(sourceDirectory.value / "main" / "universal" / "res"),
 
-    // Copy the resources not in the jar and add them to the classpath.
-    mappings in Universal ++= directory(sourceDirectory.value / "main" / "universal" / "res"),
-    scriptClasspath := scriptClasspath.value :+ "../res",
+    // Sets the classpath as described on the below page
+    // https://sbt-native-packager.readthedocs.io/en/latest/recipes/longclasspath.html
+    // To circumvent the long classpath problem
+    // At the time of writing (2021-10-08) the other two workarounds described
+    // on that page seem to be broken.
+    // Both result in "class vct.main.Main" not found when running vercors.
+    // See: https://github.com/sbt/sbt-native-packager/issues/1466
+    scriptClasspath := Seq("*", "../res"),
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
-    discoveredMainClasses in Compile := Seq(),
-    mainClass in Compile := Some("vct.main.Main"),
+    Compile / discoveredMainClasses := Seq(),
+    Compile / mainClass := Some("vct.main.Main"),
+
+    // Add options to run scripts produced by sbt-native-packager. See: https://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/customize.html#via-build-sbt
+    Universal / javaOptions ++= Seq (
+      // Needed because vercors needs a pretty big stack for some files with deep expressions.
+      "-J-Xss128m"
+    ),
 
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
     // repository that contains all classes and resources relevant for testing.
     // Other projects, e.g., Carbon or Silicon, can then depend on the Sil test artifact, which
     // allows them to access the Sil test suite.
-    publishArtifact in(Test, packageBin) := true,
+    Test / packageBin / publishArtifact := true,
+
+    cleanFiles += baseDirectory.value / "bin" / ".classpath",
   )
+
+Global / printMainClasspath := {
+    val paths = (vercors / Compile / fullClasspath).value
+    val joinedPaths = paths
+        .map(_.data)
+        .mkString(pathSeparator)
+    println(joinedPaths)
+}
+

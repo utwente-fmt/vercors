@@ -4,120 +4,47 @@ package vct.parsers;
 
 import static hre.lang.System.*;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-
 import hre.tools.TimeKeeper;
 import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 
 import vct.antlr4.generated.*;
 import vct.col.ast.stmt.decl.ProgramUnit;
-import vct.parsers.rewrite.*;
-import vct.col.ast.syntax.JavaDialect;
-import vct.col.ast.syntax.JavaSyntax;
 
 /**
  * Parse specified code and convert the contents to COL. 
  */
-public class ColJavaParser implements Parser {
-
-  public final int version;
-  public final boolean twopass;
+public class ColJavaParser extends Parser {
   public final boolean topLevelSpecs;
   
-  public ColJavaParser(int version, boolean twopass, boolean topLevelSpecs){
-    this.version=version;
-    this.twopass=twopass;
+  public ColJavaParser(boolean topLevelSpecs){
     this.topLevelSpecs = topLevelSpecs;
   }
   
   @Override
-  public ProgramUnit parse(File file) {
-    String file_name=file.toString();
+  public ProgramUnit parse(CharStream input, String file_name) {
       try {
         TimeKeeper tk=new TimeKeeper();
-        
-        CharStream input = CharStreams.fromStream(new FileInputStream(file));
 
         ProgramUnit pu;
-        ErrorCounter ec=new ErrorCounter(file_name);
-        
-        switch(version){
-        case 7:
-          if (twopass){
-            Lexer lexer = new LangJavaLexer(input);
-            CommonTokenStream tokens = new CommonTokenStream(lexer);
-            JavaParser parser = new JavaParser(tokens);
-            parser.removeErrorListeners();
-            parser.addErrorListener(ec);
-            lexer.removeErrorListeners();
-            lexer.addErrorListener(ec);
-            if(this.topLevelSpecs) {
-              parser.specLevel = 1;
-            }
-            JavaParser.CompilationUnitContext tree = parser.compilationUnit();
-            ec.report();
-            Progress("first parsing pass took %dms",tk.show());
-            
-            pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
-            Progress("AST conversion took %dms",tk.show());
-            Debug("program after Java parsing:%n%s",pu);
-            break;
-          } else {
-            Lexer lexer = new LangJavaLexer(input);
-            CommonTokenStream tokens = new CommonTokenStream(lexer);
-            JavaParser parser = new JavaParser(tokens);
-            parser.removeErrorListeners();
-            parser.addErrorListener(ec);
-            lexer.removeErrorListeners();
-            lexer.addErrorListener(ec);
-            if(this.topLevelSpecs) {
-              parser.specLevel = 1;
-            }
-            
-            JavaParser.CompilationUnitContext tree = parser.compilationUnit();
-            ec.report();
-            Progress("first parsing pass took %dms",tk.show());
-            
-            pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
-            Progress("AST conversion took %dms",tk.show());
-            Debug("program after Java parsing:%n%s",pu);
-            break;
-          }
-        default:
-          throw new Error("bad java version: "+version);
+        Lexer lexer = new LangJavaLexer(input);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        JavaParser parser = new JavaParser(tokens);
+        ErrorCounter ec = errorCounter(parser, lexer, file_name);
+        if(this.topLevelSpecs) {
+          parser.specLevel = 1;
         }
-        pu=new FlattenVariableDeclarations(pu).rewriteAll();
-        Progress("Flattening variables took %dms",tk.show());
-        Debug("program after flattening variables:%n%s",pu);
-        
-        pu=new SpecificationCollector(JavaSyntax.getJava(JavaDialect.JavaVerCors),pu).rewriteAll();
-        Progress("Shuffling specifications took %dms",tk.show());        
-        Debug("program after collecting specs:%n%s",pu);
-        
-        pu=new JavaPostProcessor(pu).rewriteAll();
-        Progress("post processing took %dms",tk.show());        
 
-        pu = new RewriteWithThen(pu).rewriteAll();
-        Progress("rewriting with/then blocks took %dms", tk.show());
+        JavaParser.CompilationUnitContext tree = parser.compilationUnit();
+        ec.report();
+        Progress("First parsing pass took %dms",tk.show());
 
-        pu=new AnnotationInterpreter(pu).rewriteAll();
-        Progress("interpreting annotations took %dms",tk.show());        
-
-        //cannnot resolve here: other .java files may be needed!
-        //pu=new JavaResolver(pu).rewriteAll();
-        //Progress("resolving library calls took %dms",tk.show());        
-
-        pu=new FilterSpecIgnore(pu).rewriteAll();
-        Progress("filtering spec_ignore took %dms",tk.show()); 
+        pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
+        Progress("AST conversion took %dms",tk.show());
+        Debug("program after Java parsing:%n%s",pu);
 
         return pu;
-      } catch (FileNotFoundException e) {
-        Fail("File %s has not been found",file_name);
       } catch (Exception e) {
         DebugException(e);
         Abort("Exception %s while parsing %s",e.getClass(),file_name);

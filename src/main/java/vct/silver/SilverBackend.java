@@ -8,10 +8,8 @@ import viper.api.*;
 
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Properties;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 import hre.ast.Origin;
 import hre.lang.HREError;
@@ -62,10 +60,10 @@ public class SilverBackend {
     ProgramUnit arg=given.getOutput();
     PassReport report=new PassReport(arg);
     report.add(new PassAddVisitor(given));
+    report.setOutput(given.getOutput());
     MessageFactory log=new MessageFactory(new PassAddVisitor(report));
     TaskBegin verification=log.begin("Viper verification");
 
-    hre.lang.System.Progress("verifying with %s %s backend", "builtin", tool);
     //verifier.set_detail(Configuration.detailed_errors.get());
     VerCorsViperAPI vercors=VerCorsViperAPI.get();
     Program program = vercors.prog.convert(verifier,arg);
@@ -75,6 +73,11 @@ public class SilverBackend {
       PrintWriter pw=null;
       try {
         pw = new java.io.PrintWriter(new java.io.File(fname));
+        Date now = new Date();
+        pw.print("// Generated on ");
+        pw.print(new SimpleDateFormat("yyyy-MM-dd").format(now));
+        pw.print(" at ");
+        pw.println(new SimpleDateFormat("HH:mm:ss").format(now));
         verifier.write_program(pw,program);
       } catch (FileNotFoundException e) {
         DebugException(e);
@@ -84,11 +87,14 @@ public class SilverBackend {
     }
 
     Properties settings=new Properties();
-    if (tool.startsWith("silicon")){
-      //settings.setProperty("smt.soft_timeout",silicon_z3_timeout.get()+"");
-    }
+    /*if (tool.startsWith("silicon")){
+      settings.setProperty("smt.soft_timeout",silicon_z3_timeout.get()+"");
+    }*/
     ViperControl control=new ViperControl(log);
     try {
+      SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+      hre.lang.System.Progress("Verification with %s %s backend starting at %s", "builtin", tool, dateFormat.format(new Date()));
+
       // Call into Viper to verify!
       List<? extends ViperError<Origin>> rawErrors = verifier.verify(
               Configuration.getZ3Path().toPath(),
@@ -143,6 +149,7 @@ public class SilverBackend {
       }
     } catch (Exception e){
       log.exception(e);
+      Output(e.toString());
     } finally {
       control.done();
     }

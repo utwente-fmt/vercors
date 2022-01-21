@@ -8,6 +8,6 @@ case class ParallelInvariant(val label:String, val inv:ASTNode, val block:BlockS
   override def accept_simple[T](v:ASTVisitor[T]) =  handle_standard(() => v.visit(this))
   override def accept_simple[T](m:ASTMapping[T]) = handle_standard(() => m.map(this))
 
-  override def debugTreeChildrenFields(): Iterable[String] = Seq("inv", "block")
-  override def debugTreePropertyFields(): Iterable[String] = Seq("label")
+  override def debugTreeChildrenFields: Iterable[String] = Seq("inv", "block")
+  override def debugTreePropertyFields: Iterable[String] = Seq("label")
 }

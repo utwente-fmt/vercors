@@ -3,13 +3,11 @@ package hre.io;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static hre.lang.System.Debug;
-import static hre.lang.System.Warning;
 
 /**
  * Provides communication with a interactive external process.
@@ -20,7 +18,7 @@ public class MessageProcess {
     private PrintStream processStdin;
     private Process process;
     private BlockingQueue<Message> processOutputLineQueue;
-    private Path workingDirectory;
+    private ProcessWatcher processWatcher;
 
     /**
      * Wraps a system process as an interactive resources.
@@ -31,7 +29,6 @@ public class MessageProcess {
      * @param argv
      */
     public MessageProcess(Path workingDirectory, String[] argv, String[] env) {
-        this.workingDirectory = workingDirectory;
         processOutputLineQueue = new LinkedBlockingQueue<Message>();
 
         Runtime runtime = Runtime.getRuntime();
@@ -47,7 +44,8 @@ public class MessageProcess {
         stderr_parser.start();
 
         processStdin = new PrintStream(process.getOutputStream());
-        new ProcessWatcher(process, processOutputLineQueue, stdout_parser, stderr_parser).start();
+        processWatcher = new ProcessWatcher(process, processOutputLineQueue, stdout_parser, stderr_parser);
+        processWatcher.start();
 
         new Thread(() -> {
             try {
@@ -61,13 +59,6 @@ public class MessageProcess {
                 Thread.currentThread().interrupt();
             }
         }).start();
-    }
-
-    public MessageProcess(String[] command_line) {
-        this(null, command_line,
-                System.getenv().entrySet().stream()
-                        .map((e) -> String.format("%s=%s", e.getKey(), e.getValue()))
-                        .toArray(String[]::new));
     }
 
     public void send(String format, Object... args) {
@@ -84,9 +75,5 @@ public class MessageProcess {
         } catch (InterruptedException e) {
         }
         return result;
-    }
-
-    public Path getWorkingDirectory() {
-        return workingDirectory;
     }
 }

@@ -36,7 +36,7 @@ class Device {
 @*/
   public Device() {
     /*@ghost {
-      F = new Future();
+      F = new `Future`();
       F.flag = true;
       create F, F.nsar();
     }@*/

@@ -30,6 +30,5 @@ public class Message {
   public Object getArg(int i){
     return args[i];
   }
-  
 }
 
