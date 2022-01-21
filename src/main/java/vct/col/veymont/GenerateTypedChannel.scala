@@ -83,17 +83,17 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
             case _ => Fail("VeyMont Fail: OperatorExpression expected! %s", m.getBody)
           }
         } else if(m.name == chanWriteMethodName) {
-          val cb = new ContractBuilder()
-          rewrite(m.getContract,cb)
+        /*  val cb = new ContractBuilder()
+          rewrite(m.getContract,cb) */
           val newArgs = m.getArgs.map(rewrite(_))
-          cb.context(getFieldPerms(cl,create.argument_name(newArgs.head.name)))
-          result = create.method_kind(m.kind, rewrite(m.getReturnType), cb.getContract, m.name, newArgs, rewrite(m.getBody))
+          // cb.context(getFieldPerms(cl,create.argument_name(newArgs.head.name)))
+          result = create.method_kind(m.kind, rewrite(m.getReturnType), rewrite(m.getContract), m.name, newArgs, rewrite(m.getBody))
         } else if(m.name == chanReadMethodName) {
-          val cb = new ContractBuilder()
+         /* val cb = new ContractBuilder()
           rewrite(m.getContract,cb)
-          cb.ensures(getFieldPerms(cl,create.reserved_name(ASTReserved.Result)))
+          cb.ensures(getFieldPerms(cl,create.reserved_name(ASTReserved.Result))) */
           val newArgs = m.getArgs.map(rewrite(_))
-          val res = create.method_kind(m.kind, rewrite(m.getReturnType), cb.getContract, m.name, newArgs, rewrite(m.getBody))
+          val res = create.method_kind(m.kind, rewrite(m.getReturnType), rewrite(m.getContract), m.name, newArgs, rewrite(m.getBody))
           result = res
         } else Fail("VeyMont Fail: unexpected method %s in channel class %s!",m.name,cl.name)
       }
@@ -138,10 +138,10 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
   override def visit(l : LoopStatement) : Unit = sort match {
     case Left(p) => super.visit(l)
     case Right(cl) => {
-      val cb = new ContractBuilder()
+     /* val cb = new ContractBuilder()
       rewrite(l.getContract,cb)
-      cb.appendInvariant(getFieldPerms(cl,create.field_name(chanValueFieldName)))
-      val res = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract)
+      cb.appendInvariant(getFieldPerms(cl,create.field_name(chanValueFieldName))) */
+      val res = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),rewrite(l.getContract))
       result = res
     }
   }

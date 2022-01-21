@@ -41,7 +41,9 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(n
   override def visit(m : Method) : Unit = {
     if(m.name == Util.runMethodName) {
       m.attach(create.reserved_name(ASTReserved.Protected))
-      result = create.method_kind(m.kind,m.getReturnType,m.getContract,Util.javaRunMethodName,m.getArgs,rewrite(m.getBody))
+      result = create.method_kind(m.kind, m.getReturnType, m.getContract, Util.javaRunMethodName, m.getArgs, rewrite(m.getBody))
+    } else if(m.kind == Method.Kind.Predicate) {
+      //remove all resources
     } else {
       if (m.name == Util.cloneMethod) {
         m.attach(create.reserved_name(ASTReserved.Protected))

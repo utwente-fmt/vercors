@@ -100,8 +100,6 @@ public class JavaPrinter extends AbstractPrinter {
     if (!ns.name().equals(NameSpace.NONAME)) {
       out.printf("package %s;",ns.getDeclName().toString("."));
       out.println("");
-    } else {
-      out.println("// begin of package");
     }
     for(NameSpace.Import i:ns.imports){
       out.printf("import %s%s",i.static_import?"static ":"",new ClassName(i.name).toString("."));
@@ -114,7 +112,6 @@ public class JavaPrinter extends AbstractPrinter {
     for(ASTNode n:ns){
       n.accept(this);
     }
-    out.println("// end of package");
   }
   
   @Override
@@ -661,7 +658,7 @@ public class JavaPrinter extends AbstractPrinter {
 
   @Override
   public void visit(Contract contract) {
-    if (contract!=null){
+    if (contract!=null && !contract.isEmpty()){
       out.lnprintf("/*@");
       out.incrIndent();
       super.visit(contract);
