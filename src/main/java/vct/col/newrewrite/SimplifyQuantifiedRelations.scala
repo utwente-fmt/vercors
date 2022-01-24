@@ -121,8 +121,8 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
           } else if(indepOf(bindings, right)) {
             left match {
               case Local(Ref(v)) if bindings.contains(v) =>
-                if(!comp.less) exclusiveUpperBound(v) += (if(comp.eq) left + one else left)
-                if(!comp.greater) inclusiveLowerBound(v) += (if(comp.eq) left else left + one)
+                if(!comp.less) exclusiveUpperBound(v) += (if(comp.eq) right + one else right)
+                if(!comp.greater) inclusiveLowerBound(v) += (if(comp.eq) right else right + one)
               case _ => return None
             }
           } else return None
@@ -141,7 +141,7 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
     // with respect to the bindings
 
     val newBody = Comparison.of(body) match {
-      case Some((left, baseComp, right)) =>
+      case Some((left, baseComp, right)) if Comparison.CONTIGUOUS.contains(baseComp) =>
         val (const, comp, value) = if(indepOf(bindings, left)) {
           (left, baseComp, right)
         } else if(indepOf(bindings, right)) {
@@ -156,7 +156,7 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
         val lt = if(!comp.greater) Seq(comp.make(const, maker.minimize(value).getOrElse(return None))) else Nil
 
         AstBuildHelpers.foldAnd(gt ++ lt)
-      case None => return None
+      case _ => return None
     }
 
     // Success!
@@ -177,7 +177,9 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
     case e @ Forall(bindings, _, body) =>
       trySimplify(bindings, body) match {
         case None => e.rewrite()
-        case Some(e) => dispatch(e)
+        case Some(e) =>
+          bindings.foreach(_.drop())
+          dispatch(e)
       }
     case other => rewriteDefault(other)
   }

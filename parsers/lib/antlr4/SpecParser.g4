@@ -236,7 +236,7 @@ valReserved
     | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE
     | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS | VAL_SET | VAL_BAG
     | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION
-    | VAL_HPERM | VAL_IDLE | VAL_PERM_VAL
+    | VAL_HPERM | VAL_IDLE | VAL_PERM_VAL | VAL_ANY | VAL_NOTHING
     | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME | VAL_LEFT | VAL_RIGHT
     | VAL_VALUE | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_MAP | VAL_OPTION | VAL_EITHER | VAL_TUPLE | VAL_ADT | VAL_TYPE)
  | LANG_ID_ESCAPE # valIdEscape
@@ -258,7 +258,7 @@ valGenericAdtInvocation
  ;
 
 valType
- : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref') # valPrimaryType
+ : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref' | 'any' | 'nothing') # valPrimaryType
  | 'seq' '<' langType '>' # valSeqType
  | 'set' '<' langType '>' # valSetType
  | 'bag' '<' langType '>' # valBagType

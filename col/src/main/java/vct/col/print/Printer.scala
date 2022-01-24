@@ -378,8 +378,8 @@ case class Printer(out: Appendable,
 
   def unfmt(name: String): (String, Int) = {
     if(name.last.isDigit) {
-      val overeenkomst = "^.*(0|[1-9][0-9]*)$".r.findFirstMatchIn(name).get
-      (overeenkomst.group(0), Integer.parseInt(overeenkomst.group(1)))
+      val overeenkomst = "^(.*)(0|[1-9][0-9]*)$".r.findFirstMatchIn(name).get
+      (overeenkomst.group(1), Integer.parseInt(overeenkomst.group(2)))
     } else {
       (name, -1)
     }
@@ -950,6 +950,7 @@ case class Printer(out: Appendable,
     case TFraction() => phrase("frac")
     case TZFraction() => phrase("zfrac")
     case TClass(cls) => phrase(name(cls.decl))
+    case TVar(ref) => phrase(name(ref.decl))
   })
 
   def printDeclaration(decl: Declaration[_]): Unit = say(decl match {

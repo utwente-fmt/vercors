@@ -1,7 +1,7 @@
 package vct.col.newrewrite.util
 
 import vct.col.ast.{Declaration, Expr, TVar, Type}
-import vct.col.ref.Ref
+import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{NonLatchingRewriter, Rewriter}
 
 import scala.reflect.ClassTag
@@ -11,15 +11,15 @@ import scala.reflect.ClassTag
  */
 case class Substitute[G](subs: Map[Expr[G], Expr[G]], typeSubs: Map[TVar[G], Type[G]] = Map.empty[TVar[G], Type[G]]) extends NonLatchingRewriter[G, G] {
   override def succ[DPost <: Declaration[G]](decl: Declaration[G])(implicit tag: ClassTag[DPost]): Ref[G, DPost] =
-    decl.asInstanceOf[DPost].ref
+    new LazyRef[G, DPost](successionMap.get(decl).getOrElse(decl))
 
   override def dispatch(e: Expr[G]): Expr[G] = e match {
-    case expr if subs.contains(expr) => subs(expr)
+    case expr if subs.contains(expr) => dispatch(subs(expr))
     case other => rewriteDefault(other)
   }
 
   override def dispatch(t: Type[G]): Type[G] = t match {
-    case v @ TVar(_) if typeSubs.contains(v) => typeSubs(v)
+    case v @ TVar(_) if typeSubs.contains(v) => dispatch(typeSubs(v))
     case other => rewriteDefault(other)
   }
 }

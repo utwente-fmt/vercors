@@ -47,6 +47,8 @@ VAL_OPTION: 'option';
 VAL_EITHER: 'either';
 VAL_TUPLE: 'tuple';
 VAL_TYPE: 'type';
+VAL_ANY: 'any';
+VAL_NOTHING: 'nothing';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';

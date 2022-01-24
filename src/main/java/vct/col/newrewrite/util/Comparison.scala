@@ -11,6 +11,8 @@ case object Comparison {
   val GREATER_EQ: Comparison = Comparison(eq = true, greater = true)
   val GREATER: Comparison = Comparison(greater = true)
 
+  val CONTIGUOUS: Set[Comparison] = Set(LESS, LESS_EQ, EQ, GREATER_EQ, GREATER)
+
   val NEQ: Comparison = Comparison(less = true, greater = true)
   val TRUE: Comparison = Comparison(less = true, eq = true, greater = true)
   val FALSE: Comparison = Comparison()

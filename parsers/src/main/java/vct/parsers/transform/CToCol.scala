@@ -893,6 +893,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       case "rational" => TRational()
       case "bool" => TBool()
       case "ref" => TRef()
+      case "any" => TAny()
+      case "nothing" => TNothing()
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
@@ -1010,7 +1012,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
     case ValAny(_) => Any()
-    case ValIndependent(_, e, _, name, _) => ??(e)
+    case ValIndependent(_, inner, _, name, _) => IndepOf(convert(inner), new UnresolvedRef[G, Variable[G]](convert(name)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))

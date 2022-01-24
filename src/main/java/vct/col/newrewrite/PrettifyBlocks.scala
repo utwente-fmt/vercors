@@ -4,6 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import RewriteHelpers._
+import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -18,8 +19,7 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
       dispatch(body)
     }
 
-    if(variables.isEmpty) newBody
-    else Scope(variables.toIndexedSeq, newBody)(body.o)
+    Scope(variables.toIndexedSeq, newBody)(body.o)
   }
 
   def dispatchFlatly(stat: Statement[Pre]): Seq[Statement[Post]] = stat match {
@@ -55,6 +55,12 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Rewritten[Pre]] = parRegion match {
     case block: ParBlock[Pre] =>
       block.rewrite(content = collectVariables(block.content))
+    case other => rewriteDefault(other)
+  }
+
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case method: AbstractMethod[Pre] =>
+      method.rewrite(body = method.body.map(collectVariables(_))).succeedDefault(this, method)
     case other => rewriteDefault(other)
   }
 }

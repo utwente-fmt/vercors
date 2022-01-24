@@ -60,6 +60,8 @@ case object LangSpecificToCol extends RewriterBuilder {
 }
 
 case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
+  import LangSpecificToCol._
+
   case class NotAValue(value: Expr[_]) extends UserError {
     override def code: String = "notAValue"
     override def text: String = value.o.messageInContext("Could not resolve this expression to a value.")
@@ -105,7 +107,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
     decls.foreach {
       case fields: JavaFields[Pre] =>
         fields.drop()
-        for(((sourceName, dims, _), idx) <- fields.decls.zipWithIndex) {
+        for(((_, dims, _), idx) <- fields.decls.zipWithIndex) {
           javaFieldsSuccessor((fields, idx)) =
             new InstanceField(
               t = FuncTools.repeat(TArray[Post](_), dims, dispatch(fields.t)),
@@ -188,6 +190,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
                 left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
                 right = dispatch(cons.contract.ensures),
               ),
+              signals = cons.contract.signals.map(dispatch) ++
+                cons.signals.map(t => SignalsClause(new Variable(dispatch(t)), tt)),
             ) },
           )(ImplBlameSplit.right(cons.blame, PanicBlame("Constructor cannot return null value or value of wrong type.")))(JavaConstructorOrigin(cons))
         ).succeedDefault(this, cons)
@@ -200,7 +204,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
             case Some(sync) => method.body.map(body => Synchronized(currentThis.top, dispatch(body))(sync.blame))
             case None => method.body.map(dispatch)
           },
-          contract = dispatch(method.contract),
+          contract = method.contract.rewrite(
+            signals = method.contract.signals.map(dispatch) ++
+              method.signals.map(t => SignalsClause(new Variable(dispatch(t)), tt)),
+          ),
         )(method.blame)(JavaMethodOrigin(method)).succeedDefault(this, method)
       case _: JavaSharedInitialization[Pre] =>
       case _: JavaFields[Pre] =>
@@ -313,7 +320,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
             val resVar = new Variable[Post](t)
             val res = Local[Post](resVar.ref)(ThisVar)
 
-            pvlDefaultConstructor(cls) = new Procedure(
+            pvlDefaultConstructor(cls) = withResult((result: Result[Post]) => new Procedure(
               t,
               Nil, Nil, Nil,
               Some(Scope(Seq(resVar), Block(Seq(
@@ -324,10 +331,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
                 UnitAccountedPredicate(tt),
                 UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
                   case field: InstanceField[Pre] =>
-                    fieldPerm[Post](currentThis.top, succ(field), WritePerm())
+                    fieldPerm[Post](result, succ(field), WritePerm())
                 })), tt, Nil, Nil, Nil,
               )
-            )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
+            )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?).")))
 
             pvlDefaultConstructor(cls).declareDefault(this)
           }

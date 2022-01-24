@@ -1,6 +1,6 @@
 package vct.main
 
-import vct.col.ast.{Declaration, Program}
+import vct.col.ast.{Declaration, Program, SimplificationRule}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
 import vct.col.feature.Feature
@@ -9,7 +9,7 @@ import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang._
 import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
-import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
+import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.java.JavaLibraryLoader
 import vct.parsers.{ParseResult, Parsers}
@@ -37,18 +37,18 @@ case object Test {
 //        tryParse(Seq(f.toPath))
 //      }
 
-      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-        if(c.files.asScala.forall(f =>
-            f.toString.endsWith(".java") ||
-              f.toString.endsWith(".c") ||
-              f.toString.endsWith(".pvl"))) {
-          tryParse(c.files.asScala.toSeq)
-        } else {
-          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
-        }
-      })
+//      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
+//        if(c.files.asScala.forall(f =>
+//            f.toString.endsWith(".java") ||
+//              f.toString.endsWith(".c") ||
+//              f.toString.endsWith(".pvl"))) {
+//          tryParse(c.files.asScala.toSeq)
+//        } else {
+//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+//        }
+//      })
 
-//      tryParse(Seq(Path.of("examples/abrupt/NestedTryCatchFinally.java")))
+      tryParse(Seq(Path.of("examples/arrays/Transpose.pvl")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
@@ -68,7 +68,7 @@ case object Test {
     files += 1
     println(paths.mkString(", "))
     val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration]))
-    var parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
+    val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
     val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
     val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
     val typedProgram = LangTypesToCol().dispatch(untypedProgram)
@@ -118,7 +118,17 @@ case object Test {
       ClassToRef,
 
       // Simplify pure expressions (no more new complex expressions)
-      ApplyTermRewriter.BuilderFor[InitialGeneration](Nil),
+      ApplyTermRewriter.BuilderFor[Rewritten[Rewritten[InitialGeneration]]]({
+        val ParseResult(decls, expectedErrors) = Parsers.parse[InitialGeneration](Paths.get("src/main/universal/res/config/simplify_scratchpad.pvl"))
+        val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
+        val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
+        val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
+        val typedProgram = LangTypesToCol().dispatch(untypedProgram)
+        val errors = ResolveReferences.resolve(typedProgram)
+        printErrors(errors)
+        val normalizedProgram = LangSpecificToCol().dispatch(typedProgram)
+        normalizedProgram.declarations.collect { case rule: SimplificationRule[Rewritten[Rewritten[InitialGeneration]]] => rule }
+      }),
       SimplifyQuantifiedRelations,
 
       EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
@@ -149,7 +159,7 @@ case object Test {
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {
           case decl: Declaration[_] =>
-            if(decl.debugRewriteState == NotProcessed) {
+            if(decl.debugRewriteState == NotProcessed && !pass.isInstanceOf[ApplyTermRewriter.BuilderFor[_]]) {
               println(s"Dropped without notice: $decl")
               throw Exit
             }

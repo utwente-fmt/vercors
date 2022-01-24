@@ -569,6 +569,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         IdleToken(cls(thread)._1)
       case Implies(left, right) =>
         Implies(bool(left), res(right))
+      case IndepOf(e, ref) =>
+        IndepOf(e, ref)
       case InlinePattern(inner) =>
         InlinePattern(inner)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs) =>

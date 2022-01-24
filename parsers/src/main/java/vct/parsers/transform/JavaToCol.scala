@@ -239,8 +239,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case TypeList1(t, _, ts) => convert(t) +: convert(ts)
   }
 
-  def convert(implicit signals: ThrowyContext): Seq[JavaName[G]] = signals match {
-    case Throwy0(_, signals) => convert(signals)
+  def convert(implicit signals: ThrowyContext): Seq[JavaNamedType[G]] = signals match {
+    case Throwy0(_, ts) =>
+      convert(ts).map(name => JavaNamedType(name.names.map(part => (part, None))))
   }
 
   def convert(implicit stat: MethodBodyOrEmptyContext): Option[Statement[G]] = stat match {
@@ -1084,6 +1085,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "rational" => TRational()
       case "bool" => TBool()
       case "ref" => TRef()
+      case "any" => TAny()
+      case "nothing" => TNothing()
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
@@ -1201,7 +1204,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
     case ValAny(_) => Any()
-    case ValIndependent(_, e, _, name, _) => ??(e)
+    case ValIndependent(_, inner, _, name, _) => IndepOf(convert(inner), new UnresolvedRef[G, Variable[G]](convert(name)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))

@@ -189,11 +189,15 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       }
     case block @ ParBlock(decl, iters, req, ens, content) =>
       // For blocks we generate a separate check, by checking the contract for an indeterminate iteration
+      decl.drop()
       implicit val o: Origin = region.o
       val extract = Extract[Post]()
 
       val ranges = iters.map {
-        case IterVariable(v, from, to) => dispatch(from) <= dispatch(v.get) && dispatch(v.get) < dispatch(to)
+        case IterVariable(v, from, to) =>
+          val extractDummy = new Variable(dispatch(v.t))(v.o)
+          successionMap(v) = extractDummy
+          dispatch(from) <= dispatch(v.get) && dispatch(v.get) < dispatch(to)
       }.map(extract.extract)
 
       val requires = extract.extract(dispatch(req))

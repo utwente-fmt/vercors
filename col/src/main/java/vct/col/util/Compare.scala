@@ -13,16 +13,22 @@ case object Compare {
     val isomorphism = mutable.Map[Declaration[L], Declaration[R]]()
     val valueSet = mutable.Set[Declaration[R]]()
     val irreconcilableDiffs = mutable.ArrayBuffer[(Node[L], Node[R])]()
+
+    def define(left: Declaration[L], right: Declaration[R]): Unit = {
+      isomorphism.get(left) match {
+        case None if !valueSet.contains(right) =>
+          isomorphism(left) = right
+          valueSet += right
+        case Some(defn) if right == defn => // ok
+        case _ => irreconcilableDiffs += ((left, right))
+      }
+    }
+
     Comparator.compare(left, right).foreach {
-      case (left: Declaration[L], right: Declaration[R]) =>
-        isomorphism.get(left) match {
-          case None if !valueSet.contains(right) =>
-            isomorphism(left) = right
-            valueSet += right
-          case Some(defn) if right == defn => // ok
-          case _ => irreconcilableDiffs += ((left, right))
-        }
-      case diff => irreconcilableDiffs += diff
+      case Comparator.MatchingReference(left, right) => define(left, right)
+      case Comparator.MatchingDeclaration(left, right) => define(left, right)
+      case Comparator.StructuralDifference(left, right) =>
+        irreconcilableDiffs += ((left, right))
     }
 
     if(irreconcilableDiffs.isEmpty) Right(isomorphism.toMap)
