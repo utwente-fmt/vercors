@@ -10,6 +10,7 @@ import base64
 import optparse
 import time
 import uuid
+import sys
 
 class SnippetTestcase:
     """
@@ -195,8 +196,15 @@ def collect_testcases(document, cases):
     for block in document['blocks']:
         # Code blocks preceded by a label are added to the labeled testcase
         if block['t'] == 'CodeBlock' and code_block_label is not None:
-            cases[code_block_label].add_content(block['c'][1].strip())
-            cases[code_block_label].language = block['c'][0][1][0]
+            code_txt = block['c'][1]
+            cases[code_block_label].add_content(code_txt)
+
+            languages = block['c'][0][1]
+            if len(languages) == 0:
+                print(f"Error: language was not specified for code block.\nLabel: {code_block_label}\nText in code block:\n{code_txt}")
+                sys.exit(1)
+
+            cases[code_block_label].language = languages[0]
             block['_case_label'] = code_block_label
 
         code_block_label = None
