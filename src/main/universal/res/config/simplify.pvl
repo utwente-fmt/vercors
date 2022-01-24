@@ -34,7 +34,7 @@ axiom unitary_right_mul { (∀rational a, rational b; a * (-b) == -(a * b)) }
 axiom inv_mul_left { (∀rational num, rational den; (1 \ den) * num == num \ den) }
 axiom inv_mul_right { (∀rational num, rational den; num * (1 \ den) == num \ den) }
 
-axiom div_self { (∀rational i; i \ i == (i then { 1 \ i; })) }
+axiom div_self { (∀rational i; i \ i == (1 then { 1 \ i; })) }
 axiom div_one { (∀rational i; i \ 1 == i) }
 axiom zero_div { (∀rational i; 0 \ i == (0 then { 1 \ i; })) }
 

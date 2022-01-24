@@ -335,6 +335,7 @@ class FeatureRainbow[G] {
     case node: ParBlockDecl[G] => ParallelRegion
     case node: ParInvariantDecl[G] => ParallelRegion
     case node: SimplificationRule[G] => TermRewriteRules
+    case node: IndepOf[G] => TermRewriteRules
     case node: AxiomaticDataType[G] => return Nil
     case node: ADTAxiom[G] => return Nil
     case node: SignalsClause[G] => Exceptions
