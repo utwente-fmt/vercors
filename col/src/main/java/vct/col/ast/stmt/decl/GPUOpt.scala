@@ -10,12 +10,12 @@ import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor}
 import scala.collection.JavaConverters._
 
 object GPUOptFlags extends Enumeration {
-    val loopUnrolling = Value("loop_unroll")
-    val matrixLin = Value("matrix_lin")
-    val dataLoc = Value("glob_to_reg")
-    val iterMerge = Value("iter_merge")
-    val tiling = Value("tile")
-    val fusion = Value("fuse")
+    val loopUnrolling =     Value("loop_unroll")
+    val matrixLin =         Value("matrix_lin")
+    val dataLoc =           Value("glob_to_reg")
+    val iterMerge =         Value("iter_merge")
+    val tiling =            Value("tile")
+    val fusion =            Value("fuse")
 }
 
 abstract case class GPUOpt(val args: List[ASTNode]) extends ASTNode {

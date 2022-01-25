@@ -1,5 +1,7 @@
 package vct.col.rewrite.gpgpuoptimizations
 
+import java.util
+
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
 import vct.col.ast.`type`.PrimitiveSort._
 import vct.col.ast.expr.StandardOperator._
@@ -10,8 +12,8 @@ import vct.col.ast.stmt.composite.{BlockStatement, ParallelBarrier, ParallelRegi
 import vct.col.ast.stmt.decl.{ASTSpecial, Contract, Method, ProgramUnit}
 import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder, NameScanner, RecursiveVisitor, SequenceUtils}
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
@@ -641,9 +643,9 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
         }
       } else { // 3.2.2
         val cbNewBarrier = new ContractBuilder()
-        cbNewBarrier.requires(ASTUtils.replace(name(kernelZeroToI.blocks.head.iters.head.name), newTid, kernelZeroToI.contract.post_condition))
-        cbNewBarrier.ensures(ASTUtils.replace(name(kernelIPlusOne.blocks.head.iters.head.name), newTid, kernelIPlusOne.contract.pre_condition))
-        val newBarrier = create.barrier(null, cbNewBarrier.getContract(false), null, null)
+        cbNewBarrier.requires(ASTUtils.replace(name(kernelZeroToI.blocks.head.iters.head.name), newTid, kernelZeroToI.blocks.head.contract.post_condition))
+        cbNewBarrier.ensures(ASTUtils.replace(name(kernelIPlusOne.blocks.head.iters.head.name), newTid, kernelIPlusOne.blocks.head.contract.pre_condition))
+        val newBarrier = create.barrier(newLabel, cbNewBarrier.getContract(false), new util.ArrayList[String](), create.block())
         newParBody.add(newBarrier)
       }
       pbNewPermsForBarrier = mutable.Map.empty[ASTNode, ASTNode]

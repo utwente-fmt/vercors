@@ -1045,8 +1045,28 @@ public class PVLPrinter extends AbstractPrinter{
         else {
             Warning("Could not find name of " + o.getClass());
         }
-        Iterator<ASTNode> argsit = o.argsJava().iterator();
-        print_tuple(" ", "", "", o.argsJava().toArray(new ASTNode[0]));
+        if (o instanceof MatrixLinearization) {
+            nextExpr();
+            ((MatrixLinearization) o).matrixName().accept(this);
+            out.print(" ");
+            nextExpr();
+            out.print(((MatrixLinearization) o).rowOrColumn().equals(Major.Row()) ?"R":"C");
+            out.print(" ");
+            nextExpr();
+            ((MatrixLinearization) o).dimX().accept(this);
+            out.print(" ");
+            nextExpr();
+            ((MatrixLinearization) o).dimY().accept(this);
+        } else if (o instanceof Tiling) {
+            nextExpr();
+            out.print(((Tiling) o).interOrIntra().equals(TilingConfig.Inter()) ?"inter":"intra");
+            out.print(" ");
+            nextExpr();
+            ((Tiling) o).tileSize().accept(this);
+        } else {
+            Iterator<ASTNode> argsit = o.argsJava().iterator();
+            print_tuple(" ", "", "", o.argsJava().toArray(new ASTNode[0]));
+        }
         out.lnprintf(";");
     }
 
