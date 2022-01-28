@@ -1,14 +1,19 @@
 package vct.col.newrewrite
 
-import hre.util.FuncTools
+import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
-import vct.col.newrewrite.util.Substitute
+import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.newrewrite.util.FreeVariables
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
-import vct.col.util.AstBuildHelpers.VarBuildHelpers
+import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
+import vct.col.rewrite._
+import vct.java.JavaLibraryLoader
+import vct.main.Test.printErrors
+import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult.{Unreachable, UserError}
 
+import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -16,6 +21,22 @@ import scala.reflect.ClassTag
 case object ApplyTermRewriter {
   case class BuilderFor[Rule](ruleNodes: Seq[SimplificationRule[Rule]]) extends RewriterBuilder {
     override def apply[Pre <: Generation](): Rewriter[Pre] = ApplyTermRewriter(ruleNodes)
+  }
+
+  case class BuilderForFile(path: Path) extends RewriterBuilder {
+    override def apply[Pre <: Generation](): Rewriter[Pre] = {
+      val ParseResult(decls, expectedErrors) = Parsers.parse[InitialGeneration](path)
+      val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
+      val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
+      val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
+      val typedProgram = LangTypesToCol().dispatch(untypedProgram)
+      val errors = ResolveReferences.resolve(typedProgram)
+      printErrors(errors)
+      val normalizedProgram = LangSpecificToCol().dispatch(typedProgram)
+      val unambiguousProgram = Disambiguate().dispatch(normalizedProgram)
+      val rules = unambiguousProgram.declarations.collect { case rule: SimplificationRule[Rewritten[Rewritten[Rewritten[InitialGeneration]]]] => rule }
+      ApplyTermRewriter(rules)
+    }
   }
 }
 
@@ -28,9 +49,9 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
           "of which the body is an equality.")
   }
 
-  val rules: Seq[(Seq[Variable[Rule]], Expr[Rule], Expr[Rule])] = ruleNodes.map(node => consumeForalls(node.axiom)).map {
-    case (free, body) => body match {
-      case Eq(left, right) => (free, left, right)
+  val rules: Seq[(Seq[Variable[Rule]], Expr[Rule], Expr[Rule], Origin)] = ruleNodes.map(node => (node.o, consumeForalls(node.axiom))).map {
+    case (o, (free, body)) => body match {
+      case Eq(left, right) => (free, left, right, o)
       case other => throw MalformedSimplificationRule(other)
     }
   }
@@ -42,22 +63,104 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
     case other => (Nil, other)
   }
 
-  case class CopyRule() extends NonLatchingRewriter[Rule, Pre] {
-    override def succ[DPost <: Declaration[Pre]](decl: Declaration[Rule])(implicit tag: ClassTag[DPost]): Ref[Pre, DPost] =
-      new LazyRef[Pre, DPost](successionMap.get(decl).getOrElse(decl.asInstanceOf[Declaration[Pre]]))
+  case class ApplyParametricBindings(bindings: Map[Variable[Pre], Ref[Pre, Variable[Pre]]]) extends NonLatchingRewriter[Pre, Pre] {
+    override def succ[DPost <: Declaration[Pre]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Pre, DPost] = decl match {
+      case v: Variable[Pre] => bindings.getOrElse(v, new LazyRef(v)).asInstanceOf[Ref[Pre, DPost]]
+      case other => new LazyRef(other)
+    }
+
+    override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(this, decl)
   }
 
-  def apply(rule: (Seq[Variable[Rule]], Expr[Rule], Expr[Rule]), subject: Expr[Pre]): Option[Expr[Pre]] = {
-    val debugNoMatch = true
-    val debugMatch = true
-    val debugRawDifferences = true
+  case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]]) extends NonLatchingRewriter[Rule, Pre] {
+    override def dispatch(e: Expr[Rule]): Expr[Pre] = e match {
+      case Local(Ref(v)) =>
+        if(inst.contains(v)) ApplyParametricBindings(Map.empty).dispatch(inst(v)._1)
+        else Local[Pre](succ(v))(e.o)
+      case FunctionOf(Ref(v), ruleVars) =>
+        val (replacement, vars) = inst(v)
+        ApplyParametricBindings(vars.zip(ruleVars.map(succ[Variable[Pre]])).toMap).dispatch(replacement)
+      case other => rewriteDefault(other)
+    }
 
-    val (free, pattern, subtitute) = rule
-    val inst = mutable.Map[Expr[Rule], Expr[Pre]]()
-    val typeInst = mutable.Map[TVar[Rule], Type[Pre]]()
+    override def dispatch(t: Type[Rule]): Type[Pre] = t match {
+      case TVar(Ref(v)) => typeInst(v) // PB: maybe this is wrong in contrived situations?
+      case other => rewriteDefault(other)
+    }
+  }
+
+  def apply(rule: (Seq[Variable[Rule]], Expr[Rule], Expr[Rule], Origin), subject: Expr[Pre]): Option[Expr[Pre]] = {
+    implicit val o: Origin = DiagnosticOrigin
+    val (free, pattern, subtitute, ruleOrigin) = rule
+
+    val debugNoMatch = false
+    val debugMatch = false
+    val debugMatchShort = true
+    val debugRawDifferences = false
+
+    val inst = mutable.Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])]()
+    val typeInst = mutable.Map[Variable[Rule], Type[Pre]]()
     val bindingInst = mutable.Map[Variable[Rule], Variable[Pre]]()
 
-    implicit val o: Origin = DiagnosticOrigin
+    lazy val debugHeader: String = s"Expression `$subject` does not match rule ${ruleOrigin.preferredName}, since"
+
+    def declareTypeInst(left: Variable[Rule], right: Type[Pre]): Boolean =
+      typeInst.get(left) match {
+        case Some(replacement) =>
+          val matches = replacement == right
+          if(debugNoMatch && !matches)
+            println(s"$debugHeader earlier `$left` matched `$replacement`, but now it must match `$right`")
+
+          matches
+        case None =>
+          typeInst(left) = right
+          val leftUpperBound = left.t.asInstanceOf[TType[Rule]].t
+          val matches = leftUpperBound.superTypeOf(right.asInstanceOf[Type[Rule]])
+
+          if(debugNoMatch && !matches) {
+            println(s"$debugHeader the type-level variable `$left` matched `$right`, but " +
+              s"the upper bound of `$left` (`$leftUpperBound`) is not a supertype of $right.")
+          }
+
+          matches
+      }
+
+    def declareInst(left: Variable[Rule], right: Expr[Pre], leftBindings: Seq[Variable[Rule]]): Boolean = {
+      lazy val debugLeft = Local[Rule](left.ref)
+      inst.get(left) match {
+        case Some((replacement, _)) =>
+          val matches = replacement == right
+
+          if(debugNoMatch && !matches)
+            println(s"$debugHeader earlier `$debugLeft` matched `$replacement`, but now it must match `$right`")
+
+          matches
+        case None =>
+          val freeRight = FreeVariables.freeVariables(right).collect {
+            case FreeVariables.FreeVar(Local(Ref(v))) => v
+          }.toSet
+
+          val freeRightOfBindings = freeRight.intersect(bindingInst.values.toSet)
+          val declaredAllowedBindings = leftBindings.map(bindingInst).toSet
+          val extraBindingDeps = freeRightOfBindings -- declaredAllowedBindings
+
+          if(extraBindingDeps.nonEmpty) {
+            if(debugNoMatch)
+              println(s"$debugHeader `$debugLeft` matches `$right`, but it is dependent on bindings within the pattern that are not declared as such: ${extraBindingDeps.map(v => Local[Pre](v.ref).toString).mkString(", ")}.")
+
+            return false
+          }
+
+          inst(left) = (right, leftBindings.map(bindingInst))
+          val matches = left.t.superTypeOf(right.t.asInstanceOf[Type[Rule]])
+
+          if(debugNoMatch && !matches)
+            println(s"$debugHeader `$debugLeft` (typed `${left.t}`) matched `$right` (typed `${right.t}`), " +
+              s"but `${right.t}` is not a subtype of `${left.t}`")
+
+          matches
+      }
+    }
 
     val diffs: Iterable[Comparator.Difference[Rule, Pre]] =
       if(debugRawDifferences) {
@@ -69,131 +172,36 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
         Comparator.compare(pattern, subject)
       }
 
-    lazy val debugHeader: String = s"Expression `$subject` does not match rule `$pattern`, since"
-
     diffs.foreach {
       case Comparator.MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
         bindingInst(left) = right
-        /* If we match two declared variables, we simply insert them into inst/typeInst. The check whether the declaration
-         * is already in the map is purely for defensive programming: a reference to a declaration cannot occur in the
-         * comparison stream before it is declared. We do not need to check whether the types of the declaration are
-         * compatible, because the type in the declaration is also compared: we will get a separate
-         * Comparator.StructuralDifference for the type. */
-        left.t match {
-          case TType(_) =>
-            if(typeInst.getOrElseUpdate(TVar(left.ref), TVar(right.ref)) != TVar[Pre](right.ref)) {
-              if(debugNoMatch)
-                println(s"$debugHeader earlier `${left.get}` matched `${inst(left.get)}`, but now it must match `${right.get}`")
-              return None
-            }
-          case _ =>
-            if(inst.getOrElseUpdate(left.get, right.get) != right.get) {
-              if(debugNoMatch)
-                println(s"$debugHeader earlier `${left.get}` matched `${inst(left.get)}`, but now it must match `${right.get}`")
-              return None
-            }
-        }
-      case Comparator.MatchingDeclaration(left, right) =>
+      case Comparator.MatchingDeclaration(_, _) =>
         throw Unreachable("Simplification rules do not declare anything other than variables from binders.")
 
       case Comparator.MatchingReference(left: Variable[Rule], right: Variable[Pre]) =>
-        if(!free.contains(left) && !inst.contains(left.get) && !typeInst.contains(TVar(left.ref))) {
-          throw Unreachable("Variables that are not free must first be seen as a declaration.")
+        if(free.contains(left)) {
+          if(!(left.t match {
+            case TType(_) => declareTypeInst(left, TVar(right.ref))
+            case _ => declareInst(left, Local(right.ref), Nil)
+          })) {
+            return None
+          }
+        } else /* !free.contains(left) */ {
+          if(!bindingInst.get(left).contains(right)) {
+            return None
+          }
         }
-
-        left.t match {
-          case TType(upperTypeBound) =>
-            typeInst.get(TVar(left.ref)) match {
-              case Some(replacement) =>
-                /* I'm pretty sure we have no rewrite rules that have type-level variables that are not free, so we
-                 * probably just have seen this type variable before. */
-
-                if(replacement != TVar[Pre](right.ref)) {
-                  if(debugNoMatch)
-                    println(s"$debugHeader earlier `${left.get}` matched `$replacement`, but now it must match `${right.get}`")
-                  return None
-                }
-              case None =>
-                val rightUpperBound = right.t.asInstanceOf[TType[Pre]].t.asInstanceOf[Type[Rule]]
-                if(!upperTypeBound.superTypeOf(rightUpperBound)) {
-                  if(debugNoMatch)
-                    println(s"$debugHeader the type-level variable `${left.get}` matched `${right.get}`, but " +
-                      s"the upper bound of `${left.get}` (`$upperTypeBound`) is not a supertype of " +
-                      s"the upper bound of `${right.get}`: `$rightUpperBound`")
-
-                  return None
-                } else {
-                  typeInst(TVar(left.ref)) = TVar(right.ref)
-                }
-            }
-          case _ =>
-            inst.get(left.get) match {
-              case Some(replacement) =>
-                /* The variable is not free or has been encountered earlier. This means the type-check has already
-                 * occurred and we can lean on the fact that the right expression must now be identical. */
-                if(replacement != right.get) {
-                  if(debugNoMatch)
-                    println(s"$debugHeader earlier `${left.get}` matched `$replacement`, but now it must match `${right.get}`")
-                  return None
-                }
-              case None =>
-                /* The variable is free and has not been encountered yet. We have to put it in inst and check that the
-                 * type of the replacement is a subtype of the declared type of the free variable. */
-
-                /* SAFETY: we can coerce types for superTypeOf, since coercion computation is cross-generation safe. The
-                 * only effect is that types that depend on declaration (TClass(_) etc.) will not match, but the
-                 * simplification rules do not declare such types, so they would never match anyway. */
-                if(!left.t.superTypeOf(right.t.asInstanceOf[Type[Rule]])) {
-                  if(debugNoMatch)
-                    println(s"$debugHeader `${left.get}` (typed `${left.t}`) matched `${right.get}` (typed `${right.t}`), " +
-                      s"but `${right.t}` is not a subtype of `${left.t}`")
-                  return None
-                } else {
-                  inst(left.get) = right.get
-                }
-            }
-        }
-      case Comparator.MatchingReference(left, right) =>
+      case Comparator.MatchingReference(_, _) =>
         throw Unreachable("Simplification rules do not refer to anything other than variables.")
 
-      case Comparator.StructuralDifference(left @ Local(Ref(v)), right: Expr[Pre]) if free.contains(v) =>
-        inst.get(left) match {
-          case Some(replacement) =>
-            if(replacement != right) {
-              if(debugNoMatch)
-                println(s"$debugHeader earlier `$left` matched `$replacement`, but now it must match `$right`")
-              return None
-            }
-          case None =>
-            if(!left.t.superTypeOf(right.t.asInstanceOf[Type[Rule]])) {
-              if(debugNoMatch)
-                println(s"$debugHeader `$left` (typed `${left.t}`) matched `$right` (typed `${right.t}`), " +
-                  s"but `${right.t}` is not a subtype of `${left.t}`")
-              return None
-            } else {
-              inst(left) = right
-            }
-        }
+      case Comparator.StructuralDifference(Local(Ref(v)), right: Expr[Pre]) if free.contains(v) =>
+        if(!declareInst(v, right, Nil)) return None
 
-      case Comparator.StructuralDifference(left @ TVar(Ref(v)), right: Type[Pre]) if free.contains(v) =>
-        typeInst.get(TVar(left.ref)) match {
-          case Some(replacement) =>
-            if(replacement != right) {
-              if(debugNoMatch)
-                println(s"$debugHeader earlier `$left` matched `$replacement`, but now it must match `$right`")
-              return None
-            }
-          case None =>
-            val leftUpperBound = v.t.asInstanceOf[TType[Rule]].t
-            if(!leftUpperBound.superTypeOf(right.asInstanceOf[Type[Rule]])) {
-              if(debugNoMatch)
-                println(s"$debugHeader the type-level variable `$left` matched `$right`, but " +
-                  s"the upper bound of `$left` (`$leftUpperBound`) is not a supertype of $right.")
-              return None
-            } else {
-              typeInst(left) = right
-            }
-        }
+      case Comparator.StructuralDifference(FunctionOf(Ref(v), bindings), right: Expr[Pre]) if free.contains(v) =>
+        if(!declareInst(v, right, bindings.map(_.decl))) return None
+
+      case Comparator.StructuralDifference(TVar(Ref(v)), right: Type[Pre]) if free.contains(v) =>
+        if(!declareTypeInst(v, right)) return None
 
       case Comparator.StructuralDifference(left, right) =>
         if(debugNoMatch)
@@ -201,48 +209,90 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
         return None
     }
 
-    // Free declarations are transmuted from Declaration[Rule] -> Declaration[Pre] when copying, so we can safely transmute
-    // the inst keys. It would be a bit cleaner to make fresh [Pre] copies of left and right to avoid these issues,
-    // but that is much less performant.
-
-    val copier = CopyRule()
-    val freshSubtitute = copier.dispatch(subtitute)
-    val preInst = inst.map { case (k, v) => k.asInstanceOf[Expr[Pre]] -> v }.toMap
-    val preTypeInst = typeInst.map { case (k, v) => k.asInstanceOf[TVar[Pre]] -> v }.toMap
-    val preBindingInst = bindingInst.map { case (k, v) => copier.succ[Variable[Pre]](k).decl -> v }.toMap
-    val result = Substitute(preInst, preTypeInst, preBindingInst).dispatch(freshSubtitute)
+    val result = ApplyRule(inst.toMap, typeInst.toMap).dispatch(subtitute)
 
     if(debugMatch) {
-      println(s"Expression:       $subject")
-      println(s"Matches:          $pattern")
-      if(inst.nonEmpty) {
-        println("With bindings:")
-        inst.foreach {
-          case (rule, binding) => println(s"  $rule = $binding")
+      if(debugMatchShort) {
+        println(subject)
+        println(s" ~> $result")
+      } else {
+        println(s"Expression:       $subject")
+        println(s"Matches:          $pattern")
+        if (inst.nonEmpty) {
+          println("With bindings:")
+          inst.toSeq.sortBy { case (k, _) => k.o.preferredName }.foreach {
+            case (rule, (binding, over)) =>
+              if (over.isEmpty)
+                println(s"  $rule = $binding")
+              else
+                println(s"  $rule = ($binding) parametric over ${over.mkString(", ")}")
+          }
         }
-      }
-      if(typeInst.nonEmpty) {
-        println("With type bindings:")
-        typeInst.foreach {
-          case (rule, binding) => println(s"  $rule = $binding")
+        if (typeInst.nonEmpty) {
+          println("With type bindings:")
+          typeInst.foreach {
+            case (rule, binding) => println(s"  $rule = $binding")
+          }
         }
+        println(s"Applied to:       $subtitute")
+        println(s"Result:           $result")
+        println()
       }
-      println(s"Applied to:       $subtitute")
-      println(s"Result:           $result")
-      println()
     }
 
     Some(result)
   }
 
+  def applyOnce(expr: Expr[Pre]): Option[Expr[Pre]] =
+    FuncTools.firstOption(rules, apply(_, expr))
+
   @tailrec
   final def applyExhaustively(expr: Expr[Pre]): Expr[Pre] =
-    FuncTools.firstOption(rules, apply(_, expr)) match {
+    applyOnce(expr) match {
       case Some(e) =>
         applyExhaustively(e)
       case None => expr
     }
 
+  case class ApplyRecursively() extends NonLatchingRewriter[Pre, Pre] {
+    override def succ[DPost <: Declaration[Pre]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Pre, DPost] =
+      new LazyRef(decl)
+
+    @tailrec
+    override final def dispatch(e: Expr[Pre]): Expr[Pre] = {
+      val simplifiedTopDown = applyExhaustively(e)
+      val simplifiedBottomUp = rewriteDefault(simplifiedTopDown)
+
+      applyOnce(simplifiedBottomUp) match {
+        case Some(simplifiedYetAgain) =>
+          // The simplification of the child nodes caused the parent node to be simplified again, so we need to
+          // recurse into the structure once again.
+          dispatch(simplifiedYetAgain)
+        case None => simplifiedBottomUp
+      }
+    }
+
+    override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(this, decl)
+  }
+
+  val simplificationDone: ScopedStack[Unit] = ScopedStack()
+
   override def dispatch(e: Expr[Pre]): Expr[Post] =
-    rewriteDefault(applyExhaustively(e))
+    if(simplificationDone.nonEmpty) rewriteDefault(e)
+    else simplificationDone.having(()) {
+      val debugHeader = false
+
+      if(debugHeader) {
+        println()
+        println(s"== Simplifying $e ==")
+      }
+
+      val out = ApplyRecursively().dispatch(e)
+
+      if(debugHeader) {
+        println(s"== Out: $out ==")
+      }
+
+      dispatch(out)
+    }
 }

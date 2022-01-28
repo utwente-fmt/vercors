@@ -34,9 +34,9 @@ axiom unitary_right_mul { (∀rational a, rational b; a * (-b) == -(a * b)) }
 axiom inv_mul_left { (∀rational num, rational den; (1 \ den) * num == num \ den) }
 axiom inv_mul_right { (∀rational num, rational den; num * (1 \ den) == num \ den) }
 
-axiom div_self { (∀rational i; i \ i == (1 then { 1 \ i; })) }
 axiom div_one { (∀rational i; i \ 1 == i) }
 axiom zero_div { (∀rational i; 0 \ i == (0 then { 1 \ i; })) }
+axiom div_self { (∀rational i; i \ i == (1 then { 1 \ i; })) }
 
 axiom mod_self { (∀int i; i % i == (0 then { 1 % i; })) }
 axiom mod_one { (∀int i; i % 1 == 0) }
@@ -49,9 +49,10 @@ axiom and_true { (∀boolean b; (b && true) == b) }
 axiom false_and { (∀boolean b; (false && b) == false) }
 axiom and_false { (∀boolean b; (b && false) == false) }
 
-axiom true_star { (∀boolean b; (true ** b) == b) }
-axiom star_true { (∀boolean b; (b ** true) == b) }
-axiom false_star { (∀boolean b; (false ** b) == false) }
+axiom true_star { (∀resource b; (true ** b) == b) }
+axiom star_true { (∀resource b; (b ** true) == b) }
+axiom false_star { (∀resource b; (false ** b) == false) }
+axiom star_bool { (∀boolean a, boolean b; (a ** b) == (a && b)) }
 
 axiom true_or { (∀boolean b; (true || b) == true) }
 axiom or_true { (∀boolean b; (b || true) == true) }
@@ -65,6 +66,8 @@ axiom implies_false { (∀boolean b; (b ==> false) == !b) }
 
 axiom implies_self { (∀boolean b; (b ==> b) == true) }
 axiom and_self { (∀boolean p; (p && p) == p) }
+axiom cond_and_implies { (∀boolean a, boolean b; (a && (a ==> b)) == (a && b)) }
+axiom cond_star_implies { (∀boolean a, resource b; (a ** (a ==> b)) == (a ** b)) }
 axiom or_self { (∀boolean p; (p || p) == p) }
 
 axiom collapse_nested_implies {
@@ -117,31 +120,31 @@ axiom specialize_range_right_4 {
 
 axiom starall_bool {
   (∀type<any> T, boolean body;
-    (∀* T binding; body) == (∀ T binding; body))
+    (∀* T t; (body!t)) == (∀ T t; (body!t)))
 }
 
 axiom forall_and {
-  (∀type<any> T, boolean cond, boolean b1, boolean b2;
-    (∀T binding; cond ==> b1 && b2) ==
-    ((∀T binding; cond ==> b1) && (∀T binding; cond ==> b2)))
+  (∀type<any> T, boolean b1, boolean b2;
+    (∀T t; (b1!t) && (b2!t)) ==
+    ((∀T t; (b1!t)) && (∀T t; (b2!t))))
 }
 
 axiom starall_star {
-  (∀type<any> T, boolean cond, resource r1, resource r2;
-    (∀* T binding; cond ==> r1 ** r2) ==
-    ((∀* T binding; cond ==> r1) ** (∀* T binding; cond ==> r2)))
+  (∀type<any> T, resource r1, resource r2;
+    (∀* T t; (r1!t) ** (r2!t)) ==
+    ((∀* T t; (r1!t)) ** (∀* T t; (r2!t))))
 }
 
 axiom nested_forall_indep_cond {
   (∀type<any> T1, type<any> T2, boolean cond1, boolean indep, boolean cond2, boolean body;
-    (∀T1 binding1; cond1 ==> (∀T2 binding2; ((indep!binding2) && cond2) ==> body)) ==
-    (∀T1 binding1; (cond1 && indep) ==> (∀T2 binding2; cond2 ==> body)))
+    (∀T1 t1; (cond1!t1) ==> (∀T2 t2; ((indep!t1) && (cond2!t1,t2)) ==> (body!t1,t2))) ==
+    (∀T1 t1; (cond1!t1) && (indep!t1) ==> (∀T2 t2; (cond2!t1,t2) ==> (body!t1,t2))))
 }
 
 axiom nested_starall_indep_cond {
   (∀type<any> T1, type<any> T2, boolean cond1, boolean indep, boolean cond2, resource body;
-    (∀* T1 binding1; cond1 ==> (∀* T2 binding2; ((indep!binding2) && cond2) ==> body)) ==
-    (∀* T1 binding1; (cond1 && indep) ==> (∀* T2 binding2; cond2 ==> body)))
+    (∀* T1 t1; (cond1!t1) ==> (∀* T2 t2; ((indep!t1) && (cond2!t1,t2)) ==> (body!t1,t2))) ==
+    (∀* T1 t1; (cond1!t1) && (indep!t1) ==> (∀* T2 t2; (cond2!t1,t2) ==> (body!t1,t2))))
 }
 
 /* axiom implement_let_as_starall {
@@ -156,64 +159,64 @@ axiom nested_starall_indep_cond {
 
 axiom forall_range_body_indep {
   (∀int l, int r, boolean body;
-    (∀int binding; binding \in {l..r} ==> (body!binding)) ==
+    (∀int binding; binding \in {l..r} ==> body) ==
       (l < r ==> body))
 }
 
 axiom forall_range_cond_body_indep {
   (∀int l, int r, boolean cond, boolean body;
-    (∀int binding; binding \in {l..r} && cond ==> (body!binding)) ==
+    (∀int binding; binding \in {l..r} && cond ==> body) ==
       (l < r && cond ==> body))
 }
 
 axiom shift_range_perm_plus_right_indep {
-  (∀type<any> T; (∀int l, int r, T[] ar, int shift, rational p;
-    (∀* int i; i \in {l..r} ==> Perm(ar[i + (shift!i)], (p!i))) ==
-    (∀* int i; i \in {l+shift..r+shift} ==> Perm(ar[i], p))))
+  (∀type<any> T; (∀T[] ar, boolean cond, int shift, rational p;
+    (∀* int i; (cond!i) ==> Perm(ar[i + shift], (p!i))) ==
+    (∀* int i; (\let int i1 = i - shift; (cond!i1) ==> Perm(ar[i], (p!i1))))))
 }
 
 axiom shift_range_perm_plus_left_indep {
-  (∀type<any> T; (∀int l, int r, T[] ar, int shift, rational p;
-    (∀* int i; i \in {l..r} ==> Perm(ar[(shift!i) + i], (p!i))) ==
-    (∀* int i; i \in {l+shift..r+shift} ==> Perm(ar[i], p))))
+  (∀type<any> T; (∀T[] ar, boolean cond, int shift, rational p;
+    (∀* int i; (cond!i) ==> Perm(ar[shift + i], (p!i))) ==
+    (∀* int i; (\let int i1 = i - shift; (cond!i1) ==> Perm(ar[i], (p!i1))))))
 }
 
 axiom shift_range_perm_minus_right_indep {
-  (∀type<any> T; (∀int l, int r, T[] ar, int shift, rational p;
-    (∀* int i; i \in {l..r} ==> Perm(ar[i - (shift!i)], (p!i))) ==
-    (∀* int i; i \in {l-shift..r-shift} ==> Perm(ar[i], p))))
+  (∀type<any> T; (∀T[] ar, boolean cond, int shift, rational p;
+    (∀* int i; (cond!i) ==> Perm(ar[i - shift], (p!i))) ==
+    (∀* int i; (\let int i1 = i + shift; (cond!i1) ==> Perm(ar[i], (p!i1))))))
 }
 
 axiom shift_range_eq_plus_right_indep {
-  (∀type<any> T; (∀int l, int r, T[] ar, int shift, T value;
-    (∀* int i; i \in {l..r} ==> ar[i + (shift!i)] == (value!i)) ==
-    (∀* int i; i \in {l+shift..r+shift} ==> ar[i] == value)))
+  (∀type<any> T; (∀T[] ar, T value, boolean cond, int shift;
+    (∀ int i; (cond!i) ==> ar[i + shift] == (value!i)) ==
+    (∀ int i; (\let int i1 = i - shift; (cond!i1) ==> ar[i] == (value!i1)))))
 }
 
 axiom shift_range_eq_plus_left_indep {
-  (∀type<any> T; (∀int l, int r, T[] ar, int shift, T value;
-    (∀* int i; i \in {l..r} ==> ar[(shift!i) + i] == (value!i)) ==
-    (∀* int i; i \in {l+shift..r+shift} ==> ar[i] == value)))
+  (∀type<any> T; (∀T[] ar, T value, boolean cond, int shift;
+    (∀ int i; (cond!i) ==> ar[shift + i] == (value!i)) ==
+    (∀ int i; (\let int i1 = i - shift; (cond!i1) ==> ar[i] == (value!i1)))))
 }
 
 axiom shift_range_eq_minus_right_indep {
-  (∀type<any> T; (∀int l, int r, T[] ar, int shift, T value;
-    (∀* int i; i \in {l..r} ==> ar[i - (shift!i)] == (value!i)) ==
-    (∀* int i; i \in {l-shift..r-shift} ==> ar[i] == value)))
+  (∀type<any> T; (∀T[] ar, T value, boolean cond, int shift;
+    (∀ int i; (cond!i) ==> ar[i - shift] == (value!i)) ==
+    (∀ int i; (\let int i1 = i + shift; (cond!i1) ==> ar[i] == (value!i1)))))
 }
 
 // PB: I don't see a common situation where the nested variant LEFTPLUS2 is relevant
 
 axiom starall_perm_indep {
   (∀int l, int r, any loc, rational p;
-    (∀* int i; i \in {l..r} ==> Perm((loc!i), (p!i))) ==
+    (∀* int i; i \in {l..r} ==> Perm(loc, p)) ==
     (l < r ==> Perm(loc, p*(r-l))))
 }
 
 axiom starall_nested_1_perm_indep {
   (∀int l, int r, boolean cond1, any loc, rational p;
-    (∀* int i; i \in {l..r} ==> (∀* int j; cond1 ==> Perm((loc!i), (p!i)))) ==
-    (l < r ==> (∀* int j; cond1 ==> Perm(loc, p*(r-l)))))
+    (∀* int i; i \in {l..r} ==> (∀* int j; (cond1!j) ==> Perm((loc!j), (p!j)))) ==
+    (l < r ==> (∀* int j; (cond1!j) ==> Perm((loc!j), (p!j)*(r-l)))))
 }
 
 // PB: for now I will drop lemma's that translate nested indep foralls to NLA
@@ -222,13 +225,13 @@ axiom starall_nested_1_perm_indep {
 
 axiom scale_range_perm_mul_right_indep {
   (∀type<any> T; (∀int l, int r, T[] ar, int factor, rational p;
-    (∀* int i; i \in {l..r} ==> Perm(ar[i * (factor!i)], (p!i))) ==
+    (∀* int i; i \in {l..r} ==> Perm(ar[i * factor], p)) ==
     (∀* int i; (i \in {l*factor..r*factor} && i % factor == 0) ==> Perm(ar[i], p))))
 }
 
 axiom scale_range_perm_mul_left_indep {
   (∀type<any> T; (∀int l, int r, T[] ar, int factor, rational p;
-    (∀* int i; i \in {l..r} ==> Perm(ar[(factor!i) * i], (p!i))) ==
+    (∀* int i; i \in {l..r} ==> Perm(ar[factor * i], p)) ==
     (∀* int i; (i \in {l*factor..r*factor} && i % factor == 0) ==> Perm(ar[i], p))))
 }
 
@@ -236,6 +239,6 @@ axiom scale_range_perm_mul_left_indep {
 
 axiom scale_shift_range_perm_linear_indep {
   (∀type<any> T; (∀int l, int r, T[] ar, int factor, int shift, rational p;
-    (∀* int i; i \in {l..r} ==> Perm(ar[i*(factor!i) + (shift!i)], (p!i))) ==
+    (∀* int i; i \in {l..r} ==> Perm(ar[i*factor + shift], p)) ==
     (∀* int i; (i \in {l*factor+shift..r*factor+shift} && (i-shift) % factor == 0) ==> Perm(ar[i], p))))
 }

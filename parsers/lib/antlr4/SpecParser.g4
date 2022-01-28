@@ -217,7 +217,7 @@ valPrimary
  | valPrimaryReducible
  | valPrimaryThread
  | '*' # valAny
- | '(' langExpr '!' langId ')' # valIndependent
+ | '(' langId '!' valIdList ')' # valFunctionOf
  | '[' langExpr ']' langExpr # valScale
  | '{:' langExpr ':}' # valInlinePattern
  | '\\unfolding' langExpr '\\in' langExpr # valUnfolding

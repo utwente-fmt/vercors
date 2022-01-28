@@ -5,6 +5,7 @@ import vct.col.origin._
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Types
+import vct.result.VerificationResult.SystemError
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -15,7 +16,11 @@ case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre
 }
 
 case object CoercingRewriter {
-  sealed trait CoercionError extends RuntimeException
+  sealed trait CoercionError extends SystemError {
+    override def text: String =
+      "Internal type error: CoercionErrors must not bubble."
+  }
+
   case object IncoercibleDummy extends CoercionError
   case class Incoercible(e: Expr[_], target: Type[_]) extends CoercionError
   case class IncoercibleText(e: Expr[_], message: String) extends CoercionError
@@ -353,7 +358,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case ADTFunctionInvocation(typeArgs, ref, args) => typeArgs match {
         case Some((adt, typeArgs)) =>
           ADTFunctionInvocation(Some((adt, typeArgs)), ref, args.zip(ref.decl.args).map {
-            case (value, arg) => coerce(value, arg.t.particularize(adt.decl.typeArgs.zip(typeArgs).toMap))
+            case (value, arg) =>
+              try {
+                coerce(value, arg.t.particularize(adt.decl.typeArgs.zip(typeArgs).toMap))
+              } catch {
+                case x: CoercionError =>
+                  println(x)
+                  ???
+              }
           })
         case None =>
           ADTFunctionInvocation(None, ref, coerceArgs(args, ref.decl))
@@ -569,8 +581,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         IdleToken(cls(thread)._1)
       case Implies(left, right) =>
         Implies(bool(left), res(right))
-      case IndepOf(e, ref) =>
-        IndepOf(e, ref)
+      case FunctionOf(e, ref) =>
+        FunctionOf(e, ref)
       case InlinePattern(inner) =>
         InlinePattern(inner)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs) =>

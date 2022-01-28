@@ -3,7 +3,7 @@ package vct.main
 import vct.col.ast.{Declaration, Program, SimplificationRule}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
-import vct.col.feature.Feature
+import vct.col.feature.{Feature, TypeValuesAndGenerics, WildcardReadPermission}
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang._
@@ -16,7 +16,9 @@ import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult.{SystemError, UserError}
 import vct.test.CommandLineTesting
 import viper.api.Silicon
+import viper.silver.ast.WildcardPerm
 
+import java.io.File
 import scala.jdk.CollectionConverters._
 import java.nio.file.{Path, Paths}
 import scala.collection.parallel.CollectionConverters._
@@ -37,18 +39,18 @@ case object Test {
 //        tryParse(Seq(f.toPath))
 //      }
 
-//      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-//        if(c.files.asScala.forall(f =>
-//            f.toString.endsWith(".java") ||
-//              f.toString.endsWith(".c") ||
-//              f.toString.endsWith(".pvl"))) {
-//          tryParse(c.files.asScala.toSeq)
-//        } else {
-//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
-//        }
-//      })
+      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
+        if(c.files.asScala.forall(f =>
+            f.toString.endsWith(".java") ||
+              f.toString.endsWith(".c") ||
+              f.toString.endsWith(".pvl"))) {
+          tryParse(c.files.asScala.toSeq)
+        } else {
+          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+        }
+      })
 
-      tryParse(Seq(Path.of("examples/arrays/Transpose.pvl")))
+//      tryParse(Seq(Path.of("examples/basic/frac2.pvl")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
@@ -118,17 +120,8 @@ case object Test {
       ClassToRef,
 
       // Simplify pure expressions (no more new complex expressions)
-      ApplyTermRewriter.BuilderFor[Rewritten[Rewritten[InitialGeneration]]]({
-        val ParseResult(decls, expectedErrors) = Parsers.parse[InitialGeneration](Paths.get("src/main/universal/res/config/simplify_scratchpad.pvl"))
-        val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
-        val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
-        val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
-        val typedProgram = LangTypesToCol().dispatch(untypedProgram)
-        val errors = ResolveReferences.resolve(typedProgram)
-        printErrors(errors)
-        val normalizedProgram = LangSpecificToCol().dispatch(typedProgram)
-        normalizedProgram.declarations.collect { case rule: SimplificationRule[Rewritten[Rewritten[InitialGeneration]]] => rule }
-      }),
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl")),
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
       SimplifyQuantifiedRelations,
 
       EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
@@ -148,6 +141,7 @@ case object Test {
 
       // Final translation to rigid silver nodes
       SilverIntRatCoercion,
+      // PB TODO: PinSilverNodes has now become a collection of Silver oddities, it should be more structured / split out.
       PinSilverNodes,
     )
 
@@ -159,7 +153,7 @@ case object Test {
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {
           case decl: Declaration[_] =>
-            if(decl.debugRewriteState == NotProcessed && !pass.isInstanceOf[ApplyTermRewriter.BuilderFor[_]]) {
+            if(decl.debugRewriteState == NotProcessed && !pass.isInstanceOf[ApplyTermRewriter.BuilderForFile]) {
               println(s"Dropped without notice: $decl")
               throw Exit
             }
@@ -169,7 +163,7 @@ case object Test {
         printErrors(program.check)
         program = PrettifyBlocks().dispatch(program)
       }
-      for((feature, examples) <- Feature.examples(program)) {
+      for((feature, examples) <- Feature.examples(program).filter { case (feature, _) => !Set[Feature](TypeValuesAndGenerics, WildcardReadPermission).contains(feature) }) {
         println(f"$feature:")
         for(example <- examples.take(5)) {
           println(f"  $example")

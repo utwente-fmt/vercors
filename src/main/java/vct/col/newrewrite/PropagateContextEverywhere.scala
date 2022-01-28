@@ -25,7 +25,7 @@ case object PropagateContextEverywhere extends RewriterBuilder {
 case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre] {
   import PropagateContextEverywhere._
 
-  val invariants: ScopedStack[Expr[Pre]] = ScopedStack()
+  val invariants: ScopedStack[Seq[Expr[Pre]]] = ScopedStack()
 
   case class ClosedCopier() extends Rewriter[Pre] {
     override def succ[DPost <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
@@ -34,11 +34,15 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
       )
   }
 
-  def freshInvariants()(implicit o: Origin): Expr[Post] = foldStar(invariants.toSeq.map(inv => ClosedCopier().dispatch(inv)))
+  def freshInvariants()(implicit o: Origin): Expr[Post] =
+    foldStar(invariants.toSeq.flatten.map(inv => ClosedCopier().dispatch(inv)))
+
+  def freshBooleanInvariants()(implicit o: Origin): Expr[Post] =
+    foldStar(invariants.toSeq.flatten.filter(inv => TBool().superTypeOf(inv.t)).map(inv => ClosedCopier().dispatch(inv)))
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] =>
-      (invariants.having(app.contract.contextEverywhere) {
+      (invariants.having(unfoldStar(app.contract.contextEverywhere)) {
         app match {
           case func: AbstractFunction[Pre] =>
             func.rewrite(blame = ContractedBlameSplit.left(ContextEverywherePostconditionFailed(app), func.blame))
@@ -67,13 +71,34 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case inv: InvocationStatement[Pre] =>
       inv.rewrite(blame = InvBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
+    case bar: ParBarrier[Pre] =>
+      implicit val o: Origin = bar.o
+      bar.rewrite(
+        requires = freshBooleanInvariants() &* dispatch(bar.requires),
+        ensures = freshBooleanInvariants() &* dispatch(bar.ensures),
+      )
     case other => rewriteDefault(other)
   }
 
   override def dispatch(node: LoopContract[Pre]): LoopContract[Post] = node match {
-    case LoopInvariant(invariant) =>
+    case inv @ LoopInvariant(invariant) =>
       implicit val o: Origin = node.o
-      LoopInvariant(freshInvariants() &* dispatch(invariant))
+      LoopInvariant(freshInvariants() &* dispatch(invariant))(inv.blame)
+    case it @ IterationContract(requires, ensures) =>
+      implicit val o: Origin = node.o
+      IterationContract(
+        freshBooleanInvariants() &* dispatch(requires),
+        freshBooleanInvariants() &* dispatch(ensures),
+      )(it.blame)
+  }
+
+  override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] = parRegion match {
+    case block: ParBlock[Pre] =>
+      implicit val o: Origin = parRegion.o
+      block.rewrite(
+        requires = freshBooleanInvariants() &* dispatch(block.requires),
+        ensures = freshBooleanInvariants() &* dispatch(block.ensures),
+      )
     case other => rewriteDefault(other)
   }
 }

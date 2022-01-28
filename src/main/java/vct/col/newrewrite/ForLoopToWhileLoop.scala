@@ -18,7 +18,7 @@ case class ForLoopToWhileLoop[Pre <: Generation]() extends Rewriter[Pre] {
         Loop(Block(Nil), dispatch(cond), Block(Nil), dispatch(contract), Block(Seq(
           dispatch(body),
           dispatch(update),
-        )))(loop.blame),
+        ))),
       ))
     case other => rewriteDefault(other)
   }

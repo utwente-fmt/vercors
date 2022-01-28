@@ -11,6 +11,10 @@ import java.io.{File, PrintWriter}
 trait SilverBackend extends Backend {
   case class NotSupported(text: String) extends SystemError
   case class ViperCrashed(text: String) extends SystemError
+  case class ConsistencyErrors(errors: Seq[ConsistencyError]) extends SystemError {
+    override def text: String =
+      "The silver AST delivered to viper is not valid:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
+  }
 
   def createVerifier: Verifier
 
@@ -26,6 +30,11 @@ trait SilverBackend extends Backend {
     val w = new PrintWriter(new File("tmp/output.sil"))
     w.write(silverProgram.toString())
     w.close()
+
+    silverProgram.check match {
+      case Nil =>
+      case some => throw ConsistencyErrors(some)
+    }
 
     createVerifier.verify(silverProgram) match {
       case Success =>
@@ -121,10 +130,10 @@ trait SilverBackend extends Backend {
             }
           case LoopInvariantNotPreserved(node, reason, _) =>
             val `while` = get[col.Loop[_]](node)
-            `while`.blame.blame(blame.LoopInvariantNotMaintained(getFailure(reason), `while`))
+            `while`.contract.asInstanceOf[col.LoopInvariant[_]].blame.blame(blame.LoopInvariantNotMaintained(getFailure(reason), `while`))
           case LoopInvariantNotEstablished(node, reason, _) =>
             val `while` = get[col.Loop[_]](node)
-            `while`.blame.blame(blame.LoopInvariantNotEstablished(getFailure(reason), `while`))
+            `while`.contract.asInstanceOf[col.LoopInvariant[_]].blame.blame(blame.LoopInvariantNotEstablished(getFailure(reason), `while`))
           case FunctionNotWellformed(_, reason, _) =>
             defer(reason)
           case PredicateNotWellformed(_, reason, _) =>

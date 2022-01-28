@@ -99,7 +99,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   val parDecls: mutable.Map[ParBlockDecl[Pre], ParBlock[Pre]] = mutable.Map()
 
   def quantify(block: ParBlock[Pre], expr: Expr[Pre])(implicit o: Origin): Expr[Pre] = {
-    val quantVars = block.iters.map(_.variable).map(v => v -> new Variable[Pre](v.t)).toMap
+    val quantVars = block.iters.map(_.variable).map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
     val body = Substitute(quantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(expr)
     block.iters.foldLeft(body)((body, iter) => {
       val v = quantVars(iter.variable)
@@ -189,6 +189,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       }
     case block @ ParBlock(decl, iters, req, ens, content) =>
       // For blocks we generate a separate check, by checking the contract for an indeterminate iteration
+      parDecls(decl) = block
       decl.drop()
       implicit val o: Origin = region.o
       val extract = Extract[Post]()

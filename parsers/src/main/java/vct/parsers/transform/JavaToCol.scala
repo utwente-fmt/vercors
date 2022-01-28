@@ -290,9 +290,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
               init.map(convert(_)).getOrElse(Block(Nil)),
               cond.map(convert(_)).getOrElse(tt),
               update.map(convert(_)).getOrElse(Block(Nil)),
-              c.consumeLoopContract(),
+              c.consumeLoopContract(stat),
               convert(body)
-            )(blame(stat)))
+            ))
         }
       })
 
@@ -302,7 +302,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       }
     case Statement4(contract1, label, _, cond, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
-        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(), convert(body))(blame(stat)))
+        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(stat), convert(body)))
       })
 
       label match {
@@ -1204,7 +1204,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
     case ValAny(_) => Any()
-    case ValIndependent(_, inner, _, name, _) => IndepOf(convert(inner), new UnresolvedRef[G, Variable[G]](convert(name)))
+    case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))

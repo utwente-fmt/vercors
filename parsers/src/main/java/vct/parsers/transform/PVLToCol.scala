@@ -270,7 +270,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         )(blame(stat))
       })
     case PvlPar(impl) =>
-      ParStatement(convert(impl))(blame(stat))
+      ParStatement(convert(impl))
     case PvlVec(_, _, iter, _, body) =>
       ??(stat)
     case PvlInvariant(_, name, _, res, _, body) =>
@@ -281,15 +281,15 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlAtomic(_, _, invs, _, body) =>
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))
     case PvlWhile(invs, _, _, cond, _, body) =>
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs)), convert(body))(blame(stat)))
+      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs))(blame(stat)), convert(body)))
     case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
       Scope(Nil, Loop(
         init.map(convert(_)).getOrElse(Block(Nil)),
         cond.map(convert(_)).getOrElse(tt),
         update.map(convert(_)).getOrElse(Block(Nil)),
-        LoopInvariant(convert(invs)),
+        LoopInvariant(convert(invs))(blame(stat)),
         convert(body)
-      )(blame(stat)))
+      ))
     case PvlBlock(inner) => convert(inner)
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
@@ -983,7 +983,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
     case ValAny(_) => Any()
-    case ValIndependent(_, inner, _, name, _) => IndepOf(convert(inner), new UnresolvedRef[G, Variable[G]](convert(name)))
+    case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))

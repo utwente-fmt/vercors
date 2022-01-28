@@ -45,7 +45,7 @@ iteExpr
  ;
 
 implicationExpr
- : implicationExpr valImpOp orExpr
+ : orExpr valImpOp implicationExpr
  | orExpr
  ;
 

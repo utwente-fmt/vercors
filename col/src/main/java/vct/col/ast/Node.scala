@@ -122,8 +122,8 @@ final case class ParSequential[G](regions: Seq[ParRegion[G]])(val blame: Blame[P
 final case class ParBlock[G](decl: ParBlockDecl[G], iters: Seq[IterVariable[G]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBlockFailure])(implicit val o: Origin) extends ParRegion[G] with ParBlockImpl[G]
 
 sealed trait LoopContract[G] extends NodeFamily[G] with LoopContractImpl[G]
-final case class LoopInvariant[G](invariant: Expr[G])(implicit val o: Origin) extends LoopContract[G] with LoopInvariantImpl[G]
-final case class IterationContract[G](requires: Expr[G], ensures: Expr[G])(implicit val o: Origin) extends LoopContract[G] with IterationContractImpl[G]
+final case class LoopInvariant[G](invariant: Expr[G])(val blame: Blame[LoopInvariantFailure])(implicit val o: Origin) extends LoopContract[G] with LoopInvariantImpl[G]
+final case class IterationContract[G](requires: Expr[G], ensures: Expr[G])(val blame: Blame[ParBlockFailure])(implicit val o: Origin) extends LoopContract[G] with IterationContractImpl[G]
 
 final case class CatchClause[G](decl: Variable[G], body: Statement[G])(implicit val o: Origin) extends NodeFamily[G] with CatchClauseImpl[G]
 
@@ -179,13 +179,13 @@ final case class Block[G](statements: Seq[Statement[G]])(implicit val o: Origin)
 final case class Scope[G](locals: Seq[Variable[G]], body: Statement[G])(implicit val o: Origin) extends Statement[G] with ScopeImpl[G]
 final case class Branch[G](branches: Seq[(Expr[G], Statement[G])])(implicit val o: Origin) extends Statement[G] with BranchImpl[G]
 final case class Switch[G](expr: Expr[G], body: Statement[G])(implicit val o: Origin) extends Statement[G] with SwitchImpl[G]
-final case class Loop[G](init: Statement[G], cond: Expr[G], update: Statement[G], contract: LoopContract[G], body: Statement[G])(val blame: Blame[LoopInvariantFailure])(implicit val o: Origin) extends Statement[G] with LoopImpl[G]
+final case class Loop[G](init: Statement[G], cond: Expr[G], update: Statement[G], contract: LoopContract[G], body: Statement[G])(implicit val o: Origin) extends Statement[G] with LoopImpl[G]
 final case class TryCatchFinally[G](body: Statement[G], after: Statement[G], catches: Seq[CatchClause[G]])(implicit val o: Origin) extends Statement[G] with TryCatchFinallyImpl[G]
 final case class Synchronized[G](obj: Expr[G], body: Statement[G])(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends Statement[G] with SynchronizedImpl[G]
 final case class ParInvariant[G](decl: ParInvariantDecl[G], inv: Expr[G], content: Statement[G])(val blame: Blame[ParInvariantNotEstablished])(implicit val o: Origin) extends Statement[G] with ParInvariantImpl[G]
 final case class ParAtomic[G](inv: Seq[Ref[G, ParInvariantDecl[G]]], content: Statement[G])(implicit val o: Origin) extends Statement[G] with ParAtomicImpl[G]
 final case class ParBarrier[G](block: Ref[G, ParBlockDecl[G]], invs: Seq[Ref[G, ParInvariantDecl[G]]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBarrierFailed])(implicit val o: Origin) extends Statement[G] with ParBarrierImpl[G]
-final case class ParStatement[G](impl: ParRegion[G])(val blame: Blame[Nothing])(implicit val o: Origin) extends Statement[G] with ParStatementImpl[G]
+final case class ParStatement[G](impl: ParRegion[G])(implicit val o: Origin) extends Statement[G] with ParStatementImpl[G]
 final case class VecBlock[G](iters: Seq[IterVariable[G]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(implicit val o: Origin) extends Statement[G] with VecBlockImpl[G]
 final case class WandCreate[G](statements: Seq[Statement[G]])(implicit val o: Origin) extends Statement[G] with WandCreateImpl[G]
 final case class ModelDo[G](model: Expr[G], perm: Expr[G], after: Expr[G], action: Expr[G], impl: Statement[G])(implicit val o: Origin) extends Statement[G] with ModelDoImpl[G]
@@ -338,7 +338,7 @@ final case class ModelDeref[G](obj: Expr[G], ref: Ref[G, ModelField[G]])(val bla
 final case class DerefPointer[G](pointer: Expr[G])(val blame: Blame[PointerDerefError])(implicit val o: Origin) extends Expr[G] with DerefPointerImpl[G]
 final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(val blame: Blame[PointerAddError])(implicit val o: Origin) extends Expr[G] with PointerAddImpl[G]
 final case class AddrOf[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with AddrOfImpl[G]
-final case class IndepOf[G](e: Expr[G], ref: Ref[G, Variable[G]])(implicit val o: Origin) extends Expr[G] with IndepOfImpl[G]
+final case class FunctionOf[G](binding: Ref[G, Variable[G]], vars: Seq[Ref[G, Variable[G]]])(implicit val o: Origin) extends Expr[G] with FunctionOfImpl[G]
 
 sealed trait Apply[G] extends Expr[G] with ApplyImpl[G]
 final case class ADTFunctionInvocation[G](typeArgs: Option[(Ref[G, AxiomaticDataType[G]], Seq[Type[G]])], ref: Ref[G, ADTFunction[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Apply[G] with ADTFunctionInvocationImpl[G]

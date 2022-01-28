@@ -41,9 +41,9 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
                          consume(signals), consume(given), consume(yields))
     }
 
-    def consumeLoopContract()(implicit o: Origin): LoopContract[G1] = {
-      if(requires.nonEmpty) IterationContract(AstBuildHelpers.foldStar(consume(requires)), AstBuildHelpers.foldStar(consume(ensures)))
-      else LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)))
+    def consumeLoopContract(blameNode: ParserRuleContext)(implicit o: Origin): LoopContract[G1] = {
+      if(requires.nonEmpty) IterationContract(AstBuildHelpers.foldStar(consume(requires)), AstBuildHelpers.foldStar(consume(ensures)))(blame(blameNode))
+      else LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)))(blame(blameNode))
     }
 
     def nodes: Seq[ParserRuleContext] = Seq(

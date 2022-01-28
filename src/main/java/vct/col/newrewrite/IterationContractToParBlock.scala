@@ -26,7 +26,7 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
 
   def getVariableAndLowerBound(init: Statement[Pre]): Option[(Variable[Pre], Expr[Pre])] =
     init match {
-      case Scope(Seq(v), Block(Seq(Assign(Local(Ref(v1)), low)))) if v == v1 =>
+      case Block(Seq(Assign(Local(Ref(v)), low))) =>
         Some((v, low))
       case _ => None
     }
@@ -44,14 +44,15 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
 
   def assertIncrements(v: Variable[Pre], loop: Loop[Pre]): Unit =
     loop.update match {
-      case Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE))) =>
+      case Block(Seq(Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE))))) =>
+      case Block(Seq(Eval(PostAssignExpression(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE)))))) =>
       case _ =>
         throw InvalidLoopFormatForIterationContract(loop,
           "we could not ascertain that the iteration variable is incremented by one each iteration")
     }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case loop @ Loop(init, cond, update, IterationContract(requires, ensures), body) =>
+    case loop @ Loop(init, cond, update, contract @ IterationContract(requires, ensures), body) =>
       val (v, low) = getVariableAndLowerBound(init).getOrElse(throw InvalidLoopFormatForIterationContract(loop,
         "we could not derive the iteration variable or its lower bound from the initialization portion of the loop"))
 
@@ -70,8 +71,8 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
           requires = dispatch(requires),
           ensures = dispatch(ensures),
           content = dispatch(body),
-        )(???)
-      )(???)
+        )(contract.blame)
+      )
     case other => rewriteDefault(other)
   }
 }

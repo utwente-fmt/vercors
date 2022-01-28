@@ -1,16 +1,13 @@
 package vct.col.newrewrite.exc
 
 import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.util.AstBuildHelpers._
-import RewriteHelpers._
-import vct.col.newrewrite.error.ExcludedByPassOrder
-import vct.col.newrewrite.util.Substitute
-import vct.col.origin.{AssertFailed, Blame, ExceptionNotInSignals, FramedGetLeft, FramedGetRight, ImplBlameSplit, Origin, PostconditionFailed, SignalsFailed, ThrowNull}
+import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers
-import RewriteHelpers._
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.Unreachable
 
 import scala.collection.mutable
@@ -49,6 +46,12 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
     override def preferredName: String = "finally"
     override def messageInContext(message: String): String =
       s"[At label generated for finally]: $message"
+  }
+
+  case object ExcBeforeLoop extends Origin {
+    override def preferredName: String = "excBeforeLoop"
+    override def messageInContext(message: String): String =
+      s"[At variable generated to contain exc before loop]: $message"
   }
 
   case class SignalsClosedPostconditionFailed(method: AbstractMethod[_]) extends Blame[PostconditionFailed] {
@@ -173,6 +176,18 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
             Goto(exceptionalHandlerEntry.top.ref),
           ))),
         ))
+
+      case loop: Loop[Pre] =>
+        val beforeLoop = new Variable[Post](TClass(rootClass.top))(ExcBeforeLoop)
+
+        Scope(Seq(beforeLoop), Block[Post](Seq(
+          assignLocal(beforeLoop.get, getExc),
+          loop.rewrite(contract = loop.contract match {
+            case inv @ LoopInvariant(invariant) =>
+              LoopInvariant(getExc === beforeLoop.get &* dispatch(invariant))(inv.blame)
+            case it: IterationContract[Pre] => rewriteDefault(it)
+          })
+        )))
 
       case other => rewriteDefault(other)
     }

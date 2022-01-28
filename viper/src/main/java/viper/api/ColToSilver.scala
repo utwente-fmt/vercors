@@ -6,6 +6,7 @@ import hre.util.ScopedStack
 import vct.col.ast.{AxiomaticDataType, PredicateApply, SplitAccountedPredicate, UnitAccountedPredicate}
 import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
 import vct.col.ref.Ref
+import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationResult.SystemError
 import viper.api.ColToSilver.NotSupported
@@ -125,8 +126,8 @@ case class ColToSilver(program: col.Program[_]) {
           ref(function),
           function.args.map(variable),
           typ(function.returnType),
-          Seq(pred(function.contract.requires)),
-          Seq(pred(function.contract.ensures)),
+          pred(function.contract.requires),
+          pred(function.contract.ensures),
           function.body.map(exp),
         )(info=NodeInfo(function))
       }
@@ -139,8 +140,8 @@ case class ColToSilver(program: col.Program[_]) {
           ref(procedure),
           procedure.args.map(variable),
           procedure.outArgs.map(variable),
-          Seq(pred(procedure.contract.requires)),
-          Seq(pred(procedure.contract.ensures)),
+          pred(procedure.contract.requires),
+          pred(procedure.contract.ensures),
           procedure.body.map(body => silver.Seqn(Seq(block(body)), labelDecls)(info=NodeInfo(body)))
         )(info=NodeInfo(procedure))
       }
@@ -190,13 +191,9 @@ case class ColToSilver(program: col.Program[_]) {
     case other => ??(other)
   }
 
-  def pred(e: col.AccountedPredicate[_], path: Seq[AccountedDirection] = Nil): silver.Exp = e match {
-    case UnitAccountedPredicate(pred) => currentPredicatePath.having(path) { exp(pred) }
-    case SplitAccountedPredicate(left, right) =>
-      silver.And(
-        pred(left, path :+ FailLeft),
-        pred(right, path :+ FailRight),
-      )(info=NodeInfo(e))
+  def pred(e: col.AccountedPredicate[_], path: Seq[AccountedDirection] = Nil): Seq[silver.Exp] = e match {
+    case UnitAccountedPredicate(pred) => currentPredicatePath.having(path) { unfoldStar(pred).map(exp) }
+    case SplitAccountedPredicate(left, right) => pred(left, path :+ FailLeft) ++ pred(right, path :+ FailRight)
   }
 
   def expInfo[T <: col.Expr[_]](e: T): NodeInfo[T] = {
@@ -263,6 +260,8 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Mod(left, right) => silver.Mod(exp(left), exp(right))(info=expInfo(e))
     case col.FloorDiv(left, right) => silver.Div(exp(left), exp(right))(info=expInfo(e))
 
+    case col.SilverIntToRat(col.NoPerm()) => silver.NoPerm()(info = expInfo(e))
+    case col.SilverIntToRat(col.WritePerm()) => silver.FullPerm()(info = expInfo(e))
     case col.SilverIntToRat(perm) => silver.IntPermMul(exp(perm), silver.FullPerm()(info=expInfo(e)))(info=expInfo(e))
 
     case col.Eq(left, right) => silver.EqCmp(exp(left), exp(right))(info=expInfo(e))
@@ -314,7 +313,7 @@ case class ColToSilver(program: col.Program[_]) {
       silver.Seqn(Seq(stat(body)), silverLocals)(info=NodeInfo(s))
     case col.Branch(Seq((cond, whenTrue), (col.BooleanValue(true), whenFalse))) => silver.If(exp(cond), block(whenTrue), block(whenFalse))(info=NodeInfo(s))
     case col.Loop(col.Block(Nil), cond, col.Block(Nil), col.LoopInvariant(inv), body) =>
-      silver.While(exp(cond), Seq(exp(inv)), block(body))(info=NodeInfo(s))
+      silver.While(exp(cond), unfoldStar(inv).map(exp), block(body))(info=NodeInfo(s))
     case col.Label(decl, col.Block(Nil)) => silver.Label(ref(decl), Seq())(info=NodeInfo(s))
     case col.Goto(lbl) => silver.Goto(ref(lbl))(info=NodeInfo(s))
     case col.Return(col.Void()) => silver.Seqn(Nil, Nil)(info=NodeInfo(s))

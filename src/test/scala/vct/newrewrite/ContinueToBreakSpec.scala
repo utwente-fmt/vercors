@@ -11,6 +11,7 @@ import vct.helper.ColHelper
 class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
   type G = InitialGeneration
   implicit val o: Origin = DiagnosticOrigin
+  private val blame = PanicBlame("empty loop invariant")
 
   it should "replace a labeled continue with the proper labeled break" in {
     val loopLabel = new LabelDecl[G]()
@@ -20,11 +21,11 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Nil),
           BooleanValue(true),
           Block(Nil),
-          LoopInvariant(BooleanValue(true)),
+          LoopInvariant(BooleanValue(true))(blame),
           Block(Seq(
             Continue[G](Some(loopLabel.ref))
           ))
-        )(o)
+        )
       )
     }
 
@@ -36,13 +37,13 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Nil),
           BooleanValue(true),
           Block(Nil),
-          LoopInvariant(BooleanValue(true)),
+          LoopInvariant(BooleanValue(true))(blame),
           Label(continueLoopLabel,
             Block(Seq(
               Break[G](Some(continueLoopLabel.ref))
             ))
           )
-        )(o)
+        )
       )
     }
 
@@ -59,19 +60,19 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Nil),
           BooleanValue(true),
           Block(Nil),
-          LoopInvariant(BooleanValue(true)),
+          LoopInvariant(BooleanValue(true))(blame),
           Label(innerLoop,
             Loop(
               Block(Nil),
               BooleanValue(true),
               Block(Nil),
-              LoopInvariant(BooleanValue(true)),
+              LoopInvariant(BooleanValue(true))(blame),
               Block(Seq(
                 Continue(Some(outerLoop.ref))
               ))
             )(o)
           )
-        )(o)
+        )
       )
     }
 
@@ -85,21 +86,21 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Nil),
           BooleanValue(true),
           Block(Nil),
-          LoopInvariant(BooleanValue(true)),
+          LoopInvariant(BooleanValue(true))(blame),
           Label(continueOuterLoop,
             Label(innerLoop,
               Loop(
                 Block(Nil),
                 BooleanValue(true),
                 Block(Nil),
-                LoopInvariant(BooleanValue(true)),
+                LoopInvariant(BooleanValue(true))(blame),
                 Block(Seq(
                   Break(Some(continueOuterLoop.ref))
                 ))
               )(o)
             )
           )
-        )(o)
+        )
       )
     }
 

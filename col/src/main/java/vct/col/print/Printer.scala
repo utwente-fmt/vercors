@@ -613,9 +613,11 @@ case class Printer(out: Appendable,
       (phrase("new", space, baseType, "[]".repeat(dims), initializer), 100)
     case JavaNewDefaultArray(baseType, specifiedDims, moreDims) =>
       (phrase("new", space, baseType, phrase(specifiedDims.map(phrase("[", _, "]")):_*), "[]".repeat(moreDims)), 100)
-    case SilverDeref(obj, field) => ???
+    case SilverDeref(obj, field) =>
+      (phrase(assoc(100, obj), ".", name(field.decl)), 100)
     case SilverCurFieldPerm(obj, field) => ???
     case SilverCurPredPerm(ref, args) => ???
+    case SilverIntToRat(inner) => expr(inner)
     case MapSize(map) =>
       (phrase("cardMap(", map, ")"), 100)
     case Sum(bindings, condition, main) =>
@@ -714,7 +716,13 @@ case class Printer(out: Appendable,
       (phrase("void"), 110)
     case AmbiguousThis() =>
       (phrase("this"), 110)
+    case ThisModel(_) =>
+      (phrase("this"), 110)
+    case ThisObject(_) =>
+      (phrase("this"), 110)
     case AmbiguousResult() =>
+      (phrase("\\result"), 110)
+    case Result(_) =>
       (phrase("\\result"), 110)
     case CurrentThreadId() =>
       (phrase("\\current_thread"), 110)
@@ -899,6 +907,8 @@ case class Printer(out: Appendable,
       (phrase(bind(10, target), space, "=", space, bind(10, value)), 10)
     case With(pre, value) => ???
     case Then(value, post) => ???
+    case FunctionOf(v, vars) =>
+      (phrase("(", name(v.decl), "!", commas(vars.map(ref => name(ref.decl))), ")"), 100)
   }
 
   def printType(t: Type[_]): Unit = say(t match {
