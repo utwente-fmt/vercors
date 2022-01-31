@@ -12,7 +12,7 @@ Should be converted into a function with `requires arg instanceof Dog`
 
 ### Unsafe mode
 
-Should be converted into a method with `ensures arg instanceof Dog` and `signals (ClassCastException e) !(e instanceof Dog)`
+Should be converted into an abstract method with `ensures arg instanceof Dog` and `signals (ClassCastException e) !(e instanceof Dog)`
 
 ## getClass
 
@@ -103,11 +103,17 @@ if (!TYPE.issubtype(dog, TYPE.componentType(TYPE.typeof(xs)))) {
 
 # Java/COL Resolver extensions
 
-## Shadowed fields
-
 ## Awareness of inherited fields
 
+The resolver must traverse the type hierarchy to find fields declared in supertypes.
+
 ## Awareness of inherited methods
+
+Idem, but for methods
+
+## Shadowed fields
+
+The resolver must be aware that duplicate field names are allowed between super & sub types. Also, the syntax for it, `super.x` and `Animal.x`
 
 # Java type system encoding in COL/Silver
 
@@ -171,21 +177,78 @@ The assumptions are backed by the java type system.
 
 Possibly, if a class is final, the function `assume_FinalClass` can emit more exact type info.
 
+A downside to this approach is that transformations after the inheritance pass do not keep the `assume_Class` functions around, or mess them up somehow. I would say that's a plain bug. But we could also use the ADT encoding, as this would probably more robust against that kind of bug, in return for a slightly more complicated encoding, meaning more quantifiers.
+
 ## Assume exact dynamic type when constructing new object
 
 The exact dynamic type should be added to the postcondition of constructors.
 
 # Semantic checks to be generated
 
+## Deriving static & dynamic contract from initial contract
+
+Given a contract:
+
+```
+class Animal {
+    int v1;
+    resource state(int x) = Perm(v1, 1) ** v1 == x;
+
+    context state(z);
+    public abstract void sound(int z);
+}
+class Dog extends Animal {
+    int v2;
+    resource state(int x) = Perm(v2, 1) ** v2 == 2 * x;
+
+    context state(z);
+    @Override
+    public void sound(int z) {
+        // ...       
+    }
+}
+```
+
+The static contract for Dog.sound is:
+
+```
+context state@Dog(z);
+```
+
+The dynamic contract for Animal.sound is:
+
+```
+context state(z);
+```
+
+This is equal to the dynamic contract for Dog.sound. Bierman et al. have shown that this derivation holds.
+
 ## Method respects static contract
+
+The method implementation has to obey the static contract.
 
 ## Static contract implies dynamic contract
 
-## Deriving static & dynamic contract from initial contract
+The static contract and the dynamic contract + type info must be compatible. So the proof obligation for the method Dog.sound is:
+
+```
+requires this.class == Dog.class; // Exact type info known because of dynamic dispath
+context state(z)
+public void soundDynamic(int z) {
+    unfold state(z) at Dog;
+    //@ assert state@Dog(z);
+    soundStaticContract(z);
+    fold state(z) at Dog;
+}
+```
+
+Where `soundStaticContract` is the generated method that has the static contract. This proof obligation ensures that, given the dynamic contract and type info of an object, the static contract of the corresponding method can safely be called into.
+
+In practice, we do not have to generate the implementation of `soundDynamic`, since the correctness of this method with the static/dynamic contract derivation is gauranteed.
 
 ## Correct contract should be used
 
-Private calls use static contract, method without qualifier (package-private) too. Rest should use dynamic contract.
+Private calls use static contract, method without qualifier (package-private) too. Rest should use dynamic contract. (Not 100% sure about package-private methods though)
 
 Calls through `super` should also use static contract.
 
@@ -193,18 +256,26 @@ Calls through `super` should also use static contract.
 
 ## Parent predicate is included
 
+Each class-specific instance of an APF includes the APF of the supertype. So unfolding `state@Dog` also gives you `state@Animal`.
+
 ## Final predicates do not need dynamic type info to fold/unfold at
+
+If the state predicate in Dog were marked final, no type information is needed to unfold the predicate if the static type is Dog, as it is guaranteed that the instance is state@Dog.
 
 ## Syntax for non-family predicates
 
-More or less sugar for adding `final` to a predicate def, but might be nice to have an easier to explain version of apfs.
+If a predicate is marked as final it behaves as an ordinary predicate, that is, no type info is needed for unfolding. But that might be a bit counterintuitive. Maybe we need a "predicate" qualifier that ensures this behaviour? Might be easier to use and explain in the tutorial.
 
 # New statements
 
 ## Extract statement
 
+Given `state(z)`, executing `extract state(z) at Dog`, yields `state@Dog(z) ** (state@Dog(z) -* state(z))`. Useful for read only access of classes without knowing the dynamic type.
+
 ## unfold p() at C/fold p() at C
+
+Given the dynamic type, exchange `state(z)` for `state@Dog(z)`.
 
 ## widen/narrow
 
-Cool to have, but I think we can wait with implementing this until it comes up in a case study/standard lib
+Cool to have, but I think we can wait with implementing this until it comes up in a case study/standard lib. Adds/removes argument of an APF. E.g. `widen state(z) with int x` results in `state(z, x)`.
