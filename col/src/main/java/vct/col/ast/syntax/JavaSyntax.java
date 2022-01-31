@@ -97,6 +97,9 @@ public class JavaSyntax extends Syntax {
         syntax.addFunction(MapRemoveKey, "removeFromMap");
         syntax.addFunction(MapItemSet, "itemsMap");
 
+        syntax.addFunction(TupleFst, "getFst");
+        syntax.addFunction(TupleSnd, "getSnd");
+
         JavaVerCorsSyntax=syntax;
         
       }
