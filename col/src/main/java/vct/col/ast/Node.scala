@@ -14,6 +14,7 @@ import vct.col.ast.temporaryimplpackage.expr.`type`._
 import vct.col.ast.temporaryimplpackage.expr.ambiguous._
 import vct.col.ast.temporaryimplpackage.expr.apply._
 import vct.col.ast.temporaryimplpackage.expr.binder._
+import vct.col.ast.temporaryimplpackage.family.coercion._
 import vct.col.ast.temporaryimplpackage.expr.context._
 import vct.col.ast.temporaryimplpackage.expr.heap.alloc._
 import vct.col.ast.temporaryimplpackage.expr.heap.read._
@@ -38,9 +39,10 @@ import vct.col.ast.temporaryimplpackage.expr.resource._
 import vct.col.ast.temporaryimplpackage.expr.sideeffect._
 import vct.col.ast.temporaryimplpackage.family.accountedpredicate._
 import vct.col.ast.temporaryimplpackage.family.catchclause._
+import vct.col.ast.temporaryimplpackage.family.coercion.{CoercionImpl, NothingSomethingImpl}
 import vct.col.ast.temporaryimplpackage.family.contract._
 import vct.col.ast.temporaryimplpackage.family.fieldflag._
-import vct.col.ast.temporaryimplpackage.family.invoking.InvokingNodeImpl
+import vct.col.ast.temporaryimplpackage.family.invoking._
 import vct.col.ast.temporaryimplpackage.family.itervariable._
 import vct.col.ast.temporaryimplpackage.family.loopcontract._
 import vct.col.ast.temporaryimplpackage.family.parregion._
@@ -183,7 +185,7 @@ final case class Loop[G](init: Statement[G], cond: Expr[G], update: Statement[G]
 final case class TryCatchFinally[G](body: Statement[G], after: Statement[G], catches: Seq[CatchClause[G]])(implicit val o: Origin) extends Statement[G] with TryCatchFinallyImpl[G]
 final case class Synchronized[G](obj: Expr[G], body: Statement[G])(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends Statement[G] with SynchronizedImpl[G]
 final case class ParInvariant[G](decl: ParInvariantDecl[G], inv: Expr[G], content: Statement[G])(val blame: Blame[ParInvariantNotEstablished])(implicit val o: Origin) extends Statement[G] with ParInvariantImpl[G]
-final case class ParAtomic[G](inv: Seq[Ref[G, ParInvariantDecl[G]]], content: Statement[G])(implicit val o: Origin) extends Statement[G] with ParAtomicImpl[G]
+final case class ParAtomic[G](inv: Seq[Ref[G, ParInvariantDecl[G]]], content: Statement[G])(val blame: Blame[ParInvariantNotMaintained])(implicit val o: Origin) extends Statement[G] with ParAtomicImpl[G]
 final case class ParBarrier[G](block: Ref[G, ParBlockDecl[G]], invs: Seq[Ref[G, ParInvariantDecl[G]]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBarrierFailed])(implicit val o: Origin) extends Statement[G] with ParBarrierImpl[G]
 final case class ParStatement[G](impl: ParRegion[G])(implicit val o: Origin) extends Statement[G] with ParStatementImpl[G]
 final case class VecBlock[G](iters: Seq[IterVariable[G]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(implicit val o: Origin) extends Statement[G] with VecBlockImpl[G]
@@ -273,6 +275,48 @@ case class SplitAccountedPredicate[G](left: AccountedPredicate[G], right: Accoun
 sealed trait FieldFlag[G] extends NodeFamily[G] with FieldFlagImpl[G]
 final class Final[G]()(implicit val o: Origin) extends FieldFlag[G] with FinalImpl[G]
 
+sealed trait Coercion[G] extends NodeFamily[G] with CoercionImpl[G]
+final case class NothingSomething[G](inner: Expr[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with NothingSomethingImpl[G]
+final case class SomethingAny[G](inner: Expr[G], source: Type[G])(implicit val o: Origin) extends Coercion[G] with SomethingAnyImpl[G]
+
+final case class CoerceJoinUnion[G](inner: Seq[Coercion[G]], source: Seq[Type[G]], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceJoinUnionImpl[G]
+final case class CoerceSelectUnion[G](inner: Coercion[G], source: Type[G], targetAlts: Seq[Type[G]], index: Int)(implicit val o: Origin) extends Coercion[G] with CoerceSelectUnionImpl[G]
+
+final case class CoerceBoolResource[G](inner: Expr[G])(implicit val o: Origin) extends Coercion[G] with CoerceBoolResourceImpl[G]
+
+final case class CoerceNullRef[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullRefImpl[G]
+final case class CoerceNullArray[G](arrayElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullArrayImpl[G]
+final case class CoerceNullClass[G](targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullClassImpl[G]
+final case class CoerceNullJavaClass[G](targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullJavaClassImpl[G]
+final case class CoerceNullPointer[G](pointerElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullPointerImpl[G]
+
+final case class CoerceFracZFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceFracZFracImpl[G]
+final case class CoerceZFracRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceZFracRatImpl[G]
+final case class CoerceFloatRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceFloatRatImpl[G]
+final case class CoerceIntRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceIntRatImpl[G]
+
+final case class CoerceWidenBound[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceWidenBoundImpl[G]
+final case class CoerceUnboundInt[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceUnboundIntImpl[G]
+
+final case class CoerceBoundIntFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceBoundIntFracImpl[G]
+final case class CoerceBoundIntZFrac[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceBoundIntZFracImpl[G]
+
+final case class CoerceSupports[G](sourceClass: Ref[G, Class[G]], targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceSupportsImpl[G]
+final case class CoerceJavaSupports[G](sourceClass: Ref[G, JavaClassOrInterface[G]], targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaSupportsImpl[G]
+
+final case class CoerceCPrimitiveToCol[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceCPrimitiveToColImpl[G]
+final case class CoerceColToCPrimitive[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceColToCPrimitiveImpl[G]
+
+final case class CoerceMapOption[G](inner: Coercion[G], sourceOptionElement: Type[G], targetOptionElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapOptionImpl[G]
+final case class CoerceMapTuple[G](inner: Coercion[G], sourceTypes: Seq[Type[G]], targetTypes: Seq[Type[G]])(implicit val o: Origin) extends Coercion[G] with CoerceMapTupleImpl[G]
+final case class CoerceMapEither[G](inner: Coercion[G], sourceTypes: (Type[G], Type[G]), targetTypes: (Type[G], Type[G]))(implicit val o: Origin) extends Coercion[G] with CoerceMapEitherImpl[G]
+final case class CoerceMapSeq[G](inner: Coercion[G], sourceSeqElement: Type[G], targetSeqElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapSeqImpl[G]
+final case class CoerceMapSet[G](inner: Coercion[G], sourceSetElement: Type[G], targetSetElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapSetImpl[G]
+final case class CoerceMapBag[G](inner: Coercion[G], sourceBagElement: Type[G], targetBagElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapBagImpl[G]
+final case class CoerceMapMatrix[G](inner: Coercion[G], sourceMatrixElement: Type[G], targetMatrixElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapMatrixImpl[G]
+final case class CoerceMapMap[G](inner: Coercion[G], sourceTypes: (Type[G], Type[G]), targetTypes: (Type[G], Type[G]))(implicit val o: Origin) extends Coercion[G] with CoerceMapMapImpl[G]
+final case class CoerceMapType[G](inner: Coercion[G], sourceBound: Type[G], targetBound: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapTypeImpl[G]
+
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 
 sealed abstract class Constant[G, T] extends Expr[G] with ConstantImpl[G, T]
@@ -339,6 +383,7 @@ final case class DerefPointer[G](pointer: Expr[G])(val blame: Blame[PointerDeref
 final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(val blame: Blame[PointerAddError])(implicit val o: Origin) extends Expr[G] with PointerAddImpl[G]
 final case class AddrOf[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with AddrOfImpl[G]
 final case class FunctionOf[G](binding: Ref[G, Variable[G]], vars: Seq[Ref[G, Variable[G]]])(implicit val o: Origin) extends Expr[G] with FunctionOfImpl[G]
+final case class ApplyCoercion[G](e: Expr[G], coercion: Coercion[G])(implicit val o: Origin) extends Expr[G] with ApplyCoercionImpl[G]
 
 sealed trait Apply[G] extends Expr[G] with ApplyImpl[G]
 final case class ADTFunctionInvocation[G](typeArgs: Option[(Ref[G, AxiomaticDataType[G]], Seq[Type[G]])], ref: Ref[G, ADTFunction[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Apply[G] with ADTFunctionInvocationImpl[G]
@@ -598,7 +643,7 @@ sealed trait CExpr[G] extends Expr[G] with CExprImpl[G]
 final case class CLocal[G](name: String)(implicit val o: Origin) extends CExpr[G] with CLocalImpl[G] {
   var ref: Option[CNameTarget[G]] = None
 }
-final case class CInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(String, Expr[G])], yields: Seq[(Expr[G], String)])(implicit val o: Origin) extends CExpr[G] with CInvocationImpl[G] {
+final case class CInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(String, Expr[G])], yields: Seq[(Expr[G], String)])(val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends CExpr[G] with CInvocationImpl[G] {
   var ref: Option[CInvocationTarget[G]] = None
 }
 final case class CStructAccess[G](struct: Expr[G], field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CExpr[G] with CStructAccessImpl[G] {

@@ -433,7 +433,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx))(blame(expr))
     case PostfixExpression2(f, given, _, args, _, yields) =>
       CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
-        convertEmbedGiven(given), convertEmbedYields(yields))
+        convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
     case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))(blame(expr))
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
     case PostfixExpression5(targetNode, _) =>
@@ -767,7 +767,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         case ValActionImpl1(inner) => convert(inner)
       })
     case ValAtomic(_, _, invariant, _, body) =>
-      ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))
+      ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement[G]] = block match {

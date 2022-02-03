@@ -474,7 +474,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case Cast(value, typeValue) =>
         Cast(value, typeValue)
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
-        CInvocation(applicable, args, givenArgs, yields)
+        CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
       case ComputationalAnd(left, right) =>
         ComputationalAnd(bool(left), bool(right))

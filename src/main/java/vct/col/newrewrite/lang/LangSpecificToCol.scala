@@ -276,6 +276,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       v.declareDefault(this)
 
     case func: CFunctionDefinition[Pre] =>
+      func.drop()
       val info = C.getDeclaratorInfo(func.declarator)
       val returnType = func.specs.collectFirst { case t: CSpecificationType[Pre] => dispatch(t.t) }.getOrElse(???)
       val params = collectInScope(variableScopes) { info.params.get.foreach(dispatch) }
@@ -542,6 +543,31 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           ActionApply[Post](succ(decl), args.map(dispatch))
         case BuiltinInstanceMethod(f) =>
           dispatch(f(obj.get)(args))
+      }
+
+    case inv @ CInvocation(applicable, args, givenArgs, yields) =>
+      implicit val o: Origin = inv.o
+      inv.ref.get match {
+        case RefFunction(decl) =>
+          FunctionInvocation[Post](succ(decl), args.map(dispatch), Nil)(inv.blame)
+        case RefProcedure(decl) =>
+          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, Nil)(inv.blame)
+        case RefPredicate(decl) =>
+          PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
+        case RefInstanceFunction(decl) => ???
+        case RefInstanceMethod(decl) => ???
+        case RefInstancePredicate(decl) => ???
+        case RefADTFunction(decl) =>
+          ADTFunctionInvocation[Post](None, succ(decl), args.map(dispatch))
+        case RefModelProcess(decl) =>
+          ProcessApply[Post](succ(decl), args.map(dispatch))
+        case RefModelAction(decl) =>
+          ActionApply[Post](succ(decl), args.map(dispatch))
+        case BuiltinInstanceMethod(f) => ???
+        case ref: RefCFunctionDefinition[Pre] =>
+          ProcedureInvocation[Post](cFunctionSuccessor.ref(ref), args.map(dispatch), Nil, Nil)(inv.blame)
+        case RefCGlobalDeclaration(decls, initIdx) => ???
+        case RefCDeclaration(decls, initIdx) => ???
       }
 
     case inv @ JavaNewClass(args, typeParams, t @ JavaTClass(Ref(decl), _)) =>

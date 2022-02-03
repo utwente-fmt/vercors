@@ -279,7 +279,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         convert(res), convert(body)
       )(blame(stat))
     case PvlAtomic(_, _, invs, _, body) =>
-      ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))
+      ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))(blame(stat))
     case PvlWhile(invs, _, _, cond, _, body) =>
       Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs))(blame(stat)), convert(body)))
     case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
@@ -738,7 +738,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         case ValActionImpl1(inner) => convert(inner)
       })
     case ValAtomic(_, _, invariant, _, body) =>
-      ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))
+      ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement[G]] = block match {

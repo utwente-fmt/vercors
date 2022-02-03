@@ -212,6 +212,10 @@ case class ColToSilver(program: col.Program[_]) {
     case col.ReadPerm() => silver.WildcardPerm()(info=expInfo(e))
     case col.WritePerm() => silver.FullPerm()(info=expInfo(e))
 
+    case col.LiteralSeq(_, xs) => silver.ExplicitSeq(xs.map(exp))(info=expInfo(e))
+    case col.LiteralSet(_, xs) => silver.ExplicitSet(xs.map(exp))(info=expInfo(e))
+    case col.LiteralBag(_, xs) => silver.ExplicitMultiset(xs.map(exp))(info=expInfo(e))
+
     case col.Size(obj) => silver.SeqLength(exp(obj))(info=expInfo(e))
 
     case col.Exists(bindings, triggers, body) =>

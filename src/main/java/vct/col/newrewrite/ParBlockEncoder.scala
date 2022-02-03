@@ -42,6 +42,11 @@ case object ParBlockEncoder extends RewriterBuilder {
       invariant.blame.blame(ParInvariantNotEstablished(error.failure, invariant))
   }
 
+  case class ParAtomicCannotBeExhaled(atomic: ParAtomic[_]) extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit =
+      atomic.blame.blame(ParInvariantNotMaintained(error.failure, atomic))
+  }
+
   case class ParBarrierPostconditionFailed(barrier: ParBarrier[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case PostconditionFailed(_, failure, _) =>
@@ -97,6 +102,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
   val invariants: ScopedStack[Expr[Post]] = ScopedStack()
   val parDecls: mutable.Map[ParBlockDecl[Pre], ParBlock[Pre]] = mutable.Map()
+  val invDecls: mutable.Map[ParInvariantDecl[Pre], ParInvariant[Pre]] = mutable.Map()
 
   def quantify(block: ParBlock[Pre], expr: Expr[Pre])(implicit o: Origin): Expr[Pre] = {
     val quantVars = block.iters.map(_.variable).map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
@@ -218,12 +224,22 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case parInv @ ParInvariant(_, inv, content) =>
+    case parInv @ ParInvariant(decl, inv, content) =>
       implicit val o: Origin = inv.o
+      invDecls(decl) = parInv
+      decl.drop()
       Block(Seq(
         Exhale(dispatch(inv))(ParInvariantCannotBeExhaled(parInv)),
         dispatch(content),
         Inhale(dispatch(inv)),
+      ))
+
+    case atomic @ ParAtomic(inv, content) =>
+      implicit val o: Origin = atomic.o
+      Block(Seq(
+        Block(inv.map(ref => Inhale[Post](dispatch(invDecls(ref.decl).inv)))),
+        dispatch(content),
+        Block(inv.map(ref => Exhale[Post](dispatch(invDecls(ref.decl).inv))(ParAtomicCannotBeExhaled(atomic)))),
       ))
 
     case parRegion @ ParStatement(impl) =>

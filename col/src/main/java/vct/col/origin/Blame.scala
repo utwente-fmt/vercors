@@ -135,6 +135,10 @@ case class ParInvariantNotEstablished(failure: ContractFailure, invariant: ParIn
   override def toString: String = s"This parallel invariant may not be established, since $failure."
   override def code: String = "notEstablished"
 }
+case class ParInvariantNotMaintained(failure: ContractFailure, atomic: ParAtomic[_]) extends VerificationFailure {
+  override def toString: String = s"The parallel invariant may not be maintained, since $failure."
+  override def code: String = "notMaintained"
+}
 sealed trait ParBarrierFailed extends VerificationFailure
 case class ParBarrierNotEstablished(failure: ContractFailure, barrier: ParBarrier[_]) extends ParBarrierFailed {
   override def toString: String = s"The precondition of this barrier may not hold, since $failure."
