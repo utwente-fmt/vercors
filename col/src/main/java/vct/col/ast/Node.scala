@@ -276,13 +276,16 @@ sealed trait FieldFlag[G] extends NodeFamily[G] with FieldFlagImpl[G]
 final class Final[G]()(implicit val o: Origin) extends FieldFlag[G] with FinalImpl[G]
 
 sealed trait Coercion[G] extends NodeFamily[G] with CoercionImpl[G]
-final case class NothingSomething[G](inner: Expr[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with NothingSomethingImpl[G]
-final case class SomethingAny[G](inner: Expr[G], source: Type[G])(implicit val o: Origin) extends Coercion[G] with SomethingAnyImpl[G]
+final case class CoerceIdentity[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceIdentityImpl[G]
+final case class CoercionSequence[G](coercions: Seq[Coercion[G]])(implicit val o: Origin) extends Coercion[G] with CoercionSequenceImpl[G]
+
+final case class CoerceNothingSomething[G](target: Type[G])(implicit val o: Origin) extends Coercion[G] with NothingSomethingImpl[G]
+final case class CoerceSomethingAny[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with SomethingAnyImpl[G]
 
 final case class CoerceJoinUnion[G](inner: Seq[Coercion[G]], source: Seq[Type[G]], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceJoinUnionImpl[G]
 final case class CoerceSelectUnion[G](inner: Coercion[G], source: Type[G], targetAlts: Seq[Type[G]], index: Int)(implicit val o: Origin) extends Coercion[G] with CoerceSelectUnionImpl[G]
 
-final case class CoerceBoolResource[G](inner: Expr[G])(implicit val o: Origin) extends Coercion[G] with CoerceBoolResourceImpl[G]
+final case class CoerceBoolResource[G]()(implicit val o: Origin) extends Coercion[G] with CoerceBoolResourceImpl[G]
 
 final case class CoerceNullRef[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullRefImpl[G]
 final case class CoerceNullArray[G](arrayElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullArrayImpl[G]
@@ -308,14 +311,17 @@ final case class CoerceCPrimitiveToCol[G](source: Type[G], target: Type[G])(impl
 final case class CoerceColToCPrimitive[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceColToCPrimitiveImpl[G]
 
 final case class CoerceMapOption[G](inner: Coercion[G], sourceOptionElement: Type[G], targetOptionElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapOptionImpl[G]
-final case class CoerceMapTuple[G](inner: Coercion[G], sourceTypes: Seq[Type[G]], targetTypes: Seq[Type[G]])(implicit val o: Origin) extends Coercion[G] with CoerceMapTupleImpl[G]
-final case class CoerceMapEither[G](inner: Coercion[G], sourceTypes: (Type[G], Type[G]), targetTypes: (Type[G], Type[G]))(implicit val o: Origin) extends Coercion[G] with CoerceMapEitherImpl[G]
+final case class CoerceMapTuple[G](inner: Seq[Coercion[G]], sourceTypes: Seq[Type[G]], targetTypes: Seq[Type[G]])(implicit val o: Origin) extends Coercion[G] with CoerceMapTupleImpl[G]
+final case class CoerceMapEither[G](inner: (Coercion[G], Coercion[G]), sourceTypes: (Type[G], Type[G]), targetTypes: (Type[G], Type[G]))(implicit val o: Origin) extends Coercion[G] with CoerceMapEitherImpl[G]
 final case class CoerceMapSeq[G](inner: Coercion[G], sourceSeqElement: Type[G], targetSeqElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapSeqImpl[G]
 final case class CoerceMapSet[G](inner: Coercion[G], sourceSetElement: Type[G], targetSetElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapSetImpl[G]
 final case class CoerceMapBag[G](inner: Coercion[G], sourceBagElement: Type[G], targetBagElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapBagImpl[G]
 final case class CoerceMapMatrix[G](inner: Coercion[G], sourceMatrixElement: Type[G], targetMatrixElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapMatrixImpl[G]
 final case class CoerceMapMap[G](inner: Coercion[G], sourceTypes: (Type[G], Type[G]), targetTypes: (Type[G], Type[G]))(implicit val o: Origin) extends Coercion[G] with CoerceMapMapImpl[G]
 final case class CoerceMapType[G](inner: Coercion[G], sourceBound: Type[G], targetBound: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapTypeImpl[G]
+
+final case class CoerceRatZFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceRatZFracImpl[G]
+final case class CoerceZFracFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceZFracFracImpl[G]
 
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 

@@ -9,9 +9,9 @@ import vct.col.util.AstBuildHelpers._
 case object SilverIntRatCoercion extends RewriterBuilder
 
 case class SilverIntRatCoercion[Pre <: Generation]() extends CoercingRewriter[Pre] {
-  override def coerce(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = coercion match {
+  override def applyCoercion(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = coercion match {
     case Coercion.IntRat() =>
       SilverIntToRat(e)
-    case other => super.coerce(e, other)
+    case other => super.applyCoercion(e, other)
   }
 }

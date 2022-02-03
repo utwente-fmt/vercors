@@ -267,7 +267,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
   private def preFunc(ref: Ref[Post, Function[Post]]): Ref[Pre, Function[Pre]] =
     transmutePostRef[Function, Function[Pre], Function[Post]](ref)
 
-  override def coerce(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = coercion match {
+  override def applyCoercion(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = coercion match {
     case Coercion.NothingSomething(target) =>
       FunctionInvocation(preFunc(nothingAs.ref), Seq(e), Seq(target))(PanicBlame("coercing from nothing requires nothing."))
     case Coercion.SomethingAny(source) =>
@@ -308,7 +308,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
       val rat = ADTFunctionInvocation(Some((preAdt(zfracAdt.ref), Nil)), preAdtFunc(zfracVal.ref), Seq(e))
       FunctionInvocation(preFunc(fracNew.ref), Seq(rat), Nil)(NoContext(ZFracFracPreconditionFailed(globalBlame.top, e)))
 
-    case _ => super.coerce(e, coercion)
+    case _ => super.applyCoercion(e, coercion)
   }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {

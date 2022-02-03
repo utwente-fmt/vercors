@@ -12,7 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre]() {
   globalScopes.push(ArrayBuffer())
 
-  override def coerce(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = e
+  override def applyCoercion(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = e
 }
 
 case object CoercingRewriter {
@@ -43,89 +43,82 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     * @param sc the scope in which to declare functions
     * @return the coerced expression
     */
-  def coerce(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = {
+  def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = {
     coercion match {
-      case Coercion.Identity() => e
-      case Coercion.Compose(left, right) => coerce(coerce(e, right), left)
-      case Coercion.NothingSomething(_) => e
-      case Coercion.SomethingAny(_) => e
-      case Coercion.MapOption(_, _, inner) =>
-        Select(Eq(e, OptNone()), OptNone(), coerce(OptGet(e)(NeverNone), inner))
-      case Coercion.MapEither(source, target, innerLeft, innerRight) =>
-        Select(IsLeft(e), coerce(GetLeft(e)(FramedGetLeft), innerLeft), coerce(GetRight(e)(FramedGetRight), innerRight))
-      case Coercion.MapSeq(source, target, inner) =>
+      case CoerceIdentity(_) => e
+      case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
+      case CoerceNothingSomething(_) => e
+      case CoerceSomethingAny(_) => e
+      case CoerceMapOption(_, _, inner) =>
+        Select(Eq(e, OptNone()), OptNone(), applyCoercion(OptGet(e)(NeverNone), inner))
+      case CoerceMapEither((innerLeft, innerRight), _, _) =>
+        Select(IsLeft(e), applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft), applyCoercion(GetRight(e)(FramedGetRight), innerRight))
+      case CoerceMapSeq(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
-          val v = new Variable[Post](dispatch(source))
+          val v = new Variable[Post](TSeq(dispatch(source)))
           val i = new Variable[Post](TInt())
           val result_i = SeqSubscript(result, i.get)(FramedSeqIndex)
-
-          val pre_v = Local(transmutePostRef[Variable, Variable[Pre], Variable[Post]](v.ref))
-          val pre_i = Local(transmutePostRef[Variable, Variable[Pre], Variable[Post]](v.ref))
-          val pre_v_i = SeqSubscript(pre_v, pre_i)(FramedSeqIndex)
+          val v_i = SeqSubscript(v.get, i.get)(FramedSeqIndex)
 
           function(
             blame = AbstractApplicable,
-            returnType = dispatch(target),
+            returnType = TSeq(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
               Eq(Size(v.get), Size(result)) &&
               Forall(Seq(i), Seq(Seq(result_i)),
                 (const[Post](0) < i.get && i.get < Size(result)) ==>
-                  result_i === dispatch(coerce(pre_v_i, inner)))
+                  result_i === applyCoercion(v_i, inner))
             ),
           )
         })
 
         f.declareDefault(this)
-        FunctionInvocation(transmutePostRef[Function, Function[Pre], Function[Post]](f.ref), Seq(e), Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
-      case Coercion.MapSet(source, target, inner) =>
+        FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
+      case CoerceMapSet(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
-          val v = new Variable(dispatch(source))
-          val elem = new Variable(dispatch(source.element))
-          val pre_elem = Local(transmutePostRef[Variable, Variable[Pre], Variable[Post]](elem.ref))
+          val v = new Variable(TSet(dispatch(source)))
+          val elem = new Variable(dispatch(source))
 
           function(
             blame = AbstractApplicable,
-            returnType = dispatch(target),
+            returnType = TSet(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
               Eq(Size(result), Size(v.get)) &&
                 Forall(Seq(elem), Seq(Seq(SetMember(elem.get, result))),
-                  Eq(SetMember(dispatch(coerce(pre_elem, inner)), result), SetMember(elem.get, v.get)))
+                  Eq(SetMember(applyCoercion(elem.get, inner), result), SetMember(elem.get, v.get)))
             ),
           )
         })
 
         f.declareDefault(this)
-        FunctionInvocation(transmutePostRef[Function, Function[Pre], Function[Post]](f.ref), Seq(e), Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
-      case Coercion.MapBag(source, target, inner) =>
+        FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
+      case CoerceMapBag(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
-          val v = new Variable(dispatch(source))
-          val elem = new Variable(dispatch(source.element))
-          val pre_elem = Local(transmutePostRef[Variable, Variable[Pre], Variable[Post]](elem.ref))
+          val v = new Variable(TBag(dispatch(source)))
+          val elem = new Variable(dispatch(source))
 
           function(
             blame = AbstractApplicable,
-            returnType = dispatch(target),
+            returnType = TBag(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
               Eq(Size(result), Size(v.get)) &&
                 Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
-                  Eq(BagMemberCount(dispatch(coerce(pre_elem, inner)), result), BagMemberCount(elem.get, v.get)))
+                  Eq(BagMemberCount(dispatch(applyCoercion(pre_elem, inner)), result), BagMemberCount(elem.get, v.get)))
             ),
           )
         })
 
         f.declareDefault(this)
-        FunctionInvocation(transmutePostRef[Function, Function[Pre], Function[Post]](f.ref), Seq(e), Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
-      case Coercion.MapMatrix(source, target, inner) =>
+        FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
+      case CoerceMapMatrix(inner, source, target) =>
         ???
-      case Coercion.MapMap(source, target, inner) =>
+      case CoerceMapMap(inner, (sourceKey, sourceValue), (targetKey, targetValue)) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
-          val v = new Variable(dispatch(source))
-          val k = new Variable(dispatch(source.key))
-          val pre_v = Local(transmutePostRef[Variable, Variable[Pre], Variable[Post]](v.ref))
-          val pre_k = Local(transmutePostRef[Variable, Variable[Pre], Variable[Post]](k.ref))
+          val v = new Variable(TMap(dispatch(sourceKey), dispatch(sourceValue)))
+          val k = new Variable(dispatch(sourceKey))
 
           function(
             blame = AbstractApplicable,
@@ -140,36 +133,36 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         })
 
         f.declareDefault(this)
-        FunctionInvocation(transmutePostRef[Function, Function[Pre], Function[Post]](f.ref), Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
-      case Coercion.MapTuple(source, target, left, right) =>
-        LiteralTuple(target.elements, Seq(coerce(TupGet(e, 0), left), coerce(TupGet(e, 1), right)))
-      case Coercion.MapType(source, target, inner) =>
+        FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
+      case CoerceMapTuple(source, target, left, right) =>
+        LiteralTuple(target.elements, Seq(applyCoercion(TupGet(e, 0), left), applyCoercion(TupGet(e, 1), right)))
+      case CoerceMapType(inner, source, target) =>
         ???
 
-      case Coercion.BoolResource() => e
-      case Coercion.BoundIntFrac() => e
-      case Coercion.BoundIntZFrac(_) => e
-      case Coercion.JoinUnion(_, _, inner) => e
-      case Coercion.SelectUnion(_, _, _, inner) => coerce(e, inner)
+      case CoerceBoolResource() => e
+      case CoerceBoundIntFrac() => e
+      case CoerceBoundIntZFrac(_) => e
+      case CoerceJoinUnion(_, _, inner) => e
+      case CoerceSelectUnion(_, _, _, inner) => applyCoercion(e, inner)
 
-      case Coercion.Supports(_, _) => e
-      case Coercion.JavaSupports(_, _) => e
-      case Coercion.CPrimitiveToCol(_, _) => e
-      case Coercion.ColToCPrimitive(_, _) => e
-      case Coercion.NullRef() => e
-      case Coercion.NullArray(_) => e
-      case Coercion.NullClass(_) => e
-      case Coercion.NullJavaClass(_) => e
-      case Coercion.NullPointer(_) => e
-      case Coercion.FracZFrac() => e
-      case Coercion.ZFracRat() => e
-      case Coercion.FloatRat(_) => e
-      case Coercion.WidenBound(_, _) => e
-      case Coercion.UnboundInt(_) => e
+      case CoerceSupports(_, _) => e
+      case CoerceJavaSupports(_, _) => e
+      case CoerceCPrimitiveToCol(_, _) => e
+      case CoerceColToCPrimitive(_, _) => e
+      case CoerceNullRef() => e
+      case CoerceNullArray(_) => e
+      case CoerceNullClass(_) => e
+      case CoerceNullJavaClass(_) => e
+      case CoerceNullPointer(_) => e
+      case CoerceFracZFrac() => e
+      case CoerceZFracRat() => e
+      case CoerceFloatRat() => e
+      case CoerceWidenBound(_, _) => e
+      case CoerceUnboundInt(_) => e
 
-      case Coercion.IntRat() => e
-      case Coercion.RatZFrac() => e
-      case Coercion.ZFracFrac() => e
+      case CoerceIntRat() => e
+      case CoerceRatZFrac() => e
+      case CoerceZFracFrac() => e
     }
   }
 
@@ -208,7 +201,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     postCoerce(coerce(preCoerce(decl)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
-    coerce(value, Coercion.getCoercion(value.t, target) match {
+    ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
       case None => throw Incoercible(value, target)
     })(CoercionOrigin)
@@ -230,73 +223,73 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
-    Coercion.getAnyOptionCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyOptionCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected an option here, but got ${e.t}")
     }
   def tuple(e: Expr[Pre]): (Expr[Pre], TTuple[Pre]) =
-    Coercion.getAnyTupleCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyTupleCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a tuple here, but got ${e.t}")
     }
   def seq(e: Expr[Pre]): (Expr[Pre], TSeq[Pre]) =
-    Coercion.getAnySeqCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnySeqCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a sequence here, but got ${e.t}")
     }
   def set(e: Expr[Pre]): (Expr[Pre], TSet[Pre]) =
-    Coercion.getAnySetCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnySetCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a set here, but got ${e.t}")
     }
   def bag(e: Expr[Pre]): (Expr[Pre], TBag[Pre]) =
-    Coercion.getAnyBagCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyBagCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a bag here, but got ${e.t}")
     }
   def map(e: Expr[Pre]): (Expr[Pre], TMap[Pre]) =
-    Coercion.getAnyMapCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyMapCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a map here, but got ${e.t}")
     }
   def collection(e: Expr[Pre]): (Expr[Pre], SizedType[Pre]) =
-    Coercion.getAnyCollectionCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyCollectionCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a collection type here, but got ${e.t}")
     }
   def array(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
-    Coercion.getAnyArrayCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyArrayCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected an array here, but got ${e.t}")
     }
   def arrayMatrix(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
-    Coercion.getAnyMatrixArrayCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyMatrixArrayCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a two-dimensional array here, but got ${e.t}")
     }
   def pointer(e: Expr[Pre]): (Expr[Pre], TPointer[Pre]) =
-    Coercion.getAnyPointerCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyPointerCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a pointer here, but got ${e.t}")
     }
   def cls(e: Expr[Pre]): (Expr[Pre], TClass[Pre]) =
-    Coercion.getAnyClassCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyClassCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a class here, but got ${e.t}")
     }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
-    Coercion.getAnyMatrixCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyMatrixCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a matrix here, but got ${e.t}")
     }
   def model(e: Expr[Pre]): (Expr[Pre], TModel[Pre]) =
-    Coercion.getAnyModelCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyModelCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a model here, but got ${e.t}")
     }
   def either(e: Expr[Pre]): (Expr[Pre], TEither[Pre]) =
-    Coercion.getAnyEitherCoercion(e.t) match {
-      case Some((coercion, t)) => (coerce(e, coercion)(CoercionOrigin), t)
+    CoercionUtils.getAnyEitherCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected an either here, but got ${e.t}")
     }
 
