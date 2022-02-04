@@ -11,26 +11,23 @@ on:
       - '**'
 jobs:
   pre_build_test:
-    runs-on: ubuntu-latest
-    # Map a step output to a job output
+    runs-on: "ubuntu-latest"
     outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+      must-skip: ${{ steps.skip-check.outputs.must-skip }}
     steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@master
+      - uses: actions/checkout@v2
+        with: 
+          repository: bobismijnnaam/skip-push-on-pr
+          ref: main
+          path: skip-push-on-pr
+      - id: skip-check
+        uses: ./skip-push-on-pr
         with:
-          # Never allow two runs of this workflow to exist
-          concurrent_skipping: 'always'
-          # Except, never skip a PR, scheduled, or manually dispatch run
-          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
-          # Skip if we can find a duplicate run with the same everything
-          skip_after_successful_duplicate: 'true'
-          # Do not run on changes only to these files
-          paths_ignore: '["**/README.md", "**/LICENSE*"]'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-test:
     needs: pre_build_test
-    if: ${{ needs.pre_build_test.outputs.should_skip != 'true' }}
+    if: ${{ needs.pre_build_test.outputs.must_skip != 'true' }}
 
     runs-on: ubuntu-latest
     environment: Default
