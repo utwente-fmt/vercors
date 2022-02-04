@@ -27,7 +27,7 @@ jobs:
 
   build-test:
     needs: pre_build_test
-    if: ${{ needs.pre_build_test.outputs.must_skip != 'true' }}
+    if: ${{ needs.pre_build_test.outputs.must-skip != 'true' }}
 
     runs-on: ubuntu-latest
     environment: Default
