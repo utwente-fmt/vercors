@@ -1,9 +1,9 @@
 package vct.col.ast.temporaryimplpackage.expr.op.bit
 
 import vct.col.ast.{BitOp, TBool, TInt, Type}
-import vct.col.coerce.Coercion
+import vct.col.coerce.CoercionUtils
 
 trait BitOpImpl[G] { this: BitOp[G] =>
-  def isBoolOp: Boolean = Coercion.getCoercion(left.t, TBool()).isDefined
+  def isBoolOp: Boolean = CoercionUtils.getCoercion(left.t, TBool()).isDefined
   override def t: Type[G] = if(isBoolOp) TBool() else TInt()
 }

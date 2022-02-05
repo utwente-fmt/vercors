@@ -46,9 +46,9 @@ trait NodeImpl[G] { this: Node[G] =>
       // If the printer has a bug, try to print a useful representation
       case t: Throwable => (this match {
         // Case classes are automatically a product type, which produces the nice Type(arg1, arg2) representation.
-        case p: Product[_] => ScalaRunTime._toString(p)
-        // Otherwise, fall back to the ugly Type@hexAdress notation
-        case _ => super.toString
+        case p: scala.Product => ScalaRunTime._toString(p)
+        // Otherwise, fall back to printing the subnodes
+        case _ => s"${this.getClass.getSimpleName}(${subnodes.map(_.toString).mkString(", ")})"
       }) + s" (err: ${t.getClass.getCanonicalName})"
     }
   }

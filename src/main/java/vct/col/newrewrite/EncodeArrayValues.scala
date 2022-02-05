@@ -1,7 +1,7 @@
 package vct.col.newrewrite
 
 import vct.col.ast._
-import vct.col.coerce.Coercion
+import vct.col.coerce.CoercionUtils
 import vct.col.origin.{AbstractApplicable, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, NoContext, Origin, PreconditionFailed, TriggerPatternBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -77,7 +77,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = ValuesFunctionOrigin()
     e match {
       case values @ Values(arr, from, to) =>
-        val arrayType = Coercion.getAnyArrayCoercion(arr.t).get._2
+        val arrayType = CoercionUtils.getAnyArrayCoercion(arr.t).get._2
         val func = valuesFunctions.getOrElseUpdate(arrayType, makeFunctionFor(arrayType))
         FunctionInvocation[Post](func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil)(NoContext(ArrayValuesPreconditionFailed(values)))
       case other => rewriteDefault(other)

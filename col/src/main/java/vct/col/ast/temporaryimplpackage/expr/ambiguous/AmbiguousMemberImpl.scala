@@ -1,13 +1,13 @@
 package vct.col.ast.temporaryimplpackage.expr.ambiguous
 
 import vct.col.ast.{AmbiguousMember, TBool, TInt, Type}
-import vct.col.coerce.Coercion
+import vct.col.coerce.CoercionUtils
 
 trait AmbiguousMemberImpl[G] { this: AmbiguousMember[G] =>
-  def isSeqOp: Boolean = Coercion.getAnySeqCoercion(xs.t).isDefined
-  def isSetOp: Boolean = Coercion.getAnySetCoercion(xs.t).isDefined
-  def isMapOp: Boolean = Coercion.getAnyMapCoercion(xs.t).isDefined
-  def isBagOp: Boolean = Coercion.getAnyBagCoercion(xs.t).isDefined
+  def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(xs.t).isDefined
+  def isSetOp: Boolean = CoercionUtils.getAnySetCoercion(xs.t).isDefined
+  def isMapOp: Boolean = CoercionUtils.getAnyMapCoercion(xs.t).isDefined
+  def isBagOp: Boolean = CoercionUtils.getAnyBagCoercion(xs.t).isDefined
 
   def collectionElementType: Type[G] =
     if(isSeqOp) xs.t.asSeq.get.element

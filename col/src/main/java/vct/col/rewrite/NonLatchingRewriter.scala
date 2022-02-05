@@ -32,5 +32,6 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: JavaImport[Pre]): JavaImport[Post] = rewriteDefault(node)
   override def dispatch(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
 
+  override def dispatch(node: Coercion[Pre]): Coercion[Post] = rewriteDefault(node)
 }
 

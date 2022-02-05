@@ -85,8 +85,8 @@ case object CoercionUtils {
         specs.collectFirst { case spec: CSpecificationType[G] => spec } match {
           case Some(CSpecificationType(t)) =>
             CoercionSequence(Seq(
-              getCoercion(t, target).getOrElse(return None),
               CoerceCPrimitiveToCol(source, t),
+              getCoercion(t, target).getOrElse(return None),
             ))
           case None => return None
         }
@@ -95,8 +95,8 @@ case object CoercionUtils {
         specs.collectFirst { case spec: CSpecificationType[G] => spec } match {
           case Some(CSpecificationType(t)) =>
             CoercionSequence(Seq(
-              CoerceColToCPrimitive(t, target),
               getCoercion(source, t).getOrElse(return None),
+              CoerceColToCPrimitive(t, target),
             ))
           case None => return None
         }
@@ -105,7 +105,7 @@ case object CoercionUtils {
 
       // Unsafe coercions
       case (TRational(), TZFraction()) => CoerceRatZFrac()
-      case (TRational(), TFraction()) => CoercionSequence(Seq(CoerceZFracFrac(), CoerceRatZFrac()))
+      case (TRational(), TFraction()) => CoercionSequence(Seq(CoerceRatZFrac(), CoerceZFracFrac()))
       case (TZFraction(), TFraction()) => CoerceZFracFrac()
 
       case (_, _) => return None

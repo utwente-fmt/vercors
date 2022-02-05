@@ -1,5 +1,6 @@
 package vct.main
 
+import com.sun.management.HotSpotDiagnosticMXBean
 import vct.col.ast.{Declaration, Program, SimplificationRule}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
@@ -19,8 +20,10 @@ import viper.api.Silicon
 import viper.silver.ast.WildcardPerm
 
 import java.io.File
+import java.lang.management.ManagementFactory
 import scala.jdk.CollectionConverters._
 import java.nio.file.{Path, Paths}
+import javax.management.MBeanServer
 import scala.collection.parallel.CollectionConverters._
 import scala.collection.parallel.ForkJoinTasks
 
@@ -39,18 +42,27 @@ case object Test {
 //        tryParse(Seq(f.toPath))
 //      }
 
+      var dumpCount = 0
+
       CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
         if(c.files.asScala.forall(f =>
             f.toString.endsWith(".java") ||
               f.toString.endsWith(".c") ||
               f.toString.endsWith(".pvl"))) {
           tryParse(c.files.asScala.toSeq)
+          /*
+          System.gc()
+          val server = ManagementFactory.getPlatformMBeanServer
+          val mxBean = ManagementFactory.newPlatformMXBeanProxy(server, "com.sun.management:type=HotSpotDiagnostic", classOf[HotSpotDiagnosticMXBean])
+          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
+          dumpCount += 1
+           */
         } else {
           println(s"Skipping: ${c.files.asScala.mkString(", ")}")
         }
       })
 
-//      tryParse(Seq(Path.of("examples/basic/frac2.pvl")))
+//      tryParse(Seq(Path.of("examples/arrays/array-example.pvl")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")

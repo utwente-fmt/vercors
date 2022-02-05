@@ -5,14 +5,14 @@ import vct.col.origin._
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Types
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationResult.{SystemError, Unreachable}
 
 import scala.collection.mutable.ArrayBuffer
 
 case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre]() {
   globalScopes.push(ArrayBuffer())
 
-  override def applyCoercion(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = e
+  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = e
 }
 
 case object CoercingRewriter {
@@ -40,7 +40,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     * SAFETY: all promoting coercions must be injective; otherwise the default mapping coercion of sets is unsound.
     * @param e the expression to coerce
     * @param coercion the coercion
-    * @param sc the scope in which to declare functions
     * @return the coerced expression
     */
   def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = {
@@ -49,7 +48,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
-      case CoerceMapOption(_, _, inner) =>
+      case CoerceMapOption(inner, _, _) =>
         Select(Eq(e, OptNone()), OptNone(), applyCoercion(OptGet(e)(NeverNone), inner))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
         Select(IsLeft(e), applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft), applyCoercion(GetRight(e)(FramedGetRight), innerRight))
@@ -106,7 +105,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
             ensures = UnitAccountedPredicate(
               Eq(Size(result), Size(v.get)) &&
                 Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
-                  Eq(BagMemberCount(dispatch(applyCoercion(pre_elem, inner)), result), BagMemberCount(elem.get, v.get)))
+                  Eq(BagMemberCount(applyCoercion(elem.get, inner), result), BagMemberCount(elem.get, v.get)))
             ),
           )
         })
@@ -122,28 +121,28 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
 
           function(
             blame = AbstractApplicable,
-            returnType = dispatch(target),
+            returnType = TMap(dispatch(targetKey), dispatch(targetValue)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
               Eq(MapKeySet(result), MapKeySet(v.get)) &&
                 Forall(Seq(k), Seq(Seq(MapGet(result, k.get)(TriggerPatternBlame))),
-                  SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), dispatch(MapGet(pre_v, pre_k)(FramedMapGet))))
+                  SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), MapGet(v.get, k.get)(FramedMapGet)))
             ),
           )
         })
 
         f.declareDefault(this)
         FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
-      case CoerceMapTuple(source, target, left, right) =>
-        LiteralTuple(target.elements, Seq(applyCoercion(TupGet(e, 0), left), applyCoercion(TupGet(e, 1), right)))
+      case CoerceMapTuple(inner, sourceTypes, targetTypes) =>
+        LiteralTuple(targetTypes.map(dispatch), inner.zipWithIndex.map { case (c, i) => applyCoercion(TupGet(e, i), c) })
       case CoerceMapType(inner, source, target) =>
         ???
 
       case CoerceBoolResource() => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
-      case CoerceJoinUnion(_, _, inner) => e
-      case CoerceSelectUnion(_, _, _, inner) => applyCoercion(e, inner)
+      case CoerceJoinUnion(_, _, _) => e
+      case CoerceSelectUnion(inner, _, _, _) => applyCoercion(e, inner)
 
       case CoerceSupports(_, _) => e
       case CoerceJavaSupports(_, _) => e
@@ -192,8 +191,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
   def postCoerce(e: Expr[Pre]): Expr[Post] = rewriteDefault(e)
-  override def dispatch(e: Expr[Pre]): Expr[Post] =
-    postCoerce(coerce(preCoerce(e)))
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+    case ApplyCoercion(e, coercion) => applyCoercion(dispatch(e), coercion)(e.o)
+    case other => postCoerce(coerce(preCoerce(other)))
+  }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
   def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
@@ -342,6 +343,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = e.o
 
     e match {
+      case ApplyCoercion(_, _) =>
+        throw Unreachable("All instances of ApplyCoercion should be immediately rewritten by CoercingRewriter.disptach.")
+
       case ActionApply(action, args) =>
         ActionApply(action, coerceArgs(args, action.decl))
       case ActionPerm(loc, perm) =>

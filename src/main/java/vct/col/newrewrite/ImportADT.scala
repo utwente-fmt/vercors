@@ -2,7 +2,6 @@ package vct.col.newrewrite
 
 import hre.config.Configuration
 import hre.util.ScopedStack
-import vct.col.coerce.Coercion.{FracZFrac, NullArray, NullPointer, ZFracRat}
 import vct.col.ast._
 import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, InvalidImportedAdt, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
 import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
@@ -10,7 +9,7 @@ import vct.parsers.Parsers
 import RewriteHelpers._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
-import vct.col.coerce.{CoercingRewriter, Coercion}
+import vct.col.coerce.{CoercingRewriter, CoercionUtils}
 import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
@@ -267,46 +266,46 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
   private def preFunc(ref: Ref[Post, Function[Post]]): Ref[Pre, Function[Pre]] =
     transmutePostRef[Function, Function[Pre], Function[Post]](ref)
 
-  override def applyCoercion(e: Expr[Pre], coercion: Coercion[Pre])(implicit o: Origin): Expr[Pre] = coercion match {
-    case Coercion.NothingSomething(target) =>
-      FunctionInvocation(preFunc(nothingAs.ref), Seq(e), Seq(target))(PanicBlame("coercing from nothing requires nothing."))
-    case Coercion.SomethingAny(source) =>
-      FunctionInvocation(preFunc(anyFrom.ref), Seq(e), Seq(source))(PanicBlame("coercing to any requires nothing."))
+  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
+    case CoerceNothingSomething(target) =>
+      FunctionInvocation[Post](nothingAs.ref, Seq(e), Seq(dispatch(target)))(PanicBlame("coercing from nothing requires nothing."))
+    case CoerceSomethingAny(source) =>
+      FunctionInvocation[Post](anyFrom.ref, Seq(e), Seq(dispatch(source)))(PanicBlame("coercing to any requires nothing."))
 
-    case Coercion.NullArray(_) =>
-      ADTFunctionInvocation(
+    case CoerceNullArray(_) =>
+      ADTFunctionInvocation[Post](
         Some((
-          preAdt(optionAdt.ref),
-          Seq(TAxiomatic(preAdt(arrayAdt.ref), Nil)),
+          optionAdt.ref,
+          Seq(TAxiomatic(arrayAdt.ref, Nil)),
         )),
-        preAdtFunc(optionNone.ref), Nil
+        optionNone.ref, Nil
       )
-    case Coercion.NullPointer(_) =>
-      ADTFunctionInvocation(
+    case CoerceNullPointer(_) =>
+      ADTFunctionInvocation[Post](
         Some((
-          preAdt(optionAdt.ref),
-          Seq(TAxiomatic(preAdt(pointerAdt.ref), Nil)),
+          optionAdt.ref,
+          Seq(TAxiomatic(pointerAdt.ref, Nil)),
         )),
-        preAdtFunc(optionNone.ref), Nil
+        optionNone.ref, Nil
       )
 
-    case Coercion.ZFracRat() =>
-      ADTFunctionInvocation(Some((preAdt(zfracAdt.ref), Nil)), preAdtFunc(zfracVal.ref), Seq(e))
-    case Coercion.Compose(Coercion.ZFracRat(), Coercion.FracZFrac()) if e == ReadPerm[Pre]() =>
+    case CoerceZFracRat() =>
+      ADTFunctionInvocation[Post](Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
+    case CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat())) if e == ReadPerm[Post]() =>
       e
-    case Coercion.Compose(Coercion.ZFracRat(), Coercion.FracZFrac()) =>
-      ADTFunctionInvocation(Some((preAdt(fracAdt.ref), Nil)), preAdtFunc(fracVal.ref), Seq(e))
-    case Coercion.FracZFrac() =>
-      val rat = ADTFunctionInvocation(Some((preAdt(fracAdt.ref), Nil)), preAdtFunc(fracVal.ref), Seq(e))
-      FunctionInvocation(preFunc(zfracNew.ref), Seq(rat), Nil)(PanicBlame("a frac always fits in a zfrac."))
+    case CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat())) =>
+      ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
+    case CoerceFracZFrac() =>
+      val rat = ADTFunctionInvocation[Post](Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
+      FunctionInvocation[Post](zfracNew.ref, Seq(rat), Nil)(PanicBlame("a frac always fits in a zfrac."))
 
-    case Coercion.RatZFrac() =>
-      FunctionInvocation(preFunc(zfracNew.ref), Seq(e), Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
-    case Coercion.Compose(Coercion.ZFracFrac(), Coercion.RatZFrac()) =>
-      FunctionInvocation(preFunc(fracNew.ref), Seq(e), Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
-    case Coercion.ZFracFrac() =>
-      val rat = ADTFunctionInvocation(Some((preAdt(zfracAdt.ref), Nil)), preAdtFunc(zfracVal.ref), Seq(e))
-      FunctionInvocation(preFunc(fracNew.ref), Seq(rat), Nil)(NoContext(ZFracFracPreconditionFailed(globalBlame.top, e)))
+    case CoerceRatZFrac() =>
+      FunctionInvocation[Post](zfracNew.ref, Seq(e), Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
+    case CoercionSequence(Seq(CoerceRatZFrac(), CoerceZFracFrac())) =>
+      FunctionInvocation[Post](fracNew.ref, Seq(e), Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
+    case CoerceZFracFrac() =>
+      val rat = ADTFunctionInvocation[Post](Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
+      FunctionInvocation[Post](fracNew.ref, Seq(rat), Nil)(NoContext(ZFracFracPreconditionFailed(globalBlame.top, e)))
 
     case _ => super.applyCoercion(e, coercion)
   }
