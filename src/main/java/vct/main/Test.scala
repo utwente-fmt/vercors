@@ -42,6 +42,11 @@ case object Test {
 //        tryParse(Seq(f.toPath))
 //      }
 
+      if (args.nonEmpty) {
+        tryParse(args.map(Paths.get(_)))
+        return
+      }
+
       var dumpCount = 0
 
       CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
