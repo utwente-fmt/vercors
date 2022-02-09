@@ -26,6 +26,17 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   import PropagateContextEverywhere._
 
   val invariants: ScopedStack[Seq[Expr[Pre]]] = ScopedStack()
+  invariants.push(Nil)
+
+  def withInvariant[T](inv: Expr[Pre])(f: => T): T = {
+    val old = invariants.top
+    invariants.pop()
+    invariants.push(old ++ unfoldStar(inv))
+    val result = f
+    invariants.pop()
+    invariants.push(old)
+    result
+  }
 
   case class ClosedCopier() extends Rewriter[Pre] {
     override def succ[DPost <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
@@ -35,14 +46,16 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   }
 
   def freshInvariants()(implicit o: Origin): Expr[Post] =
-    foldStar(invariants.toSeq.flatten.map(inv => ClosedCopier().dispatch(inv)))
+    foldStar(invariants.top.map(inv => ClosedCopier().dispatch(inv)))
+
+  def booleanInvariants: Seq[Expr[Pre]] = invariants.top.filter(inv => TBool().superTypeOf(inv.t))
 
   def freshBooleanInvariants()(implicit o: Origin): Expr[Post] =
-    foldStar(invariants.toSeq.flatten.filter(inv => TBool().superTypeOf(inv.t)).map(inv => ClosedCopier().dispatch(inv)))
+    foldAnd(booleanInvariants.map(inv => ClosedCopier().dispatch(inv)))
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] =>
-      (invariants.having(unfoldStar(app.contract.contextEverywhere)) {
+      (withInvariant(app.contract.contextEverywhere) {
         app match {
           case func: AbstractFunction[Pre] =>
             func.rewrite(blame = ContractedBlameSplit.left(ContextEverywherePostconditionFailed(app), func.blame))
@@ -77,28 +90,29 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
         requires = freshBooleanInvariants() &* dispatch(bar.requires),
         ensures = freshBooleanInvariants() &* dispatch(bar.ensures),
       )
+    case loop: Loop[Pre] =>
+      implicit val o: Origin = loop.o
+      loop.contract match {
+        case inv @ LoopInvariant(invariant) =>
+          loop.rewrite(contract = LoopInvariant(freshInvariants() &* dispatch(invariant))(inv.blame))
+        case c @ IterationContract(requires, ensures, context_everywhere) =>
+          val (contract, body) = invariants.having(booleanInvariants) {
+            (c.rewrite(context_everywhere = freshBooleanInvariants() && dispatch(context_everywhere)), dispatch(loop.body))
+          }
+          // update and init still have the outer invariants.
+          loop.rewrite(contract = contract, body = body)
+      }
     case other => rewriteDefault(other)
-  }
-
-  override def dispatch(node: LoopContract[Pre]): LoopContract[Post] = node match {
-    case inv @ LoopInvariant(invariant) =>
-      implicit val o: Origin = node.o
-      LoopInvariant(freshInvariants() &* dispatch(invariant))(inv.blame)
-    case it @ IterationContract(requires, ensures) =>
-      implicit val o: Origin = node.o
-      IterationContract(
-        freshBooleanInvariants() &* dispatch(requires),
-        freshBooleanInvariants() &* dispatch(ensures),
-      )(it.blame)
   }
 
   override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] = parRegion match {
     case block: ParBlock[Pre] =>
       implicit val o: Origin = parRegion.o
-      block.rewrite(
-        requires = freshBooleanInvariants() &* dispatch(block.requires),
-        ensures = freshBooleanInvariants() &* dispatch(block.ensures),
-      )
+      invariants.having(booleanInvariants) {
+        block.rewrite(
+          context_everywhere = freshBooleanInvariants() && dispatch(block.context_everywhere)
+        )
+      }
     case other => rewriteDefault(other)
   }
 }

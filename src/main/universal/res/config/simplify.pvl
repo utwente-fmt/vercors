@@ -1,5 +1,5 @@
 axiom add_zero { (∀rational i; i + 0 == i) }
-axiom zero_add { (∀rational i; i + i == i) }
+axiom zero_add { (∀rational i; 0 + i == i) }
 
 axiom mul_zero { (∀rational i; i * 0 == 0) }
 axiom zero_mul { (∀rational i; 0 * i == 0) }

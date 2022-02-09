@@ -34,7 +34,10 @@ case object ImportADT extends RewriterBuilder {
     case TPointer(element) => "ptr_" + typeText(element)
     case TProcess() => "proc"
     case TModel(Ref(model)) => model.o.preferredName
-    case TAxiomatic(Ref(adt), args) => adt.o.preferredName + "$" + args.map(typeText).mkString("__") + "$"
+    case TAxiomatic(Ref(adt), args) => args match {
+      case Nil => adt.o.preferredName
+      case ts => adt.o.preferredName + "$" + ts.map(typeText).mkString("__") + "$"
+    }
     case TOption(element) => "opt_" + typeText(element)
     case TTuple(elements) => "tup$" + elements.map(typeText).mkString("__") + "$"
     case TEither(left, right) => "either$" + typeText(left) + "__" + typeText(right) + "$"
@@ -163,6 +166,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
   }
 
   private lazy val nothingFile = parse("nothing")
+  private lazy val nullFile = parse("null")
   private lazy val voidFile = parse("void")
   private lazy val anyFile = parse("any")
   private lazy val fracFile = parse("frac")
@@ -188,6 +192,9 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
 
   private lazy val voidAdt = find[AxiomaticDataType[Post]](voidFile, "void")
   private lazy val voidUnit = find[ADTFunction[Post]](voidAdt, "unit")
+
+  private lazy val nullAdt = find[AxiomaticDataType[Post]](nullFile, "t_null")
+  private lazy val nullValue = find[ADTFunction[Post]](nullAdt, "v_null")
 
   private lazy val anyAdt = find[AxiomaticDataType[Post]](anyFile, "any")
   private lazy val anyFrom = find[Function[Post]](anyFile, "as_any")
@@ -288,6 +295,8 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
         )),
         optionNone.ref, Nil
       )
+    case CoerceNullRef() =>
+      SilverNull()
 
     case CoerceZFracRat() =>
       ADTFunctionInvocation[Post](Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
@@ -325,6 +334,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
       case TType(TAny()) => TType(TAxiomatic(new LazyRef(anyAdt), Nil))
       case TNothing() => TAxiomatic(nothingAdt.ref, Nil)
       case TVoid() => TAxiomatic(voidAdt.ref, Nil)
+      case TNull() => TAxiomatic(nullAdt.ref, Nil)
       case TAny() => TAxiomatic(anyAdt.ref, Nil)
       case TFraction() => TAxiomatic(fracAdt.ref, Nil)
       case TZFraction() => TAxiomatic(zfracAdt.ref, Nil)
@@ -365,6 +375,9 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     implicit val o: Origin = e.o
 
     e match {
+      case Null() =>
+        // Uncoerced, so will become TNull
+        ADTFunctionInvocation(None, nullValue.ref, Nil)
       case Void() =>
         ADTFunctionInvocation(None, voidUnit.ref, Nil)
       case LiteralTuple(Seq(t1, t2), Seq(v1, v2)) =>
@@ -522,7 +535,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
+  override def postCoerce(stat: Statement[Pre]): Statement[Post] = stat match {
     case ret @ Return(v @ Void()) => ret.rewrite(result=Void()(v.o))
     case other => rewriteDefault(other)
   }

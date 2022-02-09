@@ -205,13 +205,16 @@ case class ColToSilver(program: col.Program[_]) {
   def exp(e: col.Expr[_]): silver.Exp = e match {
     case col.BooleanValue(value) => silver.BoolLit(value)(info=expInfo(e))
     case col.IntegerValue(value) => silver.IntLit(value)(info=expInfo(e))
-    case col.Null() => silver.NullLit()(info=expInfo(e))
+    case col.SilverNull() => silver.NullLit()(info=expInfo(e))
     case col.Result(Ref(app)) => silver.Result(typ(app.returnType))(info=expInfo(e))
 
     case col.NoPerm() => silver.NoPerm()(info=expInfo(e))
     case col.ReadPerm() => silver.WildcardPerm()(info=expInfo(e))
     case col.WritePerm() => silver.FullPerm()(info=expInfo(e))
 
+    case col.LiteralSeq(t, Nil) => silver.EmptySeq(typ(t))(info=expInfo(e))
+    case col.LiteralSet(t, Nil) => silver.EmptySet(typ(t))(info=expInfo(e))
+    case col.LiteralBag(t, Nil) => silver.EmptyMultiset(typ(t))(info=expInfo(e))
     case col.LiteralSeq(_, xs) => silver.ExplicitSeq(xs.map(exp))(info=expInfo(e))
     case col.LiteralSet(_, xs) => silver.ExplicitSet(xs.map(exp))(info=expInfo(e))
     case col.LiteralBag(_, xs) => silver.ExplicitMultiset(xs.map(exp))(info=expInfo(e))

@@ -271,6 +271,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       }
 
     case cParam: CParam[Pre] =>
+      cParam.drop()
       val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => dispatch(t.t) }.getOrElse(???))(cParam.o)
       cNameSuccessor(RefCParam(cParam)) = v
       v.declareDefault(this)
@@ -376,6 +377,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       )
 
     case CDeclarationStatement(decl) =>
+      decl.drop()
       // PB: this is correct because Seq[CInit]'s are flattened, but the structure is a bit stupid.
       val t = decl.specs.collectFirst { case t: CSpecificationType[Pre] => dispatch(t.t) }.getOrElse(???)
       Block(for((init, idx) <- decl.inits.zipWithIndex) yield {
@@ -610,6 +612,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         implicit val o: Origin = JavaInlineArrayInitializerOrigin(es.o)
         val v = new Variable[Post](FuncTools.repeat[Type[Post]](TArray[Post](_), dims, dispatch(baseType)))
         stats += LocalDecl(v)
+        stats += assignLocal(v.get, NewArray(FuncTools.repeat[Type[Post]](TArray[Post](_), dims-1, dispatch(baseType)), Seq(const(es.exprs.size)), 0))
         es.exprs.zipWithIndex.map {
           case (e: JavaLiteralArray[Pre], i) =>
             stats += Assign(AmbiguousSubscript(Local[Post](v.ref), const(i))(JavaArrayInitializerBlame), collectArray(e, dims-1, stats))(

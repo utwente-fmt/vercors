@@ -2,7 +2,7 @@ package vct.col.coerce
 
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter}
+import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Types
 import vct.result.VerificationResult.{SystemError, Unreachable}
@@ -167,7 +167,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
 
   def coerceAny(node: NodeFamily[Pre]): NodeFamily[Pre] = node match {
     case node: Program[Pre] => node
-    case node: Statement[Pre] => node
+    case node: Statement[Pre] => coerce(node)
     case node: Expr[Pre] => coerce(node)
     case node: Type[Pre] => node
     case node: AccountedPredicate[Pre] => node
@@ -195,6 +195,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     case ApplyCoercion(e, coercion) => applyCoercion(dispatch(e), coercion)(e.o)
     case other => postCoerce(coerce(preCoerce(other)))
   }
+
+  def preCoerce(stat: Statement[Pre]): Statement[Pre] = stat
+  def postCoerce(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    postCoerce(coerce(preCoerce(stat)))
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
   def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
@@ -273,7 +278,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a pointer here, but got ${e.t}")
     }
-  def cls(e: Expr[Pre]): (Expr[Pre], TClass[Pre]) =
+  def cls(e: Expr[Pre]): (Expr[Pre], Type[Pre]) =
     CoercionUtils.getAnyClassCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
       case None => throw IncoercibleText(e, s"Expected a class here, but got ${e.t}")
@@ -849,6 +854,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         SilverDeref(ref(obj), field)(deref.blame)
       case SilverIntToRat(perm) =>
         SilverIntToRat(int(perm))
+      case SilverNull() =>
+        SilverNull()
       case Size(obj) =>
         Size(collection(obj)._1)
       case Slice(xs, from, to) =>
@@ -945,6 +952,77 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         With(pre, value)
       case WritePerm() =>
         WritePerm()
+    }
+  }
+
+  def coerce(stat: Statement[Pre]): Statement[Pre] = {
+    implicit val o: Origin = stat.o
+    stat match {
+      case a @ Assert(assn) => Assert(res(assn))(a.blame)
+      case a @ Assign(target, value) =>
+        try { Assign(target, coerce(value, target.t))(a.blame) } catch {
+          case err: Incoercible =>
+            println(err.text)
+            throw err
+        }
+      case Assume(assn) => Assume(bool(assn))
+      case Block(statements) => Block(statements)
+      case Branch(branches) => Branch(branches.map { case (cond, effect) => (bool(cond), effect) })
+      case Break(label) => Break(label)
+      case Case(pattern) => Case(pattern)
+      case CDeclarationStatement(decl) => CDeclarationStatement(decl)
+      case CGoto(label) => CGoto(label)
+      case c @ Commit(obj) => Commit(cls(obj)._1)(c.blame)
+      case Continue(label) => Continue(label)
+      case DefaultCase() => DefaultCase()
+      case Eval(expr) => Eval(expr)
+      case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
+      case f @ Fold(assn) => Fold(res(assn))(f.blame)
+      case Fork(obj) => Fork(cls(obj)._1)
+      case Goto(lbl) => Goto(lbl)
+      case GpgpuAtomic(impl, before, after) => GpgpuAtomic(impl, before, after)
+      case GpgpuGlobalBarrier(requires, ensures) => GpgpuGlobalBarrier(res(requires), res(ensures))
+      case GpgpuLocalBarrier(requires, ensures) => GpgpuLocalBarrier(res(requires), res(ensures))
+      case Havoc(loc) => Havoc(loc)
+      case Inhale(assn) => Inhale(res(assn))
+      case inv @ InvokeProcedure(ref, args, outArgs, typeArgs) =>
+        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
+      case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs) =>
+        InvokeMethod(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
+      case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
+      case Join(obj) => Join(cls(obj)._1)
+      case Label(decl, stat) => Label(decl, stat)
+      case LocalDecl(local) => LocalDecl(local)
+      case Lock(obj) => Lock(cls(obj)._1)
+      case Loop(init, cond, update, contract, body) => Loop(init, bool(cond), update, contract, body)
+      case ModelDo(model, perm, after, action, impl) => ModelDo(model, rat(perm), after, action, impl)
+      case n @ Notify(obj) => Notify(cls(obj)._1)(n.blame)
+      case at @ ParAtomic(inv, content) => ParAtomic(inv, content)(at.blame)
+      case bar @ ParBarrier(block, invs, requires, ensures, content) => ParBarrier(block, invs, res(requires), res(ensures), content)(bar.blame)
+      case p @ ParInvariant(decl, inv, content) => ParInvariant(decl, res(inv), content)(p.blame)
+      case ParStatement(impl) => ParStatement(impl)
+      case Recv(resource, label, offset) => Recv(resource, label, int(offset))
+      case Refute(assn) => Refute(res(assn))
+      case Return(result) => Return(result) // TODO coerce return, make AmbiguousReturn?
+      case Scope(locals, body) => Scope(locals, body)
+      case Send(resource, label, offset) => Send(resource, label, int(offset))
+      case ass @ SilverFieldAssign(obj, field, value) => SilverFieldAssign(ref(obj), field, coerce(value, field.decl.t))(ass.blame)
+      case SilverLocalAssign(v, value) => SilverLocalAssign(v, coerce(value, v.decl.t))
+      case SilverNewRef(v, fields) => SilverNewRef(v, fields)
+      case SpecIgnoreEnd() => SpecIgnoreEnd()
+      case SpecIgnoreStart() => SpecIgnoreStart()
+      case Switch(expr, body) => Switch(expr, body)
+      case s @ Synchronized(obj, body) => Synchronized(cls(obj)._1, body)(s.blame)
+      case t @ Throw(obj) => Throw(cls(obj)._1)(t.blame)
+      case TryCatchFinally(body, after, catches) => TryCatchFinally(body, after, catches)
+      case u @ Unfold(assn) => Unfold(res(assn))(u.blame)
+      case u @ Unlock(obj) => Unlock(cls(obj)._1)(u.blame)
+      case VecBlock(iters, requires, ensures, content) => VecBlock(iters, res(requires), res(ensures), content)
+      case w @ Wait(obj) => Wait(cls(obj)._1)(w.blame)
+      case WandApply(assn) => WandApply(res(assn))
+      case WandCreate(statements) => WandCreate(statements)
+      case WandQed(assn) => WandQed(res(assn))
+      case WandUse(assn) => WandUse(res(assn))
     }
   }
 

@@ -380,6 +380,7 @@ class FeatureRainbow[G] {
     case node: SilverLocalAssign[G] => return Nil
     case node: SilverField[G] => return Nil
     case node: SilverIntToRat[G] => return Nil
+    case node: SilverNull[G] => return Nil
     case node: CPure[G] => return Nil
     case node: CInline[G] => return Nil
     case node: CTypedef[G] => return Nil

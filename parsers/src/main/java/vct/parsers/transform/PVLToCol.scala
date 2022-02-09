@@ -332,6 +332,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           iter.map(convert(_)).getOrElse(Nil),
           AstBuildHelpers.foldStar(contract.consume(contract.requires)),
           AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+          AstBuildHelpers.foldStar(contract.consume(contract.context_everywhere)),
           convert(impl),
         )(blame(region))
       })
@@ -356,6 +357,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           iter.map(convert(_)).getOrElse(Nil),
           AstBuildHelpers.foldStar(contract.consume(contract.requires)),
           AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+          AstBuildHelpers.foldStar(contract.consume(contract.context_everywhere)),
           convert(impl),
         )(blame(par))
       })

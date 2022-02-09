@@ -225,9 +225,10 @@ case object CoercionUtils {
     case t: TEither[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
-  def getAnyClassCoercion[G](source: Type[G]): Option[(Coercion[G], TClass[G])] = source match {
+  def getAnyClassCoercion[G](source: Type[G]): Option[(Coercion[G], Type[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyClassCoercion)
     case t: TClass[G] => Some((CoerceIdentity(source), t))
+    case t: JavaTClass[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 }

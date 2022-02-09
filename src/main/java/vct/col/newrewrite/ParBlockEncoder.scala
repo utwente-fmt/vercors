@@ -193,7 +193,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         case (left, right) =>
           proveImplies(ParPreconditionPostconditionFailed(right), dispatch(ensures(left)), dispatch(requires(right)))
       }
-    case block @ ParBlock(decl, iters, req, ens, content) =>
+    case block @ ParBlock(decl, iters, req, ens, ctx, content) =>
       // For blocks we generate a separate check, by checking the contract for an indeterminate iteration
       parDecls(decl) = block
       decl.drop()

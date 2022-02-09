@@ -52,7 +52,7 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
     }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case loop @ Loop(init, cond, update, contract @ IterationContract(requires, ensures), body) =>
+    case loop @ Loop(init, cond, update, contract @ IterationContract(requires, ensures, context_everywhere), body) =>
       val (v, low) = getVariableAndLowerBound(init).getOrElse(throw InvalidLoopFormatForIterationContract(loop,
         "we could not derive the iteration variable or its lower bound from the initialization portion of the loop"))
 
@@ -70,6 +70,7 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
           iters = Seq(IterVariable(newV, dispatch(low), dispatch(high))),
           requires = dispatch(requires),
           ensures = dispatch(ensures),
+          context_everywhere = dispatch(context_everywhere),
           content = dispatch(body),
         )(contract.blame)
       )
