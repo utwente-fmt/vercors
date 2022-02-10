@@ -275,9 +275,9 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
 
   override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceNothingSomething(target) =>
-      FunctionInvocation[Post](nothingAs.ref, Seq(e), Seq(dispatch(target)))(PanicBlame("coercing from nothing requires nothing."))
+      FunctionInvocation[Post](nothingAs.ref, Seq(e), Seq(dispatch(target)), Nil, Nil)(PanicBlame("coercing from nothing requires nothing."))
     case CoerceSomethingAny(source) =>
-      FunctionInvocation[Post](anyFrom.ref, Seq(e), Seq(dispatch(source)))(PanicBlame("coercing to any requires nothing."))
+      FunctionInvocation[Post](anyFrom.ref, Seq(e), Seq(dispatch(source)), Nil, Nil)(PanicBlame("coercing to any requires nothing."))
 
     case CoerceNullArray(_) =>
       ADTFunctionInvocation[Post](
@@ -306,15 +306,15 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
       ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
     case CoerceFracZFrac() =>
       val rat = ADTFunctionInvocation[Post](Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
-      FunctionInvocation[Post](zfracNew.ref, Seq(rat), Nil)(PanicBlame("a frac always fits in a zfrac."))
+      FunctionInvocation[Post](zfracNew.ref, Seq(rat), Nil, Nil, Nil)(PanicBlame("a frac always fits in a zfrac."))
 
     case CoerceRatZFrac() =>
-      FunctionInvocation[Post](zfracNew.ref, Seq(e), Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
+      FunctionInvocation[Post](zfracNew.ref, Seq(e), Nil, Nil, Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
     case CoercionSequence(Seq(CoerceRatZFrac(), CoerceZFracFrac())) =>
-      FunctionInvocation[Post](fracNew.ref, Seq(e), Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
+      FunctionInvocation[Post](fracNew.ref, Seq(e), Nil, Nil, Nil)(NoContext(RatZFracPreconditionFailed(globalBlame.top, e)))
     case CoerceZFracFrac() =>
       val rat = ADTFunctionInvocation[Post](Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
-      FunctionInvocation[Post](fracNew.ref, Seq(rat), Nil)(NoContext(ZFracFracPreconditionFailed(globalBlame.top, e)))
+      FunctionInvocation[Post](fracNew.ref, Seq(rat), Nil, Nil, Nil)(NoContext(ZFracFracPreconditionFailed(globalBlame.top, e)))
 
     case _ => super.applyCoercion(e, coercion)
   }
@@ -407,22 +407,22 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
           optionSome.ref, Seq(newElement),
         )
       case access @ OptGet(opt) =>
-        FunctionInvocation[Post](optionGet.ref, Seq(dispatch(opt)), Seq(dispatch(opt.t.asOption.get.element)))(
+        FunctionInvocation[Post](optionGet.ref, Seq(dispatch(opt)), Seq(dispatch(opt.t.asOption.get.element)), Nil, Nil)(
           NoContext(OptionNonePreconditionFailed(access)))
       case get @ OptGetOrElse(opt, alt) =>
         FunctionInvocation[Post](optionGetOrElse.ref,
           Seq(dispatch(opt), dispatch(alt)),
-          Seq(dispatch(get.t)),
+          Seq(dispatch(get.t)), Nil, Nil,
         )(PanicBlame("opt_or_else requires nothing."))
       case get @ GetLeft(e) =>
         FunctionInvocation[Post](eitherGetLeft.ref,
           Seq(dispatch(e)),
-          Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)),
+          Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)), Nil, Nil,
         )(NoContext(NotLeftPreconditionFailed(get)))
       case get @ GetRight(e) =>
         FunctionInvocation[Post](eitherGetRight.ref,
           Seq(dispatch(e)),
-          Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)),
+          Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)), Nil, Nil,
         )(NoContext(NotRightPreconditionFailed(get)))
       case is @ IsLeft(e) =>
         Not(ADTFunctionInvocation(
@@ -456,33 +456,33 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
           Some((mapAdt.ref, mapTypeArgs(map))), mapKeys.ref, Seq(dispatch(map))
         )
       case MapSize(map) =>
-        FunctionInvocation[Post](mapSize.ref, Seq(dispatch(map)), mapTypeArgs(map))(PanicBlame("map_size requires nothing."))
+        FunctionInvocation[Post](mapSize.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_size requires nothing."))
       case access @ MapGet(map, k) =>
-        FunctionInvocation[Post](mapGet.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map))(
+        FunctionInvocation[Post](mapGet.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map), Nil, Nil)(
           NoContext(MapKeyErrorPreconditionFailed(access)))
       case MapValueSet(map) =>
-        FunctionInvocation[Post](mapValues.ref, Seq(dispatch(map)), mapTypeArgs(map))(PanicBlame("map_values requires nothing."))
+        FunctionInvocation[Post](mapValues.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_values requires nothing."))
       case MapItemSet(map) =>
-        FunctionInvocation[Post](mapItems.ref, Seq(dispatch(map)), mapTypeArgs(map))(PanicBlame("map_items requires nothing."))
+        FunctionInvocation[Post](mapItems.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_items requires nothing."))
       case MapEq(left, right) =>
-        FunctionInvocation[Post](mapEquals.ref, Seq(dispatch(left), dispatch(right)), ???)(PanicBlame("map_equals requires nothing."))
+        FunctionInvocation[Post](mapEquals.ref, Seq(dispatch(left), dispatch(right)), ???, Nil, Nil)(PanicBlame("map_equals requires nothing."))
       case MapDisjoint(left, right) =>
-        FunctionInvocation[Post](mapDisjoint.ref, Seq(dispatch(left), dispatch(right)), ???)(PanicBlame("map_disjoint requires nothing."))
+        FunctionInvocation[Post](mapDisjoint.ref, Seq(dispatch(left), dispatch(right)), ???, Nil, Nil)(PanicBlame("map_disjoint requires nothing."))
       case MapRemove(map, k) =>
-        FunctionInvocation[Post](mapRemove.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map))(PanicBlame("map_remove requires nothing."))
+        FunctionInvocation[Post](mapRemove.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_remove requires nothing."))
       case sub @ ArraySubscript(arr, index) =>
         SilverDeref(
           obj = FunctionInvocation[Post](
             ref = arrayLoc.ref,
             args = Seq(
-              FunctionInvocation[Post](optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic(arrayAdt.ref, Nil)))(
+              FunctionInvocation[Post](optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic(arrayAdt.ref, Nil)), Nil, Nil)(
                 NoContext(ArrayNullPreconditionFailed(sub.blame, arr))),
               dispatch(index)),
-            typeArgs = Nil)(NoContext(ArrayBoundsPreconditionFailed(sub.blame, index))),
+            typeArgs = Nil, Nil, Nil)(NoContext(ArrayBoundsPreconditionFailed(sub.blame, index))),
           field = getArrayField(arr))(ArrayFieldInsufficientPermission(sub.blame, sub))
       case length @ Length(arr) =>
         ADTFunctionInvocation(None, arrayLen.ref, Seq(
-          FunctionInvocation[Post](optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic[Post](arrayAdt.ref, Nil)))(
+          FunctionInvocation[Post](optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic[Post](arrayAdt.ref, Nil)), Nil, Nil)(
             NoContext(ArrayNullPreconditionFailed(length.blame, length)))
         ))
       case sub @ PointerSubscript(pointer, index) =>
@@ -494,10 +494,10 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
               args = Seq(FunctionInvocation[Post](
                 ref = optionGet.ref,
                 args = Seq(dispatch(pointer)),
-                typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)),
+                typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
               )(NoContext(PointerNullPreconditionFailed(sub.blame, pointer))), dispatch(index)),
-              typeArgs = Nil)(NoContext(PointerBoundsPreconditionFailed(sub.blame, index)))),
-            typeArgs = Nil,
+              typeArgs = Nil, Nil, Nil)(NoContext(PointerBoundsPreconditionFailed(sub.blame, index)))),
+            typeArgs = Nil, Nil, Nil,
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(sub.blame, sub))
@@ -507,9 +507,9 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
           args = Seq(FunctionInvocation[Post](
             ref = optionGet.ref,
             args = Seq(dispatch(pointer)),
-            typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)),
+            typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
           )(NoContext(PointerNullPreconditionFailed(add.blame, pointer))), dispatch(offset)),
-          typeArgs = Nil,
+          typeArgs = Nil, Nil, Nil,
         )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
       case deref @ DerefPointer(pointer) =>
         SilverDeref(
@@ -518,9 +518,9 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
             args = Seq(FunctionInvocation[Post](
               ref = optionGet.ref,
               args = Seq(dispatch(pointer)),
-              typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)),
+              typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
             )(NoContext(PointerNullPreconditionFailed(deref.blame, pointer)))),
-            typeArgs = Nil,
+            typeArgs = Nil, Nil, Nil,
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(deref.blame, deref))

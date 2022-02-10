@@ -2,6 +2,7 @@ package vct.col.coerce
 
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Types
@@ -73,7 +74,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         })
 
         f.declareDefault(this)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
       case CoerceMapSet(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable(TSet(dispatch(source)))
@@ -92,7 +93,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         })
 
         f.declareDefault(this)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
       case CoerceMapBag(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable(TBag(dispatch(source)))
@@ -111,7 +112,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         })
 
         f.declareDefault(this)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
       case CoerceMapMatrix(inner, source, target) =>
         ???
       case CoerceMapMap(inner, (sourceKey, sourceValue), (targetKey, targetValue)) =>
@@ -132,7 +133,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         })
 
         f.declareDefault(this)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
       case CoerceMapTuple(inner, sourceTypes, targetTypes) =>
         LiteralTuple(targetTypes.map(dispatch), inner.zipWithIndex.map { case (c, i) => applyCoercion(TupGet(e, i), c) })
       case CoerceMapType(inner, source, target) =>
@@ -173,7 +174,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     case node: AccountedPredicate[Pre] => node
     case node: ApplicableContract[Pre] => node
     case node: LoopContract[Pre] => node
-    case node: ParRegion[Pre] => node
+    case node: ParRegion[Pre] => coerce(node)
     case node: CatchClause[Pre] => node
     case node: SignalsClause[Pre] => node
     case node: FieldFlag[Pre] => node
@@ -187,6 +188,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     case node: JavaModifier[Pre] => node
     case node: JavaImport[Pre] => node
     case node: JavaName[Pre] => node
+    case node: Coercion[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -206,6 +208,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit =
     postCoerce(coerce(preCoerce(decl)))
 
+  def preCoerce(region: ParRegion[Pre]): ParRegion[Pre] = region
+  def postCoerce(region: ParRegion[Pre]): ParRegion[Post] = rewriteDefault(region)
+  override def dispatch(region: ParRegion[Pre]): ParRegion[Post] =
+    postCoerce(coerce(preCoerce(region)))
+
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -220,6 +227,20 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
   def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], tArgs: Seq[Type[Pre]]): Seq[Expr[Pre]] =
     args.zip(app.args).map {
       case (value, arg) => coerce(value, arg.t.particularize(app.typeArgs.zip(tArgs).toMap))
+    }
+
+  def coerceGiven(givenMap: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])]): Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])] =
+    givenMap.map {
+      case (Ref(v), e) => (v.ref, coerce(e, v.t))
+    }
+
+  def coerceYields(yields: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])]): Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])] =
+    yields.map {
+      case (e, Ref(v)) => CoercionUtils.getCoercion[Pre](v.t, e.t) match {
+        case None => throw IncoercibleText(e, "This target for a yielded argument does not exactly match the yields type.")
+        case Some(CoerceIdentity(_)) => (e, v.ref)
+        case Some(_) => throw IncoercibleText(e, "This target for a yielded argument does not exactly match the yields type.")
+      }
     }
 
   def rat(e: Expr[Pre]): Expr[Pre] = coerce(e, TRational[Pre]())
@@ -535,8 +556,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         FloorDiv(int(left), int(right))(div.blame)
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
-      case inv @ FunctionInvocation(ref, args, typeArgs) =>
-        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs)(inv.blame)
+      case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
+        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
@@ -587,8 +608,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         FunctionOf(e, ref)
       case InlinePattern(inner) =>
         InlinePattern(inner)
-      case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs) =>
-        InstanceFunctionInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), typeArgs)(inv.blame)
+      case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
+        InstanceFunctionInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
@@ -709,8 +730,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         MatrixRepeat(e)
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
-      case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs) =>
-        MethodInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
+      case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
+        MethodInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
@@ -801,8 +822,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         PreAssignExpression(target, coerce(value, target.t))(ass.blame)
       case PredicateApply(ref, args, perm) =>
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
-      case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs) =>
-        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
+      case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
+        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
       case ProcessApply(process, args) =>
         ProcessApply(process, coerceArgs(args, process.decl))
       case ProcessChoice(left, right) =>
@@ -985,10 +1006,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case GpgpuLocalBarrier(requires, ensures) => GpgpuLocalBarrier(res(requires), res(ensures))
       case Havoc(loc) => Havoc(loc)
       case Inhale(assn) => Inhale(res(assn))
-      case inv @ InvokeProcedure(ref, args, outArgs, typeArgs) =>
-        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
-      case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs) =>
-        InvokeMethod(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs)(inv.blame)
+      case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
+        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
+      case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
+        InvokeMethod(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
       case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
       case Join(obj) => Join(cls(obj)._1)
       case Label(decl, stat) => Label(decl, stat)
@@ -1028,4 +1049,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
 
   def coerce(decl: Declaration[Pre]): Declaration[Pre] =
     decl
+
+  def coerce(region: ParRegion[Pre]): ParRegion[Pre] = {
+    implicit val o: Origin = region.o
+    region match {
+      case region @ ParParallel(regions) => ParParallel(regions)(region.blame)
+      case region @ ParSequential(regions) => ParSequential(regions)(region.blame)
+      case region @ ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
+        ParBlock(decl, iters, bool(context_everywhere), res(requires), res(ensures), content)(region.blame)
+    }
+  }
 }

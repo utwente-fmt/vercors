@@ -75,13 +75,17 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case inv @ ProcedureInvocation(Ref(proc), args, outArgs, typeArgs) =>
+    case inv @ ProcedureInvocation(Ref(proc), args, outArgs, typeArgs, givenMap, yields) =>
       if(proc.pure)
-        FunctionInvocation[Post](succ(proc), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(e.o)
+        FunctionInvocation[Post](succ(proc), args.map(dispatch), typeArgs.map(dispatch),
+          givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+          yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)(e.o)
       else rewriteDefault(inv)
-    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
+    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       if(method.pure)
-        InstanceFunctionInvocation[Post](dispatch(obj), succ(method), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(e.o)
+        InstanceFunctionInvocation[Post](dispatch(obj), succ(method), args.map(dispatch), typeArgs.map(dispatch),
+          givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+          yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)(e.o)
       else rewriteDefault(inv)
     case other => rewriteDefault(other)
   }

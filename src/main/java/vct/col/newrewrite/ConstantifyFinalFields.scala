@@ -36,7 +36,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case Deref(obj, Ref(field)) =>
       implicit val o: Origin = e.o
-      if(isFinal(field)) FunctionInvocation[Post](succ(field), Seq(dispatch(obj)), Nil)(PanicBlame("requires nothing"))
+      if(isFinal(field)) FunctionInvocation[Post](succ(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing"))
       else rewriteDefault(e)
     case other => rewriteDefault(other)
   }
@@ -44,7 +44,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Assign(Deref(obj, Ref(field)), value) =>
       implicit val o: Origin = stat.o
-      if(isFinal(field)) Inhale(FunctionInvocation[Post](succ(field), Seq(dispatch(obj)), Nil)(PanicBlame("requires nothing")) === dispatch(value))
+      if(isFinal(field)) Inhale(FunctionInvocation[Post](succ(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
       else rewriteDefault(stat)
     case other => rewriteDefault(other)
   }

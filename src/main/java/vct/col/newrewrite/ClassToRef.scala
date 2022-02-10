@@ -156,30 +156,40 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = stat.o
       Block(Seq(
         SilverNewRef[Post](succ(v), cls.declarations.collect { case field: InstanceField[Pre] => fieldSucc.ref(field) }),
-        Inhale(FunctionInvocation[Post](typeOf.ref(()), Seq(Local(succ(v))), Nil)(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))),
+        Inhale(FunctionInvocation[Post](typeOf.ref(()), Seq(Local(succ(v))), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")) === const(typeNumber(cls))),
       ))
-    case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs) =>
+    case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       InvokeProcedure[Post](
         ref = succ(method),
         args = dispatch(obj) +: args.map(dispatch),
         outArgs = outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
+        givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(inv.blame)(inv.o)
     case other => rewriteDefault(other)
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
+    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       ProcedureInvocation[Post](
         ref = succ(method),
         args = dispatch(obj) +: args.map(dispatch),
         outArgs = outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
+        givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args, perm) =>
       PredicateApply[Post](succ(pred), dispatch(obj) +: args.map(dispatch), dispatch(perm))(inv.o)
-    case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs) =>
-      FunctionInvocation[Post](succ(func), dispatch(obj) +: args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(inv.o)
+    case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs, givenMap, yields) =>
+      FunctionInvocation[Post](
+        ref = succ(func),
+        args = dispatch(obj) +: args.map(dispatch),
+        typeArgs.map(dispatch),
+        givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+      )(inv.blame)(inv.o)
     case ThisObject(_) =>
       Local[Post](diz.top.ref)(e.o)
     case deref @ Deref(obj, Ref(field)) =>
@@ -189,14 +199,14 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       case TClass(Ref(cls)) => const(typeNumber(cls))(e.o)
       case other => ???
     }
-    case TypeOf(value) => FunctionInvocation[Post](typeOf.ref(()), Seq(dispatch(value)), Nil)(PanicBlame("typeOf requires nothing"))(e.o)
+    case TypeOf(value) => FunctionInvocation[Post](typeOf.ref(()), Seq(dispatch(value)), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing"))(e.o)
     case InstanceOf(value, TypeValue(TUnion(ts))) =>
       implicit val o: Origin = e.o
       dispatch(foldOr(ts.map(t => InstanceOf(value, TypeValue(t)))))
     case InstanceOf(value, typeValue) => FunctionInvocation[Post](instanceOf.ref(()), Seq(
-      FunctionInvocation[Post](typeOf.ref(()), Seq(dispatch(value)), Nil)(PanicBlame("typeOf requires nothing"))(e.o),
+      FunctionInvocation[Post](typeOf.ref(()), Seq(dispatch(value)), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing"))(e.o),
       dispatch(typeValue),
-    ), Nil)(PanicBlame("instanceOf requires nothing"))(e.o)
+    ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing"))(e.o)
     case Cast(value, typeValue) => dispatch(value) // Discard for now, should assert instanceOf(value, typeValue)
     case _ => rewriteDefault(e)
   }

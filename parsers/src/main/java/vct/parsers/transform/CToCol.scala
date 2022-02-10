@@ -7,7 +7,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.{ast => col}
 import vct.col.origin._
-import vct.col.ref.UnresolvedRef
+import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
@@ -653,36 +653,36 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValThen0(_, stat) => convert(stat)
   }
 
-  def convertEmbedGiven(implicit given: Option[ValEmbedGivenContext]): Seq[(String, Expr[G])] = given match {
+  def convertEmbedGiven(implicit given: Option[ValEmbedGivenContext]): Seq[(Ref[G, Variable[G]], Expr[G])] = given match {
     case None => Nil
     case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
     case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
   }
 
-  def convertGiven(implicit given: Option[ValGivenContext]): Seq[(String, Expr[G])] = given match {
+  def convertGiven(implicit given: Option[ValGivenContext]): Seq[(Ref[G, Variable[G]], Expr[G])] = given match {
     case None => Nil
     case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
   }
 
-  def convert(implicit mappings: ValGivenMappingsContext): Seq[(String, Expr[G])] = mappings match {
-    case ValGivenMappings0(arg, _, v) => Seq((convert(arg), convert(v)))
-    case ValGivenMappings1(arg, _, v, _, more) => (convert(arg), convert(v)) +: convert(more)
+  def convert(implicit mappings: ValGivenMappingsContext): Seq[(Ref[G, Variable[G]], Expr[G])] = mappings match {
+    case ValGivenMappings0(arg, _, v) => Seq((new UnresolvedRef[G, Variable[G]](convert(arg)), convert(v)))
+    case ValGivenMappings1(arg, _, v, _, more) => (new UnresolvedRef[G, Variable[G]](convert(arg)), convert(v)) +: convert(more)
   }
 
-  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr[G], String)] = given match {
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
     case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
   }
 
-  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr[G], String)] = given match {
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
   }
 
-  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr[G], String)] = mappings match {
-    case ValYieldsMappings0(target, _, res) => Seq((convert(target), convert(res)))
-    case ValYieldsMappings1(target, _, res, _, more) => (convert(target), convert(res)) +: convert(more)
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr[G], Ref[G, Variable[G]])] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((convert(target), new UnresolvedRef[G, Variable[G]](convert(res))))
+    case ValYieldsMappings1(target, _, res, _, more) => (convert(target), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr[G]] = exprs match {

@@ -48,22 +48,22 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
 
       inlineStack.having(apply) {
         val replacements = apply.ref.decl.args.map(_.get).zip(apply.args).toMap[Expr[Pre], Expr[Pre]]
-        // TODO: consider type arguments and out-arguments
+        // TODO: consider type arguments and out-arguments and given and yields (oof)
         apply match {
           case PredicateApply(Ref(pred), _, WritePerm()) => // TODO inline predicates with non-write perm
             dispatch(Substitute(replacements).dispatch(pred.body.getOrElse(???)))
           case PredicateApply(Ref(pred), _, _) => ???
-          case ProcedureInvocation(Ref(proc), _, outArgs, typeArgs) =>
+          case ProcedureInvocation(Ref(proc), _, outArgs, typeArgs, givenMap, yields) =>
             val done = Label[Pre](new LabelDecl(), Block(Nil))
             val v = new Variable[Pre](proc.returnType)
             val returnReplacement = (result: Expr[Pre]) => Block(Seq(assignLocal(v.get, result), Goto[Pre](done.decl.ref)))
             val replacedArgumentsBody = Substitute(replacements).dispatch(proc.body.getOrElse(???))
             val body = ReplaceReturn(returnReplacement).dispatch(replacedArgumentsBody)
             dispatch(With(Block(Seq(body, done)), v.get))
-          case FunctionInvocation(Ref(func), _, typeArgs) =>
+          case FunctionInvocation(Ref(func), _, typeArgs, givenMap, yields) =>
             dispatch(Substitute(replacements).dispatch(func.body.getOrElse(???)))
 
-          case MethodInvocation(obj, Ref(method), _, outArgs, typeArgs) =>
+          case MethodInvocation(obj, Ref(method), _, outArgs, typeArgs, givenMap, yields) =>
             val done = Label[Pre](new LabelDecl(), Block(Nil))
             val v = new Variable[Pre](method.returnType)
             val replacementsWithObj = replacements ++ Map[Expr[Pre], Expr[Pre]](AmbiguousThis[Pre]() -> obj)
@@ -71,7 +71,7 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
             val replacedArgumentsObjBody = Substitute[Pre](replacementsWithObj).dispatch(method.body.getOrElse(???))
             val body = ReplaceReturn(returnReplacement).dispatch(replacedArgumentsObjBody)
             dispatch(With(Block(Seq(body, done)), v.get))
-          case InstanceFunctionInvocation(obj, Ref(func), _, typeArgs) =>
+          case InstanceFunctionInvocation(obj, Ref(func), _, typeArgs, givenMap, yields) =>
             val replacementsWithObj = replacements ++ Map(AmbiguousThis[Pre]() -> obj)
             dispatch(Substitute(replacementsWithObj).dispatch(func.body.getOrElse(???)))
           case InstancePredicateApply(obj, Ref(pred), _, WritePerm()) =>

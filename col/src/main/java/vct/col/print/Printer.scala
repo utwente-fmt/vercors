@@ -564,9 +564,9 @@ case class Printer(out: Appendable,
         case Some(label) => statement("continue", space, name(label.decl))
         case None => statement("continue")
       }
-    case InvokeMethod(obj, ref, args, outArgs, typeArgs) =>
+    case InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
       statement(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
-    case InvokeProcedure(ref, args, outArgs, typeArgs) =>
+    case InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
       statement(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
   })
 
@@ -766,13 +766,13 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case ADTFunctionInvocation(tArgs, ref, args) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case ProcedureInvocation(ref, args, outArgs, typeArgs) =>
+    case ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case FunctionInvocation(ref, args, typeArgs) =>
+    case FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case MethodInvocation(obj, ref, args, outArgs, typeArgs) =>
+    case MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case InstanceFunctionInvocation(obj, ref, args, typeArgs) =>
+    case InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case UMinus(arg) =>
       (phrase("-", assoc(90, arg)), 90)

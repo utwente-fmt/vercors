@@ -193,7 +193,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         case (left, right) =>
           proveImplies(ParPreconditionPostconditionFailed(right), dispatch(ensures(left)), dispatch(requires(right)))
       }
-    case block @ ParBlock(decl, iters, req, ens, ctx, content) =>
+    case block @ ParBlock(decl, iters, ctx, req, ens, content) =>
       // For blocks we generate a separate check, by checking the contract for an indeterminate iteration
       parDecls(decl) = block
       decl.drop()
@@ -246,7 +246,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = parRegion.o
       val (proc, args) = getRegionMethod(impl)
       emitChecks(impl)
-      Eval(ProcedureInvocation[Post](proc.ref, args, Nil, Nil)(NoContext(ParPreconditionPreconditionFailed(impl))))
+      Eval(ProcedureInvocation[Post](proc.ref, args, Nil, Nil, Nil, Nil)(NoContext(ParPreconditionPreconditionFailed(impl))))
 
     case parBarrier @ ParBarrier(blockRef, invs, requires, ensures, content) =>
       implicit val o: Origin = parBarrier.o

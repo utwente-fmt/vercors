@@ -42,27 +42,25 @@ case object Test {
 //        tryParse(Seq(f.toPath))
 //      }
 
-//      var dumpCount = 0
-//
-      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-        if(c.files.asScala.forall(f =>
-            f.toString.endsWith(".java") ||
-              f.toString.endsWith(".c") ||
-              f.toString.endsWith(".pvl"))) {
-          tryParse(c.files.asScala.toSeq)
-          /*
-          System.gc()
-          val server = ManagementFactory.getPlatformMBeanServer
-          val mxBean = ManagementFactory.newPlatformMXBeanProxy(server, "com.sun.management:type=HotSpotDiagnostic", classOf[HotSpotDiagnosticMXBean])
-          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
-          dumpCount += 1
-           */
-        } else {
-          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
-        }
-      })
+      var dumpCount = 0
 
-//      tryParse(Seq(Path.of("examples/basic/NewClassGhost.java")))
+//      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
+//        if(c.files.asScala.forall(f =>
+//            f.toString.endsWith(".java") ||
+//              f.toString.endsWith(".c") ||
+//              f.toString.endsWith(".pvl"))) {
+//          tryParse(c.files.asScala.toSeq)
+////          System.gc()
+////          val server = ManagementFactory.getPlatformMBeanServer
+////          val mxBean = ManagementFactory.newPlatformMXBeanProxy(server, "com.sun.management:type=HotSpotDiagnostic", classOf[HotSpotDiagnosticMXBean])
+////          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
+////          dumpCount += 1
+//        } else {
+//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+//        }
+//      })
+
+      tryParse(Seq(Path.of("examples/basic/fraction-comparison.pvl")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")

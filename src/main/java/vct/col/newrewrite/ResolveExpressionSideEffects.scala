@@ -144,13 +144,17 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     implicit val o: Origin = stat.o
     stat match {
       case Eval(e) => frame(e, Eval(_))
-      case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs) =>
+      case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         frameAll(obj +: args, {
-          case obj :: args => InvokeMethod[Post](obj, succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch))(inv.blame)
+          case obj :: args => InvokeMethod[Post](obj, succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         })
-      case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs) =>
+      case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         frameAll(args, args =>
-          InvokeProcedure[Post](succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch))(inv.blame))
+          InvokeProcedure[Post](succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame))
       case decl: LocalDecl[Pre] => rewriteDefault(decl)
       case Return(result) =>
         frame(result, e => Block(Seq(
@@ -301,7 +305,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       flushExtractedExpressions()
       effect(dispatch(post))
       stored(value, oldValue.t)
-    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
+    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
       res.declareDefault(this)
       currentlyExtracted(res) = res.get(ResultVar)
@@ -310,10 +314,12 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         ref = succ(method),
         args = args.map(inlined),
         outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
-        typeArgs = typeArgs.map(dispatch)
+        typeArgs = typeArgs.map(dispatch),
+        givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+        yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(inv.blame)(e.o))
       Local[Post](res.ref)(ResultVar)
-    case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs) =>
+    case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
       res.declareDefault(this)
       currentlyExtracted(res) = res.get(ResultVar)
@@ -322,6 +328,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         args = args.map(inlined),
         outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
+        givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+        yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(inv.blame)(e.o))
       Local[Post](res.ref)(ResultVar)
     case other =>

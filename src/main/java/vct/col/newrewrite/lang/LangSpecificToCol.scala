@@ -431,7 +431,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefJavaField(decls, idx) =>
           if(decls.modifiers.contains(JavaStatic())) {
             Deref[Post](
-              obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil)(PanicBlame("Statics singleton function requires nothing.")),
+              obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing.")),
               ref = javaFieldsSuccessor.ref((decls, idx)),
             )(local.blame)
           } else {
@@ -480,19 +480,27 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
 
     case JavaLiteralArray(_) => ???
 
-    case inv @ JavaInvocation(obj, typeParams, _, args, _, _) =>
+    case inv @ JavaInvocation(obj, typeParams, _, args, givenMap, yields) =>
       implicit val o: Origin = inv.o
       inv.ref.get match {
         case RefFunction(decl) =>
-          FunctionInvocation[Post](succ(decl), args.map(dispatch), Nil)(inv.blame)
+          FunctionInvocation[Post](succ(decl), args.map(dispatch), Nil,
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefProcedure(decl) =>
-          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch))(inv.blame)
+          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefPredicate(decl) =>
           PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
         case RefInstanceFunction(decl) =>
-          InstanceFunctionInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), typeParams.map(dispatch))(inv.blame)
+          InstanceFunctionInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), typeParams.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefInstanceMethod(decl) =>
-          MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch))(inv.blame)
+          MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefInstancePredicate(decl) =>
           InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), WritePerm())
         case RefADTFunction(decl) =>
@@ -502,29 +510,39 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefModelAction(decl) =>
           ActionApply[Post](succ(decl), args.map(dispatch))
         case RefJavaMethod(decl) =>
-          if(decl.modifiers.contains(JavaStatic())) {
+          if(decl.modifiers.contains(JavaStatic[Pre]())) {
             MethodInvocation[Post](
-              obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil)(inv.blame),
+              obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil, Nil, Nil)(inv.blame),
               ref = succ(decl),
-              args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch))(inv.blame)
+              args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch),
+              givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+              yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+            )(inv.blame)
           } else {
             MethodInvocation[Post](
               obj = obj.map(dispatch).getOrElse(currentThis.top),
               ref = succ(decl),
-              args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch))(inv.blame)
+              args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch),
+              givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+              yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+            )(inv.blame)
           }
         case BuiltinInstanceMethod(f) =>
           dispatch(f(obj.get)(args))
       }
 
-    case inv @ PVLInvocation(obj, _, args, typeArgs, givenArgs, yields) =>
+    case inv @ PVLInvocation(obj, _, args, typeArgs, givenMap, yields) =>
       implicit val o: Origin = inv.o
 
       inv.ref.get match {
         case RefFunction(decl) =>
-          FunctionInvocation[Post](succ(decl), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)
+          FunctionInvocation[Post](succ(decl), args.map(dispatch), typeArgs.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefProcedure(decl) =>
-          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
+          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefPredicate(decl) =>
           PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
         case RefInstanceFunction(decl) =>
@@ -532,9 +550,14 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
             obj.map(dispatch).getOrElse(currentThis.top),
             succ(decl),
             args.map(dispatch),
-            typeArgs.map(dispatch))(inv.blame)
+            typeArgs.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+          )(inv.blame)
         case RefInstanceMethod(decl) =>
-          MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch))(inv.blame)
+          MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefInstancePredicate(decl) =>
           InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), WritePerm())
         case RefADTFunction(decl) =>
@@ -547,13 +570,17 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           dispatch(f(obj.get)(args))
       }
 
-    case inv @ CInvocation(applicable, args, givenArgs, yields) =>
+    case inv @ CInvocation(applicable, args, givenMap, yields) =>
       implicit val o: Origin = inv.o
       inv.ref.get match {
         case RefFunction(decl) =>
-          FunctionInvocation[Post](succ(decl), args.map(dispatch), Nil)(inv.blame)
+          FunctionInvocation[Post](succ(decl), args.map(dispatch), Nil,
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefProcedure(decl) =>
-          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, Nil)(inv.blame)
+          ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, Nil,
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefPredicate(decl) =>
           PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
         case RefInstanceFunction(decl) => ???
@@ -567,7 +594,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           ActionApply[Post](succ(decl), args.map(dispatch))
         case BuiltinInstanceMethod(f) => ???
         case ref: RefCFunctionDefinition[Pre] =>
-          ProcedureInvocation[Post](cFunctionSuccessor.ref(ref), args.map(dispatch), Nil, Nil)(inv.blame)
+          ProcedureInvocation[Post](cFunctionSuccessor.ref(ref), args.map(dispatch), Nil, Nil,
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
         case RefCGlobalDeclaration(decls, initIdx) => ???
         case RefCDeclaration(decls, initIdx) => ???
       }
@@ -583,7 +612,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case None => new LazyRef[Post, Procedure[Post]](successionMap(javaDefaultConstructor(decl)))
       }
 
-      ProcedureInvocation(consRef, args.map(dispatch), Nil, typeParams.map(dispatch))(inv.blame)
+      ProcedureInvocation(consRef, args.map(dispatch), Nil, typeParams.map(dispatch), Nil, Nil)(inv.blame)
 
     case inv @ PVLNew(t @ PVLNamedType(_, _), args) =>
       implicit val o: Origin = inv.o
@@ -599,7 +628,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           ProcedureInvocation[Post](
             new LazyRef[Post, Procedure[Post]](cons.map(successionMap.apply).getOrElse(pvlDefaultConstructor(decl))),
             args.map(dispatch),
-            Nil, Nil,
+            Nil, Nil, Nil, Nil,
           )(inv.blame)
         case RefVariable(v) => ???
       }

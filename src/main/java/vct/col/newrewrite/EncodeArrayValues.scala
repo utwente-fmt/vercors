@@ -131,10 +131,10 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       case values @ Values(arr, from, to) =>
         val arrayType = CoercionUtils.getAnyArrayCoercion(arr.t).get._2
         val func = valuesFunctions.getOrElseUpdate(arrayType, makeFunctionFor(arrayType))
-        FunctionInvocation[Post](func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil)(NoContext(ArrayValuesPreconditionFailed(values)))
+        FunctionInvocation[Post](func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil, Nil, Nil)(NoContext(ArrayValuesPreconditionFailed(values)))
       case NewArray(element, dims, moreDims) =>
         val method = arrayCreationMethods.getOrElseUpdate((element, dims.size, moreDims), makeCreationMethodFor(element, dims.size, moreDims))
-        ProcedureInvocation[Post](method.ref, dims.map(dispatch), Nil, Nil)(PanicBlame("Array creation requires nothing."))
+        ProcedureInvocation[Post](method.ref, dims.map(dispatch), Nil, Nil, Nil, Nil)(PanicBlame("Array creation requires nothing."))
       case other => rewriteDefault(other)
     }
   }

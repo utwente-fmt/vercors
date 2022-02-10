@@ -36,7 +36,9 @@ trait SilverBackend extends Backend {
       case some => throw ConsistencyErrors(some)
     }
 
-    createVerifier.verify(silverProgram) match {
+    val verifier = createVerifier
+
+    verifier.verify(silverProgram) match {
       case Success =>
       case Failure(errors) => errors.foreach {
         case err: AbstractVerificationError => err match {
@@ -161,6 +163,8 @@ trait SilverBackend extends Backend {
           throw NotSupported(s"Viper returned an error that VerCors does not recognize: $other")
       }
     }
+
+    verifier.stop()
   }
 
   def getFailure(reason: ErrorReason): blame.ContractFailure = reason match {

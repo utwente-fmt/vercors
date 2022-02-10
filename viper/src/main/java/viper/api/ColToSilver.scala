@@ -8,7 +8,7 @@ import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationResult.{SystemError, Unreachable}
 import viper.api.ColToSilver.NotSupported
 import viper.silver.ast.TypeVar
 import viper.silver.{ast => silver}
@@ -103,7 +103,7 @@ case class ColToSilver(program: col.Program[_]) {
       val (name, index) = names(decl)
       packName(name, index)
     } else {
-      ???
+      throw Unreachable(s"Declaration was not yet named: $decl")
     }
 
   def transform(): silver.Program = {
@@ -247,7 +247,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.SilverCurFieldPerm(obj, field) => silver.CurrentPerm(silver.FieldAccess(exp(obj), fields(field.decl))(info=expInfo(e)))(info=expInfo(e))
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(info=expInfo(e))
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(info=expInfo(e))
-    case col.FunctionInvocation(f, args, Nil) =>
+    case col.FunctionInvocation(f, args, Nil, Nil, Nil) =>
       silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, expInfo(e), typ(f.decl.returnType), silver.NoTrafos)
     case inv @ col.ADTFunctionInvocation(typeArgs, Ref(func), args) => typeArgs match {
       case Some((Ref(adt), typeArgs)) =>
@@ -307,7 +307,7 @@ case class ColToSilver(program: col.Program[_]) {
   }
 
   def stat(s: col.Statement[_]): silver.Stmt = s match {
-    case inv@col.InvokeProcedure(method, args, outArgs, Nil) =>
+    case inv@col.InvokeProcedure(method, args, outArgs, Nil, Nil, Nil) =>
       silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
         silver.NoPosition, NodeInfo(inv), silver.NoTrafos)
     case col.SilverFieldAssign(obj, field, value) =>

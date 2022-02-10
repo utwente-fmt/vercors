@@ -3,6 +3,7 @@ package vct.parsers.transform
 import org.antlr.v4.runtime.ParserRuleContext
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.util.AstBuildHelpers.tt
 import vct.col.util.{AstBuildHelpers, ExpectedError}
 import vct.parsers.ParseError
 
@@ -43,10 +44,11 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
 
     def consumeLoopContract(blameNode: ParserRuleContext)(implicit o: Origin): LoopContract[G1] = {
       if(loop_invariant.nonEmpty) LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)))(blame(blameNode))
-      else IterationContract(
+      else if(requires.nonEmpty || ensures.nonEmpty || context_everywhere.nonEmpty) IterationContract(
         AstBuildHelpers.foldStar(consume(requires)),
         AstBuildHelpers.foldStar(consume(ensures)),
         AstBuildHelpers.foldAnd(consume(context_everywhere)))(blame(blameNode))
+      else LoopInvariant(tt[G1])(blame(blameNode))
     }
 
     def nodes: Seq[ParserRuleContext] = Seq(
