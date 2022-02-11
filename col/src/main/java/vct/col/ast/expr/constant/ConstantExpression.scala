@@ -15,12 +15,14 @@ import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 case class ConstantExpression(val value:Value) extends ASTNode with VisitorHelper {
   def this(v:Value, t:Type) = { this(v); setType(t) }
   def this(v:Value, t:Type, origin:Origin) = { this(v, t); setOrigin(origin) }
+  def this(i:BigInt) = this(new IntegerValue(i), new PrimitiveType(PrimitiveSort.Integer))
   def this(i:Int) = this(new IntegerValue(i), new PrimitiveType(PrimitiveSort.Integer))
   def this(b:Boolean) = this(new BooleanValue(b), new PrimitiveType(PrimitiveSort.Boolean))
   def this(s:String) = this(new StringValue(s), new PrimitiveType(PrimitiveSort.String))
   def this(l:Long) = this(new LongValue(l), new PrimitiveType(PrimitiveSort.Long))
 	def this(d:Double) = this(new DoubleValue(d), new PrimitiveType(PrimitiveSort.Double))
 
+  def this(i:BigInt, origin: Origin) = { this(i); setOrigin(origin); }
   def this(i:Int, origin:Origin) = { this(i); setOrigin(origin) }
   def this(b:Boolean, origin:Origin) = { this(b); setOrigin(origin) }
   def this(s:String, origin:Origin) = { this(s); setOrigin(origin) }

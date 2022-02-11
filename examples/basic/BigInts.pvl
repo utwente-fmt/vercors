@@ -1,0 +1,11 @@
+class C {
+  static boolean int32r(int v) =
+    -2147483648 <= v && v <= 2147483647;
+
+  static int foo() = -9999999999999999999999;
+  static int bar() = 9999999999999999999999;
+
+  requires foo() < bar();
+  requires 1111111111111111 < 2222222222222222222222;
+  void m() { }
+}
