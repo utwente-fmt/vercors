@@ -68,7 +68,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
         invariant(cls).declareDefault(this)
         held(cls).declareDefault(this)
         cls.declarations.foreach(dispatch)
-      }, intrinsicLockInvariant = tt).succeedDefault(this, decl)
+      }, intrinsicLockInvariant = tt).succeedDefault(decl)
     case other => rewriteDefault(other)
   }
 

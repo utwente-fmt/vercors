@@ -69,7 +69,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
       case other => new LazyRef(other)
     }
 
-    override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(this, decl)
+    override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(decl)
   }
 
   case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]]) extends NonLatchingRewriter[Rule, Pre] {
@@ -272,7 +272,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
       }
     }
 
-    override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(this, decl)
+    override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(decl)
   }
 
   val simplificationDone: ScopedStack[Unit] = ScopedStack()

@@ -14,8 +14,8 @@ case class Substitute[G](subs: Map[Expr[G], Expr[G]],
                          bindingSubs: Map[Variable[G], Variable[G]] = Map.empty[Variable[G], Variable[G]])
   extends NonLatchingRewriter[G, G] {
 
-  override def succ[DPost <: Declaration[G]](decl: Declaration[G])(implicit tag: ClassTag[DPost]): Ref[G, DPost] =
-    new LazyRef[G, DPost](successionMap.get(decl).getOrElse(decl))
+  override def lookupSuccessor(decl: Declaration[G]): Option[Declaration[G]] =
+    super.lookupSuccessor(decl).orElse(Some(decl))
 
   override def dispatch(e: Expr[G]): Expr[G] = e match {
     case expr if subs.contains(expr) => dispatch(subs(expr))

@@ -65,7 +65,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
   case class BreakReturnToGoto(returnTarget: LabelDecl[Post], resultVariable: Local[Post]) extends Rewriter[Pre] {
     val breakLabels: mutable.Set[LabelDecl[Pre]] = mutable.Set()
     val postLabeledStatement: SuccessionMap[LabelDecl[Pre], LabelDecl[Post]] = SuccessionMap()
-    override val successionMap: SuccessionMap[Declaration[Pre], Declaration[Post]] = EncodeBreakReturn.this.successionMap
+    override val successionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Post]]] = EncodeBreakReturn.this.successionMap
 
     override def dispatch(stat: Statement[Pre]): Statement[Post] = {
       implicit val o: Origin = stat.o
@@ -106,7 +106,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   case class BreakReturnToException(returnClass: Class[Post], valueField: InstanceField[Post]) extends Rewriter[Pre] {
-    override val successionMap: SuccessionMap[Declaration[Pre], Declaration[Post]] = EncodeBreakReturn.this.successionMap
+    override val successionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Post]]] = EncodeBreakReturn.this.successionMap
     override val globalScopes: ScopedStack[ArrayBuffer[GlobalDeclaration[Rewritten[Pre]]]] = EncodeBreakReturn.this.globalScopes
     val breakLabelException: SuccessionMap[LabelDecl[Pre], Class[Post]] = SuccessionMap()
 
@@ -195,7 +195,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
               Return(resultVar.get),
             )))
           }
-          method.rewrite(body = Some(newBody)).succeedDefault(this, method)
+          method.rewrite(body = Some(newBody)).succeedDefault(method)
       }
     case other => rewriteDefault(other)
   }

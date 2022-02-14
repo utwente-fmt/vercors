@@ -148,13 +148,13 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         frameAll(obj +: args, {
           case obj :: args => InvokeMethod[Post](obj, succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         })
       case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         frameAll(args, args =>
           InvokeProcedure[Post](succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame))
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame))
       case decl: LocalDecl[Pre] => rewriteDefault(decl)
       case Return(result) =>
         frame(result, e => Block(Seq(
@@ -233,7 +233,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
             res.declareDefault(this)
             method.outArgs.foreach(dispatch)
           },
-        ).succeedDefault(this, method)
+        ).succeedDefault(method)
       }
     case other => rewriteDefault(other)
   }
@@ -316,7 +316,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(e.o))
       Local[Post](res.ref)(ResultVar)
     case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
@@ -329,7 +329,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(e.o))
       Local[Post](res.ref)(ResultVar)
     case other =>

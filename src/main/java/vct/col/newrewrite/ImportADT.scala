@@ -162,7 +162,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     val regularProgram = LangSpecificToCol().dispatch(typedProgram)
     val program = regularProgram.asInstanceOf[Program[Pre]]
     program.declarations.foreach(dispatch)
-    program.declarations.map(successionMap(_).asInstanceOf[GlobalDeclaration[Post]])
+    program.declarations.map(succ(_).decl.asInstanceOf[GlobalDeclaration[Post]])
   }
 
   private lazy val nothingFile = parse("nothing")
@@ -531,7 +531,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
   // PB: dumb hack alert: TVoid and Return(Void()) is (for viper) a marker to indicate that there is no return type.
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case method: AbstractMethod[Pre] if method.returnType == TVoid[Pre]() =>
-      method.rewrite(returnType = TVoid()).succeedDefault(this, decl)
+      method.rewrite(returnType = TVoid()).succeedDefault(decl)
     case other => rewriteDefault(other)
   }
 

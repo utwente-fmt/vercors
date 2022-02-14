@@ -4,6 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import RewriteHelpers._
+import vct.col.newrewrite.util.FreshSuccessionScope
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.util.AstBuildHelpers._
@@ -38,20 +39,13 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
     result
   }
 
-  case class ClosedCopier() extends Rewriter[Pre] {
-    override def succ[DPost <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
-      new LazyRef[Post, DPost](
-        successionMap.get(decl).getOrElse(PropagateContextEverywhere.this.successionMap(decl))
-      )
-  }
-
   def freshInvariants()(implicit o: Origin): Expr[Post] =
-    foldStar(invariants.top.map(inv => ClosedCopier().dispatch(inv)))
+    foldStar(invariants.top.map(inv => FreshSuccessionScope(this).dispatch(inv)))
 
   def booleanInvariants: Seq[Expr[Pre]] = invariants.top.filter(inv => TBool().superTypeOf(inv.t))
 
   def freshBooleanInvariants()(implicit o: Origin): Expr[Post] =
-    foldAnd(booleanInvariants.map(inv => ClosedCopier().dispatch(inv)))
+    foldAnd(booleanInvariants.map(inv => FreshSuccessionScope(this).dispatch(inv)))
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] =>
@@ -62,7 +56,7 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
           case method: AbstractMethod[Pre] =>
             method.rewrite(blame = ImplBlameSplit.left(ContextEverywherePostconditionFailed(app), method.blame))
         }
-      }).succeedDefault(this, app)
+      }).succeedDefault(app)
     case other => rewriteDefault(other)
   }
 
@@ -108,9 +102,9 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] = parRegion match {
     case block: ParBlock[Pre] =>
       implicit val o: Origin = parRegion.o
-      invariants.having(booleanInvariants) {
+      invariants.having(booleanInvariants ++ unfoldStar(block.context_everywhere)) {
         block.rewrite(
-          context_everywhere = freshBooleanInvariants() && dispatch(block.context_everywhere)
+          context_everywhere = freshBooleanInvariants()
         )
       }
     case other => rewriteDefault(other)

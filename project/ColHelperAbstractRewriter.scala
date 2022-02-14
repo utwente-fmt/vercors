@@ -23,7 +23,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
 
       def rewriteDefault(decl: $DECLARATION_TYPE[Pre]): Unit = ${
         NonemptyMatch("declaration rewriteDefault", q"decl", rewriteDefaultCases(DECLARATION))
-      }.succeedDefault(this, decl)
+      }.succeedDefault(decl)(this)
 
       ..${info.families.map(family => q"""
         def dispatch(node: ${Type.Name(family)}[Pre]): ${Type.Name(family)}[Post]

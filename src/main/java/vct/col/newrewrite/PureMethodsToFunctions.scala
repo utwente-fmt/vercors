@@ -57,7 +57,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
             "the method implementation cannot be restructured into a pure expression"))),
           contract = dispatch(proc.contract),
           inline = proc.inline
-        )(proc.blame)(proc.o).succeedDefault(this, proc)
+        )(proc.blame)(proc.o).succeedDefault(proc)
       case method: InstanceMethod[Pre] if method.pure =>
         if(method.outArgs.nonEmpty) throw MethodCannotIntoFunction("the method has out parameters")
         if(method.contract.signals.nonEmpty) throw MethodCannotIntoFunction("the method contract contains a signals declaration")
@@ -69,7 +69,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
             "the method implementation cannot be restructured into a pure expression"))),
           contract = dispatch(method.contract),
           inline = method.inline,
-        )(method.blame)(method.o).succeedDefault(this, method)
+        )(method.blame)(method.o).succeedDefault(method)
       case other => rewriteDefault(other)
     }
   }
@@ -79,13 +79,13 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
       if(proc.pure)
         FunctionInvocation[Post](succ(proc), args.map(dispatch), typeArgs.map(dispatch),
           givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)(e.o)
+          yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)(e.o)
       else rewriteDefault(inv)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       if(method.pure)
         InstanceFunctionInvocation[Post](dispatch(obj), succ(method), args.map(dispatch), typeArgs.map(dispatch),
           givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)(e.o)
+          yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)(e.o)
       else rewriteDefault(inv)
     case other => rewriteDefault(other)
   }

@@ -110,8 +110,8 @@ valGivenMappings
  ;
 
 valYieldsMappings
- : langExpr '=' langId
- | langExpr '=' langId ',' valYieldsMappings
+ : langId '=' langId
+ | langId '=' langId ',' valYieldsMappings
  ;
 
 valPrimarySeq

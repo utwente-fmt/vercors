@@ -10,9 +10,10 @@ import vct.col.rewrite.{InitialGeneration, ScopeContext}
 import scala.reflect.ClassTag
 
 trait DeclarationImpl[G] { this: Declaration[G] =>
-  def succeedDefault[Pre](scope: ScopeContext[Pre, G], pred: Declaration[Pre]): Unit = {
+  def succeedDefault[Pre](pred: Declaration[Pre])(implicit scope: ScopeContext[Pre, G]): this.type = {
     declareDefault(scope)
     scope.succeed(pred, this)
+    this
   }
 
   def declareDefault[Pre](scope: ScopeContext[Pre, G]): Unit

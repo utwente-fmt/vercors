@@ -14,8 +14,8 @@ object FreeVariables {
    */
   def freeVariables[G](node: Node[G], scope: CheckContext[G] = CheckContext[G]()): Set[FreeVariable[G]] = node match {
     case local @ Local(ref) => if(scope.inScope(ref)) Set.empty else Set(FreeVar(local))
-    case diz @ ThisObject(_) => Set(FreeThisObject(diz))
-    case diz @ ThisModel(_) => Set(FreeThisModel(diz))
+    case diz: ThisObject[G] => Set(FreeThisObject(diz))
+    case diz: ThisModel[G] => Set(FreeThisModel(diz))
     case other => other.subnodes.flatMap(freeVariables(_, other.enterCheckContext(scope))).toSet
   }
 }

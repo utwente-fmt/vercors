@@ -16,7 +16,7 @@ case object SpecifyImplicitLabels extends RewriterBuilder
 case class SpecifyImplicitLabels[Pre <: Generation]() extends Rewriter[Pre] {
   val labelStack = new ScopedStack[LabelDecl[Post]]()
 
-  def isBreakable(s: Statement[_]) = s match {
+  def isBreakable(s: Statement[_]): Boolean = s match {
     case _: Loop[_] => true
     case _: Switch[_] => true
     case _ => false

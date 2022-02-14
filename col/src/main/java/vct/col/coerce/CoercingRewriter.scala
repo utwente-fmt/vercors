@@ -234,12 +234,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case (Ref(v), e) => (v.ref, coerce(e, v.t))
     }
 
-  def coerceYields(yields: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])]): Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])] =
+  def coerceYields(yields: Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])], blame: Expr[_]): Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])] =
     yields.map {
-      case (e, Ref(v)) => CoercionUtils.getCoercion[Pre](v.t, e.t) match {
-        case None => throw IncoercibleText(e, "This target for a yielded argument does not exactly match the yields type.")
-        case Some(CoerceIdentity(_)) => (e, v.ref)
-        case Some(_) => throw IncoercibleText(e, "This target for a yielded argument does not exactly match the yields type.")
+      case (Ref(target), Ref(yieldArg)) => CoercionUtils.getCoercion[Pre](yieldArg.t, target.t) match {
+        case None => throw IncoercibleText(blame, "The target for a yielded argument does not exactly match the yields type.")
+        case Some(CoerceIdentity(_)) => (target.ref, yieldArg.ref)
+        case Some(_) => throw IncoercibleText(blame, "The target for a yielded argument does not exactly match the yields type.")
       }
     }
 
@@ -470,8 +470,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case AmbiguousThis() => e
       case And(left, right) =>
         And(bool(left), bool(right))
-      case Any() =>
-        Any()
+      case any @ Any() =>
+        Any()(any.blame)
       case APerm(loc, perm) =>
         APerm(loc, rat(perm))
       case a @ ArraySubscript(arr, index) =>
@@ -557,7 +557,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
-        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
+        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
@@ -609,7 +609,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case InlinePattern(inner) =>
         InlinePattern(inner)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
-        InstanceFunctionInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
+        InstanceFunctionInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
@@ -731,7 +731,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        MethodInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
+        MethodInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
@@ -823,7 +823,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case PredicateApply(ref, args, perm) =>
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
+        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case ProcessApply(process, args) =>
         ProcessApply(process, coerceArgs(args, process.decl))
       case ProcessChoice(left, right) =>
@@ -1007,9 +1007,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case Havoc(loc) => Havoc(loc)
       case Inhale(assn) => Inhale(res(assn))
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
+        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeMethod(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields))(inv.blame)
+        InvokeMethod(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
       case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
       case Join(obj) => Join(cls(obj)._1)
       case Label(decl, stat) => Label(decl, stat)

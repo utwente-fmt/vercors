@@ -60,7 +60,7 @@ case object Test {
 //        }
 //      })
 
-      tryParse(Seq(Path.of("examples/basic/fraction-comparison.pvl")))
+      tryParse(Seq(Path.of("examples/known-problems/verifythis/2019/challenge3.pvl")))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
@@ -105,6 +105,7 @@ case object Test {
       ResolveScale, // inline predicate scaling into predicate applications
       PropagateContextEverywhere, // inline context_everywhere into loop invariants
       EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
+      GivenYieldsToArgs,
 
       CheckProcessAlgebra,
 
@@ -115,6 +116,7 @@ case object Test {
 
       // Encode parallel blocks
       IterationContractToParBlock,
+      EncodeParAtomic,
       ParBlockEncoder,
 
       // Encode exceptional behaviour (no more continue/break/return/try/throw)
@@ -157,7 +159,7 @@ case object Test {
     SuccessionMap.breakOnMissingPredecessor {
       var program: Program[_ <: Generation] = typedProgram
       for(pass <- passes) {
-//        println(s"    ${pass.getClass.getSimpleName}")
+        println(s"    ${pass.getClass.getSimpleName}")
         val oldProgram = program
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {

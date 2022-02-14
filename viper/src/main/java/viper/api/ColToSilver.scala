@@ -37,6 +37,7 @@ case class ColToSilver(program: col.Program[_]) {
   val nameStack: mutable.Stack[mutable.Map[col.Declaration[_], (String, Int)]] = mutable.Stack()
   var names: mutable.Map[col.Declaration[_], (String, Int)] = mutable.Map()
   val currentPredicatePath: ScopedStack[Seq[AccountedDirection]] = ScopedStack()
+  val currentInvariant: ScopedStack[col.LoopInvariant[_]] = ScopedStack()
 
   def ??(node: col.Node[_]): Nothing =
     throw NotSupported(node)
@@ -199,6 +200,7 @@ case class ColToSilver(program: col.Program[_]) {
   def expInfo[T <: col.Expr[_]](e: T): NodeInfo[T] = {
     val result = NodeInfo(e)
     result.predicatePath = currentPredicatePath.topOption
+    result.invariant = currentInvariant.topOption
     result
   }
 
@@ -319,8 +321,8 @@ case class ColToSilver(program: col.Program[_]) {
       val silverLocals = locals.map(variable)
       silver.Seqn(Seq(stat(body)), silverLocals)(info=NodeInfo(s))
     case col.Branch(Seq((cond, whenTrue), (col.BooleanValue(true), whenFalse))) => silver.If(exp(cond), block(whenTrue), block(whenFalse))(info=NodeInfo(s))
-    case col.Loop(col.Block(Nil), cond, col.Block(Nil), col.LoopInvariant(inv), body) =>
-      silver.While(exp(cond), unfoldStar(inv).map(exp), block(body))(info=NodeInfo(s))
+    case col.Loop(col.Block(Nil), cond, col.Block(Nil), invNode @ col.LoopInvariant(inv), body) =>
+      silver.While(exp(cond), currentInvariant.having(invNode) { unfoldStar(inv).map(exp) }, block(body))(info=NodeInfo(s))
     case col.Label(decl, col.Block(Nil)) => silver.Label(ref(decl), Seq())(info=NodeInfo(s))
     case col.Goto(lbl) => silver.Goto(ref(lbl))(info=NodeInfo(s))
     case col.Return(col.Void()) => silver.Seqn(Nil, Nil)(info=NodeInfo(s))

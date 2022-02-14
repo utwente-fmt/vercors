@@ -26,7 +26,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
           blame = AbstractApplicable,
           returnType = dispatch(field.t),
           args = Seq(new Variable[Post](TClass(succ(currentClass.top)))),
-        ).succeedDefault(this, field)
+        ).succeedDefault(field)
       } else {
         rewriteDefault(field)
       }

@@ -135,23 +135,33 @@ case object ResolveReferences {
     case deref @ PVLDeref(obj, field) =>
       deref.ref = Some(PVL.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
 
-    case inv @ CInvocation(obj, _, _, _) =>
+    case inv @ CInvocation(obj, _, givenMap, yields) =>
       inv.ref = Some(C.resolveInvocation(obj, ctx))
-    case inv @ GpgpuCudaKernelInvocation(name, blocks, threads, args, _, _) =>
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
+    case inv @ GpgpuCudaKernelInvocation(name, blocks, threads, args, givenMap, yields) =>
       val kernel = C.findCName(name, ctx).getOrElse(throw NoSuchNameError("kernel", name, inv))
       inv.ref = Some(kernel match {
         case target: CInvocationTarget[G] => target
         case _ => throw NotApplicable(inv)
       })
-    case inv @ JavaInvocation(obj, _, method, args, _, _) =>
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
+    case inv @ JavaInvocation(obj, _, method, args, givenMap, yields) =>
       inv.ref = Some((obj match {
         case Some(obj) => Java.findMethod(obj, method, args, inv.blame)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
-    case inv @ PVLInvocation(None, method, args, typeArgs, _, _) =>
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
+    case inv @ PVLInvocation(None, method, args, typeArgs, givenMap, yields) =>
       inv.ref = Some(PVL.findMethod(method, args, typeArgs, ctx).getOrElse(throw NoSuchNameError("method", method, inv)))
-    case inv @ PVLInvocation(Some(obj), method, args, typeArgs, _, _) =>
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
+    case inv @ PVLInvocation(Some(obj), method, args, typeArgs, givenMap, yields) =>
       inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame).getOrElse(throw NoSuchNameError("method", method, inv)))
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv @ ADTFunctionInvocation(typeArgs, ref, args) =>
       typeArgs match {
         case Some((adt, typeArgs)) =>

@@ -194,7 +194,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
                 cons.signals.map(t => SignalsClause(new Variable(dispatch(t)), tt)),
             ) },
           )(ImplBlameSplit.right(cons.blame, PanicBlame("Constructor cannot return null value or value of wrong type.")))(JavaConstructorOrigin(cons))
-        ).succeedDefault(this, cons)
+        ).succeedDefault(cons)
       case method: JavaMethod[Pre] =>
         new InstanceMethod(
           returnType = dispatch(method.returnType),
@@ -208,7 +208,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
             signals = method.contract.signals.map(dispatch) ++
               method.signals.map(t => SignalsClause(new Variable(dispatch(t)), tt)),
           ),
-        )(method.blame)(JavaMethodOrigin(method)).succeedDefault(this, method)
+        )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
       case _: JavaSharedInitialization[Pre] =>
       case _: JavaFields[Pre] =>
       case other => dispatch(other)
@@ -219,7 +219,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
     case model: Model[Pre] =>
       implicit val o: Origin = model.o
       currentThis.having(ThisModel[Post](succ(model))) {
-        model.rewrite().succeedDefault(this, model)
+        model.rewrite().succeedDefault(model)
       }
 
     case ns: JavaNamespace[Pre] =>
@@ -342,7 +342,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           }
         }
 
-        cls.rewrite(decls).succeedDefault(this, cls)
+        cls.rewrite(decls).succeedDefault(cls)
       }
 
     case other => rewriteDefault(other)
@@ -486,21 +486,21 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefFunction(decl) =>
           FunctionInvocation[Post](succ(decl), args.map(dispatch), Nil,
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefProcedure(decl) =>
           ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefPredicate(decl) =>
           PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
         case RefInstanceFunction(decl) =>
           InstanceFunctionInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), typeParams.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefInstanceMethod(decl) =>
           MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeParams.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefInstancePredicate(decl) =>
           InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), WritePerm())
         case RefADTFunction(decl) =>
@@ -516,7 +516,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
               ref = succ(decl),
               args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch),
               givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-              yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+              yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
             )(inv.blame)
           } else {
             MethodInvocation[Post](
@@ -524,7 +524,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
               ref = succ(decl),
               args = args.map(dispatch), outArgs = Nil, typeParams.map(dispatch),
               givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-              yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+              yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
             )(inv.blame)
           }
         case BuiltinInstanceMethod(f) =>
@@ -538,11 +538,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefFunction(decl) =>
           FunctionInvocation[Post](succ(decl), args.map(dispatch), typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefProcedure(decl) =>
           ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefPredicate(decl) =>
           PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
         case RefInstanceFunction(decl) =>
@@ -552,12 +552,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
             args.map(dispatch),
             typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
           )(inv.blame)
         case RefInstanceMethod(decl) =>
           MethodInvocation[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefInstancePredicate(decl) =>
           InstancePredicateApply[Post](obj.map(dispatch).getOrElse(currentThis.top), succ(decl), args.map(dispatch), WritePerm())
         case RefADTFunction(decl) =>
@@ -576,11 +576,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefFunction(decl) =>
           FunctionInvocation[Post](succ(decl), args.map(dispatch), Nil,
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefProcedure(decl) =>
           ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, Nil,
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefPredicate(decl) =>
           PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
         case RefInstanceFunction(decl) => ???
@@ -596,7 +596,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case ref: RefCFunctionDefinition[Pre] =>
           ProcedureInvocation[Post](cFunctionSuccessor.ref(ref), args.map(dispatch), Nil, Nil,
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         case RefCGlobalDeclaration(decls, initIdx) => ???
         case RefCDeclaration(decls, initIdx) => ???
       }
@@ -609,7 +609,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
 
       val consRef = cons match {
         case Some(cons) => succ[Procedure[Post]](cons)
-        case None => new LazyRef[Post, Procedure[Post]](successionMap(javaDefaultConstructor(decl)))
+        case None => new LazyRef[Post, Procedure[Post]](successionMap.top(javaDefaultConstructor(decl)))
       }
 
       ProcedureInvocation(consRef, args.map(dispatch), Nil, typeParams.map(dispatch), Nil, Nil)(inv.blame)
@@ -626,7 +626,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           }
 
           ProcedureInvocation[Post](
-            new LazyRef[Post, Procedure[Post]](cons.map(successionMap.apply).getOrElse(pvlDefaultConstructor(decl))),
+            new LazyRef[Post, Procedure[Post]](cons.map(successionMap.top.apply).getOrElse(pvlDefaultConstructor(decl))),
             args.map(dispatch),
             Nil, Nil, Nil, Nil,
           )(inv.blame)

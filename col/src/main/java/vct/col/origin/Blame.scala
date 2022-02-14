@@ -92,11 +92,11 @@ case class ExceptionNotInSignals(failure: ContractFailure, invokable: AbstractMe
   override def code: String = "extraExc"
 }
 sealed trait LoopInvariantFailure extends VerificationFailure
-case class LoopInvariantNotEstablished(failure: ContractFailure, loop: Loop[_]) extends LoopInvariantFailure {
+case class LoopInvariantNotEstablished(failure: ContractFailure, inv: LoopInvariant[_]) extends LoopInvariantFailure {
   override def toString: String = s"This invariant may not be established, since $failure."
   override def code: String = "notEstablished"
 }
-case class LoopInvariantNotMaintained(failure: ContractFailure, loop: Loop[_]) extends LoopInvariantFailure {
+case class LoopInvariantNotMaintained(failure: ContractFailure, loop: LoopInvariant[_]) extends LoopInvariantFailure {
   override def toString: String = s"This invariant may not be maintained, since $failure."
   override def code: String = "notMaintained"
 }

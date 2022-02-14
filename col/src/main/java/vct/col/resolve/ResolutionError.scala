@@ -39,3 +39,8 @@ case class ResultOutsideMethod(res: AmbiguousResult[_]) extends ResolutionError 
   override def text: String = res.o.messageInContext("\\result may not occur outside a method.")
   override def code: String = "resultOutsideMethod"
 }
+
+case class NoGivenYields(invocation: Node[_]) extends ResolutionError {
+  override def code: String = "noGivenYields"
+  override def text: String = invocation.o.messageInContext("This kind of application or invocation does not take parameters via given or yields.")
+}

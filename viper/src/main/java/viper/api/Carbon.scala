@@ -13,4 +13,8 @@ object Carbon extends SilverBackend {
     carbon.start()
     carbon
   }
+
+  override def stopVerifier(verifier: Verifier): Unit = {
+    verifier.stop()
+  }
 }

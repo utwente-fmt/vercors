@@ -107,19 +107,19 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
         val catchImpl = Block[Post](catches.map {
           case CatchClause(decl, body) =>
-            decl.drop()
-            catchBindings += decl
-            Branch(Seq((
+            val typedExc = collectOneInScope(variableScopes) { dispatch(decl) }
+            Scope(Seq(typedExc), Branch(Seq((
               (getExc !== Null[Post]()) && InstanceOf(getExc, TypeValue(dispatch(decl.t))),
               Block(Seq(
+                assignLocal(typedExc.get, Cast(getExc, TypeValue(dispatch(decl.t)))),
+                assignLocal(getExc, Null()),
                 exceptionalHandlerEntry.having(finallyEntry) {
                   needCurrentExceptionRestoration.having(true) {
                     dispatch(body)
                   }
                 },
-                assignLocal(getExc, Null()),
               ),
-            ))))
+            )))))
         })
 
         val finallyImpl = Block[Post](Seq(
@@ -245,7 +245,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
           body = body,
           outArgs = collectInScope(variableScopes) { exc.declareDefault(this); method.outArgs.foreach(dispatch) },
           contract = method.contract.rewrite(ensures = ensures, signals = Nil),
-        ).succeedDefault(this, method)
+        ).succeedDefault(method)
       }
 
     case other => rewriteDefault(other)
@@ -255,10 +255,6 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
     case Local(Ref(v)) if signalsBinding.nonEmpty && signalsBinding.top._1 == v =>
       implicit val o: Origin = e.o
       signalsBinding.top._2
-
-    case Local(Ref(v)) if catchBindings.contains(v) =>
-      implicit val o: Origin = e.o
-      Cast(getExc, TypeValue(dispatch(v.t)))
 
     case other => rewriteDefault(other)
   }

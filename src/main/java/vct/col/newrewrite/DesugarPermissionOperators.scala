@@ -17,7 +17,7 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
         Perm(loc, perm) &* loc === value
       case ValidArray(arr1, len1) =>
         val (arr, len) = (dispatch(arr1), dispatch(len1))
-        arr !== Null() && Length(arr)(FramedArrLength) === len
+        (arr !== Null()) && Length(arr)(FramedArrLength) === len
       case ValidMatrix(mat1, dim01, dim11) =>
         val (mat, dim0, dim1) = (dispatch(mat1), dispatch(dim01), dispatch(dim11))
         mat !== Null() && Length(mat)(FramedArrLength) === dim0 &*

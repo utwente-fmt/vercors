@@ -2,9 +2,48 @@ package vct.col.resolve
 
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.result.VerificationResult.UserError
 
 case object Spec {
+  def getContract[G](target: Referrable[G], blame: Node[G]): ApplicableContract[G] = target match {
+    case RefFunction(decl) => decl.contract
+    case RefProcedure(decl) => decl.contract
+    case RefInstanceFunction(decl) => decl.contract
+    case RefInstanceMethod(decl) => decl.contract
+    case RefCDeclaration(decls, _) => decls.contract
+    case RefCGlobalDeclaration(decls, _) => decls.decl.contract
+//    case RefCFunctionDefinition(decl) =>
+    case RefJavaConstructor(decl) => decl.contract
+    case RefJavaMethod(decl) => decl.contract
+    case RefPVLConstructor(decl) => decl.contract
+    case other => throw NoGivenYields(blame)
+  }
+
+  def resolveGiven[G](givenMap: Seq[(Ref[G, Variable[G]], Expr[G])], target: Referrable[G], blame: Node[G]): Unit =
+    if(givenMap.nonEmpty) {
+      val contract = getContract(target, blame)
+      val args = contract.givenArgs.flatMap(Referrable.from)
+      givenMap.foreach {
+        case (arg, _) => arg.tryResolve(name => args.collectFirst {
+          case ref: RefVariable[G] if ref.name == name => ref.decl
+        }.getOrElse(throw NoSuchNameError("'given' argument", name, blame)))
+      }
+    }
+
+  def resolveYields[G](ctx: ReferenceResolutionContext[G], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])], target: Referrable[G], blame: Node[G]): Unit =
+    if(yields.nonEmpty) {
+      val contract = getContract(target, blame)
+      val args = contract.yieldsArgs.flatMap(Referrable.from)
+      yields.foreach {
+        case (tgt, res) =>
+          tgt.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, blame)))
+          res.tryResolve(name => args.collectFirst {
+            case ref: RefVariable[G] if ref.name == name => ref.decl
+          }.getOrElse(throw NoSuchNameError("'yields' argument", name, blame)))
+      }
+    }
+
   case class BuiltinArgumentCountError(obj: Expr[_], expected: Int) extends UserError {
     override def text: String =
       obj.o.messageInContext(s"Builtin method invocation has wrong argument count: expected $expected argument(s).")

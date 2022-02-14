@@ -110,7 +110,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               body = function.body.map(dispatch),
               contract = dispatch(function.contract),
               inline = function.inline,
-            )(function.blame)(function.o).succeedDefault(this, function)
+            )(function.blame)(function.o).succeedDefault(function)
           }
         case method: InstanceMethod[Pre] =>
           val thisVar = new Variable[Post](TRef())(This)
@@ -127,7 +127,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               contract = dispatch(method.contract),
               inline = method.inline,
               pure = method.pure,
-            )(method.blame)(method.o).succeedDefault(this, method)
+            )(method.blame)(method.o).succeedDefault(method)
           }
         case predicate: InstancePredicate[Pre] =>
           val thisVar = new Variable[Post](TRef())(This)
@@ -140,7 +140,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               body = predicate.body.map(dispatch),
               threadLocal = predicate.threadLocal,
               inline = predicate.inline,
-            )(predicate.o).succeedDefault(this, predicate)
+            )(predicate.o).succeedDefault(predicate)
           }
         case field: Field[Pre] =>
           fieldSucc(field) = new SilverField(dispatch(field.t))(field.o)
@@ -165,7 +165,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         outArgs = outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(inv.o)
     case other => rewriteDefault(other)
   }
@@ -178,7 +178,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         outArgs = outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args, perm) =>
       PredicateApply[Post](succ(pred), dispatch(obj) +: args.map(dispatch), dispatch(perm))(inv.o)
@@ -188,7 +188,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         args = dispatch(obj) +: args.map(dispatch),
         typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(inv.o)
     case ThisObject(_) =>
       Local[Post](diz.top.ref)(e.o)

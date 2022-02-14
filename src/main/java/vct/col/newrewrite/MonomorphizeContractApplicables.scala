@@ -22,25 +22,6 @@ case object MonomorphizeContractApplicables extends RewriterBuilder {
 }
 
 case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter[Pre] {
-  val scopedSuccessionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Post]]] = ScopedStack()
-  scopedSuccessionMap.push(SuccessionMap())
-
-  override def succeed(predecessor: Declaration[Pre], successor: Declaration[Rewritten[Pre]]): Unit =
-    scopedSuccessionMap.top(predecessor) = successor
-
-  override def succ[DPost <: Declaration[Rewritten[Pre]]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Rewritten[Pre], DPost] = {
-    val successionMapsClosure = scopedSuccessionMap.toSeq
-    new LazyRef[Post, DPost](
-      FuncTools.firstOption[SuccessionMap[Declaration[Pre], Declaration[Post]], Declaration[Post]](
-        successionMapsClosure,
-        (m: SuccessionMap[Declaration[Pre], Declaration[Post]]) => m.get(decl)
-      ) match {
-        case Some(decl) => decl
-        case None => ???
-      }
-    )
-  }
-
   val currentSubstitutions: ScopedStack[Map[Variable[Pre], Type[Post]]] = ScopedStack()
 
   val monomorphized: mutable.Map[Seq[Type[Post]], ContractApplicable[Post]] = mutable.Map()
@@ -51,7 +32,7 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
       app.typeArgs.foreach(_.drop())
       val typeValues = app.typeArgs.map(v => dispatch(v.t.asInstanceOf[TType[Pre]].t))
       currentSubstitutions.having(app.typeArgs.zip(typeValues).toMap) {
-        app.rewrite(typeArgs = Nil).succeedDefault(this, app)
+        app.rewrite(typeArgs = Nil).succeedDefault(app)
       }
     case other => rewriteDefault(other)
   }
@@ -61,7 +42,7 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
       val typeValues = inv.typeArgs.map(dispatch)
 
       val app = monomorphized.getOrElseUpdate(typeValues, currentSubstitutions.having(inv.ref.decl.typeArgs.zip(typeValues).toMap) {
-        scopedSuccessionMap.having(SuccessionMap()) {
+        successionMap.having(SuccessionMap()) {
           val app1 = inv.ref.decl.rewrite(typeArgs = Nil)
           app1.declareDefault(this)
           app1

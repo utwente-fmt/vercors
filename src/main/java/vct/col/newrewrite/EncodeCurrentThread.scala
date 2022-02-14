@@ -50,7 +50,7 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
           app.rewrite(args = collectInScope(variableScopes) {
             currentThreadVar.declareDefault(this)
             app.args.foreach(dispatch)
-          }).succeedDefault(this, app)
+          }).succeedDefault(app)
         }
       } else {
         rewriteDefault(app)
