@@ -11,7 +11,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 class ScopeContext[Pre, Post] {
-
   import ScopeContext._
 
   protected val successionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Post]]] = ScopedStack()
@@ -20,6 +19,8 @@ class ScopeContext[Pre, Post] {
   // The default action for declarations is to be succeeded by a similar declaration, for example a copy.
   def succeed(predecessor: Declaration[Pre], successor: Declaration[Post]): Unit =
     successionMap.top(predecessor) = successor
+
+  def freshSuccessionScope[T](f: => T): T = successionMap.having(SuccessionMap())(f)
 
   val globalScopes: ScopedStack[ArrayBuffer[GlobalDeclaration[Post]]] = ScopedStack()
   val classScopes: ScopedStack[ArrayBuffer[ClassDeclaration[Post]]] = ScopedStack()
@@ -59,8 +60,10 @@ class ScopeContext[Pre, Post] {
   def succ[DPost <: Declaration[Post]](ref: Ref[Pre, _ <: Declaration[Pre]])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
     succ(ref.decl)
 
-  def succ[DPost <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
-    new LazyRef[Post, DPost](lookupSuccessor(decl).get)
+  def succ[DPost <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] = {
+    val fetcher = lookupSuccessor
+    new LazyRef[Post, DPost](fetcher(decl).get)
+  }
 
   def transmutePostRef
     [Decl[_] <: Declaration[_], DPre <: Declaration[Pre], DPost <: Declaration[Post]]

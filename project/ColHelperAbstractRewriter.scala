@@ -19,6 +19,8 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
     abstract class AbstractRewriter[Pre, Post] extends $SCOPE_CONTEXT() {
       implicit val rewriter: AbstractRewriter[Pre, Post] = this
 
+      def dispatch(o: Origin): Origin = o
+
       def dispatch(decl: $DECLARATION_TYPE[Pre]): Unit
 
       def rewriteDefault(decl: $DECLARATION_TYPE[Pre]): Unit = ${

@@ -11,6 +11,14 @@
   The expected result is Pass.
 */
 
+/*@
+requires t != null ==> t.state();
+ensures t != null ==> \result.size > 0;
+pure seq<int> contents(Tree t) =
+  t == null ? [t:int] :
+    \unfolding t.state() \in (contents(t.left) + [t.data] + contents(t.right));
+@*/
+
 final class Tree {
 
   public int data;
@@ -25,23 +33,16 @@ final class Tree {
     left->state() **
     right->state();
   @*/
-
-  /*@
-    requires state();
-    ensures this != null ==> \result.size > 0;
-    pure seq<int> contents() = (this == null) ? seq<int>{} :
-      \unfolding state() \in (left.contents() + seq<int>{data} + right.contents());
-  @*/
   
   /*@
     requires state();
-    ensures \result->state();
-    ensures \result.contents() == \old(contents()).tail;
+    ensures \result != null ==> \result->state();
+    ensures contents(\result) == \old(contents(this)).tail;
   @*/
   public Tree del_min() {
     //@ unfold state();
     if (left == null) {
-      //@ assert left.contents().isEmpty;
+      //@ assert contents(left).isEmpty;
       return right;
     } else {
       left = left.del_min();

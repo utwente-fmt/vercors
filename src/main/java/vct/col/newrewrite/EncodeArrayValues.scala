@@ -12,13 +12,11 @@ import scala.collection.mutable
 
 case object EncodeArrayValues extends RewriterBuilder {
   case class ValuesFunctionOrigin(preferredName: String = "unknown") extends Origin {
-    override def messageInContext(message: String): String =
-      s"[At node generated for \\values]: $message"
+    override def context: String = "[At node generated for \\values]"
   }
 
   case class ArrayCreationOrigin(preferredName: String = "unknown") extends Origin {
-    override def messageInContext(message: String): String =
-      s"[At node generated for array creation]: $message"
+    override def context: String = "[At node generated for array creation]"
   }
 
   case class ArrayValuesPreconditionFailed(values: Values[_]) extends Blame[PreconditionFailed] {

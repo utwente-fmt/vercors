@@ -11,7 +11,7 @@ import vct.result.VerificationResult.UserError
 case object IterationContractToParBlock extends RewriterBuilder {
   case object IterationContractOrigin extends Origin {
     override def preferredName: String = ???
-    override def messageInContext(message: String): String = ???
+    override def context: String = ???
   }
 
   case class InvalidLoopFormatForIterationContract(loop: Loop[_], message: String) extends UserError {

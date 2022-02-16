@@ -18,7 +18,7 @@ case object InlineApplicables extends RewriterBuilder {
   }
 
   case class ReplaceReturn[G](newStatement: Expr[G] => Statement[G]) extends NonLatchingRewriter[G, G] {
-    override def lookupSuccessor(decl: Declaration[G]): Option[Declaration[G]] = Some(decl)
+    override def lookupSuccessor: Declaration[G] => Option[Declaration[G]] = Some(_)
 
     override def dispatch(stat: Statement[G]): Statement[G] = stat match {
       case Return(e) => newStatement(e)

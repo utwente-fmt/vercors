@@ -154,12 +154,20 @@ case object ResolveReferences {
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
+    case inv @ JavaNewClass(args, typeArgs, name, givenMap, yields) =>
+      inv.ref = Some(Java.findConstructor(name, args).getOrElse(throw NoSuchConstructor(inv)))
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv @ PVLInvocation(None, method, args, typeArgs, givenMap, yields) =>
       inv.ref = Some(PVL.findMethod(method, args, typeArgs, ctx).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv @ PVLInvocation(Some(obj), method, args, typeArgs, givenMap, yields) =>
       inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame).getOrElse(throw NoSuchNameError("method", method, inv)))
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
+    case inv @ PVLNew(t, args, givenMap, yields) =>
+      inv.ref = Some(PVL.findConstructor(t, args).getOrElse(throw NoSuchConstructor(inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv @ ADTFunctionInvocation(typeArgs, ref, args) =>

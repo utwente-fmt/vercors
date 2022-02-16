@@ -136,6 +136,10 @@ class FeatureRainbow[G] {
     case node: PermPointerIndex[G] => return Seq(SugarPermissionOperator, Pointers)
     case node: Eq[G] => return Nil
     case node: Neq[G] => return Nil
+    case node: AmbiguousGreater[G] => AmbiguousOperators
+    case node: AmbiguousLess[G] => AmbiguousOperators
+    case node: AmbiguousGreaterEq[G] => AmbiguousOperators
+    case node: AmbiguousLessEq[G] => AmbiguousOperators
     case node: Greater[G] => return Nil
     case node: Less[G] => return Nil
     case node: GreaterEq[G] => return Nil
@@ -178,6 +182,8 @@ class FeatureRainbow[G] {
     case node: BagMemberCount[G] => return Nil
     case node: SubSet[G] => return Nil
     case node: SubSetEq[G] => SugarCollectionOperator
+    case node: SubBag[G] => return Nil
+    case node: SubBagEq[G] => SugarCollectionOperator
     case node: Permutation[G] => PermutationOperator
     case node: OptGet[G] => AxiomaticLibraryType
     case node: OptGetOrElse[G] => AxiomaticLibraryType

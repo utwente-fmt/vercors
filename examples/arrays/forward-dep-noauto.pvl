@@ -31,7 +31,7 @@ class Ref {
 				context 0 <= tid && tid < tcount;
         requires tid<tcount-1 ==> Perm(a[tid], 1\2); // Perm(a[tid], read) also possible (5)    
         ensures  tid>0 ==> Perm(a[tid-1], 1\2); // Perm(a[tid-1], read) also possible (6)
-        requires tid<tcount-1 ==> a[tid]==tid+1;  
+        requires tid<tcount-1 ==> a[tid]==tid+1;
         ensures  tid>0 ==> a[tid-1]==tid;
       }
       if (tid>0) {

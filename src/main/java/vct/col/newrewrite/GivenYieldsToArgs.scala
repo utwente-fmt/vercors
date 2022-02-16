@@ -33,7 +33,7 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
         outArgs = collectInScope(variableScopes) {
           method.outArgs.foreach(dispatch)
           method.contract.yieldsArgs.foreach(dispatch)
-        }
+        },
       ).succeedDefault(method)
     case func: AbstractFunction[Pre] =>
       func.rewrite(
@@ -66,6 +66,7 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
       inv.rewrite(
         args = inv.args.map(dispatch) ++ orderedGivenValues,
         outArgs = inv.outArgs.map(succ[Variable[Post]]) ++ orderedYieldTargets,
+        givenMap = Nil, yields = Nil,
       )
     case inv: AnyFunctionInvocation[Pre] =>
       val givenMap = inv.givenMap.map { case (givenArg, value) => (givenArg.decl, value) }.toMap
@@ -73,7 +74,7 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
         case Some(value) => dispatch(value)
         case None => throw MissingGivenArg(inv, givenArg)
       })
-      inv.rewrite(args = inv.args.map(dispatch) ++ orderedGivenValues)
+      inv.rewrite(args = inv.args.map(dispatch) ++ orderedGivenValues, givenMap = Nil, yields = Nil)
     case e => rewriteDefault(e)
   }
 
@@ -95,6 +96,7 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
       inv.rewrite(
         args = inv.args.map(dispatch) ++ orderedGivenValues,
         outArgs = inv.outArgs.map(succ[Variable[Post]]) ++ orderedYieldTargets,
+        givenMap = Nil, yields = Nil,
       )
     case other => rewriteDefault(other)
   }

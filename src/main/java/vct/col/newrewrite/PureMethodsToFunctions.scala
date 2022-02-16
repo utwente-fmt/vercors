@@ -11,8 +11,7 @@ import vct.result.VerificationResult.UserError
 case object PureMethodsToFunctions extends RewriterBuilder {
   case object PureMethodOrigin extends Origin {
     override def preferredName: String = "unknown"
-    override def messageInContext(message: String): String =
-      s"[At node generated for pure method]: $message"
+    override def context: String = "[At node generated for pure method]"
   }
 
   case class MethodCannotIntoFunction(explanation: String) extends UserError {

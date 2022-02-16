@@ -15,7 +15,7 @@ import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, Rewritten}
-import vct.col.util.AstBuildHelpers.MethodBuildHelpers
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
 
 import scala.collection.mutable
@@ -73,14 +73,12 @@ case object ImportADT extends RewriterBuilder {
 
   case class ArrayField(t: Type[_]) extends Origin {
     override def preferredName: String = typeText(t)
-    override def messageInContext(message:  String): String =
-      s"At field generated for array location of type $t: $message"
+    override def context: String = s"[At field generated for array location of type $t]"
   }
 
   case class PointerField(t: Type[_]) extends Origin {
     override def preferredName: String = typeText(t)
-    override def messageInContext(message:  String): String =
-      s"At field generated for pointer location of type $t: $message"
+    override def context: String = s"[At field generated for pointer location of type $t]"
   }
 
   case class OptionNonePreconditionFailed(access: OptGet[_]) extends Blame[PreconditionFailed] {
@@ -162,7 +160,7 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     val regularProgram = LangSpecificToCol().dispatch(typedProgram)
     val program = regularProgram.asInstanceOf[Program[Pre]]
     program.declarations.foreach(dispatch)
-    program.declarations.map(succ(_).decl.asInstanceOf[GlobalDeclaration[Post]])
+    program.declarations.map(lookupSuccessor(_).get.asInstanceOf[GlobalDeclaration[Post]])
   }
 
   private lazy val nothingFile = parse("nothing")
@@ -315,6 +313,11 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     case CoerceZFracFrac() =>
       val rat = ADTFunctionInvocation[Post](Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
       FunctionInvocation[Post](fracNew.ref, Seq(rat), Nil, Nil, Nil)(NoContext(ZFracFracPreconditionFailed(globalBlame.top, e)))
+
+    case CoerceBoundIntFrac() =>
+      FunctionInvocation[Post](fracNew.ref, Seq(WritePerm()), Nil, Nil, Nil)(PanicBlame("The constant 1 always fits in a frac."))
+    case CoerceBoundIntZFrac(_) =>
+      FunctionInvocation[Post](zfracNew.ref, Seq(Select(e === const(0), NoPerm(), WritePerm())), Nil, Nil, Nil)(PanicBlame("The constants 0 and 1 always fit in a zfrac."))
 
     case _ => super.applyCoercion(e, coercion)
   }

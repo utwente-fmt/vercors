@@ -1,7 +1,7 @@
 package vct.parsers.transform
 
 import hre.util.FuncTools
-import org.antlr.v4.runtime.ParserRuleContext
+import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
 import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
@@ -11,13 +11,13 @@ import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.Java
-import vct.col.util.AstBuildHelpers
+import vct.col.util.{AstBuildHelpers, ExpectedError}
 
 import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: mutable.Map[(Int, Int), String])
+case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol[G](originProvider, blameProvider, errors) {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
@@ -513,7 +513,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         blame(expr))
     case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
     case JavaNew(given, _, creator, yields) =>
-      convert(creator)
+      convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
     case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
     case JavaPostfixIncDec(inner, postOp) =>
       val target = convert(inner)
@@ -555,10 +555,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case ShiftOp2(_, _) => BitShr(convert(left), convert(right))
     }
     case JavaRel(left, comp, right) => comp match {
-      case RelOp0("<=") => LessEq(convert(left), convert(right))
-      case RelOp0(">=") => GreaterEq(convert(left), convert(right))
-      case RelOp0(">") => Greater(convert(left), convert(right))
-      case RelOp0("<") => Less(convert(left), convert(right))
+      case RelOp0("<=") => AmbiguousLessEq(convert(left), convert(right))
+      case RelOp0(">=") => AmbiguousGreaterEq(convert(left), convert(right))
+      case RelOp0(">") => AmbiguousGreater(convert(left), convert(right))
+      case RelOp0("<") => AmbiguousLess(convert(left), convert(right))
       case RelOp1(valOp) => convert(valOp, convert(left), convert(right))
     }
     case JavaInstanceOf(obj, _, t) => InstanceOf(convert(obj), TypeValue(convert(t)))
@@ -607,19 +607,19 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       col.JavaInvocation(obj, typeArgs, convert(name), convert(arguments), Nil, Nil)(blame(invocation))
   }
 
-  def convert(implicit expr: CreatorContext): Expr[G] = expr match {
+  def convert(implicit expr: CreatorContext, givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]): Expr[G] = expr match {
     case Creator0(typeArgs, name, creator) =>
-      convert(creator, convert(typeArgs), convert(name))
+      convert(creator, convert(typeArgs), convert(name), givenArgs, yields)
     case Creator1(name, creator) => creator match {
       case CreatorRest0(array) => convert(array, convert(name))
-      case CreatorRest1(cls) => convert(cls, Nil, convert(name))
+      case CreatorRest1(cls) => convert(cls, Nil, convert(name), givenArgs, yields)
     }
   }
 
-  def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type[G]], name: Type[G]): Expr[G] = creator match {
+  def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]): Expr[G] = creator match {
     case ClassCreatorRest0(args, impl) =>
       failIfDefined(impl, "Anonymous classes are not supported")
-      JavaNewClass(convert(args), ts, name)(blame(creator))
+      JavaNewClass(convert(args), ts, name, givenArgs, yields)(blame(creator))
   }
 
   def convert(implicit creator: ArrayCreatorRestContext, name: Type[G]): Expr[G] = creator match {

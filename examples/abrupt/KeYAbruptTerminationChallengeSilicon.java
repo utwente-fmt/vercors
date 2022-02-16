@@ -25,7 +25,7 @@ class AbruptTermination {
             loop_invariant 0 <= i && i <= ia.length;
             // See: https://github.com/utwente-fmt/vercors/issues/511
             // loop_invariant ia == \old(ia); // Extra invariant needed for Pass with silicon.
-            loop_invariant (\forall int j; 0<=j && j<i; ia[j] >= 0 && ia[j] == \old(ia[j]));
+            loop_invariant (\forall int j; 0<=j && j<i; ia[j] >= 0 && ia[j] == \old([/expect arrayBounds] ia[j] [/end]));
             loop_invariant (\forall int j; i<=j && j<ia.length; ia[j] == \old(ia[j])); // Extra invariant needed
          */
         for (int i = 0 ; i < ia.length; i++) {

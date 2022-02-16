@@ -65,14 +65,16 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
 
   case class ApplyParametricBindings(bindings: Map[Variable[Pre], Ref[Pre, Variable[Pre]]]) extends NonLatchingRewriter[Pre, Pre] {
     override def succ[DPost <: Declaration[Pre]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Pre, DPost] = decl match {
-      case v: Variable[Pre] => bindings.getOrElse(v, new LazyRef(v)).asInstanceOf[Ref[Pre, DPost]]
+      case v: Variable[Pre] => bindings.getOrElse(v, new LazyRef[Pre, DPost](v)).asInstanceOf[Ref[Pre, DPost]]
       case other => new LazyRef(other)
     }
 
     override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(decl)
   }
 
-  case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]]) extends NonLatchingRewriter[Rule, Pre] {
+  case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]], defaultOrigin: Origin) extends NonLatchingRewriter[Rule, Pre] {
+    override def dispatch(o: Origin): Origin = defaultOrigin
+
     override def dispatch(e: Expr[Rule]): Expr[Pre] = e match {
       case Local(Ref(v)) =>
         if(inst.contains(v)) ApplyParametricBindings(Map.empty).dispatch(inst(v)._1)
@@ -209,7 +211,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
         return None
     }
 
-    val result = ApplyRule(inst.toMap, typeInst.toMap).dispatch(subtitute)
+    val result = ApplyRule(inst.toMap, typeInst.toMap, subject.o).dispatch(subtitute)
 
     if(debugMatch) {
       if(debugMatchShort) {

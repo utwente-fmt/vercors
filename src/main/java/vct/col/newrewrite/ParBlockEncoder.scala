@@ -2,7 +2,7 @@ package vct.col.newrewrite
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.newrewrite.util.{Extract, FreshSuccessionScope, Substitute}
+import vct.col.newrewrite.util.{Extract, Substitute}
 import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers
@@ -17,9 +17,7 @@ case object ParBlockEncoder extends RewriterBuilder {
   }
 
   case class ParRegionImpl(region: ParRegion[_]) extends Origin {
-    override def messageInContext(message: String): String =
-      region.o.messageInContext(message)
-
+    override def context: String = region.o.context
     override def preferredName: String = "do_" + regionName(region)
   }
 
@@ -27,30 +25,12 @@ case object ParBlockEncoder extends RewriterBuilder {
     override def preferredName: String =
       "check_" + regionName(block)
 
-    override def messageInContext(message: String): String =
-      block.o.messageInContext(message)
+    override def context: String = block.o.context
   }
 
   case object ParImpl extends Origin {
     override def preferredName: String = "unknown"
-    override def messageInContext(message: String): String =
-      s"[At node generated for the implementation of parallel blocks]: $message"
-  }
-
-  case class ParBarrierPostconditionFailed(barrier: ParBarrier[_]) extends Blame[CallableFailure] {
-    override def blame(error: CallableFailure): Unit = error match {
-      case PostconditionFailed(_, failure, _) =>
-        barrier.blame.blame(ParBarrierInconsistent(failure, barrier))
-      case ctx: ContextEverywhereFailedInPost =>
-        PanicBlame("the generated method for a barrier proof does not include context_everywhere clauses.").blame(ctx)
-      case _: SignalsFailed | _: ExceptionNotInSignals =>
-        barrier.blame.blame(ParBarrierMayNotThrow(barrier))
-    }
-  }
-
-  case class ParBarrierExhaleFailed(barrier: ParBarrier[_]) extends Blame[ExhaleFailed] {
-    override def blame(error: ExhaleFailed): Unit =
-      barrier.blame.blame(ParBarrierNotEstablished(error.failure, barrier))
+    override def context: String = s"[At node generated for the implementation of parallel blocks]"
   }
 
   case class ParPreconditionPostconditionFailed(region: ParRegion[_]) extends Blame[PostconditionFailed] {
@@ -143,8 +123,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         val result = procedure[Post](
           blame = AbstractApplicable,
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-          requires = UnitAccountedPredicate(FreshSuccessionScope(this).dispatch(inv &* req)),
-          ensures = UnitAccountedPredicate(FreshSuccessionScope(this).dispatch(inv &* ens)),
+          requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
+          ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
         )(ParRegionImpl(region))
         result.declareDefault(this)
         (result, vars.values.map(dispatch).toSeq)
@@ -154,8 +134,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         val result = procedure[Post](
           blame = AbstractApplicable,
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-          requires = UnitAccountedPredicate(FreshSuccessionScope(this).dispatch(inv &* req)),
-          ensures = UnitAccountedPredicate(FreshSuccessionScope(this).dispatch(inv &* ens)),
+          requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
+          ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
         )(ParRegionImpl(region))
         result.declareDefault(this)
         (result, vars.values.map(dispatch).toSeq)
@@ -166,8 +146,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           val result = procedure[Post](
             blame = AbstractApplicable,
             args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-            requires = UnitAccountedPredicate(FreshSuccessionScope(this).dispatch(inv &* req)),
-            ensures = UnitAccountedPredicate(FreshSuccessionScope(this).dispatch(inv &* ens)),
+            requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
+            ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
           )(ParRegionImpl(region))
           result.declareDefault(this)
           (result, vars.values.map(dispatch).toSeq)
@@ -186,8 +166,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         case (left, right) =>
           proveImplies(
             ParPreconditionPostconditionFailed(right),
-            FreshSuccessionScope(this).dispatch(ensures(left, includingInvariant = true)),
-            FreshSuccessionScope(this).dispatch(requires(right, includingInvariant = true))
+            freshSuccessionScope { dispatch(ensures(left, includingInvariant = true)) },
+            freshSuccessionScope { dispatch(requires(right, includingInvariant = true)) }
           )
       }
       regions.foreach(emitChecks)
@@ -223,7 +203,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 //      println(s"    - context = $context")
 //      println()
 
-      val invariantHere = FreshSuccessionScope(this).dispatch(invariant && context && foldAnd(ranges))
+      val invariantHere = freshSuccessionScope { dispatch(invariant && context && foldAnd(ranges)) }
 
       invariants.having(context && foldAnd(ranges)) {
         procedure(
@@ -242,17 +222,6 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       val (proc, args) = getRegionMethod(impl)
       emitChecks(impl)
       Eval(ProcedureInvocation[Post](proc.ref, args, Nil, Nil, Nil, Nil)(NoContext(ParPreconditionPreconditionFailed(impl))))
-
-    case parBarrier @ ParBarrier(blockRef, invs, requires, ensures, content) =>
-      implicit val o: Origin = parBarrier.o
-      val block = parDecls(blockRef.decl)
-      // TODO: it is a type-check error to have an invariant reference be out of scope in a barrier
-      proveImplies(ParBarrierPostconditionFailed(parBarrier), dispatch(quantify(block, requires)), dispatch(quantify(block, ensures)), hint = dispatch(content))
-
-      Block(Seq(
-        Exhale(dispatch(requires))(ParBarrierExhaleFailed(parBarrier)),
-        Inhale(dispatch(ensures)),
-      ))
 
     case other => rewriteDefault(other)
   }

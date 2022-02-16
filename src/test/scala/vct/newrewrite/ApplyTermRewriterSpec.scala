@@ -13,7 +13,7 @@ import java.nio.file.Paths
 case class ApplyTermRewriterSpec() extends AnyFlatSpec with should.Matchers {
   case class Named(name: String) extends Origin {
     override def preferredName: String = name
-    override def messageInContext(message: String): String = message
+    override def context: String = ""
   }
 
   it should "do some stuff" in {

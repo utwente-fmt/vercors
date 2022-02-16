@@ -1,15 +1,11 @@
 package vct.col.newrewrite
 
 import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import RewriteHelpers._
-import vct.col.newrewrite.util.FreshSuccessionScope
 import vct.col.origin._
-import vct.col.ref.{LazyRef, Ref}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-
-import scala.reflect.ClassTag
 
 case object PropagateContextEverywhere extends RewriterBuilder {
   case class ContextEverywherePreconditionFailed(inv: InvokingNode[_]) extends Blame[PreconditionFailed] {
@@ -40,21 +36,21 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   }
 
   def freshInvariants()(implicit o: Origin): Expr[Post] =
-    foldStar(invariants.top.map(inv => FreshSuccessionScope(this).dispatch(inv)))
+    foldStar(invariants.top.map(inv => freshSuccessionScope { dispatch(inv) }))
 
   def booleanInvariants: Seq[Expr[Pre]] = invariants.top.filter(inv => TBool().superTypeOf(inv.t))
 
   def freshBooleanInvariants()(implicit o: Origin): Expr[Post] =
-    foldAnd(booleanInvariants.map(inv => FreshSuccessionScope(this).dispatch(inv)))
+    foldAnd(booleanInvariants.map(inv => freshSuccessionScope { dispatch(inv) }))
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] =>
       (withInvariant(app.contract.contextEverywhere) {
         app match {
           case func: AbstractFunction[Pre] =>
-            func.rewrite(blame = ContractedBlameSplit.left(ContextEverywherePostconditionFailed(app), func.blame))
+            func.rewrite(blame = PostBlameSplit.left(ContextEverywherePostconditionFailed(app), func.blame))
           case method: AbstractMethod[Pre] =>
-            method.rewrite(blame = ImplBlameSplit.left(ContextEverywherePostconditionFailed(app), method.blame))
+            method.rewrite(blame = PostBlameSplit.left(ContextEverywherePostconditionFailed(app), method.blame))
         }
       }).succeedDefault(app)
     case other => rewriteDefault(other)
@@ -70,14 +66,22 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case inv: Invocation[Pre] =>
-      inv.rewrite(blame = InvBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
+    case inv: ProcedureInvocation[Pre] =>
+      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
+    case inv: MethodInvocation[Pre] =>
+      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
+    case inv: FunctionInvocation[Pre] =>
+      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
+    case inv: InstanceFunctionInvocation[Pre] =>
+      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
     case other => rewriteDefault(other)
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case inv: InvocationStatement[Pre] =>
-      inv.rewrite(blame = InvBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
+    case inv: InvokeProcedure[Pre] =>
+      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
+    case inv: InvokeMethod[Pre] =>
+      inv.rewrite(blame = PreBlameSplit.left(ContextEverywherePreconditionFailed(inv), inv.blame))
     case bar: ParBarrier[Pre] =>
       implicit val o: Origin = bar.o
       bar.rewrite(

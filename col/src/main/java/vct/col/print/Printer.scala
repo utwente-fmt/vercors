@@ -607,7 +607,7 @@ case class Printer(out: Appendable,
         case None =>
           phrase(method, "(", commas(arguments.map(NodePhrase)), ")")
       }, 100)
-    case JavaNewClass(args, typeArgs, name) =>
+    case JavaNewClass(args, typeArgs, name, givenMap, yields) =>
       (phrase("new", space, name, "(", commas(args.map(NodePhrase)), ")"), 100)
     case JavaNewLiteralArray(baseType, dims, initializer) =>
       (phrase("new", space, baseType, "[]".repeat(dims), initializer), 100)
@@ -822,13 +822,13 @@ case class Printer(out: Appendable,
       (phrase(bind(50, left), space, "==", space, bind(50, right)), 50)
     case Neq(left, right) =>
       (phrase(bind(50, left), space, "!=", space, bind(50, right)), 50)
-    case Greater(left, right) =>
+    case AmbiguousGreater(left, right) =>
       (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
-    case Less(left, right) =>
+    case AmbiguousLess(left, right) =>
       (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
-    case GreaterEq(left, right) =>
+    case AmbiguousGreaterEq(left, right) =>
       (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
-    case LessEq(left, right) =>
+    case AmbiguousLessEq(left, right) =>
       (phrase(bind(60, left), space, "<=", space, bind(60, right)), 60)
     case SubSet(left, right) =>
       ???

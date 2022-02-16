@@ -11,7 +11,9 @@ class Ref {
   @*/
   void t1(boolean b, int d,Ref r)
   {
+    /*[/expect failed]*/
     r.test = b;
+    /*[/end]*/
     //@ assert b == (r.test);
   }
 

@@ -49,6 +49,23 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isBagOp) BagMemberCount(dispatch(x), dispatch(xs))
         else if(op.isSeqOp) SeqMember(dispatch(x), dispatch(xs))
         else throw Unreachable("AmbiguousMember must query a map, set, bag, or seq because of the type check.")
+      case cmp: AmbiguousOrderOp[Pre] =>
+        if(cmp.isBagOp) cmp match {
+          case AmbiguousGreater(left, right) => SubBag(dispatch(right), dispatch(left))
+          case AmbiguousLess(left, right) => SubBag(dispatch(left), dispatch(right))
+          case AmbiguousGreaterEq(left, right) => SubBagEq(dispatch(right), dispatch(left))
+          case AmbiguousLessEq(left, right) => SubBagEq(dispatch(left), dispatch(right))
+        } else if(cmp.isSetOp) cmp match {
+          case AmbiguousGreater(left, right) => SubSet(dispatch(right), dispatch(left))
+          case AmbiguousLess(left, right) => SubSetEq(dispatch(left), dispatch(right))
+          case AmbiguousGreaterEq(left, right) => SubSetEq(dispatch(right), dispatch(left))
+          case AmbiguousLessEq(left, right) => SubSetEq(dispatch(left), dispatch(right))
+        } else cmp match {
+          case AmbiguousGreater(left, right) => Greater(dispatch(left), dispatch(right))
+          case AmbiguousLess(left, right) => Less(dispatch(left), dispatch(right))
+          case AmbiguousGreaterEq(left, right) => GreaterEq(dispatch(left), dispatch(right))
+          case AmbiguousLessEq(left, right) => LessEq(dispatch(left), dispatch(right))
+        }
       case other => rewriteDefault(other)
     }
   }

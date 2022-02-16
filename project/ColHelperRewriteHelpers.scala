@@ -11,8 +11,10 @@ case class ColHelperRewriteHelpers(info: ColDescription) {
 
   def makeRewriteHelper(cls: ClassDef): Stat = q"""
     implicit class ${cls.rewriteHelperName}[Pre, Post](val subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post]) {
-      def rewrite(..${cls.params.map(rewriteHelperParam) ++ cls.blameType.toSeq.map(t => Term.Param(Nil, BLAME_TERM, Some(t), Some(q"subject.$BLAME_TERM")))}): ${cls.typ}[Post] = {
-        ${cls.make(cls.params.map(p => Term.Name(p.name.value)), BLAME_TERM, q"subject.$ORIGIN_TERM")} }
+      def rewrite(..${cls.params.map(rewriteHelperParam) ++
+        cls.blameType.toSeq.map(t => Term.Param(Nil, BLAME_TERM, Some(t), Some(q"subject.$BLAME_TERM"))) :+
+        Term.Param(List(), ORIGIN_TERM, Some(t"Origin"), Some(q"rewriter.dispatch(subject.o)"))}): ${cls.typ}[Post] = {
+        ${cls.make(cls.params.map(p => Term.Name(p.name.value)), BLAME_TERM, q"o")} }
     }
   """
 

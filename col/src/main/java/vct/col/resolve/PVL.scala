@@ -3,11 +3,22 @@ package vct.col.resolve
 import vct.col.ast._
 import vct.col.ast
 import vct.col.origin._
+import vct.col.ref.Ref
 
 case object PVL {
-  def findConstructor[G](cls: ast.Class[G], args: Seq[Expr[G]]): Option[PVLConstructor[G]] =
-    cls.declarations.collectFirst {
-      case cons: PVLConstructor[G] if Util.compat(args, cons.args) => cons
+  def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[PVLConstructorTarget[G]] =
+    t match {
+      case TClass(Ref(cls)) =>
+        val resolvedCons = cls.declarations.collectFirst {
+          case cons: PVLConstructor[G] if Util.compat(args, cons.args) => RefPVLConstructor(cons)
+        }
+
+        args match {
+          case Nil => resolvedCons.orElse(Some(ImplicitDefaultPVLConstructor()))
+          case _ => resolvedCons
+        }
+      case TModel(Ref(model)) if args.isEmpty => Some(RefModel(model))
+      case _ => None
     }
 
   def findTypeName[G](name: String, ctx: TypeResolutionContext[G]): Option[PVLTypeNameTarget[G]] =

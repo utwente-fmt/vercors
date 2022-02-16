@@ -20,38 +20,32 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
 
   case object ExcVar extends Origin {
     override def preferredName: String = "exc"
-    override def messageInContext(message: String): String =
-      s"[At variable generated to contain thrown exception]: $message"
+    override def context: String = "[At variable generated to contain thrown exception]"
   }
 
   case object CurrentlyHandling extends Origin {
     override def preferredName: String = "currently_handling_exc"
-    override def messageInContext(message: String): String =
-      s"[At variable generated to remember exception currently being handled]: $message"
+    override def context: String = "[At variable generated to remember exception currently being handled]"
   }
 
   case object ReturnPoint extends Origin {
     override def preferredName: String = "bubble"
-    override def messageInContext(message: String): String =
-      s"[At label generated to bubble an exception]: $message"
+    override def context: String = "[At label generated to bubble an exception]"
   }
 
   case object CatchLabel extends Origin {
     override def preferredName: String = "catches"
-    override def messageInContext(message: String): String =
-      s"[At label generated for catch blocks]: $message"
+    override def context: String = "[At label generated for catch blocks]"
   }
 
   case object FinallyLabel extends Origin {
     override def preferredName: String = "finally"
-    override def messageInContext(message: String): String =
-      s"[At label generated for finally]: $message"
+    override def context: String = "[At label generated for finally]"
   }
 
   case object ExcBeforeLoop extends Origin {
     override def preferredName: String = "excBeforeLoop"
-    override def messageInContext(message: String): String =
-      s"[At variable generated to contain exc before loop]: $message"
+    override def context: String = "[At variable generated to contain exc before loop]"
   }
 
   case class SignalsClosedPostconditionFailed(method: AbstractMethod[_]) extends Blame[PostconditionFailed] {
@@ -193,9 +187,11 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  def inlineExtraCondition(condition: Expr[Post], clause: AccountedPredicate[Pre])(implicit o: Origin): AccountedPredicate[Post] = clause match {
-    case UnitAccountedPredicate(pred) => UnitAccountedPredicate[Post](condition ==> dispatch(pred))(clause.o)
-    case SplitAccountedPredicate(left, right) => SplitAccountedPredicate[Post](inlineExtraCondition(condition, left), inlineExtraCondition(condition, right))(clause.o)
+  def inlineExtraCondition(condition: Expr[Post], clause: AccountedPredicate[Pre]): AccountedPredicate[Post] = clause match {
+    case UnitAccountedPredicate(pred) =>
+      UnitAccountedPredicate[Post](mapUnfoldedStar(pred, (e: Expr[Pre]) => Implies(condition, dispatch(e))(e.o)))(clause.o)
+    case SplitAccountedPredicate(left, right) =>
+      SplitAccountedPredicate[Post](inlineExtraCondition(condition, left), inlineExtraCondition(condition, right))(clause.o)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
@@ -230,14 +226,14 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
                 binding.drop()
                 ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
                   signalsBinding.having((binding, exc.get)) { dispatch(assn) }
-            }))
+            })),
           ),
         )
 
         method.rewrite(
-          blame = ImplBlameSplit.left(
+          blame = PostBlameSplit.left(
             left = SignalsClosedPostconditionFailed(method),
-            right = ImplBlameSplit.right(
+            right = PostBlameSplit.right(
               left = method.blame,
               right = SignalsFailedPostconditionFailed(method),
             ),

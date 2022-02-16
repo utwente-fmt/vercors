@@ -17,7 +17,7 @@ import scala.reflect.ClassTag
 case object MonomorphizeContractApplicables extends RewriterBuilder {
   case class VerificationForGeneric(applicable: ContractApplicable[_]) extends Origin {
     override def preferredName: String = "verify_" + applicable.o.preferredName
-    override def messageInContext(message: String): String = applicable.o.messageInContext(message)
+    override def context: String = applicable.o.context
   }
 }
 
@@ -42,7 +42,7 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
       val typeValues = inv.typeArgs.map(dispatch)
 
       val app = monomorphized.getOrElseUpdate(typeValues, currentSubstitutions.having(inv.ref.decl.typeArgs.zip(typeValues).toMap) {
-        successionMap.having(SuccessionMap()) {
+        freshSuccessionScope {
           val app1 = inv.ref.decl.rewrite(typeArgs = Nil)
           app1.declareDefault(this)
           app1

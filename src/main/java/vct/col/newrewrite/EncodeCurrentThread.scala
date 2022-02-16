@@ -10,8 +10,7 @@ import vct.result.VerificationResult.UserError
 case object EncodeCurrentThread extends RewriterBuilder {
   case object CurrentThreadIdOrigin extends Origin {
     override def preferredName: String = "tid"
-    override def messageInContext(message: String): String =
-      s"[At generated variable for the current thread ID]: $message"
+    override def context: String = "[At generated variable for the current thread ID]"
   }
 
   abstract class MisplacedCurrentThreadReference extends UserError {

@@ -1,6 +1,6 @@
 package vct.parsers.transform
 
-import org.antlr.v4.runtime.ParserRuleContext
+import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
 import vct.col.origin._
 import vct.antlr4.generated.PVLParser._
@@ -11,13 +11,13 @@ import vct.col.ast.stmt.composite.ParallelRegion
 import vct.col.util.AstBuildHelpers._
 import hre.util.FuncTools
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.util.AstBuildHelpers
+import vct.col.util.{AstBuildHelpers, ExpectedError}
 
 import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class PVLToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: mutable.Map[(Int, Int), String])
+case class PVLToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol[G](originProvider, blameProvider, errors) {
   def convert(implicit program: ProgramContext): Seq[GlobalDeclaration[G]] = program match {
     case Program0(decls, _) => decls.flatMap(convert(_))
@@ -164,10 +164,10 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: RelExprContext): Expr[G] = expr match {
-    case RelExpr0(left, _, right) => Less(convert(left), convert(right))
-    case RelExpr1(left, _, right) => LessEq(convert(left), convert(right))
-    case RelExpr2(left, _, right) => GreaterEq(convert(left), convert(right))
-    case RelExpr3(left, _, right) => Greater(convert(left), convert(right))
+    case RelExpr0(left, _, right) => AmbiguousLess(convert(left), convert(right))
+    case RelExpr1(left, _, right) => AmbiguousLessEq(convert(left), convert(right))
+    case RelExpr2(left, _, right) => AmbiguousGreaterEq(convert(left), convert(right))
+    case RelExpr3(left, _, right) => AmbiguousGreater(convert(left), convert(right))
     case RelExpr4(left, specOp, right) => convert(specOp, convert(left), convert(right))
     case RelExpr5(inner) => convert(inner)
   }
@@ -210,7 +210,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
-    case NewExpr0(_, name, Call0(typeArgs, given, args, yields)) => PVLNew(convert(name), convert(args))(blame(expr))
+    case NewExpr0(_, name, Call0(typeArgs, given, args, yields)) =>
+      PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
     case NewExpr2(inner) => convert(inner)
   }

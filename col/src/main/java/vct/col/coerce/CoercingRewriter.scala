@@ -26,10 +26,9 @@ case object CoercingRewriter {
   case class Incoercible(e: Expr[_], target: Type[_]) extends CoercionError
   case class IncoercibleText(e: Expr[_], message: String) extends CoercionError
 
-  case object CoercionOrigin extends Origin {
+  case class CoercionOrigin(of: Expr[_]) extends Origin {
     override def preferredName: String = "unknown"
-    override def messageInContext(message: String): String =
-      s"At node generated for a coercion: $message"
+    override def context: String = of.o.context
   }
 }
 
@@ -217,7 +216,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
       case None => throw Incoercible(value, target)
-    })(CoercionOrigin)
+    })(CoercionOrigin(value))
 
   def coerceArgs(args: Seq[Expr[Pre]], app: Applicable[Pre]): Seq[Expr[Pre]] =
     args.zip(app.args).map {
@@ -234,7 +233,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case (Ref(v), e) => (v.ref, coerce(e, v.t))
     }
 
-  def coerceYields(yields: Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])], blame: Expr[_]): Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])] =
+  def coerceYields(yields: Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])], blame: => Expr[_]): Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])] =
     yields.map {
       case (Ref(target), Ref(yieldArg)) => CoercionUtils.getCoercion[Pre](yieldArg.t, target.t) match {
         case None => throw IncoercibleText(blame, "The target for a yielded argument does not exactly match the yields type.")
@@ -251,72 +250,72 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
     CoercionUtils.getAnyOptionCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected an option here, but got ${e.t}")
     }
   def tuple(e: Expr[Pre]): (Expr[Pre], TTuple[Pre]) =
     CoercionUtils.getAnyTupleCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a tuple here, but got ${e.t}")
     }
   def seq(e: Expr[Pre]): (Expr[Pre], TSeq[Pre]) =
     CoercionUtils.getAnySeqCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a sequence here, but got ${e.t}")
     }
   def set(e: Expr[Pre]): (Expr[Pre], TSet[Pre]) =
     CoercionUtils.getAnySetCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a set here, but got ${e.t}")
     }
   def bag(e: Expr[Pre]): (Expr[Pre], TBag[Pre]) =
     CoercionUtils.getAnyBagCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a bag here, but got ${e.t}")
     }
   def map(e: Expr[Pre]): (Expr[Pre], TMap[Pre]) =
     CoercionUtils.getAnyMapCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a map here, but got ${e.t}")
     }
   def collection(e: Expr[Pre]): (Expr[Pre], SizedType[Pre]) =
     CoercionUtils.getAnyCollectionCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a collection type here, but got ${e.t}")
     }
   def array(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
     CoercionUtils.getAnyArrayCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected an array here, but got ${e.t}")
     }
   def arrayMatrix(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
     CoercionUtils.getAnyMatrixArrayCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a two-dimensional array here, but got ${e.t}")
     }
   def pointer(e: Expr[Pre]): (Expr[Pre], TPointer[Pre]) =
     CoercionUtils.getAnyPointerCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a pointer here, but got ${e.t}")
     }
   def cls(e: Expr[Pre]): (Expr[Pre], Type[Pre]) =
     CoercionUtils.getAnyClassCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a class here, but got ${e.t}")
     }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
     CoercionUtils.getAnyMatrixCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a matrix here, but got ${e.t}")
     }
   def model(e: Expr[Pre]): (Expr[Pre], TModel[Pre]) =
     CoercionUtils.getAnyModelCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a model here, but got ${e.t}")
     }
   def either(e: Expr[Pre]): (Expr[Pre], TEither[Pre]) =
     CoercionUtils.getAnyEitherCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected an either here, but got ${e.t}")
     }
 
@@ -407,6 +406,66 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         firstOk(e, s"Expected both operands to be of type integer or boolean, but got ${left.t} and ${right.t}.",
           AmbiguousComputationalXor(int(left), int(right)),
           AmbiguousComputationalXor(bool(left), bool(right)),
+        )
+      case AmbiguousGreater(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
+          AmbiguousGreater(int(left), int(right)),
+          AmbiguousGreater(rat(left), rat(right)), {
+            val (coercedLeft, leftSet) = set(left)
+            val (coercedRight, rightSet) = set(right)
+            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
+            AmbiguousGreater(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
+          }, {
+            val (coercedLeft, leftBag) = bag(left)
+            val (coercedRight, rightBag) = bag(right)
+            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
+            AmbiguousGreater(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+          },
+        )
+      case AmbiguousGreaterEq(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
+          AmbiguousGreaterEq(int(left), int(right)),
+          AmbiguousGreaterEq(rat(left), rat(right)), {
+            val (coercedLeft, leftSet) = set(left)
+            val (coercedRight, rightSet) = set(right)
+            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
+            AmbiguousGreaterEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
+          }, {
+            val (coercedLeft, leftBag) = bag(left)
+            val (coercedRight, rightBag) = bag(right)
+            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
+            AmbiguousGreaterEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+          },
+        )
+      case AmbiguousLess(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
+          AmbiguousLess(int(left), int(right)),
+          AmbiguousLess(rat(left), rat(right)), {
+            val (coercedLeft, leftSet) = set(left)
+            val (coercedRight, rightSet) = set(right)
+            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
+            AmbiguousLess(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
+          }, {
+            val (coercedLeft, leftBag) = bag(left)
+            val (coercedRight, rightBag) = bag(right)
+            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
+            AmbiguousLess(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+          },
+        )
+      case AmbiguousLessEq(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
+          AmbiguousLessEq(int(left), int(right)),
+          AmbiguousLessEq(rat(left), rat(right)), {
+            val (coercedLeft, leftSet) = set(left)
+            val (coercedRight, rightSet) = set(right)
+            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
+            AmbiguousLessEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
+          }, {
+            val (coercedLeft, leftBag) = bag(left)
+            val (coercedRight, rightBag) = bag(right)
+            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
+            AmbiguousLessEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+          },
         )
       case AmbiguousMember(x, xs) =>
         firstOk(xs, s"Expected collection to be a sequence, set, bag or map, but got ${xs.t}.", {
@@ -565,34 +624,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
         GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)
       case Greater(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Greater(int(left), int(right)),
-          Greater(rat(left), rat(right)), {
-            val (coercedLeft, leftSet) = set(left)
-            val (coercedRight, rightSet) = set(right)
-            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
-            Greater(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
-          }, {
-            val (coercedLeft, leftBag) = bag(left)
-            val (coercedRight, rightBag) = bag(right)
-            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
-            Greater(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
-          },
+          Greater(rat(left), rat(right)),
         )
       case GreaterEq(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           GreaterEq(int(left), int(right)),
-          GreaterEq(rat(left), rat(right)), {
-            val (coercedLeft, leftSet) = set(left)
-            val (coercedRight, rightSet) = set(right)
-            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
-            GreaterEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
-          }, {
-            val (coercedLeft, leftBag) = bag(left)
-            val (coercedRight, rightBag) = bag(right)
-            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
-            GreaterEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
-          },
+          GreaterEq(rat(left), rat(right)),
         )
       case head @ Head(xs) =>
         Head(seq(xs)._1)(head.blame)
@@ -623,7 +662,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case JavaLiteralArray(exprs) =>
         JavaLiteralArray(exprs)
       case JavaLocal(name) => e
-      case JavaNewClass(args, typeArgs, name) => e
+      case JavaNewClass(args, typeArgs, name, givenMap, yields) => e
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
       case JoinToken(thread) =>
@@ -631,34 +670,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case length @ Length(arr) =>
         Length(array(arr)._1)(length.blame)
       case Less(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Less(int(left), int(right)),
-          Less(rat(left), rat(right)), {
-            val (coercedLeft, leftSet) = set(left)
-            val (coercedRight, rightSet) = set(right)
-            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
-            Less(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
-          }, {
-            val (coercedLeft, leftBag) = bag(left)
-            val (coercedRight, rightBag) = bag(right)
-            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
-            Less(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
-          },
+          Less(rat(left), rat(right)),
         )
       case LessEq(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           LessEq(int(left), int(right)),
-          LessEq(rat(left), rat(right)), {
-            val (coercedLeft, leftSet) = set(left)
-            val (coercedRight, rightSet) = set(right)
-            val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
-            LessEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
-          }, {
-            val (coercedLeft, leftBag) = bag(left)
-            val (coercedRight, rightBag) = bag(right)
-            val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
-            LessEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
-          },
+          LessEq(rat(left), rat(right)),
         )
       case Let(binding, value, main) =>
         Let(binding, coerce(value, binding.t), main)
@@ -839,7 +858,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case PVLDeref(obj, field) => e
       case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
       case PVLLocal(name) => e
-      case PVLNew(t, args) => e
+      case PVLNew(t, args, givenMap, yields) => e
       case Range(from, to) =>
         Range(int(from), int(to))
       case ReadPerm() =>
@@ -885,30 +904,26 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         Star(res(left), res(right))
       case Starall(bindings, triggers, body) =>
         Starall(bindings, triggers, res(body))
+      case SubBag(left, right) =>
+        val (coercedLeft, leftBag) = bag(left)
+        val (coercedRight, rightBag) = bag(right)
+        val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
+        SubBag(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+      case SubBagEq(left, right) =>
+        val (coercedLeft, leftBag) = bag(left)
+        val (coercedRight, rightBag) = bag(right)
+        val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
+        SubBagEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
       case SubSet(left, right) =>
-        firstOk(e, s"Expected both operands to be a set or bag, but got ${left.t} and ${right.t}.", {
-          val (coercedLeft, leftSet) = set(left)
-          val (coercedRight, rightSet) = set(right)
-          val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
-          SubSet(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
-        }, {
-          val (coercedLeft, leftBag) = bag(left)
-          val (coercedRight, rightBag) = bag(right)
-          val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
-          SubSet(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
-        })
+        val (coercedLeft, leftSet) = set(left)
+        val (coercedRight, rightSet) = set(right)
+        val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
+        SubSet(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
       case SubSetEq(left, right) =>
-        firstOk(e, s"Expected both operands to be a set or bag, but got ${left.t} and ${right.t}.", {
-          val (coercedLeft, leftSet) = set(left)
-          val (coercedRight, rightSet) = set(right)
-          val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
-          SubSetEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
-        }, {
-          val (coercedLeft, leftBag) = bag(left)
-          val (coercedRight, rightBag) = bag(right)
-          val sharedType = Types.leastCommonSuperType(leftBag.element, rightBag.element)
-          SubSetEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
-        })
+        val (coercedLeft, leftSet) = set(left)
+        val (coercedRight, rightSet) = set(right)
+        val sharedType = Types.leastCommonSuperType(leftSet.element, rightSet.element)
+        SubSetEq(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
       case SubType(left, right) =>
         SubType(left, right)
       case Sum(bindings, condition, main) =>

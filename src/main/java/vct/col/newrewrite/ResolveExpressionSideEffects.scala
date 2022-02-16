@@ -18,14 +18,12 @@ import scala.reflect.ClassTag
 case object ResolveExpressionSideEffects extends RewriterBuilder {
   case object SideEffectOrigin extends Origin {
     override def preferredName: String = "flatten"
-    override def messageInContext(message: String): String =
-      s"[At node generated to collect side effects]: $message"
+    override def context: String = "[At node generated to collect side effects]"
   }
 
   case object ResultVar extends Origin {
     override def preferredName: String = "res"
-    override def messageInContext(message: String): String =
-      s"[At node generated to contain the result of a method]: $message"
+    override def context: String = "[At node generated to contain the result of a method]"
   }
 }
 
@@ -328,7 +326,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         args = args.map(inlined),
         outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
-        givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+        givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(e.o))
       Local[Post](res.ref)(ResultVar)

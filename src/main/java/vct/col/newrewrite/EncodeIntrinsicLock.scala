@@ -32,14 +32,12 @@ case object EncodeIntrinsicLock extends RewriterBuilder {
 
   case class LockInvariantOrigin(cls: Class[_]) extends Origin {
     override def preferredName: String = "lock_inv_" + cls.o.preferredName
-    override def messageInContext(message: String): String =
-      cls.intrinsicLockInvariant.o.messageInContext(message)
+    override def context: String = cls.intrinsicLockInvariant.o.context
   }
 
   case class HeldTokenOrigin(cls: Class[_]) extends Origin {
     override def preferredName: String = "lock_held_" + cls.o.preferredName
-    override def messageInContext(message: String): String =
-      cls.intrinsicLockInvariant.o.messageInContext(message)
+    override def context: String = cls.intrinsicLockInvariant.o.context
   }
 }
 

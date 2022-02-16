@@ -27,6 +27,9 @@ case class DesugarCollectionOperators[Pre <: Generation]() extends Rewriter[Pre]
       case SubSetEq(xsPre, ysPre) =>
         val (xs, ys) = (dispatch(xsPre), dispatch(ysPre))
         SubSet(xs, ys) || xs === ys
+      case SubBagEq(xsPre, ysPre) =>
+        val (xs, ys) = (dispatch(xsPre), dispatch(ysPre))
+        SubBag(xs, ys) || xs === ys
       case other => rewriteDefault(other)
     }
   }

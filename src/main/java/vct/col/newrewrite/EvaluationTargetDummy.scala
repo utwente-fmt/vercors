@@ -9,8 +9,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 case object EvaluationTargetDummy extends RewriterBuilder {
   case object EvaluationOrigin extends Origin {
     override def preferredName: String = "evaluationDummy"
-    override def messageInContext(message: String): String =
-      s"[At variable generated for an evaluation]: $message"
+    override def context: String = s"[At variable generated for an evaluation]"
   }
 }
 

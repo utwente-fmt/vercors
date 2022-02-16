@@ -197,7 +197,7 @@ case class ColToSilver(program: col.Program[_]) {
     case SplitAccountedPredicate(left, right) => pred(left, path :+ FailLeft) ++ pred(right, path :+ FailRight)
   }
 
-  def expInfo[T <: col.Expr[_]](e: T): NodeInfo[T] = {
+  def expInfo[T <: col.Node[_]](e: T): NodeInfo[T] = {
     val result = NodeInfo(e)
     result.predicatePath = currentPredicatePath.topOption
     result.invariant = currentInvariant.topOption
@@ -280,6 +280,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.GreaterEq(left, right) => silver.GeCmp(exp(left), exp(right))(info=expInfo(e))
     case col.LessEq(left, right) => silver.LeCmp(exp(left), exp(right))(info=expInfo(e))
     case col.SubSet(left, right) => silver.AnySetSubset(exp(left), exp(right))(info=expInfo(e))
+    case col.SubBag(left, right) => silver.AnySetSubset(exp(left), exp(right))(info=expInfo(e))
 
     case subscript@col.SeqSubscript(seq, index) =>
       val silverIndex = exp(index)
@@ -300,11 +301,11 @@ case class ColToSilver(program: col.Program[_]) {
     silver.Trigger(patterns.map(exp))()
 
   def pred(p: col.PredicateApply[_]): silver.PredicateAccessPredicate =
-    silver.PredicateAccessPredicate(silver.PredicateAccess(p.args.map(exp), ref(p.ref))(info=NodeInfo(p)), exp(p.perm))(info=NodeInfo(p))
+    silver.PredicateAccessPredicate(silver.PredicateAccess(p.args.map(exp), ref(p.ref))(info=expInfo(p)), exp(p.perm))(info=expInfo(p))
 
   def acc(e: col.Expr[_]): silver.LocationAccess = e match {
-    case col.PredicateApply(Ref(pred), args, _) => silver.PredicateAccess(args.map(exp), ref(pred))(info=NodeInfo(pred))
-    case col.SilverDeref(obj, Ref(field)) => silver.FieldAccess(exp(obj), fields(field))(info=NodeInfo(e))
+    case col.PredicateApply(Ref(pred), args, _) => silver.PredicateAccess(args.map(exp), ref(pred))(info=expInfo(pred))
+    case col.SilverDeref(obj, Ref(field)) => silver.FieldAccess(exp(obj), fields(field))(info=expInfo(e))
     case other => ??(other)
   }
 

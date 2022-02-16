@@ -13,7 +13,7 @@ import scala.collection.mutable
 // that is what all continues have in common. This should be changed if it results in a bad user experience.
 case class ContinueToBreakOrigin(labelDeclOrigin: Origin) extends Origin {
   override def preferredName: String = "continue" + labelDeclOrigin.preferredName.capitalize
-  override def messageInContext(message: String): String = labelDeclOrigin.messageInContext(message)
+  override def context: String = labelDeclOrigin.context
 }
 
 case object ContinueToBreak extends RewriterBuilder

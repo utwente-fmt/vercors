@@ -1,6 +1,6 @@
 package vct.parsers.transform
 
-import org.antlr.v4.runtime.ParserRuleContext
+import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
 import vct.col.util.AstBuildHelpers._
@@ -8,13 +8,13 @@ import vct.col.ast._
 import vct.col.{ast => col}
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.util.AstBuildHelpers
+import vct.col.util.{AstBuildHelpers, ExpectedError}
 
 import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class CToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: mutable.Map[(Int, Int), String])
+case class CToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol(originProvider, blameProvider, errors) {
   def convert(unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(translationUnit, _) =>
@@ -364,10 +364,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit expr: RelationalExpressionContext): Expr[G] = expr match {
     case RelationalExpression0(inner) => convert(inner)
     case RelationalExpression1(left, RelationalOp0(op), right) => op match {
-      case "<" => col.Less(convert(left), convert(right))
-      case ">" => col.Greater(convert(left), convert(right))
-      case "<=" => LessEq(convert(left), convert(right))
-      case ">=" => GreaterEq(convert(left), convert(right))
+      case "<" => col.AmbiguousLess(convert(left), convert(right))
+      case ">" => col.AmbiguousGreater(convert(left), convert(right))
+      case "<=" => AmbiguousLessEq(convert(left), convert(right))
+      case ">=" => AmbiguousGreaterEq(convert(left), convert(right))
     }
     case RelationalExpression1(left, RelationalOp1(specOp), right) =>
       convert(specOp, convert(left), convert(right))

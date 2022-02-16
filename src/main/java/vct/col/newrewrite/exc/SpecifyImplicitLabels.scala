@@ -8,7 +8,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 case class ImplicitLabelOrigin(inner: Origin) extends Origin {
   override def preferredName: String = "loop"
-  override def messageInContext(message: String): String = inner.messageInContext(message)
+  override def context: String = inner.context
 }
 
 case object SpecifyImplicitLabels extends RewriterBuilder

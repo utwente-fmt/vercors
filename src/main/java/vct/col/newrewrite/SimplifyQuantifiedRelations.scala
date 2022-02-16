@@ -19,8 +19,7 @@ case object SimplifyQuantifiedRelations extends RewriterBuilder
 case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre] {
   case object SimplifyQuantifiedRelationsOrigin extends Origin {
     override def preferredName: String = "unknown"
-    override def messageInContext(message: String): String =
-      s"At generated expression for the simplification of quantified integer relations: $message"
+    override def context: String = "[At generated expression for the simplification of quantified integer relations]"
   }
 
   private implicit val o: Origin = SimplifyQuantifiedRelationsOrigin
