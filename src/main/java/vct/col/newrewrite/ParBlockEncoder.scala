@@ -203,14 +203,14 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 //      println(s"    - context = $context")
 //      println()
 
-      val invariantHere = freshSuccessionScope { dispatch(invariant && context && foldAnd(ranges)) }
+      val invariantHere = invariant && context && foldAnd(ranges)
 
       invariants.having(context && foldAnd(ranges)) {
         procedure(
           blame = ParPostconditionImplementationFailure(block),
           args = args,
-          requires = UnitAccountedPredicate(invariantHere &* dispatch(requires)),
-          ensures = UnitAccountedPredicate(invariantHere &* dispatch(ensures)),
+          requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(invariantHere) } &* dispatch(requires)),
+          ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(invariantHere) } &* dispatch(ensures)),
           body = Some(dispatch(body)),
         )(ParBlockCheck(block)).declareDefault(this)
       }

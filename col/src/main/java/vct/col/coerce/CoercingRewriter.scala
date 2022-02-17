@@ -66,8 +66,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
             ensures = UnitAccountedPredicate(
               Eq(Size(v.get), Size(result)) &&
               Forall(Seq(i), Seq(Seq(result_i)),
-                (const[Post](0) < i.get && i.get < Size(result)) ==>
-                  result_i === applyCoercion(v_i, inner))
+                (const[Post](0) <= i.get && i.get < Size(result)) ==>
+                  (result_i === applyCoercion(v_i, inner)))
             ),
           )
         })
@@ -886,6 +886,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         val (coercedSet, setType) = set(xs)
         val sharedType = Types.leastCommonSuperType(x.t, setType.element)
         SetMember(coerce(x, sharedType), coerce(coercedSet, TSet(sharedType)))
+      case SilverBagSize(xs) =>
+        SilverBagSize(bag(xs)._1)
       case SilverCurFieldPerm(obj, field) =>
         SilverCurFieldPerm(ref(obj), field)
       case SilverCurPredPerm(ref, args) =>
@@ -896,6 +898,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         SilverIntToRat(int(perm))
       case SilverNull() =>
         SilverNull()
+      case SilverSetSize(xs) =>
+        SilverSetSize(set(xs)._1)
+      case SilverSeqSize(xs) =>
+        SilverSeqSize(seq(xs)._1)
       case Size(obj) =>
         Size(collection(obj)._1)
       case Slice(xs, from, to) =>

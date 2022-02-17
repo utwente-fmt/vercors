@@ -281,7 +281,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         case None => Nil
         case Some(otherwise) => Seq((BooleanValue(true), convert(otherwise)))
       }))
-    case Statement3(contract1, label, _, _, control, _, contract2, body) =>
+    case Statement3(contract1, labels, _, _, control, _, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
         control match {
           case ForControl0(foreach) => ??(foreach)
@@ -296,18 +296,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         }
       })
 
-      label match {
-        case None => loop
-        case Some(label) => Label(convert(label), loop)
+      labels.foldLeft[Statement[G]](loop) {
+        case (stat, label) => Label(convert(label), stat)(origin(label))
       }
-    case Statement4(contract1, label, _, cond, contract2, body) =>
+    case Statement4(contract1, labels, _, cond, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
         Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(stat), convert(body)))
       })
 
-      label match {
-        case None => loop
-        case Some(label) => Label(convert(label), loop)
+      labels.foldLeft[Statement[G]](loop) {
+        case (stat, label) => Label(convert(label), stat)(origin(label))
       }
     case Statement5(_, _, _, _, _) => ??(stat)
     case Statement6(_, attempt, grab, eventually) =>

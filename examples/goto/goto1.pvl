@@ -4,7 +4,7 @@
 //:: verdict Fail
 
 class Ref {
-
+   /*[/expect postFailed]*/
    requires n > 0;
    ensures \result > 0;
    int t1(int n){
@@ -14,6 +14,6 @@ class Ref {
      label lbl;
      return r;
    }
-
+   /*[/end]*/
 }
 

@@ -158,7 +158,8 @@ case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
     val errors = ResolveReferences.resolve(typedProgram)
     if(errors.nonEmpty) throw InvalidImportedAdt(errors)
     val regularProgram = LangSpecificToCol().dispatch(typedProgram)
-    val program = regularProgram.asInstanceOf[Program[Pre]]
+    val unambiguousProgram = Disambiguate().dispatch(regularProgram)
+    val program = unambiguousProgram.asInstanceOf[Program[Pre]]
     program.declarations.foreach(dispatch)
     program.declarations.map(lookupSuccessor(_).get.asInstanceOf[GlobalDeclaration[Post]])
   }

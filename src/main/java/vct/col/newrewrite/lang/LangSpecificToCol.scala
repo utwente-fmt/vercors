@@ -279,15 +279,15 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         args = collectInScope(variableScopes) { cons.args.foreach(dispatch) },
         outArgs = Nil,
         typeArgs = Nil,
-        body = cons.body.map(body => Scope(Seq(resVar), Block(Seq(
+        body = currentThis.having(resVar.get) { cons.body.map(body => Scope(Seq(resVar), Block(Seq(
           assignLocal(resVar.get, NewObject[Post](succ(currentClass.top))),
           dispatch(body),
           Commit(resVar.get)(cons.blame),
           Return(resVar.get),
-        )))),
+        )))) },
         contract = cons.contract.rewrite(
           ensures = SplitAccountedPredicate(
-            left = UnitAccountedPredicate(result !== Null() && TypeOf(result) === TypeValue(t)),
+            left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
             right = dispatch(cons.contract.ensures),
           )
         ),

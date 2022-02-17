@@ -67,12 +67,12 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame))),
         )))))),
       ensures = UnitAccountedPredicate(
-        Size(result) === to - from &&
+        (Size(result) === to - from) &&
         forall(TInt(),
-          i => (const(0) <= i && i < to - from) ==> SeqSubscript(result, i)(FramedSeqIndex) === ArraySubscript(arr, i + from)(FramedArrIndex),
+          i => (const(0) <= i && i < to - from) ==> (SeqSubscript(result, i)(FramedSeqIndex) === ArraySubscript(arr, i + from)(FramedArrIndex)),
           i => Seq(Seq(SeqSubscript(result, i)(TriggerPatternBlame)))
         ) &* forall(TInt(),
-          i => (from <= i && i < to) ==> ArraySubscript(arr, i)(FramedArrIndex) === SeqSubscript(result, i - from)(FramedSeqIndex),
+          i => (from <= i && i < to) ==> (ArraySubscript(arr, i)(FramedArrIndex) === SeqSubscript(result, i - from)(FramedSeqIndex)),
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame)))
         )
       )

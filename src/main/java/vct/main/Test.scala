@@ -60,7 +60,9 @@ case object Test {
 //        }
 //      })
 
-      tryParse(Seq(Path.of("examples/sets/subset.pvl")))
+      val paths = Seq("examples/known-problems/verifythis/2018/challenge1.pvl")
+
+      tryParse(paths.map(Paths.get(_)))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")

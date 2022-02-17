@@ -221,7 +221,9 @@ case class ColToSilver(program: col.Program[_]) {
     case col.LiteralSet(_, xs) => silver.ExplicitSet(xs.map(exp))(info=expInfo(e))
     case col.LiteralBag(_, xs) => silver.ExplicitMultiset(xs.map(exp))(info=expInfo(e))
 
-    case col.Size(obj) => silver.SeqLength(exp(obj))(info=expInfo(e))
+    case col.SilverSeqSize(obj) => silver.SeqLength(exp(obj))(info=expInfo(e))
+    case col.SilverSetSize(obj) => silver.AnySetCardinality(exp(obj))(info=expInfo(e))
+    case col.SilverBagSize(obj) => silver.AnySetCardinality(exp(obj))(info=expInfo(e))
 
     case col.Exists(bindings, triggers, body) =>
       scoped { silver.Exists(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e)) }
@@ -240,7 +242,7 @@ case class ColToSilver(program: col.Program[_]) {
     case res @ col.Perm(col.SilverDeref(obj, Ref(field)), perm) =>
       val permValue = exp(perm)
       permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
-      silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field))(info=NodeInfo(res)), permValue)(info=NodeInfo(res))
+      silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field))(info=expInfo(res)), permValue)(info=expInfo(res))
     case res: PredicateApply[_] =>
       val silver = pred(res)
       silver.perm.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)

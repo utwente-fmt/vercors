@@ -64,6 +64,11 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
       val newBody = foldAnd(conds.map(dispatch)) ==> dispatch(consequent)
       Starall(newBindings.toIndexedSeq, triggers.map(_.map(dispatch)), newBody)
 
+    case Size(xs) =>
+      if(xs.t.asSet.nonEmpty) SilverSetSize(dispatch(xs))(e.o)
+      else if(xs.t.asBag.nonEmpty) SilverBagSize(dispatch(xs))(e.o)
+      else SilverSeqSize(dispatch(xs))(e.o)
+
     case other => rewriteDefault(other)
   }
 
