@@ -275,7 +275,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       val t = TClass[Post](succ(currentClass.top))
       val resVar = new Variable(t)
       withResult((result: Result[Post]) => new Procedure[Post](
-      returnType = t,
+        returnType = t,
         args = collectInScope(variableScopes) { cons.args.foreach(dispatch) },
         outArgs = Nil,
         typeArgs = Nil,
@@ -285,12 +285,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           Commit(resVar.get)(cons.blame),
           Return(resVar.get),
         )))) },
-        contract = cons.contract.rewrite(
+        contract = currentThis.having(result) { cons.contract.rewrite(
           ensures = SplitAccountedPredicate(
             left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
             right = dispatch(cons.contract.ensures),
           )
-        ),
+        ) },
       )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))).succeedDefault(cons)
 
     case cParam: CParam[Pre] =>
@@ -440,12 +440,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       }
 
     case diz @ AmbiguousThis() =>
-      implicit val o: Origin = diz.o
-      diz.ref.get match {
-        case RefJavaClass(decl) => ThisObject[Post](javaInstanceClassSuccessor.ref(decl))
-        case RefClass(decl) => ThisObject(succ(decl))
-        case RefModel(decl) => ThisModel(succ(decl))
-      }
+      currentThis.top
 
     case local @ JavaLocal(_) =>
       implicit val o: Origin = local.o

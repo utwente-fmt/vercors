@@ -299,6 +299,11 @@ case class ThrowNull(node: Throw[_]) extends NodeVerificationFailure {
   override def text: String = "The value thrown here may be null."
 }
 
+case class ScaleNegative(node: Scale[_]) extends NodeVerificationFailure {
+  override def code: String = "scaleNeg"
+  override def text: String = "The scale value here may be negative."
+}
+
 sealed trait UnsafeCoercion extends NodeVerificationFailure
 case class CoerceRatZFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "ratZfrac"

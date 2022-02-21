@@ -3,6 +3,7 @@ package vct.col.newrewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -37,11 +38,6 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
 
   def freshInvariants()(implicit o: Origin): Expr[Post] =
     foldStar(invariants.top.map(inv => freshSuccessionScope { dispatch(inv) }))
-
-  def booleanInvariants: Seq[Expr[Pre]] = invariants.top.filter(inv => TBool().superTypeOf(inv.t))
-
-  def freshBooleanInvariants()(implicit o: Origin): Expr[Post] =
-    foldAnd(booleanInvariants.map(inv => freshSuccessionScope { dispatch(inv) }))
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] =>
@@ -85,20 +81,15 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
     case bar: ParBarrier[Pre] =>
       implicit val o: Origin = bar.o
       bar.rewrite(
-        requires = freshBooleanInvariants() &* dispatch(bar.requires),
-        ensures = freshBooleanInvariants() &* dispatch(bar.ensures),
+        requires = freshInvariants() &* dispatch(bar.requires),
+        ensures = freshInvariants() &* dispatch(bar.ensures),
       )
     case loop: Loop[Pre] =>
       implicit val o: Origin = loop.o
       loop.contract match {
         case inv @ LoopInvariant(invariant) =>
           loop.rewrite(contract = LoopInvariant(freshInvariants() &* dispatch(invariant))(inv.blame))
-        case c @ IterationContract(requires, ensures, context_everywhere) =>
-          val (contract, body) = invariants.having(booleanInvariants) {
-            (c.rewrite(context_everywhere = freshBooleanInvariants() && dispatch(context_everywhere)), dispatch(loop.body))
-          }
-          // update and init still have the outer invariants.
-          loop.rewrite(contract = contract, body = body)
+        case _: IterationContract[Pre] => throw ExtraNode
       }
     case other => rewriteDefault(other)
   }
@@ -106,9 +97,24 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] = parRegion match {
     case block: ParBlock[Pre] =>
       implicit val o: Origin = parRegion.o
-      invariants.having(booleanInvariants ++ unfoldStar(block.context_everywhere)) {
+
+      val scaledInvariants = block.iters match {
+        case Nil => invariants.top
+        case iters =>
+          val nonEmpty = iters.map {
+            case IterVariable(_, from, to) => from < to
+          }.reduce[Expr[Pre]](And(_, _))
+
+          val scale = iters.map {
+            case IterVariable(_, from, to) => from - to
+          }.reduce[Expr[Pre]](Mult(_, _))
+
+          invariants.top.map(inv => nonEmpty ==> Scale(scale, inv)(PanicBlame("scale is framed non-negative")))
+      }
+
+      invariants.having(scaledInvariants ++ unfoldStar(block.context_everywhere)) {
         block.rewrite(
-          context_everywhere = freshBooleanInvariants()
+          context_everywhere = freshInvariants()
         )
       }
     case other => rewriteDefault(other)

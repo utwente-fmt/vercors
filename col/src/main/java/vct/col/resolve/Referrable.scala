@@ -91,6 +91,7 @@ sealed trait Referrable[G] {
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
     case ImplicitDefaultJavaConstructor() => ""
+    case ImplicitDefaultPVLConstructor() => ""
   }
 }
 sealed trait JavaTypeNameTarget[G] extends Referrable[G] with JavaDerefTarget[G]

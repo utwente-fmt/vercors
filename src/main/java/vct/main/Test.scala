@@ -60,7 +60,7 @@ case object Test {
 //        }
 //      })
 
-      val paths = Seq("examples/known-problems/verifythis/2018/challenge1.pvl")
+      val paths = Seq("examples/parallel/array_par.pvl")
 
       tryParse(paths.map(Paths.get(_)))
     } finally {
@@ -104,10 +104,10 @@ case object Test {
       DesugarPermissionOperators, // no PointsTo, \pointer, etc.
       PinCollectionTypes, // no anonymous sequences, sets, etc.
       QuantifySubscriptAny, // no arr[*]
-      ResolveScale, // inline predicate scaling into predicate applications
       PropagateContextEverywhere, // inline context_everywhere into loop invariants
       EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
       GivenYieldsToArgs,
+      IterationContractToParBlock,
 
       CheckProcessAlgebra,
 
@@ -117,7 +117,6 @@ case object Test {
       PureMethodsToFunctions,
 
       // Encode parallel blocks
-      IterationContractToParBlock,
       EncodeParAtomic,
       ParBlockEncoder,
 
@@ -146,6 +145,7 @@ case object Test {
       MonomorphizeContractApplicables,
 
       // Silver compat (basically no new nodes)
+      ResolveScale,
       ExplicitADTTypeArgs,
       ForLoopToWhileLoop,
       BranchToIfElse,

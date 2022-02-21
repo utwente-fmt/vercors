@@ -667,7 +667,7 @@ case class Printer(out: Appendable,
     case Wand(left, right) =>
       (phrase(bind(30, left), space, "-*", space, assoc(30, right)), 30)
     case Scale(scale, res) =>
-      ???
+      (phrase("[", scale, "]", assoc(90, res)), 90)
     case Perm(loc, perm) =>
       (phrase("Perm(", loc, ",", space, perm, ")"), 100)
     case PointsTo(loc, perm, value) =>

@@ -264,11 +264,18 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Old(expr, Some(lbl)) => silver.LabelledOld(exp(expr), ref(lbl))(info=expInfo(e))
 
     case col.UMinus(arg) => silver.Minus(exp(arg))(info=expInfo(e))
-    case col.Plus(left, right) => silver.Add(exp(left), exp(right))(info=expInfo(e))
-    case col.Minus(left, right) => silver.Sub(exp(left), exp(right))(info=expInfo(e))
-    case col.Mult(left, right) => silver.Mul(exp(left), exp(right))(info=expInfo(e))
+
+    case op @ col.Plus(left, right) if op.isIntOp => silver.Add(exp(left), exp(right))(info=expInfo(e))
+    case op @ col.Minus(left, right) if op.isIntOp => silver.Sub(exp(left), exp(right))(info=expInfo(e))
+    case op @ col.Mult(left, right) if op.isIntOp => silver.Mul(exp(left), exp(right))(info=expInfo(e))
+    case op @ col.Mod(left, right) if op.isIntOp => silver.Mod(exp(left), exp(right))(info=expInfo(e))
+
+    case op @ col.Plus(left, right) if !op.isIntOp => silver.PermAdd(exp(left), exp(right))(info=expInfo(e))
+    case op @ col.Minus(left, right) if !op.isIntOp => silver.PermSub(exp(left), exp(right))(info=expInfo(e))
+    case op @ col.Mult(left, right) if !op.isIntOp => silver.PermMul(exp(left), exp(right))(info=expInfo(e))
+    case op @ col.Mod(left, right) if !op.isIntOp => ??(op)
+
     case col.Div(left, right) => silver.PermDiv(exp(left), exp(right))(info=expInfo(e))
-    case col.Mod(left, right) => silver.Mod(exp(left), exp(right))(info=expInfo(e))
     case col.FloorDiv(left, right) => silver.Div(exp(left), exp(right))(info=expInfo(e))
 
     case col.SilverIntToRat(col.NoPerm()) => silver.NoPerm()(info = expInfo(e))

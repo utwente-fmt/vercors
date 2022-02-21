@@ -57,9 +57,9 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit decl: ClassDeclContext): Seq[ClassDeclaration[G]] = decl match {
-    case ClassDecl0(inner) => convert(inner)
-    case ClassDecl1(inner) => Seq(convert(inner))
-    case ClassDecl2(inner) => convert(inner, x => x)
+    case ClassDecl0(inner) => convert(inner, x => x)
+    case ClassDecl1(inner) => convert(inner)
+    case ClassDecl2(inner) => Seq(convert(inner))
     case ClassDecl3(inner) => convert(inner)
   }
 
@@ -987,7 +987,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPrimary8(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
-    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
+    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
