@@ -35,7 +35,10 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
 
   def wantsThreadLocal(app: Applicable[Pre]): Boolean = app match {
     case predicate: AbstractPredicate[Pre] => predicate.threadLocal
-    case _: ContractApplicable[Pre] => true
+    case func: AbstractFunction[Pre] => func.threadLocal
+
+    case _: AbstractMethod[Pre] => true
+
     case _: ADTFunction[Pre] => false
     case _: ModelProcess[Pre] => false
     case _: ModelAction[Pre] => false

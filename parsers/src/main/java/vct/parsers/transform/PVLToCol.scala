@@ -896,14 +896,17 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   // valsetcompselectors
-  // valMapPairs
+  def convert(implicit exprs: ValMapPairsContext): Seq[(Expr[G], Expr[G])] = exprs match {
+    case ValMapPairs0(k, _, v) => Seq((convert(k), convert(v)))
+    case ValMapPairs1(k, _, v, _, tail) => (convert(k), convert(v)) +: convert(tail)
+  }
 
   def convert(implicit e: ValPrimaryCollectionConstructorContext): Expr[G] = e match {
     case ValTypedLiteralSeq(_, _, t, _, _, exprs, _) => LiteralSeq(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralSet(_, _, t, _, _, exprs, _) => LiteralSet(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
-    case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => ??(e)
+    case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => LiteralMap(convert(key), convert(value), pairs.map(convert(_)).getOrElse(Nil))
     case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) =>
       LiteralTuple(Seq(convert(t1), convert(t2)), Seq(convert(v1), convert(v2)))
     case ValLiteralSeq(_, exprs, _) => UntypedLiteralSeq(convert(exprs))

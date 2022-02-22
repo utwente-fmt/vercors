@@ -18,7 +18,7 @@ case class ApplyTermRewriterSpec() extends AnyFlatSpec with should.Matchers {
 
   it should "do some stuff" in {
     val rw = ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl"))[InitialGeneration]()
-    val rw2 = ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl"))[Rewritten[InitialGeneration]]()
+    val rw2 = ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl"))[InitialGeneration]()
 
     implicit val o: Origin = Named("unknown")
 
@@ -28,16 +28,17 @@ case class ApplyTermRewriterSpec() extends AnyFlatSpec with should.Matchers {
     val r1 = new Variable[InitialGeneration](TResource())(Named("r1"))
     val r2 = new Variable[InitialGeneration](TResource())(Named("r2"))
     val r3 = new Variable[InitialGeneration](TBool())(Named("r3"))
+    val exc = new Variable[InitialGeneration](TRef())(Named("exc"))
 
-    val in = Scope(Seq(cond, qcond, r1, r2, r3), Eval(Implies[InitialGeneration](
-      cond.get,
-      Starall(Seq(i), Nil, Implies(qcond.get, Star(Star(r1.get, r2.get), r3.get)))
+    val in = Scope(Seq(cond, qcond, r1, r2, r3, exc, i), Eval(Implies[InitialGeneration](
+      exc.get === Null(),
+      Implies(const(0) < i.get, const(0) <= const(0))
     )))
     val out = rw.dispatch(in)
 
     println(); println()
     println(in)
     println(out)
-    println(rw2.dispatch(out))
+    println(rw2.dispatch(in))
   }
 }

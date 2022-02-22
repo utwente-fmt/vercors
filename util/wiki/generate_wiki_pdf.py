@@ -233,8 +233,10 @@ def get_html(elements):
             result += element['c']
         elif element['t'] == 'Space':
             result += ' '
+        elif element['t'] == 'Code':
+            result += '<code>' + element['c'][1] + '</code>'
         else:
-            assert False, element['t']
+            assert False, f"Unrecognized element type for HTML header: {element['t']} in block {element}"
 
     return result
 

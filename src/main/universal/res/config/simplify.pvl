@@ -54,6 +54,8 @@ axiom star_true { (∀resource b; (b ** true) == b) }
 axiom false_star { (∀resource b; (false ** b) == false) }
 axiom star_bool { (∀boolean a, boolean b; (a ** b) == (a && b)) }
 
+axiom scale_bool { (∀boolean b, rational s; ([s]b) == b) }
+
 axiom true_or { (∀boolean b; (true || b) == true) }
 axiom or_true { (∀boolean b; (b || true) == true) }
 axiom false_or { (∀boolean b; (false || b) == b) }
@@ -73,6 +75,23 @@ axiom or_self { (∀boolean p; (p || p) == p) }
 axiom collapse_nested_implies {
   (∀boolean a, boolean b, resource c;
     (a ==> b ==> c) == ((a && b) ==> c))
+}
+
+axiom push_implies_and { (∀boolean a, boolean b, boolean c; (a ==> b && c) == ((a ==> b) && (a ==> c))) }
+axiom push_implies_star { (∀boolean a, resource b, resource c; (a ==> b ** c) == ((a ==> b) ** (a ==> c))) }
+
+axiom select_def { (∀boolean cond; (cond ? true : false) == cond) }
+axiom select_inv_def { (∀boolean cond; (cond ? false : true) == !cond) }
+axiom select_eq { (∀boolean cond, any value; (cond ? value : value) == value) }
+
+axiom lt_select {
+  (∀boolean cond, rational l, rational r1, rational r2;
+    (l < (cond ? r1 : r2)) == (cond ? l < r1 : l < r2))
+}
+
+axiom lte_select {
+  (∀boolean cond, rational l, rational r1, rational r2;
+    (l <= (cond ? r1 : r2)) == (cond ? l <= r1 : l <= r2))
 }
 
 axiom neg_cancel { (∀boolean b; !!b == b) }
@@ -95,6 +114,12 @@ axiom normalize_range_gt { (∀rational left, rational right; left > right == ri
 
 axiom lt_self { (∀rational r; (r < r) == false) }
 axiom lte_self { (∀rational r; (r <= r) == true) }
+axiom cmp_const_1 { (0 < 1) == true }
+axiom cmp_const_2 { (0 <= 1) == true }
+axiom lt_shift_one_1 { (∀rational r; (r < r + 1) == true) }
+axiom lt_shift_one_2 { (∀rational r; (r - 1 < r) == true) }
+axiom lte_shift_one_1 { (∀rational r; (r <= r + 1) == true) }
+axiom lte_shift_one_2 { (∀rational r; (r - 1 <= r) == true) }
 
 axiom normalize_range_1 { (∀int i, int l, int r; (l <= i && i < r) == i \in {l..r}) }
 axiom normalize_range_2 { (∀int i, int l, int r; (i < r && l <= i) == i \in {l..r}) }
@@ -140,6 +165,18 @@ axiom starall_star {
   (∀type<any> T, resource r1, resource r2;
     (∀* T t; (r1!t) ** (r2!t)) ==
     ((∀* T t; (r1!t)) ** (∀* T t; (r2!t))))
+}
+
+axiom forall_indep_cond_left {
+  (∀type<any> T, boolean cond1, boolean cond2, boolean body;
+    (∀T binding; cond1 && (cond2!binding) ==> (body!binding)) ==
+    (cond1 ==> (∀T binding; (cond2!binding) ==> (body!binding))))
+}
+
+axiom starall_indep_cond_left {
+  (∀type<any> T, boolean cond1, boolean cond2, resource body;
+    (∀*T binding; cond1 && (cond2!binding) ==> (body!binding)) ==
+    (cond1 ==> (∀*T binding; (cond2!binding) ==> (body!binding))))
 }
 
 axiom nested_forall_indep_cond {
