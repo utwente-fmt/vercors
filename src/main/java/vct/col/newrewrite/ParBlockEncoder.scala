@@ -203,9 +203,9 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 //      println(s"    - context = $context")
 //      println()
 
-      val invariantHere = invariant && context && foldAnd(ranges)
+      val invariantHere = invariant &* context &* foldAnd(ranges)
 
-      invariants.having(context && foldAnd(ranges)) {
+      invariants.having(context &* foldAnd(ranges)) {
         procedure(
           blame = ParPostconditionImplementationFailure(block),
           args = args,

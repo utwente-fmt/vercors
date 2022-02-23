@@ -110,12 +110,13 @@ object AstBuildHelpers {
                 contract: ApplicableContract[Post] = rewriter.dispatch(function.contract),
                 typeArgs: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { function.typeArgs.foreach(rewriter.dispatch) },
                 inline: Boolean = function.inline,
+                threadLocal: Boolean = function.threadLocal,
                 blame: Blame[ContractedFailure] = function.blame,
                ): ContractApplicable[Post] = function match {
       case function: Function[Pre] =>
-        new RewriteFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, blame = blame)
+        new RewriteFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
       case function: InstanceFunction[Pre] =>
-        new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, blame = blame)
+        new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
     }
   }
 

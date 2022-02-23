@@ -53,20 +53,19 @@ case class EncodeParAtomic[Pre <: Generation]() extends Rewriter[Pre] {
     })
   }
 
-  def proveImplies(blame: Blame[PostconditionFailed], antecedent: Expr[Post], consequent: Expr[Post])(implicit origin: Origin): Unit = {
-    proveImplies(EmptyHintCannotThrow(blame), antecedent, consequent, Block(Nil))
-  }
-
-  def proveImplies(blame: Blame[CallableFailure], antecedent: Expr[Post], consequent: Expr[Post], hint: Statement[Post])(implicit origin: Origin): Unit = {
-    val (Seq(req, ens), bindings) =
-      Extract.extract(antecedent, consequent)
+  def proveImplies(blame: Blame[CallableFailure], antecedent: Expr[Pre], consequent: Expr[Pre], hint: Statement[Pre])(implicit origin: Origin): Unit = {
+    val extract = Extract[Pre]()
+    val req = extract.extract(antecedent)
+    val ens = extract.extract(consequent)
+    val body = extract.extract(hint)
+    val bindings = extract.finish().keys
 
     procedure[Post](
       blame = blame,
-      requires = UnitAccountedPredicate(req),
-      ensures = UnitAccountedPredicate(ens),
-      args = bindings.keys.toSeq,
-      body = Some(hint),
+      requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(req) }),
+      ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(ens) }),
+      args = collectInScope(variableScopes) { bindings.foreach(dispatch) },
+      body = Some(dispatch(body)),
     ).declareDefault(this)
   }
 
@@ -95,9 +94,9 @@ case class EncodeParAtomic[Pre <: Generation]() extends Rewriter[Pre] {
       // TODO: it is a type-check error to have an invariant reference be out of scope in a barrier
       proveImplies(
         ParBarrierPostconditionFailed(parBarrier),
-        freshSuccessionScope { dispatch(quantify(block, requires)) },
-        freshSuccessionScope { dispatch(quantify(block, ensures)) },
-        hint = dispatch(content),
+        quantify(block, requires),
+        quantify(block, ensures),
+        hint = content,
       )
 
       Block(Seq(

@@ -140,7 +140,15 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               contract = method.contract.rewrite(
                 requires = SplitAccountedPredicate(
                   left = UnitAccountedPredicate(thisVar.get !== Null()),
-                  right = dispatch(method.contract.requires),
+                  right = SplitAccountedPredicate(
+                    left = UnitAccountedPredicate(
+                      FunctionInvocation[Post](instanceOf.ref(()), Seq(
+                        FunctionInvocation[Post](typeOf.ref(()), Seq(thisVar.get), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")),
+                        const(typeNumber(cls)),
+                      ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing."))
+                    ),
+                    right = dispatch(method.contract.requires),
+                  ),
                 ),
               ),
               inline = method.inline,
@@ -206,7 +214,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
-      )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), inv.blame))(inv.o)
+      )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args, perm) =>
       implicit val o: Origin = inv.o
       rewriteInstancePredicateApply(inv) &* freshSuccessionScope { dispatch(obj) !== Null() }
@@ -217,7 +225,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
-      )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), inv.blame))(inv.o)
+      )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance function type?"), inv.blame)))(inv.o)
     case ThisObject(_) =>
       Local[Post](diz.top.ref)(e.o)
     case deref @ Deref(obj, Ref(field)) =>

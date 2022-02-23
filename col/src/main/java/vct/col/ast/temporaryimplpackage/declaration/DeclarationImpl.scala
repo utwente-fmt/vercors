@@ -11,12 +11,11 @@ import scala.reflect.ClassTag
 
 trait DeclarationImpl[G] { this: Declaration[G] =>
   def succeedDefault[Pre](pred: Declaration[Pre])(implicit scope: ScopeContext[Pre, G]): this.type = {
-    declareDefault(scope)
     scope.succeed(pred, this)
-    this
+    declareDefault(scope)
   }
 
-  def declareDefault[Pre](scope: ScopeContext[Pre, G]): Unit
+  def declareDefault[Pre](scope: ScopeContext[Pre, G]): this.type
 
   def drop(): Unit = debugRewriteState = Dropped
 

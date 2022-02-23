@@ -867,8 +867,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         RemoveAt(seq(xs)._1, int(i))
       case Result(ref) =>
         Result(ref)
-      case Scale(scale, r) =>
-        Scale(rat(scale), res(r))
+      case s @ Scale(scale, r) =>
+        Scale(rat(scale), res(r))(s.blame)
       case Select(condition, whenTrue, whenFalse) =>
         val sharedType = Types.leastCommonSuperType(whenTrue.t, whenFalse.t)
         Select(bool(condition), coerce(whenTrue, sharedType), coerce(whenFalse, sharedType))
@@ -1077,7 +1077,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case region @ ParParallel(regions) => ParParallel(regions)(region.blame)
       case region @ ParSequential(regions) => ParSequential(regions)(region.blame)
       case region @ ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
-        ParBlock(decl, iters, bool(context_everywhere), res(requires), res(ensures), content)(region.blame)
+        ParBlock(decl, iters, res(context_everywhere), res(requires), res(ensures), content)(region.blame)
     }
   }
 }

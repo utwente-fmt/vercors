@@ -35,7 +35,7 @@ import vct.col.ast.temporaryimplpackage.expr.op.option._
 import vct.col.ast.temporaryimplpackage.expr.op.process._
 import vct.col.ast.temporaryimplpackage.expr.op.tuple._
 import vct.col.ast.temporaryimplpackage.expr.op.vec._
-import vct.col.ast.temporaryimplpackage.expr.resource._
+import vct.col.ast.temporaryimplpackage.expr.resource.{LocatorImpl, _}
 import vct.col.ast.temporaryimplpackage.expr.sideeffect._
 import vct.col.ast.temporaryimplpackage.family.accountedpredicate._
 import vct.col.ast.temporaryimplpackage.family.catchclause._
@@ -202,7 +202,7 @@ final class AxiomaticDataType[G](val decls: Seq[ADTDeclaration[G]], val typeArgs
 final class Class[G](val declarations: Seq[ClassDeclaration[G]], val supports: Seq[Ref[G, Class[G]]], val intrinsicLockInvariant: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with ClassImpl[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with Declarator[G] with ModelImpl[G]
 final class Function[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
-               val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false)
+               val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false, val threadLocal: Boolean = false)
               (val blame: Blame[ContractedFailure])(implicit val o: Origin)
   extends GlobalDeclaration[G] with AbstractFunction[G] with FunctionImpl[G]
 final class Procedure[G](val returnType: Type[G],
@@ -218,7 +218,7 @@ final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
 
 sealed abstract class ClassDeclaration[G] extends Declaration[G] with ClassDeclarationImpl[G]
 final class InstanceFunction[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
-                       val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean)
+                       val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean, val threadLocal: Boolean = false)
                       (val blame: Blame[ContractedFailure])(implicit val o: Origin)
   extends ClassDeclaration[G] with AbstractFunction[G] with InstanceFunctionImpl[G]
 final class InstanceMethod[G](val returnType: Type[G],
@@ -455,16 +455,17 @@ final case class Or[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) ex
 final case class Implies[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with ImpliesImpl[G]
 final case class Star[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with StarImpl[G]
 final case class Wand[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with WandImpl[G]
-final case class Scale[G](scale: Expr[G], res: Expr[G])(implicit val o: Origin) extends Expr[G] with ScaleImpl[G]
+final case class Scale[G](scale: Expr[G], res: Expr[G])(val blame: Blame[ScaleNegative])(implicit val o: Origin) extends Expr[G] with ScaleImpl[G]
 
-final case class Unfolding[G](pred: Expr[G], body: Expr[G])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
+final case class Unfolding[G](res: Expr[G], body: Expr[G])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
 
-final case class Perm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermImpl[G]
-final case class HPerm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with HPermImpl[G]
-final case class APerm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with APermImpl[G]
-final case class PointsTo[G](loc: Expr[G], perm: Expr[G], value: Expr[G])(implicit val o: Origin) extends Expr[G] with PointsToImpl[G]
+sealed trait Locator[G] extends Expr[G] with LocatorImpl[G]
+final case class Perm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermImpl[G] with Locator[G]
+final case class HPerm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with HPermImpl[G] with Locator[G]
+final case class APerm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with APermImpl[G] with Locator[G]
+final case class PointsTo[G](loc: Expr[G], perm: Expr[G], value: Expr[G])(implicit val o: Origin) extends Expr[G] with PointsToImpl[G] with Locator[G]
 
-final case class CurPerm[G](loc: Expr[G])(implicit val o: Origin) extends Expr[G] with CurPermImpl[G]
+final case class CurPerm[G](loc: Expr[G])(implicit val o: Origin) extends Expr[G] with CurPermImpl[G] with Locator[G]
 
 final case class ValidArray[G](arr: Expr[G], len: Expr[G])(implicit val o: Origin) extends Expr[G] with ValidArrayImpl[G]
 final case class ValidMatrix[G](mat: Expr[G], w: Expr[G], h: Expr[G])(implicit val o: Origin) extends Expr[G] with ValidMatrixImpl[G]

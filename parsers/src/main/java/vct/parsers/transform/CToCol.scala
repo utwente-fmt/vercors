@@ -922,14 +922,17 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   // valsetcompselectors
-  // valMapPairs
+  def convert(implicit exprs: ValMapPairsContext): Seq[(Expr[G], Expr[G])] = exprs match {
+    case ValMapPairs0(k, _, v) => Seq((convert(k), convert(v)))
+    case ValMapPairs1(k, _, v, _, tail) => (convert(k), convert(v)) +: convert(tail)
+  }
 
   def convert(implicit e: ValPrimaryCollectionConstructorContext): Expr[G] = e match {
     case ValTypedLiteralSeq(_, _, t, _, _, exprs, _) => LiteralSeq(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralSet(_, _, t, _, _, exprs, _) => LiteralSet(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
-    case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => ??(e)
+    case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => LiteralMap(convert(key), convert(value), pairs.map(convert(_)).getOrElse(Nil))
     case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) =>
       LiteralTuple(Seq(convert(t1), convert(t2)), Seq(convert(v1), convert(v2)))
     case ValLiteralSeq(_, exprs, _) => UntypedLiteralSeq(convert(exprs))
@@ -1013,7 +1016,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPrimary8(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
-    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
+    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))

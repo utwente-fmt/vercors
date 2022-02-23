@@ -97,7 +97,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
 
     val debugNoMatch = false
     val debugMatch = false
-    val debugMatchShort = true
+    val debugMatchShort = false
     val debugRawDifferences = false
 
     val inst = mutable.Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])]()
