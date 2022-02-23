@@ -46,9 +46,9 @@ case object Test {
 
       CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
         if(c.files.asScala.forall(f =>
-            f.toString.endsWith(".java") ||
-              f.toString.endsWith(".c") ||
-              f.toString.endsWith(".pvl"))) {
+//            f.toString.endsWith(".java") ||
+//              f.toString.endsWith(".c") ||
+              f.toString.endsWith(".sil"))) {
           tryParse(c.files.asScala.toSeq)
 //          System.gc()
 //          val server = ManagementFactory.getPlatformMBeanServer
@@ -56,11 +56,11 @@ case object Test {
 //          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
 //          dumpCount += 1
         } else {
-          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
         }
       })
 
-      val paths = Seq("examples/demo/demo3c.pvl")
+      val paths = Seq("/home/pieter/Downloads/RootsRemainOrderedV2.pvl")
 
 //      tryParse(paths.map(Paths.get(_)))
     } finally {

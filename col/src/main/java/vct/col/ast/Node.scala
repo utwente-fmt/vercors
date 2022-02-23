@@ -35,11 +35,11 @@ import vct.col.ast.temporaryimplpackage.expr.op.option._
 import vct.col.ast.temporaryimplpackage.expr.op.process._
 import vct.col.ast.temporaryimplpackage.expr.op.tuple._
 import vct.col.ast.temporaryimplpackage.expr.op.vec._
-import vct.col.ast.temporaryimplpackage.expr.resource.{LocatorImpl, _}
+import vct.col.ast.temporaryimplpackage.expr.resource._
 import vct.col.ast.temporaryimplpackage.expr.sideeffect._
 import vct.col.ast.temporaryimplpackage.family.accountedpredicate._
 import vct.col.ast.temporaryimplpackage.family.catchclause._
-import vct.col.ast.temporaryimplpackage.family.coercion.{CoercionImpl, NothingSomethingImpl}
+import vct.col.ast.temporaryimplpackage.family.coercion._
 import vct.col.ast.temporaryimplpackage.family.contract._
 import vct.col.ast.temporaryimplpackage.family.fieldflag._
 import vct.col.ast.temporaryimplpackage.family.invoking._
@@ -517,6 +517,13 @@ final case class Concat[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) ext
 final case class RemoveAt[G](xs: Expr[G], i: Expr[G])(implicit val o: Origin) extends Expr[G] with RemoveAtImpl[G]
 final case class Empty[G](obj: Expr[G])(implicit val o: Origin) extends Expr[G] with EmptyImpl[G]
 
+final case class SetIntersection[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with SetIntersectionImpl[G]
+final case class BagLargestCommon[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with BagLargestCommonImpl[G]
+final case class SetMinus[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with SetMinusImpl[G]
+final case class BagMinus[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with BagMinusImpl[G]
+final case class SetUnion[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with SetUnionImpl[G]
+final case class BagAdd[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with BagAddImpl[G]
+
 final case class AmbiguousMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with AmbiguousMemberImpl[G]
 final case class SetMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with SetMemberImpl[G]
 final case class SeqMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with SeqMemberImpl[G]
@@ -773,6 +780,11 @@ final case class SilverBagSize[G](bag: Expr[G])(implicit val o: Origin) extends 
 final case class SilverCurFieldPerm[G](obj: Expr[G], field: Ref[G, SilverField[G]])(implicit val o: Origin) extends SilverExpr[G] with SilverCurFieldPermImpl[G]
 final case class SilverCurPredPerm[G](ref: Ref[G, Predicate[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends SilverExpr[G] with SilverCurPredPermImpl[G]
 
+final case class SilverPartialADTFunctionInvocation[G](name: String, args: Seq[Expr[G]], partialTypeArgs: Seq[(Ref[G, Variable[G]], Type[G])])(implicit val o: Origin) extends SilverExpr[G] with SilverPartialADTFunctionInvocationImpl[G] {
+  var ref: Option[(AxiomaticDataType[G], ADTFunction[G])] = None
+}
+final case class SilverUntypedNonemptyLiteralMap[G](values: Seq[(Expr[G], Expr[G])])(implicit val o: Origin) extends SilverExpr[G] with SilverUntypedNonemptyLiteralMapImpl[G]
+
 sealed trait SilverStatement[G] extends Statement[G] with SilverStatementImpl[G]
 final case class SilverNewRef[G](v: Ref[G, Variable[G]], fields: Seq[Ref[G, SilverField[G]]])(implicit val o: Origin) extends SilverStatement[G] with SilverNewRefImpl[G]
 
@@ -782,3 +794,6 @@ final case class SilverLocalAssign[G](v: Ref[G, Variable[G]], value: Expr[G])(im
 
 sealed abstract class SilverDeclaration[G] extends GlobalDeclaration[G] with SilverDeclarationImpl[G]
 final class SilverField[G](val t: Type[G])(implicit val o: Origin) extends SilverDeclaration[G] with SilverFieldImpl[G]
+
+sealed trait SilverType[G] extends Type[G] with SilverTypeImpl[G]
+case class SilverPartialTAxiomatic[G](ref: Ref[G, AxiomaticDataType[G]], partialTypeArgs: Seq[(Ref[G, Variable[G]], Type[G])])(implicit val o: Origin = DiagnosticOrigin) extends SilverType[G] with SilverPartialTAxiomaticImpl[G]

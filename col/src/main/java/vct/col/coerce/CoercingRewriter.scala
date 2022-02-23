@@ -535,10 +535,25 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         APerm(loc, rat(perm))
       case a @ ArraySubscript(arr, index) =>
         ArraySubscript(array(arr)._1, int(index))(a.blame)
+      case BagAdd(xs, ys) =>
+        val (left, TBag(leftT)) = bag(xs)
+        val (right, TBag(rightT)) = bag(ys)
+        val sharedElement = Types.leastCommonSuperType(leftT, rightT)
+        BagAdd(coerce(left, TBag(sharedElement)), coerce(right, TBag(sharedElement)))
+      case BagLargestCommon(xs, ys) =>
+        val (left, TBag(leftT)) = bag(xs)
+        val (right, TBag(rightT)) = bag(ys)
+        val sharedElement = Types.leastCommonSuperType(leftT, rightT)
+        BagLargestCommon(coerce(left, TBag(sharedElement)), coerce(right, TBag(sharedElement)))
       case BagMemberCount(x, xs) =>
         val (coercedBag, TBag(element)) = bag(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         BagMemberCount(coerce(x, sharedType), coerce(coercedBag, TBag(sharedType)))
+      case BagMinus(xs, ys) =>
+        val (left, TBag(leftT)) = bag(xs)
+        val (right, TBag(rightT)) = bag(ys)
+        val sharedElement = Types.leastCommonSuperType(leftT, rightT)
+        BagMinus(coerce(left, TBag(sharedElement)), coerce(right, TBag(sharedElement)))
       case BitAnd(left, right) =>
         BitAnd(int(left), int(right))
       case BitNot(arg) =>
@@ -882,10 +897,25 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         val (coercedSeq, seqType) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, seqType.element)
         SeqUpdate(coerce(coercedSeq, TSeq(sharedType)), int(i), coerce(x, sharedType))
+      case SetIntersection(xs, ys) =>
+        val (left, TSet(leftT)) = set(xs)
+        val (right, TSet(rightT)) = set(ys)
+        val sharedElement = Types.leastCommonSuperType(leftT, rightT)
+        SetIntersection(coerce(left, TSet(sharedElement)), coerce(right, TSet(sharedElement)))
       case SetMember(x, xs) =>
         val (coercedSet, setType) = set(xs)
         val sharedType = Types.leastCommonSuperType(x.t, setType.element)
         SetMember(coerce(x, sharedType), coerce(coercedSet, TSet(sharedType)))
+      case SetMinus(xs, ys) =>
+        val (left, TSet(leftT)) = set(xs)
+        val (right, TSet(rightT)) = set(ys)
+        val sharedElement = Types.leastCommonSuperType(leftT, rightT)
+        SetMinus(coerce(left, TSet(sharedElement)), coerce(right, TSet(sharedElement)))
+      case SetUnion(xs, ys) =>
+        val (left, TSet(leftT)) = set(xs)
+        val (right, TSet(rightT)) = set(ys)
+        val sharedElement = Types.leastCommonSuperType(leftT, rightT)
+        SetUnion(coerce(left, TSet(sharedElement)), coerce(right, TSet(sharedElement)))
       case SilverBagSize(xs) =>
         SilverBagSize(bag(xs)._1)
       case SilverCurFieldPerm(obj, field) =>
@@ -898,10 +928,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         SilverIntToRat(int(perm))
       case SilverNull() =>
         SilverNull()
+      case SilverPartialADTFunctionInvocation(name, args, partialTypeArgs) => e
       case SilverSetSize(xs) =>
         SilverSetSize(set(xs)._1)
       case SilverSeqSize(xs) =>
         SilverSeqSize(seq(xs)._1)
+      case SilverUntypedNonemptyLiteralMap(values) =>
+        SilverUntypedNonemptyLiteralMap(values)
       case Size(obj) =>
         Size(collection(obj)._1)
       case Slice(xs, from, to) =>

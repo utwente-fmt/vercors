@@ -1,5 +1,6 @@
 package vct.col.resolve
 
+import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
@@ -153,4 +154,15 @@ case object Spec {
     decl.decls.flatMap(Referrable.from).collectFirst {
       case ref @ RefADTFunction(f) if ref.name == name => f
     }
+
+  def findAdtFunction[G](name: String, ctx: ReferenceResolutionContext[G]): Option[(AxiomaticDataType[G], ADTFunction[G])] = {
+    for(adt <- ctx.stack.flatten.collect { case RefAxiomaticDataType(adt) => adt }) {
+      findAdtFunction(adt, name) match {
+        case Some(func) => return Some((adt, func))
+        case None =>
+      }
+    }
+
+    None
+  }
 }

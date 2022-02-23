@@ -180,6 +180,9 @@ case object ResolveReferences {
           // Non-qualified internal invocation
           ???
       }
+    case inv @ SilverPartialADTFunctionInvocation(name, args, partialTypeArgs) =>
+      inv.ref = Some(Spec.findAdtFunction(name, ctx).getOrElse(throw NoSuchNameError("function", name, inv)))
+      partialTypeArgs.foreach(mapping => mapping._1.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("type variable", name, inv))))
 
     case goto @ CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
