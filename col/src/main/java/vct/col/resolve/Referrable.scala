@@ -137,7 +137,7 @@ case class RefFunction[G](decl: Function[G]) extends Referrable[G] with SpecInvo
 case class RefProcedure[G](decl: Procedure[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefPredicate[G](decl: Predicate[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefClass[G](decl: Class[G]) extends Referrable[G] with PVLTypeNameTarget[G] with PVLNameTarget[G] with ThisTarget[G]
-case class RefModel[G](decl: Model[G]) extends Referrable[G] with SpecTypeNameTarget[G] with ThisTarget[G] with PVLConstructorTarget[G]
+case class RefModel[G](decl: Model[G]) extends Referrable[G] with SpecTypeNameTarget[G] with ThisTarget[G] with PVLConstructorTarget[G] with JavaConstructorTarget[G]
 case class RefJavaSharedInitialization[G](decl: JavaSharedInitialization[G]) extends Referrable[G]
 case class RefJavaField[G](decls: JavaFields[G], idx: Int) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
 case class RefJavaLocalDeclaration[G](decls: JavaLocalDeclaration[G], idx: Int) extends Referrable[G] with JavaNameTarget[G]

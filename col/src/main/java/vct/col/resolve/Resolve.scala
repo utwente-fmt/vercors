@@ -197,6 +197,7 @@ case object ResolveReferences {
     case res @ AmbiguousResult() =>
       res.ref = Some(ctx.currentResult.getOrElse(throw ResultOutsideMethod(res)))
     case diz @ AmbiguousThis() =>
+      // PB: now obsolete?
       diz.ref = Some(ctx.currentThis.get)
 
     case proc: ModelProcess[G] =>

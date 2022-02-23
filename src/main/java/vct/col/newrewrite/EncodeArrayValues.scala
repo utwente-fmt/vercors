@@ -3,10 +3,11 @@ package vct.col.newrewrite
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.coerce.CoercionUtils
+import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.{AbstractApplicable, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationResult.{Unreachable, UserError}
 
 import scala.collection.mutable
 
@@ -33,6 +34,12 @@ case object EncodeArrayValues extends RewriterBuilder {
         values.blame.blame(ArrayValuesPerm(values))
       case other => throw Unreachable(s"Invalid postcondition path sequence: $other")
     }
+  }
+
+  case class WrongDefaultElementArrayType(t: Type[_]) extends UserError {
+    override def code: String = "wrongArrElement"
+    override def text: String =
+      s"It is not possible to initialize an array of which the elements are of type `$t` to default values."
   }
 }
 
@@ -112,11 +119,50 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           forall(count + 1, access => Perm(access, WritePerm()))
       ))
 
+      val undefinedValue: Expr[Post] = FuncTools.repeat[Type[Pre]](TArray(_), undefinedDims, elementType) match {
+        case t: TUnion[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TVar[Pre] => throw WrongDefaultElementArrayType(t)
+        case TArray(_) => Null()
+        case TPointer(_) => Null()
+        case TSeq(element) => LiteralSeq(dispatch(element), Nil)
+        case TSet(element) => LiteralSet(dispatch(element), Nil)
+        case TBag(element) => LiteralBag(dispatch(element), Nil)
+        case TOption(_) => OptNone()
+        case t: TTuple[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TEither[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TMatrix[Pre] => throw WrongDefaultElementArrayType(t)
+        case TMap(key, value) => LiteralMap(dispatch(key), dispatch(value), Nil)
+        case t: TAny[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TNothing[Pre] => throw WrongDefaultElementArrayType(t)
+        case TVoid() => Void()
+        case TNull() => Null()
+        case TBool() => ff
+        case t: TResource[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TChar[Pre] => throw WrongDefaultElementArrayType(t)
+        case TString() => Null()
+        case TRef() => Null()
+        case TProcess() => EmptyProcess()
+        case TInt() => const(0)
+        case t: TBoundedInt[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TFloat[Pre] => throw WrongDefaultElementArrayType(t)
+        case TRational() => const(0)
+        case t: TFraction[Pre] => throw WrongDefaultElementArrayType(t)
+        case TZFraction() => const(0)
+        case t: TModel[Pre] => throw WrongDefaultElementArrayType(t)
+        case TClass(_) => Null()
+        case t: TAxiomatic[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TType[Pre] => throw WrongDefaultElementArrayType(t)
+        case _: TNotAValue[Pre] => throw ExtraNode
+        case _: CType[Pre] => throw ExtraNode
+        case _: JavaType[Pre] => throw ExtraNode
+        case _: PVLType[Pre] => throw ExtraNode
+      }
+
       procedure(
         blame = AbstractApplicable,
         returnType = FuncTools.repeat[Type[Post]](TArray(_), definedDims + undefinedDims, dispatch(elementType)),
         args = dimArgs,
-        ensures = UnitAccountedPredicate(ensures &* forall(definedDims, access => access === Null()))
+        ensures = UnitAccountedPredicate(ensures &* forall(definedDims, access => access === undefinedValue))
       )(ArrayCreationOrigin("make_array"))
     })
     p.declareDefault(this)

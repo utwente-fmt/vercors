@@ -267,6 +267,8 @@ case object Java {
         case Nil => definedConstructor.orElse(Some(ImplicitDefaultJavaConstructor()))
         case _ => definedConstructor
       }
+    case TModel(Ref(model)) if args.isEmpty =>
+      Some(RefModel(model))
     case _ => None
   }
 }
