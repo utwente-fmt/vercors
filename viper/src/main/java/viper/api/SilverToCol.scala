@@ -1,12 +1,13 @@
 package viper.api
 
-import vct.col.origin.{Blame, DerefPerm, Origin, SourceNameOrigin, VerificationFailure}
+import vct.col.origin.{Blame, DerefPerm, FileOrigin, Origin, SourceNameOrigin, VerificationFailure}
 import vct.col.ref.UnresolvedRef
 import vct.col.util.AstBuildHelpers._
 import viper.silver.{ast => silver}
 import vct.col.{ast => col}
 import vct.result.VerificationResult.UserError
 import viper.api.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
+import viper.silver.ast.{AbstractSourcePosition, FilePosition, HasIdentifier, HasLineColumn, IdentifierPosition, LineColumnPosition, NoPosition, SourcePosition, TranslatedPosition, VirtualPosition}
 import viper.silver.verifier.AbstractError
 
 import java.nio.file.Path
@@ -14,7 +15,13 @@ import java.nio.file.Path
 case object SilverToCol {
   case class SilverPositionOrigin(node: silver.Positioned) extends Origin {
     override def preferredName: String = "unknown"
-    override def context: String = node.pos.toString
+    override def context: String = node.pos match {
+      case NoPosition => "[Unknown position from silver parse tree]"
+      case pos: AbstractSourcePosition =>
+        val (start, end) = (pos.start, pos.end.getOrElse(pos.start))
+        FileOrigin(pos.file, start.line-1, start.column-1, end.line-1, end.column-1).context
+      case other => s"[Unknown silver position kind: $other]"
+    }
   }
 
   case class SilverNodeNotSupported(node: silver.Node) extends UserError {
@@ -160,7 +167,12 @@ case class SilverToCol[G](program: silver.Program) {
     case silver.Unfold(acc) =>
       col.Unfold(transform(acc))(blame(s))(origin(s))
     case silver.Seqn(ss, scopedDecls) =>
-      col.Block(ss.map(transform))(origin(s))
+      val vars = scopedDecls.map {
+        case decl @ silver.LocalVarDecl(_, typ) => new col.Variable(transform(typ))(origin(decl))
+        case other: silver.Node => ??(other)
+        case other: silver.Declaration => ???
+      }
+      col.Scope(vars, col.Block(ss.map(transform))(origin(s)))(origin(s))
     case silver.If(cond, thn, els) =>
       col.Branch(Seq(
         (transform(cond), transform(thn)),
@@ -226,8 +238,8 @@ case class SilverToCol[G](program: silver.Program) {
         if(left.typ.isInstanceOf[silver.SetType]) col.SetMinus(f(left), f(right))
         else col.BagMinus(f(left), f(right))
       case silver.AnySetSubset(left, right) =>
-        if(left.typ.isInstanceOf[silver.SetType]) col.SubSet(f(left), f(right))
-        else col.SubBag(f(left), f(right))
+        if(left.typ.isInstanceOf[silver.SetType]) col.SubSetEq(f(left), f(right))
+        else col.SubBagEq(f(left), f(right))
       case silver.AnySetUnion(left, right) =>
         if(left.typ.isInstanceOf[silver.SetType]) col.SetUnion(f(left), f(right))
         else col.BagAdd(f(left), f(right))
@@ -254,7 +266,9 @@ case class SilverToCol[G](program: silver.Program) {
       case silver.FalseLit() => col.BooleanValue(false)
       case silver.FieldAccess(rcv, field) => col.SilverDeref[G](f(rcv), new UnresolvedRef(field.name))(blame(e))
       case silver.FieldAccessPredicate(loc, perm) => col.Perm[G](col.SilverDeref[G](f(loc.rcv), new UnresolvedRef(loc.field.name))(DerefPerm), f(perm))
-      case silver.Forall(variables, triggers, exp) => col.Starall(variables.map(transform), triggers.map(transform), f(exp))
+      case silver.Forall(variables, triggers, exp) =>
+        if(exp.typ == silver.Bool) col.Forall(variables.map(transform), triggers.map(transform), f(exp))
+        else col.Starall(variables.map(transform), triggers.map(transform), f(exp))
       case silver.FractionalPerm(left, right) => col.Div(f(left), f(right))(blame(e))
       case silver.FullPerm() => col.WritePerm()
       case silver.FuncApp(funcname, args) => col.FunctionInvocation[G](new UnresolvedRef(funcname), args.map(f), Nil, Nil, Nil)(blame(e))

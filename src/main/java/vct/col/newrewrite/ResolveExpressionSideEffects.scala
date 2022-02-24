@@ -229,9 +229,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case continue: Continue[Pre] => rewriteDefault(continue)
       case commit: Commit[Pre] => rewriteDefault(commit)
       case par: ParStatement[Pre] => rewriteDefault(par)
+      case n: SilverNewRef[Pre] => rewriteDefault(n)
+      case assn: SilverFieldAssign[Pre] => rewriteDefault(assn)
+      case assn: SilverLocalAssign[Pre] => rewriteDefault(assn)
       case _: CStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode
-      case _: SilverStatement[Pre] => throw ExtraNode
     }
   }
 

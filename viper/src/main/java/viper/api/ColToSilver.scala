@@ -288,7 +288,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Less(left, right) => silver.LtCmp(exp(left), exp(right))(info=expInfo(e))
     case col.GreaterEq(left, right) => silver.GeCmp(exp(left), exp(right))(info=expInfo(e))
     case col.LessEq(left, right) => silver.LeCmp(exp(left), exp(right))(info=expInfo(e))
-    case col.SubSet(left, right) => silver.AnySetSubset(exp(left), exp(right))(info=expInfo(e))
+    case col.SubSetEq(left, right) => silver.AnySetSubset(exp(left), exp(right))(info=expInfo(e))
     case col.SubBag(left, right) => silver.AnySetSubset(exp(left), exp(right))(info=expInfo(e))
 
     case subscript@col.SeqSubscript(seq, index) =>

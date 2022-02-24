@@ -467,6 +467,21 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
             AmbiguousLessEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           },
         )
+      case AmbiguousMinus(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, a set or a bag but got ${left.t} and ${right.t}.",
+          Minus(int(left), int(right)),
+          Minus(rat(left), rat(right)), {
+            val (coercedLeft, TSet(elementLeft)) = set(left)
+            val (coercedRight, TSet(elementRight)) = set(right)
+            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
+            AmbiguousMinus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
+          }, {
+            val (coercedLeft, TBag(elementLeft)) = bag(left)
+            val (coercedRight, TBag(elementRight)) = bag(right)
+            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
+            AmbiguousMinus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+          }
+        )
       case AmbiguousMember(x, xs) =>
         firstOk(xs, s"Expected collection to be a sequence, set, bag or map, but got ${xs.t}.", {
           val (coercedXs, TSeq(element)) = seq(xs)
@@ -485,10 +500,20 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
           AmbiguousMember(coerce(x, element), coercedXs)
         })
       case AmbiguousMult(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric or a process, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numericm a process, a set or a bag but got ${left.t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
           AmbiguousMult(rat(left), rat(right)),
-          AmbiguousMult(process(left), process(right)),
+          AmbiguousMult(process(left), process(right)), {
+            val (coercedLeft, TSet(elementLeft)) = set(left)
+            val (coercedRight, TSet(elementRight)) = set(right)
+            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
+            AmbiguousMult(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
+          }, {
+            val (coercedLeft, TBag(elementLeft)) = bag(left)
+            val (coercedRight, TBag(elementRight)) = bag(right)
+            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
+            AmbiguousMult(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+          }
         )
       case AmbiguousOr(left, right) =>
         firstOk(e, s"Expected both operands to be boolean or a process, but got ${left.t} and ${right.t}.",

@@ -56,6 +56,12 @@ case object LangSpecificToCol extends RewriterBuilder {
     override def preferredName: String = cls.name + "Statics"
     override def context: String = cls.o.context
   }
+
+  case class IncompleteTypeArgs(t: SilverPartialADTFunctionInvocation[_]) extends UserError {
+    override def code: String = "incompleteTypeArgs"
+    override def text: String =
+      t.o.messageInContext("This function invocation does not specify all generic types for the domain.")
+  }
 }
 
 case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
@@ -685,6 +691,16 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       With(Block(stats.toSeq)(e.o), value)(e.o)
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
+
+    case inv @ SilverPartialADTFunctionInvocation(_, args, _) =>
+      inv.maybeTypeArgs match {
+        case None => throw IncompleteTypeArgs(inv)
+        case Some(typeArgs) =>
+          ADTFunctionInvocation[Post](Some(succ(inv.adt), typeArgs.map(dispatch)), succ(inv.function), args.map(dispatch))(inv.o)
+      }
+
+    case map @ SilverUntypedNonemptyLiteralMap(values) =>
+      LiteralMap(dispatch(map.keyType), dispatch(map.valueType), values.map { case (k, v) => (dispatch(k), dispatch(v)) })(map.o)
 
     case other => rewriteDefault(other)
   }

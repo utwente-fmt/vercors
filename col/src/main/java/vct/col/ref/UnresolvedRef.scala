@@ -13,7 +13,8 @@ class UnresolvedRef[G, Decl <: Declaration[G]](val name: String)(implicit tag: C
   def resolve(decl: Declaration[G]): Unit = resolvedDecl = Some(decl)
 
   def decl: Decl = resolvedDecl match {
-    case None => throw NotResolved(this, tag)
+    case None =>
+      throw NotResolved(this, tag)
     case Some(decl: /*tagged*/ Decl) => decl
     case Some(other) => throw ref.MistypedRef(other, tag)
   }

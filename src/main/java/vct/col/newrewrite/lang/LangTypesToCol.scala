@@ -1,16 +1,23 @@
 package vct.col.newrewrite.lang
 
-import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CInit, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
+import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CInit, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
 import vct.col.origin.Origin
 import vct.col.resolve.{C, RefAxiomaticDataType, RefClass, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast.RewriteHelpers._
+import vct.col.newrewrite.lang.LangTypesToCol.IncompleteTypeArgs
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.result.VerificationResult.UserError
 
 import scala.reflect.ClassTag
 
-case object LangTypesToCol extends RewriterBuilder
+case object LangTypesToCol extends RewriterBuilder {
+  case class IncompleteTypeArgs(t: SilverPartialTAxiomatic[_]) extends UserError {
+    override def code: String = "incompleteTypeArgs"
+    override def text: String =
+      t.o.messageInContext("This type does not specify all generic types for the domain.")
+  }
+}
 
 case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
   override def succ[DPost <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, _ <: Declaration[Pre]])(implicit tag: ClassTag[DPost]): Ref[Rewritten[Pre], DPost] =
@@ -39,6 +46,11 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         }
       case t @ CPrimitiveType(specs) =>
         dispatch(C.getPrimitiveType(specs, context = Some(t)))
+      case t @ SilverPartialTAxiomatic(Ref(adt), partialTypeArgs) =>
+        if(partialTypeArgs.map(_._1.decl).toSet != adt.typeArgs.toSet)
+          throw IncompleteTypeArgs(t)
+
+        TAxiomatic(succ(adt), adt.typeArgs.map(arg => dispatch(t.partialTypeArgs.find(_._1.decl == arg).get._2)))
       case other => rewriteDefault(other)
     }
   }
