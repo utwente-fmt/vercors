@@ -73,7 +73,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   def effect(stat: Statement[Post]): Unit = {
     flushExtractedExpressions()
-    executionContext.top(stat)
+    implicit val o: Origin = SideEffectOrigin
+    executionContext.top(Branch(Seq((foldAnd(currentConditions.toSeq), stat))))
   }
 
   case class ReInliner() extends NonLatchingRewriter[Post, Post] {
@@ -342,7 +343,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       stored(value, oldValue.t)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
-      res.declareDefault(this)
+      res.succeedDefault(res.asInstanceOf[Variable[Pre]])
       effect(InvokeMethod[Post](
         obj = inlined(obj),
         ref = succ(method),
@@ -352,11 +353,10 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(e.o))
-      currentlyExtracted(res) = (currentConditions.toSeq, res.get(ResultVar))
-      Local[Post](res.ref)(ResultVar)
+      stored(res.get(SideEffectOrigin), method.returnType)
     case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
-      res.declareDefault(this)
+      res.succeedDefault(res.asInstanceOf[Variable[Pre]])
       effect(InvokeProcedure[Post](
         ref = succ(method),
         args = args.map(inlined),
@@ -365,8 +365,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(e.o))
-      currentlyExtracted(res) = (currentConditions.toSeq, res.get(ResultVar))
-      Local[Post](res.ref)(ResultVar)
+      stored(res.get(SideEffectOrigin), method.returnType)
     case other =>
       stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
   }

@@ -44,22 +44,22 @@ case object Test {
 
       var dumpCount = 0
 
-      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-        if(c.files.asScala.forall(f => Seq("sil", "c", "java", "pvl", "cu").exists(ext => f.toString.endsWith("." + ext)))) {
-          tryParse(c.files.asScala.toSeq)
-//          System.gc()
-//          val server = ManagementFactory.getPlatformMBeanServer
-//          val mxBean = ManagementFactory.newPlatformMXBeanProxy(server, "com.sun.management:type=HotSpotDiagnostic", classOf[HotSpotDiagnosticMXBean])
-//          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
-//          dumpCount += 1
-        } else {
-          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
-        }
-      })
+//      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
+//        if(c.files.asScala.forall(f => Seq("sil", "c", "java", "pvl", "cu").exists(ext => f.toString.endsWith("." + ext)))) {
+//          tryParse(c.files.asScala.toSeq)
+////          System.gc()
+////          val server = ManagementFactory.getPlatformMBeanServer
+////          val mxBean = ManagementFactory.newPlatformMXBeanProxy(server, "com.sun.management:type=HotSpotDiagnostic", classOf[HotSpotDiagnosticMXBean])
+////          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
+////          dumpCount += 1
+//        } else {
+//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+//        }
+//      })
 
-      val paths = Seq("examples/domains/option.sil")
+      val paths = Seq("examples/basic/TernaryOperator.java")
 
-//      tryParse(paths.map(Paths.get(_)))
+      tryParse(paths.map(Paths.get(_)))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
